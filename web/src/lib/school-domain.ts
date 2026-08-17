@@ -121,6 +121,74 @@ export type TeachingSubmission = {
     createdAt: string;
     updatedAt: string;
 };
+export type CommercialOrderInput = {
+    title: string;
+    requirements?: string;
+    referenceMaterials?: unknown[];
+    acceptanceCriteria?: string;
+    internalAmountCents: number;
+    deadlineAt?: string;
+};
+export type AdminCommercialOrder = {
+    id: string;
+    title: string;
+    requirements: string;
+    referenceMaterials: unknown[];
+    acceptanceCriteria: string;
+    internalAmountCents: number;
+    deadlineAt?: string;
+    assignedSchoolId?: string;
+    teacherMembershipId?: string;
+    classId?: string;
+    status: CommercialOrderStatus;
+    platformFeedback: string;
+    createdAt: string;
+    updatedAt: string;
+};
+export type SchoolCommercialOrder = {
+    id: string;
+    title: string;
+    requirements: string;
+    referenceMaterials: unknown[];
+    acceptanceCriteria: string;
+    deadlineAt?: string;
+    assignedSchoolId: string;
+    teacherMembershipId?: string;
+    teacher?: SchoolPublicIdentity;
+    classId?: string;
+    className?: string;
+    status: CommercialOrderStatus;
+    platformFeedback: string;
+    createdAt: string;
+    updatedAt: string;
+};
+export type CommercialOrderParticipantSubmission = {
+    id: string;
+    orderId: string;
+    membershipId: string;
+    participant: SchoolPublicIdentity;
+    candidateReferences: SchoolContentReference[];
+    note: string;
+    status: "active" | "submitted";
+    submittedAt?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+export type CommercialOrderDelivery = {
+    id: string;
+    orderId: string;
+    submittedByMembershipId: string;
+    submittedBy: SchoolPublicIdentity;
+    contentReferences: SchoolContentReference[];
+    note: string;
+    status: "submitted" | "revision_required" | "accepted";
+    platformFeedback: string;
+    submittedAt: string;
+    reviewedAt?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+export type AdminCommercialOrderDetails = { order: AdminCommercialOrder; deliveries: PageResult<CommercialOrderDelivery> };
 
 const SCHOOL_MEMBER_ROLE_SET = new Set<SchoolMemberRole>(SCHOOL_MEMBER_ROLES);
 const SCHOOL_PERMISSION_SET = new Set<SchoolPermission>(SCHOOL_PERMISSIONS);

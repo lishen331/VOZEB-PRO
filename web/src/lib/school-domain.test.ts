@@ -9,6 +9,8 @@ import {
     normalizeSchoolMemberRole,
     normalizeSchoolPermissions,
     type CommercialOrderStatus,
+    type AdminCommercialOrder,
+    type SchoolCommercialOrder,
 } from "./school-domain";
 
 describe("school domain contracts", () => {
@@ -53,5 +55,12 @@ describe("school domain contracts", () => {
                 expect(canTransitionCommercialOrder(from, to), `${from} -> ${to}`).toBe(allowed.some(([allowedFrom, allowedTo]) => allowedFrom === from && allowedTo === to));
             }
         }
+    });
+
+    it("keeps internal amount out of school commercial order DTOs", () => {
+        const admin = { internalAmountCents: 1200 } as AdminCommercialOrder;
+        const school = { id: "order-a", title: "商单" } as SchoolCommercialOrder;
+        expect(admin.internalAmountCents).toBe(1200);
+        expect(JSON.stringify(school)).not.toContain("internalAmountCents");
     });
 });

@@ -125,6 +125,8 @@ export type CommercialOrderRecord = {
     createdAt: string;
     updatedAt: string;
 };
+export type CommercialOrderDraftUpdate = Partial<Pick<CommercialOrderRecord, "title" | "requirements" | "referenceMaterials" | "acceptanceCriteria" | "internalAmountCents" | "deadlineAt">> & { updatedAt: string };
+export type CommercialOrderConfigurationUpdate = Pick<CommercialOrderRecord, "teacherMembershipId" | "classId"> & { updatedAt: string };
 export type CommercialOrderParticipantRecord = {
     id: string;
     schoolId: string;
@@ -137,6 +139,7 @@ export type CommercialOrderParticipantRecord = {
     createdAt: string;
     updatedAt: string;
 };
+export type CommercialOrderParticipantUpdate = Partial<Pick<CommercialOrderParticipantRecord, "candidateReferences" | "note" | "status" | "submittedAt">> & { updatedAt: string };
 export type CommercialOrderDeliveryRecord = {
     id: string;
     schoolId: string;
@@ -151,6 +154,7 @@ export type CommercialOrderDeliveryRecord = {
     createdAt: string;
     updatedAt: string;
 };
+export type CommercialOrderDeliveryUpdate = Pick<CommercialOrderDeliveryRecord, "status" | "platformFeedback" | "reviewedAt"> & { updatedAt: string };
 
 export interface SchoolDomainRepository {
     listSchools(input: PageQuery & { keyword?: string; status?: SchoolStatus }): Promise<Page<SchoolRecord>>;
@@ -192,6 +196,21 @@ export interface SchoolDomainRepository {
     isClassMember(schoolId: string, classId: string, membershipId: string): Promise<boolean>;
     getCommercialOrder(schoolId: string, orderId: string, forUpdate?: boolean): Promise<CommercialOrderRecord | null>;
     listCommercialOrders(schoolId: string, input: OrderPageQuery): Promise<Page<CommercialOrderRecord>>;
+    getPlatformCommercialOrder(orderId: string, forUpdate?: boolean): Promise<CommercialOrderRecord | null>;
+    listPlatformCommercialOrders(input: OrderPageQuery): Promise<Page<CommercialOrderRecord>>;
+    updateCommercialOrderDraft(orderId: string, patch: CommercialOrderDraftUpdate): Promise<CommercialOrderRecord | null>;
+    assignCommercialOrderToSchool(orderId: string, schoolId: string, updatedAt: string): Promise<CommercialOrderRecord | null>;
+    configureCommercialOrder(schoolId: string, orderId: string, patch: CommercialOrderConfigurationUpdate): Promise<CommercialOrderRecord | null>;
+    listCommercialOrdersForTeacher(schoolId: string, membershipId: string, input: OrderPageQuery): Promise<Page<CommercialOrderRecord>>;
+    listCommercialOrdersForParticipant(schoolId: string, membershipId: string, input: OrderPageQuery): Promise<Page<CommercialOrderRecord>>;
+    listCommercialOrderParticipants(schoolId: string, orderId: string, input: PageQuery): Promise<Page<CommercialOrderParticipantRecord>>;
+    hasActiveCommercialOrderParticipant(schoolId: string, orderId: string): Promise<boolean>;
+    getCommercialOrderParticipant(schoolId: string, orderId: string, membershipId: string, forUpdate?: boolean): Promise<CommercialOrderParticipantRecord | null>;
+    replaceCommercialOrderParticipants(schoolId: string, orderId: string, records: CommercialOrderParticipantRecord[]): Promise<void>;
+    updateCommercialOrderParticipant(schoolId: string, orderId: string, membershipId: string, patch: CommercialOrderParticipantUpdate): Promise<CommercialOrderParticipantRecord | null>;
+    listCommercialOrderDeliveries(schoolId: string, orderId: string, input: PageQuery): Promise<Page<CommercialOrderDeliveryRecord>>;
+    getLatestCommercialOrderDelivery(orderId: string, forUpdate?: boolean): Promise<CommercialOrderDeliveryRecord | null>;
+    updateCommercialOrderDelivery(deliveryId: string, patch: CommercialOrderDeliveryUpdate): Promise<CommercialOrderDeliveryRecord | null>;
     insertSchool(record: SchoolRecord): Promise<SchoolRecord>;
     insertMembership(record: SchoolMembershipRecord): Promise<SchoolMembershipRecord>;
     insertClass(record: SchoolClassRecord): Promise<SchoolClassRecord>;
@@ -205,6 +224,7 @@ export interface SchoolDomainRepository {
     insertCommercialOrderParticipant(record: CommercialOrderParticipantRecord): Promise<CommercialOrderParticipantRecord>;
     insertCommercialOrderDelivery(record: CommercialOrderDeliveryRecord): Promise<CommercialOrderDeliveryRecord>;
     compareAndSetCommercialOrderStatus(schoolId: string, orderId: string, expected: CommercialOrderStatus, next: CommercialOrderStatus, updatedAt: string): Promise<boolean>;
+    compareAndSetPlatformCommercialOrderStatus(orderId: string, expected: CommercialOrderStatus, next: CommercialOrderStatus, updatedAt: string, platformFeedback?: string): Promise<boolean>;
     transact<T>(operation: (repository: SchoolDomainRepository) => Promise<T>): Promise<T>;
 }
 

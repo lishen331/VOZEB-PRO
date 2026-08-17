@@ -4,8 +4,12 @@ import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib
 import { SchoolDomainReferenceConflictError } from "@/lib/server/school-domain-errors";
 import type {
     CommercialOrderParticipantRecord,
+    CommercialOrderParticipantUpdate,
     CommercialOrderRecord,
     CommercialOrderDeliveryRecord,
+    CommercialOrderDeliveryUpdate,
+    CommercialOrderDraftUpdate,
+    CommercialOrderConfigurationUpdate,
     ClassPageQuery,
     MemberPageQuery,
     OrderPageQuery,
@@ -414,6 +418,137 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         );
     }
 
+    async getPlatformCommercialOrder(orderId: string) {
+        return detached((await this.read()).commercialOrders.find((item) => item.id === orderId));
+    }
+
+    async listPlatformCommercialOrders(input: OrderPageQuery) {
+        const keyword = input.keyword?.trim().toLowerCase();
+        return paginate(
+            (await this.read()).commercialOrders.filter((item) => (!input.status || item.status === input.status) && (!keyword || item.id.toLowerCase().includes(keyword) || item.title.toLowerCase().includes(keyword))),
+            input,
+        );
+    }
+
+    updateCommercialOrderDraft(orderId: string, patch: CommercialOrderDraftUpdate) {
+        return this.mutate((state) => {
+            const order = state.commercialOrders.find((item) => item.id === orderId && item.status === "draft");
+            if (!order) return null;
+            Object.assign(order, patch);
+            if (patch.deadlineAt === "") delete order.deadlineAt;
+            return structuredClone(order);
+        });
+    }
+
+    assignCommercialOrderToSchool(orderId: string, schoolId: string, updatedAt: string) {
+        return this.mutate((state) => {
+            const order = state.commercialOrders.find((item) => item.id === orderId && (item.status === "draft" || item.status === "assigned"));
+            if (!order) return null;
+            if (!state.schools.some((item) => item.id === schoolId && item.status === "active")) throw new Error("学校不存在或已停用");
+            if (order.assignedSchoolId && order.assignedSchoolId !== schoolId) {
+                state.commercialOrderParticipants = state.commercialOrderParticipants.filter((item) => item.orderId !== orderId);
+                state.commercialOrderDeliveries = state.commercialOrderDeliveries.filter((item) => item.orderId !== orderId);
+                delete order.teacherMembershipId;
+                delete order.classId;
+            }
+            order.assignedSchoolId = schoolId;
+            order.status = "assigned";
+            order.updatedAt = updatedAt;
+            return structuredClone(order);
+        });
+    }
+
+    configureCommercialOrder(schoolId: string, orderId: string, patch: CommercialOrderConfigurationUpdate) {
+        return this.mutate((state) => {
+            const order = state.commercialOrders.find((item) => item.assignedSchoolId === schoolId && item.id === orderId);
+            if (!order) return null;
+            if (patch.teacherMembershipId) assertSchoolRelation(state.memberships, schoolId, patch.teacherMembershipId, "学校成员");
+            if (patch.classId) assertSchoolRelation(state.classes, schoolId, patch.classId, "班级");
+            Object.assign(order, patch);
+            if (!patch.classId) delete order.classId;
+            return structuredClone(order);
+        });
+    }
+
+    async listCommercialOrdersForTeacher(schoolId: string, membershipId: string, input: OrderPageQuery) {
+        return this.filterCommercialOrders(input, (item) => item.assignedSchoolId === schoolId && item.teacherMembershipId === membershipId);
+    }
+
+    async listCommercialOrdersForParticipant(schoolId: string, membershipId: string, input: OrderPageQuery) {
+        const state = await this.read();
+        const ids = new Set(state.commercialOrderParticipants.filter((item) => item.schoolId === schoolId && item.membershipId === membershipId).map((item) => item.orderId));
+        return paginate(
+            filterOrders(state.commercialOrders, input, (item) => item.assignedSchoolId === schoolId && ids.has(item.id)),
+            input,
+        );
+    }
+
+    async listCommercialOrderParticipants(schoolId: string, orderId: string, input: PageQuery) {
+        return paginate(
+            (await this.read()).commercialOrderParticipants.filter((item) => item.schoolId === schoolId && item.orderId === orderId),
+            input,
+        );
+    }
+
+    async hasActiveCommercialOrderParticipant(schoolId: string, orderId: string) {
+        const state = await this.read();
+        return state.commercialOrderParticipants.some(
+            (participant) =>
+                participant.schoolId === schoolId &&
+                participant.orderId === orderId &&
+                state.memberships.some((membership) => membership.schoolId === schoolId && membership.id === participant.membershipId && membership.role === "student" && membership.status === "active"),
+        );
+    }
+
+    async getCommercialOrderParticipant(schoolId: string, orderId: string, membershipId: string) {
+        return detached((await this.read()).commercialOrderParticipants.find((item) => item.schoolId === schoolId && item.orderId === orderId && item.membershipId === membershipId));
+    }
+
+    replaceCommercialOrderParticipants(schoolId: string, orderId: string, records: CommercialOrderParticipantRecord[]) {
+        return this.mutate((state) => {
+            assertCommercialOrderRelation(state, schoolId, orderId);
+            const membershipIds = new Set<string>();
+            for (const record of records) {
+                if (record.schoolId !== schoolId || record.orderId !== orderId || membershipIds.has(record.membershipId)) throw new Error("商单参与记录无效");
+                assertSchoolRelation(state.memberships, schoolId, record.membershipId, "学校成员");
+                membershipIds.add(record.membershipId);
+            }
+            state.commercialOrderParticipants = state.commercialOrderParticipants.filter((item) => item.schoolId !== schoolId || item.orderId !== orderId);
+            state.commercialOrderParticipants.push(...structuredClone(records));
+        });
+    }
+
+    updateCommercialOrderParticipant(schoolId: string, orderId: string, membershipId: string, patch: CommercialOrderParticipantUpdate) {
+        return this.mutate((state) => {
+            const participant = state.commercialOrderParticipants.find((item) => item.schoolId === schoolId && item.orderId === orderId && item.membershipId === membershipId);
+            if (!participant) return null;
+            Object.assign(participant, patch);
+            if (patch.submittedAt === "") delete participant.submittedAt;
+            return structuredClone(participant);
+        });
+    }
+
+    async listCommercialOrderDeliveries(schoolId: string, orderId: string, input: PageQuery) {
+        return paginate(
+            (await this.read()).commercialOrderDeliveries.filter((item) => item.schoolId === schoolId && item.orderId === orderId),
+            input,
+        );
+    }
+
+    async getLatestCommercialOrderDelivery(orderId: string) {
+        return detached((await this.read()).commercialOrderDeliveries.filter((item) => item.orderId === orderId).sort((left, right) => right.submittedAt.localeCompare(left.submittedAt) || right.id.localeCompare(left.id))[0]);
+    }
+
+    updateCommercialOrderDelivery(deliveryId: string, patch: CommercialOrderDeliveryUpdate) {
+        return this.mutate((state) => {
+            const delivery = state.commercialOrderDeliveries.find((item) => item.id === deliveryId);
+            if (!delivery) return null;
+            Object.assign(delivery, patch);
+            if (!patch.reviewedAt) delete delivery.reviewedAt;
+            return structuredClone(delivery);
+        });
+    }
+
     insertSchool(record: SchoolRecord) {
         return this.insert("schools", record);
     }
@@ -554,6 +689,17 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         });
     }
 
+    compareAndSetPlatformCommercialOrderStatus(orderId: string, expected: CommercialOrderStatus, next: CommercialOrderStatus, updatedAt: string, platformFeedback?: string) {
+        return this.mutate((state) => {
+            const order = state.commercialOrders.find((item) => item.id === orderId && item.status === expected);
+            if (!order) return false;
+            order.status = next;
+            order.updatedAt = updatedAt;
+            if (platformFeedback !== undefined) order.platformFeedback = platformFeedback;
+            return true;
+        });
+    }
+
     transact<T>(operation: (repository: SchoolDomainRepository) => Promise<T>): Promise<T> {
         if (this.transactionState) return operation(this);
         return this.mutate((state) => operation(new FileSchoolDomainRepository(state)));
@@ -589,6 +735,10 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         );
         return pending;
     }
+
+    private async filterCommercialOrders(input: OrderPageQuery, predicate: (record: CommercialOrderRecord) => boolean) {
+        return paginate(filterOrders((await this.read()).commercialOrders, input, predicate), input);
+    }
 }
 
 function normalizeFile(value: Partial<SchoolDomainFile>): SchoolDomainFile {
@@ -620,6 +770,11 @@ function paginate<T extends { id: string; updatedAt?: string; createdAt?: string
     const pageSize = Math.min(100, normalizePositiveInteger(input.pageSize, 20));
     const sorted = [...records].sort((left, right) => (right.updatedAt || right.createdAt || "").localeCompare(left.updatedAt || left.createdAt || "") || right.id.localeCompare(left.id));
     return { items: structuredClone(sorted.slice((page - 1) * pageSize, page * pageSize)), total: sorted.length, page, pageSize };
+}
+
+function filterOrders(records: CommercialOrderRecord[], input: OrderPageQuery, predicate: (record: CommercialOrderRecord) => boolean) {
+    const keyword = input.keyword?.trim().toLowerCase();
+    return records.filter((item) => predicate(item) && (!input.status || item.status === input.status) && (!keyword || item.id.toLowerCase().includes(keyword) || item.title.toLowerCase().includes(keyword)));
 }
 
 function detached<T>(value: T | undefined): T | null {

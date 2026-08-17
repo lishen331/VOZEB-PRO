@@ -178,12 +178,17 @@ CREATE TABLE IF NOT EXISTS commercial_orders (
     updated_at timestamptz NOT NULL DEFAULT now(),
     UNIQUE (assigned_school_id, id),
     CHECK (status IN ('draft', 'cancelled') OR assigned_school_id IS NOT NULL),
+    CONSTRAINT commercial_orders_assignment_configuration CHECK (assigned_school_id IS NOT NULL OR (teacher_membership_id IS NULL AND class_id IS NULL)),
     FOREIGN KEY (assigned_school_id, teacher_membership_id) REFERENCES school_memberships(school_id, id),
     FOREIGN KEY (assigned_school_id, class_id) REFERENCES school_classes(school_id, id)
 );
 
 CREATE INDEX IF NOT EXISTS commercial_orders_status_updated_idx ON commercial_orders (status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS commercial_orders_school_status_updated_idx ON commercial_orders (assigned_school_id, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS commercial_orders_school_teacher_updated_idx ON commercial_orders (assigned_school_id, teacher_membership_id, updated_at DESC);
+
+ALTER TABLE commercial_orders DROP CONSTRAINT IF EXISTS commercial_orders_assignment_configuration;
+ALTER TABLE commercial_orders ADD CONSTRAINT commercial_orders_assignment_configuration CHECK (assigned_school_id IS NOT NULL OR (teacher_membership_id IS NULL AND class_id IS NULL));
 
 CREATE TABLE IF NOT EXISTS commercial_order_participants (
     id text PRIMARY KEY,

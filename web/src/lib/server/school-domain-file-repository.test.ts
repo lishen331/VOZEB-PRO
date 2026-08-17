@@ -167,6 +167,50 @@ describe("file school domain repository", () => {
         await expect(repository.insertCommercialOrderParticipant(participant("duplicate-participant"))).rejects.toThrow("商单参与记录已存在");
     });
 
+    it("supports the commercial order workflow with tenant-scoped teacher and student reads", async () => {
+        const repository = createFileSchoolDomainRepository();
+        await seedTeachingDomain(repository);
+        await repository.insertCommercialOrder(order("order-a", undefined, "draft"));
+
+        await expect(repository.listPlatformCommercialOrders({ page: 1, pageSize: 20, status: "draft" })).resolves.toMatchObject({ total: 1, items: [{ id: "order-a" }] });
+        await expect(repository.updateCommercialOrderDraft("order-a", { title: "更新商单", internalAmountCents: 1250, updatedAt: now })).resolves.toMatchObject({ title: "更新商单", internalAmountCents: 1250 });
+        await expect(repository.assignCommercialOrderToSchool("order-a", "school-a", now)).resolves.toMatchObject({ assignedSchoolId: "school-a", status: "assigned" });
+        await expect(repository.configureCommercialOrder("school-a", "order-a", { teacherMembershipId: "teacher-a", classId: "class-a", updatedAt: now })).resolves.toMatchObject({ teacherMembershipId: "teacher-a", classId: "class-a" });
+        await repository.replaceCommercialOrderParticipants("school-a", "order-a", [participant("participant-a")]);
+        await expect(repository.hasActiveCommercialOrderParticipant("school-a", "order-a")).resolves.toBe(true);
+        await expect(repository.assignCommercialOrderToSchool("order-a", "school-a", now)).resolves.toMatchObject({ teacherMembershipId: "teacher-a", classId: "class-a" });
+        await expect(repository.listCommercialOrderParticipants("school-a", "order-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1 });
+
+        await expect(repository.listCommercialOrdersForTeacher("school-a", "teacher-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "order-a" }] });
+        await expect(repository.listCommercialOrdersForParticipant("school-a", "student-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "order-a" }] });
+        await expect(repository.getCommercialOrderParticipant("school-a", "order-a", "student-a", true)).resolves.toMatchObject({ id: "participant-a", status: "active" });
+        await expect(repository.updateCommercialOrderParticipant("school-a", "order-a", "student-a", { candidateReferences: [{ type: "work", id: "work-a" }], note: "候选", status: "submitted", submittedAt: now, updatedAt: now })).resolves.toMatchObject({
+            status: "submitted",
+            note: "候选",
+        });
+
+        await repository.insertCommercialOrderDelivery({
+            id: "delivery-a",
+            schoolId: "school-a",
+            orderId: "order-a",
+            submittedByMembershipId: "teacher-a",
+            contentReferences: [{ type: "work", id: "work-a" }],
+            note: "正式交付",
+            status: "submitted",
+            platformFeedback: "",
+            submittedAt: now,
+            createdAt: now,
+            updatedAt: now,
+        });
+        await expect(repository.getLatestCommercialOrderDelivery("order-a", true)).resolves.toMatchObject({ id: "delivery-a", status: "submitted" });
+        await expect(repository.updateCommercialOrderDelivery("delivery-a", { status: "accepted", platformFeedback: "通过", reviewedAt: now, updatedAt: now })).resolves.toMatchObject({ status: "accepted", platformFeedback: "通过" });
+        await expect(repository.compareAndSetPlatformCommercialOrderStatus("order-a", "assigned", "accepted", now)).resolves.toBe(true);
+        await expect(repository.compareAndSetPlatformCommercialOrderStatus("order-a", "assigned", "cancelled", now)).resolves.toBe(false);
+
+        await repository.updateMembership("school-a", "student-a", { status: "disabled", updatedAt: now });
+        await expect(repository.hasActiveCommercialOrderParticipant("school-a", "order-a")).resolves.toBe(false);
+    });
+
     it("supports tenant-scoped organization maintenance operations", async () => {
         const repository = createFileSchoolDomainRepository();
         await repository.insertSchool(school("school-a", "甲学校"));

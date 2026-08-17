@@ -44,7 +44,7 @@ describe("PostgreSQL school domain schema", () => {
 
     afterAll(async () => {
         if (process.env.VOZEB_PRO_RUN_POSTGRES_INTEGRATION !== "1") return;
-        await postgresQuery("DELETE FROM commercial_orders WHERE id = $1", [ids.order]);
+        await postgresQuery("DELETE FROM commercial_orders WHERE id = ANY($1::text[])", [[ids.order, `unassigned-config-${suffix}`]]);
         await postgresQuery("DELETE FROM school_invite_codes WHERE school_id IN ($1, $2)", [ids.schoolA, ids.schoolB]);
         await postgresQuery("DELETE FROM school_course_assignments WHERE course_id = $1", [ids.course]);
         await postgresQuery("DELETE FROM platform_courses WHERE id = $1", [ids.course]);
@@ -81,5 +81,11 @@ describe("PostgreSQL school domain schema", () => {
 
         expect(columns.rows.map((row) => row.column_name)).toContain("assigned_school_id");
         expect(collaborationTables.rows).toEqual([]);
+    });
+
+    postgresIt("rejects commercial order configuration before school assignment", async () => {
+        await expect(
+            postgresQuery("INSERT INTO commercial_orders (id, title, internal_amount_cents, teacher_membership_id, status) VALUES ($1, $2, $3, $4, 'draft')", [`unassigned-config-${suffix}`, "错误商单", 100, ids.membershipA]),
+        ).rejects.toMatchObject({ code: "23514" });
     });
 });

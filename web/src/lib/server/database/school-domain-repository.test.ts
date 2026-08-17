@@ -10,6 +10,7 @@ const postgresIt = process.env.VOZEB_PRO_RUN_POSTGRES_INTEGRATION === "1" ? it :
 const suffix = randomUUID();
 const id = (value: string) => `school-repository-${value}-${suffix}`;
 const now = "2026-08-17T00:00:00.000Z";
+const teacherEmail = `repository.teacher.${suffix}@example.com`;
 
 describe("PostgreSQL school domain repository", () => {
     beforeAll(async () => {
@@ -30,12 +31,12 @@ describe("PostgreSQL school domain repository", () => {
             "Repository 外校学生",
             "integration-test-only",
         ]);
-        await postgresQuery("UPDATE users SET email = $1 WHERE id = $2", ["repository.teacher@example.com", id("teacher-user")]);
+        await postgresQuery("UPDATE users SET email = $1 WHERE id = $2", [teacherEmail, id("teacher-user")]);
     });
 
     afterAll(async () => {
         if (process.env.VOZEB_PRO_RUN_POSTGRES_INTEGRATION !== "1") return;
-        await postgresQuery("DELETE FROM commercial_orders WHERE id = $1", [id("order")]);
+        await postgresQuery("DELETE FROM commercial_orders WHERE id = ANY($1::text[])", [[id("order"), id("workflow-order")]]);
         await postgresQuery("DELETE FROM schools WHERE id IN ($1, $2, $3)", [id("school-a"), id("school-b"), id("rolled-back")]);
         await postgresQuery("DELETE FROM platform_courses WHERE id = $1", [id("course")]);
         await postgresQuery("DELETE FROM users WHERE id IN ($1, $2, $3)", [id("teacher-user"), id("student-user"), id("other-user")]);
@@ -219,7 +220,7 @@ describe("PostgreSQL school domain repository", () => {
         await expect(repository.listTeachingSubmissionsForStudent(id("school-a"), id("student"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
         const accountIdResult = await postgresQuery("SELECT account_id FROM users WHERE id = $1", [id("teacher-user")]);
         const accountId = String(accountIdResult.rows[0]?.account_id || "").padStart(4, "0");
-        for (const keyword of [accountId, `repo_teacher_${suffix.replaceAll("-", "").slice(0, 10)}`, "Repository 老师", "repository.teacher@example.com"]) {
+        for (const keyword of [accountId, `repo_teacher_${suffix.replaceAll("-", "").slice(0, 10)}`, "Repository 老师", teacherEmail]) {
             await expect(repository.listMembers(id("school-a"), { page: 1, pageSize: 20, keyword })).resolves.toMatchObject({ total: 1, items: [expect.objectContaining({ id: id("teacher") })] });
         }
         await expect(repository.deleteClass(id("school-b"), id("class-delete"))).resolves.toBe(false);
@@ -248,6 +249,43 @@ describe("PostgreSQL school domain repository", () => {
             }),
         ).rejects.toThrow("stop");
         await expect(bundledRepository.listSchools({ page: 1, pageSize: 100, keyword: id("bundled-rolled-back") })).resolves.toMatchObject({ total: 0, items: [] });
+    });
+
+    postgresIt("persists the commercial order workflow with targeted tenant queries", async () => {
+        const repository = createSchoolDomainRepository();
+        await repository.insertCommercialOrder(order(id("workflow-order"), undefined, "draft"));
+
+        await expect(repository.listPlatformCommercialOrders({ page: 1, pageSize: 20, keyword: id("workflow-order") })).resolves.toMatchObject({ total: 1, items: [{ id: id("workflow-order") }] });
+        await expect(repository.updateCommercialOrderDraft(id("workflow-order"), { internalAmountCents: 1250, updatedAt: now })).resolves.toMatchObject({ internalAmountCents: 1250 });
+        await expect(repository.assignCommercialOrderToSchool(id("workflow-order"), id("school-a"), now)).resolves.toMatchObject({ assignedSchoolId: id("school-a"), status: "assigned" });
+        await expect(repository.configureCommercialOrder(id("school-a"), id("workflow-order"), { teacherMembershipId: id("teacher"), classId: id("class"), updatedAt: now })).resolves.toMatchObject({ teacherMembershipId: id("teacher") });
+        const participantRecord = { ...participant(id("workflow-participant")), orderId: id("workflow-order") };
+        await repository.replaceCommercialOrderParticipants(id("school-a"), id("workflow-order"), [participantRecord]);
+        await expect(repository.hasActiveCommercialOrderParticipant(id("school-a"), id("workflow-order"))).resolves.toBe(true);
+        await expect(repository.assignCommercialOrderToSchool(id("workflow-order"), id("school-a"), now)).resolves.toMatchObject({ teacherMembershipId: id("teacher"), classId: id("class") });
+        await expect(repository.listCommercialOrderParticipants(id("school-a"), id("workflow-order"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1 });
+
+        await expect(repository.listCommercialOrdersForTeacher(id("school-a"), id("teacher"), { page: 1, pageSize: 20, keyword: id("workflow-order") })).resolves.toMatchObject({ total: 1, items: [{ id: id("workflow-order") }] });
+        await expect(repository.listCommercialOrdersForParticipant(id("school-a"), id("student"), { page: 1, pageSize: 20, keyword: id("workflow-order") })).resolves.toMatchObject({ total: 1, items: [{ id: id("workflow-order") }] });
+        await expect(
+            repository.updateCommercialOrderParticipant(id("school-a"), id("workflow-order"), id("student"), { candidateReferences: [{ type: "work", id: id("candidate") }], note: "候选", status: "submitted", submittedAt: now, updatedAt: now }),
+        ).resolves.toMatchObject({ status: "submitted" });
+        await repository.insertCommercialOrderDelivery({
+            id: id("workflow-delivery"),
+            schoolId: id("school-a"),
+            orderId: id("workflow-order"),
+            submittedByMembershipId: id("teacher"),
+            contentReferences: [{ type: "work", id: id("final") }],
+            note: "正式交付",
+            status: "submitted",
+            platformFeedback: "",
+            submittedAt: now,
+            createdAt: now,
+            updatedAt: now,
+        });
+        await expect(repository.getLatestCommercialOrderDelivery(id("workflow-order"), true)).resolves.toMatchObject({ id: id("workflow-delivery") });
+        await expect(repository.updateCommercialOrderDelivery(id("workflow-delivery"), { status: "accepted", platformFeedback: "通过", reviewedAt: now, updatedAt: now })).resolves.toMatchObject({ status: "accepted" });
+        await expect(repository.compareAndSetPlatformCommercialOrderStatus(id("workflow-order"), "assigned", "accepted", now, "通过")).resolves.toBe(true);
     });
 });
 

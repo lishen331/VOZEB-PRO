@@ -1,7 +1,11 @@
 import type { CommercialOrderStatus, PlatformCourseStatus, SchoolMemberRole, SchoolMembershipStatus, SchoolPermission, SchoolStatus, TeachingAssignmentKind, TeachingAssignmentStatus, TeachingSubmissionStatus } from "@/lib/school-domain";
 import type {
     CommercialOrderDeliveryRecord,
+    CommercialOrderDeliveryUpdate,
+    CommercialOrderDraftUpdate,
+    CommercialOrderConfigurationUpdate,
     CommercialOrderParticipantRecord,
+    CommercialOrderParticipantUpdate,
     CommercialOrderRecord,
     ClassPageQuery,
     MemberPageQuery,
@@ -403,6 +407,125 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         return pageResult(rows.rows.map(mapCommercialOrder), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
+    async getPlatformCommercialOrder(orderId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM commercial_orders WHERE id = $1${forUpdate ? " FOR UPDATE" : ""}`, [orderId]);
+        return result.rows[0] ? mapCommercialOrder(result.rows[0]) : null;
+    }
+
+    async listPlatformCommercialOrders(input: OrderPageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const values = [input.status || null, input.keyword?.trim() || null];
+        const where = "WHERE ($1::text IS NULL OR status = $1) AND ($2::text IS NULL OR id ILIKE '%' || $2 || '%' OR title ILIKE '%' || $2 || '%')";
+        const [rows, count] = await Promise.all([
+            this.db.query(`SELECT * FROM commercial_orders ${where} ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4`, [...values, pageSize, offset]),
+            this.db.query(`SELECT COUNT(*)::int AS total FROM commercial_orders ${where}`, values),
+        ]);
+        return pageResult(rows.rows.map(mapCommercialOrder), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async updateCommercialOrderDraft(orderId: string, patch: CommercialOrderDraftUpdate) {
+        const values: unknown[] = [orderId, patch.updatedAt];
+        const assignments = ["updated_at = $2"];
+        addUpdate(assignments, values, "title", patch.title);
+        addUpdate(assignments, values, "requirements", patch.requirements);
+        addUpdate(assignments, values, "reference_materials", patch.referenceMaterials === undefined ? undefined : jsonParam(patch.referenceMaterials));
+        addUpdate(assignments, values, "acceptance_criteria", patch.acceptanceCriteria);
+        addUpdate(assignments, values, "internal_amount_cents", patch.internalAmountCents);
+        addUpdate(assignments, values, "deadline_at", patch.deadlineAt === undefined ? undefined : patch.deadlineAt || null);
+        const result = await this.db.query(`UPDATE commercial_orders SET ${assignments.join(", ")} WHERE id = $1 AND status = 'draft' RETURNING *`, values);
+        return result.rows[0] ? mapCommercialOrder(result.rows[0]) : null;
+    }
+
+    assignCommercialOrderToSchool(orderId: string, schoolId: string, updatedAt: string) {
+        return this.transact(async (repository) => (repository as PostgresSchoolDomainRepository).assignCommercialOrderToSchoolInTransaction(orderId, schoolId, updatedAt));
+    }
+
+    async configureCommercialOrder(schoolId: string, orderId: string, patch: CommercialOrderConfigurationUpdate) {
+        const result = await this.db.query(
+            `UPDATE commercial_orders
+             SET teacher_membership_id = $3, class_id = $4, updated_at = $5
+             WHERE assigned_school_id = $1 AND id = $2
+             RETURNING *`,
+            [schoolId, orderId, patch.teacherMembershipId || null, patch.classId || null, patch.updatedAt],
+        );
+        return result.rows[0] ? mapCommercialOrder(result.rows[0]) : null;
+    }
+
+    listCommercialOrdersForTeacher(schoolId: string, membershipId: string, input: OrderPageQuery) {
+        return this.commercialOrderPage("assigned_school_id = $1 AND teacher_membership_id = $2", [schoolId, membershipId], input);
+    }
+
+    listCommercialOrdersForParticipant(schoolId: string, membershipId: string, input: OrderPageQuery) {
+        return this.commercialOrderPage("assigned_school_id = $1 AND EXISTS (SELECT 1 FROM commercial_order_participants p WHERE p.school_id = $1 AND p.order_id = commercial_orders.id AND p.membership_id = $2)", [schoolId, membershipId], input);
+    }
+
+    async listCommercialOrderParticipants(schoolId: string, orderId: string, input: PageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const [rows, count] = await Promise.all([
+            this.db.query("SELECT * FROM commercial_order_participants WHERE school_id = $1 AND order_id = $2 ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4", [schoolId, orderId, pageSize, offset]),
+            this.db.query("SELECT COUNT(*)::int AS total FROM commercial_order_participants WHERE school_id = $1 AND order_id = $2", [schoolId, orderId]),
+        ]);
+        return pageResult(rows.rows.map(mapCommercialOrderParticipant), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async hasActiveCommercialOrderParticipant(schoolId: string, orderId: string) {
+        const result = await this.db.query(
+            `SELECT EXISTS (
+                SELECT 1
+                FROM commercial_order_participants p
+                JOIN school_memberships m ON m.school_id = p.school_id AND m.id = p.membership_id
+                WHERE p.school_id = $1 AND p.order_id = $2 AND m.role = 'student' AND m.status = 'active'
+            ) AS present`,
+            [schoolId, orderId],
+        );
+        return result.rows[0]?.present === true;
+    }
+
+    async getCommercialOrderParticipant(schoolId: string, orderId: string, membershipId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM commercial_order_participants WHERE school_id = $1 AND order_id = $2 AND membership_id = $3${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, orderId, membershipId]);
+        return result.rows[0] ? mapCommercialOrderParticipant(result.rows[0]) : null;
+    }
+
+    replaceCommercialOrderParticipants(schoolId: string, orderId: string, records: CommercialOrderParticipantRecord[]) {
+        return this.transact(async (repository) => (repository as PostgresSchoolDomainRepository).replaceCommercialOrderParticipantsInTransaction(schoolId, orderId, records));
+    }
+
+    async updateCommercialOrderParticipant(schoolId: string, orderId: string, membershipId: string, patch: CommercialOrderParticipantUpdate) {
+        const values: unknown[] = [schoolId, orderId, membershipId, patch.updatedAt];
+        const assignments = ["updated_at = $4"];
+        addUpdate(assignments, values, "candidate_references", patch.candidateReferences === undefined ? undefined : jsonParam(patch.candidateReferences));
+        addUpdate(assignments, values, "note", patch.note);
+        addUpdate(assignments, values, "status", patch.status);
+        addUpdate(assignments, values, "submitted_at", patch.submittedAt === undefined ? undefined : patch.submittedAt || null);
+        const result = await this.db.query(`UPDATE commercial_order_participants SET ${assignments.join(", ")} WHERE school_id = $1 AND order_id = $2 AND membership_id = $3 RETURNING *`, values);
+        return result.rows[0] ? mapCommercialOrderParticipant(result.rows[0]) : null;
+    }
+
+    async listCommercialOrderDeliveries(schoolId: string, orderId: string, input: PageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const [rows, count] = await Promise.all([
+            this.db.query("SELECT * FROM commercial_order_deliveries WHERE school_id = $1 AND order_id = $2 ORDER BY submitted_at DESC, id DESC LIMIT $3 OFFSET $4", [schoolId, orderId, pageSize, offset]),
+            this.db.query("SELECT COUNT(*)::int AS total FROM commercial_order_deliveries WHERE school_id = $1 AND order_id = $2", [schoolId, orderId]),
+        ]);
+        return pageResult(rows.rows.map(mapCommercialOrderDelivery), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async getLatestCommercialOrderDelivery(orderId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM commercial_order_deliveries WHERE order_id = $1 ORDER BY submitted_at DESC, id DESC LIMIT 1${forUpdate ? " FOR UPDATE" : ""}`, [orderId]);
+        return result.rows[0] ? mapCommercialOrderDelivery(result.rows[0]) : null;
+    }
+
+    async updateCommercialOrderDelivery(deliveryId: string, patch: CommercialOrderDeliveryUpdate) {
+        const result = await this.db.query("UPDATE commercial_order_deliveries SET status = $2, platform_feedback = $3, reviewed_at = $4, updated_at = $5 WHERE id = $1 RETURNING *", [
+            deliveryId,
+            patch.status,
+            patch.platformFeedback,
+            patch.reviewedAt || null,
+            patch.updatedAt,
+        ]);
+        return result.rows[0] ? mapCommercialOrderDelivery(result.rows[0]) : null;
+    }
+
     async insertSchool(record: SchoolRecord) {
         const result = await this.db.query("INSERT INTO schools (id, name, profile, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *", [
             record.id,
@@ -564,6 +687,17 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         return (result.rowCount || 0) > 0;
     }
 
+    async compareAndSetPlatformCommercialOrderStatus(orderId: string, expected: CommercialOrderStatus, next: CommercialOrderStatus, updatedAt: string, platformFeedback?: string) {
+        const result = await this.db.query("UPDATE commercial_orders SET status = $3, updated_at = $4, platform_feedback = COALESCE($5::text, platform_feedback) WHERE id = $1 AND status = $2", [
+            orderId,
+            expected,
+            next,
+            updatedAt,
+            platformFeedback ?? null,
+        ]);
+        return (result.rowCount || 0) > 0;
+    }
+
     transact<T>(operation: (repository: SchoolDomainRepository) => Promise<T>): Promise<T> {
         if (!this.startsTransactions) return operation(this);
         return withPostgresTransaction((executor) => operation(new PostgresSchoolDomainRepository(executor)));
@@ -576,6 +710,55 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
             this.db.query(`SELECT COUNT(*)::int AS total FROM ${table} WHERE school_id = $1`, [schoolId]),
         ]);
         return pageResult(rows.rows.map(mapper), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    private async commercialOrderPage(prefix: string, prefixValues: unknown[], input: OrderPageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const statusIndex = prefixValues.length + 1;
+        const keywordIndex = prefixValues.length + 2;
+        const values = [...prefixValues, input.status || null, input.keyword?.trim() || null];
+        const where = `WHERE ${prefix} AND ($${statusIndex}::text IS NULL OR status = $${statusIndex}) AND ($${keywordIndex}::text IS NULL OR id ILIKE '%' || $${keywordIndex} || '%' OR title ILIKE '%' || $${keywordIndex} || '%')`;
+        const [rows, count] = await Promise.all([
+            this.db.query(`SELECT * FROM commercial_orders ${where} ORDER BY updated_at DESC, id DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`, [...values, pageSize, offset]),
+            this.db.query(`SELECT COUNT(*)::int AS total FROM commercial_orders ${where}`, values),
+        ]);
+        return pageResult(rows.rows.map(mapCommercialOrder), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    private async assignCommercialOrderToSchoolInTransaction(orderId: string, schoolId: string, updatedAt: string) {
+        const school = await this.db.query("SELECT id FROM schools WHERE id = $1 AND status = 'active' FOR UPDATE", [schoolId]);
+        if (!school.rows[0]) throw new Error("学校不存在或已停用");
+        const orderResult = await this.db.query("SELECT * FROM commercial_orders WHERE id = $1 AND status IN ('draft', 'assigned') FOR UPDATE", [orderId]);
+        if (!orderResult.rows[0]) return null;
+        const current = mapCommercialOrder(orderResult.rows[0]);
+        if (current.assignedSchoolId && current.assignedSchoolId !== schoolId) {
+            await this.db.query("DELETE FROM commercial_order_participants WHERE order_id = $1", [orderId]);
+            await this.db.query("DELETE FROM commercial_order_deliveries WHERE order_id = $1", [orderId]);
+        }
+        const resetConfiguration = Boolean(current.assignedSchoolId && current.assignedSchoolId !== schoolId);
+        const updated = await this.db.query(
+            `UPDATE commercial_orders
+             SET assigned_school_id = $2,
+                 teacher_membership_id = CASE WHEN $4::boolean THEN NULL ELSE teacher_membership_id END,
+                 class_id = CASE WHEN $4::boolean THEN NULL ELSE class_id END,
+                 status = 'assigned', updated_at = $3
+             WHERE id = $1 RETURNING *`,
+            [orderId, schoolId, updatedAt, resetConfiguration],
+        );
+        return mapCommercialOrder(updated.rows[0]);
+    }
+
+    private async replaceCommercialOrderParticipantsInTransaction(schoolId: string, orderId: string, records: CommercialOrderParticipantRecord[]) {
+        const order = await this.db.query("SELECT id FROM commercial_orders WHERE assigned_school_id = $1 AND id = $2 FOR UPDATE", [schoolId, orderId]);
+        if (!order.rows[0]) throw new Error("商单不属于当前学校");
+        const membershipIds = [...new Set(records.map((record) => record.membershipId))];
+        if (membershipIds.length !== records.length || records.some((record) => record.schoolId !== schoolId || record.orderId !== orderId)) throw new Error("商单参与记录无效");
+        if (membershipIds.length) {
+            const members = await this.db.query("SELECT COUNT(*)::int AS total FROM school_memberships WHERE school_id = $1 AND id = ANY($2::text[])", [schoolId, membershipIds]);
+            if (numberValue(members.rows[0]?.total) !== membershipIds.length) throw new Error("商单只能添加本学校成员");
+        }
+        await this.db.query("DELETE FROM commercial_order_participants WHERE school_id = $1 AND order_id = $2", [schoolId, orderId]);
+        for (const record of records) await this.insertCommercialOrderParticipant(record);
     }
 
     private async replaceClassMembersInTransaction(schoolId: string, classId: string, membershipIds: string[]) {
