@@ -27,6 +27,8 @@ describe("teaching center", () => {
         expect(source).toContain("submissionRequestSequence");
         expect(source).toContain("const selectAssignment = useCallback");
         expect(source).toContain("submissionAbortController.current?.abort();\n        submissionRequestSequence.current += 1;\n        setSubmissions([]);");
+        expect(source).toContain("setSubmissionSelectionRevision((revision) => revision + 1);");
+        expect(source).toContain("[loadSubmissions, selectedAssignmentId, submissionSelectionRevision]");
         expect(source).toContain("selectAssignment(assignment.id);");
         expect(source).toContain("onChange={selectAssignment}");
         expect(source).toContain('size="min(720px, 100vw)"');

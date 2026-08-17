@@ -38,6 +38,7 @@ export default function TeachingPage() {
     const [assignmentTotal, setAssignmentTotal] = useState(0);
     const [submissionPage, setSubmissionPage] = useState(1);
     const [submissionTotal, setSubmissionTotal] = useState(0);
+    const [submissionSelectionRevision, setSubmissionSelectionRevision] = useState(0);
     const [activeTab, setActiveTab] = useState("classes");
     const submissionRequestSequence = useRef(0);
     const submissionAbortController = useRef<AbortController | null>(null);
@@ -49,6 +50,7 @@ export default function TeachingPage() {
         setSubmissionTotal(0);
         setSubmissionPage(1);
         setSelectedAssignmentId(assignmentId);
+        setSubmissionSelectionRevision((revision) => revision + 1);
     }, []);
 
     const loadSubmissions = useCallback(
@@ -104,7 +106,7 @@ export default function TeachingPage() {
     }, [assignmentPage, coursePage, message, offeringPage, selectAssignment]);
 
     useEffect(() => void load(), [load]);
-    useEffect(() => void loadSubmissions(selectedAssignmentId), [loadSubmissions, selectedAssignmentId]);
+    useEffect(() => void loadSubmissions(selectedAssignmentId), [loadSubmissions, selectedAssignmentId, submissionSelectionRevision]);
     useEffect(() => () => submissionAbortController.current?.abort(), []);
 
     const classOfferings = useMemo(() => Array.from(new Map(offerings.map((item) => [item.classId, item])).values()), [offerings]);
