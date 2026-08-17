@@ -1,5 +1,6 @@
 export const ADMIN_PERMISSION_GROUPS = [
     { key: "users", label: "经营与用户", description: "经营数据、用户账号与管理员职责" },
+    { key: "education", label: "产教运营", description: "学校、课程教学与商单运营" },
     { key: "generation", label: "生成与上游", description: "生成记录、任务运维与模型渠道" },
     { key: "billing", label: "商品与财务", description: "商品营销、订单支付与积分账务" },
     { key: "system", label: "系统与内容", description: "站点配置、内容治理与审计追踪" },
@@ -12,6 +13,7 @@ export const ADMIN_PERMISSION_DEFINITIONS = [
     { key: "users.read", group: "users", label: "用户查看", description: "查看用户账号与公开身份信息。" },
     { key: "users.manage", group: "users", label: "用户运营", description: "创建、编辑、禁用和删除普通用户。" },
     { key: "administrators.manage", group: "users", label: "管理员治理", description: "创建管理员并分配职责权限。" },
+    { key: "education.manage", group: "education", label: "产教运营", description: "管理学校、平台课程和商单。" },
     { key: "generation.read", group: "generation", label: "生成记录", description: "查看生成任务、日志和媒体资产。" },
     { key: "generation.manage", group: "generation", label: "生成运维", description: "处理生成失败、人工确认和记录清理。" },
     { key: "upstream.manage", group: "generation", label: "上游配置", description: "管理模型渠道、路由、Skills 和生成参数。" },

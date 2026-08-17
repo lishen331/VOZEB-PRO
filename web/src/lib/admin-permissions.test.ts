@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ADMIN_PERMISSION_PRESETS, ALL_ADMIN_PERMISSIONS, adminPermissionSummary, allowedAdminBillingTabs, hasAdminPermission, hasAnyAdminPermission, isFullAdminPermissions, normalizeAdminPermissions, resolveAdminBillingTab } from "./admin-permissions";
+import { ADMIN_PERMISSION_DEFINITIONS, ADMIN_PERMISSION_GROUPS, ADMIN_PERMISSION_PRESETS, ALL_ADMIN_PERMISSIONS, adminPermissionSummary, allowedAdminBillingTabs, hasAdminPermission, hasAnyAdminPermission, isFullAdminPermissions, normalizeAdminPermissions, resolveAdminBillingTab } from "./admin-permissions";
 
 describe("administrator permissions", () => {
     it("normalizes known permissions in registry order", () => {
@@ -19,6 +19,13 @@ describe("administrator permissions", () => {
         expect(isFullAdminPermissions(ADMIN_PERMISSION_PRESETS[0].permissions)).toBe(true);
         expect(hasAnyAdminPermission({ role: "admin", status: "active", adminPermissions: ["audit.read"] })).toBe(true);
         expect(ALL_ADMIN_PERMISSIONS.length).toBeGreaterThan(0);
+    });
+
+    it("registers education operations as one platform responsibility", () => {
+        expect(ADMIN_PERMISSION_GROUPS).toContainEqual({ key: "education", label: "产教运营", description: "学校、课程教学与商单运营" });
+        expect(ADMIN_PERMISSION_DEFINITIONS).toContainEqual({ key: "education.manage", group: "education", label: "产教运营", description: "管理学校、平台课程和商单。" });
+        expect(normalizeAdminPermissions(["education.manage"])).toEqual(["education.manage"]);
+        expect(ADMIN_PERMISSION_PRESETS.find((item) => item.key === "full")?.permissions).toContain("education.manage");
     });
 
     it("limits financial workspace tabs to the current duties", () => {
