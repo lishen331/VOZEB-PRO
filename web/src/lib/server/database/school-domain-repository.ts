@@ -117,11 +117,19 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
     async listMembers(schoolId: string, input: MemberPageQuery) {
         const { page, pageSize, offset } = pagination(input);
         const values = [schoolId, input.role || null, input.status || null, input.keyword?.trim() || null];
-        const where = "WHERE school_id = $1 AND ($2::text IS NULL OR role = $2) AND ($3::text IS NULL OR status = $3) AND ($4::text IS NULL OR id ILIKE '%' || $4 || '%' OR user_id ILIKE '%' || $4 || '%')";
-        const [rows, count] = await Promise.all([
-            this.db.query(`SELECT * FROM school_memberships ${where} ORDER BY updated_at DESC, id DESC LIMIT $5 OFFSET $6`, [...values, pageSize, offset]),
-            this.db.query(`SELECT COUNT(*)::int AS total FROM school_memberships ${where}`, values),
-        ]);
+        const from = `FROM school_memberships m
+                      JOIN users u ON u.id = m.user_id
+                      WHERE m.school_id = $1
+                        AND ($2::text IS NULL OR m.role = $2)
+                        AND ($3::text IS NULL OR m.status = $3)
+                        AND ($4::text IS NULL
+                             OR m.id ILIKE '%' || $4 || '%'
+                             OR u.username ILIKE '%' || $4 || '%'
+                             OR u.display_name ILIKE '%' || $4 || '%'
+                             OR coalesce(u.email, '') ILIKE '%' || $4 || '%'
+                             OR u.account_id::text ILIKE '%' || $4 || '%'
+                             OR lpad(u.account_id::text, 4, '0') ILIKE '%' || $4 || '%')`;
+        const [rows, count] = await Promise.all([this.db.query(`SELECT m.* ${from} ORDER BY m.updated_at DESC, m.id DESC LIMIT $5 OFFSET $6`, [...values, pageSize, offset]), this.db.query(`SELECT COUNT(*)::int AS total ${from}`, values)]);
         return pageResult(rows.rows.map(mapMembership), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
@@ -163,6 +171,11 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         addUpdate(assignments, values, "status", patch.status);
         const result = await this.db.query(`UPDATE school_classes SET ${assignments.join(", ")} WHERE school_id = $1 AND id = $2 RETURNING *`, values);
         return result.rows[0] ? mapSchoolClass(result.rows[0]) : null;
+    }
+
+    async deleteClass(schoolId: string, classId: string) {
+        const result = await this.db.query("DELETE FROM school_classes WHERE school_id = $1 AND id = $2", [schoolId, classId]);
+        return (result.rowCount || 0) > 0;
     }
 
     async listClassMembers(schoolId: string, classId: string, input: PageQuery) {

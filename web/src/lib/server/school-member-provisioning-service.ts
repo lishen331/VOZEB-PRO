@@ -80,6 +80,7 @@ function normalizeRows(rows: SchoolMemberCreateInput[]) {
     const usernames = new Set<string>();
     const emails = new Set<string>();
     return rows.map((row) => {
+        if (!row || typeof row !== "object" || Array.isArray(row)) throw new SchoolServiceError(400, "学校成员资料无效");
         const username = requiredText(row.username, "用户名", 64).toLowerCase();
         const email = typeof row.email === "string" ? row.email.trim().toLowerCase() : "";
         if (usernames.has(username) || (email && emails.has(email))) throw new SchoolServiceError(400, "批量成员中存在重复用户名或邮箱");

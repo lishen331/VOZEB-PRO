@@ -161,7 +161,15 @@ describe("file school domain repository", () => {
         await repository.insertMembership(membership("teacher-a", "school-a", "teacher-user-a", "teacher"));
         await repository.insertMembership(membership("student-a", "school-a", "student-user-a", "student"));
         await repository.insertClass({ id: "class-a", schoolId: "school-a", name: "一班", description: "", status: "active", createdAt: now, updatedAt: now });
+        await repository.insertClass({ id: "class-delete", schoolId: "school-a", name: "待删除班级", description: "", status: "active", createdAt: now, updatedAt: now });
         await repository.replaceClassMembers("school-a", "class-a", ["teacher-a", "student-a"]);
+        await repository.replaceClassMembers("school-a", "class-delete", ["teacher-a"]);
+        files.set("auth.json", {
+            users: [
+                { id: "teacher-user-a", accountId: "0007", username: "teacher_a", displayName: "设计老师", email: "teacher@example.com" },
+                { id: "student-user-a", accountId: "10001", username: "student_a", displayName: "设计学生", email: "student@example.com" },
+            ],
+        });
 
         await expect(repository.getSchool("school-a", true)).resolves.toMatchObject({ name: "甲学校" });
         await expect(repository.updateSchool("school-a", { name: "甲学校新名", profile: { city: "杭州" }, updatedAt: now })).resolves.toMatchObject({ name: "甲学校新名", profile: { city: "杭州" } });
@@ -182,6 +190,13 @@ describe("file school domain repository", () => {
             total: 2,
             items: expect.arrayContaining([expect.objectContaining({ id: "teacher-a" }), expect.objectContaining({ id: "student-a" })]),
         });
+        for (const keyword of ["0007", "teacher_a", "设计老师", "teacher@example.com", "10001"]) {
+            await expect(repository.listMembers("school-a", { page: 1, pageSize: 20, keyword })).resolves.toMatchObject({ total: 1 });
+        }
+        await expect(repository.deleteClass("school-b", "class-delete")).resolves.toBe(false);
+        await expect(repository.deleteClass("school-a", "class-delete")).resolves.toBe(true);
+        await expect(repository.getClass("school-a", "class-delete")).resolves.toBeNull();
+        await expect(repository.listClassMembers("school-a", "class-delete", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
         await expect(repository.deleteMembership("school-b", "student-a")).resolves.toBe(false);
         await expect(repository.deleteMembership("school-a", "student-a")).resolves.toBe(true);
         await expect(repository.getMembership("school-a", "student-a")).resolves.toBeNull();

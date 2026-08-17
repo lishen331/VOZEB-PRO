@@ -1,4 +1,7 @@
+import { formatAccountId } from "@/lib/account-id";
+import { AUTH_DATA_FILE } from "@/lib/auth/store-foundation";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
+import { SchoolDomainReferenceConflictError } from "@/lib/server/school-domain-errors";
 import type {
     CommercialOrderParticipantRecord,
     CommercialOrderRecord,
@@ -153,9 +156,23 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
 
     async listMembers(schoolId: string, input: MemberPageQuery) {
         const keyword = input.keyword?.trim().toLowerCase();
+        const auth = keyword ? await readJsonDataFile<{ users?: Array<{ id?: unknown; accountId?: unknown; username?: unknown; displayName?: unknown; email?: unknown }> }>(AUTH_DATA_FILE, { users: [] }) : undefined;
+        const matchingUserIds = new Set(
+            (auth?.users || [])
+                .filter((user) => {
+                    const accountId = user.accountId === undefined ? "" : formatAccountId(user.accountId);
+                    return [accountId, user.username, user.displayName, user.email].some((value) =>
+                        String(value || "")
+                            .toLowerCase()
+                            .includes(keyword || ""),
+                    );
+                })
+                .map((user) => String(user.id || ""))
+                .filter(Boolean),
+        );
         return paginate(
             (await this.read()).memberships.filter(
-                (item) => item.schoolId === schoolId && (!input.role || item.role === input.role) && (!input.status || item.status === input.status) && (!keyword || item.id.toLowerCase().includes(keyword) || item.userId.toLowerCase().includes(keyword)),
+                (item) => item.schoolId === schoolId && (!input.role || item.role === input.role) && (!input.status || item.status === input.status) && (!keyword || item.id.toLowerCase().includes(keyword) || matchingUserIds.has(item.userId)),
             ),
             input,
         );
@@ -208,6 +225,19 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
             if (patch.status !== undefined) schoolClass.status = patch.status;
             schoolClass.updatedAt = patch.updatedAt;
             return structuredClone(schoolClass);
+        });
+    }
+
+    deleteClass(schoolId: string, classId: string) {
+        return this.mutate((state) => {
+            const index = state.classes.findIndex((item) => item.schoolId === schoolId && item.id === classId);
+            if (index < 0) return false;
+            if (state.courseOfferings.some((item) => item.schoolId === schoolId && item.classId === classId) || state.commercialOrders.some((item) => item.assignedSchoolId === schoolId && item.classId === classId)) {
+                throw new SchoolDomainReferenceConflictError("班级仍被课程或商单引用");
+            }
+            state.classes.splice(index, 1);
+            state.classMembers = state.classMembers.filter((item) => item.schoolId !== schoolId || item.classId !== classId);
+            return true;
         });
     }
 

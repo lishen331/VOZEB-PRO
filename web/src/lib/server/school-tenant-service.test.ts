@@ -4,11 +4,15 @@ const mocks = vi.hoisted(() => ({
     requireSchoolManager: vi.fn(),
     getPublicUsersByIds: vi.fn(),
     createSchoolWithAdministrator: vi.fn(),
+    getSchool: vi.fn(),
     getMembership: vi.fn(),
     updateMembership: vi.fn(),
+    deleteMembership: vi.fn(),
+    updateSchool: vi.fn(),
     insertClass: vi.fn(),
     getClass: vi.fn(),
     updateClass: vi.fn(),
+    deleteClass: vi.fn(),
     replaceClassMembers: vi.fn(),
     listClassMembers: vi.fn(),
     listMembers: vi.fn(),
@@ -21,19 +25,32 @@ vi.mock("./school-access-service", async (load) => {
 });
 vi.mock("@/lib/auth/store", () => ({ getPublicUsersByIds: mocks.getPublicUsersByIds }));
 vi.mock("./school-member-provisioning-service", () => ({ createSchoolWithAdministrator: mocks.createSchoolWithAdministrator }));
-vi.mock("@/lib/server/school-domain-repository", () => ({
-    createSchoolDomainRepository: () => repository,
-}));
+vi.mock("@/lib/server/school-domain-repository", () => ({ createSchoolDomainRepository: () => repository }));
 
-import { createSchoolByAdmin, createSchoolClass, replaceSchoolClassMembers, updateSchoolMember } from "./school-tenant-service";
+import {
+    createSchoolByAdmin,
+    createSchoolClass,
+    removeSchoolClass,
+    removeSchoolMember,
+    replaceSchoolClassMembers,
+    updateSchoolByAdmin,
+    updateSchoolClass,
+    updateSchoolClassWithMembers,
+    updateSchoolMember,
+    updateSchoolProfile,
+} from "./school-tenant-service";
 
 const now = "2026-08-17T00:00:00.000Z";
 const repository = {
+    getSchool: mocks.getSchool,
     getMembership: mocks.getMembership,
     updateMembership: mocks.updateMembership,
+    deleteMembership: mocks.deleteMembership,
+    updateSchool: mocks.updateSchool,
     insertClass: mocks.insertClass,
     getClass: mocks.getClass,
     updateClass: mocks.updateClass,
+    deleteClass: mocks.deleteClass,
     replaceClassMembers: mocks.replaceClassMembers,
     listClassMembers: mocks.listClassMembers,
     listMembers: mocks.listMembers,
@@ -45,6 +62,7 @@ describe("school tenant service", () => {
         vi.clearAllMocks();
         mocks.requireSchoolManager.mockResolvedValue(managerContext());
         mocks.transact.mockImplementation(async (operation) => operation(repository));
+        mocks.getSchool.mockResolvedValue({ id: "school-a", name: "甲学校", profile: {}, status: "active", createdAt: now, updatedAt: now });
     });
 
     it("requires the platform education duty before creating a school", async () => {
@@ -71,6 +89,39 @@ describe("school tenant service", () => {
 
         mocks.listMembers.mockResolvedValue({ items: [member("manager-a", "teacher", ["school.manage"])], total: 1, page: 1, pageSize: 100 });
         await expect(updateSchoolMember("manager-a", "manager-a", { permissions: [] })).rejects.toMatchObject({ status: 409 });
+        expect(mocks.getSchool.mock.invocationCallOrder[1]).toBeLessThan(mocks.getMembership.mock.invocationCallOrder[1]);
+        expect(mocks.getSchool).toHaveBeenCalledWith("school-a", true);
+    });
+
+    it("takes the same school lock before removing a member", async () => {
+        mocks.getMembership.mockResolvedValue(member("student-a", "student", []));
+        mocks.deleteMembership.mockResolvedValue(true);
+        await expect(removeSchoolMember("manager-a", "student-a")).resolves.toBe(true);
+        expect(mocks.getSchool.mock.invocationCallOrder[0]).toBeLessThan(mocks.getMembership.mock.invocationCallOrder[0]);
+        expect(mocks.getSchool).toHaveBeenCalledWith("school-a", true);
+    });
+
+    it("does not misreport repository outages as class reference conflicts", async () => {
+        const outage = new Error("database unavailable");
+        mocks.deleteClass.mockRejectedValueOnce(outage).mockRejectedValueOnce({ code: "23503" });
+
+        await expect(removeSchoolClass("manager-a", "class-a")).rejects.toBe(outage);
+        await expect(removeSchoolClass("manager-a", "class-a")).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("rejects invalid school and member enum values before persistence", async () => {
+        mocks.getPublicUsersByIds.mockResolvedValue([{ id: "education-admin", role: "admin", status: "active", adminPermissions: ["education.manage"] }]);
+        await expect(updateSchoolByAdmin("education-admin", "school-a", { status: "archived" } as never)).rejects.toMatchObject({ status: 400 });
+        expect(mocks.updateSchool).not.toHaveBeenCalled();
+
+        mocks.getMembership.mockResolvedValue(member("teacher-a", "teacher", []));
+        await expect(updateSchoolMember("manager-a", "teacher-a", { role: "owner", permissions: ["school.manage", "root"], status: "pending" } as never)).rejects.toMatchObject({ status: 400 });
+        expect(mocks.updateMembership).not.toHaveBeenCalled();
+    });
+
+    it("does not let a school manager change the platform-controlled school status", async () => {
+        await expect(updateSchoolProfile("manager-a", { name: "甲学校", status: "disabled" } as never)).rejects.toMatchObject({ status: 400 });
+        expect(mocks.updateSchool).not.toHaveBeenCalled();
     });
 
     it("creates a class in the manager school and rejects cross-school member ids atomically", async () => {
@@ -81,6 +132,31 @@ describe("school tenant service", () => {
         mocks.getMembership.mockImplementation(async (_schoolId: string, membershipId: string) => (membershipId === "foreign" ? null : member(membershipId, membershipId.startsWith("teacher") ? "teacher" : "student", [])));
         await expect(replaceSchoolClassMembers("manager-a", "class-a", { teacherMembershipIds: ["teacher-a"], studentMembershipIds: ["foreign"] })).rejects.toMatchObject({ status: 404 });
         expect(mocks.replaceClassMembers).not.toHaveBeenCalled();
+    });
+
+    it("rejects invalid class status and member id shapes before persistence", async () => {
+        await expect(updateSchoolClass("manager-a", "class-a", { status: "archived" } as never)).rejects.toMatchObject({ status: 400 });
+        expect(mocks.updateClass).not.toHaveBeenCalled();
+
+        mocks.getClass.mockResolvedValue({ id: "class-a", schoolId: "school-a", name: "一班", description: "", status: "active", createdAt: now, updatedAt: now });
+        await expect(replaceSchoolClassMembers("manager-a", "class-a", { teacherMembershipIds: [42] as never, studentMembershipIds: [] })).rejects.toMatchObject({ status: 400 });
+        expect(mocks.replaceClassMembers).not.toHaveBeenCalled();
+    });
+
+    it("updates class details and members in one repository transaction", async () => {
+        mocks.getClass.mockResolvedValue({ id: "class-a", schoolId: "school-a", name: "一班", description: "", status: "active", createdAt: now, updatedAt: now });
+        mocks.getMembership.mockImplementation(async (_schoolId: string, membershipId: string) => member(membershipId, membershipId.startsWith("teacher") ? "teacher" : "student", []));
+        mocks.updateClass.mockResolvedValue({ id: "class-a", schoolId: "school-a", name: "设计一班", description: "", status: "active", createdAt: now, updatedAt: now });
+        mocks.getPublicUsersByIds.mockImplementation(async (ids: string[]) => ids.map((id) => ({ id, accountId: id.includes("teacher") ? "0007" : "0008", username: id, displayName: id })));
+
+        await expect(updateSchoolClassWithMembers("manager-a", "class-a", { name: "设计一班" }, { teacherMembershipIds: ["teacher-a"], studentMembershipIds: ["student-a"] })).resolves.toMatchObject({
+            name: "设计一班",
+            teachers: [expect.objectContaining({ id: "teacher-a" })],
+            students: [expect.objectContaining({ id: "student-a" })],
+        });
+        expect(mocks.updateClass).toHaveBeenCalledWith("school-a", "class-a", expect.objectContaining({ name: "设计一班" }));
+        expect(mocks.replaceClassMembers).toHaveBeenCalledWith("school-a", "class-a", ["teacher-a", "student-a"]);
+        expect(mocks.transact).toHaveBeenCalledOnce();
     });
 });
 

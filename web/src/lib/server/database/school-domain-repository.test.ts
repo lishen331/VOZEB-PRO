@@ -30,6 +30,7 @@ describe("PostgreSQL school domain repository", () => {
             "Repository 外校学生",
             "integration-test-only",
         ]);
+        await postgresQuery("UPDATE users SET email = $1 WHERE id = $2", ["repository.teacher@example.com", id("teacher-user")]);
     });
 
     afterAll(async () => {
@@ -48,10 +49,12 @@ describe("PostgreSQL school domain repository", () => {
         await repository.insertMembership(membership(id("student"), id("school-a"), id("student-user"), "student"));
         await repository.insertMembership(membership(id("other"), id("school-b"), id("other-user"), "student"));
         await repository.insertClass({ id: id("class"), schoolId: id("school-a"), name: "一班", description: "", status: "active", createdAt: now, updatedAt: now });
+        await repository.insertClass({ id: id("class-delete"), schoolId: id("school-a"), name: "待删除班级", description: "", status: "active", createdAt: now, updatedAt: now });
         await repository.insertClass({ id: id("other-class"), schoolId: id("school-b"), name: "二班", description: "", status: "active", createdAt: now, updatedAt: now });
 
         await expect(repository.replaceClassMembers(id("school-a"), id("class"), [id("teacher"), id("other")])).rejects.toThrow("学校成员");
         await repository.replaceClassMembers(id("school-a"), id("class"), [id("teacher"), id("student")]);
+        await repository.replaceClassMembers(id("school-a"), id("class-delete"), [id("teacher")]);
         await repository.insertPlatformCourse({ id: id("course"), title: "课程", summary: "", content: {}, chapters: [], attachments: [], status: "published", createdAt: now, updatedAt: now });
         await repository.assignCourseToSchools(id("course"), [{ id: id("course-assignment"), schoolId: id("school-a"), status: "active", createdAt: now, updatedAt: now }]);
         await repository.insertCourseOffering({
@@ -179,6 +182,15 @@ describe("PostgreSQL school domain repository", () => {
             total: 2,
             items: expect.arrayContaining([expect.objectContaining({ id: id("teacher") }), expect.objectContaining({ id: id("student") })]),
         });
+        const accountIdResult = await postgresQuery("SELECT account_id FROM users WHERE id = $1", [id("teacher-user")]);
+        const accountId = String(accountIdResult.rows[0]?.account_id || "").padStart(4, "0");
+        for (const keyword of [accountId, `repo_teacher_${suffix.replaceAll("-", "").slice(0, 10)}`, "Repository 老师", "repository.teacher@example.com"]) {
+            await expect(repository.listMembers(id("school-a"), { page: 1, pageSize: 20, keyword })).resolves.toMatchObject({ total: 1, items: [expect.objectContaining({ id: id("teacher") })] });
+        }
+        await expect(repository.deleteClass(id("school-b"), id("class-delete"))).resolves.toBe(false);
+        await expect(repository.deleteClass(id("school-a"), id("class-delete"))).resolves.toBe(true);
+        await expect(repository.getClass(id("school-a"), id("class-delete"))).resolves.toBeNull();
+        await expect(repository.listClassMembers(id("school-a"), id("class-delete"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
         await expect(repository.deleteMembership(id("school-a"), id("other"))).resolves.toBe(false);
         await expect(repository.deleteMembership(id("school-b"), id("other"))).resolves.toBe(true);
     });

@@ -162,6 +162,7 @@ export interface SchoolDomainRepository {
     listClasses(schoolId: string, input: PageQuery): Promise<Page<SchoolClassRecord>>;
     getClass(schoolId: string, classId: string, forUpdate?: boolean): Promise<SchoolClassRecord | null>;
     updateClass(schoolId: string, classId: string, patch: SchoolClassUpdate): Promise<SchoolClassRecord | null>;
+    deleteClass(schoolId: string, classId: string): Promise<boolean>;
     listClassMembers(schoolId: string, classId: string, input: PageQuery): Promise<Page<SchoolMembershipRecord>>;
     listAssignedCourses(schoolId: string, input: PageQuery): Promise<Page<SchoolCourseAssignmentRecord>>;
     listOfferingsForTeacher(schoolId: string, membershipId: string, input: PageQuery): Promise<Page<SchoolCourseOfferingRecord>>;

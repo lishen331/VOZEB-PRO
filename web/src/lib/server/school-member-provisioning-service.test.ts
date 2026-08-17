@@ -55,6 +55,11 @@ describe("school member provisioning service", () => {
         expect(mocks.createOrdinaryUsersForSchool).not.toHaveBeenCalled();
     });
 
+    it("maps malformed row objects to a validation failure", async () => {
+        await expect(createSchoolMembers("manager-a", [null] as never)).rejects.toMatchObject({ status: 400 });
+        expect(mocks.createOrdinaryUsersForSchool).not.toHaveBeenCalled();
+    });
+
     it("delegates account and membership creation as one atomic operation", async () => {
         mocks.createOrdinaryUsersForSchool.mockResolvedValue([{ id: "membership-a", accountId: "0007", username: "teacher_a", displayName: "老师", role: "teacher", permissions: [], status: "active" }]);
 
