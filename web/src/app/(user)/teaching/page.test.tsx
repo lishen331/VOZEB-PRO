@@ -13,6 +13,12 @@ describe("teaching center", () => {
         expect(source).toContain("coursesApi.updateTeachingAssignment");
         expect(source).toContain("coursesApi.listSubmissions");
         expect(source).toContain("coursesApi.reviewSubmission");
+        expect(source).toContain("commercialOrdersApi.listTeachingCommercialOrders");
+        expect(source).toContain("commercialOrdersApi.configureCommercialOrderParticipants");
+        expect(source).toContain("commercialOrdersApi.submitCommercialOrderDelivery");
+        expect(source).toContain('order.status !== "accepted"');
+        expect(source).toContain("商单任务");
+        expect(source).toContain("正式交付");
         expect(source).toContain("我的班级");
         expect(source).toContain("我的课程");
         expect(source).toContain("学生提交");

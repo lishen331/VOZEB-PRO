@@ -2,24 +2,30 @@
 
 import type { FormInstance, TableColumnsType } from "antd";
 import { App, Button, Drawer, Form, Input, Modal, Pagination, Select, Table, Tabs, Tag, Upload } from "antd";
-import { BookOpen, Eye, KeyRound, Pencil, Plus, RefreshCw, School, Trash2, Upload as UploadIcon, UserRoundCog } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { BriefcaseBusiness, CirclePlay, Eye, KeyRound, Pencil, Plus, RefreshCw, School, Settings2, Trash2, Upload as UploadIcon, UserRoundCog } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type {
     CourseOfferingInput,
+    CommercialOrderDelivery,
+    CommercialOrderParticipantSubmission,
+    CommercialOrderStatus,
     SchoolClass,
     SchoolClassDetail,
     SchoolClassInput,
     SchoolCourseAssignment,
     SchoolCourseOffering,
+    SchoolCommercialOrder,
     SchoolDetail,
     SchoolMember,
     SchoolMemberCreateInput,
     SchoolMemberPatch,
     SchoolMemberRole,
     SchoolMembershipStatus,
+    SchoolPublicIdentity,
 } from "@/lib/school-domain";
 import { coursesApi } from "@/services/api/courses";
+import { commercialOrdersApi, type CommercialOrderSubmissions } from "@/services/api/commercial-orders";
 import { schoolApi } from "@/services/api/school";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { parseSchoolMemberCsv } from "./school-csv";
@@ -45,7 +51,7 @@ export function SchoolAdministration() {
                     </div>
                     <div className="min-w-0">
                         <h1 className="truncate text-lg font-semibold text-zinc-950 dark:text-zinc-100">{context?.school.name || "学校管理"}</h1>
-                        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">维护学校资料、成员账号与班级关系</p>
+                        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">维护学校资料、成员账号、教学安排与商单任务</p>
                     </div>
                 </header>
                 <Tabs
@@ -55,6 +61,7 @@ export function SchoolAdministration() {
                         { key: "members", label: "成员管理", children: <MembersPanel /> },
                         { key: "classes", label: "班级管理", children: <ClassesPanel /> },
                         { key: "courses", label: "课程安排", children: <CoursesPanel /> },
+                        { key: "commercial-orders", label: "商单", children: <CommercialOrdersPanel /> },
                     ]}
                 />
             </div>
@@ -947,6 +954,447 @@ function CoursesPanel() {
             </Modal>
         </section>
     );
+}
+
+function CommercialOrdersPanel() {
+    const { message } = App.useApp();
+    const [form] = Form.useForm<CommercialOrderConfigurationForm>();
+    const [items, setItems] = useState<SchoolCommercialOrder[]>([]);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
+    const [loading, setLoading] = useState(false);
+    const [viewing, setViewing] = useState<SchoolCommercialOrder | null>(null);
+    const [submissions, setSubmissions] = useState<CommercialOrderSubmissions | null>(null);
+    const [submissionPage, setSubmissionPage] = useState(1);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [configuring, setConfiguring] = useState<SchoolCommercialOrder | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [startingId, setStartingId] = useState("");
+    const [teacherOptions, setTeacherOptions] = useState<SelectOption[]>([]);
+    const [studentOptions, setStudentOptions] = useState<SelectOption[]>([]);
+    const [classOptions, setClassOptions] = useState<SelectOption[]>([]);
+    const commercialOrderRequestSequence = useRef(0);
+    const optionRequestSequence = useRef({ teachers: 0, students: 0, classes: 0 });
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        try {
+            const result = await commercialOrdersApi.listSchoolCommercialOrders({ page, pageSize: PAGE_SIZE });
+            setItems(result.items);
+            setTotal(result.total);
+        } catch (error) {
+            setItems([]);
+            setTotal(0);
+            message.error(errorMessage(error, "商单列表加载失败"));
+        } finally {
+            setLoading(false);
+        }
+    }, [message, page]);
+
+    useEffect(() => void load(), [load]);
+
+    const loadDetails = useCallback(
+        async (orderId: string, nextPage: number) => {
+            const requestId = ++commercialOrderRequestSequence.current;
+            setDetailLoading(true);
+            try {
+                const result = await commercialOrdersApi.listCommercialOrderSubmissions(orderId, { page: nextPage, pageSize: PAGE_SIZE });
+                if (requestId !== commercialOrderRequestSequence.current) return;
+                setViewing(result.order);
+                setSubmissions(result);
+            } catch (error) {
+                if (requestId !== commercialOrderRequestSequence.current) return;
+                setSubmissions(null);
+                message.error(errorMessage(error, "商单详情加载失败"));
+            } finally {
+                if (requestId === commercialOrderRequestSequence.current) setDetailLoading(false);
+            }
+        },
+        [message],
+    );
+
+    const openDetails = (commercialOrder: SchoolCommercialOrder) => {
+        commercialOrderRequestSequence.current += 1;
+        setViewing(commercialOrder);
+        setSubmissions(null);
+        setSubmissionPage(1);
+        void loadDetails(commercialOrder.id, 1);
+    };
+
+    const searchTeachers = useCallback(
+        async (keyword: string, selected: SelectOption[] = []) => {
+            const requestId = ++optionRequestSequence.current.teachers;
+            try {
+                const result = await schoolApi.listMembers({ page: 1, pageSize: PAGE_SIZE, keyword: keyword.trim() || undefined, role: "teacher", status: "active" });
+                if (requestId === optionRequestSequence.current.teachers) setTeacherOptions(mergeOptions(selected, result.items.map(memberOption)));
+            } catch (error) {
+                if (requestId === optionRequestSequence.current.teachers) message.error(errorMessage(error, "老师选项加载失败"));
+            }
+        },
+        [message],
+    );
+
+    const searchStudents = useCallback(
+        async (keyword: string, selected: SelectOption[] = []) => {
+            const requestId = ++optionRequestSequence.current.students;
+            try {
+                const result = await schoolApi.listMembers({ page: 1, pageSize: PAGE_SIZE, keyword: keyword.trim() || undefined, role: "student", status: "active" });
+                if (requestId === optionRequestSequence.current.students) setStudentOptions(mergeOptions(selected, result.items.map(memberOption)));
+            } catch (error) {
+                if (requestId === optionRequestSequence.current.students) message.error(errorMessage(error, "学生选项加载失败"));
+            }
+        },
+        [message],
+    );
+
+    const searchCommercialClasses = useCallback(
+        async (keyword: string, selected: SelectOption[] = []) => {
+            const requestId = ++optionRequestSequence.current.classes;
+            try {
+                const result = await schoolApi.listClasses({ page: 1, pageSize: PAGE_SIZE, status: "active", keyword: keyword.trim() || undefined });
+                if (requestId === optionRequestSequence.current.classes)
+                    setClassOptions(
+                        mergeOptions(
+                            selected,
+                            result.items.map((item) => ({ value: item.id, label: item.name })),
+                        ),
+                    );
+            } catch (error) {
+                if (requestId === optionRequestSequence.current.classes) message.error(errorMessage(error, "班级选项加载失败"));
+            }
+        },
+        [message],
+    );
+
+    const openConfiguration = async (commercialOrder: SchoolCommercialOrder) => {
+        let currentParticipants: CommercialOrderParticipantSubmission[];
+        try {
+            const current = await commercialOrdersApi.listCommercialOrderSubmissions(commercialOrder.id, { page: 1, pageSize: 100 });
+            if (current.participants.total > current.participants.items.length) {
+                message.error("当前参与学生数量超过单页范围，请先在商单详情中分批核对");
+                return;
+            }
+            currentParticipants = current.participants.items;
+        } catch (error) {
+            message.error(errorMessage(error, "当前制作团队加载失败"));
+            return;
+        }
+        const teacherSeed = commercialOrder.teacherMembershipId && commercialOrder.teacher ? [{ value: commercialOrder.teacherMembershipId, label: identityLabel(commercialOrder.teacher) }] : [];
+        const studentSeed = currentParticipants.map((item) => ({ value: item.membershipId, label: identityLabel(item.participant) }));
+        const classSeed = commercialOrder.classId ? [{ value: commercialOrder.classId, label: commercialOrder.className || "当前班级" }] : [];
+        setConfiguring(commercialOrder);
+        form.setFieldsValue({ teacherMembershipId: commercialOrder.teacherMembershipId, classId: commercialOrder.classId, participantMembershipIds: currentParticipants.map((item) => item.membershipId) });
+        void Promise.all([searchTeachers("", teacherSeed), searchStudents("", studentSeed), searchCommercialClasses("", classSeed)]);
+    };
+
+    const configure = async (values: CommercialOrderConfigurationForm) => {
+        if (!configuring) return;
+        setSaving(true);
+        try {
+            const updated = await commercialOrdersApi.configureCommercialOrder(configuring.id, values);
+            message.success("制作团队已保存");
+            setConfiguring(null);
+            form.resetFields();
+            setViewing((current) => (current?.id === updated.id ? updated : current));
+            await load();
+            if (viewing?.id === updated.id) await loadDetails(updated.id, 1);
+        } catch (error) {
+            message.error(errorMessage(error, "制作团队保存失败"));
+            throw error;
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const start = async (commercialOrder: SchoolCommercialOrder) => {
+        setStartingId(commercialOrder.id);
+        try {
+            const updated = await commercialOrdersApi.startCommercialOrder(commercialOrder.id);
+            message.success("商单已开始制作");
+            setViewing((current) => (current?.id === updated.id ? updated : current));
+            await load();
+        } catch (error) {
+            message.error(errorMessage(error, "开始制作失败"));
+        } finally {
+            setStartingId("");
+        }
+    };
+
+    const actions = (commercialOrder: SchoolCommercialOrder) => (
+        <SchoolCommercialOrderActions commercialOrder={commercialOrder} starting={startingId === commercialOrder.id} onView={openDetails} onConfigure={openConfiguration} onStart={(order) => void start(order)} />
+    );
+
+    const columns: TableColumnsType<SchoolCommercialOrder> = [
+        {
+            title: "商单",
+            render: (_, commercialOrder) => (
+                <div className="min-w-0">
+                    <div className="truncate font-medium text-zinc-950 dark:text-zinc-100">{commercialOrder.title}</div>
+                    <div className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{commercialOrder.requirements || "暂无制作要求"}</div>
+                </div>
+            ),
+        },
+        { title: "负责老师", width: 150, render: (_, commercialOrder) => commercialOrder.teacher?.displayName || "待配置" },
+        { title: "班级", width: 130, render: (_, commercialOrder) => commercialOrder.className || "未指定" },
+        { title: "截止时间", width: 170, render: (_, commercialOrder) => (commercialOrder.deadlineAt ? formatTime(commercialOrder.deadlineAt) : "未设置") },
+        { title: "状态", width: 110, render: (_, commercialOrder) => <CommercialOrderStatusTag status={commercialOrder.status} /> },
+        { title: "操作", width: 250, align: "right", render: (_, commercialOrder) => actions(commercialOrder) },
+    ];
+
+    const submissionTotal = Math.max(submissions?.participants.total || 0, submissions?.deliveries.total || 0);
+
+    return (
+        <section className="space-y-3 py-2">
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-200 pb-3 dark:border-zinc-800">
+                <div className="min-w-0">
+                    <h2 className="flex items-center gap-2 text-sm font-medium text-zinc-950 dark:text-zinc-100">
+                        <BriefcaseBusiness className="size-4" /> 本校商单
+                    </h2>
+                    <p className="mt-0.5 text-xs text-zinc-500">配置制作团队、跟进候选成果与学校正式交付。</p>
+                </div>
+                <Button icon={<RefreshCw className="size-4" />} aria-label="刷新学校商单" loading={loading} onClick={() => void load()} />
+            </div>
+
+            <div className="hidden md:block">
+                <Table rowKey="id" columns={columns} dataSource={items} loading={loading} pagination={false} scroll={{ x: 960 }} />
+            </div>
+            <div className="space-y-2 md:hidden" aria-busy={loading}>
+                {items.map((commercialOrder) => (
+                    <article key={commercialOrder.id} className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <h3 className="truncate text-sm font-medium">{commercialOrder.title}</h3>
+                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-500">{commercialOrder.requirements || "暂无制作要求"}</p>
+                            </div>
+                            <CommercialOrderStatusTag status={commercialOrder.status} />
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-500">
+                            <span className="truncate">老师：{commercialOrder.teacher?.displayName || "待配置"}</span>
+                            <span className="truncate">班级：{commercialOrder.className || "未指定"}</span>
+                        </div>
+                        <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">{actions(commercialOrder)}</div>
+                    </article>
+                ))}
+                {!loading && !items.length ? <EmptyText text="暂无已分配商单" /> : null}
+            </div>
+            <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
+
+            <Drawer
+                title={viewing?.title || "商单详情"}
+                open={Boolean(viewing)}
+                destroyOnHidden
+                size="min(640px, 100vw)"
+                loading={detailLoading}
+                onClose={() => {
+                    commercialOrderRequestSequence.current += 1;
+                    setViewing(null);
+                    setSubmissions(null);
+                }}
+                extra={
+                    viewing?.status === "assigned" ? (
+                        <Button icon={<Settings2 className="size-4" />} onClick={() => openConfiguration(viewing)}>
+                            配置团队
+                        </Button>
+                    ) : null
+                }
+            >
+                {viewing ? (
+                    <div className="space-y-5">
+                        <section className="grid gap-3 sm:grid-cols-2">
+                            <DetailValue label="状态" value={<CommercialOrderStatusTag status={viewing.status} />} />
+                            <DetailValue label="截止时间" value={viewing.deadlineAt ? formatTime(viewing.deadlineAt) : "未设置"} />
+                            <DetailValue label="负责老师" value={viewing.teacher?.displayName || "待配置"} />
+                            <DetailValue label="班级" value={viewing.className || "未指定"} />
+                        </section>
+                        <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                            <h3 className="text-sm font-medium">制作要求</h3>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{viewing.requirements || "暂无制作要求"}</p>
+                        </section>
+                        <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                            <h3 className="text-sm font-medium">验收标准</h3>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{viewing.acceptanceCriteria || "暂无验收标准"}</p>
+                            <ResourceList values={viewing.referenceMaterials} emptyText="暂无参考资料" />
+                        </section>
+                        <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                            <h3 className="text-sm font-medium">学生候选成果</h3>
+                            <div className="mt-2 space-y-2">
+                                {submissions?.participants.items.map((participant) => (
+                                    <ParticipantSubmission key={participant.id} value={participant} />
+                                ))}
+                                {!detailLoading && !submissions?.participants.items.length ? <p className="py-2 text-sm text-zinc-500">暂无候选成果</p> : null}
+                            </div>
+                        </section>
+                        <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                            <h3 className="text-sm font-medium">学校正式交付</h3>
+                            <div className="mt-2 space-y-2">
+                                {submissions?.deliveries.items.map((delivery) => (
+                                    <CommercialOrderDeliveryItem key={delivery.id} value={delivery} />
+                                ))}
+                                {!detailLoading && !submissions?.deliveries.items.length ? <p className="py-2 text-sm text-zinc-500">暂无正式交付</p> : null}
+                            </div>
+                        </section>
+                        <Pagination
+                            current={submissionPage}
+                            pageSize={PAGE_SIZE}
+                            total={submissionTotal}
+                            hideOnSinglePage
+                            showSizeChanger={false}
+                            responsive
+                            onChange={(nextPage) => {
+                                setSubmissionPage(nextPage);
+                                if (viewing) void loadDetails(viewing.id, nextPage);
+                            }}
+                        />
+                    </div>
+                ) : null}
+            </Drawer>
+
+            <Modal
+                title={`配置制作团队${configuring ? ` · ${configuring.title}` : ""}`}
+                open={Boolean(configuring)}
+                destroyOnHidden
+                width="min(640px, calc(100vw - 24px))"
+                okText="保存"
+                cancelText="取消"
+                confirmLoading={saving}
+                afterOpenChange={(open) => {
+                    if (!open) form.resetFields();
+                }}
+                onOk={() => form.submit()}
+                onCancel={() => setConfiguring(null)}
+            >
+                <Form form={form} layout="vertical" requiredMark={false} preserve={false} onFinish={(values) => void configure(values)}>
+                    <div className="grid gap-x-3 sm:grid-cols-2">
+                        <Form.Item label="负责老师" name="teacherMembershipId" rules={[{ required: true, message: "请选择负责老师" }]}>
+                            <Select showSearch filterOption={false} options={teacherOptions} onSearch={(keyword) => void searchTeachers(keyword)} />
+                        </Form.Item>
+                        <Form.Item label="班级（可选）" name="classId">
+                            <Select allowClear showSearch filterOption={false} options={classOptions} onSearch={(keyword) => void searchCommercialClasses(keyword)} />
+                        </Form.Item>
+                    </div>
+                    <Form.Item label="参与学生" name="participantMembershipIds" rules={[{ required: true, message: "请选择参与学生" }]}>
+                        <Select mode="multiple" showSearch filterOption={false} maxTagCount="responsive" options={studentOptions} onSearch={(keyword) => void searchStudents(keyword)} />
+                    </Form.Item>
+                </Form>
+            </Modal>
+        </section>
+    );
+}
+
+type CommercialOrderConfigurationForm = { teacherMembershipId: string; classId?: string; participantMembershipIds: string[] };
+type SelectOption = { value: string; label: string };
+
+export function SchoolCommercialOrderActions({
+    commercialOrder,
+    starting = false,
+    onView,
+    onConfigure,
+    onStart,
+}: {
+    commercialOrder: SchoolCommercialOrder;
+    starting?: boolean;
+    onView: (order: SchoolCommercialOrder) => void;
+    onConfigure: (order: SchoolCommercialOrder) => void | Promise<void>;
+    onStart: (order: SchoolCommercialOrder) => void;
+}) {
+    return (
+        <div className="flex flex-wrap justify-end gap-1">
+            <Button type="text" size="small" icon={<Eye className="size-3.5" />} onClick={() => onView(commercialOrder)}>
+                详情
+            </Button>
+            {commercialOrder.status === "assigned" ? (
+                <>
+                    <Button type="text" size="small" icon={<Settings2 className="size-3.5" />} onClick={() => void onConfigure(commercialOrder)}>
+                        配置团队
+                    </Button>
+                    <Button type="text" size="small" icon={<CirclePlay className="size-3.5" />} loading={starting} onClick={() => onStart(commercialOrder)}>
+                        开始制作
+                    </Button>
+                </>
+            ) : null}
+        </div>
+    );
+}
+
+function CommercialOrderStatusTag({ status }: { status: CommercialOrderStatus }) {
+    const values: Record<CommercialOrderStatus, { label: string; color?: string }> = {
+        draft: { label: "草稿" },
+        assigned: { label: "待配置", color: "blue" },
+        in_progress: { label: "制作中", color: "cyan" },
+        submitted: { label: "待验收", color: "gold" },
+        revision_required: { label: "需修改", color: "orange" },
+        accepted: { label: "已验收", color: "green" },
+        cancelled: { label: "已取消" },
+    };
+    const value = values[status];
+    return <Tag color={value.color}>{value.label}</Tag>;
+}
+
+function DetailValue({ label, value }: { label: string; value: ReactNode }) {
+    return (
+        <div>
+            <div className="text-xs text-zinc-500">{label}</div>
+            <div className="mt-1 text-sm text-zinc-900 dark:text-zinc-100">{value}</div>
+        </div>
+    );
+}
+
+function ParticipantSubmission({ value }: { value: CommercialOrderParticipantSubmission }) {
+    return (
+        <article className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{value.participant.displayName}</div>
+                    <div className="mt-0.5 text-xs text-zinc-500">ID：{value.participant.accountId || "-"}</div>
+                </div>
+                <Tag color={value.status === "submitted" ? "blue" : undefined}>{value.status === "submitted" ? "已提交" : "待提交"}</Tag>
+            </div>
+            {value.note ? <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-600 dark:text-zinc-300">{value.note}</p> : null}
+            <ContentReferenceList values={value.candidateReferences} />
+        </article>
+    );
+}
+
+function CommercialOrderDeliveryItem({ value }: { value: CommercialOrderDelivery }) {
+    return (
+        <article className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{value.submittedBy.displayName}</div>
+                    <div className="mt-0.5 text-xs text-zinc-500">{formatTime(value.submittedAt)}</div>
+                </div>
+                <Tag color={value.status === "accepted" ? "green" : value.status === "revision_required" ? "orange" : "gold"}>{value.status === "accepted" ? "已验收" : value.status === "revision_required" ? "需修改" : "已提交"}</Tag>
+            </div>
+            {value.note ? <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-600 dark:text-zinc-300">{value.note}</p> : null}
+            {value.platformFeedback ? <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-2 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">平台反馈：{value.platformFeedback}</p> : null}
+            <ContentReferenceList values={value.contentReferences} />
+        </article>
+    );
+}
+
+function ContentReferenceList({ values }: { values: Array<{ type: string; id: string }> }) {
+    if (!values.length) return null;
+    return (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+            {values.map((reference) => (
+                <Tag key={`${reference.type}:${reference.id}`} title={reference.id}>
+                    {contentReferenceLabel(reference.type)} · {reference.id}
+                </Tag>
+            ))}
+        </div>
+    );
+}
+
+function contentReferenceLabel(type: string) {
+    return type === "work" ? "作品" : type === "canvas" ? "画布" : type === "drama" ? "短剧" : type === "asset" ? "素材" : "生成结果";
+}
+
+function identityLabel(identity: SchoolPublicIdentity) {
+    return `${identity.displayName}${identity.accountId ? `（ID：${identity.accountId}）` : ""}`;
+}
+
+function mergeOptions(selected: SelectOption[], loaded: SelectOption[]) {
+    return [...new Map([...selected, ...loaded].map((item) => [item.value, item])).values()];
 }
 
 type CourseOfferingForm = Omit<CourseOfferingInput, "supplementalResources"> & { supplementalResources: Array<{ title: string; url: string }> };

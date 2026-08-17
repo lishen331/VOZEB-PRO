@@ -4,9 +4,10 @@ import { App, Button, Checkbox, Drawer, Form, Input, Pagination, Spin, Tabs, Tag
 import { BookOpen, CheckCircle2, ClipboardList, Eye, RefreshCw, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import type { PlatformCourse, SchoolContentReference, SchoolCourseAssignment, TeachingAssignment, TeachingSubmission } from "@/lib/school-domain";
+import type { PlatformCourse, SchoolCommercialOrder, SchoolContentReference, SchoolCourseAssignment, TeachingAssignment, TeachingSubmission } from "@/lib/school-domain";
 import { listCanvasProjectSummaries } from "@/services/api/canvas-projects";
 import { coursesApi } from "@/services/api/courses";
+import { commercialOrdersApi, type CommercialOrderSubmissions } from "@/services/api/commercial-orders";
 import { listDramaProjectSummaries } from "@/services/api/drama-projects";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { listWorkPublications } from "@/services/api/work-publications";
@@ -14,20 +15,27 @@ import { useSchoolContextStore } from "@/stores/use-school-context-store";
 
 type ReferenceCandidate = { reference: SchoolContentReference; title: string; detail: string };
 type SubmissionForm = { note?: string };
+type CommercialSubmissionForm = { note?: string };
 const PAGE_SIZE = 12;
 
 export default function LearningPage() {
     const { message } = App.useApp();
     const context = useSchoolContextStore((state) => state.context);
     const [form] = Form.useForm<SubmissionForm>();
+    const [commercialForm] = Form.useForm<CommercialSubmissionForm>();
     const [courses, setCourses] = useState<SchoolCourseAssignment[]>([]);
     const [assignments, setAssignments] = useState<TeachingAssignment[]>([]);
+    const [commercialOrders, setCommercialOrders] = useState<SchoolCommercialOrder[]>([]);
     const [submissions, setSubmissions] = useState<Record<string, TeachingSubmission | undefined>>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [viewingCourse, setViewingCourse] = useState<PlatformCourse | null>(null);
     const [viewingLesson, setViewingLesson] = useState<{ course: PlatformCourse; item: unknown; index: number } | null>(null);
     const [submitting, setSubmitting] = useState<TeachingAssignment | null>(null);
+    const [viewingCommercialOrder, setViewingCommercialOrder] = useState<SchoolCommercialOrder | null>(null);
+    const [commercialDetails, setCommercialDetails] = useState<CommercialOrderSubmissions | null>(null);
+    const [commercialLoading, setCommercialLoading] = useState(true);
+    const [commercialDetailLoading, setCommercialDetailLoading] = useState(false);
     const [candidates, setCandidates] = useState<ReferenceCandidate[]>([]);
     const [selectedReferences, setSelectedReferences] = useState<SchoolContentReference[]>([]);
     const [candidateLoading, setCandidateLoading] = useState(false);
@@ -37,9 +45,16 @@ export default function LearningPage() {
     const [courseTotal, setCourseTotal] = useState(0);
     const [assignmentPage, setAssignmentPage] = useState(1);
     const [assignmentTotal, setAssignmentTotal] = useState(0);
+    const [commercialPage, setCommercialPage] = useState(1);
+    const [commercialTotal, setCommercialTotal] = useState(0);
     const [activeTab, setActiveTab] = useState("courses");
     const loadRequestSequence = useRef(0);
     const loadAbortController = useRef<AbortController | null>(null);
+    const commercialRequestSequence = useRef(0);
+    const commercialAbortController = useRef<AbortController | null>(null);
+    const commercialDetailRequestSequence = useRef(0);
+    const commercialDetailAbortController = useRef<AbortController | null>(null);
+    const candidateRequestSequence = useRef(0);
 
     const load = useCallback(async () => {
         const requestId = ++loadRequestSequence.current;
@@ -72,8 +87,37 @@ export default function LearningPage() {
         }
     }, [assignmentPage, coursePage, message]);
 
+    const loadCommercialOrders = useCallback(async () => {
+        const requestId = ++commercialRequestSequence.current;
+        commercialAbortController.current?.abort();
+        const controller = new AbortController();
+        commercialAbortController.current = controller;
+        setCommercialLoading(true);
+        try {
+            const result = await commercialOrdersApi.listTeachingCommercialOrders({ page: commercialPage, pageSize: PAGE_SIZE }, { signal: controller.signal });
+            if (requestId !== commercialRequestSequence.current) return;
+            setCommercialOrders(result.items);
+            setCommercialTotal(result.total);
+        } catch (error) {
+            if (controller.signal.aborted || requestId !== commercialRequestSequence.current) return;
+            setCommercialOrders([]);
+            setCommercialTotal(0);
+            message.error(errorMessage(error, "商单实训加载失败"));
+        } finally {
+            if (requestId === commercialRequestSequence.current) setCommercialLoading(false);
+        }
+    }, [commercialPage, message]);
+
     useEffect(() => void load(), [load]);
-    useEffect(() => () => loadAbortController.current?.abort(), []);
+    useEffect(() => void loadCommercialOrders(), [loadCommercialOrders]);
+    useEffect(
+        () => () => {
+            loadAbortController.current?.abort();
+            commercialAbortController.current?.abort();
+            commercialDetailAbortController.current?.abort();
+        },
+        [],
+    );
 
     const lessons = useMemo(() => courses.flatMap((item) => item.course.chapters.map((chapter, index) => ({ course: item.course, item: chapter, index }))), [courses]);
     const homework = useMemo(() => assignments.filter((item) => item.kind !== "commercial_practice"), [assignments]);
@@ -90,6 +134,11 @@ export default function LearningPage() {
     const feedback = useMemo(() => Object.values(submissions).filter((item): item is TeachingSubmission => Boolean(item?.feedback)), [submissions]);
 
     const openSubmission = async (assignment: TeachingAssignment) => {
+        const requestId = ++candidateRequestSequence.current;
+        commercialDetailAbortController.current?.abort();
+        commercialDetailRequestSequence.current += 1;
+        setViewingCommercialOrder(null);
+        setCommercialDetails(null);
         const existing = submissions[assignment.id];
         const canSubmit = assignment.status === "published" && (!existing || existing.status === "revision_required");
         setSelectedReferences(existing?.contentReferences || []);
@@ -97,34 +146,40 @@ export default function LearningPage() {
         if (!canSubmit) {
             setCandidates([]);
             setCandidateHasMore(false);
+            setCandidateLoading(false);
             return;
         }
         setCandidateLoading(true);
         try {
             const result = await loadReferenceCandidates(1);
+            if (requestId !== candidateRequestSequence.current) return;
             setCandidates(result.items);
             setCandidatePage(1);
             setCandidateHasMore(result.hasMore);
         } catch (error) {
+            if (requestId !== candidateRequestSequence.current) return;
             setCandidates([]);
             message.error(errorMessage(error, "成果列表加载失败"));
         } finally {
-            setCandidateLoading(false);
+            if (requestId === candidateRequestSequence.current) setCandidateLoading(false);
         }
     };
 
     const loadMoreCandidates = async () => {
+        const requestId = ++candidateRequestSequence.current;
         const nextPage = candidatePage + 1;
         setCandidateLoading(true);
         try {
             const result = await loadReferenceCandidates(nextPage);
+            if (requestId !== candidateRequestSequence.current) return;
             setCandidates((current) => uniqueCandidates([...current, ...result.items]));
             setCandidatePage(nextPage);
             setCandidateHasMore(result.hasMore);
         } catch (error) {
+            if (requestId !== candidateRequestSequence.current) return;
             message.error(errorMessage(error, "成果列表加载失败"));
         } finally {
-            setCandidateLoading(false);
+            if (requestId === candidateRequestSequence.current) setCandidateLoading(false);
         }
     };
 
@@ -142,11 +197,80 @@ export default function LearningPage() {
             setSubmissions((current) => ({ ...current, [submitting.id]: result }));
             message.success("作业已提交");
             setSubmitting(null);
+            candidateRequestSequence.current += 1;
             setCandidates([]);
             setSelectedReferences([]);
             form.resetFields();
         } catch (error) {
             message.error(errorMessage(error, "作业提交失败"));
+            throw error;
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const openCommercialOrder = async (order: SchoolCommercialOrder) => {
+        const requestId = ++commercialDetailRequestSequence.current;
+        const candidateRequestId = ++candidateRequestSequence.current;
+        commercialDetailAbortController.current?.abort();
+        const controller = new AbortController();
+        commercialDetailAbortController.current = controller;
+        setSubmitting(null);
+        setViewingCommercialOrder(order);
+        setCommercialDetails(null);
+        setCommercialDetailLoading(true);
+        setCandidates([]);
+        setSelectedReferences([]);
+        setCandidateHasMore(false);
+        commercialForm.resetFields();
+        const canSubmit = order.status !== "accepted" && (order.status === "in_progress" || order.status === "revision_required");
+        setCandidateLoading(canSubmit);
+        try {
+            const [details, candidateResult] = await Promise.all([
+                commercialOrdersApi.listCommercialOrderSubmissions(order.id, { page: 1, pageSize: PAGE_SIZE }, { signal: controller.signal }),
+                canSubmit ? loadReferenceCandidates(1) : Promise.resolve({ items: [] as ReferenceCandidate[], hasMore: false }),
+            ]);
+            if (requestId !== commercialDetailRequestSequence.current || candidateRequestId !== candidateRequestSequence.current) return;
+            const ownSubmission = details.participants.items[0];
+            setCommercialDetails(details);
+            setViewingCommercialOrder(details.order);
+            setCandidates(candidateResult.items);
+            setCandidatePage(1);
+            setCandidateHasMore(candidateResult.hasMore);
+            setSelectedReferences(ownSubmission?.candidateReferences || []);
+            commercialForm.setFieldsValue({ note: ownSubmission?.note || "" });
+        } catch (error) {
+            if (controller.signal.aborted || requestId !== commercialDetailRequestSequence.current) return;
+            message.error(errorMessage(error, "商单详情加载失败"));
+        } finally {
+            if (requestId === commercialDetailRequestSequence.current && candidateRequestId === candidateRequestSequence.current) {
+                setCommercialDetailLoading(false);
+                setCandidateLoading(false);
+            }
+        }
+    };
+
+    const submitCommercialWork = async (values: CommercialSubmissionForm) => {
+        const order = viewingCommercialOrder;
+        if (!order || order.status === "accepted" || (order.status !== "in_progress" && order.status !== "revision_required")) return;
+        if (!selectedReferences.length) {
+            message.warning("请至少选择一项候选成果");
+            return;
+        }
+        setSaving(true);
+        try {
+            const submission = await commercialOrdersApi.submitCommercialOrderWork(order.id, { note: values.note?.trim() || "", references: selectedReferences });
+            setCommercialDetails((current) =>
+                current
+                    ? {
+                          ...current,
+                          participants: { ...current.participants, items: [submission], total: 1 },
+                      }
+                    : current,
+            );
+            message.success("候选成果已提交");
+        } catch (error) {
+            message.error(errorMessage(error, "候选成果提交失败"));
             throw error;
         } finally {
             setSaving(false);
@@ -210,6 +334,18 @@ export default function LearningPage() {
             children: <AssignmentList items={practices} submissions={submissions} actionLabel="提交成果" onOpen={openSubmission} />,
         },
         {
+            key: "commercial",
+            label: "商单实训",
+            children:
+                commercialLoading && !commercialOrders.length ? (
+                    <div className="flex min-h-32 items-center justify-center">
+                        <Spin size="small" />
+                    </div>
+                ) : (
+                    <CommercialOrderList items={commercialOrders} onOpen={openCommercialOrder} />
+                ),
+        },
+        {
             key: "feedback",
             label: "反馈",
             children: (
@@ -240,7 +376,7 @@ export default function LearningPage() {
                         <h1 className="truncate text-lg font-semibold text-zinc-950 sm:text-xl dark:text-zinc-100">学习中心</h1>
                         <p className="mt-1 text-xs text-zinc-500 sm:text-sm">{context?.school.name || "班级课程与作业"}</p>
                     </div>
-                    <Button icon={<RefreshCw className="size-4" />} aria-label="刷新学习中心" loading={loading} onClick={() => void load()} />
+                    <Button icon={<RefreshCw className="size-4" />} aria-label="刷新学习中心" loading={loading || commercialLoading} onClick={() => void Promise.all([load(), loadCommercialOrders()])} />
                 </header>
                 {loading && !courses.length && !assignments.length ? (
                     <div className="flex min-h-40 items-center justify-center">
@@ -251,13 +387,13 @@ export default function LearningPage() {
                         <Tabs destroyOnHidden className="pt-2" activeKey={activeTab} items={tabs} onChange={setActiveTab} />
                         <Pagination
                             className="mt-4"
-                            current={activeTab === "courses" || activeTab === "lessons" ? coursePage : assignmentPage}
+                            current={activeTab === "commercial" ? commercialPage : activeTab === "courses" || activeTab === "lessons" ? coursePage : assignmentPage}
                             pageSize={PAGE_SIZE}
-                            total={activeTab === "courses" || activeTab === "lessons" ? courseTotal : assignmentTotal}
+                            total={activeTab === "commercial" ? commercialTotal : activeTab === "courses" || activeTab === "lessons" ? courseTotal : assignmentTotal}
                             hideOnSinglePage
                             showSizeChanger={false}
                             responsive
-                            onChange={activeTab === "courses" || activeTab === "lessons" ? setCoursePage : setAssignmentPage}
+                            onChange={activeTab === "commercial" ? setCommercialPage : activeTab === "courses" || activeTab === "lessons" ? setCoursePage : setAssignmentPage}
                         />
                     </>
                 )}
@@ -288,7 +424,12 @@ export default function LearningPage() {
                     form.resetFields();
                     form.setFieldsValue({ note: existing?.note || "" });
                 }}
-                onClose={() => setSubmitting(null)}
+                onClose={() => {
+                    candidateRequestSequence.current += 1;
+                    setSubmitting(null);
+                    setCandidates([]);
+                    setSelectedReferences([]);
+                }}
                 extra={
                     submitting?.status === "published" && (!submissions[submitting.id] || submissions[submitting.id]?.status === "revision_required") ? (
                         <Button type="primary" icon={<Send className="size-4" />} loading={saving} onClick={() => form.submit()}>
@@ -361,6 +502,123 @@ export default function LearningPage() {
                     </div>
                 ) : null}
             </Drawer>
+
+            <Drawer
+                title={viewingCommercialOrder?.title || "商单实训"}
+                open={Boolean(viewingCommercialOrder)}
+                destroyOnHidden
+                size="min(720px, 100vw)"
+                afterOpenChange={(open) => {
+                    if (!open) return;
+                    commercialForm.resetFields();
+                    commercialForm.setFieldsValue({ note: commercialDetails?.participants.items[0]?.note || "" });
+                }}
+                onClose={() => {
+                    commercialDetailAbortController.current?.abort();
+                    commercialDetailRequestSequence.current += 1;
+                    candidateRequestSequence.current += 1;
+                    setViewingCommercialOrder(null);
+                    setCommercialDetails(null);
+                    setCandidates([]);
+                    setSelectedReferences([]);
+                }}
+                extra={
+                    viewingCommercialOrder && viewingCommercialOrder.status !== "accepted" && (viewingCommercialOrder.status === "in_progress" || viewingCommercialOrder.status === "revision_required") ? (
+                        <Button type="primary" icon={<Send className="size-4" />} loading={saving} onClick={() => commercialForm.submit()}>
+                            提交候选成果
+                        </Button>
+                    ) : null
+                }
+            >
+                {commercialDetailLoading && !commercialDetails ? (
+                    <div className="flex min-h-40 items-center justify-center">
+                        <Spin />
+                    </div>
+                ) : viewingCommercialOrder ? (
+                    <div className="min-w-0 space-y-5">
+                        <section className="space-y-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <CommercialOrderStatusTag status={viewingCommercialOrder.status} />
+                                {viewingCommercialOrder.className ? <Tag>{viewingCommercialOrder.className}</Tag> : null}
+                            </div>
+                            <DescriptionBlock title="任务要求" value={viewingCommercialOrder.requirements} empty="暂无任务要求" />
+                            <DescriptionBlock title="验收标准" value={viewingCommercialOrder.acceptanceCriteria} empty="暂无验收标准" />
+                            {viewingCommercialOrder.deadlineAt ? <p className="text-xs text-zinc-500">截止 {formatTime(viewingCommercialOrder.deadlineAt)}</p> : null}
+                            {viewingCommercialOrder.referenceMaterials.length ? (
+                                <div>
+                                    <h2 className="text-sm font-medium">参考资料</h2>
+                                    <ResourceList values={viewingCommercialOrder.referenceMaterials} emptyText="暂无参考资料" />
+                                </div>
+                            ) : null}
+                        </section>
+
+                        {commercialDetails?.participants.items[0] ? (
+                            <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <h2 className="text-sm font-medium">我的候选成果</h2>
+                                    <Tag color={commercialDetails.participants.items[0].status === "submitted" ? "blue" : "default"}>{commercialDetails.participants.items[0].status === "submitted" ? "已提交" : "待提交"}</Tag>
+                                </div>
+                                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{commercialDetails.participants.items[0].note || "暂无提交说明"}</p>
+                                <p className="mt-1 text-xs text-zinc-500">已引用 {commercialDetails.participants.items[0].candidateReferences.length} 项本人成果</p>
+                            </section>
+                        ) : null}
+
+                        {viewingCommercialOrder.status !== "accepted" && (viewingCommercialOrder.status === "in_progress" || viewingCommercialOrder.status === "revision_required") ? (
+                            <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                                <Form form={commercialForm} layout="vertical" requiredMark={false} preserve={false} onFinish={(values) => void submitCommercialWork(values)}>
+                                    <Form.Item label="候选成果说明" name="note">
+                                        <Input.TextArea rows={3} maxLength={2000} showCount />
+                                    </Form.Item>
+                                </Form>
+                                <h2 className="text-sm font-medium">选择本人现有成果</h2>
+                                {candidateLoading && !candidates.length ? (
+                                    <div className="flex min-h-24 items-center justify-center">
+                                        <Spin size="small" />
+                                    </div>
+                                ) : (
+                                    <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">
+                                        {candidates.map((candidate) => {
+                                            const checked = selectedReferences.some((item) => referenceKey(item) === referenceKey(candidate.reference));
+                                            return (
+                                                <label key={referenceKey(candidate.reference)} className="flex min-w-0 cursor-pointer items-start gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+                                                    <Checkbox checked={checked} onChange={(event) => toggleReference(candidate.reference, event.target.checked)} />
+                                                    <span className="min-w-0">
+                                                        <span className="block truncate text-sm font-medium">{candidate.title}</span>
+                                                        <span className="mt-0.5 block truncate text-xs text-zinc-500">{candidate.detail}</span>
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                        {!candidates.length ? <p className="py-5 text-sm text-zinc-500 sm:col-span-2">暂无可引用成果</p> : null}
+                                    </div>
+                                )}
+                                {candidateHasMore ? (
+                                    <Button className="mt-3" loading={candidateLoading} onClick={() => void loadMoreCandidates()}>
+                                        加载更多
+                                    </Button>
+                                ) : null}
+                            </section>
+                        ) : null}
+
+                        <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                            <h2 className="text-sm font-medium">正式交付与平台反馈</h2>
+                            <div className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-800">
+                                {commercialDetails?.deliveries.items.map((delivery) => (
+                                    <article key={delivery.id} className="py-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <CommercialDeliveryStatusTag status={delivery.status} />
+                                            <span className="text-xs text-zinc-500">{formatTime(delivery.submittedAt)}</span>
+                                        </div>
+                                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{delivery.note || `正式交付包含 ${delivery.contentReferences.length} 项成果`}</p>
+                                        {delivery.platformFeedback ? <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">平台反馈：{delivery.platformFeedback}</p> : null}
+                                    </article>
+                                ))}
+                                {!commercialDetails?.deliveries.items.length ? <p className="py-5 text-sm text-zinc-500">暂无正式交付</p> : null}
+                            </div>
+                        </section>
+                    </div>
+                ) : null}
+            </Drawer>
         </main>
     );
 }
@@ -391,6 +649,59 @@ function AssignmentList({ items, submissions, actionLabel, onOpen }: { items: Te
                 );
             })}
             {!items.length ? <EmptyText text="暂无对应作业" /> : null}
+        </div>
+    );
+}
+
+function CommercialOrderList({ items, onOpen }: { items: SchoolCommercialOrder[]; onOpen: (order: SchoolCommercialOrder) => void }) {
+    return (
+        <div className="divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            {items.map((order) => (
+                <article key={order.id} className="flex min-w-0 flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="truncate text-sm font-medium">{order.title}</h2>
+                            <CommercialOrderStatusTag status={order.status} />
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-500">{order.requirements || "暂无任务要求"}</p>
+                        <p className="mt-1 truncate text-xs text-zinc-500">{order.className || "学校商单"}</p>
+                        {order.deadlineAt ? <p className="mt-1 text-xs text-zinc-500">截止 {formatTime(order.deadlineAt)}</p> : null}
+                    </div>
+                    <Button className="shrink-0 self-start sm:self-auto" size="small" icon={<Eye className="size-3.5" />} onClick={() => void onOpen(order)}>
+                        查看详情
+                    </Button>
+                </article>
+            ))}
+            {!items.length ? <EmptyText text="暂无参与中的商单实训" /> : null}
+        </div>
+    );
+}
+
+function CommercialOrderStatusTag({ status }: Pick<SchoolCommercialOrder, "status">) {
+    const values: Record<SchoolCommercialOrder["status"], { color?: string; label: string }> = {
+        draft: { label: "待发布" },
+        assigned: { color: "cyan", label: "待启动" },
+        in_progress: { color: "blue", label: "进行中" },
+        submitted: { color: "geekblue", label: "待验收" },
+        revision_required: { color: "orange", label: "需修改" },
+        accepted: { color: "green", label: "已验收" },
+        cancelled: { label: "已取消" },
+    };
+    const value = values[status];
+    return <Tag color={value.color}>{value.label}</Tag>;
+}
+
+function CommercialDeliveryStatusTag({ status }: { status: "submitted" | "revision_required" | "accepted" }) {
+    if (status === "accepted") return <Tag color="green">已验收</Tag>;
+    if (status === "revision_required") return <Tag color="orange">需修改</Tag>;
+    return <Tag color="blue">待验收</Tag>;
+}
+
+function DescriptionBlock({ title, value, empty }: { title: string; value: string; empty: string }) {
+    return (
+        <div>
+            <h2 className="text-sm font-medium">{title}</h2>
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{value || empty}</p>
         </div>
     );
 }

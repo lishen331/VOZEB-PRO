@@ -26,9 +26,12 @@ describe("admin sections", () => {
         const educator = { role: "admin", status: "active", adminPermissions: ["education.manage"] };
         expect(canAccessAdminSection(educator, "schools")).toBe(true);
         expect(canAccessAdminSection(educator, "courses")).toBe(true);
+        expect(canAccessAdminSection(educator, "commercialOrders")).toBe(true);
         expect(allowedAdminSections(educator)).toContain("schools");
         expect(allowedAdminSections(educator)).toContain("courses");
+        expect(allowedAdminSections(educator)).toContain("commercialOrders");
         expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "schools")).toBe(false);
         expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "courses")).toBe(false);
+        expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "commercialOrders")).toBe(false);
     });
 });

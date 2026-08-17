@@ -19,6 +19,7 @@ import {
     GalleryVerticalEnd,
     Globe2,
     HardDrive,
+    Handshake,
     KeyRound,
     Megaphone,
     Menu,
@@ -178,6 +179,7 @@ export const adminSections: AdminSection[] = [
     { key: "overview", label: "经营看板", description: "查看用户增长、调用趋势、收入概览和模型请求分布。", shortDescription: "数据总览", icon: <Database className="size-4" /> },
     { key: "schools", label: "学校管理", description: "创建学校、维护学校资料和首位学校管理员。", shortDescription: "租户与管理员", icon: <School className="size-4" /> },
     { key: "courses", label: "课程管理", description: "维护平台课程内容、发布状态并分配给学校。", shortDescription: "课程与学校", icon: <BookOpen className="size-4" /> },
+    { key: "commercialOrders", label: "商单管理", description: "维护平台商单、承接学校与正式交付验收。", shortDescription: "分配与验收", icon: <Handshake className="size-4" /> },
     { key: "users", label: "用户运营", description: "管理用户角色、账号状态、套餐归属和积分余额。", shortDescription: "账户与权益", icon: <UsersRound className="size-4" /> },
     { key: "logs", label: "调用记录", description: "追踪用户生成任务、模型调用、入口来源和失败原因。", shortDescription: "生成与模型", icon: <Film className="size-4" /> },
     { key: "generationOperations", label: "生成运维", description: "统一排查生成任务、会话、项目、渠道健康、失败原因和积分成本。", shortDescription: "任务排障", icon: <Activity className="size-4" /> },
@@ -207,7 +209,7 @@ export const adminSections: AdminSection[] = [
 
 export const adminSectionGroups: AdminSectionGroup[] = [
     { title: "经营分析", items: sectionsFor(["overview", "users", "logs", "generationOperations"]) },
-    { title: "产教运营", items: sectionsFor(["schools", "courses"]) },
+    { title: "产教运营", items: sectionsFor(["schools", "courses", "commercialOrders"]) },
     { title: "商品运营", items: sectionsFor(["products", "orders"]) },
     { title: "营销推广", items: sectionsFor(["promotions", "coupons", "referrals"]) },
     { title: "财务管理", items: sectionsFor(["points", "payments", "cdk", "wallet"]) },

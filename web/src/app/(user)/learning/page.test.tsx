@@ -11,6 +11,11 @@ describe("learning center", () => {
         expect(source).toContain("coursesApi.listOwnSubmissions");
         expect(source).not.toContain("assignmentPage.items.map(async");
         expect(source).toContain("coursesApi.submitAssignment");
+        expect(source).toContain("commercialOrdersApi.listTeachingCommercialOrders");
+        expect(source).toContain("commercialOrdersApi.submitCommercialOrderWork");
+        expect(source).toContain('order.status !== "accepted"');
+        expect(source).toContain("商单实训");
+        expect(source).toContain("候选成果");
         expect(source).toContain("listWorkPublications");
         expect(source).toContain("listCanvasProjectSummaries");
         expect(source).toContain("listDramaProjectSummaries");

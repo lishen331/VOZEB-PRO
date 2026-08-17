@@ -16,6 +16,7 @@ describe("admin section preload", () => {
         expect(dashboard).toContain("onIntent={(section) => void sectionLoaders[section]?.()}");
         expect(dashboard).toContain("schools: loadSchoolsSection");
         expect(dashboard).toContain("courses: loadCoursesSection");
+        expect(dashboard).toContain("commercialOrders: loadCommercialOrdersSection");
         expect(navigation).toContain("onPointerEnter={() => onIntent?.(section.key)}");
         expect(navigation).toContain("onPointerDown={() => onIntent?.(section.key)}");
         expect(navigation).toContain("onFocus={() => onIntent?.(section.key)}");

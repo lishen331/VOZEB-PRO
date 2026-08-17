@@ -1,15 +1,33 @@
 "use client";
 
-import { App, Button, Drawer, Form, Input, Modal, Pagination, Select, Spin, Tabs, Tag } from "antd";
-import { BookOpen, ClipboardCheck, Eye, Plus, RefreshCw, Send } from "lucide-react";
+import { App, Button, Checkbox, Drawer, Form, Input, Modal, Pagination, Select, Spin, Tabs, Tag } from "antd";
+import { BookOpen, ClipboardCheck, Eye, PackageCheck, Plus, RefreshCw, Send, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { PlatformCourse, SchoolCourseAssignment, SchoolCourseOffering, TeachingAssignment, TeachingAssignmentKind, TeachingSubmission } from "@/lib/school-domain";
+import type {
+    CommercialOrderDelivery,
+    CommercialOrderParticipantSubmission,
+    PlatformCourse,
+    SchoolCommercialOrder,
+    SchoolContentReference,
+    SchoolCourseAssignment,
+    SchoolCourseOffering,
+    TeachingAssignment,
+    TeachingAssignmentKind,
+    TeachingSubmission,
+} from "@/lib/school-domain";
+import { listCanvasProjectSummaries } from "@/services/api/canvas-projects";
+import { commercialOrdersApi, type CommercialOrderSubmissions } from "@/services/api/commercial-orders";
 import { coursesApi } from "@/services/api/courses";
+import { listDramaProjectSummaries } from "@/services/api/drama-projects";
+import { listLibraryAssetPage } from "@/services/api/library-assets";
+import { listWorkPublications } from "@/services/api/work-publications";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 
 type AssignmentForm = { offeringId: string; kind: TeachingAssignmentKind; title: string; instructions?: string; dueAt?: string; resourceUrls?: string[] };
 type ReviewForm = { feedback: string };
+type CommercialDeliveryForm = { note?: string };
+type ReferenceCandidate = { reference: SchoolContentReference; title: string; detail: string };
 const PAGE_SIZE = 12;
 
 export default function TeachingPage() {
@@ -278,6 +296,11 @@ export default function TeachingPage() {
                 </section>
             ),
         },
+        {
+            key: "commercial-orders",
+            label: "商单任务",
+            children: <CommercialOrdersTab />,
+        },
     ];
 
     return (
@@ -297,16 +320,18 @@ export default function TeachingPage() {
                 ) : (
                     <>
                         <Tabs destroyOnHidden className="pt-2" activeKey={activeTab} items={tabs} onChange={setActiveTab} />
-                        <Pagination
-                            className="mt-4"
-                            current={activeTab === "classes" ? offeringPage : activeTab === "courses" ? coursePage : activeTab === "assignments" ? assignmentPage : submissionPage}
-                            pageSize={PAGE_SIZE}
-                            total={activeTab === "classes" ? offeringTotal : activeTab === "courses" ? courseTotal : activeTab === "assignments" ? assignmentTotal : submissionTotal}
-                            hideOnSinglePage
-                            showSizeChanger={false}
-                            responsive
-                            onChange={activeTab === "classes" ? setOfferingPage : activeTab === "courses" ? setCoursePage : activeTab === "assignments" ? setAssignmentPage : setSubmissionPage}
-                        />
+                        {activeTab !== "commercial-orders" ? (
+                            <Pagination
+                                className="mt-4"
+                                current={activeTab === "classes" ? offeringPage : activeTab === "courses" ? coursePage : activeTab === "assignments" ? assignmentPage : submissionPage}
+                                pageSize={PAGE_SIZE}
+                                total={activeTab === "classes" ? offeringTotal : activeTab === "courses" ? courseTotal : activeTab === "assignments" ? assignmentTotal : submissionTotal}
+                                hideOnSinglePage
+                                showSizeChanger={false}
+                                responsive
+                                onChange={activeTab === "classes" ? setOfferingPage : activeTab === "courses" ? setCoursePage : activeTab === "assignments" ? setAssignmentPage : setSubmissionPage}
+                            />
+                        ) : null}
                     </>
                 )}
             </div>
@@ -401,6 +426,353 @@ export default function TeachingPage() {
     );
 }
 
+function CommercialOrdersTab() {
+    const { message } = App.useApp();
+    const [deliveryForm] = Form.useForm<CommercialDeliveryForm>();
+    const [orders, setOrders] = useState<SchoolCommercialOrder[]>([]);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState<SchoolCommercialOrder | null>(null);
+    const [details, setDetails] = useState<CommercialOrderSubmissions | null>(null);
+    const [detailPage, setDetailPage] = useState(1);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [participantsOpen, setParticipantsOpen] = useState(false);
+    const [participantIds, setParticipantIds] = useState<string[]>([]);
+    const [participantOptions, setParticipantOptions] = useState<CommercialOrderParticipantSubmission[]>([]);
+    const [deliveryOpen, setDeliveryOpen] = useState(false);
+    const [deliveryDraft, setDeliveryDraft] = useState<CommercialOrderDelivery | null>(null);
+    const [candidates, setCandidates] = useState<ReferenceCandidate[]>([]);
+    const [selectedReferences, setSelectedReferences] = useState<SchoolContentReference[]>([]);
+    const [candidatePage, setCandidatePage] = useState(1);
+    const [candidateHasMore, setCandidateHasMore] = useState(false);
+    const [candidateLoading, setCandidateLoading] = useState(false);
+    const listRequestSequence = useRef(0);
+    const detailRequestSequence = useRef(0);
+
+    const loadOrders = useCallback(async () => {
+        const requestId = ++listRequestSequence.current;
+        setLoading(true);
+        try {
+            const result = await commercialOrdersApi.listTeachingCommercialOrders({ page, pageSize: PAGE_SIZE });
+            if (requestId !== listRequestSequence.current) return;
+            setOrders(result.items);
+            setTotal(result.total);
+        } catch (error) {
+            if (requestId !== listRequestSequence.current) return;
+            setOrders([]);
+            setTotal(0);
+            message.error(errorMessage(error, "商单任务加载失败"));
+        } finally {
+            if (requestId === listRequestSequence.current) setLoading(false);
+        }
+    }, [message, page]);
+
+    const loadDetails = useCallback(
+        async (orderId: string, targetPage: number) => {
+            const requestId = ++detailRequestSequence.current;
+            setDetailLoading(true);
+            try {
+                const result = await commercialOrdersApi.listCommercialOrderSubmissions(orderId, { page: targetPage, pageSize: PAGE_SIZE });
+                if (requestId !== detailRequestSequence.current) return;
+                setDetails(result);
+                setSelectedOrder(result.order);
+            } catch (error) {
+                if (requestId !== detailRequestSequence.current) return;
+                setDetails(null);
+                message.error(errorMessage(error, "商单详情加载失败"));
+            } finally {
+                if (requestId === detailRequestSequence.current) setDetailLoading(false);
+            }
+        },
+        [message],
+    );
+
+    const selectedOrderId = selectedOrder?.id;
+
+    useEffect(() => void loadOrders(), [loadOrders]);
+    useEffect(() => {
+        if (selectedOrderId) void loadDetails(selectedOrderId, detailPage);
+    }, [detailPage, loadDetails, selectedOrderId]);
+    useEffect(
+        () => () => {
+            listRequestSequence.current += 1;
+            detailRequestSequence.current += 1;
+        },
+        [],
+    );
+
+    const openOrder = (order: SchoolCommercialOrder) => {
+        setDetails(null);
+        setDetailPage(1);
+        setSelectedOrder(order);
+    };
+
+    const closeOrder = () => {
+        detailRequestSequence.current += 1;
+        setSelectedOrder(null);
+        setDetails(null);
+        setDetailLoading(false);
+    };
+
+    const refreshSelectedOrder = async () => {
+        await loadOrders();
+        if (selectedOrderId) await loadDetails(selectedOrderId, detailPage);
+    };
+
+    const openParticipants = async (order: SchoolCommercialOrder) => {
+        setSaving(true);
+        try {
+            const result = await commercialOrdersApi.listCommercialOrderSubmissions(order.id, { page: 1, pageSize: PAGE_SIZE });
+            if (result.participants.total > result.participants.items.length) {
+                message.error("参与学生超过当前可安全调整的范围，请由学校管理员统一配置");
+                return;
+            }
+            setParticipantOptions(result.participants.items);
+            setParticipantIds(result.participants.items.map((item) => item.membershipId));
+            setParticipantsOpen(true);
+        } catch (error) {
+            message.error(errorMessage(error, "参与学生加载失败"));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const saveParticipants = async () => {
+        if (!selectedOrder || selectedOrder.status !== "assigned" || !participantIds.length) return;
+        setSaving(true);
+        try {
+            await commercialOrdersApi.configureCommercialOrderParticipants(selectedOrder.id, participantIds);
+            message.success("参与学生已更新");
+            setParticipantsOpen(false);
+            await refreshSelectedOrder();
+        } catch (error) {
+            message.error(errorMessage(error, "参与学生更新失败"));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const openDelivery = async (latest: CommercialOrderDelivery | undefined) => {
+        setDeliveryDraft(latest || null);
+        setSelectedReferences(latest?.contentReferences || []);
+        setDeliveryOpen(true);
+        setCandidateLoading(true);
+        try {
+            const result = await loadReferenceCandidates(1);
+            setCandidates(result.items);
+            setCandidatePage(1);
+            setCandidateHasMore(result.hasMore);
+        } catch (error) {
+            setCandidates([]);
+            setCandidateHasMore(false);
+            message.error(errorMessage(error, "成果列表加载失败"));
+        } finally {
+            setCandidateLoading(false);
+        }
+    };
+
+    const loadMoreCandidates = async () => {
+        const nextPage = candidatePage + 1;
+        setCandidateLoading(true);
+        try {
+            const result = await loadReferenceCandidates(nextPage);
+            setCandidates((current) => uniqueReferenceCandidates([...current, ...result.items]));
+            setCandidatePage(nextPage);
+            setCandidateHasMore(result.hasMore);
+        } catch (error) {
+            message.error(errorMessage(error, "成果列表加载失败"));
+        } finally {
+            setCandidateLoading(false);
+        }
+    };
+
+    const toggleReference = (reference: SchoolContentReference, checked: boolean) => {
+        const key = referenceKey(reference);
+        setSelectedReferences((current) => (checked ? [...current.filter((item) => referenceKey(item) !== key), reference] : current.filter((item) => referenceKey(item) !== key)));
+    };
+
+    const submitDelivery = async (values: CommercialDeliveryForm) => {
+        const order = selectedOrder;
+        if (!order || !(order.status !== "accepted" && (order.status === "in_progress" || order.status === "revision_required"))) return;
+        if (!selectedReferences.length) {
+            message.error("正式交付至少选择一项成果");
+            return;
+        }
+        setSaving(true);
+        try {
+            await commercialOrdersApi.submitCommercialOrderDelivery(order.id, { note: values.note?.trim() || "", references: selectedReferences });
+            message.success(order.status === "revision_required" ? "修改成果已重新交付" : "正式交付已提交");
+            setDeliveryOpen(false);
+            setCandidates([]);
+            setSelectedReferences([]);
+            await refreshSelectedOrder();
+        } catch (error) {
+            message.error(errorMessage(error, "正式交付失败"));
+            throw error;
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <section className="space-y-3">
+            <div className="divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+                {orders.map((order) => (
+                    <article key={order.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h2 className="truncate text-sm font-medium">{order.title}</h2>
+                                <CommercialOrderStatusTag status={order.status} />
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-500">{order.requirements || "暂无制作要求"}</p>
+                            <p className="mt-1 text-xs text-zinc-500">{order.deadlineAt ? `截止 ${formatTime(order.deadlineAt)}` : "未设置截止时间"}</p>
+                        </div>
+                        <Button className="shrink-0 self-start sm:self-auto" size="small" icon={<Eye className="size-3.5" />} onClick={() => openOrder(order)}>
+                            查看任务
+                        </Button>
+                    </article>
+                ))}
+                {!loading && !orders.length ? <EmptyText text="暂无负责商单" /> : null}
+                {loading && !orders.length ? (
+                    <div className="flex min-h-32 items-center justify-center">
+                        <Spin />
+                    </div>
+                ) : null}
+            </div>
+            <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
+
+            <Drawer title={selectedOrder?.title || "商单详情"} open={Boolean(selectedOrder)} destroyOnHidden size="min(720px, 100vw)" onClose={closeOrder}>
+                {selectedOrder ? (
+                    <Spin spinning={detailLoading}>
+                        <div className="space-y-5 text-sm">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <CommercialOrderStatusTag status={selectedOrder.status} />
+                                {selectedOrder.deadlineAt ? <span className="text-xs text-zinc-500">截止 {formatTime(selectedOrder.deadlineAt)}</span> : null}
+                            </div>
+                            <CommercialOrderSection title="制作要求" text={selectedOrder.requirements || "暂无制作要求"} />
+                            <CommercialOrderSection title="验收标准" text={selectedOrder.acceptanceCriteria || "暂无验收标准"} />
+                            {selectedOrder.platformFeedback ? <CommercialOrderSection title="平台反馈" text={selectedOrder.platformFeedback} tone="warning" /> : null}
+                            {selectedOrder.referenceMaterials.length ? (
+                                <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                                    <h2 className="font-medium">参考资料</h2>
+                                    <ResourceList values={selectedOrder.referenceMaterials} emptyText="暂无参考资料" />
+                                </section>
+                            ) : null}
+                            <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <h2 className="font-medium">参与学生与候选成果</h2>
+                                    {selectedOrder.status !== "accepted" ? (
+                                        selectedOrder.status === "assigned" ? (
+                                            <Button size="small" icon={<Users className="size-3.5" />} loading={saving} onClick={() => void openParticipants(selectedOrder)}>
+                                                安排参与学生
+                                            </Button>
+                                        ) : null
+                                    ) : null}
+                                </div>
+                                <CommercialParticipantList items={details?.participants.items || []} />
+                            </section>
+                            <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <h2 className="font-medium">正式交付记录</h2>
+                                    {selectedOrder.status !== "accepted" ? (
+                                        selectedOrder.status === "in_progress" || selectedOrder.status === "revision_required" ? (
+                                            <Button type="primary" size="small" icon={<PackageCheck className="size-3.5" />} onClick={() => void openDelivery(details?.deliveries.items[0])}>
+                                                {selectedOrder.status === "revision_required" ? "重新正式交付" : "正式交付"}
+                                            </Button>
+                                        ) : null
+                                    ) : null}
+                                </div>
+                                <CommercialDeliveryList items={details?.deliveries.items || []} />
+                            </section>
+                            <Pagination current={detailPage} pageSize={PAGE_SIZE} total={Math.max(details?.participants.total || 0, details?.deliveries.total || 0)} hideOnSinglePage showSizeChanger={false} responsive onChange={setDetailPage} />
+                        </div>
+                    </Spin>
+                ) : null}
+            </Drawer>
+
+            <Modal
+                title="安排参与学生"
+                open={participantsOpen}
+                destroyOnHidden
+                width="min(560px, calc(100vw - 24px))"
+                okText="保存安排"
+                cancelText="取消"
+                confirmLoading={saving}
+                okButtonProps={{ disabled: !participantIds.length }}
+                onOk={() => void saveParticipants()}
+                onCancel={() => setParticipantsOpen(false)}
+            >
+                <p className="mb-3 text-sm leading-6 text-zinc-500">可调整学校已安排给当前任务的学生；新增学生请先由学校管理员加入任务。</p>
+                <Select
+                    className="w-full"
+                    mode="multiple"
+                    value={participantIds}
+                    placeholder="选择参与学生"
+                    optionFilterProp="label"
+                    options={participantOptions.map((item) => ({ value: item.membershipId, label: publicIdentityLabel(item.participant) }))}
+                    onChange={setParticipantIds}
+                />
+            </Modal>
+
+            <Modal
+                title={selectedOrder?.status === "revision_required" ? "重新正式交付" : "正式交付"}
+                open={deliveryOpen}
+                destroyOnHidden
+                width="min(720px, calc(100vw - 24px))"
+                okText="提交交付"
+                cancelText="取消"
+                confirmLoading={saving}
+                afterOpenChange={(open) => {
+                    if (!open) return;
+                    deliveryForm.resetFields();
+                    deliveryForm.setFieldsValue({ note: deliveryDraft?.note || "" });
+                }}
+                onOk={() => deliveryForm.submit()}
+                onCancel={() => setDeliveryOpen(false)}
+            >
+                <Form form={deliveryForm} layout="vertical" preserve={false} onFinish={(values) => void submitDelivery(values)}>
+                    <Form.Item label="交付说明" name="note">
+                        <Input.TextArea rows={4} maxLength={2000} showCount />
+                    </Form.Item>
+                    <section>
+                        <div className="flex items-center justify-between gap-3">
+                            <h2 className="text-sm font-medium">选择现有成果</h2>
+                            <span className="text-xs text-zinc-500">已选 {selectedReferences.length} 项</span>
+                        </div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            {candidates.map((candidate) => {
+                                const checked = selectedReferences.some((item) => referenceKey(item) === referenceKey(candidate.reference));
+                                return (
+                                    <label key={referenceKey(candidate.reference)} className="flex min-w-0 cursor-pointer items-start gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+                                        <Checkbox checked={checked} onChange={(event) => toggleReference(candidate.reference, event.target.checked)} />
+                                        <span className="min-w-0">
+                                            <span className="block truncate text-sm">{candidate.title}</span>
+                                            <span className="mt-0.5 block truncate text-xs text-zinc-500">{candidate.detail}</span>
+                                        </span>
+                                    </label>
+                                );
+                            })}
+                            {!candidateLoading && !candidates.length ? <p className="py-5 text-sm text-zinc-500 sm:col-span-2">暂无可交付成果</p> : null}
+                        </div>
+                        {candidateHasMore ? (
+                            <Button className="mt-3" loading={candidateLoading} onClick={() => void loadMoreCandidates()}>
+                                加载更多
+                            </Button>
+                        ) : null}
+                        {candidateLoading && !candidates.length ? (
+                            <div className="flex min-h-24 items-center justify-center">
+                                <Spin />
+                            </div>
+                        ) : null}
+                    </section>
+                </Form>
+            </Modal>
+        </section>
+    );
+}
+
 function SubmissionList({ submissions, canReview, onReview }: { submissions: TeachingSubmission[]; canReview: boolean; onReview: (submission: TeachingSubmission, status: "reviewed" | "revision_required") => void }) {
     return (
         <div className="divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
@@ -432,6 +804,72 @@ function SubmissionList({ submissions, canReview, onReview }: { submissions: Tea
             {!submissions.length ? <EmptyText text="暂无学生提交" /> : null}
         </div>
     );
+}
+
+function CommercialParticipantList({ items }: { items: CommercialOrderParticipantSubmission[] }) {
+    return (
+        <div className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-800">
+            {items.map((item) => (
+                <article key={item.id} className="py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="min-w-0">
+                            <div className="truncate font-medium">{item.participant.displayName || "成员信息不可用"}</div>
+                            {item.participant.accountId ? <div className="mt-0.5 text-xs text-zinc-500">ID：{item.participant.accountId}</div> : null}
+                        </div>
+                        <Tag color={item.status === "submitted" ? "blue" : undefined}>{item.status === "submitted" ? "已交候选" : "待提交"}</Tag>
+                    </div>
+                    {item.note ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{item.note}</p> : null}
+                    <p className="mt-1 text-xs text-zinc-500">候选成果 {item.candidateReferences.length} 项</p>
+                </article>
+            ))}
+            {!items.length ? <p className="py-5 text-sm text-zinc-500">暂无参与学生</p> : null}
+        </div>
+    );
+}
+
+function CommercialDeliveryList({ items }: { items: CommercialOrderDelivery[] }) {
+    return (
+        <div className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-800">
+            {items.map((item) => (
+                <article key={item.id} className="py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <div className="font-medium">{item.submittedBy.displayName || "成员信息不可用"}</div>
+                            <div className="mt-0.5 text-xs text-zinc-500">{formatTime(item.submittedAt)}</div>
+                        </div>
+                        <Tag color={item.status === "accepted" ? "green" : item.status === "revision_required" ? "orange" : "blue"}>{item.status === "accepted" ? "已验收" : item.status === "revision_required" ? "待修改" : "待验收"}</Tag>
+                    </div>
+                    {item.note ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{item.note}</p> : null}
+                    <p className="mt-1 text-xs text-zinc-500">交付成果 {item.contentReferences.length} 项</p>
+                    {item.platformFeedback ? <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">{item.platformFeedback}</p> : null}
+                </article>
+            ))}
+            {!items.length ? <p className="py-5 text-sm text-zinc-500">暂无正式交付记录</p> : null}
+        </div>
+    );
+}
+
+function CommercialOrderSection({ title, text, tone = "default" }: { title: string; text: string; tone?: "default" | "warning" }) {
+    return (
+        <section className={tone === "warning" ? "rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/30" : "border-t border-zinc-200 pt-4 dark:border-zinc-800"}>
+            <h2 className="font-medium">{title}</h2>
+            <p className={tone === "warning" ? "mt-2 whitespace-pre-wrap leading-6 text-amber-900 dark:text-amber-200" : "mt-2 whitespace-pre-wrap leading-6 text-zinc-600 dark:text-zinc-300"}>{text}</p>
+        </section>
+    );
+}
+
+function CommercialOrderStatusTag({ status }: Pick<SchoolCommercialOrder, "status">) {
+    const labels = {
+        draft: "草稿",
+        assigned: "待开始",
+        in_progress: "制作中",
+        submitted: "待验收",
+        revision_required: "待修改",
+        accepted: "已验收",
+        cancelled: "已取消",
+    } as const;
+    const colors = { draft: "gold", assigned: "cyan", in_progress: "blue", submitted: "purple", revision_required: "orange", accepted: "green", cancelled: undefined } as const;
+    return <Tag color={colors[status]}>{labels[status]}</Tag>;
 }
 
 function ResponsiveGrid({ children, empty, emptyText }: { children: React.ReactNode; empty: boolean; emptyText: string }) {
@@ -526,6 +964,47 @@ function EmptyText({ text }: { text: string }) {
 
 function itemTitle(value: unknown) {
     return value && typeof value === "object" && typeof (value as Record<string, unknown>).title === "string" ? String((value as Record<string, unknown>).title) : "";
+}
+
+async function loadReferenceCandidates(page: number): Promise<{ items: ReferenceCandidate[]; hasMore: boolean }> {
+    const results = await Promise.allSettled([
+        listWorkPublications({ page, pageSize: PAGE_SIZE }),
+        listCanvasProjectSummaries({ page, pageSize: PAGE_SIZE }),
+        listDramaProjectSummaries({ page, pageSize: PAGE_SIZE }),
+        listLibraryAssetPage({ page, pageSize: PAGE_SIZE }),
+    ]);
+    const candidates: ReferenceCandidate[] = [];
+    const works = results[0].status === "fulfilled" ? results[0].value.items : [];
+    const canvases = results[1].status === "fulfilled" ? results[1].value.projects : [];
+    const dramas = results[2].status === "fulfilled" ? results[2].value.projects : [];
+    const assets = results[3].status === "fulfilled" ? results[3].value.assets : [];
+    candidates.push(...works.map((item) => ({ reference: { type: "work" as const, id: item.id }, title: item.currentVersion?.title || item.slug, detail: "作品" })));
+    candidates.push(...canvases.map((item) => ({ reference: { type: "canvas" as const, id: item.id }, title: item.title, detail: `Canvas · ${item.nodeCount} 个节点` })));
+    candidates.push(...dramas.map((item) => ({ reference: { type: "drama" as const, id: item.id }, title: item.title, detail: `短剧 · ${item.episodeCount} 集` })));
+    candidates.push(...assets.map((item) => ({ reference: { type: "asset" as const, id: item.id }, title: item.title, detail: `素材 · ${assetKindLabel(item.kind)}` })));
+    const hasMore = [
+        results[0].status === "fulfilled" && page * results[0].value.pageSize < results[0].value.total,
+        results[1].status === "fulfilled" && page * results[1].value.pageSize < results[1].value.total,
+        results[2].status === "fulfilled" && page * results[2].value.pageSize < results[2].value.total,
+        results[3].status === "fulfilled" && page * results[3].value.pageSize < results[3].value.total,
+    ].some(Boolean);
+    return { items: candidates, hasMore };
+}
+
+function uniqueReferenceCandidates(items: ReferenceCandidate[]) {
+    return [...new Map(items.map((item) => [referenceKey(item.reference), item])).values()];
+}
+
+function referenceKey(reference: SchoolContentReference) {
+    return `${reference.type}:${reference.id}`;
+}
+
+function publicIdentityLabel(identity: CommercialOrderParticipantSubmission["participant"]) {
+    return identity.accountId ? `${identity.displayName || "成员信息不可用"} · ID：${identity.accountId}` : identity.displayName || "成员信息不可用";
+}
+
+function assetKindLabel(kind: string) {
+    return ({ image: "图片", video: "视频", audio: "音频", document: "文档" } as Record<string, string>)[kind] || "素材";
 }
 
 function formatTime(value: string) {
