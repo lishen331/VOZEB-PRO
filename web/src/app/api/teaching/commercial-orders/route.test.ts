@@ -1,16 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ getCurrentUser: vi.fn(), list: vi.fn(), submissions: vi.fn(), participants: vi.fn(), candidate: vi.fn(), delivery: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getCurrentUser: vi.fn(), list: vi.fn(), submissions: vi.fn(), participants: vi.fn(), participantCandidates: vi.fn(), candidate: vi.fn(), delivery: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/server/commercial-order-service", () => ({
     listTeachingCommercialOrders: mocks.list,
     listCommercialOrderSubmissions: mocks.submissions,
     configureCommercialOrderParticipants: mocks.participants,
+    listCommercialOrderParticipantCandidates: mocks.participantCandidates,
     submitCommercialOrderWork: mocks.candidate,
     submitCommercialOrderDelivery: mocks.delivery,
 }));
 
 import { GET } from "./route";
+import { GET as GET_PARTICIPANT_CANDIDATES } from "./[id]/participants/route";
 import { GET as GET_SUBMISSIONS, POST } from "./[id]/submissions/route";
 
 describe("teaching commercial orders route", () => {
@@ -69,6 +71,18 @@ describe("teaching commercial orders route", () => {
 
         expect(response.status).toBe(200);
         expect(mocks.participants).toHaveBeenCalledWith("teacher-a", "order-a", ["student-a"]);
+    });
+
+    it("uses the current teacher and forwards only candidate search pagination", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "teacher-a" });
+        mocks.participantCandidates.mockResolvedValue({ items: [], selectedMembershipIds: [], total: 0, page: 2, pageSize: 8 });
+
+        const response = await GET_PARTICIPANT_CANDIDATES(new Request("http://localhost/api/teaching/commercial-orders/order-a/participants?schoolId=school-b&page=2&pageSize=8&keyword=0007"), {
+            params: Promise.resolve({ id: "order-a" }),
+        });
+
+        expect(response.status).toBe(200);
+        expect(mocks.participantCandidates).toHaveBeenCalledWith("teacher-a", "order-a", { page: 2, pageSize: 8, keyword: "0007" });
     });
 
     it("forwards submission history pagination without trusting tenant selectors", async () => {

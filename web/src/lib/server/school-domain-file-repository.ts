@@ -166,6 +166,7 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
 
     async listMembers(schoolId: string, input: MemberPageQuery) {
         const keyword = input.keyword?.trim().toLowerCase();
+        const state = await this.read();
         const auth = keyword ? await readJsonDataFile<{ users?: Array<{ id?: unknown; accountId?: unknown; username?: unknown; displayName?: unknown; email?: unknown }> }>(AUTH_DATA_FILE, { users: [] }) : undefined;
         const matchingUserIds = new Set(
             (auth?.users || [])
@@ -180,9 +181,15 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
                 .map((user) => String(user.id || ""))
                 .filter(Boolean),
         );
+        const classMembershipIds = input.classId ? new Set(state.classMembers.filter((item) => item.schoolId === schoolId && item.classId === input.classId).map((item) => item.membershipId)) : undefined;
         return paginate(
-            (await this.read()).memberships.filter(
-                (item) => item.schoolId === schoolId && (!input.role || item.role === input.role) && (!input.status || item.status === input.status) && (!keyword || item.id.toLowerCase().includes(keyword) || matchingUserIds.has(item.userId)),
+            state.memberships.filter(
+                (item) =>
+                    item.schoolId === schoolId &&
+                    (!input.role || item.role === input.role) &&
+                    (!input.status || item.status === input.status) &&
+                    (!classMembershipIds || classMembershipIds.has(item.id)) &&
+                    (!keyword || item.id.toLowerCase().includes(keyword) || matchingUserIds.has(item.userId)),
             ),
             input,
         );
@@ -488,6 +495,12 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
             (await this.read()).commercialOrderParticipants.filter((item) => item.schoolId === schoolId && item.orderId === orderId),
             input,
         );
+    }
+
+    async listCommercialOrderParticipantMembershipIds(schoolId: string, orderId: string) {
+        const state = await this.read();
+        const activeStudentIds = new Set(state.memberships.filter((item) => item.schoolId === schoolId && item.role === "student" && item.status === "active").map((item) => item.id));
+        return state.commercialOrderParticipants.filter((item) => item.schoolId === schoolId && item.orderId === orderId && activeStudentIds.has(item.membershipId)).map((item) => item.membershipId);
     }
 
     async hasActiveCommercialOrderParticipant(schoolId: string, orderId: string) {

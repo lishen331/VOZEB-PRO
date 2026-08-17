@@ -14,6 +14,7 @@ describe("commercial orders api", () => {
         await commercialOrdersApi.listSchoolCommercialOrders({ page: 2 });
         await commercialOrdersApi.listTeachingCommercialOrders({ page: 3 });
         await commercialOrdersApi.listCommercialOrderSubmissions("order-a", { page: 4, pageSize: 5 });
+        await commercialOrdersApi.listCommercialOrderParticipantCandidates("order-a", { page: 1, pageSize: 12, keyword: "0007" });
 
         const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
         expect(calls.map(([url]) => url)).toEqual([
@@ -22,6 +23,7 @@ describe("commercial orders api", () => {
             "/api/school/commercial-orders?page=2",
             "/api/teaching/commercial-orders?page=3",
             "/api/teaching/commercial-orders/order-a/submissions?page=4&pageSize=5",
+            "/api/teaching/commercial-orders/order-a/participants?page=1&pageSize=12&keyword=0007",
         ]);
     });
 

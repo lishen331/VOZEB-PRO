@@ -174,6 +174,13 @@ export type CommercialOrderParticipantSubmission = {
     createdAt: string;
     updatedAt: string;
 };
+export type CommercialOrderParticipantCandidate = {
+    membershipId: string;
+    participant: SchoolPublicIdentity;
+};
+export type CommercialOrderParticipantCandidatePage = PageResult<CommercialOrderParticipantCandidate> & {
+    selectedMembershipIds: string[];
+};
 export type CommercialOrderDelivery = {
     id: string;
     orderId: string;

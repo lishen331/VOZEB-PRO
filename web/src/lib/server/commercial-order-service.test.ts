@@ -18,12 +18,14 @@ const mocks = vi.hoisted(() => ({
         listCommercialOrders: vi.fn(),
         listCommercialOrdersForTeacher: vi.fn(),
         listCommercialOrdersForParticipant: vi.fn(),
+        listMembers: vi.fn(),
         configureCommercialOrder: vi.fn(),
         getMembership: vi.fn(),
         getClass: vi.fn(),
         isClassMember: vi.fn(),
         replaceCommercialOrderParticipants: vi.fn(),
         listCommercialOrderParticipants: vi.fn(),
+        listCommercialOrderParticipantMembershipIds: vi.fn(),
         hasActiveCommercialOrderParticipant: vi.fn(),
         getCommercialOrderParticipant: vi.fn(),
         updateCommercialOrderParticipant: vi.fn(),
@@ -62,6 +64,7 @@ import {
     createCommercialOrder,
     getPlatformCommercialOrderDetails,
     listCommercialOrderSubmissions,
+    listCommercialOrderParticipantCandidates,
     reviewCommercialOrder,
     startCommercialOrder,
     submitCommercialOrderDelivery,
@@ -166,6 +169,27 @@ describe("commercial order service", () => {
 
         mocks.repository.getCommercialOrder.mockResolvedValue({ ...order("in_progress"), assignedSchoolId: "school-a", teacherMembershipId: "teacher-a" });
         await expect(configureCommercialOrderParticipants("teacher-user", "order-a", ["student-a"])).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("lists paged student candidates only for the responsible teacher and assigned class", async () => {
+        mocks.repository.getCommercialOrder.mockResolvedValue({ ...order("assigned"), assignedSchoolId: "school-a", teacherMembershipId: "teacher-a", classId: "class-a" });
+        mocks.repository.listMembers.mockResolvedValue({
+            items: [{ id: "student-a", schoolId: "school-a", userId: "student-user", role: "student", status: "active" }],
+            total: 1,
+            page: 2,
+            pageSize: 8,
+        });
+        mocks.repository.listCommercialOrderParticipantMembershipIds.mockResolvedValue(["student-a"]);
+
+        await expect(listCommercialOrderParticipantCandidates("teacher-user", "order-a", { page: 2, pageSize: 8, keyword: "0007" })).resolves.toMatchObject({
+            total: 1,
+            items: [{ membershipId: "student-a", participant: { accountId: "student-user" } }],
+            selectedMembershipIds: ["student-a"],
+        });
+        expect(mocks.repository.listMembers).toHaveBeenCalledWith("school-a", { page: 2, pageSize: 8, keyword: "0007", role: "student", status: "active", classId: "class-a" });
+
+        mocks.repository.getCommercialOrder.mockResolvedValue({ ...order("assigned"), assignedSchoolId: "school-a", teacherMembershipId: "teacher-b" });
+        await expect(listCommercialOrderParticipantCandidates("teacher-user", "order-a", {})).rejects.toMatchObject({ status: 404 });
     });
 
     it("starts only a configured order with participants using CAS", async () => {

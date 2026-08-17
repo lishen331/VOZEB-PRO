@@ -126,7 +126,7 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
 
     async listMembers(schoolId: string, input: MemberPageQuery) {
         const { page, pageSize, offset } = pagination(input);
-        const values = [schoolId, input.role || null, input.status || null, input.keyword?.trim() || null];
+        const values = [schoolId, input.role || null, input.status || null, input.keyword?.trim() || null, input.classId || null];
         const from = `FROM school_memberships m
                       JOIN users u ON u.id = m.user_id
                       WHERE m.school_id = $1
@@ -138,8 +138,12 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
                              OR u.display_name ILIKE '%' || $4 || '%'
                              OR coalesce(u.email, '') ILIKE '%' || $4 || '%'
                              OR u.account_id::text ILIKE '%' || $4 || '%'
-                             OR lpad(u.account_id::text, 4, '0') ILIKE '%' || $4 || '%')`;
-        const [rows, count] = await Promise.all([this.db.query(`SELECT m.* ${from} ORDER BY m.updated_at DESC, m.id DESC LIMIT $5 OFFSET $6`, [...values, pageSize, offset]), this.db.query(`SELECT COUNT(*)::int AS total ${from}`, values)]);
+                             OR lpad(u.account_id::text, 4, '0') ILIKE '%' || $4 || '%')
+                        AND ($5::text IS NULL OR EXISTS (
+                            SELECT 1 FROM school_class_members cm
+                            WHERE cm.school_id = m.school_id AND cm.membership_id = m.id AND cm.class_id = $5
+                        ))`;
+        const [rows, count] = await Promise.all([this.db.query(`SELECT m.* ${from} ORDER BY m.updated_at DESC, m.id DESC LIMIT $6 OFFSET $7`, [...values, pageSize, offset]), this.db.query(`SELECT COUNT(*)::int AS total ${from}`, values)]);
         return pageResult(rows.rows.map(mapMembership), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
@@ -466,6 +470,18 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
             this.db.query("SELECT COUNT(*)::int AS total FROM commercial_order_participants WHERE school_id = $1 AND order_id = $2", [schoolId, orderId]),
         ]);
         return pageResult(rows.rows.map(mapCommercialOrderParticipant), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async listCommercialOrderParticipantMembershipIds(schoolId: string, orderId: string) {
+        const result = await this.db.query(
+            `SELECT p.membership_id
+             FROM commercial_order_participants p
+             JOIN school_memberships m ON m.school_id = p.school_id AND m.id = p.membership_id
+             WHERE p.school_id = $1 AND p.order_id = $2 AND m.role = 'student' AND m.status = 'active'
+             ORDER BY p.created_at, p.id`,
+            [schoolId, orderId],
+        );
+        return result.rows.map((row) => String(row.membership_id));
     }
 
     async hasActiveCommercialOrderParticipant(schoolId: string, orderId: string) {

@@ -15,6 +15,7 @@ describe("teaching center", () => {
         expect(source).toContain("coursesApi.reviewSubmission");
         expect(source).toContain("commercialOrdersApi.listTeachingCommercialOrders");
         expect(source).toContain("commercialOrdersApi.configureCommercialOrderParticipants");
+        expect(source).toContain("commercialOrdersApi.listCommercialOrderParticipantCandidates");
         expect(source).toContain("commercialOrdersApi.submitCommercialOrderDelivery");
         expect(source).toContain('order.status !== "accepted"');
         expect(source).toContain("商单任务");

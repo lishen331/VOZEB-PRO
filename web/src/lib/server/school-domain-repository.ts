@@ -18,7 +18,7 @@ import { createFileSchoolDomainRepository } from "./school-domain-file-repositor
 
 export type PageQuery = { page?: number; pageSize?: number };
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number };
-export type MemberPageQuery = PageQuery & { keyword?: string; role?: SchoolMemberRole; status?: SchoolMembershipStatus };
+export type MemberPageQuery = PageQuery & { keyword?: string; role?: SchoolMemberRole; status?: SchoolMembershipStatus; classId?: string };
 export type ClassPageQuery = PageQuery & { keyword?: string; status?: SchoolStatus };
 export type OrderPageQuery = PageQuery & { keyword?: string; status?: CommercialOrderStatus };
 export type PlatformCoursePageQuery = PageQuery & { keyword?: string; status?: PlatformCourseStatus };
@@ -204,6 +204,7 @@ export interface SchoolDomainRepository {
     listCommercialOrdersForTeacher(schoolId: string, membershipId: string, input: OrderPageQuery): Promise<Page<CommercialOrderRecord>>;
     listCommercialOrdersForParticipant(schoolId: string, membershipId: string, input: OrderPageQuery): Promise<Page<CommercialOrderRecord>>;
     listCommercialOrderParticipants(schoolId: string, orderId: string, input: PageQuery): Promise<Page<CommercialOrderParticipantRecord>>;
+    listCommercialOrderParticipantMembershipIds(schoolId: string, orderId: string): Promise<string[]>;
     hasActiveCommercialOrderParticipant(schoolId: string, orderId: string): Promise<boolean>;
     getCommercialOrderParticipant(schoolId: string, orderId: string, membershipId: string, forUpdate?: boolean): Promise<CommercialOrderParticipantRecord | null>;
     replaceCommercialOrderParticipants(schoolId: string, orderId: string, records: CommercialOrderParticipantRecord[]): Promise<void>;

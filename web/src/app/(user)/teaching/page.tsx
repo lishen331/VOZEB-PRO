@@ -6,12 +6,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
     CommercialOrderDelivery,
+    CommercialOrderParticipantCandidate,
     CommercialOrderParticipantSubmission,
     PlatformCourse,
     SchoolCommercialOrder,
     SchoolContentReference,
     SchoolCourseAssignment,
     SchoolCourseOffering,
+    SchoolPublicIdentity,
     TeachingAssignment,
     TeachingAssignmentKind,
     TeachingSubmission,
@@ -440,7 +442,7 @@ function CommercialOrdersTab() {
     const [detailLoading, setDetailLoading] = useState(false);
     const [participantsOpen, setParticipantsOpen] = useState(false);
     const [participantIds, setParticipantIds] = useState<string[]>([]);
-    const [participantOptions, setParticipantOptions] = useState<CommercialOrderParticipantSubmission[]>([]);
+    const [participantOptions, setParticipantOptions] = useState<CommercialOrderParticipantCandidate[]>([]);
     const [deliveryOpen, setDeliveryOpen] = useState(false);
     const [deliveryDraft, setDeliveryDraft] = useState<CommercialOrderDelivery | null>(null);
     const [candidates, setCandidates] = useState<ReferenceCandidate[]>([]);
@@ -450,6 +452,8 @@ function CommercialOrdersTab() {
     const [candidateLoading, setCandidateLoading] = useState(false);
     const listRequestSequence = useRef(0);
     const detailRequestSequence = useRef(0);
+    const participantRequestSequence = useRef(0);
+    const candidateRequestSequence = useRef(0);
 
     const loadOrders = useCallback(async () => {
         const requestId = ++listRequestSequence.current;
@@ -499,6 +503,8 @@ function CommercialOrdersTab() {
         () => () => {
             listRequestSequence.current += 1;
             detailRequestSequence.current += 1;
+            participantRequestSequence.current += 1;
+            candidateRequestSequence.current += 1;
         },
         [],
     );
@@ -522,21 +528,39 @@ function CommercialOrdersTab() {
     };
 
     const openParticipants = async (order: SchoolCommercialOrder) => {
+        const requestId = ++participantRequestSequence.current;
         setSaving(true);
         try {
-            const result = await commercialOrdersApi.listCommercialOrderSubmissions(order.id, { page: 1, pageSize: PAGE_SIZE });
-            if (result.participants.total > result.participants.items.length) {
-                message.error("参与学生超过当前可安全调整的范围，请由学校管理员统一配置");
-                return;
-            }
-            setParticipantOptions(result.participants.items);
-            setParticipantIds(result.participants.items.map((item) => item.membershipId));
+            const result = await commercialOrdersApi.listCommercialOrderParticipantCandidates(order.id, { page: 1, pageSize: PAGE_SIZE });
+            if (requestId !== participantRequestSequence.current) return;
+            setParticipantOptions(mergeParticipantCandidates([], result.items, result.selectedMembershipIds));
+            setParticipantIds(result.selectedMembershipIds);
             setParticipantsOpen(true);
         } catch (error) {
+            if (requestId !== participantRequestSequence.current) return;
             message.error(errorMessage(error, "参与学生加载失败"));
         } finally {
-            setSaving(false);
+            if (requestId === participantRequestSequence.current) setSaving(false);
         }
+    };
+
+    const searchParticipantCandidates = async (keyword: string) => {
+        const order = selectedOrder;
+        if (!order || order.status !== "assigned") return;
+        const requestId = ++participantRequestSequence.current;
+        try {
+            const result = await commercialOrdersApi.listCommercialOrderParticipantCandidates(order.id, { page: 1, pageSize: PAGE_SIZE, keyword: keyword.trim() || undefined });
+            if (requestId !== participantRequestSequence.current) return;
+            setParticipantOptions((current) => mergeParticipantCandidates(current, result.items, participantIds));
+        } catch (error) {
+            if (requestId === participantRequestSequence.current) message.error(errorMessage(error, "参与学生搜索失败"));
+        }
+    };
+
+    const closeParticipants = () => {
+        participantRequestSequence.current += 1;
+        setParticipantsOpen(false);
+        setParticipantOptions([]);
     };
 
     const saveParticipants = async () => {
@@ -545,7 +569,7 @@ function CommercialOrdersTab() {
         try {
             await commercialOrdersApi.configureCommercialOrderParticipants(selectedOrder.id, participantIds);
             message.success("参与学生已更新");
-            setParticipantsOpen(false);
+            closeParticipants();
             await refreshSelectedOrder();
         } catch (error) {
             message.error(errorMessage(error, "参与学生更新失败"));
@@ -555,37 +579,50 @@ function CommercialOrdersTab() {
     };
 
     const openDelivery = async (latest: CommercialOrderDelivery | undefined) => {
+        const requestId = ++candidateRequestSequence.current;
         setDeliveryDraft(latest || null);
         setSelectedReferences(latest?.contentReferences || []);
         setDeliveryOpen(true);
         setCandidateLoading(true);
         try {
             const result = await loadReferenceCandidates(1);
+            if (requestId !== candidateRequestSequence.current) return;
             setCandidates(result.items);
             setCandidatePage(1);
             setCandidateHasMore(result.hasMore);
         } catch (error) {
+            if (requestId !== candidateRequestSequence.current) return;
             setCandidates([]);
             setCandidateHasMore(false);
             message.error(errorMessage(error, "成果列表加载失败"));
         } finally {
-            setCandidateLoading(false);
+            if (requestId === candidateRequestSequence.current) setCandidateLoading(false);
         }
     };
 
     const loadMoreCandidates = async () => {
+        const requestId = ++candidateRequestSequence.current;
         const nextPage = candidatePage + 1;
         setCandidateLoading(true);
         try {
             const result = await loadReferenceCandidates(nextPage);
+            if (requestId !== candidateRequestSequence.current) return;
             setCandidates((current) => uniqueReferenceCandidates([...current, ...result.items]));
             setCandidatePage(nextPage);
             setCandidateHasMore(result.hasMore);
         } catch (error) {
+            if (requestId !== candidateRequestSequence.current) return;
             message.error(errorMessage(error, "成果列表加载失败"));
         } finally {
-            setCandidateLoading(false);
+            if (requestId === candidateRequestSequence.current) setCandidateLoading(false);
         }
+    };
+
+    const closeDelivery = () => {
+        candidateRequestSequence.current += 1;
+        setDeliveryOpen(false);
+        setCandidateLoading(false);
+        setCandidates([]);
     };
 
     const toggleReference = (reference: SchoolContentReference, checked: boolean) => {
@@ -702,17 +739,19 @@ function CommercialOrdersTab() {
                 confirmLoading={saving}
                 okButtonProps={{ disabled: !participantIds.length }}
                 onOk={() => void saveParticipants()}
-                onCancel={() => setParticipantsOpen(false)}
+                onCancel={closeParticipants}
             >
-                <p className="mb-3 text-sm leading-6 text-zinc-500">可调整学校已安排给当前任务的学生；新增学生请先由学校管理员加入任务。</p>
+                <p className="mb-3 text-sm leading-6 text-zinc-500">按公开账号 ID、用户名或姓名搜索本校可用学生。</p>
                 <Select
                     className="w-full"
                     mode="multiple"
+                    showSearch
                     value={participantIds}
                     placeholder="选择参与学生"
-                    optionFilterProp="label"
+                    filterOption={false}
                     options={participantOptions.map((item) => ({ value: item.membershipId, label: publicIdentityLabel(item.participant) }))}
                     onChange={setParticipantIds}
+                    onSearch={(value) => void searchParticipantCandidates(value)}
                 />
             </Modal>
 
@@ -730,7 +769,7 @@ function CommercialOrdersTab() {
                     deliveryForm.setFieldsValue({ note: deliveryDraft?.note || "" });
                 }}
                 onOk={() => deliveryForm.submit()}
-                onCancel={() => setDeliveryOpen(false)}
+                onCancel={closeDelivery}
             >
                 <Form form={deliveryForm} layout="vertical" preserve={false} onFinish={(values) => void submitDelivery(values)}>
                     <Form.Item label="交付说明" name="note">
@@ -999,7 +1038,17 @@ function referenceKey(reference: SchoolContentReference) {
     return `${reference.type}:${reference.id}`;
 }
 
-function publicIdentityLabel(identity: CommercialOrderParticipantSubmission["participant"]) {
+function mergeParticipantCandidates(current: CommercialOrderParticipantCandidate[], incoming: CommercialOrderParticipantCandidate[], selectedMembershipIds: string[]) {
+    const selected = new Set(selectedMembershipIds);
+    const merged = new Map(current.filter((item) => selected.has(item.membershipId)).map((item) => [item.membershipId, item]));
+    for (const item of incoming) merged.set(item.membershipId, item);
+    for (const membershipId of selected) {
+        if (!merged.has(membershipId)) merged.set(membershipId, { membershipId, participant: { accountId: "", username: "", displayName: "已安排学生（搜索可查看身份）" } });
+    }
+    return [...merged.values()];
+}
+
+function publicIdentityLabel(identity: SchoolPublicIdentity) {
     return identity.accountId ? `${identity.displayName || "成员信息不可用"} · ID：${identity.accountId}` : identity.displayName || "成员信息不可用";
 }
 

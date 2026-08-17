@@ -178,6 +178,7 @@ describe("file school domain repository", () => {
         await expect(repository.configureCommercialOrder("school-a", "order-a", { teacherMembershipId: "teacher-a", classId: "class-a", updatedAt: now })).resolves.toMatchObject({ teacherMembershipId: "teacher-a", classId: "class-a" });
         await repository.replaceCommercialOrderParticipants("school-a", "order-a", [participant("participant-a")]);
         await expect(repository.hasActiveCommercialOrderParticipant("school-a", "order-a")).resolves.toBe(true);
+        await expect(repository.listCommercialOrderParticipantMembershipIds("school-a", "order-a")).resolves.toEqual(["student-a"]);
         await expect(repository.assignCommercialOrderToSchool("order-a", "school-a", now)).resolves.toMatchObject({ teacherMembershipId: "teacher-a", classId: "class-a" });
         await expect(repository.listCommercialOrderParticipants("school-a", "order-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1 });
 
@@ -209,6 +210,7 @@ describe("file school domain repository", () => {
 
         await repository.updateMembership("school-a", "student-a", { status: "disabled", updatedAt: now });
         await expect(repository.hasActiveCommercialOrderParticipant("school-a", "order-a")).resolves.toBe(false);
+        await expect(repository.listCommercialOrderParticipantMembershipIds("school-a", "order-a")).resolves.toEqual([]);
     });
 
     it("supports tenant-scoped organization maintenance operations", async () => {
@@ -234,6 +236,11 @@ describe("file school domain repository", () => {
         await expect(repository.updateMembership("school-b", "teacher-a", { status: "disabled", updatedAt: now })).resolves.toBeNull();
         await expect(repository.updateMembership("school-a", "teacher-a", { permissions: ["school.manage"], updatedAt: now })).resolves.toMatchObject({ permissions: ["school.manage"] });
         await expect(repository.listFirstManagers(["school-a", "school-b"])).resolves.toEqual([expect.objectContaining({ id: "teacher-a", schoolId: "school-a" })]);
+        await expect(repository.listMembers("school-a", { page: 1, pageSize: 20, keyword: "student_a", role: "student", status: "active", classId: "class-a" })).resolves.toMatchObject({
+            total: 1,
+            items: [expect.objectContaining({ id: "student-a" })],
+        });
+        await expect(repository.listMembers("school-a", { page: 1, pageSize: 20, role: "student", status: "active", classId: "class-delete" })).resolves.toMatchObject({ total: 0, items: [] });
 
         await repository.upsertInviteCode({ id: "invite-a", schoolId: "school-a", role: "student", codeDigest: "digest-a", status: "active", createdAt: now, updatedAt: now });
         await expect(repository.upsertInviteCode({ id: "invite-b", schoolId: "school-b", role: "teacher", codeDigest: "digest-a", status: "active", createdAt: now, updatedAt: now })).rejects.toThrow("邀请码摘要");

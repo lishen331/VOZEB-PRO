@@ -3,6 +3,7 @@ import type {
     AdminCommercialOrderDetails,
     CommercialOrderDelivery,
     CommercialOrderInput,
+    CommercialOrderParticipantCandidatePage,
     CommercialOrderParticipantSubmission,
     CommercialOrderStatus,
     PageResult,
@@ -61,6 +62,9 @@ export const commercialOrdersApi = {
     },
     listCommercialOrderSubmissions(id: string, input: PageInput = {}, options: RequestOptions = {}) {
         return request<CommercialOrderSubmissions>(`/api/teaching/commercial-orders/${encodeURIComponent(id)}/submissions${query(input)}`, options);
+    },
+    listCommercialOrderParticipantCandidates(id: string, input: PageInput & { keyword?: string } = {}, options: RequestOptions = {}) {
+        return request<CommercialOrderParticipantCandidatePage>(`/api/teaching/commercial-orders/${encodeURIComponent(id)}/participants${query(input)}`, options);
     },
     submitCommercialOrderWork(id: string, input: { note?: string; references: SchoolContentReference[] }) {
         return request<CommercialOrderParticipantSubmission>(`/api/teaching/commercial-orders/${encodeURIComponent(id)}/submissions`, jsonRequest("POST", { action: "candidate", ...input }));

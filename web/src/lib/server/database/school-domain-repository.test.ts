@@ -223,6 +223,8 @@ describe("PostgreSQL school domain repository", () => {
         for (const keyword of [accountId, `repo_teacher_${suffix.replaceAll("-", "").slice(0, 10)}`, "Repository 老师", teacherEmail]) {
             await expect(repository.listMembers(id("school-a"), { page: 1, pageSize: 20, keyword })).resolves.toMatchObject({ total: 1, items: [expect.objectContaining({ id: id("teacher") })] });
         }
+        await expect(repository.listMembers(id("school-a"), { page: 1, pageSize: 20, role: "teacher", status: "active", classId: id("class") })).resolves.toMatchObject({ total: 1, items: [expect.objectContaining({ id: id("teacher") })] });
+        await expect(repository.listMembers(id("school-a"), { page: 1, pageSize: 20, role: "student", status: "active", classId: id("class") })).resolves.toMatchObject({ total: 0, items: [] });
         await expect(repository.deleteClass(id("school-b"), id("class-delete"))).resolves.toBe(false);
         await expect(repository.deleteClass(id("school-a"), id("class-delete"))).resolves.toBe(true);
         await expect(repository.getClass(id("school-a"), id("class-delete"))).resolves.toBeNull();
@@ -262,6 +264,7 @@ describe("PostgreSQL school domain repository", () => {
         const participantRecord = { ...participant(id("workflow-participant")), orderId: id("workflow-order") };
         await repository.replaceCommercialOrderParticipants(id("school-a"), id("workflow-order"), [participantRecord]);
         await expect(repository.hasActiveCommercialOrderParticipant(id("school-a"), id("workflow-order"))).resolves.toBe(true);
+        await expect(repository.listCommercialOrderParticipantMembershipIds(id("school-a"), id("workflow-order"))).resolves.toEqual([id("student")]);
         await expect(repository.assignCommercialOrderToSchool(id("workflow-order"), id("school-a"), now)).resolves.toMatchObject({ teacherMembershipId: id("teacher"), classId: id("class") });
         await expect(repository.listCommercialOrderParticipants(id("school-a"), id("workflow-order"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1 });
 

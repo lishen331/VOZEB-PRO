@@ -8,6 +8,7 @@ import {
     type AdminCommercialOrderDetails,
     type CommercialOrderDelivery,
     type CommercialOrderInput,
+    type CommercialOrderParticipantCandidatePage,
     type CommercialOrderParticipantSubmission,
     type CommercialOrderStatus,
     type PageResult,
@@ -166,6 +167,29 @@ export async function configureCommercialOrderParticipants(teacherId: string, or
         return records;
     });
     return mapPage({ items: participants, total: participants.length, page: 1, pageSize: Math.max(20, participants.length) }, (record) => toParticipant(repository, record));
+}
+
+export async function listCommercialOrderParticipantCandidates(teacherId: string, orderId: string, input: PageInput & { keyword?: string } = {}): Promise<CommercialOrderParticipantCandidatePage> {
+    const context = await requireTeacher(teacherId);
+    const repository = createSchoolDomainRepository();
+    const order = await repository.getCommercialOrder(context.school.id, orderId);
+    if (!order || order.teacherMembershipId !== context.membership.id) throw new SchoolServiceError(404, "商单不存在或无权安排参与学生");
+    if (order.status !== "assigned") throw new SchoolServiceError(409, "商单开始制作后不能调整参与学生");
+    const [page, selectedMembershipIds] = await Promise.all([
+        repository.listMembers(context.school.id, {
+            page: input.page,
+            pageSize: input.pageSize,
+            keyword: text(input.keyword, 100),
+            role: "student",
+            status: "active",
+            classId: order.classId,
+        }),
+        repository.listCommercialOrderParticipantMembershipIds(context.school.id, orderId),
+    ]);
+    return {
+        ...(await mapPage(page, async (membership) => ({ membershipId: membership.id, participant: await toPublicIdentity(membership) }))),
+        selectedMembershipIds,
+    };
 }
 
 export async function startCommercialOrder(managerId: string, orderId: string): Promise<SchoolCommercialOrder> {
