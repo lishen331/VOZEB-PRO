@@ -11,6 +11,7 @@ import { ReferralRepository } from "./referral-repository";
 import { WorkPublicationRepository } from "./work-publication-repository";
 import { WorkGovernanceRepository } from "./work-governance-repository";
 import { WorkCommunityRepository } from "./work-community-repository";
+import { createPostgresSchoolDomainRepository } from "./school-domain-repository";
 import { AnnouncementsRepository, GenerationLogsRepository, PromptsRepository } from "./content-repository";
 import { CdkRepository, EmailCodesRepository, PointsRepository, SessionsRepository, UsersRepository } from "./user-repository";
 import type { AppSettingsRecord, EntitlementPlanRecord, JsonValue, SystemModelChannelRecord } from "./repository-shared";
@@ -141,6 +142,7 @@ export function createPostgresRepositories(executor: QueryExecutor = { query: po
         workGovernance: new WorkGovernanceRepository(executor),
         workCommunity: new WorkCommunityRepository(executor),
         auditLogs: new AuditLogsRepository(executor),
+        schoolDomain: createPostgresSchoolDomainRepository(executor),
     };
 }
 

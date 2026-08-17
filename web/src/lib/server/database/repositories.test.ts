@@ -13,6 +13,12 @@ function queryArgs(query: ReturnType<typeof mockExecutor>["query"], index: numbe
 }
 
 describe("split Postgres repositories", () => {
+    it("exposes the school domain repository", () => {
+        const { executor } = mockExecutor([]);
+
+        expect(createPostgresRepositories(executor).schoolDomain).toBeDefined();
+    });
+
     it("starts independent settings queries in parallel for pool executors", async () => {
         const resolvers: Array<() => void> = [];
         const query = vi.fn(
