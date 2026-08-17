@@ -130,9 +130,26 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(ddl).toContain("task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing')");
 
         const tableNames = [...ddl.matchAll(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+([a-z][a-z0-9_]*)/gi)].map((match) => match[1]).sort();
-        expect(tableNames).toHaveLength(59);
+        expect(tableNames).toHaveLength(72);
         expect(tableNames.every((name) => name.startsWith("vozeb_pro_"))).toBe(true);
         expect(tableNames).not.toContain("vozeb_pro_check_ins");
+        expect(tableNames).toEqual(
+            expect.arrayContaining([
+                "vozeb_pro_schools",
+                "vozeb_pro_school_memberships",
+                "vozeb_pro_school_invite_codes",
+                "vozeb_pro_school_classes",
+                "vozeb_pro_school_class_members",
+                "vozeb_pro_platform_courses",
+                "vozeb_pro_school_course_assignments",
+                "vozeb_pro_school_course_offerings",
+                "vozeb_pro_teaching_assignments",
+                "vozeb_pro_teaching_submissions",
+                "vozeb_pro_commercial_orders",
+                "vozeb_pro_commercial_order_participants",
+                "vozeb_pro_commercial_order_deliveries",
+            ]),
+        );
         expect(ddl).toContain("DROP TABLE IF EXISTS vozeb_pro_check_ins");
         expect(ddl).not.toContain("20260731_generation_task_recovery");
 
