@@ -59,6 +59,51 @@ export type SchoolMemberPatch = { role?: SchoolMemberRole; permissions?: SchoolP
 export type SchoolClassInput = { name: string; description?: string };
 export type CreateSchoolInput = { name: string; profile?: Record<string, unknown>; administrator: Omit<SchoolMemberCreateInput, "role"> };
 export type UpdateSchoolInput = { name?: string; profile?: Record<string, unknown>; status?: SchoolStatus };
+export type PlatformCourse = {
+    id: string;
+    title: string;
+    summary: string;
+    content: Record<string, unknown>;
+    chapters: unknown[];
+    attachments: unknown[];
+    status: PlatformCourseStatus;
+    createdAt: string;
+    updatedAt: string;
+};
+export type PlatformCourseInput = Pick<PlatformCourse, "title" | "summary" | "content" | "chapters" | "attachments">;
+export type PlatformCoursePatch = Partial<PlatformCourseInput> & { status?: PlatformCourseStatus };
+export type SchoolCourseAssignment = { id: string; courseId: string; schoolId: string; status: SchoolStatus; createdAt: string; updatedAt: string; course: PlatformCourse };
+export type CourseOfferingInput = { classId: string; teacherMembershipId: string; supplementalResources?: unknown[]; status?: SchoolStatus };
+export type SchoolCourseOffering = { id: string; schoolId: string; assignmentId: string; classId: string; teacherMembershipId: string; supplementalResources: unknown[]; status: SchoolStatus; createdAt: string; updatedAt: string };
+export type TeachingAssignment = {
+    id: string;
+    schoolId: string;
+    offeringId: string;
+    teacherMembershipId: string;
+    kind: TeachingAssignmentKind;
+    title: string;
+    instructions: string;
+    resources: unknown[];
+    dueAt?: string;
+    status: TeachingAssignmentStatus;
+    createdAt: string;
+    updatedAt: string;
+};
+export type TeachingAssignmentInput = { kind: TeachingAssignmentKind; title: string; instructions?: string; resources?: unknown[]; dueAt?: string; status?: TeachingAssignmentStatus };
+export type TeachingSubmission = {
+    id: string;
+    schoolId: string;
+    assignmentId: string;
+    studentMembershipId: string;
+    note: string;
+    contentReferences: SchoolContentReference[];
+    status: TeachingSubmissionStatus;
+    feedback: string;
+    submittedAt: string;
+    reviewedAt?: string;
+    createdAt: string;
+    updatedAt: string;
+};
 
 const SCHOOL_MEMBER_ROLE_SET = new Set<SchoolMemberRole>(SCHOOL_MEMBER_ROLES);
 const SCHOOL_PERMISSION_SET = new Set<SchoolPermission>(SCHOOL_PERMISSIONS);

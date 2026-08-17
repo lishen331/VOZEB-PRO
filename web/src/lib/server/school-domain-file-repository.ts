@@ -10,7 +10,9 @@ import type {
     OrderPageQuery,
     Page,
     PageQuery,
+    PlatformCoursePageQuery,
     PlatformCourseRecord,
+    PlatformCourseUpdate,
     SchoolClassMemberRecord,
     SchoolClassRecord,
     SchoolClassUpdate,
@@ -25,9 +27,11 @@ import type {
     SchoolRecord,
     SchoolUpdate,
     TeachingAssignmentRecord,
+    TeachingAssignmentUpdate,
     TeachingSubmissionRecord,
+    TeachingSubmissionUpdate,
 } from "@/lib/server/school-domain-repository";
-import type { CommercialOrderStatus, SchoolStatus } from "@/lib/school-domain";
+import type { CommercialOrderStatus, SchoolMemberRole, SchoolStatus } from "@/lib/school-domain";
 
 export const SCHOOL_DOMAIN_DATA_FILE = "school-domain.json";
 
@@ -267,6 +271,53 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         );
     }
 
+    async listVisibleCourses(schoolId: string, membershipId: string, role: SchoolMemberRole, input: PageQuery) {
+        const state = await this.read();
+        const classIds = role === "student" ? new Set(state.classMembers.filter((item) => item.schoolId === schoolId && item.membershipId === membershipId).map((item) => item.classId)) : null;
+        const assignmentIds = new Set(state.courseOfferings.filter((item) => item.schoolId === schoolId && (role === "teacher" ? item.teacherMembershipId === membershipId : classIds?.has(item.classId))).map((item) => item.assignmentId));
+        return paginate(
+            state.courseAssignments.filter((item) => item.schoolId === schoolId && assignmentIds.has(item.id)),
+            input,
+        );
+    }
+
+    async listPlatformCourses(input: PlatformCoursePageQuery) {
+        const keyword = input.keyword?.trim().toLowerCase() || "";
+        const courses = (await this.read()).courses
+            .filter((item) => !input.status || item.status === input.status)
+            .filter((item) => !keyword || `${item.id} ${item.title} ${item.summary}`.toLowerCase().includes(keyword))
+            .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
+        return paginate(courses, input);
+    }
+
+    async getPlatformCourse(courseId: string) {
+        return detached((await this.read()).courses.find((item) => item.id === courseId));
+    }
+
+    updatePlatformCourse(courseId: string, patch: PlatformCourseUpdate) {
+        return this.mutate((state) => {
+            const course = state.courses.find((item) => item.id === courseId);
+            if (!course) return null;
+            Object.assign(course, { ...patch, id: course.id });
+            return structuredClone(course);
+        });
+    }
+
+    async getSchoolCourseAssignment(schoolId: string, assignmentId: string) {
+        return detached((await this.read()).courseAssignments.find((item) => item.schoolId === schoolId && item.id === assignmentId));
+    }
+
+    async listOfferingsForAssignment(schoolId: string, assignmentId: string, input: PageQuery) {
+        return paginate(
+            (await this.read()).courseOfferings.filter((item) => item.schoolId === schoolId && item.assignmentId === assignmentId),
+            input,
+        );
+    }
+
+    async getCourseOffering(schoolId: string, offeringId: string) {
+        return detached((await this.read()).courseOfferings.find((item) => item.schoolId === schoolId && item.id === offeringId));
+    }
+
     async listOfferingsForTeacher(schoolId: string, membershipId: string, input: PageQuery) {
         return paginate(
             (await this.read()).courseOfferings.filter((item) => item.schoolId === schoolId && item.teacherMembershipId === membershipId),
@@ -279,9 +330,59 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         const classIds = new Set(state.classMembers.filter((item) => item.schoolId === schoolId && item.membershipId === membershipId).map((item) => item.classId));
         const offeringIds = new Set(state.courseOfferings.filter((item) => item.schoolId === schoolId && classIds.has(item.classId)).map((item) => item.id));
         return paginate(
-            state.teachingAssignments.filter((item) => item.schoolId === schoolId && offeringIds.has(item.offeringId)),
+            state.teachingAssignments.filter((item) => item.schoolId === schoolId && item.status === "published" && offeringIds.has(item.offeringId)),
             input,
         );
+    }
+
+    async listAssignmentsForTeacher(schoolId: string, membershipId: string, input: PageQuery) {
+        return paginate(
+            (await this.read()).teachingAssignments.filter((item) => item.schoolId === schoolId && item.teacherMembershipId === membershipId),
+            input,
+        );
+    }
+
+    async getTeachingAssignment(schoolId: string, assignmentId: string) {
+        return detached((await this.read()).teachingAssignments.find((item) => item.schoolId === schoolId && item.id === assignmentId));
+    }
+
+    updateTeachingAssignment(schoolId: string, assignmentId: string, patch: TeachingAssignmentUpdate) {
+        return this.mutate((state) => {
+            const assignment = state.teachingAssignments.find((item) => item.schoolId === schoolId && item.id === assignmentId);
+            if (!assignment) return null;
+            Object.assign(assignment, patch);
+            if (patch.dueAt === "") delete assignment.dueAt;
+            return structuredClone(assignment);
+        });
+    }
+
+    async listTeachingSubmissions(schoolId: string, assignmentId: string, input: PageQuery) {
+        return paginate(
+            (await this.read()).teachingSubmissions.filter((item) => item.schoolId === schoolId && item.assignmentId === assignmentId),
+            input,
+        );
+    }
+
+    async getTeachingSubmission(schoolId: string, submissionId: string) {
+        return detached((await this.read()).teachingSubmissions.find((item) => item.schoolId === schoolId && item.id === submissionId));
+    }
+
+    async getTeachingSubmissionByAssignmentAndStudent(schoolId: string, assignmentId: string, studentMembershipId: string) {
+        return detached((await this.read()).teachingSubmissions.find((item) => item.schoolId === schoolId && item.assignmentId === assignmentId && item.studentMembershipId === studentMembershipId));
+    }
+
+    updateTeachingSubmission(schoolId: string, submissionId: string, patch: TeachingSubmissionUpdate) {
+        return this.mutate((state) => {
+            const submission = state.teachingSubmissions.find((item) => item.schoolId === schoolId && item.id === submissionId);
+            if (!submission) return null;
+            Object.assign(submission, patch);
+            if (patch.reviewedAt === "") delete submission.reviewedAt;
+            return structuredClone(submission);
+        });
+    }
+
+    async isClassMember(schoolId: string, classId: string, membershipId: string) {
+        return (await this.read()).classMembers.some((item) => item.schoolId === schoolId && item.classId === classId && item.membershipId === membershipId);
     }
 
     async getCommercialOrder(schoolId: string, orderId: string) {

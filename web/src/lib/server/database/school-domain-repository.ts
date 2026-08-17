@@ -1,4 +1,4 @@
-import type { CommercialOrderStatus, PlatformCourseStatus, SchoolMembershipStatus, SchoolPermission, SchoolStatus, TeachingAssignmentKind, TeachingAssignmentStatus, TeachingSubmissionStatus } from "@/lib/school-domain";
+import type { CommercialOrderStatus, PlatformCourseStatus, SchoolMemberRole, SchoolMembershipStatus, SchoolPermission, SchoolStatus, TeachingAssignmentKind, TeachingAssignmentStatus, TeachingSubmissionStatus } from "@/lib/school-domain";
 import type {
     CommercialOrderDeliveryRecord,
     CommercialOrderParticipantRecord,
@@ -6,7 +6,9 @@ import type {
     MemberPageQuery,
     OrderPageQuery,
     PageQuery,
+    PlatformCoursePageQuery,
     PlatformCourseRecord,
+    PlatformCourseUpdate,
     SchoolClassRecord,
     SchoolClassUpdate,
     SchoolContextRecord,
@@ -20,7 +22,9 @@ import type {
     SchoolRecord,
     SchoolUpdate,
     TeachingAssignmentRecord,
+    TeachingAssignmentUpdate,
     TeachingSubmissionRecord,
+    TeachingSubmissionUpdate,
 } from "@/lib/server/school-domain-repository";
 import { postgresQuery, withPostgresTransaction, type QueryExecutor } from "./postgres";
 import { isoValue, jsonParam, jsonValue, normalizePage, normalizePageSize, numberValue, optionalIso, optionalString, pageResult, stringValue } from "./repository-utils";
@@ -208,6 +212,69 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         return this.tenantPage("school_course_assignments", schoolId, input, mapCourseAssignment);
     }
 
+    async listVisibleCourses(schoolId: string, membershipId: string, role: SchoolMemberRole, input: PageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const relationship =
+            role === "teacher"
+                ? "EXISTS (SELECT 1 FROM school_course_offerings o WHERE o.school_id = a.school_id AND o.assignment_id = a.id AND o.teacher_membership_id = $2)"
+                : "EXISTS (SELECT 1 FROM school_course_offerings o JOIN school_class_members cm ON cm.school_id = o.school_id AND cm.class_id = o.class_id WHERE o.school_id = a.school_id AND o.assignment_id = a.id AND cm.membership_id = $2)";
+        const from = `FROM school_course_assignments a WHERE a.school_id = $1 AND ${relationship}`;
+        const [rows, count] = await Promise.all([
+            this.db.query(`SELECT a.* ${from} ORDER BY a.updated_at DESC, a.id DESC LIMIT $3 OFFSET $4`, [schoolId, membershipId, pageSize, offset]),
+            this.db.query(`SELECT COUNT(*)::int AS total ${from}`, [schoolId, membershipId]),
+        ]);
+        return pageResult(rows.rows.map(mapCourseAssignment), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async listPlatformCourses(input: PlatformCoursePageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const keyword = input.keyword?.trim() || null;
+        const status = input.status || null;
+        const where = "WHERE ($1::text IS NULL OR status = $1) AND ($2::text IS NULL OR id ILIKE '%' || $2 || '%' OR title ILIKE '%' || $2 || '%' OR summary ILIKE '%' || $2 || '%')";
+        const [rows, count] = await Promise.all([
+            this.db.query(`SELECT * FROM platform_courses ${where} ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4`, [status, keyword, pageSize, offset]),
+            this.db.query(`SELECT COUNT(*)::int AS total FROM platform_courses ${where}`, [status, keyword]),
+        ]);
+        return pageResult(rows.rows.map(mapPlatformCourse), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async getPlatformCourse(courseId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM platform_courses WHERE id = $1${forUpdate ? " FOR UPDATE" : ""}`, [courseId]);
+        return result.rows[0] ? mapPlatformCourse(result.rows[0]) : null;
+    }
+
+    async updatePlatformCourse(courseId: string, patch: PlatformCourseUpdate) {
+        const values: unknown[] = [courseId, patch.updatedAt];
+        const assignments = ["updated_at = $2"];
+        addUpdate(assignments, values, "title", patch.title);
+        addUpdate(assignments, values, "summary", patch.summary);
+        addUpdate(assignments, values, "content", patch.content === undefined ? undefined : jsonParam(patch.content));
+        addUpdate(assignments, values, "chapters", patch.chapters === undefined ? undefined : jsonParam(patch.chapters));
+        addUpdate(assignments, values, "attachments", patch.attachments === undefined ? undefined : jsonParam(patch.attachments));
+        addUpdate(assignments, values, "status", patch.status);
+        const result = await this.db.query(`UPDATE platform_courses SET ${assignments.join(", ")} WHERE id = $1 RETURNING *`, values);
+        return result.rows[0] ? mapPlatformCourse(result.rows[0]) : null;
+    }
+
+    async getSchoolCourseAssignment(schoolId: string, assignmentId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM school_course_assignments WHERE school_id = $1 AND id = $2${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, assignmentId]);
+        return result.rows[0] ? mapCourseAssignment(result.rows[0]) : null;
+    }
+
+    async listOfferingsForAssignment(schoolId: string, assignmentId: string, input: PageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const [rows, count] = await Promise.all([
+            this.db.query("SELECT * FROM school_course_offerings WHERE school_id = $1 AND assignment_id = $2 ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4", [schoolId, assignmentId, pageSize, offset]),
+            this.db.query("SELECT COUNT(*)::int AS total FROM school_course_offerings WHERE school_id = $1 AND assignment_id = $2", [schoolId, assignmentId]),
+        ]);
+        return pageResult(rows.rows.map(mapCourseOffering), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async getCourseOffering(schoolId: string, offeringId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM school_course_offerings WHERE school_id = $1 AND id = $2${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, offeringId]);
+        return result.rows[0] ? mapCourseOffering(result.rows[0]) : null;
+    }
+
     async listOfferingsForTeacher(schoolId: string, membershipId: string, input: PageQuery) {
         const { page, pageSize, offset } = pagination(input);
         const [rows, count] = await Promise.all([
@@ -221,13 +288,77 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         const { page, pageSize, offset } = pagination(input);
         const from = `FROM teaching_assignments a
                       JOIN school_course_offerings o ON o.school_id = a.school_id AND o.id = a.offering_id
-                      JOIN school_class_members cm ON cm.school_id = o.school_id AND cm.class_id = o.class_id
-                      WHERE a.school_id = $1 AND cm.membership_id = $2`;
+                      WHERE a.school_id = $1 AND a.status = 'published'
+                        AND EXISTS (SELECT 1 FROM school_class_members cm WHERE cm.school_id = o.school_id AND cm.class_id = o.class_id AND cm.membership_id = $2)`;
         const [rows, count] = await Promise.all([
             this.db.query(`SELECT a.* ${from} ORDER BY a.updated_at DESC, a.id DESC LIMIT $3 OFFSET $4`, [schoolId, membershipId, pageSize, offset]),
             this.db.query(`SELECT COUNT(*)::int AS total ${from}`, [schoolId, membershipId]),
         ]);
         return pageResult(rows.rows.map(mapTeachingAssignment), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async listAssignmentsForTeacher(schoolId: string, membershipId: string, input: PageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const [rows, count] = await Promise.all([
+            this.db.query("SELECT * FROM teaching_assignments WHERE school_id = $1 AND teacher_membership_id = $2 ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4", [schoolId, membershipId, pageSize, offset]),
+            this.db.query("SELECT COUNT(*)::int AS total FROM teaching_assignments WHERE school_id = $1 AND teacher_membership_id = $2", [schoolId, membershipId]),
+        ]);
+        return pageResult(rows.rows.map(mapTeachingAssignment), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async getTeachingAssignment(schoolId: string, assignmentId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM teaching_assignments WHERE school_id = $1 AND id = $2${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, assignmentId]);
+        return result.rows[0] ? mapTeachingAssignment(result.rows[0]) : null;
+    }
+
+    async updateTeachingAssignment(schoolId: string, assignmentId: string, patch: TeachingAssignmentUpdate) {
+        const values: unknown[] = [schoolId, assignmentId, patch.updatedAt];
+        const assignments = ["updated_at = $3"];
+        addUpdate(assignments, values, "kind", patch.kind);
+        addUpdate(assignments, values, "title", patch.title);
+        addUpdate(assignments, values, "instructions", patch.instructions);
+        addUpdate(assignments, values, "resources", patch.resources === undefined ? undefined : jsonParam(patch.resources));
+        addUpdate(assignments, values, "due_at", patch.dueAt === undefined ? undefined : patch.dueAt || null);
+        addUpdate(assignments, values, "status", patch.status);
+        const result = await this.db.query(`UPDATE teaching_assignments SET ${assignments.join(", ")} WHERE school_id = $1 AND id = $2 RETURNING *`, values);
+        return result.rows[0] ? mapTeachingAssignment(result.rows[0]) : null;
+    }
+
+    async listTeachingSubmissions(schoolId: string, assignmentId: string, input: PageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const [rows, count] = await Promise.all([
+            this.db.query("SELECT * FROM teaching_submissions WHERE school_id = $1 AND assignment_id = $2 ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4", [schoolId, assignmentId, pageSize, offset]),
+            this.db.query("SELECT COUNT(*)::int AS total FROM teaching_submissions WHERE school_id = $1 AND assignment_id = $2", [schoolId, assignmentId]),
+        ]);
+        return pageResult(rows.rows.map(mapTeachingSubmission), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async getTeachingSubmission(schoolId: string, submissionId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM teaching_submissions WHERE school_id = $1 AND id = $2${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, submissionId]);
+        return result.rows[0] ? mapTeachingSubmission(result.rows[0]) : null;
+    }
+
+    async getTeachingSubmissionByAssignmentAndStudent(schoolId: string, assignmentId: string, studentMembershipId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM teaching_submissions WHERE school_id = $1 AND assignment_id = $2 AND student_membership_id = $3${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, assignmentId, studentMembershipId]);
+        return result.rows[0] ? mapTeachingSubmission(result.rows[0]) : null;
+    }
+
+    async updateTeachingSubmission(schoolId: string, submissionId: string, patch: TeachingSubmissionUpdate) {
+        const values: unknown[] = [schoolId, submissionId, patch.updatedAt];
+        const assignments = ["updated_at = $3"];
+        addUpdate(assignments, values, "note", patch.note);
+        addUpdate(assignments, values, "content_references", patch.contentReferences === undefined ? undefined : jsonParam(patch.contentReferences));
+        addUpdate(assignments, values, "status", patch.status);
+        addUpdate(assignments, values, "feedback", patch.feedback);
+        addUpdate(assignments, values, "submitted_at", patch.submittedAt);
+        addUpdate(assignments, values, "reviewed_at", patch.reviewedAt === undefined ? undefined : patch.reviewedAt || null);
+        const result = await this.db.query(`UPDATE teaching_submissions SET ${assignments.join(", ")} WHERE school_id = $1 AND id = $2 RETURNING *`, values);
+        return result.rows[0] ? mapTeachingSubmission(result.rows[0]) : null;
+    }
+
+    async isClassMember(schoolId: string, classId: string, membershipId: string) {
+        const result = await this.db.query("SELECT 1 FROM school_class_members WHERE school_id = $1 AND class_id = $2 AND membership_id = $3", [schoolId, classId, membershipId]);
+        return Boolean(result.rows[0]);
     }
 
     async getCommercialOrder(schoolId: string, orderId: string, forUpdate = false) {

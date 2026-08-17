@@ -79,6 +79,9 @@ describe("file school domain repository", () => {
         });
 
         await expect(repository.listAssignmentsForStudent("school-a", "student-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "teaching-a" }] });
+        await expect(repository.listVisibleCourses("school-a", "teacher-a", "teacher", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "course-assignment-a" }] });
+        await expect(repository.listVisibleCourses("school-a", "student-a", "student", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "course-assignment-a" }] });
+        await expect(repository.listVisibleCourses("school-b", "student-a", "student", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
         await expect(repository.listAssignedCourses("school-b", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
 
         await repository.insertCommercialOrder({
@@ -221,6 +224,19 @@ describe("file school domain repository", () => {
 
         await expect(repository.getSchool("school-a")).resolves.toMatchObject({ name: "甲学校" });
         await expect(repository.getMembership("school-a", "teacher-a")).resolves.toMatchObject({ status: "active", permissions: [] });
+    });
+
+    it("mirrors PostgreSQL nullable teaching updates", async () => {
+        const repository = createFileSchoolDomainRepository();
+        await seedTeachingDomain(repository);
+
+        await repository.updateTeachingAssignment("school-a", "teaching-a", { dueAt: "2026-08-18T00:00:00.000Z", updatedAt: now });
+        await repository.updateTeachingAssignment("school-a", "teaching-a", { dueAt: "", updatedAt: now });
+        await repository.updateTeachingSubmission("school-a", "submission-a", { reviewedAt: "2026-08-18T00:00:00.000Z", updatedAt: now });
+        await repository.updateTeachingSubmission("school-a", "submission-a", { reviewedAt: "", updatedAt: now });
+
+        expect((await repository.getTeachingAssignment("school-a", "teaching-a"))?.dueAt).toBeUndefined();
+        expect((await repository.getTeachingSubmission("school-a", "submission-a"))?.reviewedAt).toBeUndefined();
     });
 
     it("rolls back a failed file transaction", async () => {

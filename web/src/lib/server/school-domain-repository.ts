@@ -20,6 +20,7 @@ export type PageQuery = { page?: number; pageSize?: number };
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number };
 export type MemberPageQuery = PageQuery & { keyword?: string; role?: SchoolMemberRole; status?: SchoolMembershipStatus };
 export type OrderPageQuery = PageQuery & { keyword?: string; status?: CommercialOrderStatus };
+export type PlatformCoursePageQuery = PageQuery & { keyword?: string; status?: PlatformCourseStatus };
 
 export type SchoolRecord = { id: string; name: string; profile: JsonValue; status: SchoolStatus; createdAt: string; updatedAt: string };
 export type SchoolUpdate = Partial<Pick<SchoolRecord, "name" | "profile" | "status">> & { updatedAt: string };
@@ -61,6 +62,7 @@ export type PlatformCourseRecord = {
     createdAt: string;
     updatedAt: string;
 };
+export type PlatformCourseUpdate = Partial<Pick<PlatformCourseRecord, "title" | "summary" | "content" | "chapters" | "attachments" | "status">> & { updatedAt: string };
 export type SchoolCourseAssignmentRecord = { id: string; courseId: string; schoolId: string; status: SchoolStatus; createdAt: string; updatedAt: string };
 export type SchoolCourseAssignmentInput = Omit<SchoolCourseAssignmentRecord, "courseId">;
 export type SchoolCourseOfferingRecord = {
@@ -88,6 +90,7 @@ export type TeachingAssignmentRecord = {
     createdAt: string;
     updatedAt: string;
 };
+export type TeachingAssignmentUpdate = Partial<Pick<TeachingAssignmentRecord, "kind" | "title" | "instructions" | "resources" | "dueAt" | "status">> & { updatedAt: string };
 export type TeachingSubmissionRecord = {
     id: string;
     schoolId: string;
@@ -102,6 +105,7 @@ export type TeachingSubmissionRecord = {
     createdAt: string;
     updatedAt: string;
 };
+export type TeachingSubmissionUpdate = Partial<Pick<TeachingSubmissionRecord, "note" | "contentReferences" | "status" | "feedback" | "submittedAt" | "reviewedAt">> & { updatedAt: string };
 export type CommercialOrderRecord = {
     id: string;
     title: string;
@@ -166,8 +170,23 @@ export interface SchoolDomainRepository {
     deleteClass(schoolId: string, classId: string): Promise<boolean>;
     listClassMembers(schoolId: string, classId: string, input: PageQuery): Promise<Page<SchoolMembershipRecord>>;
     listAssignedCourses(schoolId: string, input: PageQuery): Promise<Page<SchoolCourseAssignmentRecord>>;
+    listVisibleCourses(schoolId: string, membershipId: string, role: SchoolMemberRole, input: PageQuery): Promise<Page<SchoolCourseAssignmentRecord>>;
+    listPlatformCourses(input: PlatformCoursePageQuery): Promise<Page<PlatformCourseRecord>>;
+    getPlatformCourse(courseId: string, forUpdate?: boolean): Promise<PlatformCourseRecord | null>;
+    updatePlatformCourse(courseId: string, patch: PlatformCourseUpdate): Promise<PlatformCourseRecord | null>;
+    getSchoolCourseAssignment(schoolId: string, assignmentId: string, forUpdate?: boolean): Promise<SchoolCourseAssignmentRecord | null>;
+    listOfferingsForAssignment(schoolId: string, assignmentId: string, input: PageQuery): Promise<Page<SchoolCourseOfferingRecord>>;
+    getCourseOffering(schoolId: string, offeringId: string, forUpdate?: boolean): Promise<SchoolCourseOfferingRecord | null>;
     listOfferingsForTeacher(schoolId: string, membershipId: string, input: PageQuery): Promise<Page<SchoolCourseOfferingRecord>>;
     listAssignmentsForStudent(schoolId: string, membershipId: string, input: PageQuery): Promise<Page<TeachingAssignmentRecord>>;
+    listAssignmentsForTeacher(schoolId: string, membershipId: string, input: PageQuery): Promise<Page<TeachingAssignmentRecord>>;
+    getTeachingAssignment(schoolId: string, assignmentId: string, forUpdate?: boolean): Promise<TeachingAssignmentRecord | null>;
+    updateTeachingAssignment(schoolId: string, assignmentId: string, patch: TeachingAssignmentUpdate): Promise<TeachingAssignmentRecord | null>;
+    listTeachingSubmissions(schoolId: string, assignmentId: string, input: PageQuery): Promise<Page<TeachingSubmissionRecord>>;
+    getTeachingSubmission(schoolId: string, submissionId: string, forUpdate?: boolean): Promise<TeachingSubmissionRecord | null>;
+    getTeachingSubmissionByAssignmentAndStudent(schoolId: string, assignmentId: string, studentMembershipId: string, forUpdate?: boolean): Promise<TeachingSubmissionRecord | null>;
+    updateTeachingSubmission(schoolId: string, submissionId: string, patch: TeachingSubmissionUpdate): Promise<TeachingSubmissionRecord | null>;
+    isClassMember(schoolId: string, classId: string, membershipId: string): Promise<boolean>;
     getCommercialOrder(schoolId: string, orderId: string, forUpdate?: boolean): Promise<CommercialOrderRecord | null>;
     listCommercialOrders(schoolId: string, input: OrderPageQuery): Promise<Page<CommercialOrderRecord>>;
     insertSchool(record: SchoolRecord): Promise<SchoolRecord>;
