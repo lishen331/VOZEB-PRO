@@ -19,6 +19,45 @@ export type SchoolContext = {
     canManageSchool: boolean;
 };
 
+export type PageResult<T> = { items: T[]; total: number; page: number; pageSize: number };
+export type SchoolSummary = {
+    id: string;
+    name: string;
+    profile: Record<string, unknown>;
+    status: SchoolStatus;
+    createdAt: string;
+    updatedAt: string;
+};
+export type SchoolDetail = SchoolSummary;
+export type SchoolMember = {
+    id: string;
+    accountId: string;
+    username: string;
+    displayName: string;
+    email?: string;
+    role: SchoolMemberRole;
+    permissions: SchoolPermission[];
+    status: SchoolMembershipStatus;
+    joinSource: "admin" | "import" | "invite";
+    createdAt: string;
+    updatedAt: string;
+};
+export type SchoolClass = {
+    id: string;
+    schoolId: string;
+    name: string;
+    description: string;
+    status: SchoolStatus;
+    createdAt: string;
+    updatedAt: string;
+};
+export type SchoolClassDetail = SchoolClass & { teachers: SchoolMember[]; students: SchoolMember[] };
+export type SchoolMemberCreateInput = { username: string; email?: string; displayName?: string; password: string; role: SchoolMemberRole };
+export type SchoolMemberPatch = { role?: SchoolMemberRole; permissions?: SchoolPermission[]; status?: SchoolMembershipStatus };
+export type SchoolClassInput = { name: string; description?: string };
+export type CreateSchoolInput = { name: string; profile?: Record<string, unknown>; administrator: Omit<SchoolMemberCreateInput, "role"> };
+export type UpdateSchoolInput = { name?: string; profile?: Record<string, unknown>; status?: SchoolStatus };
+
 const SCHOOL_MEMBER_ROLE_SET = new Set<SchoolMemberRole>(SCHOOL_MEMBER_ROLES);
 const SCHOOL_PERMISSION_SET = new Set<SchoolPermission>(SCHOOL_PERMISSIONS);
 const SCHOOL_CONTENT_REFERENCE_TYPE_SET = new Set<SchoolContentReference["type"]>(SCHOOL_CONTENT_REFERENCE_TYPES);

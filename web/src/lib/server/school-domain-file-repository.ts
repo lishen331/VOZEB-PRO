@@ -68,6 +68,13 @@ export function createFileSchoolDomainRepository(): SchoolDomainRepository {
     return new FileSchoolDomainRepository();
 }
 
+export async function mutateFileSchoolDomainInsideLock<T>(operation: (repository: SchoolDomainRepository) => Promise<T>): Promise<T> {
+    const state = normalizeFile(await readJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, EMPTY_SCHOOL_DOMAIN_FILE));
+    const result = await operation(new FileSchoolDomainRepository(state));
+    await writeJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, state);
+    return result;
+}
+
 class FileSchoolDomainRepository implements SchoolDomainRepository {
     constructor(private readonly transactionState?: SchoolDomainFile) {}
 
