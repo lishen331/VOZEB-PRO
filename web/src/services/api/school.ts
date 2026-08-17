@@ -1,6 +1,8 @@
 import type { PageResult, SchoolClass, SchoolClassDetail, SchoolClassInput, SchoolContext, SchoolDetail, SchoolMember, SchoolMemberCreateInput, SchoolMemberPatch, SchoolMemberRole, SchoolMembershipStatus, UpdateSchoolInput } from "@/lib/school-domain";
 import { serializeApiParams } from "@/services/api/request";
 
+export type SchoolInvitePreview = { school: { id: string; name: string }; role: SchoolMemberRole };
+
 export const schoolApi = {
     getContext() {
         return request<SchoolContext | null>("/api/school/context");
@@ -45,6 +47,9 @@ export const schoolApi = {
     },
     rotateInviteCode(role: SchoolMemberRole) {
         return request<{ code: string }>("/api/school/invitations", jsonRequest("POST", { role }));
+    },
+    previewInvite(code: string) {
+        return request<SchoolInvitePreview>(`/api/school/invitations/join?${serializeApiParams({ code }).toString()}`);
     },
     joinByInvite(code: string) {
         return request<SchoolContext>("/api/school/invitations/join", jsonRequest("POST", { code }));

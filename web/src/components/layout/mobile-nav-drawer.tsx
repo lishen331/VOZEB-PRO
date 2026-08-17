@@ -7,10 +7,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import { SiteLogo } from "@/components/layout/site-logo";
-import { navigationGroups, navigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
+import { navigationGroups, navigationTools, schoolNavigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
+import { useSchoolContextStore } from "@/stores/use-school-context-store";
 
 type MobileNavDrawerProps = {
     open: boolean;
@@ -25,6 +26,9 @@ export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDraw
     const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const siteTitle = resolveSiteTitle(site.title);
     const helpActive = pathname.startsWith("/help");
+    const schoolTools = schoolNavigationTools(useSchoolContextStore((state) => state.context));
+    const groups = schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups;
+    const tools = [...navigationTools, ...schoolTools];
 
     useEffect(() => {
         if (previousPathnameRef.current === pathname) return;
@@ -47,11 +51,11 @@ export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDraw
             className="lg:hidden"
             styles={{ header: { borderBottomColor: "var(--border)", minHeight: 60, padding: "12px 16px" }, body: { padding: "12px 14px 18px" } }}
         >
-            {navigationGroups.map((group, groupIndex) => (
+            {groups.map((group, groupIndex) => (
                 <div key={group.id} className={cn(groupIndex > 0 && "mt-5")}>
                     <div className="mb-1 px-3 text-[11px] font-medium text-[#9aa2ad] dark:text-[#737d89]">{group.label}</div>
                     <div className="space-y-1">
-                        {navigationTools
+                        {tools
                             .filter((tool) => tool.group === group.id)
                             .map((tool) => {
                                 const Icon = tool.icon;

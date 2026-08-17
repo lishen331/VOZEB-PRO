@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
     deleteClass: vi.fn(),
     replaceClassMembers: vi.fn(),
     listClassMembers: vi.fn(),
+    listSchools: vi.fn(),
+    listFirstManagers: vi.fn(),
     listMembers: vi.fn(),
     transact: vi.fn(),
 }));
@@ -30,6 +32,7 @@ vi.mock("@/lib/server/school-domain-repository", () => ({ createSchoolDomainRepo
 import {
     createSchoolByAdmin,
     createSchoolClass,
+    listSchoolsByAdmin,
     removeSchoolClass,
     removeSchoolMember,
     replaceSchoolClassMembers,
@@ -53,6 +56,8 @@ const repository = {
     deleteClass: mocks.deleteClass,
     replaceClassMembers: mocks.replaceClassMembers,
     listClassMembers: mocks.listClassMembers,
+    listSchools: mocks.listSchools,
+    listFirstManagers: mocks.listFirstManagers,
     listMembers: mocks.listMembers,
     transact: mocks.transact,
 };
@@ -74,6 +79,20 @@ describe("school tenant service", () => {
         await expect(createSchoolByAdmin("education-admin", { name: " 甲学校 ", administrator: { username: "teacher_a", displayName: "老师", password: "password123" } })).resolves.toMatchObject({
             name: "甲学校",
         });
+    });
+
+    it("returns the first school manager with public account identity", async () => {
+        mocks.getPublicUsersByIds
+            .mockResolvedValueOnce([{ id: "education-admin", role: "admin", status: "active", adminPermissions: ["education.manage"] }])
+            .mockResolvedValueOnce([{ id: "manager-user", accountId: "0007", username: "teacher_a", displayName: "甲老师", email: "teacher@example.com" }]);
+        mocks.listSchools.mockResolvedValue({ items: [{ id: "school-a", name: "甲学校", profile: {}, status: "active", createdAt: now, updatedAt: now }], total: 1, page: 1, pageSize: 20 });
+        mocks.listFirstManagers.mockResolvedValue([{ ...member("manager-a", "teacher", ["school.manage"]), userId: "manager-user" }]);
+
+        await expect(listSchoolsByAdmin("education-admin", { page: 1, pageSize: 20 })).resolves.toMatchObject({
+            items: [{ administrator: { accountId: "0007", username: "teacher_a", displayName: "甲老师" } }],
+        });
+        expect(mocks.listFirstManagers).toHaveBeenCalledOnce();
+        expect(mocks.getPublicUsersByIds).toHaveBeenCalledTimes(2);
     });
 
     it("returns 404 instead of exposing a membership from another school", async () => {

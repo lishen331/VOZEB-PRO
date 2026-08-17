@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     getMembershipByUserId: vi.fn(),
     getInviteCodeByRole: vi.fn(),
     getInviteCodeByDigest: vi.fn(),
+    getSchool: vi.fn(),
     upsertInviteCode: vi.fn(),
     insertMembership: vi.fn(),
     transact: vi.fn(),
@@ -27,12 +28,13 @@ vi.mock("./school-access-service", () => ({
 vi.mock("@/lib/auth/store", () => ({ createOrdinaryUsersForSchool: mocks.createOrdinaryUsersForSchool }));
 vi.mock("@/lib/server/school-domain-repository", () => ({ createSchoolDomainRepository: () => repository }));
 
-import { createSchoolMembers, importSchoolMembers, joinSchoolByInvite, rotateSchoolInviteCode } from "./school-member-provisioning-service";
+import { createSchoolMembers, importSchoolMembers, joinSchoolByInvite, previewSchoolInvite, rotateSchoolInviteCode } from "./school-member-provisioning-service";
 
 const repository = {
     getMembershipByUserId: mocks.getMembershipByUserId,
     getInviteCodeByRole: mocks.getInviteCodeByRole,
     getInviteCodeByDigest: mocks.getInviteCodeByDigest,
+    getSchool: mocks.getSchool,
     upsertInviteCode: mocks.upsertInviteCode,
     insertMembership: mocks.insertMembership,
     transact: mocks.transact,
@@ -82,6 +84,29 @@ describe("school member provisioning service", () => {
         mocks.getSchoolContextForUser.mockResolvedValue({ school: { id: "school-b" } });
 
         await expect(joinSchoolByInvite("user-a", "SCHOOL-CODE")).rejects.toThrow("已经加入");
+        expect(mocks.insertMembership).not.toHaveBeenCalled();
+    });
+
+    it("previews the public school and role without writing membership or the raw code", async () => {
+        mocks.getSchoolContextForUser.mockResolvedValue(null);
+        mocks.getInviteCodeByDigest.mockResolvedValue({ schoolId: "school-a", role: "student", status: "active" });
+        mocks.getSchool.mockResolvedValue({ id: "school-a", name: "甲学校", status: "active" });
+
+        await expect(previewSchoolInvite("user-a", "school-code")).resolves.toEqual({ school: { id: "school-a", name: "甲学校" }, role: "student" });
+
+        expect(mocks.getInviteCodeByDigest).toHaveBeenCalledWith(expect.not.stringContaining("SCHOOL-CODE"));
+        expect(mocks.transact).not.toHaveBeenCalled();
+        expect(mocks.insertMembership).not.toHaveBeenCalled();
+        expect(mocks.upsertInviteCode).not.toHaveBeenCalled();
+    });
+
+    it("rejects invalid and expired invite previews without writes", async () => {
+        mocks.getSchoolContextForUser.mockResolvedValue(null);
+        mocks.getInviteCodeByDigest.mockResolvedValueOnce(null).mockResolvedValueOnce({ schoolId: "school-a", role: "teacher", status: "active", expiresAt: "2000-01-01T00:00:00.000Z" });
+
+        await expect(previewSchoolInvite("user-a", "invalid-code")).rejects.toThrow("无效或已过期");
+        await expect(previewSchoolInvite("user-a", "expired-code")).rejects.toThrow("无效或已过期");
+        expect(mocks.transact).not.toHaveBeenCalled();
         expect(mocks.insertMembership).not.toHaveBeenCalled();
     });
 });

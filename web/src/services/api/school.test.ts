@@ -22,4 +22,14 @@ describe("school API clients", () => {
         expect(fetchMock).toHaveBeenCalledWith("/api/school/members/import", expect.objectContaining({ method: "POST", body: JSON.stringify({ rows }) }));
         await expect(schoolApi.getContext()).rejects.toThrow("用户名已存在");
     });
+
+    it("previews an invitation with GET and only joins after POST confirmation", async () => {
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ code: 0, data: { school: { id: "school-a", name: "甲学校" }, role: "student" }, msg: "ok" }), { status: 200 }));
+
+        await expect(schoolApi.previewInvite("SCHOOL CODE")).resolves.toMatchObject({ school: { name: "甲学校" }, role: "student" });
+        expect(fetchMock).toHaveBeenLastCalledWith("/api/school/invitations/join?code=SCHOOL+CODE", expect.objectContaining({ cache: "no-store" }));
+
+        await schoolApi.joinByInvite("SCHOOL CODE");
+        expect(fetchMock).toHaveBeenLastCalledWith("/api/school/invitations/join", expect.objectContaining({ method: "POST", body: JSON.stringify({ code: "SCHOOL CODE" }) }));
+    });
 });

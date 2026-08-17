@@ -1,9 +1,19 @@
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSchoolApiObject, schoolApiError, schoolApiFailure, schoolApiOk } from "@/lib/server/school-api-response";
-import { joinSchoolByInvite } from "@/lib/server/school-member-provisioning-service";
+import { joinSchoolByInvite, previewSchoolInvite } from "@/lib/server/school-member-provisioning-service";
 
 export const runtime = "nodejs";
+
+export async function GET(request: Request) {
+    const user = await getCurrentUser();
+    if (!user) return schoolApiError(401, "请先登录");
+    try {
+        return schoolApiOk(await previewSchoolInvite(user.id, new URL(request.url).searchParams.get("code") || ""));
+    } catch (error) {
+        return schoolApiFailure(error, "预览学校邀请失败");
+    }
+}
 
 export async function POST(request: Request) {
     const user = await getCurrentUser();

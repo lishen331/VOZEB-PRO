@@ -156,6 +156,7 @@ export interface SchoolDomainRepository {
     updateMembership(schoolId: string, membershipId: string, patch: SchoolMembershipUpdate): Promise<SchoolMembershipRecord | null>;
     deleteMembership(schoolId: string, membershipId: string): Promise<boolean>;
     listMembers(schoolId: string, input: MemberPageQuery): Promise<Page<SchoolMembershipRecord>>;
+    listFirstManagers(schoolIds: string[]): Promise<SchoolMembershipRecord[]>;
     getInviteCodeByRole(schoolId: string, role: SchoolMemberRole, forUpdate?: boolean): Promise<SchoolInviteCodeRecord | null>;
     getInviteCodeByDigest(codeDigest: string, forUpdate?: boolean): Promise<SchoolInviteCodeRecord | null>;
     upsertInviteCode(record: SchoolInviteCodeRecord): Promise<SchoolInviteCodeRecord>;

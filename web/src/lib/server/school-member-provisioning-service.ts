@@ -46,17 +46,21 @@ export async function rotateSchoolInviteCode(managerId: string, role: SchoolMemb
     return { code };
 }
 
+export type SchoolInvitePreview = { school: { id: string; name: string }; role: SchoolMemberRole };
+
+export async function previewSchoolInvite(userId: string, code: string): Promise<SchoolInvitePreview> {
+    if (await getSchoolContextForUser(userId)) throw new SchoolServiceError(409, "当前账号已经加入学校");
+    const repository = createSchoolDomainRepository();
+    const { invite, school } = await resolveSchoolInvite(repository, code);
+    return { school: { id: school.id, name: school.name }, role: invite.role };
+}
+
 export async function joinSchoolByInvite(userId: string, code: string): Promise<SchoolContext> {
     if (await getSchoolContextForUser(userId)) throw new SchoolServiceError(409, "当前账号已经加入学校");
-    const normalizedCode = typeof code === "string" ? code.trim().toUpperCase() : "";
-    if (!normalizedCode) throw new SchoolServiceError(400, "请填写邀请码");
     const repository = createSchoolDomainRepository();
     await repository.transact(async (transaction) => {
         if (await transaction.getMembershipByUserId(userId, true)) throw new SchoolServiceError(409, "当前账号已经加入学校");
-        const invite = await transaction.getInviteCodeByDigest(hashToken(normalizedCode), true);
-        if (!invite || invite.status !== "active" || (invite.expiresAt && Date.parse(invite.expiresAt) <= Date.now())) throw new SchoolServiceError(400, "邀请码无效或已过期");
-        const school = await transaction.getSchool(invite.schoolId, true);
-        if (!school || school.status !== "active") throw new SchoolServiceError(403, "学校当前不可加入");
+        const { invite } = await resolveSchoolInvite(transaction, code, true);
         const now = new Date().toISOString();
         await transaction.insertMembership({
             id: randomUUID(),
@@ -73,6 +77,16 @@ export async function joinSchoolByInvite(userId: string, code: string): Promise<
     const context = await getSchoolContextForUser(userId);
     if (!context) throw new SchoolServiceError(500, "学校身份创建失败");
     return context;
+}
+
+async function resolveSchoolInvite(repository: ReturnType<typeof createSchoolDomainRepository>, code: string, forUpdate = false) {
+    const normalizedCode = typeof code === "string" ? code.trim().toUpperCase() : "";
+    if (!normalizedCode) throw new SchoolServiceError(400, "请填写邀请码");
+    const invite = forUpdate ? await repository.getInviteCodeByDigest(hashToken(normalizedCode), true) : await repository.getInviteCodeByDigest(hashToken(normalizedCode));
+    if (!invite || invite.status !== "active" || (invite.expiresAt && Date.parse(invite.expiresAt) <= Date.now())) throw new SchoolServiceError(400, "邀请码无效或已过期");
+    const school = forUpdate ? await repository.getSchool(invite.schoolId, true) : await repository.getSchool(invite.schoolId);
+    if (!school || school.status !== "active") throw new SchoolServiceError(403, "学校当前不可加入");
+    return { invite, school };
 }
 
 function normalizeRows(rows: SchoolMemberCreateInput[]) {

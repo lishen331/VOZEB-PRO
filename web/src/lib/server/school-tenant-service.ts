@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getPublicUsersByIds } from "@/lib/auth/store";
 import type { PublicUser } from "@/lib/auth/store";
 import { hasAdminPermission } from "@/lib/admin-permissions";
-import type { CreateSchoolInput, PageResult, SchoolClass, SchoolClassDetail, SchoolClassInput, SchoolDetail, SchoolMember, SchoolMemberPatch, SchoolSummary, UpdateSchoolInput } from "@/lib/school-domain";
+import type { CreateSchoolInput, PageResult, SchoolAdministratorSummary, SchoolClass, SchoolClassDetail, SchoolClassInput, SchoolDetail, SchoolMember, SchoolMemberPatch, SchoolSummary, UpdateSchoolInput } from "@/lib/school-domain";
 import { SchoolDomainReferenceConflictError } from "@/lib/server/school-domain-errors";
 import { createSchoolDomainRepository, type SchoolDomainRepository, type SchoolMembershipRecord } from "@/lib/server/school-domain-repository";
 import { SchoolServiceError, requireSchoolManager } from "./school-access-service";
@@ -11,8 +11,13 @@ import { createSchoolWithAdministrator } from "./school-member-provisioning-serv
 
 export async function listSchoolsByAdmin(actorId: string, input: { page?: number; pageSize?: number; keyword?: string; status?: "active" | "disabled" }): Promise<PageResult<SchoolSummary>> {
     await requireEducationAdmin(actorId);
-    const result = await createSchoolDomainRepository().listSchools(input);
-    return { ...result, items: result.items.map(toSchoolDetail) };
+    const repository = createSchoolDomainRepository();
+    const result = await repository.listSchools(input);
+    const managers = await repository.listFirstManagers(result.items.map((school) => school.id));
+    const users = managers.length ? await getPublicUsersByIds(managers.map((manager) => manager.userId)) : [];
+    const usersById = new Map(users.map((user) => [user.id, user]));
+    const managersBySchool = new Map(managers.map((manager) => [manager.schoolId, administratorSummary(usersById.get(manager.userId))]));
+    return { ...result, items: result.items.map((school) => ({ ...toSchoolDetail(school), administrator: managersBySchool.get(school.id) })) };
 }
 
 export async function getSchoolByAdmin(actorId: string, schoolId: string): Promise<SchoolDetail> {
@@ -237,6 +242,10 @@ async function countActiveManagers(repository: SchoolDomainRepository, schoolId:
         if (page * result.pageSize >= result.total) return count;
         page += 1;
     }
+}
+
+function administratorSummary(user: PublicUser | undefined): SchoolAdministratorSummary | undefined {
+    return user ? { accountId: user.accountId, username: user.username, displayName: user.displayName, email: user.email } : undefined;
 }
 
 async function mapMemberPage(result: { items: SchoolMembershipRecord[]; total: number; page: number; pageSize: number }): Promise<PageResult<SchoolMember>> {

@@ -1,4 +1,6 @@
-import { BookMarked, Clapperboard, Compass, FileText, GalleryVerticalEnd, Images, Maximize2, Sparkles, UserRound } from "lucide-react";
+import { BookMarked, Clapperboard, Compass, FileText, GalleryVerticalEnd, GraduationCap, Images, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
+
+import type { SchoolContext } from "@/lib/school-domain";
 
 export const navigationGroups = [
     { id: "create", label: "创作" },
@@ -80,10 +82,21 @@ export const navigationTools = [
     },
 ] as const;
 
-export type NavigationToolSlug = (typeof navigationTools)[number]["slug"];
+export function schoolNavigationTools(context: SchoolContext | null) {
+    if (!context) return [];
+    if (context.membership.role === "student") {
+        return [{ slug: "learning", label: "学习中心", description: "课程、作业与实训", group: "school", icon: GraduationCap }] as const;
+    }
+    return [
+        { slug: "teaching", label: "教学中心", description: "班级、课程与批改", group: "school", icon: Presentation },
+        ...(context.canManageSchool ? ([{ slug: "school", label: "学校管理", description: "资料、成员与班级", group: "school", icon: School }] as const) : []),
+    ] as const;
+}
+
+export type NavigationToolSlug = (typeof navigationTools)[number]["slug"] | "learning" | "teaching" | "school";
 export type NavigationGroupId = (typeof navigationGroups)[number]["id"];
 
-export function navigationToolForPathname(pathname: string) {
+export function navigationToolForPathname(pathname: string, context: SchoolContext | null = null) {
     const slug = pathname.split("/").filter(Boolean)[0];
-    return navigationTools.find((tool) => tool.slug === slug);
+    return [...navigationTools, ...schoolNavigationTools(context)].find((tool) => tool.slug === slug);
 }

@@ -20,6 +20,7 @@ export type SchoolContext = {
 };
 
 export type PageResult<T> = { items: T[]; total: number; page: number; pageSize: number };
+export type SchoolAdministratorSummary = { accountId: string; username: string; displayName: string; email?: string };
 export type SchoolSummary = {
     id: string;
     name: string;
@@ -27,6 +28,7 @@ export type SchoolSummary = {
     status: SchoolStatus;
     createdAt: string;
     updatedAt: string;
+    administrator?: SchoolAdministratorSummary;
 };
 export type SchoolDetail = SchoolSummary;
 export type SchoolMember = {

@@ -170,6 +170,7 @@ describe("PostgreSQL school domain repository", () => {
         await expect(repository.getMembershipByUserId(id("teacher-user"), true)).resolves.toMatchObject({ id: id("teacher") });
         await expect(repository.updateMembership(id("school-b"), id("teacher"), { status: "disabled", updatedAt: now })).resolves.toBeNull();
         await expect(repository.updateMembership(id("school-a"), id("teacher"), { permissions: ["school.manage"], updatedAt: now })).resolves.toMatchObject({ permissions: ["school.manage"] });
+        await expect(repository.listFirstManagers([id("school-a"), id("school-b")])).resolves.toEqual([expect.objectContaining({ id: id("teacher"), schoolId: id("school-a") })]);
         await repository.upsertInviteCode({ id: id("invite"), schoolId: id("school-a"), role: "student", codeDigest: id("digest"), status: "active", createdAt: now, updatedAt: now });
         await expect(repository.upsertInviteCode({ id: id("other-invite"), schoolId: id("school-b"), role: "teacher", codeDigest: id("digest"), status: "active", createdAt: now, updatedAt: now })).rejects.toThrow();
         await expect(repository.getInviteCodeByRole(id("school-a"), "student", true)).resolves.toMatchObject({ codeDigest: id("digest") });

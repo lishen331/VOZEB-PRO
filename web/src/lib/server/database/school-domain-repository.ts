@@ -133,6 +133,20 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         return pageResult(rows.rows.map(mapMembership), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
+    async listFirstManagers(schoolIds: string[]) {
+        if (!schoolIds.length) return [];
+        const result = await this.db.query(
+            `SELECT DISTINCT ON (school_id) *
+             FROM school_memberships
+             WHERE school_id = ANY($1::text[])
+               AND role = 'teacher'
+               AND permissions @> '["school.manage"]'::jsonb
+             ORDER BY school_id, created_at, id`,
+            [schoolIds],
+        );
+        return result.rows.map(mapMembership);
+    }
+
     async getInviteCodeByRole(schoolId: string, role: SchoolInviteCodeRecord["role"], forUpdate = false) {
         const result = await this.db.query(`SELECT * FROM school_invite_codes WHERE school_id = $1 AND role = $2${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, role]);
         return result.rows[0] ? mapInviteCode(result.rows[0]) : null;

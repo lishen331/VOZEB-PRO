@@ -5,10 +5,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { SiteLogo } from "@/components/layout/site-logo";
-import { navigationGroups, navigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
+import { navigationGroups, navigationTools, schoolNavigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
+import { useSchoolContextStore } from "@/stores/use-school-context-store";
 
 export function AppSidebar({ activeToolSlug, expanded }: { activeToolSlug?: NavigationToolSlug; expanded: boolean }) {
     const pathname = usePathname();
@@ -16,6 +17,9 @@ export function AppSidebar({ activeToolSlug, expanded }: { activeToolSlug?: Navi
     const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const siteTitle = resolveSiteTitle(site.title);
     const helpActive = pathname.startsWith("/help");
+    const schoolTools = schoolNavigationTools(useSchoolContextStore((state) => state.context));
+    const groups = schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups;
+    const tools = [...navigationTools, ...schoolTools];
 
     return (
         <aside className={cn("hidden h-full shrink-0 flex-col border-r border-[#eaecf0] bg-white text-[#111827] transition-[width] duration-200 lg:flex dark:border-[#292d33] dark:bg-[#111316] dark:text-[#f3f5f7]", expanded ? "w-44" : "w-[72px]")}>
@@ -25,13 +29,13 @@ export function AppSidebar({ activeToolSlug, expanded }: { activeToolSlug?: Navi
             </Link>
 
             <nav className={cn("hide-scrollbar min-h-0 flex-1 overflow-y-auto py-5", expanded ? "px-3" : "px-2")} aria-label="工作空间导航">
-                {navigationGroups.map((group, groupIndex) => {
-                    const tools = navigationTools.filter((tool) => tool.group === group.id);
+                {groups.map((group, groupIndex) => {
+                    const groupTools = tools.filter((tool) => tool.group === group.id);
                     return (
                         <div key={group.id} className={cn(groupIndex > 0 && "mt-[22px]")}>
                             {expanded ? <div className="mb-1.5 px-2 text-xs font-normal text-[#98a2b3] dark:text-[#737d89]">{group.label}</div> : null}
                             <div className="space-y-1">
-                                {tools.map((tool) => {
+                                {groupTools.map((tool) => {
                                     const Icon = tool.icon;
                                     const active = tool.slug === activeToolSlug;
                                     const primary = "primary" in tool && tool.primary;

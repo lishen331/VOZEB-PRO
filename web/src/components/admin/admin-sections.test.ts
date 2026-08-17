@@ -21,4 +21,11 @@ describe("admin sections", () => {
         expect(allowedAdminSections(auditor)).toEqual(["updates", "adminHelp"]);
         expect(resolveAdminSection(auditor, "backup")).toBe("updates");
     });
+
+    it("limits school operations to the education duty", () => {
+        const educator = { role: "admin", status: "active", adminPermissions: ["education.manage"] };
+        expect(canAccessAdminSection(educator, "schools")).toBe(true);
+        expect(allowedAdminSections(educator)).toContain("schools");
+        expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "schools")).toBe(false);
+    });
 });

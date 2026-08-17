@@ -176,6 +176,7 @@ describe("file school domain repository", () => {
         await expect(repository.getMembershipByUserId("teacher-user-a", true)).resolves.toMatchObject({ id: "teacher-a" });
         await expect(repository.updateMembership("school-b", "teacher-a", { status: "disabled", updatedAt: now })).resolves.toBeNull();
         await expect(repository.updateMembership("school-a", "teacher-a", { permissions: ["school.manage"], updatedAt: now })).resolves.toMatchObject({ permissions: ["school.manage"] });
+        await expect(repository.listFirstManagers(["school-a", "school-b"])).resolves.toEqual([expect.objectContaining({ id: "teacher-a", schoolId: "school-a" })]);
 
         await repository.upsertInviteCode({ id: "invite-a", schoolId: "school-a", role: "student", codeDigest: "digest-a", status: "active", createdAt: now, updatedAt: now });
         await expect(repository.upsertInviteCode({ id: "invite-b", schoolId: "school-b", role: "teacher", codeDigest: "digest-a", status: "active", createdAt: now, updatedAt: now })).rejects.toThrow("邀请码摘要");

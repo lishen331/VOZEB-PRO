@@ -178,6 +178,16 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         );
     }
 
+    async listFirstManagers(schoolIds: string[]) {
+        if (!schoolIds.length) return [];
+        const selected = new Set(schoolIds);
+        const managers = (await this.read()).memberships
+            .filter((item) => selected.has(item.schoolId) && item.role === "teacher" && item.permissions.includes("school.manage"))
+            .sort((left, right) => left.schoolId.localeCompare(right.schoolId) || left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id));
+        const seen = new Set<string>();
+        return managers.filter((manager) => !seen.has(manager.schoolId) && Boolean(seen.add(manager.schoolId))).map((manager) => structuredClone(manager));
+    }
+
     async getInviteCodeByRole(schoolId: string, role: SchoolInviteCodeRecord["role"]) {
         return detached((await this.read()).inviteCodes.find((item) => item.schoolId === schoolId && item.role === role));
     }

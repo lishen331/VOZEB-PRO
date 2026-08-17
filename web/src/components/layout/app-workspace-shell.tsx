@@ -13,6 +13,7 @@ import { UserStatusActions } from "@/components/layout/user-status-actions";
 import { navigationToolForPathname } from "@/constant/navigation-tools";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
+import { useSchoolContextStore } from "@/stores/use-school-context-store";
 
 const PAGE_TITLES: Record<string, string> = {
     billing: "充值中心",
@@ -26,7 +27,10 @@ export function AppWorkspaceShell({ children }: { children: ReactNode }) {
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
     const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const siteTitle = resolveSiteTitle(site.title);
-    const tool = navigationToolForPathname(pathname);
+    const tool = navigationToolForPathname(
+        pathname,
+        useSchoolContextStore((state) => state.context),
+    );
     const fullscreen = isFullscreenWorkspacePath(pathname);
     const rootSlug = pathname.split("/").filter(Boolean)[0] || "";
     const pageTitle = tool?.label || PAGE_TITLES[rootSlug] || "工作空间";
