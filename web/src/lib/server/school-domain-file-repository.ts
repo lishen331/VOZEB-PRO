@@ -6,6 +6,7 @@ import type {
     CommercialOrderParticipantRecord,
     CommercialOrderRecord,
     CommercialOrderDeliveryRecord,
+    ClassPageQuery,
     MemberPageQuery,
     OrderPageQuery,
     Page,
@@ -29,6 +30,7 @@ import type {
     TeachingAssignmentRecord,
     TeachingAssignmentUpdate,
     TeachingSubmissionRecord,
+    TeachingSubmissionPageQuery,
     TeachingSubmissionUpdate,
 } from "@/lib/server/school-domain-repository";
 import type { CommercialOrderStatus, SchoolMemberRole, SchoolStatus } from "@/lib/school-domain";
@@ -219,9 +221,10 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         });
     }
 
-    async listClasses(schoolId: string, input: PageQuery) {
+    async listClasses(schoolId: string, input: ClassPageQuery) {
+        const keyword = input.keyword?.trim().toLowerCase() || "";
         return paginate(
-            (await this.read()).classes.filter((item) => item.schoolId === schoolId),
+            (await this.read()).classes.filter((item) => item.schoolId === schoolId && (!input.status || item.status === input.status) && (!keyword || `${item.name} ${item.description}`.toLowerCase().includes(keyword))),
             input,
         );
     }
@@ -330,7 +333,7 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         const classIds = new Set(state.classMembers.filter((item) => item.schoolId === schoolId && item.membershipId === membershipId).map((item) => item.classId));
         const offeringIds = new Set(state.courseOfferings.filter((item) => item.schoolId === schoolId && classIds.has(item.classId)).map((item) => item.id));
         return paginate(
-            state.teachingAssignments.filter((item) => item.schoolId === schoolId && item.status === "published" && offeringIds.has(item.offeringId)),
+            state.teachingAssignments.filter((item) => item.schoolId === schoolId && (item.status === "published" || item.status === "closed") && offeringIds.has(item.offeringId)),
             input,
         );
     }
@@ -359,6 +362,18 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
     async listTeachingSubmissions(schoolId: string, assignmentId: string, input: PageQuery) {
         return paginate(
             (await this.read()).teachingSubmissions.filter((item) => item.schoolId === schoolId && item.assignmentId === assignmentId),
+            input,
+        );
+    }
+
+    async listTeachingSubmissionsForStudent(schoolId: string, studentMembershipId: string, input: TeachingSubmissionPageQuery) {
+        const assignmentIds = new Set(input.assignmentIds || []);
+        const state = await this.read();
+        const classIds = new Set(state.classMembers.filter((item) => item.schoolId === schoolId && item.membershipId === studentMembershipId).map((item) => item.classId));
+        const offeringIds = new Set(state.courseOfferings.filter((item) => item.schoolId === schoolId && classIds.has(item.classId)).map((item) => item.id));
+        const visibleAssignmentIds = new Set(state.teachingAssignments.filter((item) => item.schoolId === schoolId && offeringIds.has(item.offeringId) && (item.status === "published" || item.status === "closed")).map((item) => item.id));
+        return paginate(
+            state.teachingSubmissions.filter((item) => item.schoolId === schoolId && item.studentMembershipId === studentMembershipId && visibleAssignmentIds.has(item.assignmentId) && (!assignmentIds.size || assignmentIds.has(item.assignmentId))),
             input,
         );
     }

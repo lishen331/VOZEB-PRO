@@ -74,7 +74,21 @@ export type PlatformCourseInput = Pick<PlatformCourse, "title" | "summary" | "co
 export type PlatformCoursePatch = Partial<PlatformCourseInput> & { status?: PlatformCourseStatus };
 export type SchoolCourseAssignment = { id: string; courseId: string; schoolId: string; status: SchoolStatus; createdAt: string; updatedAt: string; course: PlatformCourse };
 export type CourseOfferingInput = { classId: string; teacherMembershipId: string; supplementalResources?: unknown[]; status?: SchoolStatus };
-export type SchoolCourseOffering = { id: string; schoolId: string; assignmentId: string; classId: string; teacherMembershipId: string; supplementalResources: unknown[]; status: SchoolStatus; createdAt: string; updatedAt: string };
+export type SchoolPublicIdentity = { accountId: string; username: string; displayName: string };
+export type SchoolCourseOffering = {
+    id: string;
+    schoolId: string;
+    assignmentId: string;
+    classId: string;
+    teacherMembershipId: string;
+    supplementalResources: unknown[];
+    status: SchoolStatus;
+    courseTitle: string;
+    className: string;
+    teacher: SchoolPublicIdentity;
+    createdAt: string;
+    updatedAt: string;
+};
 export type TeachingAssignment = {
     id: string;
     schoolId: string;
@@ -86,6 +100,8 @@ export type TeachingAssignment = {
     resources: unknown[];
     dueAt?: string;
     status: TeachingAssignmentStatus;
+    courseTitle: string;
+    className: string;
     createdAt: string;
     updatedAt: string;
 };
@@ -99,6 +115,7 @@ export type TeachingSubmission = {
     contentReferences: SchoolContentReference[];
     status: TeachingSubmissionStatus;
     feedback: string;
+    student: SchoolPublicIdentity;
     submittedAt: string;
     reviewedAt?: string;
     createdAt: string;

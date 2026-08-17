@@ -32,4 +32,12 @@ describe("school API clients", () => {
         await schoolApi.joinByInvite("SCHOOL CODE");
         expect(fetchMock).toHaveBeenLastCalledWith("/api/school/invitations/join", expect.objectContaining({ method: "POST", body: JSON.stringify({ code: "SCHOOL CODE" }) }));
     });
+
+    it("uses bounded server-side class search for offering candidates", async () => {
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ code: 0, data: { items: [], total: 0, page: 1, pageSize: 20 }, msg: "ok" }), { status: 200 }));
+
+        await schoolApi.listClasses({ page: 1, pageSize: 20, keyword: "视觉", status: "active" });
+
+        expect(fetchMock).toHaveBeenCalledWith("/api/school/classes?page=1&pageSize=20&keyword=%E8%A7%86%E8%A7%89&status=active", expect.objectContaining({ cache: "no-store" }));
+    });
 });

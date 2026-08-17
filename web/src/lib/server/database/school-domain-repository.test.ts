@@ -172,12 +172,19 @@ describe("PostgreSQL school domain repository", () => {
         await expect(repository.listVisibleCourses(id("school-a"), id("student"), "student", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: id("course-assignment") }] });
         await expect(repository.listVisibleCourses(id("school-b"), id("student"), "student", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
         await expect(repository.listAssignmentsForStudent(id("school-a"), id("student"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: id("teaching") }] });
+        await repository.updateTeachingAssignment(id("school-a"), id("teaching"), { status: "closed", updatedAt: now });
+        await expect(repository.listAssignmentsForStudent(id("school-a"), id("student"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: id("teaching"), status: "closed" }] });
         await expect(repository.listAssignmentsForTeacher(id("school-a"), id("teacher"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: id("teaching") }] });
         await expect(repository.getTeachingAssignment(id("school-b"), id("teaching"))).resolves.toBeNull();
         await repository.updateTeachingAssignment(id("school-a"), id("teaching"), { dueAt: "2026-08-18T00:00:00.000Z", updatedAt: now });
         await repository.updateTeachingAssignment(id("school-a"), id("teaching"), { dueAt: "", updatedAt: now });
         expect((await repository.getTeachingAssignment(id("school-a"), id("teaching")))?.dueAt).toBeUndefined();
         await expect(repository.listTeachingSubmissions(id("school-a"), id("teaching"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: id("submission") }] });
+        await expect(repository.listTeachingSubmissionsForStudent(id("school-a"), id("student"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: id("submission") }] });
+        await repository.updateTeachingAssignment(id("school-a"), id("teaching"), { status: "draft", updatedAt: now });
+        await expect(repository.listTeachingSubmissionsForStudent(id("school-a"), id("student"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
+        await repository.updateTeachingAssignment(id("school-a"), id("teaching"), { status: "closed", updatedAt: now });
+        await expect(repository.listTeachingSubmissionsForStudent(id("school-b"), id("student"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
         await expect(repository.getTeachingSubmission(id("school-b"), id("submission"))).resolves.toBeNull();
         await expect(repository.getTeachingSubmissionByAssignmentAndStudent(id("school-a"), id("teaching"), id("student"), true)).resolves.toMatchObject({ id: id("submission") });
         await repository.updateTeachingSubmission(id("school-a"), id("submission"), { reviewedAt: "2026-08-18T00:00:00.000Z", updatedAt: now });
@@ -201,12 +208,15 @@ describe("PostgreSQL school domain repository", () => {
         await expect(repository.getInviteCodeByDigest(id("digest"), true)).resolves.toMatchObject({ schoolId: id("school-a") });
         await expect(repository.getInviteCodeByRole(id("school-b"), "student")).resolves.toBeNull();
         await expect(repository.getClass(id("school-a"), id("class"), true)).resolves.toMatchObject({ name: "一班" });
+        await expect(repository.listClasses(id("school-a"), { page: 1, pageSize: 20, keyword: "一班" })).resolves.toMatchObject({ total: 1, items: [{ id: id("class") }] });
         await expect(repository.updateClass(id("school-b"), id("class"), { name: "越权", updatedAt: now })).resolves.toBeNull();
         await expect(repository.updateClass(id("school-a"), id("class"), { description: "更新", updatedAt: now })).resolves.toMatchObject({ description: "更新" });
         await expect(repository.listClassMembers(id("school-a"), id("class"), { page: 1, pageSize: 20 })).resolves.toMatchObject({
             total: 2,
             items: expect.arrayContaining([expect.objectContaining({ id: id("teacher") }), expect.objectContaining({ id: id("student") })]),
         });
+        await repository.replaceClassMembers(id("school-a"), id("class"), [id("teacher")]);
+        await expect(repository.listTeachingSubmissionsForStudent(id("school-a"), id("student"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
         const accountIdResult = await postgresQuery("SELECT account_id FROM users WHERE id = $1", [id("teacher-user")]);
         const accountId = String(accountIdResult.rows[0]?.account_id || "").padStart(4, "0");
         for (const keyword of [accountId, `repo_teacher_${suffix.replaceAll("-", "").slice(0, 10)}`, "Repository 老师", "repository.teacher@example.com"]) {

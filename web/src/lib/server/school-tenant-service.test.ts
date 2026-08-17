@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     listSchools: vi.fn(),
     listFirstManagers: vi.fn(),
     listMembers: vi.fn(),
+    listClasses: vi.fn(),
     transact: vi.fn(),
 }));
 
@@ -32,6 +33,7 @@ vi.mock("@/lib/server/school-domain-repository", () => ({ createSchoolDomainRepo
 import {
     createSchoolByAdmin,
     createSchoolClass,
+    listSchoolClasses,
     listSchoolsByAdmin,
     removeSchoolClass,
     removeSchoolMember,
@@ -59,6 +61,7 @@ const repository = {
     listSchools: mocks.listSchools,
     listFirstManagers: mocks.listFirstManagers,
     listMembers: mocks.listMembers,
+    listClasses: mocks.listClasses,
     transact: mocks.transact,
 };
 
@@ -79,6 +82,14 @@ describe("school tenant service", () => {
         await expect(createSchoolByAdmin("education-admin", { name: " 甲学校 ", administrator: { username: "teacher_a", displayName: "老师", password: "password123" } })).resolves.toMatchObject({
             name: "甲学校",
         });
+    });
+
+    it("passes bounded class search filters to the tenant repository", async () => {
+        mocks.listClasses.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
+
+        await listSchoolClasses("manager-user", { page: 1, pageSize: 20, keyword: "视觉", status: "active" });
+
+        expect(mocks.listClasses).toHaveBeenCalledWith("school-a", { page: 1, pageSize: 20, keyword: "视觉", status: "active" });
     });
 
     it("returns the first school manager with public account identity", async () => {

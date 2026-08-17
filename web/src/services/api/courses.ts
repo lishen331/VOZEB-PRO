@@ -35,14 +35,14 @@ export const coursesApi = {
     createCourseOffering(assignmentId: string, input: CourseOfferingInput) {
         return request<SchoolCourseOffering>(`/api/school/courses/${encodeURIComponent(assignmentId)}/offerings`, jsonRequest("POST", input));
     },
-    listTeachingOfferings(input: { page?: number; pageSize?: number } = {}) {
-        return request<PageResult<SchoolCourseOffering>>(`/api/teaching/offerings${query(input)}`);
+    listTeachingOfferings(input: { page?: number; pageSize?: number } = {}, options: RequestOptions = {}) {
+        return request<PageResult<SchoolCourseOffering>>(`/api/teaching/offerings${query(input)}`, options);
     },
-    listTeachingCourses(input: { page?: number; pageSize?: number } = {}) {
-        return request<PageResult<SchoolCourseAssignment>>(`/api/teaching/courses${query(input)}`);
+    listTeachingCourses(input: { page?: number; pageSize?: number } = {}, options: RequestOptions = {}) {
+        return request<PageResult<SchoolCourseAssignment>>(`/api/teaching/courses${query(input)}`, options);
     },
-    listTeachingAssignments(input: { page?: number; pageSize?: number } = {}) {
-        return request<PageResult<TeachingAssignment>>(`/api/teaching/assignments${query(input)}`);
+    listTeachingAssignments(input: { page?: number; pageSize?: number } = {}, options: RequestOptions = {}) {
+        return request<PageResult<TeachingAssignment>>(`/api/teaching/assignments${query(input)}`, options);
     },
     createTeachingAssignment(input: TeachingAssignmentInput & { offeringId: string }) {
         return request<TeachingAssignment>("/api/teaching/assignments", jsonRequest("POST", input));
@@ -53,8 +53,12 @@ export const coursesApi = {
     updateTeachingAssignment(id: string, input: Partial<TeachingAssignmentInput>) {
         return request<TeachingAssignment>(`/api/teaching/assignments/${encodeURIComponent(id)}`, jsonRequest("PATCH", input));
     },
-    listSubmissions(id: string, input: { page?: number; pageSize?: number } = {}) {
-        return request<PageResult<TeachingSubmission>>(`/api/teaching/assignments/${encodeURIComponent(id)}/submissions${query(input)}`);
+    listSubmissions(id: string, input: { page?: number; pageSize?: number } = {}, options: RequestOptions = {}) {
+        return request<PageResult<TeachingSubmission>>(`/api/teaching/assignments/${encodeURIComponent(id)}/submissions${query(input)}`, options);
+    },
+    listOwnSubmissions(input: { page?: number; pageSize?: number; assignmentIds?: string[] } = {}, options: RequestOptions = {}) {
+        const { assignmentIds, ...page } = input;
+        return request<PageResult<TeachingSubmission>>(`/api/teaching/submissions${query({ ...page, assignmentId: assignmentIds })}`, options);
     },
     submitAssignment(id: string, input: { note?: string; references: SchoolContentReference[] }) {
         return request<TeachingSubmission>(`/api/teaching/assignments/${encodeURIComponent(id)}/submissions`, jsonRequest("POST", input));
@@ -64,7 +68,9 @@ export const coursesApi = {
     },
 };
 
-function query(input: Record<string, string | number | undefined>) {
+type RequestOptions = Pick<RequestInit, "signal">;
+
+function query(input: Record<string, string | string[] | number | number[] | undefined>) {
     const params = serializeApiParams(input);
     return params.size ? `?${params.toString()}` : "";
 }

@@ -53,9 +53,11 @@ const loadLogsSection = () => import("./admin-logs-section").then((module) => mo
 const loadGenerationOperationsSection = () => import("./admin-generation-operations-section").then((module) => module.AdminGenerationOperationsSection);
 const loadAccountDeletionSection = () => import("./admin-account-deletion-section").then((module) => module.AdminAccountDeletionSection);
 const loadSchoolsSection = () => import("@/app/admin/schools/components/admin-schools-section").then((module) => module.AdminSchoolsSection);
+const loadCoursesSection = () => import("@/app/admin/courses/components/admin-courses-section").then((module) => module.AdminCoursesSection);
 
 const sectionLoaders: Partial<Record<AdminSectionKey, () => Promise<unknown>>> = {
     schools: loadSchoolsSection,
+    courses: loadCoursesSection,
     site: loadSiteSection,
     settings: loadSettingsSection,
     mediaStorage: loadMediaStorageSection,
@@ -109,6 +111,7 @@ const AdminLogsSection = dynamic(loadLogsSection, { loading: AdminSectionLoading
 const AdminGenerationOperationsSection = dynamic(loadGenerationOperationsSection, { loading: AdminSectionLoading });
 const AdminAccountDeletionSection = dynamic(loadAccountDeletionSection, { loading: AdminSectionLoading });
 const AdminSchoolsSection = dynamic(loadSchoolsSection, { loading: AdminSectionLoading });
+const AdminCoursesSection = dynamic(loadCoursesSection, { loading: AdminSectionLoading });
 
 function AdminSectionLoading() {
     return <div className="flex min-h-36 items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">正在加载分区...</div>;
@@ -237,6 +240,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                         />
                     ) : null}
                     {activeSection === "schools" ? <AdminSchoolsSection /> : null}
+                    {activeSection === "courses" ? <AdminCoursesSection /> : null}
                     {activeSection === "site" ? <AdminSiteSection controller={controller} /> : null}
                     {activeSection === "settings" ? <AdminSettingsSection controller={controller} /> : null}
                     {activeSection === "accountDeletion" ? <AdminAccountDeletionSection active /> : null}

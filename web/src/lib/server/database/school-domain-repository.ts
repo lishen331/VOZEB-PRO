@@ -3,6 +3,7 @@ import type {
     CommercialOrderDeliveryRecord,
     CommercialOrderParticipantRecord,
     CommercialOrderRecord,
+    ClassPageQuery,
     MemberPageQuery,
     OrderPageQuery,
     PageQuery,
@@ -24,6 +25,7 @@ import type {
     TeachingAssignmentRecord,
     TeachingAssignmentUpdate,
     TeachingSubmissionRecord,
+    TeachingSubmissionPageQuery,
     TeachingSubmissionUpdate,
 } from "@/lib/server/school-domain-repository";
 import { postgresQuery, withPostgresTransaction, type QueryExecutor } from "./postgres";
@@ -172,8 +174,17 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         return mapInviteCode(result.rows[0]);
     }
 
-    async listClasses(schoolId: string, input: PageQuery) {
-        return this.tenantPage("school_classes", schoolId, input, mapSchoolClass);
+    async listClasses(schoolId: string, input: ClassPageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const values = [schoolId, input.status || null, input.keyword?.trim() || null];
+        const where = `WHERE school_id = $1
+                         AND ($2::text IS NULL OR status = $2::text)
+                         AND ($3::text IS NULL OR name ILIKE '%' || $3::text || '%' OR description ILIKE '%' || $3::text || '%')`;
+        const [rows, count] = await Promise.all([
+            this.db.query(`SELECT * FROM school_classes ${where} ORDER BY updated_at DESC, id DESC LIMIT $4 OFFSET $5`, [...values, pageSize, offset]),
+            this.db.query(`SELECT COUNT(*)::int AS total FROM school_classes ${where}`, values),
+        ]);
+        return pageResult(rows.rows.map(mapSchoolClass), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
     async getClass(schoolId: string, classId: string, forUpdate = false) {
@@ -288,7 +299,7 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         const { page, pageSize, offset } = pagination(input);
         const from = `FROM teaching_assignments a
                       JOIN school_course_offerings o ON o.school_id = a.school_id AND o.id = a.offering_id
-                      WHERE a.school_id = $1 AND a.status = 'published'
+                      WHERE a.school_id = $1 AND a.status IN ('published', 'closed')
                         AND EXISTS (SELECT 1 FROM school_class_members cm WHERE cm.school_id = o.school_id AND cm.class_id = o.class_id AND cm.membership_id = $2)`;
         const [rows, count] = await Promise.all([
             this.db.query(`SELECT a.* ${from} ORDER BY a.updated_at DESC, a.id DESC LIMIT $3 OFFSET $4`, [schoolId, membershipId, pageSize, offset]),
@@ -330,6 +341,21 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
             this.db.query("SELECT * FROM teaching_submissions WHERE school_id = $1 AND assignment_id = $2 ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4", [schoolId, assignmentId, pageSize, offset]),
             this.db.query("SELECT COUNT(*)::int AS total FROM teaching_submissions WHERE school_id = $1 AND assignment_id = $2", [schoolId, assignmentId]),
         ]);
+        return pageResult(rows.rows.map(mapTeachingSubmission), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async listTeachingSubmissionsForStudent(schoolId: string, studentMembershipId: string, input: TeachingSubmissionPageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const assignmentIds = input.assignmentIds?.filter(Boolean) || [];
+        const values = [schoolId, studentMembershipId, assignmentIds];
+        const from = `FROM teaching_submissions s
+                      JOIN teaching_assignments a ON a.school_id = s.school_id AND a.id = s.assignment_id
+                      JOIN school_course_offerings o ON o.school_id = a.school_id AND o.id = a.offering_id
+                      JOIN school_class_members cm ON cm.school_id = o.school_id AND cm.class_id = o.class_id AND cm.membership_id = s.student_membership_id
+                      WHERE s.school_id = $1 AND s.student_membership_id = $2
+                        AND a.status IN ('published', 'closed')
+                        AND (cardinality($3::text[]) = 0 OR s.assignment_id = ANY($3::text[]))`;
+        const [rows, count] = await Promise.all([this.db.query(`SELECT s.* ${from} ORDER BY s.updated_at DESC, s.id DESC LIMIT $4 OFFSET $5`, [...values, pageSize, offset]), this.db.query(`SELECT COUNT(*)::int AS total ${from}`, values)]);
         return pageResult(rows.rows.map(mapTeachingSubmission), numberValue(count.rows[0]?.total), page, pageSize);
     }
 

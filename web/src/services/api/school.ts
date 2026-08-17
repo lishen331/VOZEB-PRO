@@ -1,4 +1,18 @@
-import type { PageResult, SchoolClass, SchoolClassDetail, SchoolClassInput, SchoolContext, SchoolDetail, SchoolMember, SchoolMemberCreateInput, SchoolMemberPatch, SchoolMemberRole, SchoolMembershipStatus, UpdateSchoolInput } from "@/lib/school-domain";
+import type {
+    PageResult,
+    SchoolClass,
+    SchoolClassDetail,
+    SchoolClassInput,
+    SchoolContext,
+    SchoolDetail,
+    SchoolMember,
+    SchoolMemberCreateInput,
+    SchoolMemberPatch,
+    SchoolMemberRole,
+    SchoolMembershipStatus,
+    SchoolStatus,
+    UpdateSchoolInput,
+} from "@/lib/school-domain";
 import { serializeApiParams } from "@/services/api/request";
 
 export type SchoolInvitePreview = { school: { id: string; name: string }; role: SchoolMemberRole };
@@ -29,7 +43,7 @@ export const schoolApi = {
     removeMember(id: string) {
         return request<{ removed: boolean }>(`/api/school/members/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
-    listClasses(input: { page?: number; pageSize?: number } = {}) {
+    listClasses(input: { page?: number; pageSize?: number; keyword?: string; status?: SchoolStatus } = {}) {
         const query = serializeApiParams(input);
         return request<PageResult<SchoolClass>>(`/api/school/classes${query.size ? `?${query.toString()}` : ""}`);
     },

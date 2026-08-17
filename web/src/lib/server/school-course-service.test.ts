@@ -24,7 +24,12 @@ const mocks = vi.hoisted(() => ({
         insertTeachingSubmission: vi.fn(),
         updateTeachingSubmission: vi.fn(),
         updateTeachingAssignment: vi.fn(),
+        listOfferingsForAssignment: vi.fn(),
+        listOfferingsForTeacher: vi.fn(),
+        listAssignmentsForTeacher: vi.fn(),
+        listAssignmentsForStudent: vi.fn(),
         listTeachingSubmissions: vi.fn(),
+        listTeachingSubmissionsForStudent: vi.fn(),
         listVisibleCourses: vi.fn(),
         transact: vi.fn(),
     },
@@ -52,7 +57,12 @@ import {
     assignCourseToSchools,
     createCourseOffering,
     createTeachingAssignment,
+    getTeachingAssignment,
+    listCourseOfferings,
+    listOwnTeachingSubmissions,
+    listTeachingAssignments,
     listTeachingCourses,
+    listTeachingOfferings,
     listTeachingSubmissions,
     reviewTeachingSubmission,
     submitTeachingAssignment,
@@ -130,9 +140,11 @@ describe("school course service", () => {
 
     it("upserts the student's own submission after validating stable references", async () => {
         mocks.repository.getTeachingAssignment.mockResolvedValue({ id: "task-a", schoolId: "school-a", offeringId: "offering-a", status: "published" });
-        mocks.repository.getCourseOffering.mockResolvedValue({ id: "offering-a", schoolId: "school-a", classId: "class-a", status: "active" });
+        mocks.repository.getCourseOffering.mockResolvedValue({ id: "offering-a", schoolId: "school-a", assignmentId: "assignment-a", classId: "class-a", status: "active" });
+        mocks.repository.getSchoolCourseAssignment.mockResolvedValue(assignment("school-a"));
+        mocks.repository.getPlatformCourse.mockResolvedValue(course("published"));
         mocks.repository.getClass.mockResolvedValue({ id: "class-a", schoolId: "school-a", status: "active" });
-        mocks.repository.getMembership.mockResolvedValue({ id: "student-a", schoolId: "school-a", role: "student", status: "active" });
+        mocks.repository.getMembership.mockImplementation(async (_schoolId: string, membershipId: string) => ({ id: membershipId, schoolId: "school-a", role: membershipId === "teacher-a" ? "teacher" : "student", status: "active" }));
         mocks.repository.isClassMember.mockResolvedValue(true);
         mocks.validateReferences.mockResolvedValue([{ reference: { type: "asset", id: "asset-a" }, title: "成果" }]);
         mocks.repository.getTeachingSubmissionByAssignmentAndStudent.mockResolvedValue({ id: "submission-a", status: "revision_required", createdAt: "2026-08-17T00:00:00.000Z" });
@@ -151,14 +163,27 @@ describe("school course service", () => {
         await expect(submitTeachingAssignment("student-user", "task-a", { note: "覆盖终稿", references: [] })).rejects.toMatchObject({ status: 409 });
     });
 
+    it("lists the student's submissions with one tenant-scoped repository query", async () => {
+        mocks.repository.listTeachingSubmissionsForStudent.mockResolvedValue({ items: [{ id: "submission-a", studentMembershipId: "student-a" }], total: 1, page: 1, pageSize: 20 });
+
+        await expect(listOwnTeachingSubmissions("student-user", { page: 1, pageSize: 20, assignmentIds: ["task-a", "task-a"] })).resolves.toMatchObject({ total: 1, items: [{ id: "submission-a" }] });
+        expect(mocks.repository.listTeachingSubmissionsForStudent).toHaveBeenCalledWith("school-a", "student-a", { page: 1, pageSize: 20, assignmentIds: ["task-a"] });
+        expect(mocks.repository.listTeachingSubmissions).not.toHaveBeenCalled();
+    });
+
     it("only lets the responsible teacher review a submission", async () => {
-        mocks.repository.getTeachingSubmission.mockResolvedValue({ id: "submission-a", schoolId: "school-a", assignmentId: "task-a", status: "submitted" });
-        mocks.repository.getTeachingAssignment.mockResolvedValue({ id: "task-a", schoolId: "school-a", offeringId: "offering-a" });
-        mocks.repository.getCourseOffering.mockResolvedValue({ id: "offering-a", schoolId: "school-a", teacherMembershipId: "teacher-a" });
+        mocks.repository.getTeachingSubmission.mockResolvedValue({ id: "submission-a", schoolId: "school-a", assignmentId: "task-a", studentMembershipId: "student-a", status: "submitted" });
+        mocks.repository.getTeachingAssignment.mockResolvedValue({ id: "task-a", schoolId: "school-a", offeringId: "offering-a", status: "published" });
+        mocks.repository.getCourseOffering.mockResolvedValue({ id: "offering-a", schoolId: "school-a", assignmentId: "assignment-a", classId: "class-a", teacherMembershipId: "teacher-a", status: "active" });
+        mocks.repository.getSchoolCourseAssignment.mockResolvedValue(assignment("school-a"));
+        mocks.repository.getPlatformCourse.mockResolvedValue(course("published"));
+        mocks.repository.getClass.mockResolvedValue({ id: "class-a", schoolId: "school-a", status: "active" });
+        mocks.repository.getMembership.mockImplementation(async (_schoolId: string, membershipId: string) => ({ id: membershipId, schoolId: "school-a", role: membershipId === "teacher-a" ? "teacher" : "student", status: "active" }));
+        mocks.repository.isClassMember.mockResolvedValue(true);
         mocks.repository.updateTeachingSubmission.mockImplementation(async (_schoolId, _id, patch) => ({ id: "submission-a", ...patch }));
 
         await expect(reviewTeachingSubmission("teacher-user", "submission-a", { status: "reviewed", feedback: "通过" })).resolves.toMatchObject({ status: "reviewed", feedback: "通过" });
-        mocks.repository.getCourseOffering.mockResolvedValue({ id: "offering-a", schoolId: "school-a", teacherMembershipId: "other-teacher" });
+        mocks.repository.getCourseOffering.mockResolvedValue({ id: "offering-a", schoolId: "school-a", assignmentId: "assignment-a", classId: "class-a", teacherMembershipId: "other-teacher", status: "active" });
         await expect(reviewTeachingSubmission("teacher-user", "submission-a", { status: "reviewed", feedback: "越权" })).rejects.toMatchObject({ status: 404 });
     });
 
@@ -199,6 +224,118 @@ describe("school course service", () => {
 
         await expect(listTeachingSubmissions("student-user", "task-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "submission-a", feedback: "通过" }] });
         expect(mocks.repository.listTeachingSubmissions).not.toHaveBeenCalled();
+    });
+
+    it("keeps a closed assignment readable to its current class students", async () => {
+        mocks.requireActiveSchoolContext.mockResolvedValue(context("student-a", "student"));
+        mocks.repository.getTeachingAssignment.mockResolvedValue({ id: "task-a", schoolId: "school-a", offeringId: "offering-a", status: "closed" });
+        mocks.repository.getCourseOffering.mockResolvedValue({ id: "offering-a", schoolId: "school-a", assignmentId: "assignment-a", classId: "class-a", status: "active" });
+        mocks.repository.getSchoolCourseAssignment.mockResolvedValue({ ...assignment("school-a"), id: "assignment-a", status: "active" });
+        mocks.repository.getPlatformCourse.mockResolvedValue(course("published"));
+        mocks.repository.getClass.mockResolvedValue({ id: "class-a", schoolId: "school-a", name: "视觉一班", status: "active" });
+        mocks.repository.getMembership.mockResolvedValue({ id: "student-a", schoolId: "school-a", role: "student", status: "active" });
+        mocks.repository.isClassMember.mockResolvedValue(true);
+        mocks.validateReferences.mockResolvedValue([]);
+
+        await expect(getTeachingAssignment("student-user", "task-a")).resolves.toMatchObject({ id: "task-a", status: "closed" });
+        await expect(submitTeachingAssignment("student-user", "task-a", { references: [] })).rejects.toMatchObject({ status: 409 });
+        expect(mocks.repository.insertTeachingSubmission).not.toHaveBeenCalled();
+    });
+
+    it("rechecks the active course distribution before accepting a student submission", async () => {
+        mocks.repository.getTeachingAssignment.mockResolvedValue({ id: "task-a", schoolId: "school-a", offeringId: "offering-a", status: "published" });
+        mocks.repository.getCourseOffering.mockResolvedValue({ id: "offering-a", schoolId: "school-a", assignmentId: "assignment-a", classId: "class-a", status: "active" });
+        mocks.repository.getSchoolCourseAssignment.mockResolvedValue({ ...assignment("school-a"), id: "assignment-a", status: "disabled" });
+        mocks.repository.getPlatformCourse.mockResolvedValue(course("published"));
+        mocks.repository.getClass.mockResolvedValue({ id: "class-a", schoolId: "school-a", status: "active" });
+        mocks.repository.getMembership.mockResolvedValue({ id: "student-a", schoolId: "school-a", role: "student", status: "active" });
+        mocks.repository.isClassMember.mockResolvedValue(true);
+        mocks.repository.getTeachingSubmissionByAssignmentAndStudent.mockResolvedValue(null);
+        mocks.repository.insertTeachingSubmission.mockImplementation(async (record) => record);
+        mocks.validateReferences.mockResolvedValue([]);
+
+        await expect(submitTeachingAssignment("student-user", "task-a", { references: [] })).rejects.toMatchObject({ status: 409 });
+        expect(mocks.repository.insertTeachingSubmission).not.toHaveBeenCalled();
+    });
+
+    it("only reviews a submitted record on an active teaching path with current class membership", async () => {
+        mocks.repository.getTeachingSubmission.mockResolvedValue({ id: "submission-a", schoolId: "school-a", assignmentId: "task-a", studentMembershipId: "student-a", status: "reviewed" });
+        mocks.repository.getTeachingAssignment.mockResolvedValue({ id: "task-a", schoolId: "school-a", offeringId: "offering-a", teacherMembershipId: "teacher-a", status: "published" });
+        mocks.repository.getCourseOffering.mockResolvedValue({ id: "offering-a", schoolId: "school-a", assignmentId: "assignment-a", classId: "class-a", teacherMembershipId: "teacher-a", status: "active" });
+        mocks.repository.getSchoolCourseAssignment.mockResolvedValue({ ...assignment("school-a"), id: "assignment-a", status: "active" });
+        mocks.repository.getPlatformCourse.mockResolvedValue(course("published"));
+        mocks.repository.getClass.mockResolvedValue({ id: "class-a", schoolId: "school-a", status: "active" });
+        mocks.repository.getMembership.mockImplementation(async (_schoolId: string, membershipId: string) =>
+            membershipId === "teacher-a" ? { id: "teacher-a", schoolId: "school-a", userId: "teacher-user", role: "teacher", status: "active" } : { id: "student-a", schoolId: "school-a", userId: "student-user", role: "student", status: "active" },
+        );
+        mocks.repository.isClassMember.mockResolvedValue(true);
+
+        await expect(reviewTeachingSubmission("teacher-user", "submission-a", { status: "revision_required", feedback: "重做" })).rejects.toMatchObject({ status: 409 });
+        expect(mocks.repository.updateTeachingSubmission).not.toHaveBeenCalled();
+
+        mocks.repository.getTeachingSubmission.mockResolvedValue({ id: "submission-a", schoolId: "school-a", assignmentId: "task-a", studentMembershipId: "student-a", status: "submitted" });
+        mocks.repository.isClassMember.mockResolvedValue(false);
+        await expect(reviewTeachingSubmission("teacher-user", "submission-a", { status: "reviewed", feedback: "通过" })).rejects.toMatchObject({ status: 409 });
+
+        mocks.repository.isClassMember.mockResolvedValue(true);
+        mocks.repository.getPlatformCourse.mockResolvedValue(course("disabled"));
+        await expect(reviewTeachingSubmission("teacher-user", "submission-a", { status: "reviewed", feedback: "通过" })).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("returns course, class and public student identity fields without requiring paginated frontend joins", async () => {
+        mocks.repository.listOfferingsForTeacher.mockResolvedValue({
+            items: [
+                {
+                    id: "offering-a",
+                    schoolId: "school-a",
+                    assignmentId: "assignment-a",
+                    classId: "class-a",
+                    teacherMembershipId: "teacher-a",
+                    supplementalResources: [],
+                    status: "active",
+                    createdAt: "2026-08-17T00:00:00.000Z",
+                    updatedAt: "2026-08-17T00:00:00.000Z",
+                },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 20,
+        });
+        mocks.repository.listAssignmentsForTeacher.mockResolvedValue({
+            items: [
+                {
+                    id: "task-a",
+                    schoolId: "school-a",
+                    offeringId: "offering-a",
+                    teacherMembershipId: "teacher-a",
+                    kind: "homework",
+                    title: "作业",
+                    instructions: "",
+                    resources: [],
+                    status: "published",
+                    createdAt: "2026-08-17T00:00:00.000Z",
+                    updatedAt: "2026-08-17T00:00:00.000Z",
+                },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 20,
+        });
+        mocks.repository.getSchoolCourseAssignment.mockResolvedValue({ ...assignment("school-a"), id: "assignment-a" });
+        mocks.repository.getPlatformCourse.mockResolvedValue(course("published"));
+        mocks.repository.getClass.mockResolvedValue({ id: "class-a", schoolId: "school-a", name: "视觉一班", status: "active" });
+        mocks.repository.getMembership.mockImplementation(async (_schoolId: string, membershipId: string) =>
+            membershipId === "student-a" ? { id: "student-a", schoolId: "school-a", userId: "student-user", role: "student", status: "active" } : { id: "teacher-a", schoolId: "school-a", userId: "teacher-user", role: "teacher", status: "active" },
+        );
+        mocks.getPublicUsersByIds.mockImplementation(async (ids: string[]) => ids.map((id) => ({ id, accountId: id === "student-user" ? "0008" : "0007", username: id, displayName: id === "student-user" ? "学生甲" : "教师甲" })));
+
+        await expect(listTeachingOfferings("teacher-user", { page: 1, pageSize: 20 })).resolves.toMatchObject({ items: [{ courseTitle: "课程", className: "视觉一班", teacher: { accountId: "0007", displayName: "教师甲" } }] });
+        await expect(listTeachingAssignments("teacher-user", { page: 1, pageSize: 20 })).resolves.toMatchObject({ items: [{ courseTitle: "课程", className: "视觉一班" }] });
+
+        mocks.repository.getTeachingAssignment.mockResolvedValue({ id: "task-a", schoolId: "school-a", offeringId: "offering-a", status: "published" });
+        mocks.repository.getCourseOffering.mockResolvedValue({ id: "offering-a", schoolId: "school-a", assignmentId: "assignment-a", classId: "class-a", teacherMembershipId: "teacher-a" });
+        mocks.repository.listTeachingSubmissions.mockResolvedValue({ items: [{ id: "submission-a", schoolId: "school-a", assignmentId: "task-a", studentMembershipId: "student-a", status: "submitted" }], total: 1, page: 1, pageSize: 20 });
+        await expect(listTeachingSubmissions("teacher-user", "task-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ items: [{ student: { accountId: "0008", username: "student-user", displayName: "学生甲" } }] });
     });
 
     it("returns course content only through role-scoped visible assignments", async () => {

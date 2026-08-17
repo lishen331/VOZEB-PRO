@@ -11,13 +11,14 @@ import type {
     PlatformCourseStatus,
     SchoolCourseAssignment,
     SchoolCourseOffering,
+    SchoolPublicIdentity,
     TeachingAssignment,
     TeachingAssignmentInput,
     TeachingAssignmentKind,
     TeachingAssignmentStatus,
     TeachingSubmission,
 } from "@/lib/school-domain";
-import type { PlatformCourseRecord, SchoolDomainRepository } from "@/lib/server/school-domain-repository";
+import type { PlatformCourseRecord, SchoolCourseOfferingRecord, SchoolDomainRepository, SchoolMembershipRecord, TeachingAssignmentRecord, TeachingSubmissionRecord } from "@/lib/server/school-domain-repository";
 import type { JsonValue } from "@/lib/server/database/repository-types";
 import { createSchoolDomainRepository } from "@/lib/server/school-domain-repository";
 import { validateSchoolContentReferences } from "./school-content-reference-service";
@@ -109,14 +110,14 @@ export async function listCourseOfferings(managerId: string, assignmentId: strin
     const context = await requireSchoolManager(managerId);
     const repository = createSchoolDomainRepository();
     if (!(await repository.getSchoolCourseAssignment(context.school.id, assignmentId))) throw new SchoolServiceError(404, "学校课程不存在");
-    return repository.listOfferingsForAssignment(context.school.id, assignmentId, input);
+    return mapPage(await repository.listOfferingsForAssignment(context.school.id, assignmentId, input), (offering) => toCourseOffering(repository, offering));
 }
 
 export async function createCourseOffering(managerId: string, assignmentId: string, input: CourseOfferingInput): Promise<SchoolCourseOffering> {
     const context = await requireSchoolManager(managerId);
     if (input.status !== undefined && !isSchoolStatus(input.status)) throw new SchoolServiceError(400, "课程安排状态无效");
     const repository = createSchoolDomainRepository();
-    return repository.transact(async (transaction) => {
+    const offering = await repository.transact(async (transaction) => {
         await requireActiveCourseAssignment(transaction, context.school.id, assignmentId);
         const schoolClass = await transaction.getClass(context.school.id, requiredText(input.classId, "班级", 160), true);
         if (!schoolClass) throw new SchoolServiceError(404, "班级不存在");
@@ -135,12 +136,14 @@ export async function createCourseOffering(managerId: string, assignmentId: stri
             createdAt: now,
             updatedAt: now,
         });
-    }) as Promise<SchoolCourseOffering>;
+    });
+    return toCourseOffering(repository, offering);
 }
 
 export async function listTeachingOfferings(teacherId: string, input: { page?: number; pageSize?: number }) {
     const context = await requireTeacher(teacherId);
-    return createSchoolDomainRepository().listOfferingsForTeacher(context.school.id, context.membership.id, input);
+    const repository = createSchoolDomainRepository();
+    return mapPage(await repository.listOfferingsForTeacher(context.school.id, context.membership.id, input), (offering) => toCourseOffering(repository, offering));
 }
 
 export async function listTeachingCourses(userId: string, input: { page?: number; pageSize?: number }): Promise<PageResult<SchoolCourseAssignment>> {
@@ -160,7 +163,7 @@ export async function createTeachingAssignment(teacherId: string, offeringId: st
     const context = await requireTeacher(teacherId);
     if (input.status !== undefined && !isTeachingAssignmentStatus(input.status)) throw new SchoolServiceError(400, "教学任务状态无效");
     const repository = createSchoolDomainRepository();
-    return repository.transact(async (transaction) => {
+    const assignment = await repository.transact(async (transaction) => {
         const offeringSnapshot = await transaction.getCourseOffering(context.school.id, offeringId);
         if (!offeringSnapshot || offeringSnapshot.teacherMembershipId !== context.membership.id) throw new SchoolServiceError(404, "课程安排不存在或无权操作");
         await requireActiveCourseAssignment(transaction, context.school.id, offeringSnapshot.assignmentId);
@@ -186,13 +189,15 @@ export async function createTeachingAssignment(teacherId: string, offeringId: st
             createdAt: now,
             updatedAt: now,
         });
-    }) as Promise<TeachingAssignment>;
+    });
+    return toTeachingAssignment(repository, assignment);
 }
 
 export async function listTeachingAssignments(userId: string, input: { page?: number; pageSize?: number }) {
     const context = await requireActiveSchoolContext(userId);
     const repository = createSchoolDomainRepository();
-    return context.membership.role === "teacher" ? repository.listAssignmentsForTeacher(context.school.id, context.membership.id, input) : repository.listAssignmentsForStudent(context.school.id, context.membership.id, input);
+    const result = context.membership.role === "teacher" ? await repository.listAssignmentsForTeacher(context.school.id, context.membership.id, input) : await repository.listAssignmentsForStudent(context.school.id, context.membership.id, input);
+    return mapPage(result, (assignment) => toTeachingAssignment(repository, assignment));
 }
 
 export async function getTeachingAssignment(userId: string, assignmentId: string): Promise<TeachingAssignment> {
@@ -200,12 +205,12 @@ export async function getTeachingAssignment(userId: string, assignmentId: string
     const repository = createSchoolDomainRepository();
     const assignment = await repository.getTeachingAssignment(context.school.id, assignmentId);
     if (!assignment) throw new SchoolServiceError(404, "教学任务不存在");
-    if (context.membership.role === "student" && assignment.status !== "published") throw new SchoolServiceError(404, "教学任务不存在");
+    if (context.membership.role === "student" && assignment.status !== "published" && assignment.status !== "closed") throw new SchoolServiceError(404, "教学任务不存在");
     const offering = await repository.getCourseOffering(context.school.id, assignment.offeringId);
     if (!offering) throw new SchoolServiceError(404, "课程安排不存在");
     if (context.membership.role === "teacher" && offering.teacherMembershipId !== context.membership.id) throw new SchoolServiceError(404, "教学任务不存在");
     if (context.membership.role === "student" && !(await repository.isClassMember(context.school.id, offering.classId, context.membership.id))) throw new SchoolServiceError(404, "教学任务不存在");
-    return assignment as TeachingAssignment;
+    return toTeachingAssignment(repository, assignment);
 }
 
 export async function updateTeachingAssignment(teacherId: string, assignmentId: string, input: Partial<TeachingAssignmentInput>): Promise<TeachingAssignment> {
@@ -222,7 +227,7 @@ export async function updateTeachingAssignment(teacherId: string, assignmentId: 
         ...(input.status === undefined ? {} : { status: input.status }),
         updatedAt: new Date().toISOString(),
     };
-    return repository.transact(async (transaction) => {
+    const assignment = await repository.transact(async (transaction) => {
         const assignmentSnapshot = await transaction.getTeachingAssignment(context.school.id, assignmentId);
         if (!assignmentSnapshot || assignmentSnapshot.teacherMembershipId !== context.membership.id) throw new SchoolServiceError(404, "教学任务不存在或无权操作");
         const offeringSnapshot = await transaction.getCourseOffering(context.school.id, assignmentSnapshot.offeringId);
@@ -237,7 +242,8 @@ export async function updateTeachingAssignment(teacherId: string, assignmentId: 
         const updated = await transaction.updateTeachingAssignment(context.school.id, assignmentId, patch);
         if (!updated) throw new SchoolServiceError(404, "教学任务不存在");
         return updated;
-    }) as Promise<TeachingAssignment>;
+    });
+    return toTeachingAssignment(repository, assignment);
 }
 
 export async function listTeachingSubmissions(userId: string, assignmentId: string, input: { page?: number; pageSize?: number }) {
@@ -245,16 +251,23 @@ export async function listTeachingSubmissions(userId: string, assignmentId: stri
     const repository = createSchoolDomainRepository();
     if (context.membership.role === "teacher") {
         await assertResponsibleTeacher(repository, context.school.id, context.membership.id, assignmentId);
-        return repository.listTeachingSubmissions(context.school.id, assignmentId, input);
+        return mapPage(await repository.listTeachingSubmissions(context.school.id, assignmentId, input), (submission) => toTeachingSubmission(repository, submission));
     }
     const assignment = await repository.getTeachingAssignment(context.school.id, assignmentId);
-    if (!assignment) throw new SchoolServiceError(404, "教学任务不存在");
+    if (!assignment || (assignment.status !== "published" && assignment.status !== "closed")) throw new SchoolServiceError(404, "教学任务不存在");
     const offering = await repository.getCourseOffering(context.school.id, assignment.offeringId);
     if (!offering || !(await repository.isClassMember(context.school.id, offering.classId, context.membership.id))) throw new SchoolServiceError(404, "教学任务不存在");
     const submission = await repository.getTeachingSubmissionByAssignmentAndStudent(context.school.id, assignmentId, context.membership.id);
     const page = normalizePositiveInteger(input.page, 1);
     const pageSize = Math.min(100, normalizePositiveInteger(input.pageSize, 20));
-    return { items: page === 1 && submission ? [submission] : [], total: submission ? 1 : 0, page, pageSize };
+    return { items: page === 1 && submission ? [await toTeachingSubmission(repository, submission)] : [], total: submission ? 1 : 0, page, pageSize };
+}
+
+export async function listOwnTeachingSubmissions(userId: string, input: { page?: number; pageSize?: number; assignmentIds?: string[] }) {
+    const context = await requireStudent(userId);
+    const repository = createSchoolDomainRepository();
+    const result = await repository.listTeachingSubmissionsForStudent(context.school.id, context.membership.id, { ...input, assignmentIds: [...new Set(input.assignmentIds?.filter(Boolean) || [])] });
+    return mapPage(result, (submission) => toTeachingSubmission(repository, submission));
 }
 
 export async function submitTeachingAssignment(studentId: string, assignmentId: string, input: { note?: string; references: unknown }): Promise<TeachingSubmission> {
@@ -262,17 +275,10 @@ export async function submitTeachingAssignment(studentId: string, assignmentId: 
     const repository = createSchoolDomainRepository();
     const previews = await validateSchoolContentReferences({ userId: studentId, schoolId: context.school.id, references: input.references });
     const references = previews.map((item) => item.reference);
-    return repository.transact(async (transaction) => {
-        const assignmentSnapshot = await transaction.getTeachingAssignment(context.school.id, assignmentId);
-        if (!assignmentSnapshot) throw new SchoolServiceError(404, "教学任务不存在或暂不可提交");
-        const offering = await transaction.getCourseOffering(context.school.id, assignmentSnapshot.offeringId, true);
-        if (!offering || offering.status !== "active") throw new SchoolServiceError(404, "教学任务不存在或无权提交");
-        const schoolClass = await transaction.getClass(context.school.id, offering.classId, true);
-        if (!schoolClass || schoolClass.status !== "active") throw new SchoolServiceError(404, "教学任务不存在或无权提交");
+    const submission = await repository.transact(async (transaction) => {
+        const { offering } = await requireActiveTeachingPath(transaction, context.school.id, assignmentId);
         const student = await transaction.getMembership(context.school.id, context.membership.id, true);
         if (!student || student.role !== "student" || student.status !== "active") throw new SchoolServiceError(403, "当前账号没有可用的学生身份");
-        const assignment = await transaction.getTeachingAssignment(context.school.id, assignmentId, true);
-        if (!assignment || assignment.offeringId !== offering.id || assignment.status !== "published") throw new SchoolServiceError(404, "教学任务不存在或暂不可提交");
         if (!(await transaction.isClassMember(context.school.id, offering.classId, context.membership.id))) throw new SchoolServiceError(404, "教学任务不存在或无权提交");
         const now = new Date().toISOString();
         const existing = await transaction.getTeachingSubmissionByAssignmentAndStudent(context.school.id, assignmentId, context.membership.id, true);
@@ -295,21 +301,32 @@ export async function submitTeachingAssignment(studentId: string, assignmentId: 
             createdAt: now,
             updatedAt: now,
         });
-    }) as Promise<TeachingSubmission>;
+    });
+    return toTeachingSubmission(repository, submission);
 }
 
 export async function reviewTeachingSubmission(teacherId: string, submissionId: string, input: { status: "reviewed" | "revision_required"; feedback: string }): Promise<TeachingSubmission> {
     const context = await requireTeacher(teacherId);
+    if (input.status !== "reviewed" && input.status !== "revision_required") throw new SchoolServiceError(400, "批改状态无效");
     const repository = createSchoolDomainRepository();
-    return repository.transact(async (transaction) => {
-        const submission = await transaction.getTeachingSubmission(context.school.id, submissionId, true);
-        if (!submission) throw new SchoolServiceError(404, "提交记录不存在");
-        await assertResponsibleTeacher(transaction, context.school.id, context.membership.id, submission.assignmentId);
-        if (input.status !== "reviewed" && input.status !== "revision_required") throw new SchoolServiceError(400, "批改状态无效");
+    const submission = await repository.transact(async (transaction) => {
+        const teacher = await transaction.getMembership(context.school.id, context.membership.id, true);
+        if (!teacher || teacher.role !== "teacher" || teacher.status !== "active") throw new SchoolServiceError(403, "当前账号没有可用的老师身份");
+        const snapshot = await transaction.getTeachingSubmission(context.school.id, submissionId);
+        if (!snapshot) throw new SchoolServiceError(404, "提交记录不存在");
+        const { offering } = await requireActiveTeachingPath(transaction, context.school.id, snapshot.assignmentId, context.membership.id);
+        const student = await transaction.getMembership(context.school.id, snapshot.studentMembershipId, true);
+        if (!student || student.role !== "student" || student.status !== "active" || !(await transaction.isClassMember(context.school.id, offering.classId, student.id))) {
+            throw new SchoolServiceError(409, "学生已不属于当前班级，提交记录仅可查看");
+        }
+        const current = await transaction.getTeachingSubmission(context.school.id, submissionId, true);
+        if (!current || current.assignmentId !== snapshot.assignmentId || current.studentMembershipId !== snapshot.studentMembershipId) throw new SchoolServiceError(404, "提交记录不存在");
+        if (current.status !== "submitted") throw new SchoolServiceError(409, "只有待批改提交可以更新评审结果");
         const updated = await transaction.updateTeachingSubmission(context.school.id, submissionId, { status: input.status, feedback: text(input.feedback, 5000), reviewedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
         if (!updated) throw new SchoolServiceError(404, "提交记录不存在");
         return updated;
-    }) as Promise<TeachingSubmission>;
+    });
+    return toTeachingSubmission(repository, submission);
 }
 
 async function assertResponsibleTeacher(repository: SchoolDomainRepository, schoolId: string, teacherMembershipId: string, assignmentId: string) {
@@ -318,6 +335,23 @@ async function assertResponsibleTeacher(repository: SchoolDomainRepository, scho
     const offering = await repository.getCourseOffering(schoolId, assignment.offeringId);
     if (!offering || offering.teacherMembershipId !== teacherMembershipId) throw new SchoolServiceError(404, "教学任务不存在或无权操作");
     return assignment;
+}
+
+async function requireActiveTeachingPath(repository: SchoolDomainRepository, schoolId: string, assignmentId: string, teacherMembershipId?: string) {
+    const assignmentSnapshot = await repository.getTeachingAssignment(schoolId, assignmentId);
+    if (!assignmentSnapshot) throw new SchoolServiceError(404, "教学任务不存在或暂不可操作");
+    const offeringSnapshot = await repository.getCourseOffering(schoolId, assignmentSnapshot.offeringId);
+    if (!offeringSnapshot || (teacherMembershipId && offeringSnapshot.teacherMembershipId !== teacherMembershipId)) throw new SchoolServiceError(404, "教学任务不存在或无权操作");
+    await requireActiveCourseAssignment(repository, schoolId, offeringSnapshot.assignmentId);
+    const offering = await repository.getCourseOffering(schoolId, offeringSnapshot.id, true);
+    if (!offering || offering.assignmentId !== offeringSnapshot.assignmentId || offering.status !== "active" || (teacherMembershipId && offering.teacherMembershipId !== teacherMembershipId)) {
+        throw new SchoolServiceError(409, "课程安排已停用，历史记录仅可查看");
+    }
+    const schoolClass = await repository.getClass(schoolId, offering.classId, true);
+    if (!schoolClass || schoolClass.status !== "active") throw new SchoolServiceError(409, "班级已停用，历史记录仅可查看");
+    const assignment = await repository.getTeachingAssignment(schoolId, assignmentId, true);
+    if (!assignment || assignment.offeringId !== offering.id || assignment.status !== "published") throw new SchoolServiceError(409, "教学任务已关闭，历史记录仅可查看");
+    return { assignment, offering, schoolClass };
 }
 
 async function requireActiveCourseAssignment(repository: SchoolDomainRepository, schoolId: string, assignmentId: string) {
@@ -330,6 +364,53 @@ async function requireActiveCourseAssignment(repository: SchoolDomainRepository,
     if (assignment.status !== "active") throw new SchoolServiceError(409, "学校课程已停用，不能创建新的教学安排");
     if (course.status !== "published") throw new SchoolServiceError(409, "课程未发布或已停用，不能创建新的教学安排");
     return { assignment, course };
+}
+
+async function mapPage<T, U>(page: { items: T[]; total: number; page: number; pageSize: number }, mapper: (item: T) => Promise<U>) {
+    return { ...page, items: await Promise.all(page.items.map(mapper)) };
+}
+
+async function toCourseOffering(repository: SchoolDomainRepository, record: SchoolCourseOfferingRecord): Promise<SchoolCourseOffering> {
+    const [courseAssignment, schoolClass, teacherMembership] = await Promise.all([
+        repository.getSchoolCourseAssignment(record.schoolId, record.assignmentId),
+        repository.getClass(record.schoolId, record.classId),
+        repository.getMembership(record.schoolId, record.teacherMembershipId),
+    ]);
+    const [course, teacher] = await Promise.all([courseAssignment ? repository.getPlatformCourse(courseAssignment.courseId) : null, toPublicIdentity(teacherMembership)]);
+    return {
+        ...record,
+        supplementalResources: Array.isArray(record.supplementalResources) ? record.supplementalResources : [],
+        courseTitle: course?.title || "课程信息不可用",
+        className: schoolClass?.name || "班级信息不可用",
+        teacher,
+    };
+}
+
+async function toTeachingAssignment(repository: SchoolDomainRepository, record: TeachingAssignmentRecord): Promise<TeachingAssignment> {
+    const offering = await repository.getCourseOffering(record.schoolId, record.offeringId);
+    const [courseAssignment, schoolClass] = offering ? await Promise.all([repository.getSchoolCourseAssignment(record.schoolId, offering.assignmentId), repository.getClass(record.schoolId, offering.classId)]) : [null, null];
+    const course = courseAssignment ? await repository.getPlatformCourse(courseAssignment.courseId) : null;
+    return {
+        ...record,
+        resources: Array.isArray(record.resources) ? record.resources : [],
+        courseTitle: course?.title || "课程信息不可用",
+        className: schoolClass?.name || "班级信息不可用",
+    };
+}
+
+async function toTeachingSubmission(repository: SchoolDomainRepository, record: TeachingSubmissionRecord): Promise<TeachingSubmission> {
+    const membership = await repository.getMembership(record.schoolId, record.studentMembershipId);
+    return { ...record, contentReferences: Array.isArray(record.contentReferences) ? record.contentReferences : [], student: await toPublicIdentity(membership) };
+}
+
+async function toPublicIdentity(membership: SchoolMembershipRecord | null): Promise<SchoolPublicIdentity> {
+    if (!membership?.userId) return { accountId: "", username: "", displayName: "成员信息不可用" };
+    const user = (await getPublicUsersByIds([membership.userId]))[0];
+    return {
+        accountId: user?.accountId || "",
+        username: user?.username || "",
+        displayName: user?.displayName || "成员信息不可用",
+    };
 }
 
 async function requireEducationAdmin(actorId: string) {

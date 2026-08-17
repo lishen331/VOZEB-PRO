@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getPublicUsersByIds } from "@/lib/auth/store";
 import type { PublicUser } from "@/lib/auth/store";
 import { hasAdminPermission } from "@/lib/admin-permissions";
-import type { CreateSchoolInput, PageResult, SchoolAdministratorSummary, SchoolClass, SchoolClassDetail, SchoolClassInput, SchoolDetail, SchoolMember, SchoolMemberPatch, SchoolSummary, UpdateSchoolInput } from "@/lib/school-domain";
+import type { CreateSchoolInput, PageResult, SchoolAdministratorSummary, SchoolClass, SchoolClassDetail, SchoolClassInput, SchoolDetail, SchoolMember, SchoolMemberPatch, SchoolStatus, SchoolSummary, UpdateSchoolInput } from "@/lib/school-domain";
 import { SchoolDomainReferenceConflictError } from "@/lib/server/school-domain-errors";
 import { createSchoolDomainRepository, type SchoolDomainRepository, type SchoolMembershipRecord } from "@/lib/server/school-domain-repository";
 import { SchoolServiceError, requireSchoolManager } from "./school-access-service";
@@ -117,7 +117,7 @@ export async function createSchoolClass(managerId: string, input: SchoolClassInp
     });
 }
 
-export async function listSchoolClasses(managerId: string, input: { page?: number; pageSize?: number }): Promise<PageResult<SchoolClass>> {
+export async function listSchoolClasses(managerId: string, input: { page?: number; pageSize?: number; keyword?: string; status?: SchoolStatus }): Promise<PageResult<SchoolClass>> {
     const context = await requireSchoolManager(managerId);
     return createSchoolDomainRepository().listClasses(context.school.id, input);
 }

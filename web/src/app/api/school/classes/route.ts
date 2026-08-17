@@ -10,8 +10,16 @@ export async function GET(request: Request) {
     const user = await getCurrentUser();
     if (!user) return schoolApiError(401, "请先登录");
     const params = new URL(request.url).searchParams;
+    const status = params.get("status");
     try {
-        return schoolApiOk(await listSchoolClasses(user.id, { page: positiveInteger(params.get("page"), 1), pageSize: positiveInteger(params.get("pageSize"), 20) }));
+        return schoolApiOk(
+            await listSchoolClasses(user.id, {
+                page: positiveInteger(params.get("page"), 1),
+                pageSize: positiveInteger(params.get("pageSize"), 20),
+                keyword: params.get("keyword")?.trim() || undefined,
+                status: status === "active" || status === "disabled" ? status : undefined,
+            }),
+        );
     } catch (error) {
         return schoolApiFailure(error, "读取班级列表失败");
     }

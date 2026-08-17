@@ -19,8 +19,10 @@ import { createFileSchoolDomainRepository } from "./school-domain-file-repositor
 export type PageQuery = { page?: number; pageSize?: number };
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number };
 export type MemberPageQuery = PageQuery & { keyword?: string; role?: SchoolMemberRole; status?: SchoolMembershipStatus };
+export type ClassPageQuery = PageQuery & { keyword?: string; status?: SchoolStatus };
 export type OrderPageQuery = PageQuery & { keyword?: string; status?: CommercialOrderStatus };
 export type PlatformCoursePageQuery = PageQuery & { keyword?: string; status?: PlatformCourseStatus };
+export type TeachingSubmissionPageQuery = PageQuery & { assignmentIds?: string[] };
 
 export type SchoolRecord = { id: string; name: string; profile: JsonValue; status: SchoolStatus; createdAt: string; updatedAt: string };
 export type SchoolUpdate = Partial<Pick<SchoolRecord, "name" | "profile" | "status">> & { updatedAt: string };
@@ -164,7 +166,7 @@ export interface SchoolDomainRepository {
     getInviteCodeByRole(schoolId: string, role: SchoolMemberRole, forUpdate?: boolean): Promise<SchoolInviteCodeRecord | null>;
     getInviteCodeByDigest(codeDigest: string, forUpdate?: boolean): Promise<SchoolInviteCodeRecord | null>;
     upsertInviteCode(record: SchoolInviteCodeRecord): Promise<SchoolInviteCodeRecord>;
-    listClasses(schoolId: string, input: PageQuery): Promise<Page<SchoolClassRecord>>;
+    listClasses(schoolId: string, input: ClassPageQuery): Promise<Page<SchoolClassRecord>>;
     getClass(schoolId: string, classId: string, forUpdate?: boolean): Promise<SchoolClassRecord | null>;
     updateClass(schoolId: string, classId: string, patch: SchoolClassUpdate): Promise<SchoolClassRecord | null>;
     deleteClass(schoolId: string, classId: string): Promise<boolean>;
@@ -183,6 +185,7 @@ export interface SchoolDomainRepository {
     getTeachingAssignment(schoolId: string, assignmentId: string, forUpdate?: boolean): Promise<TeachingAssignmentRecord | null>;
     updateTeachingAssignment(schoolId: string, assignmentId: string, patch: TeachingAssignmentUpdate): Promise<TeachingAssignmentRecord | null>;
     listTeachingSubmissions(schoolId: string, assignmentId: string, input: PageQuery): Promise<Page<TeachingSubmissionRecord>>;
+    listTeachingSubmissionsForStudent(schoolId: string, studentMembershipId: string, input: TeachingSubmissionPageQuery): Promise<Page<TeachingSubmissionRecord>>;
     getTeachingSubmission(schoolId: string, submissionId: string, forUpdate?: boolean): Promise<TeachingSubmissionRecord | null>;
     getTeachingSubmissionByAssignmentAndStudent(schoolId: string, assignmentId: string, studentMembershipId: string, forUpdate?: boolean): Promise<TeachingSubmissionRecord | null>;
     updateTeachingSubmission(schoolId: string, submissionId: string, patch: TeachingSubmissionUpdate): Promise<TeachingSubmissionRecord | null>;

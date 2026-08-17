@@ -79,6 +79,13 @@ describe("file school domain repository", () => {
         });
 
         await expect(repository.listAssignmentsForStudent("school-a", "student-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "teaching-a" }] });
+        await repository.updateTeachingAssignment("school-a", "teaching-a", { status: "closed", updatedAt: now });
+        await expect(repository.listAssignmentsForStudent("school-a", "student-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "teaching-a", status: "closed" }] });
+        await expect(repository.listTeachingSubmissionsForStudent("school-a", "student-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "submission-a" }] });
+        await repository.updateTeachingAssignment("school-a", "teaching-a", { status: "draft", updatedAt: now });
+        await expect(repository.listTeachingSubmissionsForStudent("school-a", "student-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
+        await repository.updateTeachingAssignment("school-a", "teaching-a", { status: "closed", updatedAt: now });
+        await expect(repository.listTeachingSubmissionsForStudent("school-b", "student-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
         await expect(repository.listVisibleCourses("school-a", "teacher-a", "teacher", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "course-assignment-a" }] });
         await expect(repository.listVisibleCourses("school-a", "student-a", "student", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "course-assignment-a" }] });
         await expect(repository.listVisibleCourses("school-b", "student-a", "student", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
@@ -113,6 +120,9 @@ describe("file school domain repository", () => {
         await expect(repository.compareAndSetCommercialOrderStatus("school-a", "order-a", "assigned", "in_progress", now)).resolves.toBe(true);
         await expect(repository.compareAndSetCommercialOrderStatus("school-a", "order-a", "assigned", "submitted", now)).resolves.toBe(false);
         await expect(repository.getCommercialOrder("school-b", "order-a")).resolves.toBeNull();
+
+        await repository.replaceClassMembers("school-a", "class-a", ["teacher-a"]);
+        await expect(repository.listTeachingSubmissionsForStudent("school-a", "student-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
     });
 
     it("mirrors schema checks and unique constraints", async () => {
@@ -188,6 +198,7 @@ describe("file school domain repository", () => {
         await expect(repository.getInviteCodeByRole("school-b", "student")).resolves.toBeNull();
 
         await expect(repository.getClass("school-a", "class-a", true)).resolves.toMatchObject({ name: "一班" });
+        await expect(repository.listClasses("school-a", { page: 1, pageSize: 20, keyword: "一班" })).resolves.toMatchObject({ total: 1, items: [{ id: "class-a" }] });
         await expect(repository.updateClass("school-b", "class-a", { name: "越权", updatedAt: now })).resolves.toBeNull();
         await expect(repository.updateClass("school-a", "class-a", { description: "更新", updatedAt: now })).resolves.toMatchObject({ description: "更新" });
         await expect(repository.listClassMembers("school-a", "class-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({
