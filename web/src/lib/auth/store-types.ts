@@ -5,9 +5,10 @@ import type { AdminPermission } from "@/lib/admin-permissions";
 import type { GlobalAiOpcPresetId } from "@/lib/globalaiopc-catalog";
 import type { RegistrationPolicyConsent } from "@/lib/registration-consent";
 import { VOZEB_QQ_GROUP_URL } from "@/constant/community";
+import type { SystemChannelPurpose } from "@/lib/practice-domain";
 
 export type ApiCallFormat = "openai" | "gemini";
-export type SystemChannelProtocol = "auto" | "openai" | "yumeng" | "gemini" | "sub2api" | "newapi" | "vozeb-recommended" | "globalaiopc" | "seedance" | "stable-diffusion" | "volcengine-video" | "seedance-special" | "custom" | "compatible";
+export type SystemChannelProtocol = "auto" | "openai" | "yumeng" | "gemini" | "sub2api" | "newapi" | "vozeb-recommended" | "globalaiopc" | "seedance" | "stable-diffusion" | "volcengine-video" | "seedance-special" | "runninghub" | "custom" | "compatible";
 export type SystemChannelAuthMode = "none" | "bearer" | "x-api-key" | "custom-header";
 
 export type SystemChannelModelConfig = {
@@ -81,6 +82,7 @@ export type SystemModelChannel = {
     apiFormat: ApiCallFormat;
     models: string[];
     enabled: boolean;
+    purpose?: SystemChannelPurpose;
     advancedConfig?: SystemChannelAdvancedConfig;
     hasApiKey?: boolean;
     clearApiKey?: boolean;
@@ -466,6 +468,7 @@ export type AuthSettings = {
     systemChannels: SystemModelChannel[];
     logicalModels: LogicalModel[];
     defaultModels: SystemDefaultModels;
+    practiceDefaultModels: SystemDefaultModels;
     agentSkills: AgentSkill[];
 };
 

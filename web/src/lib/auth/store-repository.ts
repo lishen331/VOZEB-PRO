@@ -349,6 +349,7 @@ export function mapPostgresSettings(settingsRow: Record<string, unknown> | undef
         })),
         logicalModels: dbJson(settingsRow?.logical_models, fallback.logicalModels),
         defaultModels: dbJson(settingsRow?.default_models, fallback.defaultModels),
+        practiceDefaultModels: dbJson(settingsRow?.practice_default_models, fallback.practiceDefaultModels),
         agentSkills: dbJson(settingsRow?.agent_skills, fallback.agentSkills),
     });
 }

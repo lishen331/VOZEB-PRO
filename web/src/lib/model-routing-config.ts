@@ -2,6 +2,7 @@ import type { LogicalModel, LogicalModelBinding, LogicalModelCapability, Logical
 import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { inferModelCapability, isCreativeGenerationModel, normalizeModelId } from "@/lib/model-capability";
 import { channelConnectionReady, protocolCatalogCapability, resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
+import { resolvePracticeModelAccess, type PracticeExecutionProfile } from "@/lib/practice-domain";
 
 const CAPABILITY_DEFAULT_KEYS = {
     text: "textModel",
@@ -81,27 +82,36 @@ export function mergeChannelModelsIntoLogicalModels(logicalModels: LogicalModel[
     return synchronizeLogicalModelsWithChannels(logicalModels, channels);
 }
 
-export function normalizeDefaultModelsConfig(defaults: Partial<SystemDefaultModels> | undefined, logicalModels: LogicalModel[], channels: SystemModelChannel[]): SystemDefaultModels {
+export function normalizeDefaultModelsConfig(
+    defaults: Partial<SystemDefaultModels> | undefined,
+    logicalModels: LogicalModel[],
+    channels: SystemModelChannel[],
+    executionProfile: PracticeExecutionProfile = "production",
+    options?: { allowFallback?: boolean },
+): SystemDefaultModels {
+    const allowFallback = options?.allowFallback ?? executionProfile === "production";
     return Object.fromEntries(
         (Object.entries(CAPABILITY_DEFAULT_KEYS) as Array<[LogicalModelCapability, keyof SystemDefaultModels]>).map(([capability, key]) => {
             const modelId = text(defaults?.[key], 120);
-            if (!modelId || isLogicalModelResolvable(logicalModels, channels, capability, modelId)) return [key, modelId];
-            const fallback = logicalModels.find((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id));
+            if (!modelId) return [key, ""];
+            if (isLogicalModelResolvable(logicalModels, channels, capability, modelId, executionProfile)) return [key, modelId];
+            if (!allowFallback) return [key, ""];
+            const fallback = logicalModels.find((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, executionProfile));
             return [key, fallback?.id || ""];
         }),
     ) as SystemDefaultModels;
 }
 
-export function isLogicalModelResolvable(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string) {
-    return Boolean(resolveLogicalModelConfig(logicalModels, channels, capability, modelId));
+export function isLogicalModelResolvable(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string, executionProfile: PracticeExecutionProfile = "production") {
+    return Boolean(resolveLogicalModelConfig(logicalModels, channels, capability, modelId, executionProfile));
 }
 
-export function resolveLogicalModelConfig(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string) {
+export function resolveLogicalModelConfig(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string, executionProfile: PracticeExecutionProfile = "production") {
     const logical = logicalModels.find((model) => model.enabled && model.capability === capability && model.id.toLowerCase() === rawModelName(modelId).toLowerCase());
     if (!logical) return null;
     const bindings = [...logical.bindings].filter((binding) => binding.enabled).sort((left, right) => left.priority - right.priority || left.id.localeCompare(right.id));
     for (const binding of bindings) {
-        const channel = channels.find((item) => item.id === binding.channelId && item.enabled && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel));
+        const channel = channels.find((item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel));
         if (channel) return { logicalModel: logical, binding, channel };
     }
     return null;

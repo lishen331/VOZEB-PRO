@@ -40,6 +40,10 @@ describe("administrator permissions", () => {
         expect(ADMIN_PERMISSION_PRESETS.find((item) => item.key === "full")?.permissions).toContain("education.manage");
     });
 
+    it("reuses existing platform responsibilities for practice administration", () => {
+        expect(ALL_ADMIN_PERMISSIONS).toEqual(expect.arrayContaining(["content.manage", "upstream.manage"]));
+    });
+
     it("limits financial workspace tabs to the current duties", () => {
         const finance = { role: "admin", status: "active", adminPermissions: ["billing.read"] };
         const commerce = { role: "admin", status: "active", adminPermissions: ["commerce.manage"] };
