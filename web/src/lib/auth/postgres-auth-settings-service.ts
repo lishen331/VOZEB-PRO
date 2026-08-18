@@ -44,6 +44,7 @@ export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>) {
                     apiFormat: channel.apiFormat,
                     models: asJson(channel.models),
                     enabled: channel.enabled,
+                    purpose: channel.purpose || "shared",
                     advancedConfig: channel.advancedConfig ? asJson(channel.advancedConfig) : undefined,
                     sortOrder,
                 });
@@ -75,6 +76,7 @@ function postgresSettingsPatch(patch: Partial<AuthSettings>, settings: AuthSetti
     if (patch.generationDefaults !== undefined) result.generationDefaults = asJson(settings.generationDefaults);
     if (patch.logicalModels !== undefined) result.logicalModels = asJson(settings.logicalModels);
     if (patch.defaultModels !== undefined) result.defaultModels = asJson(settings.defaultModels);
+    if (patch.practiceDefaultModels !== undefined) result.practiceDefaultModels = asJson(settings.practiceDefaultModels);
     if (patch.agentSkills !== undefined) result.agentSkills = asJson(settings.agentSkills);
     return result;
 }

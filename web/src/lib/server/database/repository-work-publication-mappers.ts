@@ -54,6 +54,10 @@ export function mapPublishedWorkVersion(row: Record<string, unknown>, prefix = "
         reviewedByUserId: optionalString(value("reviewed_by_user_id")),
         moderationProvider: optionalString(value("moderation_provider")),
         moderationSignal: value("moderation_signal") == null ? undefined : jsonValue(value("moderation_signal")),
+        pullFilmEnabled: value("pull_film_enabled") === true,
+        pullFilmSnapshot: value("pull_film_snapshot") == null ? undefined : jsonValue(value("pull_film_snapshot")),
+        pullFilmEnabledAt: optionalIso(value("pull_film_enabled_at")),
+        pullFilmEnabledByUserId: optionalString(value("pull_film_enabled_by_user_id")),
         createdAt: isoValue(value("created_at")),
         updatedAt: isoValue(value("updated_at")),
     };

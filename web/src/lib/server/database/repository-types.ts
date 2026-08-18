@@ -1,5 +1,6 @@
 import type { RegistrationPolicyConsent } from "@/lib/registration-consent";
 import type { AdminPermission } from "@/lib/admin-permissions";
+import type { PracticeExecutionProfile, PracticeModuleKind, PracticeProjectKind, SystemChannelPurpose } from "@/lib/practice-domain";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -133,6 +134,7 @@ export type AppSettingsRecord = {
     paymentConfig: JsonValue;
     logicalModels: JsonValue;
     defaultModels: JsonValue;
+    practiceDefaultModels: JsonValue;
     agentSkills: JsonValue;
     createdAt: string;
     updatedAt: string;
@@ -147,6 +149,7 @@ export type SystemModelChannelRecord = {
     apiFormat: "openai" | "gemini";
     models: JsonValue;
     enabled: boolean;
+    purpose?: SystemChannelPurpose;
     advancedConfig?: JsonValue;
     sortOrder: number;
     createdAt: string;
@@ -730,8 +733,53 @@ export type PublishedWorkVersionRecord = {
     reviewedByUserId?: string;
     moderationProvider?: string;
     moderationSignal?: JsonValue;
+    pullFilmEnabled?: boolean;
+    pullFilmSnapshot?: JsonValue;
+    pullFilmEnabledAt?: string;
+    pullFilmEnabledByUserId?: string;
     createdAt: string;
     updatedAt: string;
+};
+
+export type PracticeSessionStatus = "draft" | "queued" | "running" | "success" | "failed" | "cancelled";
+
+export type PracticeSessionRecord = {
+    id: string;
+    userId: string;
+    projectId?: string;
+    projectKind: PracticeProjectKind;
+    module: PracticeModuleKind;
+    executionProfile: PracticeExecutionProfile;
+    prompt: JsonValue;
+    input: JsonValue;
+    taskRefs: JsonValue;
+    status: PracticeSessionStatus;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type PracticeSessionCreateInput = Omit<PracticeSessionRecord, "createdAt" | "updatedAt" | "executionProfile"> & Partial<Pick<PracticeSessionRecord, "executionProfile">>;
+
+export type PracticeCopyRequestRecord = {
+    userId: string;
+    clientRequestId: string;
+    sourceWorkId: string;
+    sourceVersionId: string;
+    projectKind: PracticeProjectKind;
+    projectId: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type PracticeCopyRequestInput = Omit<PracticeCopyRequestRecord, "createdAt" | "updatedAt">;
+
+export type PullFilmVersionRecord = {
+    workId: string;
+    versionId: string;
+    enabled: boolean;
+    snapshot?: JsonValue;
+    enabledAt?: string;
+    enabledByUserId?: string;
 };
 
 export type PublishedWorkAssetRecord = {

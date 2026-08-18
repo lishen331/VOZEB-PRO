@@ -74,6 +74,30 @@ CREATE TRIGGER prompts_set_updated_at BEFORE UPDATE ON prompts FOR EACH ROW EXEC
 DROP TRIGGER IF EXISTS drama_projects_set_updated_at ON drama_projects;
 CREATE TRIGGER drama_projects_set_updated_at BEFORE UPDATE ON drama_projects FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
 
+DROP TRIGGER IF EXISTS practice_sessions_set_updated_at ON practice_sessions;
+CREATE TRIGGER practice_sessions_set_updated_at BEFORE UPDATE ON practice_sessions FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
+
+DROP TRIGGER IF EXISTS practice_copy_requests_set_updated_at ON practice_copy_requests;
+CREATE TRIGGER practice_copy_requests_set_updated_at BEFORE UPDATE ON practice_copy_requests FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
+
+CREATE OR REPLACE FUNCTION vozeb_pro_prevent_project_identity_change()
+RETURNS trigger AS $$
+BEGIN
+    IF NEW.execution_profile IS DISTINCT FROM OLD.execution_profile
+       OR NEW.practice_source_work_id IS DISTINCT FROM OLD.practice_source_work_id
+       OR NEW.practice_source_version_id IS DISTINCT FROM OLD.practice_source_version_id THEN
+        RAISE EXCEPTION 'project execution identity is immutable' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS canvas_projects_identity_immutable ON canvas_projects;
+CREATE TRIGGER canvas_projects_identity_immutable BEFORE UPDATE ON canvas_projects FOR EACH ROW EXECUTE FUNCTION vozeb_pro_prevent_project_identity_change();
+
+DROP TRIGGER IF EXISTS drama_projects_identity_immutable ON drama_projects;
+CREATE TRIGGER drama_projects_identity_immutable BEFORE UPDATE ON drama_projects FOR EACH ROW EXECUTE FUNCTION vozeb_pro_prevent_project_identity_change();
+
 DROP TRIGGER IF EXISTS generation_logs_set_updated_at ON generation_logs;
 CREATE TRIGGER generation_logs_set_updated_at BEFORE UPDATE ON generation_logs FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
 

@@ -451,6 +451,20 @@ describe("split Postgres repositories", () => {
         expect(params).toEqual([JSON.stringify(generationCostControl)]);
     });
 
+    it("persists practice defaults independently from production defaults", async () => {
+        const timestamp = "2026-08-18T00:00:00.000Z";
+        const practiceDefaultModels = { textModel: "practice-text", imageModel: "", videoModel: "", audioModel: "" };
+        const { executor, query } = mockExecutor([[{ id: "default", practice_default_models: practiceDefaultModels, created_at: timestamp, updated_at: timestamp }]]);
+
+        const settings = await createPostgresRepositories(executor).settings.updateSettings({ practiceDefaultModels });
+        const [sql, params] = queryArgs(query, 0) as [string, unknown[]];
+
+        expect(settings.practiceDefaultModels).toEqual(practiceDefaultModels);
+        expect(sql).toContain("practice_default_models = $1");
+        expect(sql).not.toMatch(/(?:SET|,) default_models =/);
+        expect(params).toEqual([JSON.stringify(practiceDefaultModels)]);
+    });
+
     it("persists bounded technical data lifecycle settings", async () => {
         const timestamp = "2026-01-01T00:00:00.000Z";
         const dataLifecycle = { cleanupExpiredSessions: true, cleanupExpiredEmailCodes: true, cleanupExpiredGenerationTasks: false, cleanupExpiredTemporaryMedia: true, maintenanceBatchSize: 80 };

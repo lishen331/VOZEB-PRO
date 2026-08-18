@@ -184,7 +184,8 @@ export class WorkPublicationRepository {
                 title = $2, description = $3, public_prompt = $4, category = $5, tags = $6::jsonb, visibility = $7,
                 author_display = $8, author_name = $9, moderation_status = 'draft', rejection_reason = NULL,
                 submitted_at = NULL, reviewed_at = NULL, reviewed_by_user_id = NULL,
-                moderation_provider = NULL, moderation_signal = NULL
+                moderation_provider = NULL, moderation_signal = NULL,
+                pull_film_enabled = false, pull_film_snapshot = NULL, pull_film_enabled_at = NULL, pull_film_enabled_by_user_id = NULL
              WHERE id = $1 AND moderation_status IN ('draft', 'rejected')
              RETURNING *`,
             [version.id, version.title, version.description, version.publicPrompt, version.category, JSON.stringify(version.tags), version.visibility, version.authorDisplay, version.authorName || null],
@@ -209,7 +210,11 @@ export class WorkPublicationRepository {
 
     async reviewVersion(id: string, input: { status: "approved" | "rejected" | "taken_down"; reason?: string; reviewedAt: string; reviewedByUserId: string }) {
         const result = await this.db.query(
-            `UPDATE published_work_versions SET moderation_status = $2, rejection_reason = $3, reviewed_at = $4, reviewed_by_user_id = $5
+            `UPDATE published_work_versions SET moderation_status = $2, rejection_reason = $3, reviewed_at = $4, reviewed_by_user_id = $5,
+                pull_film_enabled = CASE WHEN $2 = 'taken_down' THEN false ELSE pull_film_enabled END,
+                pull_film_snapshot = CASE WHEN $2 = 'taken_down' THEN NULL ELSE pull_film_snapshot END,
+                pull_film_enabled_at = CASE WHEN $2 = 'taken_down' THEN NULL ELSE pull_film_enabled_at END,
+                pull_film_enabled_by_user_id = CASE WHEN $2 = 'taken_down' THEN NULL ELSE pull_film_enabled_by_user_id END
              WHERE id = $1 AND moderation_status ${input.status === "taken_down" ? "= 'approved'" : "= 'pending'"}
              RETURNING *`,
             [id, input.status, input.reason || null, input.reviewedAt, input.reviewedByUserId],
@@ -415,6 +420,10 @@ function versionProjection(alias: string, prefix: string) {
         "reviewed_by_user_id",
         "moderation_provider",
         "moderation_signal",
+        "pull_film_enabled",
+        "pull_film_snapshot",
+        "pull_film_enabled_at",
+        "pull_film_enabled_by_user_id",
         "created_at",
         "updated_at",
     ]

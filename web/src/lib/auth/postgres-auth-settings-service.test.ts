@@ -80,8 +80,18 @@ describe("updatePostgresAuthSettings", () => {
 
         expect(mocks.updateSettings).not.toHaveBeenCalled();
         expect(mocks.upsertSystemModelChannel).toHaveBeenCalledTimes(1);
+        expect(mocks.upsertSystemModelChannel).toHaveBeenCalledWith(expect.objectContaining({ purpose: "shared" }));
         expect(mocks.deleteSystemModelChannelsNotIn).toHaveBeenCalledWith(["channel-one"]);
         expect(mocks.upsertEntitlementPlan).not.toHaveBeenCalled();
         expect(mocks.removeEntitlementPlansNotIn).not.toHaveBeenCalled();
+    });
+
+    it("updates only the independent practice default model pool", async () => {
+        const practiceDefaultModels = { textModel: "practice-text", imageModel: "", videoModel: "", audioModel: "" };
+
+        await updatePostgresAuthSettings({ practiceDefaultModels });
+
+        expect(mocks.updateSettings).toHaveBeenCalledWith({ practiceDefaultModels: { textModel: "", imageModel: "", videoModel: "", audioModel: "" } });
+        expect(mocks.upsertSystemModelChannel).not.toHaveBeenCalled();
     });
 });
