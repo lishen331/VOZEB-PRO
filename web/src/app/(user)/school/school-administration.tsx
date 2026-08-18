@@ -166,6 +166,12 @@ function MembersPanel() {
 
     useEffect(() => void load(), [load]);
 
+    const openCreate = () => {
+        form.resetFields();
+        form.setFieldsValue({ role: "student" });
+        setCreateOpen(true);
+    };
+
     const createMember = async (values: SchoolMemberCreateInput) => {
         setSaving(true);
         try {
@@ -312,7 +318,7 @@ function MembersPanel() {
                     >
                         <Button icon={<UploadIcon className="size-4" />}>批量导入</Button>
                     </Upload>
-                    <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setCreateOpen(true)}>
+                    <Button type="primary" icon={<Plus className="size-4" />} onClick={openCreate}>
                         创建成员
                     </Button>
                 </div>
@@ -367,9 +373,7 @@ function MembersPanel() {
                 confirmLoading={saving}
                 width={560}
                 afterOpenChange={(open) => {
-                    if (!open) return;
-                    form.resetFields();
-                    form.setFieldsValue({ role: "student" });
+                    if (!open) form.resetFields();
                 }}
                 onOk={() => form.submit()}
                 onCancel={() => setCreateOpen(false)}
@@ -438,6 +442,11 @@ function ClassesPanel() {
 
     useEffect(() => void load(), [load]);
 
+    const openCreate = () => {
+        createForm.resetFields();
+        setCreateOpen(true);
+    };
+
     const createClass = async (values: SchoolClassInput) => {
         setSaving(true);
         try {
@@ -467,8 +476,16 @@ function ClassesPanel() {
         setLoading(true);
         try {
             const detail = await schoolApi.getClass(schoolClass.id);
-            setEditing(detail);
             await Promise.all([searchMemberCandidates("teacher", "", detail.teachers), searchMemberCandidates("student", "", detail.students)]);
+            editForm.resetFields();
+            editForm.setFieldsValue({
+                name: detail.name,
+                description: detail.description,
+                status: detail.status,
+                teacherMembershipIds: detail.teachers.map((member) => member.id),
+                studentMembershipIds: detail.students.map((member) => member.id),
+            });
+            setEditing(detail);
         } catch (error) {
             message.error(errorMessage(error, "班级资料加载失败"));
         } finally {
@@ -538,7 +555,7 @@ function ClassesPanel() {
         <section className="space-y-3 py-2">
             <div className="flex justify-end gap-2">
                 <Button icon={<RefreshCw className="size-4" />} loading={loading} aria-label="刷新班级列表" onClick={() => void load()} />
-                <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setCreateOpen(true)}>
+                <Button type="primary" icon={<Plus className="size-4" />} onClick={openCreate}>
                     创建班级
                 </Button>
             </div>
@@ -570,7 +587,7 @@ function ClassesPanel() {
                 confirmLoading={saving}
                 width={560}
                 afterOpenChange={(open) => {
-                    if (open) createForm.resetFields();
+                    if (!open) createForm.resetFields();
                 }}
                 onOk={() => createForm.submit()}
                 onCancel={() => setCreateOpen(false)}
@@ -589,15 +606,7 @@ function ClassesPanel() {
                 open={Boolean(editing)}
                 size="min(640px, 100vw)"
                 afterOpenChange={(open) => {
-                    if (!open || !editing) return;
-                    editForm.resetFields();
-                    editForm.setFieldsValue({
-                        name: editing.name,
-                        description: editing.description,
-                        status: editing.status,
-                        teacherMembershipIds: editing.teachers.map((member) => member.id),
-                        studentMembershipIds: editing.students.map((member) => member.id),
-                    });
+                    if (!open) editForm.resetFields();
                 }}
                 onClose={() => setEditing(null)}
                 extra={
@@ -724,11 +733,13 @@ function CoursesPanel() {
 
     const openArrange = async (assignment: SchoolCourseAssignment) => {
         setLoading(true);
-        setArranging(assignment);
         try {
             setClasses([]);
             setTeachers([]);
             await Promise.all([searchClasses(""), searchTeachers("")]);
+            form.resetFields();
+            form.setFieldsValue({ supplementalResources: [] });
+            setArranging(assignment);
         } catch (error) {
             setArranging(null);
             message.error(errorMessage(error, "班级与老师加载失败"));
@@ -909,9 +920,7 @@ function CoursesPanel() {
                 cancelText="取消"
                 confirmLoading={saving}
                 afterOpenChange={(open) => {
-                    if (!open) return;
-                    form.resetFields();
-                    form.setFieldsValue({ supplementalResources: [] });
+                    if (!open) form.resetFields();
                 }}
                 onOk={() => form.submit()}
                 onCancel={() => setArranging(null)}

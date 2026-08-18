@@ -100,6 +100,26 @@ Agent Run 的状态与任务数组继续保存在 `generation_tasks.payload`，�
 
 - `vozeb_pro_audit_logs`：登录、后台操作、CDK 兑换等安全审计记录。
 
+### 学校多租户与产教域（13 张表）
+
+- `vozeb_pro_schools`：学校租户根，主键为 `id`；`(status, updated_at DESC)` 支持平台按状态分页。成员、邀请码、班级和课程分配等租户子记录使用级联外键；已承接商单使用默认限制外键，不会随学校静默删除。
+- `vozeb_pro_school_memberships`：账号与学校的唯一成员关系，外键连接 `schools` 与 `users`；`UNIQUE (user_id)` 保证一个账号只能属于一所学校，`UNIQUE (school_id, id)` 为后续同租户复合外键提供目标。`(school_id, status, updated_at DESC)` 与 `(school_id, role, updated_at DESC)` 支持本校成员定向筛选。
+- `vozeb_pro_school_invite_codes`：老师/学生邀请码只保存摘要；`UNIQUE (school_id, role)` 保证每校每种身份只有一条当前记录，`UNIQUE (code_digest)` 防止跨校摘要冲突，学校状态时间索引用于定向读取和轮换。
+- `vozeb_pro_school_classes`：本校班级，`UNIQUE (school_id, id)` 支持同租户复合引用，`(school_id, status, updated_at DESC)` 支持学校后台分页。
+- `vozeb_pro_school_class_members`：班级与成员关联，`UNIQUE (class_id, membership_id)` 防止重复加入；`(school_id, class_id)`、`(school_id, membership_id)` 复合外键同时约束班级和成员属于同一学校，对应两个学校定向索引支持按班级或成员读取。
+- `vozeb_pro_platform_courses`：平台课程正文、章节和附件，创建人删除后保留课程；`(status, updated_at DESC)` 支持平台课程筛选。
+- `vozeb_pro_school_course_assignments`：平台课程到学校的分配；`UNIQUE (course_id, school_id)` 保证同一课程对同一学校只有一条记录，`UNIQUE (school_id, id)` 支持本校安排复合引用，学校状态和课程时间索引分别支持学校列表与平台分配读取。
+- `vozeb_pro_school_course_offerings`：本校课程安排，使用 `(school_id, assignment_id)`、`(school_id, class_id)`、`(school_id, teacher_membership_id)` 复合外键保证课程分配、班级和老师同租户；`UNIQUE (assignment_id, class_id, teacher_membership_id)` 防止重复安排，并按学校状态、学校老师建立分页索引。
+- `vozeb_pro_teaching_assignments`：课时、作业和课程实训，使用同租户课程安排与老师复合外键；`UNIQUE (school_id, id)` 支持提交复合引用，并按学校状态、学校课程安排建立索引。
+- `vozeb_pro_teaching_submissions`：学生作业提交及批改结果，`UNIQUE (assignment_id, student_membership_id)` 保证每名学生每项任务一条提交；同租户任务和学生复合外键阻止跨校关联，学校状态与学校学生索引支持老师批改和学生记录分页。
+- `vozeb_pro_commercial_orders`：平台商单及唯一承接学校。`internal_amount_cents` 为非负 `bigint`，service 同时要求非负安全整数；该字段只映射到平台管理员 DTO，学校、老师和学生 DTO 从类型层完全省略金额。除 `draft/cancelled` 外状态必须已有承接学校，未分配时负责老师和班级必须为空；`(assigned_school_id, teacher_membership_id)`、`(assigned_school_id, class_id)` 复合外键保证配置同租户，状态、学校状态和学校老师索引支持三类定向列表。
+- `vozeb_pro_commercial_order_participants`：商单参与学生及候选成果引用，`UNIQUE (order_id, membership_id)` 防止重复参与；同租户商单和成员复合外键阻止跨校参与，学校状态、学校商单和学校成员索引支持候选、商单详情与学生任务查询。
+- `vozeb_pro_commercial_order_deliveries`：学校正式交付历史与平台反馈，同租户商单和提交人复合外键阻止跨校交付；`(school_id, status, updated_at DESC)` 与 `(school_id, order_id, created_at DESC)` 支持学校状态列表和商单交付分页。
+
+学校域通过 `createSchoolDomainRepository()` 选择 PostgreSQL 或文件 Provider，并向 service 暴露同一 `SchoolDomainRepository`。PostgreSQL 实现使用参数化 SQL，学校在线读取始终带 `school_id`（商单表使用等价的 `assigned_school_id`）、实体/成员关系和有界分页条件；跨校实体统一按不存在处理。成员、班级、课程安排、作业、提交、参与者替换和商单状态流转使用事务、必要的 `FOR UPDATE` 行锁及状态 CAS，避免并发覆盖。
+
+文件 Provider 将同一 13 类记录保存在 `school-domain.json`，在进程内 mutation queue 和数据文件锁内执行多实体写入，失败时不写回工作快照；唯一性、同校引用、状态流转和分页结果与 PostgreSQL 保持相同业务语义。文件 Provider 是单机回退实现，不替代 PostgreSQL 的数据库级跨进程锁与外键约束。
+
 ## Repository 边界
 
 `createPostgresRepositories()` 暴露表级 Repository：
@@ -120,6 +140,8 @@ Agent Run 的状态与任务数组继续保存在 `generation_tasks.payload`，�
 - `workPublications`
 - `workGovernance`
 - `workCommunity`
+
+学校域不挂入上述通用 Repository 聚合；`createSchoolDomainRepository()` 独立提供 `SchoolDomainRepository`，显式传入事务 `QueryExecutor` 时复用当前 PostgreSQL 事务，否则按 `VOZEB_PRO_DATABASE_PROVIDER` 选择 PostgreSQL 或文件实现。
 
 业务层后续应通过 Repository 读写数据库，不再直接依赖 `.data/*.json` 路径。图片、视频和音频二进制不混入业务主库表：外部存储关闭时写入服务器数据目录，开启时新媒体只写 S3 兼容对象存储。
 

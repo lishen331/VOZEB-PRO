@@ -238,6 +238,7 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "teaching_submissions_school_student_updated_idx",
     "commercial_orders_status_updated_idx",
     "commercial_orders_school_status_updated_idx",
+    "commercial_orders_school_teacher_updated_idx",
     "commercial_order_participants_school_status_updated_idx",
     "commercial_order_participants_school_order_updated_idx",
     "commercial_order_participants_school_member_updated_idx",

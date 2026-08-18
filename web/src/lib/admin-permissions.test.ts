@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { ADMIN_PERMISSION_DEFINITIONS, ADMIN_PERMISSION_GROUPS, ADMIN_PERMISSION_PRESETS, ALL_ADMIN_PERMISSIONS, adminPermissionSummary, allowedAdminBillingTabs, hasAdminPermission, hasAnyAdminPermission, isFullAdminPermissions, normalizeAdminPermissions, resolveAdminBillingTab } from "./admin-permissions";
+import {
+    ADMIN_PERMISSION_DEFINITIONS,
+    ADMIN_PERMISSION_GROUPS,
+    ADMIN_PERMISSION_PRESETS,
+    ALL_ADMIN_PERMISSIONS,
+    adminPermissionSummary,
+    allowedAdminBillingTabs,
+    hasAdminPermission,
+    hasAnyAdminPermission,
+    isFullAdminPermissions,
+    normalizeAdminPermissions,
+    resolveAdminBillingTab,
+} from "./admin-permissions";
 
 describe("administrator permissions", () => {
     it("normalizes known permissions in registry order", () => {

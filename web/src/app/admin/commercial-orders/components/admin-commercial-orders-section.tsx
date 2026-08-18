@@ -54,21 +54,22 @@ export function AdminCommercialOrdersSection() {
 
     useEffect(() => void load(), [load]);
 
-    const initializeEditor = (open: boolean) => {
-        if (!open) return;
+    const openEditor = (order: AdminCommercialOrder | null) => {
         form.resetFields();
         form.setFieldsValue(
-            editing
+            order
                 ? {
-                      title: editing.title,
-                      requirements: editing.requirements,
-                      acceptanceCriteria: editing.acceptanceCriteria,
-                      internalAmountYuan: editing.internalAmountCents / 100,
-                      deadlineAt: toLocalDateTime(editing.deadlineAt),
-                      referenceUrls: referenceUrls(editing.referenceMaterials),
+                      title: order.title,
+                      requirements: order.requirements,
+                      acceptanceCriteria: order.acceptanceCriteria,
+                      internalAmountYuan: order.internalAmountCents / 100,
+                      deadlineAt: toLocalDateTime(order.deadlineAt),
+                      referenceUrls: referenceUrls(order.referenceMaterials),
                   }
                 : { internalAmountYuan: 0, referenceUrls: [] },
         );
+        setEditing(order);
+        setEditorOpen(true);
     };
 
     const save = async (values: OrderForm) => {
@@ -195,15 +196,7 @@ export function AdminCommercialOrdersSection() {
             {order.status === "accepted" ? null : (
                 <>
                     {order.status === "draft" ? (
-                        <Button
-                            type="text"
-                            size="small"
-                            icon={<Pencil className="size-3.5" />}
-                            onClick={() => {
-                                setEditing(order);
-                                setEditorOpen(true);
-                            }}
-                        >
+                        <Button type="text" size="small" icon={<Pencil className="size-3.5" />} onClick={() => openEditor(order)}>
                             编辑
                         </Button>
                     ) : null}
@@ -266,14 +259,7 @@ export function AdminCommercialOrdersSection() {
                 </div>
                 <div className="flex justify-end gap-2">
                     <Button icon={<RefreshCw className="size-4" />} aria-label="刷新商单列表" loading={loading} onClick={() => void load()} />
-                    <Button
-                        type="primary"
-                        icon={<Plus className="size-4" />}
-                        onClick={() => {
-                            setEditing(null);
-                            setEditorOpen(true);
-                        }}
-                    >
+                    <Button type="primary" icon={<Plus className="size-4" />} onClick={() => openEditor(null)}>
                         创建商单
                     </Button>
                 </div>
@@ -308,7 +294,9 @@ export function AdminCommercialOrdersSection() {
                 open={editorOpen}
                 destroyOnHidden
                 size="min(760px, 100vw)"
-                afterOpenChange={initializeEditor}
+                afterOpenChange={(open) => {
+                    if (!open) form.resetFields();
+                }}
                 onClose={() => setEditorOpen(false)}
                 extra={
                     <Button type="primary" loading={saving} onClick={() => form.submit()}>
@@ -378,7 +366,7 @@ export function AdminCommercialOrdersSection() {
                 cancelText="取消"
                 confirmLoading={saving}
                 afterOpenChange={(open) => {
-                    if (open) reviewForm.resetFields();
+                    if (!open) reviewForm.resetFields();
                 }}
                 onOk={() => reviewForm.submit()}
                 onCancel={() => setReviewing(null)}

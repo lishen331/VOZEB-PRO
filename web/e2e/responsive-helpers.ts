@@ -134,6 +134,7 @@ export async function expectVisibleControlsWithinViewport(page: Page, label: str
         const horizontallyScrollable = (element: HTMLElement) => {
             for (let current = element.parentElement; current && current !== document.body; current = current.parentElement) {
                 const style = getComputedStyle(current);
+                if (current.classList.contains("ant-tabs-nav-wrap")) return true;
                 if (/auto|scroll/.test(style.overflowX) && current.scrollWidth > current.clientWidth + 1) return true;
             }
             return false;

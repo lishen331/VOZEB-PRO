@@ -141,6 +141,8 @@ export default function LearningPage() {
         setCommercialDetails(null);
         const existing = submissions[assignment.id];
         const canSubmit = assignment.status === "published" && (!existing || existing.status === "revision_required");
+        form.resetFields();
+        if (canSubmit) form.setFieldsValue({ note: existing?.note || "" });
         setSelectedReferences(existing?.contentReferences || []);
         setSubmitting(assignment);
         if (!canSubmit) {
@@ -418,11 +420,7 @@ export default function LearningPage() {
                 destroyOnHidden
                 size="min(720px, 100vw)"
                 afterOpenChange={(open) => {
-                    if (!open || !submitting) return;
-                    const existing = submissions[submitting.id];
-                    if (submitting.status !== "published" || (existing && existing.status !== "revision_required")) return;
-                    form.resetFields();
-                    form.setFieldsValue({ note: existing?.note || "" });
+                    if (!open) form.resetFields();
                 }}
                 onClose={() => {
                     candidateRequestSequence.current += 1;
@@ -509,9 +507,7 @@ export default function LearningPage() {
                 destroyOnHidden
                 size="min(720px, 100vw)"
                 afterOpenChange={(open) => {
-                    if (!open) return;
-                    commercialForm.resetFields();
-                    commercialForm.setFieldsValue({ note: commercialDetails?.participants.items[0]?.note || "" });
+                    if (!open) commercialForm.resetFields();
                 }}
                 onClose={() => {
                     commercialDetailAbortController.current?.abort();

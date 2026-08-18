@@ -58,28 +58,26 @@ export function AdminCoursesSection() {
 
     const openCreate = () => {
         setEditing(null);
+        form.resetFields();
+        form.setFieldsValue({ outline: [], attachments: [] });
         setEditorOpen(true);
     };
 
     const openEdit = (course: PlatformCourse) => {
         setEditing(course);
+        form.resetFields();
+        form.setFieldsValue({
+            title: course.title,
+            summary: course.summary,
+            body: textField(course.content, "body"),
+            outline: outlineItems(course.chapters),
+            attachments: attachmentItems(course.attachments),
+        });
         setEditorOpen(true);
     };
 
     const initializeEditor = (open: boolean) => {
-        if (!open) return;
-        form.resetFields();
-        form.setFieldsValue(
-            editing
-                ? {
-                      title: editing.title,
-                      summary: editing.summary,
-                      body: textField(editing.content, "body"),
-                      outline: outlineItems(editing.chapters),
-                      attachments: attachmentItems(editing.attachments),
-                  }
-                : { outline: [], attachments: [] },
-        );
+        if (!open) form.resetFields();
     };
 
     const save = async (values: CourseForm) => {

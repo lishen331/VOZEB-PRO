@@ -45,7 +45,6 @@ export default function TeachingPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [assignmentOpen, setAssignmentOpen] = useState(false);
-    const [initialOfferingId, setInitialOfferingId] = useState("");
     const [viewingOffering, setViewingOffering] = useState<SchoolCourseOffering | null>(null);
     const [viewingCourse, setViewingCourse] = useState<PlatformCourse | null>(null);
     const [submissionsOpen, setSubmissionsOpen] = useState(false);
@@ -133,7 +132,8 @@ export default function TeachingPage() {
     const selectedAssignment = assignments.find((assignment) => assignment.id === selectedAssignmentId);
 
     const openCreate = (offeringId?: string) => {
-        setInitialOfferingId(offeringId || offerings[0]?.id || "");
+        assignmentForm.resetFields();
+        assignmentForm.setFieldsValue({ offeringId: offeringId || offerings[0]?.id || "", kind: "homework", resourceUrls: [] });
         setAssignmentOpen(true);
     };
 
@@ -180,6 +180,8 @@ export default function TeachingPage() {
     };
 
     const openReview = (submission: TeachingSubmission, status: "reviewed" | "revision_required") => {
+        reviewForm.resetFields();
+        reviewForm.setFieldsValue({ feedback: submission.feedback || "" });
         setReviewing({ submission, status });
     };
 
@@ -347,9 +349,7 @@ export default function TeachingPage() {
                 cancelText="取消"
                 confirmLoading={saving}
                 afterOpenChange={(open) => {
-                    if (!open) return;
-                    assignmentForm.resetFields();
-                    assignmentForm.setFieldsValue({ offeringId: initialOfferingId, kind: "homework", resourceUrls: [] });
+                    if (!open) assignmentForm.resetFields();
                 }}
                 onOk={() => assignmentForm.submit()}
                 onCancel={() => setAssignmentOpen(false)}
@@ -410,11 +410,6 @@ export default function TeachingPage() {
                 okText="确认"
                 cancelText="取消"
                 confirmLoading={saving}
-                afterOpenChange={(open) => {
-                    if (!open || !reviewing) return;
-                    reviewForm.resetFields();
-                    reviewForm.setFieldsValue({ feedback: reviewing.submission.feedback || "" });
-                }}
                 onOk={() => reviewForm.submit()}
                 onCancel={() => setReviewing(null)}
             >
@@ -444,7 +439,6 @@ function CommercialOrdersTab() {
     const [participantIds, setParticipantIds] = useState<string[]>([]);
     const [participantOptions, setParticipantOptions] = useState<CommercialOrderParticipantCandidate[]>([]);
     const [deliveryOpen, setDeliveryOpen] = useState(false);
-    const [deliveryDraft, setDeliveryDraft] = useState<CommercialOrderDelivery | null>(null);
     const [candidates, setCandidates] = useState<ReferenceCandidate[]>([]);
     const [selectedReferences, setSelectedReferences] = useState<SchoolContentReference[]>([]);
     const [candidatePage, setCandidatePage] = useState(1);
@@ -580,7 +574,8 @@ function CommercialOrdersTab() {
 
     const openDelivery = async (latest: CommercialOrderDelivery | undefined) => {
         const requestId = ++candidateRequestSequence.current;
-        setDeliveryDraft(latest || null);
+        deliveryForm.resetFields();
+        deliveryForm.setFieldsValue({ note: latest?.note || "" });
         setSelectedReferences(latest?.contentReferences || []);
         setDeliveryOpen(true);
         setCandidateLoading(true);
@@ -764,9 +759,7 @@ function CommercialOrdersTab() {
                 cancelText="取消"
                 confirmLoading={saving}
                 afterOpenChange={(open) => {
-                    if (!open) return;
-                    deliveryForm.resetFields();
-                    deliveryForm.setFieldsValue({ note: deliveryDraft?.note || "" });
+                    if (!open) deliveryForm.resetFields();
                 }}
                 onOk={() => deliveryForm.submit()}
                 onCancel={closeDelivery}

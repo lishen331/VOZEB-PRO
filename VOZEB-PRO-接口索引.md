@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-08-16。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **172** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-08-18。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **203** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -8,6 +8,7 @@
 - 动态路径保留源码写法，例如 `[id]`、`[...path]`。Handler 列链接是覆盖校验的唯一标识。
 - `主要服务/Store` 只列最直接的领域入口；通用安全、响应和审计 Helper 不重复展开。
 - `混合` 接口必须查看用途说明和实现：可能同时接受用户 Session 与 Worker/签名，也可能按请求分支要求不同身份；`/api/install/initialize` 使用一次性安装令牌。
+- 新增学校域接口统一返回 `{ code, data, msg }`：成功时 `code=0`、`msg="ok"`，失败时 `code` 为 HTTP 状态、`data=null`；表中所列类型均指成功响应的 `data`。
 
 ## 权限标记
 
@@ -23,13 +24,13 @@
 
 ## 接口总览
 
-- Route 文件：**172**
-- 方法出现次数：DELETE 26、GET 88、HEAD 6、PATCH 29、POST 89、PUT 1
-- 一级域：`admin` 55、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 3、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`prompts` 1、`public` 14、`reference-assets` 2、`referrals` 1、`site-icon` 1、`text-tasks` 2、`video-generation-tasks` 1、`video-tasks` 2、`works` 7
+- Route 文件：**203**
+- 方法出现次数：DELETE 28、GET 113、HEAD 6、PATCH 37、POST 104、PUT 1
+- 一级域：`admin` 63、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 3、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`prompts` 1、`public` 14、`reference-assets` 2、`referrals` 1、`school` 13、`site-icon` 1、`teaching` 10、`text-tasks` 2、`video-generation-tasks` 1、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（55）
+### `admin`（63）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -59,6 +60,12 @@
 | DELETE, GET, POST | `/api/admin/cdk` | 管理员 | [route.ts](web/src/app/api/admin/cdk/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 兑换码：查询、删除、提交/执行 |
 | DELETE, PATCH | `/api/admin/cdk/[id]` | 管理员 | [route.ts](web/src/app/api/admin/cdk/[id]/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 兑换码 / 单项：更新、删除 |
 | POST | `/api/admin/channel-protocol-draft` | 管理员 | [route.ts](web/src/app/api/admin/channel-protocol-draft/route.ts) | [channel-protocol-assistant](web/src/lib/server/channel-protocol-assistant.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 渠道协议草案：提交/执行 |
+| GET, POST | `/api/admin/commercial-orders` | 管理员（`education.manage`） | [route.ts](web/src/app/api/admin/commercial-orders/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts) | 学校域 PostgreSQL/文件 Provider、脱敏审计 | 分页查询 `PageResult<AdminCommercialOrder>`；创建并返回含内部金额的 `AdminCommercialOrder` |
+| GET, PATCH | `/api/admin/commercial-orders/[id]` | 管理员（`education.manage`） | [route.ts](web/src/app/api/admin/commercial-orders/[id]/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts) | 学校域 PostgreSQL/文件 Provider、事务/CAS、脱敏审计 | GET 返回 `{ order: AdminCommercialOrder; deliveries: PageResult<CommercialOrderDelivery> }`；PATCH 更新、分配或取消并返回 `AdminCommercialOrder` |
+| POST | `/api/admin/commercial-orders/[id]/review` | 管理员（`education.manage`） | [route.ts](web/src/app/api/admin/commercial-orders/[id]/review/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts) | 学校域 PostgreSQL/文件 Provider、事务/CAS、脱敏审计 | 退回修改或验收，返回 `AdminCommercialOrder` |
+| GET, POST | `/api/admin/courses` | 管理员（`education.manage`） | [route.ts](web/src/app/api/admin/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts) | 学校域 PostgreSQL/文件 Provider、脱敏审计 | 分页查询 `PageResult<PlatformCourse>`；创建并返回 `PlatformCourse` |
+| GET, PATCH | `/api/admin/courses/[id]` | 管理员（`education.manage`） | [route.ts](web/src/app/api/admin/courses/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts) | 学校域 PostgreSQL/文件 Provider、脱敏审计 | 查询或更新课程，返回 `PlatformCourse` |
+| POST | `/api/admin/courses/[id]/schools` | 管理员（`education.manage`） | [route.ts](web/src/app/api/admin/courses/[id]/schools/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts) | 学校域 PostgreSQL/文件 Provider、脱敏审计 | 分配课程到学校，返回 `SchoolCourseAssignment[]` |
 | DELETE, GET | `/api/admin/generation-assets` | 管理员 | [route.ts](web/src/app/api/admin/generation-assets/route.ts) | [local-media-storage](web/src/lib/server/local-media-storage.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 生成资产：查询、删除 |
 | DELETE, GET | `/api/admin/generation-logs` | 管理员 | [route.ts](web/src/app/api/admin/generation-logs/route.ts) | [generation-log-store](web/src/lib/server/generation-log-store.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成日志：查询、删除 |
 | GET | `/api/admin/generation-operations` | 管理员 | [route.ts](web/src/app/api/admin/generation-operations/route.ts) | [generation-operations-service](web/src/lib/server/generation-operations-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成运维：查询 |
@@ -77,6 +84,8 @@
 | PATCH | `/api/admin/referrals/relationships/[id]` | 管理员 | [route.ts](web/src/app/api/admin/referrals/relationships/[id]/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 邀请返利 / 邀请关系 / 单项：更新 |
 | GET | `/api/admin/referrals/rewards` | 管理员 | [route.ts](web/src/app/api/admin/referrals/rewards/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 邀请返利 / 奖励：查询 |
 | POST | `/api/admin/referrals/settle` | 管理员 | [route.ts](web/src/app/api/admin/referrals/settle/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 邀请返利 / 结算：提交/执行 |
+| GET, POST | `/api/admin/schools` | 管理员（`education.manage`） | [route.ts](web/src/app/api/admin/schools/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts) | 学校域 PostgreSQL/文件 Provider、脱敏审计 | 分页查询 `PageResult<SchoolSummary>`；创建学校及首位管理员，返回 `SchoolDetail` |
+| GET, PATCH | `/api/admin/schools/[id]` | 管理员（`education.manage`） | [route.ts](web/src/app/api/admin/schools/[id]/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts) | 学校域 PostgreSQL/文件 Provider、脱敏审计 | 查询或更新学校，返回 `SchoolDetail` |
 | GET, PATCH | `/api/admin/settings` | 管理员 | [route.ts](web/src/app/api/admin/settings/route.ts) | [admin-channel-config](web/src/lib/server/admin-channel-config.ts)<br>[site-metadata](web/src/lib/server/site-metadata.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 系统设置：查询、更新 |
 | POST | `/api/admin/settings/channels/[id]/api-key` | 管理员 | [route.ts](web/src/app/api/admin/settings/channels/[id]/api-key/route.ts) | [admin-channel-config](web/src/lib/server/admin-channel-config.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 系统设置 / 模型渠道 / 单项 / API Key：提交/执行 |
 | GET, POST | `/api/admin/users` | 管理员 | [route.ts](web/src/app/api/admin/users/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 用户：查询、提交/执行 |
@@ -343,11 +352,44 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/referrals` | 用户 | [route.ts](web/src/app/api/referrals/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 邀请返利：查询 |
 
+### `school`（13）
+
+| 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
+| --- | --- | --- | --- | --- | --- | --- |
+| GET | `/api/school/context` | 用户 | [route.ts](web/src/app/api/school/context/route.ts) | [school-access-service](web/src/lib/server/school-access-service.ts) | 学校域 PostgreSQL/文件 Provider | 返回 `SchoolContext \| null`；用于水合当前学校关系，允许读取已停用身份快照 |
+| GET, PATCH | `/api/school/profile` | 学校管理员（active teacher + `school.manage`） | [route.ts](web/src/app/api/school/profile/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts) | 当前 `school_id` 定向查询与更新 | 查询或更新本校资料，返回 `SchoolDetail` |
+| GET, POST | `/api/school/members` | 学校管理员（active teacher + `school.manage`） | [route.ts](web/src/app/api/school/members/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts)<br>[school-member-provisioning-service](web/src/lib/server/school-member-provisioning-service.ts) | 当前 `school_id`、角色、状态、关键词和分页 | GET 返回 `PageResult<SchoolMember>`；POST 批量创建并返回 `SchoolMember[]` |
+| POST | `/api/school/members/import` | 学校管理员（active teacher + `school.manage`） | [route.ts](web/src/app/api/school/members/import/route.ts) | [school-member-provisioning-service](web/src/lib/server/school-member-provisioning-service.ts) | 当前学校事务创建与账号唯一约束 | 导入成员并返回 `SchoolMember[]` |
+| DELETE, PATCH | `/api/school/members/[id]` | 学校管理员（active teacher + `school.manage`） | [route.ts](web/src/app/api/school/members/[id]/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts) | 当前 `school_id`、成员实体、引用保护 | PATCH 返回 `SchoolMember`；DELETE 返回 `{ removed: boolean }` |
+| POST | `/api/school/invitations` | 学校管理员（active teacher + `school.manage`） | [route.ts](web/src/app/api/school/invitations/route.ts) | [school-member-provisioning-service](web/src/lib/server/school-member-provisioning-service.ts) | 当前学校、身份、摘要存储和事务轮换 | 轮换老师或学生邀请码，返回 `{ code: string }` |
+| GET, POST | `/api/school/invitations/join` | 用户（当前尚未入校） | [route.ts](web/src/app/api/school/invitations/join/route.ts) | [school-member-provisioning-service](web/src/lib/server/school-member-provisioning-service.ts) | 邀请摘要、账号唯一学校约束、事务加入 | GET 返回 `SchoolInvitePreview`；POST 加入并返回 `SchoolContext` |
+| GET, POST | `/api/school/classes` | 学校管理员（active teacher + `school.manage`） | [route.ts](web/src/app/api/school/classes/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts) | 当前 `school_id`、状态、关键词和分页 | GET 返回 `PageResult<SchoolClass>`；POST 创建并返回 `SchoolClass` |
+| DELETE, GET, PATCH | `/api/school/classes/[id]` | 学校管理员（active teacher + `school.manage`） | [route.ts](web/src/app/api/school/classes/[id]/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts) | 当前 `school_id`、同校成员复合约束、引用保护 | GET 返回 `SchoolClassDetail`；PATCH 返回 `SchoolClass \| SchoolClassDetail`；DELETE 返回 `{ id: string }` |
+| GET | `/api/school/courses` | 学校管理员（active teacher + `school.manage`） | [route.ts](web/src/app/api/school/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts) | 当前 `school_id` 课程分配分页 | 返回 `PageResult<SchoolCourseAssignment>` |
+| GET, POST | `/api/school/courses/[id]/offerings` | 学校管理员（active teacher + `school.manage`） | [route.ts](web/src/app/api/school/courses/[id]/offerings/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts) | 当前 `school_id`、课程分配、班级和老师复合约束 | GET 返回 `PageResult<SchoolCourseOffering>`；POST 创建并返回 `SchoolCourseOffering` |
+| GET | `/api/school/commercial-orders` | 学校管理员（active teacher + `school.manage`） | [route.ts](web/src/app/api/school/commercial-orders/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts) | 当前 `assigned_school_id` 定向分页；响应不含内部金额 | 返回 `PageResult<SchoolCommercialOrder>` |
+| GET, PATCH | `/api/school/commercial-orders/[id]` | 学校管理员（active teacher + `school.manage`） | [route.ts](web/src/app/api/school/commercial-orders/[id]/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts) | 当前学校事务、同校老师/班级/学生校验、CAS；响应不含内部金额 | GET 查询，PATCH 配置团队或开始制作；均返回 `SchoolCommercialOrder` |
+
 ### `site-icon`（1）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/site-icon` | 公开 | [route.ts](web/src/app/api/site-icon/route.ts) | [site-metadata](web/src/lib/server/site-metadata.ts) | PostgreSQL、公开内容/站点设置 | 站点图标：查询 |
+
+### `teaching`（10）
+
+| 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
+| --- | --- | --- | --- | --- | --- | --- |
+| GET | `/api/teaching/courses` | active 学校成员（老师/学生按身份可见） | [route.ts](web/src/app/api/teaching/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts) | 当前 `school_id`、成员/班级关系和分页 | 返回 `PageResult<SchoolCourseAssignment>` |
+| GET | `/api/teaching/offerings` | active 老师 | [route.ts](web/src/app/api/teaching/offerings/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts) | 当前 `school_id + teacher_membership_id` 定向分页 | 返回 `PageResult<SchoolCourseOffering>` |
+| GET, POST | `/api/teaching/assignments` | GET 为 active 学校成员；POST 为负责课程安排的老师 | [route.ts](web/src/app/api/teaching/assignments/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts) | 老师/学生按身份和班级定向查询；老师写入 | GET 返回 `PageResult<TeachingAssignment>`；POST 创建并返回 `TeachingAssignment` |
+| GET, PATCH | `/api/teaching/assignments/[id]` | GET 为可见任务的 active 成员；PATCH 为负责老师 | [route.ts](web/src/app/api/teaching/assignments/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts) | 当前学校、任务、负责老师或学生班级关系 | 查询或更新并返回 `TeachingAssignment` |
+| GET, POST | `/api/teaching/assignments/[id]/submissions` | GET 为负责老师或任务学生本人；POST 为目标班级 active 学生 | [route.ts](web/src/app/api/teaching/assignments/[id]/submissions/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-content-reference-service](web/src/lib/server/school-content-reference-service.ts) | 当前学校/任务/学生定向分页，成果引用所有权校验 | GET 返回 `PageResult<TeachingSubmission>`；POST 提交并返回 `TeachingSubmission` |
+| GET | `/api/teaching/submissions` | active 学生 | [route.ts](web/src/app/api/teaching/submissions/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts) | 当前 `school_id + student_membership_id` 与可选任务 ID 分页 | 返回本人 `PageResult<TeachingSubmission>` |
+| POST | `/api/teaching/submissions/[id]/review` | active 负责老师 | [route.ts](web/src/app/api/teaching/submissions/[id]/review/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts) | 当前学校、负责任务、提交实体和事务更新 | 批改或退回，返回 `TeachingSubmission` |
+| GET | `/api/teaching/commercial-orders` | active 学校成员（负责老师/参与学生分别定向） | [route.ts](web/src/app/api/teaching/commercial-orders/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts) | 当前学校与老师/参与者关系分页；响应不含内部金额 | 返回 `PageResult<SchoolCommercialOrder>` |
+| GET | `/api/teaching/commercial-orders/[id]/participants` | active 负责老师；仅商单 `assigned` 状态 | [route.ts](web/src/app/api/teaching/commercial-orders/[id]/participants/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts) | 本校 active 学生、可选班级范围、关键词和分页 | 返回 `CommercialOrderParticipantCandidatePage`，即候选 `PageResult` 加完整 `selectedMembershipIds` |
+| GET, POST | `/api/teaching/commercial-orders/[id]/submissions` | GET 为负责老师/学校管理员/已安排学生；POST 按 action 要求负责老师或参与学生 | [route.ts](web/src/app/api/teaching/commercial-orders/[id]/submissions/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-content-reference-service](web/src/lib/server/school-content-reference-service.ts) | 当前学校商单、参与者和交付分页；事务/CAS、成果引用校验；响应不含内部金额 | GET 返回 `{ order; participants: PageResult<CommercialOrderParticipantSubmission>; deliveries: PageResult<CommercialOrderDelivery> }`；POST `participants` 返回参与者页，`candidate` 返回候选提交，`delivery` 返回正式交付 |
 
 ### `text-tasks`（2）
 
