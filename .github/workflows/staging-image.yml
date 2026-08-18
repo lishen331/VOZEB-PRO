@@ -83,7 +83,7 @@ jobs:
       STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
       STAGING_SSH_PORT: ${{ secrets.STAGING_SSH_PORT }}
       STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
-      STAGING_SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+      STAGING_SSH_PRIVATE_KEY_B64: ${{ secrets.STAGING_SSH_PRIVATE_KEY_B64 }}
 
     steps:
       - name: Deploy to staging server
@@ -98,8 +98,14 @@ jobs:
           }
           trap cleanup EXIT
 
-          printf '%s\n' "$STAGING_SSH_PRIVATE_KEY" | tr -d '\r' > "$key_file"
+          if [ -z "$STAGING_SSH_PRIVATE_KEY_B64" ]; then
+            printf 'Missing STAGING_SSH_PRIVATE_KEY_B64 secret.\n' >&2
+            exit 1
+          fi
+
+          printf '%s' "$STAGING_SSH_PRIVATE_KEY_B64" | base64 --decode > "$key_file"
           chmod 600 "$key_file"
+          ssh-keygen -y -f "$key_file" > /dev/null
           touch "$known_hosts_file"
           ssh-keyscan -p "$STAGING_SSH_PORT" -H "$STAGING_SSH_HOST" >> "$known_hosts_file"
 
