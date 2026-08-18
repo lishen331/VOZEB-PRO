@@ -27,9 +27,9 @@ describe("user navigation order", () => {
 
     it("adds role-specific school tools without changing ordinary navigation", () => {
         expect(schoolNavigationTools(null)).toEqual([]);
-        expect(schoolNavigationTools(context("student", false)).map((tool) => tool.slug)).toEqual(["learning"]);
-        expect(schoolNavigationTools(context("teacher", false)).map((tool) => tool.slug)).toEqual(["teaching"]);
-        expect(schoolNavigationTools(context("teacher", true)).map((tool) => tool.slug)).toEqual(["teaching", "school"]);
+        expect(schoolNavigationTools(context("student", false)).map((tool) => tool.slug)).toEqual(["learning", "practice"]);
+        expect(schoolNavigationTools(context("teacher", false)).map((tool) => tool.slug)).toEqual(["teaching", "practice"]);
+        expect(schoolNavigationTools(context("teacher", true)).map((tool) => tool.slug)).toEqual(["teaching", "practice", "school"]);
         expect(navigationToolForPathname("/school/classes", context("teacher", true))?.label).toBe("学校管理");
     });
 });

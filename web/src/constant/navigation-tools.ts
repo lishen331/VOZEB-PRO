@@ -85,15 +85,19 @@ export const navigationTools = [
 export function schoolNavigationTools(context: SchoolContext | null) {
     if (!context) return [];
     if (context.membership.role === "student") {
-        return [{ slug: "learning", label: "学习中心", description: "课程、作业与实训", group: "school", icon: GraduationCap }] as const;
+        return [
+            { slug: "learning", label: "学习中心", description: "课程、作业与实训", group: "school", icon: GraduationCap },
+            { slug: "practice", label: "无限练习", description: "不扣积分的创作练习", group: "school", icon: Sparkles },
+        ] as const;
     }
     return [
         { slug: "teaching", label: "教学中心", description: "班级、课程与批改", group: "school", icon: Presentation },
+        { slug: "practice", label: "无限练习", description: "不扣积分的创作练习", group: "school", icon: Sparkles },
         ...(context.canManageSchool ? ([{ slug: "school", label: "学校管理", description: "资料、成员与班级", group: "school", icon: School }] as const) : []),
     ] as const;
 }
 
-export type NavigationToolSlug = (typeof navigationTools)[number]["slug"] | "learning" | "teaching" | "school";
+export type NavigationToolSlug = (typeof navigationTools)[number]["slug"] | "learning" | "teaching" | "practice" | "school";
 export type NavigationGroupId = (typeof navigationGroups)[number]["id"];
 
 export function navigationToolForPathname(pathname: string, context: SchoolContext | null = null) {

@@ -25,7 +25,7 @@ export class DramaProjectServiceError extends Error {
 }
 
 export function listDramaProjectSummariesForUser(userId: string, input: { page?: number; pageSize?: number; executionProfile?: "production" | "open-source-practice" } = {}) {
-    return listDramaProjectSummaries(userId, input);
+    return listDramaProjectSummaries(userId, { ...input, executionProfile: input.executionProfile || "production" });
 }
 
 export async function getDramaProjectForUser(userId: string, id: string) {

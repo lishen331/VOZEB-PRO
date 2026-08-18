@@ -7,6 +7,10 @@ import { getDatabaseProvider, createPostgresRepositories } from "@/lib/server/da
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
 import type { JsonValue, PracticeSessionRecord, PracticeSessionStatus } from "@/lib/server/database/repository-types";
 import { requirePracticeAccess, type PracticeActor } from "./practice-access-service";
+import { getTextTask } from "@/lib/server/text-task-store";
+import { getImageTask } from "@/lib/server/image-task-store";
+import { getVideoTask } from "@/lib/server/video-task-store";
+import { getAudioTask } from "@/lib/server/audio-task-store";
 
 export type PracticeSessionCreateInput = {
     module: PracticeModuleKind;
@@ -105,7 +109,43 @@ export async function listPracticeSessionsForUser(actor: PracticeActor, input: {
     const page = positive(input.page, 1);
     const pageSize = Math.min(100, positive(input.pageSize, 12));
     const records = await ((deps.store as PracticeSessionListStore | undefined) || defaultPracticeSessionStore()).list(actor.id, { page, pageSize, module: input.module });
-    return { sessions: records.items.map(publicSession), total: records.total, page, pageSize };
+    return { sessions: await Promise.all(records.items.map(publicSession)), total: records.total, page, pageSize };
+}
+
+export async function retryPracticeSessionForUser(
+    actor: PracticeActor,
+    id: string,
+    deps: { store?: PracticeSessionStore; dispatch?: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>; resolveModel?: (module: PracticeModuleKind) => Promise<PracticeModelResolution> } = {},
+) {
+    await requirePracticeAccess(actor);
+    const store = deps.store || defaultPracticeSessionStore();
+    const current = await store.get(actor.id, clean(id, 160));
+    if (!current) throw new PracticeServiceError("练习会话不存在", 404);
+    if (current.status !== "failed" && current.status !== "cancelled") throw new PracticeServiceError("当前练习无需重试", 409);
+    const model = await (deps.resolveModel || defaultResolveModel)(current.module);
+    const reset = await store.update(actor.id, current.id, { status: "queued", taskRefs: [] });
+    if (!reset) throw new PracticeServiceError("练习状态更新失败", 409);
+    const dispatch = deps.dispatch;
+    if (!dispatch) return publicSession(reset);
+    try {
+        const task = await dispatch({
+            sessionId: current.id,
+            userId: actor.id,
+            module: current.module,
+            input: object(current.input),
+            references: [],
+            executionProfile: "open-source-practice",
+            capability: model.capability,
+            logicalModelId: model.logicalModelId,
+            clientRequestId: `retry-${nanoid()}`,
+            projectKind: current.projectKind,
+        });
+        const running = await store.update(actor.id, current.id, { status: "running", taskRefs: [{ taskId: task.taskId, taskType: task.taskType }] as unknown as JsonValue });
+        return publicSession(running || reset);
+    } catch (error) {
+        await store.update(actor.id, current.id, { status: "failed" });
+        throw error;
+    }
 }
 
 export class PracticeServiceError extends Error {
@@ -119,7 +159,8 @@ export class PracticeServiceError extends Error {
 
 type PracticeSessionListStore = PracticeSessionStore & { list(userId: string, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> };
 
-function publicSession(session: PracticeSessionRecord) {
+async function publicSession(session: PracticeSessionRecord) {
+    const task = await publicTaskResult(session);
     return {
         id: session.id,
         title: session.title,
@@ -127,11 +168,36 @@ function publicSession(session: PracticeSessionRecord) {
         projectId: session.projectId,
         projectKind: session.projectKind,
         input: session.input,
-        taskRefs: session.taskRefs,
-        status: session.status,
+        status: task?.status === "success" ? "success" : task?.status === "error" ? "failed" : task?.status === "cancelled" ? "cancelled" : session.status,
+        ...(task ? { result: task } : {}),
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
     };
+}
+
+async function publicTaskResult(session: PracticeSessionRecord) {
+    if (getDatabaseProvider() === "postgres" && !process.env.DATABASE_URL) return undefined;
+    const ref = Array.isArray(session.taskRefs) ? session.taskRefs[0] : undefined;
+    if (!ref || typeof ref !== "object" || Array.isArray(ref)) return undefined;
+    const taskId = typeof ref.taskId === "string" ? ref.taskId : "";
+    const taskType = ref.taskType;
+    if (!taskId || !["text", "image", "video", "audio"].includes(String(taskType))) return undefined;
+    const task = taskType === "text" ? await getTextTask(taskId) : taskType === "image" ? await getImageTask(taskId) : taskType === "video" ? await getVideoTask(taskId) : await getAudioTask(taskId);
+    if (!task || task.userId !== session.userId) return undefined;
+    if (task.status === "pending" || task.status === "running") return { status: task.status } as const;
+    if (task.status === "error") return { status: "error" as const, error: task.error || "练习失败" };
+    if (task.status === "cancelled") return { status: "cancelled" as const, error: task.error };
+    const result = task && typeof task === "object" && task.result && typeof task.result === "object" ? (task.result as Record<string, unknown>) : {};
+    if (taskType === "text") return { status: "success" as const, text: typeof result.content === "string" ? result.content : undefined };
+    if (taskType === "image") {
+        const url = [result.serverUrl, result.remoteUrl, result.dataUrl].find((item) => typeof item === "string" && item.trim());
+        return { status: "success" as const, media: url ? { kind: "image" as const, url, width: typeof result.width === "number" ? result.width : undefined, height: typeof result.height === "number" ? result.height : undefined } : undefined };
+    }
+    if (taskType === "video") {
+        const url = typeof result.url === "string" ? result.url : typeof result.remoteUrl === "string" ? result.remoteUrl : undefined;
+        return { status: "success" as const, media: url ? { kind: "video" as const, url, durationMs: typeof result.durationMs === "number" ? result.durationMs : undefined } : undefined };
+    }
+    return { status: "success" as const, media: typeof result.url === "string" ? { kind: "audio" as const, url: result.url } : undefined };
 }
 
 async function defaultResolveModel(module: PracticeModuleKind): Promise<PracticeModelResolution> {

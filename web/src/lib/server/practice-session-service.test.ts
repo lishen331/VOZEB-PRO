@@ -47,7 +47,8 @@ describe("practice sessions", () => {
         expect(retry.id).toBe(first.id);
         expect(dispatch).toHaveBeenCalledTimes(1);
         expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ executionProfile: "open-source-practice", capability: "image", logicalModelId: "practice-image", clientRequestId: "request-one" }));
-        expect(first).toMatchObject({ status: "running", taskRefs: [{ taskId: "task-one", taskType: "image" }] });
+        expect(first).toMatchObject({ status: "running" });
+        expect(first).not.toHaveProperty("taskRefs");
         expect(first).not.toHaveProperty("prompt");
         expect(first).not.toHaveProperty("provider");
     });

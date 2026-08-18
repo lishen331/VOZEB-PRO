@@ -17,6 +17,8 @@ export function summarizeDramaProject(project: DramaProject): DramaProjectSummar
         failedTaskCount: shots.filter(hasFailedTask).length,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
+        executionProfile: project.executionProfile,
+        practiceSource: project.practiceSource,
     };
 }
 

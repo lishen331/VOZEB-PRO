@@ -1,3 +1,5 @@
+import type { PracticeExecutionProfile, PracticeSource } from "@/lib/practice-domain";
+
 export type DramaTaskStatus = "idle" | "queued" | "running" | "success" | "error" | "cancelled";
 export type DramaReviewStatus = "draft" | "content_review" | "approved" | "visual_ready";
 export type DramaVideoMode = "storyboard" | "direct" | "reference";
@@ -180,6 +182,8 @@ export type DramaProject = {
     sourceAssets?: DramaSourceAsset[];
     createdAt: string;
     updatedAt: string;
+    executionProfile?: PracticeExecutionProfile;
+    practiceSource?: PracticeSource;
 };
 
 export type DramaProjectSummary = Pick<DramaProject, "id" | "title" | "summary" | "style" | "ratio" | "status" | "createdAt" | "updatedAt"> & {
@@ -189,6 +193,8 @@ export type DramaProjectSummary = Pick<DramaProject, "id" | "title" | "summary" 
     shotCount: number;
     pendingTaskCount: number;
     failedTaskCount: number;
+    executionProfile?: PracticeExecutionProfile;
+    practiceSource?: PracticeSource;
 };
 
 export type DramaProjectSummaryPage = {
