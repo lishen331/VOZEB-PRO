@@ -1,10 +1,11 @@
 import { refundUserPoints } from "@/lib/auth/store";
 import { generationModelId } from "@/lib/server/generation-channel";
 import { getTextTask, updateTextTask, type TextTask } from "@/lib/server/text-task-store";
+import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 
 export async function refundTextTask(task: TextTask) {
     const billing = task.billing;
-    if ((task.status !== "error" && task.status !== "cancelled") || !billing?.pointsRecordId || billing.refunded) return task;
+    if (!generationTaskShouldConsumePoints(task.executionProfile) || (task.status !== "error" && task.status !== "cancelled") || !billing?.pointsRecordId || billing.refunded) return task;
     await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "text", 1, textTaskRefundIdempotencyKey(task), billing.pointsRecordId);
     await updateTextTask(task.id, { billing: { ...billing, refunded: true } });
     return (await getTextTask(task.id)) || task;

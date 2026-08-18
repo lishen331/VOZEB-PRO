@@ -14,7 +14,7 @@ import { generationModelId, toSystemGenerationChannel } from "@/lib/server/gener
 import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
-import { assertReferenceCapabilities } from "@/lib/server/provider-task-config";
+import { assertReferenceCapabilities, readProviderString } from "@/lib/server/provider-task-config";
 import { countActiveImageTasksForUser, createImageTask, getImageTask, touchImageTask, transitionImageTask, type ImageTask, type ImageTaskConfig, type ImageTaskReference, updateImageTask } from "@/lib/server/image-task-store";
 import { isGenerationSource, recordGenerationLog } from "@/lib/server/generation-log-store";
 import { writeReferenceImageDataUrl } from "@/lib/server/reference-asset-store";
@@ -242,7 +242,7 @@ export function taskHeaders(config: ImageTaskConfig, cookie: string, pointsIdemp
     const workerHeaders = maintenanceWorkerContextHeaders(cookie);
     if (internal && workerHeaders) Object.entries(workerHeaders).forEach(([key, value]) => headers.set(key, value));
     else if (internal && cookie) headers.set("cookie", cookie);
-    if (internal) Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model)).forEach(([key, value]) => headers.set(key, value));
+    if (internal) Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model, config.executionProfile)).forEach(([key, value]) => headers.set(key, value));
     if (pointsIdempotencyKey?.trim()) {
         headers.set("Idempotency-Key", pointsIdempotencyKey.trim());
         headers.set("X-Client-Request-Id", pointsIdempotencyKey.trim());
@@ -318,7 +318,7 @@ export async function parseImagePayloadOrPoll(config: ImageTaskConfig, payload: 
     const images = findImageResults(payload, mediaBaseUrl, config);
     if (images.length) return imageTaskResultFromMedia(images);
 
-    const taskId = readImageTaskId(payload);
+    const taskId = readImageTaskId(payload, config.advancedConfig?.taskIdField);
     if (!taskId) throw new GenerationSubmissionUncertainError("图片接口没有返回图片或任务 ID，创建结果待确认");
     const explicitPollUrl = readImagePollUrl(config, payload, mediaBaseUrl, pollBaseUrl);
     const upstream = { id: taskId, mediaBaseUrl, pollBaseUrl, explicitPollUrl: explicitPollUrl || undefined };
@@ -450,8 +450,8 @@ export function readImagePayloadError(payload: ImageApiResponse) {
     return "";
 }
 
-export function readImageTaskId(payload: ImageApiResponse) {
-    return findStringByKeys(payload, IMAGE_TASK_ID_KEYS);
+export function readImageTaskId(payload: ImageApiResponse, configuredPath?: string) {
+    return configuredPath ? readProviderString(payload, configuredPath, []) : findStringByKeys(payload, IMAGE_TASK_ID_KEYS);
 }
 
 export function readImageTaskStatus(payload: ImageApiResponse) {

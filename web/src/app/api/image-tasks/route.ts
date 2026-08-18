@@ -21,6 +21,7 @@ import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerat
 import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runtime-service";
 import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib/server/reference-asset-access";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
+import { hasUntrustedExecutionProfile } from "@/lib/server/generation-execution-policy";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 
 export const runtime = "nodejs";
@@ -145,6 +146,7 @@ export async function POST(request: Request) {
         if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
+    if (hasUntrustedExecutionProfile(resolvedBody)) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
     const requestId = headerRequestId || resolvedBody.context?.clientRequestId?.trim();
     if (!headerRequestId && requestId) {
         const existing = await getStoredGenerationTaskByRequest<ImageTask>("image", currentUser.id, requestId, resolvedBody.context?.attemptNo);

@@ -291,6 +291,7 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     expires_at timestamptz NOT NULL,
+    execution_profile text NOT NULL DEFAULT 'production',
     CONSTRAINT generation_tasks_type CHECK (task_type IN ('text', 'image', 'video', 'audio', 'agent', 'render')),
     CONSTRAINT generation_tasks_status CHECK (status IN ('pending', 'running', 'success', 'error', 'paused', 'cancelled'))
 );
@@ -308,6 +309,7 @@ ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS project_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS parent_task_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS attempt_no integer;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS client_request_id text;
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS execution_profile text NOT NULL DEFAULT 'production';
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS execution_phase text NOT NULL DEFAULT 'created';
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS upstream_task_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS channel_id text;
@@ -323,6 +325,8 @@ ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS lease_until timestamptz;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS last_heartbeat_at timestamptz;
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_execution_phase;
 ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_execution_phase CHECK (execution_phase IN ('created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting', 'cancel_requested', 'cancel_polling', 'needs_review', 'review_pending', 'reviewing', 'review_unavailable', 'completed'));
+ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_execution_profile;
+ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_execution_profile CHECK (execution_profile IN ('production', 'open-source-practice'));
 
 DROP INDEX IF EXISTS generation_tasks_user_client_request_idx;
 CREATE UNIQUE INDEX generation_tasks_user_client_request_idx ON generation_tasks (user_id, task_type, client_request_id, COALESCE(attempt_no, 0)) WHERE client_request_id IS NOT NULL AND client_request_id <> '';

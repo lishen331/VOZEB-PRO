@@ -30,7 +30,7 @@ import {
 export async function runCustomImageTask(task: ImageTask, origin: string, publicOrigin: string, cookie: string, singleStep = false) {
     const config = task.config;
     const advanced = config.advancedConfig;
-    if (!advanced?.createPath || !advanced.requestTemplate || !advanced.resultField) throw new GenerationSubmissionSafeFailure("自定义图片协议缺少创建路径、请求模板或结果字段");
+    if (!advanced?.createPath || !advanced.resultField || (advanced.protocol === "runninghub" && (!advanced.taskIdField || !advanced.queryPath))) throw new GenerationSubmissionSafeFailure("图片异步协议缺少创建、查询或结果字段");
     const size = resolveDeclarativeImageSize(config);
     const [width, height] = /^\d+x\d+$/.test(size) ? size.split("x").map(Number) : [undefined, undefined];
     const context = { ownerUserId: task.userId, taskId: task.id };
@@ -68,7 +68,7 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
         const baseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
         const direct = configuredImageResult(data, baseUrl, task);
         if (direct) return direct;
-        const taskId = readImageTaskId(data);
+        const taskId = readImageTaskId(data, advanced.taskIdField);
         if (!taskId || !advanced.queryPath) throw new GenerationSubmissionUncertainError("自定义图片接口没有返回图片或任务 ID，创建结果待确认");
         if (singleStep) return { dataUrl: "", pending: { id: taskId, mediaBaseUrl: baseUrl, pollBaseUrl: baseUrl } };
         return pollCustomImageTask(task, taskId, baseUrl, cookie);

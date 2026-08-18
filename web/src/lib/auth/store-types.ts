@@ -23,6 +23,7 @@ export type SystemChannelModelConfig = {
     cancelPath?: string;
     cancelMethod?: "POST" | "DELETE";
     requestTemplate?: string;
+    taskIdField?: string;
     resultField?: string;
     statusField?: string;
     durationRange?: string;
@@ -50,6 +51,7 @@ export type SystemChannelAdvancedConfig = {
     cancelPath?: string;
     cancelMethod?: "POST" | "DELETE";
     requestTemplate: string;
+    taskIdField?: string;
     resultField: string;
     statusField: string;
     durationRange: string;

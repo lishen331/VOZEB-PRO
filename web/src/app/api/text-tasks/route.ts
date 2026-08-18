@@ -4,6 +4,7 @@ import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
+import { hasUntrustedExecutionProfile } from "@/lib/server/generation-execution-policy";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
             if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
+        if (hasUntrustedExecutionProfile(body)) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
         const configs = sanitizeConfigs(body.config, settings);
         const messages = sanitizeMessages(body.messages);
         if (!configs.length || !messages.length) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });

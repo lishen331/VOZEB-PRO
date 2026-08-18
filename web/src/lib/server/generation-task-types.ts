@@ -1,4 +1,5 @@
 import type { GenerationTaskExecutionPhase } from "@/lib/server/generation-task-scheduler";
+import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 
 export type GenerationTaskType = "text" | "image" | "video" | "audio" | "agent" | "render";
 export type GenerationTaskStatus = "pending" | "running" | "success" | "error" | "paused" | "cancelled";
@@ -7,6 +8,7 @@ export type GenerationTaskContext = {
     conversationId?: string;
     runId?: string;
     surface?: "chat" | "canvas" | "drama";
+    executionProfile?: PracticeExecutionProfile;
     projectId?: string;
     episodeId?: string;
     shotId?: string;

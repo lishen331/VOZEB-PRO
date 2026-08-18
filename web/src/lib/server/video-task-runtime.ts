@@ -213,7 +213,7 @@ function videoContentReady(response: Response) {
 function videoProxyHeaders(task: VideoTask, cookie: string, workerUserId: string) {
     return {
         ...(workerUserId ? maintenanceWorkerHeaders(workerUserId) : cookie ? { cookie } : {}),
-        ...systemAiBillingHeaders(generationModelId(task.config), undefined, task.config.model),
+        ...systemAiBillingHeaders(generationModelId(task.config), undefined, task.config.model, task.executionProfile),
     };
 }
 

@@ -5,6 +5,7 @@ import { directRemoteImageResult, imageUnits, ImageQueryContractError, ImageUpst
 import type { ImageTaskMediaResult, ImageTaskResult, ImageTaskRunResult } from "@/app/api/image-tasks/image-task-types";
 import { stableMediaUrl, writeImageGenerationLog } from "@/app/api/image-tasks/image-task-runner";
 import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runtime-service";
 import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
@@ -111,7 +112,7 @@ export async function persistImageTaskResult(task: ImageTask, origin: string, re
 export async function markImageTaskFailed(task: ImageTask, error: string) {
     const current = (await getImageTask(task.id)) || task;
     if (current.status === "success" || current.status === "cancelled") return current;
-    if (current.billing?.pointsRecordId && !current.billing.refunded) {
+    if (generationTaskShouldConsumePoints(current.executionProfile) && current.billing?.pointsRecordId && !current.billing.refunded) {
         const settings = await getAuthSettings();
         await refundUserPoints(
             current.userId,
@@ -203,7 +204,7 @@ function persistReadyImageSchedule(task: ImageTask, resultUrl: string) {
 async function refundImageCandidate(task: ImageTask) {
     const current = await getImageTask(task.id);
     const billing = current?.billing;
-    if (!billing?.pointsRecordId || billing.refunded) return;
+    if (!generationTaskShouldConsumePoints(task.executionProfile) || !billing?.pointsRecordId || billing.refunded) return;
     const settings = await getAuthSettings();
     await refundUserPoints(
         task.userId,
@@ -277,7 +278,7 @@ function imageTaskMediaResults(result: ImageTaskResult): ImageTaskMediaResult[] 
 }
 
 function usesDeclarativeImageProtocol(protocol: NonNullable<ImageTask["config"]["advancedConfig"]>["protocol"] | undefined) {
-    return protocol === "custom" || protocol === "stable-diffusion" || protocol === "yumeng";
+    return protocol === "custom" || protocol === "runninghub" || protocol === "stable-diffusion" || protocol === "yumeng";
 }
 
 async function normalizeSafeImageResult(task: ImageTask, result: ImageTaskMediaResult, origin: string, authContext: string): Promise<ImageTaskMediaResult> {
