@@ -94,6 +94,15 @@ VOZEB PRO 的 PostgreSQL 真实表名统一使用项目名前缀 `vozeb_pro_`。
 
 当前作品社区不提供收藏、评论或评论举报，新建 Schema 不创建对应关系表、内容表、举报表或作品计数字段。
 
+## 无限练习与拉片数据边界
+
+- Canvas 与短剧的 `execution_profile` 在项目创建时固定为 `production` 或 `open-source-practice`，数据库约束和更新 Repository 都不提供修改入口。普通项目列表只读 `production`，无限练习列表只读 `open-source-practice`，复制作品不会修改正式项目。
+- `vozeb_pro_practice_sessions.input_json` 只保存用户公开输入和规范化后的公开素材引用；模型、渠道、上游任务 ID 与资源成本不进入公开响应。内部 `task_refs` 仅用于恢复对应生成任务，并按会话所有者读取。
+- 无限练习模型只从 `practice_default_models` 解析，渠道 `purpose` 必须是 `open-source-practice` 或 `shared`。练习任务不写积分扣减流水，但仍进入现有生成队列、并发、成本上限、媒体归属和引用保护。
+- 拉片状态绑定 `published_work_versions` 的当前已审核公开版本。启用时在事务内锁定作品与版本、读取源项目并生成白名单快照；下架、撤回、切换公开版本或关闭拉片后，公开流程和复制接口均不可用。
+- 复制事务先以 `(user_id, client_request_id)` 认领 `practice_copy_requests`，再创建带来源作品/版本的练习项目。同一用户重复提交返回原项目；失败回滚不会留下空项目或已占用的幂等声明。
+- 拉片快照只包含公开标题、摘要、节点关系、角色/场景/镜头状态和已发布媒体 ID。内部提示词、私聊、API Key、storage key、签名 URL、内部任务 ID及未发布素材不写入快照。
+
 文本、图片、视频、音频和漫剧整集合成终态更新使用带 `user_id + task_type + allowed status` 条件的原子 `UPDATE`；任务尝试元数据通过存储层原子 mutate 合并，避免取消状态被旧快照覆盖。用户取消、后台成功、后台失败和过期检查同时发生时只有一个状态转换能成功，退款由成功抢占终态或检测到已取消结果的一方执行。
 
 生成恢复通过 `worker_id + lease_until` 原子领取到期任务；页面唤醒和常驻 Worker 复用同一恢复服务。上游创建成功后先保存任务 ID，再进入查询阶段；查询到结果先写 `result_ready`，下一批只完成媒体保存。`submitting` 结果不确定且无法对账时进入 `needs_review`，只有管理员明确提供上游任务 ID、结果或确认失败后才能继续。Webhook 事件先按渠道与事件 ID 幂等登记，再匹配已有媒体任务并清除租约；未匹配事件保留为 `unmatched`，不得创建新任务。

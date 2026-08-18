@@ -25,12 +25,13 @@ export async function POST(request: Request) {
     if (!parsed.ok) return response(parsed.status, parsed.message);
     try {
         const body = parsed.data && typeof parsed.data === "object" && !Array.isArray(parsed.data) ? (parsed.data as Record<string, unknown>) : {};
+        const input = body.input && typeof body.input === "object" && !Array.isArray(body.input) ? (body.input as Record<string, unknown>) : {};
         const session = await createPracticeSessionForUser(
             user,
             {
                 module: body.module as never,
                 title: typeof body.title === "string" ? body.title : "",
-                input: body.input && typeof body.input === "object" && !Array.isArray(body.input) ? (body.input as Record<string, unknown>) : {},
+                input: { prompt: typeof input.prompt === "string" ? input.prompt : "" },
                 references: Array.isArray(body.references) ? body.references : [],
                 clientRequestId: typeof body.clientRequestId === "string" ? body.clientRequestId : "",
                 projectId: typeof body.projectId === "string" ? body.projectId : undefined,

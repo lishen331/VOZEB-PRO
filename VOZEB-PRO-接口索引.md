@@ -30,7 +30,7 @@
 
 ## 按业务域索引
 
-### `admin`（63）
+### `admin`（64）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -95,6 +95,7 @@
 | GET | `/api/admin/works` | 管理员 | [route.ts](web/src/app/api/admin/works/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品：查询 |
 | DELETE | `/api/admin/works/[id]` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项：删除 |
 | POST | `/api/admin/works/[id]/feature` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/feature/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / 精选：提交/执行 |
+| PATCH | `/api/admin/works/[id]/pull-film` | 管理员（`content.manage`） | [route.ts](web/src/app/api/admin/works/[id]/pull-film/route.ts) | [public-work-process-service](web/src/lib/server/public-work-process-service.ts) | PostgreSQL、版本绑定拉片快照、脱敏审计 | 为当前已审核公开 Canvas/短剧版本启用或关闭拉片；返回状态与版本 ID，不返回完整快照 |
 | POST | `/api/admin/works/[id]/review` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/review/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / 审核：提交/执行 |
 | POST | `/api/admin/works/[id]/take-down` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/take-down/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / 下架：提交/执行 |
 
@@ -314,13 +315,22 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/points` | 用户 | [route.ts](web/src/app/api/points/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 积分：查询 |
 
+### `practice`（4）
+
+| 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
+| --- | --- | --- | --- | --- | --- | --- |
+| GET, POST | `/api/practice/projects` | active 学校老师/学生 | [route.ts](web/src/app/api/practice/projects/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts) | 用户定向 Canvas/短剧 Repository；身份固定为 `open-source-practice` | 分页查询或创建独立练习项目；请求不能选择 provider、model 或执行身份 |
+| GET | `/api/practice/projects/[id]` | 项目所有者且为 active 学校老师/学生 | [route.ts](web/src/app/api/practice/projects/[id]/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts) | 用户、项目类型与练习身份定向查询 | 返回本人练习项目，跨用户或正式项目均不可见 |
+| GET, POST | `/api/practice/sessions` | active 学校老师/学生 | [route.ts](web/src/app/api/practice/sessions/route.ts) | [practice-session-service](web/src/lib/server/practice-session-service.ts) | 用户定向练习会话、生成任务、公开素材引用 | 分页查询或创建五类练习；响应不含 provider、model、渠道、积分和内部任务引用 |
+| GET, POST | `/api/practice/sessions/[id]` | 会话所有者且为 active 学校老师/学生 | [route.ts](web/src/app/api/practice/sessions/[id]/route.ts) | [practice-session-service](web/src/lib/server/practice-session-service.ts) | 会话所有者定向读取；POST 仅支持同会话失败重试 | 查询公开结果或复用原输入/引用重试，不创建新会话 |
+
 ### `prompts`（1）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/prompts` | 公开 | [route.ts](web/src/app/api/prompts/route.ts) | [store](web/src/lib/prompts/store.ts) | PostgreSQL、公开内容/站点设置 | 提示词：查询 |
 
-### `public`（14）
+### `public`（16）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -336,6 +346,8 @@
 | POST | `/api/public/works/[slug]/community/follow` | 用户 | [route.ts](web/src/app/api/public/works/[slug]/community/follow/route.ts) | [work-community-service](web/src/lib/server/work-community-service.ts) | PostgreSQL、作品与社区数据 | 公开访问 / 作品 / 指定作品 / 社区互动 / 关注：提交/执行 |
 | POST | `/api/public/works/[slug]/community/like` | 用户 | [route.ts](web/src/app/api/public/works/[slug]/community/like/route.ts) | [work-community-service](web/src/lib/server/work-community-service.ts) | PostgreSQL、作品与社区数据 | 公开访问 / 作品 / 指定作品 / 社区互动 / 点赞：提交/执行 |
 | GET, HEAD | `/api/public/works/[slug]/media/[assetId]` | 公开 | [route.ts](web/src/app/api/public/works/[slug]/media/[assetId]/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[reference-asset-store](web/src/lib/server/reference-asset-store.ts)<br>[work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 公开访问 / 作品 / 指定作品 / 媒体 / 指定媒体：查询、读取元数据 |
+| GET | `/api/public/works/[slug]/process` | 公开 | [route.ts](web/src/app/api/public/works/[slug]/process/route.ts) | [public-work-process-service](web/src/lib/server/public-work-process-service.ts) | 当前公开版本的白名单制作流程快照 | 仅拉片已启用且版本仍有效时返回只读 Canvas/短剧流程，不返回内部提示词、任务或存储字段 |
+| POST | `/api/public/works/[slug]/copy-to-practice` | active 学校老师/学生 | [route.ts](web/src/app/api/public/works/[slug]/copy-to-practice/route.ts) | [public-work-process-service](web/src/lib/server/public-work-process-service.ts) | PostgreSQL 事务、版本复核、用户级幂等声明 | 将当前公开拉片版本复制为新的练习项目；相同 `clientRequestId` 返回原项目 |
 | POST | `/api/public/works/[slug]/report` | 用户 | [route.ts](web/src/app/api/public/works/[slug]/report/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、作品与社区数据 | 公开访问 / 作品 / 指定作品 / 举报：提交/执行 |
 | POST | `/api/public/works/[slug]/view` | 公开 | [route.ts](web/src/app/api/public/works/[slug]/view/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 公开访问 / 作品 / 指定作品 / 访问计数：提交/执行 |
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PRACTICE_MODULES, buildPracticeSessionInput, publicPracticeResult } from "./practice-module-workbench";
+import { PRACTICE_MODULES, buildPracticeSessionInput, editablePracticeTextReducer, publicPracticeResult } from "./practice-module-workbench";
 
 describe("practice module workbench contract", () => {
     it("sends only user content, public references and a fresh request id", () => {
@@ -17,5 +17,10 @@ describe("practice module workbench contract", () => {
 
     it("keeps all five modules in the same workbench contract", () => {
         expect(PRACTICE_MODULES).toHaveLength(5);
+    });
+
+    it("keeps generated script text editable until another result is selected", () => {
+        expect(editablePracticeTextReducer("初稿", { type: "edit", value: "人工修改稿" })).toBe("人工修改稿");
+        expect(editablePracticeTextReducer("人工修改稿", { type: "replace", value: "另一份结果" })).toBe("另一份结果");
     });
 });

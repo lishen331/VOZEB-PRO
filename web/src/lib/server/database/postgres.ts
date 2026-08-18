@@ -218,6 +218,7 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "drama_projects_user_updated_idx",
     "canvas_projects_user_profile_updated_idx",
     "drama_projects_user_profile_updated_idx",
+    "practice_sessions_user_request_idx",
     "practice_sessions_user_updated_idx",
     "practice_sessions_project_updated_idx",
     "practice_copy_requests_project_idx",

@@ -48,6 +48,7 @@ test("all authenticated pages reach their real routes and stay usable", async ({
         { path: `/canvas/${fixtures.canvasId}` },
         { path: "/drama", readyHeading: "短剧项目" },
         { path: `/drama/${fixtures.dramaId}` },
+        { path: "/practice", expectedPath: /\/create$/ },
         { path: "/works", readyHeading: "作品管理" },
         { path: "/assets", readyHeading: "我的素材" },
         { path: "/school/join", readyHeading: "加入学校" },

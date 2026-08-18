@@ -6,6 +6,7 @@ export const E2E_ADMIN = {
     displayName: "E2E 管理员",
     installToken: "vozeb-pro-e2e-install-token-32chars",
 };
+export const E2E_PRACTICE_PASSWORD = "InfinitePracticeE2E!2026";
 
 export const E2E_PROTOCOL_ORIGIN = `http://127.0.0.1:${Number(process.env.VOZEB_PRO_PROTOCOL_FIXTURE_PORT || 4010)}`;
 export const E2E_PAYMENT_WEBHOOK_SECRET = "vozeb-pro-e2e-payply-webhook-secret";

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
+import { readJsonBodyResult } from "@/lib/auth/request";
 import { getPracticeSessionForUser, retryPracticeSessionForUser } from "@/lib/server/practice-session-service";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { trustedPracticeTaskHeaders } from "@/lib/server/generation-execution-policy";
@@ -21,7 +22,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     try {
-        const body = (await request.json().catch(() => ({}))) as { action?: string };
+        const parsed = await readJsonBodyResult<unknown>(request, 64 * 1024);
+        if (!parsed.ok) return NextResponse.json({ code: parsed.status, data: null, msg: parsed.message }, { status: parsed.status });
+        const body = parsed.data && typeof parsed.data === "object" && !Array.isArray(parsed.data) ? (parsed.data as { action?: unknown }) : {};
         if (body.action !== "retry") return NextResponse.json({ code: 400, data: null, msg: "练习操作无效" }, { status: 400 });
         const sessionId = (await context.params).id;
         const session = await retryPracticeSessionForUser(user, sessionId, { dispatch: (input) => dispatchPracticeTask(request, input) });
@@ -36,7 +39,12 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
     const endpoint = input.capability === "text" ? "/api/text-tasks" : input.capability === "image" ? "/api/image-tasks" : input.capability === "video" ? "/api/video-generation-tasks" : "/api/audio-tasks";
     const context = { surface: input.projectKind === "drama" ? "drama" : "canvas", executionProfile: "open-source-practice", projectId: input.sessionId, clientRequestId: input.clientRequestId };
     const prompt = typeof input.input.prompt === "string" ? input.input.prompt : "练习任务";
-    const body = input.capability === "text" ? { config: { model: input.logicalModelId }, messages: [{ role: "user", content: prompt }], context } : input.capability === "audio" ? { config: { model: input.logicalModelId }, prompt, context, source: "practice" } : { config: { model: input.logicalModelId }, prompt, references: input.references, context, source: "practice" };
+    const body =
+        input.capability === "text"
+            ? { config: { model: input.logicalModelId }, messages: [{ role: "user", content: prompt }], context }
+            : input.capability === "audio"
+              ? { config: { model: input.logicalModelId }, prompt, context, source: "practice" }
+              : { config: { model: input.logicalModelId }, prompt, references: input.references, context, source: "practice" };
     const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(input.userId, input.clientRequestId) });
     const cookie = request.headers.get("cookie");
     if (cookie) headers.set("cookie", cookie);

@@ -85,7 +85,7 @@ export async function pollCustomImageTask(task: ImageTask, taskId: string, reque
     let lastError = "";
     for (let attempt = 0; attempt < (singleStep ? 1 : imageTaskPollAttempts(config)); attempt += 1) {
         for (const url of imageTaskPollUrls(config, requestUrl, taskId)) {
-            const response = await taskFetch(config, url, { headers: taskHeaders(config, cookie), cache: "no-store" });
+            const response = await taskFetch(config, url, { headers: taskHeaders(config, cookie, practiceImagePollRequestId(task)), cache: "no-store" });
             if (!response.ok) {
                 lastError = await readFetchError(response, "自定义图片任务查询失败");
                 continue;
@@ -104,6 +104,10 @@ export async function pollCustomImageTask(task: ImageTask, taskId: string, reque
     }
     if (singleStep) return { dataUrl: "", pending: { id: taskId, mediaBaseUrl: requestUrl, pollBaseUrl: requestUrl } };
     throw new Error("自定义图片任务生成超时");
+}
+
+function practiceImagePollRequestId(task: ImageTask) {
+    return task.executionProfile === "open-source-practice" ? `image-task:${task.id}:attempt:${task.attemptNo || 1}:poll` : undefined;
 }
 
 function configuredImageResult(data: ImageApiResponse, baseUrl: string, task: ImageTask): ImageTaskResult | null {

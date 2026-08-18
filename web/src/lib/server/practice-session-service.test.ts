@@ -3,10 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ requirePracticeAccess: vi.fn() }));
 vi.mock("@/lib/server/practice-access-service", () => ({ requirePracticeAccess: mocks.requirePracticeAccess }));
 
-import { createPracticeSessionForUser, getPracticeSessionForUser, type PracticeSessionStore } from "./practice-session-service";
+import { createPracticeSessionForUser, getPracticeSessionForUser, retryPracticeSessionForUser, type PracticeSessionStore } from "./practice-session-service";
+import type { PracticeSessionRecord } from "./database/repository-types";
 
 function memoryStore(): PracticeSessionStore {
-    const records = new Map<string, any>();
+    const records = new Map<string, PracticeSessionRecord>();
     const requests = new Map<string, string>();
     return {
         getByRequest: vi.fn(async (userId, clientRequestId) => records.get(requests.get(`${userId}:${clientRequestId}`) || "") || null),
@@ -21,7 +22,8 @@ function memoryStore(): PracticeSessionStore {
         }),
         get: vi.fn(async (userId, id) => {
             const record = records.get(id);
-            return record?.userId === userId ? record : null;
+            if (!record || record.userId !== userId) return null;
+            return record;
         }),
         update: vi.fn(async (userId, id, patch) => {
             const record = records.get(id);
@@ -62,5 +64,41 @@ describe("practice sessions", () => {
 
         await expect(getPracticeSessionForUser({ id: "student-one", role: "user" }, created.id, { store })).resolves.toMatchObject({ id: created.id, input: { prompt: "开场" } });
         await expect(getPracticeSessionForUser({ id: "other-user", role: "user" }, created.id, { store })).rejects.toMatchObject({ status: 404 });
+    });
+
+    it("sanitizes public input and reuses public references when retrying the same session", async () => {
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const store = memoryStore();
+        const firstDispatch = vi.fn(async () => {
+            throw new Error("上游失败");
+        });
+        const retryDispatch = vi.fn(async () => ({ taskId: "task-two", taskType: "image" as const }));
+        const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-image", capability: "image" as const }));
+
+        await expect(
+            createPracticeSessionForUser(
+                { id: "student-one", role: "user" },
+                {
+                    module: "storyboard-image",
+                    title: "镜头练习",
+                    input: { prompt: " 雨夜车站 ", provider: "forged-provider", model: "forged-model" },
+                    references: [
+                        { type: "asset", id: " asset-one ", storageKey: "private/key" },
+                        { type: "asset", id: "asset-one" },
+                        { type: "task", id: "private-task" },
+                    ],
+                    clientRequestId: "request-three",
+                },
+                { store, dispatch: firstDispatch, resolveModel },
+            ),
+        ).rejects.toThrow("上游失败");
+
+        const session = await store.getByRequest("student-one", "request-three");
+        expect(session).not.toBeNull();
+        if (!session) throw new Error("练习会话未创建");
+        expect(session.input).toEqual({ prompt: "雨夜车站", references: [{ type: "asset", id: "asset-one" }] });
+
+        await retryPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store, dispatch: retryDispatch, resolveModel });
+        expect(retryDispatch).toHaveBeenCalledWith(expect.objectContaining({ input: { prompt: "雨夜车站" }, references: [{ type: "asset", id: "asset-one" }] }));
     });
 });

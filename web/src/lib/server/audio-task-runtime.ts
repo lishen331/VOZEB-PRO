@@ -253,7 +253,8 @@ function providerFetch(task: AudioTask, origin: string, cookie: string, workerUs
     const headers = new Headers(init.headers);
     if (task.config.baseUrl.startsWith("/") && workerUserId) Object.entries(maintenanceWorkerHeaders(workerUserId)).forEach(([key, value]) => headers.set(key, value));
     else if (cookie) headers.set("cookie", cookie);
-    if (task.config.baseUrl.startsWith("/")) Object.entries(systemAiBillingHeaders(generationModelId(task.config), undefined, task.config.model, task.executionProfile)).forEach(([key, value]) => headers.set(key, value));
+    const practiceRequestId = task.executionProfile === "open-source-practice" ? `audio-task:${task.id}:attempt:${task.attemptNo || 1}:poll` : undefined;
+    if (task.config.baseUrl.startsWith("/")) Object.entries(systemAiBillingHeaders(generationModelId(task.config), practiceRequestId, task.config.model, task.executionProfile)).forEach(([key, value]) => headers.set(key, value));
     const mediaUrl = task.config.baseUrl.startsWith("/") ? mediaUrlFromProxyPath(path) : "";
     const channelId = task.config.channelId || systemGenerationChannelId(task.config.baseUrl);
     if (mediaUrl && channelId) Object.entries(generationMediaProxyHeaders({ userId: task.userId, taskType: "audio", taskId: task.id, channelId, upstreamModel: task.config.model, url: mediaUrl })).forEach(([key, value]) => headers.set(key, value));

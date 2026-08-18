@@ -33,6 +33,7 @@ vi.mock("@/lib/server/generation-media-authorization", () => ({ generationMediaP
 import { queryVideoTaskUpstream, refreshVideoTaskFromUpstream } from "./video-task-runtime";
 import type { VideoTask } from "./video-task-store";
 import { createProtocolFixtureServer } from "../../../scripts/protocol-fixture-server.mjs";
+import { readVerifiedSystemAiBusinessRequestId } from "./system-ai-billing";
 
 describe("video task upstream reconciliation", () => {
     beforeEach(() => {
@@ -60,6 +61,16 @@ describe("video task upstream reconciliation", () => {
         expect(headers.get("authorization")).toBe(`Bearer ${token}`);
         expect(headers.get("x-vozeb-pro-worker-user-id")).toBe(task.userId);
         expect(headers.has("cookie")).toBe(false);
+    });
+
+    it("signs trusted practice polling with a stable server-owned request identity", async () => {
+        const task = videoTask({ executionProfile: "open-source-practice", attemptNo: 2 });
+        mocks.fetchInternalApi.mockResolvedValue(json({ id: task.upstream.id, status: "processing" }));
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toMatchObject({ state: "pending" });
+
+        const headers = new Headers((mocks.fetchInternalApi.mock.calls[0]?.[1] as RequestInit).headers);
+        expect(readVerifiedSystemAiBusinessRequestId(headers, "sd_2.0_fast_special_720p", task.config.model, "open-source-practice")).toBe("video-task:local-video:attempt:2:poll");
     });
 
     it("recovers a locally timed-out task after the provider later returns a video", async () => {

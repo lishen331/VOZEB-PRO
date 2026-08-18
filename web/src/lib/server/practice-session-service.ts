@@ -56,16 +56,20 @@ export async function createPracticeSessionForUser(
     if (!clientRequestId) throw new PracticeServiceError("缺少练习请求标识", 400);
     const existing = await store.getByRequest(actor.id, clientRequestId);
     if (existing) return publicSession(existing);
-    const module = normalizeModule(input.module);
+    const moduleKind = normalizeModule(input.module);
     const title = clean(input.title, 120) || "练习会话";
-    const payload = object(input.input);
-    const model = await (deps.resolveModel || defaultResolveModel)(module);
+    const sourcePayload = object(input.input);
+    const prompt = text(sourcePayload.prompt);
+    if (!prompt) throw new PracticeServiceError("练习内容不能为空", 400);
+    const references = normalizeReferences(input.references);
+    const payload = { prompt, ...(references.length ? { references } : {}) };
+    const model = await (deps.resolveModel || defaultResolveModel)(moduleKind);
     const created = await store.create({
         id: `practice-session-${nanoid()}`,
         userId: actor.id,
         projectId: cleanOptional(input.projectId, 160),
         projectKind: input.projectKind === "drama" ? "drama" : "canvas",
-        module,
+        module: moduleKind,
         title,
         clientRequestId,
         executionProfile: "open-source-practice",
@@ -80,9 +84,9 @@ export async function createPracticeSessionForUser(
         const task = await dispatch({
             sessionId: created.id,
             userId: actor.id,
-            module,
+            module: moduleKind,
             input: payload,
-            references: Array.isArray(input.references) ? input.references : [],
+            references,
             executionProfile: "open-source-practice",
             capability: model.capability,
             logicalModelId: model.logicalModelId,
@@ -128,12 +132,14 @@ export async function retryPracticeSessionForUser(
     const dispatch = deps.dispatch;
     if (!dispatch) return publicSession(reset);
     try {
+        const storedInput = object(current.input);
+        const references = normalizeReferences(storedInput.references);
         const task = await dispatch({
             sessionId: current.id,
             userId: actor.id,
             module: current.module,
-            input: object(current.input),
-            references: [],
+            input: { prompt: text(storedInput.prompt) },
+            references,
             executionProfile: "open-source-practice",
             capability: model.capability,
             logicalModelId: model.logicalModelId,
@@ -272,6 +278,22 @@ function normalizeModule(value: unknown): PracticeModuleKind {
 
 function object(value: unknown): Record<string, unknown> {
     return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function text(value: unknown) {
+    return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeReferences(value: unknown) {
+    if (!Array.isArray(value)) return [];
+    const seen = new Set<string>();
+    return value.flatMap((item) => {
+        const source = object(item);
+        const id = text(source.id);
+        if (source.type !== "asset" || !id || seen.has(id)) return [];
+        seen.add(id);
+        return [{ type: "asset" as const, id }];
+    });
 }
 
 function clean(value: unknown, max: number) {

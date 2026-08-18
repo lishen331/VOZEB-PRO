@@ -15,7 +15,7 @@ export default async function PracticeModulePage({ params }: { params: Promise<{
     } catch {
         redirect("/create");
     }
-    const module = (await params).module as PracticeModuleKind;
-    if (!MODULES.includes(module)) notFound();
-    return <PracticeModuleWorkbench module={module} />;
+    const moduleKind = (await params).module as PracticeModuleKind;
+    if (!MODULES.includes(moduleKind)) notFound();
+    return <PracticeModuleWorkbench module={moduleKind} />;
 }

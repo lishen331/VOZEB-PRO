@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { App, Button, Empty, Input, Spin } from "antd";
 import { ArrowLeft, CheckCircle2, RefreshCw, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -222,7 +222,7 @@ function ResultView({ result, module }: { result?: PracticeSessionResult; module
             </p>
         );
     if (result.status === "error") return <p className="mt-4 text-sm text-red-600 dark:text-red-300">{result.error || "练习失败，请重试"}</p>;
-    if (result.text !== undefined) return <Input.TextArea value={result.text} readOnly={false} onChange={() => undefined} autoSize={{ minRows: 5, maxRows: 16 }} className="!mt-4" aria-label="练习文本结果" />;
+    if (result.text !== undefined) return <EditablePracticeTextResult value={result.text} />;
     if (result.media?.kind === "image")
         return (
             <div className="mt-4 overflow-hidden border border-border">
@@ -237,6 +237,18 @@ function ResultView({ result, module }: { result?: PracticeSessionResult; module
             练习已完成，暂无可展示的公开结果
         </p>
     );
+}
+
+type EditablePracticeTextAction = { type: "edit" | "replace"; value: string };
+
+export function editablePracticeTextReducer(_state: string, action: EditablePracticeTextAction) {
+    return action.value;
+}
+
+export function EditablePracticeTextResult({ value }: { value: string }) {
+    const [draft, dispatch] = useReducer(editablePracticeTextReducer, value);
+    useEffect(() => dispatch({ type: "replace", value }), [value]);
+    return <Input.TextArea value={draft} onChange={(event) => dispatch({ type: "edit", value: event.target.value })} autoSize={{ minRows: 5, maxRows: 16 }} className="!mt-4" aria-label="练习文本结果" />;
 }
 
 function number(value: unknown) {
