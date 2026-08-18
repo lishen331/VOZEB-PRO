@@ -6,6 +6,7 @@ export type ChannelWorkspaceSettings = {
     systemChannels: SystemModelChannel[];
     logicalModels: import("@/lib/auth/store").LogicalModel[];
     defaultModels: SystemDefaultModels;
+    practiceDefaultModels: SystemDefaultModels;
 };
 
 export type ChannelWorkspaceStatus = "enabled" | "draft" | "disabled";
@@ -41,6 +42,7 @@ export function removeChannelFromWorkspace(settings: ChannelWorkspaceSettings, c
         systemChannels,
         logicalModels,
         defaultModels: Object.fromEntries(Object.entries(settings.defaultModels).map(([key, value]) => [key, liveIds.has(value) ? value : ""])) as SystemDefaultModels,
+        practiceDefaultModels: Object.fromEntries(Object.entries(settings.practiceDefaultModels).map(([key, value]) => [key, liveIds.has(value) ? value : ""])) as SystemDefaultModels,
     };
 }
 
@@ -50,6 +52,7 @@ export function updateChannelInWorkspace(settings: ChannelWorkspaceSettings, cha
         ...settings,
         systemChannels,
         defaultModels: normalizeDefaultModelsConfig(settings.defaultModels, settings.logicalModels, systemChannels),
+        practiceDefaultModels: normalizeDefaultModelsConfig(settings.practiceDefaultModels, settings.logicalModels, systemChannels, "open-source-practice", { allowFallback: false }),
     };
 }
 

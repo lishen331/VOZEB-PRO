@@ -122,6 +122,22 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "昱梦新版只确认了 V2 任务接口，官方文档未提供 V2 模型目录；系统不会降级请求 /v1/models。请先手动填写模型 ID，或在上游确认 V2 模型目录路径后再同步。" }, { status: 422 });
     }
 
+    if (protocol === "runninghub") {
+        const merged = mergeModelCatalogEntries(configuredCatalog);
+        if (!merged.length) return NextResponse.json({ error: "RunningHub 不提供未经验证的模型目录路径，请先手动填写模型 ID" }, { status: 422 });
+        const modelConfigs = mergeModelConfigs(merged, configuredConfigs, modelConfigsFromOperations(merged, operationConfigs));
+        return NextResponse.json({
+            models: merged.map((entry) => entry.id),
+            modelCapabilities: modelCapabilitiesRecord(merged, modelConfigs),
+            modelConfigs,
+            discoveredCount: 0,
+            totalCount: merged.length,
+            catalogSupported: false,
+            provider: "runninghub",
+            warning: "RunningHub 模型目录路径未由系统猜测；当前仅保留管理员手工模型配置。",
+        });
+    }
+
     const globalAiOpcPresets = resolveGlobalAiOpcCatalogPresets(baseUrl, advancedConfig);
     if (globalAiOpcPresets.length) {
         const selection = buildGlobalAiOpcSelection(globalAiOpcPresets.map((preset) => preset.id));

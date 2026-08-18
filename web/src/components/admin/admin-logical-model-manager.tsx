@@ -1,6 +1,6 @@
 "use client";
 
-import { App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Select, Space, Switch, Tag } from "antd";
+import { App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Segmented, Select, Space, Switch, Tag } from "antd";
 import { AlertTriangle, GitBranch, Pencil, RefreshCw, Route, Search } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
@@ -12,7 +12,8 @@ type Props = {
     channels: SystemModelChannel[];
     logicalModels: LogicalModel[];
     defaultModels: SystemDefaultModels;
-    onChange: (value: { logicalModels: LogicalModel[]; defaultModels: SystemDefaultModels }) => void;
+    practiceDefaultModels: SystemDefaultModels;
+    onChange: (value: { logicalModels: LogicalModel[]; defaultModels: SystemDefaultModels; practiceDefaultModels: SystemDefaultModels }) => void;
 };
 
 const capabilityOptions: Array<{ label: string; value: LogicalModelCapability }> = [
@@ -29,13 +30,14 @@ const defaultFields: Array<{ capability: LogicalModelCapability; key: keyof Syst
     { capability: "audio", key: "audioModel", label: "默认音频模型" },
 ];
 
-export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, onChange }: Props) {
+export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, practiceDefaultModels, onChange }: Props) {
     const { message } = App.useApp();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [editingId, setEditingId] = useState("");
     const [draft, setDraft] = useState<LogicalModel | null>(null);
     const [query, setQuery] = useState("");
     const [capabilityFilter, setCapabilityFilter] = useState<LogicalModelCapability | "all">("all");
+    const [defaultPool, setDefaultPool] = useState<"production" | "open-source-practice">("production");
     const deferredQuery = useDeferredValue(query.trim().toLowerCase());
     const visibleModels = useMemo(
         () =>
@@ -44,9 +46,11 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             ),
         [capabilityFilter, deferredQuery, logicalModels],
     );
-    const availableDefaultFields = defaultFields.filter(({ capability }) => logicalModels.some((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id)));
+    const activeDefaults = defaultPool === "production" ? defaultModels : practiceDefaultModels;
+    const activeExecutionProfile = defaultPool === "production" ? "production" : "open-source-practice";
+    const availableDefaultFields = defaultFields.filter(({ capability }) => logicalModels.some((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, activeExecutionProfile)));
     const availableCapabilityOptions = capabilityOptions.filter(({ value }) => availableDefaultFields.some(({ capability }) => capability === value));
-    const readyCount = availableDefaultFields.filter(({ capability, key }) => isLogicalModelResolvable(logicalModels, channels, capability, defaultModels[key])).length;
+    const readyCount = availableDefaultFields.filter(({ capability, key }) => isLogicalModelResolvable(logicalModels, channels, capability, activeDefaults[key], activeExecutionProfile)).length;
 
     const openEdit = (model: LogicalModel) => {
         setEditingId(model.id);
@@ -62,7 +66,11 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             return;
         }
         const nextModels = logicalModels.map((model) => (model.id === editingId ? cloneLogicalModel({ ...draft, name }) : model));
-        onChange({ logicalModels: nextModels, defaultModels: normalizeDefaultModelsConfig(defaultModels, nextModels, channels) });
+        onChange({
+            logicalModels: nextModels,
+            defaultModels: normalizeDefaultModelsConfig(defaultModels, nextModels, channels),
+            practiceDefaultModels: normalizeDefaultModelsConfig(practiceDefaultModels, nextModels, channels, "open-source-practice", { allowFallback: false }),
+        });
         setDrawerOpen(false);
         message.success("模型路由设置已更新，请保存渠道配置");
     };
@@ -73,11 +81,20 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             message.info("逻辑模型已与渠道目录同步");
             return;
         }
-        onChange({ logicalModels: nextModels, defaultModels: normalizeDefaultModelsConfig(defaultModels, nextModels, channels) });
+        onChange({
+            logicalModels: nextModels,
+            defaultModels: normalizeDefaultModelsConfig(defaultModels, nextModels, channels),
+            practiceDefaultModels: normalizeDefaultModelsConfig(practiceDefaultModels, nextModels, channels, "open-source-practice", { allowFallback: false }),
+        });
         message.success(`已按上游模型名同步 ${nextModels.length} 个逻辑模型`);
     };
 
-    const updateDefault = (key: keyof SystemDefaultModels, modelId: string) => onChange({ logicalModels, defaultModels: { ...defaultModels, [key]: modelId } });
+    const updateDefault = (key: keyof SystemDefaultModels, modelId: string) =>
+        onChange({
+            logicalModels,
+            defaultModels: defaultPool === "production" ? { ...defaultModels, [key]: modelId } : defaultModels,
+            practiceDefaultModels: defaultPool === "production" ? practiceDefaultModels : { ...practiceDefaultModels, [key]: modelId },
+        });
 
     return (
         <section className="border-t border-stone-200 pt-5 dark:border-stone-800">
@@ -104,8 +121,8 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                     </div>
                     <div className="max-h-[680px] space-y-2 overflow-y-auto pr-1">
                         {visibleModels.map((model) => {
-                            const resolved = resolveLogicalModelConfig(logicalModels, channels, model.capability, model.id);
-                            const isDefault = Object.values(defaultModels).some((value) => value.toLowerCase() === model.id.toLowerCase());
+                            const resolved = resolveLogicalModelConfig(logicalModels, channels, model.capability, model.id, activeExecutionProfile);
+                            const isDefault = Object.values(activeDefaults).some((value) => value.toLowerCase() === model.id.toLowerCase());
                             return (
                                 <div key={model.id} className="flex min-w-0 flex-col gap-3 rounded-lg border border-stone-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between dark:border-stone-800 dark:bg-stone-950">
                                     <div className="min-w-0">
@@ -138,12 +155,25 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                 </div>
 
                 <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
-                    <SectionTitle icon={<GitBranch className="size-4" />} title="默认模型" />
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <SectionTitle icon={<GitBranch className="size-4" />} title="默认模型" />
+                        <Segmented
+                            value={defaultPool}
+                            options={[
+                                { label: "正式生产", value: "production" },
+                                { label: "无限练习", value: "open-source-practice" },
+                            ]}
+                            onChange={(value) => setDefaultPool(value as typeof defaultPool)}
+                        />
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">练习默认模型只显示 shared 或 open-source-practice 渠道绑定；生产默认模型不会参与练习路由。</p>
                     <div className="mt-4 space-y-4">
                         {availableDefaultFields.map(({ capability, key, label }) => {
-                            const options = logicalModels.filter((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id)).map((model) => ({ label: model.name, value: model.id }));
-                            const selected = logicalModels.find((model) => model.id === defaultModels[key]);
-                            const resolved = selected ? resolveLogicalModelConfig(logicalModels, channels, capability, selected.id) : null;
+                            const options = logicalModels
+                                .filter((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, activeExecutionProfile))
+                                .map((model) => ({ label: model.name, value: model.id }));
+                            const selected = logicalModels.find((model) => model.id === activeDefaults[key]);
+                            const resolved = selected ? resolveLogicalModelConfig(logicalModels, channels, capability, selected.id, activeExecutionProfile) : null;
                             return (
                                 <LabeledControl key={key} label={label}>
                                     <Select
@@ -151,15 +181,15 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                                         allowClear
                                         showSearch
                                         optionFilterProp="label"
-                                        value={defaultModels[key] || undefined}
+                                        value={activeDefaults[key] || undefined}
                                         placeholder={`选择可用${capabilityLabel(capability)}模型`}
                                         options={options}
-                                        status={defaultModels[key] && !resolved ? "error" : undefined}
+                                        status={activeDefaults[key] && !resolved ? "error" : undefined}
                                         onChange={(value) => updateDefault(key, value || "")}
                                     />
                                     <div className={`mt-1 flex items-center gap-1 text-xs ${resolved ? "text-stone-500 dark:text-stone-400" : "text-amber-600 dark:text-amber-400"}`}>
                                         {!resolved ? <AlertTriangle className="size-3.5 shrink-0" /> : null}
-                                        <span>{resolved ? `实际路由：${resolved.channel.name} / ${resolved.binding.upstreamModel}` : defaultModels[key] ? "当前默认模型不可解析" : "尚未设置默认模型"}</span>
+                                        <span>{resolved ? `实际路由：${resolved.channel.name} / ${resolved.binding.upstreamModel}` : activeDefaults[key] ? "当前默认模型不可解析" : "尚未设置默认模型"}</span>
                                     </div>
                                 </LabeledControl>
                             );
