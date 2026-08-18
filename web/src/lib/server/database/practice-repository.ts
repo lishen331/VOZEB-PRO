@@ -79,6 +79,39 @@ export class PracticeRepository {
         return mapPracticeCopyRequest(result.rows[0]);
     }
 
+    async createPracticeProjectCopy(input: {
+        userId: string;
+        kind: "canvas" | "drama";
+        projectId: string;
+        conversationId: string;
+        title: string;
+        projectJson: unknown;
+        createdAt: string;
+        updatedAt: string;
+        sourceWorkId: string;
+        sourceVersionId: string;
+        executionProfile: "open-source-practice";
+    }) {
+        await this.db.query(
+            `INSERT INTO creative_conversations (id, user_id, surface, source, project_id, title, status, created_at, updated_at, last_message_at)
+             VALUES ($1, $2, $3, $3, $4, $5, 'active', $6, $6, $6)`,
+            [input.conversationId, input.userId, input.kind, input.projectId, input.title || "新对话", new Date(input.createdAt)],
+        );
+        if (input.kind === "canvas") {
+            await this.db.query(
+                `INSERT INTO canvas_projects (id, user_id, title, project_json, execution_profile, practice_source_work_id, practice_source_version_id, created_at, updated_at)
+                 VALUES ($1, $2, $3, $4::jsonb, 'open-source-practice', $5, $6, $7, $8)`,
+                [input.projectId, input.userId, input.title, JSON.stringify(input.projectJson), input.sourceWorkId, input.sourceVersionId, new Date(input.createdAt), new Date(input.updatedAt)],
+            );
+        } else {
+            await this.db.query(
+                `INSERT INTO drama_projects (id, user_id, title, status, project_json, execution_profile, practice_source_work_id, practice_source_version_id, created_at, updated_at)
+                 VALUES ($1, $2, $3, 'active', $4::jsonb, 'open-source-practice', $5, $6, $7, $8)`,
+                [input.projectId, input.userId, input.title, JSON.stringify(input.projectJson), input.sourceWorkId, input.sourceVersionId, new Date(input.createdAt), new Date(input.updatedAt)],
+            );
+        }
+    }
+
     async getPullFilmVersion(workId: string, versionId: string, forUpdate = false): Promise<PullFilmVersionRecord | null> {
         const result = await this.db.query(
             `SELECT work_id, id AS version_id, pull_film_enabled, pull_film_snapshot, pull_film_enabled_at, pull_film_enabled_by_user_id

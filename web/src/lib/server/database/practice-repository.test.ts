@@ -60,6 +60,29 @@ describe("PracticeRepository", () => {
         expect(String(query.mock.calls[0]?.[0])).toContain("'open-source-practice'");
         expect(query.mock.calls[0]?.[1]).toEqual(expect.arrayContaining(["script", "queued"]));
     });
+
+    it("creates a copy inside the caller transaction with the practice execution profile", async () => {
+        const { executor, query } = mockExecutor([[], []]);
+        const repository = new PracticeRepository(executor);
+
+        await repository.createPracticeProjectCopy({
+            userId: "user-one",
+            kind: "canvas",
+            projectId: "practice-one",
+            conversationId: "conversation-one",
+            title: "练习画布",
+            projectJson: { id: "practice-one", nodes: [] },
+            createdAt: "2026-08-18T00:00:00.000Z",
+            updatedAt: "2026-08-18T00:00:00.000Z",
+            sourceWorkId: "work-one",
+            sourceVersionId: "version-one",
+            executionProfile: "open-source-practice",
+        });
+
+        expect(String(query.mock.calls[0]?.[0])).toContain("creative_conversations");
+        expect(String(query.mock.calls[1]?.[0])).toContain("canvas_projects");
+        expect(String(query.mock.calls[1]?.[0])).toContain("open-source-practice");
+    });
 });
 
 const postgresIt = process.env.VOZEB_PRO_RUN_POSTGRES_INTEGRATION === "1" ? it : it.skip;
@@ -67,6 +90,8 @@ const suffix = randomUUID();
 const userOne = `practice-user-one-${suffix}`;
 const userTwo = `practice-user-two-${suffix}`;
 const canvasProject = `practice-canvas-${suffix}`;
+const copiedCanvasProject = `practice-copied-canvas-${suffix}`;
+const copiedConversation = `practice-copied-conversation-${suffix}`;
 const workId = `practice-work-${suffix}`;
 const versionId = `practice-version-${suffix}`;
 const channelId = `practice-channel-${suffix}`;
@@ -88,6 +113,8 @@ describe("PracticeRepository PostgreSQL", () => {
         await postgresQuery("DELETE FROM published_work_versions WHERE work_id = $1", [workId]);
         await postgresQuery("DELETE FROM published_works WHERE id = $1", [workId]);
         await postgresQuery("DELETE FROM canvas_projects WHERE id = $1", [canvasProject]);
+        await postgresQuery("DELETE FROM canvas_projects WHERE id = $1", [copiedCanvasProject]);
+        await postgresQuery("DELETE FROM creative_conversations WHERE id = $1", [copiedConversation]);
         await postgresQuery("DELETE FROM system_model_channels WHERE id = $1", [channelId]);
         await createPostgresRepositories().settings.updateSettings({ practiceDefaultModels: {} });
         await postgresQuery("DELETE FROM users WHERE id = ANY($1::text[])", [[userOne, userTwo]]);
@@ -125,5 +152,30 @@ describe("PracticeRepository PostgreSQL", () => {
 
         expect(await repository.getPullFilmVersion(workId, versionId)).toMatchObject({ enabled: true, enabledByUserId: userOne });
         expect((await postgresQuery<{ is_featured: boolean }>("SELECT is_featured FROM published_works WHERE id = $1", [workId])).rows[0]?.is_featured).toBe(false);
+    });
+
+    postgresIt("creates a version-bound canvas copy with a practice identity", async () => {
+        const repository = createPostgresRepositories().practice;
+        await repository.createPracticeProjectCopy({
+            userId: userOne,
+            kind: "canvas",
+            projectId: copiedCanvasProject,
+            conversationId: copiedConversation,
+            title: "复制练习",
+            projectJson: { id: copiedCanvasProject, title: "复制练习", nodes: [] },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            sourceWorkId: workId,
+            sourceVersionId: versionId,
+            executionProfile: "open-source-practice",
+        });
+
+        expect(
+            (
+                await postgresQuery<{ execution_profile: string; practice_source_work_id: string; practice_source_version_id: string }>("SELECT execution_profile, practice_source_work_id, practice_source_version_id FROM canvas_projects WHERE id = $1", [
+                    copiedCanvasProject,
+                ])
+            ).rows[0],
+        ).toMatchObject({ execution_profile: "open-source-practice", practice_source_work_id: workId, practice_source_version_id: versionId });
     });
 });

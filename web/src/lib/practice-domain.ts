@@ -10,6 +10,7 @@ export type PublicProcessAsset = {
     id: string;
     title?: string;
     type?: string;
+    role?: "cover" | "content";
     previewUrl?: string;
 };
 
@@ -18,8 +19,13 @@ export type PublicCanvasNode = {
     type: string;
     title?: string;
     summary?: string;
+    position?: { x: number; y: number };
     assetIds?: string[];
 };
+
+export type PublicCanvasConnection = { id: string; fromNodeId: string; toNodeId: string };
+
+export type PublicDramaCharacter = { id: string; name: string; summary?: string; assetIds?: string[] };
 
 export type PublicDramaScene = {
     id: string;
@@ -28,15 +34,40 @@ export type PublicDramaScene = {
     assetIds?: string[];
 };
 
+export type PublicDramaShot = {
+    id: string;
+    order: number;
+    title?: string;
+    summary?: string;
+    sceneId?: string;
+    storyboardAssetIds?: string[];
+    videoAssetIds?: string[];
+    audioAssetIds?: string[];
+};
+
 export type PublicDramaEpisode = {
     id: string;
     title: string;
     order: number;
-    scenes: PublicDramaScene[];
+    scriptSummary?: string;
+    reviewStatus?: string;
+    shots: PublicDramaShot[];
 };
 
 export type PublicProcessSnapshot =
-    { sourceType: "canvas"; versionId: string; nodes: readonly PublicCanvasNode[]; assets: readonly PublicProcessAsset[] } | { sourceType: "drama"; versionId: string; episodes: readonly PublicDramaEpisode[]; assets: readonly PublicProcessAsset[] };
+    | { sourceType: "canvas"; versionId: string; title?: string; nodes: readonly PublicCanvasNode[]; connections: readonly PublicCanvasConnection[]; assets: readonly PublicProcessAsset[] }
+    | {
+          sourceType: "drama";
+          versionId: string;
+          title?: string;
+          summary?: string;
+          style?: string;
+          ratio?: string;
+          characters: readonly PublicDramaCharacter[];
+          scenes: readonly PublicDramaScene[];
+          episodes: readonly PublicDramaEpisode[];
+          assets: readonly PublicProcessAsset[];
+      };
 
 export function resolvePracticeModelAccess(profile: PracticeExecutionProfile, purpose: SystemChannelPurpose) {
     return purpose === "shared" || purpose === profile || (profile === "open-source-practice" && purpose === "open-source-practice");

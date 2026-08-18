@@ -282,7 +282,13 @@ export class WorkPublicationRepository {
 
     async revokeWork(workId: string, revokedAt: string) {
         const result = await this.db.query(
-            "UPDATE published_works SET lifecycle_status = 'revoked', published_version_id = NULL, is_featured = false, featured_at = NULL, featured_by_user_id = NULL, revoked_at = $2 WHERE id = $1 AND lifecycle_status = 'active' RETURNING *",
+            `WITH cleared_version AS (
+                UPDATE published_work_versions version
+                SET pull_film_enabled = false, pull_film_snapshot = NULL, pull_film_enabled_at = NULL, pull_film_enabled_by_user_id = NULL
+                WHERE version.id = (SELECT published_version_id FROM published_works WHERE id = $1)
+            )
+            UPDATE published_works SET lifecycle_status = 'revoked', published_version_id = NULL, is_featured = false, featured_at = NULL, featured_by_user_id = NULL, revoked_at = $2
+            WHERE id = $1 AND lifecycle_status = 'active' RETURNING *`,
             [workId, revokedAt],
         );
         return result.rows[0] ? mapPublishedWork(result.rows[0]) : null;
