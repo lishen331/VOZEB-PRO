@@ -11,6 +11,7 @@ import { createDramaProject, deleteDramaProject, DramaProjectStoreError, findDra
 import { createDramaProjectVersion, getDramaProjectVersion, listDramaProjectVersions } from "@/lib/server/drama-project-version-store";
 import { collectLocalMediaStorageKeys } from "@/lib/server/local-media-references";
 import { deleteUserLocalMediaAssets } from "@/lib/server/local-media-storage";
+import type { DramaProjectIdentityInput } from "@/lib/server/drama-project-store";
 
 const MAX_PROJECT_BYTES = 2 * 1024 * 1024;
 
@@ -23,7 +24,7 @@ export class DramaProjectServiceError extends Error {
     }
 }
 
-export function listDramaProjectSummariesForUser(userId: string, input: { page?: number; pageSize?: number } = {}) {
+export function listDramaProjectSummariesForUser(userId: string, input: { page?: number; pageSize?: number; executionProfile?: "production" | "open-source-practice" } = {}) {
     return listDramaProjectSummaries(userId, input);
 }
 
@@ -33,7 +34,7 @@ export async function getDramaProjectForUser(userId: string, id: string) {
     return project;
 }
 
-export async function createDramaProjectForUser(userId: string, value: unknown) {
+export async function createDramaProjectForUser(userId: string, value: unknown, identity: DramaProjectIdentityInput = {}) {
     const input = normalizeCreateInput(value);
     const now = new Date().toISOString();
     if (input.sourceHandoffId) {
@@ -74,7 +75,7 @@ export async function createDramaProjectForUser(userId: string, value: unknown) 
         updatedAt: now,
     };
     try {
-        return await createDramaProject(userId, project);
+        return await createDramaProject(userId, project, identity);
     } catch (error) {
         await updateCreativeConversation(conversation.id, userId, { status: "archived" }).catch(() => null);
         throw error;

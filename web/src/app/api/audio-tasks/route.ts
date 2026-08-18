@@ -13,7 +13,7 @@ import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerat
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
-import { hasUntrustedExecutionProfile } from "@/lib/server/generation-execution-policy";
+import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,8 +33,14 @@ export async function POST(request: Request) {
             if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
-        if (hasUntrustedExecutionProfile(body)) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
-        const channels = resolveLogicalModelCandidates(settings, "audio", body.config?.model || settings.defaultModels.audioModel).map((resolved) => ({ ...toSystemGenerationChannel(resolved), channelId: resolved.channelId }));
+        const trustedPractice = isTrustedPracticeTaskRequest(request, user.id, body.context);
+        if (hasUntrustedExecutionProfile(body) && !trustedPractice) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
+        const executionProfile: "production" | "open-source-practice" = trustedPractice ? "open-source-practice" : "production";
+        const channels = resolveLogicalModelCandidates(settings, "audio", body.config?.model || (trustedPractice ? settings.practiceDefaultModels.audioModel : settings.defaultModels.audioModel), "", executionProfile).map((resolved) => ({
+            ...toSystemGenerationChannel(resolved),
+            channelId: resolved.channelId,
+            executionProfile,
+        }));
         const prompt = String(body.prompt || "").trim();
         const supportedChannels = channels.filter((channel) => channel.apiFormat !== "gemini");
         if (!supportedChannels.length || !prompt) return NextResponse.json({ error: "音频任务参数不完整或渠道不支持" }, { status: 400 });

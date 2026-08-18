@@ -749,6 +749,8 @@ export type PracticeSessionRecord = {
     projectId?: string;
     projectKind: PracticeProjectKind;
     module: PracticeModuleKind;
+    title: string;
+    clientRequestId: string;
     executionProfile: PracticeExecutionProfile;
     prompt: JsonValue;
     input: JsonValue;
@@ -758,7 +760,7 @@ export type PracticeSessionRecord = {
     updatedAt: string;
 };
 
-export type PracticeSessionCreateInput = Omit<PracticeSessionRecord, "createdAt" | "updatedAt" | "executionProfile"> & Partial<Pick<PracticeSessionRecord, "executionProfile">>;
+export type PracticeSessionCreateInput = Omit<PracticeSessionRecord, "createdAt" | "updatedAt" | "executionProfile" | "title" | "clientRequestId"> & Partial<Pick<PracticeSessionRecord, "executionProfile" | "title" | "clientRequestId">>;
 
 export type PracticeCopyRequestRecord = {
     userId: string;

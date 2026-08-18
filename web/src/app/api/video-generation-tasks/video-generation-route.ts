@@ -15,7 +15,7 @@ import { normalizeVideoAspectRatio, resolveUpstreamVideoDuration, resolveVideoDu
 import { parseImageDimensions } from "@/lib/image-size";
 import { signReferenceAssetInputUrl } from "@/lib/server/reference-asset-access";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
-import { hasUntrustedExecutionProfile } from "@/lib/server/generation-execution-policy";
+import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { mediaTaskSource } from "@/lib/media-management-contract";
@@ -54,7 +54,8 @@ export async function POST(request: Request) {
         if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
-    if (hasUntrustedExecutionProfile(body)) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
+    const trustedPractice = isTrustedPracticeTaskRequest(request, user.id, body.context);
+    if (hasUntrustedExecutionProfile(body) && !trustedPractice) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
     if (!headerRequestId && body.context?.clientRequestId) {
         const existing = await getStoredGenerationTaskByRequest<VideoTask>("video", user.id, body.context.clientRequestId, body.context.attemptNo);
         if (existing) return NextResponse.json({ task: publicTask(existing) });
@@ -62,8 +63,9 @@ export async function POST(request: Request) {
     if (headerRequestId) body.context = { ...(body.context || {}), clientRequestId: headerRequestId, ...(headerAttemptNo ? { attemptNo: headerAttemptNo } : {}) };
     const settings = await getAuthSettings();
     const response = await withGenerationConcurrencyLimit(user.id, "video", 30 * 60_000, settings.generationConcurrency.video, async () => {
-        const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : settings.defaultModels.videoModel;
-        const channels = resolveLogicalModelCandidates(settings, "video", requestedModel).map(toSystemGenerationChannel);
+        const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : trustedPractice ? settings.practiceDefaultModels.videoModel : settings.defaultModels.videoModel;
+        const executionProfile: "production" | "open-source-practice" = trustedPractice ? "open-source-practice" : "production";
+        const channels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile).map((channel) => ({ ...toSystemGenerationChannel(channel), executionProfile }));
         const prompt = String(body.prompt || "").trim();
         if (!channels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
         const publicOrigin = requestPublicOrigin(request);

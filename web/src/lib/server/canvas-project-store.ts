@@ -55,8 +55,9 @@ export async function listCanvasProjectPage(userId: string, input: { page: numbe
     return { ...input, items: projects.slice(offset, offset + input.pageSize), total: projects.length };
 }
 
-export async function listCanvasProjectSummaries(userId: string, input: { page: number; pageSize: number }): Promise<CanvasProjectSummaryPage> {
+export async function listCanvasProjectSummaries(userId: string, input: { page: number; pageSize: number; executionProfile?: PracticeExecutionProfile }): Promise<CanvasProjectSummaryPage> {
     const offset = (input.page - 1) * input.pageSize;
+    const profileClause = input.executionProfile ? " AND execution_profile = $4" : "";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<Record<string, unknown>>(
@@ -68,7 +69,7 @@ export async function listCanvasProjectSummaries(userId: string, input: { page: 
                         jsonb_array_length(CASE WHEN jsonb_typeof(project_json->'nodes') = 'array' THEN project_json->'nodes' ELSE '[]'::jsonb END) AS node_count,
                         jsonb_array_length(CASE WHEN jsonb_typeof(project_json->'connections') = 'array' THEN project_json->'connections' ELSE '[]'::jsonb END) AS connection_count
                  FROM canvas_projects
-                 WHERE user_id = $1
+                 WHERE user_id = $1${profileClause}
              ), page_items AS (
                  SELECT * FROM filtered ORDER BY updated_at DESC, id ASC LIMIT $2 OFFSET $3
              )
@@ -76,11 +77,11 @@ export async function listCanvasProjectSummaries(userId: string, input: { page: 
              FROM (SELECT count(*)::integer AS total_count FROM filtered) totals
              LEFT JOIN page_items ON TRUE
              ORDER BY page_items.updated_at DESC NULLS LAST, page_items.id ASC`,
-            [userId, input.pageSize, offset],
+            input.executionProfile ? [userId, input.pageSize, offset, input.executionProfile] : [userId, input.pageSize, offset],
         );
         return { projects: result.rows.filter((row) => row.id).map(mapProjectSummary), total: Math.max(0, Number(result.rows[0]?.total_count) || 0), ...input };
     }
-    const projects = (await listCanvasProjects(userId)).map(summarizeCanvasProjectRecord);
+    const projects = (await listCanvasProjects(userId)).filter((project) => !input.executionProfile || (project as CanvasProject & CanvasProjectIdentityView).executionProfile === input.executionProfile).map(summarizeCanvasProjectRecord);
     return { projects: projects.slice(offset, offset + input.pageSize), total: projects.length, ...input };
 }
 

@@ -12,9 +12,10 @@ type DramaProjectDatabase = { version: 1; projects: DramaProjectRecord[] };
 
 const FILE_NAME = "drama-projects.json";
 
-export async function listDramaProjectSummaries(userId: string, input: { page?: number; pageSize?: number } = {}): Promise<DramaProjectSummaryPage> {
+export async function listDramaProjectSummaries(userId: string, input: { page?: number; pageSize?: number; executionProfile?: PracticeExecutionProfile } = {}): Promise<DramaProjectSummaryPage> {
     const page = Math.max(1, Math.floor(Number(input.page) || 1));
     const pageSize = Math.max(1, Math.min(100, Math.floor(Number(input.pageSize) || 20)));
+    const profileClause = input.executionProfile ? " AND project.execution_profile = $4" : "";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<DramaProjectSummaryRow>(
@@ -56,15 +57,15 @@ export async function listDramaProjectSummaries(userId: string, input: { page?: 
                 FROM jsonb_array_elements(COALESCE(project.project_json->'episodes', '[]'::jsonb)) episode
                 CROSS JOIN LATERAL jsonb_array_elements(COALESCE(episode->'shots', '[]'::jsonb)) shot
              ) tasks ON TRUE
-             WHERE project.user_id = $1
+             WHERE project.user_id = $1${profileClause}
              ORDER BY project.updated_at DESC
              LIMIT $2 OFFSET $3`,
-            [userId, pageSize, (page - 1) * pageSize],
+            input.executionProfile ? [userId, pageSize, (page - 1) * pageSize, input.executionProfile] : [userId, pageSize, (page - 1) * pageSize],
         );
         return { items: result.rows.map(summaryFromRow), total: Number(result.rows[0]?.total_count) || 0, page, pageSize };
     }
     const summaries = (await readDatabase()).projects
-        .filter((record) => record.userId === userId)
+        .filter((record) => record.userId === userId && (!input.executionProfile || record.executionProfile === input.executionProfile))
         .map((record) => ({ ...summarizeDramaProject(record.project), ...identityView(record) }))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return { items: summaries.slice((page - 1) * pageSize, page * pageSize), total: summaries.length, page, pageSize };

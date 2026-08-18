@@ -66,13 +66,14 @@ export function publicTask(task: ImageTask) {
     };
 }
 
-export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: Awaited<ReturnType<typeof getAuthSettings>>): ImageTaskConfig[] {
-    const requestedModel = config?.model || settings.defaultModels.imageModel;
-    return resolveLogicalModelCandidates(settings, "image", requestedModel).map((resolved) => {
+export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: Awaited<ReturnType<typeof getAuthSettings>>, executionProfile: "production" | "open-source-practice" = "production"): ImageTaskConfig[] {
+    const requestedModel = config?.model || (executionProfile === "open-source-practice" ? settings.practiceDefaultModels.imageModel : settings.defaultModels.imageModel);
+    return resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile).map((resolved) => {
         const channel = toSystemGenerationChannel(resolved);
         return {
             ...channel,
             channelId: resolved.channelId,
+            executionProfile,
             ...resolveImageTaskOptions(config || {}, settings.generationDefaults),
             systemPrompt: "",
             advancedConfig: sanitizeAdvancedConfig(channel.advancedConfig),

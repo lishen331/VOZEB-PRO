@@ -600,6 +600,8 @@ CREATE TABLE IF NOT EXISTS practice_sessions (
     project_id text,
     project_kind text NOT NULL,
     module text NOT NULL,
+    title text NOT NULL DEFAULT '',
+    client_request_id text NOT NULL,
     execution_profile text NOT NULL DEFAULT 'open-source-practice',
     prompt_json jsonb NOT NULL DEFAULT '{}'::jsonb,
     input_json jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -612,6 +614,11 @@ CREATE TABLE IF NOT EXISTS practice_sessions (
     CONSTRAINT practice_sessions_profile CHECK (execution_profile = 'open-source-practice'),
     CONSTRAINT practice_sessions_status CHECK (status IN ('draft', 'queued', 'running', 'success', 'failed', 'cancelled'))
 );
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS title text NOT NULL DEFAULT '';
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS client_request_id text;
+UPDATE practice_sessions SET client_request_id = id WHERE client_request_id IS NULL;
+ALTER TABLE practice_sessions ALTER COLUMN client_request_id SET NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS practice_sessions_user_request_idx ON practice_sessions (user_id, client_request_id);
 CREATE INDEX IF NOT EXISTS practice_sessions_user_updated_idx ON practice_sessions (user_id, updated_at DESC, id);
 CREATE INDEX IF NOT EXISTS practice_sessions_project_updated_idx ON practice_sessions (user_id, project_kind, project_id, updated_at DESC, id);
 

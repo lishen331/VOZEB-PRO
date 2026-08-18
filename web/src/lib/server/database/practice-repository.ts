@@ -9,12 +9,31 @@ export class PracticeRepository {
 
     async createPracticeSession(input: PracticeSessionCreateInput) {
         const result = await this.db.query(
-            `INSERT INTO practice_sessions (id, user_id, project_id, project_kind, module, execution_profile, prompt_json, input_json, task_refs, status)
-             VALUES ($1, $2, $3, $4, $5, 'open-source-practice', $6::jsonb, $7::jsonb, $8::jsonb, $9)
+            `INSERT INTO practice_sessions (id, user_id, project_id, project_kind, module, title, client_request_id, execution_profile, prompt_json, input_json, task_refs, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'open-source-practice', $8::jsonb, $9::jsonb, $10::jsonb, $11)
+             ON CONFLICT (user_id, client_request_id) DO UPDATE SET updated_at = practice_sessions.updated_at
              RETURNING *`,
-            [input.id, input.userId, input.projectId || null, input.projectKind, input.module, jsonParam(input.prompt), jsonParam(input.input), jsonParam(input.taskRefs), input.status],
+            [input.id, input.userId, input.projectId || null, input.projectKind, input.module, input.title || "练习会话", input.clientRequestId || input.id, jsonParam(input.prompt), jsonParam(input.input), jsonParam(input.taskRefs), input.status],
         );
         return mapPracticeSession(result.rows[0]);
+    }
+
+    async getPracticeSessionByClientRequest(userId: string, clientRequestId: string) {
+        const result = await this.db.query("SELECT * FROM practice_sessions WHERE user_id = $1 AND client_request_id = $2", [userId, clientRequestId]);
+        return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
+    }
+
+    async updatePracticeSession(userId: string, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title">>) {
+        const current = await this.getPracticeSessionForUser(userId, id);
+        if (!current) return null;
+        const result = await this.db.query(
+            `UPDATE practice_sessions
+             SET status = COALESCE($3, status), task_refs = COALESCE($4::jsonb, task_refs), prompt_json = COALESCE($5::jsonb, prompt_json), input_json = COALESCE($6::jsonb, input_json), title = COALESCE($7, title)
+             WHERE user_id = $1 AND id = $2
+             RETURNING *`,
+            [userId, id, patch.status || null, patch.taskRefs === undefined ? null : jsonParam(patch.taskRefs), patch.prompt === undefined ? null : jsonParam(patch.prompt), patch.input === undefined ? null : jsonParam(patch.input), patch.title || null],
+        );
+        return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
     }
 
     async getPracticeSessionForUser(userId: string, id: string) {
@@ -92,6 +111,8 @@ function mapPracticeSession(row: Record<string, unknown>): PracticeSessionRecord
         projectId: optionalString(row.project_id),
         projectKind: row.project_kind === "drama" ? "drama" : "canvas",
         module: practiceModule(row.module),
+        title: optionalString(row.title) || "练习会话",
+        clientRequestId: stringValue(row.client_request_id),
         executionProfile: "open-source-practice",
         prompt: jsonValue(row.prompt_json),
         input: jsonValue(row.input_json),
