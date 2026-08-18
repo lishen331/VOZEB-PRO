@@ -105,6 +105,20 @@ describe("public work process service", () => {
         await expect(getPublicWorkProcess("publicwork123")).rejects.toMatchObject({ status: 404 });
     });
 
+    it("removes process and copy access when disabled and does not expose a mark from an older version", async () => {
+        await expect(setPublishedWorkPullFilm("admin-one", "work-one", false)).resolves.toMatchObject({ hasProcess: false, processVersionId: undefined, snapshot: undefined });
+        expect(mocks.practice.setPullFilmVersion).toHaveBeenCalledWith(expect.objectContaining({ workId: "work-one", versionId: "version-one", enabled: false, snapshot: undefined }));
+
+        const newVersion = { ...version, id: "version-two", pullFilmEnabled: false, pullFilmSnapshot: undefined };
+        mocks.workPublications.getPublicWork.mockResolvedValueOnce({ ...work, publishedVersionId: "version-two", publishedVersion: newVersion, assets: [] });
+        await expect(getPublicWorkProcess("publicwork123")).rejects.toMatchObject({ status: 404 });
+
+        mocks.workPublications.getWorkBySlug.mockResolvedValueOnce({ ...work, publishedVersionId: "version-two" });
+        mocks.workPublications.getVersionById.mockResolvedValueOnce(newVersion);
+        await expect(copyPublicWorkToPractice({ id: "student-one", role: "user" }, "publicwork123", "request-disabled")).rejects.toMatchObject({ status: 404 });
+        expect(mocks.practice.createPracticeProjectCopy).not.toHaveBeenCalled();
+    });
+
     it("claims idempotency before creating the project in the same transaction", async () => {
         mocks.practice.claimCopyRequest.mockImplementation(async (input) => ({ ...input, createdAt: now, updatedAt: now }));
         mocks.practice.createPracticeProjectCopy.mockResolvedValue(undefined);

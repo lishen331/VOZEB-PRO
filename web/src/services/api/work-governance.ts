@@ -76,6 +76,16 @@ export function setAdminWorkFeatured(id: string, featured: boolean) {
     return request<{ work: unknown }>(`/api/admin/works/${encodeURIComponent(id)}/feature`, jsonRequest({ featured }));
 }
 
+export type AdminWorkPullFilmState = {
+    hasProcess: boolean;
+    processVersionId?: string;
+    updatedAt: string;
+};
+
+export function setAdminWorkPullFilm(id: string, enabled: boolean) {
+    return request<AdminWorkPullFilmState>(`/api/admin/works/${encodeURIComponent(id)}/pull-film`, jsonRequest({ enabled }, "PATCH"));
+}
+
 function searchParams(input: Record<string, string | number | undefined>) {
     const params = new URLSearchParams();
     Object.entries(input).forEach(([key, value]) => {
@@ -84,8 +94,8 @@ function searchParams(input: Record<string, string | number | undefined>) {
     return params.toString();
 }
 
-function jsonRequest(body: unknown): RequestInit {
-    return { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+function jsonRequest(body: unknown, method: "POST" | "PATCH" = "POST"): RequestInit {
+    return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {

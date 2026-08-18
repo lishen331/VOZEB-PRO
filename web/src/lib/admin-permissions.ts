@@ -21,7 +21,7 @@ export const ADMIN_PERMISSION_DEFINITIONS = [
     { key: "billing.read", group: "billing", label: "财务查看", description: "查看订单、流水、支付和对账摘要。" },
     { key: "billing.manage", group: "billing", label: "财务管理", description: "处理收款、退款、积分、支付配置和对账。" },
     { key: "system.manage", group: "system", label: "系统管理", description: "管理站点、邮件、存储、备份和数据维护。" },
-    { key: "content.manage", group: "system", label: "内容运营", description: "管理作品审核、举报申诉、公告和公共提示词。" },
+    { key: "content.manage", group: "system", label: "内容运营", description: "管理作品审核、拉片项目、举报申诉、公告和公共提示词。" },
     { key: "audit.read", group: "system", label: "审计查看", description: "只读查看管理员和安全审计记录。" },
 ] as const satisfies ReadonlyArray<{ key: string; group: AdminPermissionGroup; label: string; description: string }>;
 

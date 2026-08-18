@@ -26,6 +26,10 @@ export type WorkPublicationVersion = {
     moderationSignal?: unknown;
     createdAt: string;
     updatedAt: string;
+    pullFilmEnabled?: boolean;
+    pullFilmSnapshot?: unknown;
+    pullFilmEnabledAt?: string;
+    pullFilmEnabledByUserId?: string;
 };
 
 export type WorkPublicationAsset = {
