@@ -32,6 +32,8 @@ export type PublicGalleryItem = {
     viewCount: number;
     likeCount: number;
     isFeatured: boolean;
+    hasProcess: boolean;
+    processVersionId?: string;
     publishedAt: string;
     title: string;
     description: string;

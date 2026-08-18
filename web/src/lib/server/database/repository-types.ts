@@ -811,6 +811,8 @@ export type PublishedGalleryItemRecord = {
     viewCount: number;
     likeCount: number;
     isFeatured: boolean;
+    hasProcess: boolean;
+    processVersionId?: string;
     featuredAt?: string;
     publishedAt: string;
     title: string;
