@@ -4,6 +4,7 @@ import type {
     IpDraftVersionInput,
     IpItemRecord,
     IpPackageCreateInput,
+    IpPackagePatch,
     IpPackageRecord,
     IpSchoolGrantCreateInput,
     IpSchoolGrantRecord,
@@ -29,6 +30,8 @@ export type VisibleIpListInput = PageInput & {
 
 export type VisibleIpDetailInput = { userId: string; schoolId?: string; ipId: string; versionId?: string; at?: string };
 export type IpUsageListInput = PageInput & { ipId?: string; versionId?: string; schoolId?: string; userId?: string; action?: string };
+export type AdminIpListInput = PageInput & { keyword?: string; status?: string; visibility?: string };
+export type IpGrantListInput = PageInput & { ipId: string; schoolId?: string; status?: string };
 
 export class IpLibraryRepository {
     constructor(private readonly db: QueryExecutor) {}
@@ -46,6 +49,39 @@ export class IpLibraryRepository {
             [input.id, input.title, input.slug, input.summary, input.coverAssetId || null, input.visibility, input.authorizationMode, input.status, input.createdByUserId || null],
         );
         return mapPackage(result.rows[0]);
+    }
+
+    async listIpPackages(input: AdminIpListInput = {}): Promise<PageResult<IpSummaryRecord>> {
+        const page = normalizePage(input.page);
+        const pageSize = normalizePageSize(input.pageSize);
+        const values: unknown[] = [input.keyword?.trim() || null, input.status || null, input.visibility || null];
+        const where = `($1::text IS NULL OR package.title ILIKE '%' || $1 || '%' OR package.summary ILIKE '%' || $1 || '%' OR package.slug ILIKE '%' || $1 || '%')
+            AND ($2::text IS NULL OR package.status = $2) AND ($3::text IS NULL OR package.visibility = $3)`;
+        const count = await this.db.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM ip_packages AS package WHERE ${where}`, values);
+        values.push(pageSize, (page - 1) * pageSize);
+        const result = await this.db.query(
+            `SELECT package.*, COALESCE(version.version_number, 0) AS version_number,
+                    COALESCE((SELECT COUNT(*)::integer FROM ip_items AS item WHERE item.version_id = version.id), 0) AS item_count
+             FROM ip_packages AS package LEFT JOIN ip_versions AS version ON version.id = package.current_version_id
+             WHERE ${where} ORDER BY package.updated_at DESC, package.id LIMIT $4 OFFSET $5`,
+            values,
+        );
+        return pageResult(result.rows.map(mapSummary), numberValue(count.rows[0]?.count), page, pageSize);
+    }
+
+    async updateIpPackage(ipId: string, patch: IpPackagePatch): Promise<IpPackageRecord | null> {
+        const result = await this.db.query(
+            `UPDATE ip_packages AS package SET
+                title = COALESCE($2, title), slug = COALESCE($3, slug), summary = COALESCE($4, summary),
+                cover_asset_id = CASE WHEN $5 THEN $6 ELSE cover_asset_id END,
+                visibility = COALESCE($7, visibility), authorization_mode = COALESCE($8, authorization_mode), status = COALESCE($9, status)
+             WHERE id = $1 AND (
+                NOT EXISTS (SELECT 1 FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id)
+                OR (COALESCE($7, visibility) = visibility AND COALESCE($8, authorization_mode) = authorization_mode)
+             ) RETURNING *`,
+            [ipId, patch.title || null, patch.slug || null, patch.summary ?? null, patch.coverAssetId !== undefined, patch.coverAssetId || null, patch.visibility || null, patch.authorizationMode || null, patch.status || null],
+        );
+        return result.rows[0] ? mapPackage(result.rows[0]) : null;
     }
 
     async createIpDraftVersion(ipId: string, input: IpDraftVersionInput): Promise<IpVersionRecord> {
@@ -182,6 +218,19 @@ export class IpLibraryRepository {
         return result.rows[0] ? { ...mapVersion(result.rows[0]), items: await this.listVersionItems(versionId) } : null;
     }
 
+    async listIpVersions(ipId: string, input: PageInput = {}): Promise<PageResult<IpVersionRecord>> {
+        const page = normalizePage(input.page);
+        const pageSize = normalizePageSize(input.pageSize);
+        const count = await this.db.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM ip_versions WHERE ip_id = $1", [ipId]);
+        const result = await this.db.query(
+            `SELECT version.*, COALESCE(jsonb_agg(to_jsonb(item) ORDER BY item.sort_order, item.created_at, item.id) FILTER (WHERE item.id IS NOT NULL), '[]'::jsonb) AS items
+             FROM ip_versions AS version LEFT JOIN ip_items AS item ON item.version_id = version.id
+             WHERE version.ip_id = $1 GROUP BY version.id ORDER BY version.version_number DESC LIMIT $2 OFFSET $3`,
+            [ipId, pageSize, (page - 1) * pageSize],
+        );
+        return pageResult(result.rows.map(mapVersion), numberValue(count.rows[0]?.count), page, pageSize);
+    }
+
     async createSchoolGrant(input: IpSchoolGrantCreateInput): Promise<IpSchoolGrantRecord> {
         const result = await this.db.query(
             `INSERT INTO ip_school_grants (id, ip_id, school_id, mode, status, starts_at, ends_at, note, created_by_user_id)
@@ -201,6 +250,17 @@ export class IpLibraryRepository {
             [ipId, grantId, patch.status || null, patch.endsAt !== undefined, patch.endsAt || null, patch.note ?? null, patch.updatedAt],
         );
         return result.rows[0] ? mapGrant(result.rows[0]) : null;
+    }
+
+    async listSchoolGrants(input: IpGrantListInput): Promise<PageResult<IpSchoolGrantRecord>> {
+        const page = normalizePage(input.page);
+        const pageSize = normalizePageSize(input.pageSize);
+        const values: unknown[] = [input.ipId, input.schoolId || null, input.status || null];
+        const where = "school_grant.ip_id = $1 AND ($2::text IS NULL OR school_grant.school_id = $2) AND ($3::text IS NULL OR school_grant.status = $3)";
+        const count = await this.db.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM ip_school_grants AS school_grant WHERE ${where}`, values);
+        values.push(pageSize, (page - 1) * pageSize);
+        const result = await this.db.query(`SELECT school_grant.* FROM ip_school_grants AS school_grant WHERE ${where} ORDER BY school_grant.created_at DESC, school_grant.id LIMIT $4 OFFSET $5`, values);
+        return pageResult(result.rows.map(mapGrant), numberValue(count.rows[0]?.count), page, pageSize);
     }
 
     async recordIpUsage(input: IpUsageCreateInput): Promise<IpUsageRecord> {

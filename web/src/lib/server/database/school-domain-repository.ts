@@ -58,6 +58,12 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         return pageResult(rows.rows.map(mapSchool), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
+    async listSchoolsByIds(schoolIds: string[]) {
+        if (!schoolIds.length) return [];
+        const result = await this.db.query("SELECT * FROM schools WHERE id = ANY($1::text[]) ORDER BY id", [schoolIds]);
+        return result.rows.map(mapSchool);
+    }
+
     async getSchool(schoolId: string, forUpdate = false) {
         const result = await this.db.query(`SELECT * FROM schools WHERE id = $1${forUpdate ? " FOR UPDATE" : ""}`, [schoolId]);
         return result.rows[0] ? mapSchool(result.rows[0]) : null;

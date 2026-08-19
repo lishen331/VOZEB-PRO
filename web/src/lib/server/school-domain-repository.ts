@@ -158,6 +158,7 @@ export type CommercialOrderDeliveryUpdate = Pick<CommercialOrderDeliveryRecord, 
 
 export interface SchoolDomainRepository {
     listSchools(input: PageQuery & { keyword?: string; status?: SchoolStatus }): Promise<Page<SchoolRecord>>;
+    listSchoolsByIds(schoolIds: string[]): Promise<SchoolRecord[]>;
     getSchool(schoolId: string, forUpdate?: boolean): Promise<SchoolRecord | null>;
     updateSchool(schoolId: string, patch: SchoolUpdate): Promise<SchoolRecord | null>;
     getSchoolContextByUserId(userId: string): Promise<SchoolContextRecord | null>;

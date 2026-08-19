@@ -64,6 +64,22 @@ describe("file IP library repository", () => {
         await repository.updateSchoolGrant("exclusive-ip", "grant-exclusive", { status: "revoked", updatedAt: "2026-08-19T01:00:00.000Z" });
         await expect(repository.getVisibleIp({ userId: "user-a", schoolId: "school-a", ipId: "exclusive-ip", at: "2026-08-19T02:00:00.000Z" })).resolves.toBeNull();
     });
+
+    it("pages management records and protects grant-bound authorization settings", async () => {
+        const repository = createFileIpLibraryRepository();
+        await repository.createIpPackage({ ...ipPackage("managed-ip", "school"), coverAssetId: "cover-before" });
+        await repository.createIpDraftVersion("managed-ip", draft("managed-version"));
+        await repository.publishIpVersion("managed-ip", "managed-version");
+        await repository.createSchoolGrant({ id: "managed-grant", ipId: "managed-ip", schoolId: "school-a", mode: "multi_school", status: "active", startsAt: now, note: "管理端授权", createdByUserId: "admin-a" });
+
+        await expect(repository.listIpPackages({ keyword: "managed", page: 1, pageSize: 1 })).resolves.toMatchObject({ total: 1, items: [{ id: "managed-ip", versionNumber: 1, itemCount: 1 }] });
+        await expect(repository.listIpVersions("managed-ip", { page: 1, pageSize: 1 })).resolves.toMatchObject({ total: 1, items: [{ id: "managed-version", items: [{}] }] });
+        await expect(repository.listSchoolGrants({ ipId: "managed-ip", page: 1, pageSize: 1 })).resolves.toMatchObject({ total: 1, items: [{ id: "managed-grant", schoolId: "school-a" }] });
+        const updated = await repository.updateIpPackage("managed-ip", { title: "新名称", coverAssetId: null });
+        expect(updated).toMatchObject({ title: "新名称" });
+        expect(updated).toHaveProperty("coverAssetId", undefined);
+        await expect(repository.updateIpPackage("managed-ip", { authorizationMode: "exclusive" })).resolves.toBeNull();
+    });
 });
 
 function ipPackage(id: string, visibility: "public" | "school") {

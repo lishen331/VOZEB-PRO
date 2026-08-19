@@ -23,6 +23,7 @@ describe("file school domain repository", () => {
         await repository.insertMembership(membership("member-b", "school-b", "user-b", "student"));
 
         await expect(repository.listSchools({ page: 1, pageSize: 1 })).resolves.toMatchObject({ total: 2, page: 1, pageSize: 1, items: [{ id: "school-b" }] });
+        await expect(repository.listSchoolsByIds(["school-b", "school-a", "missing"])).resolves.toEqual([expect.objectContaining({ id: "school-a" }), expect.objectContaining({ id: "school-b" })]);
         await expect(repository.getSchoolContextByUserId("user-a")).resolves.toMatchObject({ school: { id: "school-a" }, membership: { id: "member-a" } });
         await expect(repository.getMembership("school-a", "member-b")).resolves.toBeNull();
     });

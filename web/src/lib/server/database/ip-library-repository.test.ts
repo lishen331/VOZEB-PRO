@@ -205,4 +205,30 @@ describe("IpLibraryRepository PostgreSQL", () => {
         expect(page.items).toHaveLength(1);
         expect(page.items[0]).toMatchObject({ userId: ids.schoolAUser, schoolId: ids.schoolA, ipId: created.id });
     });
+
+    postgresIt("pages management records and protects grant-bound authorization settings", async () => {
+        const repository = createPostgresRepositories().ipLibrary;
+        const created = await repository.createIpPackage({ ...packageInput("admin-page", "school"), coverAssetId: "cover-before" });
+        const version = await repository.createIpDraftVersion(created.id, versionInput(created.id, "v1"));
+        await repository.publishIpVersion(created.id, version.id);
+        const grant = await repository.createSchoolGrant({
+            id: `${created.id}-grant-a`,
+            ipId: created.id,
+            schoolId: ids.schoolA,
+            mode: "multi_school",
+            status: "active",
+            startsAt: "2026-08-01T00:00:00.000Z",
+            endsAt: "2026-09-01T00:00:00.000Z",
+            note: "管理端授权",
+            createdByUserId: ids.admin,
+        });
+
+        await expect(repository.listIpPackages({ keyword: "admin-page", page: 1, pageSize: 1 })).resolves.toMatchObject({ total: 1, items: [{ id: created.id, versionNumber: 1, itemCount: 2 }] });
+        await expect(repository.listIpVersions(created.id, { page: 1, pageSize: 1 })).resolves.toMatchObject({ total: 1, items: [{ id: version.id, items: [{}, {}] }] });
+        await expect(repository.listSchoolGrants({ ipId: created.id, page: 1, pageSize: 1 })).resolves.toMatchObject({ total: 1, items: [{ id: grant.id, schoolId: ids.schoolA }] });
+        const updated = await repository.updateIpPackage(created.id, { title: "管理端新名称", coverAssetId: null });
+        expect(updated).toMatchObject({ title: "管理端新名称" });
+        expect(updated).toHaveProperty("coverAssetId", undefined);
+        await expect(repository.updateIpPackage(created.id, { authorizationMode: "exclusive" })).resolves.toBeNull();
+    });
 });
