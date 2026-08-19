@@ -2,7 +2,7 @@
 
 > **For agentic workers:** 使用 `superpowers:executing-plans` 按任务顺序执行。每个任务先写失败测试，再写最小实现；每个任务完成后执行该任务的定向测试、`pnpm typecheck`，并单独提交。
 
-**Goal:** 在现有 VOZEB PRO 的 Canvas、短剧、作品广场、模型渠道和生成任务基础上，增加独立身份的“无限练习”模块：学校内老师/学生可以创建空白练习项目，或从平台管理员标记的公开作品复制制作流程作为初始内容；平台管理员可以配置 RunningHub 开源模型渠道、练习模型池和拉片资格；正式生产项目、充值积分和既有 C 端创作流程保持不变。
+**Goal:** 在现有 VOZEB PRO 的 Canvas、短剧、作品广场、模型渠道和生成任务基础上，增加独立身份的“无限练习”模块：任何已登录且账号正常的 C 端用户都可以创建空白练习项目，或从平台管理员标记的公开作品复制制作流程作为初始内容；平台管理员可以配置 RunningHub 开源模型渠道、练习模型池和拉片资格；正式生产项目、充值积分和既有 C 端创作流程保持不变。
 
 **Architecture:** 无限练习不是正式项目的模式开关。Canvas/Drama 项目在创建时写入不可变的 `executionProfile`（`production` 或 `open-source-practice`），复制动作创建新的练习项目身份，正式项目不能被切换成练习项目。小模块（剧本、分镜图、分镜视频、配音、音乐）使用新的 `practice_sessions` 聚合和现有 text/image/video/audio 任务链路。模型渠道继续使用现有 `system_model_channels`、逻辑模型和任务调度器，只增加渠道用途 `production | open-source-practice | shared`；RunningHub 是一种 provider/protocol，不建立第二套模型后台。公开作品的制作流程快照绑定到 `published_work_versions`，只对平台管理员开启，公共页面在现有“灵感发现”作品预览中切换“成片/制作流程”，不新增拉片库或资产菜单。
 
@@ -11,14 +11,14 @@
 ## Global Constraints
 
 - 以 `docs/superpowers/specs/2026-08-18-infinite-practice-pull-film-design.md` 为产品基线；如果实现发现冲突，先更新 spec 和本计划，再继续编码。
-- 保留 `UserRole = "admin" | "user"`，不新增全局 teacher/student 角色。首期无限练习和复制入口要求当前账号存在 active school membership，teacher/student 均可使用；平台管理员只在后台配置，不通过 C 端练习页进入。
+- 保留 `UserRole = "admin" | "user"`，不新增全局 teacher/student 角色。无限练习是永久存在的 C 端公共能力，任何 active 登录用户（包括不属于学校的用户）均可使用和复制公开拉片作品，不检查学校 membership、学校角色或校内权限；账号只用于保存项目、恢复任务和执行现有登录态/资源保护。平台管理员的后台配置权限只约束 RunningHub 渠道、练习模型池和拉片开关，不限制 C 端练习使用。
 - 正式 Canvas/短剧项目默认 `production`，练习项目创建时固定 `open-source-practice`，更新接口拒绝改变该字段。不得实现 Canvas 与短剧互转。
 - “无限”只代表练习请求不调用现有用户积分钱包的扣减；管理员配置的模型池、任务并发、队列、每日总成本、媒体大小、上游限流和失败重试保护继续生效。不得以固定轮询次数、固定重试次数或硬编码上限伪装资源控制。
 - 用户端不选择 RunningHub、provider 或具体模型；练习模块只选择能力。服务端根据 `open-source-practice` 执行配置解析真实逻辑模型和渠道。
 - RunningHub 采用官方异步任务契约：提交得到 `taskId`，随后查询状态和结果；上传参考文件使用官方媒体上传接口返回的短期链接，不能把该链接当作本地媒体长期存储。模型的 `createPath`、`queryPath`、请求模板和结果字段必须由管理员按 RunningHub 官方模型文档填写，禁止猜测 V2 模型目录或任务路径。官方参考：[RunningHub API 文档](https://www.runninghub.cn/runninghub-api-doc-cn/)。
 - 拉片只允许 sourceType 为 `canvas` 或 `drama` 的已公开、已审核、当前发布版本使用；media 类型作品不显示制作流程和复制入口。下架、撤销或新版本发布后，旧资格不继续对外可用。
 - 制作流程快照必须 immutable、按 published version 绑定，并删除私聊、Agent 内部消息、执行提示词、API key、storage key、内部任务 ID、临时媒体和未发布素材。只返回经过 `published_work_assets` 白名单映射的公开媒体引用和可读结构数据。
-- Route Handler 只负责 HTTP 入参、Session/学校权限、service 调用和 `{ code, data, msg }` 响应；业务校验在 `web/src/lib/server/`，SQL 在 repository。公开路由必须再次校验当前 published version，不能只信任客户端传来的 versionId。
+- Route Handler 只负责 HTTP 入参、Session、必要的账号状态检查、service 调用和 `{ code, data, msg }` 响应；业务校验在 `web/src/lib/server/`，SQL 在 repository。公开路由必须再次校验当前 published version，不能只信任客户端传来的 versionId。
 - PostgreSQL 在线查询必须按用户、学校、作品、版本、状态和分页定向执行；禁止读取全量作品、全量项目或整张 JSON 后在 Node.js 筛选。写入拉片快照、复制项目和幂等记录使用同一事务。
 - 不改动当前工作区已有的 `web/src/proxy.ts`、`web/src/proxy.test.ts`、部署说明或学校实施计划等无关文件。所有中文源码、配置、测试和文档保存为 UTF-8，并在收尾执行严格解码与乱码检查。
 - 页面沿用现有 Next.js、Ant Design、Tailwind 和后台页面模式。后台列表使用列表/卡片 + 创建/编辑 Modal/Drawer；不引入独立视觉体系，不新增“拉片库”菜单。
@@ -248,14 +248,14 @@
 
 **Interfaces:**
 
-- `POST /api/practice/projects`: `{ kind: "canvas" | "drama", title, source?: PracticeSource }`，服务端要求 active school membership，创建新的 practice project。
+- `POST /api/practice/projects`: `{ kind: "canvas" | "drama", title, source?: PracticeSource }`，服务端只要求当前账号 active，创建新的 practice project；不要求学校 membership。
 - `GET /api/practice/projects`: 只返回当前用户 practice 项目，按 kind/updatedAt 分页。
 - `POST /api/practice/sessions`: `{ module, title, input, references?, clientRequestId }`，服务端选择 capability 和 practice default model，创建 session 后调度现有任务。
 - `GET /api/practice/sessions/[id]`: 返回 session 和任务公开结果，不返回内部执行提示词、渠道 key 或 provider 详情。
 
-- [ ] **Step 1: 先写权限、身份和幂等失败测试**
+- [ ] **Step 1: 先写账号、身份和幂等失败测试**
 
-  覆盖：无学校成员 403、disabled school 403、teacher/student 成功、管理员不借用学校 context 访问 C 端练习；空白 Canvas/Drama 分别创建新 ID；从同一正式项目复制两次得到不同 practice ID；更新接口不能修改 profile；session 的 clientRequestId 重试返回同一 session。
+  覆盖：active 普通用户、无学校 membership 用户和学校外用户均成功；disabled 用户 403；管理员账号可按普通 C 端用户使用，不借用学校 context；空白 Canvas/Drama 分别创建新 ID；从同一正式项目复制两次得到不同 practice ID；更新接口不能修改 profile；session 的 clientRequestId 重试返回同一 session。
 
 - [ ] **Step 2: 运行失败测试**
 
@@ -265,7 +265,7 @@
 
 - [ ] **Step 3: 实现 practice access 和项目创建**
 
-  `practice-access-service.ts` 复用现有 school context service，只允许 active teacher/student membership。`practice-project-service.ts` 调用现有 Canvas/Drama create service；它是唯一可以设置 `open-source-practice` 的入口。普通 Canvas/Drama route 不接受该字段。创建过程把 `PracticeSource` 与项目身份一起写入，不把源作品的私有会话或全量原始 JSON 直接复制。
+  `practice-access-service.ts` 只复用现有 Session 和用户状态校验，不调用 school context service，也不判断 teacher/student。它允许所有 active 账号使用；disabled、注销中或不存在的账号返回 403/401。`practice-project-service.ts` 调用现有 Canvas/Drama create service；它是唯一可以设置 `open-source-practice` 的入口。普通 Canvas/Drama route 不接受该字段。创建过程把 `PracticeSource` 与项目身份一起写入，不把源作品的私有会话或全量原始 JSON 直接复制。
 
 - [ ] **Step 4: 实现小模块 session**
 
@@ -273,7 +273,7 @@
 
 - [ ] **Step 5: 实现 API 和客户端 service**
 
-  Route Handler 做 schema 校验、Session、school context、响应映射；不允许客户端传 `channelId`、`provider`、`modelId`、`pointsCost` 或 execution profile。客户端 API 统一放在 `web/src/services/api/practice.ts`，错误沿用现有 `{ code, msg }` 解析。
+  Route Handler 做 schema 校验、Session、账号状态和响应映射；不允许客户端传 `schoolId`、`channelId`、`provider`、`modelId`、`pointsCost` 或 execution profile。客户端 API 统一放在 `web/src/services/api/practice.ts`，错误沿用现有 `{ code, msg }` 解析。
 
 - [ ] **Step 6: 运行测试、类型检查和提交**
 
@@ -497,7 +497,7 @@
 
 - [ ] **Step 1: 先写页面和路由失败测试**
 
-  断言 active school teacher/student 可见“无限练习”入口；管理员、无学校成员和 disabled member 被重定向/403；首页有两个大卡片和五个小卡片；点击 Canvas/短剧创建空白独立项目；点击小卡片进入对应 capability；页面不显示 RunningHub、积分扣除或“切换正式项目”按钮。
+  断言任意 active 登录用户（无论是否属于学校）可见“无限练习”入口；只有未登录或 disabled 用户被重定向/403；首页有两个大卡片和五个小卡片；点击 Canvas/短剧创建空白独立项目；点击小卡片进入对应 capability；页面不显示 RunningHub、积分扣除或“切换正式项目”按钮。
 
 - [ ] **Step 2: 运行失败测试**
 
@@ -507,7 +507,7 @@
 
 - [ ] **Step 3: 实现 practice home 和导航**
 
-  在现有学校导航组加入 `/practice`，沿用学校 context 的可见性，不新增资产菜单。大卡片使用现有 Canvas/Drama 图标和项目列表；小卡片使用能力图标。响应式约束保证 390px/430px 首屏能看到下一层卡片，卡片不嵌套卡片，不引入营销式 hero。
+  在现有“项目”导航组加入 `/practice`，与“画布”“短剧”并列，不新增资产菜单，也不依赖学校 context 的可见性。大卡片使用现有 Canvas/Drama 图标和项目列表；小卡片使用能力图标。响应式约束保证 390px/430px 首屏能看到下一层卡片，卡片不嵌套卡片，不引入营销式 hero。
 
 - [ ] **Step 4: 复用 Canvas/短剧组件**
 
@@ -543,12 +543,12 @@
 
 **Interfaces:**
 
-- Produces browser evidence for teacher/student practice, admin RunningHub/pull-film settings, inspiration process view, copy idempotency and production regression.
+- Produces browser evidence for arbitrary active-user practice, admin RunningHub/pull-film settings, inspiration process view, copy idempotency and production regression.
 - Documents every new API, permission, execution profile, provider purpose and database field.
 
 - [ ] **Step 1: API/安全回归**
 
-  定向运行 practice/public/admin work route tests，覆盖学校隔离、session ownership、公开版本复核、不可变 profile、不能从 body 选择 provider/model、快照字段脱敏、copy retry 不重复创建。
+  定向运行 practice/public/admin work route tests，覆盖账号归属、session ownership、无学校 membership 用户访问、公开版本复核、不可变 profile、不能从 body 选择 provider/model、快照字段脱敏、copy retry 不重复创建。
 
   Run: `cd web; pnpm exec vitest run src/app/api/practice src/app/api/public/works src/app/api/admin/works/[id]/pull-film src/app/api/admin/settings src/lib/server/practice src/lib/server/public-work-process-service.test.ts --no-file-parallelism`
 
@@ -570,9 +570,9 @@
 
   1. admin 在渠道后台创建一个手动 RunningHub open-source-practice channel，保存模型路径并配置练习默认模型；不连接真实上游，使用已有 fixture provider 验证异步 submit/query。
   2. admin 在作品后台将一个已公开 Canvas/Drama 作品设为拉片项目，确认 featured 可独立切换。
-  3. teacher/student 在 `/practice` 创建空白 Canvas、短剧和五类 module session。
-  4. 学生从灵感发现打开制作流程，切换成片/流程并复制到练习；重复点击/刷新只得到一个 copy request 结果。
-  5. 学生刷新后恢复 practice project/session；正式项目仍使用 production channel，积分行为和原 C 端 `/create`、Canvas、Drama 不回归。
+  3. 普通 C 端用户（可有或无学校 membership）在 `/practice` 创建空白 Canvas、短剧和五类 module session。
+  4. 普通用户从灵感发现打开制作流程，切换成片/流程并复制到练习；重复点击/刷新只得到一个 copy request 结果。
+  5. 普通用户刷新后恢复 practice project/session；正式项目仍使用 production channel，积分行为和原 C 端 `/create`、Canvas、Drama 不回归。
   6. 关闭拉片或下架作品后，公共 process/copy 入口消失。
 
   同时运行 desktop、390px、430px，使用正常语义点击，不用 `force` 或固定等待；读取 `getBoundingClientRect()` 验证 card、modal、内部流程滚动区和底部操作区不横向溢出。
@@ -601,7 +601,7 @@
   - 平台管理员能在既有渠道后台配置 RunningHub，明确区分正式生产和无限练习模型池。
   - 平台管理员能在作品详情把公开 Canvas/短剧版本设为拉片项目，且 featured 状态独立。
   - 灵感发现作品预览能查看只读制作流程，并从成片或流程复制到新的练习身份。
-  - 学校老师/学生能创建独立 Canvas/短剧练习项目和五类小模块；正式项目不能切换为练习，Canvas/短剧不能互转。
+  - 任意 active C 端用户能创建独立 Canvas/短剧练习项目和五类小模块；正式项目不能切换为练习，Canvas/短剧不能互转。
   - 练习任务不扣现有积分，但仍受渠道、队列、并发、成本和媒体保护；RunningHub 任务可提交、查询、恢复和失败处理。
   - 下架、撤销、换版本或关闭拉片后，公共制作流程和复制入口不再可用。
   - 公开流程不泄露剧本私有版本、内部提示词、私聊、API key、storage key、内部任务 ID 或未发布素材。
