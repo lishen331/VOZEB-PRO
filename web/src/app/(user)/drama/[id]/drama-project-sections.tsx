@@ -230,7 +230,9 @@ export function DramaWorkspaceHeader({
                 </Tooltip>
                 <div className="min-w-0 flex-1">
                     <Input variant="borderless" className="!h-7 !p-0 !text-base !font-semibold sm:!text-lg" value={project.title} onChange={(event) => updateProject(project.id, { title: event.target.value })} aria-label="短剧项目名称" />
-                    {project.executionProfile === "open-source-practice" ? <span className="mt-1 inline-flex w-fit border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">无限练习 · 资源保护</span> : null}
+                    {project.executionProfile === "open-source-practice" ? (
+                        <span className="mt-1 inline-flex w-fit border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">无限练习 · 资源保护</span>
+                    ) : null}
                     {assetsOpen ? (
                         <div className="mt-0.5 text-xs text-muted-foreground">项目资产库</div>
                     ) : (
