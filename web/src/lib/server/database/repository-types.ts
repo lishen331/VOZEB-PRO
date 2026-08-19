@@ -1,5 +1,6 @@
 import type { RegistrationPolicyConsent } from "@/lib/registration-consent";
 import type { AdminPermission } from "@/lib/admin-permissions";
+import type { IpAssetKind, IpAuthorizationMode, IpItemCategory, IpStatus, IpUsageAction, IpVersionStatus, IpVisibility } from "@/lib/ip-library-domain";
 import type { PracticeExecutionProfile, PracticeModuleKind, PracticeProjectKind, SystemChannelPurpose } from "@/lib/practice-domain";
 
 export type JsonPrimitive = string | number | boolean | null;
@@ -16,6 +17,88 @@ export type PageResult<T> = {
     page: number;
     pageSize: number;
 };
+
+export type IpSchoolGrantStatus = "active" | "suspended" | "revoked" | "expired";
+export type IpUsageTargetType = "canvas" | "drama" | "practice" | "download";
+
+export type IpPackageRecord = {
+    id: string;
+    title: string;
+    slug: string;
+    summary: string;
+    coverAssetId?: string;
+    visibility: IpVisibility;
+    authorizationMode: IpAuthorizationMode;
+    status: IpStatus;
+    currentVersionId?: string;
+    createdByUserId?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type IpItemRecord = {
+    id: string;
+    versionId: string;
+    kind: IpAssetKind;
+    category: IpItemCategory;
+    title: string;
+    summary: string;
+    textContent?: string;
+    assetId?: string;
+    sortOrder: number;
+    createdAt: string;
+};
+
+export type IpVersionRecord = {
+    id: string;
+    ipId: string;
+    versionNumber: number;
+    title: string;
+    summary: string;
+    status: IpVersionStatus;
+    manifest: JsonValue;
+    publishedAt?: string;
+    createdByUserId?: string;
+    createdAt: string;
+    items: IpItemRecord[];
+};
+
+export type IpPackageCreateInput = Omit<IpPackageRecord, "currentVersionId" | "createdAt" | "updatedAt">;
+export type IpDraftItemInput = Omit<IpItemRecord, "versionId" | "createdAt">;
+export type IpDraftVersionInput = Pick<IpVersionRecord, "id" | "title" | "summary"> & { createdByUserId?: string; items: IpDraftItemInput[] };
+export type IpSummaryRecord = IpPackageRecord & { versionNumber: number; itemCount: number; grantMode?: IpAuthorizationMode };
+export type IpDetailRecord = IpPackageRecord & { version: IpVersionRecord; grantMode?: IpAuthorizationMode };
+
+export type IpSchoolGrantRecord = {
+    id: string;
+    ipId: string;
+    schoolId: string;
+    mode: IpAuthorizationMode;
+    status: IpSchoolGrantStatus;
+    startsAt: string;
+    endsAt?: string;
+    note: string;
+    createdByUserId?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type IpSchoolGrantCreateInput = Omit<IpSchoolGrantRecord, "createdAt" | "updatedAt">;
+
+export type IpUsageRecord = {
+    id: string;
+    ipId: string;
+    versionId: string;
+    itemIds: string[];
+    schoolId?: string;
+    userId: string;
+    action: IpUsageAction;
+    targetType: IpUsageTargetType;
+    targetId: string;
+    createdAt: string;
+};
+
+export type IpUsageCreateInput = Omit<IpUsageRecord, "createdAt">;
 
 export type UserRole = "admin" | "user";
 export type UserStatus = "active" | "disabled";
