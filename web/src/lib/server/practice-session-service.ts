@@ -180,7 +180,7 @@ export async function retryPracticeSessionForUser(
         await (deps.resolveModel || defaultResolveModel)(current.module);
         return publicSession(reset);
     }
-    return dispatchQueuedSession(actor.id, reset, `retry-${nanoid()}`, store, dispatch, deps.resolveModel || defaultResolveModel);
+    return dispatchQueuedSession(actor.id, reset, current.clientRequestId, store, dispatch, deps.resolveModel || defaultResolveModel);
 }
 
 export class PracticeServiceError extends Error {

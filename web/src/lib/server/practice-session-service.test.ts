@@ -8,7 +8,7 @@ vi.mock("@/lib/server/ip-library-reference-service", () => ({
     recordIpReferenceUsage: mocks.recordIpReferenceUsage,
 }));
 
-import { createPracticeSessionForUser, getPracticeSessionForUser, retryPracticeSessionForUser, type PracticeSessionStore } from "./practice-session-service";
+import { createPracticeSessionForUser, getPracticeSessionForUser, retryPracticeSessionForUser, type PracticeSessionStore, type PracticeTaskDispatchResult } from "./practice-session-service";
 import type { PracticeSessionRecord } from "./database/repository-types";
 
 function memoryStore(): PracticeSessionStore {
@@ -141,7 +141,45 @@ describe("practice sessions", () => {
         expect(session.input).toEqual({ prompt: "雨夜车站", references: [{ type: "asset", id: "asset-one" }] });
 
         await retryPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store, dispatch: retryDispatch, resolveModel });
-        expect(retryDispatch).toHaveBeenCalledWith(expect.objectContaining({ input: { prompt: "雨夜车站" }, references: [{ type: "asset", id: "asset-one" }] }));
+        expect(retryDispatch).toHaveBeenCalledWith(expect.objectContaining({ input: { prompt: "雨夜车站" }, references: [{ type: "asset", id: "asset-one" }], clientRequestId: "request-three" }));
+    });
+
+    it("reuses the stable child request after its task reference failed to persist", async () => {
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const baseStore = memoryStore();
+        const update = baseStore.update;
+        let rejectTaskRefWrite = true;
+        const store: PracticeSessionStore = {
+            ...baseStore,
+            update: vi.fn(async (userId, id, patch) => {
+                if (rejectTaskRefWrite && patch.taskRefs) {
+                    rejectTaskRefWrite = false;
+                    throw new Error("write-back failed");
+                }
+                return update(userId, id, patch);
+            }),
+        };
+        const acceptedRequests = new Map<string, PracticeTaskDispatchResult>();
+        const dispatch = vi.fn(async (input) => {
+            const existing = acceptedRequests.get(input.clientRequestId);
+            if (existing) return existing;
+            const task = { taskId: "task-one", taskType: "text" as const };
+            acceptedRequests.set(input.clientRequestId, task);
+            return task;
+        });
+        const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-text", capability: "text" as const }));
+
+        await expect(createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "写回恢复", input: { prompt: "续写" }, clientRequestId: "request-write-back" }, { store, dispatch, resolveModel })).rejects.toThrow(
+            "write-back failed",
+        );
+        const session = await store.getByRequest("student-one", "request-write-back");
+        if (!session) throw new Error("练习会话未创建");
+
+        await expect(retryPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store, dispatch, resolveModel })).resolves.toMatchObject({ status: "running" });
+
+        expect(dispatch).toHaveBeenCalledTimes(2);
+        expect(dispatch.mock.calls.map(([input]) => input.clientRequestId)).toEqual(["request-write-back", "request-write-back"]);
+        expect(acceptedRequests).toHaveLength(1);
     });
 
     it("keeps a pinned IP version in the session and records its practice usage", async () => {
