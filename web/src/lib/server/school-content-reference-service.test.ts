@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     getDramaProjectForUser: vi.fn(),
     getLibraryAsset: vi.fn(),
     getGenerationLogForUser: vi.fn(),
+    requireVisibleIp: vi.fn(),
 }));
 
 vi.mock("./school-access-service", () => ({
@@ -25,6 +26,7 @@ vi.mock("./canvas-project-service", () => ({ getCanvasProjectForUser: mocks.getC
 vi.mock("./drama-project-service", () => ({ getDramaProjectForUser: mocks.getDramaProjectForUser }));
 vi.mock("./library-asset-store", () => ({ getLibraryAsset: mocks.getLibraryAsset }));
 vi.mock("./generation-log-store", () => ({ getGenerationLogForUser: mocks.getGenerationLogForUser }));
+vi.mock("./ip-library-access-service", () => ({ requireVisibleIp: mocks.requireVisibleIp }));
 
 import { validateSchoolContentReferences } from "./school-content-reference-service";
 
@@ -37,6 +39,32 @@ describe("validateSchoolContentReferences", () => {
         mocks.getDramaProjectForUser.mockResolvedValue({ id: "drama-a", title: "短剧项目" });
         mocks.getLibraryAsset.mockResolvedValue({ id: "asset-a", title: "素材", coverUrl: "/asset-preview.webp" });
         mocks.getGenerationLogForUser.mockResolvedValue({ id: "generation-a", title: "生成结果", assets: [{ serverUrl: "/api/generation-log-assets/result.webp", url: "https://upstream.invalid/result.webp" }] });
+        mocks.requireVisibleIp.mockResolvedValue({
+            detail: {
+                id: "ip-a",
+                title: "星海计划",
+                version: {
+                    id: "version-a",
+                    title: "星海计划 v1",
+                    items: [{ id: "ip-item-a" }],
+                },
+            },
+            userId: "user-a",
+            schoolId: "school-a",
+        });
+    });
+
+    it("validates IP version items and returns only a lightweight reference preview", async () => {
+        const reference = { type: "ip", id: "ip-a", versionId: "version-a", itemIds: ["ip-item-a"] };
+
+        await expect(validateSchoolContentReferences({ userId: "user-a", schoolId: "school-a", references: [reference] })).resolves.toEqual([{ reference, title: "星海计划 v1" }]);
+        expect(mocks.requireVisibleIp).toHaveBeenCalledWith("user-a", "ip-a", "version-a", ["ip-item-a"]);
+    });
+
+    it("maps unauthorized IP versions and cross-version items to a tenant-safe 404", async () => {
+        mocks.requireVisibleIp.mockRejectedValue(Object.assign(new Error("IP 内容项不存在或不属于当前版本"), { status: 403 }));
+
+        await expect(validateSchoolContentReferences({ userId: "user-a", schoolId: "school-a", references: [{ type: "ip", id: "ip-a", versionId: "version-b", itemIds: ["item-other"] }] })).rejects.toMatchObject({ status: 404 });
     });
 
     it("validates all five owner-scoped reference types and returns lightweight previews", async () => {
