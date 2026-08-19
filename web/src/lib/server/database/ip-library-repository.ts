@@ -177,7 +177,7 @@ export class IpLibraryRepository {
         const result = await this.db.query(
             `SELECT package.*, version.version_number,
                     (SELECT COUNT(*)::integer FROM ip_items AS item_count WHERE item_count.version_id = version.id) AS item_count,
-                    CASE WHEN $2 = 'school' THEN (SELECT school_grant.mode FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3 AND school_grant.status = 'active' AND school_grant.starts_at <= $4::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $4::timestamptz) ORDER BY school_grant.created_at DESC LIMIT 1) END AS grant_mode
+                    CASE WHEN $2::text = 'school' THEN (SELECT school_grant.mode FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3::text AND school_grant.status = 'active' AND school_grant.starts_at <= $4::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $4::timestamptz) ORDER BY school_grant.created_at DESC LIMIT 1) END AS grant_mode
              FROM ip_packages AS package
              JOIN users AS account ON account.id = $1 AND account.status = 'active'
              JOIN ip_versions AS version ON version.id = package.current_version_id AND version.status = 'published'
@@ -335,12 +335,12 @@ export class IpLibraryRepository {
 
 function visibleWhere() {
     return `package.status = 'published'
-        AND (($2 = 'public' AND package.visibility = 'public') OR ($2 = 'school' AND package.visibility = 'school' AND $3 IS NOT NULL
-            AND EXISTS (SELECT 1 FROM schools AS school JOIN school_memberships AS membership ON membership.school_id = school.id WHERE school.id = $3 AND school.status = 'active' AND membership.user_id = $1 AND membership.status = 'active')
-            AND EXISTS (SELECT 1 FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3 AND school_grant.status = 'active' AND school_grant.starts_at <= $4::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $4::timestamptz))))
-        AND ($5 IS NULL OR package.title ILIKE '%' || $5 || '%' OR package.summary ILIKE '%' || $5 || '%')
-        AND ($6 IS NULL OR EXISTS (SELECT 1 FROM ip_items AS item WHERE item.version_id = version.id AND item.kind = $6))
-        AND ($7 IS NULL OR EXISTS (SELECT 1 FROM ip_items AS item WHERE item.version_id = version.id AND item.category = $7))`;
+        AND (($2::text = 'public' AND package.visibility = 'public') OR ($2::text = 'school' AND package.visibility = 'school' AND $3::text IS NOT NULL
+            AND EXISTS (SELECT 1 FROM schools AS school JOIN school_memberships AS membership ON membership.school_id = school.id WHERE school.id = $3::text AND school.status = 'active' AND membership.user_id = $1 AND membership.status = 'active')
+            AND EXISTS (SELECT 1 FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3::text AND school_grant.status = 'active' AND school_grant.starts_at <= $4::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $4::timestamptz))))
+        AND ($5::text IS NULL OR package.title ILIKE '%' || $5::text || '%' OR package.summary ILIKE '%' || $5::text || '%')
+        AND ($6::text IS NULL OR EXISTS (SELECT 1 FROM ip_items AS item WHERE item.version_id = version.id AND item.kind = $6::text))
+        AND ($7::text IS NULL OR EXISTS (SELECT 1 FROM ip_items AS item WHERE item.version_id = version.id AND item.category = $7::text))`;
 }
 
 function addFilter(filters: string[], values: unknown[], column: string, value: string | undefined) {
