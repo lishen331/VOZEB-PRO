@@ -2,16 +2,16 @@
 
 > **For agentic workers:** 使用 `superpowers:executing-plans` 按任务顺序执行。每个任务先写失败测试，再写最小实现；每个任务完成后执行该任务的定向测试、`pnpm typecheck`，并单独提交。
 
-**Goal:** 在现有 VOZEB PRO 的 Canvas、短剧、作品广场、模型渠道和生成任务基础上，增加独立身份的“无限练习”模块：任何已登录且账号正常的 C 端用户都可以创建空白练习项目，或从平台管理员标记的公开作品复制制作流程作为初始内容；平台管理员可以配置 RunningHub 开源模型渠道、练习模型池和拉片资格；正式生产项目、充值积分和既有 C 端创作流程保持不变。
+**Goal:** 在现有 VOZEB PRO 的 Canvas、短剧、作品广场、模型渠道和生成任务基础上，增加绑定学校租户的独立“无限练习”模块：学校内 active teacher/student（学校管理员仍是 teacher + school.manage）可以创建空白练习项目，或从平台管理员标记的公开作品复制制作流程作为初始内容；普通 C 端用户不显示入口且不能直达使用；平台管理员可以配置 RunningHub 开源模型渠道、练习模型池和拉片资格，并在后台查看老师、学生和学校管理员的完整功能入口；正式生产项目、充值积分和既有 C 端创作流程保持不变。
 
-**Architecture:** 无限练习不是正式项目的模式开关。Canvas/Drama 项目在创建时写入不可变的 `executionProfile`（`production` 或 `open-source-practice`），复制动作创建新的练习项目身份，正式项目不能被切换成练习项目。小模块（剧本、分镜图、分镜视频、配音、音乐）使用新的 `practice_sessions` 聚合和现有 text/image/video/audio 任务链路。模型渠道继续使用现有 `system_model_channels`、逻辑模型和任务调度器，只增加渠道用途 `production | open-source-practice | shared`；RunningHub 是一种 provider/protocol，不建立第二套模型后台。公开作品的制作流程快照绑定到 `published_work_versions`，只对平台管理员开启，公共页面在现有“灵感发现”作品预览中切换“成片/制作流程”，不新增拉片库或资产菜单。
+**Architecture:** 无限练习不是正式项目的模式开关。Canvas/Drama 项目在创建时写入不可变的 `executionProfile`（`production` 或 `open-source-practice`），复制动作创建新的练习项目身份，正式项目不能被切换成练习项目。所有练习页面、项目和 session 先通过现有 school context service 校验 active membership；用户导航把 `/practice` 放入“项目”分组并按真实 school context 显隐。小模块（剧本、分镜图、分镜视频、配音、音乐）使用新的 `practice_sessions` 聚合和现有 text/image/video/audio 任务链路。模型渠道继续使用现有 `system_model_channels`、逻辑模型和任务调度器，只增加渠道用途 `production | open-source-practice | shared`；RunningHub 是一种 provider/protocol，不建立第二套模型后台。公开作品的制作流程快照绑定到 `published_work_versions`，只对平台管理员开启，公共页面在现有“灵感发现”作品预览中切换“成片/制作流程”，不新增拉片库或资产菜单。管理后台增加只读“角色功能总览”，从共享导航定义生成教师、学生和学校管理员视图，不伪造租户身份或绕过业务鉴权。
 
 **Tech Stack:** Next.js 16 App Router、React 19、TypeScript、Ant Design 6、Tailwind CSS 4、Zustand、PostgreSQL、Vitest、Playwright。现有文件 Provider 继续只服务开发回退；公开作品发布与拉片复制依赖 PostgreSQL 的定向查询和事务。
 
 ## Global Constraints
 
 - 以 `docs/superpowers/specs/2026-08-18-infinite-practice-pull-film-design.md` 为产品基线；如果实现发现冲突，先更新 spec 和本计划，再继续编码。
-- 保留 `UserRole = "admin" | "user"`，不新增全局 teacher/student 角色。无限练习是永久存在的 C 端公共能力，任何 active 登录用户（包括不属于学校的用户）均可使用和复制公开拉片作品，不检查学校 membership、学校角色或校内权限；账号只用于保存项目、恢复任务和执行现有登录态/资源保护。平台管理员的后台配置权限只约束 RunningHub 渠道、练习模型池和拉片开关，不限制 C 端练习使用。
+- 保留 `UserRole = "admin" | "user"`，不新增全局 teacher/student 角色。无限练习是绑定学校租户的 C 端能力：active teacher/student 可用，学校管理员以 `teacher + school.manage` 使用；没有学校 membership、成员已停用或学校已停用时不显示入口，页面和 API 直接访问返回 403/404。平台管理员身份本身不等于学校成员，不能绕过该约束；超级管理员通过后台只读角色功能总览查看老师、学生和学校管理员的功能入口。
 - 正式 Canvas/短剧项目默认 `production`，练习项目创建时固定 `open-source-practice`，更新接口拒绝改变该字段。不得实现 Canvas 与短剧互转。
 - “无限”只代表练习请求不调用现有用户积分钱包的扣减；管理员配置的模型池、任务并发、队列、每日总成本、媒体大小、上游限流和失败重试保护继续生效。不得以固定轮询次数、固定重试次数或硬编码上限伪装资源控制。
 - 用户端不选择 RunningHub、provider 或具体模型；练习模块只选择能力。服务端根据 `open-source-practice` 执行配置解析真实逻辑模型和渠道。
@@ -120,13 +120,13 @@
 **Interfaces:**
 
 - Adds `app_settings.practice_default_models` and `system_model_channels.purpose`.
-- Adds immutable `execution_profile`, `practice_source_work_id`, `practice_source_version_id` to `canvas_projects` and `drama_projects`, with `(user_id, execution_profile, updated_at DESC)` indexes.
-- Adds `practice_sessions` and `practice_copy_requests` tables. A session stores module, prompt/input JSON, task references and status; a copy request stores `(user_id, client_request_id)` and resulting project identity for retry idempotency.
+- Adds immutable `execution_profile`, `school_id`, `practice_source_work_id`, `practice_source_version_id` to `canvas_projects` and `drama_projects`, with `(school_id, user_id, execution_profile, updated_at DESC)` indexes.
+- Adds `practice_sessions` and `practice_copy_requests` tables, both carrying the server-derived `school_id`. A session stores module, prompt/input JSON, task references and status; a copy request stores `(school_id, user_id, client_request_id)` and resulting project identity for retry idempotency. Every repository read and write scopes by school and user.
 - Adds version-bound `pull_film_enabled`, `pull_film_snapshot`, `pull_film_enabled_at`, `pull_film_enabled_by_user_id` to `published_work_versions`; a new version defaults disabled.
 
 - [ ] **Step 1: 先写 PostgreSQL repository/schema 失败测试**
 
-  在专用 PostgreSQL 测试库中断言：旧设置读取 purpose 为 `shared`；practice 默认模型可 round-trip；production 项目无法更新为 practice；practice copy request 重复提交返回原项目；不同用户可使用同一 clientRequestId；published version 的 pull-film 开关和快照独立于 `is_featured`。
+  在专用 PostgreSQL 测试库中断言：旧设置读取 purpose 为 `shared`；practice 默认模型可 round-trip；production 项目无法更新为 practice；不同学校之间不能读取或修改对方 practice 项目/session；practice copy request 重复提交返回原项目；不同用户可使用同一 clientRequestId；published version 的 pull-film 开关和快照独立于 `is_featured`。
 
 - [ ] **Step 2: 运行失败测试**
 
@@ -142,7 +142,7 @@
 
 - [ ] **Step 4: 扩展 Canvas/Drama store 的创建与不可变更新**
 
-  `createCanvasProject`/`createDramaProject` 接受服务端构造的 `executionProfile` 和 `PracticeSource`，列表 DTO 返回 `executionProfile` 和来源摘要；普通更新只允许 title/project JSON，若请求体带 profile 或 source 字段直接 400。项目读取必须按 userId + id 定向校验，不能通过列表后端筛选。
+  `createCanvasProject`/`createDramaProject` 接受服务端构造的 `schoolId`、`executionProfile` 和 `PracticeSource`，列表 DTO 返回 `executionProfile` 和来源摘要；普通更新只允许 title/project JSON，若请求体带 profile、schoolId 或 source 字段直接 400。项目读取必须按 schoolId + userId + id 定向校验，不能通过列表后端筛选。
 
 - [ ] **Step 5: 实现 practice repository**
 
@@ -248,14 +248,14 @@
 
 **Interfaces:**
 
-- `POST /api/practice/projects`: `{ kind: "canvas" | "drama", title, source?: PracticeSource }`，服务端只要求当前账号 active，创建新的 practice project；不要求学校 membership。
+- `POST /api/practice/projects`: `{ kind: "canvas" | "drama", title, source?: PracticeSource }`，服务端要求当前账号 active 且具备 active school membership，创建新的 practice project。
 - `GET /api/practice/projects`: 只返回当前用户 practice 项目，按 kind/updatedAt 分页。
 - `POST /api/practice/sessions`: `{ module, title, input, references?, clientRequestId }`，服务端选择 capability 和 practice default model，创建 session 后调度现有任务。
 - `GET /api/practice/sessions/[id]`: 返回 session 和任务公开结果，不返回内部执行提示词、渠道 key 或 provider 详情。
 
 - [ ] **Step 1: 先写账号、身份和幂等失败测试**
 
-  覆盖：active 普通用户、无学校 membership 用户和学校外用户均成功；disabled 用户 403；管理员账号可按普通 C 端用户使用，不借用学校 context；空白 Canvas/Drama 分别创建新 ID；从同一正式项目复制两次得到不同 practice ID；更新接口不能修改 profile；session 的 clientRequestId 重试返回同一 session。
+  覆盖：active teacher、active student、`teacher + school.manage` 均成功；无学校 membership、成员已停用、学校已停用、disabled 用户均 403；管理员账号不因全局 admin 角色绕过 school context；空白 Canvas/Drama 分别创建新 ID；从同一正式项目复制两次得到不同 practice ID；更新接口不能修改 profile；session 的 clientRequestId 重试返回同一 session。
 
 - [ ] **Step 2: 运行失败测试**
 
@@ -265,7 +265,7 @@
 
 - [ ] **Step 3: 实现 practice access 和项目创建**
 
-  `practice-access-service.ts` 只复用现有 Session 和用户状态校验，不调用 school context service，也不判断 teacher/student。它允许所有 active 账号使用；disabled、注销中或不存在的账号返回 403/401。`practice-project-service.ts` 调用现有 Canvas/Drama create service；它是唯一可以设置 `open-source-practice` 的入口。普通 Canvas/Drama route 不接受该字段。创建过程把 `PracticeSource` 与项目身份一起写入，不把源作品的私有会话或全量原始 JSON 直接复制。
+  `practice-access-service.ts` 复用现有 Session、用户状态和 `requireActiveSchoolContext`，允许 active teacher/student 使用；学校管理员通过 teacher membership 和 `school.manage` 自然通过，不单独增加角色分支。没有学校 context、成员或学校已停用时返回 403，未登录返回 401；全局 admin 角色不豁免。`practice-project-service.ts` 调用现有 Canvas/Drama create service；它是唯一可以设置 `open-source-practice` 的入口。普通 Canvas/Drama route 不接受该字段。创建过程把 `schoolId`、`PracticeSource` 与项目身份一起写入，不把源作品的私有会话或全量原始 JSON 直接复制。
 
 - [ ] **Step 4: 实现小模块 session**
 
@@ -273,7 +273,7 @@
 
 - [ ] **Step 5: 实现 API 和客户端 service**
 
-  Route Handler 做 schema 校验、Session、账号状态和响应映射；不允许客户端传 `schoolId`、`channelId`、`provider`、`modelId`、`pointsCost` 或 execution profile。客户端 API 统一放在 `web/src/services/api/practice.ts`，错误沿用现有 `{ code, msg }` 解析。
+  Route Handler 做 schema 校验、Session、school context 和响应映射；`schoolId` 必须从服务端 membership 派生，不允许客户端传 `schoolId`、`channelId`、`provider`、`modelId`、`pointsCost` 或 execution profile。客户端 API 统一放在 `web/src/services/api/practice.ts`，错误沿用现有 `{ code, msg }` 解析。
 
 - [ ] **Step 6: 运行测试、类型检查和提交**
 
@@ -497,7 +497,7 @@
 
 - [ ] **Step 1: 先写页面和路由失败测试**
 
-  断言任意 active 登录用户（无论是否属于学校）可见“无限练习”入口；只有未登录或 disabled 用户被重定向/403；首页有两个大卡片和五个小卡片；点击 Canvas/短剧创建空白独立项目；点击小卡片进入对应 capability；页面不显示 RunningHub、积分扣除或“切换正式项目”按钮。
+  断言 active teacher、active student 和学校管理员（teacher + school.manage）可见“项目 → 无限练习”入口；无学校 membership、成员/学校已停用、未登录或 disabled 用户不显示入口，直达页面/API 返回 403/404；首页有两个大卡片和五个小卡片；点击 Canvas/短剧创建空白独立项目；点击小卡片进入对应 capability；页面不显示 RunningHub、积分扣除或“切换正式项目”按钮。
 
 - [ ] **Step 2: 运行失败测试**
 
@@ -507,7 +507,7 @@
 
 - [ ] **Step 3: 实现 practice home 和导航**
 
-  在现有“项目”导航组加入 `/practice`，与“画布”“短剧”并列，不新增资产菜单，也不依赖学校 context 的可见性。大卡片使用现有 Canvas/Drama 图标和项目列表；小卡片使用能力图标。响应式约束保证 390px/430px 首屏能看到下一层卡片，卡片不嵌套卡片，不引入营销式 hero。
+  在现有“项目”导航组加入 `/practice`，与“画布”“短剧”并列；只对 active school context 的 teacher/student/学校管理员显示，不新增资产菜单，也不把它放进“学校”分组。大卡片使用现有 Canvas/Drama 图标和项目列表；小卡片使用能力图标。响应式约束保证 390px/430px 首屏能看到下一层卡片，卡片不嵌套卡片，不引入营销式 hero。
 
 - [ ] **Step 4: 复用 Canvas/短剧组件**
 
@@ -526,7 +526,50 @@
   git commit -m "feat: add infinite practice workspaces"
   ```
 
-## Task 10: 收口 API、权限、数据库文档和全量验收
+## Task 10: 增加超级管理员的角色功能总览与用户端预览
+
+**Files:**
+
+- Create: `web/src/app/admin/role-overview/components/admin-role-overview-section.tsx`
+- Create: `web/src/app/admin/role-overview/components/admin-role-overview-section.test.tsx`
+- Modify: `web/src/components/admin/admin-sections.ts`
+- Modify: `web/src/components/admin/admin-section-nav.tsx`
+- Modify: `web/src/components/admin/admin-dashboard.tsx`
+- Modify: `web/src/components/admin/admin-section-preload.test.ts`
+- Modify: `web/src/components/admin/admin-sections.test.ts`
+- Modify: `web/src/components/admin/admin-section-nav.test.tsx`
+- Modify: `web/src/constant/navigation-tools.ts`
+- Modify: `web/src/constant/navigation-tools.test.ts`
+
+**Interfaces:**
+
+- 新增后台分区 `roleOverview`，归入“系统管理”或“帮助与支持”中的独立“角色功能”入口；全权限平台管理员默认可见，其他管理员按明确的 `system.manage` 访问规则处理。
+- 角色总览提供“教师端、学生端、学校管理员端”三个视图，使用共享导航元数据展示分组、路由、功能说明、访问条件和被拒绝原因。教师端、学生端都显示“项目 → 画布、短剧、无限练习”；学校管理员额外显示学校管理、教学和校内管理入口。
+- 角色总览可打开只读的入口预览面板，但不创建虚拟用户、学校、项目或练习 session，不读取任意学校业务数据；面板中的生成、保存、提交、删除等操作全部禁用并显示“角色预览”状态。
+- 管理后台本身的导航仍按当前管理员权限显示；全权限平台管理员必须看到全部后台分区，不因当前用户端没有 school context 而隐藏学校、课程、商单、渠道或内容入口。
+
+- [ ] **Step 1: 先写后台角色元数据和权限失败测试**
+
+  覆盖：教师/学生/学校管理员视图包含正确的用户端入口；普通 C 端视图不包含无限练习；学校管理员继承 teacher 功能并增加校内管理；全权限管理员能解析全部 `ADMIN_SECTION_KEYS` 和 `roleOverview`；缺少 `system.manage` 的管理员不能访问角色总览；预览状态不产生任何写操作。
+
+- [ ] **Step 2: 实现共享导航定义和后台只读分区**
+
+  在 `navigation-tools.ts` 提取可供真实导航和角色预览共同使用的标签、分组、路由和访问条件元数据。真实用户端继续使用 `schoolNavigationTools(context)`，其 `/practice` 入口只在 active school context 下加入“项目”组；角色总览只使用纯元数据，不把伪造的 SchoolContext 传给真实鉴权函数。
+
+  在 `admin-sections.ts` 注册 `roleOverview`，在 `admin-section-nav.tsx` 增加分区标题和图标，在 `admin-dashboard.tsx` 通过现有按意图预加载机制加载分区组件。角色总览展示入口清单和只读预览，不复制真实业务页面，也不让管理员通过预览调用练习 API。
+
+- [ ] **Step 3: 运行后台定向测试和类型检查**
+
+  Run: `cd web; pnpm exec vitest run src/components/admin/admin-sections.test.ts src/components/admin/admin-section-nav.test.tsx src/components/admin/admin-section-preload.test.ts src/app/admin/role-overview/components/admin-role-overview-section.test.tsx src/constant/navigation-tools.test.ts; pnpm typecheck`
+
+- [ ] **Step 4: 提交**
+
+  ```bash
+  git add web/src/app/admin/role-overview web/src/components/admin/admin-sections.ts web/src/components/admin/admin-section-nav.tsx web/src/components/admin/admin-dashboard.tsx web/src/components/admin/admin-section-preload.test.ts web/src/components/admin/admin-sections.test.ts web/src/components/admin/admin-section-nav.test.tsx web/src/constant/navigation-tools.ts web/src/constant/navigation-tools.test.ts
+  git commit -m "feat: add admin role feature overview"
+  ```
+
+## Task 11: 收口 API、权限、数据库文档和全量验收
 
 **Files:**
 
@@ -543,12 +586,12 @@
 
 **Interfaces:**
 
-- Produces browser evidence for arbitrary active-user practice, admin RunningHub/pull-film settings, inspiration process view, copy idempotency and production regression.
+- Produces browser evidence for school-member practice access, admin RunningHub/pull-film settings, admin role feature overview, inspiration process view, copy idempotency and production regression.
 - Documents every new API, permission, execution profile, provider purpose and database field.
 
 - [ ] **Step 1: API/安全回归**
 
-  定向运行 practice/public/admin work route tests，覆盖账号归属、session ownership、无学校 membership 用户访问、公开版本复核、不可变 profile、不能从 body 选择 provider/model、快照字段脱敏、copy retry 不重复创建。
+  定向运行 practice/public/admin work route tests，覆盖 school membership/学校隔离、session ownership、无学校 membership 用户拒绝、公开版本复核、不可变 profile、不能从 body 选择 provider/model、快照字段脱敏、copy retry 不重复创建；角色功能总览只读且不创建业务数据。
 
   Run: `cd web; pnpm exec vitest run src/app/api/practice src/app/api/public/works src/app/api/admin/works/[id]/pull-film src/app/api/admin/settings src/lib/server/practice src/lib/server/public-work-process-service.test.ts --no-file-parallelism`
 
@@ -570,10 +613,11 @@
 
   1. admin 在渠道后台创建一个手动 RunningHub open-source-practice channel，保存模型路径并配置练习默认模型；不连接真实上游，使用已有 fixture provider 验证异步 submit/query。
   2. admin 在作品后台将一个已公开 Canvas/Drama 作品设为拉片项目，确认 featured 可独立切换。
-  3. 普通 C 端用户（可有或无学校 membership）在 `/practice` 创建空白 Canvas、短剧和五类 module session。
-  4. 普通用户从灵感发现打开制作流程，切换成片/流程并复制到练习；重复点击/刷新只得到一个 copy request 结果。
-  5. 普通用户刷新后恢复 practice project/session；正式项目仍使用 production channel，积分行为和原 C 端 `/create`、Canvas、Drama 不回归。
-  6. 关闭拉片或下架作品后，公共 process/copy 入口消失。
+  3. 全权限 admin 打开“角色功能总览”，切换教师、学生和学校管理员视图，确认项目下并列显示画布、短剧、无限练习，且预览操作为只读。
+  4. 学校 teacher、student 和学校管理员在 `/practice` 创建空白 Canvas、短剧和五类 module session；无学校 membership 的普通 C 端用户没有入口且直达返回 403/404。
+  5. 学校成员从灵感发现打开制作流程，切换成片/流程并复制到练习；重复点击/刷新只得到一个 copy request 结果；不同学校不能读取对方项目。
+  6. 学校成员刷新后恢复 practice project/session；正式项目仍使用 production channel，积分行为和原 C 端 `/create`、Canvas、Drama 不回归。
+  7. 关闭拉片或下架作品后，公共 process/copy 入口消失。
 
   同时运行 desktop、390px、430px，使用正常语义点击，不用 `force` 或固定等待；读取 `getBoundingClientRect()` 验证 card、modal、内部流程滚动区和底部操作区不横向溢出。
 
@@ -601,7 +645,8 @@
   - 平台管理员能在既有渠道后台配置 RunningHub，明确区分正式生产和无限练习模型池。
   - 平台管理员能在作品详情把公开 Canvas/短剧版本设为拉片项目，且 featured 状态独立。
   - 灵感发现作品预览能查看只读制作流程，并从成片或流程复制到新的练习身份。
-  - 任意 active C 端用户能创建独立 Canvas/短剧练习项目和五类小模块；正式项目不能切换为练习，Canvas/短剧不能互转。
+  - 学校内 active teacher/student/学校管理员能创建独立 Canvas/短剧练习项目和五类小模块；普通 C 端用户无入口且不能直达使用；正式项目不能切换为练习，Canvas/短剧不能互转。
+  - 全权限平台管理员能在后台角色功能总览中看到教师、学生和学校管理员的完整前端功能入口，预览不产生业务数据。
   - 练习任务不扣现有积分，但仍受渠道、队列、并发、成本和媒体保护；RunningHub 任务可提交、查询、恢复和失败处理。
   - 下架、撤销、换版本或关闭拉片后，公共制作流程和复制入口不再可用。
   - 公开流程不泄露剧本私有版本、内部提示词、私聊、API key、storage key、内部任务 ID 或未发布素材。
@@ -618,7 +663,7 @@
 
 只有以下条件同时满足，才能声明该模块完成：
 
-1. Task 1-10 的定向测试和 `pnpm typecheck` 全部通过，且每个任务有独立提交。
+1. Task 1-11 的定向测试和 `pnpm typecheck` 全部通过，且每个任务有独立提交。
 2. RunningHub 只使用已验证的官方异步/上传契约和管理员手动模型路径，不存在猜测的目录或任务 API。
 3. 练习与生产模型路由、项目身份和积分行为有自动化隔离证据。
 4. 拉片快照只绑定当前公开版本，管理员权限、下架/换版生命周期和 copy 幂等均有 PostgreSQL 测试。
