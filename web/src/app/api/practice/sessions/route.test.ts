@@ -4,10 +4,13 @@ const mocks = vi.hoisted(() => ({
     currentUser: vi.fn(),
     createSession: vi.fn(),
     listSessions: vi.fn(),
+    fetchInternalApi: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.currentUser }));
 vi.mock("@/lib/server/practice-session-service", () => ({ createPracticeSessionForUser: mocks.createSession, listPracticeSessionsForUser: mocks.listSessions }));
+vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi, resolveInternalOrigin: () => "http://internal.test" }));
+vi.mock("@/lib/server/generation-execution-policy", () => ({ trustedPracticeTaskHeaders: () => ({ "x-practice": "trusted" }) }));
 
 import { GET, POST } from "./route";
 
@@ -67,5 +70,39 @@ describe("/api/practice/sessions", () => {
         expect(response.status).toBe(200);
         expect(mocks.listSessions).toHaveBeenCalledWith(expect.objectContaining({ id: "teacher-one" }), { module: "music", page: "3", pageSize: "4" });
         expect(await response.json()).toEqual({ code: 0, data: { sessions: [], total: 0, page: 1, pageSize: 12 }, msg: "OK" });
+    });
+
+    it("pins IP references in the dispatched generation task context", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: ["item-one"] };
+        mocks.fetchInternalApi.mockResolvedValue(new Response(JSON.stringify({ task: { id: "task-one", type: "image" } }), { status: 200 }));
+        mocks.createSession.mockImplementation(async (_user, _input, deps) => {
+            await deps.dispatch({
+                sessionId: "session-one",
+                userId: "teacher-one",
+                module: "storyboard-image",
+                input: { prompt: "雨夜车站" },
+                references: [reference],
+                executionProfile: "open-source-practice",
+                capability: "image",
+                logicalModelId: "practice-image",
+                clientRequestId: "request-ip",
+                projectKind: "canvas",
+            });
+            return { id: "session-one", module: "storyboard-image", status: "running", input: { prompt: "雨夜车站", references: [reference] } };
+        });
+
+        const response = await POST(
+            new Request("http://localhost/api/practice/sessions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ module: "storyboard-image", input: { prompt: "雨夜车站" }, references: [reference], clientRequestId: "request-ip" }),
+            }),
+        );
+
+        expect(response.status).toBe(200);
+        const [, init] = mocks.fetchInternalApi.mock.calls[0];
+        expect(JSON.parse(String(init.body))).toMatchObject({
+            context: { executionProfile: "open-source-practice", projectId: "session-one", clientRequestId: "request-ip", ipReferences: [reference] },
+        });
     });
 });

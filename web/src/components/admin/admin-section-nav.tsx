@@ -21,6 +21,7 @@ import {
     HardDrive,
     Handshake,
     KeyRound,
+    Library,
     Megaphone,
     Menu,
     PanelLeftClose,
@@ -203,6 +204,7 @@ export const adminSections: AdminSection[] = [
     { key: "backup", label: "数据备份", description: "导出和恢复脱敏业务数据，并区分整库与媒体备份边界。", shortDescription: "导入与恢复", icon: <DatabaseBackup className="size-4" /> },
     { key: "updates", label: "版本更新", description: "集中查看版本更新、更新日志和 GitHub 开源仓库入口。", shortDescription: "升级维护", icon: <ExternalLink className="size-4" /> },
     { key: "announcements", label: "公告通知", description: "发布站内公告，并设置首页或登录后弹窗触达。", shortDescription: "弹窗触达", icon: <Megaphone className="size-4" /> },
+    { key: "ipLibrary", label: "IP 库", description: "维护 IP 发行版本、学校授权和使用记录。", shortDescription: "IP 发行与授权", icon: <Library className="size-4" /> },
     { key: "works", label: "作品管理", description: "审核用户发布版本，处理驳回、公开预览和作品下架。", shortDescription: "审核与下架", icon: <GalleryVerticalEnd className="size-4" /> },
     { key: "prompts", label: "提示词运营", description: "维护用户端提示词库展示的公共提示词。", shortDescription: "公共资产", icon: <KeyRound className="size-4" /> },
     { key: "adminHelp", label: "使用文档", description: "查看后台配置顺序、运营操作、检查项和风险提示。", shortDescription: "配置与运营", icon: <BookOpen className="size-4" /> },
@@ -217,7 +219,7 @@ export const adminSectionGroups: AdminSectionGroup[] = [
     { title: "上游配置", items: sectionsFor(["channels", "skills"]) },
     { title: "系统管理", items: sectionsFor(["site", "settings", "roleOverview", "accountDeletion"]) },
     { title: "存储与备份", items: sectionsFor(["mediaStorage", "externalStorage", "backup"]) },
-    { title: "内容运营", items: sectionsFor(["works", "announcements", "prompts"]) },
+    { title: "内容运营", items: sectionsFor(["ipLibrary", "works", "announcements", "prompts"]) },
     { title: "帮助与支持", items: sectionsFor(["updates", "adminHelp"]) },
 ];
 

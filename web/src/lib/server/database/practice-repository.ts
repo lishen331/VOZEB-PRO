@@ -23,6 +23,28 @@ export class PracticeRepository {
         return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
     }
 
+    async claimPracticeSessionDispatch(userId: string, id: string) {
+        const result = await this.db.query(
+            `UPDATE practice_sessions
+             SET status = 'running'
+             WHERE user_id = $1 AND id = $2 AND status = 'queued' AND task_refs = '[]'::jsonb
+             RETURNING *`,
+            [userId, id],
+        );
+        return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
+    }
+
+    async resetPracticeSessionForRetry(userId: string, id: string) {
+        const result = await this.db.query(
+            `UPDATE practice_sessions
+             SET status = 'queued', task_refs = '[]'::jsonb
+             WHERE user_id = $1 AND id = $2 AND status IN ('failed', 'cancelled')
+             RETURNING *`,
+            [userId, id],
+        );
+        return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
+    }
+
     async updatePracticeSession(userId: string, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title">>) {
         const current = await this.getPracticeSessionForUser(userId, id);
         if (!current) return null;

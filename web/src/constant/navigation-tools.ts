@@ -1,4 +1,4 @@
-import { BookMarked, Clapperboard, Compass, FileText, GalleryVerticalEnd, GraduationCap, Images, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
+import { BookMarked, Clapperboard, Compass, FileText, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
 
 import type { SchoolContext } from "@/lib/school-domain";
 
@@ -72,6 +72,13 @@ export const navigationTools = [
         description: "发现公开作品",
         group: "community",
         icon: Compass,
+    },
+    {
+        slug: "ip-library",
+        label: "IP库",
+        description: "公共与本校 IP",
+        group: "community",
+        icon: Library,
     },
     {
         slug: "me",

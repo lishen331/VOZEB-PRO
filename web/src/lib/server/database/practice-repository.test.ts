@@ -61,6 +61,28 @@ describe("PracticeRepository", () => {
         expect(query.mock.calls[0]?.[1]).toEqual(expect.arrayContaining(["script", "queued"]));
     });
 
+    it("claims a queued session with one conditional provider update", async () => {
+        const { executor, query } = mockExecutor([[{ id: "session-one", user_id: "user-one", module: "script", status: "running", prompt_json: {}, input_json: {}, task_refs: [] }]]);
+        const repository = new PracticeRepository(executor);
+
+        await expect(repository.claimPracticeSessionDispatch("user-one", "session-one")).resolves.toMatchObject({ id: "session-one", status: "running" });
+
+        expect(String(query.mock.calls[0]?.[0])).toContain("status = 'queued'");
+        expect(String(query.mock.calls[0]?.[0])).toContain("task_refs = '[]'::jsonb");
+        expect(query).toHaveBeenCalledOnce();
+    });
+
+    it("resets a failed or cancelled session with one conditional provider update", async () => {
+        const { executor, query } = mockExecutor([[{ id: "session-one", user_id: "user-one", module: "script", status: "queued", prompt_json: {}, input_json: {}, task_refs: [] }]]);
+        const repository = new PracticeRepository(executor);
+
+        await expect(repository.resetPracticeSessionForRetry("user-one", "session-one")).resolves.toMatchObject({ id: "session-one", status: "queued" });
+
+        expect(String(query.mock.calls[0]?.[0])).toContain("status IN ('failed', 'cancelled')");
+        expect(String(query.mock.calls[0]?.[0])).toContain("task_refs = '[]'::jsonb");
+        expect(query).toHaveBeenCalledOnce();
+    });
+
     it("creates a copy inside the caller transaction with the practice execution profile", async () => {
         const { executor, query } = mockExecutor([[], []]);
         const repository = new PracticeRepository(executor);
@@ -177,5 +199,29 @@ describe("PracticeRepository PostgreSQL", () => {
                 ])
             ).rows[0],
         ).toMatchObject({ execution_profile: "open-source-practice", practice_source_work_id: workId, practice_source_version_id: versionId });
+    });
+
+    postgresIt("allows only one concurrent retry reset and dispatch claim", async () => {
+        const repository = createPostgresRepositories().practice;
+        const sessionId = `practice-retry-session-${suffix}`;
+        await repository.createPracticeSession({
+            id: sessionId,
+            userId: userOne,
+            projectKind: "canvas",
+            module: "script",
+            title: "并发重试",
+            clientRequestId: `practice-retry-${suffix}`,
+            executionProfile: "open-source-practice",
+            prompt: { prompt: "续写" },
+            input: { prompt: "续写" },
+            taskRefs: [],
+            status: "failed",
+        });
+
+        const resets = await Promise.all([repository.resetPracticeSessionForRetry(userOne, sessionId), repository.resetPracticeSessionForRetry(userOne, sessionId)]);
+        expect(resets.filter(Boolean)).toHaveLength(1);
+
+        const claims = await Promise.all([repository.claimPracticeSessionDispatch(userOne, sessionId), repository.claimPracticeSessionDispatch(userOne, sessionId)]);
+        expect(claims.filter(Boolean)).toHaveLength(1);
     });
 });

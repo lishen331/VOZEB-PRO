@@ -1,5 +1,6 @@
 import type { GenerationTaskExecutionPhase } from "@/lib/server/generation-task-scheduler";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
+import type { IpReference } from "@/lib/ip-library-domain";
 
 export type GenerationTaskType = "text" | "image" | "video" | "audio" | "agent" | "render";
 export type GenerationTaskStatus = "pending" | "running" | "success" | "error" | "paused" | "cancelled";
@@ -18,6 +19,7 @@ export type GenerationTaskContext = {
     clientRequestId?: string;
     generationLogId?: string;
     generationSlotId?: string;
+    ipReferences?: IpReference[];
 };
 
 export type StoredGenerationTaskRecord = {

@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
     updateVideoTask: vi.fn(),
     writeVideoGenerationLog: vi.fn(),
     scheduleGenerationTask: vi.fn(),
+    validateGenerationContextIpReferences: vi.fn(),
     withGenerationConcurrencyLimit: vi.fn(async (_userId, _type, _staleMs, _limit, handler) => handler()),
 }));
 
@@ -53,9 +54,11 @@ vi.mock("@/lib/server/video-task-store", () => ({
     transitionVideoTask: mocks.transitionVideoTask,
     updateVideoTask: mocks.updateVideoTask,
 }));
+vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
 
 import { POST } from "./route";
 import { resetChannelRuntimeHealth } from "@/lib/server/channel-runtime-health";
+import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 const channels = [
     { id: "one", name: "主渠道", baseUrl: "https://one.example.com/v1", apiKey: "one-secret", apiFormat: "openai", models: ["video-one"], enabled: true, advancedConfig: { protocol: "openai" } },
@@ -98,6 +101,7 @@ describe("video generation candidate failover", () => {
         mocks.getVideoTask.mockImplementation(async () => storedTask);
         mocks.claimVideoTaskPoll.mockImplementation(async () => storedTask);
         mocks.after.mockImplementation(() => undefined);
+        mocks.validateGenerationContextIpReferences.mockResolvedValue(undefined);
     });
 
     it("tries the next binding after explicit route failures", async () => {
@@ -132,6 +136,17 @@ describe("video generation candidate failover", () => {
         expect(mocks.getAuthSettings).not.toHaveBeenCalled();
         expect(mocks.withGenerationConcurrencyLimit).not.toHaveBeenCalled();
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    it("rejects a new Drama video task when its pinned IP authorization was revoked", async () => {
+        mocks.validateGenerationContextIpReferences.mockRejectedValueOnce(new SchoolServiceError(403, "IP 授权已失效"));
+
+        const response = await POST(request({ model: "video" }, [], { surface: "drama", projectId: "drama-one" }));
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toEqual({ error: "IP 授权已失效" });
+        expect(mocks.createVideoTask).not.toHaveBeenCalled();
+        expect(mocks.getAuthSettings).not.toHaveBeenCalled();
     });
 
     it("does not retry another binding after an ambiguous 2xx response", async () => {

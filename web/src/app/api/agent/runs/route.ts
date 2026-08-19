@@ -10,6 +10,8 @@ import { CreativeStoreConflict } from "@/lib/server/creative-runtime-store";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { publicAgentRun } from "@/lib/server/agent-run-public";
+import { validateCreativeProjectIpReferencesForRun } from "@/lib/server/ip-library-reference-service";
+import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 export const maxDuration = 2400;
 
@@ -47,6 +49,7 @@ export async function POST(request: Request) {
         const input = normalizeCreativeRunRequest(await readJsonBody<unknown>(request));
         const existing = await getAgentRunByClientRequestId(user.id, input.clientRequestId);
         if (existing) return NextResponse.json({ code: 0, data: { run: publicAgentRun(existing), created: false }, msg: "Agent 任务已存在" });
+        if (input.surface === "canvas" || input.surface === "drama") await validateCreativeProjectIpReferencesForRun(user.id, input.surface, input.projectId!);
         const rate = await checkRateLimit(`agent-run:${user.id}`, { maxRequests: 10, windowMs: 60 * 1000 });
         if (!rate.allowed) return NextResponse.json({ code: 429, data: null, msg: "Agent 请求过于频繁，请稍后重试" }, { status: 429 });
         const settings = await getAuthSettings();
@@ -60,7 +63,7 @@ export async function POST(request: Request) {
         });
         return response || NextResponse.json({ code: 429, data: null, msg: `当前最多同时运行 ${settings.generationConcurrency.agent} 个 Agent 任务` }, { status: 429 });
     } catch (error) {
-        if (error instanceof CreativeRuntimeInputError || error instanceof CreativeStoreConflict) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
+        if (error instanceof CreativeRuntimeInputError || error instanceof CreativeStoreConflict || error instanceof SchoolServiceError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
         throw error;
     }
 }

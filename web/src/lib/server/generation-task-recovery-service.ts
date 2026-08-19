@@ -7,12 +7,12 @@ import { createAudioTaskUpstreamStep, markAudioTaskFailed, persistAudioTaskResul
 import { getAudioTask, updateAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
 import { createImageTaskUpstreamStep, markImageTaskFailed, persistImageTaskResult, queryCancelledImageTaskUpstreamStep, queryImageTaskUpstreamStep } from "@/lib/server/image-task-runtime";
 import { getImageTask, updateImageTask, type ImageTask } from "@/lib/server/image-task-store";
-import { getTextTask, updateTextTask } from "@/lib/server/text-task-store";
+import { getTextTask, transitionTextTask, updateTextTask } from "@/lib/server/text-task-store";
 import { queryCancelledTextTaskUpstreamStep, runTextTaskStep } from "@/lib/server/text-task-runtime";
 import { maintenanceWorkerContext } from "@/lib/server/maintenance-auth";
 import { executeAgentRun } from "@/lib/server/agent-run-executor";
 import { processAgentRunReview } from "@/lib/server/agent-run-execution";
-import { getAgentRun, type AgentRun } from "@/lib/server/agent-run-store";
+import { getAgentRun, updateAgentRunById, type AgentRun } from "@/lib/server/agent-run-store";
 import { hasCancellableUpstreamTaskId, isCancellationExecutionPhase, requestUpstreamGenerationCancellation, type GenerationCancellationTarget } from "@/lib/server/generation-task-cancellation-service";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { refundAudioTask } from "@/lib/server/audio-task-refund";
@@ -21,6 +21,8 @@ import { refundTextTask } from "@/lib/server/text-task-refund";
 import { refundVideoTask } from "@/lib/server/video-task-refund";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { getAuthSettings } from "@/lib/auth/store";
+import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
+import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 type RecoveryResult = "pending" | "result_ready" | "completed" | "failed" | "needs_review" | "deferred";
 
@@ -271,6 +273,16 @@ async function processAgentLease(lease: GenerationTaskLease, workerId: string, o
                 });
             }
         }
+        if (!run.tasks.length) {
+            try {
+                await validateGenerationContextIpReferences(run.userId, { surface: run.surface, projectId: run.projectId });
+            } catch (error) {
+                if (!(error instanceof SchoolServiceError)) throw error;
+                await updateAgentRunById(run.id, { status: "failed", executionId: undefined }, { type: "run.failed", data: { message: error.message } }, ["planning", "running"]);
+                await releaseGenerationTaskLease("agent", run.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "ip_authorization_failed" });
+                return "failed";
+            }
+        }
         await executeAgentRun(run, origin, cookie || maintenanceWorkerContext(run.userId));
         const latest = await getAgentRun(run.id);
         if (!latest || latest.status === "completed" || latest.status === "failed" || latest.status === "cancelled" || latest.status === "paused") {
@@ -329,7 +341,16 @@ async function processTextLease(lease: GenerationTaskLease, workerId: string, or
         });
         return "needs_review";
     }
-    if (!task.upstream?.id)
+    if (!task.upstream?.id) {
+        try {
+            await validateGenerationContextIpReferences(task.userId, task);
+        } catch (error) {
+            if (!(error instanceof SchoolServiceError)) throw error;
+            const failed = await transitionTextTask(task, ["pending", "running"], { status: "error", error: error.message, config: { ...task.config, apiKey: "" } });
+            if (failed) await refundTextTask(failed);
+            await releaseGenerationTaskLease("text", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "ip_authorization_failed" });
+            return "failed";
+        }
         await scheduleGenerationTask("text", task.id, {
             executionPhase: "submitting",
             channelId: task.config.channelId,
@@ -338,6 +359,7 @@ async function processTextLease(lease: GenerationTaskLease, workerId: string, or
             nextPollAt: lease.nextPollAt,
             lastUpstreamStatus: "submitting",
         });
+    }
     try {
         const step = await runTextTaskStep(task, origin, cookie || maintenanceWorkerContext(task.userId));
         if (step.state === "completed") {
@@ -419,6 +441,16 @@ async function processImageLease(lease: GenerationTaskLease, workerId: string, o
         return "needs_review";
     }
     if (needsPersistence(lease)) return persistImageLease(task, lease, workerId, origin, cookie);
+    if (!task.upstream?.id) {
+        try {
+            await validateGenerationContextIpReferences(task.userId, task);
+        } catch (error) {
+            if (!(error instanceof SchoolServiceError)) throw error;
+            await markImageTaskFailed(task, error.message);
+            await releaseGenerationTaskLease("image", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "ip_authorization_failed" });
+            return "failed";
+        }
+    }
     try {
         const step = task.upstream?.id ? await queryImageTaskUpstreamStep(task, origin, cookie, cookie ? "" : task.userId) : await createImageTaskUpstreamStep(task, origin, publicOrigin, cookie, cookie ? "" : task.userId);
         const now = Date.now();
@@ -535,6 +567,16 @@ async function processAudioLease(lease: GenerationTaskLease, workerId: string, o
         return "needs_review";
     }
     if (needsPersistence(lease)) return persistAudioLease(task, lease, workerId, origin, cookie);
+    if (!task.upstream?.id) {
+        try {
+            await validateGenerationContextIpReferences(task.userId, task);
+        } catch (error) {
+            if (!(error instanceof SchoolServiceError)) throw error;
+            await markAudioTaskFailed(task, error.message);
+            await releaseGenerationTaskLease("audio", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "ip_authorization_failed" });
+            return "failed";
+        }
+    }
     try {
         const step = task.upstream?.id ? await queryAudioTaskUpstreamStep(task, origin, cookie, cookie ? "" : task.userId) : await createAudioTaskUpstreamStep(task, origin, cookie, cookie ? "" : task.userId);
         const now = Date.now();

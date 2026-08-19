@@ -14,6 +14,8 @@ import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
+import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
+import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +37,17 @@ export async function POST(request: Request) {
         }
         const trustedPractice = isTrustedPracticeTaskRequest(request, user.id, body.context);
         if (hasUntrustedExecutionProfile(body) && !trustedPractice) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
+        const requestId = body.context?.clientRequestId?.trim();
+        if (requestId) {
+            const existing = await getStoredGenerationTaskByRequest<AudioTask>("audio", user.id, requestId, body.context?.attemptNo);
+            if (existing) return NextResponse.json({ task: publicTask(existing) });
+        }
+        try {
+            await validateGenerationContextIpReferences(user.id, body.context);
+        } catch (error) {
+            if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+            throw error;
+        }
         const executionProfile: "production" | "open-source-practice" = trustedPractice ? "open-source-practice" : "production";
         const channels = resolveLogicalModelCandidates(settings, "audio", body.config?.model || (trustedPractice ? settings.practiceDefaultModels.audioModel : settings.defaultModels.audioModel), "", executionProfile).map((resolved) => ({
             ...toSystemGenerationChannel(resolved),
@@ -45,11 +58,6 @@ export async function POST(request: Request) {
         const supportedChannels = channels.filter((channel) => channel.apiFormat !== "gemini");
         if (!supportedChannels.length || !prompt) return NextResponse.json({ error: "音频任务参数不完整或渠道不支持" }, { status: 400 });
         const configs: AudioTaskConfig[] = supportedChannels.map((channel) => ({ ...channel, ...resolveAudioTaskOptions(body.config, settings.generationDefaults), instructions: clean(body.config?.instructions, 2_000) }));
-        const requestId = body.context?.clientRequestId?.trim();
-        if (requestId) {
-            const existing = await getStoredGenerationTaskByRequest<AudioTask>("audio", user.id, requestId, body.context?.attemptNo);
-            if (existing) return NextResponse.json({ task: publicTask(existing) });
-        }
         const task = await createAudioTask({ ...(body.context || {}), userId: user.id, config: configs[0], candidateConfigs: configs.slice(1), prompt: prompt.slice(0, 20_000), source: mediaTaskSource(body.source, body.context, "audio-task") });
         await linkStoredGenerationTask("audio", task.id, body.context || {});
         const origin = resolveInternalOrigin(new URL(request.url).origin);

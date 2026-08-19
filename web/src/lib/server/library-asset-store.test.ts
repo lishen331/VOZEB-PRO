@@ -10,7 +10,7 @@ vi.mock("@/lib/server/data-adapter", () => ({
     writeJsonDataFile: vi.fn(async (name: string, value: unknown) => mocks.files.set(name, structuredClone(value))),
 }));
 
-import { createLibraryAsset, deleteLibraryAsset, getLibraryAsset, listLibraryAssetPage, listLibraryAssets, updateLibraryAsset } from "./library-asset-store";
+import { createLibraryAsset, deleteLibraryAsset, getLibraryAsset, getLibraryAssetById, listLibraryAssetPage, listLibraryAssets, updateLibraryAsset } from "./library-asset-store";
 
 describe("library asset file provider", () => {
     beforeEach(() => {
@@ -64,6 +64,16 @@ describe("library asset file provider", () => {
 
         await expect(listLibraryAssets("user-one")).rejects.toThrow("paginated asset query");
         expect(mocks.postgresQuery).not.toHaveBeenCalled();
+    });
+
+    it("resolves a stable asset id only for trusted server-side references", async () => {
+        await createLibraryAsset("admin-one", textAsset("ip-source", "审核素材"));
+        await expect(getLibraryAssetById("ip-source")).resolves.toMatchObject({ title: "审核素材" });
+
+        mocks.provider = "postgres";
+        mocks.postgresQuery.mockResolvedValue({ rows: [{ asset_json: textAsset("ip-source", "审核素材") }] });
+        await expect(getLibraryAssetById("ip-source")).resolves.toMatchObject({ id: "ip-source" });
+        expect(mocks.postgresQuery).toHaveBeenLastCalledWith("SELECT asset_json FROM library_assets WHERE id = $1", ["ip-source"]);
     });
 });
 

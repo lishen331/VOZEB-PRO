@@ -15,6 +15,7 @@ import { createPostgresSchoolDomainRepository } from "./school-domain-repository
 import { AnnouncementsRepository, GenerationLogsRepository, PromptsRepository } from "./content-repository";
 import { CdkRepository, EmailCodesRepository, PointsRepository, SessionsRepository, UsersRepository } from "./user-repository";
 import { PracticeRepository } from "./practice-repository";
+import { IpLibraryRepository } from "./ip-library-repository";
 import type { AppSettingsRecord, EntitlementPlanRecord, JsonValue, SystemModelChannelRecord } from "./repository-shared";
 import { isoValue, jsonParam, jsonValue, numberValue, optionalIso, optionalJson, optionalString, stringValue } from "./repository-shared";
 
@@ -145,6 +146,7 @@ export function createPostgresRepositories(executor: QueryExecutor = { query: po
         auditLogs: new AuditLogsRepository(executor),
         schoolDomain: createPostgresSchoolDomainRepository(executor),
         practice: new PracticeRepository(executor),
+        ipLibrary: new IpLibraryRepository(executor),
     };
 }
 

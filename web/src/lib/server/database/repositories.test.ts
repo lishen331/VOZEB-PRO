@@ -13,10 +13,11 @@ function queryArgs(query: ReturnType<typeof mockExecutor>["query"], index: numbe
 }
 
 describe("split Postgres repositories", () => {
-    it("exposes the school domain repository", () => {
+    it("exposes the school and IP library domain repositories", () => {
         const { executor } = mockExecutor([]);
 
         expect(createPostgresRepositories(executor).schoolDomain).toBeDefined();
+        expect(createPostgresRepositories(executor).ipLibrary).toBeDefined();
     });
 
     it("starts independent settings queries in parallel for pool executors", async () => {

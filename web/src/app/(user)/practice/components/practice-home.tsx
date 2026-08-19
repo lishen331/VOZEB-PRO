@@ -6,6 +6,8 @@ import { BookOpen, Clapperboard, Film, Image, Maximize2, Mic2, Music2, Plus, typ
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-domain";
+import type { IpReference } from "@/lib/ip-library-domain";
+import { ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
 import { practiceApi, type PracticeProjectSummary, type PracticeSession } from "@/services/api/practice";
 
 export const PRACTICE_PROJECT_CARDS: Array<{ kind: PracticeProjectKind; title: string; description: string; icon: LucideIcon }> = [
@@ -25,8 +27,10 @@ export function practiceProjectPath(kind: PracticeProjectKind, id: string) {
     return `/${kind}/${encodeURIComponent(id)}`;
 }
 
-export function practiceModulePath(module: PracticeModuleKind) {
-    return `/practice/${module}`;
+export function practiceModulePath(module: PracticeModuleKind, reference?: IpReference) {
+    if (!reference) return `/practice/${module}`;
+    const query = new URLSearchParams({ ipId: reference.id, versionId: reference.versionId });
+    return `/practice/${module}?${query.toString()}`;
 }
 
 export default function PracticeHome() {
@@ -39,6 +43,7 @@ export default function PracticeHome() {
     const [loading, setLoading] = useState(true);
     const [creatingKind, setCreatingKind] = useState<PracticeProjectKind | null>(null);
     const copyProjectId = searchParams.get("projectId");
+    const ipReference = ipReferenceFromQuery(searchParams);
     const handledCopyRef = useRef("");
 
     useEffect(() => {
@@ -79,7 +84,7 @@ export default function PracticeHome() {
         if (creatingKind) return;
         setCreatingKind(kind);
         try {
-            const result = await practiceApi.createProject({ kind, title: kind === "canvas" ? "无限练习画布" : "无限练习短剧" });
+            const result = await practiceApi.createProject({ kind, title: kind === "canvas" ? "无限练习画布" : "无限练习短剧", references: ipReference ? [ipReference] : undefined });
             router.push(practiceProjectPath(kind, result.project.id));
         } catch (error) {
             message.error(error instanceof Error ? error.message : "练习项目创建失败");
@@ -151,7 +156,7 @@ export default function PracticeHome() {
                                     key={item.module}
                                     type="button"
                                     className="min-w-0 border border-border bg-card p-3 text-left transition hover:border-foreground/40 hover:bg-muted/30 sm:p-4"
-                                    onClick={() => router.push(practiceModulePath(item.module))}
+                                    onClick={() => router.push(practiceModulePath(item.module, ipReference))}
                                     data-practice-module={item.module}
                                 >
                                     <Icon className="size-5 text-foreground" />

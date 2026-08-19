@@ -32,6 +32,8 @@ describe("drama asset image results", () => {
         expect(panel).toContain("downloadDramaAssetBundle");
         expect(panel).toContain("未被引用");
         expect(panel).toContain("data-drama-source-assets");
+        expect(panel).toContain("<IpReferencePicker");
+        expect(panel).toContain("ipReferences");
         expect(panel).toContain("<DramaAssetEditorDrawer");
         expect(editor).toContain("<Modal");
         expect(editor).toContain("width={640}");

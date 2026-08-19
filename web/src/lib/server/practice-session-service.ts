@@ -5,12 +5,14 @@ import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModel } from "@/lib/server/logical-model-router";
 import { getDatabaseProvider, createPostgresRepositories } from "@/lib/server/database";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
-import type { JsonValue, PracticeSessionRecord, PracticeSessionStatus } from "@/lib/server/database/repository-types";
+import type { JsonValue, PracticeSessionRecord } from "@/lib/server/database/repository-types";
 import { requirePracticeAccess, type PracticeActor } from "./practice-access-service";
 import { getTextTask } from "@/lib/server/text-task-store";
 import { getImageTask } from "@/lib/server/image-task-store";
 import { getVideoTask } from "@/lib/server/video-task-store";
 import { getAudioTask } from "@/lib/server/audio-task-store";
+import type { IpReference } from "@/lib/ip-library-domain";
+import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "./ip-library-reference-service";
 
 export type PracticeSessionCreateInput = {
     module: PracticeModuleKind;
@@ -42,6 +44,8 @@ export interface PracticeSessionStore {
     getByRequest(userId: string, clientRequestId: string): Promise<PracticeSessionRecord | null>;
     create(input: Omit<PracticeSessionRecord, "createdAt" | "updatedAt">): Promise<PracticeSessionRecord>;
     get(userId: string, id: string): Promise<PracticeSessionRecord | null>;
+    claimDispatch(userId: string, id: string): Promise<PracticeSessionRecord | null>;
+    resetForRetry(userId: string, id: string): Promise<PracticeSessionRecord | null>;
     update(userId: string, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title">>): Promise<PracticeSessionRecord | null>;
 }
 
@@ -55,15 +59,20 @@ export async function createPracticeSessionForUser(
     const clientRequestId = clean(input.clientRequestId, 160);
     if (!clientRequestId) throw new PracticeServiceError("缺少练习请求标识", 400);
     const existing = await store.getByRequest(actor.id, clientRequestId);
-    if (existing) return publicSession(existing);
+    if (existing) {
+        if (existing.status !== "queued" || (Array.isArray(existing.taskRefs) && existing.taskRefs.length) || !deps.dispatch) return publicSession(existing);
+        return dispatchQueuedSession(actor.id, existing, clientRequestId, store, deps.dispatch, deps.resolveModel || defaultResolveModel);
+    }
     const moduleKind = normalizeModule(input.module);
     const title = clean(input.title, 120) || "练习会话";
     const sourcePayload = object(input.input);
     const prompt = text(sourcePayload.prompt);
     if (!prompt) throw new PracticeServiceError("练习内容不能为空", 400);
     const references = normalizeReferences(input.references);
+    const ipReferences = references.filter((reference): reference is IpReference => reference.type === "ip");
+    await validateIpReferences(actor.id, ipReferences);
     const payload = { prompt, ...(references.length ? { references } : {}) };
-    const model = await (deps.resolveModel || defaultResolveModel)(moduleKind);
+    if (!deps.dispatch) await (deps.resolveModel || defaultResolveModel)(moduleKind);
     const created = await store.create({
         id: `practice-session-${nanoid()}`,
         userId: actor.id,
@@ -79,24 +88,52 @@ export async function createPracticeSessionForUser(
         status: "queued",
     });
     const dispatch = deps.dispatch;
-    if (!dispatch) return publicSession(created);
+    if (!dispatch) {
+        if (ipReferences.length) await recordIpReferenceUsage(actor.id, { targetType: "practice", targetId: created.id, references: ipReferences });
+        return publicSession(created);
+    }
+    return dispatchQueuedSession(actor.id, created, clientRequestId, store, dispatch, deps.resolveModel || defaultResolveModel);
+}
+
+async function dispatchQueuedSession(
+    userId: string,
+    session: PracticeSessionRecord,
+    clientRequestId: string,
+    store: PracticeSessionStore,
+    dispatch: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>,
+    resolveModel: (module: PracticeModuleKind) => Promise<PracticeModelResolution>,
+) {
+    const claimed = await store.claimDispatch(userId, session.id);
+    if (!claimed) return publicSession((await store.get(userId, session.id)) || session);
+    const storedInput = object(claimed.input);
+    const references = normalizeReferences(storedInput.references);
+    const ipReferences = references.filter((reference): reference is IpReference => reference.type === "ip");
+    let model: PracticeModelResolution;
+    try {
+        await validateIpReferences(userId, ipReferences);
+        if (ipReferences.length) await recordIpReferenceUsage(userId, { targetType: "practice", targetId: claimed.id, references: ipReferences });
+        model = await resolveModel(claimed.module);
+    } catch (error) {
+        await store.update(userId, claimed.id, { status: "queued" });
+        throw error;
+    }
     try {
         const task = await dispatch({
-            sessionId: created.id,
-            userId: actor.id,
-            module: moduleKind,
-            input: payload,
+            sessionId: claimed.id,
+            userId,
+            module: claimed.module,
+            input: { prompt: text(storedInput.prompt) },
             references,
             executionProfile: "open-source-practice",
             capability: model.capability,
             logicalModelId: model.logicalModelId,
             clientRequestId,
-            projectKind: created.projectKind,
+            projectKind: claimed.projectKind,
         });
-        const running = await store.update(actor.id, created.id, { status: "running", taskRefs: [{ taskId: task.taskId, taskType: task.taskType }] as unknown as JsonValue });
-        return publicSession(running || created);
+        const running = await store.update(userId, claimed.id, { taskRefs: [{ taskId: task.taskId, taskType: task.taskType }] as unknown as JsonValue });
+        return publicSession(running || claimed);
     } catch (error) {
-        await store.update(actor.id, created.id, { status: "failed" });
+        await store.update(userId, claimed.id, { status: "failed" });
         throw error;
     }
 }
@@ -126,32 +163,24 @@ export async function retryPracticeSessionForUser(
     const current = await store.get(actor.id, clean(id, 160));
     if (!current) throw new PracticeServiceError("练习会话不存在", 404);
     if (current.status !== "failed" && current.status !== "cancelled") throw new PracticeServiceError("当前练习无需重试", 409);
-    const model = await (deps.resolveModel || defaultResolveModel)(current.module);
-    const reset = await store.update(actor.id, current.id, { status: "queued", taskRefs: [] });
-    if (!reset) throw new PracticeServiceError("练习状态更新失败", 409);
-    const dispatch = deps.dispatch;
-    if (!dispatch) return publicSession(reset);
-    try {
-        const storedInput = object(current.input);
-        const references = normalizeReferences(storedInput.references);
-        const task = await dispatch({
-            sessionId: current.id,
-            userId: actor.id,
-            module: current.module,
-            input: { prompt: text(storedInput.prompt) },
-            references,
-            executionProfile: "open-source-practice",
-            capability: model.capability,
-            logicalModelId: model.logicalModelId,
-            clientRequestId: `retry-${nanoid()}`,
-            projectKind: current.projectKind,
-        });
-        const running = await store.update(actor.id, current.id, { status: "running", taskRefs: [{ taskId: task.taskId, taskType: task.taskType }] as unknown as JsonValue });
-        return publicSession(running || reset);
-    } catch (error) {
-        await store.update(actor.id, current.id, { status: "failed" });
-        throw error;
+    const storedInput = object(current.input);
+    const references = normalizeReferences(storedInput.references);
+    await validateIpReferences(
+        actor.id,
+        references.filter((reference): reference is IpReference => reference.type === "ip"),
+    );
+    const reset = await store.resetForRetry(actor.id, current.id);
+    if (!reset) {
+        const latest = await store.get(actor.id, current.id);
+        if (latest && latest.status !== "failed" && latest.status !== "cancelled") return publicSession(latest);
+        throw new PracticeServiceError("练习状态更新失败", 409);
     }
+    const dispatch = deps.dispatch;
+    if (!dispatch) {
+        await (deps.resolveModel || defaultResolveModel)(current.module);
+        return publicSession(reset);
+    }
+    return dispatchQueuedSession(actor.id, reset, current.clientRequestId, store, dispatch, deps.resolveModel || defaultResolveModel);
 }
 
 export class PracticeServiceError extends Error {
@@ -226,6 +255,8 @@ function postgresSessionStore(): PracticeSessionStore & { list(userId: string, i
         getByRequest: (userId, clientRequestId) => repository.getPracticeSessionByClientRequest(userId, clientRequestId),
         create: (input) => repository.createPracticeSession(input),
         get: (userId, id) => repository.getPracticeSessionForUser(userId, id),
+        claimDispatch: (userId, id) => repository.claimPracticeSessionDispatch(userId, id),
+        resetForRetry: (userId, id) => repository.resetPracticeSessionForRetry(userId, id),
         update: (userId, id, patch) => repository.updatePracticeSession(userId, id, patch),
         async list(userId, input) {
             return repository.listPracticeSessionsForUser(userId, input);
@@ -253,6 +284,32 @@ function fileSessionStore(): PracticeSessionStore & { list(userId: string, input
         },
         async get(userId, id) {
             return (await read()).sessions.find((item) => item.userId === userId && item.id === id) || null;
+        },
+        async claimDispatch(userId, id) {
+            let claimed: PracticeSessionRecord | null = null;
+            await withJsonDataFileLock(FILE_NAME, async () => {
+                const db = await read();
+                const sessions = db.sessions.map((item) => {
+                    if (item.userId !== userId || item.id !== id || item.status !== "queued" || (Array.isArray(item.taskRefs) && item.taskRefs.length)) return item;
+                    claimed = { ...item, status: "running", updatedAt: new Date().toISOString() };
+                    return claimed;
+                });
+                if (claimed) await writeJsonDataFile(FILE_NAME, { ...db, sessions });
+            });
+            return claimed;
+        },
+        async resetForRetry(userId, id) {
+            let reset: PracticeSessionRecord | null = null;
+            await withJsonDataFileLock(FILE_NAME, async () => {
+                const db = await read();
+                const sessions = db.sessions.map((item) => {
+                    if (item.userId !== userId || item.id !== id || (item.status !== "failed" && item.status !== "cancelled")) return item;
+                    reset = { ...item, status: "queued", taskRefs: [], updatedAt: new Date().toISOString() };
+                    return reset;
+                });
+                if (reset) await writeJsonDataFile(FILE_NAME, { ...db, sessions });
+            });
+            return reset;
         },
         async update(userId, id, patch) {
             let updated: PracticeSessionRecord | null = null;
@@ -287,13 +344,15 @@ function text(value: unknown) {
 function normalizeReferences(value: unknown) {
     if (!Array.isArray(value)) return [];
     const seen = new Set<string>();
-    return value.flatMap((item) => {
+    const assets = value.flatMap((item) => {
         const source = object(item);
         const id = text(source.id);
         if (source.type !== "asset" || !id || seen.has(id)) return [];
         seen.add(id);
         return [{ type: "asset" as const, id }];
     });
+    const ipReferences = normalizeIpReferences(value.filter((item) => object(item).type === "ip"));
+    return [...assets, ...ipReferences];
 }
 
 function clean(value: unknown, max: number) {

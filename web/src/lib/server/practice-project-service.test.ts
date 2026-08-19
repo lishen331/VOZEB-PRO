@@ -45,6 +45,15 @@ describe("practice projects", () => {
         expect(mocks.createCanvas).toHaveBeenNthCalledWith(2, "student-one", { title: "第二次" }, { executionProfile: "open-source-practice", practiceSource: source });
     });
 
+    it("passes pinned IP references into the independent practice aggregate", async () => {
+        const references = [{ type: "ip" as const, id: "ip-one", versionId: "version-three", itemIds: ["item-one"] }];
+        mocks.createCanvas.mockResolvedValue({ id: "practice-ip", ipReferences: references });
+
+        await createPracticeProject(actor, { kind: "canvas", title: "IP 练习", references });
+
+        expect(mocks.createCanvas).toHaveBeenCalledWith("student-one", { title: "IP 练习", ipReferences: references }, { executionProfile: "open-source-practice", practiceSource: { type: "blank" } });
+    });
+
     it("filters practice projects before provider pagination", async () => {
         await listPracticeProjects(actor, { kind: "canvas", page: 2, pageSize: 8 });
 

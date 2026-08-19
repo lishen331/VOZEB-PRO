@@ -3,19 +3,21 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 import { App, Button, Empty, Input, Spin } from "antd";
 import { ArrowLeft, CheckCircle2, RefreshCw, Send } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
+import { IpReferencePicker, ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
+import type { IpReference } from "@/lib/ip-library-domain";
 import type { PracticeModuleKind } from "@/lib/practice-domain";
 import { practiceApi, type PracticeSession, type PracticeSessionInput, type PracticeSessionResult } from "@/services/api/practice";
 import { PRACTICE_MODULES } from "./practice-home";
 export { PRACTICE_MODULES } from "./practice-home";
 
-export function buildPracticeSessionInput(module: PracticeModuleKind, prompt: string, referenceIds: string[]): PracticeSessionInput {
+export function buildPracticeSessionInput(module: PracticeModuleKind, prompt: string, referenceIds: string[], ipReferences: IpReference[] = []): PracticeSessionInput {
     return {
         module,
         title: PRACTICE_MODULES.find((item) => item.module === module)?.title || "单项练习",
         input: { prompt: prompt.trim() },
-        references: referenceIds.filter(Boolean).map((id) => ({ type: "asset", id })),
+        references: [...referenceIds.filter(Boolean).map((id) => ({ type: "asset" as const, id })), ...ipReferences],
         clientRequestId: globalThis.crypto?.randomUUID?.() || fallbackRequestId(),
     };
 }
@@ -38,39 +40,43 @@ export function publicPracticeResult(value: unknown): PracticeSessionResult | un
 
 export default function PracticeModuleWorkbench({ module }: { module: PracticeModuleKind }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { message } = App.useApp();
     const meta = PRACTICE_MODULES.find((item) => item.module === module) || PRACTICE_MODULES[0];
     const [prompt, setPrompt] = useState("");
     const [referenceText, setReferenceText] = useState("");
+    const [ipReferences, setIpReferences] = useState<IpReference[]>([]);
     const [sessions, setSessions] = useState<PracticeSession[]>([]);
     const [current, setCurrent] = useState<PracticeSession | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-
-    const load = async () => {
-        setLoading(true);
-        try {
-            const result = await practiceApi.listSessions({ module, pageSize: 12 });
-            setSessions(result.sessions);
-            if (current) {
-                const latest = result.sessions.find((item) => item.id === current.id);
-                if (latest) setCurrent(latest);
-            }
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "练习记录加载失败");
-        } finally {
-            setLoading(false);
-        }
-    };
+    const ipId = searchParams.get("ipId")?.trim() || "";
+    const ipVersionId = searchParams.get("versionId")?.trim() || "";
 
     useEffect(() => {
-        void load();
-        // A module change resets the server-backed list; no browser persistence is used.
+        let active = true;
+        setLoading(true);
         setCurrent(null);
         setPrompt("");
         setReferenceText("");
-    }, [module]);
+        const reference = ipId && ipVersionId ? ipReferenceFromQuery(new URLSearchParams({ ipId, versionId: ipVersionId })) : undefined;
+        setIpReferences(reference ? [reference] : []);
+        void practiceApi
+            .listSessions({ module, pageSize: 12 })
+            .then((result) => {
+                if (active) setSessions(result.sessions);
+            })
+            .catch((error) => {
+                if (active) message.error(error instanceof Error ? error.message : "练习记录加载失败");
+            })
+            .finally(() => {
+                if (active) setLoading(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, [ipId, ipVersionId, message, module]);
 
     const submit = async () => {
         if (!prompt.trim() || submitting) return;
@@ -83,6 +89,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                     .split(/\r?\n/)
                     .map((item) => item.trim())
                     .filter(Boolean),
+                ipReferences,
             );
             const result = await practiceApi.createSession(input);
             setCurrent(result.session);
@@ -163,6 +170,9 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                             <Input.TextArea id="practice-references" value={referenceText} onChange={(event) => setReferenceText(event.target.value)} placeholder="例如：asset-0001" autoSize={{ minRows: 2, maxRows: 4 }} className="!mt-2" />
                         </div>
                     ) : null}
+                    <div className="mt-4">
+                        <IpReferencePicker value={ipReferences} onChange={setIpReferences} />
+                    </div>
                     <div className="mt-4 flex justify-end">
                         <Button type="primary" icon={<Send className="size-4" />} loading={submitting} disabled={!prompt.trim()} onClick={() => void submit()}>
                             开始练习

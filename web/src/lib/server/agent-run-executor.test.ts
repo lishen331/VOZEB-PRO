@@ -288,6 +288,42 @@ describe("executeAgentRun backend settings", () => {
         expect(mocks.run?.status).toBe("completed");
     });
 
+    it("keeps project authorization context on a later text task after an earlier child was submitted", async () => {
+        mocks.run = runWithTasks([
+            {
+                ...imageTask("image-completed"),
+                status: "completed",
+                attempts: 1,
+                taskId: "child-image",
+                taskIds: ["child-image"],
+                childTasks: [{ id: "child-image", status: "completed", attempt: 1, result: { url: "https://cdn.example.com/image.png" } }],
+                result: { url: "https://cdn.example.com/image.png" },
+            },
+            { id: "text-later", title: "文本续写", type: "text", prompt: "续写世界观设定", model: "planner", count: 1, dependencies: [], status: "ready", attempts: 0 },
+        ]);
+        mocks.getAuthSettings.mockResolvedValue(settings("image-model", "image-channel"));
+        mocks.fetchInternalApi.mockImplementation(async (url: string, init?: RequestInit) => {
+            if (init?.method === "POST" && url.endsWith("/api/text-tasks")) return Response.json({ task: { id: "child-text" } });
+            if (url.endsWith("/api/text-tasks/child-text")) return Response.json({ task: { status: "success", result: { content: "完成" } } });
+            throw new Error(`unexpected request: ${url}`);
+        });
+
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        const createCall = mocks.fetchInternalApi.mock.calls.find(([url, init]) => init?.method === "POST" && String(url).endsWith("/api/text-tasks"));
+        expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({
+            context: {
+                conversationId: "conversation",
+                runId: "agent-run",
+                surface: "canvas",
+                projectId: "project",
+                parentTaskId: "text-later",
+                attemptNo: 1,
+                clientRequestId: "request:text-later:1:1",
+            },
+        });
+    });
+
     it("persists every child result for a multi-copy image task", async () => {
         mocks.run = runWithTasks([{ ...imageTask("image-one"), count: 2 }]);
         mocks.getAuthSettings.mockResolvedValue(settings("image-model", "image-channel"));

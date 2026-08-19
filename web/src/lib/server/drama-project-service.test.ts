@@ -29,6 +29,8 @@ const mocks = vi.hoisted(() => {
         getDramaProjectVersion: vi.fn(),
         listDramaProjectVersions: vi.fn(),
         deleteUserLocalMediaAssets: vi.fn(),
+        validateIpReferences: vi.fn(),
+        recordIpReferenceUsage: vi.fn(),
     };
 });
 
@@ -58,8 +60,13 @@ vi.mock("@/lib/server/drama-project-version-store", () => ({
     listDramaProjectVersions: mocks.listDramaProjectVersions,
 }));
 vi.mock("@/lib/server/local-media-storage", () => ({ deleteUserLocalMediaAssets: mocks.deleteUserLocalMediaAssets }));
+vi.mock("@/lib/server/ip-library-reference-service", () => ({
+    normalizeIpReferences: (value: unknown) => (Array.isArray(value) ? value : []),
+    validateIpReferences: mocks.validateIpReferences,
+    recordIpReferenceUsage: mocks.recordIpReferenceUsage,
+}));
 
-import { createDramaProjectForUser, deleteDramaAgentConversationForUser, deleteDramaProjectForUser, DramaProjectServiceError, restoreDramaProjectVersionForUser, updateDramaProjectForUser } from "./drama-project-service";
+import { createDramaProjectForUser, createDramaProjectVersionForUser, deleteDramaAgentConversationForUser, deleteDramaProjectForUser, restoreDramaProjectVersionForUser, updateDramaProjectForUser } from "./drama-project-service";
 import { DramaProjectStoreError } from "./drama-project-store";
 
 describe("drama project service updates", () => {
@@ -73,6 +80,9 @@ describe("drama project service updates", () => {
         mocks.listAgentRuns.mockResolvedValue([]);
         mocks.deleteDramaConversationAggregate.mockResolvedValue({ deletedConversations: 1, mediaStorageKeys: ["permanent/agent.png"], dramaProject: { ...project("2026-07-19T08:00:03.000Z", "项目"), creativeConversationId: "conversation-two" } });
         mocks.findDramaProjectBySourceHandoffId.mockResolvedValue(null);
+        mocks.deleteDramaProject.mockResolvedValue(false);
+        mocks.validateIpReferences.mockResolvedValue([]);
+        mocks.recordIpReferenceUsage.mockResolvedValue(undefined);
         mocks.listDramaProjectSummaries.mockResolvedValue([]);
         mocks.createDramaProjectVersion.mockResolvedValue({ id: "version-new", projectId: "drama-one", version: 2, reason: "恢复前自动快照", createdAt: new Date().toISOString() });
     });
@@ -191,6 +201,59 @@ describe("drama project service updates", () => {
         await expect(createDramaProjectForUser("user-one", { title: "项目" })).rejects.toBe(error);
 
         expect(mocks.updateCreativeConversation).toHaveBeenCalledWith("conversation-new", "user-one", { status: "archived" });
+        expect(mocks.deleteDramaProject).not.toHaveBeenCalled();
+    });
+
+    it("does not persist a project when initial IP usage recording fails", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
+        mocks.recordIpReferenceUsage.mockRejectedValueOnce(new Error("usage failed"));
+
+        await expect(createDramaProjectForUser("user-one", { title: "IP 项目", ipReferences: [reference] })).rejects.toThrow("usage failed");
+
+        expect(mocks.createDramaProject).not.toHaveBeenCalled();
+        expect(mocks.deleteDramaProject).not.toHaveBeenCalled();
+        expect(mocks.updateCreativeConversation).toHaveBeenCalledWith("conversation-new", "user-one", { status: "archived" });
+    });
+
+    it("records newly referenced IP content when saving a version", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const current = { ...project("2026-07-19T08:00:02.000Z", "当前版本"), ipReferences: [] };
+        const snapshot = { ...current, title: "引用版本", ipReferences: [reference] };
+        mocks.getDramaProject.mockResolvedValue(current);
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+
+        await createDramaProjectVersionForUser("user-one", current.id, { snapshot, reason: "保存引用" });
+
+        expect(mocks.recordIpReferenceUsage).toHaveBeenCalledWith("user-one", { targetType: "drama", targetId: current.id, references: [reference] });
+        expect(mocks.createDramaProjectVersion).toHaveBeenCalled();
+    });
+
+    it("validates and records newly referenced IP content when restoring a version", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const current = { ...project("2026-07-19T08:00:02.000Z", "当前版本"), ipReferences: [] };
+        const snapshot = { ...current, title: "引用版本", ipReferences: [reference] };
+        mocks.getDramaProject.mockResolvedValue(current);
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.getDramaProjectVersion.mockResolvedValue({ id: "version-one", projectId: current.id, version: 1, reason: "引用版", createdAt: current.createdAt, snapshot });
+
+        await restoreDramaProjectVersionForUser("user-one", current.id, "version-one");
+
+        expect(mocks.validateIpReferences).toHaveBeenCalledWith("user-one", [reference]);
+        expect(mocks.recordIpReferenceUsage).toHaveBeenCalledWith("user-one", { targetType: "drama", targetId: current.id, references: [reference] });
+    });
+
+    it("records IP usage before persisting a project reference update", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const current = { ...project("2026-07-19T08:00:02.000Z", "当前版本"), ipReferences: [] };
+        mocks.getDramaProject.mockResolvedValue(current);
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.recordIpReferenceUsage.mockRejectedValueOnce(new Error("usage failed"));
+
+        await expect(updateDramaProjectForUser("user-one", current.id, { ...current, updatedAt: "2026-07-19T08:00:03.000Z", ipReferences: [reference] })).rejects.toThrow("usage failed");
+
+        expect(mocks.updateDramaProject).not.toHaveBeenCalled();
     });
 
     it("reuses a handoff project without listing every project snapshot", async () => {
@@ -200,8 +263,31 @@ describe("drama project service updates", () => {
         await expect(createDramaProjectForUser("user-one", { title: "重复创建", sourceHandoffId: "handoff-one" })).resolves.toEqual(existing);
 
         expect(mocks.findDramaProjectBySourceHandoffId).toHaveBeenCalledWith("user-one", "handoff-one");
+        expect(mocks.validateIpReferences).not.toHaveBeenCalled();
         expect(mocks.createCreativeConversation).not.toHaveBeenCalled();
         expect(mocks.createDramaProject).not.toHaveBeenCalled();
+    });
+
+    it("pins and records an authorized IP version when creating a short drama", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
+
+        const created = await createDramaProjectForUser("user-one", { title: "IP 短剧", ipReferences: [reference] });
+
+        expect(created).toMatchObject({ ipReferences: [reference] });
+        expect(mocks.recordIpReferenceUsage).toHaveBeenCalledWith("user-one", { targetType: "drama", targetId: created.id, references: [reference] });
+        expect(mocks.recordIpReferenceUsage.mock.invocationCallOrder[0]).toBeLessThan(mocks.createDramaProject.mock.invocationCallOrder[0]);
+    });
+
+    it("records a practice target when a short drama is created through the practice workspace", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
+
+        const created = await createDramaProjectForUser("user-one", { title: "IP 练习短剧", ipReferences: [reference] }, { executionProfile: "open-source-practice" });
+
+        expect(mocks.recordIpReferenceUsage).toHaveBeenCalledWith("user-one", { targetType: "practice", targetId: created.id, references: [reference] });
     });
 
     it("archives the linked conversation after deleting a project", async () => {

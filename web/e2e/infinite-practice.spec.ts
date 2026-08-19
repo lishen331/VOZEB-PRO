@@ -40,8 +40,10 @@ test("学校老师和学生可以在独立练习身份中完成五类模块", as
         });
         expect(membersResponse.ok(), await membersResponse.text()).toBe(true);
 
-        await page.goto("/practice", { waitUntil: "domcontentloaded" });
-        await expect(page).toHaveURL(/\/create(?:\?|$)/);
+        const denied = await page.goto("/practice", { waitUntil: "domcontentloaded" });
+        expect(denied?.status()).toBe(404);
+        await expect(page).toHaveURL(/\/practice$/);
+        await expect(page.getByText("404", { exact: true })).toBeVisible();
 
         for (const role of ["teacher", "student"] as const) {
             const username = role === "teacher" ? teacherUsername : studentUsername;

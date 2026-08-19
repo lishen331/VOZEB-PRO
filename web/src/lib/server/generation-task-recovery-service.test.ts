@@ -6,20 +6,26 @@ const mocks = vi.hoisted(() => ({
     renew: vi.fn(),
     schedule: vi.fn(),
     executeAgentRun: vi.fn(),
+    updateAgentRunById: vi.fn(),
     processAgentRunReview: vi.fn(),
     getAgentRun: vi.fn(),
     getImageTask: vi.fn(),
     updateImageTask: vi.fn(),
+    createImageTaskUpstreamStep: vi.fn(),
+    markImageTaskFailed: vi.fn(),
     getVideoTask: vi.fn(),
     queryVideoTaskUpstream: vi.fn(),
     getAudioTask: vi.fn(),
     updateAudioTask: vi.fn(),
+    createAudioTaskUpstreamStep: vi.fn(),
+    markAudioTaskFailed: vi.fn(),
     queryAudioTaskUpstreamStep: vi.fn(),
     queryCancelledImageTaskUpstreamStep: vi.fn(),
     queryImageTaskUpstreamStep: vi.fn(),
     queryCancelledTextTaskUpstreamStep: vi.fn(),
     getTextTask: vi.fn(),
     updateTextTask: vi.fn(),
+    transitionTextTask: vi.fn(),
     runTextTaskStep: vi.fn(),
     requestCancellation: vi.fn(),
     refundImageTask: vi.fn(),
@@ -27,6 +33,7 @@ const mocks = vi.hoisted(() => ({
     refundAudioTask: vi.fn(),
     refundTextTask: vi.fn(),
     getAuthSettings: vi.fn(),
+    validateGenerationContextIpReferences: vi.fn(),
 }));
 
 vi.mock("@/lib/server/generation-task-scheduler", () => ({
@@ -38,22 +45,27 @@ vi.mock("@/lib/server/generation-task-scheduler", () => ({
 }));
 vi.mock("@/lib/server/agent-run-executor", () => ({ executeAgentRun: mocks.executeAgentRun }));
 vi.mock("@/lib/server/agent-run-execution", () => ({ processAgentRunReview: mocks.processAgentRunReview }));
-vi.mock("@/lib/server/agent-run-store", () => ({ getAgentRun: mocks.getAgentRun }));
+vi.mock("@/lib/server/agent-run-store", () => ({ getAgentRun: mocks.getAgentRun, updateAgentRunById: mocks.updateAgentRunById }));
 vi.mock("@/lib/server/maintenance-auth", () => ({ maintenanceWorkerContext: vi.fn((userId: string) => `worker-context:${userId}`) }));
 vi.mock("@/lib/server/video-task-runtime", () => ({ failVideoTaskFromWorker: vi.fn(), persistVideoTaskResult: vi.fn(), queryVideoTaskUpstream: mocks.queryVideoTaskUpstream }));
 vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask }));
-vi.mock("@/lib/server/audio-task-runtime", () => ({ createAudioTaskUpstreamStep: vi.fn(), markAudioTaskFailed: vi.fn(), persistAudioTaskResult: vi.fn(), queryAudioTaskUpstreamStep: mocks.queryAudioTaskUpstreamStep }));
+vi.mock("@/lib/server/audio-task-runtime", () => ({
+    createAudioTaskUpstreamStep: mocks.createAudioTaskUpstreamStep,
+    markAudioTaskFailed: mocks.markAudioTaskFailed,
+    persistAudioTaskResult: vi.fn(),
+    queryAudioTaskUpstreamStep: mocks.queryAudioTaskUpstreamStep,
+}));
 vi.mock("@/lib/server/audio-task-store", () => ({ getAudioTask: mocks.getAudioTask, updateAudioTask: mocks.updateAudioTask }));
 vi.mock("@/lib/server/image-task-runtime", () => ({
-    createImageTaskUpstreamStep: vi.fn(),
-    markImageTaskFailed: vi.fn(),
+    createImageTaskUpstreamStep: mocks.createImageTaskUpstreamStep,
+    markImageTaskFailed: mocks.markImageTaskFailed,
     persistImageTaskResult: vi.fn(),
     queryCancelledImageTaskUpstreamStep: mocks.queryCancelledImageTaskUpstreamStep,
     queryImageTaskUpstreamStep: mocks.queryImageTaskUpstreamStep,
 }));
 vi.mock("@/lib/server/image-task-store", () => ({ getImageTask: mocks.getImageTask, updateImageTask: mocks.updateImageTask }));
 vi.mock("@/lib/server/text-task-runtime", () => ({ queryCancelledTextTaskUpstreamStep: mocks.queryCancelledTextTaskUpstreamStep, runTextTaskStep: mocks.runTextTaskStep }));
-vi.mock("@/lib/server/text-task-store", () => ({ getTextTask: mocks.getTextTask, updateTextTask: mocks.updateTextTask }));
+vi.mock("@/lib/server/text-task-store", () => ({ getTextTask: mocks.getTextTask, transitionTextTask: mocks.transitionTextTask, updateTextTask: mocks.updateTextTask }));
 vi.mock("@/lib/server/model-request-policy", () => ({ resolveModelRequestTimeoutMs: vi.fn(() => 180_000) }));
 vi.mock("@/lib/server/image-task-refund", () => ({ refundImageTask: mocks.refundImageTask }));
 vi.mock("@/lib/server/video-task-refund", () => ({ refundVideoTask: mocks.refundVideoTask }));
@@ -65,8 +77,10 @@ vi.mock("@/lib/server/generation-task-cancellation-service", () => ({
     requestUpstreamGenerationCancellation: mocks.requestCancellation,
 }));
 vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings }));
+vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
 
 import { runGenerationTaskRecoveryBatch } from "./generation-task-recovery-service";
+import { SchoolServiceError } from "./school-access-service";
 
 describe("generation task recovery service", () => {
     beforeEach(() => {
@@ -74,6 +88,7 @@ describe("generation task recovery service", () => {
         mocks.release.mockResolvedValue({});
         mocks.renew.mockResolvedValue(1);
         mocks.getAuthSettings.mockResolvedValue({ dataLifecycle: { maintenanceBatchSize: 20 } });
+        mocks.validateGenerationContextIpReferences.mockResolvedValue(undefined);
     });
 
     it("returns without starting a heartbeat when no task is due", async () => {
@@ -141,6 +156,27 @@ describe("generation task recovery service", () => {
         expect(result).toMatchObject({ claimed: 1, completed: 1 });
     });
 
+    it("finishes an Agent with submitted child tasks after its IP grant is revoked", async () => {
+        const run = {
+            id: "agent-one",
+            userId: "user-one",
+            status: "running",
+            surface: "canvas",
+            projectId: "canvas-one",
+            tasks: [{ id: "agent-task", type: "image", status: "completed", taskId: "child-one", taskIds: ["child-one"] }],
+            createdAt: 1_000,
+        };
+        mocks.claim.mockResolvedValue([lease()]);
+        mocks.getAgentRun.mockResolvedValueOnce(run).mockResolvedValueOnce({ ...run, status: "completed" });
+        mocks.validateGenerationContextIpReferences.mockRejectedValueOnce(new SchoolServiceError(403, "IP 授权已失效"));
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.validateGenerationContextIpReferences).not.toHaveBeenCalled();
+        expect(mocks.executeAgentRun).toHaveBeenCalledWith(run, "http://internal", "worker-context:user-one");
+        expect(result).toMatchObject({ claimed: 1, completed: 1 });
+    });
+
     it("recovers every Agent child task in configured batches", async () => {
         const childTasks = Array.from({ length: 51 }, (_, index) => ({ id: `child-${index}`, status: "pending", attempt: 1 }));
         const run = {
@@ -172,6 +208,27 @@ describe("generation task recovery service", () => {
         expect(mocks.queryVideoTaskUpstream).toHaveBeenCalledWith(task, "http://internal", "", task.userId);
         expect(mocks.release).toHaveBeenCalledWith("video", task.id, "worker-one", expect.objectContaining({ executionPhase: "polling", lastUpstreamStatus: "processing" }));
         expect(result).toMatchObject({ claimed: 1, pending: 1 });
+    });
+
+    it("fails a queued Canvas image before upstream submission when its IP grant was revoked", async () => {
+        const task = {
+            id: "image-revoked",
+            userId: "user-one",
+            status: "pending",
+            surface: "canvas",
+            projectId: "canvas-one",
+            config: { channelId: "channel-one", apiFormat: "openai", advancedConfig: { protocol: "openai" } },
+        };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: task.id, type: "image", status: "pending" }]);
+        mocks.getImageTask.mockResolvedValue(task);
+        mocks.validateGenerationContextIpReferences.mockRejectedValueOnce(new SchoolServiceError(403, "IP 授权已失效"));
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.createImageTaskUpstreamStep).not.toHaveBeenCalled();
+        expect(mocks.markImageTaskFailed).toHaveBeenCalledWith(task, "IP 授权已失效");
+        expect(mocks.release).toHaveBeenCalledWith("image", task.id, "worker-one", expect.objectContaining({ executionPhase: "completed", lastUpstreamStatus: "ip_authorization_failed" }));
+        expect(result).toMatchObject({ claimed: 1, failed: 1 });
     });
 
     it("recovers a Gemini operation already persisted while submission was in flight", async () => {
