@@ -17,8 +17,17 @@ describe("practice access", () => {
         await expect(requirePracticeAccess({ id: "user-one", role: "user" })).resolves.toMatchObject({ schoolId: "school-one", membershipId: `membership-${role}`, role });
     });
 
-    it("does not let a platform administrator borrow a school membership", async () => {
+    it("allows a platform administrator only through a real active school membership", async () => {
+        mocks.requireActiveSchoolContext.mockResolvedValue({ school: { id: "school-one", status: "active" }, membership: { id: "membership-admin", role: "teacher", status: "active" } });
+
+        await expect(requirePracticeAccess({ id: "admin-one", role: "admin" })).resolves.toMatchObject({ schoolId: "school-one", membershipId: "membership-admin", role: "teacher" });
+        expect(mocks.requireActiveSchoolContext).toHaveBeenCalledWith("admin-one");
+    });
+
+    it("does not grant a platform administrator access without an active school membership", async () => {
+        mocks.requireActiveSchoolContext.mockRejectedValue(Object.assign(new Error("当前账号没有可用学校身份"), { status: 403 }));
+
         await expect(requirePracticeAccess({ id: "admin-one", role: "admin" })).rejects.toMatchObject({ status: 403 });
-        expect(mocks.requireActiveSchoolContext).not.toHaveBeenCalled();
+        expect(mocks.requireActiveSchoolContext).toHaveBeenCalledWith("admin-one");
     });
 });
