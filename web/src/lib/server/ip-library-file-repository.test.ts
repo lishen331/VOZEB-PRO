@@ -49,8 +49,18 @@ describe("file IP library repository", () => {
         await expect(repository.getVisibleIp({ userId: "admin-a", schoolId: "school-b", ipId: "school-ip", at: now })).resolves.toBeNull();
         await expect(repository.createIpDraftVersion("school-ip", { ...draft("school-version"), title: "重复版本" })).rejects.toThrow();
 
-        await repository.recordIpUsage({ id: "usage-a", ipId: "school-ip", versionId: "school-version", itemIds: ["school-version-item"], schoolId: "school-a", userId: "user-a", action: "reference", targetType: "practice", targetId: "practice-a" });
+        const usage = { id: "usage-a", ipId: "school-ip", versionId: "school-version", itemIds: ["school-version-item"], schoolId: "school-a", userId: "user-a", action: "reference" as const, targetType: "practice" as const, targetId: "practice-a" };
+        await repository.recordIpUsage(usage);
+        await expect(repository.recordIpUsage(usage)).resolves.toMatchObject({ id: "usage-a" });
         await expect(repository.listIpUsage({ schoolId: "school-a", page: 1, pageSize: 1 })).resolves.toMatchObject({ total: 1, items: [{ id: "usage-a" }] });
+
+        await expect(
+            repository.recordIpUsages([
+                { id: "usage-b", ipId: "school-ip", versionId: "school-version", itemIds: [], schoolId: "school-a", userId: "user-a", action: "reference", targetType: "canvas", targetId: "canvas-a" },
+                { id: "usage-invalid", ipId: "school-ip", versionId: "missing-version", itemIds: [], schoolId: "school-a", userId: "user-a", action: "reference", targetType: "canvas", targetId: "canvas-a" },
+            ]),
+        ).rejects.toThrow("IP 内容项不存在");
+        await expect(repository.listIpUsage({ schoolId: "school-a", page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "usage-a" }] });
     });
 
     it("rejects overlapping exclusive or multi-school grants and stops access after revocation", async () => {

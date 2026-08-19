@@ -295,6 +295,10 @@ async function updatePostgresProjectMutation(userId: string, projectId: string, 
         const index = values.push(JSON.stringify(mutation.viewport));
         projectExpression = `jsonb_set(${projectExpression}, '{viewport}', $${index}::jsonb, true)`;
     }
+    if (mutation.ipReferences !== undefined) {
+        const index = values.push(JSON.stringify(mutation.ipReferences));
+        projectExpression = `jsonb_set(${projectExpression}, '{ipReferences}', $${index}::jsonb, true)`;
+    }
     const mutationIndex = values.length + 1;
     values.push(mutation.mutationId);
     projectExpression = `jsonb_set(${projectExpression}, '{__canvasLastMutationId}', to_jsonb($${mutationIndex}::text), true)`;

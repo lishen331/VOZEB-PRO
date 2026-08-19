@@ -23,6 +23,8 @@ import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
+import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
+import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -154,6 +156,12 @@ export async function POST(request: Request) {
         if (existing) return NextResponse.json({ task: publicTask(existing) });
     }
     if (requestId) resolvedBody.context = { ...(resolvedBody.context || {}), clientRequestId: requestId, ...(headerAttemptNo ? { attemptNo: headerAttemptNo } : {}) };
+    try {
+        await validateGenerationContextIpReferences(currentUser.id, resolvedBody.context);
+    } catch (error) {
+        if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+        throw error;
+    }
     const settings = await getAuthSettings();
     const response = await withGenerationConcurrencyLimit(currentUser.id, "image", 10 * 60 * 1000, settings.generationConcurrency.image, async () => {
         const configs = sanitizeConfigs(resolvedBody.config, settings, trustedPractice ? "open-source-practice" : "production");

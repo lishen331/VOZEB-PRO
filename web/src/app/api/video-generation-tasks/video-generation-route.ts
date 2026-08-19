@@ -32,6 +32,8 @@ import { writeVideoGenerationLog } from "@/lib/server/video-task-log";
 import { buildOpenAiVideoFormData } from "./video-task-openai";
 import { normalizeVideoGenerationReferences, regularVideoReferences, videoFrameReferences, type VideoGenerationReference } from "@/lib/video-reference-contract";
 import { assertYumengVideoReferences, buildYumengVideoRequest } from "@/lib/yumeng-model-center";
+import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
+import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
 type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext };
@@ -61,6 +63,12 @@ export async function POST(request: Request) {
         if (existing) return NextResponse.json({ task: publicTask(existing) });
     }
     if (headerRequestId) body.context = { ...(body.context || {}), clientRequestId: headerRequestId, ...(headerAttemptNo ? { attemptNo: headerAttemptNo } : {}) };
+    try {
+        await validateGenerationContextIpReferences(user.id, body.context);
+    } catch (error) {
+        if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+        throw error;
+    }
     const settings = await getAuthSettings();
     const response = await withGenerationConcurrencyLimit(user.id, "video", 30 * 60_000, settings.generationConcurrency.video, async () => {
         const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : trustedPractice ? settings.practiceDefaultModels.videoModel : settings.defaultModels.videoModel;
@@ -127,6 +135,12 @@ export async function POST(request: Request) {
             } catch (error) {
                 capabilityError = error;
                 continue;
+            }
+            try {
+                await validateGenerationContextIpReferences(user.id, body.context);
+            } catch (error) {
+                if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+                throw error;
             }
             const started = startGenerationAttempt(attempts, { channelId: channel.channelId, model: generationModelId(channel), capability: "video" });
             attempts = started.attempts;

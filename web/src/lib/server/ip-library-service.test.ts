@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
     getVisibleIp: vi.fn(),
     listVisibleIps: vi.fn(),
     recordIpUsage: vi.fn(),
+    recordIpUsages: vi.fn(),
     getUserById: vi.fn(),
     requireActiveSchoolContext: vi.fn(),
     getSchoolContextForUser: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock("@/lib/server/database/repositories", () => ({
             getVisibleIp: mocks.getVisibleIp,
             listVisibleIps: mocks.listVisibleIps,
             recordIpUsage: mocks.recordIpUsage,
+            recordIpUsages: mocks.recordIpUsages,
         },
         users: { getById: mocks.getUserById },
     }),
@@ -35,7 +37,7 @@ vi.mock("./school-access-service", () => ({
     },
 }));
 
-import { createIpUsageForUser, getIpDetailForUser, listIpLibraryForUser } from "./ip-library-service";
+import { createIpUsageForUser, createIpUsagesForUser, getIpDetailForUser, listIpLibraryForUser } from "./ip-library-service";
 
 const version = {
     id: "version-one",
@@ -82,6 +84,7 @@ describe("IP library user service", () => {
         mocks.requireActiveSchoolContext.mockResolvedValue({ school: { id: "school-a", status: "active" }, membership: { id: "member-a", role: "teacher", status: "active" } });
         mocks.getSchoolContextForUser.mockResolvedValue(null);
         mocks.recordIpUsage.mockImplementation(async (input) => ({ ...input, createdAt: "2026-08-19T01:00:00.000Z" }));
+        mocks.recordIpUsages.mockImplementation(async (inputs) => inputs.map((input: object) => ({ ...input, createdAt: "2026-08-19T01:00:00.000Z" })));
     });
 
     it("lists public IPs for an active signed-in user without requiring a school", async () => {
@@ -158,6 +161,34 @@ describe("IP library user service", () => {
 
         expect(usage).toMatchObject({ ipId: "ip-one", versionId: "version-one", schoolId: "school-a", userId: "user-one", itemIds: ["item-image"] });
         expect(mocks.recordIpUsage).toHaveBeenCalledWith(expect.objectContaining({ schoolId: "school-a", itemIds: ["item-image"] }));
+    });
+
+    it("uses one stable usage identity when the same reference is retried", async () => {
+        mocks.getIpPackage.mockResolvedValue(packageRecord("school"));
+        mocks.getVisibleIp.mockResolvedValue(detail("school"));
+        const input = { ipId: "ip-one", versionId: "version-one", itemIds: ["item-image"], action: "reference" as const, targetType: "canvas" as const, targetId: "canvas-one" };
+
+        await createIpUsageForUser("user-one", input);
+        await createIpUsageForUser("user-one", input);
+
+        const first = mocks.recordIpUsage.mock.calls[0][0];
+        const second = mocks.recordIpUsage.mock.calls[1][0];
+        expect(first.id).toMatch(/^ip-usage-/);
+        expect(second.id).toBe(first.id);
+    });
+
+    it("validates every usage before one atomic repository write", async () => {
+        mocks.getIpPackage.mockResolvedValue(packageRecord("school"));
+        mocks.getVisibleIp.mockResolvedValue(detail("school"));
+
+        await createIpUsagesForUser("user-one", [
+            { ipId: "ip-one", versionId: "version-one", itemIds: ["item-text"], action: "reference", targetType: "canvas", targetId: "canvas-one" },
+            { ipId: "ip-one", versionId: "version-one", itemIds: ["item-image"], action: "reference", targetType: "canvas", targetId: "canvas-one" },
+        ]);
+
+        expect(mocks.recordIpUsages).toHaveBeenCalledOnce();
+        expect(mocks.recordIpUsages).toHaveBeenCalledWith([expect.objectContaining({ itemIds: ["item-text"], schoolId: "school-a" }), expect.objectContaining({ itemIds: ["item-image"], schoolId: "school-a" })]);
+        expect(mocks.recordIpUsage).not.toHaveBeenCalled();
     });
 
     it.each([

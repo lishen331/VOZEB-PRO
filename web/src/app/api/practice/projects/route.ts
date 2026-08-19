@@ -26,7 +26,7 @@ export async function POST(request: Request) {
         const body = parsed.data && typeof parsed.data === "object" && !Array.isArray(parsed.data) ? (parsed.data as Record<string, unknown>) : {};
         const kind = body.kind === "drama" ? "drama" : body.kind === "canvas" ? "canvas" : "";
         if (!kind) return response(400, "项目类型无效");
-        const result = await createPracticeProject(user, { kind, title: typeof body.title === "string" ? body.title : "", source: body.source as never });
+        const result = await createPracticeProject(user, { kind, title: typeof body.title === "string" ? body.title : "", source: body.source as never, references: body.references as never });
         return NextResponse.json({ code: 0, data: result, msg: "练习项目已创建" });
     } catch (error) {
         return knownError(error);

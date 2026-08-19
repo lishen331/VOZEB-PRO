@@ -267,10 +267,47 @@ export class IpLibraryRepository {
         const result = await this.db.query(
             `INSERT INTO ip_usage_records (id, ip_id, version_id, item_ids_json, school_id, user_id, action, target_type, target_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id
+             WHERE ip_usage_records.ip_id = EXCLUDED.ip_id
+               AND ip_usage_records.version_id = EXCLUDED.version_id
+               AND ip_usage_records.item_ids_json = EXCLUDED.item_ids_json
+               AND ip_usage_records.school_id IS NOT DISTINCT FROM EXCLUDED.school_id
+               AND ip_usage_records.user_id = EXCLUDED.user_id
+               AND ip_usage_records.action = EXCLUDED.action
+               AND ip_usage_records.target_type = EXCLUDED.target_type
+               AND ip_usage_records.target_id = EXCLUDED.target_id
              RETURNING *`,
             [input.id, input.ipId, input.versionId, jsonParam(input.itemIds), input.schoolId || null, input.userId, input.action, input.targetType, input.targetId],
         );
+        if (!result.rows[0]) throw new Error("IP 使用记录冲突");
         return mapUsage(result.rows[0]);
+    }
+
+    async recordIpUsages(inputs: IpUsageCreateInput[]): Promise<IpUsageRecord[]> {
+        if (!inputs.length) return [];
+        const values: unknown[] = [];
+        const rows = inputs.map((input) => {
+            const offset = values.length;
+            values.push(input.id, input.ipId, input.versionId, jsonParam(input.itemIds), input.schoolId || null, input.userId, input.action, input.targetType, input.targetId);
+            return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9})`;
+        });
+        const result = await this.db.query(
+            `INSERT INTO ip_usage_records (id, ip_id, version_id, item_ids_json, school_id, user_id, action, target_type, target_id)
+             VALUES ${rows.join(", ")}
+             ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id
+             WHERE ip_usage_records.ip_id = EXCLUDED.ip_id
+               AND ip_usage_records.version_id = EXCLUDED.version_id
+               AND ip_usage_records.item_ids_json = EXCLUDED.item_ids_json
+               AND ip_usage_records.school_id IS NOT DISTINCT FROM EXCLUDED.school_id
+               AND ip_usage_records.user_id = EXCLUDED.user_id
+               AND ip_usage_records.action = EXCLUDED.action
+               AND ip_usage_records.target_type = EXCLUDED.target_type
+               AND ip_usage_records.target_id = EXCLUDED.target_id
+             RETURNING *`,
+            values,
+        );
+        if (result.rows.length !== inputs.length) throw new Error("IP 使用记录冲突");
+        return result.rows.map(mapUsage);
     }
 
     async listIpUsage(input: IpUsageListInput = {}): Promise<PageResult<IpUsageRecord>> {

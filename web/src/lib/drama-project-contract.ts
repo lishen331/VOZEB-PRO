@@ -1,4 +1,5 @@
 import type { PracticeExecutionProfile, PracticeSource } from "@/lib/practice-domain";
+import type { IpReference } from "@/lib/ip-library-domain";
 
 export type DramaTaskStatus = "idle" | "queued" | "running" | "success" | "error" | "cancelled";
 export type DramaReviewStatus = "draft" | "content_review" | "approved" | "visual_ready";
@@ -184,6 +185,7 @@ export type DramaProject = {
     updatedAt: string;
     executionProfile?: PracticeExecutionProfile;
     practiceSource?: PracticeSource;
+    ipReferences?: IpReference[];
 };
 
 export type DramaProjectSummary = Pick<DramaProject, "id" | "title" | "summary" | "style" | "ratio" | "status" | "createdAt" | "updatedAt"> & {
@@ -209,6 +211,7 @@ export type CreateDramaProjectInput = Pick<DramaProject, "title" | "summary" | "
     initialScript?: string;
     sourceAssets?: DramaSourceAsset[];
     defaultVideoMode?: DramaVideoMode;
+    ipReferences?: IpReference[];
 };
 
 export type DramaContentAnalysis = {

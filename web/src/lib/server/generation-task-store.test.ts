@@ -176,10 +176,28 @@ describe("mutateStoredGenerationTask", () => {
     it("persists the immutable execution profile and defaults legacy tasks to production", async () => {
         mocks.records = [];
         const now = Date.now();
-        await createStoredGenerationTask("image", { id: "practice-image", userId: "user", status: "pending", surface: "canvas", executionProfile: "open-source-practice", createdAt: now, updatedAt: now }, 60_000);
+        await createStoredGenerationTask(
+            "image",
+            {
+                id: "practice-image",
+                userId: "user",
+                status: "pending",
+                surface: "canvas",
+                executionProfile: "open-source-practice",
+                ipReferences: [{ type: "ip", id: "ip-one", versionId: "version-one", itemIds: ["item-one"] }],
+                createdAt: now,
+                updatedAt: now,
+            },
+            60_000,
+        );
         await createStoredGenerationTask("image", { id: "production-image", userId: "user", status: "pending", createdAt: now, updatedAt: now }, 60_000);
 
-        await expect(getStoredGenerationTaskRecord("image", "practice-image")).resolves.toMatchObject({ surface: "canvas", executionProfile: "open-source-practice" });
+        await expect(getStoredGenerationTaskRecord("image", "practice-image")).resolves.toMatchObject({
+            surface: "canvas",
+            executionProfile: "open-source-practice",
+            ipReferences: [{ type: "ip", id: "ip-one", versionId: "version-one", itemIds: ["item-one"] }],
+            payload: { ipReferences: [{ type: "ip", id: "ip-one", versionId: "version-one", itemIds: ["item-one"] }] },
+        });
         await expect(getStoredGenerationTaskRecord("image", "production-image")).resolves.toMatchObject({ executionProfile: "production" });
     });
 

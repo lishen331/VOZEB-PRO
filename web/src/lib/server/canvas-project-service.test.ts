@@ -5,6 +5,7 @@ import type { CanvasProject } from "@/lib/canvas-project-contract";
 const mocks = vi.hoisted(() => ({
     CreativeEntityDeletionConflict: class CreativeEntityDeletionConflict extends Error {},
     createCreativeConversation: vi.fn(),
+    updateCreativeConversation: vi.fn(),
     createCanvasProject: vi.fn(),
     deleteCanvasProjectAggregates: vi.fn(),
     deleteCanvasAssistantConversationAggregates: vi.fn(),
@@ -13,11 +14,15 @@ const mocks = vi.hoisted(() => ({
     updateCanvasProject: vi.fn(),
     updateCanvasProjectMutationPatch: vi.fn(),
     deleteUserLocalMediaAssets: vi.fn(),
+    validateIpReferences: vi.fn(),
+    recordIpReferenceUsage: vi.fn(),
 }));
 
-vi.mock("@/lib/server/creative-runtime-store", () => ({ createCreativeConversation: mocks.createCreativeConversation }));
+vi.mock("@/lib/server/creative-runtime-store", () => ({ createCreativeConversation: mocks.createCreativeConversation, updateCreativeConversation: mocks.updateCreativeConversation }));
 vi.mock("@/lib/server/canvas-project-store", () => ({
-    CanvasProjectStoreError: class CanvasProjectStoreError extends Error {},
+    CanvasProjectStoreError: class CanvasProjectStoreError extends Error {
+        status = 409;
+    },
     createCanvasProject: mocks.createCanvasProject,
     getCanvasProject: mocks.getCanvasProject,
     listCanvasProjectSummaries: mocks.listCanvasProjectSummaries,
@@ -30,6 +35,11 @@ vi.mock("@/lib/server/creative-entity-deletion-store", () => ({
     deleteCanvasAssistantConversationAggregates: mocks.deleteCanvasAssistantConversationAggregates,
 }));
 vi.mock("@/lib/server/local-media-storage", () => ({ deleteUserLocalMediaAssets: mocks.deleteUserLocalMediaAssets }));
+vi.mock("@/lib/server/ip-library-reference-service", () => ({
+    normalizeIpReferences: (value: unknown) => (Array.isArray(value) ? value : []),
+    validateIpReferences: mocks.validateIpReferences,
+    recordIpReferenceUsage: mocks.recordIpReferenceUsage,
+}));
 
 import { createCanvasProjectForUser, deleteCanvasAssistantConversationsForUser, deleteCanvasProjectsForUser, updateCanvasProjectForUser } from "./canvas-project-service";
 
@@ -37,6 +47,7 @@ describe("canvas project service lifecycle", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.createCreativeConversation.mockResolvedValue({ id: "conversation-new" });
+        mocks.updateCreativeConversation.mockResolvedValue(undefined);
         mocks.deleteCanvasProjectAggregates.mockResolvedValue({ deletedConversations: 1, deletedProjects: 1, mediaStorageKeys: ["permanent/canvas.png"] });
         mocks.deleteCanvasAssistantConversationAggregates.mockResolvedValue({
             deletedConversations: 1,
@@ -45,26 +56,64 @@ describe("canvas project service lifecycle", () => {
             canvasAssistantState: { chatSessions: [assistantSession("session-new")], activeChatId: "session-new" },
         });
         mocks.getCanvasProject.mockResolvedValue(null);
+        mocks.validateIpReferences.mockResolvedValue([]);
+        mocks.recordIpReferenceUsage.mockResolvedValue(undefined);
     });
 
-    it("deletes the new conversation when project creation fails", async () => {
+    it("archives the new conversation without deleting another project when project creation fails", async () => {
         const error = new Error("write failed");
         mocks.createCanvasProject.mockRejectedValue(error);
 
         await expect(createCanvasProjectForUser("user-one", { title: "画布" })).rejects.toBe(error);
 
-        expect(mocks.deleteCanvasProjectAggregates).toHaveBeenCalledWith("user-one", [expect.stringMatching(/^canvas-/)]);
+        expect(mocks.updateCreativeConversation).toHaveBeenCalledWith("conversation-new", "user-one", { status: "archived" });
+        expect(mocks.deleteCanvasProjectAggregates).not.toHaveBeenCalled();
     });
 
-    it("reuses a source handoff project through its stable primary key", async () => {
-        const existing = { ...project(), id: "canvas-handoff-one", sourceHandoffId: "handoff-one" };
-        mocks.getCanvasProject.mockResolvedValue(existing);
+    it("reuses a source handoff project through a user-scoped stable primary key", async () => {
+        mocks.createCanvasProject.mockImplementation(async (_userId, value) => value);
+
+        const first = await createCanvasProjectForUser("user-one", { sourceHandoffId: "handoff-one" });
+        const second = await createCanvasProjectForUser("user-two", { sourceHandoffId: "handoff-one" });
+
+        expect(first.id).not.toBe(second.id);
+        expect(first.id).toMatch(/^canvas-handoff-/);
+        expect(second.id).toMatch(/^canvas-handoff-/);
+    });
+
+    it("returns the winning handoff project after a concurrent insert conflict", async () => {
+        const existing = { ...project(), id: "canvas-handoff-existing", sourceHandoffId: "handoff-one" };
+        mocks.getCanvasProject.mockResolvedValueOnce(null).mockResolvedValueOnce(existing);
+        mocks.createCanvasProject.mockRejectedValue(new (await import("@/lib/server/canvas-project-store")).CanvasProjectStoreError("画布项目已存在", 409));
 
         await expect(createCanvasProjectForUser("user-one", { sourceHandoffId: "handoff-one" })).resolves.toEqual(existing);
 
-        expect(mocks.getCanvasProject).toHaveBeenCalledWith("canvas-handoff-one", "user-one");
-        expect(mocks.createCreativeConversation).not.toHaveBeenCalled();
+        expect(mocks.updateCreativeConversation).toHaveBeenCalledWith("conversation-new", "user-one", { status: "archived" });
+        expect(mocks.deleteCanvasProjectAggregates).not.toHaveBeenCalled();
+    });
+
+    it("validates and records stable IP references when creating a Canvas", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: ["item-one"] };
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.createCanvasProject.mockImplementation(async (_userId, value) => value);
+
+        const created = await createCanvasProjectForUser("user-one", { title: "IP 画布", ipReferences: [reference] });
+
+        expect(mocks.validateIpReferences).toHaveBeenCalledWith("user-one", [reference]);
+        expect(created).toMatchObject({ ipReferences: [reference] });
+        expect(mocks.recordIpReferenceUsage).toHaveBeenCalledWith("user-one", { targetType: "canvas", targetId: created.id, references: [reference] });
+        expect(mocks.recordIpReferenceUsage.mock.invocationCallOrder[0]).toBeLessThan(mocks.createCanvasProject.mock.invocationCallOrder[0]);
+    });
+
+    it("does not create a Canvas when initial IP usage cannot be recorded", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.recordIpReferenceUsage.mockRejectedValue(new Error("usage failed"));
+
+        await expect(createCanvasProjectForUser("user-one", { title: "IP 画布", ipReferences: [reference] })).rejects.toThrow("usage failed");
+
         expect(mocks.createCanvasProject).not.toHaveBeenCalled();
+        expect(mocks.updateCreativeConversation).toHaveBeenCalledWith("conversation-new", "user-one", { status: "archived" });
     });
 
     it("deletes linked conversations and reclaims only unreferenced media after deleting projects", async () => {
@@ -115,6 +164,30 @@ describe("canvas project service lifecycle", () => {
         await updateCanvasProjectForUser("user-one", current.id, { project: { ...current, title: "新标题" }, expectedUpdatedAt: current.updatedAt });
 
         expect(mocks.updateCanvasProject).toHaveBeenCalledWith("user-one", expect.objectContaining({ title: "新标题" }), current.updatedAt);
+    });
+
+    it("does not allow a revoked reference to be removed as a generation bypass", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const current = { ...project(), ipReferences: [reference] };
+        mocks.getCanvasProject.mockResolvedValue(current);
+        mocks.validateIpReferences.mockRejectedValue(Object.assign(new Error("IP 授权已失效"), { status: 403 }));
+
+        await expect(updateCanvasProjectForUser("user-one", current.id, { project: { ...current, ipReferences: [] }, expectedUpdatedAt: current.updatedAt })).rejects.toMatchObject({ status: 403 });
+
+        expect(mocks.validateIpReferences).toHaveBeenCalledWith("user-one", [reference]);
+        expect(mocks.updateCanvasProject).not.toHaveBeenCalled();
+    });
+
+    it("records IP usage before persisting a reference update", async () => {
+        const current = project();
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        mocks.getCanvasProject.mockResolvedValue(current);
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.recordIpReferenceUsage.mockRejectedValueOnce(new Error("usage failed"));
+
+        await expect(updateCanvasProjectForUser("user-one", current.id, { project: { ...current, ipReferences: [reference] }, expectedUpdatedAt: current.updatedAt })).rejects.toThrow("usage failed");
+
+        expect(mocks.updateCanvasProject).not.toHaveBeenCalled();
     });
 
     it("always advances the persisted version beyond the current snapshot", async () => {

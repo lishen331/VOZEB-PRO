@@ -1,11 +1,12 @@
 import type { PracticeProjectKind, PracticeSource } from "@/lib/practice-domain";
+import type { IpReference } from "@/lib/ip-library-domain";
 import { createCanvasProjectForUser, getCanvasProjectForUser, listCanvasProjectsForUser } from "@/lib/server/canvas-project-service";
 import type { CanvasProjectIdentityInput } from "@/lib/server/canvas-project-store";
 import { createDramaProjectForUser, getDramaProjectForUser, listDramaProjectSummariesForUser } from "@/lib/server/drama-project-service";
 import type { DramaProjectIdentityInput } from "@/lib/server/drama-project-store";
 import { requirePracticeAccess, type PracticeActor } from "./practice-access-service";
 
-export type PracticeProjectInput = { kind: PracticeProjectKind; title: string; source?: PracticeSource };
+export type PracticeProjectInput = { kind: PracticeProjectKind; title: string; source?: PracticeSource; references?: IpReference[] };
 export type PracticeProjectIdentity = { executionProfile: "open-source-practice"; practiceSource: PracticeSource };
 
 export async function createPracticeProject(actor: PracticeActor, input: PracticeProjectInput) {
@@ -13,10 +14,10 @@ export async function createPracticeProject(actor: PracticeActor, input: Practic
     const title = cleanTitle(input.title);
     const identity: PracticeProjectIdentity = { executionProfile: "open-source-practice", practiceSource: input.source || { type: "blank" } };
     if (input.kind === "drama") {
-        const project = await createDramaProjectForUser(actor.id, { title }, identity as DramaProjectIdentityInput);
+        const project = await createDramaProjectForUser(actor.id, { title, ipReferences: input.references }, identity as DramaProjectIdentityInput);
         return { kind: "drama" as const, project };
     }
-    const project = await createCanvasProjectForUser(actor.id, { title }, identity as CanvasProjectIdentityInput);
+    const project = await createCanvasProjectForUser(actor.id, { title, ipReferences: input.references }, identity as CanvasProjectIdentityInput);
     return { kind: "canvas" as const, project };
 }
 

@@ -1,4 +1,5 @@
 import type { PracticeModuleKind, PracticeProjectKind, PracticeSource } from "@/lib/practice-domain";
+import type { IpReference } from "@/lib/ip-library-domain";
 
 export type PracticeProjectSummary = { id: string; title: string; createdAt: string; updatedAt: string; executionProfile: "open-source-practice"; practiceSource: PracticeSource; [key: string]: unknown };
 export type PracticeProject = PracticeProjectSummary & { [key: string]: unknown };
@@ -15,8 +16,16 @@ export type PracticeSession = {
     createdAt: string;
     updatedAt: string;
 };
-export type PracticeProjectInput = { kind: PracticeProjectKind; title: string; source?: PracticeSource };
-export type PracticeSessionInput = { module: PracticeModuleKind; title: string; input: Record<string, unknown>; references?: unknown[]; clientRequestId: string; projectId?: string; projectKind?: PracticeProjectKind };
+export type PracticeProjectInput = { kind: PracticeProjectKind; title: string; source?: PracticeSource; references?: IpReference[] };
+export type PracticeSessionInput = {
+    module: PracticeModuleKind;
+    title: string;
+    input: Record<string, unknown>;
+    references?: Array<{ type: "asset"; id: string } | IpReference>;
+    clientRequestId: string;
+    projectId?: string;
+    projectKind?: PracticeProjectKind;
+};
 
 export const practiceApi = {
     listProjects(input: { kind: PracticeProjectKind; page?: number; pageSize?: number }) {

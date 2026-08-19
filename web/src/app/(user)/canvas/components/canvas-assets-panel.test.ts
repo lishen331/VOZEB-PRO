@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import type { Asset } from "@/lib/library-asset-contract";
@@ -31,6 +33,15 @@ describe("Canvas assets panel", () => {
     it("keeps canvas dropdown items transparent until pointer or keyboard focus moves onto them", () => {
         expect(canvasProjectMenuItemStyle(canvasThemes.light)).toEqual({ background: "transparent", color: canvasThemes.light.node.text });
         expect(canvasProjectMenuItemStyle(canvasThemes.dark)).toEqual({ background: "transparent", color: canvasThemes.dark.node.text });
+    });
+
+    it("manages stable IP references in the canvas assets panel", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/canvas/components/canvas-assets-panel.tsx"), "utf8");
+
+        expect(source).toContain('type PanelTab = "current" | "assets" | "my" | "library" | "ip"');
+        expect(source).toContain('<PanelTabButton label="IP"');
+        expect(source).toContain("<IpReferencePicker");
+        expect(source).toContain("ipReferences");
     });
 });
 
