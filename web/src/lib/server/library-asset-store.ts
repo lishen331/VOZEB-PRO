@@ -60,6 +60,18 @@ export async function getLibraryAsset(userId: string, id: string) {
     return (await readDatabase()).assets.find((record) => record.userId === userId && record.asset.id === id)?.asset || null;
 }
 
+/** Resolve a referenced asset after the IP access service has granted access. */
+export async function getLibraryAssetById(id: string) {
+    const assetId = id.trim();
+    if (!assetId) return null;
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<{ asset_json: Asset }>("SELECT asset_json FROM library_assets WHERE id = $1", [assetId]);
+        return result.rows[0]?.asset_json || null;
+    }
+    return (await readDatabase()).assets.find((record) => record.asset.id === assetId)?.asset || null;
+}
+
 export async function createLibraryAsset(userId: string, asset: Asset) {
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
