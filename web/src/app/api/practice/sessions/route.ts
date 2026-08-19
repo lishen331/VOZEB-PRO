@@ -47,7 +47,8 @@ export async function POST(request: Request) {
 
 async function dispatchPracticeTask(request: Request, input: import("@/lib/server/practice-session-service").PracticeTaskDispatchInput) {
     const endpoint = input.capability === "text" ? "/api/text-tasks" : input.capability === "image" ? "/api/image-tasks" : input.capability === "video" ? "/api/video-generation-tasks" : "/api/audio-tasks";
-    const context = { surface: input.projectKind === "drama" ? "drama" : "canvas", executionProfile: "open-source-practice", projectId: input.sessionId, clientRequestId: input.clientRequestId };
+    const ipReferences = input.references.filter((reference) => reference && typeof reference === "object" && !Array.isArray(reference) && (reference as { type?: unknown }).type === "ip");
+    const context = { surface: input.projectKind === "drama" ? "drama" : "canvas", executionProfile: "open-source-practice", projectId: input.sessionId, clientRequestId: input.clientRequestId, ipReferences };
     const prompt = typeof input.input.prompt === "string" ? input.input.prompt : "练习任务";
     const body =
         input.capability === "text"

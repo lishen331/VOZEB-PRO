@@ -1,6 +1,7 @@
 import { getDatabaseProvider, ensurePostgresSchema, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import { resolveGenerationReviewReason } from "@/lib/server/generation-task-review-reason";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
+import { normalizeIpReference } from "@/lib/ip-library-domain";
 import type {
     GenerationTaskContext,
     GenerationTaskCostAggregate,
@@ -891,6 +892,7 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         clientRequestId: cleanContextText(context.clientRequestId),
         generationLogId: cleanContextText(context.generationLogId),
         generationSlotId: cleanContextText(context.generationSlotId),
+        ipReferences: normalizeContextIpReferences(context.ipReferences),
     };
 }
 
@@ -908,6 +910,7 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         clientRequestId: next.clientRequestId || previous?.clientRequestId,
         generationLogId: next.generationLogId || previous?.generationLogId,
         generationSlotId: next.generationSlotId || previous?.generationSlotId,
+        ipReferences: next.ipReferences?.length ? next.ipReferences : previous?.ipReferences,
         executionProfile: previous?.executionProfile || next.executionProfile || "production",
     };
 }
@@ -999,7 +1002,18 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         workerId: cleanContextText(String(row.worker_id || "")),
         leaseUntil: optionalDatabaseTime(row.lease_until),
         lastHeartbeatAt: optionalDatabaseTime(row.last_heartbeat_at),
+        ipReferences: normalizeContextIpReferences(payload.ipReferences),
     };
+}
+
+function normalizeContextIpReferences(value: unknown) {
+    if (!Array.isArray(value)) return undefined;
+    const references = value.flatMap((item) => {
+        const reference = normalizeIpReference(item);
+        return reference ? [reference] : [];
+    });
+    const unique = [...new Map(references.map((reference) => [`${reference.id}\0${reference.versionId}\0${reference.itemIds.join("\0")}`, reference])).values()];
+    return unique.length ? unique : undefined;
 }
 
 function mapGenerationTaskCostAggregate(row: Record<string, unknown>): GenerationTaskCostAggregate[] {

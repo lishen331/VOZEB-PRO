@@ -7,10 +7,12 @@ import { generationModelId, toSystemGenerationChannel } from "@/lib/server/gener
 import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
-import { withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
+import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
+import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
+import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { createTextTask, type TextTask, type TextTaskConfig } from "@/lib/server/text-task-store";
 import type { AiTextMessage } from "@/types/ai";
 
@@ -27,25 +29,37 @@ type CreateTextTaskBody = {
 export async function POST(request: Request) {
     const currentUser = await getCurrentUser(request);
     if (!currentUser) return NextResponse.json({ error: "请先登录" }, { status: 401 });
+    let body: CreateTextTaskBody;
+    try {
+        body = await readJsonBody(request);
+    } catch (error) {
+        if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
+        throw error;
+    }
+    const requestId = body.context?.clientRequestId?.trim();
+    if (requestId) {
+        const existing = await getStoredGenerationTaskByRequest<TextTask>("text", currentUser.id, requestId, body.context?.attemptNo);
+        if (existing) return NextResponse.json({ task: publicTask(existing) });
+    }
     const rate = await checkGenerationRateLimit(currentUser.id, request, "text");
     if (!rate.allowed) return NextResponse.json({ error: "文本生成请求过于频繁，请稍后重试" }, { status: 429, headers: rateLimitHeaders(rate) });
     const settings = await getAuthSettings();
     const response = await withGenerationConcurrencyLimit(currentUser.id, "text", 5 * 60 * 1000, settings.generationConcurrency.text, async () => {
-        let body: CreateTextTaskBody;
-        try {
-            body = await readJsonBody(request);
-        } catch (error) {
-            if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
-            throw error;
-        }
         const trustedPractice = isTrustedPracticeTaskRequest(request, currentUser.id, body.context);
         if (hasUntrustedExecutionProfile(body) && !trustedPractice) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
+        try {
+            await validateGenerationContextIpReferences(currentUser.id, body.context);
+        } catch (error) {
+            if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+            throw error;
+        }
         const executionProfile = trustedPractice ? "open-source-practice" : "production";
         const configs = sanitizeConfigs(body.config, settings, executionProfile);
         const messages = sanitizeMessages(body.messages);
         if (!configs.length || !messages.length) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
 
         const task = await createTextTask({ ...(body.context || {}), userId: currentUser.id, config: configs[0], candidateConfigs: configs.slice(1), messages });
+        await linkStoredGenerationTask("text", task.id, body.context || {});
         const cookie = request.headers.get("cookie") || "";
         const origin = resolveInternalOrigin(new URL(request.url).origin);
         await scheduleGenerationTask("text", task.id, { executionPhase: "created", channelId: task.config.channelId, provider: task.config.advancedConfig?.protocol || task.config.apiFormat, nextPollAt: Date.now(), lastUpstreamStatus: "created" });

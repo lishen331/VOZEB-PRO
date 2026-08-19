@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { App, Button, Pagination } from "antd";
 import { Download, FileUp, Plus } from "lucide-react";
@@ -11,6 +11,7 @@ import { uploadMediaFile } from "@/services/file-storage";
 import { uploadImage } from "@/services/image-storage";
 import { CanvasDeleteProjectsDialog } from "./components/canvas-delete-projects-dialog";
 import { CanvasProjectCard } from "./components/canvas-project-card";
+import { ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
 import type { CanvasExportFile } from "./export-types";
 import { useCanvasStore } from "./stores/use-canvas-store";
 import { useCanvasUiStore } from "./stores/use-canvas-ui-store";
@@ -45,11 +46,17 @@ export default function CanvasPage() {
     const ready = Boolean(userId && hydrated && hydratedUserId === userId);
 
     const mode = searchParams.get("mode");
+    const ipId = searchParams.get("ipId")?.trim() || "";
+    const ipVersionId = searchParams.get("versionId")?.trim() || "";
+    const ipReferenceKey = ipId && ipVersionId ? `${ipId}:${ipVersionId}` : "";
     const agentMode = mode === "new" || mode === "recent" || mode === "choose";
     const agentQuery = agentMode ? `?${searchParams.toString()}` : "";
-    const enterProject = (id: string) => {
-        router.push(`/canvas/${id}${agentQuery}`);
-    };
+    const enterProject = useCallback(
+        (id: string) => {
+            router.push(`/canvas/${id}${agentQuery}`);
+        },
+        [agentQuery, router],
+    );
     const createAndEnter = async () => {
         if (creating) return;
         setCreating(true);
@@ -109,21 +116,22 @@ export default function CanvasPage() {
     }, [hydrate, userId]);
 
     useEffect(() => {
-        if (!ready || autoOpenRef.current || (mode !== "new" && mode !== "recent")) return;
+        if (!ready || autoOpenRef.current || (mode !== "new" && mode !== "recent" && !ipReferenceKey)) return;
         autoOpenRef.current = true;
         void (async () => {
             try {
                 const defaultName = `${siteTitle} 画布 ${total + 1}`;
-                const id = mode === "new" ? await createProject(defaultName) : projects[0]?.id || (await createProject(defaultName));
+                const reference = ipId && ipVersionId ? ipReferenceFromQuery(new URLSearchParams({ ipId, versionId: ipVersionId })) : undefined;
+                const id = reference ? await createProject(defaultName, [reference], `ip-library-${reference.id}-${reference.versionId}`) : mode === "new" ? await createProject(defaultName) : projects[0]?.id || (await createProject(defaultName));
                 enterProject(id);
             } catch (error) {
                 autoOpenRef.current = false;
                 message.error(error instanceof Error ? error.message : "画布打开失败");
             }
         })();
-    }, [createProject, message, mode, projects, ready, siteTitle, total]);
+    }, [createProject, enterProject, ipId, ipReferenceKey, ipVersionId, message, mode, projects, ready, siteTitle, total]);
 
-    if (ready && (mode === "new" || mode === "recent")) return <main className="flex h-full items-center justify-center bg-background text-sm text-stone-500">正在打开画布...</main>;
+    if (ready && (mode === "new" || mode === "recent" || ipReferenceKey)) return <main className="flex h-full items-center justify-center bg-background text-sm text-stone-500">正在打开画布...</main>;
 
     return (
         <main className="h-full overflow-auto bg-background text-stone-950 dark:text-stone-100">

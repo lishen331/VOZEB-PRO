@@ -1,11 +1,15 @@
+import { createHash } from "node:crypto";
+
 import { nanoid } from "nanoid";
 
 import type { CanvasProject, CanvasProjectMutation, CanvasProjectSaveAck, CreateCanvasProjectInput } from "@/lib/canvas-project-contract";
 import { createCanvasProject, CanvasProjectStoreError, getCanvasProject, listCanvasProjectSummaries, updateCanvasProject, updateCanvasProjectMutationPatch } from "@/lib/server/canvas-project-store";
 import { deleteUserLocalMediaAssets } from "@/lib/server/local-media-storage";
-import { createCreativeConversation } from "@/lib/server/creative-runtime-store";
+import { createCreativeConversation, updateCreativeConversation } from "@/lib/server/creative-runtime-store";
 import { CreativeEntityDeletionConflict, deleteCanvasAssistantConversationAggregates, deleteCanvasProjectAggregates } from "@/lib/server/creative-entity-deletion-store";
 import type { CanvasProjectIdentityInput } from "@/lib/server/canvas-project-store";
+import type { IpReference } from "@/lib/ip-library-domain";
+import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "@/lib/server/ip-library-reference-service";
 
 const MAX_PROJECT_BYTES = 5 * 1024 * 1024;
 
@@ -36,12 +40,14 @@ export async function createCanvasProjectForUser(userId: string, value: unknown,
     const input = object(value) as CreateCanvasProjectInput;
     const source = object(input.project);
     const sourceHandoffId = text(input.sourceHandoffId || source.sourceHandoffId, 160);
-    const id = sourceHandoffId ? `canvas-${sourceHandoffId}` : `canvas-${nanoid()}`;
+    const id = sourceHandoffId ? canvasHandoffProjectId(userId, sourceHandoffId) : `canvas-${nanoid()}`;
     if (sourceHandoffId) {
         const existing = await getCanvasProject(id, userId);
         if (existing) return existing;
     }
     const title = text(input.title || source.title, 120) || "未命名画布";
+    const previews = await validateIpReferences(userId, input.ipReferences ?? source.ipReferences);
+    const ipReferences = previews.map((item) => item.reference);
     const now = new Date().toISOString();
     const conversation = await createCreativeConversation(userId, { surface: "canvas", projectId: id, title });
     const project = normalizeProject(source, {
@@ -58,11 +64,17 @@ export async function createCanvasProjectForUser(userId: string, value: unknown,
         backgroundMode: "lines",
         showImageInfo: false,
         viewport: { x: 0, y: 0, k: 1 },
+        ipReferences,
     });
     try {
+        if (ipReferences.length) await recordIpReferenceUsage(userId, { targetType: "canvas", targetId: project.id, references: ipReferences });
         return await createCanvasProject(userId, project, identity);
     } catch (error) {
-        await deleteCanvasProjectAggregates(userId, [id]).catch(() => null);
+        await updateCreativeConversation(conversation.id, userId, { status: "archived" }).catch(() => null);
+        if (sourceHandoffId && error instanceof CanvasProjectStoreError && error.status === 409) {
+            const existing = await getCanvasProject(id, userId);
+            if (existing) return existing;
+        }
         throw error;
     }
 }
@@ -75,7 +87,11 @@ export async function updateCanvasProjectForUser(userId: string, id: string, val
     if (!expectedUpdatedAt) throw new CanvasProjectServiceError("缺少画布项目版本，请刷新后重试", 400);
     const current = await getCanvasProject(text(id, 160), userId);
     if (!current) throw new CanvasProjectServiceError("画布项目不存在", 404);
-    const project = normalizeProject(object(input.project), current);
+    const source = object(input.project);
+    const ipReferences = source.ipReferences === undefined ? current.ipReferences || [] : await validateIpReferenceUpdate(userId, current.ipReferences, source.ipReferences);
+    const project = normalizeProject({ ...source, ipReferences }, current);
+    const added = addedIpReferences(current.ipReferences, ipReferences);
+    if (added.length) await recordIpReferenceUsage(userId, { targetType: "canvas", targetId: current.id, references: added });
     return updateCanvasProject(userId, project, expectedUpdatedAt);
 }
 
@@ -83,8 +99,24 @@ async function updateCanvasProjectMutationForUser(userId: string, id: string, in
     const mutationId = text(input.mutationId, 160);
     const baseUpdatedAt = isoTimestamp(input.baseUpdatedAt);
     if (!mutationId || !baseUpdatedAt) throw new CanvasProjectServiceError("缺少画布项目版本或操作标识，请刷新后重试", 400);
+    const projectId = text(id, 160);
+    let added: IpReference[] = [];
+    let current: CanvasProject | null = null;
+    if (input.ipReferences !== undefined) {
+        current = await getCanvasProject(projectId, userId);
+        if (!current) throw new CanvasProjectServiceError("画布项目不存在", 404);
+        const ipReferences = await validateIpReferenceUpdate(userId, current.ipReferences, input.ipReferences);
+        input = { ...input, ipReferences };
+        added = addedIpReferences(current.ipReferences, ipReferences);
+    }
     const mutation = normalizeMutation(input, mutationId, baseUpdatedAt);
-    return updateCanvasProjectMutationPatch(userId, text(id, 160), mutation);
+    if (added.length) await recordIpReferenceUsage(userId, { targetType: "canvas", targetId: projectId, references: added });
+    return updateCanvasProjectMutationPatch(userId, projectId, mutation);
+}
+
+async function validateIpReferenceUpdate(userId: string, current: unknown, incoming: unknown) {
+    await validateIpReferences(userId, current);
+    return (await validateIpReferences(userId, incoming)).map((item) => item.reference);
 }
 
 export async function deleteCanvasProjectsForUser(userId: string, value: unknown) {
@@ -124,6 +156,7 @@ function normalizeProject(value: Record<string, unknown>, current: CanvasProject
         backgroundMode: sanitized.backgroundMode === "dots" || sanitized.backgroundMode === "blank" ? sanitized.backgroundMode : "lines",
         showImageInfo: sanitized.showImageInfo === true,
         viewport: normalizeViewport(sanitized.viewport, current.viewport),
+        ipReferences: sanitized.ipReferences === undefined ? current.ipReferences || [] : normalizeIpReferences(sanitized.ipReferences),
         createdAt: current.createdAt,
         updatedAt: nextProjectVersion(current.updatedAt),
         id: current.id,
@@ -144,6 +177,7 @@ function normalizeMutation(input: Record<string, unknown>, mutationId: string, b
     if (typeof sanitized.showImageInfo === "boolean") mutation.showImageInfo = sanitized.showImageInfo;
     const viewport = normalizeMutationViewport(sanitized.viewport);
     if (viewport) mutation.viewport = viewport;
+    if (sanitized.ipReferences !== undefined) mutation.ipReferences = normalizeIpReferences(sanitized.ipReferences);
     if (Array.isArray(sanitized.nodeUpserts)) mutation.nodeUpserts = normalizeEntityUpserts<CanvasProject["nodes"][number]>(sanitized.nodeUpserts);
     if (Array.isArray(sanitized.nodeDeletes)) mutation.nodeDeletes = normalizeEntityDeletes(sanitized.nodeDeletes);
     if (Array.isArray(sanitized.connectionUpserts)) mutation.connectionUpserts = normalizeEntityUpserts<CanvasProject["connections"][number]>(sanitized.connectionUpserts);
@@ -177,6 +211,19 @@ function normalizeMutationViewport(value: unknown) {
 
 function object(value: unknown) {
     return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function addedIpReferences(previous: IpReference[] | undefined, next: IpReference[]) {
+    const existing = new Set((previous || []).map(referenceKey));
+    return next.filter((reference) => !existing.has(referenceKey(reference)));
+}
+
+function referenceKey(reference: IpReference) {
+    return `${reference.id}:${reference.versionId}:${reference.itemIds.join(",")}`;
+}
+
+function canvasHandoffProjectId(userId: string, sourceHandoffId: string) {
+    return `canvas-handoff-${createHash("sha256").update(`${userId}\0${sourceHandoffId}`).digest("hex").slice(0, 32)}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

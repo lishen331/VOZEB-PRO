@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type { IpAssetKind, IpItemCategory, IpUsageAction } from "@/lib/ip-library-domain";
 import type { IpDetailRecord, IpItemRecord, IpSummaryRecord, IpUsageRecord, IpUsageTargetType, PageResult } from "@/lib/server/database/repository-types";
@@ -35,6 +35,16 @@ export async function getIpDetailForUser(userId: string, ipId: string, versionId
 }
 
 export async function createIpUsageForUser(userId: string, input: IpUsageInput): Promise<IpUsageRecord> {
+    return createIpLibraryRepository().recordIpUsage(await prepareIpUsage(userId, input));
+}
+
+export async function createIpUsagesForUser(userId: string, inputs: IpUsageInput[]): Promise<IpUsageRecord[]> {
+    if (!Array.isArray(inputs) || !inputs.length) return [];
+    const records = await Promise.all(inputs.map((input) => prepareIpUsage(userId, input)));
+    return createIpLibraryRepository().recordIpUsages([...new Map(records.map((record) => [record.id, record])).values()]);
+}
+
+async function prepareIpUsage(userId: string, input: IpUsageInput) {
     const itemIds = normalizeItemIds(input.itemIds);
     validateUsageTarget(input.action, input.targetType, input.targetId, itemIds);
     const access = await requireVisibleIp(userId, requiredText(input.ipId, "IP 标识无效"), optionalText(input.versionId), itemIds);
@@ -43,8 +53,9 @@ export async function createIpUsageForUser(userId: string, input: IpUsageInput):
         const context = await getSchoolContextForUser(userId);
         if (context?.school.status === "active" && context.membership.status === "active") schoolId = context.school.id;
     }
-    return createIpLibraryRepository().recordIpUsage({
-        id: randomUUID(),
+    const targetId = input.targetId.trim();
+    return {
+        id: input.action === "reference" ? referenceUsageId(userId, access.detail.id, access.detail.version.id, itemIds, input.targetType, targetId) : randomUUID(),
         ipId: access.detail.id,
         versionId: access.detail.version.id,
         itemIds,
@@ -52,8 +63,15 @@ export async function createIpUsageForUser(userId: string, input: IpUsageInput):
         userId,
         action: input.action,
         targetType: input.targetType,
-        targetId: input.targetId.trim(),
-    });
+        targetId,
+    };
+}
+
+function referenceUsageId(userId: string, ipId: string, versionId: string, itemIds: string[], targetType: IpUsageTargetType, targetId: string) {
+    const digest = createHash("sha256")
+        .update([userId, ipId, versionId, targetType, targetId, ...[...itemIds].sort()].join("\0"))
+        .digest("hex");
+    return `ip-usage-${digest}`;
 }
 
 function toUserSummary(record: IpSummaryRecord): IpSummary {

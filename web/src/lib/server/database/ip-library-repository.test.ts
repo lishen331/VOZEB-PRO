@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createPostgresRepositories } from "./repositories";
 import { initializePostgresSchema, postgresQuery } from "./postgres";
+import type { IpUsageCreateInput } from "./repository-types";
 
 const postgresIt = process.env.VOZEB_PRO_RUN_POSTGRES_INTEGRATION === "1" ? it : it.skip;
 const suffix = randomUUID();
@@ -187,7 +188,7 @@ describe("IpLibraryRepository PostgreSQL", () => {
         const created = await repository.createIpPackage(packageInput("usage", "public"));
         const version = await repository.createIpDraftVersion(created.id, versionInput(created.id, "v1"));
         await repository.publishIpVersion(created.id, version.id);
-        await repository.recordIpUsage({
+        const referenceUsage: IpUsageCreateInput = {
             id: `${created.id}-usage-1`,
             ipId: created.id,
             versionId: version.id,
@@ -197,8 +198,17 @@ describe("IpLibraryRepository PostgreSQL", () => {
             action: "reference",
             targetType: "canvas",
             targetId: "canvas-a",
-        });
+        };
+        await repository.recordIpUsage(referenceUsage);
+        await expect(repository.recordIpUsage(referenceUsage)).resolves.toMatchObject({ id: referenceUsage.id });
         await repository.recordIpUsage({ id: `${created.id}-usage-2`, ipId: created.id, versionId: version.id, itemIds: [], userId: ids.schoolAUser, schoolId: ids.schoolA, action: "download_package", targetType: "download", targetId: created.id });
+
+        await expect(
+            repository.recordIpUsages([
+                { id: `${created.id}-usage-3`, ipId: created.id, versionId: version.id, itemIds: [], userId: ids.schoolAUser, schoolId: ids.schoolA, action: "reference", targetType: "canvas", targetId: "canvas-b" },
+                { id: `${created.id}-usage-invalid`, ipId: created.id, versionId: `${created.id}-missing`, itemIds: [], userId: ids.schoolAUser, schoolId: ids.schoolA, action: "reference", targetType: "canvas", targetId: "canvas-b" },
+            ]),
+        ).rejects.toBeTruthy();
 
         const page = await repository.listIpUsage({ userId: ids.schoolAUser, schoolId: ids.schoolA, page: 1, pageSize: 1 });
         expect(page).toMatchObject({ total: 2, page: 1, pageSize: 1 });

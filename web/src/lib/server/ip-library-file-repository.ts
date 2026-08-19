@@ -236,13 +236,45 @@ export class FileIpLibraryRepository {
     recordIpUsage(input: IpUsageCreateInput): Promise<IpUsageRecord> {
         return mutate(async (state, school, auth) => {
             if (!activeUser(auth, input.userId)) throw new Error("用户不可用");
-            if (state.usages.some((item) => item.id === input.id)) throw new Error("使用记录已存在");
+            const existing = state.usages.find((item) => item.id === input.id);
+            if (existing) {
+                if (!sameUsage(existing, input)) throw new Error("IP 使用记录冲突");
+                return structuredClone(existing);
+            }
             const version = state.versions.find((item) => item.id === input.versionId && item.ipId === input.ipId && item.status === "published");
             if (!version || input.itemIds.some((id) => !version.items.some((item) => item.id === id))) throw new Error("IP 内容项不存在或不属于当前版本");
             if (input.schoolId && !activeMembership(school, input.userId, input.schoolId)) throw new Error("学校成员不可用");
             const record: IpUsageRecord = { ...structuredClone(input), createdAt: new Date().toISOString() };
             state.usages.push(record);
             return structuredClone(record);
+        });
+    }
+
+    recordIpUsages(inputs: IpUsageCreateInput[]): Promise<IpUsageRecord[]> {
+        if (!inputs.length) return Promise.resolve([]);
+        return mutate(async (state, school, auth) => {
+            const known = new Map(state.usages.map((item) => [item.id, item]));
+            const createdAt = new Date().toISOString();
+            const records: IpUsageRecord[] = [];
+            const additions: IpUsageRecord[] = [];
+            for (const input of inputs) {
+                if (!activeUser(auth, input.userId)) throw new Error("用户不可用");
+                const existing = known.get(input.id);
+                if (existing) {
+                    if (!sameUsage(existing, input)) throw new Error("IP 使用记录冲突");
+                    records.push(existing);
+                    continue;
+                }
+                const version = state.versions.find((item) => item.id === input.versionId && item.ipId === input.ipId && item.status === "published");
+                if (!version || input.itemIds.some((id) => !version.items.some((item) => item.id === id))) throw new Error("IP 内容项不存在或不属于当前版本");
+                if (input.schoolId && !activeMembership(school, input.userId, input.schoolId)) throw new Error("学校成员不可用");
+                const record = { ...structuredClone(input), createdAt };
+                known.set(input.id, record);
+                additions.push(record);
+                records.push(record);
+            }
+            state.usages.push(...additions);
+            return structuredClone(records);
         });
     }
 
@@ -261,6 +293,20 @@ export class FileIpLibraryRepository {
             .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id));
         return { items: structuredClone(records.slice((page - 1) * pageSize, page * pageSize)), total: records.length, page, pageSize };
     }
+}
+
+function sameUsage(record: IpUsageRecord, input: IpUsageCreateInput) {
+    return (
+        record.ipId === input.ipId &&
+        record.versionId === input.versionId &&
+        record.schoolId === input.schoolId &&
+        record.userId === input.userId &&
+        record.action === input.action &&
+        record.targetType === input.targetType &&
+        record.targetId === input.targetId &&
+        record.itemIds.length === input.itemIds.length &&
+        record.itemIds.every((item, index) => item === input.itemIds[index])
+    );
 }
 
 async function readFile() {

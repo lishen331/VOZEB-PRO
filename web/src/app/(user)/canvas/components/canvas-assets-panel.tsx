@@ -5,6 +5,7 @@ import { ChevronDown, FileAudio, FileText, FolderOpen, ImageIcon, LayoutGrid, Li
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import type { Asset, AssetKind } from "@/lib/library-asset-contract";
+import { IpReferencePicker } from "@/components/ip-library/ip-reference-picker";
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
@@ -16,7 +17,7 @@ import { useCanvasStore } from "../stores/use-canvas-store";
 import { CanvasNodeType, type CanvasNodeData } from "../types";
 import { libraryAssetToInsertPayload, type InsertAssetPayload } from "./canvas-asset-insert";
 
-type PanelTab = "current" | "assets" | "my" | "library";
+type PanelTab = "current" | "assets" | "my" | "library" | "ip";
 type CurrentMediaKind = "image" | "video";
 type CurrentMedia = { id: string; title: string; kind: CurrentMediaKind; url: string };
 type MediaPreview = { kind: CurrentMediaKind; title: string; url: string; posterUrl?: string };
@@ -70,6 +71,8 @@ export function CanvasAssetsPanel({
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const userId = useUserStore((state) => state.user?.id || "");
     const projectSummaries = useCanvasStore((state) => state.summaries);
+    const project = useCanvasStore((state) => state.projects.find((item) => item.id === projectId));
+    const updateProject = useCanvasStore((state) => state.updateProject);
     const [activeTab, setActiveTab] = useState<PanelTab>("current");
     const [assetKind, setAssetKind] = useState<AssetKind | "all">("all");
     const [assetKeyword, setAssetKeyword] = useState("");
@@ -202,11 +205,12 @@ export function CanvasAssetsPanel({
                         新建
                     </button>
                 </div>
-                <div className="grid grid-cols-4" role="tablist" aria-label="资产分类">
+                <div className="grid grid-cols-5" role="tablist" aria-label="资产分类">
                     <PanelTabButton label="当前" active={activeTab === "current"} count={currentMedia.length} onClick={() => setActiveTab("current")} />
                     <PanelTabButton label="素材" active={activeTab === "assets"} count={assets.loaded ? assets.total : undefined} onClick={() => setActiveTab("assets")} />
                     <PanelTabButton label="提示词" active={activeTab === "my"} count={myPrompts.loaded ? myPrompts.total : undefined} onClick={() => setActiveTab("my")} />
                     <PanelTabButton label="词库" active={activeTab === "library"} count={libraryPrompts.loaded ? libraryPrompts.total : undefined} onClick={() => setActiveTab("library")} />
+                    <PanelTabButton label="IP" active={activeTab === "ip"} count={project?.ipReferences?.length} onClick={() => setActiveTab("ip")} />
                 </div>
             </header>
             <div className="min-h-0 flex-1 overflow-hidden">
@@ -276,6 +280,13 @@ export function CanvasAssetsPanel({
                         onRetry={() => void loadPromptPage("library", 1, libraryCategory, libraryKeyword)}
                         onLoadMore={() => void loadPromptPage("library", libraryPrompts.page + 1, libraryCategory, libraryKeyword)}
                     />
+                ) : null}
+                {activeTab === "ip" ? (
+                    <PanelScroll>
+                        <div className="py-3">
+                            <IpReferencePicker compact value={project?.ipReferences || []} onChange={(ipReferences) => updateProject(projectId, { ipReferences })} />
+                        </div>
+                    </PanelScroll>
                 ) : null}
             </div>
         </div>

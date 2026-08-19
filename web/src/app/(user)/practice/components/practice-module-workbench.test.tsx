@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { IpReference } from "@/lib/ip-library-domain";
 import { PRACTICE_MODULES, buildPracticeSessionInput, editablePracticeTextReducer, publicPracticeResult } from "./practice-module-workbench";
 
 describe("practice module workbench contract", () => {
@@ -8,6 +9,12 @@ describe("practice module workbench contract", () => {
         expect(input).toMatchObject({ module: "script", title: "剧本练习", input: { prompt: "一场雨中的重逢" }, references: [{ type: "asset", id: "asset-1" }] });
         expect(input.clientRequestId).toMatch(/^[0-9a-f-]{36}$/i);
         expect(JSON.stringify(input)).not.toMatch(/provider|model|points|executionProfile|channel/i);
+    });
+
+    it("submits stable IP versions together with ordinary asset references", () => {
+        const reference: IpReference = { type: "ip", id: "ip-one", versionId: "version-two", itemIds: ["item-three"] };
+
+        expect(buildPracticeSessionInput("music", "雨夜配乐", ["asset-1"], [reference]).references).toEqual([{ type: "asset", id: "asset-1" }, reference]);
     });
 
     it("keeps public result metadata free of task and provider details", () => {

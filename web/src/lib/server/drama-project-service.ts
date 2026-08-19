@@ -12,6 +12,8 @@ import { createDramaProjectVersion, getDramaProjectVersion, listDramaProjectVers
 import { collectLocalMediaStorageKeys } from "@/lib/server/local-media-references";
 import { deleteUserLocalMediaAssets } from "@/lib/server/local-media-storage";
 import type { DramaProjectIdentityInput } from "@/lib/server/drama-project-store";
+import type { IpReference } from "@/lib/ip-library-domain";
+import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "@/lib/server/ip-library-reference-service";
 
 const MAX_PROJECT_BYTES = 2 * 1024 * 1024;
 
@@ -41,6 +43,7 @@ export async function createDramaProjectForUser(userId: string, value: unknown, 
         const existing = await findDramaProjectBySourceHandoffId(userId, input.sourceHandoffId);
         if (existing) return existing;
     }
+    const ipReferences = (await validateIpReferences(userId, input.ipReferences)).map((item) => item.reference);
     const projectId = input.sourceHandoffId ? `drama-${input.sourceHandoffId}` : `drama-${nanoid()}`;
     const episode: DramaEpisode = {
         id: `episode-${nanoid()}`,
@@ -71,10 +74,12 @@ export async function createDramaProjectForUser(userId: string, value: unknown, 
         defaultVideoMode: input.defaultVideoMode,
         episodes: [episode],
         sourceAssets: input.sourceAssets,
+        ipReferences,
         createdAt: now,
         updatedAt: now,
     };
     try {
+        if (ipReferences.length) await recordIpReferenceUsage(userId, { targetType: "drama", targetId: project.id, references: ipReferences });
         return await createDramaProject(userId, project, identity);
     } catch (error) {
         await updateCreativeConversation(conversation.id, userId, { status: "archived" }).catch(() => null);
@@ -88,9 +93,13 @@ export async function updateDramaProjectForUser(userId: string, id: string, valu
     if (size > MAX_PROJECT_BYTES) throw new DramaProjectServiceError("短剧项目数据过大", 413);
     const incomingUpdatedAt = parseTimestamp(object(value).updatedAt);
     if (incomingUpdatedAt && incomingUpdatedAt < parseTimestamp(current.updatedAt)) return current;
-    const project = normalizeProject(value, current);
+    const source = object(value);
+    const ipReferences = source.ipReferences === undefined ? current.ipReferences || [] : await validateIpReferenceUpdate(userId, current.ipReferences, source.ipReferences);
+    const project = normalizeProject({ ...source, ipReferences }, current);
     if (incomingUpdatedAt) project.updatedAt = new Date(incomingUpdatedAt).toISOString();
     try {
+        const added = addedIpReferences(current.ipReferences, ipReferences);
+        if (added.length) await recordIpReferenceUsage(userId, { targetType: "drama", targetId: current.id, references: added });
         return await updateDramaProject(userId, project, current.updatedAt);
     } catch (error) {
         if (error instanceof DramaProjectStoreError) throw new DramaProjectServiceError(error.message, error.status);
@@ -107,8 +116,11 @@ export async function createDramaProjectVersionForUser(userId: string, id: strin
     const current = await getDramaProjectForUser(userId, cleanText(id));
     const input = object(value);
     const snapshot = normalizeProject(input.snapshot, current);
+    snapshot.ipReferences = (await validateIpReferences(userId, snapshot.ipReferences)).map((item) => item.reference);
     if (Buffer.byteLength(JSON.stringify(snapshot)) > MAX_PROJECT_BYTES) throw new DramaProjectServiceError("短剧版本数据过大", 413);
     const reason = cleanText(input.reason) || "手动保存版本";
+    const added = addedIpReferences(current.ipReferences, snapshot.ipReferences);
+    if (added.length) await recordIpReferenceUsage(userId, { targetType: "drama", targetId: current.id, references: added });
     return createDramaProjectVersion(userId, current.id, reason, snapshot);
 }
 
@@ -117,13 +129,22 @@ export async function restoreDramaProjectVersionForUser(userId: string, id: stri
     const current = await getDramaProjectForUser(userId, projectId);
     const version = await getDramaProjectVersion(userId, projectId, cleanText(versionId));
     if (!version) throw new DramaProjectServiceError("短剧版本不存在", 404);
-    await createDramaProjectVersion(userId, projectId, "恢复前自动快照", current);
+    const restored = normalizeProject(version.snapshot, current);
+    restored.ipReferences = await validateIpReferenceUpdate(userId, current.ipReferences, restored.ipReferences);
     try {
-        return await updateDramaProject(userId, normalizeProject(version.snapshot, current), current.updatedAt);
+        const added = addedIpReferences(current.ipReferences, restored.ipReferences);
+        if (added.length) await recordIpReferenceUsage(userId, { targetType: "drama", targetId: current.id, references: added });
+        await createDramaProjectVersion(userId, projectId, "恢复前自动快照", current);
+        return await updateDramaProject(userId, restored, current.updatedAt);
     } catch (error) {
         if (error instanceof DramaProjectStoreError) throw new DramaProjectServiceError(error.message, error.status);
         throw error;
     }
+}
+
+async function validateIpReferenceUpdate(userId: string, current: unknown, incoming: unknown) {
+    await validateIpReferences(userId, current);
+    return (await validateIpReferences(userId, incoming)).map((item) => item.reference);
 }
 
 export async function deleteDramaProjectForUser(userId: string, id: string) {
@@ -185,6 +206,7 @@ function normalizeCreateInput(value: unknown): Required<Omit<CreateDramaProjectI
         initialScript: cleanText(input.initialScript),
         sourceAssets: normalizeSourceAssets(input.sourceAssets),
         defaultVideoMode: videoMode(input.defaultVideoMode),
+        ipReferences: normalizeIpReferences(input.ipReferences),
     };
 }
 
@@ -214,9 +236,19 @@ export function normalizeProject(value: unknown, current: DramaProject): DramaPr
         defaultVideoMode: videoMode(input.defaultVideoMode),
         episodes,
         sourceAssets: normalizeSourceAssets(input.sourceAssets),
+        ipReferences: input.ipReferences === undefined ? current.ipReferences || [] : normalizeIpReferences(input.ipReferences),
         createdAt: current.createdAt,
         updatedAt: nextTimestamp(current.updatedAt),
     };
+}
+
+function addedIpReferences(previous: IpReference[] | undefined, next: IpReference[]) {
+    const existing = new Set((previous || []).map(referenceKey));
+    return next.filter((reference) => !existing.has(referenceKey(reference)));
+}
+
+function referenceKey(reference: IpReference) {
+    return `${reference.id}:${reference.versionId}:${reference.itemIds.join(",")}`;
 }
 
 function normalizeEpisode(value: unknown): DramaEpisode | null {
