@@ -11,6 +11,7 @@ import {
     providerTaskPath,
     readProviderError,
     readProviderString,
+    resolvedProviderCreatePaths,
     templateVideoReferenceRoles,
     videoPollingPolicy,
 } from "./provider-task-config";
@@ -19,6 +20,11 @@ describe("provider task config", () => {
     it("uses the documented slower polling window for GlobalAiOpc video tasks only", () => {
         expect(videoPollingPolicy(true)).toEqual({ attempts: 40, intervalMs: 30_000 });
         expect(videoPollingPolicy(false)).toEqual({ attempts: 180, intervalMs: 2_500 });
+    });
+
+    it("repairs legacy New API video create paths saved as /videos", () => {
+        expect(resolvedProviderCreatePaths({ protocol: "newapi", createPath: "/videos" } as never, "video", ["/video/generations"])).toEqual(["/videos/generations"]);
+        expect(resolvedProviderCreatePaths({ protocol: "openai", createPath: "/videos" } as never, "video", ["/video/generations"])).toEqual(["/videos"]);
     });
 
     it("renders JSON request templates without converting arrays and numbers to strings", () => {

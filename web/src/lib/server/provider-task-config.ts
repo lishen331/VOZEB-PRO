@@ -16,11 +16,18 @@ export function providerCreatePaths(config: SystemChannelAdvancedConfig | undefi
 
 export function resolvedProviderCreatePaths(config: SystemChannelAdvancedConfig | undefined, capability: LogicalModelCapability, fallbacks: string[]) {
     const configured = config?.createPath?.trim();
-    if (configured) return providerCreatePaths(config, fallbacks);
+    if (configured) return providerCreatePaths({ ...config, createPath: normalizeConfiguredCreatePath(configured, config?.protocol, capability) }, fallbacks);
     const protocol = config?.protocol || "auto";
     const definition = channelProtocolDefinition(protocol);
     const presetPath = definition.strict ? protocolModelConfig(protocol, capability)?.createPath : undefined;
     return uniquePaths(presetPath ? [presetPath] : fallbacks);
+}
+
+function normalizeConfiguredCreatePath(path: string, protocol: SystemChannelAdvancedConfig["protocol"] | undefined, capability: LogicalModelCapability) {
+    // New API exposes its OpenAI-compatible video creator at /v1/videos/generations.
+    // Older saved channel configs used /videos, which reaches a non-creation route.
+    if (protocol === "newapi" && capability === "video" && /^\/?videos\/?$/i.test(path)) return "/videos/generations";
+    return path;
 }
 
 export function providerQueryPaths(config: SystemChannelAdvancedConfig | undefined, taskId: string, fallbacks: string[]) {

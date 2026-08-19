@@ -35,8 +35,8 @@ const openAiOperations: ChannelProtocolDefinition["operations"] = {
     },
     video: {
         capability: "video",
-        createPath: "/videos",
-        imageToVideoPath: "/videos",
+        createPath: "/videos/generations",
+        imageToVideoPath: "/videos/generations",
         queryPath: "/videos/:task_id",
         requestTemplate: "multipart/form-data: model、prompt、seconds、size、input_reference",
         resultField: "/videos/:task_id/content",
