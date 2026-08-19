@@ -121,6 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
       security-events: write
     steps:
       - name: Checkout complete history
@@ -132,8 +133,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Initialize CodeQL
+        if: github.event.repository.visibility == 'public'
         uses: github/codeql-action/init@47be0dbd5113ab1b79fe2dd3f68bdf7e426cdc87 # v3
         with:
           languages: javascript-typescript
       - name: Analyze JavaScript and TypeScript
+        if: github.event.repository.visibility == 'public'
         uses: github/codeql-action/analyze@47be0dbd5113ab1b79fe2dd3f68bdf7e426cdc87 # v3
