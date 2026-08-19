@@ -1,3 +1,5 @@
+import { normalizeIpReference, type IpReference } from "./ip-library-domain";
+
 export type SchoolStatus = "active" | "disabled";
 export type SchoolMemberRole = "teacher" | "student";
 export type SchoolPermission = "school.manage";
@@ -10,9 +12,9 @@ export type CommercialOrderStatus = "draft" | "assigned" | "in_progress" | "subm
 
 export const SCHOOL_MEMBER_ROLES = ["teacher", "student"] as const satisfies readonly SchoolMemberRole[];
 export const SCHOOL_PERMISSIONS = ["school.manage"] as const satisfies readonly SchoolPermission[];
-export const SCHOOL_CONTENT_REFERENCE_TYPES = ["work", "canvas", "drama", "asset", "generation"] as const;
+export const SCHOOL_CONTENT_REFERENCE_TYPES = ["work", "canvas", "drama", "asset", "generation", "ip"] as const;
 
-export type SchoolContentReference = { type: (typeof SCHOOL_CONTENT_REFERENCE_TYPES)[number]; id: string };
+export type SchoolContentReference = { type: Exclude<(typeof SCHOOL_CONTENT_REFERENCE_TYPES)[number], "ip">; id: string } | IpReference;
 export type SchoolContext = {
     school: { id: string; name: string; status: SchoolStatus };
     membership: { id: string; role: SchoolMemberRole; permissions: SchoolPermission[]; status: SchoolMembershipStatus };
@@ -214,8 +216,9 @@ export function normalizeSchoolPermissions(value: unknown): SchoolPermission[] {
 export function normalizeSchoolContentReference(value: unknown): SchoolContentReference | null {
     if (!value || typeof value !== "object") return null;
     const source = value as Record<string, unknown>;
+    if (source.type === "ip") return normalizeIpReference(source);
     if (typeof source.type !== "string" || !SCHOOL_CONTENT_REFERENCE_TYPE_SET.has(source.type as SchoolContentReference["type"]) || typeof source.id !== "string" || !source.id.trim()) return null;
-    return { type: source.type as SchoolContentReference["type"], id: source.id.trim() };
+    return { type: source.type as Exclude<SchoolContentReference["type"], "ip">, id: source.id.trim() };
 }
 
 const COMMERCIAL_ORDER_TRANSITIONS = {
