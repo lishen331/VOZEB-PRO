@@ -1,15 +1,17 @@
 import { randomUUID } from "node:crypto";
 
 import type { IpAssetKind, IpItemCategory, IpUsageAction } from "@/lib/ip-library-domain";
-import type { IpDetailRecord, IpSummaryRecord, IpUsageRecord, IpUsageTargetType, PageResult } from "@/lib/server/database/repository-types";
+import type { IpDetailRecord, IpItemRecord, IpSummaryRecord, IpUsageRecord, IpUsageTargetType, PageResult } from "@/lib/server/database/repository-types";
 import { createIpLibraryRepository, requireActiveIpLibraryUser, requireVisibleIp } from "./ip-library-access-service";
 import { getSchoolContextForUser, requireActiveSchoolContext, SchoolServiceError } from "./school-access-service";
 
 export type IpListInput = { scope: "public" | "school"; page?: number; pageSize?: number; keyword?: string; kind?: IpAssetKind; category?: IpItemCategory };
-export type IpSummary = Omit<IpSummaryRecord, "authorizationMode" | "grantMode" | "createdByUserId"> & { isExclusive: boolean };
-export type IpDetail = Omit<IpDetailRecord, "authorizationMode" | "grantMode" | "createdByUserId" | "version"> & {
+export type IpSummary = Omit<IpSummaryRecord, "authorizationMode" | "grantMode" | "createdByUserId" | "coverAssetId"> & { isExclusive: boolean; coverPreviewUrl?: string };
+export type IpPublicItem = Omit<IpItemRecord, "assetId"> & { previewUrl?: string };
+export type IpDetail = Omit<IpDetailRecord, "authorizationMode" | "grantMode" | "createdByUserId" | "coverAssetId" | "version"> & {
     isExclusive: boolean;
-    version: Omit<IpDetailRecord["version"], "manifest" | "createdByUserId">;
+    coverPreviewUrl?: string;
+    version: Omit<IpDetailRecord["version"], "manifest" | "createdByUserId" | "items"> & { items: IpPublicItem[] };
 };
 export type IpUsageInput = {
     ipId: string;
@@ -55,14 +57,31 @@ export async function createIpUsageForUser(userId: string, input: IpUsageInput):
 }
 
 function toUserSummary(record: IpSummaryRecord): IpSummary {
-    const { authorizationMode: _authorizationMode, grantMode, createdByUserId: _createdByUserId, ...summary } = record;
-    return { ...summary, isExclusive: grantMode === "exclusive" };
+    const { authorizationMode: _authorizationMode, grantMode, createdByUserId: _createdByUserId, coverAssetId, ...summary } = record;
+    return { ...summary, isExclusive: grantMode === "exclusive", ...(coverAssetId ? { coverPreviewUrl: coverPreview(record.id, record.currentVersionId) } : {}) };
 }
 
 function toUserDetail(record: IpDetailRecord): IpDetail {
-    const { authorizationMode: _authorizationMode, grantMode, createdByUserId: _createdByUserId, version, ...detail } = record;
-    const { manifest: _manifest, createdByUserId: _versionCreator, ...publicVersion } = version;
-    return { ...detail, isExclusive: grantMode === "exclusive", version: publicVersion };
+    const { authorizationMode: _authorizationMode, grantMode, createdByUserId: _createdByUserId, coverAssetId, version, ...detail } = record;
+    const { manifest: _manifest, createdByUserId: _versionCreator, items, ...publicVersion } = version;
+    return {
+        ...detail,
+        isExclusive: grantMode === "exclusive",
+        ...(coverAssetId ? { coverPreviewUrl: coverPreview(record.id, version.id) } : {}),
+        version: {
+            ...publicVersion,
+            items: items.map(({ assetId, ...item }) => ({ ...item, ...(assetId ? { previewUrl: itemPreview(record.id, version.id, item.id) } : {}) })),
+        },
+    };
+}
+
+function coverPreview(ipId: string, versionId?: string) {
+    const query = versionId ? `?versionId=${encodeURIComponent(versionId)}` : "";
+    return `/api/ip-library/${encodeURIComponent(ipId)}/cover${query}`;
+}
+
+function itemPreview(ipId: string, versionId: string, itemId: string) {
+    return `/api/ip-library/${encodeURIComponent(ipId)}/items/${encodeURIComponent(itemId)}/media?versionId=${encodeURIComponent(versionId)}`;
 }
 
 function normalizeItemIds(value: string[] | undefined) {

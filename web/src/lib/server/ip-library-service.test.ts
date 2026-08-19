@@ -105,10 +105,25 @@ describe("IP library user service", () => {
     });
 
     it("allows public and historical published versions without a school context", async () => {
-        await expect(getIpDetailForUser("user-one", "ip-one", "version-one")).resolves.toMatchObject({ id: "ip-one", version: { id: "version-one" } });
+        await expect(getIpDetailForUser("user-one", "ip-one", "version-one")).resolves.toMatchObject({
+            id: "ip-one",
+            version: {
+                id: "version-one",
+                items: [expect.not.objectContaining({ previewUrl: expect.anything() }), expect.objectContaining({ previewUrl: "/api/ip-library/ip-one/items/item-image/media?versionId=version-one" })],
+            },
+        });
 
         expect(mocks.requireActiveSchoolContext).not.toHaveBeenCalled();
         expect(mocks.getVisibleIp).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-one", ipId: "ip-one", versionId: "version-one" }));
+    });
+
+    it("exposes only stable authorized cover previews instead of source asset URLs", async () => {
+        mocks.getVisibleIp.mockResolvedValue({ ...detail(), coverAssetId: "cover-one" });
+
+        const result = await getIpDetailForUser("user-one", "ip-one");
+
+        expect(result).toMatchObject({ coverPreviewUrl: "/api/ip-library/ip-one/cover?versionId=version-one" });
+        expect(JSON.stringify(result)).not.toContain("storageKey");
     });
 
     it("does not let an administrator without school membership borrow user-side school access", async () => {

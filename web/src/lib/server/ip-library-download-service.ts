@@ -18,6 +18,7 @@ import { requireVisibleIp } from "./ip-library-access-service";
 export type IpDownloadInput = { versionId?: string; itemIds?: string[]; package: boolean };
 export type IpDownloadResult = { kind: "redirect"; url: string; fileName: string; downloadId: string } | { kind: "file"; bytes: Buffer; mimeType: string; fileName: string; downloadId: string };
 type PreparedIpDownload = { kind: "redirect"; url: string; fileName: string } | { kind: "file"; bytes: Buffer; mimeType: string; fileName: string };
+export type IpPreviewInput = { versionId?: string; itemId?: string; cover?: boolean };
 
 export async function downloadIpForUser(userId: string, request: Request, ipId: string, input: IpDownloadInput): Promise<IpDownloadResult> {
     const itemIds = normalizeItemIds(input.itemIds);
@@ -36,6 +37,31 @@ export async function downloadIpForUser(userId: string, request: Request, ipId: 
         targetId: downloadId,
     });
     return { ...prepared, downloadId };
+}
+
+export async function previewIpMediaForUser(userId: string, request: Request, ipId: string, input: IpPreviewInput): Promise<PreparedIpDownload> {
+    const normalizedIpId = requiredText(ipId, "IP 标识无效");
+    const versionId = optionalText(input.versionId);
+    if (input.cover) {
+        const access = await requireVisibleIp(userId, normalizedIpId, versionId);
+        if (!access.detail.coverAssetId) throw new SchoolServiceError(404, "IP 封面不存在");
+        return resolveItemDownload(request, {
+            id: "cover",
+            versionId: access.detail.version.id,
+            kind: "image",
+            category: "style",
+            title: `${access.detail.title}封面`,
+            summary: "",
+            assetId: access.detail.coverAssetId,
+            sortOrder: 0,
+            createdAt: access.detail.createdAt,
+        });
+    }
+    const itemId = requiredText(input.itemId || "", "IP 内容项无效");
+    const access = await requireVisibleIp(userId, normalizedIpId, versionId, [itemId]);
+    const item = access.detail.version.items.find((candidate) => candidate.id === itemId);
+    if (!item || item.kind === "text") throw new SchoolServiceError(404, "IP 内容文件不存在");
+    return resolveItemDownload(request, item);
 }
 
 async function resolveItemDownload(request: Request, item: IpItemRecord): Promise<PreparedIpDownload> {

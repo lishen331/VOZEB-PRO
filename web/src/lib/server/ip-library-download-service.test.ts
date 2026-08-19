@@ -20,7 +20,7 @@ vi.mock("@/lib/server/object-storage-config", () => ({ getObjectStorageRuntimeCo
 vi.mock("@/lib/server/object-storage-client", () => ({ getObjectBytes: mocks.getObjectBytes }));
 vi.mock("@/lib/server/data-dir", () => ({ resolveServerDataPath: (name: string) => `C:/missing/${name}` }));
 
-import { downloadIpForUser } from "./ip-library-download-service";
+import { downloadIpForUser, previewIpMediaForUser } from "./ip-library-download-service";
 
 const baseDetail = {
     id: "ip-one",
@@ -121,5 +121,24 @@ describe("IP library downloads", () => {
         const ids = mocks.createIpUsageForUser.mock.calls.map((call) => call[1].targetId);
         expect(ids).toHaveLength(2);
         expect(ids[0]).not.toBe(ids[1]);
+    });
+
+    it("previews one authorized media item without recording a download", async () => {
+        const result = await previewIpMediaForUser("user-one", new Request("http://localhost/api/ip-library/ip-one/items/image-one/media?versionId=version-one"), "ip-one", {
+            versionId: "version-one",
+            itemId: "image-one",
+        });
+
+        expect(result).toMatchObject({ kind: "file", mimeType: "image/png" });
+        expect(mocks.requireVisibleIp).toHaveBeenCalledWith("user-one", "ip-one", "version-one", ["image-one"]);
+        expect(mocks.createIpUsageForUser).not.toHaveBeenCalled();
+    });
+
+    it("previews only the visible IP cover and never accepts an arbitrary asset id", async () => {
+        mocks.requireVisibleIp.mockResolvedValue({ userId: "user-one", detail: { ...structuredClone(baseDetail), coverAssetId: "asset-one" } });
+
+        await expect(previewIpMediaForUser("user-one", new Request("http://localhost/api/ip-library/ip-one/cover"), "ip-one", { cover: true })).resolves.toMatchObject({ kind: "file" });
+        expect(mocks.getLibraryAssetById).toHaveBeenCalledWith("asset-one");
+        expect(mocks.createIpUsageForUser).not.toHaveBeenCalled();
     });
 });
