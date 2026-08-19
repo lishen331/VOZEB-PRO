@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { App } from "antd";
+import { nanoid } from "nanoid";
 
 import type { CanvasAgentOp, CanvasAgentSnapshot } from "./utils/canvas-agent-ops";
 
@@ -15,7 +16,7 @@ export function useCanvasLocalAgentBridge({ snapshot, onApplyOps }: { snapshot: 
     const snapshotRef = useRef(snapshot);
     const applyOpsRef = useRef(onApplyOps);
     const notifiedRef = useRef(false);
-    const clientIdRef = useRef(typeof crypto === "undefined" ? `${Date.now()}` : crypto.randomUUID());
+    const clientIdRef = useRef(createCanvasAgentClientId());
     snapshotRef.current = snapshot;
     applyOpsRef.current = onApplyOps;
 
@@ -53,6 +54,10 @@ export function useCanvasLocalAgentBridge({ snapshot, onApplyOps }: { snapshot: 
         const timer = window.setTimeout(() => void postCanvasAgentState(connection, clientIdRef.current, snapshot), 300);
         return () => window.clearTimeout(timer);
     }, [connected, connection, snapshot]);
+}
+
+export function createCanvasAgentClientId() {
+    return nanoid();
 }
 
 export function resolveCanvasAgentConnection(search: string): CanvasAgentConnection | null {
