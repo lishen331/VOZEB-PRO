@@ -33,10 +33,21 @@ export async function POST(request: Request, context: Context) {
     const action = parsed.data.action;
     try {
         const version = action === "publish" ? await publishAdminIpVersion(user.id, ipId, String(parsed.data.versionId || "")) : await createAdminIpVersion(user.id, ipId, parsed.data as unknown as AdminIpVersionInput);
-        await safeRecordAuditLog({ action: action === "publish" ? "admin.ip.version.publish" : "admin.ip.version.create", actor: auditActorFromRequest(request, user), target: { type: "ip_version", id: version.id }, metadata: { ipId, versionNumber: version.versionNumber, status: version.status } });
+        await safeRecordAuditLog({
+            action: action === "publish" ? "admin.ip.version.publish" : "admin.ip.version.create",
+            actor: auditActorFromRequest(request, user),
+            target: { type: "ip_version", id: version.id },
+            metadata: { ipId, versionNumber: version.versionNumber, status: version.status },
+        });
         return schoolApiOk(version);
     } catch (error) {
-        await safeRecordAuditLog({ action: action === "publish" ? "admin.ip.version.publish" : "admin.ip.version.create", status: "failure", actor: auditActorFromRequest(request, user), target: { type: "ip", id: ipId }, metadata: { errorStatus: schoolApiErrorStatus(error) } });
+        await safeRecordAuditLog({
+            action: action === "publish" ? "admin.ip.version.publish" : "admin.ip.version.create",
+            status: "failure",
+            actor: auditActorFromRequest(request, user),
+            target: { type: "ip", id: ipId },
+            metadata: { errorStatus: schoolApiErrorStatus(error) },
+        });
         return schoolApiFailure(error, action === "publish" ? "发布 IP 版本失败" : "创建 IP 版本失败");
     }
 }

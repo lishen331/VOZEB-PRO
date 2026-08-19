@@ -13,11 +13,12 @@ export async function createPracticeProject(actor: PracticeActor, input: Practic
     await requirePracticeAccess(actor);
     const title = cleanTitle(input.title);
     const identity: PracticeProjectIdentity = { executionProfile: "open-source-practice", practiceSource: input.source || { type: "blank" } };
+    const projectInput = { title, ...(input.references?.length ? { ipReferences: input.references } : {}) };
     if (input.kind === "drama") {
-        const project = await createDramaProjectForUser(actor.id, { title, ipReferences: input.references }, identity as DramaProjectIdentityInput);
+        const project = await createDramaProjectForUser(actor.id, projectInput, identity as DramaProjectIdentityInput);
         return { kind: "drama" as const, project };
     }
-    const project = await createCanvasProjectForUser(actor.id, { title, ipReferences: input.references }, identity as CanvasProjectIdentityInput);
+    const project = await createCanvasProjectForUser(actor.id, projectInput, identity as CanvasProjectIdentityInput);
     return { kind: "canvas" as const, project };
 }
 

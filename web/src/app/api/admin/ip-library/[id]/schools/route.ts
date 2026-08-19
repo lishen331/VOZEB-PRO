@@ -15,7 +15,14 @@ export async function GET(request: Request, context: Context) {
     if (!hasAdminPermission(user, "education.manage")) return schoolApiError(403, "当前管理员没有产教运营职责权限");
     const params = new URL(request.url).searchParams;
     try {
-        return schoolApiOk(await listAdminIpGrants(user.id, (await context.params).id, { page: positiveInteger(params.get("page"), 1), pageSize: positiveInteger(params.get("pageSize"), 20), schoolId: params.get("schoolId") || undefined, status: params.get("status") || undefined }));
+        return schoolApiOk(
+            await listAdminIpGrants(user.id, (await context.params).id, {
+                page: positiveInteger(params.get("page"), 1),
+                pageSize: positiveInteger(params.get("pageSize"), 20),
+                schoolId: params.get("schoolId") || undefined,
+                status: params.get("status") || undefined,
+            }),
+        );
     } catch (error) {
         return schoolApiFailure(error, "读取学校授权失败");
     }

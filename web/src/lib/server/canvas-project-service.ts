@@ -67,7 +67,7 @@ export async function createCanvasProjectForUser(userId: string, value: unknown,
         ipReferences,
     });
     try {
-        if (ipReferences.length) await recordIpReferenceUsage(userId, { targetType: "canvas", targetId: project.id, references: ipReferences });
+        if (ipReferences.length) await recordIpReferenceUsage(userId, { targetType: identity.executionProfile === "open-source-practice" ? "practice" : "canvas", targetId: project.id, references: ipReferences });
         return await createCanvasProject(userId, project, identity);
     } catch (error) {
         await updateCreativeConversation(conversation.id, userId, { status: "archived" }).catch(() => null);
@@ -91,7 +91,7 @@ export async function updateCanvasProjectForUser(userId: string, id: string, val
     const ipReferences = source.ipReferences === undefined ? current.ipReferences || [] : await validateIpReferenceUpdate(userId, current.ipReferences, source.ipReferences);
     const project = normalizeProject({ ...source, ipReferences }, current);
     const added = addedIpReferences(current.ipReferences, ipReferences);
-    if (added.length) await recordIpReferenceUsage(userId, { targetType: "canvas", targetId: current.id, references: added });
+    if (added.length) await recordIpReferenceUsage(userId, { targetType: canvasUsageTarget(current), targetId: current.id, references: added });
     return updateCanvasProject(userId, project, expectedUpdatedAt);
 }
 
@@ -110,13 +110,17 @@ async function updateCanvasProjectMutationForUser(userId: string, id: string, in
         added = addedIpReferences(current.ipReferences, ipReferences);
     }
     const mutation = normalizeMutation(input, mutationId, baseUpdatedAt);
-    if (added.length) await recordIpReferenceUsage(userId, { targetType: "canvas", targetId: projectId, references: added });
+    if (added.length) await recordIpReferenceUsage(userId, { targetType: canvasUsageTarget(current), targetId: projectId, references: added });
     return updateCanvasProjectMutationPatch(userId, projectId, mutation);
 }
 
 async function validateIpReferenceUpdate(userId: string, current: unknown, incoming: unknown) {
     await validateIpReferences(userId, current);
     return (await validateIpReferences(userId, incoming)).map((item) => item.reference);
+}
+
+function canvasUsageTarget(project: CanvasProject | null) {
+    return (project as (CanvasProject & { executionProfile?: string }) | null)?.executionProfile === "open-source-practice" ? ("practice" as const) : ("canvas" as const);
 }
 
 export async function deleteCanvasProjectsForUser(userId: string, value: unknown) {
