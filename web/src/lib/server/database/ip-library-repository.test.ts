@@ -99,6 +99,17 @@ describe("IpLibraryRepository PostgreSQL", () => {
         await expect(postgresQuery("UPDATE ip_items SET title = '覆盖内容项' WHERE version_id = $1", [draft.id])).rejects.toBeTruthy();
     });
 
+    postgresIt("lists public IPs when optional school and content filters are empty", async () => {
+        const repository = createPostgresRepositories().ipLibrary;
+        const created = await repository.createIpPackage(packageInput("public-list", "public"));
+        const draft = await repository.createIpDraftVersion(created.id, versionInput(created.id, "v1"));
+        await repository.publishIpVersion(created.id, draft.id);
+
+        await expect(repository.listVisibleIps({ userId: ids.user, scope: "public", page: 1, pageSize: 20 })).resolves.toMatchObject({
+            items: expect.arrayContaining([expect.objectContaining({ id: created.id, versionNumber: 1, itemCount: 2 })]),
+        });
+    });
+
     postgresIt("requires an active same-school grant for school IP reads", async () => {
         const repository = createPostgresRepositories().ipLibrary;
         const created = await repository.createIpPackage(packageInput("school", "school"));
