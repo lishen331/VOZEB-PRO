@@ -34,7 +34,12 @@ export async function POST(request: Request) {
     if (!isSchoolApiObject(parsed.data)) return schoolApiError(400, "请求内容无效");
     try {
         const record = await createAdminIp(user.id, parsed.data as AdminIpCreateInput);
-        await safeRecordAuditLog({ action: "admin.ip.create", actor: auditActorFromRequest(request, user), target: { type: "ip", id: record.id, label: record.title }, metadata: { status: record.status, visibility: record.visibility, authorizationMode: record.authorizationMode } });
+        await safeRecordAuditLog({
+            action: "admin.ip.create",
+            actor: auditActorFromRequest(request, user),
+            target: { type: "ip", id: record.id, label: record.title },
+            metadata: { status: record.status, visibility: record.visibility, authorizationMode: record.authorizationMode },
+        });
         return schoolApiOk(record);
     } catch (error) {
         await safeRecordAuditLog({ action: "admin.ip.create", status: "failure", actor: auditActorFromRequest(request, user), metadata: { errorStatus: schoolApiErrorStatus(error) } });

@@ -280,6 +280,16 @@ describe("drama project service updates", () => {
         expect(mocks.recordIpReferenceUsage.mock.invocationCallOrder[0]).toBeLessThan(mocks.createDramaProject.mock.invocationCallOrder[0]);
     });
 
+    it("records a practice target when a short drama is created through the practice workspace", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
+
+        const created = await createDramaProjectForUser("user-one", { title: "IP 练习短剧", ipReferences: [reference] }, { executionProfile: "open-source-practice" });
+
+        expect(mocks.recordIpReferenceUsage).toHaveBeenCalledWith("user-one", { targetType: "practice", targetId: created.id, references: [reference] });
+    });
+
     it("archives the linked conversation after deleting a project", async () => {
         mocks.getDramaProject.mockResolvedValue({ ...project("2026-07-19T08:00:02.000Z", "项目"), creativeConversationId: "conversation-one" });
         mocks.deleteDramaProject.mockResolvedValue(true);

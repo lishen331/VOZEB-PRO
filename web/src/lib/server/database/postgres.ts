@@ -259,6 +259,8 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "commercial_order_deliveries_school_order_created_idx",
     "ip_packages_slug_idx",
     "ip_packages_visibility_status_updated_idx",
+    "ip_versions_ip_number_unique",
+    "ip_versions_id_ip_unique",
     "ip_versions_ip_status_created_idx",
     "ip_items_version_order_idx",
     "ip_items_version_kind_category_idx",

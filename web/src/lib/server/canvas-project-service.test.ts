@@ -105,6 +105,16 @@ describe("canvas project service lifecycle", () => {
         expect(mocks.recordIpReferenceUsage.mock.invocationCallOrder[0]).toBeLessThan(mocks.createCanvasProject.mock.invocationCallOrder[0]);
     });
 
+    it("records a practice target when Canvas is created through the practice workspace", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.createCanvasProject.mockImplementation(async (_userId, value) => value);
+
+        const created = await createCanvasProjectForUser("user-one", { title: "IP 练习画布", ipReferences: [reference] }, { executionProfile: "open-source-practice" });
+
+        expect(mocks.recordIpReferenceUsage).toHaveBeenCalledWith("user-one", { targetType: "practice", targetId: created.id, references: [reference] });
+    });
+
     it("does not create a Canvas when initial IP usage cannot be recorded", async () => {
         const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
