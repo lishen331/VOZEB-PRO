@@ -13,7 +13,7 @@ export default async function PracticeModulePage({ params }: { params: Promise<{
     try {
         await requirePracticeAccess(user);
     } catch {
-        redirect("/create");
+        notFound();
     }
     const moduleKind = (await params).module as PracticeModuleKind;
     if (!MODULES.includes(moduleKind)) notFound();

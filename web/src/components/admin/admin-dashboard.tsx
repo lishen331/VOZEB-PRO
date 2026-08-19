@@ -55,11 +55,13 @@ const loadAccountDeletionSection = () => import("./admin-account-deletion-sectio
 const loadSchoolsSection = () => import("@/app/admin/schools/components/admin-schools-section").then((module) => module.AdminSchoolsSection);
 const loadCoursesSection = () => import("@/app/admin/courses/components/admin-courses-section").then((module) => module.AdminCoursesSection);
 const loadCommercialOrdersSection = () => import("@/app/admin/commercial-orders/components/admin-commercial-orders-section").then((module) => module.AdminCommercialOrdersSection);
+const loadRoleOverviewSection = () => import("@/app/admin/role-overview/components/admin-role-overview-section").then((module) => module.AdminRoleOverviewSection);
 
 const sectionLoaders: Partial<Record<AdminSectionKey, () => Promise<unknown>>> = {
     schools: loadSchoolsSection,
     courses: loadCoursesSection,
     commercialOrders: loadCommercialOrdersSection,
+    roleOverview: loadRoleOverviewSection,
     site: loadSiteSection,
     settings: loadSettingsSection,
     mediaStorage: loadMediaStorageSection,
@@ -115,6 +117,7 @@ const AdminAccountDeletionSection = dynamic(loadAccountDeletionSection, { loadin
 const AdminSchoolsSection = dynamic(loadSchoolsSection, { loading: AdminSectionLoading });
 const AdminCoursesSection = dynamic(loadCoursesSection, { loading: AdminSectionLoading });
 const AdminCommercialOrdersSection = dynamic(loadCommercialOrdersSection, { loading: AdminSectionLoading });
+const AdminRoleOverviewSection = dynamic(loadRoleOverviewSection, { loading: AdminSectionLoading });
 
 function AdminSectionLoading() {
     return <div className="flex min-h-36 items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">正在加载分区...</div>;
@@ -245,6 +248,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                     {activeSection === "schools" ? <AdminSchoolsSection /> : null}
                     {activeSection === "courses" ? <AdminCoursesSection /> : null}
                     {activeSection === "commercialOrders" ? <AdminCommercialOrdersSection /> : null}
+                    {activeSection === "roleOverview" ? <AdminRoleOverviewSection /> : null}
                     {activeSection === "site" ? <AdminSiteSection controller={controller} /> : null}
                     {activeSection === "settings" ? <AdminSettingsSection controller={controller} /> : null}
                     {activeSection === "accountDeletion" ? <AdminAccountDeletionSection active /> : null}

@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import { SiteLogo } from "@/components/layout/site-logo";
-import { navigationGroups, navigationTools, schoolNavigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
+import { navigationGroups, navigationToolsForContext, type NavigationToolSlug } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
@@ -26,9 +26,10 @@ export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDraw
     const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const siteTitle = resolveSiteTitle(site.title);
     const helpActive = pathname.startsWith("/help");
-    const schoolTools = schoolNavigationTools(useSchoolContextStore((state) => state.context));
+    const context = useSchoolContextStore((state) => state.context);
+    const tools = navigationToolsForContext(context);
+    const schoolTools = tools.filter((tool) => tool.group === "school");
     const groups = schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups;
-    const tools = [...navigationTools, ...schoolTools];
 
     useEffect(() => {
         if (previousPathnameRef.current === pathname) return;

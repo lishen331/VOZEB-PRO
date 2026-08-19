@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { SiteLogo } from "@/components/layout/site-logo";
-import { navigationGroups, navigationTools, schoolNavigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
+import { navigationGroups, navigationToolsForContext, type NavigationToolSlug } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
@@ -17,9 +17,10 @@ export function AppSidebar({ activeToolSlug, expanded }: { activeToolSlug?: Navi
     const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const siteTitle = resolveSiteTitle(site.title);
     const helpActive = pathname.startsWith("/help");
-    const schoolTools = schoolNavigationTools(useSchoolContextStore((state) => state.context));
+    const context = useSchoolContextStore((state) => state.context);
+    const tools = navigationToolsForContext(context);
+    const schoolTools = tools.filter((tool) => tool.group === "school");
     const groups = schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups;
-    const tools = [...navigationTools, ...schoolTools];
 
     return (
         <aside className={cn("hidden h-full shrink-0 flex-col border-r border-[#eaecf0] bg-white text-[#111827] transition-[width] duration-200 lg:flex dark:border-[#292d33] dark:bg-[#111316] dark:text-[#f3f5f7]", expanded ? "w-44" : "w-[72px]")}>

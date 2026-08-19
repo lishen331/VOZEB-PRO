@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { requirePracticeAccess } from "@/lib/server/practice-access-service";
@@ -10,7 +10,7 @@ export default async function PracticePage() {
     try {
         await requirePracticeAccess(user);
     } catch {
-        redirect("/create");
+        notFound();
     }
     return <PracticeHome />;
 }

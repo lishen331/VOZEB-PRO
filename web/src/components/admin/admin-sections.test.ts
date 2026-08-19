@@ -34,4 +34,11 @@ describe("admin sections", () => {
         expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "courses")).toBe(false);
         expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "commercialOrders")).toBe(false);
     });
+
+    it("limits role feature overview to system managers", () => {
+        const systemAdmin = { role: "admin", status: "active", adminPermissions: ["system.manage"] };
+        expect(canAccessAdminSection(systemAdmin, "roleOverview")).toBe(true);
+        expect(canAccessAdminSection({ ...systemAdmin, adminPermissions: ["education.manage"] }, "roleOverview")).toBe(false);
+        expect(allowedAdminSections(systemAdmin)).toContain("roleOverview");
+    });
 });
