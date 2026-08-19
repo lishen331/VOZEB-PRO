@@ -10,6 +10,7 @@ import {
     sanitizeProviderMessage,
     serializeAdminSettings,
     serializeAdminSettingsForUser,
+    runningHubChannelValidationErrors,
     systemChannelWebhookSecretValidationError,
 } from "./admin-channel-config";
 
@@ -127,5 +128,49 @@ describe("admin channel config", () => {
         expect(isProviderTimeoutError(new DOMException("aborted", "AbortError"))).toBe(true);
         expect(isProviderTimeoutError(new DOMException("timed out", "TimeoutError"))).toBe(true);
         expect(isProviderTimeoutError(new Error("network failed"))).toBe(false);
+    });
+
+    it("requires explicit RunningHub purpose, credentials, and per-model task paths", () => {
+        const base = {
+            id: "runninghub",
+            name: "练习 RunningHub",
+            baseUrl: "https://runninghub.example",
+            apiKey: "rh-secret",
+            apiFormat: "openai" as const,
+            models: ["workflow-image"],
+            enabled: true,
+            advancedConfig: {
+                protocol: "runninghub" as const,
+                textModel: "",
+                imageModel: "",
+                videoModel: "",
+                createPath: "",
+                queryPath: "",
+                requestTemplate: "",
+                resultField: "",
+                statusField: "",
+                durationRange: "",
+                referenceRule: "",
+                supportsReferenceImage: false,
+                supportsReferenceVideo: false,
+                supportsReferenceAudio: false,
+                modelConfigs: {
+                    "workflow-image": {
+                        capability: "image" as const,
+                        protocol: "runninghub" as const,
+                        createPath: "/task/create",
+                        queryPath: "/task/query",
+                        requestTemplate: '{"workflow":"{{model}}"}',
+                        taskIdField: "data.taskId",
+                        resultField: "data.result",
+                        statusField: "data.status",
+                    },
+                },
+            },
+        };
+        expect(runningHubChannelValidationErrors({ ...base, purpose: "open-source-practice" })).toEqual([]);
+        expect(runningHubChannelValidationErrors({ ...base, purpose: undefined }).join(" ")).toContain("渠道用途");
+        expect(runningHubChannelValidationErrors({ ...base, apiKey: "" }).join(" ")).toContain("API Key");
+        expect(runningHubChannelValidationErrors({ ...base, advancedConfig: { ...base.advancedConfig, modelConfigs: {} } }).join(" ")).toContain("workflow-image");
     });
 });

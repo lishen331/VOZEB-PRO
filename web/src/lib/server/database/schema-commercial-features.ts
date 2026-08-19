@@ -376,6 +376,10 @@ CREATE TABLE IF NOT EXISTS published_work_versions (
     reviewed_by_user_id text REFERENCES users(id) ON DELETE SET NULL,
     moderation_provider text,
     moderation_signal jsonb,
+    pull_film_enabled boolean NOT NULL DEFAULT false,
+    pull_film_snapshot jsonb,
+    pull_film_enabled_at timestamptz,
+    pull_film_enabled_by_user_id text REFERENCES users(id) ON DELETE SET NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT published_work_versions_number CHECK (version_number > 0),
@@ -413,6 +417,10 @@ CREATE INDEX IF NOT EXISTS published_work_assets_storage_idx ON published_work_a
 ALTER TABLE published_work_versions ADD COLUMN IF NOT EXISTS moderation_provider text;
 ALTER TABLE published_work_versions ADD COLUMN IF NOT EXISTS moderation_signal jsonb;
 ALTER TABLE published_work_versions ADD COLUMN IF NOT EXISTS public_prompt text NOT NULL DEFAULT '';
+ALTER TABLE published_work_versions ADD COLUMN IF NOT EXISTS pull_film_enabled boolean NOT NULL DEFAULT false;
+ALTER TABLE published_work_versions ADD COLUMN IF NOT EXISTS pull_film_snapshot jsonb;
+ALTER TABLE published_work_versions ADD COLUMN IF NOT EXISTS pull_film_enabled_at timestamptz;
+ALTER TABLE published_work_versions ADD COLUMN IF NOT EXISTS pull_film_enabled_by_user_id text REFERENCES users(id) ON DELETE SET NULL;
 
 ALTER TABLE published_works DROP CONSTRAINT IF EXISTS published_works_current_version_fk;
 ALTER TABLE published_works ADD CONSTRAINT published_works_current_version_fk FOREIGN KEY (current_version_id) REFERENCES published_work_versions(id) ON DELETE RESTRICT;

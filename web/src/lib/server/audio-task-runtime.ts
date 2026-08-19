@@ -1,4 +1,5 @@
 import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 import { fileTypeFromBuffer } from "file-type";
 import { mediaTaskSource } from "@/lib/media-management-contract";
 import { audioTaskRefundIdempotencyKey, refundAudioTask } from "@/lib/server/audio-task-refund";
@@ -159,7 +160,7 @@ export async function markAudioTaskFailed(task: AudioTask, error: string) {
     const current = (await getAudioTask(task.id)) || task;
     if (current.status === "cancelled" || current.status === "success") return current;
     const billing = current.billing;
-    if (billing?.pointsRecordId && !billing.refunded) {
+    if (generationTaskShouldConsumePoints(current.executionProfile) && billing?.pointsRecordId && !billing.refunded) {
         await refundUserPoints(current.userId, generationModelId(current.config), billing.pointsCost, "audio", 1, audioTaskRefundIdempotencyKey({ id: current.id, attemptNo: current.attemptNo }), billing.pointsRecordId);
         await updateAudioTask(current.id, { billing: { ...billing, refunded: true } });
     }
@@ -180,7 +181,7 @@ async function createAudioUpstream(task: AudioTask, origin: string, cookie: stri
                     "Content-Type": "application/json",
                     "Idempotency-Key": idempotencyKey,
                     "X-Client-Request-Id": idempotencyKey,
-                    ...(task.config.baseUrl.startsWith("/") ? systemAiBillingHeaders(generationModelId(task.config), idempotencyKey, task.config.model) : {}),
+                    ...(task.config.baseUrl.startsWith("/") ? systemAiBillingHeaders(generationModelId(task.config), idempotencyKey, task.config.model, task.executionProfile) : {}),
                 },
                 body: JSON.stringify(payload),
                 signal: AbortSignal.timeout(resolveModelRequestTimeoutMs(task.config, "audio")),
@@ -199,7 +200,7 @@ async function createAudioUpstream(task: AudioTask, origin: string, cookie: stri
 async function refundAudioCandidate(task: AudioTask) {
     const current = await getAudioTask(task.id);
     const billing = current?.billing;
-    if (!billing?.pointsRecordId || billing.refunded) return;
+    if (!generationTaskShouldConsumePoints(task.executionProfile) || !billing?.pointsRecordId || billing.refunded) return;
     await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "audio", 1, audioTaskRefundIdempotencyKey({ id: task.id, attemptNo: task.attemptNo }), billing.pointsRecordId);
 }
 
@@ -252,7 +253,8 @@ function providerFetch(task: AudioTask, origin: string, cookie: string, workerUs
     const headers = new Headers(init.headers);
     if (task.config.baseUrl.startsWith("/") && workerUserId) Object.entries(maintenanceWorkerHeaders(workerUserId)).forEach(([key, value]) => headers.set(key, value));
     else if (cookie) headers.set("cookie", cookie);
-    if (task.config.baseUrl.startsWith("/")) Object.entries(systemAiBillingHeaders(generationModelId(task.config), undefined, task.config.model)).forEach(([key, value]) => headers.set(key, value));
+    const practiceRequestId = task.executionProfile === "open-source-practice" ? `audio-task:${task.id}:attempt:${task.attemptNo || 1}:poll` : undefined;
+    if (task.config.baseUrl.startsWith("/")) Object.entries(systemAiBillingHeaders(generationModelId(task.config), practiceRequestId, task.config.model, task.executionProfile)).forEach(([key, value]) => headers.set(key, value));
     const mediaUrl = task.config.baseUrl.startsWith("/") ? mediaUrlFromProxyPath(path) : "";
     const channelId = task.config.channelId || systemGenerationChannelId(task.config.baseUrl);
     if (mediaUrl && channelId) Object.entries(generationMediaProxyHeaders({ userId: task.userId, taskType: "audio", taskId: task.id, channelId, upstreamModel: task.config.model, url: mediaUrl })).forEach(([key, value]) => headers.set(key, value));

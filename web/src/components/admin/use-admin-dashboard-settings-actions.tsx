@@ -72,7 +72,13 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
             });
             if (!("models" in patch)) return { ...current, systemChannels };
             const logicalModels = synchronizeLogicalModelsWithChannels(current.logicalModels, systemChannels);
-            return { ...current, systemChannels, logicalModels, defaultModels: normalizeDefaultModelsConfig(current.defaultModels, logicalModels, systemChannels) };
+            return {
+                ...current,
+                systemChannels,
+                logicalModels,
+                defaultModels: normalizeDefaultModelsConfig(current.defaultModels, logicalModels, systemChannels),
+                practiceDefaultModels: normalizeDefaultModelsConfig(current.practiceDefaultModels, logicalModels, systemChannels, "open-source-practice", { allowFallback: false }),
+            };
         });
     };
 
@@ -84,7 +90,8 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
         const systemChannels = settings.systemChannels.filter((channel) => channel.id !== id);
         const logicalModels = synchronizeLogicalModelsWithChannels(settings.logicalModels, systemChannels);
         const defaultModels = normalizeDefaultModelsConfig(settings.defaultModels, logicalModels, systemChannels);
-        return saveSettings({ systemChannels, logicalModels, defaultModels }, "渠道已删除");
+        const practiceDefaultModels = normalizeDefaultModelsConfig(settings.practiceDefaultModels, logicalModels, systemChannels, "open-source-practice", { allowFallback: false });
+        return saveSettings({ systemChannels, logicalModels, defaultModels, practiceDefaultModels }, "渠道已删除");
     };
 
     const updateFreeDailyPoints = (value: number | null) => {

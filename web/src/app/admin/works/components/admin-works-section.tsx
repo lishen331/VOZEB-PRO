@@ -2,7 +2,7 @@
 
 import type { TableColumnsType } from "antd";
 import { App, Button, Input, Modal, Pagination, Segmented, Select, Table, Tag, Tooltip } from "antd";
-import { Ban, Check, Eye, GalleryVerticalEnd, RefreshCw, Search, Star, Trash2, X } from "lucide-react";
+import { Ban, Check, Eye, Film, GalleryVerticalEnd, RefreshCw, Search, Star, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -10,7 +10,7 @@ import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { AdminAccountId, AdminUserIdentity } from "@/components/admin/admin-user-identity";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { workStatusToneClass } from "@/lib/work-publication-status";
-import { setAdminWorkFeatured } from "@/services/api/work-governance";
+import { setAdminWorkFeatured, setAdminWorkPullFilm, type AdminWorkPullFilmState } from "@/services/api/work-governance";
 import {
     deleteAdminWorkPublication,
     listAdminWorkPublications,
@@ -160,6 +160,22 @@ function AdminWorkReviewSection() {
         }
     };
 
+    const togglePullFilm = async (work: WorkPublication) => {
+        const enabled = work.publishedVersion?.pullFilmEnabled !== true;
+        setActionId(work.id);
+        try {
+            const result = await setAdminWorkPullFilm(work.id, enabled);
+            const update = (item: WorkPublication) => applyPullFilmState(item, result);
+            setItems((current) => current.map((item) => (item.id === work.id ? update(item) : item)));
+            setViewingWork((current) => (current?.id === work.id ? update(current) : current));
+            message.success(enabled ? "作品已设为拉片项目" : "作品已取消拉片项目");
+        } catch (pullFilmError) {
+            message.error(pullFilmError instanceof Error ? pullFilmError.message : "更新拉片项目状态失败");
+        } finally {
+            setActionId("");
+        }
+    };
+
     const remove = (work: WorkPublication) => {
         modal.confirm({
             title: "永久删除这个作品？",
@@ -197,6 +213,13 @@ function AdminWorkReviewSection() {
         const pending = work.lifecycleStatus === "active" && version.moderationStatus === "pending";
         const shareable = work.lifecycleStatus === "active" && Boolean(work.publishedVersionId) && work.publishedVersion?.visibility !== "private";
         const canFeature = shareable && work.publishedVersion?.visibility === "public";
+        const canPullFilm =
+            work.lifecycleStatus === "active" &&
+            (work.sourceType === "canvas" || work.sourceType === "drama") &&
+            work.publishedVersion?.moderationStatus === "approved" &&
+            work.publishedVersion.visibility === "public" &&
+            work.publishedVersion.id === work.publishedVersionId;
+        const pullFilmEnabled = work.publishedVersion?.pullFilmEnabled === true;
         const canDelete = work.lifecycleStatus === "revoked" || (!work.publishedVersionId && version.moderationStatus === "taken_down");
         return (
             <div className="flex flex-wrap items-center justify-end gap-0.5">
@@ -211,6 +234,11 @@ function AdminWorkReviewSection() {
                 {canFeature ? (
                     <Tooltip title={work.isFeatured ? "取消精选" : "设为精选"}>
                         <Button type="text" size="small" aria-label={work.isFeatured ? "取消精选" : "设为精选"} icon={<Star className={`size-3.5 ${work.isFeatured ? "fill-current" : ""}`} />} onClick={() => void toggleFeatured(work)} loading={busy} />
+                    </Tooltip>
+                ) : null}
+                {canPullFilm ? (
+                    <Tooltip title={pullFilmEnabled ? "取消拉片" : "设为拉片"}>
+                        <Button type="text" size="small" aria-label={pullFilmEnabled ? "取消拉片" : "设为拉片"} icon={<Film className={`size-3.5 ${pullFilmEnabled ? "fill-current" : ""}`} />} onClick={() => void togglePullFilm(work)} loading={busy} />
                     </Tooltip>
                 ) : null}
                 {pending ? (
@@ -428,7 +456,7 @@ function AdminWorkReviewSection() {
                 />
             </Modal>
             <Modal title="作品详情" open={Boolean(viewingWork)} width={760} footer={null} destroyOnHidden onCancel={() => setViewingWork(undefined)}>
-                {viewingWork ? <AdminWorkDetail work={viewingWork} /> : null}
+                {viewingWork ? <AdminWorkDetail work={viewingWork} busy={actionId === viewingWork.id} onTogglePullFilm={() => void togglePullFilm(viewingWork)} /> : null}
             </Modal>
         </Panel>
     );
@@ -466,6 +494,7 @@ function AdminWorkStatus({ work }: { work: WorkPublication }) {
         <div className="flex flex-col items-start gap-1">
             {moderationSignal ? <Tooltip title={moderationSignal}>{tag}</Tooltip> : tag}
             {work.isFeatured ? <Tag color="gold">精选</Tag> : null}
+            {work.publishedVersion?.pullFilmEnabled ? <Tag color="cyan">拉片项目</Tag> : null}
             {work.publishedVersion && work.publishedVersion.id !== version.id ? <span className="text-[11px] text-zinc-500 dark:text-zinc-400">线上 v{work.publishedVersion.versionNumber}</span> : null}
         </div>
     );
@@ -518,12 +547,19 @@ function AdminWorksEmpty() {
     );
 }
 
-function AdminWorkDetail({ work }: { work: WorkPublication }) {
+function AdminWorkDetail({ work, busy, onTogglePullFilm }: { work: WorkPublication; busy: boolean; onTogglePullFilm: () => void }) {
     const version = work.currentVersion;
     if (!version) return null;
     const asset = work.currentPreview;
     const url = asset?.previewUrl || "";
     const imageUrl = imagePreviewUrl(url, 1920);
+    const pullFilmEnabled = work.publishedVersion?.pullFilmEnabled === true;
+    const canPullFilm =
+        work.lifecycleStatus === "active" &&
+        (work.sourceType === "canvas" || work.sourceType === "drama") &&
+        work.publishedVersion?.moderationStatus === "approved" &&
+        work.publishedVersion.visibility === "public" &&
+        work.publishedVersion.id === work.publishedVersionId;
     return (
         <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-[240px_minmax(0,1fr)]">
@@ -559,9 +595,32 @@ function AdminWorkDetail({ work }: { work: WorkPublication }) {
                 <div className="mb-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400">公开提示词</div>
                 <div className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">{version.publicPrompt || "未填写提示词"}</div>
             </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                <div>
+                    <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">拉片项目</div>
+                    <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{pullFilmEnabled ? "当前公开版本已提供只读制作流程，可复制到无限练习。" : "仅当前公开且已通过审核的画布或短剧作品可启用。"}</div>
+                </div>
+                {canPullFilm ? (
+                    <Button icon={<Film className="size-4" />} loading={busy} onClick={onTogglePullFilm}>
+                        {pullFilmEnabled ? "取消拉片" : "设为拉片"}
+                    </Button>
+                ) : (
+                    <Tag className="m-0">当前版本不可设置</Tag>
+                )}
+            </div>
             {version.rejectionReason ? <div className="border-l-2 border-rose-400 pl-3 text-sm leading-6 text-rose-700 dark:text-rose-300">处理原因：{version.rejectionReason}</div> : null}
         </div>
     );
+}
+
+function applyPullFilmState(work: WorkPublication, state: AdminWorkPullFilmState): WorkPublication {
+    const updateVersion = (version: WorkPublication["publishedVersion"]) =>
+        version && (!state.processVersionId || version.id === state.processVersionId) ? { ...version, pullFilmEnabled: state.hasProcess, pullFilmEnabledAt: state.hasProcess ? state.updatedAt : undefined } : version;
+    return {
+        ...work,
+        publishedVersion: updateVersion(work.publishedVersion),
+        currentVersion: work.currentVersion?.id === work.publishedVersionId ? updateVersion(work.currentVersion) : work.currentVersion,
+    };
 }
 
 function DetailValue({ label, value }: { label: string; value: string }) {

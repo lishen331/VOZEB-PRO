@@ -19,6 +19,7 @@ import {
     GalleryVerticalEnd,
     Globe2,
     HardDrive,
+    Handshake,
     KeyRound,
     Megaphone,
     Menu,
@@ -26,6 +27,7 @@ import {
     PanelLeftOpen,
     PlugZap,
     ReceiptText,
+    School,
     SlidersHorizontal,
     Sparkles,
     TicketPercent,
@@ -175,6 +177,9 @@ export function AdminSectionNav({
 
 export const adminSections: AdminSection[] = [
     { key: "overview", label: "经营看板", description: "查看用户增长、调用趋势、收入概览和模型请求分布。", shortDescription: "数据总览", icon: <Database className="size-4" /> },
+    { key: "schools", label: "学校管理", description: "创建学校、维护学校资料和首位学校管理员。", shortDescription: "租户与管理员", icon: <School className="size-4" /> },
+    { key: "courses", label: "课程管理", description: "维护平台课程内容、发布状态并分配给学校。", shortDescription: "课程与学校", icon: <BookOpen className="size-4" /> },
+    { key: "commercialOrders", label: "商单管理", description: "维护平台商单、承接学校与正式交付验收。", shortDescription: "分配与验收", icon: <Handshake className="size-4" /> },
     { key: "users", label: "用户运营", description: "管理用户角色、账号状态、套餐归属和积分余额。", shortDescription: "账户与权益", icon: <UsersRound className="size-4" /> },
     { key: "logs", label: "调用记录", description: "追踪用户生成任务、模型调用、入口来源和失败原因。", shortDescription: "生成与模型", icon: <Film className="size-4" /> },
     { key: "generationOperations", label: "生成运维", description: "统一排查生成任务、会话、项目、渠道健康、失败原因和积分成本。", shortDescription: "任务排障", icon: <Activity className="size-4" /> },
@@ -191,6 +196,7 @@ export const adminSections: AdminSection[] = [
     { key: "channels", label: "模型渠道", description: "添加上游接口，维护模型目录、逻辑绑定和各能力默认模型。", shortDescription: "上游接口", icon: <PlugZap className="size-4" /> },
     { key: "skills", label: "Agent Skills", description: "管理 Agent 专业能力、触发词、来源和执行规则。", shortDescription: "专业能力", icon: <Sparkles className="size-4" /> },
     { key: "settings", label: "基础设置", description: "管理注册、邮箱、生成与数据维护。", shortDescription: "账号与生成", icon: <SlidersHorizontal className="size-4" /> },
+    { key: "roleOverview", label: "角色功能", description: "只读查看教师、学生和学校管理员的用户端入口。", shortDescription: "角色入口", icon: <UsersRound className="size-4" /> },
     { key: "accountDeletion", label: "注销申请", description: "查看用户账号注销申请，完成身份核验、受理或拒绝并保留审计记录。", shortDescription: "用户权利请求", icon: <UserRoundX className="size-4" /> },
     { key: "mediaStorage", label: "本地媒体", description: "查看服务器图片、视频和音频文件，管理临时期限与长期存储。", shortDescription: "文件与期限", icon: <HardDrive className="size-4" /> },
     { key: "externalStorage", label: "外部存储", description: "配置 S3 兼容存储，迁移本地媒体并管理外部对象。", shortDescription: "S3 与 OSS", icon: <Cloud className="size-4" /> },
@@ -204,11 +210,12 @@ export const adminSections: AdminSection[] = [
 
 export const adminSectionGroups: AdminSectionGroup[] = [
     { title: "经营分析", items: sectionsFor(["overview", "users", "logs", "generationOperations"]) },
+    { title: "产教运营", items: sectionsFor(["schools", "courses", "commercialOrders"]) },
     { title: "商品运营", items: sectionsFor(["products", "orders"]) },
     { title: "营销推广", items: sectionsFor(["promotions", "coupons", "referrals"]) },
     { title: "财务管理", items: sectionsFor(["points", "payments", "cdk", "wallet"]) },
     { title: "上游配置", items: sectionsFor(["channels", "skills"]) },
-    { title: "系统管理", items: sectionsFor(["site", "settings", "accountDeletion"]) },
+    { title: "系统管理", items: sectionsFor(["site", "settings", "roleOverview", "accountDeletion"]) },
     { title: "存储与备份", items: sectionsFor(["mediaStorage", "externalStorage", "backup"]) },
     { title: "内容运营", items: sectionsFor(["works", "announcements", "prompts"]) },
     { title: "帮助与支持", items: sectionsFor(["updates", "adminHelp"]) },

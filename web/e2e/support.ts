@@ -1,4 +1,4 @@
-import type { APIRequestContext } from "@playwright/test";
+import type { APIRequestContext, Browser, BrowserContextOptions } from "@playwright/test";
 
 export const E2E_ADMIN = {
     username: "e2e_admin",
@@ -6,9 +6,21 @@ export const E2E_ADMIN = {
     displayName: "E2E 管理员",
     installToken: "vozeb-pro-e2e-install-token-32chars",
 };
+export const E2E_PRACTICE_PASSWORD = "InfinitePracticeE2E!2026";
 
 export const E2E_PROTOCOL_ORIGIN = `http://127.0.0.1:${Number(process.env.VOZEB_PRO_PROTOCOL_FIXTURE_PORT || 4010)}`;
 export const E2E_PAYMENT_WEBHOOK_SECRET = "vozeb-pro-e2e-payply-webhook-secret";
+
+export async function createAuthenticatedE2EContext(browser: Browser, baseURL: string, credentials: { username: string; password: string }, options: BrowserContextOptions = {}) {
+    const context = await browser.newContext({ ...options, baseURL, storageState: { cookies: [], origins: [] } });
+    const response = await context.request.post("/api/auth/login", { data: credentials });
+    if (!response.ok()) {
+        const body = await response.text();
+        await context.close();
+        throw new Error(`Unable to sign in ${credentials.username}: ${response.status()} ${body}`);
+    }
+    return context;
+}
 
 const models = ["e2e-text", "e2e-text-fallback", "e2e-text-fail", "e2e-image", "e2e-image-fallback", "e2e-video", "e2e-video-fallback", "e2e-video-slow", "e2e-audio", "e2e-audio-fallback"];
 

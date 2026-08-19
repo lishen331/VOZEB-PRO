@@ -247,6 +247,24 @@ describe("admin models route", () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
+    it("does not guess a RunningHub model catalog path", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const response = await POST(
+            request({
+                baseUrl: "https://runninghub.example",
+                apiKey: "runninghub-secret",
+                protocol: "runninghub",
+                configuredModels: ["workflow-image"],
+                modelCapabilities: { "workflow-image": "image" },
+                modelConfigs: { "workflow-image": { capability: "image", protocol: "runninghub", createPath: "/task/create", queryPath: "/task/query" } },
+            }),
+        );
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ models: ["workflow-image"], catalogSupported: false, provider: "runninghub" });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it("pulls Yumeng models only from an explicitly configured v2 catalog", async () => {
         const fetchMock = vi.fn(async () =>
             Response.json({

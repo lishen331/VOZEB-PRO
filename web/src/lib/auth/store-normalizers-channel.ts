@@ -3,7 +3,23 @@ import { isGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 
 import type { LogicalModelCapability, SystemChannelAdvancedConfig, SystemChannelProtocol } from "./store-types";
 
-const CHANNEL_PROTOCOLS: SystemChannelProtocol[] = ["auto", "openai", "yumeng", "gemini", "sub2api", "newapi", "vozeb-recommended", "globalaiopc", "seedance", "stable-diffusion", "volcengine-video", "seedance-special", "custom", "compatible"];
+const CHANNEL_PROTOCOLS: SystemChannelProtocol[] = [
+    "auto",
+    "openai",
+    "yumeng",
+    "gemini",
+    "sub2api",
+    "newapi",
+    "vozeb-recommended",
+    "globalaiopc",
+    "seedance",
+    "stable-diffusion",
+    "volcengine-video",
+    "seedance-special",
+    "runninghub",
+    "custom",
+    "compatible",
+];
 
 export function normalizeSystemChannelAdvancedConfig(config: Partial<SystemChannelAdvancedConfig> | undefined): SystemChannelAdvancedConfig | undefined {
     if (!config || typeof config !== "object") return undefined;
@@ -35,6 +51,7 @@ export function normalizeSystemChannelAdvancedConfig(config: Partial<SystemChann
         ...(normalizeApiPath(config.cancelPath) ? { cancelPath: normalizeApiPath(config.cancelPath) } : {}),
         ...(config.cancelMethod === "POST" || config.cancelMethod === "DELETE" ? { cancelMethod: config.cancelMethod } : {}),
         requestTemplate: textOrEmpty(config.requestTemplate, 12_000),
+        ...(textOrEmpty(config.taskIdField, 500) ? { taskIdField: textOrEmpty(config.taskIdField, 500) } : {}),
         resultField: textOrEmpty(config.resultField, 500),
         statusField: textOrEmpty(config.statusField, 500),
         durationRange: textOrEmpty(config.durationRange, 120),
@@ -93,6 +110,7 @@ function normalizeChannelModelConfigs(value: unknown) {
                         ...(normalizeApiPath(config.cancelPath) ? { cancelPath: normalizeApiPath(config.cancelPath) } : {}),
                         ...(config.cancelMethod === "POST" || config.cancelMethod === "DELETE" ? { cancelMethod: config.cancelMethod } : {}),
                         ...(textOrEmpty(config.requestTemplate, 12_000) ? { requestTemplate: textOrEmpty(config.requestTemplate, 12_000) } : {}),
+                        ...(textOrEmpty(config.taskIdField, 500) ? { taskIdField: textOrEmpty(config.taskIdField, 500) } : {}),
                         ...(textOrEmpty(config.resultField, 500) ? { resultField: textOrEmpty(config.resultField, 500) } : {}),
                         ...(textOrEmpty(config.statusField, 500) ? { statusField: textOrEmpty(config.statusField, 500) } : {}),
                         ...(textOrEmpty(config.durationRange, 120) ? { durationRange: textOrEmpty(config.durationRange, 120) } : {}),

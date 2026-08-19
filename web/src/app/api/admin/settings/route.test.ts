@@ -21,6 +21,7 @@ const savedSettings = {
     systemChannels: [{ id: "one", name: "主渠道", baseUrl: "https://api.example.com/v1", apiKey: "saved-secret", webhookSecret: "0123456789abcdef0123456789abcdef", apiFormat: "openai", models: ["vendor/writer"], enabled: true }],
     logicalModels: [{ id: "writer", name: "Writer", capability: "text", enabled: true, bindings: [{ id: "binding", channelId: "one", upstreamModel: "vendor/writer", enabled: true, priority: 1 }] }],
     defaultModels: { textModel: "writer", imageModel: "", videoModel: "", audioModel: "" },
+    practiceDefaultModels: { textModel: "", imageModel: "", videoModel: "", audioModel: "" },
 };
 
 describe("admin settings model routing", () => {
@@ -161,6 +162,78 @@ describe("admin settings model routing", () => {
 
         expect(response.status).toBe(200);
         expect(mocks.setAuthSettings).toHaveBeenCalledWith({ generationConcurrency });
+    });
+
+    it("saves RunningHub purpose and practice defaults, then returns masked credentials", async () => {
+        const runningHub = {
+            id: "rh",
+            name: "RunningHub 练习",
+            baseUrl: "https://runninghub.example",
+            apiKey: "rh-secret",
+            apiFormat: "openai" as const,
+            models: ["workflow-image"],
+            enabled: true,
+            purpose: "open-source-practice" as const,
+            advancedConfig: {
+                protocol: "runninghub" as const,
+                textModel: "",
+                imageModel: "",
+                videoModel: "",
+                createPath: "",
+                queryPath: "",
+                requestTemplate: "",
+                resultField: "",
+                statusField: "",
+                durationRange: "",
+                referenceRule: "",
+                supportsReferenceImage: false,
+                supportsReferenceVideo: false,
+                supportsReferenceAudio: false,
+                modelConfigs: {
+                    "workflow-image": {
+                        capability: "image" as const,
+                        protocol: "runninghub" as const,
+                        createPath: "/task/create",
+                        queryPath: "/task/query",
+                        requestTemplate: '{"workflow":"{{model}}"}',
+                        taskIdField: "data.taskId",
+                        resultField: "data.result",
+                        statusField: "data.status",
+                    },
+                },
+            },
+        };
+        const practiceDefaultModels = { textModel: "", imageModel: "workflow-image", videoModel: "", audioModel: "" };
+        const response = await PATCH(request({ systemChannels: [runningHub], logicalModels: [], defaultModels: savedSettings.defaultModels, practiceDefaultModels }));
+        expect(response.status).toBe(200);
+        expect(mocks.setAuthSettings).toHaveBeenCalledWith(expect.objectContaining({ practiceDefaultModels, systemChannels: [expect.objectContaining({ purpose: "open-source-practice", apiKey: "rh-secret" })] }));
+        const returned = (await response.json()) as { settings: { systemChannels: Array<{ apiKey: string; hasApiKey: boolean; purpose?: string }>; practiceDefaultModels: typeof practiceDefaultModels } };
+        expect(returned.settings.systemChannels[0]).toMatchObject({ apiKey: "", hasApiKey: true, purpose: "open-source-practice" });
+        expect(returned.settings.practiceDefaultModels).toEqual(practiceDefaultModels);
+    });
+
+    it("rejects RunningHub configuration for a system-only administrator", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "system-admin", role: "admin", status: "active", adminPermissions: ["system.manage"] });
+        const response = await PATCH(request({ systemChannels: [] }));
+        expect(response.status).toBe(403);
+        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
+    });
+
+    it("rejects a production-only binding as the practice default", async () => {
+        mocks.getFreshAuthSettings.mockResolvedValue({
+            ...savedSettings,
+            systemChannels: [
+                {
+                    ...savedSettings.systemChannels[0],
+                    purpose: "production",
+                },
+            ],
+            practiceDefaultModels: { textModel: "", imageModel: "", videoModel: "", audioModel: "" },
+        });
+        const response = await PATCH(request({ practiceDefaultModels: savedSettings.defaultModels }));
+        expect(response.status).toBe(400);
+        expect(await response.json()).toEqual({ error: expect.stringContaining("练习默认文本模型不可解析") });
+        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
     });
 
     it("rejects a mixed settings patch when the administrator lacks one required duty", async () => {

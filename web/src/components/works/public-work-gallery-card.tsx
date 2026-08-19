@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, GalleryVerticalEnd, Star, Video } from "lucide-react";
+import { Eye, Film, GalleryVerticalEnd, Star, Video } from "lucide-react";
 import Link from "next/link";
 
 import { LazyMediaImage } from "@/components/media/lazy-media-image";
@@ -45,6 +45,17 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
                     <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-foreground px-2 py-1 text-[11px] font-medium text-background">
                         <Star className="size-3 fill-current" />
                         精选
+                    </span>
+                ) : null}
+                {item.hasProcess ? (
+                    <span
+                        className={
+                            item.isFeatured
+                                ? "absolute left-2 top-10 inline-flex items-center gap-1 rounded bg-cyan-50 px-2 py-1 text-[11px] font-medium text-cyan-800 shadow-sm dark:bg-cyan-950/85 dark:text-cyan-200"
+                                : "absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-cyan-50 px-2 py-1 text-[11px] font-medium text-cyan-800 shadow-sm dark:bg-cyan-950/85 dark:text-cyan-200"
+                        }
+                    >
+                        <Film className="size-3" /> 制作流程
                     </span>
                 ) : null}
                 <PublicWorkCardTitle title={item.title} />

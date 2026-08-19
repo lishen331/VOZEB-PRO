@@ -64,6 +64,21 @@ describe("model routing config", () => {
         expect(normalizeDefaultModelsConfig({ textModel: "", imageModel: "", videoModel: "stable-diffusion-2.0", audioModel: "" }, models, channels).videoModel).toBe("stable-diffusion-2.0");
     });
 
+    it("resolves models by execution profile and gives practice defaults no production fallback", () => {
+        const channels = [
+            { ...channel("production", ["writer"]), purpose: "production" as const },
+            { ...channel("practice", ["writer-practice"]), purpose: "open-source-practice" as const },
+            { ...channel("shared", ["writer-shared"]), purpose: "shared" as const },
+        ];
+        const models = normalizeLogicalModelsConfig(undefined, channels);
+
+        expect(isLogicalModelResolvable(models, channels, "text", "writer", "production")).toBe(true);
+        expect(isLogicalModelResolvable(models, channels, "text", "writer-practice", "production")).toBe(false);
+        expect(isLogicalModelResolvable(models, channels, "text", "writer-practice", "open-source-practice")).toBe(true);
+        expect(isLogicalModelResolvable(models, channels, "text", "writer-shared", "open-source-practice")).toBe(true);
+        expect(normalizeDefaultModelsConfig(undefined, models, channels, "open-source-practice")).toEqual({ textModel: "", imageModel: "", videoModel: "", audioModel: "" });
+    });
+
     it("uses channel capability metadata before model-name inference", () => {
         const source = channel("one", ["opaque-a", "stable-video-diffusion"]);
         source.advancedConfig = { modelCapabilities: { "opaque-a": "image", "stable-video-diffusion": "video" } } as never;

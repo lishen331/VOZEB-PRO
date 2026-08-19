@@ -14,7 +14,7 @@ import { generationModelId, toSystemGenerationChannel } from "@/lib/server/gener
 import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
-import { assertReferenceCapabilities } from "@/lib/server/provider-task-config";
+import { assertReferenceCapabilities, readProviderString } from "@/lib/server/provider-task-config";
 import { countActiveImageTasksForUser, createImageTask, getImageTask, touchImageTask, transitionImageTask, type ImageTask, type ImageTaskConfig, type ImageTaskReference, updateImageTask } from "@/lib/server/image-task-store";
 import { isGenerationSource, recordGenerationLog } from "@/lib/server/generation-log-store";
 import { writeReferenceImageDataUrl } from "@/lib/server/reference-asset-store";
@@ -66,13 +66,14 @@ export function publicTask(task: ImageTask) {
     };
 }
 
-export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: Awaited<ReturnType<typeof getAuthSettings>>): ImageTaskConfig[] {
-    const requestedModel = config?.model || settings.defaultModels.imageModel;
-    return resolveLogicalModelCandidates(settings, "image", requestedModel).map((resolved) => {
+export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: Awaited<ReturnType<typeof getAuthSettings>>, executionProfile: "production" | "open-source-practice" = "production"): ImageTaskConfig[] {
+    const requestedModel = config?.model || (executionProfile === "open-source-practice" ? settings.practiceDefaultModels.imageModel : settings.defaultModels.imageModel);
+    return resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile).map((resolved) => {
         const channel = toSystemGenerationChannel(resolved);
         return {
             ...channel,
             channelId: resolved.channelId,
+            executionProfile,
             ...resolveImageTaskOptions(config || {}, settings.generationDefaults),
             systemPrompt: "",
             advancedConfig: sanitizeAdvancedConfig(channel.advancedConfig),
@@ -242,7 +243,7 @@ export function taskHeaders(config: ImageTaskConfig, cookie: string, pointsIdemp
     const workerHeaders = maintenanceWorkerContextHeaders(cookie);
     if (internal && workerHeaders) Object.entries(workerHeaders).forEach(([key, value]) => headers.set(key, value));
     else if (internal && cookie) headers.set("cookie", cookie);
-    if (internal) Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model)).forEach(([key, value]) => headers.set(key, value));
+    if (internal) Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model, config.executionProfile)).forEach(([key, value]) => headers.set(key, value));
     if (pointsIdempotencyKey?.trim()) {
         headers.set("Idempotency-Key", pointsIdempotencyKey.trim());
         headers.set("X-Client-Request-Id", pointsIdempotencyKey.trim());
@@ -318,7 +319,7 @@ export async function parseImagePayloadOrPoll(config: ImageTaskConfig, payload: 
     const images = findImageResults(payload, mediaBaseUrl, config);
     if (images.length) return imageTaskResultFromMedia(images);
 
-    const taskId = readImageTaskId(payload);
+    const taskId = readImageTaskId(payload, config.advancedConfig?.taskIdField);
     if (!taskId) throw new GenerationSubmissionUncertainError("图片接口没有返回图片或任务 ID，创建结果待确认");
     const explicitPollUrl = readImagePollUrl(config, payload, mediaBaseUrl, pollBaseUrl);
     const upstream = { id: taskId, mediaBaseUrl, pollBaseUrl, explicitPollUrl: explicitPollUrl || undefined };
@@ -329,13 +330,13 @@ export async function parseImagePayloadOrPoll(config: ImageTaskConfig, payload: 
     return pollOpenAiImageTask(config, taskId, mediaBaseUrl, pollBaseUrl, cookie, explicitPollUrl);
 }
 
-export async function pollOpenAiImageTask(config: ImageTaskConfig, taskId: string, mediaBaseUrl: string, pollBaseUrl: string, cookie: string, explicitPollUrl = "", singleStep = false): Promise<ImageTaskResult> {
+export async function pollOpenAiImageTask(config: ImageTaskConfig, taskId: string, mediaBaseUrl: string, pollBaseUrl: string, cookie: string, explicitPollUrl = "", singleStep = false, requestId?: string): Promise<ImageTaskResult> {
     const pollUrls = imageTaskPollUrls(config, pollBaseUrl, taskId, explicitPollUrl);
     if (!pollUrls.length) throw new ImageQueryContractError("OpenAI 图片任务缺少明确的异步查询路径");
     let lastError = "";
     for (let attempt = 0; attempt < (singleStep ? 1 : imageTaskPollAttempts(config)); attempt += 1) {
         for (const pollUrl of pollUrls) {
-            const response = await taskFetch(config, pollUrl, { method: "GET", headers: taskHeaders(config, cookie), cache: "no-store", signal: AbortSignal.timeout(Math.min(imageTaskRequestTimeoutMs(config), 60_000)) });
+            const response = await taskFetch(config, pollUrl, { method: "GET", headers: taskHeaders(config, cookie, requestId), cache: "no-store", signal: AbortSignal.timeout(Math.min(imageTaskRequestTimeoutMs(config), 60_000)) });
             if (!response.ok) {
                 const message = await readFetchError(response, "图片任务查询失败");
                 lastError = message;
@@ -450,8 +451,8 @@ export function readImagePayloadError(payload: ImageApiResponse) {
     return "";
 }
 
-export function readImageTaskId(payload: ImageApiResponse) {
-    return findStringByKeys(payload, IMAGE_TASK_ID_KEYS);
+export function readImageTaskId(payload: ImageApiResponse, configuredPath?: string) {
+    return configuredPath ? readProviderString(payload, configuredPath, []) : findStringByKeys(payload, IMAGE_TASK_ID_KEYS);
 }
 
 export function readImageTaskStatus(payload: ImageApiResponse) {

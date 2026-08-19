@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 
 import { AuthUserHydrator } from "@/components/auth/auth-user-hydrator";
 import { AppWorkspaceShell } from "@/components/layout/app-workspace-shell";
+import { SchoolContextHydrator } from "@/components/school/school-context-hydrator";
+import { getSchoolContextForUser } from "@/lib/server/school-access-service";
 import { getAuthenticatedPageAccess } from "@/lib/server/page-access";
 
 export const metadata: Metadata = {
@@ -17,6 +19,7 @@ export default async function UserLayout({ children }: { children: ReactNode }) 
         redirect("/login");
     }
     const user = access.user;
+    const schoolContext = await getSchoolContextForUser(user.id);
 
     return (
         <AuthUserHydrator
@@ -41,7 +44,9 @@ export default async function UserLayout({ children }: { children: ReactNode }) 
                 mfaEnabled: user.mfaEnabled,
             }}
         >
-            <AppWorkspaceShell>{children}</AppWorkspaceShell>
+            <SchoolContextHydrator context={schoolContext}>
+                <AppWorkspaceShell>{children}</AppWorkspaceShell>
+            </SchoolContextHydrator>
         </AuthUserHydrator>
     );
 }

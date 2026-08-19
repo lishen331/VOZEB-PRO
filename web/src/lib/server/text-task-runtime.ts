@@ -1,4 +1,5 @@
 import { refundUserPoints } from "@/lib/auth/store";
+import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
@@ -185,7 +186,7 @@ async function queryCustomTextTaskStep(task: TextTask, origin: string, cookie: s
     if (!upstream?.id) return { state: "needs_review", error: "文本任务缺少上游任务 ID" };
     let lastError = "";
     for (const path of providerQueryPaths(config.advancedConfig, upstream.id, [])) {
-        const response = await taskFetch(config, taskUrl(config, path, origin), { headers: taskHeaders(config, cookie), cache: "no-store" });
+        const response = await taskFetch(config, taskUrl(config, path, origin), { headers: taskHeaders(config, cookie, undefined, task.executionProfile), cache: "no-store" });
         if (!response.ok) {
             lastError = await readFetchError(response, "自定义文本任务查询失败");
             continue;
@@ -208,7 +209,7 @@ export async function queryCancelledTextTaskUpstreamStep(task: TextTask, origin:
     if (!upstream?.id) return { state: "terminal" as const, status: "missing_upstream_id" };
     let lastError = "";
     for (const path of providerQueryPaths(config.advancedConfig, upstream.id, [])) {
-        const response = await taskFetch(config, taskUrl(config, path, origin), { headers: taskHeaders(config, cookie), cache: "no-store" });
+        const response = await taskFetch(config, taskUrl(config, path, origin), { headers: taskHeaders(config, cookie, undefined, task.executionProfile), cache: "no-store" });
         if (!response.ok) {
             lastError = await readFetchError(response, "自定义文本任务查询失败");
             continue;
@@ -330,7 +331,8 @@ async function completeTextTask(task: TextTask, content: string, billing: { poin
     const current = await getTextTask(task.id);
     if (!current || current.status === "cancelled") {
         if (current?.status === "cancelled" && current.billing?.pointsRecordId) await refundTextTask(current);
-        else if (hasSystemAiCharge(billing)) await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "text", 1, textTaskRefundIdempotencyKey(task), billing.pointsRecordId);
+        else if (generationTaskShouldConsumePoints(task.executionProfile) && hasSystemAiCharge(billing))
+            await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "text", 1, textTaskRefundIdempotencyKey(task), billing.pointsRecordId);
         return { state: "failed", error: current?.error || "文本任务已取消" };
     }
     const completed = await transitionTextTask(current, ["running"], {
@@ -342,7 +344,8 @@ async function completeTextTask(task: TextTask, content: string, billing: { poin
         billing: hasSystemAiCharge(billing) ? { pointsCost: billing.pointsCost, pointsRecordId: billing.pointsRecordId, refunded: false } : current.billing,
     });
     await updateTextTask(task.id, { config: clearSecret(current.config), candidateConfigs: [], attempts: succeeded, attemptNo: task.attemptNo || succeeded.at(-1)?.attemptNo });
-    if (!completed && hasSystemAiCharge(billing)) await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "text", 1, textTaskRefundIdempotencyKey(task), billing.pointsRecordId);
+    if (!completed && generationTaskShouldConsumePoints(task.executionProfile) && hasSystemAiCharge(billing))
+        await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "text", 1, textTaskRefundIdempotencyKey(task), billing.pointsRecordId);
     return completed ? { state: "completed" } : { state: "failed", error: "文本任务状态已变化" };
 }
 
@@ -350,7 +353,7 @@ async function failTextTask(task: TextTask, error: string, attempts: NonNullable
     const current = (await getTextTask(task.id)) || task;
     if (current.status === "success") return { state: "completed" };
     if (current.status === "cancelled") return { state: "failed", error: current.error || "文本任务已取消" };
-    if (current.billing?.pointsRecordId && !current.billing.refunded) {
+    if (generationTaskShouldConsumePoints(current.executionProfile) && current.billing?.pointsRecordId && !current.billing.refunded) {
         await refundUserPoints(current.userId, generationModelId(current.config), current.billing.pointsCost, "text", 1, undefined, current.billing.pointsRecordId);
         await updateTextTask(current.id, { billing: { ...current.billing, refunded: true } });
     }
@@ -501,14 +504,14 @@ function isInternalSystemProxyBase(value: string) {
     }
 }
 
-export function taskHeaders(config: TextTaskConfig, cookie: string, pointsIdempotencyKey?: string) {
+export function taskHeaders(config: TextTaskConfig, cookie: string, pointsIdempotencyKey?: string, executionProfile = config.executionProfile) {
     const headers = new Headers();
     const internal = config.baseUrl.startsWith("/");
     const workerHeaders = maintenanceWorkerContextHeaders(cookie);
     if (internal && workerHeaders) Object.entries(workerHeaders).forEach(([key, value]) => headers.set(key, value));
     else if (internal && cookie) headers.set("cookie", cookie);
     if (internal) {
-        Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model)).forEach(([key, value]) => headers.set(key, value));
+        Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model, executionProfile)).forEach(([key, value]) => headers.set(key, value));
     }
     if (!internal && config.apiFormat === "gemini") headers.set("x-goog-api-key", config.apiKey);
     else if (!internal) headers.set("authorization", `Bearer ${config.apiKey}`);
@@ -551,8 +554,8 @@ async function persistTextResponseBilling(task: TextTask, headers: Headers) {
     if (hasSystemAiCharge(billing)) await updateTextTask(task.id, { billing: { pointsCost: billing.pointsCost, pointsRecordId: billing.pointsRecordId, refunded: false } });
 }
 
-function geminiHeaders(config: TextTaskConfig, cookie: string, pointsIdempotencyKey?: string) {
-    const headers = taskHeaders(config, cookie, pointsIdempotencyKey);
+function geminiHeaders(config: TextTaskConfig, cookie: string, pointsIdempotencyKey?: string, executionProfile = config.executionProfile) {
+    const headers = taskHeaders(config, cookie, pointsIdempotencyKey, executionProfile);
     headers.set("content-type", "application/json");
     return headers;
 }
@@ -575,5 +578,5 @@ function readBilling(headers: Headers) {
 
 async function refundChargedTextResponse(task: TextTask, headers: Headers) {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+    if (generationTaskShouldConsumePoints(task.executionProfile) && hasSystemAiCharge(billing)) await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
 }

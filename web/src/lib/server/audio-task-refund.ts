@@ -1,10 +1,11 @@
 import { refundUserPoints } from "@/lib/auth/store";
 import { getAudioTask, transitionAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
 import { generationModelId } from "@/lib/server/generation-channel";
+import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 
 export async function refundAudioTask(task: AudioTask) {
     const billing = task.billing;
-    if ((task.status !== "error" && task.status !== "cancelled") || !billing?.pointsRecordId || billing.refunded) return task;
+    if (!generationTaskShouldConsumePoints(task.executionProfile) || (task.status !== "error" && task.status !== "cancelled") || !billing?.pointsRecordId || billing.refunded) return task;
 
     await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "audio", 1, audioTaskRefundIdempotencyKey(task), billing.pointsRecordId);
     await transitionAudioTask(task, [task.status], {

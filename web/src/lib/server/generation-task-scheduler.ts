@@ -10,6 +10,7 @@ export type GenerationTaskLease = Pick<
     | "type"
     | "status"
     | "payload"
+    | "executionProfile"
     | "executionPhase"
     | "upstreamTaskId"
     | "channelId"
@@ -239,6 +240,7 @@ function mapLease(row: Record<string, unknown>): GenerationTaskLease {
         type: isTaskType(row.task_type) ? row.task_type : "text",
         status: row.status === "pending" || row.status === "running" || row.status === "success" || row.status === "error" || row.status === "paused" || row.status === "cancelled" ? row.status : "error",
         payload: record(row.payload) || {},
+        executionProfile: row.execution_profile === "open-source-practice" ? "open-source-practice" : "production",
         executionPhase: isPhase(row.execution_phase) ? row.execution_phase : "created",
         upstreamTaskId: clean(row.upstream_task_id, 500),
         channelId: clean(row.channel_id, 160),

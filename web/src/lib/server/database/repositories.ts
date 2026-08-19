@@ -11,8 +11,10 @@ import { ReferralRepository } from "./referral-repository";
 import { WorkPublicationRepository } from "./work-publication-repository";
 import { WorkGovernanceRepository } from "./work-governance-repository";
 import { WorkCommunityRepository } from "./work-community-repository";
+import { createPostgresSchoolDomainRepository } from "./school-domain-repository";
 import { AnnouncementsRepository, GenerationLogsRepository, PromptsRepository } from "./content-repository";
 import { CdkRepository, EmailCodesRepository, PointsRepository, SessionsRepository, UsersRepository } from "./user-repository";
+import { PracticeRepository } from "./practice-repository";
 import type { AppSettingsRecord, EntitlementPlanRecord, JsonValue, SystemModelChannelRecord } from "./repository-shared";
 import { isoValue, jsonParam, jsonValue, numberValue, optionalIso, optionalJson, optionalString, stringValue } from "./repository-shared";
 
@@ -141,6 +143,8 @@ export function createPostgresRepositories(executor: QueryExecutor = { query: po
         workGovernance: new WorkGovernanceRepository(executor),
         workCommunity: new WorkCommunityRepository(executor),
         auditLogs: new AuditLogsRepository(executor),
+        schoolDomain: createPostgresSchoolDomainRepository(executor),
+        practice: new PracticeRepository(executor),
     };
 }
 
@@ -197,6 +201,7 @@ class SettingsRepository {
         if (input.paymentConfig !== undefined) add("payment_config", jsonParam(input.paymentConfig));
         if (input.logicalModels !== undefined) add("logical_models", jsonParam(input.logicalModels));
         if (input.defaultModels !== undefined) add("default_models", jsonParam(input.defaultModels));
+        if (input.practiceDefaultModels !== undefined) add("practice_default_models", jsonParam(input.practiceDefaultModels));
         if (input.agentSkills !== undefined) add("agent_skills", jsonParam(input.agentSkills));
         if (input.freeDailyPoints !== undefined) add("free_daily_points", input.freeDailyPoints);
         if (!assignments.length) throw new Error("Settings update requires at least one field");
@@ -253,8 +258,8 @@ class SettingsRepository {
     async upsertSystemModelChannel(channel: Omit<SystemModelChannelRecord, "createdAt" | "updatedAt">) {
         const result = await this.db.query(
             `
-            INSERT INTO system_model_channels (id, name, base_url, api_key_ciphertext, webhook_secret_ciphertext, api_format, models, enabled, advanced_config, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            INSERT INTO system_model_channels (id, name, base_url, api_key_ciphertext, webhook_secret_ciphertext, api_format, models, enabled, advanced_config, sort_order, purpose)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name,
                 base_url = EXCLUDED.base_url,
@@ -263,11 +268,24 @@ class SettingsRepository {
                 api_format = EXCLUDED.api_format,
                 models = EXCLUDED.models,
                 enabled = EXCLUDED.enabled,
+                purpose = EXCLUDED.purpose,
                 advanced_config = EXCLUDED.advanced_config,
                 sort_order = EXCLUDED.sort_order
             RETURNING *
             `,
-            [channel.id, channel.name, channel.baseUrl, channel.apiKeyCiphertext, channel.webhookSecretCiphertext, channel.apiFormat, jsonParam(channel.models), channel.enabled, jsonParam(channel.advancedConfig), channel.sortOrder],
+            [
+                channel.id,
+                channel.name,
+                channel.baseUrl,
+                channel.apiKeyCiphertext,
+                channel.webhookSecretCiphertext,
+                channel.apiFormat,
+                jsonParam(channel.models),
+                channel.enabled,
+                jsonParam(channel.advancedConfig),
+                channel.sortOrder,
+                channel.purpose || "shared",
+            ],
         );
         return mapSystemModelChannel(result.rows[0]);
     }
@@ -299,6 +317,7 @@ function mapSettings(row: Record<string, unknown>): AppSettingsRecord {
         paymentConfig: jsonValue(row.payment_config),
         logicalModels: jsonValue(row.logical_models),
         defaultModels: jsonValue(row.default_models),
+        practiceDefaultModels: jsonValue(row.practice_default_models),
         agentSkills: jsonValue(row.agent_skills),
         createdAt: isoValue(row.created_at),
         updatedAt: isoValue(row.updated_at),
@@ -329,6 +348,7 @@ function mapSystemModelChannel(row: Record<string, unknown>): SystemModelChannel
         apiFormat: row.api_format === "gemini" ? "gemini" : "openai",
         models: jsonValue(row.models),
         enabled: row.enabled !== false,
+        purpose: row.purpose === "production" || row.purpose === "open-source-practice" ? row.purpose : "shared",
         advancedConfig: optionalJson(row.advanced_config),
         sortOrder: numberValue(row.sort_order),
         createdAt: isoValue(row.created_at),

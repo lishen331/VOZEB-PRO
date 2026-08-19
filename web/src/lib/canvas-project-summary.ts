@@ -10,5 +10,7 @@ export function summarizeCanvasProjectRecord(project: CanvasProject): CanvasProj
         connectionCount: project.connections.length,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
+        executionProfile: project.executionProfile,
+        practiceSource: project.practiceSource,
     };
 }

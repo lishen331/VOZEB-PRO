@@ -54,6 +54,10 @@ export function mapPublishedWorkVersion(row: Record<string, unknown>, prefix = "
         reviewedByUserId: optionalString(value("reviewed_by_user_id")),
         moderationProvider: optionalString(value("moderation_provider")),
         moderationSignal: value("moderation_signal") == null ? undefined : jsonValue(value("moderation_signal")),
+        pullFilmEnabled: value("pull_film_enabled") === true,
+        pullFilmSnapshot: value("pull_film_snapshot") == null ? undefined : jsonValue(value("pull_film_snapshot")),
+        pullFilmEnabledAt: optionalIso(value("pull_film_enabled_at")),
+        pullFilmEnabledByUserId: optionalString(value("pull_film_enabled_by_user_id")),
         createdAt: isoValue(value("created_at")),
         updatedAt: isoValue(value("updated_at")),
     };
@@ -87,15 +91,20 @@ export function mapPublishedWorkSummary(row: Record<string, unknown>): Published
 export function mapPublishedGalleryItem(row: Record<string, unknown>): PublishedGalleryItemRecord {
     const tags = jsonValue(row.tags);
     const mediaType = row.asset_media_type;
+    const sourceType = row.source_type === "canvas" || row.source_type === "drama" ? row.source_type : "media";
+    const versionId = stringValue(row.version_id);
+    const hasProcess = sourceType !== "media" && row.pull_film_enabled === true;
     return {
         workId: stringValue(row.work_id),
-        versionId: stringValue(row.version_id),
+        versionId,
         authorUserId: stringValue(row.author_user_id || row.owner_user_id),
         slug: stringValue(row.slug),
-        sourceType: row.source_type === "canvas" || row.source_type === "drama" ? row.source_type : "media",
+        sourceType,
         viewCount: numberValue(row.view_count),
         likeCount: numberValue(row.like_count),
         isFeatured: Boolean(row.is_featured),
+        hasProcess,
+        processVersionId: hasProcess ? versionId : undefined,
         featuredAt: optionalIso(row.featured_at),
         publishedAt: isoValue(row.published_at),
         title: stringValue(row.title),

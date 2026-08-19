@@ -3,6 +3,7 @@ import { channelModelCapability, resolveLogicalModelCapabilityProfile } from "@/
 import { channelSupportsModel, rawModelName } from "./generation-channel";
 import { filterHealthyRuntimeCandidates } from "./channel-runtime-health";
 import { channelConnectionReady } from "@/lib/channel-protocol-registry";
+import { resolvePracticeModelAccess, type PracticeExecutionProfile } from "@/lib/practice-domain";
 
 export type ResolvedLogicalModel = {
     logicalModelId: string;
@@ -12,11 +13,23 @@ export type ResolvedLogicalModel = {
     capabilityProfile?: ReturnType<typeof resolveLogicalModelCapabilityProfile>;
 };
 
-export function resolveLogicalModel(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, capability: LogicalModelCapability, requestedModelId: string, preferredChannelId = ""): ResolvedLogicalModel | null {
-    return resolveLogicalModelCandidates(settings, capability, requestedModelId, preferredChannelId)[0] || null;
+export function resolveLogicalModel(
+    settings: Pick<AuthSettings, "logicalModels" | "systemChannels">,
+    capability: LogicalModelCapability,
+    requestedModelId: string,
+    preferredChannelId = "",
+    executionProfile: PracticeExecutionProfile = "production",
+): ResolvedLogicalModel | null {
+    return resolveLogicalModelCandidates(settings, capability, requestedModelId, preferredChannelId, executionProfile)[0] || null;
 }
 
-export function resolveLogicalModelCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, capability: LogicalModelCapability, requestedModelId: string, preferredChannelId = ""): ResolvedLogicalModel[] {
+export function resolveLogicalModelCandidates(
+    settings: Pick<AuthSettings, "logicalModels" | "systemChannels">,
+    capability: LogicalModelCapability,
+    requestedModelId: string,
+    preferredChannelId = "",
+    executionProfile: PracticeExecutionProfile = "production",
+): ResolvedLogicalModel[] {
     const requested = rawModelName(requestedModelId);
     if (!requested) return [];
     const logical = settings.logicalModels.find((model) => model.enabled && model.capability === capability && model.id.toLowerCase() === requested.toLowerCase());
@@ -25,7 +38,9 @@ export function resolveLogicalModelCandidates(settings: Pick<AuthSettings, "logi
         const preferred = preferredChannelId ? bindings.find((binding) => binding.channelId === preferredChannelId) : undefined;
         const resolved: ResolvedLogicalModel[] = [];
         for (const binding of preferred ? [preferred, ...bindings.filter((item) => item !== preferred)] : bindings) {
-            const channel = settings.systemChannels.find((item) => item.id === binding.channelId && item.enabled && channelConnectionReady(item) && channelSupportsModel(item.models, binding.upstreamModel));
+            const channel = settings.systemChannels.find(
+                (item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item.models, binding.upstreamModel),
+            );
             if (channel) resolved.push({ logicalModelId: logical.id, upstreamModel: binding.upstreamModel, channelId: channel.id, channel, capabilityProfile: resolveLogicalModelCapabilityProfile(binding, capability, channel, binding.upstreamModel) });
         }
         // Text planning tracks health per channel + upstream model in
@@ -36,7 +51,7 @@ export function resolveLogicalModelCandidates(settings: Pick<AuthSettings, "logi
     if (settings.logicalModels.length) return [];
     const ordered = preferredChannelId ? [...settings.systemChannels.filter((channel) => channel.id === preferredChannelId), ...settings.systemChannels.filter((channel) => channel.id !== preferredChannelId)] : settings.systemChannels;
     const resolved = ordered
-        .filter((item) => item.enabled && channelConnectionReady(item) && channelSupportsModel(item.models, requested) && channelModelCapability(item, requested) === capability)
+        .filter((item) => item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item.models, requested) && channelModelCapability(item, requested) === capability)
         .map((channel) => ({ logicalModelId: requested, upstreamModel: requested, channelId: channel.id, channel, capabilityProfile: resolveLogicalModelCapabilityProfile({}, capability, channel, requested) }));
     return capability === "text" ? resolved : filterHealthyRuntimeCandidates(resolved, capability);
 }
