@@ -2,13 +2,15 @@ import { randomUUID } from "node:crypto";
 
 import type { LogicalModelCapabilityProfile, SystemChannelAdvancedConfig } from "@/lib/auth/store";
 import type { AiTextMessage } from "@/types/ai";
-import { createStoredGenerationTask, getStoredGenerationTask, mutateStoredGenerationTask, touchStoredGenerationTask, transitionStoredGenerationTask } from "@/lib/server/generation-task-store";
+import { createStoredGenerationTask, getStoredGenerationTask, mutateStoredGenerationTask, touchStoredGenerationTask, transitionStoredGenerationTask, type GenerationTaskContext } from "@/lib/server/generation-task-store";
 import type { GenerationAttempt } from "@/lib/server/generation-attempt";
 import { GENERATION_TASK_RETENTION_MS } from "@/lib/server/generation-task-retention";
+import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 
 type TextTaskStatus = "pending" | "running" | "success" | "error" | "cancelled";
 
 export type TextTaskConfig = {
+    executionProfile?: PracticeExecutionProfile;
     apiSource?: "system" | "custom";
     baseUrl: string;
     apiKey: string;
@@ -21,7 +23,7 @@ export type TextTaskConfig = {
     systemPrompt?: string;
 };
 
-export type TextTask = {
+export type TextTask = GenerationTaskContext & {
     id: string;
     userId: string;
     status: TextTaskStatus;
@@ -43,6 +45,7 @@ export async function createTextTask(input: Omit<TextTask, "id" | "status" | "cr
     const now = Date.now();
     const task: TextTask = {
         ...input,
+        config: { ...input.config, executionProfile: input.executionProfile || input.config.executionProfile },
         id: randomUUID(),
         status: "pending",
         createdAt: now,

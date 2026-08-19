@@ -1153,6 +1153,7 @@ test("creative workspaces remain usable without horizontal overflow in light and
             await page.keyboard.press("Escape");
             await agentSurface.getByRole("button", { name: "收起项目 Agent" }).click();
             await expect(page.getByRole("button", { name: "打开项目 Agent", exact: true })).toBeVisible();
+            await expect(page.getByRole("dialog", { name: "项目 Agent", exact: true })).toBeHidden();
         }
         if (route === canvasRoute) {
             await expect(page.locator("[data-canvas-surface]")).toHaveCSS("background-color", "rgb(255, 255, 255)");

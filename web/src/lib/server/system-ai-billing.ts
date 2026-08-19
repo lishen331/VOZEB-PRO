@@ -1,9 +1,11 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 
 export const SYSTEM_AI_LOGICAL_MODEL_HEADER = "x-vozeb-pro-logical-model";
 export const SYSTEM_AI_POINTS_IDEMPOTENCY_HEADER = "x-vozeb-pro-points-idempotency-key";
 export const SYSTEM_AI_POINTS_SIGNATURE_HEADER = "x-vozeb-pro-points-signature";
 export const SYSTEM_AI_UPSTREAM_MODEL_HEADER = "x-vozeb-pro-upstream-model";
+export const SYSTEM_AI_EXECUTION_PROFILE_HEADER = "x-vozeb-pro-execution-profile";
 
 const SYSTEM_AI_POINTS_SIGNATURE_VERSION = "v1";
 const SYSTEM_AI_POINTS_PROCESS_SECRET = "__vozebProSystemAiPointsProcessSecret" as const;
@@ -13,7 +15,7 @@ export type SystemAiBilling = {
     pointsRecordId?: string;
 };
 
-export function systemAiBillingHeaders(logicalModel: string, idempotencyKey?: string, upstreamModel?: string) {
+export function systemAiBillingHeaders(logicalModel: string, idempotencyKey?: string, upstreamModel?: string, executionProfile: PracticeExecutionProfile = "production") {
     const normalizedLogicalModel = logicalModel.trim();
     const normalizedIdempotencyKey = idempotencyKey?.trim();
     const normalizedUpstreamModel = upstreamModel?.trim();
@@ -22,18 +24,23 @@ export function systemAiBillingHeaders(logicalModel: string, idempotencyKey?: st
         ...(normalizedIdempotencyKey
             ? {
                   [SYSTEM_AI_POINTS_IDEMPOTENCY_HEADER]: normalizedIdempotencyKey,
-                  [SYSTEM_AI_POINTS_SIGNATURE_HEADER]: signSystemAiBusinessRequest(normalizedLogicalModel, normalizedIdempotencyKey, normalizedUpstreamModel || ""),
+                  [SYSTEM_AI_POINTS_SIGNATURE_HEADER]: signSystemAiBusinessRequest(normalizedLogicalModel, normalizedIdempotencyKey, normalizedUpstreamModel || "", executionProfile),
               }
             : {}),
         ...(normalizedUpstreamModel ? { [SYSTEM_AI_UPSTREAM_MODEL_HEADER]: normalizedUpstreamModel } : {}),
+        ...(executionProfile === "open-source-practice" ? { [SYSTEM_AI_EXECUTION_PROFILE_HEADER]: executionProfile } : {}),
     };
 }
 
-export function readVerifiedSystemAiBusinessRequestId(headers: Headers, logicalModel: string, upstreamModel: string) {
+export function readVerifiedSystemAiBusinessRequestId(headers: Headers, logicalModel: string, upstreamModel: string, executionProfile?: PracticeExecutionProfile) {
     const businessRequestId = headers.get(SYSTEM_AI_POINTS_IDEMPOTENCY_HEADER)?.trim().slice(0, 200) || "";
     const signature = headers.get(SYSTEM_AI_POINTS_SIGNATURE_HEADER)?.trim() || "";
     if (!businessRequestId || !signature) return undefined;
-    const expected = signSystemAiBusinessRequest(logicalModel.trim(), businessRequestId, upstreamModel.trim());
+    const headerProfile = headers.get(SYSTEM_AI_EXECUTION_PROFILE_HEADER)?.trim() || "production";
+    if (headerProfile !== "production" && headerProfile !== "open-source-practice") return undefined;
+    if (executionProfile && headerProfile !== executionProfile) return undefined;
+    const requestedProfile = executionProfile || headerProfile;
+    const expected = signSystemAiBusinessRequest(logicalModel.trim(), businessRequestId, upstreamModel.trim(), requestedProfile);
     const receivedBytes = Buffer.from(signature);
     const expectedBytes = Buffer.from(expected);
     if (receivedBytes.length !== expectedBytes.length || !timingSafeEqual(receivedBytes, expectedBytes)) return undefined;
@@ -58,9 +65,9 @@ export function systemAiIdempotencyKey(scope: string, ...parts: string[]) {
     return `${prefix}:${digest}`;
 }
 
-function signSystemAiBusinessRequest(logicalModel: string, businessRequestId: string, upstreamModel: string) {
+function signSystemAiBusinessRequest(logicalModel: string, businessRequestId: string, upstreamModel: string, executionProfile: PracticeExecutionProfile = "production") {
     return createHmac("sha256", systemAiPointsSigningSecret())
-        .update([SYSTEM_AI_POINTS_SIGNATURE_VERSION, normalizeBillingModel(logicalModel), businessRequestId, normalizeBillingModel(upstreamModel)].join("\0"))
+        .update([SYSTEM_AI_POINTS_SIGNATURE_VERSION, normalizeBillingModel(logicalModel), businessRequestId, normalizeBillingModel(upstreamModel), executionProfile].join("\0"))
         .digest("base64url");
 }
 

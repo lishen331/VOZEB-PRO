@@ -4,10 +4,10 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Modal } from "antd";
-import { ArrowRight, GalleryVerticalEnd, ImageOff, Play, RotateCw } from "lucide-react";
+import { ArrowRight, Film, GalleryVerticalEnd, ImageOff, Play, RotateCw } from "lucide-react";
 
 import { LazyMediaImage } from "@/components/media/lazy-media-image";
+import { PublicWorkPreviewModal } from "@/components/works/public-work-preview-modal";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { listPublicGallery, type PublicGalleryItem } from "@/services/api/work-governance";
 import { HOME_GALLERY_TABS, homeGalleryMatches, type HomeGalleryTab } from "./home-data";
@@ -15,7 +15,7 @@ import styles from "./home.module.css";
 
 export function HomeGallery() {
     const [tab, setTab] = useState<HomeGalleryTab>("all");
-    const [previewItem, setPreviewItem] = useState<PublicGalleryItem>();
+    const [previewSlug, setPreviewSlug] = useState("");
     const query = useQuery({
         queryKey: ["home-public-gallery", "random"],
         queryFn: () => listPublicGallery({ limit: 18, sort: "random" }),
@@ -59,7 +59,7 @@ export function HomeGallery() {
                 ) : items.length ? (
                     <div className={styles.galleryGrid} data-testid="home-public-gallery">
                         {items.map((item) => (
-                            <HomeWorkCard key={item.slug} item={item} onPreview={() => setPreviewItem(item)} />
+                            <HomeWorkCard key={item.slug} item={item} onPreview={() => setPreviewSlug(item.slug)} />
                         ))}
                     </div>
                 ) : (
@@ -76,7 +76,7 @@ export function HomeGallery() {
                     查看更多作品 <ArrowRight aria-hidden="true" />
                 </Link>
             </div>
-            <HomeMediaPreview item={previewItem} onClose={() => setPreviewItem(undefined)} />
+            <PublicWorkPreviewModal slug={previewSlug || undefined} onClose={() => setPreviewSlug("")} />
         </section>
     );
 }
@@ -105,31 +105,16 @@ function HomeWorkCard({ item, onPreview }: { item: PublicGalleryItem; onPreview:
                     </span>
                 ) : null}
                 {preview?.mediaType === "video" && duration > 0 ? <span className={styles.duration}>{formatDuration(duration)}</span> : null}
+                {item.hasProcess ? (
+                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-cyan-50 px-2 py-1 text-[11px] font-medium text-cyan-800 shadow-sm dark:bg-cyan-950/85 dark:text-cyan-200">
+                        <Film className="size-3" /> 制作流程
+                    </span>
+                ) : null}
                 <span className={styles.workBody} data-gallery-work-body>
                     <span className={styles.workTitle}>{item.title}</span>
                 </span>
             </button>
         </article>
-    );
-}
-
-function HomeMediaPreview({ item, onClose }: { item?: PublicGalleryItem; onClose: () => void }) {
-    const preview = item?.preview;
-    const supported = preview?.mediaType === "image" || preview?.mediaType === "video";
-    return (
-        <Modal
-            open={Boolean(item && supported)}
-            onCancel={onClose}
-            footer={null}
-            centered
-            width="auto"
-            destroyOnHidden
-            title={null}
-            styles={{ container: { padding: 0, overflow: "hidden" }, body: { padding: 0, display: "flex", justifyContent: "center", alignItems: "center", maxHeight: "88dvh" } }}
-        >
-            {item && preview?.mediaType === "image" ? <img src={imagePreviewUrl(preview.url, 1920)} alt={item.title} className="block max-h-[88dvh] max-w-[min(92vw,1440px)] object-contain" /> : null}
-            {item && preview?.mediaType === "video" ? <video src={preview.url} aria-label={item.title} className="block max-h-[88dvh] max-w-[min(92vw,1440px)] object-contain" controls autoPlay playsInline /> : null}
-        </Modal>
     );
 }
 

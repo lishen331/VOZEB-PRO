@@ -368,6 +368,8 @@ export async function getPublicWorkPublication(slugValue: unknown) {
         category: work.publishedVersion.category,
         tags: work.publishedVersion.tags,
         visibility: work.publishedVersion.visibility,
+        hasProcess: work.sourceType !== "media" && work.publishedVersion.pullFilmEnabled === true,
+        processVersionId: work.sourceType !== "media" && work.publishedVersion.pullFilmEnabled === true ? work.publishedVersion.id : undefined,
         authorName: work.publishedVersion.authorDisplay === "hidden" ? undefined : work.publishedVersion.authorName,
         authorUsername: work.publishedVersion.authorDisplay === "profile" ? work.ownerUsername : undefined,
         authorAvatarUrl: work.publishedVersion.authorDisplay === "profile" && work.ownerUsername && work.ownerAvatarStorageKey ? userAvatarUrl(work.ownerUsername, work.ownerAvatarUpdatedAt) : undefined,

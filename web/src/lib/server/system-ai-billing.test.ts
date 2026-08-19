@@ -26,6 +26,15 @@ describe("system AI billing helpers", () => {
         expect(readVerifiedSystemAiBusinessRequestId(headers, "planner", "vendor-text")).toBeUndefined();
     });
 
+    it("binds the execution profile to the signed internal request", () => {
+        const headers = new Headers(systemAiBillingHeaders("writer", "practice-one", "vendor-text", "open-source-practice"));
+        expect(readVerifiedSystemAiBusinessRequestId(headers, "writer", "vendor-text", "open-source-practice")).toBe("practice-one");
+        expect(readVerifiedSystemAiBusinessRequestId(headers, "writer", "vendor-text", "production")).toBeUndefined();
+        const forged = new Headers(systemAiBillingHeaders("writer", "practice-one", "vendor-text"));
+        forged.set("x-vozeb-pro-execution-profile", "open-source-practice");
+        expect(readVerifiedSystemAiBusinessRequestId(forged, "writer", "vendor-text")).toBeUndefined();
+    });
+
     it("binds the local billing key and request fingerprint to separate identities", () => {
         const identity = { userId: "user-one", businessRequestId: "task-one", logicalModel: "writer", channelId: "channel-one", upstreamModel: "vendor-text", callType: "text:create:/chat/completions" };
         const firstKey = systemAiPointsIdempotencyKey(identity);

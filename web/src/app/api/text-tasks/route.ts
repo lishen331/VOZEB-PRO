@@ -4,6 +4,7 @@ import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
+import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
@@ -20,6 +21,7 @@ export const maxDuration = 2400;
 type CreateTextTaskBody = {
     config?: TextTaskConfig;
     messages?: AiTextMessage[];
+    context?: import("@/lib/server/generation-task-types").GenerationTaskContext;
 };
 
 export async function POST(request: Request) {
@@ -36,11 +38,14 @@ export async function POST(request: Request) {
             if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
-        const configs = sanitizeConfigs(body.config, settings);
+        const trustedPractice = isTrustedPracticeTaskRequest(request, currentUser.id, body.context);
+        if (hasUntrustedExecutionProfile(body) && !trustedPractice) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
+        const executionProfile = trustedPractice ? "open-source-practice" : "production";
+        const configs = sanitizeConfigs(body.config, settings, executionProfile);
         const messages = sanitizeMessages(body.messages);
         if (!configs.length || !messages.length) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
 
-        const task = await createTextTask({ userId: currentUser.id, config: configs[0], candidateConfigs: configs.slice(1), messages });
+        const task = await createTextTask({ ...(body.context || {}), userId: currentUser.id, config: configs[0], candidateConfigs: configs.slice(1), messages });
         const cookie = request.headers.get("cookie") || "";
         const origin = resolveInternalOrigin(new URL(request.url).origin);
         await scheduleGenerationTask("text", task.id, { executionPhase: "created", channelId: task.config.channelId, provider: task.config.advancedConfig?.protocol || task.config.apiFormat, nextPollAt: Date.now(), lastUpstreamStatus: "created" });
@@ -54,9 +59,9 @@ function publicTask(task: TextTask) {
     return { id: task.id, status: task.status, model: generationModelId(task.config), result: task.result, error: task.error };
 }
 
-function sanitizeConfigs(config: TextTaskConfig | undefined, settings: Awaited<ReturnType<typeof getAuthSettings>>): TextTaskConfig[] {
-    const requestedModel = config?.model || settings.defaultModels.textModel;
-    return resolveLogicalModelCandidates(settings, "text", requestedModel).map((resolved) => ({ ...toSystemGenerationChannel(resolved), channelId: resolved.channelId, systemPrompt: "" }));
+function sanitizeConfigs(config: TextTaskConfig | undefined, settings: Awaited<ReturnType<typeof getAuthSettings>>, executionProfile: "production" | "open-source-practice" = "production"): TextTaskConfig[] {
+    const requestedModel = config?.model || (executionProfile === "open-source-practice" ? settings.practiceDefaultModels.textModel : settings.defaultModels.textModel);
+    return resolveLogicalModelCandidates(settings, "text", requestedModel, "", executionProfile).map((resolved) => ({ ...toSystemGenerationChannel(resolved), channelId: resolved.channelId, systemPrompt: "", executionProfile }));
 }
 
 function sanitizeMessages(messages?: AiTextMessage[]) {

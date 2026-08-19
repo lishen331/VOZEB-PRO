@@ -21,6 +21,7 @@ import {
     cleanupExpiredStoredGenerationTasks,
     createStoredGenerationTask,
     getStoredGenerationTask,
+    getStoredGenerationTaskRecord,
     getStoredGenerationTaskByRequest,
     getStoredGenerationTaskByUpstream,
     generationTaskPointsCost,
@@ -170,6 +171,16 @@ describe("mutateStoredGenerationTask", () => {
         await expect(getStoredGenerationTaskByRequest<{ id: string }>("video", "user", "request-one", 1)).resolves.toMatchObject({ id: "video-one" });
         await expect(getStoredGenerationTaskByRequest<{ id: string }>("video", "user", "request-one", 2)).resolves.toMatchObject({ id: "video-retry" });
         await expect(getStoredGenerationTaskByRequest<{ id: string }>("video", "user", "request-one", 3)).resolves.toBeNull();
+    });
+
+    it("persists the immutable execution profile and defaults legacy tasks to production", async () => {
+        mocks.records = [];
+        const now = Date.now();
+        await createStoredGenerationTask("image", { id: "practice-image", userId: "user", status: "pending", surface: "canvas", executionProfile: "open-source-practice", createdAt: now, updatedAt: now }, 60_000);
+        await createStoredGenerationTask("image", { id: "production-image", userId: "user", status: "pending", createdAt: now, updatedAt: now }, 60_000);
+
+        await expect(getStoredGenerationTaskRecord("image", "practice-image")).resolves.toMatchObject({ surface: "canvas", executionProfile: "open-source-practice" });
+        await expect(getStoredGenerationTaskRecord("image", "production-image")).resolves.toMatchObject({ executionProfile: "production" });
     });
 
     it("finds only the current user's exact channel task identity", async () => {

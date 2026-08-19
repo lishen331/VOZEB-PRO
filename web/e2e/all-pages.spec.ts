@@ -11,9 +11,23 @@ const BASE_URL = `http://127.0.0.1:${Number(process.env.VOZEB_PRO_E2E_PORT || 31
 const USES_POSTGRES = Boolean(process.env.VOZEB_PRO_E2E_DATABASE_URL?.trim());
 const FILE_PROVIDER_LIMITATIONS = new Map([
     ["/api/public/gallery", 409],
+    ["/api/works", 409],
+    ["/api/admin/works", 409],
+    ["/api/community/activity", 409],
     ["/api/notifications/interactions", 409],
-    ["/api/admin/referrals", 501],
+    ["/api/admin/billing/coupon-templates", 501],
+    ["/api/admin/billing/orders", 501],
+    ["/api/admin/billing/products", 501],
+    ["/api/admin/billing/promotions", 501],
+    ["/api/admin/billing/reconciliation", 501],
     ["/api/admin/billing/summary", 501],
+    ["/api/billing/products", 501],
+    ["/api/billing/coupons", 501],
+    ["/api/billing/orders", 501],
+    ["/api/referrals", 501],
+    ["/api/admin/referrals", 501],
+    ["/api/admin/referrals/relationships", 501],
+    ["/api/admin/referrals/rewards", 501],
 ]);
 
 type RouteCase = { path: string; expectedPath?: RegExp; expectedStatus?: number; readyHeading?: string; readyText?: string };
@@ -34,8 +48,10 @@ test("all authenticated pages reach their real routes and stay usable", async ({
         { path: `/canvas/${fixtures.canvasId}` },
         { path: "/drama", readyHeading: "短剧项目" },
         { path: `/drama/${fixtures.dramaId}` },
+        { path: "/practice", expectedPath: /\/create$/ },
         { path: "/works", readyHeading: "作品管理" },
         { path: "/assets", readyHeading: "我的素材" },
+        { path: "/school/join", readyHeading: "加入学校" },
         { path: "/my-prompts", readyHeading: "我的提示词" },
         { path: "/prompts", readyHeading: "提示词库" },
         { path: "/help", readyHeading: "从操作到交付，按真实流程完成创作" },
@@ -141,7 +157,18 @@ async function verifyRoute(page: Page, route: RouteCase, label: string) {
             response
                 .text()
                 .then((body) => apiFailures.push({ status: response.status(), path: url.pathname, body }))
-                .catch(() => apiFailures.push({ status: response.status(), path: url.pathname, body: "<unreadable>" })),
+                .catch(async () => {
+                    let body = "<unreadable>";
+                    if (response.request().method() === "GET") {
+                        try {
+                            const retry = await page.context().request.get(response.url());
+                            if (retry.status() === response.status()) body = await retry.text();
+                        } catch {
+                            // The response may be disposed during a route transition; keep the exact path/status evidence.
+                        }
+                    }
+                    apiFailures.push({ status: response.status(), path: url.pathname, body });
+                }),
         );
     };
     page.on("pageerror", onPageError);
@@ -179,7 +206,8 @@ async function verifyRoute(page: Page, route: RouteCase, label: string) {
 function isExpectedFileProviderLimitation(failure: ApiFailure) {
     if (failure.status === 404 && failure.path === `/api/public/users/${E2E_ADMIN.username}`) return failure.body.includes("创作者主页不存在");
     if (USES_POSTGRES || (failure.status !== 409 && failure.status !== 501)) return false;
-    return failure.body.includes("需要启用 PostgreSQL") || FILE_PROVIDER_LIMITATIONS.get(failure.path) === failure.status;
+    if (failure.status === 409 && failure.path.startsWith("/api/public/users/")) return failure.body.includes("社区互动需要启用 PostgreSQL");
+    return FILE_PROVIDER_LIMITATIONS.get(failure.path) === failure.status && failure.body.includes("需要启用 PostgreSQL");
 }
 
 function withoutExpectedResourceErrors(consoleErrors: string[], expectedLimitations: ApiFailure[], expectedDocumentStatus?: number) {

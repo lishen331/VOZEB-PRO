@@ -385,6 +385,8 @@ describe("work publication service", () => {
                 visibility: "public",
                 authorDisplay: "profile",
                 authorName: "作者",
+                pullFilmEnabled: true,
+                pullFilmSnapshot: { privatePrompt: "不得公开" },
                 updatedAt: now,
             },
             assets: [{ id: "asset-one", storageKey: ownedImage.storageKey, mediaType: "image", mimeType: "image/png", role: "content", sortOrder: 0, metadata: {}, createdAt: now }],
@@ -394,8 +396,10 @@ describe("work publication service", () => {
         const serialized = JSON.stringify(result);
 
         expect(result.assets[0]?.url).toBe("/api/public/works/publicwork123/media/asset-one");
+        expect(result).toMatchObject({ hasProcess: true, processVersionId: "version-one" });
         expect(serialized).not.toContain("user-one");
         expect(serialized).not.toContain("private-canvas-id");
         expect(serialized).not.toContain(ownedImage.storageKey);
+        expect(serialized).not.toContain("privatePrompt");
     });
 });

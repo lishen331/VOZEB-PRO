@@ -3,15 +3,19 @@ import { normalizeDramaImageSize } from "@/lib/drama-image-size";
 import { summarizeDramaProject } from "@/lib/drama-project-summary";
 import { readJsonDataFile, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery } from "@/lib/server/database";
+import type { PracticeExecutionProfile, PracticeSource } from "@/lib/practice-domain";
 
-type DramaProjectRecord = { userId: string; project: DramaProject };
+export type DramaProjectIdentityInput = { executionProfile?: PracticeExecutionProfile; practiceSource?: PracticeSource };
+export type DramaProjectIdentityView = { executionProfile: PracticeExecutionProfile; practiceSource: PracticeSource };
+type DramaProjectRecord = { userId: string; project: DramaProject; executionProfile?: PracticeExecutionProfile; practiceSourceWorkId?: string; practiceSourceVersionId?: string };
 type DramaProjectDatabase = { version: 1; projects: DramaProjectRecord[] };
 
 const FILE_NAME = "drama-projects.json";
 
-export async function listDramaProjectSummaries(userId: string, input: { page?: number; pageSize?: number } = {}): Promise<DramaProjectSummaryPage> {
+export async function listDramaProjectSummaries(userId: string, input: { page?: number; pageSize?: number; executionProfile?: PracticeExecutionProfile } = {}): Promise<DramaProjectSummaryPage> {
     const page = Math.max(1, Math.floor(Number(input.page) || 1));
     const pageSize = Math.max(1, Math.min(100, Math.floor(Number(input.pageSize) || 20)));
+    const profileClause = input.executionProfile ? " AND project.execution_profile = $4" : "";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<DramaProjectSummaryRow>(
@@ -30,7 +34,10 @@ export async function listDramaProjectSummaries(userId: string, input: { page?: 
                 COALESCE(tasks.failed_task_count, 0) AS failed_task_count,
                 COUNT(*) OVER() AS total_count,
                 project.created_at,
-                project.updated_at
+                project.updated_at,
+                project.execution_profile,
+                project.practice_source_work_id,
+                project.practice_source_version_id
              FROM drama_projects project
              LEFT JOIN LATERAL (
                 SELECT
@@ -50,16 +57,16 @@ export async function listDramaProjectSummaries(userId: string, input: { page?: 
                 FROM jsonb_array_elements(COALESCE(project.project_json->'episodes', '[]'::jsonb)) episode
                 CROSS JOIN LATERAL jsonb_array_elements(COALESCE(episode->'shots', '[]'::jsonb)) shot
              ) tasks ON TRUE
-             WHERE project.user_id = $1
+             WHERE project.user_id = $1${profileClause}
              ORDER BY project.updated_at DESC
              LIMIT $2 OFFSET $3`,
-            [userId, pageSize, (page - 1) * pageSize],
+            input.executionProfile ? [userId, pageSize, (page - 1) * pageSize, input.executionProfile] : [userId, pageSize, (page - 1) * pageSize],
         );
         return { items: result.rows.map(summaryFromRow), total: Number(result.rows[0]?.total_count) || 0, page, pageSize };
     }
     const summaries = (await readDatabase()).projects
-        .filter((record) => record.userId === userId)
-        .map((record) => summarizeDramaProject(record.project))
+        .filter((record) => record.userId === userId && (!input.executionProfile || record.executionProfile === input.executionProfile))
+        .map((record) => ({ ...summarizeDramaProject(record.project), ...identityView(record) }))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return { items: summaries.slice((page - 1) * pageSize, page * pageSize), total: summaries.length, page, pageSize };
 }
@@ -70,36 +77,44 @@ export async function findDramaProjectBySourceHandoffId(userId: string, sourceHa
         const result = await postgresQuery<{ project_json: DramaProject }>("SELECT project_json FROM drama_projects WHERE user_id = $1 AND project_json->>'sourceHandoffId' = $2 LIMIT 1", [userId, sourceHandoffId]);
         return result.rows[0]?.project_json || null;
     }
-    return (await readDatabase()).projects.find((record) => record.userId === userId && record.project.sourceHandoffId === sourceHandoffId)?.project || null;
+    const record = (await readDatabase()).projects.find((item) => item.userId === userId && item.project.sourceHandoffId === sourceHandoffId);
+    return record ? toPublicProject(record.project, record) : null;
 }
 
 export async function getDramaProject(id: string, userId: string) {
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<{ project_json: DramaProject }>("SELECT project_json FROM drama_projects WHERE id = $1 AND user_id = $2", [id, userId]);
-        return result.rows[0]?.project_json || null;
+        const result = await postgresQuery<{ project_json: DramaProject; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }>(
+            "SELECT project_json, execution_profile, practice_source_work_id, practice_source_version_id FROM drama_projects WHERE id = $1 AND user_id = $2",
+            [id, userId],
+        );
+        return result.rows[0] ? toPublicProject(result.rows[0].project_json, result.rows[0]) : null;
     }
-    return (await readDatabase()).projects.find((record) => record.userId === userId && record.project.id === id)?.project || null;
+    const record = (await readDatabase()).projects.find((item) => item.userId === userId && item.project.id === id);
+    return record ? toPublicProject(record.project, record) : null;
 }
 
-export async function createDramaProject(userId: string, project: DramaProject) {
+export async function createDramaProject(userId: string, project: DramaProject, identity: DramaProjectIdentityInput = {}) {
+    const metadata = normalizeIdentity(identity);
+    const storedProject = stripProjectIdentity(project);
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         await postgresQuery(
-            `INSERT INTO drama_projects (id, user_id, title, status, project_json, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)`,
-            [project.id, userId, project.title, project.status, JSON.stringify(project), new Date(project.createdAt), new Date(project.updatedAt)],
+            `INSERT INTO drama_projects (id, user_id, title, status, project_json, execution_profile, practice_source_work_id, practice_source_version_id, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10)`,
+            [project.id, userId, project.title, project.status, JSON.stringify(storedProject), metadata.executionProfile, metadata.practiceSourceWorkId, metadata.practiceSourceVersionId, new Date(project.createdAt), new Date(project.updatedAt)],
         );
-        return project;
+        return withIdentity(project, metadata);
     }
     await mutateDatabase((db) => {
         if (db.projects.some((record) => record.project.id === project.id)) throw new DramaProjectStoreError("短剧项目已存在", 409);
-        return { ...db, projects: [{ userId, project }, ...db.projects] };
+        return { ...db, projects: [{ userId, project: storedProject, ...metadata }, ...db.projects] };
     });
-    return project;
+    return withIdentity(project, metadata);
 }
 
 export async function updateDramaProject(userId: string, project: DramaProject, expectedUpdatedAt?: string) {
+    const storedProject = stripProjectIdentity(project);
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery(
@@ -107,7 +122,7 @@ export async function updateDramaProject(userId: string, project: DramaProject, 
              WHERE id = $1 AND user_id = $2
                AND ($7::text IS NULL OR project_json->>'updatedAt' = $7)
              RETURNING id`,
-            [project.id, userId, project.title, project.status, JSON.stringify(project), new Date(project.updatedAt), expectedUpdatedAt || null],
+            [project.id, userId, project.title, project.status, JSON.stringify(storedProject), new Date(project.updatedAt), expectedUpdatedAt || null],
         );
         if (!result.rows[0]) {
             const existing = await getDramaProject(project.id, userId);
@@ -122,7 +137,7 @@ export async function updateDramaProject(userId: string, project: DramaProject, 
             if (record.userId !== userId || record.project.id !== project.id) return record;
             found = true;
             if (expectedUpdatedAt && record.project.updatedAt !== expectedUpdatedAt) throw new DramaProjectStoreError("短剧项目已在其他页面更新，请刷新后重试", 409);
-            return { ...record, project };
+            return { ...record, project: storedProject };
         }),
     }));
     if (!found) throw new DramaProjectStoreError("短剧项目不存在", 404);
@@ -151,6 +166,35 @@ export async function deleteDramaProject(userId: string, id: string) {
 
 function readDatabase() {
     return readJsonDataFile<DramaProjectDatabase>(FILE_NAME, { version: 1, projects: [] });
+}
+
+type StoredProjectIdentity = { executionProfile: PracticeExecutionProfile; practiceSourceWorkId?: string; practiceSourceVersionId?: string };
+
+function normalizeIdentity(input: DramaProjectIdentityInput): StoredProjectIdentity {
+    const executionProfile = input.executionProfile === "open-source-practice" ? "open-source-practice" : "production";
+    const source = input.practiceSource?.type === "published-work" ? input.practiceSource : undefined;
+    return { executionProfile, ...(source ? { practiceSourceWorkId: source.workId, practiceSourceVersionId: source.versionId } : {}) };
+}
+
+function identityView(source: Partial<StoredProjectIdentity> & { execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }): DramaProjectIdentityView {
+    const executionProfile = source.execution_profile === "open-source-practice" || source.executionProfile === "open-source-practice" ? "open-source-practice" : "production";
+    const workId = source.practice_source_work_id || source.practiceSourceWorkId;
+    const versionId = source.practice_source_version_id || source.practiceSourceVersionId;
+    return { executionProfile, practiceSource: workId && versionId ? { type: "published-work", workId, versionId } : { type: "blank" } };
+}
+
+function withIdentity(project: DramaProject, identity: StoredProjectIdentity): DramaProject & DramaProjectIdentityView {
+    return { ...stripProjectIdentity(project), ...identityView(identity) };
+}
+
+function stripProjectIdentity(project: DramaProject) {
+    const value = project as DramaProject & Partial<DramaProjectIdentityView>;
+    const { executionProfile: _executionProfile, practiceSource: _practiceSource, ...stored } = value;
+    return stored;
+}
+
+function toPublicProject(project: DramaProject, identity?: Partial<StoredProjectIdentity> & { execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }): DramaProject & DramaProjectIdentityView {
+    return { ...stripProjectIdentity(project), ...identityView(identity || {}) };
 }
 
 function writeDatabase(database: DramaProjectDatabase) {
@@ -189,9 +233,12 @@ type DramaProjectSummaryRow = {
     total_count: number;
     created_at: Date | string;
     updated_at: Date | string;
+    execution_profile?: string;
+    practice_source_work_id?: string;
+    practice_source_version_id?: string;
 };
 
-function summaryFromRow(row: DramaProjectSummaryRow): DramaProjectSummary {
+function summaryFromRow(row: DramaProjectSummaryRow): DramaProjectSummary & DramaProjectIdentityView {
     return {
         id: row.id,
         title: row.title,
@@ -207,6 +254,7 @@ function summaryFromRow(row: DramaProjectSummaryRow): DramaProjectSummary {
         failedTaskCount: Number(row.failed_task_count) || 0,
         createdAt: timestamp(row.created_at),
         updatedAt: timestamp(row.updated_at),
+        ...identityView(row),
     };
 }
 

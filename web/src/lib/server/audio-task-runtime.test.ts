@@ -4,6 +4,7 @@ vi.mock("@/lib/server/safe-outbound-fetch", () => ({ fetchSafeOutbound: (url: st
 vi.mock("@/lib/server/generation-media-authorization", () => ({ generationMediaProxyHeaders: vi.fn(() => ({ "x-media-auth": "signed" })) }));
 
 const mocks = vi.hoisted(() => ({
+    fetchInternalApi: vi.fn(),
     getTask: vi.fn(),
     updateTask: vi.fn(),
     transitionTask: vi.fn(),
@@ -21,12 +22,14 @@ vi.mock("@/lib/server/audio-task-store", () => ({
 vi.mock("@/lib/server/creative-runtime-service", () => ({ registerGenerationTaskAssetsForUser: mocks.register }));
 vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: mocks.schedule }));
 vi.mock("@/lib/server/reference-asset-store", () => ({ writePersistentMediaDataUrl: mocks.writeMedia }));
+vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi, isInternalApiBaseUrl: (baseUrl: string) => baseUrl.startsWith("/") }));
 
 import { createProtocolFixtureServer } from "../../../scripts/protocol-fixture-server.mjs";
 import { GenerationSubmissionUncertainError } from "./generation-submission-error";
-import { createAudioTaskUpstreamStep } from "./audio-task-runtime";
+import { createAudioTaskUpstreamStep, queryAudioTaskUpstreamStep } from "./audio-task-runtime";
 import type { AudioTask } from "./audio-task-store";
 import { emptyAdvancedConfig, protocolModelConfig, registeredChannelProtocolDefinitions } from "@/lib/channel-protocol-registry";
+import { readVerifiedSystemAiBusinessRequestId } from "./system-ai-billing";
 
 const AUDIO_PROTOCOLS = registeredChannelProtocolDefinitions.filter((definition) => definition.capabilities.includes("audio"));
 
@@ -83,6 +86,22 @@ describe("audio task runtime submission safety", () => {
 
         expect(state.upstream).toEqual({ id: "audio-upstream-one", createPath: "/audio/speech" });
         expect(mocks.schedule).toHaveBeenLastCalledWith("audio", "audio-one", expect.objectContaining({ executionPhase: "submitted", upstreamTaskId: "audio-upstream-one", channelId: "channel-one", lastUpstreamStatus: "submitted" }));
+    });
+
+    it("signs trusted practice polling with a stable server-owned request identity", async () => {
+        mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ id: "audio-upstream-one", status: "processing" }));
+        state = {
+            ...audioTask(),
+            executionProfile: "open-source-practice",
+            attemptNo: 3,
+            config: { ...audioTask().config, baseUrl: "/api/ai/system/channel-one", executionProfile: "open-source-practice" },
+            upstream: { id: "audio-upstream-one", createPath: "/audio/speech" },
+        };
+
+        await expect(queryAudioTaskUpstreamStep(state, "http://localhost", "session=test")).resolves.toMatchObject({ state: "pending" });
+
+        const headers = new Headers((mocks.fetchInternalApi.mock.calls[0]?.[1] as RequestInit).headers);
+        expect(readVerifiedSystemAiBusinessRequestId(headers, "audio-one", state.config.model, "open-source-practice")).toBe("audio-task:audio-one:attempt:3:poll");
     });
 
     it("does not persist an HTML fallback page as generated audio", async () => {

@@ -221,6 +221,17 @@ export const registeredChannelProtocolDefinitions: ChannelProtocolDefinition[] =
         strict: true,
     },
     {
+        id: "runninghub",
+        label: "RunningHub",
+        description: "RunningHub 异步任务渠道；模型路径、上传与查询契约由管理员按官方文档配置。",
+        apiFormat: "openai",
+        authMode: "bearer",
+        modelCatalogPaths: [],
+        capabilities: ["image", "video", "audio"],
+        operations: {},
+        advanced: true,
+    },
+    {
         id: "vozeb-recommended",
         label: "VOZEB推荐",
         description: "VOZEB 推荐的 JSON 异步视频协议，支持多模态参考素材与持久结果地址。",

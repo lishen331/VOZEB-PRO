@@ -9,6 +9,7 @@ import { deriveLogicalModelsConfig, normalizeDefaultModelsConfig, normalizeLogic
 import { applyChannelProtocol } from "@/lib/channel-protocol-registry";
 import { resolveConfiguredModelPointCost } from "@/lib/model-point-cost";
 import { normalizeSystemChannelAdvancedConfig } from "./store-normalizers-channel";
+import type { SystemChannelPurpose } from "@/lib/practice-domain";
 import {
     type UserRole,
     type UserStatus,
@@ -256,6 +257,7 @@ export function normalizeSettings(settings: AuthSettings): AuthSettings {
         systemChannels,
         logicalModels,
         defaultModels: normalizeDefaultModelsConfig(settings.defaultModels, logicalModels, systemChannels),
+        practiceDefaultModels: normalizeDefaultModelsConfig(settings.practiceDefaultModels, logicalModels, systemChannels, "open-source-practice", { allowFallback: false }),
         agentSkills: normalizeAgentSkills(settings.agentSkills),
     };
 }
@@ -618,9 +620,14 @@ export function normalizeSystemChannel(channel: Partial<SystemModelChannel>): Sy
         apiFormat: channel.apiFormat === "gemini" ? "gemini" : "openai",
         models: Array.from(new Set((channel.models || []).map((model) => model.trim()).filter(Boolean))),
         enabled: channel.enabled !== false,
+        purpose: normalizeChannelPurpose(channel.purpose),
         advancedConfig: normalizeSystemChannelAdvancedConfig(channel.advancedConfig),
     };
     return normalized.advancedConfig?.protocol === "yumeng" ? applyChannelProtocol(normalized, "yumeng") : normalized;
+}
+
+function normalizeChannelPurpose(value: unknown): SystemChannelPurpose {
+    return value === "production" || value === "open-source-practice" || value === "shared" ? value : "shared";
 }
 
 export function normalizePoints(value: unknown, fallback: number) {

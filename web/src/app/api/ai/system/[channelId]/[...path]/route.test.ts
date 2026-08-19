@@ -806,6 +806,38 @@ describe("system proxy authorization", () => {
         expect(fetchMock).not.toHaveBeenCalled();
         expect(mocks.consumeUserPoints).not.toHaveBeenCalled();
     });
+
+    it("accepts only a signed practice request and skips point consumption", async () => {
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("writer", "text", "vendor-text")],
+            systemChannels: [{ id: "channel-one", enabled: true, purpose: "open-source-practice", baseUrl: "https://api.example.com/v1", apiKey: "shared-secret", apiFormat: "openai", models: ["vendor-text"] }],
+        });
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ choices: [{ message: { content: "practice" } }] }));
+        const headers = { "content-type": "application/json", ...systemAiBillingHeaders("writer", "practice-one", "vendor-text", "open-source-practice") };
+
+        const response = await POST(new Request("http://localhost/api/ai/system/channel-one/chat/completions", { method: "POST", headers, body: JSON.stringify({ model: "vendor-text", messages: [] }) }), textContext());
+
+        expect(response.status).toBe(200);
+        expect(mocks.consumeUserPoints).not.toHaveBeenCalled();
+    });
+
+    it("rejects a client that changes a production signature to practice", async () => {
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("writer", "text", "vendor-text")],
+            systemChannels: [{ id: "channel-one", enabled: true, purpose: "open-source-practice", baseUrl: "https://api.example.com/v1", apiKey: "shared-secret", apiFormat: "openai", models: ["vendor-text"] }],
+        });
+        const fetchMock = vi.spyOn(globalThis, "fetch");
+        const headers = new Headers({ "content-type": "application/json", ...systemAiBillingHeaders("writer", "production-one", "vendor-text") });
+        headers.set("x-vozeb-pro-execution-profile", "open-source-practice");
+
+        const response = await POST(new Request("http://localhost/api/ai/system/channel-one/chat/completions", { method: "POST", headers, body: JSON.stringify({ model: "vendor-text", messages: [] }) }), textContext());
+
+        expect(response.status).toBe(403);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mocks.consumeUserPoints).not.toHaveBeenCalled();
+    });
 });
 
 function request(url = "https://cdn.example.com/media.png", headers?: HeadersInit) {

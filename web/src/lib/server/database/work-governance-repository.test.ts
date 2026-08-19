@@ -8,7 +8,8 @@ describe("WorkGovernanceRepository", () => {
             work_id: `work-${index}`,
             version_id: `version-${index}`,
             slug: `public-work-${index}`,
-            source_type: "media",
+            source_type: index === 0 ? "canvas" : "media",
+            pull_film_enabled: index === 0,
             view_count: index,
             is_featured: index === 0,
             featured_at: index === 0 ? "2026-07-27T00:00:00.000Z" : null,
@@ -30,11 +31,14 @@ describe("WorkGovernanceRepository", () => {
 
         expect(sql).toContain("version.id = work.published_version_id");
         expect(sql).toContain("version.visibility = 'public'");
+        expect(sql).toContain("version.pull_film_enabled");
+        expect(sql).not.toContain("pull_film_snapshot");
         expect(sql).toContain("LIMIT $13");
         expect(sql).not.toContain("OFFSET");
         expect(values[12]).toBe(13);
         expect(result.items).toHaveLength(12);
         expect(result.hasMore).toBe(true);
+        expect(result.items[0]).toMatchObject({ hasProcess: true, processVersionId: "version-0" });
     });
 
     it("uses a stable seeded order for random gallery pagination", async () => {

@@ -21,4 +21,24 @@ describe("admin sections", () => {
         expect(allowedAdminSections(auditor)).toEqual(["updates", "adminHelp"]);
         expect(resolveAdminSection(auditor, "backup")).toBe("updates");
     });
+
+    it("limits school operations to the education duty", () => {
+        const educator = { role: "admin", status: "active", adminPermissions: ["education.manage"] };
+        expect(canAccessAdminSection(educator, "schools")).toBe(true);
+        expect(canAccessAdminSection(educator, "courses")).toBe(true);
+        expect(canAccessAdminSection(educator, "commercialOrders")).toBe(true);
+        expect(allowedAdminSections(educator)).toContain("schools");
+        expect(allowedAdminSections(educator)).toContain("courses");
+        expect(allowedAdminSections(educator)).toContain("commercialOrders");
+        expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "schools")).toBe(false);
+        expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "courses")).toBe(false);
+        expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "commercialOrders")).toBe(false);
+    });
+
+    it("limits role feature overview to system managers", () => {
+        const systemAdmin = { role: "admin", status: "active", adminPermissions: ["system.manage"] };
+        expect(canAccessAdminSection(systemAdmin, "roleOverview")).toBe(true);
+        expect(canAccessAdminSection({ ...systemAdmin, adminPermissions: ["education.manage"] }, "roleOverview")).toBe(false);
+        expect(allowedAdminSections(systemAdmin)).toContain("roleOverview");
+    });
 });

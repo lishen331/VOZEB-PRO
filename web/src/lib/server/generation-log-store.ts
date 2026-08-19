@@ -35,6 +35,20 @@ import type { GenerationAssetStats, GenerationLogInput, GenerationLogListOptions
 export type { GenerationAssetStats, GenerationLogAsset, GenerationLogInput, GenerationLogSource, StoredGenerationLog } from "./generation-log-types";
 export { isGenerationSource } from "./generation-log-repository";
 
+export async function getGenerationLogForUser(userId: string, id: string): Promise<StoredGenerationLog | null> {
+    const targetUserId = userId.trim();
+    const targetId = id.trim();
+    if (!targetUserId || !targetId) return null;
+    if (isPostgresDatabaseEnabled()) {
+        await ensurePostgresSchema();
+        const logs = await createPostgresRepositories().generationLogs.getByIds([targetId], targetUserId);
+        const log = logs.find((item) => item.id === targetId && item.userId === targetUserId);
+        return log ? toStoredGenerationLog(log) : null;
+    }
+    const record = (await readGenerationLogDb()).logs.find((log) => log.id === targetId && log.userId === targetUserId);
+    return record || null;
+}
+
 export async function listGenerationLogs(options: GenerationLogListOptions = {}) {
     if (isPostgresDatabaseEnabled()) {
         await ensurePostgresSchema();

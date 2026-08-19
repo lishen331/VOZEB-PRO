@@ -1,6 +1,7 @@
 import { App } from "antd";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 
 import { AdminWorksSection } from "./admin-works-section";
 
@@ -20,5 +21,16 @@ describe("admin works table layout", () => {
         expect(markup).toContain("作品审核");
         expect(markup).toContain("举报申诉");
         expect(markup).not.toContain("评论治理");
+    });
+
+    it("exposes version-bound pull-film status and controls without coupling them to featured state", () => {
+        const source = readFileSync(new URL("./admin-works-section.tsx", import.meta.url), "utf8");
+
+        expect(source).toContain("setAdminWorkPullFilm");
+        expect(source).toContain("拉片项目");
+        expect(source).toContain("设为拉片");
+        expect(source).toContain("取消拉片");
+        expect(source).toContain("publishedVersion?.pullFilmEnabled");
+        expect(source).toContain("work.isFeatured");
     });
 });

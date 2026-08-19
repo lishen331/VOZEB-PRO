@@ -657,6 +657,8 @@ export async function touchStoredGenerationTask(type: GenerationTaskType, id: st
 
 export async function linkStoredGenerationTask(type: GenerationTaskType, id: string, context: GenerationTaskContext) {
     const normalized = normalizeGenerationTaskContext(context);
+    const linkedContext = { ...normalized };
+    if (!context.executionProfile) delete linkedContext.executionProfile;
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         await postgresQuery(
@@ -675,12 +677,12 @@ export async function linkStoredGenerationTask(type: GenerationTaskType, id: str
                 normalized.parentTaskId || null,
                 normalized.attemptNo ?? null,
                 normalized.clientRequestId || null,
-                JSON.stringify(normalized),
+                JSON.stringify(linkedContext),
             ],
         );
         return;
     }
-    await mutateFileTasks((tasks) => tasks.map((task) => (task.id === id && task.type === type ? { ...task, ...normalized, payload: { ...task.payload, ...normalized } } : task)));
+    await mutateFileTasks((tasks) => tasks.map((task) => (task.id === id && task.type === type ? { ...task, ...linkedContext, payload: { ...task.payload, ...linkedContext } } : task)));
 }
 
 export async function countActiveStoredGenerationTasks(userId: string, type: GenerationTaskType, staleMs: number, excludeTaskId?: string) {
@@ -741,21 +743,21 @@ async function upsertTask<T extends { id: string; userId: string; status: string
         await postgresQuery(
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
-                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id
+                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
              ON CONFLICT (id) DO UPDATE SET
-                status = EXCLUDED.status, payload = EXCLUDED.payload, updated_at = EXCLUDED.updated_at, expires_at = EXCLUDED.expires_at,
+                status = EXCLUDED.status, payload = jsonb_set(EXCLUDED.payload, '{executionProfile}', to_jsonb(generation_tasks.execution_profile), true), updated_at = EXCLUDED.updated_at, expires_at = EXCLUDED.expires_at,
                 conversation_id = COALESCE(EXCLUDED.conversation_id, generation_tasks.conversation_id),
                 run_id = COALESCE(EXCLUDED.run_id, generation_tasks.run_id), surface = COALESCE(EXCLUDED.surface, generation_tasks.surface),
                 project_id = COALESCE(EXCLUDED.project_id, generation_tasks.project_id), parent_task_id = COALESCE(EXCLUDED.parent_task_id, generation_tasks.parent_task_id),
-                attempt_no = COALESCE(EXCLUDED.attempt_no, generation_tasks.attempt_no), client_request_id = COALESCE(EXCLUDED.client_request_id, generation_tasks.client_request_id)`,
+                attempt_no = COALESCE(EXCLUDED.attempt_no, generation_tasks.attempt_no), client_request_id = COALESCE(EXCLUDED.client_request_id, generation_tasks.client_request_id), execution_profile = generation_tasks.execution_profile`,
             [
                 task.id,
                 task.userId,
                 type,
                 status,
-                JSON.stringify(task),
+                JSON.stringify({ ...(task as unknown as Record<string, unknown>), ...context }),
                 new Date(task.createdAt),
                 new Date(task.updatedAt),
                 new Date(task.updatedAt + ttlMs),
@@ -766,6 +768,7 @@ async function upsertTask<T extends { id: string; userId: string; status: string
                 context.parentTaskId || null,
                 context.attemptNo ?? null,
                 context.clientRequestId || null,
+                context.executionProfile,
             ],
         );
         return;
@@ -777,7 +780,7 @@ async function upsertTask<T extends { id: string; userId: string; status: string
             userId: task.userId,
             type,
             status,
-            payload: task as unknown as Record<string, unknown>,
+            payload: { ...(task as unknown as Record<string, unknown>), ...preserveTaskContext(previous, context) },
             createdAt: task.createdAt,
             updatedAt: task.updatedAt,
             expiresAt: task.updatedAt + ttlMs,
@@ -797,9 +800,9 @@ async function insertTask<T extends { id: string; userId: string; status: string
         const inserted = await postgresQuery<{ payload: T }>(
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
-                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id
+                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
              ON CONFLICT DO NOTHING
              RETURNING payload`,
             values,
@@ -817,7 +820,7 @@ async function insertTask<T extends { id: string; userId: string; status: string
             userId: task.userId,
             type,
             status,
-            payload: task as unknown as Record<string, unknown>,
+            payload: { ...(task as unknown as Record<string, unknown>), ...context },
             createdAt: task.createdAt,
             updatedAt: task.updatedAt,
             expiresAt: task.updatedAt + ttlMs,
@@ -834,7 +837,7 @@ function taskValues<T extends { id: string; userId: string; createdAt: number; u
         task.userId,
         type,
         status,
-        JSON.stringify(task),
+        JSON.stringify({ ...(task as unknown as Record<string, unknown>), ...context }),
         new Date(task.createdAt),
         new Date(task.updatedAt),
         new Date(task.updatedAt + ttlMs),
@@ -845,6 +848,7 @@ function taskValues<T extends { id: string; userId: string; createdAt: number; u
         context.parentTaskId || null,
         context.attemptNo ?? null,
         context.clientRequestId || null,
+        context.executionProfile,
     ];
 }
 
@@ -877,6 +881,7 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         conversationId: cleanContextText(context.conversationId),
         runId: cleanContextText(context.runId),
         surface: context.surface === "chat" || context.surface === "canvas" || context.surface === "drama" ? context.surface : undefined,
+        executionProfile: context.executionProfile === "open-source-practice" ? "open-source-practice" : "production",
         projectId: cleanContextText(context.projectId),
         episodeId: cleanContextText(context.episodeId),
         shotId: cleanContextText(context.shotId),
@@ -903,6 +908,7 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         clientRequestId: next.clientRequestId || previous?.clientRequestId,
         generationLogId: next.generationLogId || previous?.generationLogId,
         generationSlotId: next.generationSlotId || previous?.generationSlotId,
+        executionProfile: previous?.executionProfile || next.executionProfile || "production",
     };
 }
 
@@ -972,6 +978,7 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         conversationId: cleanContextText(String(row.conversation_id || "")),
         runId: cleanContextText(String(row.run_id || "")),
         surface: isTaskSurface(row.surface) ? row.surface : undefined,
+        executionProfile: row.execution_profile === "open-source-practice" ? "open-source-practice" : "production",
         projectId: cleanContextText(String(row.project_id || "")),
         episodeId: cleanContextText(String(payload.episodeId || "")),
         shotId: cleanContextText(String(payload.shotId || "")),

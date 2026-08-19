@@ -211,9 +211,10 @@ function videoContentReady(response: Response) {
 }
 
 function videoProxyHeaders(task: VideoTask, cookie: string, workerUserId: string) {
+    const practiceRequestId = task.executionProfile === "open-source-practice" ? `video-task:${task.id}:attempt:${task.attemptNo || 1}:poll` : undefined;
     return {
         ...(workerUserId ? maintenanceWorkerHeaders(workerUserId) : cookie ? { cookie } : {}),
-        ...systemAiBillingHeaders(generationModelId(task.config), undefined, task.config.model),
+        ...systemAiBillingHeaders(generationModelId(task.config), practiceRequestId, task.config.model, task.executionProfile),
     };
 }
 

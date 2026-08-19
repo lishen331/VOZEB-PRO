@@ -11,6 +11,7 @@ import type { CanvasProjectSaveState } from "../stores/use-canvas-store";
 
 export function CanvasTopBar({
     title,
+    practice,
     titleDraft,
     isTitleEditing,
     onTitleDraftChange,
@@ -32,6 +33,7 @@ export function CanvasTopBar({
     onToggleAgent,
 }: {
     title: string;
+    practice?: boolean;
     titleDraft: string;
     isTitleEditing: boolean;
     onTitleDraftChange: (value: string) => void;
@@ -133,6 +135,7 @@ export function CanvasTopBar({
                                 {title}
                             </button>
                         )}
+                        {practice ? <span className="shrink-0 border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">无限练习</span> : null}
                     </div>
                     <span className="h-4 w-px shrink-0" style={{ background: theme.toolbar.border }} aria-hidden="true" />
                     <button

@@ -5,6 +5,7 @@ import { createCanvasProject, CanvasProjectStoreError, getCanvasProject, listCan
 import { deleteUserLocalMediaAssets } from "@/lib/server/local-media-storage";
 import { createCreativeConversation } from "@/lib/server/creative-runtime-store";
 import { CreativeEntityDeletionConflict, deleteCanvasAssistantConversationAggregates, deleteCanvasProjectAggregates } from "@/lib/server/creative-entity-deletion-store";
+import type { CanvasProjectIdentityInput } from "@/lib/server/canvas-project-store";
 
 const MAX_PROJECT_BYTES = 5 * 1024 * 1024;
 
@@ -17,10 +18,11 @@ export class CanvasProjectServiceError extends Error {
     }
 }
 
-export function listCanvasProjectsForUser(userId: string, input: { page?: unknown; pageSize?: unknown } = {}) {
+export function listCanvasProjectsForUser(userId: string, input: { page?: unknown; pageSize?: unknown; executionProfile?: "production" | "open-source-practice" } = {}) {
     return listCanvasProjectSummaries(userId, {
         page: positiveInteger(input.page, 1, 1_000_000),
         pageSize: positiveInteger(input.pageSize, 12, 100),
+        executionProfile: input.executionProfile || "production",
     });
 }
 
@@ -30,7 +32,7 @@ export async function getCanvasProjectForUser(userId: string, id: string) {
     return project;
 }
 
-export async function createCanvasProjectForUser(userId: string, value: unknown) {
+export async function createCanvasProjectForUser(userId: string, value: unknown, identity: CanvasProjectIdentityInput = {}) {
     const input = object(value) as CreateCanvasProjectInput;
     const source = object(input.project);
     const sourceHandoffId = text(input.sourceHandoffId || source.sourceHandoffId, 160);
@@ -58,7 +60,7 @@ export async function createCanvasProjectForUser(userId: string, value: unknown)
         viewport: { x: 0, y: 0, k: 1 },
     });
     try {
-        return await createCanvasProject(userId, project);
+        return await createCanvasProject(userId, project, identity);
     } catch (error) {
         await deleteCanvasProjectAggregates(userId, [id]).catch(() => null);
         throw error;

@@ -29,7 +29,7 @@ const channel = {
 describe("channel protocol registry", () => {
     it("exposes only active protocols and keeps SD2 separate from Stable Diffusion", () => {
         const protocols = channelProtocolOptions().map((item) => item.value);
-        expect(protocols).toEqual(["openai", "yumeng", "gemini", "seedance", "stable-diffusion", "volcengine-video", "sub2api", "newapi", "custom", "compatible", "auto"]);
+        expect(protocols).toEqual(["openai", "yumeng", "gemini", "seedance", "stable-diffusion", "volcengine-video", "sub2api", "newapi", "runninghub", "custom", "compatible", "auto"]);
         expect(protocols).not.toEqual(expect.arrayContaining(["vozeb-recommended", "seedance-special", "globalaiopc"]));
         expect(channelProtocolDefinition("openai").modelCatalogPaths).toEqual(["/v1/models"]);
         expect(channelProtocolDefinition("sub2api").modelCatalogPaths).toEqual(["/v1/models"]);
@@ -45,6 +45,7 @@ describe("channel protocol registry", () => {
             capabilities: ["image", "video"],
             builtInModels: expect.any(Array),
         });
+        expect(channelProtocolDefinition("runninghub")).toMatchObject({ label: "RunningHub", modelCatalogPaths: [], capabilities: ["image", "video", "audio"] });
         expect(channelProtocolDefinition("yumeng").builtInModels).toHaveLength(26);
     });
 

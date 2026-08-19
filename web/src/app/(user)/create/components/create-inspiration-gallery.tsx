@@ -2,7 +2,7 @@
 
 import type { MenuProps } from "antd";
 import { App, Dropdown } from "antd";
-import { Copy, Ellipsis, Eye, FileText, ImagePlus, LoaderCircle, RefreshCw, Video } from "lucide-react";
+import { Copy, Ellipsis, Eye, FileText, Film, ImagePlus, LoaderCircle, RefreshCw, Video } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -183,6 +183,11 @@ function InspirationCard({
                 {item.preview?.mediaType === "video" ? (
                     <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-md bg-black/65 text-white" title="视频作品">
                         <Video className="size-3.5" />
+                    </span>
+                ) : null}
+                {item.hasProcess ? (
+                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-cyan-50 px-2 py-1 text-[11px] font-medium text-cyan-800 shadow-sm dark:bg-cyan-950/85 dark:text-cyan-200">
+                        <Film className="size-3" /> 制作流程
                     </span>
                 ) : null}
                 <PublicWorkCardTitle title={item.title} />

@@ -2,10 +2,14 @@ import { hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permiss
 
 export const ADMIN_SECTION_KEYS = [
     "overview",
+    "schools",
+    "courses",
+    "commercialOrders",
     "site",
     "channels",
     "skills",
     "settings",
+    "roleOverview",
     "accountDeletion",
     "mediaStorage",
     "externalStorage",
@@ -33,6 +37,9 @@ export type AdminSectionKey = (typeof ADMIN_SECTION_KEYS)[number];
 
 export const ADMIN_SECTION_PERMISSIONS: Record<AdminSectionKey, readonly AdminPermission[]> = {
     overview: ["analytics.read"],
+    schools: ["education.manage"],
+    courses: ["education.manage"],
+    commercialOrders: ["education.manage"],
     users: ["users.read"],
     logs: ["generation.read"],
     generationOperations: ["generation.manage"],
@@ -49,6 +56,7 @@ export const ADMIN_SECTION_PERMISSIONS: Record<AdminSectionKey, readonly AdminPe
     skills: ["upstream.manage"],
     site: ["system.manage"],
     settings: ["system.manage", "upstream.manage"],
+    roleOverview: ["system.manage"],
     accountDeletion: ["system.manage"],
     mediaStorage: ["system.manage"],
     externalStorage: ["system.manage"],

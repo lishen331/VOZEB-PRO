@@ -15,7 +15,8 @@ import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { readRequestBodyBytes, RequestBodyTooLargeError } from "@/lib/server/request-body-limit";
 import { resolveGlobalAiOpcPathPreset, resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { adaptGlobalAiOpcTextRequest, adaptGlobalAiOpcTextResponse, isGlobalAiOpcChannel } from "@/lib/server/globalaiopc-proxy";
-import { readVerifiedSystemAiBusinessRequestId, SYSTEM_AI_LOGICAL_MODEL_HEADER, SYSTEM_AI_UPSTREAM_MODEL_HEADER, systemAiPointsIdempotencyKey, systemAiRequestFingerprint } from "@/lib/server/system-ai-billing";
+import { readVerifiedSystemAiBusinessRequestId, SYSTEM_AI_EXECUTION_PROFILE_HEADER, SYSTEM_AI_LOGICAL_MODEL_HEADER, SYSTEM_AI_UPSTREAM_MODEL_HEADER, systemAiPointsIdempotencyKey, systemAiRequestFingerprint } from "@/lib/server/system-ai-billing";
+import { resolveGenerationExecutionPolicy } from "@/lib/server/generation-execution-policy";
 import { isAgnesApiBaseUrl } from "@/lib/agnes-model-catalog";
 import { channelConnectionReady, protocolAuthHeaders, resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
 import { normalizeYumengModelCenterBaseUrl } from "@/lib/yumeng-model-center";
@@ -83,6 +84,9 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     const contentType = request.headers.get("content-type");
     const isMultipart = Boolean(contentType?.toLowerCase().includes("multipart/form-data"));
     const accept = request.headers.get("accept");
+    const rawExecutionProfile = request.headers.get(SYSTEM_AI_EXECUTION_PROFILE_HEADER)?.trim() || "";
+    if (rawExecutionProfile && rawExecutionProfile !== "open-source-practice" && rawExecutionProfile !== "production") return NextResponse.json({ error: "执行档案无效" }, { status: 400 });
+    const executionProfile = rawExecutionProfile === "open-source-practice" ? "open-source-practice" : "production";
 
     let requestBody: ProxyRequestBody;
     try {
@@ -150,8 +154,16 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     const authConfig = modelConfig?.protocol ? { ...channel.advancedConfig, protocol: modelConfig.protocol } : channel.advancedConfig;
     Object.entries(protocolAuthHeaders(channel.apiKey, authConfig, globalChannel ? "openai" : apiFormat)).forEach(([key, value]) => headers.set(key, value));
     const callType = `${access.capability}:${access.operation}:/${(globalAdaptation?.path || path).join("/")}`;
-    const businessRequestId = readVerifiedSystemAiBusinessRequestId(request.headers, access.logicalModelId, upstreamModel) || `direct:${randomUUID()}`;
-    const pointsIdempotencyKey = pointsRequest ? systemAiPointsIdempotencyKey({ userId, businessRequestId, logicalModel: access.logicalModelId, channelId: channel.id, upstreamModel, callType }) : undefined;
+    const verifiedBusinessRequestId = readVerifiedSystemAiBusinessRequestId(request.headers, access.logicalModelId, upstreamModel, executionProfile);
+    if (executionProfile === "open-source-practice" && !verifiedBusinessRequestId) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 403 });
+    let executionPolicy: ReturnType<typeof resolveGenerationExecutionPolicy>;
+    try {
+        executionPolicy = resolveGenerationExecutionPolicy({ executionProfile, trustedPracticeContext: Boolean(verifiedBusinessRequestId), channelPurpose: channel.purpose || "shared" });
+    } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : "执行档案与渠道用途不匹配" }, { status: 403 });
+    }
+    const businessRequestId = verifiedBusinessRequestId || `direct:${randomUUID()}`;
+    const pointsIdempotencyKey = pointsRequest && executionPolicy.billingMode === "points" ? systemAiPointsIdempotencyKey({ userId, businessRequestId, logicalModel: access.logicalModelId, channelId: channel.id, upstreamModel, callType }) : undefined;
     const requestFingerprint = pointsRequest
         ? systemAiRequestFingerprint({
               method: request.method,
@@ -173,7 +185,7 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
         const refundedUser = await refundUserPoints(userId, pointsResult.model, pointsResult.cost, pointsResult.usageKind, pointsResult.units, undefined, pointsResult.recordId);
         refundedPointsRemaining = typeof refundedUser?.pointsBalance === "number" ? refundedUser.pointsBalance : null;
     };
-    if (pointsRequest) {
+    if (pointsRequest && executionPolicy.billingMode === "points") {
         try {
             pointsResult = await consumeUserPoints(userId, access.logicalModelId, pointsRequest.amount, pointsRequest.usageKind, pointsIdempotencyKey, requestFingerprint);
         } catch (error) {
@@ -588,7 +600,7 @@ function readMultipartFields(text: string): Record<string, string> {
 }
 
 function targetUrl(baseUrl: string, apiFormat: "openai" | "gemini", path: string[], search: string, globalAiOpc = false, protocol?: import("@/lib/auth/store").SystemChannelProtocol) {
-    const usesLiteralPath = protocol === "seedance-special" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "custom";
+    const usesLiteralPath = protocol === "seedance-special" || protocol === "stable-diffusion" || protocol === "yumeng" || protocol === "runninghub" || protocol === "custom";
     const cleanPath = !usesLiteralPath && (path[0] === "v1" || path[0] === "v1beta") ? path.slice(1) : path;
     const resolvedBaseUrl = protocol === "yumeng" ? normalizeYumengModelCenterBaseUrl(baseUrl) : baseUrl;
     if (isAgnesApiBaseUrl(resolvedBaseUrl) && cleanPath[0]?.toLowerCase() === "agnesapi") {
