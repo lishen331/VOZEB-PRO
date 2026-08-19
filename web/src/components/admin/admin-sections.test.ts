@@ -35,6 +35,14 @@ describe("admin sections", () => {
         expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "commercialOrders")).toBe(false);
     });
 
+    it("shows IP library to content or education duties", () => {
+        const content = { role: "admin", status: "active", adminPermissions: ["content.manage"] };
+        const education = { role: "admin", status: "active", adminPermissions: ["education.manage"] };
+        expect(canAccessAdminSection(content, "ipLibrary")).toBe(true);
+        expect(canAccessAdminSection(education, "ipLibrary")).toBe(true);
+        expect(canAccessAdminSection({ ...content, adminPermissions: ["users.read"] }, "ipLibrary")).toBe(false);
+    });
+
     it("limits role feature overview to system managers", () => {
         const systemAdmin = { role: "admin", status: "active", adminPermissions: ["system.manage"] };
         expect(canAccessAdminSection(systemAdmin, "roleOverview")).toBe(true);

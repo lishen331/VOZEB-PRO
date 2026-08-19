@@ -64,6 +64,7 @@ export type IpVersionRecord = {
 };
 
 export type IpPackageCreateInput = Omit<IpPackageRecord, "currentVersionId" | "createdAt" | "updatedAt">;
+export type IpPackagePatch = Partial<Pick<IpPackageRecord, "title" | "slug" | "summary" | "visibility" | "authorizationMode" | "status">> & { coverAssetId?: string | null };
 export type IpDraftItemInput = Omit<IpItemRecord, "versionId" | "createdAt">;
 export type IpDraftVersionInput = Pick<IpVersionRecord, "id" | "title" | "summary"> & { createdByUserId?: string; items: IpDraftItemInput[] };
 export type IpSummaryRecord = IpPackageRecord & { versionNumber: number; itemCount: number; grantMode?: IpAuthorizationMode };

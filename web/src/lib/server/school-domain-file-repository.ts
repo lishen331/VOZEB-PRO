@@ -100,6 +100,14 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         );
     }
 
+    async listSchoolsByIds(schoolIds: string[]) {
+        const selected = new Set(schoolIds);
+        return (await this.read()).schools
+            .filter((item) => selected.has(item.id))
+            .sort((left, right) => left.id.localeCompare(right.id))
+            .map((item) => structuredClone(item));
+    }
+
     async getSchool(schoolId: string) {
         return detached((await this.read()).schools.find((item) => item.id === schoolId));
     }

@@ -158,6 +158,7 @@ describe("PostgreSQL school domain repository", () => {
         await expect(repository.insertCommercialOrderParticipant(participant(id("duplicate-participant")))).rejects.toThrow();
 
         await expect(repository.listSchools({ page: 1, pageSize: 1 })).resolves.toMatchObject({ total: expect.any(Number), page: 1, pageSize: 1 });
+        await expect(repository.listSchoolsByIds([id("school-b"), id("school-a"), id("missing")])).resolves.toEqual([expect.objectContaining({ id: id("school-a") }), expect.objectContaining({ id: id("school-b") })]);
         await expect(repository.getSchoolContextByUserId(id("teacher-user"))).resolves.toMatchObject({ school: { id: id("school-a") }, membership: { id: id("teacher") } });
         await expect(repository.getMembership(id("school-a"), id("other"))).resolves.toBeNull();
         await expect(repository.listAssignedCourses(id("school-b"), { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });

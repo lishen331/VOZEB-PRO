@@ -47,6 +47,7 @@ const loadSkillsSection = () => import("./admin-upstream-sections").then((module
 const loadAnnouncementsSection = () => import("./admin-content-sections").then((module) => module.AdminAnnouncementsSection);
 const loadPromptsSection = () => import("./admin-content-sections").then((module) => module.AdminPromptsSection);
 const loadWorksSection = () => import("@/app/admin/works/components/admin-works-section").then((module) => module.AdminWorksSection);
+const loadIpLibrarySection = () => import("@/app/admin/ip-library/components/admin-ip-library-section").then((module) => module.AdminIpLibrarySection);
 const loadHelpSection = () => import("./admin-help-section").then((module) => module.AdminHelpSection);
 const loadUsersSection = () => import("./admin-users-section").then((module) => module.AdminUsersSection);
 const loadLogsSection = () => import("./admin-logs-section").then((module) => module.AdminLogsSection);
@@ -82,6 +83,7 @@ const sectionLoaders: Partial<Record<AdminSectionKey, () => Promise<unknown>>> =
     announcements: loadAnnouncementsSection,
     prompts: loadPromptsSection,
     works: loadWorksSection,
+    ipLibrary: loadIpLibrarySection,
     adminHelp: loadHelpSection,
     users: loadUsersSection,
     logs: loadLogsSection,
@@ -109,6 +111,7 @@ const AdminSkillsSection = dynamic(loadSkillsSection, { loading: AdminSectionLoa
 const AdminAnnouncementsSection = dynamic(loadAnnouncementsSection, { loading: AdminSectionLoading });
 const AdminPromptsSection = dynamic(loadPromptsSection, { loading: AdminSectionLoading });
 const AdminWorksSection = dynamic(loadWorksSection, { loading: AdminSectionLoading });
+const AdminIpLibrarySection = dynamic(loadIpLibrarySection, { loading: AdminSectionLoading });
 const AdminHelpSection = dynamic(loadHelpSection, { loading: AdminSectionLoading });
 const AdminUsersSection = dynamic(loadUsersSection, { loading: AdminSectionLoading });
 const AdminLogsSection = dynamic(loadLogsSection, { loading: AdminSectionLoading });
@@ -269,6 +272,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                     {activeSection === "cdk" ? <AdminCdkSection controller={controller} /> : null}
                     {activeSection === "announcements" ? <AdminAnnouncementsSection controller={controller} /> : null}
                     {activeSection === "works" ? <AdminWorksSection /> : null}
+                    {activeSection === "ipLibrary" ? <AdminIpLibrarySection currentUser={currentUser} /> : null}
                     {activeSection === "prompts" ? <AdminPromptsSection controller={controller} /> : null}
                     {activeSection === "users" ? <AdminUsersSection controller={controller} /> : null}
                     {activeSection === "logs" ? <AdminLogsSection controller={controller} /> : null}

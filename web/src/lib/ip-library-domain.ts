@@ -3,6 +3,7 @@ export const IP_AUTHORIZATION_MODES = ["multi_school", "exclusive"] as const;
 export const IP_STATUSES = ["draft", "published", "disabled"] as const;
 export const IP_VERSION_STATUSES = ["draft", "published", "disabled"] as const;
 export const IP_ASSET_KINDS = ["text", "image", "audio", "video"] as const;
+export const IP_USAGE_ACTIONS = ["reference", "download_item", "download_package"] as const;
 
 export const IP_ITEM_CATEGORIES = {
     text: ["story_summary", "worldbuilding", "character_biography", "script", "derivative_script", "creation_notes"],
@@ -17,7 +18,7 @@ export type IpStatus = (typeof IP_STATUSES)[number];
 export type IpVersionStatus = (typeof IP_VERSION_STATUSES)[number];
 export type IpAssetKind = (typeof IP_ASSET_KINDS)[number];
 export type IpItemCategory = (typeof IP_ITEM_CATEGORIES)[IpAssetKind][number];
-export type IpUsageAction = "reference" | "download_item" | "download_package";
+export type IpUsageAction = (typeof IP_USAGE_ACTIONS)[number];
 export type IpReference = { type: "ip"; id: string; versionId: string; itemIds: string[] };
 
 const IP_ASSET_KIND_SET = new Set<string>(IP_ASSET_KINDS);

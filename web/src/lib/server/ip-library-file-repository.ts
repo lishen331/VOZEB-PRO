@@ -4,6 +4,7 @@ import type {
     IpDetailRecord,
     IpDraftVersionInput,
     IpPackageCreateInput,
+    IpPackagePatch,
     IpPackageRecord,
     IpSchoolGrantCreateInput,
     IpSchoolGrantRecord,
@@ -16,7 +17,7 @@ import type {
 } from "@/lib/server/database/repository-types";
 import type { IpAssetKind, IpItemCategory } from "@/lib/ip-library-domain";
 import { SCHOOL_DOMAIN_DATA_FILE } from "./school-domain-file-repository";
-import type { IpUsageListInput, VisibleIpDetailInput, VisibleIpListInput } from "./database/ip-library-repository";
+import type { AdminIpListInput, IpGrantListInput, IpUsageListInput, VisibleIpDetailInput, VisibleIpListInput } from "./database/ip-library-repository";
 
 export const IP_LIBRARY_DATA_FILE = "ip-library.json";
 
@@ -48,6 +49,35 @@ export class FileIpLibraryRepository {
             const now = new Date().toISOString();
             const record: IpPackageRecord = { ...structuredClone(input), createdAt: now, updatedAt: now };
             state.packages.push(record);
+            return structuredClone(record);
+        });
+    }
+
+    async listIpPackages(input: AdminIpListInput = {}): Promise<PageResult<IpSummaryRecord>> {
+        const page = positiveInteger(input.page, 1);
+        const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
+        const keyword = input.keyword?.trim().toLowerCase();
+        const state = await readFile();
+        const records = state.packages
+            .filter((item) => (!keyword || `${item.title}\n${item.summary}\n${item.slug}`.toLowerCase().includes(keyword)) && (!input.status || item.status === input.status) && (!input.visibility || item.visibility === input.visibility))
+            .map((item) => {
+                const version = state.versions.find((candidate) => candidate.id === item.currentVersionId);
+                return { ...structuredClone(item), versionNumber: version?.versionNumber || 0, itemCount: version?.items.length || 0 };
+            })
+            .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id));
+        return { items: records.slice((page - 1) * pageSize, page * pageSize), total: records.length, page, pageSize };
+    }
+
+    updateIpPackage(ipId: string, patch: IpPackagePatch): Promise<IpPackageRecord | null> {
+        return mutate(async (state) => {
+            const record = state.packages.find((item) => item.id === ipId);
+            if (!record) return null;
+            if (patch.slug && state.packages.some((item) => item.id !== ipId && item.slug.toLowerCase() === patch.slug!.toLowerCase())) throw new Error("IP slug 已存在");
+            if (state.grants.some((grant) => grant.ipId === ipId) && ((patch.visibility && patch.visibility !== record.visibility) || (patch.authorizationMode && patch.authorizationMode !== record.authorizationMode))) return null;
+            const { coverAssetId, ...values } = structuredClone(patch);
+            Object.assign(record, values, { updatedAt: new Date().toISOString() });
+            if (coverAssetId === null) record.coverAssetId = undefined;
+            else if (coverAssetId !== undefined) record.coverAssetId = coverAssetId;
             return structuredClone(record);
         });
     }
@@ -139,6 +169,13 @@ export class FileIpLibraryRepository {
         return detached((await readFile()).versions.find((item) => item.ipId === ipId && item.id === versionId));
     }
 
+    async listIpVersions(ipId: string, input: { page?: number; pageSize?: number } = {}): Promise<PageResult<IpVersionRecord>> {
+        const page = positiveInteger(input.page, 1);
+        const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
+        const records = (await readFile()).versions.filter((item) => item.ipId === ipId).sort((left, right) => right.versionNumber - left.versionNumber || left.id.localeCompare(right.id));
+        return { items: structuredClone(records.slice((page - 1) * pageSize, page * pageSize)), total: records.length, page, pageSize };
+    }
+
     createSchoolGrant(input: IpSchoolGrantCreateInput): Promise<IpSchoolGrantRecord> {
         return mutate(async (state, school) => {
             const packageRecord = state.packages.find((item) => item.id === input.ipId);
@@ -185,6 +222,15 @@ export class FileIpLibraryRepository {
             grant.updatedAt = patch.updatedAt;
             return structuredClone(grant);
         });
+    }
+
+    async listSchoolGrants(input: IpGrantListInput): Promise<PageResult<IpSchoolGrantRecord>> {
+        const page = positiveInteger(input.page, 1);
+        const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
+        const records = (await readFile()).grants
+            .filter((item) => item.ipId === input.ipId && (!input.schoolId || item.schoolId === input.schoolId) && (!input.status || item.status === input.status))
+            .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id));
+        return { items: structuredClone(records.slice((page - 1) * pageSize, page * pageSize)), total: records.length, page, pageSize };
     }
 
     recordIpUsage(input: IpUsageCreateInput): Promise<IpUsageRecord> {
