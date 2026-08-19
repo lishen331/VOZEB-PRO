@@ -84,6 +84,7 @@ export type IpSchoolGrantRecord = {
 };
 
 export type IpSchoolGrantCreateInput = Omit<IpSchoolGrantRecord, "createdAt" | "updatedAt">;
+export type IpSchoolGrantUpdateInput = Partial<Pick<IpSchoolGrantRecord, "status" | "endsAt" | "note">> & { updatedAt: string };
 
 export type IpUsageRecord = {
     id: string;

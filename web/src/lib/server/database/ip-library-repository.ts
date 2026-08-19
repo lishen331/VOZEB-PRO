@@ -7,6 +7,7 @@ import type {
     IpPackageRecord,
     IpSchoolGrantCreateInput,
     IpSchoolGrantRecord,
+    IpSchoolGrantUpdateInput,
     IpSummaryRecord,
     IpUsageCreateInput,
     IpUsageRecord,
@@ -31,6 +32,11 @@ export type IpUsageListInput = PageInput & { ipId?: string; versionId?: string; 
 
 export class IpLibraryRepository {
     constructor(private readonly db: QueryExecutor) {}
+
+    async getIpPackage(ipId: string): Promise<IpPackageRecord | null> {
+        const result = await this.db.query("SELECT * FROM ip_packages WHERE id = $1", [ipId]);
+        return result.rows[0] ? mapPackage(result.rows[0]) : null;
+    }
 
     async createIpPackage(input: IpPackageCreateInput): Promise<IpPackageRecord> {
         const result = await this.db.query(
@@ -184,6 +190,17 @@ export class IpLibraryRepository {
             [input.id, input.ipId, input.schoolId, input.mode, input.status, input.startsAt, input.endsAt || null, input.note, input.createdByUserId || null],
         );
         return mapGrant(result.rows[0]);
+    }
+
+    async updateSchoolGrant(ipId: string, grantId: string, patch: IpSchoolGrantUpdateInput): Promise<IpSchoolGrantRecord | null> {
+        const result = await this.db.query(
+            `UPDATE ip_school_grants
+             SET status = COALESCE($3, status), ends_at = CASE WHEN $4 THEN $5::timestamptz ELSE ends_at END, note = COALESCE($6, note), updated_at = $7::timestamptz
+             WHERE ip_id = $1 AND id = $2
+             RETURNING *`,
+            [ipId, grantId, patch.status || null, patch.endsAt !== undefined, patch.endsAt || null, patch.note ?? null, patch.updatedAt],
+        );
+        return result.rows[0] ? mapGrant(result.rows[0]) : null;
     }
 
     async recordIpUsage(input: IpUsageCreateInput): Promise<IpUsageRecord> {

@@ -115,9 +115,12 @@ describe("IpLibraryRepository PostgreSQL", () => {
             createdByUserId: ids.admin,
         });
 
+        await expect(repository.getIpPackage(created.id)).resolves.toMatchObject({ id: created.id, visibility: "school" });
         await expect(repository.getVisibleIp({ userId: ids.schoolAUser, schoolId: ids.schoolA, ipId: created.id, at: "2026-08-19T00:00:00.000Z" })).resolves.toMatchObject({ id: created.id });
         await expect(repository.getVisibleIp({ userId: ids.schoolBUser, schoolId: ids.schoolB, ipId: created.id, at: "2026-08-19T00:00:00.000Z" })).resolves.toBeNull();
         await expect(repository.getVisibleIp({ userId: ids.user, ipId: created.id, at: "2026-08-19T00:00:00.000Z" })).resolves.toBeNull();
+        await repository.updateSchoolGrant(created.id, `${created.id}-grant-a`, { status: "revoked", updatedAt: "2026-08-19T01:00:00.000Z" });
+        await expect(repository.getVisibleIp({ userId: ids.schoolAUser, schoolId: ids.schoolA, ipId: created.id, at: "2026-08-19T02:00:00.000Z" })).resolves.toBeNull();
     });
 
     postgresIt("allows multi-school grants and rejects conflicting exclusive grants", async () => {

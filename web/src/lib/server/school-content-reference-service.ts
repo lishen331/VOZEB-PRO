@@ -4,6 +4,7 @@ import { getDramaProjectForUser } from "@/lib/server/drama-project-service";
 import { getGenerationLogForUser } from "@/lib/server/generation-log-store";
 import { getLibraryAsset } from "@/lib/server/library-asset-store";
 import { getWorkPublicationForUser } from "@/lib/server/work-publication-service";
+import { requireVisibleIp } from "./ip-library-access-service";
 import { requireActiveSchoolContext, SchoolServiceError } from "./school-access-service";
 
 export type SchoolContentReferencePreview = { reference: SchoolContentReference; title: string; previewUrl?: string };
@@ -50,6 +51,10 @@ async function resolveReference(userId: string, reference: SchoolContentReferenc
             const asset = await getLibraryAsset(userId, reference.id);
             if (!asset) throw new MissingSchoolContentReferenceError();
             return preview(reference, text(asset, "title") || "素材", text(asset, "coverUrl"));
+        }
+        if (reference.type === "ip") {
+            const access = await requireVisibleIp(userId, reference.id, reference.versionId, reference.itemIds);
+            return preview(reference, access.detail.version.title || access.detail.title || "IP 内容");
         }
         const generation = await getGenerationLogForUser(userId, reference.id);
         if (!generation) throw new MissingSchoolContentReferenceError();
