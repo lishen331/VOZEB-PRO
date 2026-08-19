@@ -1,6 +1,7 @@
 export { ensurePostgresSchema, getDatabaseProvider, getPostgresConnectionString, initializePostgresSchema, isPostgresDatabaseEnabled, postgresQuery, subscribePostgresNotification, withPostgresTransaction } from "./postgres";
 export { createPostgresRepositories } from "./repositories";
 export { PracticeRepository } from "./practice-repository";
+export { IpLibraryRepository } from "./ip-library-repository";
 export { WorkPublicationRepository } from "./work-publication-repository";
 export { WorkCommunityRepository } from "./work-community-repository";
 export { createPostgresSchoolDomainRepository, PostgresSchoolDomainRepository } from "./school-domain-repository";
