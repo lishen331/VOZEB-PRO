@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import type { PaymentRuntimeConfig } from "./payment-config-store";
-import { loadAlipayCredentials } from "./payment-signature-utils";
+import { addAlipayCertificateParams, loadAlipayCredentials } from "./payment-signature-utils";
 
 const certificate = readFileSync(new URL("./fixtures/alipay-test-certificate.pem", import.meta.url), "utf8");
 const privateKey = readFileSync(new URL("./fixtures/alipay-test-private-key.pem", import.meta.url), "utf8");
@@ -48,6 +48,19 @@ describe("Alipay signature credentials", () => {
         });
 
         expect(loadAlipayCredentials(config).signatureMode).toBe("certificate");
+    });
+
+    it("adds certificate serial parameters only for certificate mode", () => {
+        const config = runtime({
+            VOZEB_PRO_ALIPAY_SIGNATURE_MODE: "certificate",
+            VOZEB_PRO_ALIPAY_PRIVATE_KEY: privateKey,
+            VOZEB_PRO_ALIPAY_APP_CERT: certificate,
+            VOZEB_PRO_ALIPAY_ALIPAY_CERT: certificate,
+            VOZEB_PRO_ALIPAY_ROOT_CERT: certificate,
+        });
+        const credentials = loadAlipayCredentials(config);
+        expect(addAlipayCertificateParams({ app_id: "app" }, credentials)).toMatchObject({ app_cert_sn: credentials.appCertSn, alipay_root_cert_sn: credentials.rootCertSn });
+        expect(addAlipayCertificateParams({ app_id: "app" }, { ...credentials, signatureMode: "public_key" })).toEqual({ app_id: "app" });
     });
 });
 

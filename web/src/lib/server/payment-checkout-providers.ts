@@ -6,7 +6,7 @@ import { normalizePaymentProvider } from "@/lib/payment-provider";
 import { BillingInputError } from "@/lib/server/billing-errors";
 import { getPaymentRuntimeEnv, getPaymentRuntimeValue, type PaymentRuntimeConfig } from "@/lib/server/payment-config-store";
 import type { BillingOrderRecord, JsonValue } from "@/lib/server/database";
-import { loadPaymentPublicKey, verifyRsaSha256 } from "@/lib/server/payment-signature-utils";
+import { addAlipayCertificateParams, loadAlipayCredentials, loadAlipayVerificationKey, loadPaymentPublicKey, verifyRsaSha256 } from "@/lib/server/payment-signature-utils";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import type { CreatePaymentCheckoutOptions, PaymentCheckoutKind, PaymentCheckoutResult } from "./payment-checkout-types";
 import { normalizePaymentForm, type PaymentForm } from "./payment-form";
@@ -86,7 +86,7 @@ async function createStripeCheckout(order: BillingOrderRecord, options: CreatePa
 async function createAlipayCheckout(order: BillingOrderRecord, options: CreatePaymentCheckoutOptions, paymentConfig: PaymentRuntimeConfig): Promise<PaymentCheckoutResult> {
     if (order.currency.toUpperCase() !== "CNY") throw new BillingInputError("支付宝仅支持人民币 CNY 订单", 400);
     const appId = requiredConfig(paymentConfig, "VOZEB_PRO_ALIPAY_APP_ID");
-    const privateKey = loadPrivateKey(paymentConfig, "VOZEB_PRO_ALIPAY_PRIVATE_KEY", "VOZEB_PRO_ALIPAY_PRIVATE_KEY_PATH");
+    const credentials = loadAlipayCredentials(paymentConfig);
     const origin = resolveOrigin(options.origin);
     const gateway = getPaymentRuntimeEnv(paymentConfig, "VOZEB_PRO_ALIPAY_GATEWAY_URL") || "https://openapi.alipay.com/gateway.do";
     const modeValue = getPaymentRuntimeEnv(paymentConfig, "VOZEB_PRO_ALIPAY_MODE") || DEFAULT_ALIPAY_PAYMENT_MODE;
@@ -108,7 +108,8 @@ async function createAlipayCheckout(order: BillingOrderRecord, options: CreatePa
         }),
     };
     if (modeValue === "official") params.return_url = getPaymentRuntimeEnv(paymentConfig, "VOZEB_PRO_ALIPAY_RETURN_URL") || `${origin}/billing/success?orderId=${encodeURIComponent(order.id)}`;
-    params.sign = signAlipayParams(params, privateKey);
+    addAlipayCertificateParams(params, credentials);
+    params.sign = signAlipayParams(params, credentials.privateKey);
     if (modeValue === "face_to_face") return createAlipayFaceToFaceCheckout(gateway, params, order, paymentConfig);
     return {
         provider: "alipay",
@@ -141,7 +142,7 @@ async function createAlipayFaceToFaceCheckout(gateway: string, params: Record<st
     if (resultCode !== "10000") throw new BillingInputError(readAlipayPrecreateError(payload), 400);
     const responseSign = normalizeText(payload.sign, "", 2000);
     const signContent = extractJsonObjectValue(rawBody, "alipay_trade_precreate_response");
-    const publicKey = loadPaymentPublicKey(paymentConfig, "VOZEB_PRO_ALIPAY_PUBLIC_KEY", "VOZEB_PRO_ALIPAY_PUBLIC_KEY_PATH");
+    const publicKey = loadAlipayVerificationKey(paymentConfig);
     if (!responseSign || !signContent || !verifyRsaSha256(signContent, responseSign, publicKey)) throw new BillingInputError("支付宝当面付响应验签失败", 502);
     const responseOrderNo = normalizeText(resultObject.out_trade_no, "", 160);
     if (!responseOrderNo || responseOrderNo !== order.orderNo) throw new BillingInputError("支付宝当面付返回的订单号不匹配", 502);

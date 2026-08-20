@@ -4,7 +4,7 @@ import { normalizePaymentProvider } from "@/lib/payment-provider";
 import { BillingInputError } from "@/lib/server/billing-errors";
 import type { JsonValue } from "@/lib/server/database";
 import { getPaymentRuntimeEnv, getPaymentRuntimeValue, type PaymentRuntimeConfig } from "@/lib/server/payment-config-store";
-import { loadPaymentPublicKey, verifyRsaSha256 } from "@/lib/server/payment-signature-utils";
+import { loadAlipayVerificationKey, loadPaymentPublicKey, verifyRsaSha256 } from "@/lib/server/payment-signature-utils";
 
 type WebhookStatus = "succeeded" | "ignored";
 
@@ -201,7 +201,7 @@ export function verifyAlipaySignature(payload: Record<string, string>, paymentCo
         .sort()
         .map((key) => `${key}=${payload[key]}`)
         .join("&");
-    return verifyRsaSha256(content, sign, loadPaymentPublicKey(paymentConfig, "VOZEB_PRO_ALIPAY_PUBLIC_KEY", "VOZEB_PRO_ALIPAY_PUBLIC_KEY_PATH"));
+    return verifyRsaSha256(content, sign, loadAlipayVerificationKey(paymentConfig));
 }
 
 export function verifyWechatSignature(rawBody: string, headers: Headers, paymentConfig: PaymentRuntimeConfig) {

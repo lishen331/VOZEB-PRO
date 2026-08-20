@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getAlipayPaymentModePresentation, PAYMENT_PROVIDER_DEFINITIONS } from "./payment-config-types";
+import { getAlipayPaymentModePresentation, getAlipayRequiredFieldKeys, getAlipaySignatureModePresentation, isAlipayPaymentFieldVisible, PAYMENT_PROVIDER_DEFINITIONS } from "./payment-config-types";
 
 describe("payment provider definitions", () => {
     it("exposes one mutually exclusive Alipay mode selector", () => {
@@ -20,5 +20,15 @@ describe("payment provider definitions", () => {
         expect(getAlipayPaymentModePresentation("official")).toMatchObject({ checkoutKind: "官方支付表单" });
         expect(getAlipayPaymentModePresentation("face_to_face")).toMatchObject({ checkoutKind: "当面付二维码" });
         expect(getAlipayPaymentModePresentation("both")).toBeUndefined();
+    });
+
+    it("keeps payment product and signing mode independent", () => {
+        const provider = PAYMENT_PROVIDER_DEFINITIONS.find((item) => item.id === "alipay");
+        expect(provider?.fields.find((field) => field.key === "signatureMode")).toMatchObject({ kind: "select", defaultValue: "public_key" });
+        expect(getAlipaySignatureModePresentation("certificate")).toMatchObject({ label: "证书模式" });
+        expect(getAlipayRequiredFieldKeys("public_key")).toEqual(["mode", "signatureMode", "appId", "privateKey", "publicKey"]);
+        expect(getAlipayRequiredFieldKeys("certificate")).toEqual(["mode", "signatureMode", "appId", "privateKey", "appCert", "alipayCert", "rootCert"]);
+        expect(isAlipayPaymentFieldVisible("publicKey", "certificate")).toBe(false);
+        expect(isAlipayPaymentFieldVisible("appCert", "public_key")).toBe(false);
     });
 });

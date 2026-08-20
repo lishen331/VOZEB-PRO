@@ -11,6 +11,7 @@ import {
     DEFAULT_ALIPAY_PAYMENT_MODE,
     DEFAULT_ALIPAY_SIGNATURE_MODE,
     getAlipayPaymentModePresentation,
+    getAlipaySignatureModePresentation,
     isAlipayPaymentFieldVisible,
     isAlipaySignatureMode,
     type PaymentConfigRequirement,
@@ -139,6 +140,7 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
     const selectedAlipayMode = activeProvider?.id === "alipay" ? normalizePaymentFormValue(alipayMode || activeProvider.fields.find((field) => field.key === "mode")?.value || DEFAULT_ALIPAY_PAYMENT_MODE) : "";
     const isAlipayFaceToFace = selectedAlipayMode === "face_to_face";
     const alipayPresentation = getAlipayPaymentModePresentation(selectedAlipayMode);
+    const alipaySignaturePresentation = getAlipaySignatureModePresentation(selectedAlipaySignatureMode);
     const routeFields = activeProvider?.fields.filter((field) => isFieldVisible(field) && routeFieldKeys.includes(field.key) && !(isAlipayFaceToFace && field.key === "returnUrl")) || [];
     const advancedFields = activeProvider?.fields.filter((field) => isFieldVisible(field) && field.advanced && !routeFieldKeys.includes(field.key)) || [];
     const sortedMainFields = sortPaymentFields(mainFields);
@@ -196,6 +198,7 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
                                                     {activeProvider.ready ? "可用" : activeProvider.checkoutReady ? "待回调" : "待配置"}
                                                 </Tag>
                                                 <Tag className="m-0">{activeProvider.sourceLabel}</Tag>
+                                                {activeProvider.id === "alipay" ? <Tag className="m-0">{alipaySignaturePresentation?.label || "普通公钥"}</Tag> : null}
                                             </div>
                                             <div className="mt-1 line-clamp-2 max-w-3xl text-xs leading-5 text-stone-500 sm:mt-2 sm:line-clamp-none sm:text-sm sm:leading-6 dark:text-stone-400">
                                                 {activeProvider.id === "alipay" ? alipayPresentation?.description || activeProvider.description : activeProvider.description}
