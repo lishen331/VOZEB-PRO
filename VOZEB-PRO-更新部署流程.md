@@ -7,12 +7,31 @@
 - 两个仓库的提交历史不相同，禁止直接合并整条 `delivery/develop`；先查看提交和文件差异，再同步确认过的源码。
 - `.env`、SSH 私钥、管理员凭据、数据库和媒体数据不得提交到 GitHub。
 
+## 接口索引与开发地图同步门禁
+
+`VOZEB-PRO-接口索引.md` 和 `VOZEB-PRO-开发地图.md` 是每次开发定位接口、页面、Service、Repository、Schema、Worker 和部署入口的基线文档。每次拉取整合完成后、每次推送开始前，都必须在仓库根目录执行：
+
+```powershell
+pwsh -NoProfile -File .\过程文件\更新开发地图.ps1
+pwsh -NoProfile -File .\过程文件\验证开发文档.ps1
+```
+
+更新脚本会刷新 Route、页面和 PostgreSQL 表清单，并同步两份 Markdown 的真实基线；验证脚本会检查数量、Handler 链接、重复路径和 UTF-8 乱码。验证失败不得推送。接口、页面、Service、Repository、Schema、Worker 或部署拓扑有变化时，两份文档必须与代码放在同一个提交中；没有相关结构变化时不为了制造噪声修改业务文档。执行前后都要保留用户未提交修改，并用 `git status` 和 `git diff` 排除 `output/`、`.env`、凭据及其他无关文件。
+
 ## 拉取同事代码
 
 ```powershell
 git fetch delivery develop
 git log delivery/develop --oneline -20
 git show --stat delivery/develop
+git diff --check
+```
+
+同步完成后运行开发地图门禁：
+
+```powershell
+pwsh -NoProfile -File .\过程文件\更新开发地图.ps1
+pwsh -NoProfile -File .\过程文件\验证开发文档.ps1
 git diff --check
 ```
 
