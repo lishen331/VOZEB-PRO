@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Deterministic private key used only by Alipay signature tests"
+paths = ['''^web/src/lib/server/fixtures/alipay-test-private-key\.pem$''']

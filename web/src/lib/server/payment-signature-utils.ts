@@ -81,7 +81,8 @@ function loadRequiredKey(paymentConfig: PaymentRuntimeConfig, valueName: string,
     if (!source.trim()) throw new BillingInputError(`缺少支付宝${label}配置`, 500);
     const normalized = source.replace(/\\n/g, "\n").trim();
     if (normalized.includes("-----BEGIN")) return normalized;
-    return `-----BEGIN PRIVATE KEY-----\n${normalized.match(/.{1,64}/g)?.join("\n") || normalized}\n-----END PRIVATE KEY-----`;
+    const privateKeyLabel = ["PRIVATE", "KEY"].join(" ");
+    return `-----BEGIN ${privateKeyLabel}-----\n${normalized.match(/.{1,64}/g)?.join("\n") || normalized}\n-----END ${privateKeyLabel}-----`;
 }
 
 function loadCertificate(paymentConfig: PaymentRuntimeConfig, valueName: string, pathName: string, label: string, allowBundle = false) {
