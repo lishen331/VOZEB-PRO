@@ -58,7 +58,7 @@ describe("payment provider config save", () => {
             providers: {},
             valuesByEnvName: { VOZEB_PRO_ALIPAY_SIGNATURE_MODE: "certificate" },
         };
-        expect(getPaymentProviderCheckoutFieldKeys(runtime, "alipay")).toEqual(["mode", "signatureMode", "appId", "privateKey", "appCert", "alipayCert", "rootCert"]);
+        expect(getPaymentProviderCheckoutFieldKeys(runtime, "alipay")).toEqual(["mode", "signatureMode", "appId", "privateKey", "appCert", "rootCert"]);
         expect(getPaymentProviderWebhookFieldKeys(runtime, "alipay")).toEqual(["appId", "alipayCert"]);
     });
 
