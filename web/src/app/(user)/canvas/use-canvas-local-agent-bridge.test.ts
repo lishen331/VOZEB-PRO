@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CanvasNodeType } from "./types";
 import type { CanvasAgentSnapshot } from "./utils/canvas-agent-ops";
-import { executeCanvasAgentToolCall, resolveCanvasAgentConnection } from "./use-canvas-local-agent-bridge";
+import { createCanvasAgentClientId, executeCanvasAgentToolCall, resolveCanvasAgentConnection } from "./use-canvas-local-agent-bridge";
 
 const snapshot: CanvasAgentSnapshot = {
     projectId: "project",
@@ -13,6 +13,18 @@ const snapshot: CanvasAgentSnapshot = {
 };
 
 describe("Canvas local agent bridge", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("creates a client ID when randomUUID is unavailable in an HTTP context", () => {
+        vi.stubGlobal("crypto", {
+            getRandomValues: (values: Uint8Array) => values.fill(1),
+        });
+
+        expect(createCanvasAgentClientId()).toMatch(/^[\w-]+$/);
+    });
+
     it("accepts only loopback HTTP endpoints with a bounded token", () => {
         expect(resolveCanvasAgentConnection("?agentUrl=http%3A%2F%2F127.0.0.1%3A17371&agentToken=1234567890abcdef")).toEqual({ endpoint: "http://127.0.0.1:17371", token: "1234567890abcdef" });
         expect(resolveCanvasAgentConnection("?agentUrl=http%3A%2F%2F%5B%3A%3A1%5D%3A17371&agentToken=1234567890abcdef")).toEqual({ endpoint: "http://[::1]:17371", token: "1234567890abcdef" });

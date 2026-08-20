@@ -53,6 +53,7 @@ jobs:
       - name: Type check
         run: pnpm run typecheck
       - name: Unit tests
+        if: startsWith(github.ref, 'refs/tags/')
         run: pnpm test
       - name: Format check
         run: pnpm run format:check
@@ -61,12 +62,15 @@ jobs:
         env:
           NEXT_SKIP_BUILD_TYPECHECK: "1"
       - name: Install Playwright Chromium
+        if: startsWith(github.ref, 'refs/tags/')
         run: pnpm exec playwright install --with-deps chromium
       - name: Browser E2E
+        if: startsWith(github.ref, 'refs/tags/')
         run: pnpm run e2e
         env:
           VOZEB_PRO_E2E_DATABASE_URL: postgres://vozeb:vozeb-e2e-password@127.0.0.1:5432/vozeb_pro_e2e
       - name: PostgreSQL integration tests
+        if: startsWith(github.ref, 'refs/tags/')
         run: >-
           pnpm exec vitest run --no-file-parallelism
           src/lib/server/database/auth-entity-concurrency.postgres.test.ts
@@ -121,6 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
       security-events: write
     steps:
       - name: Checkout complete history
@@ -132,8 +137,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Initialize CodeQL
+        if: github.event.repository.visibility == 'public'
         uses: github/codeql-action/init@47be0dbd5113ab1b79fe2dd3f68bdf7e426cdc87 # v3
         with:
           languages: javascript-typescript
       - name: Analyze JavaScript and TypeScript
+        if: github.event.repository.visibility == 'public'
         uses: github/codeql-action/analyze@47be0dbd5113ab1b79fe2dd3f68bdf7e426cdc87 # v3

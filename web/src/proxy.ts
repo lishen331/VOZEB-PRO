@@ -3,7 +3,8 @@ import { getTrustedProxyHops } from "@/lib/server/trusted-proxy";
 
 export function proxy(request: NextRequest) {
     const nonce = crypto.randomUUID().replaceAll("-", "");
-    const contentSecurityPolicy = buildContentSecurityPolicy(nonce);
+    const requestOrigin = publicRequestOrigin(request);
+    const contentSecurityPolicy = buildContentSecurityPolicy(nonce, requestOrigin.startsWith("https://"));
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
     requestHeaders.set("content-security-policy", contentSecurityPolicy);
@@ -12,7 +13,6 @@ export function proxy(request: NextRequest) {
         return securedNextResponse(requestHeaders, contentSecurityPolicy);
     }
 
-    const requestOrigin = publicRequestOrigin(request);
     const origin = request.headers.get("origin");
     if (origin && origin !== requestOrigin) return securedJsonResponse({ error: "跨站请求已被拦截" }, 403, contentSecurityPolicy);
 
@@ -44,7 +44,7 @@ function securedJsonResponse(body: unknown, status: number, contentSecurityPolic
     return response;
 }
 
-function buildContentSecurityPolicy(nonce: string) {
+function buildContentSecurityPolicy(nonce: string, isHttps: boolean) {
     const isDev = process.env.NODE_ENV !== "production";
     return [
         "default-src 'self'",
@@ -60,7 +60,7 @@ function buildContentSecurityPolicy(nonce: string) {
         "base-uri 'self'",
         "form-action 'self'",
         "frame-ancestors 'none'",
-        ...(isDev ? [] : ["upgrade-insecure-requests"]),
+        ...(isDev || !isHttps ? [] : ["upgrade-insecure-requests"]),
     ].join("; ");
 }
 
