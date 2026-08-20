@@ -1,4 +1,4 @@
-import { BookMarked, Clapperboard, Compass, FileText, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
+import { BookMarked, Clapperboard, Compass, FileText, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
 
 import type { SchoolContext } from "@/lib/school-domain";
 
@@ -97,6 +97,14 @@ const practiceNavigationTool = {
     icon: Sparkles,
 } as const;
 
+const dramaWorkflowLabNavigationTool = {
+    slug: "drama-lab",
+    label: "短剧实验室",
+    description: "隔离验证短剧工作流",
+    group: "projects",
+    icon: FlaskConical,
+} as const;
+
 const teacherNavigationTool = {
     slug: "teaching",
     label: "教学中心",
@@ -160,15 +168,15 @@ export function schoolNavigationTools(context: SchoolContext | null) {
     return [teacherNavigationTool, ...(context.canManageSchool ? ([schoolManagementNavigationTool] as const) : [])] as const;
 }
 
-export type NavigationToolSlug = (typeof navigationTools)[number]["slug"] | "learning" | "teaching" | "practice" | "school";
+export type NavigationToolSlug = (typeof navigationTools)[number]["slug"] | "learning" | "teaching" | "practice" | "school" | "drama-lab";
 export type NavigationGroupId = (typeof navigationGroups)[number]["id"];
 
-export function navigationToolsForContext(context: SchoolContext | null = null) {
+export function navigationToolsForContext(context: SchoolContext | null = null, options: { includeDramaWorkflowLab?: boolean } = {}) {
     const schoolTools = schoolNavigationTools(context);
-    return [...navigationTools, ...(schoolTools.length ? [practiceNavigationTool] : []), ...schoolTools];
+    return [...navigationTools, ...(options.includeDramaWorkflowLab ? [dramaWorkflowLabNavigationTool] : []), ...(schoolTools.length ? [practiceNavigationTool] : []), ...schoolTools];
 }
 
-export function navigationToolForPathname(pathname: string, context: SchoolContext | null = null) {
+export function navigationToolForPathname(pathname: string, context: SchoolContext | null = null, options: { includeDramaWorkflowLab?: boolean } = {}) {
     const slug = pathname.split("/").filter(Boolean)[0];
-    return navigationToolsForContext(context).find((tool) => tool.slug === slug);
+    return navigationToolsForContext(context, options).find((tool) => tool.slug === slug);
 }

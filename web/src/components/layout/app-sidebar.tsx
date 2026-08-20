@@ -11,14 +11,14 @@ import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 
-export function AppSidebar({ activeToolSlug, expanded }: { activeToolSlug?: NavigationToolSlug; expanded: boolean }) {
+export function AppSidebar({ activeToolSlug, expanded, dramaWorkflowLabEnabled = false }: { activeToolSlug?: NavigationToolSlug; expanded: boolean; dramaWorkflowLabEnabled?: boolean }) {
     const pathname = usePathname();
     const router = useRouter();
     const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const siteTitle = resolveSiteTitle(site.title);
     const helpActive = pathname.startsWith("/help");
     const context = useSchoolContextStore((state) => state.context);
-    const tools = navigationToolsForContext(context);
+    const tools = navigationToolsForContext(context, { includeDramaWorkflowLab: dramaWorkflowLabEnabled });
     const schoolTools = tools.filter((tool) => tool.group === "school");
     const groups = schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups;
 
