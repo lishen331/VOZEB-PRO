@@ -4,7 +4,7 @@ import { BillingInputError } from "@/lib/server/billing-errors";
 import { decryptSecretValue, encryptSecretValue } from "@/lib/server/secret-crypto";
 import {
     DEFAULT_ALIPAY_SIGNATURE_MODE,
-    getAlipayRequiredFieldKeys,
+    getAlipayCheckoutFieldKeys,
     isAlipaySignatureMode,
     PAYMENT_PROVIDER_DEFINITIONS,
     type PaymentProviderConfigField,
@@ -144,7 +144,7 @@ export function isPaymentRuntimeProviderCheckoutReady(config: PaymentRuntimeConf
 export function getPaymentProviderCheckoutFieldKeys(config: PaymentRuntimeConfig, providerId: PaymentProviderId) {
     if (providerId !== "alipay") return PAYMENT_PROVIDER_DEFINITIONS.find((item) => item.id === providerId)?.checkoutFieldKeys || [];
     const value = getPaymentRuntimeEnv(config, "VOZEB_PRO_ALIPAY_SIGNATURE_MODE");
-    return getAlipayRequiredFieldKeys(isAlipaySignatureMode(value) ? value : DEFAULT_ALIPAY_SIGNATURE_MODE);
+    return getAlipayCheckoutFieldKeys(isAlipaySignatureMode(value) ? value : DEFAULT_ALIPAY_SIGNATURE_MODE);
 }
 
 export function getPaymentProviderWebhookFieldKeys(config: PaymentRuntimeConfig, providerId: PaymentProviderId) {

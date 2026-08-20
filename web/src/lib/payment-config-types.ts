@@ -39,6 +39,10 @@ export function getAlipayRequiredFieldKeys(signatureMode: AlipaySignatureMode) {
     return ["mode", "signatureMode", "appId", "privateKey", ...(signatureMode === "certificate" ? ["appCert", "alipayCert", "rootCert"] : ["publicKey"])];
 }
 
+export function getAlipayCheckoutFieldKeys(signatureMode: AlipaySignatureMode) {
+    return ["mode", "signatureMode", "appId", "privateKey", ...(signatureMode === "certificate" ? ["appCert", "rootCert"] : [])];
+}
+
 type PaymentConfigFieldKind = "text" | "url" | "secret" | "textarea" | "select";
 
 export type PaymentProviderConfigField = {
