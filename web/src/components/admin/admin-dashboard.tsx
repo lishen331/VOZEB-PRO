@@ -43,7 +43,6 @@ const loadPaymentsSection = () => import("./admin-billing-sections").then((modul
 const loadCdkSection = () => import("./admin-cdk-section").then((module) => module.AdminCdkSection);
 const loadReferralsSection = () => import("./admin-marketing-sections").then((module) => module.AdminReferralsSection);
 const loadChannelsSection = () => import("./admin-upstream-sections").then((module) => module.AdminChannelsSection);
-const loadDramaLabSection = () => import("./admin-drama-lab-section").then((module) => module.AdminDramaLabSection);
 const loadSkillsSection = () => import("./admin-upstream-sections").then((module) => module.AdminSkillsSection);
 const loadAnnouncementsSection = () => import("./admin-content-sections").then((module) => module.AdminAnnouncementsSection);
 const loadPromptsSection = () => import("./admin-content-sections").then((module) => module.AdminPromptsSection);
@@ -80,7 +79,6 @@ const sectionLoaders: Partial<Record<AdminSectionKey, () => Promise<unknown>>> =
     coupons: loadCouponsSection,
     referrals: loadReferralsSection,
     channels: loadChannelsSection,
-    dramaLab: loadDramaLabSection,
     skills: loadSkillsSection,
     announcements: loadAnnouncementsSection,
     prompts: loadPromptsSection,
@@ -109,7 +107,6 @@ const AdminReferralsSection = dynamic(loadReferralsSection, { loading: AdminSect
 const AdminPaymentsSection = dynamic(loadPaymentsSection, { loading: AdminSectionLoading });
 const AdminCdkSection = dynamic(loadCdkSection, { loading: AdminSectionLoading });
 const AdminChannelsSection = dynamic(loadChannelsSection, { loading: AdminSectionLoading });
-const AdminDramaLabSection = dynamic(loadDramaLabSection, { loading: AdminSectionLoading });
 const AdminSkillsSection = dynamic(loadSkillsSection, { loading: AdminSectionLoading });
 const AdminAnnouncementsSection = dynamic(loadAnnouncementsSection, { loading: AdminSectionLoading });
 const AdminPromptsSection = dynamic(loadPromptsSection, { loading: AdminSectionLoading });
@@ -271,7 +268,6 @@ export function AdminDashboard(props: AdminDashboardProps) {
                     {activeSection === "payments" ? <AdminPaymentsSection controller={controller} /> : null}
                     {activeSection === "updates" ? <AdminUpdatesSection controller={controller} /> : null}
                     {activeSection === "channels" ? <AdminChannelsSection controller={controller} /> : null}
-                    {activeSection === "dramaLab" ? <AdminDramaLabSection /> : null}
                     {activeSection === "skills" ? <AdminSkillsSection controller={controller} /> : null}
                     {activeSection === "cdk" ? <AdminCdkSection controller={controller} /> : null}
                     {activeSection === "announcements" ? <AdminAnnouncementsSection controller={controller} /> : null}
