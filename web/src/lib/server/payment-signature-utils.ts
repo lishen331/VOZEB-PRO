@@ -26,10 +26,11 @@ export function loadAlipayCredentials(paymentConfig: PaymentRuntimeConfig): Alip
     const signatureMode = getPaymentRuntimeEnv(paymentConfig, "VOZEB_PRO_ALIPAY_SIGNATURE_MODE") === "certificate" ? "certificate" : "public_key";
     const privateKey = loadRequiredKey(paymentConfig, "VOZEB_PRO_ALIPAY_PRIVATE_KEY", "VOZEB_PRO_ALIPAY_PRIVATE_KEY_PATH", "支付宝私钥");
     if (signatureMode === "public_key") {
+        const publicKeyConfigured = getPaymentRuntimeEnv(paymentConfig, "VOZEB_PRO_ALIPAY_PUBLIC_KEY") || getPaymentRuntimeEnv(paymentConfig, "VOZEB_PRO_ALIPAY_PUBLIC_KEY_PATH");
         return {
             signatureMode,
             privateKey,
-            publicKey: loadPaymentPublicKey(paymentConfig, "VOZEB_PRO_ALIPAY_PUBLIC_KEY", "VOZEB_PRO_ALIPAY_PUBLIC_KEY_PATH"),
+            publicKey: publicKeyConfigured ? loadPaymentPublicKey(paymentConfig, "VOZEB_PRO_ALIPAY_PUBLIC_KEY", "VOZEB_PRO_ALIPAY_PUBLIC_KEY_PATH") : "",
         };
     }
 
@@ -44,6 +45,20 @@ export function loadAlipayCredentials(paymentConfig: PaymentRuntimeConfig): Alip
         appCertSn: certificateSerialNumber(appCertificate),
         rootCertSn: certificateSerialNumber(rootCertificate),
     };
+}
+
+export function loadAlipayVerificationKey(paymentConfig: PaymentRuntimeConfig) {
+    if (getPaymentRuntimeEnv(paymentConfig, "VOZEB_PRO_ALIPAY_SIGNATURE_MODE") !== "certificate") return loadPaymentPublicKey(paymentConfig, "VOZEB_PRO_ALIPAY_PUBLIC_KEY", "VOZEB_PRO_ALIPAY_PUBLIC_KEY_PATH");
+    const certificate = loadCertificate(paymentConfig, "VOZEB_PRO_ALIPAY_ALIPAY_CERT", "VOZEB_PRO_ALIPAY_ALIPAY_CERT_PATH", "支付宝公钥证书");
+    return normalizePublicKey(certificate.publicKey.export({ type: "spki", format: "pem" }).toString());
+}
+
+export function addAlipayCertificateParams(params: Record<string, string>, credentials: AlipayCredentials) {
+    if (credentials.signatureMode !== "certificate") return params;
+    if (!credentials.appCertSn || !credentials.rootCertSn) throw new BillingInputError("支付宝证书序列号缺失", 500);
+    params.app_cert_sn = credentials.appCertSn;
+    params.alipay_root_cert_sn = credentials.rootCertSn;
+    return params;
 }
 
 export function loadPaymentPublicKey(paymentConfig: PaymentRuntimeConfig, valueEnv: string, pathEnv: string, certificateEnv?: string, certificatePathEnv?: string) {

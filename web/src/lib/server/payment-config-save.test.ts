@@ -20,7 +20,7 @@ vi.mock("@/lib/server/secret-crypto", () => ({
     encryptSecretValue: (value: string) => value,
 }));
 
-import { savePaymentProviderConfig } from "./payment-config-store";
+import { getPaymentProviderCheckoutFieldKeys, getPaymentProviderWebhookFieldKeys, savePaymentProviderConfig } from "./payment-config-store";
 
 describe("payment provider config save", () => {
     beforeEach(() => {
@@ -45,6 +45,21 @@ describe("payment provider config save", () => {
                 }),
             }),
         );
+    });
+
+    it("rejects an Alipay signing mode outside the supported choices", async () => {
+        await expect(savePaymentProviderConfig({ providerId: "alipay", enabled: true, values: { signatureMode: "certificate_chain" } })).rejects.toMatchObject({ message: "加签方式配置无效", status: 400 });
+        expect(mocks.writeJsonDataFile).not.toHaveBeenCalled();
+    });
+
+    it("uses certificate fields for readiness without changing the payment product", () => {
+        const runtime = {
+            saved: { providers: {} },
+            providers: {},
+            valuesByEnvName: { VOZEB_PRO_ALIPAY_SIGNATURE_MODE: "certificate" },
+        };
+        expect(getPaymentProviderCheckoutFieldKeys(runtime, "alipay")).toEqual(["mode", "signatureMode", "appId", "privateKey", "appCert", "alipayCert", "rootCert"]);
+        expect(getPaymentProviderWebhookFieldKeys(runtime, "alipay")).toEqual(["appId", "alipayCert"]);
     });
 
     it("preserves the enabled state when a partial config save omits it", async () => {
