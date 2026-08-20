@@ -4,6 +4,10 @@ export const ALIPAY_PAYMENT_MODES = ["official", "face_to_face"] as const;
 export type AlipayPaymentMode = (typeof ALIPAY_PAYMENT_MODES)[number];
 export const DEFAULT_ALIPAY_PAYMENT_MODE: AlipayPaymentMode = "official";
 
+export const ALIPAY_SIGNATURE_MODES = ["public_key", "certificate"] as const;
+export type AlipaySignatureMode = (typeof ALIPAY_SIGNATURE_MODES)[number];
+export const DEFAULT_ALIPAY_SIGNATURE_MODE: AlipaySignatureMode = "public_key";
+
 const ALIPAY_PAYMENT_MODE_PRESENTATIONS: Record<AlipayPaymentMode, { description: string; checkoutKind: string }> = {
     official: { description: "支付宝官方电脑网站支付，创建订单后跳转支付宝收银台。", checkoutKind: "官方支付表单" },
     face_to_face: { description: "支付宝当面付，创建订单后向用户展示扫码二维码。", checkoutKind: "当面付二维码" },
@@ -15,6 +19,24 @@ export function isAlipayPaymentMode(value: unknown): value is AlipayPaymentMode 
 
 export function getAlipayPaymentModePresentation(value: unknown) {
     return isAlipayPaymentMode(value) ? ALIPAY_PAYMENT_MODE_PRESENTATIONS[value] : undefined;
+}
+
+export function isAlipaySignatureMode(value: unknown): value is AlipaySignatureMode {
+    return typeof value === "string" && ALIPAY_SIGNATURE_MODES.includes(value as AlipaySignatureMode);
+}
+
+export function getAlipaySignatureModePresentation(value: unknown) {
+    if (!isAlipaySignatureMode(value)) return undefined;
+    return value === "certificate" ? { label: "证书模式", description: "使用应用公钥证书、支付宝公钥证书和根证书完成下单、退款、查询与回调验签。" } : { label: "普通公钥", description: "使用支付宝公钥完成兼容的普通 RSA2 签名与回调验签。" };
+}
+
+export function isAlipayPaymentFieldVisible(fieldKey: string, signatureMode: AlipaySignatureMode) {
+    if (signatureMode === "certificate") return fieldKey !== "publicKey";
+    return !["appCert", "alipayCert", "rootCert"].includes(fieldKey);
+}
+
+export function getAlipayRequiredFieldKeys(signatureMode: AlipaySignatureMode) {
+    return ["mode", "signatureMode", "appId", "privateKey", ...(signatureMode === "certificate" ? ["appCert", "alipayCert", "rootCert"] : ["publicKey"])];
 }
 
 type PaymentConfigFieldKind = "text" | "url" | "secret" | "textarea" | "select";
@@ -126,6 +148,19 @@ export const PAYMENT_PROVIDER_DEFINITIONS: PaymentProviderDefinition[] = [
                 ],
                 note: "官方支付跳转支付宝电脑网站；当面付生成支付宝扫码二维码。保存时只会启用当前选择的一种方式。",
             },
+            {
+                key: "signatureMode",
+                label: "加签方式",
+                kind: "select",
+                required: true,
+                defaultValue: DEFAULT_ALIPAY_SIGNATURE_MODE,
+                envNames: ["VOZEB_PRO_ALIPAY_SIGNATURE_MODE"],
+                options: [
+                    { label: "普通公钥", value: "public_key" },
+                    { label: "证书模式", value: "certificate" },
+                ],
+                note: "普通公钥模式保持现有接入方式；证书模式用于下单、退款、交易查询和异步回调验签。",
+            },
             { key: "appId", label: "应用 App ID", kind: "text", required: true, envNames: ["VOZEB_PRO_ALIPAY_APP_ID"], placeholder: "2026..." },
             {
                 key: "privateKey",
@@ -139,6 +174,18 @@ export const PAYMENT_PROVIDER_DEFINITIONS: PaymentProviderDefinition[] = [
                 note: "后台保存的是私钥内容；如使用文件路径，可继续使用环境变量。",
             },
             { key: "publicKey", label: "支付宝公钥", kind: "textarea", secret: true, required: true, any: true, envNames: ["VOZEB_PRO_ALIPAY_PUBLIC_KEY", "VOZEB_PRO_ALIPAY_PUBLIC_KEY_PATH"], placeholder: "支付宝开放平台公钥" },
+            { key: "appCert", label: "应用公钥证书", kind: "textarea", secret: true, required: true, any: true, envNames: ["VOZEB_PRO_ALIPAY_APP_CERT", "VOZEB_PRO_ALIPAY_APP_CERT_PATH"], placeholder: "可粘贴应用公钥证书；服务器路径建议放环境变量。" },
+            {
+                key: "alipayCert",
+                label: "支付宝公钥证书",
+                kind: "textarea",
+                secret: true,
+                required: true,
+                any: true,
+                envNames: ["VOZEB_PRO_ALIPAY_ALIPAY_CERT", "VOZEB_PRO_ALIPAY_ALIPAY_CERT_PATH"],
+                placeholder: "可粘贴支付宝公钥证书；服务器路径建议放环境变量。",
+            },
+            { key: "rootCert", label: "支付宝根证书", kind: "textarea", secret: true, required: true, any: true, envNames: ["VOZEB_PRO_ALIPAY_ROOT_CERT", "VOZEB_PRO_ALIPAY_ROOT_CERT_PATH"], placeholder: "可粘贴支付宝根证书；服务器路径建议放环境变量。" },
             { key: "gatewayUrl", label: "网关地址", kind: "url", envNames: ["VOZEB_PRO_ALIPAY_GATEWAY_URL"], placeholder: "https://openapi.alipay.com/gateway.do", advanced: true },
             { key: "notifyUrl", label: "异步回调地址", kind: "url", envNames: ["VOZEB_PRO_ALIPAY_NOTIFY_URL"], placeholder: "默认 /api/billing/webhooks/alipay", advanced: true },
             { key: "returnUrl", label: "同步返回地址", kind: "url", envNames: ["VOZEB_PRO_ALIPAY_RETURN_URL"], placeholder: "默认 /billing/success", advanced: true },
