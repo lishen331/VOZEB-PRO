@@ -12,12 +12,13 @@ import { WorkPublicationRepository } from "./work-publication-repository";
 import { WorkGovernanceRepository } from "./work-governance-repository";
 import { WorkCommunityRepository } from "./work-community-repository";
 import { createPostgresSchoolDomainRepository } from "./school-domain-repository";
+import { createPostgresSchoolComputeRepository } from "./school-compute-repository";
 import { AnnouncementsRepository, GenerationLogsRepository, PromptsRepository } from "./content-repository";
 import { CdkRepository, EmailCodesRepository, PointsRepository, SessionsRepository, UsersRepository } from "./user-repository";
 import { PracticeRepository } from "./practice-repository";
 import { IpLibraryRepository } from "./ip-library-repository";
-import type { AppSettingsRecord, EntitlementPlanRecord, JsonValue, SystemModelChannelRecord } from "./repository-shared";
-import { isoValue, jsonParam, jsonValue, numberValue, optionalIso, optionalJson, optionalString, stringValue } from "./repository-shared";
+import type { AppSettingsRecord, EntitlementPlanRecord, SystemModelChannelRecord } from "./repository-shared";
+import { isoValue, jsonParam, jsonValue, numberValue, optionalJson, stringValue } from "./repository-shared";
 
 export type {
     AuthenticatedUserRecord,
@@ -72,26 +73,27 @@ export type {
     UserPlanAssignmentRecord,
 } from "./repository-shared";
 
-export function createPostgresRepositories(executor: QueryExecutor = { query: postgresQuery }) {
-    const billingProduct = new BillingProductRepository(executor);
-    const billingOrder = new BillingOrderRepository(executor);
-    const pointsWallet = new PointsWalletRepository(executor);
-    const billingPayment = new BillingPaymentRepository(executor);
-    const billingRefund = new BillingRefundRepository(executor);
-    const promotion = new PromotionRepository(executor);
-    const coupons = new CouponRepository(executor);
+export function createPostgresRepositories(executor?: QueryExecutor) {
+    const db = executor || { query: postgresQuery };
+    const billingProduct = new BillingProductRepository(db);
+    const billingOrder = new BillingOrderRepository(db);
+    const pointsWallet = new PointsWalletRepository(db);
+    const billingPayment = new BillingPaymentRepository(db);
+    const billingRefund = new BillingRefundRepository(db);
+    const promotion = new PromotionRepository(db);
+    const coupons = new CouponRepository(db);
 
     return {
-        settings: new SettingsRepository(executor),
-        users: new UsersRepository(executor),
-        sessions: new SessionsRepository(executor),
-        emailCodes: new EmailCodesRepository(executor),
-        points: new PointsRepository(executor),
+        settings: new SettingsRepository(db),
+        users: new UsersRepository(db),
+        sessions: new SessionsRepository(db),
+        emailCodes: new EmailCodesRepository(db),
+        points: new PointsRepository(db),
         pointsWallet,
-        cdk: new CdkRepository(executor),
-        announcements: new AnnouncementsRepository(executor),
-        prompts: new PromptsRepository(executor),
-        generationLogs: new GenerationLogsRepository(executor),
+        cdk: new CdkRepository(db),
+        announcements: new AnnouncementsRepository(db),
+        prompts: new PromptsRepository(db),
+        generationLogs: new GenerationLogsRepository(db),
         billing: {
             listProducts: billingProduct.listProducts.bind(billingProduct),
             getProductById: billingProduct.getProductById.bind(billingProduct),
@@ -139,14 +141,15 @@ export function createPostgresRepositories(executor: QueryExecutor = { query: po
         },
         promotions: promotion,
         coupons,
-        referrals: new ReferralRepository(executor),
-        workPublications: new WorkPublicationRepository(executor),
-        workGovernance: new WorkGovernanceRepository(executor),
-        workCommunity: new WorkCommunityRepository(executor),
-        auditLogs: new AuditLogsRepository(executor),
-        schoolDomain: createPostgresSchoolDomainRepository(executor),
-        practice: new PracticeRepository(executor),
-        ipLibrary: new IpLibraryRepository(executor),
+        referrals: new ReferralRepository(db),
+        workPublications: new WorkPublicationRepository(db),
+        workGovernance: new WorkGovernanceRepository(db),
+        workCommunity: new WorkCommunityRepository(db),
+        auditLogs: new AuditLogsRepository(db),
+        schoolDomain: createPostgresSchoolDomainRepository(db),
+        schoolCompute: createPostgresSchoolComputeRepository(executor),
+        practice: new PracticeRepository(db),
+        ipLibrary: new IpLibraryRepository(db),
     };
 }
 
