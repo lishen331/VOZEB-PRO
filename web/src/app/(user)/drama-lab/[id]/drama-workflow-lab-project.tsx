@@ -1,12 +1,13 @@
 "use client";
 
 import { Alert, Button, Spin, Tag } from "antd";
-import { ArrowLeft, Check, Circle, FlaskConical, RefreshCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Box, Check, Circle, Clapperboard, FlaskConical, Map, Package, Plus, RefreshCcw, Settings2, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { DramaProject } from "@/lib/drama-project-contract";
-import { DRAMA_WORKFLOW_LAB_STAGES, getDramaWorkflowLabProgress, getDramaWorkflowLabStageStatus } from "@/lib/drama-workflow-lab";
+import { DRAMA_WORKFLOW_LAB_STAGES, getDramaWorkflowLabProgress, getDramaWorkflowLabStageStatus, type DramaWorkflowLabStageId } from "@/lib/drama-workflow-lab";
+import { cn } from "@/lib/utils";
 
 type ProjectResponse = { code: number; data?: { project?: DramaProject }; msg?: string };
 
@@ -14,6 +15,8 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
     const [project, setProject] = useState<DramaProject>();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
+    const [activeStage, setActiveStage] = useState<DramaWorkflowLabStageId>("script");
+    const [activeEpisodeId, setActiveEpisodeId] = useState<string>();
 
     const loadProject = useCallback(async () => {
         setLoading(true);
@@ -23,6 +26,7 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
             const payload = (await response.json()) as ProjectResponse;
             if (!response.ok || payload.code !== 0 || !payload.data?.project) throw new Error(payload.msg || "项目加载失败");
             setProject(payload.data.project);
+            setActiveEpisodeId((current) => current || payload.data?.project?.activeEpisodeId || payload.data?.project?.episodes[0]?.id);
         } catch (loadError) {
             setError(loadError instanceof Error ? loadError.message : "项目加载失败");
         } finally {
@@ -47,20 +51,20 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
         });
     }, [project]);
 
-    if (loading) {
+    const activeEpisode = project?.episodes.find((episode) => episode.id === activeEpisodeId) || project?.episodes[0];
+
+    if (loading)
         return (
             <main className="grid h-full place-items-center bg-background">
                 <Spin />
             </main>
         );
-    }
-
     if (error || !project || !progress) {
         return (
             <main className="h-full overflow-y-auto bg-background px-4 py-6 sm:px-6">
                 <div className="mx-auto max-w-3xl">
                     <Link href="/drama-lab" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-                        <ArrowLeft className="size-4" /> 返回实验室
+                        <ArrowLeft className="size-4" /> 返回短剧项目
                     </Link>
                     <Alert
                         className="mt-6"
@@ -79,83 +83,205 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
     }
 
     return (
-        <main className="h-full overflow-y-auto bg-background text-foreground">
-            <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
-                <Link href="/drama-lab" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-                    <ArrowLeft className="size-4" /> 返回实验室
+        <main className="flex h-full min-h-0 flex-col bg-background text-foreground">
+            <header className="flex h-16 shrink-0 items-center gap-4 border-b border-border px-4 sm:px-6">
+                <Link href="/drama-lab" className="grid size-9 shrink-0 place-items-center border border-border text-muted-foreground hover:text-foreground" aria-label="返回项目列表">
+                    <ArrowLeft className="size-4" />
                 </Link>
-                <header className="mt-5 flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <FlaskConical className="size-4" /> 隔离实验项目
-                        </div>
-                        <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight">{project.title}</h1>
-                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{project.summary || "暂无项目摘要"}</p>
-                    </div>
-                    <Tag color="blue">只读验证</Tag>
-                </header>
+                <div className="min-w-0">
+                    <h1 className="truncate text-base font-semibold">{project.title}</h1>
+                    <p className="truncate text-xs text-muted-foreground">{activeEpisode?.title || "第 1 集"}</p>
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                    <Button icon={<Settings2 className="size-4" />} className="hidden sm:inline-flex">
+                        项目设置
+                    </Button>
+                    <Link href={`/drama/${project.id}`}>
+                        <Button type="primary" icon={<Clapperboard className="size-4" />}>
+                            打开制作编辑器
+                        </Button>
+                    </Link>
+                </div>
+            </header>
 
-                <section aria-label="项目工作流进度" className="mt-6 grid gap-2 md:grid-cols-6">
+            <nav className="shrink-0 overflow-x-auto border-b border-border bg-card px-4 sm:px-6" aria-label="短剧制作阶段">
+                <div className="mx-auto flex min-w-max justify-center">
                     {DRAMA_WORKFLOW_LAB_STAGES.map((stage, index) => {
                         const status = getDramaWorkflowLabStageStatus(stage.id, progress.activeStageId, progress.completedStageIds);
+                        const selected = activeStage === stage.id;
                         return (
-                            <div key={stage.id} className="relative border border-border bg-card px-3 py-3">
-                                <div className="flex items-center gap-2">
-                                    {status === "completed" ? (
-                                        <Check className="size-4 shrink-0 text-emerald-600" />
-                                    ) : status === "active" ? (
-                                        <span className="size-2.5 shrink-0 rounded-full bg-blue-500" />
-                                    ) : (
-                                        <Circle className="size-4 shrink-0 text-muted-foreground" />
+                            <button
+                                key={stage.id}
+                                type="button"
+                                onClick={() => setActiveStage(stage.id)}
+                                className={cn("relative flex h-16 items-center gap-2 px-4 text-sm font-medium text-muted-foreground transition hover:text-foreground", selected && "bg-muted/50 text-foreground")}
+                            >
+                                <span
+                                    className={cn(
+                                        "grid size-6 place-items-center rounded-full border border-border text-xs",
+                                        selected && "border-primary bg-primary text-primary-foreground",
+                                        status === "completed" && !selected && "border-emerald-500 text-emerald-600",
                                     )}
-                                    <span className="min-w-0 truncate text-sm font-medium">{stage.label}</span>
-                                </div>
-                                <p className="mt-2 text-xs text-muted-foreground">{status === "completed" ? "已完成" : status === "active" ? "当前阶段" : "待开始"}</p>
-                                {index < DRAMA_WORKFLOW_LAB_STAGES.length - 1 ? <span className="absolute -right-1.5 top-6 hidden size-3 rotate-45 border-r border-t border-border bg-background md:block" /> : null}
-                            </div>
+                                >
+                                    {status === "completed" && !selected ? <Check className="size-3.5" /> : index + 1}
+                                </span>
+                                <span>{stage.label}</span>
+                                {index < DRAMA_WORKFLOW_LAB_STAGES.length - 1 ? <ArrowRight className="ml-2 size-3.5 text-muted-foreground/50" /> : null}
+                                {selected ? <span className="absolute inset-x-3 bottom-0 h-0.5 bg-primary" /> : null}
+                            </button>
                         );
                     })}
-                </section>
+                </div>
+            </nav>
 
-                <section className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(240px,320px)]">
-                    <div className="border-y border-border">
-                        <div className="flex items-center justify-between gap-3 border-b border-border py-3">
-                            <h2 className="text-base font-semibold">阶段数据</h2>
-                            <Tag>{DRAMA_WORKFLOW_LAB_STAGES.find((stage) => stage.id === progress.activeStageId)?.label}</Tag>
-                        </div>
-                        <div className="divide-y divide-border">
-                            <DataRow label="剧本" value={`${project.episodes.length} 集`} detail={project.episodes.some((episode) => episode.script.trim()) ? "已导入内容" : "等待剧本"} />
-                            <DataRow label="角色" value={`${project.characters.length}`} detail="可用于资产准备" />
-                            <DataRow label="场景" value={`${project.scenes.length}`} detail="可用于资产准备" />
-                            <DataRow label="道具" value={`${project.props.length}`} detail="可用于资产准备" />
-                            <DataRow label="分镜" value={`${project.episodes.reduce((total, episode) => total + episode.shots.length, 0)}`} detail="来自现有项目数据" />
-                        </div>
+            <div className="grid min-h-0 flex-1 lg:grid-cols-[260px_minmax(0,1fr)]">
+                <aside className="hidden min-h-0 border-r border-border bg-card lg:flex lg:flex-col">
+                    <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+                        <span className="text-sm font-semibold">
+                            剧集 <span className="ml-1 text-muted-foreground">{project.episodes.length}</span>
+                        </span>
+                        <Button type="text" size="small" icon={<Plus className="size-4" />} aria-label="新建集数" />
                     </div>
-                    <aside className="border border-border bg-muted/20 p-4">
-                        <div className="flex items-center gap-2 text-sm font-semibold">
-                            <FlaskConical className="size-4" /> 实验边界
+                    <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                        {project.episodes.map((episode, index) => (
+                            <button
+                                key={episode.id}
+                                type="button"
+                                onClick={() => setActiveEpisodeId(episode.id)}
+                                className={cn("mb-2 flex w-full items-start gap-3 border border-transparent px-3 py-3 text-left hover:bg-muted/50", activeEpisode?.id === episode.id && "border-primary/40 bg-primary/5")}
+                            >
+                                <span className="grid size-9 shrink-0 place-items-center bg-muted text-xs font-semibold">{String(index + 1).padStart(2, "0")}</span>
+                                <span className="min-w-0">
+                                    <span className="block truncate text-sm font-medium">{episode.title || `第 ${index + 1} 集`}</span>
+                                    <span className="mt-1 block truncate text-xs text-muted-foreground">
+                                        {episode.script.length} 字 · {episode.shots.length} 分镜
+                                    </span>
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                    <Button className="m-3" icon={<Plus className="size-4" />}>
+                        新建集数
+                    </Button>
+                </aside>
+
+                <section className="min-h-0 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+                    <div className="mx-auto max-w-6xl">
+                        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
+                            <div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <FlaskConical className="size-4" />
+                                    LocalMiniDrama 工作区
+                                </div>
+                                <h2 className="mt-2 text-xl font-semibold">{DRAMA_WORKFLOW_LAB_STAGES.find((stage) => stage.id === activeStage)?.label}</h2>
+                                <p className="mt-1 text-sm text-muted-foreground">{DRAMA_WORKFLOW_LAB_STAGES.find((stage) => stage.id === activeStage)?.description}</p>
+                            </div>
+                            <Tag color={activeStage === progress.activeStageId ? "processing" : "default"}>{activeStage === progress.activeStageId ? "当前阶段" : "阶段预览"}</Tag>
                         </div>
-                        <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-                            <li>只读读取现有项目</li>
-                            <li>不创建生成任务</li>
-                            <li>不修改旧短剧数据</li>
-                            <li>后续阶段独立接入模型路由</li>
-                        </ul>
-                    </aside>
+
+                        {activeStage === "script" ? <ScriptStage project={project} episode={activeEpisode} /> : null}
+                        {activeStage === "review" ? <ReviewStage episode={activeEpisode} /> : null}
+                        {activeStage === "assets" ? <AssetsStage project={project} /> : null}
+                        {activeStage === "storyboard" ? <StoryboardStage episode={activeEpisode} /> : null}
+                        {activeStage === "shots" ? <ShotsStage episode={activeEpisode} /> : null}
+                        {activeStage === "export" ? <ExportStage project={project} /> : null}
+                    </div>
                 </section>
             </div>
         </main>
     );
 }
 
-function DataRow({ label, value, detail }: { label: string; value: string; detail: string }) {
+function ScriptStage({ project, episode }: { project: DramaProject; episode?: DramaProject["episodes"][number] }) {
     return (
-        <div className="flex items-center justify-between gap-4 py-3">
-            <span className="text-sm font-medium">{label}</span>
-            <span className="flex items-center gap-3 text-right">
-                <span className="text-sm">{value}</span>
-                <span className="hidden text-xs text-muted-foreground sm:inline">{detail}</span>
-            </span>
+        <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="border border-border bg-card">
+                <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                    <div>
+                        <h3 className="font-semibold">{episode?.title || "第 1 集"} · 剧本</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">先生成或导入剧本，再进入内容审核。</p>
+                    </div>
+                    <Link href={`/drama/${project.id}`}>
+                        <Button type="primary">编辑剧本</Button>
+                    </Link>
+                </div>
+                <div className="min-h-72 whitespace-pre-wrap p-5 text-sm leading-7 text-muted-foreground">{episode?.script || "当前剧集还没有剧本内容。打开制作编辑器，可从故事梗概生成剧本或直接导入文本。"}</div>
+            </div>
+            <div className="border border-border bg-muted/20 p-5">
+                <h3 className="text-sm font-semibold">项目信息</h3>
+                <dl className="mt-4 grid gap-3 text-sm">
+                    <Info label="画面比例" value={project.ratio} />
+                    <Info label="统一风格" value={project.style || "未设置"} />
+                    <Info label="剧集" value={`${project.episodes.length} 集`} />
+                    <Info label="当前字数" value={`${episode?.script.length || 0} 字`} />
+                </dl>
+            </div>
+        </div>
+    );
+}
+
+function ReviewStage({ episode }: { episode?: DramaProject["episodes"][number] }) {
+    return <StageEmpty icon={<Circle className="size-5" />} title="内容审核" description={`当前状态：${episode?.reviewStatus || "draft"}。剧本准备完成后，在这里确认结构、人物和内容方向。`} />;
+}
+
+function AssetsStage({ project }: { project: DramaProject }) {
+    const groups = [
+        { label: "角色", icon: UserRound, items: project.characters },
+        { label: "场景", icon: Map, items: project.scenes },
+        { label: "道具", icon: Package, items: project.props },
+    ];
+    return (
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {groups.map(({ label, icon: Icon, items }) => (
+                <div key={label} className="border border-border bg-card p-5">
+                    <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2 font-semibold">
+                            <Icon className="size-4" />
+                            {label}
+                        </span>
+                        <Tag>{items.length}</Tag>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                        {items.slice(0, 5).map((item) => (
+                            <div key={item.id} className="border-t border-border pt-2 text-sm">
+                                {item.name}
+                            </div>
+                        ))}
+                        {!items.length ? <p className="py-8 text-center text-sm text-muted-foreground">暂无{label}</p> : null}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function StoryboardStage({ episode }: { episode?: DramaProject["episodes"][number] }) {
+    return <StageEmpty icon={<Box className="size-5" />} title={`${episode?.shots.length || 0} 个分镜`} description="内容审核通过后生成分镜，并在这里调整镜头顺序、画面提示词和连续性。" />;
+}
+function ShotsStage({ episode }: { episode?: DramaProject["episodes"][number] }) {
+    return <StageEmpty icon={<Clapperboard className="size-5" />} title="镜头生成" description={`当前 ${episode?.shots.filter((shot) => shot.videoUrl).length || 0} 个镜头已有视频结果。`} />;
+}
+function ExportStage({ project }: { project: DramaProject }) {
+    return <StageEmpty icon={<Clapperboard className="size-5" />} title="成片导出" description={`项目共 ${project.episodes.length} 集。镜头和音频准备完成后在这里合成并导出成片。`} />;
+}
+
+function StageEmpty({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+    return (
+        <div className="mt-6 grid min-h-72 place-items-center border border-border bg-card p-8 text-center">
+            <div>
+                <span className="mx-auto grid size-11 place-items-center rounded-full bg-muted text-muted-foreground">{icon}</span>
+                <h3 className="mt-4 font-semibold">{title}</h3>
+                <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">{description}</p>
+            </div>
+        </div>
+    );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="flex items-center justify-between gap-3">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="truncate font-medium">{value}</dd>
         </div>
     );
 }

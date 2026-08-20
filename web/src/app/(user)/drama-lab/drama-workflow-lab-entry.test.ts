@@ -12,16 +12,19 @@ describe("drama workflow lab isolation", () => {
         }
     });
 
-    it("keeps the first lab surface read-only", async () => {
+    it("creates a drama before entering the adapted workspace", async () => {
         const [home, project] = await Promise.all([
             readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/drama-workflow-lab-home.tsx"), "utf8"),
             readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/drama-workflow-lab-project.tsx"), "utf8"),
         ]);
         const source = `${home}\n${project}`;
 
-        expect(source).not.toMatch(/method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i);
-        expect(source).not.toContain("createDramaProject");
-        expect(source).not.toContain("saveDramaProject");
+        expect(home).toContain('method: "POST"');
+        expect(home).toContain('fetch("/api/drama/projects"');
+        expect(home).toContain("window.location.assign(`/drama-lab/");
+        expect(project).toContain("/api/drama/projects/${encodeURIComponent(projectId)}");
+        expect(project).toContain("打开制作编辑器");
+        expect(project).not.toMatch(/method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i);
         expect(source).toContain("/api/drama/projects");
     });
 });
