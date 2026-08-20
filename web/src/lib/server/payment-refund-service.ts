@@ -5,7 +5,7 @@ import { normalizePaymentProvider } from "@/lib/payment-provider";
 import { BillingInputError } from "@/lib/server/billing-errors";
 import type { BillingOrderRecord, JsonValue, PaymentTransactionRecord } from "@/lib/server/database";
 import { getPaymentRuntimeConfig, getPaymentRuntimeEnv, getPaymentRuntimeValue, type PaymentRuntimeConfig } from "@/lib/server/payment-config-store";
-import { loadPaymentPublicKey, verifyRsaSha256 } from "@/lib/server/payment-signature-utils";
+import { addAlipayCertificateParams, loadAlipayCredentials, loadAlipayVerificationKey, loadPaymentPublicKey, verifyRsaSha256 } from "@/lib/server/payment-signature-utils";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 
 export type PaymentRefundStatus = "succeeded" | "pending" | "manual";
@@ -86,7 +86,7 @@ async function refundStripePayment(order: BillingOrderRecord, payment: PaymentTr
 
 async function refundAlipayPayment(order: BillingOrderRecord, payment: PaymentTransactionRecord, options: PaymentRefundOptions, paymentConfig: PaymentRuntimeConfig): Promise<PaymentRefundResult> {
     const appId = requiredConfig(paymentConfig, "VOZEB_PRO_ALIPAY_APP_ID");
-    const privateKey = loadPrivateKey(paymentConfig, "VOZEB_PRO_ALIPAY_PRIVATE_KEY", "VOZEB_PRO_ALIPAY_PRIVATE_KEY_PATH");
+    const credentials = loadAlipayCredentials(paymentConfig);
     const gateway = getPaymentRuntimeEnv(paymentConfig, "VOZEB_PRO_ALIPAY_GATEWAY_URL") || "https://openapi.alipay.com/gateway.do";
     const bizContent: Record<string, string> = {
         out_trade_no: order.orderNo,
@@ -105,18 +105,25 @@ async function refundAlipayPayment(order: BillingOrderRecord, payment: PaymentTr
         version: "1.0",
         biz_content: JSON.stringify(bizContent),
     };
-    params.sign = signAlipayParams(params, privateKey);
+    addAlipayCertificateParams(params, credentials);
+    params.sign = signAlipayParams(params, credentials.privateKey);
 
     const response = await fetchSafeOutbound(gateway, {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams(params),
     });
-    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    const raw = await response.text();
+    const payload = parseJsonObject(raw);
     if (!response.ok) throw new BillingInputError(readAlipayError(payload, "支付宝退款失败"), response.status >= 500 ? 502 : 400);
     const result = readPath(payload, "alipay_trade_refund_response");
     const resultObject = result && typeof result === "object" && !Array.isArray(result) ? (result as Record<string, unknown>) : {};
     if (normalizeText(resultObject.code, "", 20) !== "10000") throw new BillingInputError(readAlipayError(payload, "支付宝退款失败"), 400);
+    if (credentials.signatureMode === "certificate") {
+        const sign = normalizeText(payload.sign, "", 2000);
+        const signContent = extractJsonObjectValue(raw, "alipay_trade_refund_response");
+        if (!sign || !signContent || !verifyRsaSha256(signContent, sign, loadAlipayVerificationKey(paymentConfig))) throw new BillingInputError("支付宝退款响应验签失败", 502);
+    }
     return {
         provider: "alipay",
         status: "succeeded",
@@ -470,6 +477,32 @@ function parseJsonObject(value: string) {
     } catch {
         return {};
     }
+}
+
+function extractJsonObjectValue(rawBody: string, key: string) {
+    const keyIndex = rawBody.indexOf(JSON.stringify(key));
+    if (keyIndex < 0) return "";
+    const separatorIndex = rawBody.indexOf(":", keyIndex + key.length + 2);
+    if (separatorIndex < 0) return "";
+    let start = separatorIndex + 1;
+    while (/\s/.test(rawBody[start] || "")) start += 1;
+    if (rawBody[start] !== "{") return "";
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < rawBody.length; index += 1) {
+        const character = rawBody[index];
+        if (inString) {
+            if (escaped) escaped = false;
+            else if (character === "\\") escaped = true;
+            else if (character === '"') inString = false;
+            continue;
+        }
+        if (character === '"') inString = true;
+        else if (character === "{") depth += 1;
+        else if (character === "}" && --depth === 0) return rawBody.slice(start, index + 1);
+    }
+    return "";
 }
 
 function stripeApiBase(config: PaymentRuntimeConfig) {

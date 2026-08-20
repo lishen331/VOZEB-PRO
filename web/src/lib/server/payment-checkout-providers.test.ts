@@ -1,4 +1,5 @@
 import { createSign, createVerify, generateKeyPairSync } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/server/safe-outbound-fetch", () => ({ fetchSafeOutbound: (url: string | URL, init?: RequestInit) => fetch(url, init) }));
@@ -83,6 +84,15 @@ describe("payment checkout providers", () => {
         expect(params.get("method")).toBe("alipay.trade.page.pay");
         expect(params.get("return_url")).toBe(`https://app.test/billing/success?orderId=${order.id}`);
         expect(JSON.parse(params.get("biz_content") || "{}")).toMatchObject({ out_trade_no: order.orderNo, total_amount: "12.99", product_code: "FAST_INSTANT_TRADE_PAY" });
+    });
+
+    it("adds certificate serials to Alipay page-pay requests", async () => {
+        const checkout = await createProviderCheckout("alipay", { ...order, provider: "alipay", currency: "CNY" }, { origin: "https://app.test" }, certificateAlipayConfig());
+        const params = new URL(checkout.url || "").searchParams;
+
+        expect(params.get("app_cert_sn")).toMatch(/^[a-f0-9]{32}$/);
+        expect(params.get("alipay_root_cert_sn")).toBe(params.get("app_cert_sn"));
+        expect(params.get("sign")).toBeTruthy();
     });
 
     it("creates an Alipay face-to-face QR checkout", async () => {
@@ -171,6 +181,22 @@ function alipayConfig(mode = "official"): PaymentRuntimeConfig {
             VOZEB_PRO_ALIPAY_PRIVATE_KEY: alipayPrivateKey,
             VOZEB_PRO_ALIPAY_PUBLIC_KEY: alipayPublicKey,
             VOZEB_PRO_ALIPAY_GATEWAY_URL: "https://alipay.test/gateway.do",
+        },
+    };
+}
+
+function certificateAlipayConfig(): PaymentRuntimeConfig {
+    const certificate = readFileSync(new URL("./fixtures/alipay-test-certificate.pem", import.meta.url), "utf8");
+    const privateKey = readFileSync(new URL("./fixtures/alipay-test-private-key.pem", import.meta.url), "utf8");
+    return {
+        ...alipayConfig(),
+        valuesByEnvName: {
+            ...alipayConfig().valuesByEnvName,
+            VOZEB_PRO_ALIPAY_SIGNATURE_MODE: "certificate",
+            VOZEB_PRO_ALIPAY_PRIVATE_KEY: privateKey,
+            VOZEB_PRO_ALIPAY_APP_CERT: certificate,
+            VOZEB_PRO_ALIPAY_ALIPAY_CERT: certificate,
+            VOZEB_PRO_ALIPAY_ROOT_CERT: certificate,
         },
     };
 }
