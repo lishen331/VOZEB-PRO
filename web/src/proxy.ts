@@ -12,7 +12,6 @@ export function proxy(request: NextRequest) {
         return securedNextResponse(requestHeaders, contentSecurityPolicy);
     }
 
-    const requestOrigin = publicRequestOrigin(request);
     const origin = request.headers.get("origin");
     if (origin && origin !== requestOrigin) return securedJsonResponse({ error: "跨站请求已被拦截" }, 403, contentSecurityPolicy);
 
