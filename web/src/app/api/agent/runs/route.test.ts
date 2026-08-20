@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     getAgentRunByClientRequestId: vi.fn(),
     listAgentRuns: vi.fn(),
     validateCreativeProjectIpReferencesForRun: vi.fn(),
+    resolveSchoolComputeBillingContext: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal<typeof import("next/server")>()), after: mocks.after }));
@@ -23,6 +24,7 @@ vi.mock("@/lib/server/generation-task-recovery-service", () => ({ runGenerationT
 vi.mock("@/lib/server/agent-run-store", () => ({ createAgentRun: mocks.createAgentRun, getAgentRunByClientRequestId: mocks.getAgentRunByClientRequestId, listAgentRuns: mocks.listAgentRuns }));
 vi.mock("@/lib/server/internal-origin", () => ({ resolveInternalOrigin: vi.fn(() => "http://localhost") }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateCreativeProjectIpReferencesForRun: mocks.validateCreativeProjectIpReferencesForRun }));
+vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
 import { GET, maxDuration, POST } from "./route";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
@@ -37,6 +39,7 @@ describe("POST /api/agent/runs", () => {
         mocks.withGenerationConcurrencyLimit.mockImplementation(async (_userId, _type, _staleMs, _limit, handler) => handler());
         mocks.getAgentRunByClientRequestId.mockResolvedValue(null);
         mocks.validateCreativeProjectIpReferencesForRun.mockResolvedValue(undefined);
+        mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
     });
 
     it("keeps Agent recovery alive while long media children are running", () => {
@@ -90,6 +93,24 @@ describe("POST /api/agent/runs", () => {
         expect(await response.json()).toMatchObject({ code: 403, msg: "IP 授权已失效" });
         expect(mocks.validateCreativeProjectIpReferencesForRun).toHaveBeenCalledWith("user", "canvas", "canvas-one");
         expect(mocks.createAgentRun).not.toHaveBeenCalled();
+    });
+
+    it("replaces a client billing context with the trusted project association", async () => {
+        const billingContext = { schoolId: "school-a", groupId: "group-a", orderId: "order-a", projectType: "canvas" as const, projectId: "canvas-one" };
+        mocks.resolveSchoolComputeBillingContext.mockResolvedValue(billingContext);
+        mocks.createAgentRun.mockResolvedValue({ run: { id: "new-run", userId: "user" }, conversation: { id: "conversation" }, created: true });
+        await POST(
+            request({
+                ...validInput(),
+                surface: "canvas",
+                projectId: "canvas-one",
+                snapshot: { projectId: "canvas-one", nodes: [], connections: [] },
+                billingContext: { schoolId: "fake", groupId: "fake", orderId: "fake", projectType: "canvas", projectId: "canvas-one" },
+            }),
+        );
+
+        expect(mocks.resolveSchoolComputeBillingContext).toHaveBeenCalledWith("user", { surface: "canvas", projectId: "canvas-one", executionProfile: "production" });
+        expect(mocks.createAgentRun).toHaveBeenCalledWith("user", expect.objectContaining({ billingContext }));
     });
 });
 

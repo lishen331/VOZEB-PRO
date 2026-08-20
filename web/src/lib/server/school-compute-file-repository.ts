@@ -16,6 +16,7 @@ import type {
     ProductionGroupRecord,
     ProductionGroupUpdate,
     SchoolComputeLedgerRecord,
+    SchoolComputePoolMetricsRecord,
     SchoolComputePoolRecord,
     SchoolComputeRepository,
 } from "./school-compute-repository";
@@ -43,16 +44,16 @@ export function createFileSchoolComputeRepository(): SchoolComputeRepository {
 }
 
 export async function mutateFileSchoolComputeInsideLock<T>(operation: (repository: SchoolComputeRepository) => Promise<T>): Promise<T> {
-    return withJsonDataFileLock(SCHOOL_COMPUTE_DATA_FILE, async () => {
-        const state = normalize(await readJsonDataFile(SCHOOL_COMPUTE_DATA_FILE, EMPTY_FILE));
-        const result = await operation(new FileSchoolComputeRepository(state));
-        await writeJsonDataFile(SCHOOL_COMPUTE_DATA_FILE, state);
-        return result;
-    });
+    const state = normalize(await readJsonDataFile(SCHOOL_COMPUTE_DATA_FILE, EMPTY_FILE));
+    const result = await operation(new FileSchoolComputeRepository(state));
+    await writeJsonDataFile(SCHOOL_COMPUTE_DATA_FILE, state);
+    return result;
 }
 
 class FileSchoolComputeRepository implements SchoolComputeRepository {
     constructor(private readonly state?: SchoolComputeFile) {}
+
+    async lockOperation() {}
 
     async getPool(schoolId: string) {
         return detached((await this.read()).pools.find((item) => item.schoolId === schoolId));
@@ -80,6 +81,35 @@ class FileSchoolComputeRepository implements SchoolComputeRepository {
             .filter((item) => selected.has(item.schoolId))
             .sort((a, b) => a.schoolId.localeCompare(b.schoolId))
             .map(clone);
+    }
+
+    async getPoolMetrics(schoolId: string) {
+        return (await this.listPoolMetricsBySchoolIds([schoolId]))[0] || null;
+    }
+
+    async listPoolMetricsBySchoolIds(schoolIds: string[]) {
+        if (!schoolIds.length) return [];
+        const selected = new Set(schoolIds);
+        const state = await this.read();
+        return state.pools
+            .filter((pool) => selected.has(pool.schoolId))
+            .sort((a, b) => a.schoolId.localeCompare(b.schoolId))
+            .map((pool) => poolMetrics(state, pool.schoolId, pool));
+    }
+
+    async listPoolMetricsPage(input: ComputePoolPageQuery) {
+        const state = await this.read();
+        const domain = await readJsonDataFile<{ schools?: Array<{ id?: string; name?: string; updatedAt?: string }> }>("school-domain.json", { schools: [] });
+        const keyword = input.keyword?.trim().toLowerCase() || "";
+        const records = (domain.schools || [])
+            .filter((school): school is { id: string; name?: string; updatedAt?: string } => Boolean(school.id))
+            .map((school) => {
+                const pool = state.pools.find((item) => item.schoolId === school.id);
+                return { metrics: poolMetrics(state, school.id, pool, school.updatedAt || ""), name: school.name || "" };
+            })
+            .filter(({ metrics, name }) => (!input.status || metrics.status === input.status) && (!keyword || metrics.schoolId.toLowerCase().includes(keyword) || name.toLowerCase().includes(keyword)))
+            .map(({ metrics }) => metrics);
+        return paginate(records, input);
     }
 
     creditPool(schoolId: string, amount: number, entry: SchoolComputeLedgerRecord) {
@@ -177,10 +207,28 @@ class FileSchoolComputeRepository implements SchoolComputeRepository {
         return detached((await this.read()).groups.find((item) => item.schoolId === schoolId && item.id === groupId));
     }
 
+    async listGroupsByIds(schoolId: string, groupIds: string[]) {
+        const selected = new Set(groupIds);
+        return (await this.read()).groups
+            .filter((item) => item.schoolId === schoolId && selected.has(item.id))
+            .sort((left, right) => left.id.localeCompare(right.id))
+            .map(clone);
+    }
+
     async listGroups(schoolId: string, input: ProductionGroupPageQuery) {
         const keyword = input.keyword?.trim().toLowerCase() || "";
         const records = (await this.read()).groups.filter((item) => item.schoolId === schoolId && (!input.status || item.status === input.status) && (!keyword || `${item.id} ${item.name}`.toLowerCase().includes(keyword)));
         return paginate(records, input);
+    }
+
+    async listGroupsForMembership(schoolId: string, membershipId: string, input: ProductionGroupPageQuery) {
+        const state = await this.read();
+        const groupIds = new Set(state.groupMembers.filter((item) => item.schoolId === schoolId && item.membershipId === membershipId).map((item) => item.groupId));
+        const keyword = input.keyword?.trim().toLowerCase() || "";
+        return paginate(
+            state.groups.filter((item) => item.schoolId === schoolId && groupIds.has(item.id) && (!input.status || item.status === input.status) && (!keyword || `${item.id} ${item.name}`.toLowerCase().includes(keyword))),
+            input,
+        );
     }
 
     insertGroup(record: ProductionGroupRecord) {
@@ -218,6 +266,14 @@ class FileSchoolComputeRepository implements SchoolComputeRepository {
         );
     }
 
+    async getGroupMember(schoolId: string, groupId: string, membershipId: string) {
+        return detached((await this.read()).groupMembers.find((item) => item.schoolId === schoolId && item.groupId === groupId && item.membershipId === membershipId));
+    }
+
+    async getGroupProject(schoolId: string, groupId: string, linkId: string) {
+        return detached((await this.read()).groupProjects.find((item) => item.schoolId === schoolId && item.groupId === groupId && item.id === linkId));
+    }
+
     async getGroupProjectByProject(projectType: "canvas" | "drama", projectId: string) {
         return detached((await this.read()).groupProjects.find((item) => item.projectType === projectType && item.projectId === projectId && !item.settledAt));
     }
@@ -227,6 +283,15 @@ class FileSchoolComputeRepository implements SchoolComputeRepository {
             if (state.groupProjects.some((item) => item.projectType === record.projectType && item.projectId === record.projectId && !item.settledAt)) throw new Error("项目已有未结算的制作小组关联");
             state.groupProjects.push(clone(record));
             return clone(record);
+        });
+    }
+
+    deleteGroupProject(schoolId: string, groupId: string, linkId: string) {
+        return this.mutate((state) => {
+            const index = state.groupProjects.findIndex((item) => item.schoolId === schoolId && item.groupId === groupId && item.id === linkId);
+            if (index < 0) return false;
+            state.groupProjects.splice(index, 1);
+            return true;
         });
     }
 
@@ -252,11 +317,21 @@ class FileSchoolComputeRepository implements SchoolComputeRepository {
     async getPersonalAdvance(schoolId: string, advanceId: string) {
         return detached((await this.read()).personalAdvances.find((item) => item.schoolId === schoolId && item.id === advanceId));
     }
+    async getPersonalAdvanceByPointRecordId(pointRecordId: string) {
+        return detached((await this.read()).personalAdvances.find((item) => item.pointRecordId === pointRecordId));
+    }
     async listPersonalAdvances(schoolId: string, groupId: string, input: PageQuery & { orderId?: string; membershipId?: string }) {
         return paginate(
             (await this.read()).personalAdvances.filter((item) => item.schoolId === schoolId && item.groupId === groupId && (!input.orderId || item.orderId === input.orderId) && (!input.membershipId || item.membershipId === input.membershipId)),
             input,
         );
+    }
+    async listPersonalAdvancesForOrders(schoolId: string, orderIds: string[]) {
+        const selected = new Set(orderIds);
+        return (await this.read()).personalAdvances
+            .filter((item) => item.schoolId === schoolId && selected.has(item.orderId))
+            .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+            .map(clone);
     }
     async listSpendableAdvances(schoolId: string, groupId: string, orderId: string) {
         return (await this.read()).personalAdvances
@@ -288,6 +363,12 @@ class FileSchoolComputeRepository implements SchoolComputeRepository {
             input,
         );
     }
+    async listConsumptionsForOrderRecords(schoolId: string, orderId: string) {
+        return (await this.read()).consumptions
+            .filter((item) => item.schoolId === schoolId && item.orderId === orderId)
+            .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+            .map(clone);
+    }
     updateConsumption(id: string, status: ComputeConsumptionRecord["status"], updatedAt: string) {
         return this.mutate((state) => {
             const item = state.consumptions.find((entry) => entry.id === id);
@@ -300,6 +381,9 @@ class FileSchoolComputeRepository implements SchoolComputeRepository {
 
     async getSettlement(schoolId: string, orderId: string) {
         return detached((await this.read()).settlements.find((item) => item.schoolId === schoolId && item.orderId === orderId));
+    }
+    async getSettlementById(schoolId: string, settlementId: string) {
+        return detached((await this.read()).settlements.find((item) => item.schoolId === schoolId && item.id === settlementId));
     }
     insertSettlement(record: ComputeSettlementRecord) {
         return this.insertRecord("settlements", record);
@@ -385,6 +469,22 @@ function normalize(value: Partial<SchoolComputeFile>): SchoolComputeFile {
         consumptions: arrayValue(source.consumptions),
     };
 }
+
+function poolMetrics(state: SchoolComputeFile, schoolId: string, pool?: SchoolComputePoolRecord, fallbackUpdatedAt = ""): SchoolComputePoolMetricsRecord {
+    const allocatedPoints = money(state.groups.filter((group) => group.schoolId === schoolId).reduce((total, group) => total + group.schoolPointsBalance, 0));
+    const consumedPoints = money(state.consumptions.filter((item) => item.schoolId === schoolId && item.sourceType === "group_school_points" && (item.status === "charged" || item.status === "settled")).reduce((total, item) => total + item.amount, 0));
+    const availablePoints = pool?.availablePoints || 0;
+    return {
+        schoolId,
+        totalPoints: money(availablePoints + allocatedPoints + consumedPoints),
+        availablePoints,
+        allocatedPoints,
+        consumedPoints,
+        status: pool?.status || "active",
+        updatedAt: pool?.updatedAt || fallbackUpdatedAt,
+    };
+}
+
 function arrayValue<T>(value: T[] | undefined): T[] {
     return Array.isArray(value) ? structuredClone(value) : [];
 }

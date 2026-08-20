@@ -11,6 +11,7 @@ describe("publicAgentRun", () => {
             conversationId: "conversation",
             clientRequestId: "request-secret",
             surface: "chat",
+            billingContext: { schoolId: "school-secret", groupId: "group-secret", orderId: "order-secret", projectType: "canvas", projectId: "project-secret" },
             inputMessageId: "input",
             assistantMessageId: "assistant",
             prompt: "@图片1 用户原始需求",
@@ -88,6 +89,9 @@ describe("publicAgentRun", () => {
         expect(serialized).not.toContain("execution-secret");
         expect(serialized).not.toContain("child-secret");
         expect(serialized).not.toContain("user-secret");
+        expect(serialized).not.toContain("school-secret");
+        expect(serialized).not.toContain("group-secret");
+        expect(serialized).not.toContain("order-secret");
         expect(serialized).not.toContain("request-secret");
         expect(serialized).not.toContain('"foundation"');
         expect(serialized).not.toContain("planner-secret");

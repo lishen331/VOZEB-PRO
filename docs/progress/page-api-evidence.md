@@ -34,6 +34,13 @@
 
 ## 本机协议结论
 
+## 学校算力闭环证据
+
+- 平台管理员从 `/admin?section=schoolCompute` 读取学校池分页摘要和流水；充值、调账、冻结要求同时具备 `education.manage` 与 `billing.manage`，mutation 使用学校范围幂等键。
+- 学校管理员从 `/school` 的“制作小组与算力”Tab 管理 active 小组、成员、学校额度、追加申请和商单结算；验收为 `accepted` 时订单、结算和未使用个人垫付返还在同一 PostgreSQL 事务或文件三锁回滚中完成。
+- 老师/学生从 `/teaching`、`/learning` 读取本人所属小组和个人垫付；`/api/teaching/project-billing` 只在 Canvas/短剧存在可信学校小组与商单关联时返回公开来源摘要，`open-source-practice` 不请求或扣费。
+- 生成网关使用签名 `billingContext` 和稳定 `billingReceiptId`；学校额度不足时按学校小组余额、FIFO 个人垫付顺序扣费，失败按原 consumption 明细退款。重复生成、重复返还和跨校 ID 请求均由 service/repository 的租户条件、锁和幂等约束拒绝或复用。
+
 - 已注册协议和 GlobalAiOpc 兼容预设由协议专项验证真实请求方法、路径、鉴权、请求体、任务查询和结果解析。
 - `/create` 的真实页面入口已验证：用户提交 → Agent Run → 默认文本模型规划 → 图片任务 → 本机上游协议 → 媒体登记 → 页面结果展示；浏览器没有拦截或伪造接口响应。
 - 文本、图片、视频和音频任务分别由核心 E2E 验证本机上游请求和可读取结果；失败切换、幂等复用与取消按各自测试契约覆盖。

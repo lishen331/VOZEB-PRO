@@ -1,4 +1,3 @@
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
 import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 import { fileTypeFromBuffer } from "file-type";
 import { mediaTaskSource } from "@/lib/media-management-contract";
@@ -17,10 +16,11 @@ import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError, generationSubmissionResponseError, generationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 
 export type AudioUpstreamStep =
-    | { state: "pending"; status: string; upstreamTaskId: string; createPath: string; pointsCost?: number; pointsRecordId?: string }
-    | { state: "result_ready"; status: string; resultUrl: string; pointsCost?: number; pointsRecordId?: string }
+    | { state: "pending"; status: string; upstreamTaskId: string; createPath: string; pointsCost?: number; billingReceiptId?: string }
+    | { state: "result_ready"; status: string; resultUrl: string; pointsCost?: number; billingReceiptId?: string }
     | { state: "completed" }
     | { state: "failed"; status: string; error: string };
 
@@ -61,7 +61,7 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
             }
             const { response, path } = await createAudioUpstream(candidate, origin, cookie, workerUserId, payload);
             const billing = readBilling(response.headers);
-            if (billing.pointsRecordId) await updateAudioTask(task.id, { billing: { pointsCost: billing.pointsCost ?? 0, pointsRecordId: billing.pointsRecordId, refunded: false } });
+            if (billing.billingReceiptId) await updateAudioTask(task.id, { billing: { pointsCost: billing.pointsCost ?? 0, billingReceiptId: billing.billingReceiptId, refunded: false } });
             const contentType = response.headers.get("content-type")?.split(";")[0].toLowerCase() || "";
             if (!contentType.includes("json")) {
                 const completed = await persistAudioBytes(candidate, origin, Buffer.from(await response.arrayBuffer()), contentType);
@@ -160,11 +160,18 @@ export async function markAudioTaskFailed(task: AudioTask, error: string) {
     const current = (await getAudioTask(task.id)) || task;
     if (current.status === "cancelled" || current.status === "success") return current;
     const billing = current.billing;
-    if (generationTaskShouldConsumePoints(current.executionProfile) && billing?.pointsRecordId && !billing.refunded) {
-        await refundUserPoints(current.userId, generationModelId(current.config), billing.pointsCost, "audio", 1, audioTaskRefundIdempotencyKey({ id: current.id, attemptNo: current.attemptNo }), billing.pointsRecordId);
+    if (generationTaskShouldConsumePoints(current.executionProfile) && billing?.billingReceiptId && !billing.refunded) {
+        await refundGenerationCharge({
+            userId: current.userId,
+            receiptId: billing.billingReceiptId,
+            model: generationModelId(current.config),
+            usageKind: "audio",
+            units: 1,
+            idempotencyKey: audioTaskRefundIdempotencyKey({ id: current.id, attemptNo: current.attemptNo }),
+        });
         await updateAudioTask(current.id, { billing: { ...billing, refunded: true } });
     }
-    const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || current.attempts?.at(-1)?.attemptNo || 1, { status: "failed", error, pointsCost: billing?.pointsCost, pointsRecordId: billing?.pointsRecordId });
+    const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || current.attempts?.at(-1)?.attemptNo || 1, { status: "failed", error, pointsCost: billing?.pointsCost, billingReceiptId: billing?.billingReceiptId });
     await updateAudioTask(current.id, { attempts, candidateConfigs: [], attemptNo: attempts.at(-1)?.attemptNo });
     return transitionAudioTask(current, ["pending", "running"], { status: "error", error: error.slice(0, 500), config: { ...current.config, apiKey: "" }, billing: billing ? { ...billing, refunded: true } : undefined });
 }
@@ -181,7 +188,7 @@ async function createAudioUpstream(task: AudioTask, origin: string, cookie: stri
                     "Content-Type": "application/json",
                     "Idempotency-Key": idempotencyKey,
                     "X-Client-Request-Id": idempotencyKey,
-                    ...(task.config.baseUrl.startsWith("/") ? systemAiBillingHeaders(generationModelId(task.config), idempotencyKey, task.config.model, task.executionProfile) : {}),
+                    ...(task.config.baseUrl.startsWith("/") ? systemAiBillingHeaders(generationModelId(task.config), idempotencyKey, task.config.model, task.executionProfile, task.billingContext) : {}),
                 },
                 body: JSON.stringify(payload),
                 signal: AbortSignal.timeout(resolveModelRequestTimeoutMs(task.config, "audio")),
@@ -200,8 +207,8 @@ async function createAudioUpstream(task: AudioTask, origin: string, cookie: stri
 async function refundAudioCandidate(task: AudioTask) {
     const current = await getAudioTask(task.id);
     const billing = current?.billing;
-    if (!generationTaskShouldConsumePoints(task.executionProfile) || !billing?.pointsRecordId || billing.refunded) return;
-    await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "audio", 1, audioTaskRefundIdempotencyKey({ id: task.id, attemptNo: task.attemptNo }), billing.pointsRecordId);
+    if (!generationTaskShouldConsumePoints(task.executionProfile) || !billing?.billingReceiptId || billing.refunded) return;
+    await refundGenerationCharge({ userId: task.userId, receiptId: billing.billingReceiptId, model: generationModelId(task.config), usageKind: "audio", units: 1, idempotencyKey: audioTaskRefundIdempotencyKey({ id: task.id, attemptNo: task.attemptNo }) });
 }
 
 async function persistAudioBytes(task: AudioTask, origin: string, bytes: Buffer, responseMime: string) {
@@ -241,11 +248,16 @@ async function completeAudioTask(task: AudioTask, url: string, mimeType: string)
     return completed;
 }
 
-async function markAudioAttemptSucceeded(task: AudioTask, billing: { pointsCost?: number; pointsRecordId?: string }) {
+async function markAudioAttemptSucceeded(task: AudioTask, billing: { pointsCost?: number; billingReceiptId?: string }) {
     const current = await getAudioTask(task.id);
     if (!current) return;
-    const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || 1, { status: "succeeded", pointsCost: billing.pointsCost, pointsRecordId: billing.pointsRecordId });
-    await updateAudioTask(task.id, { attempts, attemptNo: attempts.at(-1)?.attemptNo, candidateConfigs: [], billing: billing.pointsRecordId ? { pointsCost: billing.pointsCost ?? 0, pointsRecordId: billing.pointsRecordId, refunded: false } : undefined });
+    const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || 1, { status: "succeeded", pointsCost: billing.pointsCost, billingReceiptId: billing.billingReceiptId });
+    await updateAudioTask(task.id, {
+        attempts,
+        attemptNo: attempts.at(-1)?.attemptNo,
+        candidateConfigs: [],
+        billing: billing.billingReceiptId ? { pointsCost: billing.pointsCost ?? 0, billingReceiptId: billing.billingReceiptId, refunded: false } : undefined,
+    });
 }
 
 function providerFetch(task: AudioTask, origin: string, cookie: string, workerUserId: string, path: string, init: RequestInit) {
@@ -254,7 +266,7 @@ function providerFetch(task: AudioTask, origin: string, cookie: string, workerUs
     if (task.config.baseUrl.startsWith("/") && workerUserId) Object.entries(maintenanceWorkerHeaders(workerUserId)).forEach(([key, value]) => headers.set(key, value));
     else if (cookie) headers.set("cookie", cookie);
     const practiceRequestId = task.executionProfile === "open-source-practice" ? `audio-task:${task.id}:attempt:${task.attemptNo || 1}:poll` : undefined;
-    if (task.config.baseUrl.startsWith("/")) Object.entries(systemAiBillingHeaders(generationModelId(task.config), practiceRequestId, task.config.model, task.executionProfile)).forEach(([key, value]) => headers.set(key, value));
+    if (task.config.baseUrl.startsWith("/")) Object.entries(systemAiBillingHeaders(generationModelId(task.config), practiceRequestId, task.config.model, task.executionProfile, task.billingContext)).forEach(([key, value]) => headers.set(key, value));
     const mediaUrl = task.config.baseUrl.startsWith("/") ? mediaUrlFromProxyPath(path) : "";
     const channelId = task.config.channelId || systemGenerationChannelId(task.config.baseUrl);
     if (mediaUrl && channelId) Object.entries(generationMediaProxyHeaders({ userId: task.userId, taskType: "audio", taskId: task.id, channelId, upstreamModel: task.config.model, url: mediaUrl })).forEach(([key, value]) => headers.set(key, value));
@@ -274,7 +286,7 @@ function mediaUrlFromProxyPath(path: string) {
 function readBilling(headers: Headers) {
     const raw = headers.get("x-vozeb-pro-points-cost");
     const value = raw === null ? undefined : Number(raw);
-    return { pointsCost: value !== undefined && Number.isFinite(value) && value >= 0 ? value : undefined, pointsRecordId: headers.get("x-vozeb-pro-points-record-id") || undefined };
+    return { pointsCost: value !== undefined && Number.isFinite(value) && value >= 0 ? value : undefined, billingReceiptId: headers.get("x-vozeb-pro-billing-receipt-id") || undefined };
 }
 
 function mediaContext(task: AudioTask) {

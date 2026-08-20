@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { hasAdminPermission } from "@/lib/admin-permissions";
 import { getPublicUsersByIds } from "@/lib/auth/store";
+import { AUTH_DATA_FILE } from "@/lib/auth/store-foundation";
+import { emptyDb, normalizeDb } from "@/lib/auth/store-normalizers";
+import { writeAuthDb } from "@/lib/auth/store-repository";
+import type { AuthDatabase } from "@/lib/auth/store-types";
 import {
     canTransitionCommercialOrder,
     type AdminCommercialOrder,
@@ -19,6 +23,12 @@ import {
 import type { CommercialOrderDeliveryRecord, CommercialOrderParticipantRecord, CommercialOrderRecord, OrderPageQuery, SchoolDomainRepository, SchoolMembershipRecord } from "@/lib/server/school-domain-repository";
 import type { JsonValue } from "@/lib/server/database/repository-types";
 import { createSchoolDomainRepository } from "@/lib/server/school-domain-repository";
+import { createSchoolComputeRepository } from "@/lib/server/school-compute-repository";
+import { getDatabaseProvider, withPostgresTransaction } from "@/lib/server/database/postgres";
+import { readJsonDataFile, withJsonDataFileLocks, writeJsonDataFile } from "./data-adapter";
+import { mutateFileSchoolComputeInsideLock, SCHOOL_COMPUTE_DATA_FILE } from "./school-compute-file-repository";
+import { mutateFileSchoolDomainInsideLock, SCHOOL_DOMAIN_DATA_FILE } from "./school-domain-file-repository";
+import { openCommercialOrderSettlement, openCommercialOrderSettlementInsideTransaction } from "./school-compute-settlement-service";
 import { requireActiveSchoolContext, requireSchoolManager, requireStudent, requireTeacher, SchoolServiceError } from "./school-access-service";
 import { validateSchoolContentReferences } from "./school-content-reference-service";
 
@@ -292,8 +302,7 @@ export async function reviewCommercialOrder(actorId: string, orderId: string, in
     if (input.decision !== "revision_required" && input.decision !== "accepted") throw new SchoolServiceError(400, "验收决定无效");
     const feedback = text(input.feedback, 5000);
     if (input.decision === "revision_required" && !feedback) throw new SchoolServiceError(400, "退回修改时必须填写反馈");
-    const repository = createSchoolDomainRepository();
-    const reviewed = await repository.transact(async (transaction) => {
+    const reviewInsideTransaction = async (transaction: SchoolDomainRepository) => {
         const order = await transaction.getPlatformCommercialOrder(orderId, true);
         if (!order) throw new SchoolServiceError(404, "商单不存在");
         if (order.status !== "submitted") throw new SchoolServiceError(409, "只有待验收商单可以审核");
@@ -304,8 +313,44 @@ export async function reviewCommercialOrder(actorId: string, orderId: string, in
         if (!updatedDelivery) throw new SchoolServiceError(409, "正式交付状态已变化，请刷新后重试");
         if (!(await transaction.compareAndSetPlatformCommercialOrderStatus(orderId, "submitted", input.decision, now, feedback))) throw new SchoolServiceError(409, "商单状态已变化，请刷新后重试");
         return { ...order, status: input.decision, platformFeedback: feedback, updatedAt: now };
-    });
+    };
+    const repository = createSchoolDomainRepository();
+    const reviewed =
+        input.decision !== "accepted"
+            ? await repository.transact(reviewInsideTransaction)
+            : getDatabaseProvider() === "postgres"
+              ? await withPostgresTransaction(async (executor) => {
+                    const transaction = createSchoolDomainRepository(executor);
+                    const result = await reviewInsideTransaction(transaction);
+                    await openCommercialOrderSettlement(orderId, executor);
+                    return result;
+                })
+              : await reviewAcceptedInFileTransaction(orderId, reviewInsideTransaction);
     return toAdminOrder(reviewed);
+}
+
+async function reviewAcceptedInFileTransaction(orderId: string, reviewInsideTransaction: (repository: SchoolDomainRepository) => Promise<CommercialOrderRecord>) {
+    return withJsonDataFileLocks([AUTH_DATA_FILE, SCHOOL_DOMAIN_DATA_FILE, SCHOOL_COMPUTE_DATA_FILE], async () => {
+        const [authBefore, schoolBefore, computeBefore] = await Promise.all([
+            readJsonDataFile<Partial<AuthDatabase>>(AUTH_DATA_FILE, emptyDb()),
+            readJsonDataFile<Record<string, unknown>>(SCHOOL_DOMAIN_DATA_FILE, {}),
+            readJsonDataFile<Record<string, unknown>>(SCHOOL_COMPUTE_DATA_FILE, {}),
+        ]);
+        const authDb = normalizeDb(authBefore);
+        try {
+            return await mutateFileSchoolDomainInsideLock(async (school) =>
+                mutateFileSchoolComputeInsideLock(async (compute) => {
+                    const reviewed = await reviewInsideTransaction(school);
+                    await openCommercialOrderSettlementInsideTransaction(orderId, school, compute, authDb);
+                    await writeAuthDb(authDb);
+                    return reviewed;
+                }),
+            );
+        } catch (error) {
+            await Promise.all([writeJsonDataFile(AUTH_DATA_FILE, authBefore), writeJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, schoolBefore), writeJsonDataFile(SCHOOL_COMPUTE_DATA_FILE, computeBefore)]);
+            throw error;
+        }
+    });
 }
 
 async function requireWritableOrder(repository: SchoolDomainRepository, schoolId: string, orderId: string, statuses: CommercialOrderStatus[]) {
@@ -327,6 +372,7 @@ function toAdminOrder(record: CommercialOrderRecord): AdminCommercialOrder {
         ...(record.assignedSchoolId ? { assignedSchoolId: record.assignedSchoolId } : {}),
         ...(record.teacherMembershipId ? { teacherMembershipId: record.teacherMembershipId } : {}),
         ...(record.classId ? { classId: record.classId } : {}),
+        ...(record.productionGroupId ? { productionGroupId: record.productionGroupId } : {}),
         status: record.status,
         platformFeedback: record.platformFeedback,
         createdAt: record.createdAt,
@@ -334,9 +380,13 @@ function toAdminOrder(record: CommercialOrderRecord): AdminCommercialOrder {
     };
 }
 
-async function toSchoolOrder(repository: SchoolDomainRepository, schoolId: string, record: CommercialOrderRecord): Promise<SchoolCommercialOrder> {
+async function toSchoolOrder(repository: SchoolDomainRepository, schoolId: string, record: CommercialOrderRecord, groupMap?: Map<string, import("./school-compute-repository").ProductionGroupRecord>): Promise<SchoolCommercialOrder> {
     if (!record.assignedSchoolId || record.assignedSchoolId !== schoolId) throw new SchoolServiceError(404, "商单不存在");
-    const [teacherMembership, schoolClass] = await Promise.all([record.teacherMembershipId ? repository.getMembership(schoolId, record.teacherMembershipId) : null, record.classId ? repository.getClass(schoolId, record.classId) : null]);
+    const [teacherMembership, schoolClass, productionGroup] = await Promise.all([
+        record.teacherMembershipId ? repository.getMembership(schoolId, record.teacherMembershipId) : null,
+        record.classId ? repository.getClass(schoolId, record.classId) : null,
+        record.productionGroupId ? groupMap?.get(record.productionGroupId) || createSchoolComputeRepository().getGroup(schoolId, record.productionGroupId) : null,
+    ]);
     return {
         id: record.id,
         title: record.title,
@@ -347,6 +397,7 @@ async function toSchoolOrder(repository: SchoolDomainRepository, schoolId: strin
         assignedSchoolId: schoolId,
         ...(record.teacherMembershipId ? { teacherMembershipId: record.teacherMembershipId, teacher: await toPublicIdentity(teacherMembership) } : {}),
         ...(record.classId ? { classId: record.classId, className: schoolClass?.name || "班级信息不可用" } : {}),
+        ...(record.productionGroupId ? { productionGroupId: record.productionGroupId, productionGroupName: productionGroup?.name || "制作小组信息不可用" } : {}),
         status: record.status,
         platformFeedback: record.platformFeedback,
         createdAt: record.createdAt,
@@ -395,7 +446,10 @@ async function toPublicIdentity(membership: SchoolMembershipRecord | null): Prom
 }
 
 async function mapOrderPage(repository: SchoolDomainRepository, schoolId: string, page: { items: CommercialOrderRecord[]; total: number; page: number; pageSize: number }) {
-    return mapPage(page, (record) => toSchoolOrder(repository, schoolId, record));
+    const groupIds = page.items.flatMap((record) => (record.productionGroupId ? [record.productionGroupId] : []));
+    const groups = await createSchoolComputeRepository().listGroupsByIds(schoolId, groupIds);
+    const groupsById = new Map(groups.map((group) => [group.id, group]));
+    return mapPage(page, (record) => toSchoolOrder(repository, schoolId, record, groupsById));
 }
 
 async function mapPage<T, U>(page: { items: T[]; total: number; page: number; pageSize: number }, mapper: (item: T) => Promise<U>) {

@@ -893,6 +893,7 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         generationLogId: cleanContextText(context.generationLogId),
         generationSlotId: cleanContextText(context.generationSlotId),
         ipReferences: normalizeContextIpReferences(context.ipReferences),
+        billingContext: normalizeBillingContext(context.billingContext),
     };
 }
 
@@ -911,8 +912,19 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         generationLogId: next.generationLogId || previous?.generationLogId,
         generationSlotId: next.generationSlotId || previous?.generationSlotId,
         ipReferences: next.ipReferences?.length ? next.ipReferences : previous?.ipReferences,
+        billingContext: next.billingContext || previous?.billingContext,
         executionProfile: previous?.executionProfile || next.executionProfile || "production",
     };
+}
+
+function normalizeBillingContext(value: GenerationTaskContext["billingContext"]): GenerationTaskContext["billingContext"] {
+    if (!value || (value.projectType !== "canvas" && value.projectType !== "drama")) return undefined;
+    const schoolId = cleanContextText(value.schoolId);
+    const groupId = cleanContextText(value.groupId);
+    const orderId = cleanContextText(value.orderId);
+    const projectId = cleanContextText(value.projectId);
+    if (!schoolId || !groupId || !orderId || !projectId) return undefined;
+    return { schoolId, groupId, orderId, projectType: value.projectType, projectId };
 }
 
 function preserveTaskExecution(previous?: StoredGenerationTaskRecord) {

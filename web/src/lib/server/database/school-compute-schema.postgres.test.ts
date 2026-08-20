@@ -72,18 +72,12 @@ describe("PostgreSQL school compute schema", () => {
         );
         await expect(postgresQuery("INSERT INTO school_compute_pools (school_id, available_points) VALUES ($1, $2)", [ids.schoolA, -1])).rejects.toMatchObject({ code: "23514" });
         await postgresQuery("INSERT INTO school_compute_pools (school_id, available_points) VALUES ($1, $2)", [ids.schoolA, 12.5]);
-        await expect(postgresQuery("INSERT INTO commercial_orders (id, title, assigned_school_id, production_group_id, status) VALUES ($1, $2, $3, $4, 'assigned')", [
-            `cross-school-order-${suffix}`,
-            "跨校绑定",
-            ids.schoolB,
-            ids.groupA,
-        ])).rejects.toMatchObject({ code: "23503" });
-        await expect(postgresQuery("INSERT INTO school_production_groups (id, school_id, name, leader_membership_id) VALUES ($1, $2, $3, $4)", [
-            `cross-school-group-${suffix}`,
-            ids.schoolA,
-            "跨校组长",
-            ids.membershipB,
-        ])).rejects.toMatchObject({ code: "23503" });
+        await expect(
+            postgresQuery("INSERT INTO commercial_orders (id, title, assigned_school_id, production_group_id, status) VALUES ($1, $2, $3, $4, 'assigned')", [`cross-school-order-${suffix}`, "跨校绑定", ids.schoolB, ids.groupA]),
+        ).rejects.toMatchObject({ code: "23503" });
+        await expect(postgresQuery("INSERT INTO school_production_groups (id, school_id, name, leader_membership_id) VALUES ($1, $2, $3, $4)", [`cross-school-group-${suffix}`, ids.schoolA, "跨校组长", ids.membershipB])).rejects.toMatchObject({
+            code: "23503",
+        });
 
         await postgresQuery("DELETE FROM school_compute_pools WHERE school_id = $1", [ids.schoolA]);
         await postgresQuery("DELETE FROM school_production_groups WHERE id = $1", [ids.groupA]);

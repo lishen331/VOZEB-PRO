@@ -47,7 +47,7 @@ describe("system generation proxy runtime", () => {
 describe("system media proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.checkMediaProxyRateLimit.mockResolvedValue({ allowed: true, remaining: 119, resetAt: Date.now() + 60_000 });
         mocks.safeUrl.mockResolvedValue(true);
@@ -167,7 +167,7 @@ describe("system media proxy", () => {
 describe("GlobalAiOpc native text proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.taskAccess.mockReset().mockResolvedValue(true);
@@ -293,7 +293,7 @@ describe("GlobalAiOpc native text proxy", () => {
         mocks.consumeUserPoints.mockImplementation(async (_userId, _model, _amount, _usageKind, key: string, fingerprint: string) => {
             if (!firstIdentity) firstIdentity = { key, fingerprint };
             else if (firstIdentity.key === key && firstIdentity.fingerprint !== fingerprint) throw Object.assign(new Error("积分幂等键对应的消费参数不一致"), { status: 409 });
-            return undefined;
+            return pointCharge();
         });
         const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ choices: [{ message: { content: "OK" } }] }));
         const billingHeaders = systemAiBillingHeaders("writer", "task-one", "vendor-text");
@@ -399,7 +399,7 @@ describe("GlobalAiOpc native text proxy", () => {
 describe("Agnes video polling proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.taskAccess.mockReset().mockResolvedValue(true);
@@ -436,7 +436,7 @@ describe("Agnes video polling proxy", () => {
 describe("Stable Diffusion proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.getAuthSettings.mockResolvedValue({
@@ -488,7 +488,7 @@ describe("Stable Diffusion proxy", () => {
 describe("VOZEB recommended video proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.taskAccess.mockReset().mockResolvedValue(true);
@@ -594,7 +594,7 @@ describe("Gemini Veo native video proxy", () => {
 describe("Yumeng v2 model-center proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.getAuthSettings.mockResolvedValue({
@@ -658,7 +658,7 @@ describe("Yumeng v2 model-center proxy", () => {
 describe("configured versioned protocol billing", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.getAuthSettings.mockResolvedValue({
@@ -708,7 +708,7 @@ describe("configured versioned protocol billing", () => {
 describe("custom protocol model routing", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.getAuthSettings.mockResolvedValue({
@@ -858,6 +858,10 @@ function logicalModel(id: string, capability: "text" | "image" | "video" | "audi
 
 function systemModelHeaders(logicalModelId: string, upstreamModel: string) {
     return { "x-vozeb-pro-logical-model": logicalModelId, "x-vozeb-pro-upstream-model": upstreamModel };
+}
+
+function pointCharge() {
+    return { model: "test-model", cost: 1, units: 1, recordId: "point-record", permanentRemaining: 4, dailyRemaining: 0, remaining: 4, usageKind: "api" };
 }
 
 function pngBytes() {

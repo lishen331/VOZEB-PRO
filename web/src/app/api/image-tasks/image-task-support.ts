@@ -2,7 +2,7 @@ import { rawReferenceRequestUrlCandidates } from "./image-task-reference-urls";
 import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
@@ -25,6 +25,8 @@ import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { resolveModelPollingAttempts, resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
+import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError, generationSubmissionResponseError, generationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
@@ -237,13 +239,13 @@ export function isInternalSystemProxyBase(value: string) {
     }
 }
 
-export function taskHeaders(config: ImageTaskConfig, cookie: string, pointsIdempotencyKey?: string) {
+export function taskHeaders(config: ImageTaskConfig, cookie: string, pointsIdempotencyKey?: string, billingContext?: SchoolComputeBillingContext) {
     const headers = new Headers();
     const internal = config.baseUrl.startsWith("/");
     const workerHeaders = maintenanceWorkerContextHeaders(cookie);
     if (internal && workerHeaders) Object.entries(workerHeaders).forEach(([key, value]) => headers.set(key, value));
     else if (internal && cookie) headers.set("cookie", cookie);
-    if (internal) Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model, config.executionProfile)).forEach(([key, value]) => headers.set(key, value));
+    if (internal) Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model, config.executionProfile, billingContext)).forEach(([key, value]) => headers.set(key, value));
     if (pointsIdempotencyKey?.trim()) {
         headers.set("Idempotency-Key", pointsIdempotencyKey.trim());
         headers.set("X-Client-Request-Id", pointsIdempotencyKey.trim());
@@ -293,8 +295,8 @@ export function imageTaskPollAttempts(config: ImageTaskConfig) {
 export class ImageUpstreamTerminalError extends Error {}
 export class ImageQueryContractError extends Error {}
 
-export function geminiHeaders(config: ImageTaskConfig, cookie: string, pointsIdempotencyKey?: string) {
-    const headers = taskHeaders(config, cookie, pointsIdempotencyKey);
+export function geminiHeaders(config: ImageTaskConfig, cookie: string, pointsIdempotencyKey?: string, billingContext?: SchoolComputeBillingContext) {
+    const headers = taskHeaders(config, cookie, pointsIdempotencyKey, billingContext);
     headers.set("content-type", "application/json");
     return headers;
 }
@@ -313,7 +315,15 @@ export function withSystemPrompt(config: ImageTaskConfig, prompt: string) {
     return systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 }
 
-export async function parseImagePayloadOrPoll(config: ImageTaskConfig, payload: ImageApiResponse, mediaBaseUrl: string, cookie: string, pollBaseUrl = mediaBaseUrl, singleStep = false): Promise<ImageTaskResult> {
+export async function parseImagePayloadOrPoll(
+    config: ImageTaskConfig,
+    payload: ImageApiResponse,
+    mediaBaseUrl: string,
+    cookie: string,
+    pollBaseUrl = mediaBaseUrl,
+    singleStep = false,
+    billingContext?: SchoolComputeBillingContext,
+): Promise<ImageTaskResult> {
     const payloadError = readImagePayloadError(payload);
     if (payloadError) throw new GenerationSubmissionSafeFailure(payloadError);
     const images = findImageResults(payload, mediaBaseUrl, config);
@@ -327,16 +337,26 @@ export async function parseImagePayloadOrPoll(config: ImageTaskConfig, payload: 
         return { dataUrl: "", needsReview: { upstream, reason: "OpenAI 图片接口未返回图片，且渠道没有声明异步查询路径" } };
     }
     if (singleStep) return { dataUrl: "", pending: upstream };
-    return pollOpenAiImageTask(config, taskId, mediaBaseUrl, pollBaseUrl, cookie, explicitPollUrl);
+    return pollOpenAiImageTask(config, taskId, mediaBaseUrl, pollBaseUrl, cookie, explicitPollUrl, false, undefined, billingContext);
 }
 
-export async function pollOpenAiImageTask(config: ImageTaskConfig, taskId: string, mediaBaseUrl: string, pollBaseUrl: string, cookie: string, explicitPollUrl = "", singleStep = false, requestId?: string): Promise<ImageTaskResult> {
+export async function pollOpenAiImageTask(
+    config: ImageTaskConfig,
+    taskId: string,
+    mediaBaseUrl: string,
+    pollBaseUrl: string,
+    cookie: string,
+    explicitPollUrl = "",
+    singleStep = false,
+    requestId?: string,
+    billingContext?: SchoolComputeBillingContext,
+): Promise<ImageTaskResult> {
     const pollUrls = imageTaskPollUrls(config, pollBaseUrl, taskId, explicitPollUrl);
     if (!pollUrls.length) throw new ImageQueryContractError("OpenAI 图片任务缺少明确的异步查询路径");
     let lastError = "";
     for (let attempt = 0; attempt < (singleStep ? 1 : imageTaskPollAttempts(config)); attempt += 1) {
         for (const pollUrl of pollUrls) {
-            const response = await taskFetch(config, pollUrl, { method: "GET", headers: taskHeaders(config, cookie, requestId), cache: "no-store", signal: AbortSignal.timeout(Math.min(imageTaskRequestTimeoutMs(config), 60_000)) });
+            const response = await taskFetch(config, pollUrl, { method: "GET", headers: taskHeaders(config, cookie, requestId, billingContext), cache: "no-store", signal: AbortSignal.timeout(Math.min(imageTaskRequestTimeoutMs(config), 60_000)) });
             if (!response.ok) {
                 const message = await readFetchError(response, "图片任务查询失败");
                 lastError = message;
@@ -764,7 +784,7 @@ export function readBilling(headers: Headers) {
     return {
         pointsRemaining: readPointsRemaining(headers),
         pointsCost: pointsCost !== undefined && Number.isFinite(pointsCost) && pointsCost >= 0 ? pointsCost : undefined,
-        pointsRecordId: headers.get("x-vozeb-pro-points-record-id") || undefined,
+        billingReceiptId: headers.get("x-vozeb-pro-billing-receipt-id") || undefined,
     };
 }
 
@@ -778,10 +798,17 @@ export async function parseChargedImageResponse(task: ImageTask, response: Respo
 }
 
 export async function refundChargedImageResponse(task: ImageTask, headers: Headers) {
-    const { pointsCost, pointsRecordId } = readBilling(headers);
-    if (pointsCost === undefined || !pointsRecordId) return;
+    const { pointsCost, billingReceiptId } = readBilling(headers);
+    if (pointsCost === undefined || !billingReceiptId) return;
     const settings = await getAuthSettings();
-    await refundUserPoints(task.userId, generationModelId(task.config), pointsCost, "image", imageUnits(task.config.quality, settings.generationPointMultipliers.imageQuality), undefined, pointsRecordId);
+    await refundGenerationCharge({
+        userId: task.userId,
+        receiptId: billingReceiptId,
+        model: generationModelId(task.config),
+        usageKind: "image",
+        units: imageUnits(task.config.quality, settings.generationPointMultipliers.imageQuality),
+        idempotencyKey: `${imagePointsIdempotencyKey(task)}:response-refund`,
+    });
 }
 
 export function imageUnits(quality: string | undefined, multipliers: Record<string, number>) {

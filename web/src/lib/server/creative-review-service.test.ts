@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getAuthSettings, refundUserPoints, fetchInternalApi, resolveLogicalModel } = vi.hoisted(() => ({ getAuthSettings: vi.fn(), refundUserPoints: vi.fn(), fetchInternalApi: vi.fn(), resolveLogicalModel: vi.fn() }));
+const { getAuthSettings, refundGenerationCharge, fetchInternalApi, resolveLogicalModel } = vi.hoisted(() => ({ getAuthSettings: vi.fn(), refundGenerationCharge: vi.fn(), fetchInternalApi: vi.fn(), resolveLogicalModel: vi.fn() }));
 
-vi.mock("@/lib/auth/store", () => ({ getAuthSettings, refundUserPoints }));
+vi.mock("@/lib/auth/store", () => ({ getAuthSettings }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi }));
 vi.mock("@/lib/server/logical-model-router", () => ({ resolveLogicalModel }));
 vi.mock("@/lib/server/structured-model-output", () => ({ strictJsonObjectText: (value: unknown) => (typeof value === "string" ? value : "") }));
@@ -62,7 +63,7 @@ describe("creative review service", () => {
         fetchInternalApi.mockResolvedValueOnce(
             new Response(JSON.stringify({ output: [{ type: "function_call", name: "review_creative_outputs", arguments: JSON.stringify({ status: "passed" }) }] }), {
                 status: 200,
-                headers: { "Content-Type": "application/json", "x-vozeb-pro-points-cost": "3", "x-vozeb-pro-points-record-id": "points-review-3" },
+                headers: { "Content-Type": "application/json", "x-vozeb-pro-points-cost": "3", "x-vozeb-pro-billing-receipt-id": "school:review-3" },
             }),
         );
 
@@ -75,14 +76,14 @@ describe("creative review service", () => {
         });
 
         expect(review).toMatchObject({ status: "unavailable" });
-        expect(refundUserPoints).toHaveBeenCalledWith("user", "planner", 3, "text", 1, undefined, "points-review-3");
+        expect(refundGenerationCharge).toHaveBeenCalledWith({ userId: "user", receiptId: "school:review-3", model: "planner", usageKind: "text", units: 1, idempotencyKey: "creative-review-refund:school:review-3" });
     });
 
     it("refunds malformed review JSON", async () => {
         fetchInternalApi.mockResolvedValueOnce(
             new Response(JSON.stringify({ output: [{ type: "function_call", name: "review_creative_outputs", arguments: "{" }] }), {
                 status: 200,
-                headers: { "Content-Type": "application/json", "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-points-record-id": "points-review-free" },
+                headers: { "Content-Type": "application/json", "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-billing-receipt-id": "school:review-free" },
             }),
         );
 
@@ -95,6 +96,6 @@ describe("creative review service", () => {
         });
 
         expect(review.status).toBe("unavailable");
-        expect(refundUserPoints).toHaveBeenCalledWith("user", "planner", 0, "text", 1, undefined, "points-review-free");
+        expect(refundGenerationCharge).toHaveBeenCalledWith({ userId: "user", receiptId: "school:review-free", model: "planner", usageKind: "text", units: 1, idempotencyKey: "creative-review-refund:school:review-free" });
     });
 });

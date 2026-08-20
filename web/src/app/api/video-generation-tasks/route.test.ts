@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     scheduleGenerationTask: vi.fn(),
     validateGenerationContextIpReferences: vi.fn(),
     withGenerationConcurrencyLimit: vi.fn(async (_userId, _type, _staleMs, _limit, handler) => handler()),
+    resolveSchoolComputeBillingContext: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -55,6 +56,7 @@ vi.mock("@/lib/server/video-task-store", () => ({
     updateVideoTask: mocks.updateVideoTask,
 }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
+vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
 import { POST } from "./route";
 import { resetChannelRuntimeHealth } from "@/lib/server/channel-runtime-health";
@@ -90,6 +92,7 @@ describe("video generation candidate failover", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
         mocks.fetchInternalApi.mockReset();
         resetChannelRuntimeHealth();
         mocks.getAuthSettings.mockResolvedValue(settings);
@@ -387,7 +390,7 @@ describe("video generation candidate failover", () => {
 
         expect(response.status).toBe(200);
         expect(mocks.createVideoTask).toHaveBeenCalledWith(expect.objectContaining(context));
-        expect(mocks.linkStoredGenerationTask).toHaveBeenCalledWith("video", "local-task", context);
+        expect(mocks.linkStoredGenerationTask).toHaveBeenCalledWith("video", "local-task", { ...context, executionProfile: "production", billingContext: undefined });
     });
 
     it("rejects a raw upstream model when the logical catalog exists", async () => {

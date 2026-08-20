@@ -4,7 +4,7 @@ import { runOpenAiImageTask } from "@/app/api/image-tasks/image-task-openai";
 import { directRemoteImageResult, imagePointsIdempotencyKey, imageUnits, ImageQueryContractError, ImageUpstreamTerminalError, inlineRemoteImageResult, pollOpenAiImageTask, resolveProxiedMediaSource } from "@/app/api/image-tasks/image-task-support";
 import type { ImageTaskMediaResult, ImageTaskResult, ImageTaskRunResult } from "@/app/api/image-tasks/image-task-types";
 import { stableMediaUrl, writeImageGenerationLog } from "@/app/api/image-tasks/image-task-runner";
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runtime-service";
@@ -16,6 +16,7 @@ import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { GenerationSubmissionSafeFailure, generationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
 import { getImageTask, transitionImageTask, updateImageTask, type ImageTask } from "@/lib/server/image-task-store";
 import { maintenanceWorkerContext } from "@/lib/server/maintenance-auth";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 
 export type ImageUpstreamStep =
     | { state: "pending"; upstream: NonNullable<ImageTask["upstream"]>; status: string }
@@ -74,8 +75,8 @@ export async function queryImageTaskUpstreamStep(task: ImageTask, origin: string
     try {
         const result = usesDeclarativeImageProtocol(task.config.advancedConfig?.protocol)
             ? await pollCustomImageTask(task, upstream.id, upstream.pollBaseUrl, authContext, true)
-            : await pollOpenAiImageTask(task.config, upstream.id, upstream.mediaBaseUrl, upstream.pollBaseUrl, authContext, upstream.explicitPollUrl || "", true, practiceImagePollRequestId(task));
-        return await handleImageProviderResult(task, { ...result, pointsCost: task.billing?.pointsCost, pointsRecordId: task.billing?.pointsRecordId }, origin, authContext);
+            : await pollOpenAiImageTask(task.config, upstream.id, upstream.mediaBaseUrl, upstream.pollBaseUrl, authContext, upstream.explicitPollUrl || "", true, practiceImagePollRequestId(task), task.billingContext);
+        return await handleImageProviderResult(task, { ...result, pointsCost: task.billing?.pointsCost, billingReceiptId: task.billing?.billingReceiptId }, origin, authContext);
     } catch (error) {
         if (error instanceof ImageQueryContractError) return { state: "needs_review", reason: error.message, status: "query_contract_invalid" };
         if (error instanceof ImageUpstreamTerminalError) return { state: "failed", error: error.message, status: "failed" };
@@ -91,7 +92,7 @@ export async function queryCancelledImageTaskUpstreamStep(task: ImageTask, origi
     try {
         const result = usesDeclarativeImageProtocol(task.config.advancedConfig?.protocol)
             ? await pollCustomImageTask(task, upstream.id, upstream.pollBaseUrl, authContext, true)
-            : await pollOpenAiImageTask(task.config, upstream.id, upstream.mediaBaseUrl, upstream.pollBaseUrl, authContext, upstream.explicitPollUrl || "", true, practiceImagePollRequestId(task));
+            : await pollOpenAiImageTask(task.config, upstream.id, upstream.mediaBaseUrl, upstream.pollBaseUrl, authContext, upstream.explicitPollUrl || "", true, practiceImagePollRequestId(task), task.billingContext);
         return result.pending ? { state: "pending" as const, status: "processing" } : { state: "terminal" as const, status: "completed" };
     } catch (error) {
         if (error instanceof ImageUpstreamTerminalError || error instanceof GenerationSubmissionSafeFailure) return { state: "terminal" as const, status: "failed" };
@@ -106,30 +107,29 @@ export async function persistImageTaskResult(task: ImageTask, origin: string, re
     if (!inlineDataUrl && !remoteUrl) throw new GenerationSubmissionSafeFailure("图片任务缺少可持久化结果");
     const results = task.result?.results?.length ? task.result.results : [{ dataUrl: inlineDataUrl, remoteUrl }];
     const normalizedResults = results.map((item, index) => (index === 0 ? { ...item, dataUrl: inlineDataUrl || item.dataUrl, remoteUrl: remoteUrl || item.remoteUrl } : item));
-    return completeImageResult(task, { ...normalizedResults[0], results: normalizedResults, pointsCost: task.billing?.pointsCost, pointsRecordId: task.billing?.pointsRecordId }, origin, authContext);
+    return completeImageResult(task, { ...normalizedResults[0], results: normalizedResults, pointsCost: task.billing?.pointsCost, billingReceiptId: task.billing?.billingReceiptId }, origin, authContext);
 }
 
 export async function markImageTaskFailed(task: ImageTask, error: string) {
     const current = (await getImageTask(task.id)) || task;
     if (current.status === "success" || current.status === "cancelled") return current;
-    if (generationTaskShouldConsumePoints(current.executionProfile) && current.billing?.pointsRecordId && !current.billing.refunded) {
+    if (generationTaskShouldConsumePoints(current.executionProfile) && current.billing?.billingReceiptId && !current.billing.refunded) {
         const settings = await getAuthSettings();
-        await refundUserPoints(
-            current.userId,
-            generationModelId(current.config),
-            current.billing.pointsCost,
-            "image",
-            imageUnits(current.config.quality, settings.generationPointMultipliers.imageQuality),
-            `image-task:${current.id}:attempt:${current.attemptNo || 1}:refund`,
-            current.billing.pointsRecordId,
-        );
+        await refundGenerationCharge({
+            userId: current.userId,
+            receiptId: current.billing.billingReceiptId,
+            model: generationModelId(current.config),
+            usageKind: "image",
+            units: imageUnits(current.config.quality, settings.generationPointMultipliers.imageQuality),
+            idempotencyKey: `image-task:${current.id}:attempt:${current.attemptNo || 1}:refund`,
+        });
         await updateImageTask(current.id, { billing: { ...current.billing, refunded: true } });
     }
     const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || current.attempts?.at(-1)?.attemptNo || 1, {
         status: "failed",
         error,
         pointsCost: current.billing?.pointsCost,
-        pointsRecordId: current.billing?.pointsRecordId,
+        billingReceiptId: current.billing?.billingReceiptId,
     });
     await updateImageTask(current.id, { attempts, candidateConfigs: [], attemptNo: attempts.at(-1)?.attemptNo });
     const failed = await transitionImageTask(current, ["pending", "running"], { status: "error", error: error.slice(0, 500), retryable: true });
@@ -142,7 +142,7 @@ function practiceImagePollRequestId(task: ImageTask) {
 }
 
 async function handleImageProviderResult(task: ImageTask, result: ImageTaskRunResult, origin: string, authContext: string): Promise<ImageUpstreamStep> {
-    const billing = result.pointsRecordId ? { pointsCost: result.pointsCost ?? 0, pointsRecordId: result.pointsRecordId, refunded: false } : undefined;
+    const billing = result.billingReceiptId ? { pointsCost: result.pointsCost ?? 0, billingReceiptId: result.billingReceiptId, refunded: false } : undefined;
     if (billing) await updateImageTask(task.id, { billing });
     if (result.needsReview) {
         const submittedAt = Date.now();
@@ -208,17 +208,16 @@ function persistReadyImageSchedule(task: ImageTask, resultUrl: string) {
 async function refundImageCandidate(task: ImageTask) {
     const current = await getImageTask(task.id);
     const billing = current?.billing;
-    if (!generationTaskShouldConsumePoints(task.executionProfile) || !billing?.pointsRecordId || billing.refunded) return;
+    if (!generationTaskShouldConsumePoints(task.executionProfile) || !billing?.billingReceiptId || billing.refunded) return;
     const settings = await getAuthSettings();
-    await refundUserPoints(
-        task.userId,
-        generationModelId(task.config),
-        billing.pointsCost,
-        "image",
-        imageUnits(task.config.quality, settings.generationPointMultipliers.imageQuality),
-        `image-task:${task.id}:attempt:${task.attemptNo || 1}:refund`,
-        billing.pointsRecordId,
-    );
+    await refundGenerationCharge({
+        userId: task.userId,
+        receiptId: billing.billingReceiptId,
+        model: generationModelId(task.config),
+        usageKind: "image",
+        units: imageUnits(task.config.quality, settings.generationPointMultipliers.imageQuality),
+        idempotencyKey: `image-task:${task.id}:attempt:${task.attemptNo || 1}:refund`,
+    });
 }
 
 async function completeImageResult(task: ImageTask, result: ImageTaskRunResult, origin: string, authContext: string) {
@@ -259,7 +258,7 @@ async function completeImageResult(task: ImageTask, result: ImageTaskRunResult, 
     const attempts = finishGenerationAttempt(completed.attempts || [], completed.attemptNo || completed.attempts?.at(-1)?.attemptNo || 1, {
         status: "succeeded",
         pointsCost: result.pointsCost ?? completed.billing?.pointsCost,
-        pointsRecordId: result.pointsRecordId || completed.billing?.pointsRecordId,
+        billingReceiptId: result.billingReceiptId || completed.billing?.billingReceiptId,
     });
     const finalized = (await updateImageTask(task.id, { result: { ...finalResult, results: finalResults }, config: { ...completed.config, apiKey: "system" }, candidateConfigs: [], attempts, attemptNo: attempts.at(-1)?.attemptNo })) || completed;
     const assets = (finalized.result?.results?.length ? finalized.result.results : finalized.result ? [finalized.result] : []).flatMap((item) => {

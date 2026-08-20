@@ -18,6 +18,7 @@ import type {
     ProductionGroupRecord,
     ProductionGroupUpdate,
     SchoolComputeLedgerRecord,
+    SchoolComputePoolMetricsRecord,
     SchoolComputePoolRecord,
     SchoolComputeRepository,
 } from "../school-compute-repository";
@@ -31,6 +32,10 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
         private readonly db: QueryExecutor,
         private readonly startsTransactions = false,
     ) {}
+
+    async lockOperation(key: string) {
+        await this.lockIdempotencyKey(key);
+    }
 
     async getPool(schoolId: string, forUpdate = false) {
         const result = await this.db.query(`SELECT * FROM school_compute_pools WHERE school_id = $1${forUpdate ? " FOR UPDATE" : ""}`, [schoolId]);
@@ -66,9 +71,83 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
         return result.rows.map(mapPool);
     }
 
+    async getPoolMetrics(schoolId: string) {
+        return (await this.listPoolMetricsBySchoolIds([schoolId]))[0] || null;
+    }
+
+    async listPoolMetricsBySchoolIds(schoolIds: string[]) {
+        if (!schoolIds.length) return [];
+        const result = await this.db.query(
+            `WITH group_totals AS (
+                 SELECT school_id, COALESCE(SUM(school_points_balance), 0)::numeric AS allocated_points
+                 FROM school_production_groups
+                 WHERE school_id = ANY($1::text[])
+                 GROUP BY school_id
+             ), consumption_totals AS (
+                 SELECT school_id, COALESCE(SUM(amount), 0)::numeric AS consumed_points
+                 FROM school_compute_consumptions
+                 WHERE school_id = ANY($1::text[])
+                   AND source_type = 'group_school_points'
+                   AND status IN ('charged', 'settled')
+                 GROUP BY school_id
+             )
+             SELECT p.school_id, p.available_points, p.status, p.updated_at,
+                    COALESCE(g.allocated_points, 0)::numeric AS allocated_points,
+                    COALESCE(c.consumed_points, 0)::numeric AS consumed_points,
+                    (p.available_points + COALESCE(g.allocated_points, 0) + COALESCE(c.consumed_points, 0))::numeric AS total_points
+             FROM school_compute_pools p
+             LEFT JOIN group_totals g ON g.school_id = p.school_id
+             LEFT JOIN consumption_totals c ON c.school_id = p.school_id
+             WHERE p.school_id = ANY($1::text[])
+             ORDER BY p.school_id`,
+            [schoolIds],
+        );
+        return result.rows.map(mapPoolMetrics);
+    }
+
+    async listPoolMetricsPage(input: ComputePoolPageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const values = [input.status || null, input.keyword?.trim() || null];
+        const where = "WHERE ($1::text IS NULL OR COALESCE(p.status, 'active') = $1) AND ($2::text IS NULL OR s.id ILIKE '%' || $2 || '%' OR s.name ILIKE '%' || $2 || '%')";
+        const metrics = `WITH target_schools AS (
+                SELECT s.id, s.updated_at
+                FROM schools s
+                LEFT JOIN school_compute_pools p ON p.school_id = s.id
+                ${where}
+            ), group_totals AS (
+                SELECT g.school_id, COALESCE(SUM(g.school_points_balance), 0)::numeric AS allocated_points
+                FROM school_production_groups g
+                JOIN target_schools t ON t.id = g.school_id
+                GROUP BY g.school_id
+            ), consumption_totals AS (
+                SELECT c.school_id, COALESCE(SUM(c.amount), 0)::numeric AS consumed_points
+                FROM school_compute_consumptions c
+                JOIN target_schools t ON t.id = c.school_id
+                WHERE c.source_type = 'group_school_points' AND c.status IN ('charged', 'settled')
+                GROUP BY c.school_id
+            )
+            SELECT t.id AS school_id,
+                   (COALESCE(p.available_points, 0) + COALESCE(g.allocated_points, 0) + COALESCE(c.consumed_points, 0))::numeric AS total_points,
+                   COALESCE(p.available_points, 0)::numeric AS available_points,
+                   COALESCE(g.allocated_points, 0)::numeric AS allocated_points,
+                   COALESCE(c.consumed_points, 0)::numeric AS consumed_points,
+                   COALESCE(p.status, 'active') AS status,
+                   COALESCE(p.updated_at, t.updated_at) AS updated_at
+            FROM target_schools t
+            LEFT JOIN school_compute_pools p ON p.school_id = t.id
+            LEFT JOIN group_totals g ON g.school_id = t.id
+            LEFT JOIN consumption_totals c ON c.school_id = t.id`;
+        const [rows, count] = await Promise.all([
+            this.db.query(`${metrics} ORDER BY COALESCE(p.updated_at, t.updated_at) DESC, t.id DESC LIMIT $3 OFFSET $4`, [...values, pageSize, offset]),
+            this.db.query(`SELECT COUNT(*)::int AS total FROM schools s LEFT JOIN school_compute_pools p ON p.school_id = s.id ${where}`, values),
+        ]);
+        return pageResult(rows.rows.map(mapPoolMetrics), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
     creditPool(schoolId: string, amount: number, entry: SchoolComputeLedgerRecord) {
         assertMoney(amount, true);
         return this.mutate(async (repository) => {
+            await repository.lockIdempotencyKey(entry.idempotencyKey);
             const duplicate = await repository.getLedgerEntryByIdempotencyKey(entry.idempotencyKey);
             if (duplicate) return (await repository.getPool(schoolId)) || notFound("学校算力池不存在");
             const result = await repository.db.query("UPDATE school_compute_pools SET available_points = available_points + $2::numeric, updated_at = $3 WHERE school_id = $1 AND status = 'active' RETURNING *", [schoolId, amount, entry.createdAt]);
@@ -82,6 +161,7 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
     adjustPool(schoolId: string, amount: number, entry: SchoolComputeLedgerRecord) {
         assertMoney(amount, false);
         return this.mutate(async (repository) => {
+            await repository.lockIdempotencyKey(entry.idempotencyKey);
             const duplicate = await repository.getLedgerEntryByIdempotencyKey(entry.idempotencyKey);
             if (duplicate) return (await repository.getPool(schoolId)) || notFound("学校算力池不存在");
             const result = await repository.db.query("UPDATE school_compute_pools SET available_points = available_points + $2::numeric, updated_at = $3 WHERE school_id = $1 AND status = 'active' AND available_points + $2::numeric >= 0 RETURNING *", [
@@ -99,6 +179,7 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
     allocateToGroup(schoolId: string, groupId: string, amount: number, entry: SchoolComputeLedgerRecord) {
         assertMoney(amount, true);
         return this.mutate(async (repository) => {
+            await repository.lockIdempotencyKey(entry.idempotencyKey);
             if (await repository.getLedgerEntryByIdempotencyKey(entry.idempotencyKey)) {
                 const pool = await repository.getPool(schoolId);
                 const group = await repository.getGroup(schoolId, groupId);
@@ -129,6 +210,7 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
     releaseGroupPoints(schoolId: string, groupId: string, amount: number, entry: SchoolComputeLedgerRecord) {
         assertMoney(amount, true);
         return this.mutate(async (repository) => {
+            await repository.lockIdempotencyKey(entry.idempotencyKey);
             if (await repository.getLedgerEntryByIdempotencyKey(entry.idempotencyKey)) {
                 const pool = await repository.getPool(schoolId);
                 const group = await repository.getGroup(schoolId, groupId);
@@ -152,6 +234,7 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
     consumeGroupSchoolPoints(schoolId: string, groupId: string, amount: number, entry: SchoolComputeLedgerRecord) {
         assertMoney(amount, true);
         return this.mutate(async (repository) => {
+            await repository.lockIdempotencyKey(entry.idempotencyKey);
             if (await repository.getLedgerEntryByIdempotencyKey(entry.idempotencyKey)) return (await repository.getGroup(schoolId, groupId)) || notFound("制作小组不存在");
             const result = await repository.db.query(
                 "UPDATE school_production_groups SET school_points_balance = school_points_balance - $3::numeric, updated_at = $4 WHERE school_id = $1 AND id = $2 AND status IN ('draft', 'active') AND school_points_balance >= $3::numeric RETURNING *",
@@ -167,6 +250,7 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
     refundGroupSchoolPoints(schoolId: string, groupId: string, amount: number, entry: SchoolComputeLedgerRecord) {
         assertMoney(amount, true);
         return this.mutate(async (repository) => {
+            await repository.lockIdempotencyKey(entry.idempotencyKey);
             if (await repository.getLedgerEntryByIdempotencyKey(entry.idempotencyKey)) return (await repository.getGroup(schoolId, groupId)) || notFound("制作小组不存在");
             const result = await repository.db.query("UPDATE school_production_groups SET school_points_balance = school_points_balance + $3::numeric, updated_at = $4 WHERE school_id = $1 AND id = $2 RETURNING *", [
                 schoolId,
@@ -197,6 +281,12 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
         return result.rows[0] ? mapGroup(result.rows[0]) : null;
     }
 
+    async listGroupsByIds(schoolId: string, groupIds: string[]) {
+        if (!groupIds.length) return [];
+        const result = await this.db.query("SELECT * FROM school_production_groups WHERE school_id = $1 AND id = ANY($2::text[]) ORDER BY id", [schoolId, groupIds]);
+        return result.rows.map(mapGroup);
+    }
+
     async listGroups(schoolId: string, input: ProductionGroupPageQuery) {
         const { page, pageSize, offset } = pagination(input);
         const values = [schoolId, input.status || null, input.keyword?.trim() || null];
@@ -204,6 +294,21 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
         const [rows, count] = await Promise.all([
             this.db.query(`SELECT * FROM school_production_groups ${where} ORDER BY updated_at DESC, id DESC LIMIT $4 OFFSET $5`, [...values, pageSize, offset]),
             this.db.query(`SELECT COUNT(*)::int AS total FROM school_production_groups ${where}`, values),
+        ]);
+        return pageResult(rows.rows.map(mapGroup), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async listGroupsForMembership(schoolId: string, membershipId: string, input: ProductionGroupPageQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const values = [schoolId, membershipId, input.status || null, input.keyword?.trim() || null];
+        const where = "WHERE g.school_id = $1 AND m.school_id = $1 AND m.membership_id = $2 AND ($3::text IS NULL OR g.status = $3) AND ($4::text IS NULL OR g.id ILIKE '%' || $4 || '%' OR g.name ILIKE '%' || $4 || '%')";
+        const [rows, count] = await Promise.all([
+            this.db.query(`SELECT DISTINCT g.* FROM school_production_groups g JOIN school_production_group_members m ON m.school_id = g.school_id AND m.group_id = g.id ${where} ORDER BY g.updated_at DESC, g.id DESC LIMIT $5 OFFSET $6`, [
+                ...values,
+                pageSize,
+                offset,
+            ]),
+            this.db.query(`SELECT COUNT(DISTINCT g.id)::int AS total FROM school_production_groups g JOIN school_production_group_members m ON m.school_id = g.school_id AND m.group_id = g.id ${where}`, values),
         ]);
         return pageResult(rows.rows.map(mapGroup), numberValue(count.rows[0]?.total), page, pageSize);
     }
@@ -263,6 +368,16 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
         return pageResult(rows.rows.map(mapMember), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
+    async getGroupMember(schoolId: string, groupId: string, membershipId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM school_production_group_members WHERE school_id = $1 AND group_id = $2 AND membership_id = $3${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, groupId, membershipId]);
+        return result.rows[0] ? mapMember(result.rows[0]) : null;
+    }
+
+    async getGroupProject(schoolId: string, groupId: string, linkId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM school_compute_group_projects WHERE school_id = $1 AND group_id = $2 AND id = $3${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, groupId, linkId]);
+        return result.rows[0] ? mapProject(result.rows[0]) : null;
+    }
+
     async getGroupProjectByProject(projectType: "canvas" | "drama", projectId: string, forUpdate = false) {
         const result = await this.db.query(`SELECT * FROM school_compute_group_projects WHERE project_type = $1 AND project_id = $2 AND settled_at IS NULL${forUpdate ? " FOR UPDATE" : ""}`, [projectType, projectId]);
         return result.rows[0] ? mapProject(result.rows[0]) : null;
@@ -274,6 +389,11 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
             [record.id, record.schoolId, record.groupId, record.orderId, record.projectType, record.projectId, record.createdByMembershipId, record.settledAt || null, record.createdAt, record.updatedAt],
         );
         return mapProject(result.rows[0]);
+    }
+
+    async deleteGroupProject(schoolId: string, groupId: string, linkId: string) {
+        const result = await this.db.query("DELETE FROM school_compute_group_projects WHERE school_id = $1 AND group_id = $2 AND id = $3", [schoolId, groupId, linkId]);
+        return (result.rowCount || 0) > 0;
     }
 
     async insertAllocationRequest(record: ComputeAllocationRequestRecord) {
@@ -331,6 +451,11 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
         return result.rows[0] ? mapAdvance(result.rows[0]) : null;
     }
 
+    async getPersonalAdvanceByPointRecordId(pointRecordId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM school_compute_personal_advances WHERE point_record_id = $1${forUpdate ? " FOR UPDATE" : ""}`, [pointRecordId]);
+        return result.rows[0] ? mapAdvance(result.rows[0]) : null;
+    }
+
     async listPersonalAdvances(schoolId: string, groupId: string, input: PageQuery & { orderId?: string; membershipId?: string }) {
         const { page, pageSize, offset } = pagination(input);
         const values = [schoolId, groupId, input.orderId || null, input.membershipId || null];
@@ -340,6 +465,12 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
             this.db.query(`SELECT COUNT(*)::int AS total FROM school_compute_personal_advances ${where}`, values),
         ]);
         return pageResult(rows.rows.map(mapAdvance), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async listPersonalAdvancesForOrders(schoolId: string, orderIds: string[], forUpdate = false) {
+        if (!orderIds.length) return [];
+        const result = await this.db.query(`SELECT * FROM school_compute_personal_advances WHERE school_id = $1 AND order_id = ANY($2::text[]) ORDER BY created_at ASC, id ASC${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, orderIds]);
+        return result.rows.map(mapAdvance);
     }
 
     async listSpendableAdvances(schoolId: string, groupId: string, orderId: string, forUpdate = false) {
@@ -363,8 +494,8 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
 
     async insertConsumption(record: ComputeConsumptionRecord) {
         const result = await this.db.query(
-            "INSERT INTO school_compute_consumptions (id, school_id, group_id, order_id, generation_task_id, user_id, source_type, source_id, amount, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11, $12) ON CONFLICT (generation_task_id, source_type, source_id) DO UPDATE SET amount = school_compute_consumptions.amount RETURNING *",
-            [record.id, record.schoolId, record.groupId, record.orderId, record.generationTaskId, record.userId, record.sourceType, record.sourceId, record.amount, record.status, record.createdAt, record.updatedAt],
+            "INSERT INTO school_compute_consumptions (id, school_id, group_id, order_id, generation_task_id, request_fingerprint, user_id, source_type, source_id, amount, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::numeric, $11, $12, $13) ON CONFLICT (generation_task_id, source_type, source_id) DO UPDATE SET amount = school_compute_consumptions.amount RETURNING *",
+            [record.id, record.schoolId, record.groupId, record.orderId, record.generationTaskId, record.requestFingerprint, record.userId, record.sourceType, record.sourceId, record.amount, record.status, record.createdAt, record.updatedAt],
         );
         return mapConsumption(result.rows[0]);
     }
@@ -378,6 +509,11 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
         return this.tenantPage("school_compute_consumptions", [schoolId, orderId], input, mapConsumption, "school_id = $1 AND order_id = $2");
     }
 
+    async listConsumptionsForOrderRecords(schoolId: string, orderId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM school_compute_consumptions WHERE school_id = $1 AND order_id = $2 ORDER BY created_at ASC, id ASC${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, orderId]);
+        return result.rows.map(mapConsumption);
+    }
+
     async updateConsumption(id: string, status: ComputeConsumptionRecord["status"], updatedAt: string) {
         const result = await this.db.query("UPDATE school_compute_consumptions SET status = $2, updated_at = $3 WHERE id = $1 RETURNING *", [id, status, updatedAt]);
         return result.rows[0] ? mapConsumption(result.rows[0]) : null;
@@ -385,6 +521,11 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
 
     async getSettlement(schoolId: string, orderId: string, forUpdate = false) {
         const result = await this.db.query(`SELECT * FROM school_compute_settlements WHERE school_id = $1 AND order_id = $2${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, orderId]);
+        return result.rows[0] ? mapSettlement(result.rows[0]) : null;
+    }
+
+    async getSettlementById(schoolId: string, settlementId: string, forUpdate = false) {
+        const result = await this.db.query(`SELECT * FROM school_compute_settlements WHERE school_id = $1 AND id = $2${forUpdate ? " FOR UPDATE" : ""}`, [schoolId, settlementId]);
         return result.rows[0] ? mapSettlement(result.rows[0]) : null;
     }
 
@@ -435,6 +576,10 @@ export class PostgresSchoolComputeRepository implements SchoolComputeRepository 
         return this.startsTransactions ? withPostgresTransaction((executor) => operation(new PostgresSchoolComputeRepository(executor))) : operation(this);
     }
 
+    private async lockIdempotencyKey(key: string) {
+        await this.db.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [key]);
+    }
+
     private async tenantPage<T>(table: string, prefixValues: unknown[], input: PageQuery, mapper: (row: Record<string, unknown>) => T, wherePrefix: string) {
         const { page, pageSize, offset } = pagination(input);
         const [rows, count] = await Promise.all([
@@ -475,6 +620,17 @@ function mapPool(row: Record<string, unknown>): SchoolComputePoolRecord {
         availablePoints: numberValue(row.available_points),
         status: row.status === "frozen" || row.status === "closed" ? row.status : "active",
         createdAt: isoValue(row.created_at),
+        updatedAt: isoValue(row.updated_at),
+    };
+}
+function mapPoolMetrics(row: Record<string, unknown>): SchoolComputePoolMetricsRecord {
+    return {
+        schoolId: stringValue(row.school_id),
+        totalPoints: numberValue(row.total_points),
+        availablePoints: numberValue(row.available_points),
+        allocatedPoints: numberValue(row.allocated_points),
+        consumedPoints: numberValue(row.consumed_points),
+        status: row.status === "frozen" || row.status === "closed" ? row.status : "active",
         updatedAt: isoValue(row.updated_at),
     };
 }
@@ -560,6 +716,7 @@ function mapConsumption(row: Record<string, unknown>): ComputeConsumptionRecord 
         groupId: stringValue(row.group_id),
         orderId: stringValue(row.order_id),
         generationTaskId: stringValue(row.generation_task_id),
+        requestFingerprint: stringValue(row.request_fingerprint),
         userId: stringValue(row.user_id),
         sourceType: row.source_type === "group_personal_advance" ? "group_personal_advance" : "group_school_points",
         sourceId: stringValue(row.source_id),

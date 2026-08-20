@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+    provider: "postgres",
+    executor: { query: vi.fn() },
+    withPostgres: vi.fn(),
+    openSettlement: vi.fn(),
     getPublicUsersByIds: vi.fn(),
     requireSchoolManager: vi.fn(),
     requireTeacher: vi.fn(),
@@ -56,6 +60,14 @@ vi.mock("./school-access-service", () => ({
 }));
 vi.mock("./school-content-reference-service", () => ({ validateSchoolContentReferences: mocks.validateReferences }));
 vi.mock("./school-domain-repository", () => ({ createSchoolDomainRepository: () => mocks.repository }));
+vi.mock("./database/postgres", () => ({ getDatabaseProvider: () => mocks.provider, withPostgresTransaction: mocks.withPostgres }));
+vi.mock("./school-compute-settlement-service", () => ({ openCommercialOrderSettlement: mocks.openSettlement, openCommercialOrderSettlementInsideTransaction: vi.fn() }));
+vi.mock("./data-adapter", () => ({ readJsonDataFile: vi.fn(), writeJsonDataFile: vi.fn(), withJsonDataFileLocks: vi.fn() }));
+vi.mock("@/lib/auth/store-foundation", () => ({ AUTH_DATA_FILE: "auth.json" }));
+vi.mock("@/lib/auth/store-normalizers", () => ({ emptyDb: vi.fn(), normalizeDb: vi.fn() }));
+vi.mock("@/lib/auth/store-repository", () => ({ writeAuthDb: vi.fn() }));
+vi.mock("./school-domain-file-repository", () => ({ SCHOOL_DOMAIN_DATA_FILE: "school-domain.json", mutateFileSchoolDomainInsideLock: vi.fn() }));
+vi.mock("./school-compute-file-repository", () => ({ SCHOOL_COMPUTE_DATA_FILE: "school-compute.json", mutateFileSchoolComputeInsideLock: vi.fn() }));
 
 import {
     assignCommercialOrder,
@@ -76,6 +88,9 @@ const now = "2026-08-17T00:00:00.000Z";
 describe("commercial order service", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.provider = "postgres";
+        mocks.withPostgres.mockImplementation(async (operation) => operation(mocks.executor));
+        mocks.openSettlement.mockResolvedValue({ id: "settlement-a" });
         mocks.repository.transact.mockImplementation(async (operation) => operation(mocks.repository));
         mocks.getPublicUsersByIds.mockImplementation(async (ids: string[]) =>
             ids.map((id) => ({ id, role: id === "admin-a" ? "admin" : "user", status: "active", adminPermissions: id === "admin-a" ? ["education.manage"] : [], accountId: id, username: id, displayName: id })),
@@ -264,6 +279,17 @@ describe("commercial order service", () => {
         await expect(reviewCommercialOrder("admin-a", "order-a", { decision: "revision_required" })).rejects.toMatchObject({ status: 400 });
         await expect(reviewCommercialOrder("admin-a", "order-a", { decision: "revision_required", feedback: "补充源文件" })).resolves.toMatchObject({ status: "revision_required", platformFeedback: "补充源文件" });
         expect(mocks.repository.updateCommercialOrderDelivery).toHaveBeenCalledWith("delivery-latest", expect.objectContaining({ status: "revision_required" }));
+        expect(mocks.openSettlement).not.toHaveBeenCalled();
+    });
+
+    it("accepts the order and opens settlement in the same PostgreSQL transaction", async () => {
+        mocks.repository.getPlatformCommercialOrder.mockResolvedValue({ ...order("submitted"), assignedSchoolId: "school-a", productionGroupId: "group-a" });
+        mocks.repository.getLatestCommercialOrderDelivery.mockResolvedValue({ id: "delivery-latest", schoolId: "school-a", orderId: "order-a", status: "submitted" });
+        mocks.repository.updateCommercialOrderDelivery.mockResolvedValue({ id: "delivery-latest", orderId: "order-a", status: "accepted" });
+        mocks.repository.compareAndSetPlatformCommercialOrderStatus.mockResolvedValue(true);
+        await expect(reviewCommercialOrder("admin-a", "order-a", { decision: "accepted" })).resolves.toMatchObject({ status: "accepted" });
+        expect(mocks.withPostgres).toHaveBeenCalledOnce();
+        expect(mocks.openSettlement).toHaveBeenCalledWith("order-a", mocks.executor);
     });
 });
 

@@ -11,6 +11,12 @@ const roleOptions = [
     { label: "学校管理员端", value: "schoolAdmin" },
 ] as const satisfies ReadonlyArray<{ label: string; value: Exclude<RoleNavigationKey, "public"> }>;
 
+const computeRoleCapabilities: Record<Exclude<RoleNavigationKey, "public">, string[]> = {
+    teacher: ["组长追加申请"],
+    student: ["个人永久积分垫付"],
+    schoolAdmin: ["制作小组", "学校算力分配", "返还确认"],
+};
+
 export function roleOverviewPreviewItems(role: RoleNavigationKey): RoleNavigationItem[] {
     return roleNavigationOverview[role].items;
 }
@@ -57,6 +63,17 @@ export function AdminRoleOverviewSection() {
                         </div>
                     </div>
                 ))}
+            </div>
+
+            <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">学校算力与制作小组</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {computeRoleCapabilities[role].map((capability) => (
+                        <Tag key={capability} color="blue">
+                            {capability}
+                        </Tag>
+                    ))}
+                </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-zinc-300 p-4 dark:border-zinc-700">
