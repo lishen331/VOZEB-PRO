@@ -29,6 +29,7 @@ import { commercialOrdersApi, type CommercialOrderSubmissions } from "@/services
 import { schoolApi } from "@/services/api/school";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { parseSchoolMemberCsv } from "./school-csv";
+import { ProductionGroupsPanel } from "./components/production-groups-panel";
 
 const PAGE_SIZE = 12;
 const roleOptions = [
@@ -62,6 +63,7 @@ export function SchoolAdministration() {
                         { key: "classes", label: "班级管理", children: <ClassesPanel /> },
                         { key: "courses", label: "课程安排", children: <CoursesPanel /> },
                         { key: "commercial-orders", label: "商单", children: <CommercialOrdersPanel /> },
+                        { key: "production-groups", label: "制作小组与算力", children: <ProductionGroupsPanel /> },
                     ]}
                 />
             </div>

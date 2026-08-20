@@ -1,9 +1,16 @@
 import type { GenerationTaskExecutionPhase } from "@/lib/server/generation-task-scheduler";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import type { IpReference } from "@/lib/ip-library-domain";
+import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 
 export type GenerationTaskType = "text" | "image" | "video" | "audio" | "agent" | "render";
 export type GenerationTaskStatus = "pending" | "running" | "success" | "error" | "paused" | "cancelled";
+
+export type StoredTaskBilling = {
+    pointsCost: number;
+    billingReceiptId: string;
+    refunded: boolean;
+};
 
 export type GenerationTaskContext = {
     conversationId?: string;
@@ -20,6 +27,7 @@ export type GenerationTaskContext = {
     generationLogId?: string;
     generationSlotId?: string;
     ipReferences?: IpReference[];
+    billingContext?: SchoolComputeBillingContext;
 };
 
 export type StoredGenerationTaskRecord = {

@@ -33,7 +33,7 @@ export async function GET(request: Request, context: RouteContext) {
         const origin = resolveInternalOrigin(new URL(request.url).origin);
         after(() => runGenerationTaskRecoveryBatch({ origin, publicOrigin: requestPublicOrigin(request), cookie: request.headers.get("cookie") || "", limit: 1, taskIds: [task.id] }));
     }
-    const shouldRefund = Boolean(task.billing?.pointsRecordId && !task.billing.refunded && task.status === "error");
+    const shouldRefund = Boolean(task.billing?.billingReceiptId && !task.billing.refunded && task.status === "error");
     const settledTask = shouldRefund ? await refundImageTask(task) : task;
     const refreshedUser = shouldRefund ? await getCurrentUser(request) : currentUser;
 
@@ -81,6 +81,8 @@ export async function PATCH(request: Request, context: RouteContext) {
         executionPhase,
         upstreamTaskId: task.upstream?.id,
         queryPath: task.config.advancedConfig?.queryPath,
+        executionProfile: task.executionProfile,
+        billingContext: task.billingContext,
         config: task.config,
     };
     const cancelled = await transitionImageTask(task, ["pending", "running"], { status: "cancelled", error: "任务已取消", retryable: false }, cancellationExecutionPatch(target));

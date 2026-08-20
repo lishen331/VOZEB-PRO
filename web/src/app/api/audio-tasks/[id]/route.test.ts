@@ -27,7 +27,7 @@ const task = {
     userId: "user",
     status: "running",
     config: { baseUrl: "https://api.example.com/v1", apiKey: "secret", apiFormat: "openai", model: "voice" },
-    billing: { pointsCost: 8, pointsRecordId: "points-one", refunded: false },
+    billing: { pointsCost: 8, billingReceiptId: "school:one", refunded: false },
 };
 
 describe("audio task cancellation refund", () => {
@@ -62,7 +62,7 @@ describe("audio task cancellation refund", () => {
         expect(mocks.transitionAudioTask).toHaveBeenCalledWith(
             task,
             ["pending", "running"],
-            expect.objectContaining({ status: "cancelled", billing: { pointsCost: 8, pointsRecordId: "points-one", refunded: false } }),
+            expect.objectContaining({ status: "cancelled", billing: { pointsCost: 8, billingReceiptId: "school:one", refunded: false } }),
             expect.objectContaining({ executionPhase: "cancel_requested" }),
         );
         expect(mocks.refundAudioTask).not.toHaveBeenCalled();

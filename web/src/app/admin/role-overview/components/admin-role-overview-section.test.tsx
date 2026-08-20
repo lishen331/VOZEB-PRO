@@ -29,5 +29,10 @@ describe("admin role overview", () => {
         const source = await readFile(resolve(process.cwd(), "src/app/admin/role-overview/components/admin-role-overview-section.tsx"), "utf8");
         expect(source).not.toContain("practiceApi");
         expect(source).toContain("不会执行写操作");
+        expect(source).toContain("制作小组");
+        expect(source).toContain("学校算力分配");
+        expect(source).toContain("返还确认");
+        expect(source).toContain("组长追加申请");
+        expect(source).toContain("个人永久积分垫付");
     });
 });

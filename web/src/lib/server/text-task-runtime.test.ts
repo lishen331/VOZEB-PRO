@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
     refund: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/store", () => ({ refundUserPoints: mocks.refund }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refund }));
 vi.mock("@/lib/server/proxy-dispatcher", () => ({ configureServerProxyDispatcher: vi.fn() }));
 vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: mocks.schedule }));
 vi.mock("@/lib/server/text-task-store", () => ({
@@ -183,8 +183,8 @@ describe("text task runtime recovery", () => {
         expect(state.config.channelId).toBe("channel-one");
     });
 
-    it("refunds a zero-point recorded charge when the upstream task fails", async () => {
-        const headers = { "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-points-record-id": "record-zero" };
+    it("refunds a zero-point billing receipt when the upstream task fails", async () => {
+        const headers = { "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-billing-receipt-id": "school:batch-a" };
         const fetchMock = vi
             .fn()
             .mockResolvedValueOnce(Response.json({ task_id: "upstream-zero", status: "queued" }, { headers }))
@@ -192,10 +192,10 @@ describe("text task runtime recovery", () => {
         vi.stubGlobal("fetch", fetchMock);
 
         await expect(runTextTaskStep(state, "http://internal", "")).resolves.toMatchObject({ state: "pending" });
-        expect(state.billing).toMatchObject({ pointsCost: 0, pointsRecordId: "record-zero", refunded: false });
+        expect(state.billing).toMatchObject({ pointsCost: 0, billingReceiptId: "school:batch-a", refunded: false });
         await expect(runTextTaskStep(state, "http://internal", "")).resolves.toMatchObject({ state: "failed" });
 
-        expect(mocks.refund).toHaveBeenCalledWith("user-one", "text-model", 0, "text", 1, undefined, "record-zero");
+        expect(mocks.refund).toHaveBeenCalledWith({ userId: "user-one", receiptId: "school:batch-a", model: "text-model", usageKind: "text", units: 1, idempotencyKey: "text-task:text-one:attempt:1:refund" });
     });
 });
 

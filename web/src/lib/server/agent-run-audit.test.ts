@@ -32,7 +32,7 @@ describe("Agent Run audit snapshot", () => {
             protocol: "chat",
             elapsedMs: 1234,
             pointsCost: 1.25,
-            pointsRecordId: "points-plan",
+            billingReceiptId: "school:plan",
             skills: [skill],
         });
 
@@ -49,7 +49,7 @@ describe("Agent Run audit snapshot", () => {
             protocol: "chat",
             elapsedMs: 1234,
             pointsCost: 1.25,
-            pointsRecordId: "points-plan",
+            billingReceiptId: "school:plan",
             skills: [
                 {
                     id: "skill-one",

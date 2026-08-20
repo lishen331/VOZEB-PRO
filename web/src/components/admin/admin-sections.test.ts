@@ -33,6 +33,10 @@ describe("admin sections", () => {
         expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "schools")).toBe(false);
         expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "courses")).toBe(false);
         expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "commercialOrders")).toBe(false);
+        expect(canAccessAdminSection(educator, "schoolCompute")).toBe(true);
+        expect(canAccessAdminSection({ ...educator, adminPermissions: ["billing.manage"] }, "schoolCompute")).toBe(true);
+        expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "schoolCompute")).toBe(false);
+        expect(adminSectionHref("schoolCompute")).toBe("/admin?section=schoolCompute");
     });
 
     it("shows IP library to content or education duties", () => {

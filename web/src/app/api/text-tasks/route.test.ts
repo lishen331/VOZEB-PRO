@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     getStoredGenerationTaskByRequest: vi.fn(),
     linkStoredGenerationTask: vi.fn(),
     checkGenerationRateLimit: vi.fn(async () => ({ allowed: true, remaining: 5, resetAt: Date.now() + 60_000 })),
+    resolveSchoolComputeBillingContext: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -33,12 +34,16 @@ vi.mock("@/lib/server/security", () => ({
 }));
 vi.mock("@/lib/server/text-task-store", () => ({ createTextTask: mocks.createTextTask }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
+vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
 import { POST } from "./route";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 describe("text task IP authorization", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
+    });
 
     it("rejects a new Canvas text task after its IP authorization is revoked", async () => {
         mocks.validateGenerationContextIpReferences.mockRejectedValueOnce(new SchoolServiceError(403, "IP 授权已失效"));
@@ -71,6 +76,19 @@ describe("text task IP authorization", () => {
         expect(await response.json()).toMatchObject({ task: { id: "text-existing" } });
         expect(mocks.checkGenerationRateLimit).not.toHaveBeenCalled();
         expect(mocks.validateGenerationContextIpReferences).not.toHaveBeenCalled();
+        expect(mocks.createTextTask).not.toHaveBeenCalled();
+    });
+
+    it("blocks a stale linked project before creating a personal task", async () => {
+        mocks.resolveSchoolComputeBillingContext.mockRejectedValueOnce(new SchoolServiceError(409, "项目关联已失效"));
+        const response = await POST(
+            new Request("http://localhost/api/text-tasks", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ messages: [{ role: "user", content: "继续创作" }], context: { surface: "canvas", projectId: "canvas-one" } }),
+            }),
+        );
+        expect(response.status).toBe(409);
         expect(mocks.createTextTask).not.toHaveBeenCalled();
     });
 });

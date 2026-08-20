@@ -8,6 +8,7 @@ import {
     BadgePercent,
     BookOpen,
     CircleDollarSign,
+    Coins,
     Cloud,
     ChevronDown,
     CreditCard,
@@ -179,6 +180,7 @@ export function AdminSectionNav({
 export const adminSections: AdminSection[] = [
     { key: "overview", label: "经营看板", description: "查看用户增长、调用趋势、收入概览和模型请求分布。", shortDescription: "数据总览", icon: <Database className="size-4" /> },
     { key: "schools", label: "学校管理", description: "创建学校、维护学校资料和首位学校管理员。", shortDescription: "租户与管理员", icon: <School className="size-4" /> },
+    { key: "schoolCompute", label: "学校算力池", description: "管理学校算力额度、分配、消耗和状态。", shortDescription: "算力与额度", icon: <Coins className="size-4" /> },
     { key: "courses", label: "课程管理", description: "维护平台课程内容、发布状态并分配给学校。", shortDescription: "课程与学校", icon: <BookOpen className="size-4" /> },
     { key: "commercialOrders", label: "商单管理", description: "维护平台商单、承接学校与正式交付验收。", shortDescription: "分配与验收", icon: <Handshake className="size-4" /> },
     { key: "users", label: "用户运营", description: "管理用户角色、账号状态、套餐归属和积分余额。", shortDescription: "账户与权益", icon: <UsersRound className="size-4" /> },
@@ -212,7 +214,7 @@ export const adminSections: AdminSection[] = [
 
 export const adminSectionGroups: AdminSectionGroup[] = [
     { title: "经营分析", items: sectionsFor(["overview", "users", "logs", "generationOperations"]) },
-    { title: "产教运营", items: sectionsFor(["schools", "courses", "commercialOrders"]) },
+    { title: "产教运营", items: sectionsFor(["schools", "schoolCompute", "courses", "commercialOrders"]) },
     { title: "商品运营", items: sectionsFor(["products", "orders"]) },
     { title: "营销推广", items: sectionsFor(["promotions", "coupons", "referrals"]) },
     { title: "财务管理", items: sectionsFor(["points", "payments", "cdk", "wallet"]) },

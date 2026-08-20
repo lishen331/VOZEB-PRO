@@ -25,6 +25,7 @@ import { listDramaProjectSummaries } from "@/services/api/drama-projects";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { listWorkPublications } from "@/services/api/work-publications";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
+import { ProductionGroupMemberPanel } from "@/components/school/production-group-member-panel";
 
 type AssignmentForm = { offeringId: string; kind: TeachingAssignmentKind; title: string; instructions?: string; dueAt?: string; resourceUrls?: string[] };
 type ReviewForm = { feedback: string };
@@ -317,6 +318,7 @@ export default function TeachingPage() {
                     </div>
                     <Button icon={<RefreshCw className="size-4" />} aria-label="刷新教学中心" loading={loading} onClick={() => void load()} />
                 </header>
+                <ProductionGroupMemberPanel />
                 {loading && !courses.length && !assignments.length ? (
                     <div className="flex min-h-40 items-center justify-center">
                         <Spin />

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     rate: vi.fn(),
     validateGenerationContextIpReferences: vi.fn(),
     withGenerationConcurrencyLimit: vi.fn(),
+    resolveSchoolComputeBillingContext: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: vi.fn(async () => ({ id: "user-one", role: "user" })) }));
@@ -25,6 +26,7 @@ vi.mock("@/lib/server/security", () => ({
 }));
 vi.mock("@/lib/server/proxy-dispatcher", () => ({ configureServerProxyDispatcher: vi.fn() }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
+vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
 import { maxDuration, POST } from "./route";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
@@ -35,6 +37,8 @@ describe("image task route", () => {
         mocks.getStoredGenerationTaskByRequest.mockResolvedValue(undefined);
         mocks.rate.mockResolvedValue({ allowed: true, remaining: 5, resetAt: Date.now() + 60_000 });
         mocks.validateGenerationContextIpReferences.mockResolvedValue(undefined);
+        mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
+        mocks.withGenerationConcurrencyLimit.mockImplementation(async (_userId, _type, _staleMs, _limit, handler) => handler());
     });
 
     it("keeps background image submission alive past the five minute route default", () => {
@@ -84,5 +88,14 @@ describe("image task route", () => {
         expect(await response.json()).toEqual({ error: "IP 授权已失效" });
         expect(mocks.validateGenerationContextIpReferences).toHaveBeenCalledWith("user-one", { surface: "canvas", projectId: "canvas-one" });
         expect(mocks.getAuthSettings).not.toHaveBeenCalled();
+    });
+
+    it("blocks a stale linked project before creating a personal task", async () => {
+        mocks.getAuthSettings.mockResolvedValue({ generationConcurrency: { image: 1 } });
+        mocks.resolveSchoolComputeBillingContext.mockRejectedValueOnce(new SchoolServiceError(409, "项目关联已失效"));
+        const response = await POST(
+            new Request("http://localhost/api/image-tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: "new image", context: { surface: "canvas", projectId: "canvas-one" } }) }),
+        );
+        expect(response.status).toBe(409);
     });
 });

@@ -85,7 +85,7 @@ async function completeVideoTask(task: VideoTask, resultUrl: string, origin: str
     const attempts = finishGenerationAttempt(task.attempts || [], task.attempts?.at(-1)?.attemptNo || 1, {
         status: "succeeded",
         pointsCost: task.upstream.pointsCost,
-        pointsRecordId: task.upstream.pointsRecordId,
+        billingReceiptId: task.upstream.billingReceiptId,
     });
     await updateVideoTask(task.id, { attempts });
     const channelId = task.config.channelId || systemGenerationChannelId(task.config.baseUrl);
@@ -214,7 +214,7 @@ function videoProxyHeaders(task: VideoTask, cookie: string, workerUserId: string
     const practiceRequestId = task.executionProfile === "open-source-practice" ? `video-task:${task.id}:attempt:${task.attemptNo || 1}:poll` : undefined;
     return {
         ...(workerUserId ? maintenanceWorkerHeaders(workerUserId) : cookie ? { cookie } : {}),
-        ...systemAiBillingHeaders(generationModelId(task.config), practiceRequestId, task.config.model, task.executionProfile),
+        ...systemAiBillingHeaders(generationModelId(task.config), practiceRequestId, task.config.model, task.executionProfile, task.billingContext),
     };
 }
 

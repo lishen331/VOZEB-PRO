@@ -39,6 +39,16 @@ export type PointsWalletRefundResult = PointsWalletMutationResult & {
     dailyExpired: number;
 };
 
+export type PermanentPointBusinessMutationInput = {
+    userId: string;
+    amount: number;
+    description: string;
+    idempotencyKey: string;
+    recordType: "consume" | "credit";
+    model: "school-compute";
+    now?: Date;
+};
+
 type WalletClockInput = {
     now?: Date;
     timeZone?: string;
@@ -179,6 +189,79 @@ export function adjustPermanentPointsInAuthDb(db: AuthDatabase, input: AdjustPer
         createdAt: clock.now.toISOString(),
     };
     db.pointRecords.push(record);
+    return { snapshot, record, applied: true };
+}
+
+export function mutatePermanentPointsInAuthDb(db: AuthDatabase, input: PermanentPointBusinessMutationInput): PointsWalletMutationResult {
+    const amount = permanentBusinessAmount(input);
+    const idempotencyKey = requiredIdempotencyKey(input.idempotencyKey);
+    const clock = walletClock(input);
+    const user = db.users.find((item) => item.id === input.userId);
+    if (!user || user.status !== "active") throw new AuthInputError("用户不可用");
+    const existing = db.pointRecords.find((record) => record.idempotencyKey === idempotencyKey);
+    const snapshotBefore = permanentFileSnapshot(db, user, clock);
+    if (existing) {
+        assertPermanentBusinessRecord(existing, input, amount);
+        return { snapshot: snapshotBefore, record: existing, applied: false };
+    }
+    const nextBalance = normalizePointAmount(user.pointsBalance + amount, -1);
+    if (nextBalance < 0) throw new QuotaExceededError("永久积分不足");
+    user.pointsBalance = nextBalance;
+    user.updatedAt = clock.now.toISOString();
+    const snapshot = permanentFileSnapshot(db, user, clock);
+    const record: StoredPointRecord = {
+        id: randomUUID(),
+        userId: user.id,
+        type: input.recordType,
+        amount,
+        balanceAfter: snapshot.totalPoints,
+        permanentAmount: amount,
+        dailyAmount: 0,
+        permanentBalanceAfter: snapshot.permanentPoints,
+        dailyBalanceAfter: snapshot.dailyPoints,
+        description: input.description,
+        model: input.model,
+        idempotencyKey,
+        createdAt: clock.now.toISOString(),
+    };
+    db.pointRecords.push(record);
+    return { snapshot, record, applied: true };
+}
+
+export async function mutatePermanentPointsInPostgresTransaction(client: QueryExecutor, input: PermanentPointBusinessMutationInput): Promise<PointsWalletMutationResult> {
+    const amount = permanentBusinessAmount(input);
+    const idempotencyKey = requiredIdempotencyKey(input.idempotencyKey);
+    const clock = walletClock(input);
+    const repos = createPostgresRepositories(client);
+    const user = await repos.users.getById(input.userId, true);
+    if (!user || user.status !== "active") throw new AuthInputError("用户不可用");
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [idempotencyKey]);
+    const [existing, wallet] = await Promise.all([repos.points.getRecordByIdempotencyKey(idempotencyKey), repos.pointsWallet.getDailyWallet(user.id, clock.date)]);
+    const snapshotBefore = buildSnapshot(user.pointsBalance, wallet, clock, { id: user.planId });
+    if (existing) {
+        assertPermanentBusinessRecord(existing, input, amount);
+        return { snapshot: snapshotBefore, record: existing, applied: false };
+    }
+    const nextBalance = normalizePointAmount(user.pointsBalance + amount, -1);
+    if (nextBalance < 0) throw new QuotaExceededError("永久积分不足");
+    const updatedUser = await repos.users.update(user.id, { pointsBalance: nextBalance });
+    if (!updatedUser) throw new AuthInputError("用户不存在");
+    const snapshot = buildSnapshot(updatedUser.pointsBalance, wallet, clock, { id: updatedUser.planId });
+    const record = await repos.points.addRecord({
+        id: randomUUID(),
+        userId: user.id,
+        type: input.recordType,
+        amount,
+        balanceAfter: snapshot.totalPoints,
+        permanentAmount: amount,
+        dailyAmount: 0,
+        permanentBalanceAfter: snapshot.permanentPoints,
+        dailyBalanceAfter: snapshot.dailyPoints,
+        description: input.description,
+        model: input.model,
+        idempotencyKey,
+        createdAt: clock.now.toISOString(),
+    });
     return { snapshot, record, applied: true };
 }
 
@@ -645,6 +728,22 @@ function existingFileRefund(record: PublicPointRecord, snapshot: PointsWalletSna
 
 function assertMatchingRecord(record: PublicPointRecord, userId: string, expectedType?: PublicPointRecord["type"]) {
     if (record.userId !== userId || (expectedType && record.type !== expectedType)) throw new PointsWalletConflictError("积分幂等键已被其他业务使用");
+}
+
+function permanentBusinessAmount(input: PermanentPointBusinessMutationInput) {
+    const amount = normalizePointAmount(input.amount, 0);
+    if (!amount || (input.recordType === "consume" && amount >= 0) || (input.recordType === "credit" && amount <= 0)) throw new AuthInputError("学校算力永久积分变更方向无效");
+    return amount;
+}
+
+function assertPermanentBusinessRecord(record: StoredPointRecord, input: PermanentPointBusinessMutationInput, amount: number) {
+    if (record.userId !== input.userId || record.type !== input.recordType || record.amount !== amount || record.permanentAmount !== amount || record.dailyAmount !== 0 || record.model !== input.model)
+        throw new PointsWalletConflictError("积分幂等键已被其他业务使用");
+}
+
+function permanentFileSnapshot(db: AuthDatabase, user: StoredUser, clock: WalletClock) {
+    const wallet = db.dailyPlanPointWallets.find((item) => item.userId === user.id && item.date === clock.date);
+    return buildSnapshot(user.pointsBalance, wallet, clock, { id: user.planId });
 }
 
 function assertMatchingConsumption(record: StoredPointRecord, input: ConsumePointsInput & { amount: number; requestFingerprint: string }) {

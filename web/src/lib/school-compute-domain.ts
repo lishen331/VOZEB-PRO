@@ -88,8 +88,19 @@ export type ComputeSettlement = {
     unusedPersonalPointsReturned: number;
     consumedPersonalPointsPending: number;
     confirmedPersonalPointsReturned: number;
+    advances: ComputeSettlementAdvance[];
     createdAt: string;
     updatedAt: string;
+};
+export type ComputeSettlementAdvance = {
+    id: string;
+    accountId: string;
+    displayName: string;
+    originalPoints: number;
+    consumedPoints: number;
+    unusedPoints: number;
+    returnedPoints: number;
+    status: PersonalAdvanceStatus;
 };
 export type SchoolComputeLedgerEntry = {
     id: string;

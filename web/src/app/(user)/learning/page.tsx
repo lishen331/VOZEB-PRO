@@ -12,6 +12,7 @@ import { listDramaProjectSummaries } from "@/services/api/drama-projects";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { listWorkPublications } from "@/services/api/work-publications";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
+import { ProductionGroupMemberPanel } from "@/components/school/production-group-member-panel";
 
 type ReferenceCandidate = { reference: SchoolContentReference; title: string; detail: string };
 type SubmissionForm = { note?: string };
@@ -380,6 +381,7 @@ export default function LearningPage() {
                     </div>
                     <Button icon={<RefreshCw className="size-4" />} aria-label="刷新学习中心" loading={loading || commercialLoading} onClick={() => void Promise.all([load(), loadCommercialOrders()])} />
                 </header>
+                <ProductionGroupMemberPanel />
                 {loading && !courses.length && !assignments.length ? (
                     <div className="flex min-h-40 items-center justify-center">
                         <Spin />
