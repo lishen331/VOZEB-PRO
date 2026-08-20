@@ -60,9 +60,13 @@ jobs:
         run: pnpm run build
         env:
           NEXT_SKIP_BUILD_TYPECHECK: "1"
+      # Pull requests validate the fast checks here. Full browser coverage is
+      # retained for pushes to main, release tags, and manual runs.
       - name: Install Playwright Chromium
+        if: github.event_name != 'pull_request'
         run: pnpm exec playwright install --with-deps chromium
       - name: Browser E2E
+        if: github.event_name != 'pull_request'
         run: pnpm run e2e
         env:
           VOZEB_PRO_E2E_DATABASE_URL: postgres://vozeb:vozeb-e2e-password@127.0.0.1:5432/vozeb_pro_e2e
