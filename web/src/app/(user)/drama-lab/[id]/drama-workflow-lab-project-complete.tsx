@@ -404,7 +404,9 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
         setLoading(true);
         setError(undefined);
         const controller = new AbortController();
-        const timeoutId = window.setTimeout(() => controller.abort(), 15_000);
+        // A cold Next.js route compile can exceed 15 seconds in development;
+        // do not abort an otherwise healthy project read before it responds.
+        const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
         try {
             const response = await fetch(`/api/drama-lab/projects/${projectId}`, { signal: controller.signal });
             const data = await response.json();
