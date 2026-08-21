@@ -1,4 +1,4 @@
-import { dramaLabPromptDefinition, type DramaLabPromptDefinition, type DramaLabPromptKey } from "@/lib/drama-lab-prompt-templates";
+import { canonicalDramaLabPromptKey, dramaLabPromptDefinition, type DramaLabPromptDefinition, type DramaLabPromptKey } from "@/lib/drama-lab-prompt-templates";
 import { getDatabaseProvider, postgresQuery } from "@/lib/server/database";
 
 type PromptTemplateRow = {
@@ -14,6 +14,7 @@ export type DramaLabResolvedPrompt = DramaLabPromptDefinition & {
 export async function resolveDramaLabPrompt(key: DramaLabPromptKey): Promise<DramaLabResolvedPrompt> {
     const definition = dramaLabPromptDefinition(key);
     if (getDatabaseProvider() !== "postgres") return { ...definition, customized: false };
+    const canonicalKey = canonicalDramaLabPromptKey(key);
 
     const result = await postgresQuery<PromptTemplateRow>(
         `SELECT template_key, template
@@ -21,7 +22,7 @@ export async function resolveDramaLabPrompt(key: DramaLabPromptKey): Promise<Dra
          WHERE template_key = $1 AND deleted_at IS NULL
          ORDER BY updated_at DESC
          LIMIT 1`,
-        [key],
+        [canonicalKey],
     );
     const template = result.rows[0]?.template?.trim();
     return { ...definition, template: template || definition.template, customized: Boolean(template) };

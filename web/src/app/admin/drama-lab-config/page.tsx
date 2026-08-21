@@ -284,12 +284,6 @@ function PromptTemplatesTab({ messageApi }: { messageApi: MessageApi }) {
     useEffect(() => {
         void load();
     }, [load]);
-    const openCreate = () => {
-        setEditing(null);
-        form.resetFields();
-        form.setFieldsValue({ category: "character" });
-        setModalOpen(true);
-    };
     const openEdit = (item: PromptTemplate) => {
         setEditing(item);
         form.setFieldsValue(item);
@@ -299,7 +293,7 @@ function PromptTemplatesTab({ messageApi }: { messageApi: MessageApi }) {
         try {
             const values = await form.validateFields();
             await fetchJson(editing ? `/api/admin/drama-lab/prompt-templates/${editing.id}` : "/api/admin/drama-lab/prompt-templates", { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) });
-            messageApi.success(editing ? "模板已更新" : "模板已创建");
+            messageApi.success("模板已更新");
             setModalOpen(false);
             await load();
         } catch (error) {
@@ -324,7 +318,10 @@ function PromptTemplatesTab({ messageApi }: { messageApi: MessageApi }) {
             width: 220,
             render: (value: string, record) => (
                 <div>
-                    <div className="flex items-center gap-2"><span>{value}</span>{record.is_builtin ? <Tag color={record.is_customized ? "blue" : "default"}>{record.is_customized ? "已自定义" : "系统默认"}</Tag> : null}</div>
+                    <div className="flex items-center gap-2">
+                        <span>{value}</span>
+                        {record.is_builtin ? <Tag color={record.is_customized ? "blue" : "default"}>{record.is_customized ? "已自定义" : "系统默认"}</Tag> : null}
+                    </div>
                     {record.description ? <div className="mt-1 text-xs text-gray-500">{record.description}</div> : null}
                 </div>
             ),
@@ -363,31 +360,21 @@ function PromptTemplatesTab({ messageApi }: { messageApi: MessageApi }) {
         },
     ];
     return (
-        <Card
-            title="提示词模板管理"
-            extra={
-                <Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>
-                    新增模板
-                </Button>
-            }
-        >
-            <Alert className="mb-4" type="info" showIcon message="短剧实验室的 AI 操作会在服务端注入对应模板正文，再追加当前剧本、项目参数和固定 JSON 输出契约。系统默认模板可编辑；恢复默认会移除自定义正文。" />
+        <Card title="提示词模板管理" extra={<Tag color="blue">9 个系统模板</Tag>}>
+            <Alert className="mb-4" type="info" showIcon message="仅维护短剧实验室内部的 9 个系统模板。AI 调用由服务端注入项目上下文和不可编辑的结构化输出契约；模板覆盖是实验室全局配置，不按管理员账号分叉。" />
             <Table columns={columns} dataSource={items} rowKey="id" loading={loading} scroll={{ x: 900 }} />
-            <Modal title={editing ? "编辑提示词模板" : "新增提示词模板"} open={modalOpen} onOk={() => void save()} onCancel={() => setModalOpen(false)} width={760} okText="保存" cancelText="取消">
+            <Modal title="编辑系统模板" open={modalOpen} onOk={() => void save()} onCancel={() => setModalOpen(false)} width={760} okText="保存" cancelText="取消">
                 <Form form={form} layout="vertical" className="mt-4">
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <Form.Item name="name" label="模板名称" rules={[{ required: true, message: "请输入模板名称" }]}>
-                            <Input disabled={editing?.is_builtin} />
+                        <Form.Item name="name" label="模板名称">
+                            <Input disabled />
                         </Form.Item>
-                        <Form.Item name="category" label="分类" rules={[{ required: true, message: "请选择分类" }]}>
-                            <Select disabled={editing?.is_builtin} options={Object.entries(PROMPT_CATEGORY_LABELS).map(([value, label]) => ({ value, label }))} />
+                        <Form.Item name="category" label="分类">
+                            <Select disabled options={Object.entries(PROMPT_CATEGORY_LABELS).map(([value, label]) => ({ value, label }))} />
                         </Form.Item>
                     </div>
                     <Form.Item name="template" label="模板内容" rules={[{ required: true, message: "请输入模板内容" }]}>
                         <Input.TextArea rows={9} placeholder="例如：生成{角色名}的角色设定图，风格为{风格}" />
-                    </Form.Item>
-                    <Form.Item name="variables" label="变量（可选）" extra="留空时会从模板中的 {变量} 自动提取。">
-                        <Select mode="tags" tokenSeparators={[",", "，"]} placeholder="角色名, 风格" />
                     </Form.Item>
                 </Form>
             </Modal>

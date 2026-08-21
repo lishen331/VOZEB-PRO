@@ -416,8 +416,28 @@ CREATE INDEX IF NOT EXISTS drama_lab_prompt_templates_user_category_idx
     ON drama_lab_prompt_templates (user_id, category, updated_at DESC)
     WHERE deleted_at IS NULL;
 
-CREATE UNIQUE INDEX IF NOT EXISTS drama_lab_prompt_templates_user_key_idx
-    ON drama_lab_prompt_templates (user_id, template_key)
+-- Prompt overrides are global inside the Short Drama Lab.  user_id remains
+-- as the audit/authorization owner for backwards-compatible rows, but it is
+-- deliberately excluded from runtime lookup.
+UPDATE drama_lab_prompt_templates
+SET template_key = CASE template_key
+    WHEN 'story_generation' THEN 'story_expansion_system'
+    WHEN 'storyboard_output_format' THEN 'storyboard_user_suffix'
+    ELSE template_key
+END
+WHERE template_key IN ('story_generation', 'storyboard_output_format');
+
+DELETE FROM drama_lab_prompt_templates older
+USING drama_lab_prompt_templates newer
+WHERE older.template_key IS NOT NULL
+  AND older.deleted_at IS NULL
+  AND newer.template_key = older.template_key
+  AND newer.deleted_at IS NULL
+  AND (newer.updated_at, newer.id) > (older.updated_at, older.id);
+
+DROP INDEX IF EXISTS drama_lab_prompt_templates_user_key_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS drama_lab_prompt_templates_global_key_idx
+    ON drama_lab_prompt_templates (template_key)
     WHERE deleted_at IS NULL AND template_key IS NOT NULL;
 
 -- 后台配置：业务场景
