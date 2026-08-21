@@ -11,7 +11,9 @@ import {
     channelProtocolOptions,
     channelSupportsModelCatalog,
     channelProtocolValidationErrors,
+    normalizeStrictChannelModelConfigs,
     normalizeStrictProtocolModelConfig,
+    protocolModelConfig,
     protocolAuthHeaders,
     resolveChannelModelConfig,
 } from "./channel-protocol-registry";
@@ -239,6 +241,19 @@ describe("channel protocol registry", () => {
 
         expect(configured.advancedConfig!.modelConfigs![key]).toEqual(applyModelProtocol({ capability: "image" }, "openai"));
         expect(channelProtocolValidationErrors(configured)).toEqual([]);
+    });
+
+    it("repairs stale strict model routes before an admin settings save", () => {
+        const stale = applyChannelProtocol({ ...channel, models: ["doubao-seedance-2-0"] }, "newapi");
+        const key = "doubao-seedance-2-0";
+        stale.advancedConfig!.modelConfigs![key] = {
+            ...stale.advancedConfig!.modelConfigs![key],
+            createPath: "/video/generations",
+            imageToVideoPath: "/video/generations",
+        };
+
+        expect(channelProtocolValidationErrors(stale)).toContain("doubao-seedance-2-0 的创建路径必须为 /videos");
+        expect(normalizeStrictChannelModelConfigs(stale).advancedConfig?.modelConfigs?.[key]).toEqual(protocolModelConfig("newapi", "video", key));
     });
 
     it("rejects unsafe custom authentication header names", () => {

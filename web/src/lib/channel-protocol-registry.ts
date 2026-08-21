@@ -343,6 +343,15 @@ export function normalizeStrictProtocolModelConfig(config: SystemChannelModelCon
     return protocolModelConfig(protocol, config.capability, model) || config;
 }
 
+export function normalizeStrictChannelModelConfigs(channel: SystemModelChannel): SystemModelChannel {
+    const advanced = channel.advancedConfig;
+    if (!advanced?.modelConfigs) return channel;
+    const modelConfigs = Object.fromEntries(
+        Object.entries(advanced.modelConfigs).map(([model, config]) => [model, normalizeStrictProtocolModelConfig(config, advanced.protocol, model)]),
+    );
+    return { ...channel, advancedConfig: { ...advanced, modelConfigs } };
+}
+
 export function resolveChannelModelConfig(config: SystemChannelAdvancedConfig | undefined, model: string) {
     if (!config) return undefined;
     const key = normalizeModelId(model);
