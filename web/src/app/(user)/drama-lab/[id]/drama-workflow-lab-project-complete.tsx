@@ -172,6 +172,9 @@ export interface Shot {
     generationError?: string;
     videoHistory?: DramaLabGenerationHistory[];
     status?: string;
+    frames?: Partial<
+        Record<"first" | "key" | "last", { prompt: string; description?: string; status?: DramaLabTaskStatus; taskId?: string; attempt?: number; url?: string; width?: number; height?: number; error?: string; history?: DramaLabGenerationHistory[] }>
+    >;
 }
 
 type DramaLabTaskStatus = "idle" | "queued" | "running" | "success" | "error" | "cancelled";
@@ -287,6 +290,32 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
         generationTaskId: typeof shot.generationTaskId === "string" ? shot.generationTaskId : undefined,
         generationError: typeof shot.generationError === "string" ? shot.generationError : undefined,
         videoHistory: normalizeGenerationHistory(shot.videoHistory),
+        frames:
+            shot.frames && typeof shot.frames === "object"
+                ? (Object.fromEntries(
+                      Object.entries(shot.frames).flatMap(([key, value]) => {
+                          if (!(key === "first" || key === "key" || key === "last") || !value || typeof value !== "object") return [];
+                          const frame = value as Record<string, unknown>;
+                          return [
+                              [
+                                  key,
+                                  {
+                                      prompt: typeof frame.prompt === "string" ? frame.prompt : "",
+                                      description: typeof frame.description === "string" ? frame.description : undefined,
+                                      status: taskStatus(frame.status) || "idle",
+                                      taskId: typeof frame.taskId === "string" ? frame.taskId : undefined,
+                                      attempt: typeof frame.attempt === "number" ? frame.attempt : undefined,
+                                      url: typeof frame.url === "string" ? frame.url : undefined,
+                                      width: typeof frame.width === "number" ? frame.width : undefined,
+                                      height: typeof frame.height === "number" ? frame.height : undefined,
+                                      error: typeof frame.error === "string" ? frame.error : undefined,
+                                      history: normalizeGenerationHistory(frame.history),
+                                  },
+                              ],
+                          ];
+                      }),
+                  ) as Shot["frames"])
+                : undefined,
     };
 }
 
@@ -2505,6 +2534,24 @@ function StoryboardPanel({
         }
     };
 
+    const startFrame = async (shot: Shot, frameType: "first" | "key" | "last") => {
+        if (!episode) return;
+        const actionKey = `frame:${frameType}:${shot.id}`;
+        try {
+            setStartingKey(actionKey);
+            messageApi.loading({ content: `正在规划并创建${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务...`, key: actionKey, duration: 0 });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-frame?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, { method: "POST" });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.code !== 0) throw new Error(data.msg || "帧任务创建失败");
+            await onReload();
+            messageApi.success({ content: `${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务已提交`, key: actionKey });
+        } catch (error) {
+            messageApi.error({ content: error instanceof Error ? error.message : "帧任务创建失败", key: actionKey });
+        } finally {
+            setStartingKey("");
+        }
+    };
+
     if (!episode) {
         return <div className="text-center text-muted-foreground">请先选择一个剧集</div>;
     }
@@ -2540,6 +2587,7 @@ function StoryboardPanel({
                         project={project}
                         busyKey={startingKey}
                         onStartGeneration={startGeneration}
+                        onStartFrame={startFrame}
                         onSync={() => void syncShot(shot.id, false).catch((error) => messageApi.error(error instanceof Error ? error.message : "任务状态同步失败"))}
                         onUpdate={(patch) => void updateShot(shot.id, patch).catch((error) => messageApi.error(error instanceof Error ? error.message : "保存分镜失败"))}
                         onEdit={() => handleEdit(shot)}
@@ -2642,11 +2690,13 @@ function StoryboardWorkbenchCard({
     onUpdate,
     onEdit,
     onDelete,
+    onStartFrame,
 }: {
     shot: Shot;
     project: Project;
     busyKey: string;
     onStartGeneration: (shot: Shot, kind: "image" | "video") => Promise<void>;
+    onStartFrame: (shot: Shot, frameType: "first" | "key" | "last") => Promise<void>;
     onSync: () => void;
     onUpdate: (patch: Partial<Shot>) => void;
     onEdit: () => void;
@@ -2654,6 +2704,7 @@ function StoryboardWorkbenchCard({
 }) {
     const imageBusy = busyKey === `image:${shot.id}` || shot.storyboardStatus === "running";
     const videoBusy = busyKey === `video:${shot.id}` || shot.generationStatus === "running";
+    const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
     return (
         <article id={`storyboard-shot-${shot.id}`} className="overflow-hidden rounded-lg border border-border bg-card">
             <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3">
@@ -2695,6 +2746,15 @@ function StoryboardWorkbenchCard({
                     <TextArea defaultValue={shot.imagePrompt} autoSize={{ minRows: 2, maxRows: 5 }} placeholder="画面补充（可选）" aria-label="画面补充" onBlur={(event) => onUpdate({ imagePrompt: event.target.value.trim() })} />
                     {shot.storyboardError ? <Alert type="error" showIcon message={shot.storyboardError} /> : null}
                     <div className="flex flex-wrap items-center gap-2">
+                        {(["first", "key", "last"] as const).map((frameType) => {
+                            const frame = shot.frames?.[frameType];
+                            const busy = busyKey === `frame:${frameType}:${shot.id}` || frame?.status === "running";
+                            return (
+                                <Button key={frameType} loading={busy} icon={<Sparkles className="size-4" />} onClick={() => void onStartFrame(shot, frameType)}>
+                                    {frame?.url ? `重生成${frameLabel[frameType]}` : `生成${frameLabel[frameType]}`}
+                                </Button>
+                            );
+                        })}
                         <Button type="primary" loading={imageBusy} icon={<Sparkles className="size-4" />} onClick={() => void onStartGeneration(shot, "image")}>
                             {shot.storyboardImageUrl ? "重新生成分镜图" : "生成分镜图"}
                         </Button>
@@ -2704,6 +2764,21 @@ function StoryboardWorkbenchCard({
                             type="image"
                             onRestore={(url) => onUpdate({ storyboardImageUrl: url, imageUrl: url, storyboardStatus: "success", storyboardError: undefined })}
                         />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                        {(["first", "key", "last"] as const).map((frameType) => {
+                            const frame = shot.frames?.[frameType];
+                            return (
+                                <div key={frameType} className="space-y-1">
+                                    <div className="text-xs text-muted-foreground">{frameLabel[frameType]}</div>
+                                    {frame?.url ? (
+                                        <img src={frame.url} alt={`${frameLabel[frameType]}参考`} className="aspect-video w-full rounded border border-border object-cover" />
+                                    ) : (
+                                        <div className="grid aspect-video place-items-center border border-dashed border-border text-xs text-muted-foreground">待生成</div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                     {shot.storyboardImageUrl ? (
                         <img src={shot.storyboardImageUrl} alt={`分镜 ${shot.shotNumber} 图像`} className="max-h-[460px] w-full rounded border border-border object-contain" />

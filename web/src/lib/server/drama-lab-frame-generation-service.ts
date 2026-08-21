@@ -28,7 +28,7 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
         task: `${input.frameType} frame prompt planning`,
         project: { id: input.project.id, title: input.project.title, style: input.project.style, ratio: input.project.ratio },
         episode: { title: episode.title },
-        shot: { id: shot.id, ...shot },
+        shot: { ...shot },
         boundAssets: references.map((reference) => ({ id: reference.id, label: reference.label, url: reference.url })),
     });
     const settings = await getAuthSettings();
@@ -61,7 +61,7 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
                     input.project.characters.map((asset) => asset.name),
                 );
                 await recordDramaLabTextGenerationLog({ id: logId, userId: input.userId, title: `${input.frameType} 帧提示词规划`, prompt: userPrompt, model, status: "success", durationMs: call.elapsedMs, createdAt: startedAt });
-                return { ...sanitized, description: parsed.description, templateKey: template.key, references, model };
+                return { ...sanitized, description: parsed.description, templateKey: template.key, references, model, shot };
             } catch (error) {
                 await refundInvalidFrameResponse(input.userId, model, call.headers);
                 throw error;
@@ -131,8 +131,9 @@ function parseFrameResult(value: string) {
         throw new DramaLabShotGenerationError("文本模型没有返回有效的帧提示词 JSON");
     }
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new DramaLabShotGenerationError("帧提示词结果必须是 JSON 对象");
-    const prompt = typeof (parsed as Record<string, unknown>).prompt === "string" ? (parsed as Record<string, unknown>).prompt.trim() : "";
-    const description = typeof (parsed as Record<string, unknown>).description === "string" ? (parsed as Record<string, unknown>).description.trim() : "";
+    const record = parsed as Record<string, unknown>;
+    const prompt = typeof record.prompt === "string" ? record.prompt.trim() : "";
+    const description = typeof record.description === "string" ? record.description.trim() : "";
     if (!prompt || !description) throw new DramaLabShotGenerationError("帧提示词必须包含 prompt 和 description");
     return { prompt, description };
 }

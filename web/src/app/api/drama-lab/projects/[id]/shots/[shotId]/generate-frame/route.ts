@@ -38,7 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                 prompt: prepared.prompt,
                 references: prepared.references.map((reference) => ({ id: reference.id, name: reference.label, type: "image/png", dataUrl: reference.url, url: reference.url, serverUrl: reference.url.startsWith("/") ? reference.url : undefined })),
                 source: "drama",
-                title: `${project.title} · ${prepared.shot.title} · ${frameType}`,
+                title: `${project.title} · ${shotId} · ${frameType}`,
                 context: { conversationId: project.creativeConversationId, surface: "drama", projectId: project.id, episodeId, shotId, frameType, attemptNo, clientRequestId: requestId },
             }),
         });
