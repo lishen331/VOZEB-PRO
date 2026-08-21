@@ -4,15 +4,16 @@ import { extname, isAbsolute, relative, resolve } from "node:path";
 import { NextResponse } from "next/server";
 
 import { hasAnyAdminPermission } from "@/lib/admin-permissions";
+import type { DramaLabPromptCategory } from "@/lib/drama-lab-prompt-templates";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ensurePostgresSchema, getDatabaseProvider } from "@/lib/server/database";
 import { getServerDataDir } from "@/lib/server/data-dir";
 
-export const PROMPT_CATEGORIES = ["character", "scene", "storyboard", "video"] as const;
+export const PROMPT_CATEGORIES = ["script", "character", "scene", "prop", "storyboard", "image", "video"] as const;
 export const SD2_ASSET_TYPES = ["lora", "checkpoint", "vae"] as const;
 const SD2_ASSET_EXTENSIONS = new Set([".safetensors", ".ckpt", ".pt", ".pth", ".bin", ".vae"]);
 
-export type PromptCategory = (typeof PROMPT_CATEGORIES)[number];
+export type PromptCategory = DramaLabPromptCategory | "video";
 export type Sd2AssetType = (typeof SD2_ASSET_TYPES)[number];
 
 type DramaLabAdmin = Awaited<ReturnType<typeof getCurrentUser>>;

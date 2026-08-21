@@ -395,6 +395,7 @@ CREATE INDEX IF NOT EXISTS drama_projects_scenes_gin_idx ON drama_projects USING
 CREATE TABLE IF NOT EXISTS drama_lab_prompt_templates (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    template_key varchar(80),
     name varchar(200) NOT NULL,
     category varchar(32) NOT NULL,
     template text NOT NULL,
@@ -402,12 +403,22 @@ CREATE TABLE IF NOT EXISTS drama_lab_prompt_templates (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     deleted_at timestamptz,
-    CONSTRAINT drama_lab_prompt_templates_category CHECK (category IN ('character', 'scene', 'storyboard', 'video'))
+    CONSTRAINT drama_lab_prompt_templates_category CHECK (category IN ('script', 'character', 'scene', 'prop', 'storyboard', 'image', 'video'))
 );
+
+ALTER TABLE drama_lab_prompt_templates ADD COLUMN IF NOT EXISTS template_key varchar(80);
+ALTER TABLE drama_lab_prompt_templates DROP CONSTRAINT IF EXISTS drama_lab_prompt_templates_category;
+ALTER TABLE drama_lab_prompt_templates
+    ADD CONSTRAINT drama_lab_prompt_templates_category
+    CHECK (category IN ('script', 'character', 'scene', 'prop', 'storyboard', 'image', 'video'));
 
 CREATE INDEX IF NOT EXISTS drama_lab_prompt_templates_user_category_idx
     ON drama_lab_prompt_templates (user_id, category, updated_at DESC)
     WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS drama_lab_prompt_templates_user_key_idx
+    ON drama_lab_prompt_templates (user_id, template_key)
+    WHERE deleted_at IS NULL AND template_key IS NOT NULL;
 
 -- 后台配置：业务场景
 CREATE TABLE IF NOT EXISTS drama_lab_business_scenarios (

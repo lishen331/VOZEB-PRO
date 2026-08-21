@@ -21,10 +21,14 @@ interface AIConfig {
 
 interface PromptTemplate {
     id: string;
+    template_key?: string;
     name: string;
-    category: "character" | "scene" | "storyboard" | "video";
+    category: "script" | "character" | "scene" | "prop" | "storyboard" | "image" | "video";
     template: string;
     variables: string[];
+    description?: string;
+    is_builtin?: boolean;
+    is_customized?: boolean;
 }
 
 interface BusinessScenario {
@@ -61,7 +65,7 @@ const SERVICE_TYPE_LABELS: Record<AIConfig["service_type"], string> = {
     audio: "语音合成",
 };
 const SERVICE_TYPE_COLORS: Record<AIConfig["service_type"], string> = { text: "blue", image: "green", video: "orange", audio: "purple" };
-const PROMPT_CATEGORY_LABELS: Record<PromptTemplate["category"], string> = { character: "角色", scene: "场景", storyboard: "分镜", video: "视频" };
+const PROMPT_CATEGORY_LABELS: Record<PromptTemplate["category"], string> = { script: "剧本", character: "角色", scene: "场景", prop: "道具", storyboard: "分镜", image: "图像", video: "视频" };
 const DEFAULT_GENERATION_SETTINGS: GenerationSettings = { imageConcurrency: 3, videoConcurrency: 1, maxBatchSize: 10, imageTimeout: 180, videoTimeout: 1800 };
 
 function formatBytes(bytes: number) {
@@ -306,14 +310,25 @@ function PromptTemplatesTab({ messageApi }: { messageApi: MessageApi }) {
     const remove = async (id: string) => {
         try {
             await fetchJson(`/api/admin/drama-lab/prompt-templates/${id}`, { method: "DELETE" });
-            messageApi.success("模板已删除");
+            messageApi.success(items.find((item) => item.id === id)?.is_builtin ? "已恢复默认模板" : "模板已删除");
             await load();
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "删除模板失败");
         }
     };
     const columns: ColumnsType<PromptTemplate> = [
-        { title: "模板名称", dataIndex: "name", key: "name", width: 180 },
+        {
+            title: "模板名称",
+            dataIndex: "name",
+            key: "name",
+            width: 220,
+            render: (value: string, record) => (
+                <div>
+                    <div className="flex items-center gap-2"><span>{value}</span>{record.is_builtin ? <Tag color={record.is_customized ? "blue" : "default"}>{record.is_customized ? "已自定义" : "系统默认"}</Tag> : null}</div>
+                    {record.description ? <div className="mt-1 text-xs text-gray-500">{record.description}</div> : null}
+                </div>
+            ),
+        },
         { title: "分类", dataIndex: "category", key: "category", width: 110, render: (value: PromptTemplate["category"]) => <Tag>{PROMPT_CATEGORY_LABELS[value]}</Tag> },
         { title: "模板内容", dataIndex: "template", key: "template", ellipsis: true },
         {
@@ -338,9 +353,9 @@ function PromptTemplatesTab({ messageApi }: { messageApi: MessageApi }) {
                     <Button type="link" icon={<Pencil size={15} />} onClick={() => openEdit(record)}>
                         编辑
                     </Button>
-                    <Popconfirm title="确认删除此模板？" onConfirm={() => void remove(record.id)}>
-                        <Button type="link" danger icon={<Trash2 size={15} />}>
-                            删除
+                    <Popconfirm title={record.is_builtin ? "恢复该系统模板的默认正文？" : "确认删除此模板？"} onConfirm={() => void remove(record.id)}>
+                        <Button type="link" danger icon={record.is_builtin ? <RotateCcw size={15} /> : <Trash2 size={15} />}>
+                            {record.is_builtin ? "恢复默认" : "删除"}
                         </Button>
                     </Popconfirm>
                 </Space>
@@ -356,15 +371,16 @@ function PromptTemplatesTab({ messageApi }: { messageApi: MessageApi }) {
                 </Button>
             }
         >
+            <Alert className="mb-4" type="info" showIcon message="短剧实验室的 AI 操作会在服务端注入对应模板正文，再追加当前剧本、项目参数和固定 JSON 输出契约。系统默认模板可编辑；恢复默认会移除自定义正文。" />
             <Table columns={columns} dataSource={items} rowKey="id" loading={loading} scroll={{ x: 900 }} />
             <Modal title={editing ? "编辑提示词模板" : "新增提示词模板"} open={modalOpen} onOk={() => void save()} onCancel={() => setModalOpen(false)} width={760} okText="保存" cancelText="取消">
                 <Form form={form} layout="vertical" className="mt-4">
                     <div className="grid gap-4 sm:grid-cols-2">
                         <Form.Item name="name" label="模板名称" rules={[{ required: true, message: "请输入模板名称" }]}>
-                            <Input />
+                            <Input disabled={editing?.is_builtin} />
                         </Form.Item>
                         <Form.Item name="category" label="分类" rules={[{ required: true, message: "请选择分类" }]}>
-                            <Select options={Object.entries(PROMPT_CATEGORY_LABELS).map(([value, label]) => ({ value, label }))} />
+                            <Select disabled={editing?.is_builtin} options={Object.entries(PROMPT_CATEGORY_LABELS).map(([value, label]) => ({ value, label }))} />
                         </Form.Item>
                     </div>
                     <Form.Item name="template" label="模板内容" rules={[{ required: true, message: "请输入模板内容" }]}>

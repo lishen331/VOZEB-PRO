@@ -1,15 +1,16 @@
 "use client";
 
-import { Alert, Button, Spin, Tabs, Input, Select, Form, Modal, message, Upload, Radio, Switch } from "antd";
+import { Alert, Button, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Upload, Radio } from "antd";
 import {
     ArrowLeft, Plus, Save, Trash2, Edit2,
     FileText, Users, MapPin, Package, Film, Download, Sparkles,
-    PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight,
+    PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, LibraryBig,
     CheckCircle2, AlertCircle, LoaderCircle
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createDramaScriptTaskRequest } from "@/lib/drama-script-task-request";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import type { Asset } from "@/lib/library-asset-contract";
+import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { cn } from "@/lib/utils";
 
 const { TextArea } = Input;
@@ -47,6 +48,7 @@ interface Character {
 interface Scene {
     id: string;
     location: string;
+    name?: string;
     time?: string;
     description?: string;
     imageUrl?: string;
@@ -87,6 +89,14 @@ interface Project {
     shots: Shot[];
 }
 
+interface ScriptLibraryProject {
+    id: string;
+    title: string;
+    summary: string;
+    episodeCount: number;
+    updatedAt?: string;
+}
+
 function normalizeEpisodes(value: unknown): Episode[] {
     if (!Array.isArray(value)) return [];
     return value.flatMap((item, index) => {
@@ -100,6 +110,25 @@ function normalizeEpisodes(value: unknown): Episode[] {
             number: typeof episode.number === "number" && Number.isFinite(episode.number) ? episode.number : index + 1,
             script: typeof episode.script === "string" ? episode.script : "",
             status: typeof episode.status === "string" ? episode.status : undefined,
+        }];
+    });
+}
+
+function normalizeScenes(value: unknown): Scene[] {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const scene = item as Record<string, unknown>;
+        const id = typeof scene.id === "string" ? scene.id : "";
+        const location = typeof scene.location === "string" ? scene.location : typeof scene.name === "string" ? scene.name : "";
+        if (!id || !location) return [];
+        return [{
+            id,
+            location,
+            name: typeof scene.name === "string" ? scene.name : location,
+            time: typeof scene.time === "string" ? scene.time : undefined,
+            description: typeof scene.description === "string" ? scene.description : undefined,
+            imageUrl: typeof scene.imageUrl === "string" ? scene.imageUrl : typeof scene.referenceImageUrl === "string" ? scene.referenceImageUrl : undefined,
         }];
     });
 }
@@ -171,8 +200,10 @@ export function DramaWorkflowLabProject({
     const loadProject = useCallback(async () => {
         setLoading(true);
         setError(undefined);
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 15_000);
         try {
-            const response = await fetch(`/api/drama-lab/projects/${projectId}`);
+            const response = await fetch(`/api/drama-lab/projects/${projectId}`, { signal: controller.signal });
             const data = await response.json();
 
             if (data.code !== 0 || !data.data?.project) {
@@ -190,9 +221,9 @@ export function DramaWorkflowLabProject({
                 style: proj.style ?? legacy.style ?? "",
                 aspectRatio: proj.ratio ?? legacy.aspectRatio ?? "16:9",
                 episodes,
-                characters: proj.characters ?? legacy.characters ?? [],
-                scenes: proj.scenes ?? legacy.scenes ?? [],
-                props: proj.props ?? legacy.props ?? [],
+                characters: (proj.characters ?? legacy.characters ?? []) as Character[],
+                scenes: normalizeScenes(proj.scenes ?? legacy.scenes),
+                props: (proj.props ?? legacy.props ?? []) as Prop[],
                 shots: normalizeProjectShots(proj as Record<string, unknown>, episodes, legacy),
             });
 
@@ -201,8 +232,9 @@ export function DramaWorkflowLabProject({
             }
             setExpandedEpisodeIds(new Set(episodes.map((episode: Episode) => episode.id)));
         } catch (err) {
-            setError(err instanceof Error ? err.message : "加载失败");
+            setError(err instanceof DOMException && err.name === "AbortError" ? "项目加载超时，请重试" : err instanceof Error ? err.message : "加载失败");
         } finally {
+            window.clearTimeout(timeoutId);
             setLoading(false);
         }
     }, [initialEpisodeId, projectId]);
@@ -294,6 +326,9 @@ export function DramaWorkflowLabProject({
                         showIcon
                         message={error || "项目不存在"}
                     />
+                    <Button className="mt-4" onClick={() => void loadProject()}>
+                        重新加载
+                    </Button>
                 </div>
             </main>
         );
@@ -485,22 +520,24 @@ export function DramaWorkflowLabProject({
                             project={project}
                             episode={activeEpisode}
                             onSave={saveProject}
+                            onActiveEpisodeChange={setActiveEpisodeId}
+                            messageApi={messageApi}
                         />
                     )}
                     {activeStep === "review" && (
                         <ReviewPanel project={project} episode={activeEpisode} onStepChange={setActiveStep} />
                     )}
                     {activeStep === "assets" && (
-                        <AssetsPanel project={project} onSave={saveProject} />
+                        <AssetsPanel project={project} episode={activeEpisode} onSave={saveProject} messageApi={messageApi} />
                     )}
                     {activeStep === "storyboard" && (
-                        <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} />
+                        <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} messageApi={messageApi} />
                     )}
                     {activeStep === "generate" && (
                         <GeneratePanel project={project} episode={activeEpisode} />
                     )}
                     {activeStep === "export" && (
-                        <ExportPanel project={project} episode={activeEpisode} />
+                        <ExportPanel project={project} episode={activeEpisode} messageApi={messageApi} />
                     )}
                 </div>
             </div>
@@ -514,11 +551,15 @@ export function DramaWorkflowLabProject({
 function ScriptEditor({
     project,
     episode,
-    onSave
+    onSave,
+    onActiveEpisodeChange,
+    messageApi
 }: {
     project: Project;
     episode?: Episode;
     onSave: (updates: Partial<Project>, options?: SaveOptions) => Promise<boolean>;
+    onActiveEpisodeChange: (episodeId: string) => void;
+    messageApi: ReturnType<typeof message.useMessage>[0];
 }) {
     const [form] = Form.useForm();
     const [scriptForm] = Form.useForm();
@@ -526,15 +567,21 @@ function ScriptEditor({
     const [generating, setGenerating] = useState(false);
     const [saveStatus, setSaveStatus] = useState<"idle" | "pending" | "saving" | "saved" | "error">("idle");
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [storyStyle, setStoryStyle] = useState("现代写实");
+    const [scriptType, setScriptType] = useState("短剧");
+    const [episodeCount, setEpisodeCount] = useState("1");
+    const [scriptLibraryOpen, setScriptLibraryOpen] = useState(false);
+    const [scriptLibraryLoading, setScriptLibraryLoading] = useState(false);
+    const [scriptLibraryImporting, setScriptLibraryImporting] = useState(false);
+    const [scriptLibraryProjects, setScriptLibraryProjects] = useState<ScriptLibraryProject[]>([]);
+    const [previewEpisodeId, setPreviewEpisodeId] = useState<string>();
 
     useEffect(() => {
         form.setFieldsValue({
-            title: project.title,
-            description: project.description,
-            style: project.style,
-            aspectRatio: project.aspectRatio,
+            storyOutline: project.description || "",
         });
         scriptForm.setFieldsValue({ script: episode?.script || "" });
+        setPreviewEpisodeId((current) => current && project.episodes.some((item) => item.id === current) ? current : project.episodes[0]?.id);
     }, [form, scriptForm, project, episode]);
 
     const saveNow = useCallback((options: SaveOptions = {}) => {
@@ -545,10 +592,7 @@ function ScriptEditor({
                 ep.id === episode.id ? { ...ep, script } : ep
             );
             return onSave({
-                title: values.title,
-                description: values.description,
-                style: values.style,
-                aspectRatio: values.aspectRatio,
+                description: values.storyOutline || "",
                 episodes: updatedEpisodes,
             }, options);
         }
@@ -564,7 +608,7 @@ function ScriptEditor({
             void saveNow({ silent: true }).then((saved) => {
                 setSaveStatus(saved ? "saved" : "error");
                 if (saved) {
-                    messageApi.success({ content: "已自动保存", key: "drama-autosave", duration: 1.5 });
+                    messageApi.success({ content: "保存成功", key: "drama-autosave", duration: 1.5 });
                 } else {
                     messageApi.error({ content: "自动保存失败", key: "drama-autosave", duration: 2 });
                 }
@@ -579,8 +623,7 @@ function ScriptEditor({
     // AI 生成剧本
     const handleGenerateScript = async () => {
         const values = form.getFieldsValue();
-        const script = scriptForm.getFieldValue("script") || "";
-        const storyOutline = script || values.description;
+        const storyOutline = typeof values.storyOutline === "string" ? values.storyOutline : "";
 
         if (!storyOutline || !storyOutline.trim()) {
             messageApi.error("请先输入故事梗概");
@@ -591,103 +634,97 @@ function ScriptEditor({
         try {
             messageApi.loading({ content: "AI 正在生成剧本...", key: "generate-script", duration: 0 });
 
-            const prompt = `请根据以下故事梗概创作一个短剧剧本：
-
-${storyOutline}
-
-要求：
-1. 剧本风格：${values.style || "现代写实"}
-2. 画面比例：${values.aspectRatio || "16:9"}
-3. 包含场景描述、人物对话和动作指导
-4. 适合短视频制作
-5. 生成一集的完整剧本`;
-
-            const response = await fetch("/api/text-tasks", {
+            if (!episode) throw new Error("请先选择当前剧集");
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/generate-script`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(createDramaScriptTaskRequest({
-                    projectId: project.id,
-                    episodeId: activeEpisode?.id,
-                    prompt,
-                    requestId: `drama-script:${project.id}:${activeEpisode?.id || "episode"}:${Date.now()}`,
-                })),
+                body: JSON.stringify({
+                    episodeId: episode.id,
+                    storyOutline,
+                    storyStyle,
+                    scriptType,
+                    episodeCount,
+                    requestId: `drama-script:${project.id}:${episode.id}:${Date.now()}`,
+                }),
             });
-
             const data = await response.json();
-
-            if (data.task) {
-                pollScriptTask(data.task.id);
-            } else {
-                throw new Error(data.error || "生成失败");
-            }
+            if (!response.ok || data.code !== 0 || !data.data?.script) throw new Error(data.msg || "生成失败");
+            scriptForm.setFieldsValue({ script: data.data.script });
+            const saved = await saveNow();
+            if (!saved) throw new Error("保存剧本失败");
+            messageApi.success({ content: "剧本生成成功", key: "generate-script", duration: 3 });
         } catch (err) {
             messageApi.error({ content: err instanceof Error ? err.message : "生成剧本失败", key: "generate-script", duration: 3 });
+        } finally {
             setGenerating(false);
         }
     };
 
-    // 轮询剧本生成任务
-    const pollScriptTask = async (taskId: string) => {
-        const maxAttempts = 60; // 最多5分钟
-        let attempts = 0;
+    const loadScriptLibrary = async () => {
+        setScriptLibraryLoading(true);
+        try {
+            const response = await fetch("/api/drama-lab/projects?page=1&pageSize=100");
+            const data = await response.json();
+            if (data.code !== 0) throw new Error(data.msg || "剧本库加载失败");
+            const projects = Array.isArray(data.data?.projects) ? data.data.projects : [];
+            setScriptLibraryProjects(projects.filter((item: ScriptLibraryProject) => item.id !== project.id && item.episodeCount > 0));
+        } catch (error) {
+            setScriptLibraryProjects([]);
+            messageApi.error(error instanceof Error ? error.message : "剧本库加载失败");
+        } finally {
+            setScriptLibraryLoading(false);
+        }
+    };
 
-        const poll = async () => {
-            try {
-                const response = await fetch(`/api/text-tasks/${taskId}`);
-                const data = await response.json();
+    const handleImportScript = (sourceId: string) => {
+        if (scriptLibraryImporting) return;
+        Modal.confirm({
+            title: "导入剧本到当前项目",
+            content: "将只导入所选项目的故事梗概和各集剧本文字，不会导入角色、场景、分镜、图片或视频。是否继续？",
+            okText: "导入",
+            cancelText: "取消",
+            onOk: async () => {
+                setScriptLibraryImporting(true);
+                try {
+                    const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(sourceId)}`);
+                    const data = await response.json();
+                    if (data.code !== 0 || !data.data?.project) throw new Error(data.msg || "剧本加载失败");
 
-                const generatedScript = data.task?.result?.content || data.task?.result?.text;
-                if ((data.task?.status === "success" || data.task?.status === "completed") && generatedScript) {
-                    // 更新剧本
-                    scriptForm.setFieldsValue({ script: generatedScript });
-                    const saved = await saveNow();
-                    if (!saved) throw new Error("保存剧本失败");
-                    messageApi.success({ content: "剧本生成成功", key: "generate-script", duration: 3 });
-                    setGenerating(false);
-                } else if (data.task?.status === "error" || data.task?.status === "failed") {
-                    throw new Error(data.task.error || "剧本生成失败");
-                } else if (attempts < maxAttempts) {
-                    attempts++;
-                    setTimeout(poll, 5000); // 5秒后再次轮询
-                } else {
-                    throw new Error("生成超时，请重试");
+                    const source = data.data.project as Record<string, unknown>;
+                    const sourceEpisodes = normalizeEpisodes(source.episodes);
+                    const sourceSummary = typeof source.summary === "string" ? source.summary : "";
+                    if (!sourceEpisodes.some((sourceEpisode) => sourceEpisode.script.trim()) && !sourceSummary.trim()) {
+                        throw new Error("所选剧本没有可导入的梗概或分集正文");
+                    }
+
+                    const importedEpisodes = sourceEpisodes.map((sourceEpisode, index) => ({
+                        ...sourceEpisode,
+                        id: project.episodes[index]?.id || `ep_${Date.now()}_${index}`,
+                        number: index + 1,
+                    }));
+                    const saved = await onSave({
+                        description: sourceSummary,
+                        ...(importedEpisodes.length ? { episodes: importedEpisodes } : {}),
+                    });
+                    if (!saved) throw new Error("导入剧本保存失败");
+
+                    setScriptLibraryOpen(false);
+                    setActiveTab("select");
+                    setPreviewEpisodeId(importedEpisodes[0]?.id);
+                    if (importedEpisodes[0]) onActiveEpisodeChange(importedEpisodes[0].id);
+                    messageApi.success("已导入故事梗概与剧本");
+                } catch (error) {
+                    messageApi.error(error instanceof Error ? error.message : "导入剧本失败");
+                    throw error;
+                } finally {
+                    setScriptLibraryImporting(false);
                 }
-            } catch (err) {
-                messageApi.error({ content: err instanceof Error ? err.message : "生成失败", key: "generate-script", duration: 3 });
-                setGenerating(false);
-            }
-        };
-
-        poll();
+            },
+        });
     };
 
     return (
         <div className="mx-auto max-w-5xl space-y-6">
-            <div className="rounded-lg border border-border bg-card p-6">
-                <h2 className="mb-4 text-lg font-semibold">剧集信息</h2>
-                <Form form={form} layout="vertical" onValuesChange={scheduleSave}>
-                    <div className="grid grid-cols-2 gap-4">
-                        <Form.Item label="标题" name="title">
-                            <Input placeholder="剧集标题" />
-                        </Form.Item>
-                        <Form.Item label="画面比例" name="aspectRatio">
-                            <Select>
-                                <Option value="16:9">16:9 横屏（默认）</Option>
-                                <Option value="9:16">9:16 竖屏</Option>
-                                <Option value="1:1">1:1 方形</Option>
-                                <Option value="4:3">4:3 传统横屏</Option>
-                            </Select>
-                        </Form.Item>
-                    </div>
-                    <Form.Item label="图片/视频风格" name="style">
-                        <Input placeholder="例如: 写实、动漫、科幻等" />
-                    </Form.Item>
-                    <Form.Item label="故事梗概" name="description">
-                        <TextArea rows={3} placeholder="一句话描述故事梗概" />
-                    </Form.Item>
-                </Form>
-            </div>
-
             {episode && (
                 <div className="rounded-lg border border-border bg-card p-6">
                     <Tabs
@@ -698,12 +735,22 @@ ${storyOutline}
                                 key: "create",
                                 label: "创作剧本",
                                 children: (
-                                    <div className="space-y-4">
-                                        <Alert type="info" showIcon description="输入一段故事梗概，AI 帮你扩展成整集剧本，或直接输入小说章节。">
-                                            故事生成
-                                        </Alert>
+                                    <div className="flex flex-col gap-4">
+                                        <div className="order-1">
+                                            <h2 className="text-xl font-semibold">故事生成</h2>
+                                            <p className="mt-2 text-sm text-muted-foreground">输入一段故事梗概，AI 帮你扩展成整集剧本，或直接输入小说章节。</p>
+                                        </div>
 
-                                        <Form form={scriptForm} onValuesChange={scheduleSave}>
+                                        <Form className="order-2" form={form} layout="vertical" onValuesChange={scheduleSave}>
+                                            <Form.Item label="故事梗概" name="storyOutline">
+                                                <TextArea
+                                                    rows={5}
+                                                    placeholder="输入一段故事梗概，AI 将根据它生成完整剧本"
+                                                />
+                                            </Form.Item>
+                                        </Form>
+
+                                        <Form className="order-5" form={scriptForm} onValuesChange={scheduleSave}>
                                             <Form.Item name="script">
                                                 <TextArea
                                                     rows={15}
@@ -715,21 +762,20 @@ ${storyOutline}
                                             </Form.Item>
                                         </Form>
 
-                                        <div className="flex flex-wrap items-center gap-4">
-                                            <Select defaultValue="style1" style={{ width: 140 }}>
-                                                <Option value="style1">故事风格</Option>
-                                                <Option value="suspense">悬疑</Option>
-                                                <Option value="romance">浪漫</Option>
-                                                <Option value="action">动作</Option>
+                                        <div className="order-3 flex flex-wrap items-center gap-4">
+                                            <Select value={storyStyle} onChange={setStoryStyle} style={{ width: 140 }}>
+                                                <Option value="现代写实">现代写实</Option>
+                                                <Option value="悬疑">悬疑</Option>
+                                                <Option value="浪漫">浪漫</Option>
+                                                <Option value="动作">动作</Option>
                                             </Select>
 
-                                            <Select defaultValue="default" style={{ width: 140 }}>
-                                                <Option value="default">剧本类型</Option>
-                                                <Option value="short">短剧</Option>
-                                                <Option value="movie">电影</Option>
+                                            <Select value={scriptType} onChange={setScriptType} style={{ width: 140 }}>
+                                                <Option value="短剧">短剧</Option>
+                                                <Option value="电影">电影</Option>
                                             </Select>
 
-                                            <Input placeholder="集数" style={{ width: 100 }} defaultValue="1" />
+                                            <Input value={episodeCount} onChange={(event) => setEpisodeCount(event.target.value)} placeholder="集数" style={{ width: 100 }} />
 
                                             <Button
                                                 type="primary"
@@ -751,13 +797,13 @@ ${storyOutline}
                                                 {saveStatus === "error" ? <><AlertCircle className="size-3.5 text-destructive" /> 自动保存失败</> : null}
                                             </div>
                                         </div>
-                                        <div className="text-sm text-muted-foreground">
+                                        <div className="order-4 border-t border-border pt-4 text-sm text-muted-foreground">
                                             <span className="font-semibold">剧本</span>
                                             <span className="mx-2">·</span>
                                             <span>{episode.script.length} 字</span>
                                         </div>
 
-                                        <Button block>保存当前集</Button>
+                                        <Button className="order-6 self-start" onClick={() => void saveNow()}>保存当前集</Button>
                                     </div>
                                 ),
                             },
@@ -765,18 +811,87 @@ ${storyOutline}
                                 key: "select",
                                 label: "选择剧本",
                                 children: (
-                                    <div className="py-8 text-center text-muted-foreground">
-                                        暂无已保存的剧本模板
+                                    <div className="space-y-5">
+                                        <p className="text-sm text-muted-foreground">
+                                            从剧本库选择后，仅把故事梗概与各集剧本文字写入当前项目，不会导入角色、场景、分镜、图片或视频。
+                                        </p>
+                                        <Button
+                                            type="primary"
+                                            icon={<FileText className="size-4" />}
+                                            loading={scriptLibraryLoading}
+                                            onClick={() => {
+                                                setScriptLibraryOpen(true);
+                                                void loadScriptLibrary();
+                                            }}
+                                        >
+                                            从已有剧本中选择…
+                                        </Button>
+
+                                        {project.description || project.episodes.length ? (
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <h3 className="mb-2 text-base font-semibold">故事梗概</h3>
+                                                    <TextArea value={project.description || ""} readOnly rows={4} />
+                                                </div>
+                                                {project.episodes.length > 0 && (
+                                                    <div>
+                                                        <h3 className="mb-2 text-base font-semibold">分集剧本</h3>
+                                                        <Tabs
+                                                            activeKey={previewEpisodeId || project.episodes[0]?.id}
+                                                            onChange={setPreviewEpisodeId}
+                                                            items={project.episodes.map((item) => ({
+                                                                key: item.id,
+                                                                label: item.title || `第 ${item.number} 集`,
+                                                                children: <TextArea value={item.script || ""} readOnly rows={14} />,
+                                                            }))}
+                                                        />
+                                                    </div>
+                                                )}
+                                                <Button onClick={() => setActiveTab("create")}>切换到创作剧本以编辑</Button>
+                                            </div>
+                                        ) : (
+                                            <div className="py-8 text-center text-muted-foreground">尚未选择剧本，请点击上方按钮</div>
+                                        )}
                                     </div>
                                 ),
                             },
                         ]}
                     />
+                    <Modal
+                        title="从剧本库导入"
+                        open={scriptLibraryOpen}
+                        onCancel={() => setScriptLibraryOpen(false)}
+                        footer={null}
+                        destroyOnHidden
+                    >
+                        <div className="space-y-2">
+                            {scriptLibraryLoading ? (
+                                <div className="flex justify-center py-8"><Spin /></div>
+                            ) : scriptLibraryProjects.length > 0 ? (
+                                scriptLibraryProjects.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        disabled={scriptLibraryImporting}
+                                        className="w-full rounded-lg border border-border p-3 text-left transition-colors hover:border-primary hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                                        onClick={() => handleImportScript(item.id)}
+                                    >
+                                        <div className="font-medium">{item.title || "未命名剧本"}</div>
+                                        <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.summary || "暂无简介"}</div>
+                                        <div className="mt-2 text-xs text-muted-foreground">{item.episodeCount} 集</div>
+                                    </button>
+                                ))
+                            ) : (
+                                <div className="py-8 text-center text-muted-foreground">剧本库为空，请先创建包含剧本的项目</div>
+                            )}
+                        </div>
+                    </Modal>
                 </div>
             )}
         </div>
     );
 }
+
 type WorkflowRunMode = "assets" | "storyboard" | "video";
 type WorkflowRunScope = "current" | "all";
 
@@ -1113,10 +1228,14 @@ function ReviewPanel({ project, episode, onStepChange }: { project: Project; epi
 // 3. 资产管理面板
 function AssetsPanel({
     project,
-    onSave
+    episode,
+    onSave,
+    messageApi,
 }: {
     project: Project;
-    onSave: (updates: Partial<Project>) => void;
+    episode?: Episode;
+    onSave: (updates: Partial<Project>) => Promise<boolean>;
+    messageApi: ReturnType<typeof message.useMessage>[0];
 }) {
     const [activeTab, setActiveTab] = useState<"characters" | "scenes" | "props">("characters");
 
@@ -1129,17 +1248,17 @@ function AssetsPanel({
                     {
                         key: "characters",
                         label: `角色 (${project.characters.length})`,
-                        children: <CharactersList project={project} onSave={onSave} />,
+                        children: <CharactersList project={project} episode={episode} onSave={onSave} messageApi={messageApi} />,
                     },
                     {
                         key: "scenes",
                         label: `场景 (${project.scenes.length})`,
-                        children: <ScenesList project={project} onSave={onSave} />,
+                        children: <ScenesList project={project} episode={episode} onSave={onSave} messageApi={messageApi} />,
                     },
                     {
                         key: "props",
                         label: `道具 (${project.props.length})`,
-                        children: <PropsList project={project} onSave={onSave} />,
+                        children: <PropsList project={project} episode={episode} onSave={onSave} messageApi={messageApi} />,
                     },
                 ]}
             />
@@ -1148,7 +1267,166 @@ function AssetsPanel({
 }
 
 // 角色列表
-function CharactersList({ project, onSave }: { project: Project; onSave: (updates: Partial<Project>) => void }) {
+type AssetResourceType = "character" | "scene" | "prop";
+type ImportedDramaAsset = { id: string; name: string; description?: string; imageUrl?: string; location?: string; time?: string };
+
+function AssetResourceActions({
+    resourceType,
+    project,
+    episode,
+    messageApi,
+    onAppend,
+    manualAction,
+}: {
+    resourceType: AssetResourceType;
+    project: Project;
+    episode?: Episode;
+    messageApi: ReturnType<typeof message.useMessage>[0];
+    onAppend: (items: ImportedDramaAsset[]) => Promise<boolean>;
+    manualAction: ReactNode;
+}) {
+    const [extracting, setExtracting] = useState(false);
+    const [libraryOpen, setLibraryOpen] = useState(false);
+    const [libraryLoading, setLibraryLoading] = useState(false);
+    const [libraryImporting, setLibraryImporting] = useState(false);
+    const [libraryKeyword, setLibraryKeyword] = useState("");
+    const [libraryAssets, setLibraryAssets] = useState<Asset[]>([]);
+    const label = resourceType === "character" ? "角色" : resourceType === "scene" ? "场景" : "道具";
+    const existingNames = resourceType === "character"
+        ? project.characters.map((item) => item.name)
+        : resourceType === "scene"
+          ? project.scenes.map((item) => sceneLabel(item))
+          : project.props.map((item) => item.name);
+
+    const openLibrary = async () => {
+        setLibraryOpen(true);
+        setLibraryLoading(true);
+        try {
+            const result = await listLibraryAssetPage({ page: 1, pageSize: 100 });
+            setLibraryAssets(result.assets);
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "素材库加载失败");
+        } finally {
+            setLibraryLoading(false);
+        }
+    };
+
+    const extractFromScript = async () => {
+        if (!episode?.script.trim()) {
+            messageApi.warning("请先填写当前集剧本");
+            return;
+        }
+        setExtracting(true);
+        const key = `drama-extract-${resourceType}`;
+        messageApi.loading({ content: `正在从剧本提取${label}...`, key, duration: 0 });
+        try {
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/extract-assets`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ episodeId: episode.id, assetType: resourceType, requestId: `${project.id}:${episode.id}:${resourceType}:${Date.now()}` }),
+            });
+            const data = await response.json();
+            if (!response.ok || data.code !== 0) throw new Error(data.msg || "资产提取失败");
+            const assets = Array.isArray(data.data?.assets) ? data.data.assets.map((item: ImportedDramaAsset) => ({
+                ...item,
+                ...(resourceType === "scene" ? { location: item.location || item.name } : {}),
+            })) : [];
+            if (!assets.length) {
+                messageApi.info({ content: `未发现需要新增的${label}`, key, duration: 2 });
+                return;
+            }
+            if (!(await onAppend(assets))) throw new Error("项目保存失败");
+            messageApi.success({ content: `已从剧本提取 ${assets.length} 个${label}`, key, duration: 2 });
+        } catch (error) {
+            messageApi.error({ content: error instanceof Error ? error.message : "资产提取失败", key, duration: 3 });
+        } finally {
+            setExtracting(false);
+        }
+    };
+
+    const importLibraryAsset = async (asset: Asset) => {
+        if (existingNames.some((name) => normalizedAssetName(name) === normalizedAssetName(asset.title))) {
+            messageApi.warning(`项目中已存在同名${label}`);
+            return;
+        }
+        const imageUrl = asset.kind === "image" ? asset.data.serverUrl || asset.data.remoteUrl || asset.data.dataUrl || asset.coverUrl : asset.coverUrl;
+        const description = asset.note || (asset.kind === "text" ? asset.data.content : asset.tags.join("、"));
+        const item: ImportedDramaAsset = {
+            id: `${resourceType}_${Date.now()}`,
+            name: asset.title,
+            description,
+            ...(imageUrl ? { imageUrl } : {}),
+            ...(resourceType === "scene" ? { location: asset.title } : {}),
+        };
+        setLibraryImporting(true);
+        try {
+            if (!(await onAppend([item]))) throw new Error("项目保存失败");
+            messageApi.success(`已从素材库添加${label}：${asset.title}`);
+            setLibraryOpen(false);
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "素材导入失败");
+        } finally {
+            setLibraryImporting(false);
+        }
+    };
+
+    const assets = libraryAssets.filter((asset) => {
+        const keyword = libraryKeyword.trim().toLowerCase();
+        if (keyword && !asset.title.toLowerCase().includes(keyword) && !asset.tags.some((tag) => tag.toLowerCase().includes(keyword))) return false;
+        const taggedTypes = asset.tags.flatMap((tag) => resourceTypeForTag(tag));
+        return !taggedTypes.length || taggedTypes.includes(resourceType);
+    });
+
+    return (
+        <>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+                <Button type="primary" icon={<Sparkles className="size-4" />} loading={extracting} disabled={!episode?.script.trim()} onClick={() => void extractFromScript()}>
+                    从剧本提取{label}
+                </Button>
+                <Button icon={<LibraryBig className="size-4" />} onClick={() => void openLibrary()}>
+                    从素材库添加
+                </Button>
+                {manualAction}
+                {!episode?.script.trim() ? <span className="text-xs text-muted-foreground">请先填写当前集剧本后再提取</span> : null}
+            </div>
+            <Modal title={`从素材库添加${label}`} open={libraryOpen} footer={null} onCancel={() => setLibraryOpen(false)}>
+                <Input allowClear className="mb-3" placeholder={`搜索素材${label}`} value={libraryKeyword} onChange={(event) => setLibraryKeyword(event.target.value)} />
+                {libraryLoading ? <div className="flex justify-center py-8"><Spin /></div> : assets.length ? (
+                    <List
+                        dataSource={assets}
+                        renderItem={(asset) => (
+                            <List.Item actions={[<Button key="add" type="link" loading={libraryImporting} onClick={() => void importLibraryAsset(asset)}>添加</Button>]}>
+                                <List.Item.Meta
+                                    avatar={<div className="grid size-9 place-items-center rounded bg-muted"><LibraryBig className="size-4" /></div>}
+                                    title={asset.title}
+                                    description={asset.note || asset.tags.join("、") || "素材库资产"}
+                                />
+                            </List.Item>
+                        )}
+                    />
+                ) : <div className="py-8 text-center text-sm text-muted-foreground">没有可导入的素材</div>}
+            </Modal>
+        </>
+    );
+}
+
+function resourceTypeForTag(tag: string): AssetResourceType[] {
+    const value = tag.trim().toLowerCase();
+    if (/角色|人物|character|person/.test(value)) return ["character"];
+    if (/场景|地点|scene|location/.test(value)) return ["scene"];
+    if (/道具|物品|prop|object/.test(value)) return ["prop"];
+    return [];
+}
+
+function normalizedAssetName(value: string) {
+    return value.trim().toLocaleLowerCase("zh-CN").replace(/\s+/g, " ");
+}
+
+function sceneLabel(scene: Scene) {
+    return scene.location || scene.name || "";
+}
+
+function CharactersList({ project, episode, onSave, messageApi }: { project: Project; episode?: Episode; onSave: (updates: Partial<Project>) => Promise<boolean>; messageApi: ReturnType<typeof message.useMessage>[0] }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingChar, setEditingChar] = useState<Character | null>(null);
     const [form] = Form.useForm();
@@ -1185,13 +1463,18 @@ function CharactersList({ project, onSave }: { project: Project; onSave: (update
 
     return (
         <div>
-            <div className="mb-4 flex justify-between">
+            <AssetResourceActions
+                resourceType="character"
+                project={project}
+                episode={episode}
+                messageApi={messageApi}
+                onAppend={(items) => onSave({ characters: [...project.characters, ...items.map((item) => ({ id: item.id, name: item.name, description: item.description, imageUrl: item.imageUrl }))] })}
+                manualAction={<Button icon={<Plus className="size-4" />} onClick={handleAdd}>添加角色</Button>}
+            />
+            <div className="mb-4">
                 <span className="text-sm text-muted-foreground">
                     暂无本剧角色库记录，可在素材库中导入或手动添加
                 </span>
-                <Button type="primary" icon={<Plus className="size-4" />} onClick={handleAdd}>
-                    添加角色
-                </Button>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -1246,7 +1529,7 @@ function CharactersList({ project, onSave }: { project: Project; onSave: (update
 }
 
 // 场景列表
-function ScenesList({ project, onSave }: { project: Project; onSave: (updates: Partial<Project>) => void }) {
+function ScenesList({ project, episode, onSave, messageApi }: { project: Project; episode?: Episode; onSave: (updates: Partial<Project>) => Promise<boolean>; messageApi: ReturnType<typeof message.useMessage>[0] }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingScene, setEditingScene] = useState<Scene | null>(null);
     const [form] = Form.useForm();
@@ -1295,13 +1578,18 @@ function ScenesList({ project, onSave }: { project: Project; onSave: (updates: P
 
     return (
         <div>
-            <div className="mb-4 flex justify-between">
+            <AssetResourceActions
+                resourceType="scene"
+                project={project}
+                episode={episode}
+                messageApi={messageApi}
+                onAppend={(items) => onSave({ scenes: [...project.scenes, ...items.map((item) => ({ id: item.id, location: item.location || item.name, name: item.name, time: item.time, description: item.description, imageUrl: item.imageUrl }))] })}
+                manualAction={<Button icon={<Plus className="size-4" />} onClick={handleAdd}>添加场景</Button>}
+            />
+            <div className="mb-4">
                 <span className="text-sm text-muted-foreground">
                     暂无本剧场景库记录，可在素材库中导入或手动添加
                 </span>
-                <Button type="primary" icon={<Plus className="size-4" />} onClick={handleAdd}>
-                    添加场景
-                </Button>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -1358,7 +1646,7 @@ function ScenesList({ project, onSave }: { project: Project; onSave: (updates: P
 }
 
 // 道具列表
-function PropsList({ project, onSave }: { project: Project; onSave: (updates: Partial<Project>) => void }) {
+function PropsList({ project, episode, onSave, messageApi }: { project: Project; episode?: Episode; onSave: (updates: Partial<Project>) => Promise<boolean>; messageApi: ReturnType<typeof message.useMessage>[0] }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingProp, setEditingProp] = useState<Prop | null>(null);
     const [form] = Form.useForm();
@@ -1407,13 +1695,18 @@ function PropsList({ project, onSave }: { project: Project; onSave: (updates: Pa
 
     return (
         <div>
-            <div className="mb-4 flex justify-between">
+            <AssetResourceActions
+                resourceType="prop"
+                project={project}
+                episode={episode}
+                messageApi={messageApi}
+                onAppend={(items) => onSave({ props: [...project.props, ...items.map((item) => ({ id: item.id, name: item.name, description: item.description, imageUrl: item.imageUrl }))] })}
+                manualAction={<Button icon={<Plus className="size-4" />} onClick={handleAdd}>添加道具</Button>}
+            />
+            <div className="mb-4">
                 <span className="text-sm text-muted-foreground">
                     暂无本剧道具库记录，可在素材库中导入或手动添加
                 </span>
-                <Button type="primary" icon={<Plus className="size-4" />} onClick={handleAdd}>
-                    添加道具
-                </Button>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -1467,11 +1760,13 @@ function PropsList({ project, onSave }: { project: Project; onSave: (updates: Pa
 function StoryboardPanel({
     project,
     episode,
-    onSave
+    onSave,
+    messageApi
 }: {
     project: Project;
     episode?: Episode;
     onSave: (updates: Partial<Project>) => void;
+    messageApi: ReturnType<typeof message.useMessage>[0];
 }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingShot, setEditingShot] = useState<Shot | null>(null);
@@ -1786,7 +2081,7 @@ function StoryboardPanel({
 
                 {episodeShots.length === 0 && (
                     <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
-                        暂无分镜，点击"添加分镜"开始创作
+                        暂无分镜，点击“添加分镜”开始创作
                     </div>
                 )}
             </div>
@@ -1879,7 +2174,15 @@ function GeneratePanel({ project, episode }: { project: Project; episode?: Episo
 }
 
 // 6. 导出面板
-function ExportPanel({ project, episode }: { project: Project; episode?: Episode }) {
+function ExportPanel({
+    project,
+    episode,
+    messageApi
+}: {
+    project: Project;
+    episode?: Episode;
+    messageApi: ReturnType<typeof message.useMessage>[0];
+}) {
     const [draftPath, setDraftPath] = useState("");
     const [jianyingVersion, setJianyingVersion] = useState<"5" | "6">("6");
     const [exporting, setExporting] = useState(false);
@@ -1887,9 +2190,7 @@ function ExportPanel({ project, episode }: { project: Project; episode?: Episode
     if (!episode) {
         return (
             <div className="mx-auto max-w-2xl space-y-6 p-8">
-                <Alert type="warning" showIcon>
-                    请先选择一个剧集
-                </Alert>
+                <Alert type="warning" showIcon message="请先选择一个剧集" />
             </div>
         );
     }

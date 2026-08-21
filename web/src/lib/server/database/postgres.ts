@@ -308,6 +308,7 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "drama_lab_image_proxy_cache_created_idx",
     "drama_lab_ai_model_map_user_key_idx",
     "drama_lab_prompt_templates_user_category_idx",
+    "drama_lab_prompt_templates_user_key_idx",
     "drama_lab_business_scenarios_user_updated_idx",
     "drama_lab_sd2_assets_user_type_idx",
     "drama_projects_episodes_gin_idx",

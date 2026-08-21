@@ -4,7 +4,19 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { postgresQuery } from "@/lib/server/database";
 import { readJsonBody } from "@/lib/auth/request";
+import { DRAMA_LAB_PROMPT_DEFINITIONS } from "@/lib/drama-lab-prompt-templates";
 import { authorizeDramaLabAdmin, badRequest, promptCategory, serverError, stringArrayValue, textValue } from "../_lib";
+
+type PromptTemplateRow = {
+    id: string;
+    template_key: string | null;
+    name: string;
+    category: string;
+    template: string;
+    variables: string[];
+    created_at: string;
+    updated_at: string;
+};
 
 export async function GET(request: NextRequest) {
     const auth = await authorizeDramaLabAdmin();
@@ -17,17 +29,37 @@ export async function GET(request: NextRequest) {
     if (categoryValue && !category) return badRequest("Invalid prompt category");
 
     try {
-        const result = await postgresQuery(
-            `SELECT id, name, category, template, variables, created_at, updated_at
+        const result = await postgresQuery<PromptTemplateRow>(
+            `SELECT id, template_key, name, category, template, variables, created_at, updated_at
              FROM drama_lab_prompt_templates
              WHERE user_id = $1 AND deleted_at IS NULL
-               AND ($2 = '' OR name ILIKE '%' || $2 || '%' OR template ILIKE '%' || $2 || '%')
-               AND ($3::text IS NULL OR category = $3)
              ORDER BY updated_at DESC
              LIMIT 200`,
-            [auth.user.id, search, category || null],
+            [auth.user.id],
         );
-        return NextResponse.json({ code: 0, data: result.rows });
+        const overrides = new Map(result.rows.filter((item) => item.template_key).map((item) => [item.template_key!, item]));
+        const builtIns = DRAMA_LAB_PROMPT_DEFINITIONS.map((definition) => {
+            const override = overrides.get(definition.key);
+            return {
+                id: definition.key,
+                template_key: definition.key,
+                name: definition.name,
+                category: definition.category,
+                description: definition.description,
+                template: override?.template || definition.template,
+                variables: definition.variables,
+                is_builtin: true,
+                is_customized: Boolean(override),
+                created_at: override?.created_at,
+                updated_at: override?.updated_at,
+            };
+        });
+        const custom = result.rows.filter((item) => !item.template_key).map((item) => ({ ...item, is_builtin: false, is_customized: false }));
+        const items = [...builtIns, ...custom].filter((item) => {
+            const matchesSearch = !search || item.name.includes(search) || item.template.includes(search);
+            return matchesSearch && (!category || item.category === category);
+        });
+        return NextResponse.json({ code: 0, data: items });
     } catch (error) {
         console.error("Failed to list drama lab prompt templates", error);
         return serverError();
