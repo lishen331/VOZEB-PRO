@@ -333,7 +333,7 @@ export function DramaWorkflowLabProject({
             </header>
 
             {/* 步骤导航 */}
-            <nav className="flex h-14 shrink-0 items-center justify-center gap-8 border-b border-border bg-card px-4">
+            <nav className="flex h-14 shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-card px-2 sm:justify-center sm:gap-8 sm:px-4">
                 {WORKFLOW_STEPS.map((step, index) => {
                     const Icon = step.icon;
                     const isActive = activeStep === step.key;
@@ -342,7 +342,7 @@ export function DramaWorkflowLabProject({
                             key={step.key}
                             onClick={() => setActiveStep(step.key)}
                             className={cn(
-                                "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
+                                "flex shrink-0 items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
                                 isActive
                                     ? "text-primary"
                                     : "text-muted-foreground hover:text-foreground"
@@ -365,7 +365,7 @@ export function DramaWorkflowLabProject({
             {/* 主内容区 */}
             <div className="flex min-h-0 flex-1">
                 {/* 左侧边栏 - 剧集列表 */}
-                <aside className={cn("flex min-h-0 shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200", sidebarCollapsed ? "w-14" : "w-64")}>
+                <aside className={cn("hidden min-h-0 shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200 lg:flex", sidebarCollapsed ? "w-14" : "w-64")}>
                     <div className={cn("flex h-12 items-center border-b border-border", sidebarCollapsed ? "justify-center px-2" : "justify-between px-4")}>
                         {!sidebarCollapsed ? <span className="text-sm font-semibold">
                             剧集 <span className="text-muted-foreground">{project.episodes.length}</span>
@@ -470,7 +470,7 @@ export function DramaWorkflowLabProject({
                 </aside>
 
                 {/* 主编辑区域 */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
                     {activeStep === "script" && (
                         <ScriptEditor
                             project={project}
@@ -479,7 +479,7 @@ export function DramaWorkflowLabProject({
                         />
                     )}
                     {activeStep === "review" && (
-                        <ReviewPanel project={project} episode={activeEpisode} />
+                        <ReviewPanel project={project} episode={activeEpisode} onStepChange={setActiveStep} />
                     )}
                     {activeStep === "assets" && (
                         <AssetsPanel project={project} onSave={saveProject} />
@@ -770,17 +770,171 @@ ${storyOutline}
 }
 
 // 5. 内容审核面板
-function ReviewPanel({ project, episode }: { project: Project; episode?: Episode }) {
+type ReviewDemoTarget = Extract<StepKey, "assets" | "storyboard" | "generate">;
+
+type ReviewDemoIssue = {
+    id: string;
+    severity: "高" | "中" | "低";
+    area: string;
+    title: string;
+    detail: string;
+    action: string;
+    target: ReviewDemoTarget;
+};
+
+function ReviewPanel({ project, episode, onStepChange }: { project: Project; episode?: Episode; onStepChange: (step: StepKey) => void }) {
+    const [simulationStatus, setSimulationStatus] = useState<"ready" | "running">("ready");
+    const [simulatedAt, setSimulatedAt] = useState("刚刚");
+    const episodeShots = project.shots.filter((shot) => shot.episodeId === episode?.id);
+    const assetCount = project.characters.length + project.scenes.length + project.props.length;
+    const storyboardImageCount = episodeShots.filter((shot) => Boolean(shot.imageUrl)).length;
+    const videoCount = episodeShots.filter((shot) => Boolean(shot.videoUrl)).length;
+    const issues: ReviewDemoIssue[] = [
+        ...(assetCount === 0
+            ? [{ id: "assets-empty", severity: "高" as const, area: "资产", title: "缺少统一视觉资产", detail: "角色、场景与道具尚未建立，后续画面一致性无法确认。", action: "查看资产准备", target: "assets" as const }]
+            : [{ id: "assets-ready", severity: "低" as const, area: "资产", title: "补充资产视觉设定", detail: "建议为核心角色和场景补充统一的风格、色彩与引用图说明。", action: "查看资产准备", target: "assets" as const }]),
+        ...(episodeShots.length === 0
+            ? [{ id: "storyboard-empty", severity: "高" as const, area: "分镜", title: "尚未建立分镜", detail: "当前剧集没有可审核的镜头节奏、构图与叙事衔接。", action: "前往分镜", target: "storyboard" as const }]
+            : storyboardImageCount < episodeShots.length
+              ? [{ id: "storyboard-missing", severity: "中" as const, area: "分镜图", title: "部分分镜图待生成", detail: `${episodeShots.length - storyboardImageCount} 个分镜缺少画面结果，无法完成视觉连续性核验。`, action: "前往分镜", target: "storyboard" as const }]
+              : [{ id: "storyboard-ready", severity: "低" as const, area: "分镜图", title: "检查镜头衔接", detail: "建议重点确认相邻镜头的景别、视线和运动方向。", action: "前往分镜", target: "storyboard" as const }]),
+        ...(videoCount === 0
+            ? [{ id: "video-empty", severity: "中" as const, area: "镜头视频", title: "尚未生成镜头视频", detail: "镜头动态、节奏与成片可用性将在视频结果生成后完成核验。", action: "前往镜头生成", target: "generate" as const }]
+            : [{ id: "video-ready", severity: "低" as const, area: "镜头视频", title: "复核成片节奏", detail: `${videoCount} 个镜头已有视频结果，建议确认动作衔接与时长节奏。`, action: "前往镜头生成", target: "generate" as const }]),
+    ];
+    const blockingIssueCount = issues.filter((issue) => issue.severity === "高").length;
+    const score = Math.max(64, Math.min(94, 94 - blockingIssueCount * 12 - issues.filter((issue) => issue.severity === "中").length * 5));
+    const scores = [
+        { label: "叙事完整性", value: Math.min(95, 78 + Math.min(episode?.script.length || 0, 600) / 35) },
+        { label: "资产一致性", value: Math.min(94, 66 + Math.min(assetCount, 8) * 4) },
+        { label: "视觉连续性", value: episodeShots.length ? Math.min(92, 70 + Math.round((storyboardImageCount / episodeShots.length) * 18)) : 64 },
+        { label: "成片可用性", value: episodeShots.length ? Math.min(92, 68 + Math.round((videoCount / episodeShots.length) * 20)) : 64 },
+    ].map((item) => ({ ...item, value: Math.round(item.value) }));
+
+    const simulateReview = () => {
+        if (simulationStatus === "running") return;
+        setSimulationStatus("running");
+        simulationTimerRef.current = window.setTimeout(() => {
+            setSimulatedAt(new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }));
+            setSimulationStatus("ready");
+        }, 700);
+    };
+
     return (
-        <div className="mx-auto max-w-4xl">
-            <Alert
-                type="info"
-                showIcon
-                message="内容审核"
-                description="成片导出前，AI 将对已生成的资产、分镜图与镜头视频进行审核并定位问题。"
-            />
-            <div className="mt-6 text-center text-muted-foreground">
-                内容审核功能开发中...
+        <div className="mx-auto max-w-6xl space-y-6">
+            <section className="flex flex-wrap items-start justify-between gap-4 border border-border bg-card px-5 py-5 sm:px-6">
+                <div className="flex min-w-0 items-start gap-3">
+                    <span className="grid size-10 shrink-0 place-items-center border border-primary/30 bg-primary/10 text-primary">
+                        <Sparkles className="size-5" />
+                    </span>
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="text-lg font-semibold">AI 内容审核</h2>
+                            <span className="border border-border px-2 py-0.5 text-xs text-muted-foreground">演示报告</span>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">第 {episode?.number || 1} 集 · {episode?.title || "未命名剧集"}</p>
+                    </div>
+                </div>
+                <Button type="primary" icon={simulationStatus === "running" ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />} loading={simulationStatus === "running"} onClick={simulateReview}>
+                    重新模拟审核
+                </Button>
+            </section>
+
+            <section className="grid border border-border bg-card lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+                <div className="border-b border-border p-6 lg:border-b-0 lg:border-r">
+                    <p className="text-sm text-muted-foreground">审核结论</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <h3 className="text-2xl font-semibold">{blockingIssueCount ? "建议完善后导出" : "可以进入成片导出"}</h3>
+                        <span className={cn("border px-2 py-1 text-xs font-medium", blockingIssueCount ? "border-amber-300 bg-amber-50 text-amber-800" : "border-emerald-300 bg-emerald-50 text-emerald-800")}>
+                            {blockingIssueCount ? `${blockingIssueCount} 个优先处理项` : "未发现阻塞项"}
+                        </span>
+                    </div>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">已覆盖当前剧集的剧本、资产、分镜图和镜头视频，并给出可回到制作阶段处理的问题。</p>
+                    <div className="mt-5 flex flex-wrap gap-x-7 gap-y-3 text-sm">
+                        <span><strong className="font-semibold">{issues.length}</strong> 个检查项</span>
+                        <span><strong className="font-semibold">{episodeShots.length}</strong> 个分镜</span>
+                        <span><strong className="font-semibold">{videoCount}</strong> 个视频结果</span>
+                    </div>
+                </div>
+                <div className="flex items-center gap-5 p-6">
+                    <div className="grid size-24 shrink-0 place-items-center rounded-full border-8 border-primary/15 text-center">
+                        <span>
+                            <strong className="block text-2xl leading-none">{score}</strong>
+                            <small className="mt-1 block text-xs text-muted-foreground">综合评分</small>
+                        </span>
+                    </div>
+                    <div>
+                        <p className="font-medium">审核已完成</p>
+                        <p className="mt-1 text-sm text-muted-foreground">本次演示于 {simulatedAt} 生成</p>
+                    </div>
+                </div>
+            </section>
+
+            <section className="border border-border bg-card">
+                <div className="border-b border-border px-5 py-4 sm:px-6">
+                    <h3 className="font-semibold">审核覆盖范围</h3>
+                </div>
+                <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+                    {[
+                        { label: "剧本内容", value: `${episode?.script.length || 0} 字`, detail: "剧情、人物、对白" },
+                        { label: "创作资产", value: `${assetCount} 项`, detail: "角色、场景、道具" },
+                        { label: "分镜图", value: `${storyboardImageCount}/${episodeShots.length}`, detail: "构图、风格、连续性" },
+                        { label: "镜头视频", value: `${videoCount}/${episodeShots.length}`, detail: "动态、节奏、可用性" },
+                    ].map((item) => (
+                        <div key={item.label} className="px-5 py-4 sm:px-6">
+                            <p className="text-sm text-muted-foreground">{item.label}</p>
+                            <p className="mt-1 text-xl font-semibold">{item.value}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                <section className="border border-border bg-card">
+                    <div className="border-b border-border px-5 py-4 sm:px-6">
+                        <h3 className="font-semibold">审核评分</h3>
+                    </div>
+                    <div className="space-y-5 p-5 sm:p-6">
+                        {scores.map((item) => (
+                            <div key={item.label}>
+                                <div className="flex items-center justify-between gap-4 text-sm">
+                                    <span>{item.label}</span>
+                                    <strong className="font-semibold">{item.value}</strong>
+                                </div>
+                                <div className="mt-2 h-2 overflow-hidden bg-muted" role="progressbar" aria-label={item.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={item.value}>
+                                    <div className={cn("h-full", item.value >= 85 ? "bg-emerald-500" : item.value >= 70 ? "bg-amber-500" : "bg-rose-500")} style={{ width: `${item.value}%` }} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                <section className="border border-border bg-card">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
+                        <h3 className="font-semibold">待处理问题</h3>
+                        <span className="text-sm text-muted-foreground">{issues.length} 项</span>
+                    </div>
+                    <div className="divide-y divide-border">
+                        {issues.map((issue) => (
+                            <div key={issue.id} className="flex flex-wrap items-start gap-3 p-5 sm:px-6">
+                                <span className={cn("mt-0.5 grid size-7 shrink-0 place-items-center rounded-full", issue.severity === "高" ? "bg-rose-100 text-rose-700" : issue.severity === "中" ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700")}>
+                                    {issue.severity === "高" ? <AlertCircle className="size-4" /> : <CheckCircle2 className="size-4" />}
+    const simulationTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">{issue.area}</span>
+                                        <span className={cn("px-1.5 py-0.5 text-xs", issue.severity === "高" ? "bg-rose-100 text-rose-700" : issue.severity === "中" ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700")}>{issue.severity}优先级</span>
+                                    </div>
+                                    <h4 className="mt-1 font-medium">{issue.title}</h4>
+                                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{issue.detail}</p>
+                                </div>
+                                <Button size="small" onClick={() => onStepChange(issue.target)}>{issue.action}</Button>
+                            </div>
+                        ))}
+                    </div>
+                </section>
             </div>
         </div>
     );
@@ -793,12 +947,17 @@ function AssetsPanel({
 }: {
     project: Project;
     onSave: (updates: Partial<Project>) => void;
+    useEffect(() => () => {
+        if (simulationTimerRef.current) window.clearTimeout(simulationTimerRef.current);
+    }, []);
+
 }) {
     const [activeTab, setActiveTab] = useState<"characters" | "scenes" | "props">("characters");
 
     return (
         <div className="mx-auto max-w-6xl">
             <Tabs
+            simulationTimerRef.current = null;
                 activeKey={activeTab}
                 onChange={(key) => setActiveTab(key as typeof activeTab)}
                 items={[
