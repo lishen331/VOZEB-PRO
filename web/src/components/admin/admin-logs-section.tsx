@@ -70,6 +70,7 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
                                 setGenerationLogPage(1);
                             }}
                             options={[
+                                { label: "文本", value: "text" },
                                 { label: "图片", value: "image" },
                                 { label: "视频", value: "video" },
                             ]}
@@ -84,7 +85,9 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
                                 setGenerationLogPage(1);
                             }}
                             options={[
+                                { label: "Agent", value: "agent" },
                                 { label: "画布", value: "canvas" },
+                                { label: "短剧", value: "drama" },
                                 { label: "图片生成", value: "image-workbench" },
                                 { label: "视频生成", value: "video-workbench" },
                             ]}

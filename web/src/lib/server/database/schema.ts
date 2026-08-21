@@ -3,6 +3,7 @@ import { POSTGRESQL_COMMERCIAL_FEATURES_SCHEMA_SQL } from "./schema-commercial-f
 import { POSTGRESQL_IP_LIBRARY_SCHEMA_SQL } from "./schema-ip-library";
 import { POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL } from "./schema-school-domain";
 import { POSTGRESQL_TRIGGER_SCHEMA_SQL } from "./schema-triggers";
+import { DRAMA_LAB_SCHEMA_SQL } from "./schema-drama-lab";
 
 const FULL_ADMIN_PERMISSIONS_JSON = JSON.stringify(ALL_ADMIN_PERMISSIONS);
 
@@ -994,11 +995,13 @@ CREATE TABLE IF NOT EXISTS generation_logs (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     completed_at timestamptz,
-    CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video')),
+    CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video', 'text')),
     CONSTRAINT generation_logs_status CHECK (status IN ('pending', 'success', 'failed'))
 );
 ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS conversation_id text REFERENCES creative_conversations(id) ON DELETE SET NULL;
 ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS request_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE generation_logs DROP CONSTRAINT IF EXISTS generation_logs_kind;
+ALTER TABLE generation_logs ADD CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video', 'text'));
 UPDATE creative_conversations AS conversation
 SET source = CASE WHEN log.source = 'video-workbench' THEN 'video-workbench' ELSE 'image-workbench' END
 FROM generation_logs AS log
@@ -1058,7 +1061,9 @@ ${POSTGRESQL_IP_LIBRARY_SCHEMA_SQL}
 
 ${POSTGRESQL_TRIGGER_SCHEMA_SQL}
 
+${DRAMA_LAB_SCHEMA_SQL}
+
 INSERT INTO schema_migrations (version)
-VALUES ('20260709_postgresql_commercial_base'), ('20260709_billing_foundation'), ('20260709_billing_checkout'), ('20260709_commercial_seed_products'), ('20260709_vozeb_pro_table_prefix'), ('20260711_generation_tasks'), ('20260716_billing_reconciliation'), ('20260725_account_deletion_requests'), ('20260726_promotion_coupon_commerce'), ('20260727_referral_growth_rewards'), ('20260727_work_publications'), ('20260727_work_community'), ('20260728_user_blocks')
+VALUES ('20260709_postgresql_commercial_base'), ('20260709_billing_foundation'), ('20260709_billing_checkout'), ('20260709_commercial_seed_products'), ('20260709_vozeb_pro_table_prefix'), ('20260711_generation_tasks'), ('20260716_billing_reconciliation'), ('20260725_account_deletion_requests'), ('20260726_promotion_coupon_commerce'), ('20260727_referral_growth_rewards'), ('20260727_work_publications'), ('20260727_work_community'), ('20260728_user_blocks'), ('20260820_drama_lab_integration')
 ON CONFLICT (version) DO NOTHING;
 `;

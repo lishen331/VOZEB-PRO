@@ -4,13 +4,14 @@ import { adminSectionGroups } from "./admin-section-nav";
 
 describe("admin navigation order", () => {
     it("keeps the existing business classifications and generation operations entry", () => {
-        expect(adminSectionGroups.map((group) => group.title)).toEqual(["经营分析", "产教运营", "商品运营", "营销推广", "财务管理", "上游配置", "系统管理", "存储与备份", "内容运营", "帮助与支持"]);
+        expect(adminSectionGroups.map((group) => group.title)).toEqual(["经营分析", "产教运营", "商品运营", "营销推广", "财务管理", "上游配置", "短剧实验室配置", "系统管理", "存储与备份", "内容运营", "帮助与支持"]);
         expect(adminSectionGroups.find((group) => group.title === "产教运营")?.items.map((item) => item.label)).toEqual(["学校管理", "课程管理", "商单管理"]);
         expect(adminSectionGroups.find((group) => group.title === "经营分析")?.items.map((item) => item.label)).toContain("生成运维");
         expect(adminSectionGroups.find((group) => group.title === "商品运营")?.items.map((item) => item.label)).toEqual(["套餐管理", "订单管理"]);
         expect(adminSectionGroups.find((group) => group.title === "营销推广")?.items.map((item) => item.label)).toEqual(["促销活动", "优惠券", "邀请奖励"]);
         expect(adminSectionGroups.find((group) => group.title === "财务管理")?.items.map((item) => item.label)).toEqual(["积分规则", "支付渠道", "CDK 兑换", "财务流水"]);
         expect(adminSectionGroups.find((group) => group.title === "上游配置")?.items.map((item) => item.label)).toEqual(["模型渠道", "Agent Skills"]);
+        expect(adminSectionGroups.find((group) => group.title === "短剧实验室配置")?.items.map((item) => item.label)).toEqual(["AI 配置", "提示词模板", "业务场景", "生成设置", "SD2 资产"]);
         expect(adminSectionGroups.find((group) => group.title === "系统管理")?.items.map((item) => item.label)).toEqual(["站点资料", "基础设置", "角色功能", "注销申请"]);
         expect(adminSectionGroups.find((group) => group.title === "存储与备份")?.items.map((item) => item.label)).toEqual(["本地媒体", "外部存储", "数据备份"]);
         expect(adminSectionGroups.find((group) => group.title === "内容运营")?.items.map((item) => item.label)).toEqual(["IP 库", "作品管理", "公告通知", "提示词运营"]);

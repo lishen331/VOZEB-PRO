@@ -12,7 +12,7 @@ vi.mock("undici", () => ({
 }));
 
 import { GENERATION_TRANSPORT_TIMEOUT_MS } from "./generation-http-lifecycle";
-import "./internal-origin";
+import { resolveInternalOrigin } from "./internal-origin";
 
 describe("internal API dispatcher", () => {
     it("outlives the longest model request instead of using Undici's five minute default", () => {
@@ -20,5 +20,15 @@ describe("internal API dispatcher", () => {
             headersTimeout: GENERATION_TRANSPORT_TIMEOUT_MS,
             bodyTimeout: GENERATION_TRANSPORT_TIMEOUT_MS,
         });
+    });
+
+    it("follows the request port when a stale loopback origin is configured", () => {
+        vi.stubEnv("VOZEB_PRO_INTERNAL_ORIGIN", "http://127.0.0.1:3000");
+        expect(resolveInternalOrigin("http://localhost:3002")).toBe("http://localhost:3002");
+    });
+
+    it("keeps an explicitly configured non-loopback origin", () => {
+        vi.stubEnv("VOZEB_PRO_INTERNAL_ORIGIN", "https://internal.example.test");
+        expect(resolveInternalOrigin("http://localhost:3002")).toBe("https://internal.example.test");
     });
 });

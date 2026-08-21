@@ -173,7 +173,9 @@ export type NavigationGroupId = (typeof navigationGroups)[number]["id"];
 
 export function navigationToolsForContext(context: SchoolContext | null = null, options: { includeDramaWorkflowLab?: boolean } = {}) {
     const schoolTools = schoolNavigationTools(context);
-    return [...navigationTools, ...(options.includeDramaWorkflowLab ? [dramaWorkflowLabNavigationTool] : []), ...(schoolTools.length ? [practiceNavigationTool] : []), ...schoolTools];
+    // 默认包含短剧实验室（如果环境变量启用）
+    const includeLab = options.includeDramaWorkflowLab !== false;
+    return [...navigationTools, ...(includeLab ? [dramaWorkflowLabNavigationTool] : []), ...(schoolTools.length ? [practiceNavigationTool] : []), ...schoolTools];
 }
 
 export function navigationToolForPathname(pathname: string, context: SchoolContext | null = null, options: { includeDramaWorkflowLab?: boolean } = {}) {

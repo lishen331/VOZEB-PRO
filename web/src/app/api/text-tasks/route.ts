@@ -14,6 +14,7 @@ import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/securit
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { createTextTask, type TextTask, type TextTaskConfig } from "@/lib/server/text-task-store";
+import { recordTextTaskLog } from "@/lib/server/text-task-log";
 import type { AiTextMessage } from "@/types/ai";
 
 export const runtime = "nodejs";
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
         if (!configs.length || !messages.length) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
 
         const task = await createTextTask({ ...(body.context || {}), userId: currentUser.id, config: configs[0], candidateConfigs: configs.slice(1), messages });
+        await recordTextTaskLog(task, currentUser, "pending").catch((error) => console.warn("Text generation log creation failed", { taskId: task.id, error }));
         await linkStoredGenerationTask("text", task.id, body.context || {});
         const cookie = request.headers.get("cookie") || "";
         const origin = resolveInternalOrigin(new URL(request.url).origin);

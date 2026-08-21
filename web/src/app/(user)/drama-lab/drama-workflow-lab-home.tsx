@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, App, Button, Input, InputNumber, Modal, Segmented, Spin, Tag } from "antd";
-import { ArrowRight, Clapperboard, FlaskConical, Pencil, Plus, RefreshCcw } from "lucide-react";
+import { ArrowRight, Clapperboard, FlaskConical, Pencil, Plus, RefreshCcw, UserRound, Image as ImageIcon, Box } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -28,11 +28,16 @@ export function DramaWorkflowLabHome() {
     const [customWidth, setCustomWidth] = useState(1080);
     const [customHeight, setCustomHeight] = useState(1920);
 
+    // 素材库弹窗状态
+    const [characterLibraryOpen, setCharacterLibraryOpen] = useState(false);
+    const [sceneLibraryOpen, setSceneLibraryOpen] = useState(false);
+    const [propLibraryOpen, setPropLibraryOpen] = useState(false);
+
     const loadProjects = useCallback(async () => {
         setLoading(true);
         setError(undefined);
         try {
-            const response = await fetch("/api/drama/projects?page=1&pageSize=24", { cache: "no-store" });
+            const response = await fetch("/api/drama-lab/projects?page=1&pageSize=24", { cache: "no-store" });
             const payload = (await response.json()) as ProjectListResponse;
             if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "项目加载失败");
             setProjects(payload.data?.projects || []);
@@ -64,7 +69,7 @@ export function DramaWorkflowLabHome() {
         }
         setCreating(true);
         try {
-            const response = await fetch("/api/drama/projects", {
+            const response = await fetch("/api/drama-lab/projects", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ title: title.trim(), summary: summary.trim(), style: style.trim() || DEFAULT_STYLE, ratio }),
@@ -92,6 +97,27 @@ export function DramaWorkflowLabHome() {
                         <p className="mt-1 text-sm text-muted-foreground">先创建短剧项目，再进入剧本、分集、资产和镜头制作。</p>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Button
+                            icon={<UserRound className="size-4" />}
+                            onClick={() => setCharacterLibraryOpen(true)}
+                            className="hidden sm:inline-flex"
+                        >
+                            素材角色
+                        </Button>
+                        <Button
+                            icon={<ImageIcon className="size-4" />}
+                            onClick={() => setSceneLibraryOpen(true)}
+                            className="hidden sm:inline-flex"
+                        >
+                            素材场景
+                        </Button>
+                        <Button
+                            icon={<Box className="size-4" />}
+                            onClick={() => setPropLibraryOpen(true)}
+                            className="hidden sm:inline-flex"
+                        >
+                            素材道具
+                        </Button>
                         <Button icon={<RefreshCcw className="size-4" />} onClick={() => void loadProjects()} loading={loading}>
                             刷新项目
                         </Button>
@@ -147,7 +173,7 @@ export function DramaWorkflowLabHome() {
                             {projects.map((project) => (
                                 <article key={project.id} className="group border border-border bg-card p-5 transition hover:border-primary/60 hover:shadow-sm">
                                     <div className="flex items-start justify-between gap-3">
-                                        <Link href={`/drama-lab/${project.id}`} className="min-w-0 flex-1">
+                                        <Link href={`/drama-lab/${encodeURIComponent(project.id)}`} className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                 <Clapperboard className="size-4" />
                                                 短剧项目
@@ -165,7 +191,7 @@ export function DramaWorkflowLabHome() {
                                     </div>
                                     <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
                                         <span className="text-xs text-muted-foreground">更新于 {new Date(project.updatedAt).toLocaleDateString("zh-CN")}</span>
-                                        <Link href={`/drama-lab/${project.id}`} className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                                        <Link href={`/drama-lab/${encodeURIComponent(project.id)}`} className="inline-flex items-center gap-1 text-sm font-medium text-primary">
                                             进入制作 <ArrowRight className="size-4" />
                                         </Link>
                                     </div>
@@ -249,6 +275,46 @@ export function DramaWorkflowLabHome() {
                             </div>
                         ) : null}
                     </div>
+                </div>
+            </Modal>
+
+            {/* 素材库弹窗 */}
+            <Modal
+                title="素材角色库"
+                open={characterLibraryOpen}
+                onCancel={() => setCharacterLibraryOpen(false)}
+                footer={null}
+                width={1000}
+            >
+                <div className="py-4 text-center text-gray-500">
+                    角色库功能开发中...
+                    <p className="mt-2 text-sm">将显示公共角色素材，可以选择并添加到项目中</p>
+                </div>
+            </Modal>
+
+            <Modal
+                title="素材场景库"
+                open={sceneLibraryOpen}
+                onCancel={() => setSceneLibraryOpen(false)}
+                footer={null}
+                width={1000}
+            >
+                <div className="py-4 text-center text-gray-500">
+                    场景库功能开发中...
+                    <p className="mt-2 text-sm">将显示公共场景素材，可以选择并添加到项目中</p>
+                </div>
+            </Modal>
+
+            <Modal
+                title="素材道具库"
+                open={propLibraryOpen}
+                onCancel={() => setPropLibraryOpen(false)}
+                footer={null}
+                width={1000}
+            >
+                <div className="py-4 text-center text-gray-500">
+                    道具库功能开发中...
+                    <p className="mt-2 text-sm">将显示公共道具素材，可以选择并添加到项目中</p>
                 </div>
             </Modal>
         </main>

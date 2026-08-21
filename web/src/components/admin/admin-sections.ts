@@ -32,6 +32,12 @@ export const ADMIN_SECTION_KEYS = [
     "generationOperations",
     "prompts",
     "adminHelp",
+    "dramaProjects",
+    "dramaLabConfig",
+    "dramaLabPrompts",
+    "dramaLabScenarios",
+    "dramaLabGeneration",
+    "dramaLabSd2",
 ] as const;
 
 export type AdminSectionKey = (typeof ADMIN_SECTION_KEYS)[number];
@@ -68,6 +74,12 @@ export const ADMIN_SECTION_PERMISSIONS: Record<AdminSectionKey, readonly AdminPe
     prompts: ["content.manage"],
     updates: [],
     adminHelp: [],
+    dramaProjects: ["content.manage"],
+    dramaLabConfig: ["content.manage"],
+    dramaLabPrompts: ["content.manage"],
+    dramaLabScenarios: ["content.manage"],
+    dramaLabGeneration: ["content.manage"],
+    dramaLabSd2: ["content.manage"],
 };
 
 const adminSectionKeys = new Set<AdminSectionKey>(ADMIN_SECTION_KEYS);

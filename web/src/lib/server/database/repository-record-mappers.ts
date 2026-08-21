@@ -239,7 +239,7 @@ export function mapGenerationLog(row: Record<string, unknown>): GenerationLogRec
         conversationId: optionalString(row.conversation_id),
         username: stringValue(row.username),
         displayName: stringValue(row.display_name),
-        kind: row.kind === "video" ? "video" : "image",
+        kind: row.kind === "video" ? "video" : row.kind === "text" ? "text" : "image",
         source: stringValue(row.source),
         status: row.status === "pending" || row.status === "failed" ? row.status : "success",
         title: stringValue(row.title),

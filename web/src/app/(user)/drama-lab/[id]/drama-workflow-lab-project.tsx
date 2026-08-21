@@ -22,7 +22,7 @@ export function DramaWorkflowLabProject({ projectId }: { projectId: string }) {
         setLoading(true);
         setError(undefined);
         try {
-            const response = await fetch(`/api/drama/projects/${encodeURIComponent(projectId)}`, { cache: "no-store" });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}`, { cache: "no-store" });
             const payload = (await response.json()) as ProjectResponse;
             if (!response.ok || payload.code !== 0 || !payload.data?.project) throw new Error(payload.msg || "项目加载失败");
             setProject(payload.data.project);

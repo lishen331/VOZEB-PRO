@@ -9,10 +9,19 @@ const internalDispatcher = new Agent({
 });
 
 export function resolveInternalOrigin(publicOrigin: string) {
-    const configured = normalizeOrigin(process.env.VOZEB_PRO_INTERNAL_ORIGIN || "");
-    if (configured) return configured;
-
     const publicUrl = parseOrigin(publicOrigin);
+    const configured = normalizeOrigin(process.env.VOZEB_PRO_INTERNAL_ORIGIN || "");
+    if (configured) {
+        // In local development the browser may reach a different Next dev port
+        // than the stale port in .env.local. Keep internal callbacks on the
+        // instance that handled the request when both origins are loopback.
+        const configuredUrl = parseOrigin(configured);
+        if (configuredUrl && publicUrl && isLoopbackHost(configuredUrl.hostname) && isLoopbackHost(publicUrl.hostname) && effectivePort(configuredUrl) !== effectivePort(publicUrl)) {
+            return publicUrl.origin;
+        }
+        return configured;
+    }
+
     if (publicUrl && isLoopbackHost(publicUrl.hostname)) return publicUrl.origin;
     if (process.env.VERCEL === "1") return publicUrl?.origin || publicOrigin;
 
@@ -46,4 +55,8 @@ function parseOrigin(value: string) {
 function isLoopbackHost(hostname: string) {
     const host = hostname.toLowerCase();
     return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+function effectivePort(url: URL) {
+    return Number(url.port || (url.protocol === "https:" ? 443 : 80));
 }
