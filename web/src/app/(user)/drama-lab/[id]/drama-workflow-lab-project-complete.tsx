@@ -1,11 +1,11 @@
 "use client";
 
-import { Alert, Button, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Upload, Radio } from "antd";
+import { Alert, Button, Drawer, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Upload, Radio } from "antd";
 import {
     ArrowLeft, Plus, Save, Trash2, Edit2,
     FileText, Users, MapPin, Package, Film, Download, Sparkles,
-    PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, LibraryBig,
-    CheckCircle2, AlertCircle, LoaderCircle
+    PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, ChevronDown, ChevronRight, LibraryBig,
+    CheckCircle2, AlertCircle, LoaderCircle, Send, GitPullRequest, ShieldCheck, MessageSquare, LockKeyhole
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -29,6 +29,26 @@ const WORKFLOW_STEPS = [
 type StepKey = typeof WORKFLOW_STEPS[number]["key"];
 
 type SaveOptions = { silent?: boolean };
+
+type CollaborationStageKey = "script" | "asset_prompts" | "visual_images" | "storyboard_video" | "final_cut";
+type CollaborationApprovalStatus = "draft" | "submitted" | "approved" | "returned" | "requires_confirmation";
+type CollaborationFeedback = { id: string; stage: CollaborationStageKey; content: string; createdAt: string };
+
+const COLLABORATION_STAGES: Array<{ key: CollaborationStageKey; label: string; step: StepKey; description: string }> = [
+    { key: "script", label: "剧本审核", step: "script", description: "故事梗概、分集剧本与人物情节表达" },
+    { key: "asset_prompts", label: "资产提示词审核", step: "assets", description: "角色、场景、道具及分镜提示词" },
+    { key: "visual_images", label: "视觉图片审核", step: "storyboard", description: "资产图片与分镜图片的一致性" },
+    { key: "storyboard_video", label: "分镜视频审核", step: "generate", description: "镜头视频、节奏与动作衔接" },
+    { key: "final_cut", label: "成片审核", step: "export", description: "导出前的最终成片版本" },
+];
+
+const COLLABORATION_STATUS_STYLE: Record<CollaborationApprovalStatus, { label: string; className: string }> = {
+    draft: { label: "待提交", className: "border-border bg-muted text-muted-foreground" },
+    submitted: { label: "审核中", className: "border-sky-300 bg-sky-50 text-sky-800" },
+    approved: { label: "已通过", className: "border-emerald-300 bg-emerald-50 text-emerald-800" },
+    returned: { label: "已打回", className: "border-rose-300 bg-rose-50 text-rose-800" },
+    requires_confirmation: { label: "需确认版本", className: "border-amber-300 bg-amber-50 text-amber-800" },
+};
 
 interface Episode {
     id: string;
@@ -195,6 +215,28 @@ export function DramaWorkflowLabProject({
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [expandedEpisodeIds, setExpandedEpisodeIds] = useState<Set<string>>(new Set());
     const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
+    const [collaborationEnabled, setCollaborationEnabled] = useState(true);
+    const [collaborationMode, setCollaborationMode] = useState<"strict" | "parallel">("strict");
+    const [collaborationCollapsed, setCollaborationCollapsed] = useState(false);
+    const [collaborationDrawerOpen, setCollaborationDrawerOpen] = useState(false);
+    const [approvalStages, setApprovalStages] = useState<Record<CollaborationStageKey, boolean>>({
+        script: true,
+        asset_prompts: true,
+        visual_images: true,
+        storyboard_video: true,
+        final_cut: true,
+    });
+    const [approvalStatuses, setApprovalStatuses] = useState<Record<CollaborationStageKey, CollaborationApprovalStatus>>({
+        script: "draft",
+        asset_prompts: "draft",
+        visual_images: "draft",
+        storyboard_video: "draft",
+        final_cut: "draft",
+    });
+    const [feedbackRequired, setFeedbackRequired] = useState(true);
+    const [notifyOnReturn, setNotifyOnReturn] = useState(true);
+    const [allowFeedbackAttachments, setAllowFeedbackAttachments] = useState(false);
+    const [collaborationFeedback, setCollaborationFeedback] = useState<CollaborationFeedback[]>([]);
 
     // 加载项目数据
     const loadProject = useCallback(async () => {
@@ -280,6 +322,58 @@ export function DramaWorkflowLabProject({
     };
 
     const activeEpisode = project?.episodes.find(ep => ep.id === activeEpisodeId);
+    const activeCollaborationStage = COLLABORATION_STAGES.find((stage) => stage.step === activeStep);
+    const stageApprovalBlock = (stageKey: CollaborationStageKey) => {
+        if (!collaborationEnabled || collaborationMode !== "strict") return undefined;
+        const stageIndex = COLLABORATION_STAGES.findIndex((stage) => stage.key === stageKey);
+        const blockedBy = COLLABORATION_STAGES.slice(0, stageIndex).find((stage) => approvalStages[stage.key] && approvalStatuses[stage.key] !== "approved");
+        return blockedBy ? `${blockedBy.label}尚未通过，严格审批模式下不能继续提交。` : undefined;
+    };
+    const setApprovalStageEnabled = (stageKey: CollaborationStageKey, enabled: boolean) => {
+        setApprovalStages((current) => ({ ...current, [stageKey]: enabled }));
+        if (!enabled) setApprovalStatuses((current) => ({ ...current, [stageKey]: "draft" }));
+    };
+    const submitForApproval = (stageKey: CollaborationStageKey) => {
+        const block = stageApprovalBlock(stageKey);
+        if (block) {
+            messageApi.warning(block);
+            return;
+        }
+        setApprovalStatuses((current) => ({ ...current, [stageKey]: "submitted" }));
+        messageApi.success("已模拟提交审核");
+    };
+    const approveStage = (stageKey: CollaborationStageKey) => {
+        setApprovalStatuses((current) => ({ ...current, [stageKey]: "approved" }));
+        messageApi.success("已模拟通过审核");
+    };
+    const returnStage = (stageKey: CollaborationStageKey, content: string) => {
+        const feedback = content.trim();
+        if (feedbackRequired && !feedback) {
+            messageApi.warning("当前项目要求打回时填写反馈");
+            return;
+        }
+        setApprovalStatuses((current) => {
+            const next = { ...current, [stageKey]: "returned" as const };
+            if (collaborationMode === "parallel") {
+                const stageIndex = COLLABORATION_STAGES.findIndex((stage) => stage.key === stageKey);
+                COLLABORATION_STAGES.slice(stageIndex + 1).forEach((stage) => {
+                    if (approvalStages[stage.key] && next[stage.key] !== "draft") next[stage.key] = "requires_confirmation";
+                });
+            }
+            return next;
+        });
+        setCollaborationFeedback((current) => [
+            {
+                id: `${stageKey}-${Date.now()}`,
+                stage: stageKey,
+                content: feedback || "请核对当前交付物后重新提交。",
+                createdAt: "刚刚",
+            },
+            ...current,
+        ]);
+        messageApi.info(notifyOnReturn ? "已模拟打回并提醒负责人" : "已模拟打回");
+    };
+    const exportBlockedByApproval = collaborationEnabled && COLLABORATION_STAGES.some((stage) => approvalStages[stage.key] && approvalStatuses[stage.key] !== "approved");
 
     const addEpisode = () => {
         if (!project) return;
@@ -343,8 +437,31 @@ export function DramaWorkflowLabProject({
                     activeEpisode={activeEpisode}
                     onClose={() => setWorkflowModalOpen(false)}
                     onStepChange={setActiveStep}
+                    getStrictApprovalBlock={(mode) => stageApprovalBlock(mode === "assets" ? "asset_prompts" : mode === "storyboard" ? "visual_images" : "storyboard_video")}
                 />
             ) : null}
+            <Drawer title="团队协作与审批" placement="right" size="min(380px, calc(100vw - 12px))" open={collaborationDrawerOpen} destroyOnHidden onClose={() => setCollaborationDrawerOpen(false)}>
+                <CollaborationPanel
+                    activeStage={activeCollaborationStage}
+                    collaborationEnabled={collaborationEnabled}
+                    collaborationMode={collaborationMode}
+                    approvalStages={approvalStages}
+                    approvalStatuses={approvalStatuses}
+                    feedbackRequired={feedbackRequired}
+                    notifyOnReturn={notifyOnReturn}
+                    allowFeedbackAttachments={allowFeedbackAttachments}
+                    feedback={collaborationFeedback}
+                    onCollaborationEnabledChange={setCollaborationEnabled}
+                    onCollaborationModeChange={setCollaborationMode}
+                    onApprovalStageEnabledChange={setApprovalStageEnabled}
+                    onFeedbackRequiredChange={setFeedbackRequired}
+                    onNotifyOnReturnChange={setNotifyOnReturn}
+                    onAllowFeedbackAttachmentsChange={setAllowFeedbackAttachments}
+                    onSubmit={submitForApproval}
+                    onApprove={approveStage}
+                    onReturn={returnStage}
+                />
+            </Drawer>
             {/* 顶部导航栏 */}
             <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-card px-4">
                 <Link
@@ -366,6 +483,14 @@ export function DramaWorkflowLabProject({
                 >
                     一键全流程
                 </Button>
+                <Button
+                    className="lg:hidden"
+                    type="text"
+                    aria-label="打开团队协作与审批"
+                    title="打开团队协作与审批"
+                    icon={<PanelRightOpen className="size-4" />}
+                    onClick={() => setCollaborationDrawerOpen(true)}
+                />
                 <Button
                     type="primary"
                     icon={<Save className="size-4" />}
@@ -515,6 +640,14 @@ export function DramaWorkflowLabProject({
 
                 {/* 主编辑区域 */}
                 <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
+                    <StageCollaborationBanner
+                        stage={activeCollaborationStage}
+                        collaborationEnabled={collaborationEnabled}
+                        status={activeCollaborationStage ? approvalStatuses[activeCollaborationStage.key] : "draft"}
+                        approvalEnabled={activeCollaborationStage ? approvalStages[activeCollaborationStage.key] : false}
+                        strictApprovalBlock={activeCollaborationStage ? stageApprovalBlock(activeCollaborationStage.key) : undefined}
+                        onSubmit={submitForApproval}
+                    />
                     {activeStep === "script" && (
                         <ScriptEditor
                             project={project}
@@ -537,10 +670,47 @@ export function DramaWorkflowLabProject({
                         <GeneratePanel project={project} episode={activeEpisode} />
                     )}
                     {activeStep === "export" && (
-                        <ExportPanel project={project} episode={activeEpisode} messageApi={messageApi} />
+                        <ExportPanel project={project} episode={activeEpisode} messageApi={messageApi} exportBlockedByApproval={exportBlockedByApproval} />
                     )}
                 </div>
-            </div>
+
+                <aside className={cn("hidden min-h-0 shrink-0 flex-col border-l border-border bg-card transition-[width] duration-200 lg:flex", collaborationCollapsed ? "w-14" : "w-[340px]")}>
+                    <div className={cn("flex h-12 items-center border-b border-border", collaborationCollapsed ? "justify-center px-2" : "justify-between px-4")}>
+                        {!collaborationCollapsed ? <span className="text-sm font-semibold">团队协作与审批</span> : null}
+                        <Button
+                            type="text"
+                            size="small"
+                            aria-label={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
+                            title={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
+                            icon={collaborationCollapsed ? <PanelRightOpen className="size-4" /> : <PanelRightClose className="size-4" />}
+                            onClick={() => setCollaborationCollapsed((current) => !current)}
+                        />
+                    </div>
+                    {!collaborationCollapsed ? (
+                        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                            <CollaborationPanel
+                                activeStage={activeCollaborationStage}
+                                collaborationEnabled={collaborationEnabled}
+                                collaborationMode={collaborationMode}
+                                approvalStages={approvalStages}
+                                approvalStatuses={approvalStatuses}
+                                feedbackRequired={feedbackRequired}
+                                notifyOnReturn={notifyOnReturn}
+                                allowFeedbackAttachments={allowFeedbackAttachments}
+                                feedback={collaborationFeedback}
+                                onCollaborationEnabledChange={setCollaborationEnabled}
+                                onCollaborationModeChange={setCollaborationMode}
+                                onApprovalStageEnabledChange={setApprovalStageEnabled}
+                                onFeedbackRequiredChange={setFeedbackRequired}
+                                onNotifyOnReturnChange={setNotifyOnReturn}
+                                onAllowFeedbackAttachmentsChange={setAllowFeedbackAttachments}
+                                onSubmit={submitForApproval}
+                                onApprove={approveStage}
+                                onReturn={returnStage}
+                            />
+                        </div>
+                    ) : null}
+                </aside>            </div>
         </main>
     );
 }
@@ -901,7 +1071,245 @@ const WORKFLOW_RUN_MODES: Array<{ value: WorkflowRunMode; label: string; descrip
     { value: "video", label: "生成完整视频", description: "继续生成镜头视频，并进入内容审核与可选导出。" },
 ];
 
-function WorkflowRunModal({ project, activeEpisode, onClose, onStepChange }: { project: Project; activeEpisode?: Episode; onClose: () => void; onStepChange: (step: StepKey) => void }) {
+function CollaborationPanel({
+    activeStage,
+    collaborationEnabled,
+    collaborationMode,
+    approvalStages,
+    approvalStatuses,
+    feedbackRequired,
+    notifyOnReturn,
+    allowFeedbackAttachments,
+    feedback,
+    onCollaborationEnabledChange,
+    onCollaborationModeChange,
+    onApprovalStageEnabledChange,
+    onFeedbackRequiredChange,
+    onNotifyOnReturnChange,
+    onAllowFeedbackAttachmentsChange,
+    onSubmit,
+    onApprove,
+    onReturn,
+}: {
+    activeStage?: (typeof COLLABORATION_STAGES)[number];
+    collaborationEnabled: boolean;
+    collaborationMode: "strict" | "parallel";
+    approvalStages: Record<CollaborationStageKey, boolean>;
+    approvalStatuses: Record<CollaborationStageKey, CollaborationApprovalStatus>;
+    feedbackRequired: boolean;
+    notifyOnReturn: boolean;
+    allowFeedbackAttachments: boolean;
+    feedback: CollaborationFeedback[];
+    onCollaborationEnabledChange: (enabled: boolean) => void;
+    onCollaborationModeChange: (mode: "strict" | "parallel") => void;
+    onApprovalStageEnabledChange: (stage: CollaborationStageKey, enabled: boolean) => void;
+    onFeedbackRequiredChange: (required: boolean) => void;
+    onNotifyOnReturnChange: (enabled: boolean) => void;
+    onAllowFeedbackAttachmentsChange: (enabled: boolean) => void;
+    onSubmit: (stage: CollaborationStageKey) => void;
+    onApprove: (stage: CollaborationStageKey) => void;
+    onReturn: (stage: CollaborationStageKey, content: string) => void;
+}) {
+    const [feedbackDraft, setFeedbackDraft] = useState("");
+
+    const handleReturn = (stage: CollaborationStageKey) => {
+        onReturn(stage, feedbackDraft);
+        setFeedbackDraft("");
+    };
+
+    return (
+        <div className="space-y-5">
+            <section className="border border-border bg-muted/20 p-3">
+                <div className="flex items-start gap-3">
+                    <span className="grid size-8 shrink-0 place-items-center border border-primary/30 bg-primary/10 text-primary">
+                        <Users className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                            <h2 className="text-sm font-semibold">星河短剧项目组</h2>
+                            <Switch size="small" checked={collaborationEnabled} onChange={onCollaborationEnabledChange} aria-label="启用团队协作" />
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">项目组长可决定审批节点；成员、职责和权限均为本页演示数据。</p>
+                        {activeStage ? <p className="mt-1 text-xs text-primary">当前制作阶段：{activeStage.label}</p> : null}
+                    </div>
+                </div>
+                {collaborationEnabled ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onClick={() => onCollaborationModeChange("strict")}
+                            className={cn("border px-2 py-2 text-left text-xs", collaborationMode === "strict" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted")}
+                        >
+                            <span className="flex items-center gap-1.5 font-medium">
+                                <LockKeyhole className="size-3.5" /> 严格
+                            </span>
+                            <span className="mt-1 block leading-4">上游通过后再继续</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onCollaborationModeChange("parallel")}
+                            className={cn("border px-2 py-2 text-left text-xs", collaborationMode === "parallel" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted")}
+                        >
+                            <span className="flex items-center gap-1.5 font-medium">
+                                <GitPullRequest className="size-3.5" /> 并行
+                            </span>
+                            <span className="mt-1 block leading-4">继续制作，版本待确认</span>
+                        </button>
+                    </div>
+                ) : null}
+            </section>
+
+            {collaborationEnabled ? (
+                <>
+                    <section>
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                            <h3 className="text-sm font-semibold">审批配置</h3>
+                            <span className="text-xs text-muted-foreground">组长决定</span>
+                        </div>
+                        <div className="divide-y border border-border">
+                            {COLLABORATION_STAGES.map((stage) => {
+                                const enabled = approvalStages[stage.key];
+                                const status = approvalStatuses[stage.key];
+                                return (
+                                    <div key={stage.key} className="p-3">
+                                        <div className="flex items-start gap-2">
+                                            <Switch size="small" checked={enabled} onChange={(checked) => onApprovalStageEnabledChange(stage.key, checked)} aria-label={`启用${stage.label}`} />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="text-sm font-medium">{stage.label}</span>
+                                                    {enabled ? <ApprovalStatusTag status={status} /> : <span className="border border-border px-1.5 py-0.5 text-xs text-muted-foreground">未启用</span>}
+                                                </div>
+                                                <p className="mt-1 text-xs leading-4 text-muted-foreground">{stage.description}</p>
+                                            </div>
+                                        </div>
+                                        {enabled ? (
+                                            <div className="mt-2 flex flex-wrap gap-2 pl-7">
+                                                {status !== "submitted" && status !== "approved" ? (
+                                                    <Button size="small" icon={<Send className="size-3.5" />} onClick={() => onSubmit(stage.key)}>
+                                                        {status === "requires_confirmation" ? "确认并提交" : "提交"}
+                                                    </Button>
+                                                ) : null}
+                                                {status === "submitted" ? (
+                                                    <Button size="small" type="primary" icon={<ShieldCheck className="size-3.5" />} onClick={() => onApprove(stage.key)}>
+                                                        通过
+                                                    </Button>
+                                                ) : null}
+                                                {status === "submitted" ? (
+                                                    <Button size="small" icon={<GitPullRequest className="size-3.5" />} onClick={() => handleReturn(stage.key)}>
+                                                        打回
+                                                    </Button>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </section>
+
+                    <section>
+                        <h3 className="mb-2 text-sm font-semibold">反馈与提醒</h3>
+                        <div className="space-y-1 border border-border p-3">
+                            <ToggleRow label="打回时必须填写反馈" checked={feedbackRequired} onChange={onFeedbackRequiredChange} />
+                            <ToggleRow label="打回后提醒负责人" checked={notifyOnReturn} onChange={onNotifyOnReturnChange} />
+                            <ToggleRow label="允许反馈附件" checked={allowFeedbackAttachments} onChange={onAllowFeedbackAttachmentsChange} />
+                        </div>
+                        <TextArea className="mt-2" value={feedbackDraft} onChange={(event) => setFeedbackDraft(event.target.value)} rows={2} placeholder="填写后可用于模拟打回反馈" />
+                    </section>
+
+                    <section>
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                            <h3 className="text-sm font-semibold">项目成员</h3>
+                            <span className="text-xs text-muted-foreground">演示</span>
+                        </div>
+                        <div className="space-y-2 border border-border p-3 text-xs">
+                            <div className="flex items-center justify-between gap-3">
+                                <span>林组长</span>
+                                <span className="text-muted-foreground">统筹、审批</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span>陈编剧</span>
+                                <span className="text-muted-foreground">剧本、资产提示词</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span>周制作</span>
+                                <span className="text-muted-foreground">视觉图片、分镜视频</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    {feedback.length ? (
+                        <section>
+                            <h3 className="mb-2 text-sm font-semibold">反馈记录</h3>
+                            <div className="space-y-2 border border-border p-3">
+                                {feedback.slice(0, 3).map((item) => (
+                                    <div key={item.id} className="border-l-2 border-rose-400 pl-2 text-xs">
+                                        <p className="font-medium">{COLLABORATION_STAGES.find((stage) => stage.key === item.stage)?.label}</p>
+                                        <p className="mt-1 leading-4 text-muted-foreground">{item.content}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    ) : null}
+                    <Alert type="info" showIcon icon={<MessageSquare className="size-4" />} title="当前为本地协作演示" description="不创建项目组、不发送通知、不上传附件，刷新页面后演示状态会重置。" />
+                </>
+            ) : (
+                <Alert type="info" showIcon title="当前按个人创作处理" description="开启团队协作后，可在此选择审批节点和协作模式。" />
+            )}
+        </div>
+    );
+}
+
+function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+    return (
+        <div className="flex min-h-9 items-center justify-between gap-3 text-xs">
+            <span>{label}</span>
+            <Switch size="small" checked={checked} onChange={onChange} aria-label={label} />
+        </div>
+    );
+}
+
+function ApprovalStatusTag({ status }: { status: CollaborationApprovalStatus }) {
+    const presentation = COLLABORATION_STATUS_STYLE[status];
+    return <span className={cn("border px-1.5 py-0.5 text-xs", presentation.className)}>{presentation.label}</span>;
+}
+
+function StageCollaborationBanner({
+    stage,
+    collaborationEnabled,
+    approvalEnabled,
+    status,
+    strictApprovalBlock,
+    onSubmit,
+}: {
+    stage?: (typeof COLLABORATION_STAGES)[number];
+    collaborationEnabled: boolean;
+    approvalEnabled: boolean;
+    status: CollaborationApprovalStatus;
+    strictApprovalBlock?: string;
+    onSubmit: (stage: CollaborationStageKey) => void;
+}) {
+    if (!stage || !collaborationEnabled || !approvalEnabled) return null;
+    return (
+        <Alert
+            className="mx-auto mb-4 max-w-6xl"
+            type={strictApprovalBlock ? "warning" : status === "approved" ? "success" : "info"}
+            showIcon
+            icon={strictApprovalBlock ? <LockKeyhole className="size-4" /> : <GitPullRequest className="size-4" />}
+            title={`${stage.label} · ${COLLABORATION_STATUS_STYLE[status].label}`}
+            description={strictApprovalBlock || (status === "requires_confirmation" ? "上游版本发生变化，请确认当前成果后重新提交。" : "团队审批为本地前端演示，真实成员与审批记录暂未保存。")}
+            action={
+                status !== "submitted" && status !== "approved" ? (
+                    <Button size="small" disabled={Boolean(strictApprovalBlock)} icon={<Send className="size-3.5" />} onClick={() => onSubmit(stage.key)}>
+                        {status === "requires_confirmation" ? "确认并提交" : "提交审核"}
+                    </Button>
+                ) : undefined
+            }
+        />
+    );
+}
+
+function WorkflowRunModal({ project, activeEpisode, onClose, onStepChange, getStrictApprovalBlock }: { project: Project; activeEpisode?: Episode; onClose: () => void; onStepChange: (step: StepKey) => void; getStrictApprovalBlock: (mode: WorkflowRunMode) => string | undefined }) {
     const [mode, setMode] = useState<WorkflowRunMode>("video");
     const [scope, setScope] = useState<WorkflowRunScope>("current");
     const [ratio, setRatio] = useState(project.aspectRatio || "9:16");
@@ -913,6 +1321,7 @@ function WorkflowRunModal({ project, activeEpisode, onClose, onStepChange }: { p
     const [runningStep, setRunningStep] = useState(-1);
     const simulationTimersRef = useRef<number[]>([]);
     const selectedMode = WORKFLOW_RUN_MODES.find((item) => item.value === mode) || WORKFLOW_RUN_MODES[2];
+    const strictApprovalBlock = getStrictApprovalBlock(mode);
     const episodeLabel = scope === "all" ? `全部 ${project.episodes.length} 集` : activeEpisode?.title || "当前集";
     const executionSteps: Array<{ label: string; detail: string; target: StepKey }> = [
         { label: "解析剧本并生成提示词", detail: `${episodeLabel} · ${language}输出`, target: "script" },
@@ -931,6 +1340,7 @@ function WorkflowRunModal({ project, activeEpisode, onClose, onStepChange }: { p
 
     const simulateRun = () => {
         if (runStatus === "running") return;
+        if (strictApprovalBlock) return;
         simulationTimersRef.current.forEach((timer) => window.clearTimeout(timer));
         simulationTimersRef.current = [];
         setRunStatus("running");
@@ -1037,10 +1447,11 @@ function WorkflowRunModal({ project, activeEpisode, onClose, onStepChange }: { p
                 </div>
 
                 <Alert type="info" showIcon title="当前为前端执行演示" description="此版本只展示配置和推进状态，不会创建生成任务、不保存设置，也不会消耗后台渠道额度。" />
+                {strictApprovalBlock ? <Alert type="warning" showIcon title="严格审批模式已阻断本次流程" description={strictApprovalBlock} /> : null}
 
                 <div className="flex flex-wrap justify-end gap-3">
                     <Button onClick={onClose}>取消</Button>
-                    <Button type="primary" icon={runStatus === "running" ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />} loading={runStatus === "running"} onClick={simulateRun}>
+                    <Button type="primary" icon={runStatus === "running" ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />} loading={runStatus === "running"} disabled={Boolean(strictApprovalBlock)} onClick={simulateRun}>
                         {runStatus === "completed" ? "重新模拟执行" : "开始模拟执行"}
                     </Button>
                 </div>
@@ -2177,11 +2588,13 @@ function GeneratePanel({ project, episode }: { project: Project; episode?: Episo
 function ExportPanel({
     project,
     episode,
-    messageApi
+    messageApi,
+    exportBlockedByApproval,
 }: {
     project: Project;
     episode?: Episode;
     messageApi: ReturnType<typeof message.useMessage>[0];
+    exportBlockedByApproval: boolean;
 }) {
     const [draftPath, setDraftPath] = useState("");
     const [jianyingVersion, setJianyingVersion] = useState<"5" | "6">("6");
@@ -2199,6 +2612,10 @@ function ExportPanel({
     const videoShots = episodeShots.filter((shot) => shot.videoUrl);
 
     const handleExport = async () => {
+        if (exportBlockedByApproval) {
+            messageApi.warning("项目启用了团队审批，请先通过所有已启用的审批节点");
+            return;
+        }
         if (!draftPath.trim()) {
             messageApi.error("请输入剪映草稿文件夹路径");
             return;
@@ -2341,6 +2758,15 @@ function ExportPanel({
                 />
             )}
 
+            {exportBlockedByApproval ? (
+                <Alert
+                    type="warning"
+                    message="团队审批尚未完成"
+                    description="当前项目的已启用审批节点需要全部通过后，才会解除导出限制。"
+                    showIcon
+                />
+            ) : null}
+
             {/* 导出按钮 */}
             <div className="flex justify-end gap-3">
                 <Button
@@ -2348,7 +2774,7 @@ function ExportPanel({
                     size="large"
                     icon={<Download className="size-4" />}
                     loading={exporting}
-                    disabled={videoShots.length === 0}
+                    disabled={videoShots.length === 0 || exportBlockedByApproval}
                     onClick={handleExport}
                 >
                     {exporting ? "导出中..." : "导出剪映草稿"}
