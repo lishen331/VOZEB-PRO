@@ -33,8 +33,11 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Asset } from "@/lib/library-asset-contract";
+import { createImageGenerationTask, waitForImageGenerationTask } from "@/services/api/image";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
+import { useEffectiveConfig } from "@/stores/use-config-store";
 import { cn } from "@/lib/utils";
+import { DramaLabVisualAssetsPanel, dramaLabShotPrompt, dramaLabShotReferenceImages } from "./drama-lab-visual-assets-panel";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -73,7 +76,7 @@ const COLLABORATION_STATUS_STYLE: Record<CollaborationApprovalStatus, { label: s
     requires_confirmation: { label: "需确认版本", className: "border-amber-300 bg-amber-50 text-amber-800" },
 };
 
-interface Episode {
+export interface Episode {
     id: string;
     title: string;
     number: number;
@@ -81,35 +84,69 @@ interface Episode {
     status?: string;
 }
 
-interface Character {
+export interface Character {
     id: string;
     name: string;
     description?: string;
     imageUrl?: string;
+    references?: DramaLabAssetReference[];
+    primaryReferenceId?: string;
+    referenceImageUrl?: string;
+    referenceStorageKey?: string;
+    profile?: DramaLabAssetProfile;
 }
 
-interface Scene {
+export interface Scene {
     id: string;
     location: string;
     name?: string;
     time?: string;
     description?: string;
     imageUrl?: string;
+    references?: DramaLabAssetReference[];
+    primaryReferenceId?: string;
+    referenceImageUrl?: string;
+    referenceStorageKey?: string;
+    profile?: DramaLabAssetProfile;
 }
 
-interface Prop {
+export interface Prop {
     id: string;
     name: string;
     description?: string;
     imageUrl?: string;
+    references?: DramaLabAssetReference[];
+    primaryReferenceId?: string;
+    referenceImageUrl?: string;
+    referenceStorageKey?: string;
+    profile?: DramaLabAssetProfile;
 }
 
-interface Shot {
+export type DramaLabAssetReference = {
+    id: string;
+    url: string;
+    storageKey?: string;
+    source: "upload" | "generated" | "library";
+    label: string;
+    width?: number;
+    height?: number;
+    createdAt: string;
+};
+
+export type DramaLabAssetProfile = {
+    visualIdentity: string;
+    styling: string;
+    colorPalette: string;
+    consistencyRules: string;
+};
+
+export interface Shot {
     id: string;
     episodeId: string;
     shotNumber: number;
     sceneId?: string;
     characterIds: string[];
+    propIds: string[];
     script: string;
     imagePrompt?: string;
     imageUrl?: string;
@@ -119,7 +156,7 @@ interface Shot {
     status: "draft" | "image_generated" | "video_generated";
 }
 
-interface Project {
+export interface Project {
     id: string;
     title: string;
     description?: string;
@@ -175,6 +212,11 @@ function normalizeScenes(value: unknown): Scene[] {
                 time: typeof scene.time === "string" ? scene.time : undefined,
                 description: typeof scene.description === "string" ? scene.description : undefined,
                 imageUrl: typeof scene.imageUrl === "string" ? scene.imageUrl : typeof scene.referenceImageUrl === "string" ? scene.referenceImageUrl : undefined,
+                references: Array.isArray(scene.references) ? (scene.references as DramaLabAssetReference[]) : undefined,
+                primaryReferenceId: typeof scene.primaryReferenceId === "string" ? scene.primaryReferenceId : undefined,
+                referenceImageUrl: typeof scene.referenceImageUrl === "string" ? scene.referenceImageUrl : undefined,
+                referenceStorageKey: typeof scene.referenceStorageKey === "string" ? scene.referenceStorageKey : undefined,
+                profile: scene.profile && typeof scene.profile === "object" ? (scene.profile as DramaLabAssetProfile) : undefined,
             },
         ];
     });
@@ -193,6 +235,7 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
         shotNumber: typeof shot.shotNumber === "number" ? shot.shotNumber : typeof shot.order === "number" ? shot.order : index + 1,
         sceneId: typeof shot.sceneId === "string" ? shot.sceneId : undefined,
         characterIds: Array.isArray(shot.characterIds) ? shot.characterIds.filter((item): item is string => typeof item === "string") : [],
+        propIds: Array.isArray(shot.propIds) ? shot.propIds.filter((item): item is string => typeof item === "string") : [],
         script: typeof shot.script === "string" ? shot.script : typeof shot.description === "string" ? shot.description : typeof shot.title === "string" ? shot.title : "",
         imagePrompt: typeof shot.imagePrompt === "string" ? shot.imagePrompt : undefined,
         imageUrl: typeof shot.imageUrl === "string" ? shot.imageUrl : typeof shot.storyboardImageUrl === "string" ? shot.storyboardImageUrl : undefined,
@@ -258,6 +301,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
     const [notifyOnReturn, setNotifyOnReturn] = useState(true);
     const [allowFeedbackAttachments, setAllowFeedbackAttachments] = useState(false);
     const [collaborationFeedback, setCollaborationFeedback] = useState<CollaborationFeedback[]>([]);
+    const pendingStoryboardShotId = useRef<string | undefined>(undefined);
 
     // 加载项目数据
     const loadProject = useCallback(async () => {
@@ -306,6 +350,12 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
         void loadProject();
     }, [loadProject]);
 
+    useEffect(() => {
+        if (activeStep !== "storyboard" || !pendingStoryboardShotId.current) return;
+        document.getElementById(`storyboard-shot-${pendingStoryboardShotId.current}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        pendingStoryboardShotId.current = undefined;
+    }, [activeEpisodeId, activeStep]);
+
     // 保存项目数据
     const saveProject = async (updates: Partial<Project>, options: SaveOptions = {}): Promise<boolean> => {
         if (!project) return false;
@@ -343,6 +393,11 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
     };
 
     const activeEpisode = project?.episodes.find((ep) => ep.id === activeEpisodeId);
+    const locateStoryboardShot = (episodeId: string, shotId: string) => {
+        pendingStoryboardShotId.current = shotId;
+        setActiveEpisodeId(episodeId);
+        setActiveStep("storyboard");
+    };
     const activeCollaborationStage = COLLABORATION_STAGES.find((stage) => stage.step === activeStep);
     const stageApprovalBlock = (stageKey: CollaborationStageKey) => {
         if (!collaborationEnabled || collaborationMode !== "strict") return undefined;
@@ -609,6 +664,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
                         </Button>
                     </div>
                 </aside>
+
                 {/* 主编辑区域 */}
                 <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
                     <StageCollaborationBanner
@@ -621,7 +677,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
                     />
                     {activeStep === "script" && <ScriptEditor project={project} episode={activeEpisode} onSave={saveProject} onActiveEpisodeChange={setActiveEpisodeId} messageApi={messageApi} />}
                     {activeStep === "review" && <ReviewPanel project={project} episode={activeEpisode} onStepChange={setActiveStep} />}
-                    {activeStep === "assets" && <AssetsPanel project={project} episode={activeEpisode} onSave={saveProject} messageApi={messageApi} />}
+                    {activeStep === "assets" && <DramaLabVisualAssetsPanel project={project} episode={activeEpisode} onSave={saveProject} onLocateShot={locateStoryboardShot} messageApi={messageApi} />}
                     {activeStep === "storyboard" && <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} messageApi={messageApi} />}
                     {activeStep === "generate" && <GeneratePanel project={project} episode={activeEpisode} />}
                     {activeStep === "export" && <ExportPanel project={project} episode={activeEpisode} messageApi={messageApi} exportBlockedByApproval={exportBlockedByApproval} />}
@@ -662,7 +718,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
                             />
                         </div>
                     ) : null}
-                </aside>{" "}
+                </aside>
             </div>
         </main>
     );
@@ -2177,6 +2233,7 @@ function PropsList({ project, episode, onSave, messageApi }: { project: Project;
 
 // 4. 分镜面板
 function StoryboardPanel({ project, episode, onSave, messageApi }: { project: Project; episode?: Episode; onSave: (updates: Partial<Project>) => void; messageApi: ReturnType<typeof message.useMessage>[0] }) {
+    const config = useEffectiveConfig();
     const [modalVisible, setModalVisible] = useState(false);
     const [editingShot, setEditingShot] = useState<Shot | null>(null);
     const [form] = Form.useForm();
@@ -2192,6 +2249,7 @@ function StoryboardPanel({ project, episode, onSave, messageApi }: { project: Pr
             shotNumber: episodeShots.length + 1,
             duration: 3,
             characterIds: [],
+            propIds: [],
             status: "draft",
         });
         setModalVisible(true);
@@ -2249,63 +2307,38 @@ function StoryboardPanel({ project, episode, onSave, messageApi }: { project: Pr
             .join(", ");
     };
 
+    const getPropNames = (propIds: string[]) => {
+        if (!propIds.length) return "无道具";
+        return propIds
+            .map((id) => project.props.find((prop) => prop.id === id)?.name)
+            .filter(Boolean)
+            .join(", ");
+    };
+
     // 生成图片
     const handleGenerateImage = async (shot: Shot) => {
         try {
             messageApi.loading({ content: "正在生成图片...", key: shot.id });
-
-            const prompt = shot.imagePrompt || shot.script;
-            const response = await fetch("/api/image-tasks", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    prompt,
-                    aspectRatio: project.aspectRatio || "16:9",
-                }),
+            const prompt = dramaLabShotPrompt(project, shot);
+            const references = dramaLabShotReferenceImages(project, shot);
+            const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: project.aspectRatio || config.size, count: "1" };
+            const task = await createImageGenerationTask(imageConfig, prompt, references, undefined, {
+                logSource: "drama",
+                logTitle: `${project.title} · 分镜 ${shot.shotNumber}`,
+                surface: "drama",
+                projectId: project.id,
+                episodeId: shot.episodeId,
+                shotId: shot.id,
+                clientRequestId: `drama-lab-shot:${project.id}:${shot.id}:${Date.now()}`,
             });
-
-            const data = await response.json();
-
-            if (data.task) {
-                // 轮询任务状态
-                pollImageTask(data.task.id, shot);
-            } else {
-                throw new Error(data.error || "生成失败");
-            }
+            const result = await waitForImageGenerationTask(imageConfig, task);
+            const imageUrl = result.serverUrl || result.remoteUrl || result.dataUrl;
+            if (!imageUrl) throw new Error("生成结果没有可持久化图片地址");
+            onSave({ shots: project.shots.map((item) => (item.id === shot.id ? { ...item, imageUrl, status: "image_generated" as const } : item)) });
+            messageApi.success({ content: "图片生成成功", key: shot.id });
         } catch (err) {
             messageApi.error({ content: err instanceof Error ? err.message : "生成图片失败", key: shot.id });
         }
-    };
-
-    // 轮询图片任务
-    const pollImageTask = async (taskId: string, shot: Shot) => {
-        const maxAttempts = 60; // 最多轮询60次（5分钟）
-        let attempts = 0;
-
-        const poll = async () => {
-            try {
-                const response = await fetch(`/api/image-tasks/${taskId}`);
-                const data = await response.json();
-
-                if (data.task?.status === "completed" && data.task.result?.url) {
-                    // 更新分镜
-                    const updated = project.shots.map((s) => (s.id === shot.id ? { ...s, imageUrl: data.task.result.url, status: "image_generated" as const } : s));
-                    onSave({ shots: updated });
-                    messageApi.success({ content: "图片生成成功", key: shot.id });
-                } else if (data.task?.status === "failed") {
-                    throw new Error("图片生成失败");
-                } else if (attempts < maxAttempts) {
-                    attempts++;
-                    setTimeout(poll, 5000); // 5秒后再次轮询
-                } else {
-                    throw new Error("生成超时");
-                }
-            } catch (err) {
-                messageApi.error({ content: err instanceof Error ? err.message : "生成失败", key: shot.id });
-            }
-        };
-
-        poll();
     };
 
     // 生成视频
@@ -2391,7 +2424,7 @@ function StoryboardPanel({ project, episode, onSave, messageApi }: { project: Pr
                                     {shot.status === "video_generated" && <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">已生视频</span>}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                    场景: {getSceneName(shot.sceneId)} · 角色: {getCharacterNames(shot.characterIds)} · 时长: {shot.duration}s{shot.cameraAngle && ` · 镜头: ${shot.cameraAngle}`}
+                                    场景: {getSceneName(shot.sceneId)} · 角色: {getCharacterNames(shot.characterIds)} · 道具: {getPropNames(shot.propIds)} · 时长: {shot.duration}s{shot.cameraAngle && ` · 镜头: ${shot.cameraAngle}`}
                                 </div>
                             </div>
                             <div className="flex gap-2">
@@ -2468,6 +2501,16 @@ function StoryboardPanel({ project, episode, onSave, messageApi }: { project: Pr
                             {project.characters.map((char) => (
                                 <Option key={char.id} value={char.id}>
                                     {char.name}
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+
+                    <Form.Item label="出场道具" name="propIds">
+                        <Select mode="multiple" placeholder="选择道具" allowClear>
+                            {project.props.map((prop) => (
+                                <Option key={prop.id} value={prop.id}>
+                                    {prop.name}
                                 </Option>
                             ))}
                         </Select>
