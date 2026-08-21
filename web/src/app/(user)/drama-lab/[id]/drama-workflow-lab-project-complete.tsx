@@ -4,7 +4,7 @@ import { Alert, Button, Spin, Tabs, Input, Select, Form, Modal, message, Upload,
 import {
     ArrowLeft, Plus, Settings2, Save, Trash2, Edit2,
     FileText, Users, MapPin, Package, Film, Download, Sparkles,
-    PanelLeftClose, PanelLeftOpen,
+    PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight,
     CheckCircle2, AlertCircle, LoaderCircle
 } from "lucide-react";
 import Link from "next/link";
@@ -86,6 +86,68 @@ interface Project {
     shots: Shot[];
 }
 
+function normalizeEpisodes(value: unknown): Episode[] {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((item, index) => {
+        if (!item || typeof item !== "object") return [];
+        const episode = item as Record<string, unknown>;
+        const id = typeof episode.id === "string" ? episode.id : "";
+        if (!id) return [];
+        return [{
+            id,
+            title: typeof episode.title === "string" && episode.title.trim() ? episode.title : `第 ${index + 1} 集`,
+            number: typeof episode.number === "number" && Number.isFinite(episode.number) ? episode.number : index + 1,
+            script: typeof episode.script === "string" ? episode.script : "",
+            status: typeof episode.status === "string" ? episode.status : undefined,
+        }];
+    });
+}
+
+function normalizeShot(value: unknown, episodeId: string, index: number): Shot | undefined {
+    if (!value || typeof value !== "object") return undefined;
+    const shot = value as Record<string, unknown>;
+    const id = typeof shot.id === "string" ? shot.id : "";
+    if (!id) return undefined;
+    const status = shot.status === "image_generated" || shot.status === "video_generated" ? shot.status : "draft";
+    const continuity = shot.continuity && typeof shot.continuity === "object" ? (shot.continuity as Record<string, unknown>) : undefined;
+    return {
+        id,
+        episodeId: typeof shot.episodeId === "string" ? shot.episodeId : episodeId,
+        shotNumber: typeof shot.shotNumber === "number" ? shot.shotNumber : typeof shot.order === "number" ? shot.order : index + 1,
+        sceneId: typeof shot.sceneId === "string" ? shot.sceneId : undefined,
+        characterIds: Array.isArray(shot.characterIds) ? shot.characterIds.filter((item): item is string => typeof item === "string") : [],
+        script: typeof shot.script === "string" ? shot.script : typeof shot.description === "string" ? shot.description : typeof shot.title === "string" ? shot.title : "",
+        imagePrompt: typeof shot.imagePrompt === "string" ? shot.imagePrompt : undefined,
+        imageUrl: typeof shot.imageUrl === "string" ? shot.imageUrl : typeof shot.storyboardImageUrl === "string" ? shot.storyboardImageUrl : undefined,
+        videoUrl: typeof shot.videoUrl === "string" ? shot.videoUrl : undefined,
+        duration: typeof shot.duration === "number" ? shot.duration : 3,
+        cameraAngle: typeof shot.cameraAngle === "string" ? shot.cameraAngle : typeof continuity?.cameraAngle === "string" ? continuity.cameraAngle : undefined,
+        status,
+    };
+}
+
+function normalizeProjectShots(project: Record<string, unknown>, episodes: Episode[], legacy: Record<string, unknown>): Shot[] {
+    const topLevelShots = Array.isArray(project.shots) ? project.shots : Array.isArray(legacy.shots) ? legacy.shots : [];
+    if (topLevelShots.length) {
+        return topLevelShots.flatMap((shot, index) => {
+            const normalized = normalizeShot(shot, "", index);
+            return normalized ? [normalized] : [];
+        });
+    }
+    const rawEpisodes = Array.isArray(project.episodes) ? project.episodes : Array.isArray(legacy.episodes) ? legacy.episodes : [];
+    return rawEpisodes.flatMap((rawEpisode, episodeIndex) => {
+        if (!rawEpisode || typeof rawEpisode !== "object") return [];
+        const raw = rawEpisode as Record<string, unknown>;
+        const episodeId = typeof raw.id === "string" ? raw.id : episodes[episodeIndex]?.id || "";
+        return Array.isArray(raw.shots)
+            ? raw.shots.flatMap((shot, shotIndex) => {
+                  const normalized = normalizeShot(shot, episodeId, shotIndex);
+                  return normalized ? [normalized] : [];
+              })
+            : [];
+    });
+}
+
 export function DramaWorkflowLabProject({
     projectId,
     initialEpisodeId
@@ -101,7 +163,7 @@ export function DramaWorkflowLabProject({
     const [activeEpisodeId, setActiveEpisodeId] = useState<string>();
     const [saving, setSaving] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [storyboardListExpanded, setStoryboardListExpanded] = useState(true);
+    const [expandedEpisodeIds, setExpandedEpisodeIds] = useState<Set<string>>(new Set());
 
     // 加载项目数据
     const loadProject = useCallback(async () => {
@@ -116,30 +178,32 @@ export function DramaWorkflowLabProject({
             }
 
             const proj = data.data.project;
-            const legacy = proj.projectJson || {};
+            const legacy = (proj.projectJson || {}) as Record<string, unknown>;
+            const sourceEpisodes = proj.episodes ?? legacy.episodes ?? [];
+            const episodes = normalizeEpisodes(sourceEpisodes);
             setProject({
                 id: proj.id,
                 title: proj.title,
                 description: proj.summary ?? legacy.description ?? "",
                 style: proj.style ?? legacy.style ?? "",
                 aspectRatio: proj.ratio ?? legacy.aspectRatio ?? "16:9",
-                episodes: proj.episodes ?? legacy.episodes ?? [],
+                episodes,
                 characters: proj.characters ?? legacy.characters ?? [],
                 scenes: proj.scenes ?? legacy.scenes ?? [],
                 props: proj.props ?? legacy.props ?? [],
-                shots: proj.shots ?? legacy.shots ?? [],
+                shots: normalizeProjectShots(proj as Record<string, unknown>, episodes, legacy),
             });
 
-            const episodes = proj.episodes ?? legacy.episodes ?? [];
             if (episodes.length > 0) {
                 setActiveEpisodeId(initialEpisodeId || episodes[0].id);
             }
+            setExpandedEpisodeIds(new Set(episodes.map((episode: Episode) => episode.id)));
         } catch (err) {
             setError(err instanceof Error ? err.message : "加载失败");
         } finally {
             setLoading(false);
         }
-    }, [projectId]);
+    }, [initialEpisodeId, projectId]);
 
     useEffect(() => {
         void loadProject();
@@ -163,6 +227,7 @@ export function DramaWorkflowLabProject({
                     characters: updates.characters ?? project.characters,
                     scenes: updates.scenes ?? project.scenes,
                     props: updates.props ?? project.props,
+                    shots: updates.shots ?? project.shots,
                 }),
             });
 
@@ -181,6 +246,30 @@ export function DramaWorkflowLabProject({
     };
 
     const activeEpisode = project?.episodes.find(ep => ep.id === activeEpisodeId);
+
+    const addEpisode = () => {
+        if (!project) return;
+        const newEpisode: Episode = {
+            id: `ep_${Date.now()}`,
+            title: `第 ${project.episodes.length + 1} 集`,
+            number: project.episodes.length + 1,
+            script: "",
+        };
+        void saveProject({ episodes: [...project.episodes, newEpisode] }).then((saved) => {
+            if (!saved) return;
+            setActiveEpisodeId(newEpisode.id);
+            setExpandedEpisodeIds((current) => new Set(current).add(newEpisode.id));
+        });
+    };
+
+    const toggleEpisodeExpanded = (episodeId: string) => {
+        setExpandedEpisodeIds((current) => {
+            const next = new Set(current);
+            if (next.has(episodeId)) next.delete(episodeId);
+            else next.add(episodeId);
+            return next;
+        });
+    };
 
     if (loading) {
         return (
@@ -275,7 +364,7 @@ export function DramaWorkflowLabProject({
             {/* 主内容区 */}
             <div className="flex min-h-0 flex-1">
                 {/* 左侧边栏 - 剧集列表 */}
-                <aside className={cn("shrink-0 border-r border-border bg-card transition-[width] duration-200", sidebarCollapsed ? "w-14" : "w-64")}>
+                <aside className={cn("flex min-h-0 shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200", sidebarCollapsed ? "w-14" : "w-64")}>
                     <div className={cn("flex h-12 items-center border-b border-border", sidebarCollapsed ? "justify-center px-2" : "justify-between px-4")}>
                         {!sidebarCollapsed ? <span className="text-sm font-semibold">
                             剧集 <span className="text-muted-foreground">{project.episodes.length}</span>
@@ -285,55 +374,43 @@ export function DramaWorkflowLabProject({
                             size="small"
                             aria-label={sidebarCollapsed ? "展开剧集侧栏" : "收起剧集侧栏"}
                             title={sidebarCollapsed ? "展开剧集侧栏" : "收起剧集侧栏"}
-                            className="hidden"
-                            icon={sidebarCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-                            onClick={() => setSidebarCollapsed((current) => !current)}
-                        />
-                        {!sidebarCollapsed ? <Button
-                            type="text"
-                            size="small"
-                            aria-label="新增剧集"
-                            title="新增剧集"
-                            icon={<Plus className="size-4" />}
-                            onClick={() => {
-                                const newEpisode: Episode = {
-                                    id: `ep_${Date.now()}`,
-                                    title: `第 ${project.episodes.length + 1} 集`,
-                                    number: project.episodes.length + 1,
-                                    script: "",
-                                };
-                                saveProject({ episodes: [...project.episodes, newEpisode] });
-                            }}
-                        /> : null}
-                    </div>
-                    <div className={cn("flex h-9 items-center justify-end border-b border-border px-3", sidebarCollapsed && "justify-center px-1")}>
-                        <Button
-                            type="text"
-                            size="small"
-                            aria-label="切换剧集侧栏"
-                            title="切换剧集侧栏"
                             icon={sidebarCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
                             onClick={() => setSidebarCollapsed((current) => !current)}
                         />
                     </div>
-                    <div className={cn("overflow-y-auto p-2", sidebarCollapsed && "px-1")} style={{ height: "calc(100vh - 212px)" }}>
+                    <div className={cn("min-h-0 flex-1 overflow-y-auto p-2", sidebarCollapsed && "px-1")}>
                         {project.episodes.map((ep) => {
                             const isActive = ep.id === activeEpisodeId;
                             const episodeShots = project.shots.filter((shot) => shot.episodeId === ep.id);
+                            const isExpanded = expandedEpisodeIds.has(ep.id);
 
                             return (
                                 <div key={ep.id} className="mb-1">
-                                    <button
-                                        onClick={() => setActiveEpisodeId(ep.id)}
-                                        title={sidebarCollapsed ? ep.title : undefined}
-                                        className={cn(
-                                            "w-full rounded py-2 text-left text-sm transition-colors",
-                                            sidebarCollapsed ? "px-1 text-center" : "px-3",
-                                            isActive
-                                                ? "bg-primary/10 text-primary"
-                                                : "hover:bg-muted"
-                                        )}
-                                    >
+                                    <div className={cn(
+                                        "flex min-w-0 items-center rounded text-sm transition-colors",
+                                        isActive ? "bg-primary/10 text-primary" : "hover:bg-muted",
+                                    )}>
+                                        {!sidebarCollapsed && episodeShots.length > 0 ? (
+                                            <Button
+                                                type="text"
+                                                size="small"
+                                                className="shrink-0"
+                                                aria-label={isExpanded ? `收起${ep.title}分镜` : `展开${ep.title}分镜`}
+                                                aria-expanded={isExpanded}
+                                                title={isExpanded ? "收起分镜" : "展开分镜"}
+                                                icon={isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                                                onClick={() => toggleEpisodeExpanded(ep.id)}
+                                            />
+                                        ) : !sidebarCollapsed ? <span className="size-8 shrink-0" aria-hidden /> : null}
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveEpisodeId(ep.id)}
+                                            title={sidebarCollapsed ? ep.title : undefined}
+                                            className={cn(
+                                                "min-w-0 flex-1 rounded py-2 text-left transition-colors",
+                                                sidebarCollapsed ? "px-1 text-center" : "pr-2",
+                                            )}
+                                        >
                                         {sidebarCollapsed ? (
                                             <div className="font-medium">{ep.number}</div>
                                         ) : (
@@ -345,10 +422,10 @@ export function DramaWorkflowLabProject({
                                                 </div>
                                             </>
                                         )}
-                                    </button>
+                                        </button>
+                                    </div>
 
-                                    {/* 分镜列表 - 显示在当前激活的剧集下 */}
-                                    {!sidebarCollapsed && isActive && episodeShots.length > 0 && storyboardListExpanded && (
+                                    {!sidebarCollapsed && isExpanded && episodeShots.length > 0 && (
                                         <div className="ml-3 mt-1 space-y-0.5 border-l-2 border-primary/20 pl-2">
                                             {episodeShots
                                                 .sort((a, b) => a.shotNumber - b.shotNumber)
@@ -358,6 +435,7 @@ export function DramaWorkflowLabProject({
                                                         type="button"
                                                         className="block w-full truncate rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                                                         onClick={() => {
+                                                            setActiveEpisodeId(ep.id);
                                                             setActiveStep("storyboard");
                                                             setTimeout(() => {
                                                                 document.getElementById(`storyboard-shot-${shot.id}`)?.scrollIntoView({
@@ -375,6 +453,19 @@ export function DramaWorkflowLabProject({
                                 </div>
                             );
                         })}
+                    </div>
+                    <div className={cn("shrink-0 border-t border-border p-2", sidebarCollapsed && "px-1")}>
+                        <Button
+                            type="text"
+                            block={!sidebarCollapsed}
+                            size="small"
+                            aria-label="新增剧集"
+                            title="新增剧集"
+                            icon={<Plus className="size-4" />}
+                            onClick={addEpisode}
+                        >
+                            {!sidebarCollapsed ? "新增一集" : null}
+                        </Button>
                     </div>
                 </aside>
 

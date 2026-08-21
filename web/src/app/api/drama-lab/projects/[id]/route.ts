@@ -66,10 +66,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             return NextResponse.json({ code: 404, msg: "项目不存在" }, { status: 404 });
         }
 
+        const normalizedBody = normalizeLegacyStoryboardPayload(existing, body);
+
         // 合并更新
         const updated = {
             ...existing,
-            ...body,
+            ...normalizedBody,
             id, // 保持 ID 不变
             updatedAt: new Date().toISOString(),
         };
@@ -96,6 +98,86 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             { status: 500 },
         );
     }
+}
+
+function normalizeLegacyStoryboardPayload(existing: Record<string, unknown>, body: Record<string, unknown>) {
+    const legacyShots = Array.isArray(body.shots) ? body.shots : undefined;
+    const legacyEpisodes = Array.isArray(body.episodes) && body.episodes.some((episode) => isLegacyEpisode(episode));
+    if (!legacyShots && !legacyEpisodes) return body;
+
+    const { shots: _legacyShots, ...withoutLegacyShots } = body;
+    const existingEpisodes = Array.isArray(existing.episodes) ? existing.episodes : [];
+    const incomingEpisodes = Array.isArray(body.episodes) ? body.episodes : existingEpisodes;
+    const episodes = incomingEpisodes.flatMap((episode, index) => {
+        if (!episode || typeof episode !== "object") return [];
+        const incoming = episode as Record<string, unknown>;
+        const id = typeof incoming.id === "string" ? incoming.id : "";
+        if (!id) return [];
+        const current = existingEpisodes.find((candidate) => candidate && typeof candidate === "object" && (candidate as Record<string, unknown>).id === id) as Record<string, unknown> | undefined;
+        const matchingShots = legacyShots?.filter((shot) => shot && typeof shot === "object" && (shot as Record<string, unknown>).episodeId === id);
+        return [
+            {
+                ...(current || createEpisodeFallback(incoming, id)),
+                ...incoming,
+                id,
+                shots: matchingShots ? matchingShots.flatMap((shot, shotIndex) => legacyShotToEpisodeShot(shot, shotIndex)) : current?.shots || [],
+            },
+        ];
+    });
+    return { ...withoutLegacyShots, episodes };
+}
+
+function isLegacyEpisode(value: unknown) {
+    if (!value || typeof value !== "object") return false;
+    const episode = value as Record<string, unknown>;
+    return typeof episode.number === "number" || ("status" in episode && !("reviewStatus" in episode));
+}
+
+function createEpisodeFallback(source: Record<string, unknown>, id: string) {
+    return {
+        id,
+        title: typeof source.title === "string" ? source.title : "未命名剧集",
+        script: typeof source.script === "string" ? source.script : "",
+        outline: "",
+        hook: "",
+        nextPreview: "",
+        sourceRange: "",
+        reviewStatus: "draft",
+        shots: [],
+    };
+}
+
+function legacyShotToEpisodeShot(value: unknown, index: number) {
+    if (!value || typeof value !== "object") return [];
+    const shot = value as Record<string, unknown>;
+    const id = typeof shot.id === "string" ? shot.id : "";
+    if (!id) return [];
+    const order = typeof shot.shotNumber === "number" ? shot.shotNumber : index + 1;
+    const script = typeof shot.script === "string" ? shot.script : "";
+    const imageUrl = typeof shot.imageUrl === "string" ? shot.imageUrl : "";
+    return [
+        {
+            id,
+            order,
+            title: script || `镜头 ${order}`,
+            description: script,
+            sourceText: script,
+            shotBoundary: "",
+            dialogue: "",
+            narration: "",
+            utterances: [],
+            imagePrompt: typeof shot.imagePrompt === "string" ? shot.imagePrompt : "",
+            videoPrompt: "",
+            cameraMotion: "",
+            duration: typeof shot.duration === "number" ? shot.duration : 3,
+            characterIds: Array.isArray(shot.characterIds) ? shot.characterIds.filter((item): item is string => typeof item === "string") : [],
+            propIds: [],
+            clueIds: [],
+            ...(typeof shot.sceneId === "string" ? { sceneId: shot.sceneId } : {}),
+            ...(imageUrl ? { storyboardImageUrl: imageUrl } : {}),
+            ...(typeof shot.videoUrl === "string" ? { videoUrl: shot.videoUrl } : {}),
+        },
+    ];
 }
 
 /**
