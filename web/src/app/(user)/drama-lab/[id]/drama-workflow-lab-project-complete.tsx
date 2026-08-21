@@ -1,8 +1,8 @@
 "use client";
 
-import { Alert, Button, Spin, Tabs, Input, Select, Form, Modal, message, Upload, Radio } from "antd";
+import { Alert, Button, Spin, Tabs, Input, Select, Form, Modal, message, Upload, Radio, Switch } from "antd";
 import {
-    ArrowLeft, Plus, Settings2, Save, Trash2, Edit2,
+    ArrowLeft, Plus, Save, Trash2, Edit2,
     FileText, Users, MapPin, Package, Film, Download, Sparkles,
     PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight,
     CheckCircle2, AlertCircle, LoaderCircle
@@ -165,6 +165,7 @@ export function DramaWorkflowLabProject({
     const [saving, setSaving] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [expandedEpisodeIds, setExpandedEpisodeIds] = useState<Set<string>>(new Set());
+    const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
 
     // 加载项目数据
     const loadProject = useCallback(async () => {
@@ -301,6 +302,14 @@ export function DramaWorkflowLabProject({
     return (
         <main className="flex h-screen flex-col bg-background">
             {contextHolder}
+            {workflowModalOpen ? (
+                <WorkflowRunModal
+                    project={project}
+                    activeEpisode={activeEpisode}
+                    onClose={() => setWorkflowModalOpen(false)}
+                    onStepChange={setActiveStep}
+                />
+            ) : null}
             {/* 顶部导航栏 */}
             <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-card px-4">
                 <Link
@@ -317,10 +326,10 @@ export function DramaWorkflowLabProject({
                     </p>
                 </div>
                 <Button
-                    icon={<Settings2 className="size-4" />}
-                    onClick={() => setActiveStep("script")}
+                    icon={<Sparkles className="size-4" />}
+                    onClick={() => setWorkflowModalOpen(true)}
                 >
-                    项目设置
+                    一键全流程
                 </Button>
                 <Button
                     type="primary"
@@ -768,6 +777,162 @@ ${storyOutline}
         </div>
     );
 }
+type WorkflowRunMode = "assets" | "storyboard" | "video";
+type WorkflowRunScope = "current" | "all";
+
+const WORKFLOW_RUN_MODES: Array<{ value: WorkflowRunMode; label: string; description: string }> = [
+    { value: "assets", label: "生成到资产", description: "生成角色、场景、道具的提示词与资产准备结果后停止。" },
+    { value: "storyboard", label: "生成到分镜图", description: "完成资产、分镜提示词与分镜图后停止。" },
+    { value: "video", label: "生成完整视频", description: "继续生成镜头视频，并进入内容审核与可选导出。" },
+];
+
+function WorkflowRunModal({ project, activeEpisode, onClose, onStepChange }: { project: Project; activeEpisode?: Episode; onClose: () => void; onStepChange: (step: StepKey) => void }) {
+    const [mode, setMode] = useState<WorkflowRunMode>("video");
+    const [scope, setScope] = useState<WorkflowRunScope>("current");
+    const [ratio, setRatio] = useState(project.aspectRatio || "9:16");
+    const [duration, setDuration] = useState("5");
+    const [language, setLanguage] = useState("中文");
+    const [visualStyle, setVisualStyle] = useState(project.style || "电影感写实");
+    const [autoExport, setAutoExport] = useState(false);
+    const [runStatus, setRunStatus] = useState<"idle" | "running" | "completed">("idle");
+    const [runningStep, setRunningStep] = useState(-1);
+    const simulationTimersRef = useRef<number[]>([]);
+    const selectedMode = WORKFLOW_RUN_MODES.find((item) => item.value === mode) || WORKFLOW_RUN_MODES[2];
+    const episodeLabel = scope === "all" ? `全部 ${project.episodes.length} 集` : activeEpisode?.title || "当前集";
+    const executionSteps: Array<{ label: string; detail: string; target: StepKey }> = [
+        { label: "解析剧本并生成提示词", detail: `${episodeLabel} · ${language}输出`, target: "script" },
+        { label: "生成角色、场景与道具资产", detail: `统一视觉风格：${visualStyle || "项目默认风格"}`, target: "assets" },
+        ...(mode === "assets" ? [] : [{ label: "生成分镜提示词与分镜图", detail: `${ratio} · 单镜头${duration}秒`, target: "storyboard" as StepKey }]),
+        ...(mode !== "video" ? [] : [
+            { label: "生成镜头视频", detail: "按镜头顺序自动推进", target: "generate" as StepKey },
+            { label: "内容审核", detail: "汇总素材、分镜图与镜头视频的审核结果", target: "review" as StepKey },
+            ...(autoExport ? [{ label: "成片导出", detail: "审核完成后自动创建导出任务", target: "export" as StepKey }] : []),
+        ]),
+    ];
+
+    useEffect(() => () => {
+        simulationTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    }, []);
+
+    const simulateRun = () => {
+        if (runStatus === "running") return;
+        simulationTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+        simulationTimersRef.current = [];
+        setRunStatus("running");
+        setRunningStep(0);
+        onStepChange(executionSteps.at(-1)?.target || "assets");
+
+        executionSteps.forEach((_, index) => {
+            simulationTimersRef.current.push(window.setTimeout(() => setRunningStep(index), index * 350));
+        });
+        simulationTimersRef.current.push(window.setTimeout(() => {
+            setRunningStep(executionSteps.length);
+            setRunStatus("completed");
+            simulationTimersRef.current = [];
+        }, executionSteps.length * 350 + 250));
+    };
+
+    return (
+        <Modal open title="一键全流程" onCancel={onClose} footer={null} destroyOnHidden width={920} style={{ top: 24, maxWidth: "calc(100vw - 32px)" }}>
+            <div className="space-y-6 pb-2">
+                <div>
+                    <h2 className="text-base font-semibold">执行终点</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">从提示词开始自动推进；个人创作不要求逐项人工确认。</p>
+                    <Radio.Group value={mode} onChange={(event) => { setMode(event.target.value); if (event.target.value !== "video") setAutoExport(false); }} className="mt-4 grid w-full gap-3 md:grid-cols-3">
+                        {WORKFLOW_RUN_MODES.map((item) => (
+                            <Radio key={item.value} value={item.value} className={cn("mr-0 flex min-h-28 items-start border p-4", mode === item.value ? "border-primary bg-primary/5" : "border-border")}>
+                                <span className="block pr-2">
+                                    <span className="block font-medium">{item.label}</span>
+                                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span>
+                                </span>
+                            </Radio>
+                        ))}
+                    </Radio.Group>
+                </div>
+
+                <div className="border-y border-border py-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-base font-semibold">执行范围</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">选择本次自动推进的剧集范围。</p>
+                        </div>
+                        <Radio.Group value={scope} onChange={(event) => setScope(event.target.value)} optionType="button" buttonStyle="solid">
+                            <Radio.Button value="current">当前集</Radio.Button>
+                            <Radio.Button value="all">全部剧集</Radio.Button>
+                        </Radio.Group>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 className="text-base font-semibold">生成设置</h2>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <label className="grid gap-2 text-sm font-medium">
+                            画面比例
+                            <Select value={ratio} onChange={setRatio} options={[{ value: "9:16", label: "9:16 竖屏" }, { value: "16:9", label: "16:9 横屏" }, { value: "1:1", label: "1:1 方形" }]} />
+                        </label>
+                        <label className="grid gap-2 text-sm font-medium">
+                            单镜头时长
+                            <Select value={duration} onChange={setDuration} options={[{ value: "3", label: "3 秒" }, { value: "5", label: "5 秒" }, { value: "8", label: "8 秒" }, { value: "10", label: "10 秒" }]} />
+                        </label>
+                        <label className="grid gap-2 text-sm font-medium">
+                            输出语言
+                            <Select value={language} onChange={setLanguage} options={[{ value: "中文", label: "中文" }, { value: "English", label: "English" }]} />
+                        </label>
+                        <label className="grid gap-2 text-sm font-medium">
+                            视觉风格
+                            <Input value={visualStyle} onChange={(event) => setVisualStyle(event.target.value)} placeholder="例如：电影感写实" />
+                        </label>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
+                        <div>
+                            <p className="text-sm font-medium">自动导出</p>
+                            <p className="mt-1 text-xs text-muted-foreground">仅在“生成完整视频”时可用，内容审核完成后创建导出任务。</p>
+                        </div>
+                        <Switch checked={autoExport} disabled={mode !== "video"} onChange={setAutoExport} />
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 text-sm text-muted-foreground">
+                        <span>模型：使用后台默认渠道</span>
+                        <span>失败策略：跳过失败项并在完成后汇总</span>
+                    </div>
+                </div>
+
+                <div className="border border-border bg-muted/30">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+                        <div>
+                            <h2 className="font-semibold">执行预览</h2>
+                            <p className="mt-1 text-xs text-muted-foreground">{episodeLabel} · {selectedMode.label}</p>
+                        </div>
+                        {runStatus === "completed" ? <span className="text-sm font-medium text-emerald-700">模拟执行完成</span> : null}
+                    </div>
+                    <ol className="divide-y divide-border">
+                        {executionSteps.map((step, index) => {
+                            const status = runStatus === "completed" || index < runningStep ? "已完成" : runStatus === "running" && index === runningStep ? "模拟中" : "待执行";
+                            return (
+                                <li key={step.label} className="flex items-center gap-3 px-4 py-3">
+                                    <span className={cn("grid size-6 shrink-0 place-items-center rounded-full border text-xs", status === "已完成" ? "border-emerald-500 bg-emerald-500 text-white" : status === "模拟中" ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground")}>{status === "已完成" ? <CheckCircle2 className="size-3.5" /> : index + 1}</span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium">{step.label}</p>
+                                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{step.detail}</p>
+                                    </div>
+                                    <span className="shrink-0 text-xs text-muted-foreground">{status}</span>
+                                </li>
+                            );
+                        })}
+                    </ol>
+                </div>
+
+                <Alert type="info" showIcon title="当前为前端执行演示" description="此版本只展示配置和推进状态，不会创建生成任务、不保存设置，也不会消耗后台渠道额度。" />
+
+                <div className="flex flex-wrap justify-end gap-3">
+                    <Button onClick={onClose}>取消</Button>
+                    <Button type="primary" icon={runStatus === "running" ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />} loading={runStatus === "running"} onClick={simulateRun}>
+                        {runStatus === "completed" ? "重新模拟执行" : "开始模拟执行"}
+                    </Button>
+                </div>
+            </div>
+        </Modal>
+    );
+}
 
 // 5. 内容审核面板
 type ReviewDemoTarget = Extract<StepKey, "assets" | "storyboard" | "generate">;
@@ -785,6 +950,7 @@ type ReviewDemoIssue = {
 function ReviewPanel({ project, episode, onStepChange }: { project: Project; episode?: Episode; onStepChange: (step: StepKey) => void }) {
     const [simulationStatus, setSimulationStatus] = useState<"ready" | "running">("ready");
     const [simulatedAt, setSimulatedAt] = useState("刚刚");
+    const simulationTimerRef = useRef<number | null>(null);
     const episodeShots = project.shots.filter((shot) => shot.episodeId === episode?.id);
     const assetCount = project.characters.length + project.scenes.length + project.props.length;
     const storyboardImageCount = episodeShots.filter((shot) => Boolean(shot.imageUrl)).length;
@@ -811,12 +977,17 @@ function ReviewPanel({ project, episode, onStepChange }: { project: Project; epi
         { label: "成片可用性", value: episodeShots.length ? Math.min(92, 68 + Math.round((videoCount / episodeShots.length) * 20)) : 64 },
     ].map((item) => ({ ...item, value: Math.round(item.value) }));
 
+    useEffect(() => () => {
+        if (simulationTimerRef.current) window.clearTimeout(simulationTimerRef.current);
+    }, []);
+
     const simulateReview = () => {
         if (simulationStatus === "running") return;
         setSimulationStatus("running");
         simulationTimerRef.current = window.setTimeout(() => {
             setSimulatedAt(new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }));
             setSimulationStatus("ready");
+            simulationTimerRef.current = null;
         }, 700);
     };
 
@@ -920,7 +1091,6 @@ function ReviewPanel({ project, episode, onStepChange }: { project: Project; epi
                             <div key={issue.id} className="flex flex-wrap items-start gap-3 p-5 sm:px-6">
                                 <span className={cn("mt-0.5 grid size-7 shrink-0 place-items-center rounded-full", issue.severity === "高" ? "bg-rose-100 text-rose-700" : issue.severity === "中" ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700")}>
                                     {issue.severity === "高" ? <AlertCircle className="size-4" /> : <CheckCircle2 className="size-4" />}
-    const simulationTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
                                 </span>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -947,17 +1117,12 @@ function AssetsPanel({
 }: {
     project: Project;
     onSave: (updates: Partial<Project>) => void;
-    useEffect(() => () => {
-        if (simulationTimerRef.current) window.clearTimeout(simulationTimerRef.current);
-    }, []);
-
 }) {
     const [activeTab, setActiveTab] = useState<"characters" | "scenes" | "props">("characters");
 
     return (
         <div className="mx-auto max-w-6xl">
             <Tabs
-            simulationTimerRef.current = null;
                 activeKey={activeTab}
                 onChange={(key) => setActiveTab(key as typeof activeTab)}
                 items={[
