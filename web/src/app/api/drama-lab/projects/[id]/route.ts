@@ -115,12 +115,13 @@ function normalizeLegacyStoryboardPayload(existing: Record<string, unknown>, bod
         if (!id) return [];
         const current = existingEpisodes.find((candidate) => candidate && typeof candidate === "object" && (candidate as Record<string, unknown>).id === id) as Record<string, unknown> | undefined;
         const matchingShots = legacyShots?.filter((shot) => shot && typeof shot === "object" && (shot as Record<string, unknown>).episodeId === id);
+        const currentShots = Array.isArray(current?.shots) ? current.shots : [];
         return [
             {
                 ...(current || createEpisodeFallback(incoming, id)),
                 ...incoming,
                 id,
-                shots: matchingShots ? matchingShots.flatMap((shot, shotIndex) => legacyShotToEpisodeShot(shot, shotIndex)) : current?.shots || [],
+                shots: matchingShots ? matchingShots.flatMap((shot, shotIndex) => legacyShotToEpisodeShot(shot, shotIndex, currentShots)) : currentShots,
             },
         ];
     });
@@ -147,32 +148,34 @@ function createEpisodeFallback(source: Record<string, unknown>, id: string) {
     };
 }
 
-function legacyShotToEpisodeShot(value: unknown, index: number) {
+function legacyShotToEpisodeShot(value: unknown, index: number, currentShots: unknown[]) {
     if (!value || typeof value !== "object") return [];
     const shot = value as Record<string, unknown>;
     const id = typeof shot.id === "string" ? shot.id : "";
     if (!id) return [];
+    const current = currentShots.find((item) => item && typeof item === "object" && (item as Record<string, unknown>).id === id) as Record<string, unknown> | undefined;
     const order = typeof shot.shotNumber === "number" ? shot.shotNumber : index + 1;
     const script = typeof shot.script === "string" ? shot.script : "";
     const imageUrl = typeof shot.imageUrl === "string" ? shot.imageUrl : "";
     return [
         {
+            ...current,
             id,
             order,
-            title: script || `镜头 ${order}`,
-            description: script,
-            sourceText: script,
-            shotBoundary: "",
-            dialogue: "",
-            narration: "",
-            utterances: [],
-            imagePrompt: typeof shot.imagePrompt === "string" ? shot.imagePrompt : "",
-            videoPrompt: "",
-            cameraMotion: "",
+            title: script || (typeof current?.title === "string" ? current.title : `镜头 ${order}`),
+            description: script || (typeof current?.description === "string" ? current.description : ""),
+            sourceText: script || (typeof current?.sourceText === "string" ? current.sourceText : ""),
+            shotBoundary: typeof current?.shotBoundary === "string" ? current.shotBoundary : "",
+            dialogue: typeof current?.dialogue === "string" ? current.dialogue : "",
+            narration: typeof current?.narration === "string" ? current.narration : "",
+            utterances: Array.isArray(current?.utterances) ? current.utterances : [],
+            imagePrompt: typeof shot.imagePrompt === "string" ? shot.imagePrompt : typeof current?.imagePrompt === "string" ? current.imagePrompt : "",
+            videoPrompt: typeof current?.videoPrompt === "string" ? current.videoPrompt : "",
+            cameraMotion: typeof current?.cameraMotion === "string" ? current.cameraMotion : "",
             duration: typeof shot.duration === "number" ? shot.duration : 3,
             characterIds: Array.isArray(shot.characterIds) ? shot.characterIds.filter((item): item is string => typeof item === "string") : [],
             propIds: Array.isArray(shot.propIds) ? shot.propIds.filter((item): item is string => typeof item === "string") : [],
-            clueIds: [],
+            clueIds: Array.isArray(current?.clueIds) ? current.clueIds : [],
             ...(typeof shot.sceneId === "string" ? { sceneId: shot.sceneId } : {}),
             ...(imageUrl ? { storyboardImageUrl: imageUrl } : {}),
             ...(typeof shot.videoUrl === "string" ? { videoUrl: shot.videoUrl } : {}),

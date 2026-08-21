@@ -303,6 +303,13 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
     const [collaborationFeedback, setCollaborationFeedback] = useState<CollaborationFeedback[]>([]);
     const pendingStoryboardShotId = useRef<string | undefined>(undefined);
 
+    const replaceEpisodeShots = useCallback((episodeId: string, shots: Shot[]) => {
+        setProject((current) => {
+            if (!current) return current;
+            return { ...current, shots: [...current.shots.filter((shot) => shot.episodeId !== episodeId), ...shots] };
+        });
+    }, []);
+
     // 加载项目数据
     const loadProject = useCallback(async () => {
         setLoading(true);
@@ -678,7 +685,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
                     {activeStep === "script" && <ScriptEditor project={project} episode={activeEpisode} onSave={saveProject} onActiveEpisodeChange={setActiveEpisodeId} messageApi={messageApi} />}
                     {activeStep === "review" && <ReviewPanel project={project} episode={activeEpisode} onStepChange={setActiveStep} />}
                     {activeStep === "assets" && <DramaLabVisualAssetsPanel project={project} episode={activeEpisode} onSave={saveProject} onLocateShot={locateStoryboardShot} messageApi={messageApi} />}
-                    {activeStep === "storyboard" && <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} messageApi={messageApi} />}
+                    {activeStep === "storyboard" && <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReplaceEpisodeShots={replaceEpisodeShots} messageApi={messageApi} />}
                     {activeStep === "generate" && <GeneratePanel project={project} episode={activeEpisode} />}
                     {activeStep === "export" && <ExportPanel project={project} episode={activeEpisode} messageApi={messageApi} exportBlockedByApproval={exportBlockedByApproval} />}
                 </div>
@@ -2232,10 +2239,23 @@ function PropsList({ project, episode, onSave, messageApi }: { project: Project;
 }
 
 // 4. 分镜面板
-function StoryboardPanel({ project, episode, onSave, messageApi }: { project: Project; episode?: Episode; onSave: (updates: Partial<Project>) => void; messageApi: ReturnType<typeof message.useMessage>[0] }) {
+function StoryboardPanel({
+    project,
+    episode,
+    onSave,
+    onReplaceEpisodeShots,
+    messageApi,
+}: {
+    project: Project;
+    episode?: Episode;
+    onSave: (updates: Partial<Project>) => void;
+    onReplaceEpisodeShots: (episodeId: string, shots: Shot[]) => void;
+    messageApi: ReturnType<typeof message.useMessage>[0];
+}) {
     const config = useEffectiveConfig();
     const [modalVisible, setModalVisible] = useState(false);
     const [editingShot, setEditingShot] = useState<Shot | null>(null);
+    const [extracting, setExtracting] = useState(false);
     const [form] = Form.useForm();
 
     // 筛选当前集的分镜
@@ -2253,6 +2273,46 @@ function StoryboardPanel({ project, episode, onSave, messageApi }: { project: Pr
             status: "draft",
         });
         setModalVisible(true);
+    };
+
+    const extractFromScript = async () => {
+        if (!episode) return;
+        try {
+            setExtracting(true);
+            messageApi.loading({ content: "正在从剧本提取分镜...", key: "extract-storyboards", duration: 0 });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/extract-storyboards`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ episodeId: episode.id, requestId: crypto.randomUUID() }),
+            });
+            const data = await response.json();
+            if (!response.ok || data.code !== 0 || !Array.isArray(data.data?.shots)) throw new Error(data.msg || "分镜提取失败");
+            const shots = data.data.shots as Shot[];
+            onReplaceEpisodeShots(episode.id, shots);
+            messageApi.success({ content: `已提取 ${shots.length} 个分镜`, key: "extract-storyboards", duration: 3 });
+        } catch (error) {
+            messageApi.error({ content: error instanceof Error ? error.message : "分镜提取失败", key: "extract-storyboards", duration: 3 });
+        } finally {
+            setExtracting(false);
+        }
+    };
+
+    const handleExtract = () => {
+        if (!episode?.script.trim()) {
+            messageApi.warning("请先填写当前集剧本");
+            return;
+        }
+        if (!episodeShots.length) {
+            void extractFromScript();
+            return;
+        }
+        Modal.confirm({
+            title: "重新提取分镜",
+            content: "当前集已有分镜。重新提取会替换当前集全部分镜，其他剧集不受影响。",
+            okText: "确认替换",
+            cancelText: "取消",
+            onOk: extractFromScript,
+        });
     };
 
     const handleEdit = (shot: Shot) => {
@@ -2406,11 +2466,16 @@ function StoryboardPanel({ project, episode, onSave, messageApi }: { project: Pr
 
     return (
         <div className="mx-auto max-w-6xl">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm text-muted-foreground">当前集共 {episodeShots.length} 个分镜</div>
-                <Button type="primary" icon={<Plus className="size-4" />} onClick={handleAdd}>
-                    添加分镜
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button type="primary" icon={<Sparkles className="size-4" />} loading={extracting} onClick={handleExtract}>
+                        从剧本提取分镜
+                    </Button>
+                    <Button icon={<Plus className="size-4" />} onClick={handleAdd}>
+                        添加分镜
+                    </Button>
+                </div>
             </div>
 
             <div className="space-y-3">
@@ -2473,7 +2538,7 @@ function StoryboardPanel({ project, episode, onSave, messageApi }: { project: Pr
                     </div>
                 ))}
 
-                {episodeShots.length === 0 && <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">暂无分镜，点击“添加分镜”开始创作</div>}
+                {episodeShots.length === 0 && <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">暂无分镜，点击“从剧本提取分镜”开始拆解，也可手工添加</div>}
             </div>
 
             <Modal title={editingShot ? "编辑分镜" : "添加分镜"} open={modalVisible} onOk={handleSave} onCancel={() => setModalVisible(false)} width={600}>
