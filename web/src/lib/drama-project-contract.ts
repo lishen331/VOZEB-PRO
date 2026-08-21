@@ -17,6 +17,20 @@ export type DramaShotGenerationHistory = {
     height?: number;
 };
 
+export type DramaShotFrameType = "first" | "key" | "last";
+export type DramaShotFrameState = {
+    prompt: string;
+    description?: string;
+    status: DramaTaskStatus;
+    taskId?: string;
+    attempt?: number;
+    url?: string;
+    width?: number;
+    height?: number;
+    error?: string;
+    history?: DramaShotGenerationHistory[];
+};
+
 export type DramaAssetReference = {
     id: string;
     url: string;
@@ -101,6 +115,7 @@ export type DramaShot = {
     emotion?: string;
     emotionIntensity?: number;
     layoutDescription?: string;
+    frames?: Partial<Record<DramaShotFrameType, DramaShotFrameState>>;
     startFramePrompt?: string;
     endFramePrompt?: string;
     negativePrompt?: string;

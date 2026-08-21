@@ -23,13 +23,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const project = await getDramaProject(id, user.id);
         if (!project) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
         const { shot } = findShot(project, episodeId, shotId);
+        const frameTasks = await Promise.all([
+            ...(Object.entries(shot.frames || {}) as Array<["first" | "key" | "last", NonNullable<typeof shot.frames>["first"]]>).map(async ([frameType, frame]) => [frameType, frame?.taskId ? await getImageTask(frame.taskId) : null] as const),
+        ]);
         const [storedImageTask, storedVideoTask] = await Promise.all([shot.storyboardTaskId ? getImageTask(shot.storyboardTaskId) : null, shot.generationTaskId ? getVideoTask(shot.generationTaskId) : null]);
         const imageTask = storedImageTask?.userId === user.id ? storedImageTask : null;
         const videoTask = storedVideoTask?.userId === user.id ? storedVideoTask : null;
-        const patch = generationPatch(shot, imageTask, videoTask);
+        const patch = generationPatch(shot, imageTask, videoTask, frameTasks);
         const updated = Object.keys(patch).length ? await persistDramaLabShotUpdate({ userId: user.id, project, episodeId, shotId, patch }) : project;
 
-        const activeTaskIds = [imageTask, videoTask].flatMap((task) => (task && (task.status === "pending" || task.status === "running") ? [task.id] : []));
+        const activeTaskIds = [imageTask, videoTask, ...frameTasks.map(([, task]) => (task && task.userId === user.id ? task : null))].flatMap((task) => (task && (task.status === "pending" || task.status === "running") ? [task.id] : []));
         if (activeTaskIds.length) {
             const origin = resolveInternalOrigin(new URL(request.url).origin);
             const cookie = request.headers.get("cookie") || "";
@@ -44,8 +47,42 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 }
 
-function generationPatch(shot: ReturnType<typeof findShot>["shot"], imageTask: Awaited<ReturnType<typeof getImageTask>>, videoTask: Awaited<ReturnType<typeof getVideoTask>>) {
+function generationPatch(
+    shot: ReturnType<typeof findShot>["shot"],
+    imageTask: Awaited<ReturnType<typeof getImageTask>>,
+    videoTask: Awaited<ReturnType<typeof getVideoTask>>,
+    frameTasks: Array<["first" | "key" | "last", Awaited<ReturnType<typeof getImageTask>>]>,
+) {
     const patch: Record<string, unknown> = {};
+    const frames = { ...(shot.frames || {}) };
+    for (const [frameType, task] of frameTasks) {
+        const frame = frames[frameType];
+        if (!frame || !task || task.userId === undefined) continue;
+        if (task.status === "success") {
+            const result = task.result as Record<string, unknown> | undefined;
+            const url = stableUrl(result?.serverUrl) || stableUrl(result?.remoteUrl) || stableUrl(result?.dataUrl);
+            if (url)
+                frames[frameType] = {
+                    ...frame,
+                    status: "success",
+                    url,
+                    width: positive(result?.width),
+                    height: positive(result?.height),
+                    error: undefined,
+                    history: appendDramaLabGenerationHistory(frame.history, {
+                        id: `frame:${frameType}:${task.id}`,
+                        taskId: task.id,
+                        url,
+                        prompt: task.prompt || frame.prompt,
+                        createdAt: new Date().toISOString(),
+                        width: positive(result?.width),
+                        height: positive(result?.height),
+                    }),
+                };
+            else frames[frameType] = { ...frame, status: "error", error: "帧图任务没有返回可持久化图片地址" };
+        } else if (task.status === "error" || task.status === "cancelled") frames[frameType] = { ...frame, status: task.status, error: task.error || (task.status === "cancelled" ? "帧图任务已取消" : "帧图生成失败") };
+    }
+    if (JSON.stringify(frames) !== JSON.stringify(shot.frames || {})) patch.frames = frames;
     if (imageTask && imageTask.userId) {
         if (imageTask.status === "success") {
             const result = imageTask.result as Record<string, unknown> | undefined;
