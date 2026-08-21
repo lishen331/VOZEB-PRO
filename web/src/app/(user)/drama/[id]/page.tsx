@@ -24,6 +24,7 @@ import { DramaVersionModal } from "./drama-project-modals";
 import { dramaGenerationSize, estimateTaskPoints, referenceImage, shotReferenceImages, storyboardReferenceImages } from "./drama-shot-generation-utils";
 import { useGenerationCapacityRetry } from "./use-generation-capacity-retry";
 import { DramaEpisodeSidebar, DramaScriptPanel, DramaWorkspaceHeader, type DramaProjectStage } from "./drama-project-sections";
+import { SchoolProjectBillingBadge } from "@/components/school/school-project-billing-badge";
 
 export default function DramaProjectPage() {
     const router = useRouter();
@@ -373,6 +374,9 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
                 onToggleAgent={() => setAgentOpen((open) => !open)}
                 onOpenVersions={() => void openVersions()}
             />
+            <div className="flex shrink-0 items-center border-b border-border bg-card/80 px-3 py-1.5 sm:px-4">
+                <SchoolProjectBillingBadge surface="drama" projectId={project.id} executionProfile={project.executionProfile} />
+            </div>
             <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden" data-drama-workspace-body>
                 <DramaEpisodeSidebar project={project} episode={episode} open={episodeNavigatorOpen && !assetsOpen} onOpenChange={setEpisodeNavigatorOpen} onStageChange={changeStage} />
                 <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" data-drama-production-surface>

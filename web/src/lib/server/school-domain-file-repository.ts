@@ -465,6 +465,7 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
                 state.commercialOrderDeliveries = state.commercialOrderDeliveries.filter((item) => item.orderId !== orderId);
                 delete order.teacherMembershipId;
                 delete order.classId;
+                delete order.productionGroupId;
             }
             order.assignedSchoolId = schoolId;
             order.status = "assigned";
@@ -483,6 +484,21 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
             if (!patch.classId) delete order.classId;
             return structuredClone(order);
         });
+    }
+
+    setCommercialOrderProductionGroup(schoolId: string, orderId: string, groupId: string | undefined, updatedAt: string) {
+        return this.mutate((state) => {
+            const order = state.commercialOrders.find((item) => item.assignedSchoolId === schoolId && item.id === orderId);
+            if (!order) return null;
+            if (groupId && !state.commercialOrders.some((item) => item.id === orderId && item.assignedSchoolId === schoolId)) throw new Error("商单不属于当前学校");
+            order.productionGroupId = groupId;
+            order.updatedAt = updatedAt;
+            return structuredClone(order);
+        });
+    }
+
+    listCommercialOrdersForProductionGroup(schoolId: string, groupId: string, input: OrderPageQuery) {
+        return this.filterCommercialOrders(input, (item) => item.assignedSchoolId === schoolId && item.productionGroupId === groupId);
     }
 
     async listCommercialOrdersForTeacher(schoolId: string, membershipId: string, input: OrderPageQuery) {

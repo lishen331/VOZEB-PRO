@@ -142,6 +142,8 @@ export type AdminCommercialOrder = {
     assignedSchoolId?: string;
     teacherMembershipId?: string;
     classId?: string;
+    productionGroupId?: string;
+    productionGroupName?: string;
     status: CommercialOrderStatus;
     platformFeedback: string;
     createdAt: string;
@@ -159,6 +161,8 @@ export type SchoolCommercialOrder = {
     teacher?: SchoolPublicIdentity;
     classId?: string;
     className?: string;
+    productionGroupId?: string;
+    productionGroupName?: string;
     status: CommercialOrderStatus;
     platformFeedback: string;
     createdAt: string;

@@ -119,6 +119,7 @@ export type CommercialOrderRecord = {
     assignedSchoolId?: string;
     teacherMembershipId?: string;
     classId?: string;
+    productionGroupId?: string;
     status: CommercialOrderStatus;
     platformFeedback: string;
     createdByUserId?: string;
@@ -202,6 +203,8 @@ export interface SchoolDomainRepository {
     updateCommercialOrderDraft(orderId: string, patch: CommercialOrderDraftUpdate): Promise<CommercialOrderRecord | null>;
     assignCommercialOrderToSchool(orderId: string, schoolId: string, updatedAt: string): Promise<CommercialOrderRecord | null>;
     configureCommercialOrder(schoolId: string, orderId: string, patch: CommercialOrderConfigurationUpdate): Promise<CommercialOrderRecord | null>;
+    setCommercialOrderProductionGroup(schoolId: string, orderId: string, groupId: string | undefined, updatedAt: string): Promise<CommercialOrderRecord | null>;
+    listCommercialOrdersForProductionGroup(schoolId: string, groupId: string, input: OrderPageQuery): Promise<Page<CommercialOrderRecord>>;
     listCommercialOrdersForTeacher(schoolId: string, membershipId: string, input: OrderPageQuery): Promise<Page<CommercialOrderRecord>>;
     listCommercialOrdersForParticipant(schoolId: string, membershipId: string, input: OrderPageQuery): Promise<Page<CommercialOrderRecord>>;
     listCommercialOrderParticipants(schoolId: string, orderId: string, input: PageQuery): Promise<Page<CommercialOrderParticipantRecord>>;

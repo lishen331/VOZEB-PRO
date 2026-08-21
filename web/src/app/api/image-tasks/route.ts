@@ -24,6 +24,7 @@ import { assertCapabilityConstraints } from "@/lib/server/capability-constraints
 import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
+import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 export const runtime = "nodejs";
@@ -164,7 +165,18 @@ export async function POST(request: Request) {
     }
     const settings = await getAuthSettings();
     const response = await withGenerationConcurrencyLimit(currentUser.id, "image", 10 * 60 * 1000, settings.generationConcurrency.image, async () => {
-        const configs = sanitizeConfigs(resolvedBody.config, settings, trustedPractice ? "open-source-practice" : "production");
+        const executionProfile = trustedPractice ? "open-source-practice" : "production";
+        let trustedContext: GenerationTaskContext;
+        try {
+            const clientContext = { ...(resolvedBody.context || {}) };
+            delete clientContext.billingContext;
+            const billingContext = await resolveSchoolComputeBillingContext(currentUser.id, { ...clientContext, executionProfile });
+            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
+        } catch (error) {
+            if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+            throw error;
+        }
+        const configs = sanitizeConfigs(resolvedBody.config, settings, executionProfile);
         const prompt = (resolvedBody.prompt || "").trim();
         const kind = resolvedBody.kind === "edit" ? "edit" : "generation";
         if (!configs.length || !prompt) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
@@ -188,7 +200,7 @@ export async function POST(request: Request) {
         if (!compatibleConfigs.length) return NextResponse.json({ error: "当前模型能力不满足参考素材或数量参数" }, { status: 400 });
         const config = compatibleConfigs[0];
         const task = await createImageTask({
-            ...(resolvedBody.context || {}),
+            ...trustedContext,
             userId: currentUser.id,
             username: currentUser.username,
             displayName: currentUser.displayName,
@@ -201,7 +213,7 @@ export async function POST(request: Request) {
             references,
             mask: resolvedBody.mask?.dataUrl || resolvedBody.mask?.url || resolvedBody.mask?.remoteUrl || resolvedBody.mask?.serverUrl ? resolvedBody.mask : undefined,
         });
-        await linkStoredGenerationTask("image", task.id, resolvedBody.context || {});
+        await linkStoredGenerationTask("image", task.id, trustedContext);
         const cookie = request.headers.get("cookie") || "";
         const origin = resolveInternalOrigin(new URL(request.url).origin);
         const publicOrigin = requestPublicOrigin(request);

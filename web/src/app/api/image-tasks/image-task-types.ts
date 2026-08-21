@@ -60,7 +60,7 @@ export type ImageTaskResult = ImageTaskMediaResult & {
         reason: string;
     };
 };
-export type ImageTaskRunResult = ImageTaskResult & { pointsRemaining?: number; pointsCost?: number; pointsRecordId?: string };
+export type ImageTaskRunResult = ImageTaskResult & { pointsRemaining?: number; pointsCost?: number; billingReceiptId?: string };
 
 export type GeminiPart = {
     text?: string;

@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-08-20。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **221** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-08-21。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **239** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**221**
-- 方法出现次数：DELETE 28、GET 127、HEAD 6、PATCH 40、POST 112、PUT 1
-- 一级域：`admin` 70、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 3、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 13、`site-icon` 1、`teaching` 10、`text-tasks` 2、`video-generation-tasks` 1、`video-tasks` 2、`works` 7
+- Route 文件：**239**
+- 方法出现次数：DELETE 29、GET 140、HEAD 6、PATCH 44、POST 119、PUT 1
+- 一级域：`admin` 74、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 3、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 22、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 1、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（70）
+### `admin`（74）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -89,8 +89,12 @@
 | PATCH | `/api/admin/referrals/relationships/[id]` | 管理员 | [route.ts](web/src/app/api/admin/referrals/relationships/[id]/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 邀请返利 / 邀请关系 / 单项：更新 |
 | GET | `/api/admin/referrals/rewards` | 管理员 | [route.ts](web/src/app/api/admin/referrals/rewards/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 邀请返利 / 奖励：查询 |
 | POST | `/api/admin/referrals/settle` | 管理员 | [route.ts](web/src/app/api/admin/referrals/settle/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 邀请返利 / 结算：提交/执行 |
+| GET | `/api/admin/school-compute` | 管理员 | [route.ts](web/src/app/api/admin/school-compute/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-compute-domain](web/src/lib/school-compute-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / school-compute：查询 |
 | GET, POST | `/api/admin/schools` | 管理员 | [route.ts](web/src/app/api/admin/schools/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / schools：查询、提交/执行 |
 | GET, PATCH | `/api/admin/schools/[id]` | 管理员 | [route.ts](web/src/app/api/admin/schools/[id]/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / schools / 单项：查询、更新 |
+| GET, PATCH | `/api/admin/schools/[id]/compute` | 管理员 | [route.ts](web/src/app/api/admin/schools/[id]/compute/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / schools / 单项 / compute：查询、更新 |
+| POST | `/api/admin/schools/[id]/compute/credit` | 管理员 | [route.ts](web/src/app/api/admin/schools/[id]/compute/credit/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / schools / 单项 / compute / credit：提交/执行 |
+| GET | `/api/admin/schools/[id]/compute/ledger` | 管理员 | [route.ts](web/src/app/api/admin/schools/[id]/compute/ledger/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / schools / 单项 / compute / ledger：查询 |
 | GET, PATCH | `/api/admin/settings` | 管理员 | [route.ts](web/src/app/api/admin/settings/route.ts) | [admin-channel-config](web/src/lib/server/admin-channel-config.ts)<br>[site-metadata](web/src/lib/server/site-metadata.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 系统设置：查询、更新 |
 | POST | `/api/admin/settings/channels/[id]/api-key` | 管理员 | [route.ts](web/src/app/api/admin/settings/channels/[id]/api-key/route.ts) | [admin-channel-config](web/src/lib/server/admin-channel-config.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 系统设置 / 模型渠道 / 单项 / API Key：提交/执行 |
 | GET, POST | `/api/admin/users` | 管理员 | [route.ts](web/src/app/api/admin/users/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 用户：查询、提交/执行 |
@@ -121,7 +125,7 @@
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| DELETE, GET, HEAD, PATCH, POST, PUT | `/api/ai/system/[channelId]/[...path]` | 混合 | [route.ts](web/src/app/api/ai/system/[channelId]/[...path]/route.ts) | [media-proxy-service](web/src/lib/server/media-proxy-service.ts)<br>[generation-errors](web/src/lib/server/generation-errors.ts)<br>[generation-execution-policy](web/src/lib/server/generation-execution-policy.ts) | 模型上游、积分、媒体代理 | 模型代理 / 系统渠道 / 指定渠道 / 指定路径：查询、读取元数据、更新、删除、提交/执行、替换 |
+| DELETE, GET, HEAD, PATCH, POST, PUT | `/api/ai/system/[channelId]/[...path]` | 混合 | [route.ts](web/src/app/api/ai/system/[channelId]/[...path]/route.ts) | [generation-charge-service](web/src/lib/server/generation-charge-service.ts)<br>[media-proxy-service](web/src/lib/server/media-proxy-service.ts)<br>[generation-errors](web/src/lib/server/generation-errors.ts) | 模型上游、积分、媒体代理 | 模型代理 / 系统渠道 / 指定渠道 / 指定路径：查询、读取元数据、更新、删除、提交/执行、替换 |
 
 ### `announcements`（1）
 
@@ -217,7 +221,7 @@
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| POST | `/api/drama/analyze` | 用户 | [route.ts](web/src/app/api/drama/analyze/route.ts) | [drama-analysis](web/src/lib/server/drama-analysis.ts)<br>[drama-analysis-input](web/src/lib/server/drama-analysis-input.ts)<br>[logical-model-router](web/src/lib/server/logical-model-router.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 分析：提交/执行 |
+| POST | `/api/drama/analyze` | 用户 | [route.ts](web/src/app/api/drama/analyze/route.ts) | [generation-charge-service](web/src/lib/server/generation-charge-service.ts)<br>[drama-analysis](web/src/lib/server/drama-analysis.ts)<br>[drama-analysis-input](web/src/lib/server/drama-analysis-input.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 分析：提交/执行 |
 | GET, POST | `/api/drama/projects` | 用户 | [route.ts](web/src/app/api/drama/projects/route.ts) | [drama-project-service](web/src/lib/server/drama-project-service.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 项目：查询、提交/执行 |
 | DELETE, GET, PATCH | `/api/drama/projects/[id]` | 用户 | [route.ts](web/src/app/api/drama/projects/[id]/route.ts) | [drama-project-service](web/src/lib/server/drama-project-service.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 项目 / 单项：查询、更新、删除 |
 | DELETE | `/api/drama/projects/[id]/agent-conversations/[conversationId]` | 混合 | [route.ts](web/src/app/api/drama/projects/[id]/agent-conversations/[conversationId]/route.ts) | [drama-project-service](web/src/lib/server/drama-project-service.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 项目 / 单项 / Agent 对话 / 指定对话：删除 |
@@ -379,7 +383,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/referrals` | 用户 | [route.ts](web/src/app/api/referrals/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 邀请返利：查询 |
 
-### `school`（13）
+### `school`（22）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -387,6 +391,8 @@
 | DELETE, GET, PATCH | `/api/school/classes/[id]` | 用户 | [route.ts](web/src/app/api/school/classes/[id]/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL | school / classes / 单项：查询、更新、删除 |
 | GET | `/api/school/commercial-orders` | 用户 | [route.ts](web/src/app/api/school/commercial-orders/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / commercial-orders：查询 |
 | GET, PATCH | `/api/school/commercial-orders/[id]` | 用户 | [route.ts](web/src/app/api/school/commercial-orders/[id]/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / commercial-orders / 单项：查询、更新 |
+| GET | `/api/school/compute` | 用户 | [route.ts](web/src/app/api/school/compute/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / compute：查询 |
+| GET | `/api/school/compute/ledger` | 用户 | [route.ts](web/src/app/api/school/compute/ledger/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / compute / ledger：查询 |
 | GET | `/api/school/context` | 用户 | [route.ts](web/src/app/api/school/context/route.ts) | [school-access-service](web/src/lib/server/school-access-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / context：查询 |
 | GET | `/api/school/courses` | 用户 | [route.ts](web/src/app/api/school/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / courses：查询 |
 | GET, POST | `/api/school/courses/[id]/offerings` | 用户 | [route.ts](web/src/app/api/school/courses/[id]/offerings/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL | school / courses / 单项 / offerings：查询、提交/执行 |
@@ -395,6 +401,13 @@
 | GET, POST | `/api/school/members` | 用户 | [route.ts](web/src/app/api/school/members/route.ts) | [school-member-provisioning-service](web/src/lib/server/school-member-provisioning-service.ts)<br>[school-tenant-service](web/src/lib/server/school-tenant-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / members：查询、提交/执行 |
 | DELETE, PATCH | `/api/school/members/[id]` | 用户 | [route.ts](web/src/app/api/school/members/[id]/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL | school / members / 单项：更新、删除 |
 | POST | `/api/school/members/import` | 用户 | [route.ts](web/src/app/api/school/members/import/route.ts) | [school-member-provisioning-service](web/src/lib/server/school-member-provisioning-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL | school / members / 导入：提交/执行 |
+| GET, POST | `/api/school/production-groups` | 用户 | [route.ts](web/src/app/api/school/production-groups/route.ts) | [school-production-group-service](web/src/lib/server/school-production-group-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-compute-domain](web/src/lib/school-compute-domain.ts) | PostgreSQL | school / production-groups：查询、提交/执行 |
+| GET, PATCH | `/api/school/production-groups/[id]` | 用户 | [route.ts](web/src/app/api/school/production-groups/[id]/route.ts) | [school-production-group-service](web/src/lib/server/school-production-group-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-compute-domain](web/src/lib/school-compute-domain.ts) | PostgreSQL | school / production-groups / 单项：查询、更新 |
+| POST | `/api/school/production-groups/[id]/allocate` | 用户 | [route.ts](web/src/app/api/school/production-groups/[id]/allocate/route.ts) | [school-production-group-service](web/src/lib/server/school-production-group-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / production-groups / 单项 / allocate：提交/执行 |
+| GET, PATCH | `/api/school/production-groups/[id]/allocation-requests` | 用户 | [route.ts](web/src/app/api/school/production-groups/[id]/allocation-requests/route.ts) | [school-production-group-service](web/src/lib/server/school-production-group-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / production-groups / 单项 / allocation-requests：查询、更新 |
+| PATCH | `/api/school/production-groups/[id]/members` | 用户 | [route.ts](web/src/app/api/school/production-groups/[id]/members/route.ts) | [school-production-group-service](web/src/lib/server/school-production-group-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / production-groups / 单项 / members：更新 |
+| GET | `/api/school/production-groups/[id]/settlements` | 用户 | [route.ts](web/src/app/api/school/production-groups/[id]/settlements/route.ts) | [school-compute-settlement-service](web/src/lib/server/school-compute-settlement-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / production-groups / 单项 / settlements：查询 |
+| POST | `/api/school/production-groups/[id]/settlements/[settlementId]/confirm` | 用户 | [route.ts](web/src/app/api/school/production-groups/[id]/settlements/[settlementId]/confirm/route.ts) | [school-compute-settlement-service](web/src/lib/server/school-compute-settlement-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / production-groups / 单项 / settlements / [settlementId] / confirm：提交/执行 |
 | GET, PATCH | `/api/school/profile` | 用户 | [route.ts](web/src/app/api/school/profile/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL | school / 个人资料：查询、更新 |
 
 ### `site-icon`（1）
@@ -403,7 +416,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/site-icon` | 公开 | [route.ts](web/src/app/api/site-icon/route.ts) | [site-metadata](web/src/lib/server/site-metadata.ts) | PostgreSQL、公开内容/站点设置 | 站点图标：查询 |
 
-### `teaching`（10）
+### `teaching`（15）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -415,6 +428,11 @@
 | GET, POST | `/api/teaching/commercial-orders/[id]/submissions` | 用户 | [route.ts](web/src/app/api/teaching/commercial-orders/[id]/submissions/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / commercial-orders / 单项 / submissions：查询、提交/执行 |
 | GET | `/api/teaching/courses` | 用户 | [route.ts](web/src/app/api/teaching/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / courses：查询 |
 | GET | `/api/teaching/offerings` | 用户 | [route.ts](web/src/app/api/teaching/offerings/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / offerings：查询 |
+| GET | `/api/teaching/production-groups` | 用户 | [route.ts](web/src/app/api/teaching/production-groups/route.ts) | [school-production-group-service](web/src/lib/server/school-production-group-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / production-groups：查询 |
+| GET, POST | `/api/teaching/production-groups/[id]/allocation-requests` | 用户 | [route.ts](web/src/app/api/teaching/production-groups/[id]/allocation-requests/route.ts) | [school-production-group-service](web/src/lib/server/school-production-group-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / production-groups / 单项 / allocation-requests：查询、提交/执行 |
+| GET, POST | `/api/teaching/production-groups/[id]/personal-advances` | 用户 | [route.ts](web/src/app/api/teaching/production-groups/[id]/personal-advances/route.ts) | [school-compute-advance-service](web/src/lib/server/school-compute-advance-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / production-groups / 单项 / personal-advances：查询、提交/执行 |
+| DELETE, POST | `/api/teaching/production-groups/[id]/projects` | 用户 | [route.ts](web/src/app/api/teaching/production-groups/[id]/projects/route.ts) | [school-production-group-service](web/src/lib/server/school-production-group-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / production-groups / 单项 / 项目：删除、提交/执行 |
+| GET | `/api/teaching/project-billing` | 用户 | [route.ts](web/src/app/api/teaching/project-billing/route.ts) | [school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-compute-billing-context](web/src/lib/server/school-compute-billing-context.ts) | PostgreSQL、积分/商业事务 | teaching / project-billing：查询 |
 | GET | `/api/teaching/submissions` | 用户 | [route.ts](web/src/app/api/teaching/submissions/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / submissions：查询 |
 | POST | `/api/teaching/submissions/[id]/review` | 用户 | [route.ts](web/src/app/api/teaching/submissions/[id]/review/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | teaching / submissions / 单项 / 审核：提交/执行 |
 

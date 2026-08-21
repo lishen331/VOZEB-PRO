@@ -1,4 +1,4 @@
-import { getAuthSettings, refundUserPoints, type LogicalModelCapability } from "@/lib/auth/store";
+import { getAuthSettings, type LogicalModelCapability } from "@/lib/auth/store";
 import { withCreativeFoundation, type CreativeReview } from "@/lib/creative-agent-contract";
 import type { CreativeAsset, CreativeGenerationPreferences, CreativeSurface } from "@/lib/creative-runtime-contract";
 import { creativeAssetReferenceAliases } from "@/lib/creative-asset-references";
@@ -22,6 +22,8 @@ import { videoFrameAssetIds, type VideoReferenceRole } from "@/lib/video-referen
 import type { AgentFunctionCallResult } from "./agent-function-call";
 import { agentSurfaceImageSize, canvasReferenceContext, canvasReferenceSupportsTask, canvasSnapshotNodes, isMediaReferenceType, resolveAgentTaskRatio, resolveCanvasTaskTargetNodeId, selectedCanvasReferenceNodes } from "./agent-run-task-input";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders } from "./system-ai-billing";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
+import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import { acceptsMediaReference, mergeTaskReferences, taskImageUrls, taskReferences, textConstraintInstruction } from "./agent-run-execution-helpers";
 
 export { planToOps, taskResultOps } from "./agent-run-canvas-ops";
@@ -473,11 +475,12 @@ export async function requestFunctionCall(
     billingModel: string,
     allowNaturalLanguage = false,
     pointsIdempotencyKey?: string,
+    billingContext?: SchoolComputeBillingContext,
 ) {
     const requestHeaders = runtimeRequestHeaders(cookie, {
         "Content-Type": "application/json",
         ...(pointsIdempotencyKey ? { "Idempotency-Key": pointsIdempotencyKey, "X-Client-Request-Id": pointsIdempotencyKey } : {}),
-        ...systemAiBillingHeaders(billingModel, pointsIdempotencyKey, candidate.upstreamModel),
+        ...systemAiBillingHeaders(billingModel, pointsIdempotencyKey, candidate.upstreamModel, "production", billingContext),
     });
     const call = await requestStructuredText({
         origin,
@@ -516,12 +519,12 @@ export function readFunctionCallResult(argumentsText: string, headers: Headers, 
 }
 
 export async function refundFunctionCall(userId: string, model: string, call: AgentFunctionCallResult) {
-    if (hasSystemAiCharge(call)) await refundUserPoints(userId, model, call.pointsCost, "text", 1, undefined, call.pointsRecordId);
+    if (hasSystemAiCharge(call)) await refundGenerationCharge({ userId, receiptId: call.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `agent-plan-refund:${call.billingReceiptId}` });
 }
 
 export async function refundTextResponse(userId: string, model: string, headers: Headers) {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+    if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `agent-response-refund:${billing.billingReceiptId}` });
 }
 
 export async function runTaskWithRetry(runId: string, task: AgentRunTask, origin: string, cookie: string, executionId: string, settings?: Awaited<ReturnType<typeof getAuthSettings>>) {
@@ -642,7 +645,16 @@ export async function dispatchTask(task: AgentRunTask, origin: string, cookie: s
     const path = task.type === "image" ? "/api/image-tasks" : task.type === "video" ? "/api/video-generation-tasks" : task.type === "audio" ? "/api/audio-tasks" : "/api/text-tasks";
     const references = taskReferences(task);
     const source = run.surface === "canvas" ? "canvas" : run.surface === "drama" ? "drama" : "agent";
-    const context = { conversationId: run.conversationId, runId: run.id, surface: run.surface, projectId: run.projectId, parentTaskId: task.id, attemptNo: attempt, clientRequestId: `${run.clientRequestId}:${task.id}:${attempt}` };
+    const context = {
+        conversationId: run.conversationId,
+        runId: run.id,
+        surface: run.surface,
+        projectId: run.projectId,
+        billingContext: run.billingContext,
+        parentTaskId: task.id,
+        attemptNo: attempt,
+        clientRequestId: `${run.clientRequestId}:${task.id}:${attempt}`,
+    };
     const body =
         task.type === "image"
             ? {
@@ -741,6 +753,7 @@ export function linkAgentChildTask(run: AgentRun, task: AgentRunTask, taskId: st
         runId: run.id,
         surface: run.surface,
         projectId: run.projectId,
+        billingContext: run.billingContext,
         parentTaskId: run.id,
         attemptNo: attempt,
     });

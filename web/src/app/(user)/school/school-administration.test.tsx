@@ -19,6 +19,8 @@ describe("school administration", () => {
         expect(source).toContain("班级管理");
         expect(source).toContain("课程安排");
         expect(source).toContain("商单");
+        expect(source).toContain("ProductionGroupsPanel");
+        expect(source).toContain("制作小组与算力");
         expect(source).toContain("commercialOrdersApi.listSchoolCommercialOrders");
         expect(source).toContain("commercialOrdersApi.configureCommercialOrder");
         expect(source).toContain("commercialOrdersApi.startCommercialOrder");

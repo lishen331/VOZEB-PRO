@@ -258,6 +258,16 @@ PayPly 下单由服务端向 `VOZEB_PRO_PAYPLY_CHECKOUT_URL` 发起请求，密�
 
 支付宝 `official` 与 `face_to_face` 共用 `/api/billing/webhooks/alipay`、支付宝公钥验签和 `alipay.trade.refund` 整单退款。切换模式只影响后续新建 Checkout；已经创建且尚未过期的订单继续使用订单元数据中的原支付表单或二维码。生产启用当面付前仍需使用真实支付宝沙箱/商户能力验证预下单、扫码、异步通知、迟到通知、退款和账单对账。
 
+## 学校算力池与制作小组
+
+学校算力域由九张 PostgreSQL 表组成：`school_compute_pools`、`school_compute_ledger_entries`、`school_production_groups`、`school_production_group_members`、`school_compute_allocation_requests`、`school_compute_group_projects`、`school_compute_personal_advances`、`school_compute_settlements` 和 `school_compute_consumptions`。`commercial_orders.production_group_id` 与 `assigned_school_id` 通过复合外键绑定同一学校的小组；小组成员、项目关联、垫付、结算和扣费明细也都保留 `school_id`，所有 Repository 读取同时按学校和实体 ID 定向过滤。
+
+算力点数使用 `numeric(18,2)`，池余额、学校分配、小组余额、个人垫付和扣费明细均有非负及消耗关系 CHECK；`school_compute_ledger_entries.idempotency_key` 全局唯一，未结算项目关联按 `project_type + project_id` 建立部分唯一索引。生成扣费明细保存稳定生成身份、请求指纹、来源类型和来源 ID，退款只按原明细恢复学校额度或个人垫付，不重新计算模型价格。
+
+PostgreSQL 下，池/小组/垫付/生成消费/结算确认使用同一个显式事务和必要的行锁；幂等操作使用事务级 advisory lock。平台验收 `accepted` 商单时，订单状态、交付状态、未使用个人垫付返还、已使用垫付待确认和结算记录在同一事务中完成；学校确认返还再次使用 settlement/advance 幂等键，重复确认不会重复增加永久积分。文件 Provider 同时锁定 `auth.json`、`school-domain.json` 和 `school-compute.json`，任一写入失败都会恢复三份原始快照。
+
+学校管理员接口只返回本校池、小组、商单和结算数据；老师/学生接口按当前 active membership 定向读取所属小组。用户身份在结算 DTO 中只返回公开 `accountId` 和 `displayName`，不把 membership 或内部用户 UUID 暴露给浏览器。Canvas 和短剧只有存在可信的小组/商单项目关联时才显示算力来源；无限练习不进入学校算力扣费链路。
+
 # Agent 任务
 
 创作 Agent Run 复用 `generation_tasks` 持久化，`task_type = agent`，JSON payload 保存会话 ID、Surface、可选项目、用户需求、运行状态和任务计划；事件写入 `creative_run_events`，生成结果登记到 `creative_assets`。图片、视频、音频和文本子任务继续使用现有任务类型，并写入父 Run、会话、项目和尝试次数关联。真实执行状态以后端记录为准，画布节点 metadata 仅承担展示和关联。

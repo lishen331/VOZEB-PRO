@@ -6,6 +6,7 @@ import type { GenerationAttempt } from "@/lib/server/generation-attempt";
 import type { GenerationLogSource } from "@/lib/server/generation-log-store";
 import { countActiveStoredGenerationTasks, createStoredGenerationTask, getStoredGenerationTask, mutateStoredGenerationTask, touchStoredGenerationTask, transitionStoredGenerationTask, type GenerationTaskContext } from "@/lib/server/generation-task-store";
 import { GENERATION_TASK_RETENTION_MS } from "@/lib/server/generation-task-retention";
+import type { StoredTaskBilling } from "@/lib/server/generation-task-types";
 
 type ImageTaskKind = "generation" | "edit";
 type ImageTaskStatus = "pending" | "running" | "success" | "error" | "cancelled";
@@ -63,7 +64,7 @@ export type ImageTask = GenerationTaskContext & {
     mask?: ImageTaskReference;
     result?: StoredImageTaskMediaResult & { results?: StoredImageTaskMediaResult[] };
     upstream?: { id: string; mediaBaseUrl: string; pollBaseUrl: string; explicitPollUrl?: string };
-    billing?: { pointsCost: number; pointsRecordId?: string; refunded: boolean };
+    billing?: StoredTaskBilling;
     error?: string;
     retryable?: boolean;
     pointsRemaining?: number;

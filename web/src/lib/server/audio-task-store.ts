@@ -4,6 +4,7 @@ import { createStoredGenerationTask, getStoredGenerationTask, mutateStoredGenera
 import type { LogicalModelCapabilityProfile, SystemChannelAdvancedConfig } from "@/lib/auth/store";
 import type { GenerationAttempt } from "@/lib/server/generation-attempt";
 import { GENERATION_TASK_RETENTION_MS } from "@/lib/server/generation-task-retention";
+import type { StoredTaskBilling } from "@/lib/server/generation-task-types";
 
 export type AudioTaskConfig = {
     executionProfile?: PracticeExecutionProfile;
@@ -32,7 +33,7 @@ export type AudioTask = GenerationTaskContext & {
     source?: string;
     upstream?: { id: string; createPath: string };
     result?: { url: string; mimeType: string };
-    billing?: { pointsCost: number; pointsRecordId?: string; refunded: boolean };
+    billing?: StoredTaskBilling;
     error?: string;
     candidateConfigs?: AudioTaskConfig[];
     attempts?: GenerationAttempt[];

@@ -7,7 +7,7 @@ import { canvasPlan, canvasSettings, conversationPlan, creativeImageAsset, disab
 const mocks = vi.hoisted(() => ({
     fetchInternalApi: vi.fn(),
     getAuthSettings: vi.fn(),
-    refundUserPoints: vi.fn(async () => undefined),
+    refundGenerationCharge: vi.fn(async () => ({ refunded: true })),
     getCreativeAssetsByIds: vi.fn(async (_ids: string[] = []): Promise<Array<Record<string, unknown>>> => []),
     listRecentCreativeMediaAssets: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []),
     getCreativeConversationContext: vi.fn(async (): Promise<CreativeConversationContext> => ({ summary: "", summaryThroughSequence: 0, recentMessages: [] })),
@@ -23,8 +23,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/store", () => ({
     getAuthSettings: mocks.getAuthSettings,
-    refundUserPoints: mocks.refundUserPoints,
 }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refundGenerationCharge }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi }));
 vi.mock("@/lib/server/creative-runtime-store", () => ({
     getCreativeAssetsByIds: mocks.getCreativeAssetsByIds,
@@ -301,6 +301,8 @@ describe("executeAgentRun backend settings", () => {
             },
             { id: "text-later", title: "文本续写", type: "text", prompt: "续写世界观设定", model: "planner", count: 1, dependencies: [], status: "ready", attempts: 0 },
         ]);
+        const billingContext = { schoolId: "school-a", groupId: "group-a", orderId: "order-a", projectType: "canvas" as const, projectId: "project" };
+        mocks.run = { ...mocks.run, billingContext };
         mocks.getAuthSettings.mockResolvedValue(settings("image-model", "image-channel"));
         mocks.fetchInternalApi.mockImplementation(async (url: string, init?: RequestInit) => {
             if (init?.method === "POST" && url.endsWith("/api/text-tasks")) return Response.json({ task: { id: "child-text" } });
@@ -317,11 +319,13 @@ describe("executeAgentRun backend settings", () => {
                 runId: "agent-run",
                 surface: "canvas",
                 projectId: "project",
+                billingContext,
                 parentTaskId: "text-later",
                 attemptNo: 1,
                 clientRequestId: "request:text-later:1:1",
             },
         });
+        expect(mocks.linkStoredGenerationTask).toHaveBeenCalledWith("text", "child-text", expect.objectContaining({ billingContext }));
     });
 
     it("persists every child result for a multi-copy image task", async () => {
@@ -527,7 +531,7 @@ describe("executeAgentRun backend settings", () => {
         const plan = canvasPlan("image-creative");
         mocks.fetchInternalApi.mockImplementation(async (url: string, init?: RequestInit) => {
             if (url.endsWith("/responses")) return new Response("unsupported endpoint", { status: 404 });
-            if (url.endsWith("/chat/completions")) return Response.json({ choices: [{ message: { content: JSON.stringify(plan) } }] }, { headers: { "x-vozeb-pro-points-cost": "1.25", "x-vozeb-pro-points-record-id": "points-plan" } });
+            if (url.endsWith("/chat/completions")) return Response.json({ choices: [{ message: { content: JSON.stringify(plan) } }] }, { headers: { "x-vozeb-pro-points-cost": "1.25", "x-vozeb-pro-billing-receipt-id": "school:plan" } });
             if (init?.method === "POST" && url.endsWith("/api/image-tasks")) return Response.json({ task: { id: "child-planned" } });
             if (url.endsWith("/api/image-tasks/child-planned")) return Response.json({ task: { status: "success", result: { url: "https://cdn.example.com/planned.png" } } });
             throw new Error(`unexpected request: ${url}`);
@@ -554,7 +558,7 @@ describe("executeAgentRun backend settings", () => {
             protocol: "chat",
             elapsedMs: expect.any(Number),
             pointsCost: 1.25,
-            pointsRecordId: "points-plan",
+            billingReceiptId: "school:plan",
             skills: [
                 {
                     id: "skill-one",
@@ -705,7 +709,7 @@ describe("executeAgentRun backend settings", () => {
 
         expect(mocks.run?.status).toBe("completed");
         expect(mocks.events.find((event) => event.type === "run.completed")?.data).toMatchObject({ completed: 0, reply: "在的，你可以直接告诉我想创作什么。" });
-        expect(mocks.refundUserPoints).not.toHaveBeenCalled();
+        expect(mocks.refundGenerationCharge).not.toHaveBeenCalled();
     });
 
     it("rejects an unstructured prose planner response instead of pretending generation completed", async () => {
@@ -1084,13 +1088,13 @@ describe("executeAgentRun backend settings", () => {
         mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
         mocks.fetchInternalApi.mockImplementation(async (url: string) => {
             if (url.endsWith("/responses")) return new Response("unsupported endpoint", { status: 404 });
-            if (url.endsWith("/chat/completions")) return Response.json({ choices: [{ message: { content: "我建议使用横版构图。" } }] }, { headers: { "x-vozeb-pro-points-cost": "2", "x-vozeb-pro-points-record-id": "points-agent-plan" } });
+            if (url.endsWith("/chat/completions")) return Response.json({ choices: [{ message: { content: "我建议使用横版构图。" } }] }, { headers: { "x-vozeb-pro-points-cost": "2", "x-vozeb-pro-billing-receipt-id": "school:agent-plan" } });
             throw new Error(`unexpected request: ${url}`);
         });
 
         await executeAgentRun(mocks.run, "http://localhost", "session=test");
 
-        expect(mocks.refundUserPoints).toHaveBeenCalledWith("user", "planner", 2, "text", 1, undefined, "points-agent-plan");
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledWith({ userId: "user", receiptId: "school:agent-plan", model: "planner", usageKind: "text", units: 1, idempotencyKey: expect.any(String) });
         expect(mocks.run?.status).toBe("failed");
     });
 
@@ -1100,7 +1104,7 @@ describe("executeAgentRun backend settings", () => {
         mocks.fetchInternalApi.mockResolvedValue(
             Response.json(
                 { output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify(conversationPlan("image-default", "在的。")) }] },
-                { headers: { "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-points-record-id": "points-agent-free" } },
+                { headers: { "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-billing-receipt-id": "school:agent-free" } },
             ),
         );
         mocks.updateAgentRunById.mockImplementation(async (_id, patch, event, allowedStatuses, expectedExecutionId) => {
@@ -1113,7 +1117,7 @@ describe("executeAgentRun backend settings", () => {
 
         await executeAgentRun(mocks.run, "http://localhost", "session=test");
 
-        expect(mocks.refundUserPoints).toHaveBeenCalledWith("user", "planner", 0, "text", 1, undefined, "points-agent-free");
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledWith({ userId: "user", receiptId: "school:agent-free", model: "planner", usageKind: "text", units: 1, idempotencyKey: expect.any(String) });
         expect(mocks.run?.status).toBe("failed");
     });
 
@@ -1124,13 +1128,13 @@ describe("executeAgentRun backend settings", () => {
             mocks.run = mocks.run ? { ...mocks.run, status: "cancelled" } : null;
             return Response.json(
                 { output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify(conversationPlan("image-default", "在的。")) }] },
-                { headers: { "x-vozeb-pro-points-cost": "3", "x-vozeb-pro-points-record-id": "points-agent-cancelled" } },
+                { headers: { "x-vozeb-pro-points-cost": "3", "x-vozeb-pro-billing-receipt-id": "school:agent-cancelled" } },
             );
         });
 
         await executeAgentRun(mocks.run, "http://localhost", "session=test");
 
-        expect(mocks.refundUserPoints).toHaveBeenCalledWith("user", "planner", 3, "text", 1, undefined, "points-agent-cancelled");
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledWith({ userId: "user", receiptId: "school:agent-cancelled", model: "planner", usageKind: "text", units: 1, idempotencyKey: expect.any(String) });
         expect(mocks.run?.status).toBe("cancelled");
     });
 });

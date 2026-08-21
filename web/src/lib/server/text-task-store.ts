@@ -6,6 +6,7 @@ import { createStoredGenerationTask, getStoredGenerationTask, mutateStoredGenera
 import type { GenerationAttempt } from "@/lib/server/generation-attempt";
 import { GENERATION_TASK_RETENTION_MS } from "@/lib/server/generation-task-retention";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
+import type { StoredTaskBilling } from "@/lib/server/generation-task-types";
 
 type TextTaskStatus = "pending" | "running" | "success" | "error" | "cancelled";
 
@@ -33,7 +34,7 @@ export type TextTask = GenerationTaskContext & {
     messages: AiTextMessage[];
     result?: { content: string };
     upstream?: { id: string; createPath: string };
-    billing?: { pointsCost: number; pointsRecordId?: string; refunded: boolean };
+    billing?: StoredTaskBilling;
     error?: string;
     pointsRemaining?: number;
     candidateConfigs?: TextTaskConfig[];
