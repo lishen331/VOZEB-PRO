@@ -453,14 +453,13 @@ export function DramaWorkflowLabProject({
                                 </div>
                             );
                         })}
-                    </div>
-                    <div className={cn("shrink-0 border-t border-border p-2", sidebarCollapsed && "px-1")}>
                         <Button
                             type="text"
                             block={!sidebarCollapsed}
                             size="small"
                             aria-label="新增剧集"
                             title="新增剧集"
+                            className={cn("mt-2", sidebarCollapsed ? "w-full" : "justify-start px-3")}
                             icon={<Plus className="size-4" />}
                             onClick={addEpisode}
                         >
