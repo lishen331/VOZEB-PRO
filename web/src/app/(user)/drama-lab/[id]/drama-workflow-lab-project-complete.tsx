@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createDramaScriptTaskRequest } from "@/lib/drama-script-task-request";
 import { cn } from "@/lib/utils";
 
 const { TextArea } = Input;
@@ -595,30 +596,17 @@ ${storyOutline}
             const response = await fetch("/api/text-tasks", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    config: {
-                        model: "deepseek-chat",
-                    },
-                    context: {
-                        surface: "drama",
-                        projectId: project.id,
-                        episodeId: activeEpisode?.id,
-                        clientRequestId: `drama-script:${project.id}:${activeEpisode?.id || "episode"}:${Date.now()}`,
-                    },
-                    messages: [
-                        {
-                            role: "user",
-                            content: prompt,
-                        },
-                    ],
-                }),
+                body: JSON.stringify(createDramaScriptTaskRequest({
+                    projectId: project.id,
+                    episodeId: activeEpisode?.id,
+                    prompt,
+                    requestId: `drama-script:${project.id}:${activeEpisode?.id || "episode"}:${Date.now()}`,
+                })),
             });
 
             const data = await response.json();
 
             if (data.task) {
-                pollScriptTask(data.task.id);
-                // 轮询任务状态
                 pollScriptTask(data.task.id);
             } else {
                 throw new Error(data.error || "生成失败");
