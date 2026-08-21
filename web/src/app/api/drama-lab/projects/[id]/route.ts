@@ -179,8 +179,39 @@ function legacyShotToEpisodeShot(value: unknown, index: number, currentShots: un
             ...(typeof shot.sceneId === "string" ? { sceneId: shot.sceneId } : {}),
             ...(imageUrl ? { storyboardImageUrl: imageUrl } : {}),
             ...(typeof shot.videoUrl === "string" ? { videoUrl: shot.videoUrl } : {}),
+            ...pickStoryboardWorkflowFields(shot),
         },
     ];
+}
+
+function pickStoryboardWorkflowFields(shot: Record<string, unknown>) {
+    const keys = [
+        "title",
+        "description",
+        "sourceText",
+        "shotBoundary",
+        "dialogue",
+        "narration",
+        "utterances",
+        "imagePrompt",
+        "videoPrompt",
+        "cameraMotion",
+        "continuity",
+        "storyboardStatus",
+        "storyboardAttempt",
+        "storyboardTaskId",
+        "storyboardError",
+        "storyboardImageUrl",
+        "storyboardImageWidth",
+        "storyboardImageHeight",
+        "storyboardHistory",
+        "generationStatus",
+        "generationAttempt",
+        "generationTaskId",
+        "generationError",
+        "videoHistory",
+    ];
+    return Object.fromEntries(keys.filter((key) => shot[key] !== undefined).map((key) => [key, shot[key]]));
 }
 
 /**

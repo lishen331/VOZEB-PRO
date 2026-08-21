@@ -31,12 +31,14 @@ export function DramaLabVisualAssetsPanel({
     project,
     episode,
     onSave,
+    onReload,
     onLocateShot,
     messageApi,
 }: {
     project: Project;
     episode?: Episode;
     onSave: (updates: Partial<Project>) => Promise<boolean>;
+    onReload: () => Promise<void>;
     onLocateShot: (episodeId: string, shotId: string) => void;
     messageApi: MessageInstance;
 }) {
@@ -239,24 +241,11 @@ export function DramaLabVisualAssetsPanel({
         const requestKey = `shot:${shot.id}`;
         setBusyKey(requestKey);
         try {
-            const references = dramaLabShotReferenceImages(project, shot);
-            const prompt = dramaLabShotPrompt(project, shot);
-            const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: project.aspectRatio || config.size, count: "1" };
-            const task = await createImageGenerationTask(imageConfig, prompt, references, undefined, {
-                logSource: "drama",
-                logTitle: `${project.title} · 分镜 ${shot.shotNumber}`,
-                surface: "drama",
-                projectId: project.id,
-                episodeId: shot.episodeId,
-                shotId: shot.id,
-                clientRequestId: `drama-lab-shot:${project.id}:${shot.id}:${nanoid()}`,
-            });
-            const result = await waitForImageGenerationTask(imageConfig, task);
-            const imageUrl = stableImageUrl(result);
-            if (!imageUrl) throw new Error("生成结果没有可持久化图片地址");
-            const updated = project.shots.map((item) => (item.id === shot.id ? { ...item, imageUrl, status: "image_generated" as const } : item));
-            if (!(await onSave({ shots: updated }))) throw new Error("项目保存失败");
-            messageApi.success(`分镜 ${shot.shotNumber} 已按最新主参考图重生成`);
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-image?episodeId=${encodeURIComponent(shot.episodeId)}`, { method: "POST" });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.code !== 0) throw new Error(data.msg || "分镜图任务创建失败");
+            await onReload();
+            messageApi.success(`分镜 ${shot.shotNumber} 已按最新主参考图提交重生成`);
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "分镜重生成失败");
         } finally {
@@ -298,7 +287,17 @@ export function DramaLabVisualAssetsPanel({
                                         return (
                                             <article key={asset.id} className="overflow-hidden rounded-md border border-border bg-card" data-drama-lab-asset-card={asset.id}>
                                                 <div className={`relative grid ${meta.aspect} place-items-center overflow-hidden bg-muted/50`}>
-                                                    {primary?.url ? <Image src={imagePreviewUrl(primary.url, 640)} alt={`${asset.name}主参考图`} rootClassName="!block !size-full" className="!size-full !object-cover" preview={{ src: imagePreviewUrl(primary.url, 1920) }} /> : <ImagePlus className="size-7 text-muted-foreground" />}
+                                                    {primary?.url ? (
+                                                        <Image
+                                                            src={imagePreviewUrl(primary.url, 640)}
+                                                            alt={`${asset.name}主参考图`}
+                                                            rootClassName="!block !size-full"
+                                                            className="!size-full !object-cover"
+                                                            preview={{ src: imagePreviewUrl(primary.url, 1920) }}
+                                                        />
+                                                    ) : (
+                                                        <ImagePlus className="size-7 text-muted-foreground" />
+                                                    )}
                                                     {!primary ? <span className="absolute bottom-2 rounded bg-background/90 px-2 py-1 text-xs text-muted-foreground">待补主参考图</span> : null}
                                                 </div>
                                                 <div className="p-3">
@@ -328,12 +327,24 @@ export function DramaLabVisualAssetsPanel({
                                                             {references.map((reference) => {
                                                                 const isPrimary = reference.id === primary?.id;
                                                                 return (
-                                                                    <div key={reference.id} className={`group/reference relative size-11 shrink-0 overflow-hidden rounded border ${isPrimary ? "border-foreground ring-1 ring-foreground/20" : "border-border"}`}>
+                                                                    <div
+                                                                        key={reference.id}
+                                                                        className={`group/reference relative size-11 shrink-0 overflow-hidden rounded border ${isPrimary ? "border-foreground ring-1 ring-foreground/20" : "border-border"}`}
+                                                                    >
                                                                         <button type="button" className="block size-full" onClick={() => void setPrimary(asset, reference)} title={isPrimary ? "当前主参考图" : "设为主参考图"}>
                                                                             <img src={imagePreviewUrl(reference.url, 128)} alt={reference.label} className="size-full object-cover" />
                                                                         </button>
-                                                                        {isPrimary ? <span className="absolute left-0 top-0 grid size-4 place-items-center bg-foreground text-background"><Check className="size-2.5" /></span> : null}
-                                                                        <button type="button" className="absolute bottom-0 right-0 grid size-4 place-items-center bg-background/90 text-muted-foreground opacity-0 transition group-hover/reference:opacity-100 hover:text-rose-600" onClick={() => void removeReference(asset, reference.id)} aria-label="删除参考图">
+                                                                        {isPrimary ? (
+                                                                            <span className="absolute left-0 top-0 grid size-4 place-items-center bg-foreground text-background">
+                                                                                <Check className="size-2.5" />
+                                                                            </span>
+                                                                        ) : null}
+                                                                        <button
+                                                                            type="button"
+                                                                            className="absolute bottom-0 right-0 grid size-4 place-items-center bg-background/90 text-muted-foreground opacity-0 transition group-hover/reference:opacity-100 hover:text-rose-600"
+                                                                            onClick={() => void removeReference(asset, reference.id)}
+                                                                            aria-label="删除参考图"
+                                                                        >
                                                                             <Trash2 className="size-2.5" />
                                                                         </button>
                                                                     </div>
@@ -352,7 +363,13 @@ export function DramaLabVisualAssetsPanel({
                                                                         <button type="button" className="truncate px-2 py-1 hover:bg-muted" onClick={() => onLocateShot(shot.episodeId, shot.id)}>
                                                                             #{shot.shotNumber}
                                                                         </button>
-                                                                        <button type="button" className="border-l border-border px-1.5 py-1 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => void regenerateShot(shot)} disabled={busyKey === `shot:${shot.id}`} aria-label={`重生成分镜 ${shot.shotNumber}`}>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="border-l border-border px-1.5 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                                            onClick={() => void regenerateShot(shot)}
+                                                                            disabled={busyKey === `shot:${shot.id}`}
+                                                                            aria-label={`重生成分镜 ${shot.shotNumber}`}
+                                                                        >
                                                                             {busyKey === `shot:${shot.id}` ? <span className="text-[10px]">...</span> : <Sparkles className="size-3" />}
                                                                         </button>
                                                                     </div>
@@ -395,8 +412,18 @@ export function DramaLabVisualAssetsPanel({
                         const imageAsset = asset.kind === "image" ? asset : undefined;
                         const url = imageAsset?.data.serverUrl || imageAsset?.data.remoteUrl || imageAsset?.data.dataUrl || asset.coverUrl;
                         return (
-                            <List.Item actions={[<Button key="add" type="link" loading={busyKey === `library:${asset.id}`} onClick={() => void importLibraryAsset(asset)}>添加</Button>]}>
-                                <List.Item.Meta avatar={url ? <img src={imagePreviewUrl(url, 96)} alt="" className="size-10 rounded object-cover" /> : <Images className="size-5 text-muted-foreground" />} title={asset.title} description={asset.note || asset.tags.join("、") || "图片素材"} />
+                            <List.Item
+                                actions={[
+                                    <Button key="add" type="link" loading={busyKey === `library:${asset.id}`} onClick={() => void importLibraryAsset(asset)}>
+                                        添加
+                                    </Button>,
+                                ]}
+                            >
+                                <List.Item.Meta
+                                    avatar={url ? <img src={imagePreviewUrl(url, 96)} alt="" className="size-10 rounded object-cover" /> : <Images className="size-5 text-muted-foreground" />}
+                                    title={asset.title}
+                                    description={asset.note || asset.tags.join("、") || "图片素材"}
+                                />
                             </List.Item>
                         );
                     }}
@@ -406,19 +433,64 @@ export function DramaLabVisualAssetsPanel({
     );
 }
 
-function AssetEditorModal({ editor, busy, uploadInputRef, onClose, onChange, onSave, onUpload, onUploadFile }: { editor?: EditorState; busy: boolean; uploadInputRef: RefObject<HTMLInputElement | null>; onClose: () => void; onChange: (asset: VisualAsset) => void; onSave: () => void; onUpload: () => void; onUploadFile: (file?: File) => void }) {
+function AssetEditorModal({
+    editor,
+    busy,
+    uploadInputRef,
+    onClose,
+    onChange,
+    onSave,
+    onUpload,
+    onUploadFile,
+}: {
+    editor?: EditorState;
+    busy: boolean;
+    uploadInputRef: RefObject<HTMLInputElement | null>;
+    onClose: () => void;
+    onChange: (asset: VisualAsset) => void;
+    onSave: () => void;
+    onUpload: () => void;
+    onUploadFile: (file?: File) => void;
+}) {
     const asset = editor?.asset;
     const label = editor ? ASSET_META[editor.kind].label : "资产";
     if (!asset) return null;
     const profile = asset.profile || EMPTY_PROFILE;
     return (
-        <Modal title={asset.id ? `编辑${label}` : `新增${label}`} open footer={<div className="flex justify-between"><Button icon={<Upload className="size-3.5" />} loading={busy} onClick={onUpload}>上传参考图</Button><div className="flex gap-2"><Button onClick={onClose}>取消</Button><Button type="primary" onClick={onSave}>保存</Button></div></div>} onCancel={onClose} destroyOnHidden>
+        <Modal
+            title={asset.id ? `编辑${label}` : `新增${label}`}
+            open
+            footer={
+                <div className="flex justify-between">
+                    <Button icon={<Upload className="size-3.5" />} loading={busy} onClick={onUpload}>
+                        上传参考图
+                    </Button>
+                    <div className="flex gap-2">
+                        <Button onClick={onClose}>取消</Button>
+                        <Button type="primary" onClick={onSave}>
+                            保存
+                        </Button>
+                    </div>
+                </div>
+            }
+            onCancel={onClose}
+            destroyOnHidden
+        >
             <div className="grid gap-3">
-                <label className="grid gap-1.5 text-sm"><span>{label}名称</span><Input value={asset.name} onChange={(event) => onChange({ ...asset, name: event.target.value })} /></label>
-                <label className="grid gap-1.5 text-sm"><span>文字设定</span><Input.TextArea rows={3} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value })} /></label>
+                <label className="grid gap-1.5 text-sm">
+                    <span>{label}名称</span>
+                    <Input value={asset.name} onChange={(event) => onChange({ ...asset, name: event.target.value })} />
+                </label>
+                <label className="grid gap-1.5 text-sm">
+                    <span>文字设定</span>
+                    <Input.TextArea rows={3} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value })} />
+                </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                     {(["visualIdentity", "styling", "colorPalette", "consistencyRules"] as const).map((key) => (
-                        <label key={key} className="grid gap-1.5 text-sm"><span>{profileLabel(key)}</span><Input value={profile[key]} onChange={(event) => onChange({ ...asset, profile: { ...profile, [key]: event.target.value } })} /></label>
+                        <label key={key} className="grid gap-1.5 text-sm">
+                            <span>{profileLabel(key)}</span>
+                            <Input value={profile[key]} onChange={(event) => onChange({ ...asset, profile: { ...profile, [key]: event.target.value } })} />
+                        </label>
                     ))}
                 </div>
             </div>
@@ -464,37 +536,13 @@ function assetReferencePrompt(project: Project, asset: VisualAsset, kind: AssetK
         profile?.colorPalette ? `固定色彩：${profile.colorPalette}` : "",
         profile?.consistencyRules ? `一致性规则：${profile.consistencyRules}` : "",
         kind === "characters" ? "完整人物设定视图，五官、体型和服装清晰，干净中性背景，不添加文字。" : "主体结构清晰，便于后续镜头稳定引用，不添加文字。",
-    ].filter(Boolean).join("\n");
+    ]
+        .filter(Boolean)
+        .join("\n");
 }
 
 function shotAssetIds(shot: Shot) {
     return [shot.sceneId, ...shot.characterIds, ...(shot.propIds || [])].filter((value): value is string => Boolean(value));
-}
-
-export function dramaLabShotReferenceImages(project: Project, shot: Shot) {
-    const assets = [project.scenes.find((asset) => asset.id === shot.sceneId), ...shot.characterIds.map((id) => project.characters.find((asset) => asset.id === id)), ...(shot.propIds || []).map((id) => project.props.find((asset) => asset.id === id))];
-    const used = new Set<string>();
-    return assets.flatMap((asset) => {
-        if (!asset) return [];
-        const reference = dramaAssetPrimaryReference(asset);
-        if (!reference || used.has(reference.url)) return [];
-        used.add(reference.url);
-        return [{ id: reference.id, name: reference.label, type: "image/png", dataUrl: reference.url, url: reference.url, storageKey: reference.storageKey, width: reference.width, height: reference.height, ...(reference.url.startsWith("/") ? { serverUrl: reference.url } : { remoteUrl: reference.url }) }];
-    });
-}
-
-export function dramaLabShotPrompt(project: Project, shot: Shot) {
-    const scene = project.scenes.find((asset) => asset.id === shot.sceneId);
-    const characters = project.characters.filter((asset) => shot.characterIds.includes(asset.id));
-    const props = project.props.filter((asset) => (shot.propIds || []).includes(asset.id));
-    return [
-        project.style ? `统一风格：${project.style}` : "",
-        scene ? `场景设定：${scene.name || scene.location} ${scene.description || ""}` : "",
-        characters.length ? `角色设定：${characters.map((asset) => `${asset.name} ${asset.description || ""}`).join("；")}` : "",
-        props.length ? `道具设定：${props.map((asset) => `${asset.name} ${asset.description || ""}`).join("；")}` : "",
-        `镜头内容：${shot.imagePrompt || shot.script}`,
-        "严格保持参考图中的角色、场景与道具形态一致，不添加未设定主体或文字。",
-    ].filter(Boolean).join("\n");
 }
 
 async function saveToLibrary(asset: VisualAsset, label: string, messageApi: MessageInstance) {
@@ -508,7 +556,16 @@ async function saveToLibrary(asset: VisualAsset, label: string, messageApi: Mess
             tags: ["短剧", label],
             source: "短剧实验室",
             note: asset.description || "",
-            data: { dataUrl: primary.url, storageKey: primary.storageKey, serverUrl: primary.url.startsWith("/") ? primary.url : undefined, remoteUrl: /^https?:\/\//i.test(primary.url) ? primary.url : undefined, width: primary.width || 1, height: primary.height || 1, bytes: 0, mimeType: "image/png" },
+            data: {
+                dataUrl: primary.url,
+                storageKey: primary.storageKey,
+                serverUrl: primary.url.startsWith("/") ? primary.url : undefined,
+                remoteUrl: /^https?:\/\//i.test(primary.url) ? primary.url : undefined,
+                width: primary.width || 1,
+                height: primary.height || 1,
+                bytes: 0,
+                mimeType: "image/png",
+            },
         });
         messageApi.success("已加入素材库");
     } catch (error) {

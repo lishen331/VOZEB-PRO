@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, Drawer, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Upload, Radio } from "antd";
+import { Alert, Button, Drawer, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Radio } from "antd";
 import {
     ArrowLeft,
     Plus,
@@ -33,11 +33,9 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Asset } from "@/lib/library-asset-contract";
-import { createImageGenerationTask, waitForImageGenerationTask } from "@/services/api/image";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
-import { useEffectiveConfig } from "@/stores/use-config-store";
 import { cn } from "@/lib/utils";
-import { DramaLabVisualAssetsPanel, dramaLabShotPrompt, dramaLabShotReferenceImages } from "./drama-lab-visual-assets-panel";
+import { DramaLabVisualAssetsPanel } from "./drama-lab-visual-assets-panel";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -46,8 +44,7 @@ const { Option } = Select;
 const WORKFLOW_STEPS = [
     { key: "script", label: "剧本", icon: FileText },
     { key: "assets", label: "资产准备", icon: Users },
-    { key: "storyboard", label: "分镜", icon: Film },
-    { key: "generate", label: "镜头生成", icon: Film },
+    { key: "storyboard", label: "分镜工作台", icon: Film },
     { key: "review", label: "内容审核", icon: FileText },
     { key: "export", label: "成片导出", icon: Download },
 ] as const;
@@ -64,7 +61,7 @@ const COLLABORATION_STAGES: Array<{ key: CollaborationStageKey; label: string; s
     { key: "script", label: "剧本审核", step: "script", description: "故事梗概、分集剧本与人物情节表达" },
     { key: "asset_prompts", label: "资产提示词审核", step: "assets", description: "角色、场景、道具及分镜提示词" },
     { key: "visual_images", label: "视觉图片审核", step: "storyboard", description: "资产图片与分镜图片的一致性" },
-    { key: "storyboard_video", label: "分镜视频审核", step: "generate", description: "镜头视频、节奏与动作衔接" },
+    { key: "storyboard_video", label: "分镜视频审核", step: "storyboard", description: "镜头视频、节奏与动作衔接" },
     { key: "final_cut", label: "成片审核", step: "export", description: "导出前的最终成片版本" },
 ];
 
@@ -148,13 +145,37 @@ export interface Shot {
     characterIds: string[];
     propIds: string[];
     script: string;
+    title?: string;
+    description?: string;
+    sourceText?: string;
+    shotBoundary?: string;
+    dialogue?: string;
+    narration?: string;
     imagePrompt?: string;
+    videoPrompt?: string;
+    cameraMotion?: string;
     imageUrl?: string;
     videoUrl?: string;
     duration: number;
     cameraAngle?: string;
-    status: "draft" | "image_generated" | "video_generated";
+    storyboardStatus?: DramaLabTaskStatus;
+    storyboardAttempt?: number;
+    storyboardTaskId?: string;
+    storyboardError?: string;
+    storyboardImageUrl?: string;
+    storyboardImageWidth?: number;
+    storyboardImageHeight?: number;
+    storyboardHistory?: DramaLabGenerationHistory[];
+    generationStatus?: DramaLabTaskStatus;
+    generationAttempt?: number;
+    generationTaskId?: string;
+    generationError?: string;
+    videoHistory?: DramaLabGenerationHistory[];
+    status?: string;
 }
+
+type DramaLabTaskStatus = "idle" | "queued" | "running" | "success" | "error" | "cancelled";
+type DramaLabGenerationHistory = { id: string; taskId: string; url: string; prompt: string; createdAt: string; width?: number; height?: number };
 
 export interface Project {
     id: string;
@@ -227,8 +248,11 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
     const shot = value as Record<string, unknown>;
     const id = typeof shot.id === "string" ? shot.id : "";
     if (!id) return undefined;
-    const status = shot.status === "image_generated" || shot.status === "video_generated" ? shot.status : "draft";
+    const taskStatus = (value: unknown): DramaLabTaskStatus | undefined => (typeof value === "string" && ["idle", "queued", "running", "success", "error", "cancelled"].includes(value) ? (value as DramaLabTaskStatus) : undefined);
     const continuity = shot.continuity && typeof shot.continuity === "object" ? (shot.continuity as Record<string, unknown>) : undefined;
+    const description = typeof shot.description === "string" ? shot.description : typeof shot.script === "string" ? shot.script : typeof shot.title === "string" ? shot.title : "";
+    const storyboardImageUrl = typeof shot.storyboardImageUrl === "string" ? shot.storyboardImageUrl : typeof shot.imageUrl === "string" ? shot.imageUrl : undefined;
+    const videoUrl = typeof shot.videoUrl === "string" ? shot.videoUrl : undefined;
     return {
         id,
         episodeId: typeof shot.episodeId === "string" ? shot.episodeId : episodeId,
@@ -236,14 +260,57 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
         sceneId: typeof shot.sceneId === "string" ? shot.sceneId : undefined,
         characterIds: Array.isArray(shot.characterIds) ? shot.characterIds.filter((item): item is string => typeof item === "string") : [],
         propIds: Array.isArray(shot.propIds) ? shot.propIds.filter((item): item is string => typeof item === "string") : [],
-        script: typeof shot.script === "string" ? shot.script : typeof shot.description === "string" ? shot.description : typeof shot.title === "string" ? shot.title : "",
+        script: description,
+        title: typeof shot.title === "string" && shot.title.trim() ? shot.title : `镜头 ${typeof shot.shotNumber === "number" ? shot.shotNumber : index + 1}`,
+        description,
+        sourceText: typeof shot.sourceText === "string" ? shot.sourceText : description,
+        shotBoundary: typeof shot.shotBoundary === "string" ? shot.shotBoundary : "",
+        dialogue: typeof shot.dialogue === "string" ? shot.dialogue : "",
+        narration: typeof shot.narration === "string" ? shot.narration : "",
         imagePrompt: typeof shot.imagePrompt === "string" ? shot.imagePrompt : undefined,
-        imageUrl: typeof shot.imageUrl === "string" ? shot.imageUrl : typeof shot.storyboardImageUrl === "string" ? shot.storyboardImageUrl : undefined,
-        videoUrl: typeof shot.videoUrl === "string" ? shot.videoUrl : undefined,
+        videoPrompt: typeof shot.videoPrompt === "string" ? shot.videoPrompt : undefined,
+        cameraMotion: typeof shot.cameraMotion === "string" ? shot.cameraMotion : undefined,
+        imageUrl: storyboardImageUrl,
+        videoUrl,
         duration: typeof shot.duration === "number" ? shot.duration : 3,
         cameraAngle: typeof shot.cameraAngle === "string" ? shot.cameraAngle : typeof continuity?.cameraAngle === "string" ? continuity.cameraAngle : undefined,
-        status,
+        storyboardStatus: taskStatus(shot.storyboardStatus) || (storyboardImageUrl ? "success" : "idle"),
+        storyboardAttempt: typeof shot.storyboardAttempt === "number" ? shot.storyboardAttempt : undefined,
+        storyboardTaskId: typeof shot.storyboardTaskId === "string" ? shot.storyboardTaskId : undefined,
+        storyboardError: typeof shot.storyboardError === "string" ? shot.storyboardError : undefined,
+        storyboardImageUrl,
+        storyboardImageWidth: typeof shot.storyboardImageWidth === "number" ? shot.storyboardImageWidth : undefined,
+        storyboardImageHeight: typeof shot.storyboardImageHeight === "number" ? shot.storyboardImageHeight : undefined,
+        storyboardHistory: normalizeGenerationHistory(shot.storyboardHistory),
+        generationStatus: taskStatus(shot.generationStatus) || (videoUrl ? "success" : "idle"),
+        generationAttempt: typeof shot.generationAttempt === "number" ? shot.generationAttempt : undefined,
+        generationTaskId: typeof shot.generationTaskId === "string" ? shot.generationTaskId : undefined,
+        generationError: typeof shot.generationError === "string" ? shot.generationError : undefined,
+        videoHistory: normalizeGenerationHistory(shot.videoHistory),
     };
+}
+
+function normalizeGenerationHistory(value: unknown): DramaLabGenerationHistory[] {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const entry = item as Record<string, unknown>;
+        const id = typeof entry.id === "string" ? entry.id : "";
+        const taskId = typeof entry.taskId === "string" ? entry.taskId : "";
+        const url = typeof entry.url === "string" ? entry.url : "";
+        if (!id || !taskId || !url) return [];
+        return [
+            {
+                id,
+                taskId,
+                url,
+                prompt: typeof entry.prompt === "string" ? entry.prompt : "",
+                createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
+                width: typeof entry.width === "number" ? entry.width : undefined,
+                height: typeof entry.height === "number" ? entry.height : undefined,
+            },
+        ];
+    });
 }
 
 function normalizeProjectShots(project: Record<string, unknown>, episodes: Episode[], legacy: Record<string, unknown>): Shot[] {
@@ -302,13 +369,6 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
     const [allowFeedbackAttachments, setAllowFeedbackAttachments] = useState(false);
     const [collaborationFeedback, setCollaborationFeedback] = useState<CollaborationFeedback[]>([]);
     const pendingStoryboardShotId = useRef<string | undefined>(undefined);
-
-    const replaceEpisodeShots = useCallback((episodeId: string, shots: Shot[]) => {
-        setProject((current) => {
-            if (!current) return current;
-            return { ...current, shots: [...current.shots.filter((shot) => shot.episodeId !== episodeId), ...shots] };
-        });
-    }, []);
 
     // 加载项目数据
     const loadProject = useCallback(async () => {
@@ -684,9 +744,8 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
                     />
                     {activeStep === "script" && <ScriptEditor project={project} episode={activeEpisode} onSave={saveProject} onActiveEpisodeChange={setActiveEpisodeId} messageApi={messageApi} />}
                     {activeStep === "review" && <ReviewPanel project={project} episode={activeEpisode} onStepChange={setActiveStep} />}
-                    {activeStep === "assets" && <DramaLabVisualAssetsPanel project={project} episode={activeEpisode} onSave={saveProject} onLocateShot={locateStoryboardShot} messageApi={messageApi} />}
-                    {activeStep === "storyboard" && <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReplaceEpisodeShots={replaceEpisodeShots} messageApi={messageApi} />}
-                    {activeStep === "generate" && <GeneratePanel project={project} episode={activeEpisode} />}
+                    {activeStep === "assets" && <DramaLabVisualAssetsPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onLocateShot={locateStoryboardShot} messageApi={messageApi} />}
+                    {activeStep === "storyboard" && <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} messageApi={messageApi} />}
                     {activeStep === "export" && <ExportPanel project={project} episode={activeEpisode} messageApi={messageApi} exportBlockedByApproval={exportBlockedByApproval} />}
                 </div>
                 <aside className={cn("hidden min-h-0 shrink-0 flex-col border-l border-border bg-card transition-[width] duration-200 lg:flex", collaborationCollapsed ? "w-14" : "w-[340px]")}>
@@ -1366,7 +1425,7 @@ function WorkflowRunModal({
         ...(mode !== "video"
             ? []
             : [
-                  { label: "生成镜头视频", detail: "按镜头顺序自动推进", target: "generate" as StepKey },
+                  { label: "生成镜头视频", detail: "在分镜工作台内按镜头顺序生成", target: "storyboard" as StepKey },
                   { label: "内容审核", detail: "汇总素材、分镜图与镜头视频的审核结果", target: "review" as StepKey },
                   ...(autoExport ? [{ label: "成片导出", detail: "审核完成后自动创建导出任务", target: "export" as StepKey }] : []),
               ]),
@@ -1547,7 +1606,7 @@ function WorkflowRunModal({
 }
 
 // 5. 内容审核面板
-type ReviewDemoTarget = Extract<StepKey, "assets" | "storyboard" | "generate">;
+type ReviewDemoTarget = Extract<StepKey, "assets" | "storyboard">;
 
 type ReviewDemoIssue = {
     id: string;
@@ -1587,8 +1646,8 @@ function ReviewPanel({ project, episode, onStepChange }: { project: Project; epi
                 ]
               : [{ id: "storyboard-ready", severity: "低" as const, area: "分镜图", title: "检查镜头衔接", detail: "建议重点确认相邻镜头的景别、视线和运动方向。", action: "前往分镜", target: "storyboard" as const }]),
         ...(videoCount === 0
-            ? [{ id: "video-empty", severity: "中" as const, area: "镜头视频", title: "尚未生成镜头视频", detail: "镜头动态、节奏与成片可用性将在视频结果生成后完成核验。", action: "前往镜头生成", target: "generate" as const }]
-            : [{ id: "video-ready", severity: "低" as const, area: "镜头视频", title: "复核成片节奏", detail: `${videoCount} 个镜头已有视频结果，建议确认动作衔接与时长节奏。`, action: "前往镜头生成", target: "generate" as const }]),
+            ? [{ id: "video-empty", severity: "中" as const, area: "镜头视频", title: "尚未生成镜头视频", detail: "镜头动态、节奏与成片可用性将在视频结果生成后完成核验。", action: "前往分镜工作台", target: "storyboard" as const }]
+            : [{ id: "video-ready", severity: "低" as const, area: "镜头视频", title: "复核成片节奏", detail: `${videoCount} 个镜头已有视频结果，建议确认动作衔接与时长节奏。`, action: "前往分镜工作台", target: "storyboard" as const }]),
     ];
     const blockingIssueCount = issues.filter((issue) => issue.severity === "高").length;
     const score = Math.max(64, Math.min(94, 94 - blockingIssueCount * 12 - issues.filter((issue) => issue.severity === "中").length * 5));
@@ -2243,23 +2302,61 @@ function StoryboardPanel({
     project,
     episode,
     onSave,
-    onReplaceEpisodeShots,
+    onReload,
     messageApi,
 }: {
     project: Project;
     episode?: Episode;
-    onSave: (updates: Partial<Project>) => void;
-    onReplaceEpisodeShots: (episodeId: string, shots: Shot[]) => void;
+    onSave: (updates: Partial<Project>, options?: SaveOptions) => Promise<boolean>;
+    onReload: () => Promise<void>;
     messageApi: ReturnType<typeof message.useMessage>[0];
 }) {
-    const config = useEffectiveConfig();
     const [modalVisible, setModalVisible] = useState(false);
     const [editingShot, setEditingShot] = useState<Shot | null>(null);
     const [extracting, setExtracting] = useState(false);
+    const [startingKey, setStartingKey] = useState("");
+    const [batchRunning, setBatchRunning] = useState<"image" | "video" | "">("");
     const [form] = Form.useForm();
 
-    // 筛选当前集的分镜
     const episodeShots = episode ? project.shots.filter((s) => s.episodeId === episode.id).sort((a, b) => a.shotNumber - b.shotNumber) : [];
+    const activeTaskSignature = episodeShots
+        .filter((shot) => shot.storyboardStatus === "running" || shot.generationStatus === "running")
+        .map((shot) => `${shot.id}:${shot.storyboardTaskId || ""}:${shot.generationTaskId || ""}`)
+        .join("|");
+
+    const updateShot = async (shotId: string, patch: Partial<Shot>, options: SaveOptions = { silent: true }) => {
+        const saved = await onSave({ shots: project.shots.map((shot) => (shot.id === shotId ? { ...shot, ...patch } : shot)) }, options);
+        if (!saved) throw new Error("保存分镜失败");
+    };
+
+    const syncShot = useCallback(
+        async (shotId: string, silent = true) => {
+            if (!episode) return;
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shotId)}/sync-generation?episodeId=${encodeURIComponent(episode.id)}`, { method: "POST" });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务状态同步失败");
+            await onReload();
+            if (!silent) messageApi.success("任务状态已同步");
+        },
+        [episode, messageApi, onReload, project.id],
+    );
+
+    useEffect(() => {
+        if (!episode || !activeTaskSignature) return;
+        let disposed = false;
+        const sync = async () => {
+            for (const shot of episodeShots.filter((item) => item.storyboardStatus === "running" || item.generationStatus === "running")) {
+                if (disposed) return;
+                await syncShot(shot.id).catch(() => undefined);
+            }
+        };
+        void sync();
+        const timer = window.setInterval(() => void sync(), 2500);
+        return () => {
+            disposed = true;
+            window.clearInterval(timer);
+        };
+    }, [activeTaskSignature, episode, episodeShots, syncShot]);
 
     const handleAdd = () => {
         setEditingShot(null);
@@ -2267,10 +2364,10 @@ function StoryboardPanel({
         form.setFieldsValue({
             episodeId: episode?.id,
             shotNumber: episodeShots.length + 1,
+            title: `镜头 ${episodeShots.length + 1}`,
             duration: 3,
             characterIds: [],
             propIds: [],
-            status: "draft",
         });
         setModalVisible(true);
     };
@@ -2287,9 +2384,8 @@ function StoryboardPanel({
             });
             const data = await response.json();
             if (!response.ok || data.code !== 0 || !Array.isArray(data.data?.shots)) throw new Error(data.msg || "分镜提取失败");
-            const shots = data.data.shots as Shot[];
-            onReplaceEpisodeShots(episode.id, shots);
-            messageApi.success({ content: `已提取 ${shots.length} 个分镜`, key: "extract-storyboards", duration: 3 });
+            await onReload();
+            messageApi.success({ content: `已提取 ${data.data.shots.length} 个分镜`, key: "extract-storyboards", duration: 3 });
         } catch (error) {
             messageApi.error({ content: error instanceof Error ? error.message : "分镜提取失败", key: "extract-storyboards", duration: 3 });
         } finally {
@@ -2322,142 +2418,91 @@ function StoryboardPanel({
     };
 
     const handleSave = () => {
-        form.validateFields().then((values) => {
-            if (editingShot) {
-                // 编辑
-                const updated = project.shots.map((s) => (s.id === editingShot.id ? { ...s, ...values } : s));
-                onSave({ shots: updated });
-            } else {
-                // 新增
-                const newShot: Shot = {
-                    id: `shot_${Date.now()}`,
+        form.validateFields()
+            .then(async (values) => {
+                const details = {
                     ...values,
+                    shotNumber: Math.max(1, Number(values.shotNumber) || 1),
+                    duration: Math.max(1, Number(values.duration) || 3),
+                    script: values.description || "",
+                    sourceText: values.sourceText || values.description || "",
+                    description: values.description || "",
                 };
-                onSave({ shots: [...project.shots, newShot] });
-            }
-            setModalVisible(false);
-            messageApi.success(editingShot ? "分镜已更新" : "分镜已添加");
-        });
+                if (editingShot) {
+                    await updateShot(editingShot.id, details);
+                } else {
+                    const newShot: Shot = {
+                        id: `shot_${Date.now()}`,
+                        episodeId: episode?.id || "",
+                        sceneId: details.sceneId,
+                        characterIds: details.characterIds || [],
+                        propIds: details.propIds || [],
+                        shotNumber: details.shotNumber,
+                        title: details.title || `镜头 ${details.shotNumber}`,
+                        description: details.description,
+                        sourceText: details.sourceText,
+                        shotBoundary: details.shotBoundary || "",
+                        dialogue: details.dialogue || "",
+                        narration: details.narration || "",
+                        script: details.script,
+                        imagePrompt: details.imagePrompt,
+                        videoPrompt: details.videoPrompt,
+                        cameraMotion: details.cameraMotion,
+                        duration: details.duration,
+                        cameraAngle: details.cameraAngle,
+                        storyboardStatus: "idle",
+                        generationStatus: "idle",
+                    };
+                    const saved = await onSave({ shots: [...project.shots, newShot] });
+                    if (!saved) throw new Error("保存分镜失败");
+                }
+                setModalVisible(false);
+                messageApi.success(editingShot ? "分镜已更新" : "分镜已添加");
+            })
+            .catch((error) => messageApi.error(error instanceof Error ? error.message : "分镜保存失败"));
     };
 
     const handleDelete = (id: string) => {
         Modal.confirm({
             title: "确认删除",
             content: "确定要删除这个分镜吗？",
-            onOk: () => {
-                onSave({ shots: project.shots.filter((s) => s.id !== id) });
+            onOk: async () => {
+                const saved = await onSave({ shots: project.shots.filter((s) => s.id !== id) });
+                if (!saved) throw new Error("删除分镜失败");
                 messageApi.success("分镜已删除");
             },
         });
     };
 
-    const getSceneName = (sceneId?: string) => {
-        if (!sceneId) return "未设置";
-        const scene = project.scenes.find((s) => s.id === sceneId);
-        return scene?.location || "未知场景";
-    };
-
-    const getCharacterNames = (characterIds: string[]) => {
-        if (!characterIds || characterIds.length === 0) return "无角色";
-        return characterIds
-            .map((id) => {
-                const char = project.characters.find((c) => c.id === id);
-                return char?.name || "未知";
-            })
-            .join(", ");
-    };
-
-    const getPropNames = (propIds: string[]) => {
-        if (!propIds.length) return "无道具";
-        return propIds
-            .map((id) => project.props.find((prop) => prop.id === id)?.name)
-            .filter(Boolean)
-            .join(", ");
-    };
-
-    // 生成图片
-    const handleGenerateImage = async (shot: Shot) => {
+    const startGeneration = async (shot: Shot, kind: "image" | "video") => {
+        if (!episode) return;
+        const actionKey = `${kind}:${shot.id}`;
         try {
-            messageApi.loading({ content: "正在生成图片...", key: shot.id });
-            const prompt = dramaLabShotPrompt(project, shot);
-            const references = dramaLabShotReferenceImages(project, shot);
-            const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: project.aspectRatio || config.size, count: "1" };
-            const task = await createImageGenerationTask(imageConfig, prompt, references, undefined, {
-                logSource: "drama",
-                logTitle: `${project.title} · 分镜 ${shot.shotNumber}`,
-                surface: "drama",
-                projectId: project.id,
-                episodeId: shot.episodeId,
-                shotId: shot.id,
-                clientRequestId: `drama-lab-shot:${project.id}:${shot.id}:${Date.now()}`,
-            });
-            const result = await waitForImageGenerationTask(imageConfig, task);
-            const imageUrl = result.serverUrl || result.remoteUrl || result.dataUrl;
-            if (!imageUrl) throw new Error("生成结果没有可持久化图片地址");
-            onSave({ shots: project.shots.map((item) => (item.id === shot.id ? { ...item, imageUrl, status: "image_generated" as const } : item)) });
-            messageApi.success({ content: "图片生成成功", key: shot.id });
-        } catch (err) {
-            messageApi.error({ content: err instanceof Error ? err.message : "生成图片失败", key: shot.id });
-        }
-    };
-
-    // 生成视频
-    const handleGenerateVideo = async (shot: Shot) => {
-        try {
-            messageApi.loading({ content: "正在生成视频...", key: shot.id });
-
-            const response = await fetch("/api/video-generation-tasks", {
+            setStartingKey(actionKey);
+            messageApi.loading({ content: kind === "image" ? "正在创建分镜图任务..." : "正在创建分镜视频任务...", key: actionKey, duration: 0 });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-${kind}?episodeId=${encodeURIComponent(episode.id)}`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    imageUrl: shot.imageUrl,
-                    prompt: shot.script,
-                    videoSeconds: shot.duration || 3,
-                }),
             });
-
-            const data = await response.json();
-
-            if (data.task) {
-                // 轮询任务状态
-                pollVideoTask(data.task.id, shot);
-            } else {
-                throw new Error(data.error || "生成失败");
-            }
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务创建失败");
+            await onReload();
+            messageApi.success({ content: kind === "image" ? "分镜图任务已提交" : "分镜视频任务已提交", key: actionKey });
         } catch (err) {
-            messageApi.error({ content: err instanceof Error ? err.message : "生成视频失败", key: shot.id });
+            messageApi.error({ content: err instanceof Error ? err.message : "任务创建失败", key: actionKey });
+        } finally {
+            setStartingKey("");
         }
     };
 
-    // 轮询视频任务
-    const pollVideoTask = async (taskId: string, shot: Shot) => {
-        const maxAttempts = 120; // 最多轮询120次（10分钟）
-        let attempts = 0;
-
-        const poll = async () => {
-            try {
-                const response = await fetch(`/api/video-generation-tasks/${taskId}`);
-                const data = await response.json();
-
-                if (data.task?.status === "completed" && data.task.result?.url) {
-                    // 更新分镜
-                    const updated = project.shots.map((s) => (s.id === shot.id ? { ...s, videoUrl: data.task.result.url, status: "video_generated" as const } : s));
-                    onSave({ shots: updated });
-                    messageApi.success({ content: "视频生成成功", key: shot.id });
-                } else if (data.task?.status === "failed") {
-                    throw new Error("视频生成失败");
-                } else if (attempts < maxAttempts) {
-                    attempts++;
-                    setTimeout(poll, 5000); // 5秒后再次轮询
-                } else {
-                    throw new Error("生成超时");
-                }
-            } catch (err) {
-                messageApi.error({ content: err instanceof Error ? err.message : "生成失败", key: shot.id });
-            }
-        };
-
-        poll();
+    const runBatch = async (kind: "image" | "video") => {
+        const candidates = episodeShots.filter((shot) => (kind === "image" ? !shot.storyboardImageUrl && shot.storyboardStatus !== "running" : Boolean(shot.storyboardImageUrl) && !shot.videoUrl && shot.generationStatus !== "running"));
+        if (!candidates.length) return messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
+        setBatchRunning(kind);
+        try {
+            for (const shot of candidates) await startGeneration(shot, kind);
+        } finally {
+            setBatchRunning("");
+        }
     };
 
     if (!episode) {
@@ -2465,10 +2510,19 @@ function StoryboardPanel({
     }
 
     return (
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-[1440px]">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm text-muted-foreground">当前集共 {episodeShots.length} 个分镜</div>
+                <div>
+                    <h2 className="text-lg font-semibold">分镜工作台</h2>
+                    <p className="text-sm text-muted-foreground">当前集 {episodeShots.length} 个分镜，资产勾选会作为本镜生图和视频生成的参考依据。</p>
+                </div>
                 <div className="flex items-center gap-2">
+                    <Button loading={batchRunning === "image"} disabled={Boolean(batchRunning)} icon={<Sparkles className="size-4" />} onClick={() => void runBatch("image")}>
+                        批量生成分镜图
+                    </Button>
+                    <Button loading={batchRunning === "video"} disabled={Boolean(batchRunning)} icon={<Film className="size-4" />} onClick={() => void runBatch("video")}>
+                        批量生成分镜视频
+                    </Button>
                     <Button type="primary" icon={<Sparkles className="size-4" />} loading={extracting} onClick={handleExtract}>
                         从剧本提取分镜
                     </Button>
@@ -2478,64 +2532,19 @@ function StoryboardPanel({
                 </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
                 {episodeShots.map((shot) => (
-                    <div id={`storyboard-shot-${shot.id}`} key={shot.id} className="rounded-lg border border-border bg-card p-4">
-                        <div className="mb-3 flex items-start justify-between">
-                            <div className="flex-1">
-                                <div className="mb-1 flex items-center gap-2">
-                                    <span className="text-base font-semibold">分镜 {shot.shotNumber}</span>
-                                    {shot.status === "image_generated" && <span className="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700">已生图</span>}
-                                    {shot.status === "video_generated" && <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">已生视频</span>}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                    场景: {getSceneName(shot.sceneId)} · 角色: {getCharacterNames(shot.characterIds)} · 道具: {getPropNames(shot.propIds)} · 时长: {shot.duration}s{shot.cameraAngle && ` · 镜头: ${shot.cameraAngle}`}
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button size="small" icon={<Edit2 className="size-3" />} onClick={() => handleEdit(shot)}>
-                                    编辑
-                                </Button>
-                                <Button size="small" danger icon={<Trash2 className="size-3" />} onClick={() => handleDelete(shot.id)}>
-                                    删除
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="mb-2 text-sm">{shot.script}</div>
-
-                        {shot.imagePrompt && (
-                            <div className="mt-2 rounded bg-muted p-2 text-xs text-muted-foreground">
-                                <span className="font-semibold">图片提示词: </span>
-                                {shot.imagePrompt}
-                            </div>
-                        )}
-
-                        <div className="mt-3 flex gap-2">
-                            {!shot.imageUrl && (
-                                <Button size="small" type="primary" icon={<Sparkles className="size-3" />} onClick={() => handleGenerateImage(shot)}>
-                                    生成图片
-                                </Button>
-                            )}
-                            {shot.imageUrl && shot.status !== "video_generated" && (
-                                <Button size="small" type="primary" icon={<Film className="size-3" />} onClick={() => handleGenerateVideo(shot)}>
-                                    生成视频
-                                </Button>
-                            )}
-                        </div>
-
-                        {shot.imageUrl && (
-                            <div className="mt-3">
-                                <img src={shot.imageUrl} alt={`分镜 ${shot.shotNumber}`} className="max-h-48 rounded border" />
-                            </div>
-                        )}
-
-                        {shot.videoUrl && (
-                            <div className="mt-3">
-                                <video src={shot.videoUrl} controls className="max-h-48 rounded border" />
-                            </div>
-                        )}
-                    </div>
+                    <StoryboardWorkbenchCard
+                        key={shot.id}
+                        shot={shot}
+                        project={project}
+                        busyKey={startingKey}
+                        onStartGeneration={startGeneration}
+                        onSync={() => void syncShot(shot.id, false).catch((error) => messageApi.error(error instanceof Error ? error.message : "任务状态同步失败"))}
+                        onUpdate={(patch) => void updateShot(shot.id, patch).catch((error) => messageApi.error(error instanceof Error ? error.message : "保存分镜失败"))}
+                        onEdit={() => handleEdit(shot)}
+                        onDelete={() => handleDelete(shot.id)}
+                    />
                 ))}
 
                 {episodeShots.length === 0 && <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">暂无分镜，点击“从剧本提取分镜”开始拆解，也可手工添加</div>}
@@ -2581,8 +2590,20 @@ function StoryboardPanel({
                         </Select>
                     </Form.Item>
 
-                    <Form.Item label="分镜台词/描述" name="script" rules={[{ required: true }]}>
+                    <Form.Item label="分镜标题" name="title" rules={[{ required: true }]}>
+                        <Input placeholder="例如：雨夜来电" />
+                    </Form.Item>
+
+                    <Form.Item label="分镜描述" name="description" rules={[{ required: true }]}>
                         <TextArea rows={4} placeholder="描述这一镜要表现的内容、台词、动作等" />
+                    </Form.Item>
+
+                    <Form.Item label="对白" name="dialogue">
+                        <TextArea rows={2} placeholder="可选" />
+                    </Form.Item>
+
+                    <Form.Item label="旁白" name="narration">
+                        <TextArea rows={2} placeholder="可选" />
                     </Form.Item>
 
                     <Form.Item label="镜头角度" name="cameraAngle">
@@ -2603,12 +2624,8 @@ function StoryboardPanel({
                         <TextArea rows={3} placeholder="用于 AI 生成图片的提示词（可选）" />
                     </Form.Item>
 
-                    <Form.Item label="状态" name="status">
-                        <Select>
-                            <Option value="draft">草稿</Option>
-                            <Option value="image_generated">已生图</Option>
-                            <Option value="video_generated">已生视频</Option>
-                        </Select>
+                    <Form.Item label="视频提示词" name="videoPrompt">
+                        <TextArea rows={3} placeholder="用于 AI 生成视频的动态提示词（可选）" />
                     </Form.Item>
                 </Form>
             </Modal>
@@ -2616,12 +2633,180 @@ function StoryboardPanel({
     );
 }
 
-// 5. 生成面板
-function GeneratePanel({ project, episode }: { project: Project; episode?: Episode }) {
-    return <div className="mx-auto max-w-6xl text-center text-muted-foreground">镜头生成功能开发中...</div>;
+function StoryboardWorkbenchCard({
+    shot,
+    project,
+    busyKey,
+    onStartGeneration,
+    onSync,
+    onUpdate,
+    onEdit,
+    onDelete,
+}: {
+    shot: Shot;
+    project: Project;
+    busyKey: string;
+    onStartGeneration: (shot: Shot, kind: "image" | "video") => Promise<void>;
+    onSync: () => void;
+    onUpdate: (patch: Partial<Shot>) => void;
+    onEdit: () => void;
+    onDelete: () => void;
+}) {
+    const imageBusy = busyKey === `image:${shot.id}` || shot.storyboardStatus === "running";
+    const videoBusy = busyKey === `video:${shot.id}` || shot.generationStatus === "running";
+    return (
+        <article id={`storyboard-shot-${shot.id}`} className="overflow-hidden rounded-lg border border-border bg-card">
+            <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-semibold">
+                            分镜 {shot.shotNumber} · {shot.title}
+                        </h3>
+                        <StoryboardTaskTag status={shot.storyboardStatus} label="分镜图" />
+                        <StoryboardTaskTag status={shot.generationStatus} label="视频" />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        {shot.duration}s{shot.cameraAngle ? ` · ${shot.cameraAngle}` : ""}
+                        {shot.cameraMotion ? ` · ${shot.cameraMotion}` : ""}
+                    </p>
+                </div>
+                <div className="flex items-center gap-1">
+                    <Button type="text" size="small" title="同步任务状态" aria-label="同步任务状态" icon={<LoaderCircle className="size-4" />} onClick={onSync} />
+                    <Button type="text" size="small" title="编辑分镜" aria-label="编辑分镜" icon={<Edit2 className="size-4" />} onClick={onEdit} />
+                    <Button type="text" danger size="small" title="删除分镜" aria-label="删除分镜" icon={<Trash2 className="size-4" />} onClick={onDelete} />
+                </div>
+            </header>
+            <div className="grid divide-y divide-border xl:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)] xl:divide-x xl:divide-y-0">
+                <section className="space-y-4 p-4" aria-label={`分镜 ${shot.shotNumber} 资产关联`}>
+                    <AssetBindingGroup label="场景" assets={project.scenes} selectedIds={shot.sceneId ? [shot.sceneId] : []} single onChange={(ids) => onUpdate({ sceneId: ids[0] })} />
+                    <AssetBindingGroup label="角色" assets={project.characters} selectedIds={shot.characterIds} onChange={(characterIds) => onUpdate({ characterIds })} />
+                    <AssetBindingGroup label="道具" assets={project.props} selectedIds={shot.propIds} onChange={(propIds) => onUpdate({ propIds })} />
+                </section>
+                <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 画面`}>
+                    <TextArea
+                        defaultValue={shot.description}
+                        autoSize={{ minRows: 3, maxRows: 8 }}
+                        aria-label="分镜描述"
+                        onBlur={(event) => {
+                            const description = event.target.value.trim();
+                            if (description && description !== shot.description) onUpdate({ description, script: description, sourceText: shot.sourceText || description });
+                        }}
+                    />
+                    <TextArea defaultValue={shot.imagePrompt} autoSize={{ minRows: 2, maxRows: 5 }} placeholder="画面补充（可选）" aria-label="画面补充" onBlur={(event) => onUpdate({ imagePrompt: event.target.value.trim() })} />
+                    {shot.storyboardError ? <Alert type="error" showIcon message={shot.storyboardError} /> : null}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button type="primary" loading={imageBusy} icon={<Sparkles className="size-4" />} onClick={() => void onStartGeneration(shot, "image")}>
+                            {shot.storyboardImageUrl ? "重新生成分镜图" : "生成分镜图"}
+                        </Button>
+                        <GenerationHistory
+                            history={shot.storyboardHistory}
+                            activeUrl={shot.storyboardImageUrl}
+                            type="image"
+                            onRestore={(url) => onUpdate({ storyboardImageUrl: url, imageUrl: url, storyboardStatus: "success", storyboardError: undefined })}
+                        />
+                    </div>
+                    {shot.storyboardImageUrl ? (
+                        <img src={shot.storyboardImageUrl} alt={`分镜 ${shot.shotNumber} 图像`} className="max-h-[460px] w-full rounded border border-border object-contain" />
+                    ) : (
+                        <div className="grid min-h-40 place-items-center border border-dashed border-border text-sm text-muted-foreground">尚未生成分镜图</div>
+                    )}
+                </section>
+                <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 视频`}>
+                    <TextArea defaultValue={shot.videoPrompt} autoSize={{ minRows: 3, maxRows: 7 }} placeholder="镜头动作与动态补充（可选）" aria-label="视频提示词" onBlur={(event) => onUpdate({ videoPrompt: event.target.value.trim() })} />
+                    {shot.generationError ? <Alert type="error" showIcon message={shot.generationError} /> : null}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button type="primary" loading={videoBusy} disabled={!shot.storyboardImageUrl} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
+                            {shot.videoUrl ? "重新生成视频" : "生成分镜视频"}
+                        </Button>
+                        <GenerationHistory history={shot.videoHistory} activeUrl={shot.videoUrl} type="video" onRestore={(url) => onUpdate({ videoUrl: url, generationStatus: "success", generationError: undefined })} />
+                    </div>
+                    {shot.videoUrl ? (
+                        <video src={shot.videoUrl} controls className="max-h-[460px] w-full rounded border border-border" />
+                    ) : (
+                        <div className="grid min-h-40 place-items-center border border-dashed border-border text-sm text-muted-foreground">生成分镜图后可生成视频</div>
+                    )}
+                </section>
+            </div>
+        </article>
+    );
 }
 
-// 6. 导出面板
+function AssetBindingGroup({ label, assets, selectedIds, single = false, onChange }: { label: string; assets: Array<Character | Scene | Prop>; selectedIds: string[]; single?: boolean; onChange: (ids: string[]) => void }) {
+    return (
+        <div>
+            <div className="mb-2 text-sm font-medium">{label}</div>
+            <div className="space-y-1.5">
+                {assets.length ? (
+                    assets.map((asset) => {
+                        const selected = selectedIds.includes(asset.id);
+                        const imageUrl = asset.referenceImageUrl || asset.imageUrl || asset.references?.find((reference) => reference.id === asset.primaryReferenceId)?.url || asset.references?.[0]?.url;
+                        const name = "location" in asset ? asset.location : asset.name;
+                        return (
+                            <label key={asset.id} className={cn("flex cursor-pointer items-center gap-2 border p-1.5 text-sm transition-colors", selected ? "border-primary bg-primary/5" : "border-border hover:bg-muted")}>
+                                <input
+                                    type={single ? "radio" : "checkbox"}
+                                    name={single ? `scene-${label}` : undefined}
+                                    checked={selected}
+                                    onChange={() => onChange(single ? (selected ? [] : [asset.id]) : selected ? selectedIds.filter((id) => id !== asset.id) : [...selectedIds, asset.id])}
+                                />
+                                {imageUrl ? (
+                                    <img src={imageUrl} alt="" className="size-9 shrink-0 object-cover" />
+                                ) : (
+                                    <div className="grid size-9 shrink-0 place-items-center bg-muted text-muted-foreground">
+                                        <Package className="size-4" />
+                                    </div>
+                                )}
+                                <span className="min-w-0 truncate">{name}</span>
+                            </label>
+                        );
+                    })
+                ) : (
+                    <p className="text-xs text-muted-foreground">暂无{label}资产</p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function StoryboardTaskTag({ status, label }: { status?: DramaLabTaskStatus; label: string }) {
+    const value = status || "idle";
+    const labelMap: Record<DramaLabTaskStatus, string> = { idle: "待生成", queued: "排队中", running: "生成中", success: "已完成", error: "失败", cancelled: "已取消" };
+    const classMap: Record<DramaLabTaskStatus, string> = {
+        idle: "border-border bg-muted text-muted-foreground",
+        queued: "border-amber-300 bg-amber-50 text-amber-800",
+        running: "border-sky-300 bg-sky-50 text-sky-800",
+        success: "border-emerald-300 bg-emerald-50 text-emerald-800",
+        error: "border-rose-300 bg-rose-50 text-rose-800",
+        cancelled: "border-border bg-muted text-muted-foreground",
+    };
+    return (
+        <span className={cn("border px-1.5 py-0.5 text-xs", classMap[value])}>
+            {label} {labelMap[value]}
+        </span>
+    );
+}
+
+function GenerationHistory({ history = [], activeUrl, type, onRestore }: { history?: DramaLabGenerationHistory[]; activeUrl?: string; type: "image" | "video"; onRestore: (url: string) => void }) {
+    if (history.length < 2) return null;
+    return (
+        <div className="flex items-center gap-1" aria-label="历史生成结果">
+            {history.map((entry, index) => (
+                <button
+                    key={entry.id}
+                    type="button"
+                    title={`恢复历史结果 ${index + 1}`}
+                    aria-label={`恢复历史结果 ${index + 1}`}
+                    className={cn("grid size-7 place-items-center border text-xs", activeUrl === entry.url ? "border-primary text-primary" : "border-border text-muted-foreground hover:bg-muted")}
+                    onClick={() => onRestore(entry.url)}
+                >
+                    {type === "image" ? <img src={entry.url} alt="" className="size-full object-cover" /> : index + 1}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+// 5. 导出面板
 function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: { project: Project; episode?: Episode; messageApi: ReturnType<typeof message.useMessage>[0]; exportBlockedByApproval: boolean }) {
     const [draftPath, setDraftPath] = useState("");
     const [jianyingVersion, setJianyingVersion] = useState<"5" | "6">("6");

@@ -7,6 +7,16 @@ export type DramaVideoMode = "storyboard" | "direct" | "reference";
 export type DramaStoryboardFrameMode = "single" | "first_last";
 export type DramaShotAudioMode = "source" | "voiceover" | "mute";
 
+export type DramaShotGenerationHistory = {
+    id: string;
+    taskId: string;
+    url: string;
+    prompt: string;
+    createdAt: string;
+    width?: number;
+    height?: number;
+};
+
 export type DramaAssetReference = {
     id: string;
     url: string;
@@ -99,6 +109,7 @@ export type DramaShot = {
     storyboardImageUrl?: string;
     storyboardImageWidth?: number;
     storyboardImageHeight?: number;
+    storyboardHistory?: DramaShotGenerationHistory[];
     storyboardEndStatus?: DramaTaskStatus;
     storyboardEndAttempt?: number;
     storyboardEndTaskId?: string;
@@ -111,6 +122,7 @@ export type DramaShot = {
     generationTaskId?: string;
     generationError?: string;
     videoUrl?: string;
+    videoHistory?: DramaShotGenerationHistory[];
     subtitle?: string;
     audioMode?: DramaShotAudioMode;
     audioStatus?: DramaTaskStatus;
