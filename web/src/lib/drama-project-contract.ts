@@ -91,6 +91,16 @@ export type DramaShot = {
     imagePrompt: string;
     videoPrompt: string;
     cameraMotion: string;
+    /** LocalMiniDrama storyboard context used by frame planning. */
+    shotType?: string;
+    cameraAngle?: string;
+    location?: string;
+    time?: string;
+    action?: string;
+    result?: string;
+    emotion?: string;
+    emotionIntensity?: number;
+    layoutDescription?: string;
     startFramePrompt?: string;
     endFramePrompt?: string;
     negativePrompt?: string;

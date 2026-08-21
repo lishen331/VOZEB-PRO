@@ -27,6 +27,14 @@ type ExtractedStoryboard = {
     narration: string;
     cameraMotion: string;
     cameraAngle: string;
+    shotType: string;
+    location: string;
+    time: string;
+    action: string;
+    result: string;
+    emotion: string;
+    emotionIntensity: number;
+    layoutDescription: string;
     duration: number;
     sceneId: string;
     characterIds: string[];
@@ -42,16 +50,16 @@ export async function extractDramaLabStoryboards(input: { userId: string; origin
     const [storyboardPrompt, outputPrompt] = await Promise.all([resolveDramaLabPrompt("storyboard_system"), resolveDramaLabPrompt("storyboard_output_format")]);
     const systemPrompt = withDramaLabPromptContract(
         `${storyboardPrompt.template}\n\n${outputPrompt.template}`,
-        "只调用 extract_drama_storyboards 并返回 JSON 对象。shots 必须是数组。每个镜头的 sceneId 只能是 availableAssets.scenes 中的 id，或空字符串；characterIds 和 propIds 只能引用各自对应资产列表中的 id。绝不能根据名称编造、猜测或新建资产 ID。不要返回 Markdown、解释、图片提示词、图片链接或未定义字段。",
+        "只调用 extract_drama_storyboards 并返回 JSON 对象。shots 必须是数组。每个镜头必须填写 shotType、cameraAngle、location、time、action、result、emotion、emotionIntensity、layoutDescription。sceneId 只能是 availableAssets.scenes 中的真实 id，或空字符串；characterIds 和 propIds 只能引用各自对应资产列表中的真实 id。绝不能根据名称编造、猜测或新建资产 ID。不要返回 Markdown、解释、图片提示词、图片链接或未定义字段。",
     );
     const userPrompt = JSON.stringify({
         task: "从当前集剧本拆解可执行的结构化分镜",
         project: { title: input.project.title, style: input.project.style, aspectRatio: input.project.ratio },
         episode: { id: episode.id, title: episode.title, script },
         availableAssets: {
-            characters: input.project.characters.map((asset) => ({ id: asset.id, name: asset.name, description: asset.description || "" })),
-            scenes: input.project.scenes.map((asset) => ({ id: asset.id, name: asset.name, description: asset.description || "" })),
-            props: input.project.props.map((asset) => ({ id: asset.id, name: asset.name, description: asset.description || "" })),
+            characters: input.project.characters.map((asset) => ({ id: asset.id, name: asset.name, description: asset.description || "", visualIdentity: asset.profile?.visualIdentity || "", styling: asset.profile?.styling || "" })),
+            scenes: input.project.scenes.map((asset) => ({ id: asset.id, name: asset.name, description: asset.description || "", visualIdentity: asset.profile?.visualIdentity || "" })),
+            props: input.project.props.map((asset) => ({ id: asset.id, name: asset.name, description: asset.description || "", visualIdentity: asset.profile?.visualIdentity || "" })),
         },
     });
 
@@ -139,7 +147,16 @@ export function normalizeExtractedDramaLabStoryboards(value: string, project: Dr
             imagePrompt: "",
             videoPrompt: "",
             cameraMotion: shot.cameraMotion,
-            continuity: shot.cameraAngle ? emptyContinuity(shot.cameraAngle) : undefined,
+            shotType: shot.shotType,
+            cameraAngle: shot.cameraAngle,
+            location: shot.location,
+            time: shot.time,
+            action: shot.action,
+            result: shot.result,
+            emotion: shot.emotion,
+            emotionIntensity: shot.emotionIntensity,
+            layoutDescription: shot.layoutDescription,
+            continuity: shot.cameraAngle ? emptyContinuity(shot.cameraAngle, shot.shotType) : undefined,
             duration: shot.duration,
             characterIds: shot.characterIds,
             propIds: shot.propIds,
@@ -168,6 +185,14 @@ function parseStoryboard(value: unknown, order: number): ExtractedStoryboard {
         narration: optionalText(shot.narration),
         cameraMotion: optionalText(shot.cameraMotion),
         cameraAngle: optionalText(shot.cameraAngle),
+        shotType: optionalText(shot.shotType),
+        location: optionalText(shot.location),
+        time: optionalText(shot.time),
+        action: optionalText(shot.action) || description,
+        result: optionalText(shot.result),
+        emotion: optionalText(shot.emotion),
+        emotionIntensity: numberValue(shot.emotionIntensity),
+        layoutDescription: optionalText(shot.layoutDescription),
         duration,
         sceneId: optionalText(shot.sceneId),
         characterIds: requiredIds(shot.characterIds, "characterIds", order),
@@ -183,9 +208,9 @@ function assertAssetReferences(shot: ExtractedStoryboard, sceneIds: Set<string>,
     if (invalidPropId) throw new DramaLabStoryboardExtractionError(`第 ${order} 个分镜引用了项目中不存在的道具 ID：${invalidPropId}`);
 }
 
-function emptyContinuity(cameraAngle: string) {
+function emptyContinuity(cameraAngle: string, shotType = "") {
     return {
-        shotSize: "",
+        shotSize: shotType,
         cameraAngle,
         composition: "",
         characterBlocking: "",
@@ -196,6 +221,10 @@ function emptyContinuity(cameraAngle: string) {
         axisRule: "",
         continuityNotes: "",
     };
+}
+
+function numberValue(value: unknown) {
+    return typeof value === "number" && Number.isFinite(value) ? Math.max(-1, Math.min(3, Math.round(value))) : 0;
 }
 
 function requiredText(value: unknown, field: string, order: number) {
@@ -255,12 +284,41 @@ const extractDramaStoryboardsTool = {
                         narration: { type: "string" },
                         cameraMotion: { type: "string" },
                         cameraAngle: { type: "string" },
+                        shotType: { type: "string" },
+                        location: { type: "string" },
+                        time: { type: "string" },
+                        action: { type: "string" },
+                        result: { type: "string" },
+                        emotion: { type: "string" },
+                        emotionIntensity: { type: "number" },
+                        layoutDescription: { type: "string" },
                         duration: { type: "number" },
                         sceneId: { type: "string" },
                         characterIds: { type: "array", items: { type: "string" } },
                         propIds: { type: "array", items: { type: "string" } },
                     },
-                    required: ["title", "description", "sourceText", "shotBoundary", "dialogue", "narration", "cameraMotion", "cameraAngle", "duration", "sceneId", "characterIds", "propIds"],
+                    required: [
+                        "title",
+                        "description",
+                        "sourceText",
+                        "shotBoundary",
+                        "dialogue",
+                        "narration",
+                        "cameraMotion",
+                        "cameraAngle",
+                        "shotType",
+                        "location",
+                        "time",
+                        "action",
+                        "result",
+                        "emotion",
+                        "emotionIntensity",
+                        "layoutDescription",
+                        "duration",
+                        "sceneId",
+                        "characterIds",
+                        "propIds",
+                    ],
                     additionalProperties: false,
                 },
             },
