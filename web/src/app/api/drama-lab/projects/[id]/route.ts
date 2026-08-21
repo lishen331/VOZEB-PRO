@@ -171,7 +171,7 @@ function legacyShotToEpisodeShot(value: unknown, index: number) {
             cameraMotion: "",
             duration: typeof shot.duration === "number" ? shot.duration : 3,
             characterIds: Array.isArray(shot.characterIds) ? shot.characterIds.filter((item): item is string => typeof item === "string") : [],
-            propIds: [],
+            propIds: Array.isArray(shot.propIds) ? shot.propIds.filter((item): item is string => typeof item === "string") : [],
             clueIds: [],
             ...(typeof shot.sceneId === "string" ? { sceneId: shot.sceneId } : {}),
             ...(imageUrl ? { storyboardImageUrl: imageUrl } : {}),
