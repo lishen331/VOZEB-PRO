@@ -18,10 +18,10 @@ const { Option } = Select;
 // 步骤定义
 const WORKFLOW_STEPS = [
     { key: "script", label: "剧本", icon: FileText },
-    { key: "review", label: "内容审核", icon: FileText },
     { key: "assets", label: "资产准备", icon: Users },
     { key: "storyboard", label: "分镜", icon: Film },
     { key: "generate", label: "镜头生成", icon: Film },
+    { key: "review", label: "内容审核", icon: FileText },
     { key: "export", label: "成片导出", icon: Download },
 ] as const;
 
@@ -769,15 +769,15 @@ ${storyOutline}
     );
 }
 
-// 2. 内容审核面板
+// 5. 内容审核面板
 function ReviewPanel({ project, episode }: { project: Project; episode?: Episode }) {
     return (
         <div className="mx-auto max-w-4xl">
             <Alert
                 type="info"
                 showIcon
-                message="AI 生成剧本"
-                description="此功能将使用 AI 帮助您生成或完善剧本内容。"
+                message="内容审核"
+                description="成片导出前，AI 将对已生成的资产、分镜图与镜头视频进行审核并定位问题。"
             />
             <div className="mt-6 text-center text-muted-foreground">
                 内容审核功能开发中...

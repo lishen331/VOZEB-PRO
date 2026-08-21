@@ -8,10 +8,10 @@ export const DRAMA_WORKFLOW_LAB_ENV = "VOZEB_PRO_DRAMA_WORKFLOW_LAB" as const;
 
 export const DRAMA_WORKFLOW_LAB_STAGES = [
     { id: "script", label: "剧本", description: "生成或导入剧本" },
-    { id: "review", label: "内容审核", description: "检查内容并确认创作方向" },
     { id: "assets", label: "资产准备", description: "整理角色、场景、道具与线索" },
     { id: "storyboard", label: "分镜", description: "规划镜头与画面节奏" },
     { id: "shots", label: "镜头生成", description: "生成并复核镜头素材" },
+    { id: "review", label: "内容审核", description: "由 AI 审核已生成的创作素材并定位问题" },
     { id: "export", label: "成片导出", description: "合成并导出成片" },
 ] as const;
 
@@ -64,10 +64,10 @@ export function getDramaWorkflowLabProgress(input: { hasScript: boolean; reviewe
     const completedStageIds = new Set<DramaWorkflowLabStageId>();
     const milestones: Array<[DramaWorkflowLabStageId, boolean]> = [
         ["script", input.hasScript],
-        ["review", input.reviewed],
         ["assets", input.hasAssets],
         ["storyboard", input.hasStoryboard],
         ["shots", input.hasGeneratedShot],
+        ["review", input.reviewed],
         ["export", input.exported],
     ];
     for (const [stageId, complete] of milestones) {

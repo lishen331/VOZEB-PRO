@@ -20,8 +20,8 @@ describe("drama workflow lab config", () => {
     });
 
     it("keeps the workflow stages in the product order with stable labels", () => {
-        expect(DRAMA_WORKFLOW_LAB_STAGES.map((stage) => stage.id)).toEqual(["script", "review", "assets", "storyboard", "shots", "export"]);
-        expect(DRAMA_WORKFLOW_LAB_STAGES.map((stage) => stage.label)).toEqual(["剧本", "内容审核", "资产准备", "分镜", "镜头生成", "成片导出"]);
+        expect(DRAMA_WORKFLOW_LAB_STAGES.map((stage) => stage.id)).toEqual(["script", "assets", "storyboard", "shots", "review", "export"]);
+        expect(DRAMA_WORKFLOW_LAB_STAGES.map((stage) => stage.label)).toEqual(["剧本", "资产准备", "分镜", "镜头生成", "内容审核", "成片导出"]);
     });
 
     it("derives stage status from active and completed ids", () => {
@@ -35,7 +35,14 @@ describe("drama workflow lab config", () => {
     it("stops progress at the first incomplete stage", () => {
         const progress = getDramaWorkflowLabProgress({ hasScript: true, reviewed: true, hasAssets: true, hasStoryboard: false, hasGeneratedShot: false, exported: false });
 
-        expect([...progress.completedStageIds]).toEqual(["script", "review", "assets"]);
+        expect([...progress.completedStageIds]).toEqual(["script", "assets"]);
         expect(progress.activeStageId).toBe("storyboard");
+    });
+
+    it("keeps content review behind generated shots and before export", () => {
+        const progress = getDramaWorkflowLabProgress({ hasScript: true, reviewed: true, hasAssets: true, hasStoryboard: true, hasGeneratedShot: true, exported: false });
+
+        expect([...progress.completedStageIds]).toEqual(["script", "assets", "storyboard", "shots", "review"]);
+        expect(progress.activeStageId).toBe("export");
     });
 });
