@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     resolveDramaLabPrompt: vi.fn(),
     rankTextPlanningCandidates: vi.fn(),
     requestStructuredText: vi.fn(),
+    recordDramaLabTextGenerationLog: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings, refundUserPoints: vi.fn() }));
@@ -15,6 +16,7 @@ vi.mock("@/lib/server/drama-lab-prompt-template-service", () => ({
     withDramaLabPromptContract: (template: string, contract: string) => `${template}\n${contract}`,
 }));
 vi.mock("@/lib/server/text-planning-runtime", () => ({ rankTextPlanningCandidates: mocks.rankTextPlanningCandidates, requestStructuredText: mocks.requestStructuredText }));
+vi.mock("@/lib/server/drama-lab-text-generation-log", () => ({ recordDramaLabTextGenerationLog: mocks.recordDramaLabTextGenerationLog }));
 vi.mock("@/lib/server/system-ai-billing", () => ({
     hasSystemAiCharge: () => false,
     readSystemAiBilling: () => ({}),
@@ -66,6 +68,12 @@ describe("drama lab asset extraction", () => {
         expect(mocks.requestStructuredText.mock.calls[0]?.[0].messages[0].content).toContain("CUSTOM CHARACTER TEMPLATE");
         expect(result.assets).toMatchObject([{ name: "周明", description: "同事" }]);
         expect(result.skippedCount).toBe(1);
+        expect(mocks.recordDramaLabTextGenerationLog).toHaveBeenCalledWith(expect.objectContaining({
+            id: "drama-lab-extract:project-one:episode-one:character:request-one",
+            userId: "user-one",
+            status: "success",
+            model: "writer",
+        }));
     });
 
     it("normalizes legacy scene locations when checking duplicate names", () => {

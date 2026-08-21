@@ -1,6 +1,7 @@
 import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveDramaLabPrompt } from "@/lib/server/drama-lab-prompt-template-service";
+import { recordDramaLabTextGenerationLog } from "@/lib/server/drama-lab-text-generation-log";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 
@@ -30,6 +31,8 @@ export async function generateDramaLabScript(input: {
     const prompt = await resolveDramaLabPrompt("story_generation");
     const settings = await getAuthSettings();
     const model = settings.defaultModels.textModel;
+    const startedAt = Date.now();
+    const logId = `drama-lab-script:${input.projectId}:${input.episodeId}:${input.requestId}`;
     const candidates = resolveLogicalModelCandidates(settings, "text", model);
     if (!model || !candidates.length) throw new DramaLabScriptGenerationError("后台尚未配置可用的默认文本模型", 503);
 
@@ -60,6 +63,16 @@ export async function generateDramaLabScript(input: {
             try {
                 const script = parseScript(call.arguments);
                 if (!script) throw new DramaLabScriptGenerationError("文本模型没有返回有效剧本");
+                await recordDramaLabTextGenerationLog({
+                    id: logId,
+                    userId: input.userId,
+                    title: "剧本生成",
+                    prompt: context,
+                    model,
+                    status: "success",
+                    durationMs: call.elapsedMs,
+                    createdAt: startedAt,
+                });
                 return { script, templateKey: prompt.key };
             } catch (error) {
                 await refundInvalidResponse(input.userId, model, call.headers);
@@ -69,6 +82,17 @@ export async function generateDramaLabScript(input: {
             latestError = error;
         }
     }
+    await recordDramaLabTextGenerationLog({
+        id: logId,
+        userId: input.userId,
+        title: "剧本生成",
+        prompt: context,
+        model,
+        status: "failed",
+        durationMs: Date.now() - startedAt,
+        error: latestError instanceof Error ? latestError.message : "剧本生成失败",
+        createdAt: startedAt,
+    });
     throw latestError instanceof DramaLabScriptGenerationError
         ? latestError
         : new DramaLabScriptGenerationError(latestError instanceof Error ? latestError.message : "剧本生成失败，请稍后重试");

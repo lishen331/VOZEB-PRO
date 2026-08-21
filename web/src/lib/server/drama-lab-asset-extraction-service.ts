@@ -4,6 +4,7 @@ import type { DramaCharacter, DramaProject, DramaProp, DramaScene } from "@/lib/
 import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
+import { recordDramaLabTextGenerationLog } from "@/lib/server/drama-lab-text-generation-log";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 
@@ -56,6 +57,9 @@ export async function extractDramaLabAssets(input: {
 
     const settings = await getAuthSettings();
     const model = settings.defaultModels.textModel;
+    const startedAt = Date.now();
+    const logId = `drama-lab-extract:${input.project.id}:${input.episodeId}:${input.assetType}:${input.requestId}`;
+    const title = `${assetLabel(input.assetType)}提取`;
     const candidates = resolveLogicalModelCandidates(settings, "text", model);
     if (!model || !candidates.length) throw new DramaLabAssetExtractionError("后台尚未配置可用的默认文本模型", 503);
 
@@ -74,6 +78,16 @@ export async function extractDramaLabAssets(input: {
             });
             try {
                 const items = normalizeExtractedDramaLabAssets(call.arguments, input.assetType, existing);
+                await recordDramaLabTextGenerationLog({
+                    id: logId,
+                    userId: input.userId,
+                    title,
+                    prompt: userPrompt,
+                    model,
+                    status: "success",
+                    durationMs: call.elapsedMs,
+                    createdAt: startedAt,
+                });
                 return { assets: items, skippedCount: extractedItemCount(call.arguments) - items.length, templateKey: prompt.key };
             } catch (error) {
                 await refundInvalidResponse(input.userId, model, call.headers);
@@ -83,6 +97,17 @@ export async function extractDramaLabAssets(input: {
             latestError = error;
         }
     }
+    await recordDramaLabTextGenerationLog({
+        id: logId,
+        userId: input.userId,
+        title,
+        prompt: userPrompt,
+        model,
+        status: "failed",
+        durationMs: Date.now() - startedAt,
+        error: latestError instanceof Error ? latestError.message : "素材提取失败",
+        createdAt: startedAt,
+    });
     throw latestError instanceof DramaLabAssetExtractionError
         ? latestError
         : new DramaLabAssetExtractionError(latestError instanceof Error ? latestError.message : "资产提取失败，请稍后重试");

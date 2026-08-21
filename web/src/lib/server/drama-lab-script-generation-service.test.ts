@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     resolveDramaLabPrompt: vi.fn(),
     rankTextPlanningCandidates: vi.fn(),
     requestStructuredText: vi.fn(),
+    recordDramaLabTextGenerationLog: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings, refundUserPoints: vi.fn() }));
@@ -18,6 +19,7 @@ vi.mock("@/lib/server/system-ai-billing", () => ({
     systemAiIdempotencyKey: () => "key",
 }));
 vi.mock("@/lib/server/text-planning-runtime", () => ({ rankTextPlanningCandidates: mocks.rankTextPlanningCandidates, requestStructuredText: mocks.requestStructuredText }));
+vi.mock("@/lib/server/drama-lab-text-generation-log", () => ({ recordDramaLabTextGenerationLog: mocks.recordDramaLabTextGenerationLog }));
 
 import { generateDramaLabScript } from "./drama-lab-script-generation-service";
 
@@ -45,6 +47,12 @@ describe("drama lab script generation", () => {
             episodeCount: "12",
         });
         expect(mocks.requestStructuredText.mock.calls[0]?.[0].messages[0].content).toContain("CUSTOM STORY TEMPLATE");
+        expect(mocks.recordDramaLabTextGenerationLog).toHaveBeenCalledWith(expect.objectContaining({
+            id: "drama-lab-script:project-one:episode-one:request-one",
+            userId: "user-one",
+            status: "success",
+            model: "writer",
+        }));
         expect(result).toEqual({ script: "第一集剧本正文", templateKey: "story_generation" });
     });
 });
