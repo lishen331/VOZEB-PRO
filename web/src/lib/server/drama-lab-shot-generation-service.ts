@@ -40,11 +40,17 @@ export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId:
     assertProjectAssetBindings(project, context.shot);
     if (!context.shot.storyboardImageUrl) throw new DramaLabShotGenerationError("请先生成当前分镜图");
     const visualPrompt = context.shot.videoPrompt.trim() || defaultVideoPrompt(context.shot);
+    const frameReferences = ["first", "last", "key"].flatMap((frameType) => {
+        const frame = context.shot.frames?.[frameType as "first" | "key" | "last"];
+        return frame?.url ? [{ id: `${frameType}-frame-${context.shot.id}`, url: frame.url, label: `${context.shot.title}${frameType} frame`, width: frame.width, height: frame.height }] : [];
+    });
     return {
         prompt: [
             "【短剧实验室分镜视频任务】",
             shotGenerationContext(project, context.episode, context.shot),
             `动态要求：${visualPrompt}`,
+            context.shot.frames?.first?.prompt ? `首帧状态：${context.shot.frames.first.prompt}` : "",
+            context.shot.frames?.last?.prompt ? `尾帧状态：${context.shot.frames.last.prompt}` : "",
             "【不可编辑执行约束】仅使用当前镜头绑定的场景、角色和道具，以及当前分镜图作为画面依据。保持角色身份、服装、场景空间、道具尺度、视线和运动方向一致；不得出现未绑定角色、项目外物体、字幕或水印。",
         ].join("\n\n"),
         visiblePrompt: visualPrompt,
@@ -56,6 +62,7 @@ export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId:
                 width: context.shot.storyboardImageWidth,
                 height: context.shot.storyboardImageHeight,
             },
+            ...frameReferences,
             ...shotReferences(project, context.shot),
         ],
         shot: context.shot,

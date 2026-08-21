@@ -2349,8 +2349,13 @@ function StoryboardPanel({
 
     const episodeShots = episode ? project.shots.filter((s) => s.episodeId === episode.id).sort((a, b) => a.shotNumber - b.shotNumber) : [];
     const activeTaskSignature = episodeShots
-        .filter((shot) => shot.storyboardStatus === "running" || shot.generationStatus === "running")
-        .map((shot) => `${shot.id}:${shot.storyboardTaskId || ""}:${shot.generationTaskId || ""}`)
+        .filter((shot) => shot.storyboardStatus === "running" || shot.generationStatus === "running" || Object.values(shot.frames || {}).some((frame) => frame?.status === "running"))
+        .map(
+            (shot) =>
+                `${shot.id}:${shot.storyboardTaskId || ""}:${shot.generationTaskId || ""}:${Object.entries(shot.frames || {})
+                    .map(([type, frame]) => `${type}:${frame?.taskId || ""}`)
+                    .join(",")}`,
+        )
         .join("|");
 
     const updateShot = async (shotId: string, patch: Partial<Shot>, options: SaveOptions = { silent: true }) => {
@@ -2374,7 +2379,7 @@ function StoryboardPanel({
         if (!episode || !activeTaskSignature) return;
         let disposed = false;
         const sync = async () => {
-            for (const shot of episodeShots.filter((item) => item.storyboardStatus === "running" || item.generationStatus === "running")) {
+            for (const shot of episodeShots.filter((item) => item.storyboardStatus === "running" || item.generationStatus === "running" || Object.values(item.frames || {}).some((frame) => frame?.status === "running"))) {
                 if (disposed) return;
                 await syncShot(shot.id).catch(() => undefined);
             }
