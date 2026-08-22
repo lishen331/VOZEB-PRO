@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAuthSettings } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
+import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { DramaLabShotGenerationError, persistDramaLabShotUpdate, prepareDramaLabStoryboardImage } from "@/lib/server/drama-lab-shot-generation-service";
 import { DramaProjectStoreError, getDramaProject } from "@/lib/server/drama-project-store";
 
@@ -25,7 +26,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!settings.defaultModels.imageModel) throw new DramaLabShotGenerationError("后台尚未配置可用的默认图片模型", 503);
         const attemptNo = (prepared.shot.storyboardAttempt || 0) + 1;
         const requestId = `drama-lab-storyboard:${project.id}:${episodeId}:${shotId}:attempt-${attemptNo}`;
-        const origin = resolveInternalOrigin(new URL(request.url).origin);
+        // Next can expose its internal base URL here (for example the stale
+        // 3000 value from .env.local) while the request actually arrived on
+        // another local dev port. Resolve from the request Host first.
+        const requestOrigin = resolvePublicRequestOrigin(request);
+        const origin = resolveInternalOrigin(requestOrigin);
+        console.info("[drama-lab/generate-image] dispatch", { requestOrigin, origin, configuredOrigin: process.env.VOZEB_PRO_INTERNAL_ORIGIN, port: process.env.PORT });
         const response = await fetchInternalApi(`${origin}/api/image-tasks`, {
             method: "POST",
             headers: {
@@ -76,6 +82,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         return NextResponse.json({ code: 0, data: { task: payload.task, templateKey: prepared.templateKey }, msg: "分镜图任务已创建" });
     } catch (error) {
+        console.error("[drama-lab/generate-image] request failed", {
+            message: error instanceof Error ? error.message : String(error),
+            cause: error instanceof Error ? error.cause : undefined,
+            name: error instanceof Error ? error.name : undefined,
+        });
         const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜图任务创建失败" }, { status });
     }

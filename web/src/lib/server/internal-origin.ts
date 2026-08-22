@@ -54,7 +54,10 @@ function parseOrigin(value: string) {
 
 function isLoopbackHost(hostname: string) {
     const host = hostname.toLowerCase();
-    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+    // 0.0.0.0 is a listen/bind address, but local browsers can use it as the
+    // request Host. Treat it like loopback so a stale configured port cannot
+    // hijack internal callbacks during development.
+    return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host === "::1";
 }
 
 function effectivePort(url: URL) {

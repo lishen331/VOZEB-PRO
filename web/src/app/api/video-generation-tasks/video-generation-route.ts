@@ -84,7 +84,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: error instanceof Error ? error.message : "视频参考素材不正确" }, { status: 400 });
         }
         const providerPrompt = withVideoReferenceFidelity(prompt, references);
-        const origin = resolveInternalOrigin(new URL(request.url).origin);
+        const origin = resolveInternalOrigin(resolvePublicRequestOrigin(request));
         const cookie = requestRuntimeCredential(request, user.id);
         const requestedParameters = resolveVideoGenerationParameters(body.config || {}, settings.generationDefaults);
         const billingRequestId = clean(body.context?.clientRequestId) || clean(request.headers.get("x-vozeb-pro-client-request-id")) || `video-request:${user.id}:${Date.now()}`;

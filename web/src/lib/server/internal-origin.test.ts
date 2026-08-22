@@ -25,6 +25,7 @@ describe("internal API dispatcher", () => {
     it("follows the request port when a stale loopback origin is configured", () => {
         vi.stubEnv("VOZEB_PRO_INTERNAL_ORIGIN", "http://127.0.0.1:3000");
         expect(resolveInternalOrigin("http://localhost:3002")).toBe("http://localhost:3002");
+        expect(resolveInternalOrigin("http://0.0.0.0:3002")).toBe("http://0.0.0.0:3002");
     });
 
     it("keeps an explicitly configured non-loopback origin", () => {

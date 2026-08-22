@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAuthSettings } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
+import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { DramaLabShotGenerationError, persistDramaLabShotUpdate, prepareDramaLabStoryboardVideo } from "@/lib/server/drama-lab-shot-generation-service";
 import { DramaProjectStoreError, getDramaProject } from "@/lib/server/drama-project-store";
 
@@ -25,7 +26,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!settings.defaultModels.videoModel) throw new DramaLabShotGenerationError("后台尚未配置可用的默认视频模型", 503);
         const attemptNo = (prepared.shot.generationAttempt || 0) + 1;
         const requestId = `drama-lab-video:${project.id}:${episodeId}:${shotId}:attempt-${attemptNo}`;
-        const origin = resolveInternalOrigin(new URL(request.url).origin);
+        // Keep internal dispatch on the listener that accepted this request;
+        // request.url may contain a stale local development port.
+        const requestOrigin = resolvePublicRequestOrigin(request);
+        const origin = resolveInternalOrigin(requestOrigin);
+        console.info("[drama-lab/generate-video] dispatch", { requestOrigin, origin, configuredOrigin: process.env.VOZEB_PRO_INTERNAL_ORIGIN, port: process.env.PORT });
         const response = await fetchInternalApi(`${origin}/api/video-generation-tasks`, {
             method: "POST",
             headers: {
@@ -37,7 +42,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             body: JSON.stringify({
                 config: { model: settings.defaultModels.videoModel, size: project.ratio, videoSeconds: prepared.shot.duration },
                 prompt: prepared.prompt,
-                references: prepared.references.map((reference) => ({ type: "image", role: "reference", url: reference.url })),
+                // OpenAI-compatible video endpoints accept one input reference.
+                // The preparation service returns the storyboard/key frame first;
+                // keep this boundary defensive if another caller adds extras.
+                references: prepared.references.slice(0, 1).map((reference) => ({ type: "image", role: "reference", url: reference.url })),
                 source: "drama",
                 context: {
                     conversationId: project.creativeConversationId,
@@ -69,6 +77,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         return NextResponse.json({ code: 0, data: { task: payload.task }, msg: "分镜视频任务已创建" });
     } catch (error) {
+        console.error("[drama-lab/generate-video] request failed", {
+            message: error instanceof Error ? error.message : String(error),
+            cause: error instanceof Error ? error.cause : undefined,
+            name: error instanceof Error ? error.name : undefined,
+        });
         const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜视频任务创建失败" }, { status });
     }

@@ -5,6 +5,7 @@ import { appendDramaLabGenerationHistory, DramaLabShotGenerationError, findShot,
 import { DramaProjectStoreError, getDramaProject } from "@/lib/server/drama-project-store";
 import { getImageTask } from "@/lib/server/image-task-store";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
+import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { getVideoTask } from "@/lib/server/video-task-store";
 
@@ -29,14 +30,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const [storedImageTask, storedVideoTask] = await Promise.all([shot.storyboardTaskId ? getImageTask(shot.storyboardTaskId) : null, shot.generationTaskId ? getVideoTask(shot.generationTaskId) : null]);
         const imageTask = storedImageTask?.userId === user.id ? storedImageTask : null;
         const videoTask = storedVideoTask?.userId === user.id ? storedVideoTask : null;
-        const patch = generationPatch(shot, imageTask, videoTask, frameTasks);
+        const patch = generationPatch(shot, imageTask, videoTask, frameTasks, {
+            imageTaskMissing: Boolean(shot.storyboardTaskId && !storedImageTask),
+            videoTaskMissing: Boolean(shot.generationTaskId && !storedVideoTask),
+            userId: user.id,
+        });
         const updated = Object.keys(patch).length ? await persistDramaLabShotUpdate({ userId: user.id, project, episodeId, shotId, patch }) : project;
 
-        const activeTaskIds = [imageTask, videoTask, ...frameTasks.map(([, task]) => (task && task.userId === user.id ? task : null))].flatMap((task) => (task && (task.status === "pending" || task.status === "running") ? [task.id] : []));
+        const activeTaskIds = [imageTask, videoTask, ...frameTasks.map(([, task]) => (task && task.userId === user.id ? task : null))].flatMap((task) => (task && (task.status === "pending" || task.status === "running") && task.executionPhase !== "needs_review" ? [task.id] : []));
         if (activeTaskIds.length) {
-            const origin = resolveInternalOrigin(new URL(request.url).origin);
+            const origin = resolveInternalOrigin(resolvePublicRequestOrigin(request));
             const cookie = request.headers.get("cookie") || "";
-            after(() => runGenerationTaskRecoveryBatch({ origin, publicOrigin: new URL(request.url).origin, cookie, limit: activeTaskIds.length, taskIds: activeTaskIds }));
+            after(() => runGenerationTaskRecoveryBatch({ origin, publicOrigin: resolvePublicRequestOrigin(request), cookie, limit: activeTaskIds.length, taskIds: activeTaskIds }));
         }
 
         const synchronized = findShot(updated, episodeId, shotId).shot;
@@ -52,12 +57,25 @@ function generationPatch(
     imageTask: Awaited<ReturnType<typeof getImageTask>>,
     videoTask: Awaited<ReturnType<typeof getVideoTask>>,
     frameTasks: ReadonlyArray<readonly ["first" | "key" | "last", Awaited<ReturnType<typeof getImageTask>>]>,
+    options: { imageTaskMissing?: boolean; videoTaskMissing?: boolean; userId?: string } = {},
 ) {
     const patch: Record<string, unknown> = {};
     const frames = { ...(shot.frames || {}) };
     for (const [frameType, task] of frameTasks) {
         const frame = frames[frameType];
-        if (!frame || !task || task.userId === undefined) continue;
+        if (!frame) continue;
+        if (!task) {
+            if (frame.taskId && isActiveStatus(frame.status)) {
+                frames[frameType] = {
+                    ...frame,
+                    status: "error",
+                    taskId: undefined,
+                    error: "帧任务记录不存在，可能因服务重启或任务过期丢失，请重新生成",
+                };
+            }
+            continue;
+        }
+        if (task.userId === undefined || (options.userId && task.userId !== options.userId)) continue;
         if (task.status === "success") {
             const result = task.result as Record<string, unknown> | undefined;
             const url = stableUrl(result?.serverUrl) || stableUrl(result?.remoteUrl) || stableUrl(result?.dataUrl);
@@ -150,7 +168,16 @@ function generationPatch(
             }
         }
     }
-    if (videoTask && videoTask.userId) {
+    if (options.imageTaskMissing && !keyFrame?.url && isActiveStatus(shot.storyboardStatus)) {
+        patch.storyboardStatus = "error";
+        patch.storyboardTaskId = undefined;
+        patch.storyboardError = "分镜图任务记录不存在，可能因服务重启或任务过期丢失，请重新生成";
+    }
+    if (videoTask && videoTask.userId && videoTask.executionPhase === "needs_review") {
+        patch.generationStatus = "error";
+        patch.generationTaskId = undefined;
+        patch.generationError = videoTask.reviewReason || videoTask.error || "视频任务未能确认上游提交结果，请重新生成";
+    } else if (videoTask && videoTask.userId) {
         if (videoTask.status === "success") {
             const url = stableUrl(videoTask.result?.url) || stableUrl(videoTask.result?.remoteUrl);
             if (url) {
@@ -180,7 +207,16 @@ function generationPatch(
             }
         }
     }
+    if (options.videoTaskMissing && isActiveStatus(shot.generationStatus)) {
+        patch.generationStatus = "error";
+        patch.generationTaskId = undefined;
+        patch.generationError = "分镜视频任务记录不存在，可能因服务重启或任务过期丢失，请重新生成";
+    }
     return patch;
+}
+
+function isActiveStatus(value: unknown) {
+    return value === "queued" || value === "pending" || value === "running";
 }
 
 function stableUrl(value: unknown) {
