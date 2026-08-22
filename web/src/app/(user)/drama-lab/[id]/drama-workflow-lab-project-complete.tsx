@@ -501,6 +501,24 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
         }
     };
 
+    const updateProjectShotFromSync = useCallback((episodeId: string, shotId: string, rawShot: unknown) => {
+        setProject((current) => {
+            if (!current) return current;
+            const shotIndex = current.shots.findIndex((shot) => shot.id === shotId && shot.episodeId === episodeId);
+            if (shotIndex < 0) return current;
+            const currentShot = current.shots[shotIndex];
+            const normalized = normalizeShot(rawShot, episodeId, Math.max(0, currentShot.shotNumber - 1));
+            if (!normalized) return current;
+
+            const nextShot = { ...currentShot, ...normalized };
+            if (JSON.stringify(currentShot) === JSON.stringify(nextShot)) return current;
+
+            const shots = [...current.shots];
+            shots[shotIndex] = nextShot;
+            return { ...current, shots };
+        });
+    }, []);
+
     const activeEpisode = project?.episodes.find((ep) => ep.id === activeEpisodeId);
     const locateStoryboardShot = (episodeId: string, shotId: string) => {
         pendingStoryboardShotId.current = shotId;
@@ -787,7 +805,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
                     {activeStep === "script" && <ScriptEditor project={project} episode={activeEpisode} onSave={saveProject} onActiveEpisodeChange={setActiveEpisodeId} messageApi={messageApi} />}
                     {activeStep === "review" && <ReviewPanel project={project} episode={activeEpisode} onStepChange={setActiveStep} />}
                     {activeStep === "assets" && <DramaLabVisualAssetsPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onLocateShot={locateStoryboardShot} messageApi={messageApi} />}
-                    {activeStep === "storyboard" && <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} messageApi={messageApi} />}
+                    {activeStep === "storyboard" && <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onShotSynced={updateProjectShotFromSync} messageApi={messageApi} />}
                     {activeStep === "export" && <ExportPanel project={project} episode={activeEpisode} messageApi={messageApi} exportBlockedByApproval={exportBlockedByApproval} />}
                 </div>
                 <aside className={cn("hidden min-h-0 shrink-0 flex-col border-l border-border bg-card transition-[width] duration-200 lg:flex", collaborationCollapsed ? "w-14" : "w-[340px]")}>
@@ -2349,12 +2367,14 @@ function StoryboardPanel({
     episode,
     onSave,
     onReload,
+    onShotSynced,
     messageApi,
 }: {
     project: Project;
     episode?: Episode;
     onSave: (updates: Partial<Project>, options?: SaveOptions) => Promise<boolean>;
     onReload: () => Promise<void>;
+    onShotSynced: (episodeId: string, shotId: string, shot: unknown) => void;
     messageApi: ReturnType<typeof message.useMessage>[0];
 }) {
     const [modalVisible, setModalVisible] = useState(false);
@@ -2365,8 +2385,10 @@ function StoryboardPanel({
     const [form] = Form.useForm();
 
     const episodeShots = episode ? project.shots.filter((s) => s.episodeId === episode.id).sort((a, b) => a.shotNumber - b.shotNumber) : [];
-    const activeTaskSignature = episodeShots
-        .filter((shot) => shot.storyboardStatus === "running" || shot.generationStatus === "running" || Object.values(shot.frames || {}).some((frame) => frame?.status === "running"))
+    const activeTaskShots = episodeShots.filter((shot) => shot.storyboardStatus === "running" || shot.generationStatus === "running" || Object.values(shot.frames || {}).some((frame) => frame?.status === "running"));
+    const activeTaskShotsRef = useRef(activeTaskShots);
+    activeTaskShotsRef.current = activeTaskShots;
+    const activeTaskSignature = activeTaskShots
         .map(
             (shot) =>
                 `${shot.id}:${shot.storyboardTaskId || ""}:${shot.generationTaskId || ""}:${Object.entries(shot.frames || {})
@@ -2374,6 +2396,7 @@ function StoryboardPanel({
                     .join(",")}`,
         )
         .join("|");
+    const episodeId = episode?.id;
 
     const updateShot = async (shotId: string, patch: Partial<Shot>, options: SaveOptions = { silent: true }) => {
         const saved = await onSave({ shots: project.shots.map((shot) => (shot.id === shotId ? { ...shot, ...patch } : shot)) }, options);
@@ -2382,24 +2405,32 @@ function StoryboardPanel({
 
     const syncShot = useCallback(
         async (shotId: string, silent = true) => {
-            if (!episode) return;
-            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shotId)}/sync-generation?episodeId=${encodeURIComponent(episode.id)}`, { method: "POST" });
+            if (!episodeId) return;
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shotId)}/sync-generation?episodeId=${encodeURIComponent(episodeId)}`, { method: "POST" });
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务状态同步失败");
-            await onReload();
+            if (!data.data?.shot) throw new Error("任务状态同步响应缺少分镜数据");
+            onShotSynced(episodeId, shotId, data.data.shot);
             if (!silent) messageApi.success("任务状态已同步");
         },
-        [episode, messageApi, onReload, project.id],
+        [episodeId, messageApi, onShotSynced, project.id],
     );
 
     useEffect(() => {
-        if (!episode || !activeTaskSignature) return;
+        if (!episodeId || !activeTaskSignature) return;
         let disposed = false;
+        const inFlight = new Set<string>();
         const sync = async () => {
-            for (const shot of episodeShots.filter((item) => item.storyboardStatus === "running" || item.generationStatus === "running" || Object.values(item.frames || {}).some((frame) => frame?.status === "running"))) {
+            for (const shot of activeTaskShotsRef.current) {
                 if (disposed) return;
-                await syncShot(shot.id).catch(() => undefined);
+                if (inFlight.has(shot.id)) continue;
+                inFlight.add(shot.id);
+                try {
+                    await syncShot(shot.id).catch(() => undefined);
+                } finally {
+                    inFlight.delete(shot.id);
+                }
             }
         };
         void sync();
@@ -2408,7 +2439,7 @@ function StoryboardPanel({
             disposed = true;
             window.clearInterval(timer);
         };
-    }, [activeTaskSignature, episode, episodeShots, syncShot]);
+    }, [activeTaskSignature, episodeId, syncShot]);
 
     const handleAdd = () => {
         setEditingShot(null);
