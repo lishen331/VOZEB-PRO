@@ -102,4 +102,37 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
         expect(mocks.persistDramaLabShotUpdate).not.toHaveBeenCalled();
         expect((await response.json()).data.shot).not.toHaveProperty("storyboardImageUrl");
     });
+
+    it("promotes a completed key frame to the compatible storyboard source", async () => {
+        const frameShot = {
+            ...shot,
+            storyboardTaskId: undefined,
+            generationTaskId: undefined,
+            frames: { key: { prompt: "key-frame-prompt", status: "running", taskId: "key-frame-task", attempt: 1 } },
+        };
+        const frameProject = { ...project, episodes: [{ ...project.episodes[0], shots: [frameShot] }] };
+        mocks.getDramaProject.mockResolvedValue(frameProject);
+        mocks.findShot.mockImplementation((candidate) => ({ episode: candidate.episodes[0], shot: candidate.episodes[0].shots[0] }));
+        mocks.persistDramaLabShotUpdate.mockImplementation(async ({ project: candidate, patch }) => ({
+            ...candidate,
+            episodes: [{ ...candidate.episodes[0], shots: [{ ...candidate.episodes[0].shots[0], ...patch }] }],
+        }));
+        mocks.getImageTask.mockResolvedValue({ id: "key-frame-task", userId: "user-one", status: "success", prompt: "planned-key-frame", result: { serverUrl: "/api/generation-log-assets/key.png", width: 720, height: 1280 } });
+        mocks.getVideoTask.mockResolvedValue(null);
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                patch: expect.objectContaining({
+                    storyboardStatus: "success",
+                    storyboardTaskId: "key-frame-task",
+                    storyboardImageUrl: "/api/generation-log-assets/key.png",
+                    storyboardImageWidth: 720,
+                    storyboardImageHeight: 1280,
+                }),
+            }),
+        );
+    });
 });

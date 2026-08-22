@@ -45,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                     projectId: project.id,
                     episodeId,
                     shotId,
-                    parentTaskId: prepared.shot.storyboardTaskId,
+                    parentTaskId: prepared.parentTaskId || prepared.shot.storyboardTaskId,
                     attemptNo,
                     clientRequestId: requestId,
                 },

@@ -110,13 +110,27 @@ describe("drama lab shot generation service", () => {
         expect(prepared.references.map((item) => item.id)).toEqual(["scene-ref", "character-ref", "prop-ref"]);
     });
 
-    it("requires a current storyboard image and passes it before the asset references to video generation", () => {
-        expect(() => prepareDramaLabStoryboardVideo(project, "episode-one", "shot-one")).toThrow(new DramaLabShotGenerationError("请先生成当前分镜图"));
+    it("requires a current visual frame and passes it before the asset references to video generation", () => {
+        expect(() => prepareDramaLabStoryboardVideo(project, "episode-one", "shot-one")).toThrow(new DramaLabShotGenerationError("请先生成当前镜头的关键帧或分镜图"));
         const withStoryboard = updateDramaLabShot(project, "episode-one", "shot-one", { storyboardImageUrl: "/api/generation-log-assets/storyboard.png", storyboardImageWidth: 720, storyboardImageHeight: 1280 });
 
         const prepared = prepareDramaLabStoryboardVideo(withStoryboard, "episode-one", "shot-one");
         expect(prepared.references.map((item) => item.id)).toEqual(["storyboard-shot-one", "scene-ref", "character-ref", "prop-ref"]);
         expect(prepared.prompt).toContain("仅使用当前镜头绑定的场景、角色和道具");
+    });
+
+    it("uses a completed key frame as the video source without requiring a legacy storyboard image", () => {
+        const withKeyFrame = updateDramaLabShot(project, "episode-one", "shot-one", {
+            frames: {
+                first: { prompt: "起始状态", status: "success", url: "/api/generation-log-assets/first.png", taskId: "first-task" },
+                key: { prompt: "关键状态", status: "success", url: "/api/generation-log-assets/key.png", taskId: "key-task", width: 720, height: 1280 },
+                last: { prompt: "结束状态", status: "success", url: "/api/generation-log-assets/last.png", taskId: "last-task" },
+            },
+        });
+
+        const prepared = prepareDramaLabStoryboardVideo(withKeyFrame, "episode-one", "shot-one");
+        expect(prepared.parentTaskId).toBe("key-task");
+        expect(prepared.references.map((item) => item.id)).toEqual(["key-frame-shot-one", "first-frame-shot-one", "last-frame-shot-one", "scene-ref", "character-ref", "prop-ref"]);
     });
 
     it("keeps historical media versions by task identity and updates only the selected shot", () => {

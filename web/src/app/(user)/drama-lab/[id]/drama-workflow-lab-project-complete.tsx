@@ -201,6 +201,15 @@ interface ScriptLibraryProject {
     updatedAt?: string;
 }
 
+async function assertJsonApiResponse(response: Response) {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) return;
+
+    const preview = (await response.clone().text()).replace(/\s+/g, " ").trim().slice(0, 120);
+    const suffix = preview ? ` 返回内容：${preview}` : "";
+    throw new Error(`接口返回了非 JSON 响应（HTTP ${response.status}）。开发服务可能已失效，请刷新页面或重启 3002。${suffix}`);
+}
+
 function normalizeEpisodes(value: unknown): Episode[] {
     if (!Array.isArray(value)) return [];
     return value.flatMap((item, index) => {
@@ -409,6 +418,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
         const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
         try {
             const response = await fetch(`/api/drama-lab/projects/${projectId}`, { signal: controller.signal });
+            await assertJsonApiResponse(response);
             const data = await response.json();
 
             if (data.code !== 0 || !data.data?.project) {
@@ -476,6 +486,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
                 }),
             });
 
+            await assertJsonApiResponse(response);
             const data = await response.json();
             if (data.code !== 0) throw new Error(data.msg || "保存失败");
 
@@ -930,6 +941,7 @@ function ScriptEditor({
                     requestId: `drama-script:${project.id}:${episode.id}:${Date.now()}`,
                 }),
             });
+            await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0 || !data.data?.script) throw new Error(data.msg || "生成失败");
             scriptForm.setFieldsValue({ script: data.data.script });
@@ -947,6 +959,7 @@ function ScriptEditor({
         setScriptLibraryLoading(true);
         try {
             const response = await fetch("/api/drama-lab/projects?page=1&pageSize=100");
+            await assertJsonApiResponse(response);
             const data = await response.json();
             if (data.code !== 0) throw new Error(data.msg || "剧本库加载失败");
             const projects = Array.isArray(data.data?.projects) ? data.data.projects : [];
@@ -970,6 +983,7 @@ function ScriptEditor({
                 setScriptLibraryImporting(true);
                 try {
                     const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(sourceId)}`);
+                    await assertJsonApiResponse(response);
                     const data = await response.json();
                     if (data.code !== 0 || !data.data?.project) throw new Error(data.msg || "剧本加载失败");
 
@@ -1925,6 +1939,7 @@ function AssetResourceActions({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ episodeId: episode.id, assetType: resourceType, requestId: `${project.id}:${episode.id}:${resourceType}:${Date.now()}` }),
             });
+            await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "资产提取失败");
             const assets = Array.isArray(data.data?.assets)
@@ -2369,7 +2384,8 @@ function StoryboardPanel({
         async (shotId: string, silent = true) => {
             if (!episode) return;
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shotId)}/sync-generation?episodeId=${encodeURIComponent(episode.id)}`, { method: "POST" });
-            const data = await response.json().catch(() => ({}));
+            await assertJsonApiResponse(response);
+            const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务状态同步失败");
             await onReload();
             if (!silent) messageApi.success("任务状态已同步");
@@ -2418,6 +2434,7 @@ function StoryboardPanel({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ episodeId: episode.id, requestId: crypto.randomUUID() }),
             });
+            await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0 || !Array.isArray(data.data?.shots)) throw new Error(data.msg || "分镜提取失败");
             await onReload();
@@ -2519,7 +2536,8 @@ function StoryboardPanel({
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-${kind}?episodeId=${encodeURIComponent(episode.id)}`, {
                 method: "POST",
             });
-            const data = await response.json().catch(() => ({}));
+            await assertJsonApiResponse(response);
+            const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务创建失败");
             await onReload();
             messageApi.success({ content: kind === "image" ? "分镜图任务已提交" : "分镜视频任务已提交", key: actionKey });
@@ -2531,7 +2549,7 @@ function StoryboardPanel({
     };
 
     const runBatch = async (kind: "image" | "video") => {
-        const candidates = episodeShots.filter((shot) => (kind === "image" ? !shot.storyboardImageUrl && shot.storyboardStatus !== "running" : Boolean(shot.storyboardImageUrl) && !shot.videoUrl && shot.generationStatus !== "running"));
+        const candidates = episodeShots.filter((shot) => (kind === "image" ? !shot.storyboardImageUrl && shot.storyboardStatus !== "running" : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) && !shot.videoUrl && shot.generationStatus !== "running"));
         if (!candidates.length) return messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
         setBatchRunning(kind);
         try {
@@ -2548,7 +2566,8 @@ function StoryboardPanel({
             setStartingKey(actionKey);
             messageApi.loading({ content: `正在规划并创建${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务...`, key: actionKey, duration: 0 });
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-frame?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, { method: "POST" });
-            const data = await response.json().catch(() => ({}));
+            await assertJsonApiResponse(response);
+            const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "帧任务创建失败");
             await onReload();
             messageApi.success({ content: `${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务已提交`, key: actionKey });
@@ -2711,6 +2730,7 @@ function StoryboardWorkbenchCard({
 }) {
     const imageBusy = busyKey === `image:${shot.id}` || shot.storyboardStatus === "running";
     const videoBusy = busyKey === `video:${shot.id}` || shot.generationStatus === "running";
+    const videoSourceUrl = shot.frames?.key?.url || shot.storyboardImageUrl;
     const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
     return (
         <article id={`storyboard-shot-${shot.id}`} className="overflow-hidden rounded-lg border border-border bg-card">
@@ -2797,7 +2817,7 @@ function StoryboardWorkbenchCard({
                     <TextArea defaultValue={shot.videoPrompt} autoSize={{ minRows: 3, maxRows: 7 }} placeholder="镜头动作与动态补充（可选）" aria-label="视频提示词" onBlur={(event) => onUpdate({ videoPrompt: event.target.value.trim() })} />
                     {shot.generationError ? <Alert type="error" showIcon message={shot.generationError} /> : null}
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button type="primary" loading={videoBusy} disabled={!shot.storyboardImageUrl} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
+                        <Button type="primary" loading={videoBusy} disabled={!videoSourceUrl} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
                             {shot.videoUrl ? "重新生成视频" : "生成分镜视频"}
                         </Button>
                         <GenerationHistory history={shot.videoHistory} activeUrl={shot.videoUrl} type="video" onRestore={(url) => onUpdate({ videoUrl: url, generationStatus: "success", generationError: undefined })} />
@@ -2805,7 +2825,7 @@ function StoryboardWorkbenchCard({
                     {shot.videoUrl ? (
                         <video src={shot.videoUrl} controls className="max-h-[460px] w-full rounded border border-border" />
                     ) : (
-                        <div className="grid min-h-40 place-items-center border border-dashed border-border text-sm text-muted-foreground">生成分镜图后可生成视频</div>
+                        <div className="grid min-h-40 place-items-center border border-dashed border-border text-sm text-muted-foreground">生成关键帧或分镜图后可生成视频</div>
                     )}
                 </section>
             </div>
@@ -2933,6 +2953,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
             });
 
             if (!response.ok) {
+                await assertJsonApiResponse(response);
                 const error = await response.json();
                 throw new Error(error.msg || "导出失败");
             }

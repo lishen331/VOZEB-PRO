@@ -38,9 +38,29 @@ export async function prepareDramaLabStoryboardImage(project: DramaProject, epis
 export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId: string, shotId: string) {
     const context = findShot(project, episodeId, shotId);
     assertProjectAssetBindings(project, context.shot);
-    if (!context.shot.storyboardImageUrl) throw new DramaLabShotGenerationError("请先生成当前分镜图");
+    const keyFrame = context.shot.frames?.key;
+    const visualSource = keyFrame?.url
+        ? {
+              id: `key-frame-${context.shot.id}`,
+              url: keyFrame.url,
+              label: `${context.shot.title}关键帧`,
+              width: keyFrame.width,
+              height: keyFrame.height,
+              taskId: keyFrame.taskId,
+          }
+        : context.shot.storyboardImageUrl
+          ? {
+                id: `storyboard-${context.shot.id}`,
+                url: context.shot.storyboardImageUrl,
+                label: `${context.shot.title}分镜图`,
+                width: context.shot.storyboardImageWidth,
+                height: context.shot.storyboardImageHeight,
+                taskId: context.shot.storyboardTaskId,
+            }
+          : undefined;
+    if (!visualSource) throw new DramaLabShotGenerationError("请先生成当前镜头的关键帧或分镜图");
     const visualPrompt = context.shot.videoPrompt.trim() || defaultVideoPrompt(context.shot);
-    const frameReferences = ["first", "last", "key"].flatMap((frameType) => {
+    const frameReferences = ["first", "last"].flatMap((frameType) => {
         const frame = context.shot.frames?.[frameType as "first" | "key" | "last"];
         return frame?.url ? [{ id: `${frameType}-frame-${context.shot.id}`, url: frame.url, label: `${context.shot.title}${frameType} frame`, width: frame.width, height: frame.height }] : [];
     });
@@ -56,15 +76,16 @@ export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId:
         visiblePrompt: visualPrompt,
         references: [
             {
-                id: `storyboard-${context.shot.id}`,
-                url: context.shot.storyboardImageUrl,
-                label: `${context.shot.title}分镜图`,
-                width: context.shot.storyboardImageWidth,
-                height: context.shot.storyboardImageHeight,
+                id: visualSource.id,
+                url: visualSource.url,
+                label: visualSource.label,
+                width: visualSource.width,
+                height: visualSource.height,
             },
             ...frameReferences,
             ...shotReferences(project, context.shot),
         ],
+        parentTaskId: visualSource.taskId,
         shot: context.shot,
     };
 }

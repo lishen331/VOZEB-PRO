@@ -51,7 +51,7 @@ function generationPatch(
     shot: ReturnType<typeof findShot>["shot"],
     imageTask: Awaited<ReturnType<typeof getImageTask>>,
     videoTask: Awaited<ReturnType<typeof getVideoTask>>,
-    frameTasks: Array<["first" | "key" | "last", Awaited<ReturnType<typeof getImageTask>>]>,
+    frameTasks: ReadonlyArray<readonly ["first" | "key" | "last", Awaited<ReturnType<typeof getImageTask>>]>,
 ) {
     const patch: Record<string, unknown> = {};
     const frames = { ...(shot.frames || {}) };
@@ -83,7 +83,39 @@ function generationPatch(
         } else if (task.status === "error" || task.status === "cancelled") frames[frameType] = { ...frame, status: task.status, error: task.error || (task.status === "cancelled" ? "帧图任务已取消" : "帧图生成失败") };
     }
     if (JSON.stringify(frames) !== JSON.stringify(shot.frames || {})) patch.frames = frames;
-    if (imageTask && imageTask.userId) {
+    // The key frame is the preferred visual input for the new frame workflow.
+    // Keep the established storyboard fields in sync so legacy project data and
+    // the video route can use the same generated image without a second task.
+    const keyFrame = frames.key;
+    if (keyFrame?.url) {
+        const keyTaskId = keyFrame.taskId;
+        if (
+            shot.storyboardStatus !== "success" ||
+            shot.storyboardImageUrl !== keyFrame.url ||
+            shot.storyboardTaskId !== keyTaskId ||
+            shot.storyboardImageWidth !== keyFrame.width ||
+            shot.storyboardImageHeight !== keyFrame.height ||
+            shot.storyboardError
+        ) {
+            patch.storyboardStatus = "success";
+            patch.storyboardTaskId = keyTaskId;
+            patch.storyboardAttempt = keyFrame.attempt;
+            patch.storyboardImageUrl = keyFrame.url;
+            patch.storyboardImageWidth = keyFrame.width;
+            patch.storyboardImageHeight = keyFrame.height;
+            patch.storyboardError = undefined;
+            patch.storyboardHistory = appendDramaLabGenerationHistory(shot.storyboardHistory, {
+                id: `key-frame:${keyTaskId || keyFrame.url}`,
+                taskId: keyTaskId || `key-frame:${keyFrame.url}`,
+                url: keyFrame.url,
+                prompt: keyFrame.prompt,
+                createdAt: new Date().toISOString(),
+                width: keyFrame.width,
+                height: keyFrame.height,
+            });
+        }
+    }
+    if (imageTask && imageTask.userId && !keyFrame?.url) {
         if (imageTask.status === "success") {
             const result = imageTask.result as Record<string, unknown> | undefined;
             const url = stableUrl(result?.serverUrl) || stableUrl(result?.remoteUrl) || stableUrl(result?.dataUrl);
