@@ -356,9 +356,30 @@ export function resolveChannelModelConfig(config: SystemChannelAdvancedConfig | 
     if (!config) return undefined;
     const key = normalizeModelId(model);
     const modelConfig = config.modelConfigs?.[key];
+    const configuredProtocol = modelConfig?.protocol || config.protocol;
+    // Some New API aggregators advertise Doubao Seedance models while storing
+    // the generic OpenAI `/videos` multipart preset. Seedance uses the
+    // contents/generations/tasks JSON contract, so repair this legacy shape at
+    // runtime for both task creation and the system proxy route.
+    if (isLegacyDoubaoSeedanceModel(model) && isLegacyVideoProtocol(configuredProtocol) && (modelConfig?.capability === "video" || !modelConfig)) {
+        return protocolModelConfig("seedance", "video", model);
+    }
     if (modelConfig) return modelConfig;
     const capability = protocolCatalogCapability(config.protocol) || config.modelCapabilities?.[key] || inferModelCapability(model);
-    return config.operationConfigs?.[capability];
+    const operation = config.operationConfigs?.[capability];
+    if (isLegacyDoubaoSeedanceModel(model) && isLegacyVideoProtocol(operation?.protocol || config.protocol) && capability === "video") {
+        return protocolModelConfig("seedance", "video", model);
+    }
+    return operation;
+}
+
+function isLegacyVideoProtocol(protocol: SystemChannelProtocol | undefined) {
+    return protocol === "auto" || protocol === "openai" || protocol === "newapi" || protocol === "sub2api" || protocol === "compatible";
+}
+
+export function isLegacyDoubaoSeedanceModel(model: string) {
+    const value = normalizeModelId(model);
+    return /(?:^|[-_.])doubao[-_.]?seedance(?:[-_.]|$)/i.test(value) || /^seedance(?:[-_.]?2(?:[-_.]?(?:0|5))?)(?:[-_.]|$)/i.test(value);
 }
 
 export function resolveChannelModelAdvancedConfig(config: SystemChannelAdvancedConfig | undefined, model: string) {
@@ -449,7 +470,9 @@ export function channelProtocolValidationErrors(channel: SystemModelChannel) {
     if (advanced.authMode === "custom-header" && !isSafeAuthHeaderName(advanced.authHeader)) errors.push(`${channel.name || "渠道"} 的自定义鉴权请求头名称无效`);
     for (const model of channel.models) {
         const key = normalizeModelId(model);
-        const config = resolveChannelModelConfig(advanced, model);
+        // Validate the persisted shape itself. Runtime compatibility repairs
+        // must not hide an invalid admin configuration from the settings UI.
+        const config = advanced.modelConfigs?.[key] || advanced.operationConfigs?.[advanced.modelCapabilities?.[key] || inferModelCapability(model)];
         const protocol = config?.protocol || advanced.protocol;
         const definition = channelProtocolDefinition(protocol);
         if (protocol === "custom") {
