@@ -1,5 +1,5 @@
 import type { DramaAssetReference, DramaEpisode, DramaProject, DramaShot, DramaShotGenerationHistory } from "@/lib/drama-project-contract";
-import { dramaShotAssetReferences } from "@/lib/drama-asset-references";
+import { dramaAssetPrimaryReference, dramaShotAssetReferences } from "@/lib/drama-asset-references";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
 import { DramaProjectStoreError, getDramaProject, updateDramaProject } from "@/lib/server/drama-project-store";
 
@@ -19,9 +19,16 @@ type ShotContext = {
 
 export type DramaLabGenerationReference = Pick<DramaAssetReference, "id" | "url" | "storageKey" | "label" | "width" | "height">;
 
+export type DramaLabMissingAssetReference = {
+    type: "scene" | "character" | "prop";
+    id: string;
+    name: string;
+};
+
 export async function prepareDramaLabStoryboardImage(project: DramaProject, episodeId: string, shotId: string) {
     const context = findShot(project, episodeId, shotId);
     assertProjectAssetBindings(project, context.shot);
+    assertDramaLabShotAssetReferences(project, context.shot);
     const template = await resolveDramaLabPrompt("key_frame_prompt");
     const references = shotReferences(project, context.shot);
     return {
@@ -151,12 +158,48 @@ export function shotReferences(project: DramaProject, shot: DramaShot): DramaLab
     }));
 }
 
+export function missingDramaLabShotAssetReferences(project: DramaProject, shot: DramaShot): DramaLabMissingAssetReference[] {
+    const missing: DramaLabMissingAssetReference[] = [];
+    const check = (
+        type: DramaLabMissingAssetReference["type"],
+        asset:
+            | {
+                  id: string;
+                  name: string;
+                  references?: DramaAssetReference[];
+                  primaryReferenceId?: string;
+                  referenceImageUrl?: string;
+                  referenceStorageKey?: string;
+              }
+            | undefined,
+    ) => {
+        if (!asset || dramaAssetPrimaryReference(asset)) return;
+        missing.push({ type, id: asset.id, name: asset.name });
+    };
+
+    check("scene", shot.sceneId ? project.scenes.find((asset) => asset.id === shot.sceneId) : undefined);
+    shot.characterIds.forEach((id) => check("character", project.characters.find((asset) => asset.id === id)));
+    shot.propIds.forEach((id) => check("prop", project.props.find((asset) => asset.id === id)));
+    return missing;
+}
+
+export function assertDramaLabShotAssetReferences(project: DramaProject, shot: DramaShot) {
+    const missing = missingDramaLabShotAssetReferences(project, shot);
+    if (!missing.length) return;
+    const labels = missing.map((item) => `${assetTypeLabel(item.type)}「${item.name}」`).join("、");
+    throw new DramaLabShotGenerationError(`当前分镜绑定的资产缺少主参考图：${labels}。请先在资产准备中生成或添加参考图。`, 422);
+}
+
 function assertProjectAssetBindings(project: DramaProject, shot: DramaShot) {
     if (shot.sceneId && !project.scenes.some((asset) => asset.id === shot.sceneId)) throw new DramaLabShotGenerationError("分镜关联了当前项目不存在的场景");
     const unknownCharacter = shot.characterIds.find((id) => !project.characters.some((asset) => asset.id === id));
     if (unknownCharacter) throw new DramaLabShotGenerationError("分镜关联了当前项目不存在的角色");
     const unknownProp = shot.propIds.find((id) => !project.props.some((asset) => asset.id === id));
     if (unknownProp) throw new DramaLabShotGenerationError("分镜关联了当前项目不存在的道具");
+}
+
+function assetTypeLabel(type: DramaLabMissingAssetReference["type"]) {
+    return type === "scene" ? "场景" : type === "character" ? "角色" : "道具";
 }
 
 function shotGenerationContext(project: DramaProject, episode: DramaEpisode, shot: DramaShot) {

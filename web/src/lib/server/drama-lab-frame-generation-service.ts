@@ -6,7 +6,7 @@ import { recordDramaLabTextGenerationLog } from "@/lib/server/drama-lab-text-gen
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { sanitizeDramaLabFramePrompt } from "@/lib/server/drama-lab-frame-prompt-sanitize";
-import { findShot, shotReferences, type DramaLabGenerationReference, DramaLabShotGenerationError } from "@/lib/server/drama-lab-shot-generation-service";
+import { assertDramaLabShotAssetReferences, findShot, shotReferences, type DramaLabGenerationReference, DramaLabShotGenerationError } from "@/lib/server/drama-lab-shot-generation-service";
 
 const FRAME_TYPES = ["first", "key", "last"] as const;
 export function isDramaShotFrameType(value: unknown): value is DramaShotFrameType {
@@ -16,6 +16,7 @@ export function isDramaShotFrameType(value: unknown): value is DramaShotFrameTyp
 export async function prepareDramaLabFrame(input: { userId: string; origin: string; cookie: string; requestId: string; project: DramaProject; episodeId: string; shotId: string; frameType: DramaShotFrameType }) {
     const { episode, shot } = findShot(input.project, input.episodeId, input.shotId);
     assertBindings(input.project, shot);
+    assertDramaLabShotAssetReferences(input.project, shot);
     const promptKey = `${input.frameType}_frame_prompt` as "first_frame_prompt" | "key_frame_prompt" | "last_frame_prompt";
     const template = await resolveDramaLabPrompt(promptKey);
     const references = frameReferences(input.project, shot, input.frameType);

@@ -351,6 +351,25 @@ function normalizeGenerationHistory(value: unknown): DramaLabGenerationHistory[]
     });
 }
 
+function missingShotAssetLabels(project: Project, shot: Shot) {
+    const missing: string[] = [];
+    const hasReference = (asset: Character | Scene | Prop) => {
+        const referenceUrl = asset.referenceImageUrl || asset.imageUrl || asset.references?.find((reference) => reference.id === asset.primaryReferenceId)?.url || asset.references?.find((reference) => reference.url.trim())?.url;
+        return Boolean(referenceUrl?.trim());
+    };
+    const scene = shot.sceneId ? project.scenes.find((asset) => asset.id === shot.sceneId) : undefined;
+    if (scene && !hasReference(scene)) missing.push(`场景「${scene.name || scene.location}」`);
+    shot.characterIds.forEach((id) => {
+        const character = project.characters.find((asset) => asset.id === id);
+        if (character && !hasReference(character)) missing.push(`角色「${character.name}」`);
+    });
+    shot.propIds.forEach((id) => {
+        const prop = project.props.find((asset) => asset.id === id);
+        if (prop && !hasReference(prop)) missing.push(`道具「${prop.name}」`);
+    });
+    return missing;
+}
+
 function normalizeProjectShots(project: Record<string, unknown>, episodes: Episode[], legacy: Record<string, unknown>): Shot[] {
     const topLevelShots = Array.isArray(project.shots) ? project.shots : Array.isArray(legacy.shots) ? legacy.shots : [];
     if (topLevelShots.length) {
@@ -2560,6 +2579,17 @@ function StoryboardPanel({
 
     const startGeneration = async (shot: Shot, kind: "image" | "video") => {
         if (!episode) return;
+        if (kind === "image") {
+            const missing = missingShotAssetLabels(project, shot);
+            if (missing.length) {
+                Modal.warning({
+                    title: "无法生成分镜图",
+                    content: `当前镜头绑定的资产缺少参考图：${missing.join("、")}。请先到“资产准备”中生成或添加参考图。`,
+                    okText: "知道了",
+                });
+                return;
+            }
+        }
         const actionKey = `${kind}:${shot.id}`;
         try {
             setStartingKey(actionKey);
@@ -2573,7 +2603,7 @@ function StoryboardPanel({
             await onReload();
             messageApi.success({ content: kind === "image" ? "分镜图任务已提交" : "分镜视频任务已提交", key: actionKey });
         } catch (err) {
-            messageApi.error({ content: err instanceof Error ? err.message : "任务创建失败", key: actionKey });
+            messageApi.error({ content: err instanceof Error ? err.message : "任务创建失败", key: actionKey, duration: 6 });
         } finally {
             setStartingKey("");
         }
@@ -2592,6 +2622,15 @@ function StoryboardPanel({
 
     const startFrame = async (shot: Shot, frameType: "first" | "key" | "last") => {
         if (!episode) return;
+        const missing = missingShotAssetLabels(project, shot);
+        if (missing.length) {
+            Modal.warning({
+                title: `无法生成${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧`,
+                content: `当前镜头绑定的资产缺少参考图：${missing.join("、")}。请先到“资产准备”中生成或添加参考图。`,
+                okText: "知道了",
+            });
+            return;
+        }
         const actionKey = `frame:${frameType}:${shot.id}`;
         try {
             setStartingKey(actionKey);

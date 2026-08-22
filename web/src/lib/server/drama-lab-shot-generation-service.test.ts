@@ -110,6 +110,15 @@ describe("drama lab shot generation service", () => {
         expect(prepared.references.map((item) => item.id)).toEqual(["scene-ref", "character-ref", "prop-ref"]);
     });
 
+    it("rejects visual generation when a bound asset has no primary reference image", async () => {
+        const projectWithoutSceneReference = {
+            ...project,
+            scenes: [{ ...project.scenes[0], references: [], primaryReferenceId: undefined, referenceImageUrl: undefined }],
+        };
+
+        await expect(prepareDramaLabStoryboardImage(projectWithoutSceneReference, "episode-one", "shot-one")).rejects.toThrow("当前分镜绑定的资产缺少主参考图：场景「雨夜车站」");
+    });
+
     it("requires a current visual frame and passes it before the asset references to video generation", () => {
         expect(() => prepareDramaLabStoryboardVideo(project, "episode-one", "shot-one")).toThrow(new DramaLabShotGenerationError("请先生成当前镜头的关键帧或分镜图"));
         const withStoryboard = updateDramaLabShot(project, "episode-one", "shot-one", { storyboardImageUrl: "/api/generation-log-assets/storyboard.png", storyboardImageWidth: 720, storyboardImageHeight: 1280 });
