@@ -374,8 +374,10 @@ describe("video generation candidate failover", () => {
         expect(init.body).toBeInstanceOf(FormData);
         expect(new Headers(init.headers).has("content-type")).toBe(false);
         expect(body.get("model")).toBe("video-one");
-        expect(body.get("seconds")).toBe("5");
+        expect(body.get("seconds")).toBe("8");
         expect(body.get("size")).toBe("1280x720");
+        expect(body.get("watermark")).toBe("false");
+        expect(body.get("private")).toBe("false");
         expect(body.get("input_reference")).toBeInstanceOf(File);
     });
 
