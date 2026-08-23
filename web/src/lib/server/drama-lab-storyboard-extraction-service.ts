@@ -1,12 +1,13 @@
 import { nanoid } from "nanoid";
 
 import type { DramaProject, DramaShot } from "@/lib/drama-project-contract";
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
 import { recordDramaLabTextGenerationLog } from "@/lib/server/drama-lab-text-generation-log";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 
 export class DramaLabStoryboardExtractionError extends Error {
     constructor(
@@ -262,7 +263,7 @@ function array(value: unknown) {
 
 async function refundInvalidResponse(userId: string, model: string, headers: Headers) {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+    if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `drama-lab-refund:${billing.billingReceiptId}` });
 }
 
 const extractDramaStoryboardsTool = {

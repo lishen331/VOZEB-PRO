@@ -1,8 +1,9 @@
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveDramaLabPrompt } from "@/lib/server/drama-lab-prompt-template-service";
 import { recordDramaLabTextGenerationLog } from "@/lib/server/drama-lab-text-generation-log";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 
 export class DramaLabScriptGenerationError extends Error {
@@ -14,18 +15,7 @@ export class DramaLabScriptGenerationError extends Error {
     }
 }
 
-export async function generateDramaLabScript(input: {
-    userId: string;
-    origin: string;
-    cookie: string;
-    projectId: string;
-    episodeId: string;
-    requestId: string;
-    storyOutline: string;
-    storyStyle: string;
-    scriptType: string;
-    episodeCount: string;
-}) {
+export async function generateDramaLabScript(input: { userId: string; origin: string; cookie: string; projectId: string; episodeId: string; requestId: string; storyOutline: string; storyStyle: string; scriptType: string; episodeCount: string }) {
     const outline = input.storyOutline.trim();
     if (!outline) throw new DramaLabScriptGenerationError("请先输入故事梗概", 400);
     const prompt = await resolveDramaLabPrompt("story_generation");
@@ -93,9 +83,7 @@ export async function generateDramaLabScript(input: {
         error: latestError instanceof Error ? latestError.message : "剧本生成失败",
         createdAt: startedAt,
     });
-    throw latestError instanceof DramaLabScriptGenerationError
-        ? latestError
-        : new DramaLabScriptGenerationError(latestError instanceof Error ? latestError.message : "剧本生成失败，请稍后重试");
+    throw latestError instanceof DramaLabScriptGenerationError ? latestError : new DramaLabScriptGenerationError(latestError instanceof Error ? latestError.message : "剧本生成失败，请稍后重试");
 }
 
 function parseScript(value: string) {
@@ -109,7 +97,7 @@ function parseScript(value: string) {
 
 async function refundInvalidResponse(userId: string, model: string, headers: Headers) {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+    if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `drama-lab-refund:${billing.billingReceiptId}` });
 }
 
 const generateDramaScriptTool = {
