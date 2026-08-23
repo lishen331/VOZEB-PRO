@@ -82,6 +82,7 @@ async function completeVideoTask(task: VideoTask, resultUrl: string, origin: str
         return beforePersistence;
     }
     task = beforePersistence;
+    resultUrl = await recoverNewApiVideoUrl(task, resultUrl, origin, cookie, workerUserId);
     const attempts = finishGenerationAttempt(task.attempts || [], task.attempts?.at(-1)?.attemptNo || 1, {
         status: "succeeded",
         pointsCost: task.upstream.pointsCost,
@@ -118,6 +119,27 @@ async function completeVideoTask(task: VideoTask, resultUrl: string, origin: str
     await writeVideoGenerationLog(completed, "success");
     await registerVideoAsset(completed);
     return completed;
+}
+
+async function recoverNewApiVideoUrl(task: VideoTask, resultUrl: string, origin: string, cookie: string, workerUserId: string) {
+    if (!isLegacyVideoContentUrl(resultUrl) || !isNewApiVideoTask(task)) return resultUrl;
+    try {
+        const data = await queryVideoUpstream(task, origin, cookie, workerUserId);
+        const recovered = readVideoProviderUrl(data, task.config.advancedConfig?.resultField);
+        if (recovered && recovered !== resultUrl && !isLegacyVideoContentUrl(recovered)) return recovered;
+    } catch (error) {
+        console.warn("New API video URL recovery deferred", { taskId: task.id, error: error instanceof Error ? error.message : String(error) });
+    }
+    return resultUrl;
+}
+
+function isNewApiVideoTask(task: VideoTask) {
+    const advanced = task.config.advancedConfig;
+    return advanced?.protocol === "newapi" && (task.upstream.pollPath === "/video/generations" || advanced.createPath === "/video/generations");
+}
+
+function isLegacyVideoContentUrl(value: string) {
+    return /\/(?:v1\/)?videos\/[^/?#]+\/content(?:[?#]|$)/i.test(value.trim());
 }
 
 async function failVideoTask(task: VideoTask, error: string, retryable = true) {

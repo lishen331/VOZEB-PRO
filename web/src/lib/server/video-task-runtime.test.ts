@@ -30,7 +30,7 @@ vi.mock("@/lib/server/video-task-store", () => ({
 }));
 vi.mock("@/lib/server/generation-media-authorization", () => ({ generationMediaProxyHeaders: vi.fn(() => ({ "x-media-auth": "signed" })) }));
 
-import { queryVideoTaskUpstream, refreshVideoTaskFromUpstream } from "./video-task-runtime";
+import { persistVideoTaskResult, queryVideoTaskUpstream, refreshVideoTaskFromUpstream } from "./video-task-runtime";
 import type { VideoTask } from "./video-task-store";
 import { createProtocolFixtureServer } from "../../../scripts/protocol-fixture-server.mjs";
 import { readVerifiedSystemAiBusinessRequestId } from "./system-ai-billing";
@@ -216,6 +216,46 @@ describe("video task upstream reconciliation", () => {
             resultUrl: `/v1/videos/${task.upstream.id}/content`,
         });
         expect(mocks.fetchInternalApi).toHaveBeenCalledWith(`http://localhost${task.config.baseUrl}/v1/videos/${task.upstream.id}/content`, expect.objectContaining({ method: "HEAD" }));
+    });
+
+    it("prefers New API's nested signed video URL over its stale compatibility result_url", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                advancedConfig: { protocol: "newapi", createPath: "/video/generations", queryPath: "/video/generations/:task_id", resultField: "metadata.url", statusField: "status" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, pollPath: "/video/generations" },
+        });
+        const stale = `https://api.example.com/v1/videos/${task.upstream.id}/content`;
+        const signed = "https://cdn.example.com/video.mp4?signature=fixture";
+        mocks.fetchInternalApi.mockResolvedValue(
+            json({
+                status: "SUCCESS",
+                result_url: stale,
+                data: { data: { data: { content: { video_url: signed } } } },
+            }),
+        );
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toMatchObject({ state: "result_ready", resultUrl: signed });
+    });
+
+    it("repairs an already persisted stale New API URL before downloading the video", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                advancedConfig: { protocol: "newapi", createPath: "/video/generations", queryPath: "/video/generations/:task_id", resultField: "metadata.url", statusField: "status" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, pollPath: "/video/generations" },
+        });
+        const stale = `https://api.example.com/v1/videos/${task.upstream.id}/content`;
+        const signed = "https://cdn.example.com/video.mp4?signature=fixture";
+        const completed = { ...task, status: "success" as const, result: { url: "/api/reference-assets/result.mp4", mimeType: "video/mp4" } };
+        mocks.get.mockResolvedValue(task);
+        mocks.fetchInternalApi.mockResolvedValue(json({ status: "SUCCESS", result_url: stale, data: { data: { data: { content: { video_url: signed } } } } }));
+        mocks.complete.mockResolvedValue(completed);
+
+        await expect(persistVideoTaskResult(task, stale, "http://localhost", "session=test")).resolves.toEqual(completed);
+        expect(mocks.normalize).toHaveBeenCalledWith(expect.objectContaining({ url: expect.stringContaining(encodeURIComponent(signed)) }));
     });
 
     it("ignores an HTML fallback page before probing the standard video content endpoint", async () => {
