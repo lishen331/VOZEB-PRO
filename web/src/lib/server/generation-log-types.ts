@@ -1,11 +1,12 @@
 import type { GenerationLogRequestSnapshot } from "@/lib/generation-log-snapshot";
 
-export type GenerationLogKind = "image" | "video";
+export type GenerationLogKind = "image" | "video" | "text";
+export type GenerationLogAssetKind = "image" | "video";
 export type GenerationLogSource = "agent" | "image-workbench" | "video-workbench" | "canvas" | "drama" | "unknown";
 export type GenerationLogStatus = "pending" | "success" | "failed";
 
 export type GenerationLogAsset = {
-    type: GenerationLogKind;
+    type: GenerationLogAssetKind;
     url: string;
     remoteUrl?: string;
     serverUrl?: string;

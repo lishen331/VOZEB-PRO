@@ -1,4 +1,6 @@
+import { dramaShotAssetReferences } from "@/lib/drama-asset-references";
 import type { DramaEpisode, DramaNamedAsset, DramaProject, DramaShot, DramaShotContinuity } from "@/lib/drama-project-contract";
+import type { ReferenceImage } from "@/types/image";
 
 export type CompiledDramaPrompts = {
     imagePrompt: string;
@@ -57,6 +59,20 @@ export function compileDramaAssetReferencePrompt(project: DramaProject, asset: D
         asset.profile?.consistencyRules ? `一致性规则：${asset.profile.consistencyRules}` : "",
         kind === "角色" ? "完整角色设定视图，五官与体型清晰，正面为主，干净中性背景，不添加文字。" : "主体结构清晰，便于后续镜头稳定引用，不添加文字。",
     ]).join("\n");
+}
+
+export function dramaShotReferenceImages(project: DramaProject, shot: DramaShot): ReferenceImage[] {
+    return dramaShotAssetReferences(project, shot).map((reference) => ({
+        id: reference.id,
+        name: reference.label,
+        type: "image/png",
+        dataUrl: reference.url,
+        url: reference.url,
+        storageKey: reference.storageKey,
+        width: reference.width,
+        height: reference.height,
+        ...(reference.url.startsWith("/") ? { serverUrl: reference.url } : /^https?:\/\//i.test(reference.url) ? { remoteUrl: reference.url } : {}),
+    }));
 }
 
 function assetText(asset: DramaNamedAsset) {

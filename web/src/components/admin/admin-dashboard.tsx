@@ -46,6 +46,12 @@ const loadChannelsSection = () => import("./admin-upstream-sections").then((modu
 const loadSkillsSection = () => import("./admin-upstream-sections").then((module) => module.AdminSkillsSection);
 const loadAnnouncementsSection = () => import("./admin-content-sections").then((module) => module.AdminAnnouncementsSection);
 const loadPromptsSection = () => import("./admin-content-sections").then((module) => module.AdminPromptsSection);
+const loadDramaProjectsSection = () => import("@/app/admin/drama-projects/page").then((module) => ({ default: module.default }));
+const loadDramaLabConfigSection = () => import("@/app/admin/drama-lab-config/page").then((module) => ({ default: module.default }));
+const loadDramaLabPromptsSection = () => import("@/app/admin/drama-lab-config/page").then((module) => ({ default: module.AdminDramaLabPromptsSection }));
+const loadDramaLabScenariosSection = () => import("@/app/admin/drama-lab-config/page").then((module) => ({ default: module.AdminDramaLabScenariosSection }));
+const loadDramaLabGenerationSection = () => import("@/app/admin/drama-lab-config/page").then((module) => ({ default: module.AdminDramaLabGenerationSection }));
+const loadDramaLabSd2Section = () => import("@/app/admin/drama-lab-config/page").then((module) => ({ default: module.AdminDramaLabSd2Section }));
 const loadWorksSection = () => import("@/app/admin/works/components/admin-works-section").then((module) => module.AdminWorksSection);
 const loadIpLibrarySection = () => import("@/app/admin/ip-library/components/admin-ip-library-section").then((module) => module.AdminIpLibrarySection);
 const loadHelpSection = () => import("./admin-help-section").then((module) => module.AdminHelpSection);
@@ -84,6 +90,12 @@ const sectionLoaders: Partial<Record<AdminSectionKey, () => Promise<unknown>>> =
     skills: loadSkillsSection,
     announcements: loadAnnouncementsSection,
     prompts: loadPromptsSection,
+    dramaProjects: loadDramaProjectsSection,
+    dramaLabConfig: loadDramaLabConfigSection,
+    dramaLabPrompts: loadDramaLabPromptsSection,
+    dramaLabScenarios: loadDramaLabScenariosSection,
+    dramaLabGeneration: loadDramaLabGenerationSection,
+    dramaLabSd2: loadDramaLabSd2Section,
     works: loadWorksSection,
     ipLibrary: loadIpLibrarySection,
     adminHelp: loadHelpSection,
@@ -124,6 +136,12 @@ const AdminSchoolComputeSection = dynamic(loadSchoolComputeSection, { loading: A
 const AdminCoursesSection = dynamic(loadCoursesSection, { loading: AdminSectionLoading });
 const AdminCommercialOrdersSection = dynamic(loadCommercialOrdersSection, { loading: AdminSectionLoading });
 const AdminRoleOverviewSection = dynamic(loadRoleOverviewSection, { loading: AdminSectionLoading });
+const AdminDramaProjectsSection = dynamic(loadDramaProjectsSection, { loading: AdminSectionLoading });
+const AdminDramaLabConfigSection = dynamic(loadDramaLabConfigSection, { loading: AdminSectionLoading });
+const AdminDramaLabPromptsSection = dynamic(loadDramaLabPromptsSection, { loading: AdminSectionLoading });
+const AdminDramaLabScenariosSection = dynamic(loadDramaLabScenariosSection, { loading: AdminSectionLoading });
+const AdminDramaLabGenerationSection = dynamic(loadDramaLabGenerationSection, { loading: AdminSectionLoading });
+const AdminDramaLabSd2Section = dynamic(loadDramaLabSd2Section, { loading: AdminSectionLoading });
 
 function AdminSectionLoading() {
     return <div className="flex min-h-36 items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">正在加载分区...</div>;
@@ -278,6 +296,12 @@ export function AdminDashboard(props: AdminDashboardProps) {
                     {activeSection === "works" ? <AdminWorksSection /> : null}
                     {activeSection === "ipLibrary" ? <AdminIpLibrarySection currentUser={currentUser} /> : null}
                     {activeSection === "prompts" ? <AdminPromptsSection controller={controller} /> : null}
+                    {activeSection === "dramaProjects" ? <AdminDramaProjectsSection /> : null}
+                    {activeSection === "dramaLabConfig" ? <AdminDramaLabConfigSection /> : null}
+                    {activeSection === "dramaLabPrompts" ? <AdminDramaLabPromptsSection /> : null}
+                    {activeSection === "dramaLabScenarios" ? <AdminDramaLabScenariosSection /> : null}
+                    {activeSection === "dramaLabGeneration" ? <AdminDramaLabGenerationSection /> : null}
+                    {activeSection === "dramaLabSd2" ? <AdminDramaLabSd2Section /> : null}
                     {activeSection === "users" ? <AdminUsersSection controller={controller} /> : null}
                     {activeSection === "logs" ? <AdminLogsSection controller={controller} /> : null}
                     {activeSection === "generationOperations" ? <AdminGenerationOperationsSection controller={controller} /> : null}

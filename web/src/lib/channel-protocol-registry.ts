@@ -47,6 +47,23 @@ const openAiOperations: ChannelProtocolDefinition["operations"] = {
     audio: { capability: "audio", createPath: "/audio/speech", requestTemplate: '{"model":"{{model}}","input":"{{prompt}}","voice":"alloy","response_format":"mp3"}', resultField: "binary" },
 };
 
+// New API routes Doubao/Seedance through its task-compatible JSON endpoint.
+// This is a different contract from the OpenAI `/videos` multipart endpoint:
+// New API converts the request to `/api/v3/contents/generations/tasks`.
+const newApiDoubaoVideoOperation: ProtocolOperation = {
+    capability: "video",
+    createPath: "/video/generations",
+    imageToVideoPath: "/video/generations",
+    queryPath: "/video/generations/:task_id",
+    requestTemplate:
+        '{"model":"{{model}}","prompt":"{{prompt}}","seconds":"{{seconds_string}}","images":"{{images}}","metadata":{"ratio":"{{ratio}}","resolution":"{{resolution}}","generate_audio":"{{generate_audio}}","watermark":"{{watermark}}"}}',
+    resultField: "metadata.url",
+    statusField: "status",
+    durationRange: "4-15 秒，具体范围以模型文档为准",
+    referenceRule: "New API Doubao 使用 JSON；参考图写入 images 数组，分辨率、比例和音频参数写入 metadata。",
+    supportsReferenceImage: true,
+};
+
 const geminiVideoOperation: ProtocolOperation = {
     capability: "video",
     createPath: "/models/:model:predictLongRunning",
@@ -327,6 +344,9 @@ export function protocolCatalogCapability(protocol: SystemChannelProtocol): Logi
 
 export function protocolModelConfig(protocol: SystemChannelProtocol, capability: LogicalModelCapability, model?: string): SystemChannelModelConfig | undefined {
     const definition = channelProtocolDefinition(protocol);
+    if (protocol === "newapi" && capability === "video" && model && isLegacyDoubaoSeedanceModel(model)) {
+        return { ...newApiDoubaoVideoOperation, capability, source: "manual", protocol, apiFormat: definition.apiFormat };
+    }
     const builtIn = model ? definition.builtInModels?.find((item) => normalizeModelId(item.id) === normalizeModelId(model)) : undefined;
     const operation = builtIn?.capability === capability && builtIn.operation ? builtIn.operation : definition.operations[capability];
     if (!operation) return undefined;
@@ -343,13 +363,59 @@ export function normalizeStrictProtocolModelConfig(config: SystemChannelModelCon
     return protocolModelConfig(protocol, config.capability, model) || config;
 }
 
+export function normalizeStrictChannelModelConfigs(channel: SystemModelChannel): SystemModelChannel {
+    const advanced = channel.advancedConfig;
+    if (!advanced?.modelConfigs) return channel;
+    const modelConfigs = Object.fromEntries(
+        Object.entries(advanced.modelConfigs).map(([model, config]) => [model, normalizeStrictProtocolModelConfig(config, advanced.protocol, model)]),
+    );
+    return { ...channel, advancedConfig: { ...advanced, modelConfigs } };
+}
+
 export function resolveChannelModelConfig(config: SystemChannelAdvancedConfig | undefined, model: string) {
     if (!config) return undefined;
     const key = normalizeModelId(model);
     const modelConfig = config.modelConfigs?.[key];
+    const configuredProtocol = modelConfig?.protocol || config.protocol;
+    // New API exposes Doubao/Seedance through `/video/generations`, while
+    // generic New API video models continue to use the OpenAI `/videos` route.
+    // Repair older saved Doubao entries that still contain the generic preset.
+    if (isLegacyDoubaoSeedanceModel(model) && configuredProtocol === "newapi" && isStaleNewApiVideoConfig(modelConfig || operationConfigsFor(config, key))) {
+        return protocolModelConfig("newapi", "video", model);
+    }
+    if (isLegacyDoubaoSeedanceModel(model) && isLegacyVideoProtocol(configuredProtocol) && (modelConfig?.capability === "video" || !modelConfig)) {
+        return protocolModelConfig("seedance", "video", model);
+    }
     if (modelConfig) return modelConfig;
     const capability = protocolCatalogCapability(config.protocol) || config.modelCapabilities?.[key] || inferModelCapability(model);
+    const operation = config.operationConfigs?.[capability];
+    if (isLegacyDoubaoSeedanceModel(model) && isLegacyVideoProtocol(operation?.protocol || config.protocol) && capability === "video") {
+        return protocolModelConfig("seedance", "video", model);
+    }
+    return operation;
+}
+
+function operationConfigsFor(config: SystemChannelAdvancedConfig, key: string) {
+    const capability = config.modelCapabilities?.[key] || inferModelCapability(key);
     return config.operationConfigs?.[capability];
+}
+
+function isStaleNewApiVideoConfig(config: SystemChannelModelConfig | undefined) {
+    if (!config || config.capability !== "video") return false;
+    return config.protocol === "newapi" && (config.createPath !== "/video/generations" || !config.requestTemplate?.trim().startsWith("{") || !config.requestTemplate.includes("{{seconds_string}}"));
+}
+
+function isLegacyVideoProtocol(protocol: SystemChannelProtocol | undefined) {
+    // New API exposes Doubao/Seedance models through its OpenAI-compatible
+    // `/v1/videos` multipart contract. Treating every New API model name as
+    // native Volcengine would incorrectly route it to `/contents/...`, which
+    // is the dashboard HTML route on New API relays.
+    return protocol === "auto" || protocol === "openai" || protocol === "sub2api" || protocol === "compatible";
+}
+
+export function isLegacyDoubaoSeedanceModel(model: string) {
+    const value = normalizeModelId(model);
+    return /(?:^|[-_.])doubao[-_.]?seedance(?:[-_.]|$)/i.test(value) || /^seedance(?:[-_.]?2(?:[-_.]?(?:0|5))?)(?:[-_.]|$)/i.test(value);
 }
 
 export function resolveChannelModelAdvancedConfig(config: SystemChannelAdvancedConfig | undefined, model: string) {
@@ -440,7 +506,9 @@ export function channelProtocolValidationErrors(channel: SystemModelChannel) {
     if (advanced.authMode === "custom-header" && !isSafeAuthHeaderName(advanced.authHeader)) errors.push(`${channel.name || "渠道"} 的自定义鉴权请求头名称无效`);
     for (const model of channel.models) {
         const key = normalizeModelId(model);
-        const config = resolveChannelModelConfig(advanced, model);
+        // Validate the persisted shape itself. Runtime compatibility repairs
+        // must not hide an invalid admin configuration from the settings UI.
+        const config = advanced.modelConfigs?.[key] || advanced.operationConfigs?.[advanced.modelCapabilities?.[key] || inferModelCapability(model)];
         const protocol = config?.protocol || advanced.protocol;
         const definition = channelProtocolDefinition(protocol);
         if (protocol === "custom") {

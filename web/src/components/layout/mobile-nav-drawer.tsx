@@ -16,10 +16,11 @@ import { useSchoolContextStore } from "@/stores/use-school-context-store";
 type MobileNavDrawerProps = {
     open: boolean;
     activeToolSlug?: NavigationToolSlug;
+    dramaWorkflowLabEnabled?: boolean;
     onClose: () => void;
 };
 
-export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDrawerProps) {
+export function MobileNavDrawer({ open, activeToolSlug, dramaWorkflowLabEnabled = false, onClose }: MobileNavDrawerProps) {
     const pathname = usePathname();
     const router = useRouter();
     const previousPathnameRef = useRef(pathname);
@@ -27,7 +28,7 @@ export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDraw
     const siteTitle = resolveSiteTitle(site.title);
     const helpActive = pathname.startsWith("/help");
     const context = useSchoolContextStore((state) => state.context);
-    const tools = navigationToolsForContext(context);
+    const tools = navigationToolsForContext(context, { includeDramaWorkflowLab: dramaWorkflowLabEnabled });
     const schoolTools = tools.filter((tool) => tool.group === "school");
     const groups = schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups;
 

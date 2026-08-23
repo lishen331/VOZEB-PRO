@@ -163,15 +163,16 @@ describe("video generation candidate failover", () => {
         expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "submission_outcome_unknown" }));
     });
 
-    it("does not retry another path or binding after an ambiguous server failure", async () => {
+    it("finishes the task with an explicit error after a server rejection", async () => {
         mocks.fetchInternalApi.mockResolvedValue(json({ error: "gateway failed" }, 502));
 
         const response = await POST(request());
 
-        expect(response.status).toBe(202);
+        expect(response.status).toBe(502);
         expect(mocks.fetchInternalApi).toHaveBeenCalledTimes(1);
         expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/ai/system/two/"))).toBe(false);
         expect(mocks.createVideoTask).toHaveBeenCalledOnce();
+        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "completed", lastUpstreamStatus: "create_failed" }));
     });
 
     it("surfaces an explicit HTTP 200 business failure after safe candidate fallback", async () => {
@@ -377,8 +378,10 @@ describe("video generation candidate failover", () => {
         expect(init.body).toBeInstanceOf(FormData);
         expect(new Headers(init.headers).has("content-type")).toBe(false);
         expect(body.get("model")).toBe("video-one");
-        expect(body.get("seconds")).toBe("5");
+        expect(body.get("seconds")).toBe("8");
         expect(body.get("size")).toBe("1280x720");
+        expect(body.get("watermark")).toBe("false");
+        expect(body.get("private")).toBe("false");
         expect(body.get("input_reference")).toBeInstanceOf(File);
     });
 

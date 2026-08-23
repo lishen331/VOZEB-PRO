@@ -41,6 +41,13 @@ describe("user navigation order", () => {
         expect(navigationToolsForContext(disabledContext).some((tool) => tool.slug === "practice")).toBe(false);
     });
 
+    it("keeps the drama workflow lab hidden unless explicitly enabled", () => {
+        expect(navigationToolsForContext(null).some((tool) => tool.slug === "drama-lab")).toBe(false);
+        expect(navigationToolsForContext(null, { includeDramaWorkflowLab: true }).find((tool) => tool.slug === "drama-lab")).toMatchObject({ group: "projects", label: "短剧实验室" });
+        expect(navigationToolForPathname("/drama-lab", null)).toBeUndefined();
+        expect(navigationToolForPathname("/drama-lab", null, { includeDramaWorkflowLab: true })?.slug).toBe("drama-lab");
+    });
+
     it("exposes the same practice entry in role overview metadata", () => {
         expect(roleNavigationOverview.teacher.items.map((item) => item.label)).toContain("无限练习");
         expect(roleNavigationOverview.student.items.map((item) => item.label)).toContain("无限练习");
