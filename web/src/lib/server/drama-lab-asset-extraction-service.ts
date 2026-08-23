@@ -1,12 +1,13 @@
 import { nanoid } from "nanoid";
 
 import type { DramaCharacter, DramaProject, DramaProp, DramaScene } from "@/lib/drama-project-contract";
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
 import { recordDramaLabTextGenerationLog } from "@/lib/server/drama-lab-text-generation-log";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 
 export const DRAMA_LAB_ASSET_TYPES = ["character", "scene", "prop"] as const;
 export type DramaLabAssetType = (typeof DRAMA_LAB_ASSET_TYPES)[number];
@@ -27,15 +28,7 @@ export function isDramaLabAssetType(value: unknown): value is DramaLabAssetType 
     return typeof value === "string" && (DRAMA_LAB_ASSET_TYPES as readonly string[]).includes(value);
 }
 
-export async function extractDramaLabAssets(input: {
-    userId: string;
-    origin: string;
-    cookie: string;
-    requestId: string;
-    project: DramaProject;
-    episodeId: string;
-    assetType: DramaLabAssetType;
-}) {
+export async function extractDramaLabAssets(input: { userId: string; origin: string; cookie: string; requestId: string; project: DramaProject; episodeId: string; assetType: DramaLabAssetType }) {
     const episode = input.project.episodes.find((item) => item.id === input.episodeId);
     const script = episode?.script.trim() || "";
     if (!episode) throw new DramaLabAssetExtractionError("当前剧集不存在", 404);
@@ -71,7 +64,10 @@ export async function extractDramaLabAssets(input: {
                 origin: input.origin,
                 cookie: input.cookie,
                 candidate,
-                messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt },
+                ],
                 tool: extractDramaAssetsTool,
                 headers: { "Content-Type": "application/json", ...systemAiBillingHeaders(model, idempotencyKey, candidate.upstreamModel) },
                 onInvalidResponse: (headers) => refundInvalidResponse(input.userId, model, headers),
@@ -108,9 +104,7 @@ export async function extractDramaLabAssets(input: {
         error: latestError instanceof Error ? latestError.message : "素材提取失败",
         createdAt: startedAt,
     });
-    throw latestError instanceof DramaLabAssetExtractionError
-        ? latestError
-        : new DramaLabAssetExtractionError(latestError instanceof Error ? latestError.message : "资产提取失败，请稍后重试");
+    throw latestError instanceof DramaLabAssetExtractionError ? latestError : new DramaLabAssetExtractionError(latestError instanceof Error ? latestError.message : "资产提取失败，请稍后重试");
 }
 
 function assetsForType(project: DramaProject, assetType: DramaLabAssetType): ExtractableAsset[] {
@@ -178,7 +172,7 @@ function text(value: unknown, maxLength: number) {
 
 async function refundInvalidResponse(userId: string, model: string, headers: Headers) {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+    if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `drama-lab-refund:${billing.billingReceiptId}` });
 }
 
 const extractDramaAssetsTool = {

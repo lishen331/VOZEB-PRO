@@ -37,7 +37,11 @@ export function readVideoProviderUrl(value: unknown, configuredPath?: string) {
     // `/v1/videos/:id/content` endpoint. Prefer a nested media field when the
     // configured/fallback value is that stale compatibility URL.
     if (configured && !isLegacyVideoContentUrl(configured)) return configured;
-    const nested = readProviderString(value, undefined, VIDEO_PROVIDER_MEDIA_KEYS.filter((key) => !["result_url", "resultUrl", "url", "uri"].includes(key)));
+    const nested = readProviderString(
+        value,
+        undefined,
+        VIDEO_PROVIDER_MEDIA_KEYS.filter((key) => !["result_url", "resultUrl", "url", "uri"].includes(key)),
+    );
     if (nested && (!configured || isLegacyVideoContentUrl(configured))) return nested;
     return configured || readProviderString(value, undefined, VIDEO_PROVIDER_MEDIA_KEYS);
 }

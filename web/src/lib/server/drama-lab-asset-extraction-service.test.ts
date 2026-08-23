@@ -34,7 +34,12 @@ describe("drama lab asset extraction", () => {
         mocks.rankTextPlanningCandidates.mockReturnValue([candidate]);
         mocks.resolveDramaLabPrompt.mockResolvedValue({ key: "character_extraction", template: "CUSTOM CHARACTER TEMPLATE" });
         mocks.requestStructuredText.mockResolvedValue({
-            arguments: JSON.stringify({ items: [{ name: "林薇", description: "主角" }, { name: "周明", description: "同事" }] }),
+            arguments: JSON.stringify({
+                items: [
+                    { name: "林薇", description: "主角" },
+                    { name: "周明", description: "同事" },
+                ],
+            }),
             headers: new Headers(),
         });
     });
@@ -68,17 +73,24 @@ describe("drama lab asset extraction", () => {
         expect(mocks.requestStructuredText.mock.calls[0]?.[0].messages[0].content).toContain("CUSTOM CHARACTER TEMPLATE");
         expect(result.assets).toMatchObject([{ name: "周明", description: "同事" }]);
         expect(result.skippedCount).toBe(1);
-        expect(mocks.recordDramaLabTextGenerationLog).toHaveBeenCalledWith(expect.objectContaining({
-            id: "drama-lab-extract:project-one:episode-one:character:request-one",
-            userId: "user-one",
-            status: "success",
-            model: "writer",
-        }));
+        expect(mocks.recordDramaLabTextGenerationLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: "drama-lab-extract:project-one:episode-one:character:request-one",
+                userId: "user-one",
+                status: "success",
+                model: "writer",
+            }),
+        );
     });
 
     it("normalizes legacy scene locations when checking duplicate names", () => {
         const items = normalizeExtractedDramaLabAssets(
-            JSON.stringify({ items: [{ name: "咖啡馆", description: "室内" }, { name: "天台", description: "夜景", time: "深夜" }] }),
+            JSON.stringify({
+                items: [
+                    { name: "咖啡馆", description: "室内" },
+                    { name: "天台", description: "夜景", time: "深夜" },
+                ],
+            }),
             "scene",
             [{ id: "scene-one", name: "", location: "咖啡馆", description: "已有" } as never],
         );

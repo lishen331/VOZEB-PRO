@@ -74,9 +74,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-video", () => 
         expect(JSON.parse(String(init.body))).toMatchObject({
             config: { model: "video-logical", size: "16:9", videoSeconds: 4 },
             prompt: "server-composed-video-prompt",
-            references: [
-                { type: "image", role: "reference", url: "/api/generation-log-assets/storyboard.png" },
-            ],
+            references: [{ type: "image", role: "reference", url: "/api/generation-log-assets/storyboard.png" }],
             context: { parentTaskId: "image-task-one", attemptNo: 3 },
         });
         expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(

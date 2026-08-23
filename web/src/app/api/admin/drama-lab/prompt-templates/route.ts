@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { postgresQuery } from "@/lib/server/database";
 import { DRAMA_LAB_PROMPT_DEFINITIONS } from "@/lib/drama-lab-prompt-templates";
-import { authorizeDramaLabAdmin, badRequest, serverError, textValue } from "../_lib";
+import { authorizeDramaLabAdmin, badRequest, promptCategory, serverError, textValue } from "../_lib";
 
 type PromptTemplateRow = {
     id: string;

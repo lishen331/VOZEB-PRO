@@ -97,25 +97,13 @@ export function DramaWorkflowLabHome() {
                         <p className="mt-1 text-sm text-muted-foreground">先创建短剧项目，再进入剧本、分集、资产和镜头制作。</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
-                            icon={<UserRound className="size-4" />}
-                            onClick={() => setCharacterLibraryOpen(true)}
-                            className="hidden sm:inline-flex"
-                        >
+                        <Button icon={<UserRound className="size-4" />} onClick={() => setCharacterLibraryOpen(true)} className="hidden sm:inline-flex">
                             素材角色
                         </Button>
-                        <Button
-                            icon={<ImageIcon className="size-4" />}
-                            onClick={() => setSceneLibraryOpen(true)}
-                            className="hidden sm:inline-flex"
-                        >
+                        <Button icon={<ImageIcon className="size-4" />} onClick={() => setSceneLibraryOpen(true)} className="hidden sm:inline-flex">
                             素材场景
                         </Button>
-                        <Button
-                            icon={<Box className="size-4" />}
-                            onClick={() => setPropLibraryOpen(true)}
-                            className="hidden sm:inline-flex"
-                        >
+                        <Button icon={<Box className="size-4" />} onClick={() => setPropLibraryOpen(true)} className="hidden sm:inline-flex">
                             素材道具
                         </Button>
                         <Button icon={<RefreshCcw className="size-4" />} onClick={() => void loadProjects()} loading={loading}>
@@ -279,39 +267,21 @@ export function DramaWorkflowLabHome() {
             </Modal>
 
             {/* 素材库弹窗 */}
-            <Modal
-                title="素材角色库"
-                open={characterLibraryOpen}
-                onCancel={() => setCharacterLibraryOpen(false)}
-                footer={null}
-                width={1000}
-            >
+            <Modal title="素材角色库" open={characterLibraryOpen} onCancel={() => setCharacterLibraryOpen(false)} footer={null} width={1000}>
                 <div className="py-4 text-center text-gray-500">
                     角色库功能开发中...
                     <p className="mt-2 text-sm">将显示公共角色素材，可以选择并添加到项目中</p>
                 </div>
             </Modal>
 
-            <Modal
-                title="素材场景库"
-                open={sceneLibraryOpen}
-                onCancel={() => setSceneLibraryOpen(false)}
-                footer={null}
-                width={1000}
-            >
+            <Modal title="素材场景库" open={sceneLibraryOpen} onCancel={() => setSceneLibraryOpen(false)} footer={null} width={1000}>
                 <div className="py-4 text-center text-gray-500">
                     场景库功能开发中...
                     <p className="mt-2 text-sm">将显示公共场景素材，可以选择并添加到项目中</p>
                 </div>
             </Modal>
 
-            <Modal
-                title="素材道具库"
-                open={propLibraryOpen}
-                onCancel={() => setPropLibraryOpen(false)}
-                footer={null}
-                width={1000}
-            >
+            <Modal title="素材道具库" open={propLibraryOpen} onCancel={() => setPropLibraryOpen(false)} footer={null} width={1000}>
                 <div className="py-4 text-center text-gray-500">
                     道具库功能开发中...
                     <p className="mt-2 text-sm">将显示公共道具素材，可以选择并添加到项目中</p>

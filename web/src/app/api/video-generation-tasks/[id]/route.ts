@@ -8,10 +8,7 @@ export const dynamic = "force-dynamic";
  * GET /api/video-generation-tasks/:id
  * 查询视频生成任务状态
  */
-export async function GET(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser();
     if (!user) {
         return NextResponse.json({ error: "请先登录" }, { status: 401 });
@@ -33,9 +30,6 @@ export async function GET(
         return NextResponse.json({ task });
     } catch (error) {
         console.error("[video-generation-tasks/:id] GET error:", error);
-        return NextResponse.json(
-            { error: error instanceof Error ? error.message : "查询失败" },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: error instanceof Error ? error.message : "查询失败" }, { status: 500 });
     }
 }

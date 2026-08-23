@@ -175,8 +175,18 @@ export function missingDramaLabShotAssetReferences(project: DramaProject, shot: 
     };
 
     check("scene", shot.sceneId ? project.scenes.find((asset) => asset.id === shot.sceneId) : undefined);
-    shot.characterIds.forEach((id) => check("character", project.characters.find((asset) => asset.id === id)));
-    shot.propIds.forEach((id) => check("prop", project.props.find((asset) => asset.id === id)));
+    shot.characterIds.forEach((id) =>
+        check(
+            "character",
+            project.characters.find((asset) => asset.id === id),
+        ),
+    );
+    shot.propIds.forEach((id) =>
+        check(
+            "prop",
+            project.props.find((asset) => asset.id === id),
+        ),
+    );
     return missing;
 }
 

@@ -1,10 +1,11 @@
 import type { DramaProject, DramaShot, DramaShotFrameType } from "@/lib/drama-project-contract";
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
 import { recordDramaLabTextGenerationLog } from "@/lib/server/drama-lab-text-generation-log";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { sanitizeDramaLabFramePrompt } from "@/lib/server/drama-lab-frame-prompt-sanitize";
 import { assertDramaLabShotAssetReferences, findShot, shotReferences, type DramaLabGenerationReference, DramaLabShotGenerationError } from "@/lib/server/drama-lab-shot-generation-service";
 
@@ -141,7 +142,7 @@ function parseFrameResult(value: string) {
 
 async function refundInvalidFrameResponse(userId: string, model: string, headers: Headers) {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+    if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `drama-lab-refund:${billing.billingReceiptId}` });
 }
 
 const framePromptTool = {

@@ -55,8 +55,7 @@ const newApiDoubaoVideoOperation: ProtocolOperation = {
     createPath: "/video/generations",
     imageToVideoPath: "/video/generations",
     queryPath: "/video/generations/:task_id",
-    requestTemplate:
-        '{"model":"{{model}}","prompt":"{{prompt}}","seconds":"{{seconds_string}}","images":"{{images}}","metadata":{"ratio":"{{ratio}}","resolution":"{{resolution}}","generate_audio":"{{generate_audio}}","watermark":"{{watermark}}"}}',
+    requestTemplate: '{"model":"{{model}}","prompt":"{{prompt}}","seconds":"{{seconds_string}}","images":"{{images}}","metadata":{"ratio":"{{ratio}}","resolution":"{{resolution}}","generate_audio":"{{generate_audio}}","watermark":"{{watermark}}"}}',
     resultField: "metadata.url",
     statusField: "status",
     durationRange: "4-15 秒，具体范围以模型文档为准",
@@ -366,9 +365,7 @@ export function normalizeStrictProtocolModelConfig(config: SystemChannelModelCon
 export function normalizeStrictChannelModelConfigs(channel: SystemModelChannel): SystemModelChannel {
     const advanced = channel.advancedConfig;
     if (!advanced?.modelConfigs) return channel;
-    const modelConfigs = Object.fromEntries(
-        Object.entries(advanced.modelConfigs).map(([model, config]) => [model, normalizeStrictProtocolModelConfig(config, advanced.protocol, model)]),
-    );
+    const modelConfigs = Object.fromEntries(Object.entries(advanced.modelConfigs).map(([model, config]) => [model, normalizeStrictProtocolModelConfig(config, advanced.protocol, model)]));
     return { ...channel, advancedConfig: { ...advanced, modelConfigs } };
 }
 

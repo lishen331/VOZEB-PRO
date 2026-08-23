@@ -2,10 +2,7 @@
 
 import { use, useState, useEffect, useCallback } from "react";
 import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, List, Spin } from "antd";
-import {
-    ArrowLeft, Plus, Trash2, Edit2, Play,
-    Users, MapPin, Package, Search, Upload, LibraryBig
-} from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
@@ -142,7 +139,10 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
 
     const handleBatchImport = async () => {
         if (!project) return;
-        const lines = batchImportText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        const lines = batchImportText
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean);
         if (!lines.length) {
             message.warning("请先输入要导入的分集内容");
             return;
@@ -184,9 +184,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
 
     const handleResourceImport = async (asset: Asset) => {
         if (!project) return;
-        const imageUrl = asset.kind === "image"
-            ? asset.data.serverUrl || asset.data.remoteUrl || asset.data.dataUrl || asset.coverUrl
-            : asset.coverUrl;
+        const imageUrl = asset.kind === "image" ? asset.data.serverUrl || asset.data.remoteUrl || asset.data.dataUrl || asset.coverUrl : asset.coverUrl;
         setResourceImporting(true);
         try {
             if (resourceImportTarget === "characters") {
@@ -295,7 +293,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
             title: "确认删除",
             content: "确定要删除这一集吗？",
             onOk: async () => {
-                const updatedEpisodes = project.episodes.filter(ep => ep.id !== episodeId);
+                const updatedEpisodes = project.episodes.filter((ep) => ep.id !== episodeId);
 
                 try {
                     const res = await fetch(`/api/drama-lab/projects/${projectId}`, {
@@ -345,10 +343,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
             <header className="sticky top-0 z-10 border-b border-border bg-card">
                 <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
                     <div className="flex items-center gap-4">
-                        <Link
-                            href="/drama-lab"
-                            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                        >
+                        <Link href="/drama-lab" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
                             <ArrowLeft className="size-4" />
                             返回列表
                         </Link>
@@ -415,11 +410,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                     ) : (
                         <div className="grid grid-cols-3 gap-4">
                             {project.episodes.map((ep) => (
-                                <div
-                                    key={ep.id}
-                                    className="group cursor-pointer rounded-lg border border-border p-4 transition-all hover:border-primary hover:shadow-md"
-                                    onClick={() => goToCreate(ep.id)}
-                                >
+                                <div key={ep.id} className="group cursor-pointer rounded-lg border border-border p-4 transition-all hover:border-primary hover:shadow-md" onClick={() => goToCreate(ep.id)}>
                                     <div className="mb-2 flex items-center justify-between">
                                         <span className="text-sm text-muted-foreground">第 {ep.number} 集</span>
                                         <Button
@@ -434,14 +425,10 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                         />
                                     </div>
                                     <h3 className="mb-2 text-base font-semibold">{ep.title}</h3>
-                                    <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">
-                                        {ep.script ? ep.script.slice(0, 50) + "..." : "暂无剧本"}
-                                    </p>
+                                    <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">{ep.script ? ep.script.slice(0, 50) + "..." : "暂无剧本"}</p>
                                     <div className="mb-3 flex items-center gap-4 text-xs text-muted-foreground">
                                         <span>{ep.storyboardCount || 0} 分镜</span>
-                                        <span className="rounded bg-muted px-2 py-0.5">
-                                            {ep.status === "draft" ? "草稿" : "进行中"}
-                                        </span>
+                                        <span className="rounded bg-muted px-2 py-0.5">{ep.status === "draft" ? "草稿" : "进行中"}</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm text-primary opacity-0 transition-opacity group-hover:opacity-100">
                                         <Play className="size-4" />
@@ -458,14 +445,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                     title="本剧资源库"
                     extra={
                         <div className="flex items-center gap-2">
-                            <Input
-                                allowClear
-                                prefix={<Search className="size-4 text-muted-foreground" />}
-                                placeholder="搜索本剧资源"
-                                className="w-52"
-                                value={libraryKeyword}
-                                onChange={(event) => setLibraryKeyword(event.target.value)}
-                            />
+                            <Input allowClear prefix={<Search className="size-4 text-muted-foreground" />} placeholder="搜索本剧资源" className="w-52" value={libraryKeyword} onChange={(event) => setLibraryKeyword(event.target.value)} />
                             <Button icon={<LibraryBig className="size-4" />} onClick={() => void openResourceImport(activeTab)}>
                                 从素材库导入
                             </Button>
@@ -491,14 +471,14 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                                 <Empty description="暂无角色，进入制作页面添加" />
                                             </div>
                                         ) : (
-                                            project.characters.filter((char) => !libraryKeyword.trim() || char.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase())).map((char) => (
-                                                <div key={char.id} className="rounded-lg border border-border p-3">
-                                                    <div className="mb-2 text-sm font-semibold">{char.name}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {char.description || "暂无描述"}
+                                            project.characters
+                                                .filter((char) => !libraryKeyword.trim() || char.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
+                                                .map((char) => (
+                                                    <div key={char.id} className="rounded-lg border border-border p-3">
+                                                        <div className="mb-2 text-sm font-semibold">{char.name}</div>
+                                                        <div className="text-xs text-muted-foreground">{char.description || "暂无描述"}</div>
                                                     </div>
-                                                </div>
-                                            ))
+                                                ))
                                         )}
                                     </div>
                                 ),
@@ -518,14 +498,14 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                                 <Empty description="暂无场景，进入制作页面添加" />
                                             </div>
                                         ) : (
-                                            project.scenes.filter((scene) => !libraryKeyword.trim() || scene.location.toLowerCase().includes(libraryKeyword.trim().toLowerCase())).map((scene) => (
-                                                <div key={scene.id} className="rounded-lg border border-border p-3">
-                                                    <div className="mb-2 text-sm font-semibold">{scene.location}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {scene.time || "未设置时间"}
+                                            project.scenes
+                                                .filter((scene) => !libraryKeyword.trim() || scene.location.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
+                                                .map((scene) => (
+                                                    <div key={scene.id} className="rounded-lg border border-border p-3">
+                                                        <div className="mb-2 text-sm font-semibold">{scene.location}</div>
+                                                        <div className="text-xs text-muted-foreground">{scene.time || "未设置时间"}</div>
                                                     </div>
-                                                </div>
-                                            ))
+                                                ))
                                         )}
                                     </div>
                                 ),
@@ -545,14 +525,14 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                                 <Empty description="暂无道具，进入制作页面添加" />
                                             </div>
                                         ) : (
-                                            project.props.filter((prop) => !libraryKeyword.trim() || prop.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase())).map((prop) => (
-                                                <div key={prop.id} className="rounded-lg border border-border p-3">
-                                                    <div className="mb-2 text-sm font-semibold">{prop.name}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {prop.description || "暂无描述"}
+                                            project.props
+                                                .filter((prop) => !libraryKeyword.trim() || prop.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
+                                                .map((prop) => (
+                                                    <div key={prop.id} className="rounded-lg border border-border p-3">
+                                                        <div className="mb-2 text-sm font-semibold">{prop.name}</div>
+                                                        <div className="text-xs text-muted-foreground">{prop.description || "暂无描述"}</div>
                                                     </div>
-                                                </div>
-                                            ))
+                                                ))
                                         )}
                                     </div>
                                 ),
@@ -562,45 +542,42 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 </Card>
             </main>
 
-            <Modal
-                open={batchImportOpen}
-                title="批量导入剧集"
-                okText="导入剧集"
-                cancelText="取消"
-                onCancel={() => setBatchImportOpen(false)}
-                onOk={() => void handleBatchImport()}
-            >
+            <Modal open={batchImportOpen} title="批量导入剧集" okText="导入剧集" cancelText="取消" onCancel={() => setBatchImportOpen(false)} onOk={() => void handleBatchImport()}>
                 <p className="mb-3 text-sm text-muted-foreground">每行一集，可用“标题 | 剧本内容”格式填写。</p>
-                <Input.TextArea
-                    rows={8}
-                    value={batchImportText}
-                    onChange={(event) => setBatchImportText(event.target.value)}
-                    placeholder={"第 1 集 | 雨夜里，主角收到一封神秘来信。\n第 2 集 | 他沿着线索来到旧车站。"}
-                />
+                <Input.TextArea rows={8} value={batchImportText} onChange={(event) => setBatchImportText(event.target.value)} placeholder={"第 1 集 | 雨夜里，主角收到一封神秘来信。\n第 2 集 | 他沿着线索来到旧车站。"} />
             </Modal>
 
-            <Modal
-                open={resourceImportOpen}
-                title={`从素材库导入${resourceImportTarget === "characters" ? "角色" : resourceImportTarget === "scenes" ? "场景" : "道具"}`}
-                footer={null}
-                onCancel={() => setResourceImportOpen(false)}
-            >
-                {libraryLoading ? <div className="flex justify-center py-8"><Spin /></div> : filteredLibraryAssets.length ? (
+            <Modal open={resourceImportOpen} title={`从素材库导入${resourceImportTarget === "characters" ? "角色" : resourceImportTarget === "scenes" ? "场景" : "道具"}`} footer={null} onCancel={() => setResourceImportOpen(false)}>
+                {libraryLoading ? (
+                    <div className="flex justify-center py-8">
+                        <Spin />
+                    </div>
+                ) : filteredLibraryAssets.length ? (
                     <List
                         dataSource={filteredLibraryAssets}
                         renderItem={(asset) => (
                             <List.Item
-                                actions={[<Button key="import" type="link" loading={resourceImporting} onClick={() => void handleResourceImport(asset)}>导入</Button>]}
+                                actions={[
+                                    <Button key="import" type="link" loading={resourceImporting} onClick={() => void handleResourceImport(asset)}>
+                                        导入
+                                    </Button>,
+                                ]}
                             >
                                 <List.Item.Meta
-                                    avatar={<div className="grid size-9 place-items-center rounded bg-muted"><LibraryBig className="size-4" /></div>}
+                                    avatar={
+                                        <div className="grid size-9 place-items-center rounded bg-muted">
+                                            <LibraryBig className="size-4" />
+                                        </div>
+                                    }
                                     title={asset.title}
                                     description={`${asset.kind} · ${asset.note || asset.tags.join("、") || "暂无描述"}`}
                                 />
                             </List.Item>
                         )}
                     />
-                ) : <Empty description={libraryKeyword ? "没有匹配的素材" : "素材库暂无内容"} />}
+                ) : (
+                    <Empty description={libraryKeyword ? "没有匹配的素材" : "素材库暂无内容"} />
+                )}
             </Modal>
         </div>
     );
