@@ -20,6 +20,7 @@ import { CanvasNodeUpscaleDialog } from "../components/canvas-node-upscale-dialo
 import { CanvasToolbar } from "../components/canvas-toolbar";
 import { CanvasTopBar } from "../components/canvas-top-bar";
 import { CanvasZoomControls } from "../components/canvas-zoom-controls";
+import { SchoolProjectBillingBadge } from "@/components/school/school-project-billing-badge";
 import { CanvasNodeType, type Position } from "../types";
 
 const CanvasAssistantPanel = dynamic(() => import("../components/canvas-assistant-panel").then((mod) => mod.CanvasAssistantPanel), { ssr: false });
@@ -297,6 +298,11 @@ function VozebProCanvasPage() {
                     agentOpen={assistantOpen}
                     onToggleAgent={() => (assistantOpen ? closeAgent() : openAgent())}
                 />
+                <div className="pointer-events-none absolute left-3 top-20 z-40 max-w-[calc(100%-1.5rem)] sm:left-6">
+                    <div className="pointer-events-auto">
+                        <SchoolProjectBillingBadge surface="canvas" projectId={projectId} executionProfile={currentProject?.executionProfile} />
+                    </div>
+                </div>
 
                 <CanvasSurface
                     containerRef={containerRef}

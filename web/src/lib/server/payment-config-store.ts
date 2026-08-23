@@ -2,7 +2,16 @@ import { createPostgresRepositories, ensurePostgresSchema, getPostgresConnection
 import { readJsonDataFile, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { BillingInputError } from "@/lib/server/billing-errors";
 import { decryptSecretValue, encryptSecretValue } from "@/lib/server/secret-crypto";
-import { PAYMENT_PROVIDER_DEFINITIONS, type PaymentProviderConfigField, type PaymentProviderId, type SavedPaymentConfig, type SavedPaymentProviderConfig } from "@/lib/payment-config-types";
+import {
+    DEFAULT_ALIPAY_SIGNATURE_MODE,
+    getAlipayCheckoutFieldKeys,
+    isAlipaySignatureMode,
+    PAYMENT_PROVIDER_DEFINITIONS,
+    type PaymentProviderConfigField,
+    type PaymentProviderId,
+    type SavedPaymentConfig,
+    type SavedPaymentProviderConfig,
+} from "@/lib/payment-config-types";
 
 type PaymentRuntimeProvider = {
     enabled: boolean;
@@ -126,10 +135,22 @@ export function isPaymentRuntimeProviderCheckoutReady(config: PaymentRuntimeConf
     if (providerId === "manual") return true;
     const definition = PAYMENT_PROVIDER_DEFINITIONS.find((item) => item.id === providerId);
     if (!definition || !isPaymentRuntimeProviderEnabled(config, definition.id)) return false;
-    return definition.checkoutFieldKeys.every((key) => {
+    return getPaymentProviderCheckoutFieldKeys(config, definition.id).every((key) => {
         const field = definition.fields.find((item) => item.key === key);
         return Boolean(field && fieldHasRuntimeValue(config, field));
     });
+}
+
+export function getPaymentProviderCheckoutFieldKeys(config: PaymentRuntimeConfig, providerId: PaymentProviderId) {
+    if (providerId !== "alipay") return PAYMENT_PROVIDER_DEFINITIONS.find((item) => item.id === providerId)?.checkoutFieldKeys || [];
+    const value = getPaymentRuntimeEnv(config, "VOZEB_PRO_ALIPAY_SIGNATURE_MODE");
+    return getAlipayCheckoutFieldKeys(isAlipaySignatureMode(value) ? value : DEFAULT_ALIPAY_SIGNATURE_MODE);
+}
+
+export function getPaymentProviderWebhookFieldKeys(config: PaymentRuntimeConfig, providerId: PaymentProviderId) {
+    if (providerId !== "alipay") return PAYMENT_PROVIDER_DEFINITIONS.find((item) => item.id === providerId)?.webhookFieldKeys || [];
+    const value = getPaymentRuntimeEnv(config, "VOZEB_PRO_ALIPAY_SIGNATURE_MODE");
+    return ["appId", isAlipaySignatureMode(value) && value === "certificate" ? "alipayCert" : "publicKey"];
 }
 
 export function fieldHasRuntimeValue(config: PaymentRuntimeConfig, field: PaymentProviderConfigField) {

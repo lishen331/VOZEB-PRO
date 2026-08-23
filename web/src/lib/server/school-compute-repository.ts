@@ -1,0 +1,145 @@
+import type { PageQuery, Page } from "./school-domain-repository";
+import { getDatabaseProvider, type QueryExecutor } from "./database/postgres";
+import { createPostgresSchoolComputeRepository } from "./database/school-compute-repository";
+import { createFileSchoolComputeRepository } from "./school-compute-file-repository";
+import type { ComputeAllocationRequestStatus, ComputeSettlementStatus, PersonalAdvanceStatus, ProductionGroupStatus, SchoolComputeLedgerEntry, SchoolComputePoolStatus } from "@/lib/school-compute-domain";
+
+export type SchoolComputePoolRecord = { schoolId: string; availablePoints: number; status: SchoolComputePoolStatus; createdAt: string; updatedAt: string };
+export type SchoolComputePoolMetricsRecord = {
+    schoolId: string;
+    totalPoints: number;
+    availablePoints: number;
+    allocatedPoints: number;
+    consumedPoints: number;
+    status: SchoolComputePoolStatus;
+    updatedAt: string;
+};
+export type ProductionGroupRecord = { id: string; schoolId: string; name: string; description: string; leaderMembershipId: string; status: ProductionGroupStatus; schoolPointsBalance: number; createdAt: string; updatedAt: string };
+export type ProductionGroupUpdate = Partial<Pick<ProductionGroupRecord, "name" | "description" | "leaderMembershipId" | "status" | "schoolPointsBalance">> & { updatedAt: string };
+export type ProductionGroupMemberRecord = { id: string; schoolId: string; groupId: string; membershipId: string; role: "leader" | "member"; createdAt: string; updatedAt: string };
+export type ProductionGroupProjectRecord = { id: string; schoolId: string; groupId: string; orderId: string; projectType: "canvas" | "drama"; projectId: string; createdByMembershipId: string; createdAt: string; updatedAt: string; settledAt?: string };
+export type ComputeAllocationRequestRecord = {
+    id: string;
+    schoolId: string;
+    groupId: string;
+    orderId: string;
+    requestedByMembershipId: string;
+    amount: number;
+    reason: string;
+    status: ComputeAllocationRequestStatus;
+    reviewNote: string;
+    reviewedByMembershipId?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+export type ComputeAllocationRequestUpdate = Partial<Pick<ComputeAllocationRequestRecord, "status" | "reviewNote" | "reviewedByMembershipId">> & { updatedAt: string };
+export type PersonalAdvanceRecord = {
+    id: string;
+    schoolId: string;
+    groupId: string;
+    orderId: string;
+    membershipId: string;
+    userId: string;
+    originalPoints: number;
+    consumedPoints: number;
+    remainingPoints: number;
+    returnedPoints: number;
+    status: PersonalAdvanceStatus;
+    pointRecordId: string;
+    createdAt: string;
+    updatedAt: string;
+};
+export type PersonalAdvanceUpdate = Partial<Pick<PersonalAdvanceRecord, "consumedPoints" | "remainingPoints" | "returnedPoints" | "status">> & { updatedAt: string };
+export type ComputeSettlementRecord = {
+    id: string;
+    schoolId: string;
+    groupId: string;
+    orderId: string;
+    status: ComputeSettlementStatus;
+    unusedPersonalPointsReturned: number;
+    consumedPersonalPointsPending: number;
+    confirmedPersonalPointsReturned: number;
+    createdAt: string;
+    updatedAt: string;
+};
+export type ComputeSettlementUpdate = Partial<Pick<ComputeSettlementRecord, "status" | "unusedPersonalPointsReturned" | "consumedPersonalPointsPending" | "confirmedPersonalPointsReturned">> & { updatedAt: string };
+export type ComputeConsumptionRecord = {
+    id: string;
+    schoolId: string;
+    groupId: string;
+    orderId: string;
+    generationTaskId: string;
+    requestFingerprint: string;
+    userId: string;
+    sourceType: "group_school_points" | "group_personal_advance";
+    sourceId: string;
+    amount: number;
+    status: "charged" | "refunded" | "settled";
+    createdAt: string;
+    updatedAt: string;
+};
+export type SchoolComputeLedgerRecord = SchoolComputeLedgerEntry & { actorUserId?: string; sourceEntryId?: string };
+export type ComputePoolPageQuery = PageQuery & { keyword?: string; status?: SchoolComputePoolStatus };
+export type ProductionGroupPageQuery = PageQuery & { keyword?: string; status?: ProductionGroupStatus };
+export type ComputeLedgerPageQuery = PageQuery & { groupId?: string; orderId?: string; type?: string };
+
+export interface SchoolComputeRepository {
+    lockOperation(key: string): Promise<void>;
+    getPool(schoolId: string, forUpdate?: boolean): Promise<SchoolComputePoolRecord | null>;
+    upsertPool(record: SchoolComputePoolRecord): Promise<SchoolComputePoolRecord>;
+    listPools(input: ComputePoolPageQuery): Promise<Page<SchoolComputePoolRecord>>;
+    listPoolsBySchoolIds(schoolIds: string[]): Promise<SchoolComputePoolRecord[]>;
+    getPoolMetrics(schoolId: string): Promise<SchoolComputePoolMetricsRecord | null>;
+    listPoolMetricsBySchoolIds(schoolIds: string[]): Promise<SchoolComputePoolMetricsRecord[]>;
+    listPoolMetricsPage(input: ComputePoolPageQuery): Promise<Page<SchoolComputePoolMetricsRecord>>;
+    creditPool(schoolId: string, amount: number, entry: SchoolComputeLedgerRecord): Promise<SchoolComputePoolRecord>;
+    adjustPool(schoolId: string, amount: number, entry: SchoolComputeLedgerRecord): Promise<SchoolComputePoolRecord>;
+    allocateToGroup(schoolId: string, groupId: string, amount: number, entry: SchoolComputeLedgerRecord): Promise<{ pool: SchoolComputePoolRecord; group: ProductionGroupRecord }>;
+    releaseGroupPoints(schoolId: string, groupId: string, amount: number, entry: SchoolComputeLedgerRecord): Promise<{ pool: SchoolComputePoolRecord; group: ProductionGroupRecord }>;
+    consumeGroupSchoolPoints(schoolId: string, groupId: string, amount: number, entry: SchoolComputeLedgerRecord): Promise<ProductionGroupRecord>;
+    refundGroupSchoolPoints(schoolId: string, groupId: string, amount: number, entry: SchoolComputeLedgerRecord): Promise<ProductionGroupRecord>;
+    listLedger(schoolId: string, input: ComputeLedgerPageQuery): Promise<Page<SchoolComputeLedgerRecord>>;
+    getGroup(schoolId: string, groupId: string, forUpdate?: boolean): Promise<ProductionGroupRecord | null>;
+    listGroupsByIds(schoolId: string, groupIds: string[]): Promise<ProductionGroupRecord[]>;
+    listGroups(schoolId: string, input: ProductionGroupPageQuery): Promise<Page<ProductionGroupRecord>>;
+    listGroupsForMembership(schoolId: string, membershipId: string, input: ProductionGroupPageQuery): Promise<Page<ProductionGroupRecord>>;
+    insertGroup(record: ProductionGroupRecord): Promise<ProductionGroupRecord>;
+    updateGroup(schoolId: string, groupId: string, patch: ProductionGroupUpdate): Promise<ProductionGroupRecord | null>;
+    replaceGroupMembers(schoolId: string, groupId: string, records: ProductionGroupMemberRecord[]): Promise<void>;
+    listGroupMembers(schoolId: string, groupId: string, input: PageQuery): Promise<Page<ProductionGroupMemberRecord>>;
+    getGroupMember(schoolId: string, groupId: string, membershipId: string, forUpdate?: boolean): Promise<ProductionGroupMemberRecord | null>;
+    getGroupProject(schoolId: string, groupId: string, linkId: string, forUpdate?: boolean): Promise<ProductionGroupProjectRecord | null>;
+    getGroupProjectByProject(projectType: "canvas" | "drama", projectId: string, forUpdate?: boolean): Promise<ProductionGroupProjectRecord | null>;
+    insertGroupProject(record: ProductionGroupProjectRecord): Promise<ProductionGroupProjectRecord>;
+    deleteGroupProject(schoolId: string, groupId: string, linkId: string): Promise<boolean>;
+    insertAllocationRequest(record: ComputeAllocationRequestRecord): Promise<ComputeAllocationRequestRecord>;
+    getAllocationRequest(schoolId: string, requestId: string, forUpdate?: boolean): Promise<ComputeAllocationRequestRecord | null>;
+    listAllocationRequests(schoolId: string, groupId: string, input: PageQuery): Promise<Page<ComputeAllocationRequestRecord>>;
+    updateAllocationRequest(schoolId: string, requestId: string, patch: ComputeAllocationRequestUpdate): Promise<ComputeAllocationRequestRecord | null>;
+    insertPersonalAdvance(record: PersonalAdvanceRecord): Promise<PersonalAdvanceRecord>;
+    getPersonalAdvance(schoolId: string, advanceId: string, forUpdate?: boolean): Promise<PersonalAdvanceRecord | null>;
+    getPersonalAdvanceByPointRecordId(pointRecordId: string, forUpdate?: boolean): Promise<PersonalAdvanceRecord | null>;
+    listPersonalAdvances(schoolId: string, groupId: string, input: PageQuery & { orderId?: string; membershipId?: string }): Promise<Page<PersonalAdvanceRecord>>;
+    listPersonalAdvancesForOrders(schoolId: string, orderIds: string[], forUpdate?: boolean): Promise<PersonalAdvanceRecord[]>;
+    listSpendableAdvances(schoolId: string, groupId: string, orderId: string, forUpdate?: boolean): Promise<PersonalAdvanceRecord[]>;
+    updatePersonalAdvance(id: string, patch: PersonalAdvanceUpdate): Promise<PersonalAdvanceRecord | null>;
+    insertConsumption(record: ComputeConsumptionRecord): Promise<ComputeConsumptionRecord>;
+    listConsumptionsForGeneration(generationTaskId: string, forUpdate?: boolean): Promise<ComputeConsumptionRecord[]>;
+    listConsumptionsForOrder(schoolId: string, orderId: string, input: PageQuery): Promise<Page<ComputeConsumptionRecord>>;
+    listConsumptionsForOrderRecords(schoolId: string, orderId: string, forUpdate?: boolean): Promise<ComputeConsumptionRecord[]>;
+    updateConsumption(id: string, status: ComputeConsumptionRecord["status"], updatedAt: string): Promise<ComputeConsumptionRecord | null>;
+    getSettlement(schoolId: string, orderId: string, forUpdate?: boolean): Promise<ComputeSettlementRecord | null>;
+    getSettlementById(schoolId: string, settlementId: string, forUpdate?: boolean): Promise<ComputeSettlementRecord | null>;
+    insertSettlement(record: ComputeSettlementRecord): Promise<ComputeSettlementRecord>;
+    listSettlements(schoolId: string, groupId: string, input: PageQuery): Promise<Page<ComputeSettlementRecord>>;
+    updateSettlement(schoolId: string, orderId: string, patch: ComputeSettlementUpdate): Promise<ComputeSettlementRecord | null>;
+    insertLedgerEntry(record: SchoolComputeLedgerRecord): Promise<SchoolComputeLedgerRecord>;
+    getLedgerEntryByIdempotencyKey(key: string): Promise<SchoolComputeLedgerRecord | null>;
+    transact<T>(operation: (repository: SchoolComputeRepository) => Promise<T>): Promise<T>;
+}
+
+export type { Page, PageQuery };
+
+export function createSchoolComputeRepository(executor?: QueryExecutor): SchoolComputeRepository {
+    return getDatabaseProvider() === "file" ? createFileSchoolComputeRepository() : createPostgresSchoolComputeRepository(executor);
+}

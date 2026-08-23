@@ -107,7 +107,7 @@ describe("GET /api/video-tasks/[id]", () => {
     });
 
     it("keeps cancellation as a server-controlled action", async () => {
-        const task = videoTask({ upstream: { id: "upstream-video", provider: "generation", model: "video-model", pointsCost: 2, pointsRecordId: "points-one" } });
+        const task = videoTask({ upstream: { id: "upstream-video", provider: "generation", model: "video-model", pointsCost: 2, billingReceiptId: "school:one" } });
         mocks.getVideoTask.mockResolvedValue(task);
         mocks.transition.mockResolvedValue({ ...task, status: "cancelled" });
 

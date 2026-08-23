@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         const origin = resolveInternalOrigin(new URL(request.url).origin);
         after(() => runGenerationTaskRecoveryBatch({ origin, cookie: request.headers.get("cookie") || "", limit: 1, taskIds: [task.id] }));
     }
-    const shouldRefund = Boolean(task.billing?.pointsRecordId && !task.billing.refunded && task.status === "error");
+    const shouldRefund = Boolean(task.billing?.billingReceiptId && !task.billing.refunded && task.status === "error");
     const settledTask = shouldRefund ? await refundAudioTask(task) : task;
     const refreshedUser = shouldRefund ? await getCurrentUser(request) : user;
     return NextResponse.json({ task: { ...publicTask(settledTask), needsReview: task.executionPhase === "needs_review", reviewReason: task.reviewReason, executionPhase: task.executionPhase } }, { headers: pointsResponseHeaders(refreshedUser) });
@@ -43,6 +43,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         executionPhase: task.executionPhase,
         upstreamTaskId: task.upstream?.id,
         queryPath: task.config.advancedConfig?.queryPath,
+        executionProfile: task.executionProfile,
+        billingContext: task.billingContext,
         config: task.config,
     };
     const next = await transitionAudioTask(task, ["pending", "running"], { status: "cancelled", error: "任务已取消", billing: task.billing }, cancellationExecutionPatch(target));

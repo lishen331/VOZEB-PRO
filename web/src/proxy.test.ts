@@ -37,7 +37,6 @@ describe("application proxy security", () => {
 
         expect(policy).not.toContain("upgrade-insecure-requests");
     });
-
     it("does not trust a spoofed forwarded HTTPS protocol without a trusted proxy", () => {
         vi.stubEnv("NODE_ENV", "production");
 

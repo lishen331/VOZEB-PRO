@@ -10,6 +10,7 @@ import { agentRequirementAcknowledgement } from "@/lib/agent-requirement-acknowl
 import { agentTaskCompletionMessage } from "./agent-run-messages";
 import type { AgentRunPlannerAudit } from "./agent-run-audit";
 import { normalizeAgentRunCanvasSnapshot, selectedCanvasNodeIds } from "./agent-run-canvas-snapshot";
+import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 
 export type AgentRunStatus = "planning" | "running" | "paused" | "completed" | "failed" | "cancelled";
 export type AgentRunReviewStatus = "review_pending" | "reviewing" | "review_completed" | "review_unavailable";
@@ -66,6 +67,7 @@ export type AgentRun = {
     clientRequestId: string;
     surface: CreativeSurface;
     projectId?: string;
+    billingContext?: SchoolComputeBillingContext;
     inputMessageId: string;
     assistantMessageId: string;
     prompt: string;
@@ -128,6 +130,7 @@ export async function createAgentRun(userId: string, input: CreativeRunRequest) 
         clientRequestId: input.clientRequestId,
         surface: input.surface,
         projectId: input.projectId,
+        ...(input.billingContext ? { billingContext: input.billingContext } : {}),
         inputMessageId: `message-${nanoid()}`,
         assistantMessageId: `message-${nanoid()}`,
         prompt: input.prompt,

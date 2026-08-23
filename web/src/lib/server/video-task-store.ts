@@ -5,6 +5,7 @@ import type { SystemGenerationChannelConfig } from "@/lib/server/generation-chan
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import type { GenerationAttempt } from "@/lib/server/generation-attempt";
 import { GENERATION_TASK_RETENTION_MS } from "@/lib/server/generation-task-retention";
+import type { StoredTaskBilling } from "@/lib/server/generation-task-types";
 
 export type VideoTaskStatus = "running" | "success" | "error" | "cancelled";
 
@@ -18,7 +19,7 @@ export type VideoTask = GenerationTaskContext & {
     createdAt: number;
     updatedAt: number;
     config: SystemGenerationChannelConfig & { executionProfile?: PracticeExecutionProfile };
-    upstream: { id: string; provider: "openai" | "seedance" | "generation"; model: string; pollPath?: string; queryPath?: string; resultUrl?: string; pointsCost?: number; pointsUnits?: number; pointsRecordId?: string; refunded?: boolean };
+    upstream: { id: string; provider: "openai" | "seedance" | "generation"; model: string; pollPath?: string; queryPath?: string; resultUrl?: string; pointsUnits?: number } & Partial<StoredTaskBilling>;
     requestedDurationSeconds?: number;
     source?: string;
     prompt?: string;

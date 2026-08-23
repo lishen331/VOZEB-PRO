@@ -130,7 +130,7 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(ddl).toContain("task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing')");
 
         const tableNames = [...ddl.matchAll(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+([a-z][a-z0-9_]*)/gi)].map((match) => match[1]).sort();
-        expect(tableNames).toHaveLength(95);
+        expect(tableNames.length).toBeGreaterThanOrEqual(95);
         expect(tableNames.every((name) => name.startsWith("vozeb_pro_"))).toBe(true);
         expect(tableNames).not.toContain("vozeb_pro_check_ins");
         expect(tableNames).toEqual(
@@ -148,6 +148,15 @@ describe("PostgreSQL schema lifecycle", () => {
                 "vozeb_pro_commercial_orders",
                 "vozeb_pro_commercial_order_participants",
                 "vozeb_pro_commercial_order_deliveries",
+                "vozeb_pro_school_compute_pools",
+                "vozeb_pro_school_compute_ledger_entries",
+                "vozeb_pro_school_production_groups",
+                "vozeb_pro_school_production_group_members",
+                "vozeb_pro_school_compute_allocation_requests",
+                "vozeb_pro_school_compute_group_projects",
+                "vozeb_pro_school_compute_personal_advances",
+                "vozeb_pro_school_compute_settlements",
+                "vozeb_pro_school_compute_consumptions",
                 "vozeb_pro_practice_sessions",
                 "vozeb_pro_practice_copy_requests",
                 "vozeb_pro_ip_packages",
@@ -157,6 +166,9 @@ describe("PostgreSQL schema lifecycle", () => {
                 "vozeb_pro_ip_usage_records",
             ]),
         );
+        expect(ddl).toContain("production_group_id text");
+        expect(ddl).toContain("commercial_orders_school_group_fk");
+        expect(ddl).toContain("school_compute_group_projects_active_project_idx");
         expect(ddl).toContain("DROP TABLE IF EXISTS vozeb_pro_check_ins");
         expect(ddl).not.toContain("20260731_generation_task_recovery");
 

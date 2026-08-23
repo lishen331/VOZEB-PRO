@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
     writeLog: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/store", () => ({ refundUserPoints: mocks.refund }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refund }));
 vi.mock("@/lib/globalaiopc-catalog", () => ({ resolveGlobalAiOpcPreset: vi.fn(() => undefined) }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi }));
 vi.mock("@/lib/server/creative-runtime-service", () => ({ registerGenerationTaskAssetsForUser: mocks.register }));
@@ -109,7 +109,7 @@ describe("video task upstream reconciliation", () => {
                     model: "mock-video",
                     advancedConfig: { protocol: "seedance-special", queryPath: "/v1/result/:task_id", statusField: "status", resultField: "video_url" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
                 },
-                upstream: { id: created.task_id, provider: "generation", model: "mock-video", pollPath: "/v1/seedance-special/videos", pointsCost: 1, pointsUnits: 1, pointsRecordId: "points-fixture" },
+                upstream: { id: created.task_id, provider: "generation", model: "mock-video", pollPath: "/v1/seedance-special/videos", pointsCost: 1, pointsUnits: 1, billingReceiptId: "school:fixture" },
             });
             const completed = { ...task, status: "success" as const, result: { url: "/api/reference-assets/result.mp4", mimeType: "video/mp4", durationMs: 5_000 } };
             mocks.claim.mockResolvedValue(task);
@@ -155,7 +155,7 @@ describe("video task upstream reconciliation", () => {
                     queryPath: `/v1beta/models/veo-3.1-generate-preview/operations/${operationId}`,
                     pointsCost: 1,
                     pointsUnits: 1,
-                    pointsRecordId: "points-gemini",
+                    billingReceiptId: "school:gemini",
                 },
             });
             const completed = { ...task, status: "success" as const, result: { url: "/api/reference-assets/result.mp4", mimeType: "video/mp4", durationMs: 5_000 } };
@@ -183,7 +183,7 @@ describe("video task upstream reconciliation", () => {
 
         expect(result).toEqual(failed);
         expect(mocks.fail).toHaveBeenCalledWith(task.id, failed.error, true);
-        expect(mocks.refund).toHaveBeenCalledOnce();
+        expect(mocks.refund).toHaveBeenCalledWith({ userId: "user", receiptId: "school:batch-a", model: "sd_2.0_fast_special_720p", usageKind: "video", units: 1, idempotencyKey: "video-task:local-video:refund" });
         expect(mocks.normalize).not.toHaveBeenCalled();
     });
 
@@ -313,7 +313,7 @@ function videoTask(patch: Partial<VideoTask> = {}): VideoTask {
             model: "sd_2.0_fast_special_720p",
             advancedConfig: { protocol: "seedance-special", queryPath: "/v1/result/:task_id", statusField: "status", resultField: "video_url" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
         },
-        upstream: { id: "videos_one", provider: "generation", model: "sd_2.0_fast_special_720p", pollPath: "/v1/seedance-special/videos", pointsCost: 1, pointsUnits: 1, pointsRecordId: "points-one" },
+        upstream: { id: "videos_one", provider: "generation", model: "sd_2.0_fast_special_720p", pollPath: "/v1/seedance-special/videos", pointsCost: 1, pointsUnits: 1, billingReceiptId: "school:batch-a" },
         requestedDurationSeconds: 5,
         source: "agent",
         prompt: "test",

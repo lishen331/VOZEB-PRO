@@ -119,6 +119,21 @@ describe("createAgentRun Canvas snapshot", () => {
         expect((created.run.snapshot as { nodes: unknown[]; connections: unknown[]; analysis: { nodeCount: number } }).connections).toHaveLength(1);
         expect((created.run.snapshot as { nodes: unknown[]; connections: unknown[]; analysis: { nodeCount: number } }).analysis.nodeCount).toBe(2);
     });
+
+    it("persists trusted billing context on the internal run", async () => {
+        const created = await createAgentRun("user", {
+            clientRequestId: "request-school",
+            surface: "canvas",
+            projectId: "canvas-a",
+            prompt: "生成项目素材",
+            assetIds: [],
+            skillIds: [],
+            modelIds: [],
+            billingContext: { schoolId: "school-a", groupId: "group-a", orderId: "order-a", projectType: "canvas", projectId: "canvas-a" },
+        });
+
+        expect(created.run).toMatchObject({ billingContext: { schoolId: "school-a", groupId: "group-a", orderId: "order-a", projectId: "canvas-a" } });
+    });
 });
 
 describe("setAgentRunStatus", () => {

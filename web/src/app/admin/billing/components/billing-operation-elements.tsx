@@ -7,7 +7,18 @@ import type { TableColumnsType } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { AlertTriangle, CheckCircle2, CircleDollarSign, Copy, CreditCard, FileText, FileUp, Landmark, Package, Plus, QrCode, ReceiptText, RefreshCw, Save, Search, Settings2, Undo2, WalletCards, XCircle } from "lucide-react";
 
-import { DEFAULT_ALIPAY_PAYMENT_MODE, getAlipayPaymentModePresentation, type PaymentConfigRequirement, type PaymentConfigSummary, type PaymentProviderConfig, type PaymentProviderConfigField } from "@/lib/payment-config-types";
+import {
+    DEFAULT_ALIPAY_PAYMENT_MODE,
+    DEFAULT_ALIPAY_SIGNATURE_MODE,
+    getAlipayPaymentModePresentation,
+    getAlipaySignatureModePresentation,
+    isAlipayPaymentFieldVisible,
+    isAlipaySignatureMode,
+    type PaymentConfigRequirement,
+    type PaymentConfigSummary,
+    type PaymentProviderConfig,
+    type PaymentProviderConfigField,
+} from "@/lib/payment-config-types";
 import type { AdminBillingSummary as BillingSummary } from "@/lib/admin-billing-types";
 import type { BillingOrder, BillingOrderStatus, BillingProduct } from "@/services/api/billing";
 import { BillingReconciliationImport } from "./billing-reconciliation-import";
@@ -83,6 +94,7 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
     const activeProvider = providers.find((provider) => provider.id === activeProviderId) || providers[0];
     const enabled = Form.useWatch("enabled", form);
     const alipayMode = Form.useWatch("mode", form);
+    const alipaySignatureMode = Form.useWatch("signatureMode", form);
 
     useEffect(() => {
         if (providers.length && !providers.some((provider) => provider.id === activeProviderId)) setActiveProviderId(providers[0].id);
@@ -119,17 +131,23 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
     };
 
     const routeFieldKeys = ["notifyUrl", "returnUrl", "cancelUrl", "successUrl"];
-    const mainFields = activeProvider?.fields.filter((field) => !field.advanced && !routeFieldKeys.includes(field.key)) || [];
+    const selectedAlipaySignatureMode =
+        activeProvider?.id === "alipay" && isAlipaySignatureMode(alipaySignatureMode || activeProvider.fields.find((field) => field.key === "signatureMode")?.value)
+            ? ((alipaySignatureMode || activeProvider.fields.find((field) => field.key === "signatureMode")?.value) as "public_key" | "certificate")
+            : DEFAULT_ALIPAY_SIGNATURE_MODE;
+    const isFieldVisible = (field: PaymentProviderConfigField) => activeProvider?.id !== "alipay" || isAlipayPaymentFieldVisible(field.key, selectedAlipaySignatureMode);
+    const mainFields = activeProvider?.fields.filter((field) => isFieldVisible(field) && !field.advanced && !routeFieldKeys.includes(field.key)) || [];
     const selectedAlipayMode = activeProvider?.id === "alipay" ? normalizePaymentFormValue(alipayMode || activeProvider.fields.find((field) => field.key === "mode")?.value || DEFAULT_ALIPAY_PAYMENT_MODE) : "";
     const isAlipayFaceToFace = selectedAlipayMode === "face_to_face";
     const alipayPresentation = getAlipayPaymentModePresentation(selectedAlipayMode);
-    const routeFields = activeProvider?.fields.filter((field) => routeFieldKeys.includes(field.key) && !(isAlipayFaceToFace && field.key === "returnUrl")) || [];
-    const advancedFields = activeProvider?.fields.filter((field) => field.advanced && !routeFieldKeys.includes(field.key)) || [];
+    const alipaySignaturePresentation = getAlipaySignatureModePresentation(selectedAlipaySignatureMode);
+    const routeFields = activeProvider?.fields.filter((field) => isFieldVisible(field) && routeFieldKeys.includes(field.key) && !(isAlipayFaceToFace && field.key === "returnUrl")) || [];
+    const advancedFields = activeProvider?.fields.filter((field) => isFieldVisible(field) && field.advanced && !routeFieldKeys.includes(field.key)) || [];
     const sortedMainFields = sortPaymentFields(mainFields);
     const sortedRouteFields = sortPaymentFields(routeFields);
     const sortedAdvancedFields = sortPaymentFields(advancedFields);
     const formEnabled = enabled === undefined ? activeProvider?.enabled === true : enabled === true;
-    const requiredFields = activeProvider?.fields.filter((field) => field.required) || [];
+    const requiredFields = activeProvider?.fields.filter((field) => isFieldVisible(field) && field.required) || [];
     const requiredReady = requiredFields.filter((field) => field.configured).length;
 
     return (
@@ -180,6 +198,7 @@ export function PaymentConfigPanel({ paymentConfig, loading, embedded, onRefresh
                                                     {activeProvider.ready ? "可用" : activeProvider.checkoutReady ? "待回调" : "待配置"}
                                                 </Tag>
                                                 <Tag className="m-0">{activeProvider.sourceLabel}</Tag>
+                                                {activeProvider.id === "alipay" ? <Tag className="m-0">{alipaySignaturePresentation?.label || "普通公钥"}</Tag> : null}
                                             </div>
                                             <div className="mt-1 line-clamp-2 max-w-3xl text-xs leading-5 text-stone-500 sm:mt-2 sm:line-clamp-none sm:text-sm sm:leading-6 dark:text-stone-400">
                                                 {activeProvider.id === "alipay" ? alipayPresentation?.description || activeProvider.description : activeProvider.description}
@@ -351,7 +370,7 @@ export function PaymentConfigFieldControl({ field, providerEnabled }: { field: P
         <div className={`min-w-0 self-start rounded-2xl border border-stone-200/80 bg-white shadow-sm shadow-stone-200/20 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/10 ${wide ? "p-3 md:col-span-full" : "p-3"}`}>
             <PaymentFieldHeader field={field} />
             <Form.Item name={field.key} rules={rules} className="m-0 !mt-2.5">
-                {field.key === "mode" && field.options?.length === 2 ? (
+                {(field.key === "mode" || field.key === "signatureMode") && field.options?.length === 2 ? (
                     <Segmented block className="admin-payment-mode-segmented" options={field.options} />
                 ) : field.kind === "select" ? (
                     <Select className={inputClassName} options={field.options || []} placeholder={field.placeholder} />

@@ -3,6 +3,7 @@ import { hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permiss
 export const ADMIN_SECTION_KEYS = [
     "overview",
     "schools",
+    "schoolCompute",
     "courses",
     "commercialOrders",
     "site",
@@ -45,6 +46,7 @@ export type AdminSectionKey = (typeof ADMIN_SECTION_KEYS)[number];
 export const ADMIN_SECTION_PERMISSIONS: Record<AdminSectionKey, readonly AdminPermission[]> = {
     overview: ["analytics.read"],
     schools: ["education.manage"],
+    schoolCompute: ["education.manage", "billing.manage"],
     courses: ["education.manage"],
     commercialOrders: ["education.manage"],
     users: ["users.read"],

@@ -27,7 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         const cookie = request.headers.get("cookie") || "";
         after(() => runGenerationTaskRecoveryBatch({ origin, cookie, limit: 1, taskIds: [task!.id] }));
     }
-    const shouldRefund = Boolean(task.upstream.pointsRecordId && !task.upstream.refunded && task.status === "error");
+    const shouldRefund = Boolean(task.upstream.billingReceiptId && !task.upstream.refunded && task.status === "error");
     const settledTask = shouldRefund ? await refundVideoTask(task) : task;
     const refreshedUser = shouldRefund ? await getCurrentUser(request) : user;
     return NextResponse.json(
@@ -58,6 +58,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         executionPhase,
         upstreamTaskId: task.upstream.id,
         queryPath: task.config.advancedConfig?.queryPath,
+        executionProfile: task.executionProfile,
+        billingContext: task.billingContext,
         config: task.config,
     };
     const next = await transitionVideoTask(task, { status: "cancelled", error: "任务已取消", retryable: false }, cancellationExecutionPatch(target));

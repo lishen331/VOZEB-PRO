@@ -1,4 +1,4 @@
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { parseFragment } from "parse5";
 import { parseDeterministicProtocolDraft, protocolDraftFromUnknown, redactProtocolSecrets, type ChannelProtocolDraft } from "@/lib/channel-protocol-draft";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
@@ -7,6 +7,7 @@ import { TEXT_MODEL_REQUEST_TIMEOUT_MS } from "@/lib/server/model-request-policy
 import { strictJsonObjectText } from "@/lib/server/structured-model-output";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { fetchSafeOutbound, UnsafeOutboundUrlError } from "@/lib/server/safe-outbound-fetch";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { safeProtocolDocumentationUrl } from "@/lib/channel-protocol-security";
 
 const MAX_DOCUMENT_BYTES = 512 * 1024;
@@ -78,7 +79,7 @@ async function assistProtocolDraftWithTextModel(input: { requestUrl: string; coo
         }
         if (draft) return draft;
         const billing = readSystemAiBilling(response.headers);
-        if (hasSystemAiCharge(billing)) await refundUserPoints(input.userId, logicalModel, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+        if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId: input.userId, receiptId: billing.billingReceiptId, model: logicalModel, usageKind: "text", units: 1, idempotencyKey: `protocol-draft-refund:${billing.billingReceiptId}` });
     }
     return null;
 }

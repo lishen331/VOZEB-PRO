@@ -7,6 +7,8 @@ import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { scheduleGenerationTask, type GenerationTaskExecutionPhase } from "@/lib/server/generation-task-scheduler";
 import type { GenerationTaskType } from "@/lib/server/generation-task-store";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
+import type { PracticeExecutionProfile } from "@/lib/practice-domain";
+import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 
 export type CancellableGenerationTaskType = Extract<GenerationTaskType, "text" | "image" | "video" | "audio">;
 
@@ -17,6 +19,8 @@ export type GenerationCancellationTarget = {
     executionPhase?: GenerationTaskExecutionPhase;
     upstreamTaskId?: string;
     queryPath?: string;
+    executionProfile?: PracticeExecutionProfile;
+    billingContext?: SchoolComputeBillingContext;
     config: {
         baseUrl: string;
         apiKey: string;
@@ -84,7 +88,7 @@ async function cancellationFetch(target: GenerationCancellationTarget, origin: s
     if (internal) {
         if (workerUserId) Object.entries(maintenanceWorkerHeaders(workerUserId)).forEach(([key, value]) => headers.set(key, value));
         else if (cookie) headers.set("cookie", cookie);
-        Object.entries(systemAiBillingHeaders(target.config.logicalModel || target.config.model, undefined, target.config.model)).forEach(([key, value]) => headers.set(key, value));
+        Object.entries(systemAiBillingHeaders(target.config.logicalModel || target.config.model, undefined, target.config.model, target.executionProfile, target.billingContext)).forEach(([key, value]) => headers.set(key, value));
         return fetchInternalApi(url, { method, headers, cache: "no-store", signal: AbortSignal.timeout(10_000) });
     }
     Object.entries(protocolAuthHeaders(target.config.apiKey, target.config.advancedConfig, target.config.apiFormat)).forEach(([key, value]) => headers.set(key, value));

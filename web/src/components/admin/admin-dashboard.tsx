@@ -60,12 +60,14 @@ const loadLogsSection = () => import("./admin-logs-section").then((module) => mo
 const loadGenerationOperationsSection = () => import("./admin-generation-operations-section").then((module) => module.AdminGenerationOperationsSection);
 const loadAccountDeletionSection = () => import("./admin-account-deletion-section").then((module) => module.AdminAccountDeletionSection);
 const loadSchoolsSection = () => import("@/app/admin/schools/components/admin-schools-section").then((module) => module.AdminSchoolsSection);
+const loadSchoolComputeSection = () => import("@/app/admin/school-compute/components/admin-school-compute-section").then((module) => module.AdminSchoolComputeSection);
 const loadCoursesSection = () => import("@/app/admin/courses/components/admin-courses-section").then((module) => module.AdminCoursesSection);
 const loadCommercialOrdersSection = () => import("@/app/admin/commercial-orders/components/admin-commercial-orders-section").then((module) => module.AdminCommercialOrdersSection);
 const loadRoleOverviewSection = () => import("@/app/admin/role-overview/components/admin-role-overview-section").then((module) => module.AdminRoleOverviewSection);
 
 const sectionLoaders: Partial<Record<AdminSectionKey, () => Promise<unknown>>> = {
     schools: loadSchoolsSection,
+    schoolCompute: loadSchoolComputeSection,
     courses: loadCoursesSection,
     commercialOrders: loadCommercialOrdersSection,
     roleOverview: loadRoleOverviewSection,
@@ -130,6 +132,7 @@ const AdminLogsSection = dynamic(loadLogsSection, { loading: AdminSectionLoading
 const AdminGenerationOperationsSection = dynamic(loadGenerationOperationsSection, { loading: AdminSectionLoading });
 const AdminAccountDeletionSection = dynamic(loadAccountDeletionSection, { loading: AdminSectionLoading });
 const AdminSchoolsSection = dynamic(loadSchoolsSection, { loading: AdminSectionLoading });
+const AdminSchoolComputeSection = dynamic(loadSchoolComputeSection, { loading: AdminSectionLoading });
 const AdminCoursesSection = dynamic(loadCoursesSection, { loading: AdminSectionLoading });
 const AdminCommercialOrdersSection = dynamic(loadCommercialOrdersSection, { loading: AdminSectionLoading });
 const AdminRoleOverviewSection = dynamic(loadRoleOverviewSection, { loading: AdminSectionLoading });
@@ -267,6 +270,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                         />
                     ) : null}
                     {activeSection === "schools" ? <AdminSchoolsSection /> : null}
+                    {activeSection === "schoolCompute" ? <AdminSchoolComputeSection currentUser={currentUser} /> : null}
                     {activeSection === "courses" ? <AdminCoursesSection /> : null}
                     {activeSection === "commercialOrders" ? <AdminCommercialOrdersSection /> : null}
                     {activeSection === "roleOverview" ? <AdminRoleOverviewSection /> : null}

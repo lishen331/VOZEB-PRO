@@ -1,6 +1,7 @@
 import { ALL_ADMIN_PERMISSIONS } from "@/lib/admin-permissions";
 import { POSTGRESQL_COMMERCIAL_FEATURES_SCHEMA_SQL } from "./schema-commercial-features";
 import { POSTGRESQL_IP_LIBRARY_SCHEMA_SQL } from "./schema-ip-library";
+import { POSTGRESQL_SCHOOL_COMPUTE_SCHEMA_SQL } from "./schema-school-compute";
 import { POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL } from "./schema-school-domain";
 import { POSTGRESQL_TRIGGER_SCHEMA_SQL } from "./schema-triggers";
 import { DRAMA_LAB_SCHEMA_SQL } from "./schema-drama-lab";
@@ -1056,6 +1057,8 @@ CREATE INDEX IF NOT EXISTS audit_logs_actor_user_idx ON audit_logs (actor_user_i
 CREATE INDEX IF NOT EXISTS audit_logs_target_idx ON audit_logs (target_type, target_id);
 
 ${POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL}
+
+${POSTGRESQL_SCHOOL_COMPUTE_SCHEMA_SQL}
 
 ${POSTGRESQL_IP_LIBRARY_SCHEMA_SQL}
 

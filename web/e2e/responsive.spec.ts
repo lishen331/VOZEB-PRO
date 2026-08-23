@@ -1203,7 +1203,10 @@ test("creative workspaces remain usable without horizontal overflow in light and
 test("admin user editor groups permission controls and keeps the footer visible", async ({ page }, testInfo) => {
     await page.goto("/admin?section=users", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "用户管理" })).toBeVisible();
-    await page.getByRole("textbox", { name: "搜索用户" }).fill("e2e_admin");
+    await expect(page.locator("[data-hydrated='true']")).toHaveCount(1);
+    await expect(page.getByText(/共\s*\d+/).first()).toBeVisible();
+    const userSearchInput = page.getByRole("textbox", { name: "搜索用户" });
+    await userSearchInput.fill("e2e_admin");
 
     const adminRow = page.getByRole("row").filter({ hasText: "@e2e_admin" });
     await expect(adminRow).toBeVisible();

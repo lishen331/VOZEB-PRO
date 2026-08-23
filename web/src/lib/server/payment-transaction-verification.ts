@@ -5,7 +5,7 @@ import type { ParsedPaymentWebhook } from "@/lib/server/payment-webhook-adapters
 import { BillingInputError } from "@/lib/server/billing-errors";
 import type { BillingOrderRecord, JsonValue } from "@/lib/server/database";
 import { getPaymentRuntimeConfig, getPaymentRuntimeEnv, getPaymentRuntimeValue, type PaymentRuntimeConfig } from "@/lib/server/payment-config-store";
-import { loadPaymentPublicKey, verifyRsaSha256 } from "@/lib/server/payment-signature-utils";
+import { addAlipayCertificateParams, loadAlipayCredentials, loadAlipayVerificationKey, loadPaymentPublicKey, verifyRsaSha256 } from "@/lib/server/payment-signature-utils";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 
 export type VerifiedPaymentTransaction = {
@@ -122,7 +122,7 @@ async function queryStripePayment(order: BillingOrderRecord, payment: VerifiedPa
 
 async function queryAlipayPayment(order: BillingOrderRecord, payment: VerifiedPaymentTransaction, config: PaymentRuntimeConfig): Promise<VerifiedPaymentTransaction> {
     const appId = requiredConfig(config, "VOZEB_PRO_ALIPAY_APP_ID");
-    const privateKey = loadPrivateKey(config, "VOZEB_PRO_ALIPAY_PRIVATE_KEY", "VOZEB_PRO_ALIPAY_PRIVATE_KEY_PATH");
+    const credentials = loadAlipayCredentials(config);
     const gateway = getPaymentRuntimeEnv(config, "VOZEB_PRO_ALIPAY_GATEWAY_URL") || "https://openapi.alipay.com/gateway.do";
     const bizContent: Record<string, string> = { out_trade_no: order.orderNo };
     const tradeNo = clean(payment.providerTradeId || payment.providerPaymentId, 160);
@@ -136,7 +136,8 @@ async function queryAlipayPayment(order: BillingOrderRecord, payment: VerifiedPa
         version: "1.0",
         biz_content: JSON.stringify(bizContent),
     };
-    params.sign = signAlipayParams(params, privateKey);
+    addAlipayCertificateParams(params, credentials);
+    params.sign = signAlipayParams(params, credentials.privateKey);
     const response = await fetchSafeOutbound(gateway, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(params), signal: AbortSignal.timeout(15_000) });
     const raw = await response.text();
     const payload = parseJsonObject(raw);
@@ -144,7 +145,7 @@ async function queryAlipayPayment(order: BillingOrderRecord, payment: VerifiedPa
     if (!response.ok || String(result.code || "") !== "10000") throw new BillingInputError(readError(result, "支付宝交易查询失败"), response.status >= 500 ? 502 : 400);
     const sign = clean(payload.sign, 2000);
     const signContent = extractJsonObjectValue(raw, "alipay_trade_query_response");
-    if (!sign || !signContent || !verifyRsaSha256(signContent, sign, loadPaymentPublicKey(config, "VOZEB_PRO_ALIPAY_PUBLIC_KEY", "VOZEB_PRO_ALIPAY_PUBLIC_KEY_PATH"))) throw new BillingInputError("支付宝交易查询响应验签失败", 502);
+    if (!sign || !signContent || !verifyRsaSha256(signContent, sign, loadAlipayVerificationKey(config))) throw new BillingInputError("支付宝交易查询响应验签失败", 502);
     const tradeStatus = String(result.trade_status || "").toUpperCase();
     return {
         status: tradeStatus === "TRADE_SUCCESS" || tradeStatus === "TRADE_FINISHED" ? "succeeded" : tradeStatus === "TRADE_CLOSED" ? "failed" : "pending",

@@ -18,6 +18,7 @@ import type {
     TeachingAssignment,
     TeachingSubmission,
 } from "../src/lib/school-domain";
+import type { ProductionGroupDetails } from "../src/lib/school-compute-domain";
 import { expectNoHorizontalOverflow, expectVisibleControlsWithinViewport } from "./responsive-helpers";
 import { createAuthenticatedE2EContext } from "./support";
 
@@ -80,6 +81,7 @@ test("two schools complete teaching and commercial-order workflows without cross
         const order = await createAndAssignCommercialOrderInBrowser(page.context(), names.order, schoolA.name);
         const configured = await configureSchoolCommercialOrderInBrowser(managerAContext, names.order, `A 校老师 ${suffix}`, `影视一班 ${suffix}`, `A 校学生 ${suffix}`, hasTouch);
         expect(JSON.stringify(configured)).not.toContain("internalAmountCents");
+        await createAndLinkProductionGroup(managerAContext, `品牌短片小组 ${suffix}`, teacher.id, student.id, order.id);
         const participantCandidates = await apiData<{ items: Array<{ membershipId: string }>; selectedMembershipIds: string[] }>(
             await teacherContext.request.get(`/api/teaching/commercial-orders/${order.id}/participants?page=1&pageSize=12&keyword=${encodeURIComponent(names.studentA)}`),
         );
@@ -424,6 +426,21 @@ async function configureSchoolCommercialOrderInBrowser(context: BrowserContext, 
         errors.stop();
         await page.close();
     }
+}
+
+async function createAndLinkProductionGroup(context: BrowserContext, name: string, leaderMembershipId: string, memberMembershipId: string, orderId: string) {
+    const created = await apiData<ProductionGroupDetails>(
+        await context.request.post("/api/school/production-groups", {
+            data: { name, description: "学校教育 E2E 商单结算小组", leaderMembershipId, memberMembershipIds: [leaderMembershipId, memberMembershipId] },
+        }),
+    );
+    const linked = await apiData<ProductionGroupDetails>(
+        await context.request.patch(`/api/school/production-groups/${created.id}`, {
+            data: { action: "link_order", orderId },
+        }),
+    );
+    expect(linked.orders.some((order) => order.id === orderId)).toBe(true);
+    return linked;
 }
 
 async function submitAssignmentInBrowser(context: BrowserContext, title: string, canvasTitle: string, note: string, hasTouch: boolean) {

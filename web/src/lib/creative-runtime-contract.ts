@@ -1,4 +1,5 @@
 import { videoFrameAssetIds, type CreativeVideoReferenceMode } from "@/lib/video-reference-contract";
+import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 
 export const creativeSurfaces = ["chat", "canvas", "drama"] as const;
 export type CreativeSurface = (typeof creativeSurfaces)[number];
@@ -149,6 +150,7 @@ export type CreativeRunRequest = {
     skillIds: string[];
     modelIds: string[];
     preferences?: CreativeGenerationPreferences;
+    billingContext?: SchoolComputeBillingContext;
 };
 
 export class CreativeRuntimeInputError extends Error {

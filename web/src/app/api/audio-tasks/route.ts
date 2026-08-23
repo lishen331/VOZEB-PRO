@@ -15,6 +15,7 @@ import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
+import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 export const runtime = "nodejs";
@@ -49,6 +50,16 @@ export async function POST(request: Request) {
             throw error;
         }
         const executionProfile: "production" | "open-source-practice" = trustedPractice ? "open-source-practice" : "production";
+        let trustedContext: GenerationTaskContext;
+        try {
+            const clientContext = { ...(body.context || {}) };
+            delete clientContext.billingContext;
+            const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
+            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
+        } catch (error) {
+            if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+            throw error;
+        }
         const channels = resolveLogicalModelCandidates(settings, "audio", body.config?.model || (trustedPractice ? settings.practiceDefaultModels.audioModel : settings.defaultModels.audioModel), "", executionProfile).map((resolved) => ({
             ...toSystemGenerationChannel(resolved),
             channelId: resolved.channelId,
@@ -58,8 +69,8 @@ export async function POST(request: Request) {
         const supportedChannels = channels.filter((channel) => channel.apiFormat !== "gemini");
         if (!supportedChannels.length || !prompt) return NextResponse.json({ error: "音频任务参数不完整或渠道不支持" }, { status: 400 });
         const configs: AudioTaskConfig[] = supportedChannels.map((channel) => ({ ...channel, ...resolveAudioTaskOptions(body.config, settings.generationDefaults), instructions: clean(body.config?.instructions, 2_000) }));
-        const task = await createAudioTask({ ...(body.context || {}), userId: user.id, config: configs[0], candidateConfigs: configs.slice(1), prompt: prompt.slice(0, 20_000), source: mediaTaskSource(body.source, body.context, "audio-task") });
-        await linkStoredGenerationTask("audio", task.id, body.context || {});
+        const task = await createAudioTask({ ...trustedContext, userId: user.id, config: configs[0], candidateConfigs: configs.slice(1), prompt: prompt.slice(0, 20_000), source: mediaTaskSource(body.source, trustedContext, "audio-task") });
+        await linkStoredGenerationTask("audio", task.id, trustedContext);
         const origin = resolveInternalOrigin(new URL(request.url).origin);
         const cookie = request.headers.get("cookie") || "";
         await scheduleGenerationTask("audio", task.id, { executionPhase: "created", channelId: task.config.channelId, provider: task.config.advancedConfig?.protocol || task.config.apiFormat, nextPollAt: Date.now(), lastUpstreamStatus: "created" });

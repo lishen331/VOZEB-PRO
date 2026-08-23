@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,6 +37,20 @@ describe("release workflow contract", () => {
         expect(source).toContain("gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7");
         expect(source).toContain("github/codeql-action/analyze@47be0dbd5113ab1b79fe2dd3f68bdf7e426cdc87");
         expect(source).not.toMatch(/uses:\s+[^\s]+@(v\d|main|master)\b/);
+    });
+
+    it("keeps the Gitleaks exception scoped to the deterministic Alipay test fixture", () => {
+        const configPath = path.join(repoRoot, ".gitleaks.toml");
+        expect(existsSync(configPath)).toBe(true);
+
+        const source = readFileSync(configPath, "utf8");
+        expect(source).toContain("web/src/lib/server/fixtures/alipay-test-private-key\\.pem");
+        expect(source).not.toContain("web/src/lib/server/payment-signature-utils");
+    });
+
+    it("does not embed Gitleaks private-key signatures in production TypeScript", () => {
+        const source = readFileSync(path.join(repoRoot, "web/src/lib/server/payment-signature-utils.ts"), "utf8");
+        expect(source).not.toContain("-----BEGIN PRIVATE KEY-----");
     });
 
     it.each([

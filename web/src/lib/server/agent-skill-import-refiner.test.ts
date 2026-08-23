@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     getAuthSettings: vi.fn(),
-    refundUserPoints: vi.fn(),
+    refundGenerationCharge: vi.fn(),
     resolveLogicalModelCandidates: vi.fn(),
     requestStructuredText: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings, refundUserPoints: mocks.refundUserPoints }));
+vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refundGenerationCharge }));
 vi.mock("@/lib/server/logical-model-router", () => ({ resolveLogicalModelCandidates: mocks.resolveLogicalModelCandidates }));
 vi.mock("@/lib/server/text-planning-runtime", () => ({
     rankTextPlanningCandidates: (items: unknown[]) => items,
@@ -77,13 +78,13 @@ describe("agent skill import refiner", () => {
     it("rejects model output that still contains provider setup instructions and refunds free usage", async () => {
         mocks.requestStructuredText.mockResolvedValue({
             arguments: JSON.stringify({ ...refined, instructions: "运行 scripts/generate.py 并配置 API_KEY=https://provider.example，然后生成商品图。" }),
-            headers: new Headers({ "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-points-record-id": "record-1" }),
+            headers: new Headers({ "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-billing-receipt-id": "school:record-1" }),
             protocol: "chat",
             elapsedMs: 10,
         });
 
         await expect(refineImportedAgentSkill({ skill, requestUrl: "http://localhost/api/admin/agent-skills/import", cookie: "session=1", userId: "admin" })).rejects.toBeInstanceOf(AgentSkillRefinementError);
-        expect(mocks.refundUserPoints).toHaveBeenCalledWith("admin", "planner", 0, "text", 1, undefined, "record-1");
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledWith({ userId: "admin", receiptId: "school:record-1", model: "planner", usageKind: "text", units: 1, idempotencyKey: "agent-skill-refund:school:record-1" });
     });
 
     it("requires a configured default text model", async () => {

@@ -114,6 +114,7 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
                     model,
                     false,
                     systemAiIdempotencyKey("agent-plan", run.userId, run.id, candidate.channel.id, candidate.upstreamModel),
+                    claimed.billingContext,
                 );
                 plan = await parseAgentPlanCall(planCall, () => refundFunctionCall(claimed.userId, model, planCall), undefined, {
                     allowProjectHandoff: claimed.surface === "chat" && isExplicitProjectHandoffRequest(claimed.prompt),
@@ -137,7 +138,7 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
             protocol: acceptedPlan?.call.protocol,
             elapsedMs: acceptedPlan?.call.elapsedMs,
             pointsCost: acceptedPlan?.call.pointsCost,
-            pointsRecordId: acceptedPlan?.call.pointsRecordId,
+            billingReceiptId: acceptedPlan?.call.billingReceiptId,
             skills,
         });
         if (!(await canContinue(run.id, executionId))) {

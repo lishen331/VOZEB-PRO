@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-08-16，`main` 分支。当前源码包含 34 个 `page.tsx` 页面入口、172 个 API Route 文件和 59 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-08-21，`main` 分支。当前源码包含 42 个 `page.tsx` 页面入口、239 个 API Route 文件和 88 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -9,6 +9,12 @@
 3. 涉及生成任务时，同时检查 Web 请求、`generation_tasks` 状态机、Worker 和退款路径。
 4. 涉及媒体时，同时检查媒体登记记录与实际文件；数据库备份不等于媒体备份。
 5. 提交前按“修改风险与测试范围”选择最小测试集，再按更新流程发布。
+
+## 文档同步门禁
+
+- 每次拉取整合完成后、每次推送前，从仓库根目录运行 `pwsh -NoProfile -File .\过程文件\更新开发地图.ps1`，再运行 `pwsh -NoProfile -File .\过程文件\验证开发文档.ps1`。
+- 验证会核对 Route、页面、PostgreSQL 表数量、接口 Handler 链接、重复路径和 UTF-8 乱码；失败时不得推送。
+- 接口、页面、Service、Repository、Schema、Worker 或部署拓扑变化时，相关说明必须与代码放在同一个提交中；没有相关结构变化时不为了制造噪声修改文档。
 
 ## 技术栈与运行单元
 
@@ -342,7 +348,7 @@ flowchart LR
     class PG,Data,PGData data
 ```
 
-- [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)：172 个 Route 文件逐项权限、服务和边界。
+- [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)：221 个 Route 文件逐项权限、服务和边界。
 - [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)：本地验证、GitHub、版本镜像、远程更新与回滚。
 - [README](README.md)：产品能力、安装方式和上游项目说明。
 - [项目结构与流程](docs/content/docs/overview/project-structure.mdx)：上游维护的结构说明。

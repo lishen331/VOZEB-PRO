@@ -1,7 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getAuthSettings, isAuthInputError, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { finishGenerationAttempt, startGenerationAttempt, type GenerationAttempt } from "@/lib/server/generation-attempt";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
@@ -33,7 +33,11 @@ import { buildOpenAiVideoFormData } from "./video-task-openai";
 import { normalizeVideoGenerationReferences, regularVideoReferences, videoFrameReferences, type VideoGenerationReference } from "@/lib/video-reference-contract";
 import { assertYumengVideoReferences, buildYumengVideoRequest } from "@/lib/yumeng-model-center";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
+import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
+import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
+import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
 type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext };
@@ -77,6 +81,16 @@ export async function POST(request: Request) {
     const response = await withGenerationConcurrencyLimit(user.id, "video", 30 * 60_000, settings.generationConcurrency.video, async () => {
         const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : trustedPractice ? settings.practiceDefaultModels.videoModel : settings.defaultModels.videoModel;
         const executionProfile: "production" | "open-source-practice" = trustedPractice ? "open-source-practice" : "production";
+        let trustedContext: GenerationTaskContext;
+        try {
+            const clientContext = { ...(body.context || {}) };
+            delete clientContext.billingContext;
+            const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
+            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
+        } catch (error) {
+            if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+            throw error;
+        }
         const channels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile).map((channel) => ({ ...toSystemGenerationChannel(channel), executionProfile }));
         const prompt = String(body.prompt || "").trim();
         if (!channels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
@@ -164,11 +178,11 @@ export async function POST(request: Request) {
                     upstream: pendingUpstream,
                     requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds,
                     prompt,
-                    source: mediaTaskSource(body.source, body.context, "video-task"),
+                    source: mediaTaskSource(body.source, trustedContext, "video-task"),
                     attempts,
-                    ...(body.context || {}),
+                    ...trustedContext,
                 });
-                await linkStoredGenerationTask("video", localTask.id, body.context || {});
+                await linkStoredGenerationTask("video", localTask.id, trustedContext);
             } else {
                 await updateVideoTask(localTask.id, {
                     config: channel,
@@ -188,7 +202,7 @@ export async function POST(request: Request) {
                 lastUpstreamStatus: "submitting",
             });
             try {
-                const upstream = await createUpstream(user.id, origin, cookie, channel, providerPrompt, parameters, references, settings.generationPointMultipliers, billingRequestId);
+                const upstream = await createUpstream(user.id, origin, cookie, channel, providerPrompt, parameters, references, settings.generationPointMultipliers, billingRequestId, trustedContext.billingContext, trustedContext.executionProfile);
                 await updateVideoTask(localTask.id, { config: channel, upstream, requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds, attempts });
                 const task = { ...localTask, config: channel, upstream, requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds, attempts };
                 const submittedAt = Date.now();
@@ -239,6 +253,8 @@ export async function createUpstream(
     references: VideoGenerationReference[],
     multipliers: Awaited<ReturnType<typeof getAuthSettings>>["generationPointMultipliers"],
     billingRequestId: string,
+    billingContext?: SchoolComputeBillingContext,
+    executionProfile: PracticeExecutionProfile = "production",
 ) {
     let lastError = "";
     const regularReferences = regularVideoReferences(references);
@@ -253,7 +269,7 @@ export async function createUpstream(
     const dimensions = videoDimensions(raw.size, raw.vquality);
     const generateAudio = raw.videoGenerateAudio !== false && raw.videoGenerateAudio !== "false";
     if (isGeminiVideoChannel(channel)) {
-        return createGeminiVideoUpstream({ userId, origin, cookie, channel, prompt, raw, references, generateAudio, multipliers, billingRequestId });
+        return createGeminiVideoUpstream({ userId, origin, cookie, channel, prompt, raw, references, generateAudio, multipliers, billingRequestId, billingContext, executionProfile });
     }
     const values = {
         model: channel.model,
@@ -369,7 +385,7 @@ export async function createUpstream(
                 ...(multipart ? {} : { "Content-Type": "application/json" }),
                 "Idempotency-Key": billingRequestId,
                 "X-Client-Request-Id": billingRequestId,
-                ...systemAiBillingHeaders(generationModelId(channel), `video-request:${billingRequestId}`, channel.model),
+                ...systemAiBillingHeaders(generationModelId(channel), `video-request:${billingRequestId}`, channel.model, executionProfile, billingContext),
             },
             body: requestBody,
             signal: AbortSignal.timeout(resolveModelRequestTimeoutMs(channel, "video")),
@@ -385,23 +401,26 @@ export async function createUpstream(
             data = parseVideoProviderJson(text);
         } catch (error) {
             const pointsCost = billedPointsCost(response.headers.get("x-vozeb-pro-points-cost"));
-            const pointsRecordId = response.headers.get("x-vozeb-pro-points-record-id") || undefined;
-            if (pointsCost !== undefined && pointsRecordId) await refundUserPoints(userId, generationModelId(channel), pointsCost, "video", videoUnits(raw, multipliers), undefined, pointsRecordId);
+            const billingReceiptId = response.headers.get("x-vozeb-pro-billing-receipt-id") || undefined;
+            if (pointsCost !== undefined && billingReceiptId)
+                await refundGenerationCharge({ userId, receiptId: billingReceiptId, model: generationModelId(channel), usageKind: "video", units: videoUnits(raw, multipliers), idempotencyKey: `video-request:${billingRequestId}:refund` });
             throw error instanceof Error ? error : new Error("视频接口返回了无效 JSON");
         }
         const providerError = readProviderError(data);
         if (isProviderBusinessError(data)) {
             const pointsCost = billedPointsCost(response.headers.get("x-vozeb-pro-points-cost"));
-            const pointsRecordId = response.headers.get("x-vozeb-pro-points-record-id") || undefined;
-            if (pointsCost !== undefined && pointsRecordId) await refundUserPoints(userId, generationModelId(channel), pointsCost, "video", videoUnits(raw, multipliers), undefined, pointsRecordId);
+            const billingReceiptId = response.headers.get("x-vozeb-pro-billing-receipt-id") || undefined;
+            if (pointsCost !== undefined && billingReceiptId)
+                await refundGenerationCharge({ userId, receiptId: billingReceiptId, model: generationModelId(channel), usageKind: "video", units: videoUnits(raw, multipliers), idempotencyKey: `video-request:${billingRequestId}:refund` });
             throw new SafeCandidateFailure(providerError || "视频接口请求失败");
         }
         const resultUrl = readVideoProviderUrl(data, channel.advancedConfig?.resultField);
         const id = readVideoProviderId(data) || (resultUrl ? `direct:${Date.now()}` : "");
         if (!id) {
             const pointsCost = billedPointsCost(response.headers.get("x-vozeb-pro-points-cost"));
-            const pointsRecordId = response.headers.get("x-vozeb-pro-points-record-id") || undefined;
-            if (pointsCost !== undefined && pointsRecordId) await refundUserPoints(userId, generationModelId(channel), pointsCost, "video", videoUnits(raw, multipliers), undefined, pointsRecordId);
+            const billingReceiptId = response.headers.get("x-vozeb-pro-billing-receipt-id") || undefined;
+            if (pointsCost !== undefined && billingReceiptId)
+                await refundGenerationCharge({ userId, receiptId: billingReceiptId, model: generationModelId(channel), usageKind: "video", units: videoUnits(raw, multipliers), idempotencyKey: `video-request:${billingRequestId}:refund` });
             throw new Error(providerError || "视频接口没有返回任务 ID");
         }
         return {
@@ -413,7 +432,7 @@ export async function createUpstream(
             resultUrl: resultUrl || undefined,
             pointsCost: billedPointsCost(response.headers.get("x-vozeb-pro-points-cost")),
             pointsUnits: videoUnits(raw, multipliers),
-            pointsRecordId: response.headers.get("x-vozeb-pro-points-record-id") || undefined,
+            billingReceiptId: response.headers.get("x-vozeb-pro-billing-receipt-id") || undefined,
         };
     }
     throw new SafeCandidateFailure(lastError || "没有可用的视频创建接口");
@@ -430,6 +449,8 @@ async function createGeminiVideoUpstream(input: {
     generateAudio: boolean;
     multipliers: Awaited<ReturnType<typeof getAuthSettings>>["generationPointMultipliers"];
     billingRequestId: string;
+    billingContext?: SchoolComputeBillingContext;
+    executionProfile?: PracticeExecutionProfile;
 }) {
     const payload = await buildGeminiVideoRequest({
         prompt: input.prompt,
@@ -448,7 +469,7 @@ async function createGeminiVideoUpstream(input: {
             "Content-Type": "application/json",
             "Idempotency-Key": input.billingRequestId,
             "X-Client-Request-Id": input.billingRequestId,
-            ...systemAiBillingHeaders(generationModelId(input.channel), `video-request:${input.billingRequestId}`, input.channel.model),
+            ...systemAiBillingHeaders(generationModelId(input.channel), `video-request:${input.billingRequestId}`, input.channel.model, input.executionProfile, input.billingContext),
         },
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(resolveModelRequestTimeoutMs(input.channel, "video")),
@@ -467,10 +488,17 @@ async function createGeminiVideoUpstream(input: {
     }
     const created = parseGeminiVideoCreateResponse(data, input.channel.model);
     const pointsCost = billedPointsCost(response.headers.get("x-vozeb-pro-points-cost"));
-    const pointsRecordId = response.headers.get("x-vozeb-pro-points-record-id") || undefined;
+    const billingReceiptId = response.headers.get("x-vozeb-pro-billing-receipt-id") || undefined;
     if (created.error) {
-        if (pointsCost !== undefined && pointsRecordId) {
-            await refundUserPoints(input.userId, generationModelId(input.channel), pointsCost, "video", videoUnits(input.raw, input.multipliers), undefined, pointsRecordId);
+        if (pointsCost !== undefined && billingReceiptId) {
+            await refundGenerationCharge({
+                userId: input.userId,
+                receiptId: billingReceiptId,
+                model: generationModelId(input.channel),
+                usageKind: "video",
+                units: videoUnits(input.raw, input.multipliers),
+                idempotencyKey: `video-request:${input.billingRequestId}:refund`,
+            });
         }
         throw new SafeCandidateFailure(created.error);
     }
@@ -484,7 +512,7 @@ async function createGeminiVideoUpstream(input: {
         resultUrl: created.resultUrl || undefined,
         pointsCost,
         pointsUnits: videoUnits(input.raw, input.multipliers),
-        pointsRecordId,
+        billingReceiptId,
     };
 }
 

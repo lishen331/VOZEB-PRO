@@ -33,7 +33,7 @@ export type AgentRunPlannerAudit = {
     protocol?: TextPlanningProtocol;
     elapsedMs?: number;
     pointsCost?: number;
-    pointsRecordId?: string;
+    billingReceiptId?: string;
     skills: AgentRunSkillSnapshot[];
 };
 
@@ -45,7 +45,7 @@ export function buildAgentRunPlannerAudit(input: {
     protocol?: TextPlanningProtocol;
     elapsedMs?: number;
     pointsCost?: number;
-    pointsRecordId?: string;
+    billingReceiptId?: string;
     skills: AgentSkill[];
 }): AgentRunPlannerAudit {
     return {
@@ -57,7 +57,7 @@ export function buildAgentRunPlannerAudit(input: {
         ...(input.protocol ? { protocol: input.protocol } : {}),
         ...(Number.isFinite(input.elapsedMs) && input.elapsedMs! >= 0 ? { elapsedMs: input.elapsedMs } : {}),
         ...(Number.isFinite(input.pointsCost) && input.pointsCost! >= 0 ? { pointsCost: input.pointsCost } : {}),
-        ...(input.pointsRecordId ? { pointsRecordId: input.pointsRecordId } : {}),
+        ...(input.billingReceiptId ? { billingReceiptId: input.billingReceiptId } : {}),
         skills: input.skills.map(snapshotAgentSkill),
     };
 }

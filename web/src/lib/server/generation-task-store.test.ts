@@ -201,6 +201,15 @@ describe("mutateStoredGenerationTask", () => {
         await expect(getStoredGenerationTaskRecord("image", "production-image")).resolves.toMatchObject({ executionProfile: "production" });
     });
 
+    it("persists the trusted school billing context in the task record and payload", async () => {
+        mocks.records = [];
+        const now = Date.now();
+        const billingContext = { schoolId: "school-a", groupId: "group-a", orderId: "order-a", projectType: "canvas" as const, projectId: "canvas-a" };
+        await createStoredGenerationTask("image", { id: "school-image", userId: "user", status: "pending", surface: "canvas", projectId: "canvas-a", billingContext, createdAt: now, updatedAt: now }, 60_000);
+
+        await expect(getStoredGenerationTaskRecord("image", "school-image")).resolves.toMatchObject({ billingContext, payload: { billingContext } });
+    });
+
     it("finds only the current user's exact channel task identity", async () => {
         const now = Date.now();
         mocks.records = [

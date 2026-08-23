@@ -461,6 +461,15 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         return result.rows[0] ? mapCommercialOrder(result.rows[0]) : null;
     }
 
+    async setCommercialOrderProductionGroup(schoolId: string, orderId: string, groupId: string | undefined, updatedAt: string) {
+        const result = await this.db.query("UPDATE commercial_orders SET production_group_id = $3, updated_at = $4 WHERE assigned_school_id = $1 AND id = $2 RETURNING *", [schoolId, orderId, groupId || null, updatedAt]);
+        return result.rows[0] ? mapCommercialOrder(result.rows[0]) : null;
+    }
+
+    listCommercialOrdersForProductionGroup(schoolId: string, groupId: string, input: OrderPageQuery) {
+        return this.commercialOrderPage("assigned_school_id = $1 AND production_group_id = $2", [schoolId, groupId], input);
+    }
+
     listCommercialOrdersForTeacher(schoolId: string, membershipId: string, input: OrderPageQuery) {
         return this.commercialOrderPage("assigned_school_id = $1 AND teacher_membership_id = $2", [schoolId, membershipId], input);
     }
@@ -652,8 +661,8 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
 
     async insertCommercialOrder(record: CommercialOrderRecord) {
         const result = await this.db.query(
-            `INSERT INTO commercial_orders (id, title, requirements, reference_materials, acceptance_criteria, internal_amount_cents, deadline_at, assigned_school_id, teacher_membership_id, class_id, status, platform_feedback, created_by_user_id, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+            `INSERT INTO commercial_orders (id, title, requirements, reference_materials, acceptance_criteria, internal_amount_cents, deadline_at, assigned_school_id, teacher_membership_id, class_id, production_group_id, status, platform_feedback, created_by_user_id, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
             [
                 record.id,
                 record.title,
@@ -665,6 +674,7 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
                 record.assignedSchoolId || null,
                 record.teacherMembershipId || null,
                 record.classId || null,
+                record.productionGroupId || null,
                 record.status,
                 record.platformFeedback,
                 record.createdByUserId || null,
@@ -763,6 +773,7 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
              SET assigned_school_id = $2,
                  teacher_membership_id = CASE WHEN $4::boolean THEN NULL ELSE teacher_membership_id END,
                  class_id = CASE WHEN $4::boolean THEN NULL ELSE class_id END,
+                 production_group_id = CASE WHEN $4::boolean THEN NULL ELSE production_group_id END,
                  status = 'assigned', updated_at = $3
              WHERE id = $1 RETURNING *`,
             [orderId, schoolId, updatedAt, resetConfiguration],
@@ -930,6 +941,7 @@ function mapCommercialOrder(row: Record<string, unknown>): CommercialOrderRecord
         assignedSchoolId: optionalString(row.assigned_school_id),
         teacherMembershipId: optionalString(row.teacher_membership_id),
         classId: optionalString(row.class_id),
+        productionGroupId: optionalString(row.production_group_id),
         status: commercialOrderStatus(row.status),
         platformFeedback: stringValue(row.platform_feedback),
         createdByUserId: optionalString(row.created_by_user_id),

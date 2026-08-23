@@ -169,6 +169,7 @@ CREATE TABLE IF NOT EXISTS commercial_orders (
     internal_amount_cents bigint NOT NULL DEFAULT 0 CHECK (internal_amount_cents >= 0),
     deadline_at timestamptz,
     assigned_school_id text REFERENCES schools(id),
+    production_group_id text,
     teacher_membership_id text,
     class_id text,
     status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'assigned', 'in_progress', 'submitted', 'revision_required', 'accepted', 'cancelled')),
@@ -178,7 +179,7 @@ CREATE TABLE IF NOT EXISTS commercial_orders (
     updated_at timestamptz NOT NULL DEFAULT now(),
     UNIQUE (assigned_school_id, id),
     CHECK (status IN ('draft', 'cancelled') OR assigned_school_id IS NOT NULL),
-    CONSTRAINT commercial_orders_assignment_configuration CHECK (assigned_school_id IS NOT NULL OR (teacher_membership_id IS NULL AND class_id IS NULL)),
+    CONSTRAINT commercial_orders_assignment_configuration CHECK (assigned_school_id IS NOT NULL OR (teacher_membership_id IS NULL AND class_id IS NULL AND production_group_id IS NULL)),
     FOREIGN KEY (assigned_school_id, teacher_membership_id) REFERENCES school_memberships(school_id, id),
     FOREIGN KEY (assigned_school_id, class_id) REFERENCES school_classes(school_id, id)
 );
@@ -187,8 +188,9 @@ CREATE INDEX IF NOT EXISTS commercial_orders_status_updated_idx ON commercial_or
 CREATE INDEX IF NOT EXISTS commercial_orders_school_status_updated_idx ON commercial_orders (assigned_school_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS commercial_orders_school_teacher_updated_idx ON commercial_orders (assigned_school_id, teacher_membership_id, updated_at DESC);
 
+ALTER TABLE commercial_orders ADD COLUMN IF NOT EXISTS production_group_id text;
 ALTER TABLE commercial_orders DROP CONSTRAINT IF EXISTS commercial_orders_assignment_configuration;
-ALTER TABLE commercial_orders ADD CONSTRAINT commercial_orders_assignment_configuration CHECK (assigned_school_id IS NOT NULL OR (teacher_membership_id IS NULL AND class_id IS NULL));
+ALTER TABLE commercial_orders ADD CONSTRAINT commercial_orders_assignment_configuration CHECK (assigned_school_id IS NOT NULL OR (teacher_membership_id IS NULL AND class_id IS NULL AND production_group_id IS NULL));
 
 CREATE TABLE IF NOT EXISTS commercial_order_participants (
     id text PRIMARY KEY,

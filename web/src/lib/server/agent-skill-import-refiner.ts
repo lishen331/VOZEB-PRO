@@ -1,9 +1,10 @@
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import type { AgentSkillWorkspace } from "@/lib/auth/store-types";
 import { AGENT_SKILL_EXTRACTION_SOURCE_LENGTH, type ImportedAgentSkill } from "@/lib/agent-skill-import-types";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 
 const WORKSPACES: AgentSkillWorkspace[] = ["image", "video", "canvas", "drama"];
@@ -213,5 +214,5 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 async function refundTextResponse(userId: string, model: string, headers: Headers) {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+    if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `agent-skill-refund:${billing.billingReceiptId}` });
 }

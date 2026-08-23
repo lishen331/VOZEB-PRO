@@ -34,7 +34,8 @@ vi.mock("@/app/api/image-tasks/image-task-support", () => ({
     resolveProxiedMediaSource: mocks.resolveMedia,
 }));
 vi.mock("@/app/api/image-tasks/image-task-runner", () => ({ stableMediaUrl: vi.fn((value: string) => (value && !value.startsWith("data:") ? value : "")), writeImageGenerationLog: mocks.writeLog }));
-vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getSettings, refundUserPoints: mocks.refund }));
+vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getSettings }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refund }));
 vi.mock("@/lib/server/creative-runtime-service", () => ({ registerGenerationTaskAssetsForUser: mocks.register }));
 vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: mocks.schedule }));
 vi.mock("@/lib/server/image-task-store", () => ({
@@ -117,13 +118,13 @@ describe("image task runtime submission safety", () => {
                 reason: "OpenAI 图片接口未返回图片，且渠道没有声明异步查询路径",
             },
             pointsCost: 1,
-            pointsRecordId: "record-one",
+            billingReceiptId: "school:batch-a",
         });
 
         await expect(createImageTaskUpstreamStep(state, "http://internal", "https://public.example")).resolves.toMatchObject({ state: "needs_review", status: "query_contract_missing" });
         expect(mocks.runGemini).not.toHaveBeenCalled();
         expect(state.upstream?.id).toBe("upstream-one");
-        expect(state.billing).toMatchObject({ pointsRecordId: "record-one", refunded: false });
+        expect(state.billing).toMatchObject({ billingReceiptId: "school:batch-a", refunded: false });
         expect(mocks.schedule).toHaveBeenLastCalledWith(
             "image",
             "image-one",
@@ -142,7 +143,7 @@ describe("image task runtime submission safety", () => {
         state = imageTask();
         state.config = { ...state.config, advancedConfig: { ...emptyAdvancedConfig(), protocol: "openai" } };
         state.candidateConfigs = [];
-        mocks.runOpenAi.mockResolvedValueOnce({ dataUrl: "data:image/png;base64,broken", pointsCost: 1, pointsRecordId: "record-one" });
+        mocks.runOpenAi.mockResolvedValueOnce({ dataUrl: "data:image/png;base64,broken", pointsCost: 1, billingReceiptId: "school:batch-a" });
         mocks.writeLog.mockRejectedValueOnce(new Error("pngload_buffer: libspng read error"));
 
         const step = await createImageTaskUpstreamStep(state, "http://internal", "https://public.example");

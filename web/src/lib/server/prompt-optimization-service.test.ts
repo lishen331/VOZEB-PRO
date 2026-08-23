@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { requestStructuredText } from "@/lib/server/text-planning-runtime";
 import { optimizeCreativePrompt } from "./prompt-optimization-service";
 
-vi.mock("@/lib/auth/store", () => ({ getAuthSettings: vi.fn(), refundUserPoints: vi.fn() }));
+vi.mock("@/lib/auth/store", () => ({ getAuthSettings: vi.fn() }));
+const refundGenerationCharge = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge }));
 vi.mock("@/lib/server/logical-model-router", () => ({ resolveLogicalModelCandidates: vi.fn() }));
 vi.mock("@/lib/server/text-planning-runtime", () => ({
     rankTextPlanningCandidates: <T>(items: T[]) => items,
@@ -27,7 +29,7 @@ describe("prompt optimization service", () => {
             .mockReset()
             .mockReturnValue([candidate] as ReturnType<typeof resolveLogicalModelCandidates>);
         vi.mocked(requestStructuredText).mockReset();
-        vi.mocked(refundUserPoints).mockReset();
+        refundGenerationCharge.mockReset();
     });
 
     it("uses the default text model once and returns a valid public prompt", async () => {
@@ -48,13 +50,13 @@ describe("prompt optimization service", () => {
     it("refunds an invalid charged response instead of accepting hidden or empty output", async () => {
         vi.mocked(requestStructuredText).mockResolvedValue({
             arguments: JSON.stringify({ explanation: "内部分析" }),
-            headers: new Headers({ "x-vozeb-pro-points-cost": "3", "x-vozeb-pro-points-record-id": "points-one" }),
+            headers: new Headers({ "x-vozeb-pro-points-cost": "3", "x-vozeb-pro-billing-receipt-id": "school:one" }),
             protocol: "chat",
             elapsedMs: 10,
         });
 
         await expect(optimizeCreativePrompt({ origin: "http://localhost:3000", cookie: "session=1", userId: "user-one", requestId: "request-one", prompt: "优化这句话", mode: "agent" })).rejects.toThrow("默认文本模型没有返回有效提示词");
-        expect(refundUserPoints).toHaveBeenCalledWith("user-one", "planner", 3, "text", 1, undefined, "points-one");
+        expect(refundGenerationCharge).toHaveBeenCalledWith({ userId: "user-one", receiptId: "school:one", model: "planner", usageKind: "text", units: 1, idempotencyKey: "prompt-optimize-refund:school:one" });
     });
 
     it("fails clearly when no default text binding is available", async () => {

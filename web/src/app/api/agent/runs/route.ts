@@ -11,6 +11,7 @@ import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { publicAgentRun } from "@/lib/server/agent-run-public";
 import { validateCreativeProjectIpReferencesForRun } from "@/lib/server/ip-library-reference-service";
+import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 export const maxDuration = 2400;
@@ -50,11 +51,12 @@ export async function POST(request: Request) {
         const existing = await getAgentRunByClientRequestId(user.id, input.clientRequestId);
         if (existing) return NextResponse.json({ code: 0, data: { run: publicAgentRun(existing), created: false }, msg: "Agent 任务已存在" });
         if (input.surface === "canvas" || input.surface === "drama") await validateCreativeProjectIpReferencesForRun(user.id, input.surface, input.projectId!);
+        const billingContext = await resolveSchoolComputeBillingContext(user.id, { surface: input.surface, projectId: input.projectId, executionProfile: "production" });
         const rate = await checkRateLimit(`agent-run:${user.id}`, { maxRequests: 10, windowMs: 60 * 1000 });
         if (!rate.allowed) return NextResponse.json({ code: 429, data: null, msg: "Agent 请求过于频繁，请稍后重试" }, { status: 429 });
         const settings = await getAuthSettings();
         const response = await withGenerationConcurrencyLimit(user.id, "agent", 10 * 60 * 1000, settings.generationConcurrency.agent, async () => {
-            const created = await createAgentRun(user.id, input);
+            const created = await createAgentRun(user.id, { ...input, ...(billingContext ? { billingContext } : {}) });
             if (created.created) {
                 const origin = resolveInternalOrigin(new URL(request.url).origin);
                 after(() => runGenerationTaskRecoveryBatch({ origin, cookie: request.headers.get("cookie") || "", limit: 1, taskIds: [created.run.id] }));
