@@ -36,16 +36,16 @@ describe("user navigation order", () => {
             navigationToolsForContext(context("teacher", true))
                 .filter((tool) => tool.group === "projects")
                 .map((tool) => tool.label),
-        ).toEqual(["画布", "短剧", "无限练习"]);
+        ).toEqual(["画布", "短剧", "短剧实验室", "无限练习"]);
         const disabledContext = { ...context("teacher", true), school: { ...context("teacher", true).school, status: "disabled" as const } };
         expect(navigationToolsForContext(disabledContext).some((tool) => tool.slug === "practice")).toBe(false);
     });
 
-    it("keeps the drama workflow lab hidden unless explicitly enabled", () => {
-        expect(navigationToolsForContext(null).some((tool) => tool.slug === "drama-lab")).toBe(false);
-        expect(navigationToolsForContext(null, { includeDramaWorkflowLab: true }).find((tool) => tool.slug === "drama-lab")).toMatchObject({ group: "projects", label: "短剧实验室" });
-        expect(navigationToolForPathname("/drama-lab", null)).toBeUndefined();
-        expect(navigationToolForPathname("/drama-lab", null, { includeDramaWorkflowLab: true })?.slug).toBe("drama-lab");
+    it("shows the drama workflow lab by default and supports hiding it", () => {
+        expect(navigationToolsForContext(null).find((tool) => tool.slug === "drama-lab")).toMatchObject({ group: "projects", label: "短剧实验室" });
+        expect(navigationToolsForContext(null, { includeDramaWorkflowLab: false }).some((tool) => tool.slug === "drama-lab")).toBe(false);
+        expect(navigationToolForPathname("/drama-lab", null)?.slug).toBe("drama-lab");
+        expect(navigationToolForPathname("/drama-lab", null, { includeDramaWorkflowLab: false })).toBeUndefined();
     });
 
     it("exposes the same practice entry in role overview metadata", () => {

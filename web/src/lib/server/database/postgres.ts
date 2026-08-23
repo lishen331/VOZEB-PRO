@@ -333,6 +333,7 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "drama_lab_ai_model_map_user_key_idx",
     "drama_lab_prompt_templates_user_category_idx",
     "drama_lab_prompt_templates_user_key_idx",
+    "drama_lab_prompt_templates_global_key_idx",
     "drama_lab_business_scenarios_user_updated_idx",
     "drama_lab_sd2_assets_user_type_idx",
     "drama_projects_episodes_gin_idx",
@@ -539,7 +540,7 @@ export async function initializePostgresSchema() {
     if (!globalForPostgres.__vozebProPostgresSchemaReady) {
         globalForPostgres.__vozebProPostgresSchemaReady = withPostgresTransaction(async (client) => {
             await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [POSTGRES_SCHEMA_LOCK_KEY]);
-            await client.query(POSTGRESQL_SCHEMA_SQL);
+            await client.query(prefixPostgresSql(POSTGRESQL_SCHEMA_SQL));
         })
             .then(() => undefined)
             .catch((error) => {
