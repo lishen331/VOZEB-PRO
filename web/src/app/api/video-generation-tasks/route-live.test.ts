@@ -15,7 +15,7 @@ describe("video creation protocols over a live fixture", () => {
         close = undefined;
     });
 
-    it("creates a New API Doubao Seedance task through the `/videos` contract", async () => {
+    it("creates a New API Doubao Seedance task through the JSON task contract", async () => {
         const fixture = createProtocolFixtureServer();
         await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));
         const address = fixture.server.address();
@@ -53,11 +53,28 @@ describe("video creation protocols over a live fixture", () => {
         };
 
         const resolvedConfig = { ...config, advancedConfig: resolveModelAdvancedConfig(config.advancedConfig, config.model) };
-        const upstream = await createUpstream("user-live", "", "", resolvedConfig, "animate a blue logo", { videoSeconds: 6, size: "9:16", vquality: "720" }, [], { imageQuality: {}, videoQuality: { "720": 1 }, videoSeconds: { "6": 1 } }, "legacy-seedance-request");
+        const upstream = await createUpstream(
+            "user-live",
+            "",
+            "",
+            resolvedConfig,
+            "animate a blue logo",
+            { videoSeconds: 6, size: "9:16", vquality: "720" },
+            [{ type: "image", url: "https://cdn.example.com/reference.png" }],
+            { imageQuality: {}, videoQuality: { "720": 1 }, videoSeconds: { "6": 1 } },
+            "legacy-seedance-request",
+        );
 
-        expect(upstream).toMatchObject({ model: config.model, pollPath: "/videos" });
-        expect(fixture.requests[0]).toMatchObject({ method: "POST", path: "/videos" });
-        expect(fixture.requests[0]?.contentType).toContain("multipart/form-data");
+        expect(upstream).toMatchObject({ model: config.model, pollPath: "/video/generations" });
+        expect(fixture.requests[0]).toMatchObject({ method: "POST", path: "/video/generations" });
+        expect(fixture.requests[0]?.contentType).toContain("application/json");
+        expect(JSON.parse(fixture.requests[0]?.body.toString("utf8") || "{}")).toMatchObject({
+            model: config.model,
+            prompt: "animate a blue logo",
+            seconds: "6",
+            images: ["https://cdn.example.com/reference.png"],
+            metadata: { ratio: "9:16", resolution: "720p" },
+        });
     });
 
     it("uses the selected preset endpoint once, preserves headers, and polls /result/:task_id", async () => {

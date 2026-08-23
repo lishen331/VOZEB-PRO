@@ -154,7 +154,7 @@ async function handleFixtureRequest({ request, response, url, body, tasks, reque
         return sendJson(response, 200, { data: { image_url: `${url.origin}/media/fixture.png` } });
     }
 
-    if (request.method === "POST" && (GLOBAL_AIOPC_VIDEO_PATHS.has(path) || ["/videos", "/contents/generations/tasks", "/seedance-special/videos"].includes(path))) {
+    if (request.method === "POST" && (GLOBAL_AIOPC_VIDEO_PATHS.has(path) || ["/videos", "/video/generations", "/contents/generations/tasks", "/seedance-special/videos"].includes(path))) {
         const model = requestedModel(body, request.headers["content-type"] || "");
         if (shouldFailRequest(request, model)) return sendJson(response, model.includes("-fail") ? 400 : 503, { error: { message: "fixture video failure" } });
         const id = nextTaskId("video");
@@ -333,7 +333,7 @@ function firstShotId(payload) {
 }
 
 function videoTaskId(path) {
-    const patterns = [/^\/videos\/([^/]+)$/, /^\/contents\/generations\/tasks\/([^/]+)$/, /^\/result\/([^/]+)$/];
+    const patterns = [/^\/videos\/([^/]+)$/, /^\/video\/generations\/([^/]+)$/, /^\/contents\/generations\/tasks\/([^/]+)$/, /^\/result\/([^/]+)$/];
     for (const pattern of patterns) {
         const match = path.match(pattern);
         if (match) return decodeURIComponent(match[1]);

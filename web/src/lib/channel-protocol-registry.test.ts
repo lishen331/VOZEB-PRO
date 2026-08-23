@@ -248,11 +248,11 @@ describe("channel protocol registry", () => {
         const key = "doubao-seedance-2-0";
         stale.advancedConfig!.modelConfigs![key] = {
             ...stale.advancedConfig!.modelConfigs![key],
-            createPath: "/video/generations",
-            imageToVideoPath: "/video/generations",
+            createPath: "/videos",
+            imageToVideoPath: "/videos",
         };
 
-        expect(channelProtocolValidationErrors(stale)).toContain("doubao-seedance-2-0 的创建路径必须为 /videos");
+        expect(channelProtocolValidationErrors(stale)).toContain("doubao-seedance-2-0 的创建路径必须为 /video/generations");
         expect(normalizeStrictChannelModelConfigs(stale).advancedConfig?.modelConfigs?.[key]).toEqual(protocolModelConfig("newapi", "video", key));
     });
 
@@ -275,18 +275,18 @@ describe("channel protocol registry", () => {
         ).toMatchObject({ capability: "video", protocol: "custom", createPath: "/jobs" });
     });
 
-    it("keeps New API Doubao Seedance models on the New API video contract", () => {
+    it("routes New API Doubao Seedance models through the JSON task contract", () => {
         const configured = applyChannelProtocol({ ...channel, models: ["doubao-seedance-2-0"] }, "newapi");
         expect(resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0")).toMatchObject({
             capability: "video",
             protocol: "newapi",
-            createPath: "/videos",
-            imageToVideoPath: "/videos",
-            queryPath: "/videos/:task_id",
-            requestTemplate: expect.stringContaining("multipart/form-data"),
-            resultField: "/videos/:task_id/content",
+            createPath: "/video/generations",
+            imageToVideoPath: "/video/generations",
+            queryPath: "/video/generations/:task_id",
+            requestTemplate: expect.stringContaining("{{seconds_string}}"),
+            resultField: "metadata.url",
         });
-        expect(resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0-fast")).toMatchObject({ protocol: "newapi", createPath: "/videos" });
+        expect(resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0-fast")).toMatchObject({ protocol: "newapi", createPath: "/video/generations" });
         expect(resolveChannelModelConfig(configured.advancedConfig, "kling-v3")).toMatchObject({ protocol: "newapi", createPath: "/videos" });
     });
 
@@ -302,8 +302,8 @@ describe("channel protocol registry", () => {
 
         expect(resolveChannelModelConfig(advanced, "doubao-seedance-2-0")).toMatchObject({
             protocol: "newapi",
-            createPath: "/videos",
-            requestTemplate: expect.stringContaining("multipart/form-data"),
+            createPath: "/video/generations",
+            requestTemplate: expect.stringContaining("{{seconds_string}}"),
         });
     });
 });

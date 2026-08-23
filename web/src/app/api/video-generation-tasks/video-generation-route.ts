@@ -38,6 +38,10 @@ import { SchoolServiceError } from "@/lib/server/school-access-service";
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
 type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext };
 
+class KnownVideoCreateFailure extends Error {
+    readonly knownNoSubmission = true;
+}
+
 export async function POST(request: Request) {
     const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
@@ -206,7 +210,7 @@ export async function POST(request: Request) {
                 await updateVideoTask(localTask.id, { attempts });
                 if (error instanceof SafeCandidateFailure && index < channels.length - 1) continue;
                 const message = toSafeGenerationErrorMessage(error, "视频任务创建失败");
-                if (!(error instanceof SafeCandidateFailure)) {
+                if (!(error instanceof SafeCandidateFailure) && !(error instanceof KnownVideoCreateFailure)) {
                     await scheduleGenerationTask("video", localTask.id, { executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "submission_outcome_unknown" });
                     return NextResponse.json({ task: { ...publicTask({ ...localTask, attempts }), needsReview: true }, warning: `${message}；上游创建结果待确认，系统不会自动重复创建。` }, { status: 202 });
                 }
@@ -256,6 +260,7 @@ export async function createUpstream(
         prompt,
         duration: duration(raw.videoSeconds),
         seconds: duration(raw.videoSeconds),
+        seconds_string: String(duration(raw.videoSeconds)),
         ratio: ratio(raw.size),
         aspect_ratio: ratio(raw.size),
         size: sizeValue(raw.size),
@@ -264,6 +269,7 @@ export async function createUpstream(
         width: dimensions.width,
         height: dimensions.height,
         generate_audio: generateAudio,
+        watermark: raw.videoWatermark === "true",
         images: requestImages,
         videos,
         audios,
@@ -371,7 +377,7 @@ export async function createUpstream(
         const text = await response.text();
         if (!response.ok) {
             lastError = readVideoProviderHttpError(text, response.status);
-            if (!SAFE_CREATE_FAILURE_STATUSES.has(response.status)) throw new Error(lastError);
+            if (!SAFE_CREATE_FAILURE_STATUSES.has(response.status)) throw new KnownVideoCreateFailure(lastError);
             continue;
         }
         let data: unknown;

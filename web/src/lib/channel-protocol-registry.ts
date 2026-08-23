@@ -47,6 +47,23 @@ const openAiOperations: ChannelProtocolDefinition["operations"] = {
     audio: { capability: "audio", createPath: "/audio/speech", requestTemplate: '{"model":"{{model}}","input":"{{prompt}}","voice":"alloy","response_format":"mp3"}', resultField: "binary" },
 };
 
+// New API routes Doubao/Seedance through its task-compatible JSON endpoint.
+// This is a different contract from the OpenAI `/videos` multipart endpoint:
+// New API converts the request to `/api/v3/contents/generations/tasks`.
+const newApiDoubaoVideoOperation: ProtocolOperation = {
+    capability: "video",
+    createPath: "/video/generations",
+    imageToVideoPath: "/video/generations",
+    queryPath: "/video/generations/:task_id",
+    requestTemplate:
+        '{"model":"{{model}}","prompt":"{{prompt}}","seconds":"{{seconds_string}}","images":"{{images}}","metadata":{"ratio":"{{ratio}}","resolution":"{{resolution}}","generate_audio":"{{generate_audio}}","watermark":"{{watermark}}"}}',
+    resultField: "metadata.url",
+    statusField: "status",
+    durationRange: "4-15 秒，具体范围以模型文档为准",
+    referenceRule: "New API Doubao 使用 JSON；参考图写入 images 数组，分辨率、比例和音频参数写入 metadata。",
+    supportsReferenceImage: true,
+};
+
 const geminiVideoOperation: ProtocolOperation = {
     capability: "video",
     createPath: "/models/:model:predictLongRunning",
@@ -327,6 +344,9 @@ export function protocolCatalogCapability(protocol: SystemChannelProtocol): Logi
 
 export function protocolModelConfig(protocol: SystemChannelProtocol, capability: LogicalModelCapability, model?: string): SystemChannelModelConfig | undefined {
     const definition = channelProtocolDefinition(protocol);
+    if (protocol === "newapi" && capability === "video" && model && isLegacyDoubaoSeedanceModel(model)) {
+        return { ...newApiDoubaoVideoOperation, capability, source: "manual", protocol, apiFormat: definition.apiFormat };
+    }
     const builtIn = model ? definition.builtInModels?.find((item) => normalizeModelId(item.id) === normalizeModelId(model)) : undefined;
     const operation = builtIn?.capability === capability && builtIn.operation ? builtIn.operation : definition.operations[capability];
     if (!operation) return undefined;
@@ -357,11 +377,9 @@ export function resolveChannelModelConfig(config: SystemChannelAdvancedConfig | 
     const key = normalizeModelId(model);
     const modelConfig = config.modelConfigs?.[key];
     const configuredProtocol = modelConfig?.protocol || config.protocol;
-    // New API exposes Doubao/Seedance through its OpenAI-compatible `/videos`
-    // multipart contract. Older saved channels often have no model-specific
-    // entry and fall back to a stale `/video/generations` JSON operation. The
-    // model name alone must not switch to native Volcengine JSON; repair only
-    // that stale New API shape to the strict New API video preset.
+    // New API exposes Doubao/Seedance through `/video/generations`, while
+    // generic New API video models continue to use the OpenAI `/videos` route.
+    // Repair older saved Doubao entries that still contain the generic preset.
     if (isLegacyDoubaoSeedanceModel(model) && configuredProtocol === "newapi" && isStaleNewApiVideoConfig(modelConfig || operationConfigsFor(config, key))) {
         return protocolModelConfig("newapi", "video", model);
     }
@@ -384,7 +402,7 @@ function operationConfigsFor(config: SystemChannelAdvancedConfig, key: string) {
 
 function isStaleNewApiVideoConfig(config: SystemChannelModelConfig | undefined) {
     if (!config || config.capability !== "video") return false;
-    return config.protocol === "newapi" && (config.createPath !== "/videos" || !config.requestTemplate?.trim().toLowerCase().startsWith("multipart/form-data"));
+    return config.protocol === "newapi" && (config.createPath !== "/video/generations" || !config.requestTemplate?.trim().startsWith("{") || !config.requestTemplate.includes("{{seconds_string}}"));
 }
 
 function isLegacyVideoProtocol(protocol: SystemChannelProtocol | undefined) {
