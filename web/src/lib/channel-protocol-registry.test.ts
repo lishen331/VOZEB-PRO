@@ -289,4 +289,21 @@ describe("channel protocol registry", () => {
         expect(resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0-fast")).toMatchObject({ protocol: "newapi", createPath: "/videos" });
         expect(resolveChannelModelConfig(configured.advancedConfig, "kling-v3")).toMatchObject({ protocol: "newapi", createPath: "/videos" });
     });
+
+    it("repairs a channel-level stale New API video operation when Seedance has no model entry", () => {
+        const configured = applyChannelProtocol({ ...channel, models: ["doubao-seedance-2-0"] }, "newapi");
+        const advanced = configured.advancedConfig!;
+        delete advanced.modelConfigs!["doubao-seedance-2-0"];
+        advanced.operationConfigs!.video = {
+            ...advanced.operationConfigs!.video!,
+            createPath: "/video/generations",
+            requestTemplate: '{"model":"{{model}}","content":[{"type":"text","text":"{{prompt}}"}]}',
+        };
+
+        expect(resolveChannelModelConfig(advanced, "doubao-seedance-2-0")).toMatchObject({
+            protocol: "newapi",
+            createPath: "/videos",
+            requestTemplate: expect.stringContaining("multipart/form-data"),
+        });
+    });
 });

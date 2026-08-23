@@ -357,10 +357,14 @@ export function resolveChannelModelConfig(config: SystemChannelAdvancedConfig | 
     const key = normalizeModelId(model);
     const modelConfig = config.modelConfigs?.[key];
     const configuredProtocol = modelConfig?.protocol || config.protocol;
-    // Some New API aggregators advertise Doubao Seedance models while storing
-    // the generic OpenAI `/videos` multipart preset. Seedance uses the
-    // contents/generations/tasks JSON contract, so repair this legacy shape at
-    // runtime for both task creation and the system proxy route.
+    // New API exposes Doubao/Seedance through its OpenAI-compatible `/videos`
+    // multipart contract. Older saved channels often have no model-specific
+    // entry and fall back to a stale `/video/generations` JSON operation. The
+    // model name alone must not switch to native Volcengine JSON; repair only
+    // that stale New API shape to the strict New API video preset.
+    if (isLegacyDoubaoSeedanceModel(model) && configuredProtocol === "newapi" && isStaleNewApiVideoConfig(modelConfig || operationConfigsFor(config, key))) {
+        return protocolModelConfig("newapi", "video", model);
+    }
     if (isLegacyDoubaoSeedanceModel(model) && isLegacyVideoProtocol(configuredProtocol) && (modelConfig?.capability === "video" || !modelConfig)) {
         return protocolModelConfig("seedance", "video", model);
     }
@@ -371,6 +375,16 @@ export function resolveChannelModelConfig(config: SystemChannelAdvancedConfig | 
         return protocolModelConfig("seedance", "video", model);
     }
     return operation;
+}
+
+function operationConfigsFor(config: SystemChannelAdvancedConfig, key: string) {
+    const capability = config.modelCapabilities?.[key] || inferModelCapability(key);
+    return config.operationConfigs?.[capability];
+}
+
+function isStaleNewApiVideoConfig(config: SystemChannelModelConfig | undefined) {
+    if (!config || config.capability !== "video") return false;
+    return config.protocol === "newapi" && (config.createPath !== "/videos" || !config.requestTemplate?.trim().toLowerCase().startsWith("multipart/form-data"));
 }
 
 function isLegacyVideoProtocol(protocol: SystemChannelProtocol | undefined) {
