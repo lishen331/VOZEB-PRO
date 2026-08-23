@@ -14,10 +14,7 @@ type Context = { params: Promise<{ id: string }> };
 export async function POST(request: Request, context: Context) {
     const user = await getCurrentUser();
     if (!user) {
-        return NextResponse.json(
-            { code: 401, data: null, msg: "请先登录" },
-            { status: 401 }
-        );
+        return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     }
 
     try {
@@ -29,10 +26,7 @@ export async function POST(request: Request, context: Context) {
         }>(request);
 
         if (!parsed.ok) {
-            return NextResponse.json(
-                { code: parsed.status, data: null, msg: parsed.message },
-                { status: parsed.status }
-            );
+            return NextResponse.json({ code: parsed.status, data: null, msg: parsed.message }, { status: parsed.status });
         }
 
         const body = parsed.data;
@@ -42,19 +36,11 @@ export async function POST(request: Request, context: Context) {
         const [projectRow] = await db
             .select()
             .from(dramaProjects)
-            .where(
-                and(
-                    eq(dramaProjects.id, projectId),
-                    eq(dramaProjects.userId, user.id)
-                )
-            )
+            .where(and(eq(dramaProjects.id, projectId), eq(dramaProjects.userId, user.id)))
             .limit(1);
 
         if (!projectRow) {
-            return NextResponse.json(
-                { code: 404, data: null, msg: "项目不存在" },
-                { status: 404 }
-            );
+            return NextResponse.json({ code: 404, data: null, msg: "项目不存在" }, { status: 404 });
         }
 
         // 解析项目数据
@@ -85,21 +71,14 @@ export async function POST(request: Request, context: Context) {
         };
 
         // 查找指定集
-        const episode = projectData.episodes.find(
-            (ep) => ep.id === String(body.episodeId || "")
-        );
+        const episode = projectData.episodes.find((ep) => ep.id === String(body.episodeId || ""));
 
         if (!episode) {
-            return NextResponse.json(
-                { code: 404, data: null, msg: "短剧剧集不存在" },
-                { status: 404 }
-            );
+            return NextResponse.json({ code: 404, data: null, msg: "短剧剧集不存在" }, { status: 404 });
         }
 
         // 筛选该集的分镜
-        const episodeShots = projectData.shots.filter(
-            (shot) => shot.episodeId === episode.id
-        );
+        const episodeShots = projectData.shots.filter((shot) => shot.episodeId === episode.id);
 
         // 转换为剪映导出所需的格式
         const dramaProject = {
@@ -129,8 +108,8 @@ export async function POST(request: Request, context: Context) {
 
         // 调用剪映导出服务
         const result = await exportDramaEpisodeAsJianying({
-            project: dramaProject as any,
-            episode: dramaEpisode as any,
+            project: dramaProject,
+            episode: dramaEpisode,
             draftPath: String(body.draftPath || ""),
             version: body.version === "5" ? "5" : "6",
             origin: resolveInternalOrigin(new URL(request.url).origin),
@@ -147,16 +126,10 @@ export async function POST(request: Request, context: Context) {
         });
     } catch (error) {
         if (error instanceof DramaJianyingExportError) {
-            return NextResponse.json(
-                { code: error.status, data: null, msg: error.message },
-                { status: error.status }
-            );
+            return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
         }
 
         console.error("[drama-lab] jianying export failed:", error);
-        return NextResponse.json(
-            { code: 500, data: null, msg: "剪映草稿导出失败" },
-            { status: 500 }
-        );
+        return NextResponse.json({ code: 500, data: null, msg: "剪映草稿导出失败" }, { status: 500 });
     }
 }
