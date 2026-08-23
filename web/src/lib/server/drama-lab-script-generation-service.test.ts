@@ -47,12 +47,14 @@ describe("drama lab script generation", () => {
             episodeCount: "12",
         });
         expect(mocks.requestStructuredText.mock.calls[0]?.[0].messages[0].content).toContain("CUSTOM STORY TEMPLATE");
-        expect(mocks.recordDramaLabTextGenerationLog).toHaveBeenCalledWith(expect.objectContaining({
-            id: "drama-lab-script:project-one:episode-one:request-one",
-            userId: "user-one",
-            status: "success",
-            model: "writer",
-        }));
+        expect(mocks.recordDramaLabTextGenerationLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: "drama-lab-script:project-one:episode-one:request-one",
+                userId: "user-one",
+                status: "success",
+                model: "writer",
+            }),
+        );
         expect(result).toEqual({ script: "第一集剧本正文", templateKey: "story_generation" });
     });
 });

@@ -37,7 +37,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         const updated = Object.keys(patch).length ? await persistDramaLabShotUpdate({ userId: user.id, project, episodeId, shotId, patch }) : project;
 
-        const activeTaskIds = [imageTask, videoTask, ...frameTasks.map(([, task]) => (task && task.userId === user.id ? task : null))].flatMap((task) => (task && (task.status === "pending" || task.status === "running") && task.executionPhase !== "needs_review" ? [task.id] : []));
+        const activeTaskIds = [imageTask, videoTask, ...frameTasks.map(([, task]) => (task && task.userId === user.id ? task : null))].flatMap((task) =>
+            task && (task.status === "pending" || task.status === "running") && task.executionPhase !== "needs_review" ? [task.id] : [],
+        );
         if (activeTaskIds.length) {
             const origin = resolveInternalOrigin(resolvePublicRequestOrigin(request));
             const cookie = request.headers.get("cookie") || "";
@@ -107,14 +109,7 @@ function generationPatch(
     const keyFrame = frames.key;
     if (keyFrame?.url) {
         const keyTaskId = keyFrame.taskId;
-        if (
-            shot.storyboardStatus !== "success" ||
-            shot.storyboardImageUrl !== keyFrame.url ||
-            shot.storyboardTaskId !== keyTaskId ||
-            shot.storyboardImageWidth !== keyFrame.width ||
-            shot.storyboardImageHeight !== keyFrame.height ||
-            shot.storyboardError
-        ) {
+        if (shot.storyboardStatus !== "success" || shot.storyboardImageUrl !== keyFrame.url || shot.storyboardTaskId !== keyTaskId || shot.storyboardImageWidth !== keyFrame.width || shot.storyboardImageHeight !== keyFrame.height || shot.storyboardError) {
             patch.storyboardStatus = "success";
             patch.storyboardTaskId = keyTaskId;
             patch.storyboardAttempt = keyFrame.attempt;

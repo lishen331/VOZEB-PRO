@@ -2620,7 +2620,9 @@ function StoryboardPanel({
     };
 
     const runBatch = async (kind: "image" | "video") => {
-        const candidates = episodeShots.filter((shot) => (kind === "image" ? !shot.storyboardImageUrl && shot.storyboardStatus !== "running" : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) && !shot.videoUrl && shot.generationStatus !== "running"));
+        const candidates = episodeShots.filter((shot) =>
+            kind === "image" ? !shot.storyboardImageUrl && shot.storyboardStatus !== "running" : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) && !shot.videoUrl && shot.generationStatus !== "running",
+        );
         if (!candidates.length) return messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
         setBatchRunning(kind);
         try {

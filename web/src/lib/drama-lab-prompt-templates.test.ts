@@ -4,17 +4,7 @@ import { DRAMA_LAB_PROMPT_DEFINITIONS, DRAMA_LAB_PROMPT_KEYS, dramaLabPromptDefi
 
 describe("drama lab prompt templates", () => {
     it("ships the complete short-drama workflow template set", () => {
-        expect(DRAMA_LAB_PROMPT_KEYS).toEqual([
-            "story_expansion_system",
-            "character_extraction",
-            "scene_extraction",
-            "prop_extraction",
-            "storyboard_system",
-            "storyboard_user_suffix",
-            "first_frame_prompt",
-            "key_frame_prompt",
-            "last_frame_prompt",
-        ]);
+        expect(DRAMA_LAB_PROMPT_KEYS).toEqual(["story_expansion_system", "character_extraction", "scene_extraction", "prop_extraction", "storyboard_system", "storyboard_user_suffix", "first_frame_prompt", "key_frame_prompt", "last_frame_prompt"]);
         expect(DRAMA_LAB_PROMPT_DEFINITIONS.every((item) => item.template.trim() && item.variables.length)).toBe(true);
     });
 
