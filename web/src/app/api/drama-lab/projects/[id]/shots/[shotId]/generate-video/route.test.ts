@@ -65,7 +65,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-video", () => 
         mocks.persistDramaLabShotUpdate.mockResolvedValue(project);
     });
 
-    it("submits the storyboard frame before bound asset references and records the server-visible motion prompt", async () => {
+    it("submits only the storyboard frame reference and records the server-visible motion prompt", async () => {
         const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/generate-video?episodeId=episode-one", { method: "POST", headers: { cookie: "session=test" } }), context);
 
         expect(response.status).toBe(200);
@@ -76,7 +76,6 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-video", () => 
             prompt: "server-composed-video-prompt",
             references: [
                 { type: "image", role: "reference", url: "/api/generation-log-assets/storyboard.png" },
-                { type: "image", role: "reference", url: "https://cdn.example.com/scene.png" },
             ],
             context: { parentTaskId: "image-task-one", attemptNo: 3 },
         });

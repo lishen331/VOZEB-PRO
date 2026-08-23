@@ -942,7 +942,7 @@ function ScriptEditor({
                 }
             });
         }, 800);
-    }, [saveNow]);
+    }, [messageApi, saveNow]);
 
     useEffect(
         () => () => {
@@ -2579,6 +2579,14 @@ function StoryboardPanel({
 
     const startGeneration = async (shot: Shot, kind: "image" | "video") => {
         if (!episode) return;
+        if (kind === "video" && !shot.frames?.key?.url && !shot.storyboardImageUrl) {
+            Modal.warning({
+                title: "无法生成分镜视频",
+                content: "请先生成当前镜头的关键帧或分镜图，再提交视频生成任务。",
+                okText: "知道了",
+            });
+            return;
+        }
         if (kind === "image") {
             const missing = missingShotAssetLabels(project, shot);
             if (missing.length) {
@@ -2600,7 +2608,9 @@ function StoryboardPanel({
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务创建失败");
-            await onReload();
+            // The generation route already persists the task ID. Sync just this
+            // shot so a slow project reload cannot leave the card in a stale state.
+            await syncShot(shot.id, false);
             messageApi.success({ content: kind === "image" ? "分镜图任务已提交" : "分镜视频任务已提交", key: actionKey });
         } catch (err) {
             messageApi.error({ content: err instanceof Error ? err.message : "任务创建失败", key: actionKey, duration: 6 });
@@ -2639,7 +2649,7 @@ function StoryboardPanel({
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "帧任务创建失败");
-            await onReload();
+            await syncShot(shot.id, false);
             messageApi.success({ content: `${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务已提交`, key: actionKey });
         } catch (error) {
             messageApi.error({ content: error instanceof Error ? error.message : "帧任务创建失败", key: actionKey });
@@ -2800,7 +2810,6 @@ function StoryboardWorkbenchCard({
 }) {
     const imageBusy = busyKey === `image:${shot.id}` || shot.storyboardStatus === "running";
     const videoBusy = busyKey === `video:${shot.id}` || shot.generationStatus === "running";
-    const videoSourceUrl = shot.frames?.key?.url || shot.storyboardImageUrl;
     const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
     return (
         <article id={`storyboard-shot-${shot.id}`} className="overflow-hidden rounded-lg border border-border bg-card">
@@ -2887,7 +2896,7 @@ function StoryboardWorkbenchCard({
                     <TextArea defaultValue={shot.videoPrompt} autoSize={{ minRows: 3, maxRows: 7 }} placeholder="镜头动作与动态补充（可选）" aria-label="视频提示词" onBlur={(event) => onUpdate({ videoPrompt: event.target.value.trim() })} />
                     {shot.generationError ? <Alert type="error" showIcon message={shot.generationError} /> : null}
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button type="primary" loading={videoBusy} disabled={!videoSourceUrl} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
+                        <Button type="primary" loading={videoBusy} disabled={videoBusy} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
                             {shot.videoUrl ? "重新生成视频" : "生成分镜视频"}
                         </Button>
                         <GenerationHistory history={shot.videoHistory} activeUrl={shot.videoUrl} type="video" onRestore={(url) => onUpdate({ videoUrl: url, generationStatus: "success", generationError: undefined })} />

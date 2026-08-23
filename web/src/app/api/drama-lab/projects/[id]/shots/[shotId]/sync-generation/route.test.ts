@@ -135,4 +135,84 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
             }),
         );
     });
+
+    it("clears orphaned running image and video tasks after a restart", async () => {
+        mocks.getImageTask.mockResolvedValue(null);
+        mocks.getVideoTask.mockResolvedValue(null);
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                patch: expect.objectContaining({
+                    storyboardStatus: "error",
+                    storyboardTaskId: undefined,
+                    generationStatus: "error",
+                    generationTaskId: undefined,
+                    storyboardError: expect.stringContaining("任务记录不存在"),
+                    generationError: expect.stringContaining("任务记录不存在"),
+                }),
+            }),
+        );
+        expect((await response.json()).data.shot).toMatchObject({ storyboardStatus: "error", generationStatus: "error" });
+    });
+
+    it("does not clear a task ID owned by another user", async () => {
+        mocks.getImageTask.mockResolvedValue({ id: "image-task-one", userId: "other-user", status: "running" });
+        mocks.getVideoTask.mockResolvedValue({ id: "video-task-one", userId: "other-user", status: "running" });
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.persistDramaLabShotUpdate).not.toHaveBeenCalled();
+    });
+
+    it("marks orphaned frame tasks as retryable errors", async () => {
+        const frameShot = {
+            ...shot,
+            storyboardTaskId: undefined,
+            generationTaskId: undefined,
+            frames: { key: { prompt: "key-frame-prompt", status: "running", taskId: "key-frame-task", attempt: 1 } },
+        };
+        mocks.getDramaProject.mockResolvedValue({ ...project, episodes: [{ ...project.episodes[0], shots: [frameShot] }] });
+        mocks.findShot.mockImplementation((candidate) => ({ episode: candidate.episodes[0], shot: candidate.episodes[0].shots[0] }));
+        mocks.getImageTask.mockResolvedValue(null);
+        mocks.getVideoTask.mockResolvedValue(null);
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                patch: expect.objectContaining({
+                    frames: { key: expect.objectContaining({ status: "error", taskId: undefined }) },
+                }),
+            }),
+        );
+    });
+
+    it("stops a video task that needs upstream review instead of polling forever", async () => {
+        mocks.getImageTask.mockResolvedValue(null);
+        mocks.getVideoTask.mockResolvedValue({
+            id: "video-task-one",
+            userId: "user-one",
+            status: "running",
+            executionPhase: "needs_review",
+            reviewReason: "OpenAI 视频协议最多支持 1 张参考图",
+        });
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                patch: expect.objectContaining({
+                    generationStatus: "error",
+                    generationTaskId: undefined,
+                    generationError: "OpenAI 视频协议最多支持 1 张参考图",
+                }),
+            }),
+        );
+    });
 });

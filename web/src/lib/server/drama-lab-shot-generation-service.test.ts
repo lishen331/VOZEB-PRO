@@ -124,7 +124,7 @@ describe("drama lab shot generation service", () => {
         const withStoryboard = updateDramaLabShot(project, "episode-one", "shot-one", { storyboardImageUrl: "/api/generation-log-assets/storyboard.png", storyboardImageWidth: 720, storyboardImageHeight: 1280 });
 
         const prepared = prepareDramaLabStoryboardVideo(withStoryboard, "episode-one", "shot-one");
-        expect(prepared.references.map((item) => item.id)).toEqual(["storyboard-shot-one", "scene-ref", "character-ref", "prop-ref"]);
+        expect(prepared.references.map((item) => item.id)).toEqual(["storyboard-shot-one"]);
         expect(prepared.prompt).toContain("仅使用当前镜头绑定的场景、角色和道具");
     });
 
@@ -139,7 +139,7 @@ describe("drama lab shot generation service", () => {
 
         const prepared = prepareDramaLabStoryboardVideo(withKeyFrame, "episode-one", "shot-one");
         expect(prepared.parentTaskId).toBe("key-task");
-        expect(prepared.references.map((item) => item.id)).toEqual(["key-frame-shot-one", "first-frame-shot-one", "last-frame-shot-one", "scene-ref", "character-ref", "prop-ref"]);
+        expect(prepared.references.map((item) => item.id)).toEqual(["key-frame-shot-one"]);
     });
 
     it("keeps historical media versions by task identity and updates only the selected shot", () => {

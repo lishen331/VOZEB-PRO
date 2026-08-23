@@ -67,10 +67,6 @@ export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId:
           : undefined;
     if (!visualSource) throw new DramaLabShotGenerationError("请先生成当前镜头的关键帧或分镜图");
     const visualPrompt = context.shot.videoPrompt.trim() || defaultVideoPrompt(context.shot);
-    const frameReferences = ["first", "last"].flatMap((frameType) => {
-        const frame = context.shot.frames?.[frameType as "first" | "key" | "last"];
-        return frame?.url ? [{ id: `${frameType}-frame-${context.shot.id}`, url: frame.url, label: `${context.shot.title}${frameType} frame`, width: frame.width, height: frame.height }] : [];
-    });
     return {
         prompt: [
             "【短剧实验室分镜视频任务】",
@@ -81,6 +77,9 @@ export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId:
             "【不可编辑执行约束】仅使用当前镜头绑定的场景、角色和道具，以及当前分镜图作为画面依据。保持角色身份、服装、场景空间、道具尺度、视线和运动方向一致；不得出现未绑定角色、项目外物体、字幕或水印。",
         ].join("\n\n"),
         visiblePrompt: visualPrompt,
+        // The OpenAI-compatible video protocol accepts one input reference.
+        // The current key frame/storyboard already contains the bound assets;
+        // keep their whitelist in the prompt instead of submitting extra files.
         references: [
             {
                 id: visualSource.id,
@@ -89,8 +88,6 @@ export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId:
                 width: visualSource.width,
                 height: visualSource.height,
             },
-            ...frameReferences,
-            ...shotReferences(project, context.shot),
         ],
         parentTaskId: visualSource.taskId,
         shot: context.shot,
