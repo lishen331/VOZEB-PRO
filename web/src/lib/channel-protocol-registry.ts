@@ -374,7 +374,11 @@ export function resolveChannelModelConfig(config: SystemChannelAdvancedConfig | 
 }
 
 function isLegacyVideoProtocol(protocol: SystemChannelProtocol | undefined) {
-    return protocol === "auto" || protocol === "openai" || protocol === "newapi" || protocol === "sub2api" || protocol === "compatible";
+    // New API exposes Doubao/Seedance models through its OpenAI-compatible
+    // `/v1/videos` multipart contract. Treating every New API model name as
+    // native Volcengine would incorrectly route it to `/contents/...`, which
+    // is the dashboard HTML route on New API relays.
+    return protocol === "auto" || protocol === "openai" || protocol === "sub2api" || protocol === "compatible";
 }
 
 export function isLegacyDoubaoSeedanceModel(model: string) {

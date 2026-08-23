@@ -275,18 +275,18 @@ describe("channel protocol registry", () => {
         ).toMatchObject({ capability: "video", protocol: "custom", createPath: "/jobs" });
     });
 
-    it("repairs legacy generic video presets for Doubao Seedance models at runtime", () => {
+    it("keeps New API Doubao Seedance models on the New API video contract", () => {
         const configured = applyChannelProtocol({ ...channel, models: ["doubao-seedance-2-0"] }, "newapi");
         expect(resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0")).toMatchObject({
             capability: "video",
-            protocol: "seedance",
-            createPath: "/contents/generations/tasks",
-            imageToVideoPath: "/contents/generations/tasks",
-            queryPath: "/contents/generations/tasks/:task_id",
-            requestTemplate: expect.not.stringContaining("multipart/form-data"),
-            resultField: "content.video_url",
+            protocol: "newapi",
+            createPath: "/videos",
+            imageToVideoPath: "/videos",
+            queryPath: "/videos/:task_id",
+            requestTemplate: expect.stringContaining("multipart/form-data"),
+            resultField: "/videos/:task_id/content",
         });
-        expect(resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0-fast")).toMatchObject({ protocol: "seedance", createPath: "/contents/generations/tasks" });
+        expect(resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0-fast")).toMatchObject({ protocol: "newapi", createPath: "/videos" });
         expect(resolveChannelModelConfig(configured.advancedConfig, "kling-v3")).toMatchObject({ protocol: "newapi", createPath: "/videos" });
     });
 });

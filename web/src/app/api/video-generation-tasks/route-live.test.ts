@@ -15,7 +15,7 @@ describe("video creation protocols over a live fixture", () => {
         close = undefined;
     });
 
-    it("repairs a legacy New API Doubao Seedance model before creating the task", async () => {
+    it("creates a New API Doubao Seedance task through the `/videos` contract", async () => {
         const fixture = createProtocolFixtureServer();
         await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));
         const address = fixture.server.address();
@@ -55,15 +55,9 @@ describe("video creation protocols over a live fixture", () => {
         const resolvedConfig = { ...config, advancedConfig: resolveModelAdvancedConfig(config.advancedConfig, config.model) };
         const upstream = await createUpstream("user-live", "", "", resolvedConfig, "animate a blue logo", { videoSeconds: 6, size: "9:16", vquality: "720" }, [], { imageQuality: {}, videoQuality: { "720": 1 }, videoSeconds: { "6": 1 } }, "legacy-seedance-request");
 
-        expect(upstream).toMatchObject({ model: config.model, pollPath: "/contents/generations/tasks" });
-        expect(fixture.requests[0]).toMatchObject({ method: "POST", path: "/contents/generations/tasks" });
-        expect(fixture.requests[0]?.contentType).toContain("application/json");
-        expect(JSON.parse(fixture.requests[0]?.body.toString("utf8") || "{}")).toMatchObject({
-            model: config.model,
-            ratio: "9:16",
-            duration: 6,
-            content: [{ type: "text", text: "animate a blue logo" }],
-        });
+        expect(upstream).toMatchObject({ model: config.model, pollPath: "/videos" });
+        expect(fixture.requests[0]).toMatchObject({ method: "POST", path: "/videos" });
+        expect(fixture.requests[0]?.contentType).toContain("multipart/form-data");
     });
 
     it("uses the selected preset endpoint once, preserves headers, and polls /result/:task_id", async () => {
