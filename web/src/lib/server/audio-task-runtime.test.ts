@@ -11,9 +11,10 @@ const mocks = vi.hoisted(() => ({
     schedule: vi.fn(),
     register: vi.fn(),
     writeMedia: vi.fn(),
+    refund: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/store", () => ({ getAuthSettings: vi.fn(), refundUserPoints: vi.fn() }));
+vi.mock("@/lib/auth/store", () => ({ getAuthSettings: vi.fn(), refundUserPoints: mocks.refund }));
 vi.mock("@/lib/server/audio-task-store", () => ({
     getAudioTask: mocks.getTask,
     updateAudioTask: mocks.updateTask,
@@ -181,10 +182,42 @@ describe("audio task runtime submission safety", () => {
     });
 
     it("treats a successful response with invalid JSON as an uncertain submission", async () => {
-        vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(new Response("not-json", { status: 200, headers: { "content-type": "application/json" } })));
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValueOnce(
+                new Response("not-json", {
+                    status: 200,
+                    headers: { "content-type": "application/json", "x-vozeb-pro-points-cost": "1.25", "x-vozeb-pro-points-record-id": "audio-points-unknown" },
+                }),
+            ),
+        );
 
         await expect(createAudioTaskUpstreamStep(state, "http://internal")).rejects.toBeInstanceOf(GenerationSubmissionUncertainError);
         expect(state.config.channelId).toBe("channel-one");
+        expect(state.billing).toEqual({ pointsCost: 1.25, pointsRecordId: "audio-points-unknown", refunded: false });
+        expect(mocks.refund).not.toHaveBeenCalled();
+    });
+
+    it("does not refund when audio success wins the failure transition race", async () => {
+        state = { ...audioTask(), status: "running", billing: { pointsCost: 2, pointsRecordId: "audio-race", refunded: false } };
+        mocks.transitionTask.mockImplementationOnce(async () => {
+            state = { ...state, status: "success" };
+            return null;
+        });
+
+        await expect(markAudioTaskFailed(state, "late failure")).resolves.toMatchObject({ status: "success" });
+        expect(mocks.refund).not.toHaveBeenCalled();
+    });
+
+    it("commits the audio error state before refunding", async () => {
+        state = { ...audioTask(), status: "running", attemptNo: 1, billing: { pointsCost: 2, pointsRecordId: "audio-failed", refunded: false } };
+        mocks.refund.mockImplementationOnce(async () => {
+            expect(state.status).toBe("error");
+            return undefined;
+        });
+
+        await expect(markAudioTaskFailed(state, "provider failed")).resolves.toMatchObject({ status: "error", billing: { refunded: true } });
+        expect(mocks.refund).toHaveBeenCalledOnce();
     });
 });
 

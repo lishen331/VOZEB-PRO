@@ -48,7 +48,7 @@ function buildContentSecurityPolicy(nonce: string, isHttpsRequest: boolean) {
     const isDev = process.env.NODE_ENV !== "production";
     return [
         "default-src 'self'",
-        `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
+        `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""}`,
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob: https:",
         "media-src 'self' data: blob: https:",

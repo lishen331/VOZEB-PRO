@@ -29,6 +29,7 @@ import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
+import { resolveMediaMimeType } from "@/lib/server/media-content-type";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError, generationSubmissionResponseError, generationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
 
 import {
@@ -276,10 +277,11 @@ export function imageSubmissionResponseError(status: number, message: string) {
     return generationSubmissionResponseError(status, message);
 }
 
-export async function parseImageSubmissionJson<T>(response: Response): Promise<T> {
+export async function parseImageSubmissionJson<T>(task: ImageTask, response: Response): Promise<T> {
     try {
         return (await response.json()) as T;
     } catch {
+        await persistChargedImageResponse(task, response.headers);
         throw new GenerationSubmissionUncertainError("图片接口返回了无效 JSON，创建结果待确认");
     }
 }
@@ -301,8 +303,9 @@ export function geminiHeaders(config: ImageTaskConfig, cookie: string, pointsIde
     return headers;
 }
 
-export function imagePointsIdempotencyKey(task: Pick<ImageTask, "id" | "attemptNo">) {
-    return `image-task:${task.id}:attempt:${task.attemptNo || 1}`;
+export function imagePointsIdempotencyKey(task: Pick<ImageTask, "id" | "attemptNo">, variant = "primary") {
+    const suffix = variant.trim();
+    return `image-task:${task.id}:attempt:${task.attemptNo || 1}${suffix && suffix !== "primary" ? `:${suffix}` : ""}`;
 }
 
 export function geminiApiUrl(config: ImageTaskConfig, action: "generateContent", origin: string) {
@@ -325,7 +328,7 @@ export async function parseImagePayloadOrPoll(
     billingContext?: SchoolComputeBillingContext,
 ): Promise<ImageTaskResult> {
     const payloadError = readImagePayloadError(payload);
-    if (payloadError) throw new GenerationSubmissionSafeFailure(payloadError);
+    if (payloadError) throw new ImageUpstreamTerminalError(payloadError);
     const images = findImageResults(payload, mediaBaseUrl, config);
     if (images.length) return imageTaskResultFromMedia(images);
 
@@ -393,7 +396,7 @@ export async function parseImageQueryJson(response: Response): Promise<ImageApiR
 
 export function parseImagePayloadCompat(payload: ImageApiResponse, baseUrl: string, config: ImageTaskConfig): ImageTaskResult | null {
     const error = readImagePayloadError(payload);
-    if (error) throw new Error(error);
+    if (error) throw new ImageUpstreamTerminalError(error);
     const images = findImageResults(payload, baseUrl, config);
     return images.length ? imageTaskResultFromMedia(images) : null;
 }
@@ -412,6 +415,11 @@ export function findImageResults(value: unknown, baseUrl: string, config: ImageT
 function collectImageResults(value: unknown, baseUrl: string, config: ImageTaskConfig, depth: number, images: ImageTaskMediaResult[]) {
     if (!value || depth > 6) return null;
     if (typeof value === "string") {
+        const inlineImage = rawImageBase64DataUrl(value);
+        if (inlineImage) {
+            images.push({ dataUrl: inlineImage });
+            return;
+        }
         const url = resolveImageUrlLike(value, baseUrl, config, false);
         if (url) images.push(url);
         const dataUrl = resolveImageBase64Like(value);
@@ -455,8 +463,16 @@ export function resolveImageBase64Like(value: string) {
     const base64 = value.trim();
     if (!base64) return "";
     if (/^data:image\//i.test(base64)) return base64;
+    const rawImage = rawImageBase64DataUrl(base64);
+    if (rawImage) return rawImage;
     if (base64.length < 64 || !/^[a-z0-9+/=_-]+$/i.test(base64.replace(/\s/g, ""))) return "";
     return `data:image/png;base64,${base64.replace(/\s/g, "")}`;
+}
+
+function rawImageBase64DataUrl(value: string) {
+    const base64 = value.trim().replace(/\s/g, "");
+    const mimeType = base64.startsWith("/9j/") ? "image/jpeg" : base64.startsWith("iVBORw0KGgo") ? "image/png" : base64.startsWith("R0lGOD") ? "image/gif" : base64.startsWith("UklGR") ? "image/webp" : "";
+    return mimeType && /^[a-z0-9+/=_-]+$/i.test(base64) ? `data:${mimeType};base64,${base64}` : "";
 }
 
 export function isLikelyImageUrl(value: string) {
@@ -584,8 +600,8 @@ export async function inlineRemoteImageResult(value: string, origin: string, coo
         if (contentLength > MAX_INLINE_IMAGE_BYTES) return { dataUrl: url, remoteUrl: fallbackUrl };
         const bytes = Buffer.from(await response.arrayBuffer());
         if (bytes.length > MAX_INLINE_IMAGE_BYTES) return { dataUrl: url, remoteUrl: fallbackUrl };
-        const mimeType = response.headers.get("content-type")?.split(";", 1)[0] || "image/png";
-        if (!mimeType.startsWith("image/")) return { dataUrl: url, remoteUrl: fallbackUrl };
+        const mimeType = await resolveMediaMimeType(bytes, "image", response.headers.get("content-type"));
+        if (!mimeType) return { dataUrl: url, remoteUrl: fallbackUrl };
         return { dataUrl: `data:${mimeType};base64,${bytes.toString("base64")}`, remoteUrl: fallbackUrl };
     } catch {
         return { dataUrl: url, remoteUrl: fallbackUrl };
@@ -695,14 +711,15 @@ export function toGeminiImagePart(dataUrl: string, fallbackType?: string): Gemin
 export async function buildImageEditFormData(task: ImageTask, quality: string | undefined, requestSize: string | undefined, origin: string, cookie: string, responseFormat: (typeof IMAGE_RESPONSE_FORMATS)[number], includeCompatibilityFields = true) {
     const formData = new FormData();
     formData.set("model", task.config.model);
-    formData.set("prompt", withSystemPrompt(task.config, buildImageReferencePromptText(task.prompt, task.references)));
-    formData.set("n", "1");
+    formData.set("prompt", withSystemPrompt(task.config, withImageOutputInstructions(task.config, buildImageReferencePromptText(task.prompt, task.references))));
+    if (task.config.outputMode !== "layers") formData.set("n", "1");
     if (includeCompatibilityFields) {
         formData.set("response_format", responseFormat);
         formData.set("output_format", IMAGE_OUTPUT_FORMAT);
     }
     if (quality) formData.set("quality", quality);
     if (requestSize) formData.set("size", requestSize);
+    if (task.config.outputBackground === "transparent") formData.set("background", "transparent");
     const referenceFiles = await Promise.all(task.references.map((reference, index) => imageReferenceToFile(reference, reference.name || `reference-${index + 1}.png`, origin, cookie)));
     referenceFiles.forEach((file) => formData.append("image", file));
     if (task.mask) formData.set("mask", await imageReferenceToFile(task.mask, task.mask.name || "mask.png", origin, cookie));
@@ -729,8 +746,8 @@ export async function imageReferenceToFile(reference: ImageTaskReference, name: 
             const bytes = Buffer.from(await response.arrayBuffer());
             if (!bytes.length) throw new Error("参考图读取失败");
             if (bytes.length > MAX_INLINE_IMAGE_BYTES) throw new Error("参考图过大，请压缩后重试");
-            const mimeType = response.headers.get("content-type")?.split(";", 1)[0] || reference.type || "image/png";
-            if (!mimeType.startsWith("image/")) throw new Error("参考图不是有效图片");
+            const mimeType = await resolveMediaMimeType(bytes, "image", response.headers.get("content-type") || reference.type);
+            if (!mimeType) throw new Error("参考图不是有效图片");
             return new File([bytes], name, { type: mimeType });
         } catch (error) {
             lastError = error;
@@ -792,9 +809,16 @@ export async function parseChargedImageResponse(task: ImageTask, response: Respo
     try {
         return { ...(await parse()), ...readBilling(response.headers) };
     } catch (error) {
-        await refundChargedImageResponse(task, response.headers);
+        if (error instanceof GenerationSubmissionUncertainError) await persistChargedImageResponse(task, response.headers);
+        else await refundChargedImageResponse(task, response.headers);
         throw error;
     }
+}
+
+export async function persistChargedImageResponse(task: ImageTask, headers: Headers) {
+    const { pointsCost, pointsRecordId } = readBilling(headers);
+    if (pointsCost === undefined || !pointsRecordId) return;
+    await updateImageTask(task.id, { billing: { pointsCost, pointsRecordId, refunded: false } });
 }
 
 export async function refundChargedImageResponse(task: ImageTask, headers: Headers) {

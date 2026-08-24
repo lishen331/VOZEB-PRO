@@ -5,8 +5,8 @@ type OpenAiVideoFormInput = {
     model: string;
     prompt: string;
     seconds: number;
-    width: number;
-    height: number;
+    width?: number;
+    height?: number;
     imageUrls: string[];
     origin: string;
     cookie: string;

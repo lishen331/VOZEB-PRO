@@ -126,7 +126,7 @@ function canvasUsageTarget(project: CanvasProject | null) {
 export async function deleteCanvasProjectsForUser(userId: string, value: unknown) {
     const ids = Array.isArray(value) ? value.map((id) => text(id, 160)).filter(Boolean) : [];
     const result = await deleteCanvasProjectAggregates(userId, ids);
-    await deleteUserLocalMediaAssets(userId, result.mediaStorageKeys);
+    await deleteUserMediaAssetsCascade(userId, result.mediaStorageKeys);
     return result.deletedProjects;
 }
 
@@ -141,7 +141,7 @@ export async function deleteCanvasAssistantConversationsForUser(userId: string, 
         if (error instanceof CreativeEntityDeletionConflict) throw new CanvasProjectServiceError(error.message, 409);
         throw error;
     }
-    await deleteUserLocalMediaAssets(userId, result.mediaStorageKeys);
+    await deleteUserMediaAssetsCascade(userId, result.mediaStorageKeys);
     return { deleted: result.deletedConversations, chatSessions: result.canvasAssistantState?.chatSessions || [], activeChatId: result.canvasAssistantState?.activeChatId || null };
 }
 

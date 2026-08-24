@@ -110,7 +110,7 @@ async function refundAlipayPayment(order: BillingOrderRecord, payment: PaymentTr
 
     const response = await fetchSafeOutbound(gateway, {
         method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
+        headers: { "content-type": "application/x-www-form-urlencoded; charset=utf-8" },
         body: new URLSearchParams(params),
     });
     const raw = await response.text();

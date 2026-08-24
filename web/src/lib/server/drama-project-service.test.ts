@@ -297,7 +297,7 @@ describe("drama project service updates", () => {
         await deleteDramaProjectForUser("user-one", "drama-one");
 
         expect(mocks.updateCreativeConversation).toHaveBeenCalledWith("conversation-one", "user-one", { status: "archived" });
-        expect(mocks.deleteUserLocalMediaAssets).toHaveBeenCalled();
+        expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalled();
     });
 
     it("deletes a project-owned drama conversation and returns the replacement project", async () => {
@@ -307,7 +307,7 @@ describe("drama project service updates", () => {
 
         expect(mocks.listAgentRuns).toHaveBeenCalledWith({ userId: "user-one", conversationId: "conversation-one", surface: "drama", statuses: ["planning", "running", "paused"], limit: 1 });
         expect(mocks.deleteDramaConversationAggregate).toHaveBeenCalledWith("user-one", "drama-one", "conversation-one", "conversation-two");
-        expect(mocks.deleteUserLocalMediaAssets).toHaveBeenCalledWith("user-one", ["permanent/agent.png"]);
+        expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("user-one", ["permanent/agent.png"]);
     });
 
     it("rejects deleting a running or unrelated drama conversation", async () => {

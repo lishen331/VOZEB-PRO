@@ -5,6 +5,7 @@ import { getAuthSettings, type UserRole } from "@/lib/auth/store";
 import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled, withPostgresTransaction } from "@/lib/server/database";
 import { collectLocalMediaStorageKeys, countLocalMediaReferences, localMediaStorageKeyFromValue } from "@/lib/server/local-media-references";
 import { deleteLocalMediaAssetsByStorageKeys, deleteUserLocalMediaAssets, GENERATION_MEDIA_ROOT } from "@/lib/server/local-media-storage";
+import { deleteUserMediaAssetsCascade } from "@/lib/server/user-media-deletion-service";
 import { getLocalMediaRegistration } from "@/lib/server/local-media-registry";
 import {
     defaultSummary,
@@ -160,7 +161,7 @@ export async function recordGenerationLog(input: GenerationLogInput) {
     });
 }
 
-export async function deleteGenerationLogs(ids: string[]) {
+export async function deleteGenerationLogs(ids: string[], options: { cascadeUserMedia?: boolean } = {}) {
     const normalizedIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
     if (!normalizedIds.length) return { deleted: 0 };
     if (isPostgresDatabaseEnabled()) {
@@ -171,7 +172,7 @@ export async function deleteGenerationLogs(ids: string[]) {
             await repository.delete(logs.map((log) => log.id));
             return logs.map(toStoredGenerationLog);
         });
-        await deleteRemovedLogMedia(removed);
+        await deleteRemovedLogMedia(removed, options.cascadeUserMedia);
         return { deleted: removed.length };
     }
     let removed: StoredGenerationLog[] = [];
@@ -181,7 +182,7 @@ export async function deleteGenerationLogs(ids: string[]) {
         db.logs = db.logs.filter((log) => !idSet.has(log.id));
         return { deleted: removed.length };
     });
-    await deleteRemovedLogMedia(removed);
+    await deleteRemovedLogMedia(removed, options.cascadeUserMedia);
     return result;
 }
 
@@ -312,14 +313,14 @@ function uniqueGenerationLogs<T extends { id: string }>(logs: T[]) {
     return Array.from(new Map(logs.map((log) => [log.id, log])).values());
 }
 
-async function deleteRemovedLogMedia(logs: StoredGenerationLog[]) {
+async function deleteRemovedLogMedia(logs: StoredGenerationLog[], cascadeUserMedia = false) {
     const byUser = new Map<string, Set<string>>();
     logs.forEach((log) => {
         const keys = byUser.get(log.userId) || new Set<string>();
         collectLocalMediaStorageKeys(log.assets).forEach((key) => keys.add(key));
         byUser.set(log.userId, keys);
     });
-    await Promise.all(Array.from(byUser, ([userId, keys]) => deleteUserLocalMediaAssets(userId, Array.from(keys))));
+    await Promise.all(Array.from(byUser, ([userId, keys]) => (cascadeUserMedia ? deleteUserMediaAssetsCascade(userId, Array.from(keys)) : deleteUserLocalMediaAssets(userId, Array.from(keys)))));
 }
 
 function collectGenerationLogAssetKeys(db: Awaited<ReturnType<typeof readGenerationLogDb>>) {

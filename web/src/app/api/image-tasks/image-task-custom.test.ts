@@ -13,8 +13,8 @@ import { readVerifiedSystemAiBusinessRequestId } from "@/lib/server/system-ai-bi
 import { pollCustomImageTask, resolveDeclarativeImageSize } from "./image-task-custom";
 
 describe("declarative image request size", () => {
-    it("uses a concrete square size for Stable Diffusion auto requests", () => {
-        expect(resolveDeclarativeImageSize({ quality: "auto", size: "auto", advancedConfig: { ...emptyAdvancedConfig(), protocol: "stable-diffusion" } })).toBe("1024x1024");
+    it("does not turn Stable Diffusion intelligent requests into a square size", () => {
+        expect(resolveDeclarativeImageSize({ quality: "auto", size: "auto", advancedConfig: { ...emptyAdvancedConfig(), protocol: "stable-diffusion" } })).toBe("");
     });
 
     it("preserves explicit dimensions and does not invent custom protocol defaults", () => {

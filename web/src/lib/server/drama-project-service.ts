@@ -47,6 +47,7 @@ export async function createDramaProjectForUser(userId: string, value: unknown, 
     const projectId = input.sourceHandoffId ? `drama-${input.sourceHandoffId}` : `drama-${nanoid()}`;
     const episode: DramaEpisode = {
         id: `episode-${nanoid()}`,
+        episodeNumber: 1,
         title: "第 1 集",
         script: input.initialScript,
         outline: "",
@@ -157,7 +158,7 @@ export async function deleteDramaProjectForUser(userId: string, id: string) {
     const deleted = await deleteDramaProject(userId, projectId);
     if (!deleted) throw new DramaProjectServiceError("短剧项目不存在", 404);
     if (current?.creativeConversationId) await updateCreativeConversation(current.creativeConversationId, userId, { status: "archived" });
-    if (current) await deleteUserLocalMediaAssets(userId, collectLocalMediaStorageKeys(current));
+    if (current) await deleteUserMediaAssetsCascade(userId, collectLocalMediaStorageKeys(current));
 }
 
 export async function deleteDramaAgentConversationForUser(userId: string, projectIdValue: string, conversationIdValue: unknown) {
@@ -190,7 +191,7 @@ export async function deleteDramaAgentConversationForUser(userId: string, projec
         if (error instanceof CreativeEntityDeletionConflict) throw new DramaProjectServiceError(error.message, 409);
         throw error;
     }
-    await deleteUserLocalMediaAssets(userId, result.mediaStorageKeys);
+    await deleteUserMediaAssetsCascade(userId, result.mediaStorageKeys);
     const updatedProject = result.dramaProject || project;
     return { deleted: result.deletedConversations > 0, activeConversationId: updatedProject.creativeConversationId || "", project: updatedProject };
 }
@@ -217,7 +218,7 @@ function normalizeCreateInput(value: unknown): Required<Omit<CreateDramaProjectI
 export function normalizeProject(value: unknown, current: DramaProject): DramaProject {
     const input = object(value);
     const episodes = array(input.episodes)
-        .map(normalizeEpisode)
+        .map((value, index) => normalizeEpisode(value, index))
         .filter((episode): episode is DramaEpisode => Boolean(episode));
     if (!episodes.length) throw new DramaProjectServiceError("短剧项目至少需要一集", 400);
     const activeEpisodeId = cleanText(input.activeEpisodeId);
@@ -274,6 +275,7 @@ function normalizeEpisode(value: unknown): DramaEpisode | null {
     const scriptRichContent = normalizeDramaScriptRichContent(input.scriptRichContent);
     return {
         id,
+        episodeNumber: optionalPositiveInteger(input.episodeNumber) || index + 1,
         title: cleanText(input.title) || "未命名剧集",
         script: scriptRichContent ? dramaRichContentToPlainText(scriptRichContent).trim() : script,
         scriptRichContent,
