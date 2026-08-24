@@ -30,9 +30,9 @@ export class CanvasImageDecompositionError extends Error {
 export async function decomposeCanvasImage(input: { origin: string; cookie: string; userId: string; requestId: string; source: string }): Promise<CanvasImageDecomposition> {
     const settings = await getAuthSettings();
     const model = settings.defaultModels.visionModel || "";
-    if (!model) throw new CanvasImageDecompositionError("后台尚未配置 Canvas 图片理解模型，请在模型渠道的逻辑模型路由中选择支持视觉输入的文本模型", 503);
+    if (!model) throw new CanvasImageDecompositionError("后台尚未配置 Canvas 图片理解模型，请在模型渠道的逻辑模型路由中选择文本模型", 503);
     const candidates = resolveVisionModelCandidates(settings, model);
-    if (!candidates.length) throw new CanvasImageDecompositionError("Canvas 图片理解模型不可用或未声明视觉输入能力，请在该模型的能力档案中启用“视觉输入（图片理解）”", 503);
+    if (!candidates.length) throw new CanvasImageDecompositionError("Canvas 图片理解模型不可用，请检查模型绑定和渠道状态", 503);
     const source = await readSourceImage(input.source, input.origin, input.cookie);
 
     let latestError: unknown;

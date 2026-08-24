@@ -51,13 +51,15 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
     const activeExecutionProfile = defaultPool === "production" ? "production" : "open-source-practice";
     const isEligibleDefaultModel = (field: (typeof defaultFields)[number], model: LogicalModel) =>
         model.capability === field.capability &&
-        isLogicalModelResolvable(logicalModels, channels, field.capability, model.id, activeExecutionProfile) &&
-        (field.key !== "visionModel" || logicalModelSupportsImageInput(logicalModels, channels, field.capability, model.id, activeExecutionProfile));
+        // Canvas can be pointed at any reachable text model. The image-input
+        // capability flag is advisory and does not hide otherwise usable routes.
+        isLogicalModelResolvable(logicalModels, channels, field.capability, model.id, activeExecutionProfile);
     const availableDefaultFields = defaultFields.filter((field) => field.key === "visionModel" || logicalModels.some((model) => isEligibleDefaultModel(field, model)));
     const availableCapabilityOptions = capabilityOptions.filter(({ value }) => availableDefaultFields.some(({ capability }) => capability === value));
     const readyCount = availableDefaultFields.filter((field) => {
         const selected = logicalModels.find((model) => model.id === activeDefaults[field.key]);
-        return Boolean(selected && isEligibleDefaultModel(field, selected));
+        const routeReady = Boolean(selected && isEligibleDefaultModel(field, selected));
+        return field.key === "visionModel" ? routeReady && logicalModelSupportsImageInput(logicalModels, channels, "text", selected?.id || "", activeExecutionProfile) : routeReady;
     }).length;
 
     const openEdit = (model: LogicalModel) => {
@@ -97,12 +99,13 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
         message.success(`已按上游模型名同步 ${nextModels.length} 个逻辑模型`);
     };
 
-    const updateDefault = (key: keyof SystemDefaultModels, modelId: string) =>
+    const updateDefault = (key: keyof SystemDefaultModels, modelId: string) => {
         onChange({
             logicalModels,
             defaultModels: defaultPool === "production" ? { ...defaultModels, [key]: modelId } : defaultModels,
             practiceDefaultModels: defaultPool === "production" ? practiceDefaultModels : { ...practiceDefaultModels, [key]: modelId },
         });
+    };
 
     return (
         <section className="border-t border-stone-200 pt-5 dark:border-stone-800">
@@ -177,7 +180,12 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                     <p className="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">练习默认模型只显示 shared 或 open-source-practice 渠道绑定；生产默认模型不会参与练习路由。</p>
                     <div className="mt-4 space-y-4">
                         {availableDefaultFields.map(({ capability, key, label }) => {
-                            const options = logicalModels.filter((model) => isEligibleDefaultModel({ capability, key, label }, model)).map((model) => ({ label: model.name, value: model.id }));
+                            const options = logicalModels
+                                .filter((model) => isEligibleDefaultModel({ capability, key, label }, model))
+                                .map((model) => ({
+                                    label: key === "visionModel" && !logicalModelSupportsImageInput(logicalModels, channels, "text", model.id, activeExecutionProfile) ? `${model.name}（未声明视觉输入，按实际上游验证）` : model.name,
+                                    value: model.id,
+                                }));
                             const selected = logicalModels.find((model) => model.id === activeDefaults[key]);
                             const resolved =
                                 selected && isEligibleDefaultModel({ capability, key, label }, selected)
@@ -200,9 +208,22 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                                     />
                                     <div className={`mt-1 flex items-center gap-1 text-xs ${resolved ? "text-stone-500 dark:text-stone-400" : "text-amber-600 dark:text-amber-400"}`}>
                                         {!resolved ? <AlertTriangle className="size-3.5 shrink-0" /> : null}
-                                        <span>{resolved ? `实际路由：${resolved.channel.name} / ${resolved.binding.upstreamModel}` : activeDefaults[key] ? "当前默认模型不可解析" : "尚未设置默认模型"}</span>
+                                        <span>
+                                            {resolved
+                                                ? `实际路由：${resolved.channel.name} / ${resolved.binding.upstreamModel}${key === "visionModel" && !logicalModelSupportsImageInput(logicalModels, channels, "text", selected?.id || "", activeExecutionProfile) ? "（视觉输入未声明，按实际上游验证）" : ""}`
+                                                : activeDefaults[key]
+                                                  ? "当前默认模型不可解析"
+                                                  : "尚未设置默认模型"}
+                                        </span>
                                     </div>
-                                    {key === "visionModel" && !options.length ? <Alert className="mt-2" type="info" showIcon message="先在文本模型绑定的能力档案中启用“支持视觉输入（Canvas）”，再选择 Canvas 图片理解模型。" /> : null}
+                                    {key === "visionModel" ? (
+                                        <Alert
+                                            className="mt-2"
+                                            type="info"
+                                            showIcon
+                                            message={options.length ? "Canvas 可选择任意已连通的文本模型；能力档案中的图片输入标记仅作提示，最终以上游实际能力为准。" : "暂无可连通的文本模型，请先启用一个文本逻辑模型及其渠道绑定。"}
+                                        />
+                                    ) : null}
                                 </LabeledControl>
                             );
                         })}

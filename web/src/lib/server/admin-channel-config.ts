@@ -1,7 +1,7 @@
 import type { ApiCallFormat, AuthSettings, LogicalModel, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
 import { hasAdminPermission } from "@/lib/admin-permissions";
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
-import { isLogicalModelResolvable, isVisionModelResolvable } from "@/lib/model-routing-config";
+import { isLogicalModelResolvable, resolveVisionModelConfig } from "@/lib/model-routing-config";
 import { isEncryptedSecretValue } from "@/lib/server/secret-crypto";
 import { normalizeModelId } from "@/lib/model-capability";
 
@@ -117,8 +117,8 @@ export function practiceDefaultModelValidationErrors(defaults: Partial<SystemDef
         }
     }
     const visionModel = typeof defaults?.visionModel === "string" ? defaults.visionModel.trim() : "";
-    if (visionModel && !isVisionModelResolvable(logicalModels, channels, visionModel, "open-source-practice")) {
-        errors.push(`练习默认视觉理解模型不可解析或未声明图片输入能力：${visionModel}`);
+    if (visionModel && !resolveVisionModelConfig(logicalModels, channels, visionModel, "open-source-practice")) {
+        errors.push(`练习默认视觉理解模型不可解析：${visionModel}`);
     }
     return errors;
 }

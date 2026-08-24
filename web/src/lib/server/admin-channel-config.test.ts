@@ -187,6 +187,7 @@ describe("admin channel config", () => {
         const logicalModels = [{ id: "vision-model", name: "Vision", capability: "text" as const, enabled: true, bindings: [{ id: "vision-binding", channelId: channel.id, upstreamModel: "vision-model", enabled: true, priority: 1 }] }];
 
         expect(practiceDefaultModelValidationErrors({ visionModel: "vision-model" }, logicalModels, [channel])).toEqual([]);
-        expect(practiceDefaultModelValidationErrors({ visionModel: "vision-model" }, logicalModels, [{ ...channel, advancedConfig: { ...channel.advancedConfig, modelConfigs: { "vision-model": { capability: "text" as const } } } }])[0]).toContain("视觉");
+        expect(practiceDefaultModelValidationErrors({ visionModel: "vision-model" }, logicalModels, [{ ...channel, advancedConfig: { ...channel.advancedConfig, modelConfigs: { "vision-model": { capability: "text" as const } } } }])).toEqual([]);
+        expect(practiceDefaultModelValidationErrors({ visionModel: "missing-model" }, logicalModels, [channel])[0]).toContain("视觉");
     });
 });

@@ -4,9 +4,13 @@ import { inferModelCapability, isCreativeGenerationModel, normalizeModelId } fro
 import { channelConnectionReady, protocolCatalogCapability, resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
 import { resolvePracticeModelAccess, type PracticeExecutionProfile } from "@/lib/practice-domain";
 
-const DEFAULT_MODEL_FIELDS: ReadonlyArray<{ capability: LogicalModelCapability; key: keyof SystemDefaultModels; allowFallback?: boolean; requiresImageInput?: boolean }> = [
+const DEFAULT_MODEL_FIELDS: ReadonlyArray<{ capability: LogicalModelCapability; key: keyof SystemDefaultModels; allowFallback?: boolean }> = [
     { capability: "text", key: "textModel" },
-    { capability: "text", key: "visionModel", allowFallback: false, requiresImageInput: true },
+    // Canvas uses a text-capability multimodal endpoint. The administrator
+    // may select any reachable text model; supportsImageInput remains an
+    // advisory/verified capability flag and must not hide otherwise usable
+    // models from the default selector.
+    { capability: "text", key: "visionModel", allowFallback: false },
     { capability: "image", key: "imageModel" },
     { capability: "video", key: "videoModel" },
     { capability: "audio", key: "audioModel" },
@@ -93,15 +97,13 @@ export function normalizeDefaultModelsConfig(
     const allowFallback = options?.allowFallback ?? executionProfile === "production";
     const legacyDefaults = defaults as (Partial<SystemDefaultModels> & { imageUnderstandingModel?: unknown }) | undefined;
     return Object.fromEntries(
-        DEFAULT_MODEL_FIELDS.map(({ capability, key, allowFallback: allowFieldFallback, requiresImageInput }) => {
+        DEFAULT_MODEL_FIELDS.map(({ capability, key, allowFallback: allowFieldFallback }) => {
             const modelId = key === "visionModel" ? text(defaults?.visionModel ?? legacyDefaults?.imageUnderstandingModel, 120) : text(defaults?.[key], 120);
             if (!modelId) return [key, ""];
-            const isResolvable = requiresImageInput ? isVisionModelResolvable(logicalModels, channels, modelId, executionProfile) : isLogicalModelResolvable(logicalModels, channels, capability, modelId, executionProfile);
+            const isResolvable = isLogicalModelResolvable(logicalModels, channels, capability, modelId, executionProfile);
             if (isResolvable) return [key, modelId];
             if (!(allowFieldFallback ?? allowFallback)) return [key, ""];
-            const fallback = logicalModels.find(
-                (model) => model.capability === capability && (requiresImageInput ? isVisionModelResolvable(logicalModels, channels, model.id, executionProfile) : isLogicalModelResolvable(logicalModels, channels, capability, model.id, executionProfile)),
-            );
+            const fallback = logicalModels.find((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, executionProfile));
             return [key, fallback?.id || ""];
         }),
     ) as SystemDefaultModels;
@@ -113,7 +115,16 @@ export function isLogicalModelResolvable(logicalModels: LogicalModel[], channels
 
 export function logicalModelSupportsImageInput(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string, executionProfile: PracticeExecutionProfile = "production") {
     if (capability !== "text") return false;
-    return Boolean(resolveVisionModelConfig(logicalModels, channels, modelId, executionProfile));
+    const logical = logicalModels.find((model) => model.enabled && model.capability === "text" && model.id.toLowerCase() === rawModelName(modelId).toLowerCase());
+    if (!logical) return false;
+    return logical.bindings
+        .filter((binding) => binding.enabled)
+        .some((binding) => {
+            const channel = channels.find(
+                (item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel),
+            );
+            return Boolean(channel && resolveLogicalModelCapabilityProfile(binding, "text", channel, binding.upstreamModel)?.supportsImageInput);
+        });
 }
 
 export function resolveVisionModelConfig(logicalModels: LogicalModel[], channels: SystemModelChannel[], modelId: string, executionProfile: PracticeExecutionProfile = "production") {
@@ -128,14 +139,14 @@ export function resolveVisionModelConfig(logicalModels: LogicalModel[], channels
                 const channel = channels.find(
                     (item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel),
                 );
-                return channel && resolveLogicalModelCapabilityProfile(binding, capability, channel, binding.upstreamModel)?.supportsImageInput ? { logicalModel: logical, binding, channel } : null;
+                return channel ? { logicalModel: logical, binding, channel } : null;
             })
             .find(Boolean) || null
     );
 }
 
 export function isVisionModelResolvable(logicalModels: LogicalModel[], channels: SystemModelChannel[], modelId: string, executionProfile: PracticeExecutionProfile = "production") {
-    return logicalModelSupportsImageInput(logicalModels, channels, "text", modelId, executionProfile);
+    return Boolean(resolveVisionModelConfig(logicalModels, channels, modelId, executionProfile));
 }
 
 export function resolveLogicalModelConfig(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string, executionProfile: PracticeExecutionProfile = "production") {
@@ -168,10 +179,10 @@ export function modelRoutingValidationErrors(logicalModels: LogicalModel[], chan
             bindingKeys.add(bindingKey);
         }
     }
-    for (const { capability, key, requiresImageInput } of DEFAULT_MODEL_FIELDS) {
+    for (const { capability, key } of DEFAULT_MODEL_FIELDS) {
         const modelId = defaults[key];
-        const resolvable = requiresImageInput ? isVisionModelResolvable(logicalModels, channels, modelId || "") : isLogicalModelResolvable(logicalModels, channels, capability, modelId || "");
-        if (modelId && !resolvable) errors.push(requiresImageInput ? `默认视觉理解模型不可解析或未声明图片输入能力：${modelId}` : `默认${capabilityLabel(capability)}模型不可解析：${modelId}`);
+        const resolvable = isLogicalModelResolvable(logicalModels, channels, capability, modelId || "");
+        if (modelId && !resolvable) errors.push(key === "visionModel" ? `默认视觉理解模型不可解析：${modelId}` : `默认${capabilityLabel(capability)}模型不可解析：${modelId}`);
     }
     return Array.from(new Set(errors));
 }

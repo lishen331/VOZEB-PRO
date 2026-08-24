@@ -56,7 +56,7 @@ afterAll(async () => {
 beforeEach(() => {
     fixture.requests.splice(0);
     mocks.getAuthSettings.mockReset().mockResolvedValue({ defaultModels: { textModel: "planner", visionModel: "vision-planner" } });
-    mocks.resolveVisionModelCandidates.mockReset().mockReturnValue([{ ...candidate, capabilityProfile: { supportsImageInput: true } }]);
+    mocks.resolveVisionModelCandidates.mockReset().mockReturnValue([{ ...candidate }]);
     mocks.refundGenerationCharge.mockReset();
     mocks.fetchInternalApi.mockReset().mockImplementation((input: string | URL, init?: RequestInit) => fetch(input, init));
 });
@@ -115,7 +115,7 @@ describe("canvas image decomposition service protocol integration", () => {
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
     });
 
-    it("rejects a text model that has not declared image input", async () => {
+    it("rejects when no reachable text binding is available", async () => {
         mocks.resolveVisionModelCandidates.mockReturnValueOnce([]);
 
         await expect(decomposeCanvasImage({ origin, cookie: "", userId: "user-one", requestId: "request-no-image-input", source })).rejects.toMatchObject({ status: 503 });

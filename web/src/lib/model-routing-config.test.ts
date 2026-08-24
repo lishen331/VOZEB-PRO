@@ -6,6 +6,7 @@ import {
     channelModelCapability,
     deriveLogicalModelsConfig,
     isLogicalModelResolvable,
+    isVisionModelResolvable,
     mergeChannelModelsIntoLogicalModels,
     modelRoutingValidationErrors,
     normalizeDefaultModelsConfig,
@@ -335,5 +336,35 @@ describe("model routing config", () => {
 
         expect(logicalModelSupportsImageInput(models, [source], "text", "vision")).toBe(true);
         expect(logicalModelSupportsImageInput(models, [source], "text", "reference-only")).toBe(false);
+    });
+
+    it("allows any reachable text model to be selected for Canvas while keeping image support advisory", () => {
+        const source = channel("newapi", ["gpt-5.6-sol"]);
+        source.advancedConfig = { protocol: "newapi" } as never;
+        const models = deriveLogicalModelsConfig([source]);
+
+        expect(isVisionModelResolvable(models, [source], "gpt-5.6-sol")).toBe(true);
+        expect(normalizeDefaultModelsConfig({ visionModel: "gpt-5.6-sol" }, models, [source]).visionModel).toBe("gpt-5.6-sol");
+        expect(logicalModelSupportsImageInput(models, [source], "text", "gpt-5.6-sol")).toBe(false);
+    });
+
+    it("checks advisory image support across all reachable bindings", () => {
+        const primary = channel("primary", ["gpt-5.6-sol"]);
+        const backup = channel("backup", ["gpt-5.6-sol"]);
+        backup.advancedConfig = { modelConfigs: { "gpt-5.6-sol": { capability: "text", supportsImageInput: true } } } as never;
+        const models: LogicalModel[] = [
+            {
+                id: "gpt-5.6-sol",
+                name: "GPT-5.6 Sol",
+                capability: "text",
+                enabled: true,
+                bindings: [
+                    { id: "primary", channelId: "primary", upstreamModel: "gpt-5.6-sol", enabled: true, priority: 1 },
+                    { id: "backup", channelId: "backup", upstreamModel: "gpt-5.6-sol", enabled: true, priority: 2 },
+                ],
+            },
+        ];
+
+        expect(logicalModelSupportsImageInput(models, [primary, backup], "text", "gpt-5.6-sol")).toBe(true);
     });
 });
