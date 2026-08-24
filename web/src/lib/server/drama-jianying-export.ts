@@ -5,13 +5,17 @@ import { extname, join, relative } from "node:path";
 import { AudioMaterial, AudioSegment, ClipSettings, DraftFolder, TextSegment, TextStyle, TrackType, VideoMaterial, VideoSegment, trange } from "jsjianyingdraft";
 import { zipSync } from "fflate";
 
-import type { DramaEpisode, DramaProject } from "@/lib/drama-project-contract";
+import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 import { dramaOutputDimensions } from "@/lib/drama-image-size";
 import { downloadMediaToFile } from "@/lib/server/media-download";
 
 const MAX_MEDIA_BYTES = 200 * 1024 * 1024;
 
-export async function exportDramaEpisodeAsJianying(input: { project: DramaProject; episode: DramaEpisode; draftPath: string; version: "5" | "6"; origin: string; cookie?: string }) {
+type JianyingExportShot = Pick<DramaShot, "videoUrl" | "audioUrl" | "duration" | "subtitle" | "dialogue" | "narration">;
+type JianyingExportProject = Pick<DramaProject, "title" | "ratio">;
+type JianyingExportEpisode = Pick<DramaEpisode, "title"> & { shots: JianyingExportShot[] };
+
+export async function exportDramaEpisodeAsJianying(input: { project: JianyingExportProject; episode: JianyingExportEpisode; draftPath: string; version: "5" | "6"; origin: string; cookie?: string }) {
     const clips = input.episode.shots.filter((shot) => shot.videoUrl);
     if (!clips.length) throw new DramaJianyingExportError("本集还没有可导出的视频", 422);
     const draftPath = normalizeDraftPath(input.draftPath);

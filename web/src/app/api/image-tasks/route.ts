@@ -7,6 +7,7 @@ import { getAuthSettings, isAuthInputError, refundUserPoints } from "@/lib/auth/
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
 import { fetchInternalApi, isInternalApiBaseUrl, resolveInternalOrigin } from "@/lib/server/internal-origin";
+import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { resolveGeneratedMediaUrl } from "@/lib/media-url";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
@@ -215,7 +216,7 @@ export async function POST(request: Request) {
         });
         await linkStoredGenerationTask("image", task.id, trustedContext);
         const cookie = request.headers.get("cookie") || "";
-        const origin = resolveInternalOrigin(new URL(request.url).origin);
+        const origin = resolveInternalOrigin(resolvePublicRequestOrigin(request));
         const publicOrigin = requestPublicOrigin(request);
         await scheduleGenerationTask("image", task.id, { executionPhase: "created", channelId: task.config.channelId, provider: task.config.advancedConfig?.protocol || task.config.apiFormat, nextPollAt: Date.now(), lastUpstreamStatus: "created" });
         after(() => runGenerationTaskRecoveryBatch({ origin, publicOrigin, cookie, limit: 1, taskIds: [task.id] }));

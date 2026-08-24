@@ -80,6 +80,7 @@ VOZEB PRO 的 PostgreSQL 真实表名统一使用项目名前缀 `vozeb_pro_`。
 - `vozeb_pro_library_assets`：用户素材库聚合记录，保存文本或服务器媒体引用、标签、来源和备注；不保存媒体 base64，素材页按用户、类型、关键词和页码在服务端裁剪。
 - `vozeb_pro_local_media_assets`：图片、视频和音频的统一媒体登记表，保存稳定站内 `storage_key`、本地/对象存储 Provider、对象存储配置与对象 Key、同步时间、临时/长期分类、用户归属、原文件名、来源、会话/Run/任务/项目关联、MIME、大小和过期时间；媒体读取与删除以该登记和业务引用检查为权限边界。
 - `vozeb_pro_drama_projects`：短剧项目聚合快照，保存用户、标题、状态和完整 `project_json`；`execution_profile` 与可选拉片来源在创建后不可变；项目内包含创作会话 ID、多集、角色/场景/道具/线索、内容审核状态、分镜及图片、视频、音频、整集合成任务状态，并按用户、执行 profile 与更新时间建立列表索引。
+- `vozeb_pro_drama_lab_*`（16 张表）：隔离的短剧工作流实验室数据域，包括 AI 配置、角色/场景/道具库、异步任务、图片/视频生成、视频合并、实验资产、图片代理缓存、模型映射、全局设置、提示词模板、业务场景、生成设置和 SD2 资产。所有用户数据按 `user_id` 定向查询，项目关联表按 `project_id` 建立索引；提示词模板使用稳定 `template_key`，生成并发、批量大小和超时由数据库 CHECK 约束。旧的无项目名前缀 `drama_lab_*` 表只在目标前缀表不存在时改名为 `vozeb_pro_drama_lab_*`，不会覆盖已存在的新表。
 - `vozeb_pro_practice_sessions`：剧本、分镜图、分镜视频、配音和音乐练习会话，按用户保存所属项目、公开输入、任务引用和状态；只允许 `open-source-practice` 执行 profile，并使用用户与项目定向分页索引。
 - `vozeb_pro_practice_copy_requests`：作品复制到练习的幂等声明，以 `(user_id, client_request_id)` 为主键保存来源版本和结果项目；同一用户重试返回原项目，不同用户可复用同一客户端请求 ID。
 - `vozeb_pro_drama_project_versions`：短剧项目独立版本快照，按项目保存递增版本号、保存原因、完整快照和创建时间；项目或用户删除时级联删除，`(project_id, version)` 保持唯一。

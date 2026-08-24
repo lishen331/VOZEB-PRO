@@ -11,7 +11,9 @@ import {
     channelProtocolOptions,
     channelSupportsModelCatalog,
     channelProtocolValidationErrors,
+    normalizeStrictChannelModelConfigs,
     normalizeStrictProtocolModelConfig,
+    protocolModelConfig,
     protocolAuthHeaders,
     resolveChannelModelConfig,
 } from "./channel-protocol-registry";
@@ -241,6 +243,19 @@ describe("channel protocol registry", () => {
         expect(channelProtocolValidationErrors(configured)).toEqual([]);
     });
 
+    it("repairs stale strict model routes before an admin settings save", () => {
+        const stale = applyChannelProtocol({ ...channel, models: ["doubao-seedance-2-0"] }, "newapi");
+        const key = "doubao-seedance-2-0";
+        stale.advancedConfig!.modelConfigs![key] = {
+            ...stale.advancedConfig!.modelConfigs![key],
+            createPath: "/videos",
+            imageToVideoPath: "/videos",
+        };
+
+        expect(channelProtocolValidationErrors(stale)).toContain("doubao-seedance-2-0 的创建路径必须为 /video/generations");
+        expect(normalizeStrictChannelModelConfigs(stale).advancedConfig?.modelConfigs?.[key]).toEqual(protocolModelConfig("newapi", "video", key));
+    });
+
     it("rejects unsafe custom authentication header names", () => {
         const configured = applyChannelProtocol(channel, "custom");
         configured.advancedConfig = { ...configured.advancedConfig!, authMode: "custom-header", authHeader: "Cookie" };
@@ -258,5 +273,37 @@ describe("channel protocol registry", () => {
                 "opaque",
             ),
         ).toMatchObject({ capability: "video", protocol: "custom", createPath: "/jobs" });
+    });
+
+    it("routes New API Doubao Seedance models through the JSON task contract", () => {
+        const configured = applyChannelProtocol({ ...channel, models: ["doubao-seedance-2-0"] }, "newapi");
+        expect(resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0")).toMatchObject({
+            capability: "video",
+            protocol: "newapi",
+            createPath: "/video/generations",
+            imageToVideoPath: "/video/generations",
+            queryPath: "/video/generations/:task_id",
+            requestTemplate: expect.stringContaining("{{seconds_string}}"),
+            resultField: "metadata.url",
+        });
+        expect(resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0-fast")).toMatchObject({ protocol: "newapi", createPath: "/video/generations" });
+        expect(resolveChannelModelConfig(configured.advancedConfig, "kling-v3")).toMatchObject({ protocol: "newapi", createPath: "/videos" });
+    });
+
+    it("repairs a channel-level stale New API video operation when Seedance has no model entry", () => {
+        const configured = applyChannelProtocol({ ...channel, models: ["doubao-seedance-2-0"] }, "newapi");
+        const advanced = configured.advancedConfig!;
+        delete advanced.modelConfigs!["doubao-seedance-2-0"];
+        advanced.operationConfigs!.video = {
+            ...advanced.operationConfigs!.video!,
+            createPath: "/video/generations",
+            requestTemplate: '{"model":"{{model}}","content":[{"type":"text","text":"{{prompt}}"}]}',
+        };
+
+        expect(resolveChannelModelConfig(advanced, "doubao-seedance-2-0")).toMatchObject({
+            protocol: "newapi",
+            createPath: "/video/generations",
+            requestTemplate: expect.stringContaining("{{seconds_string}}"),
+        });
     });
 });

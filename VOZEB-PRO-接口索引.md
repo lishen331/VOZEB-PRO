@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-08-21。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **239** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-08-24。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **266** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**239**
-- 方法出现次数：DELETE 29、GET 140、HEAD 6、PATCH 44、POST 119、PUT 1
-- 一级域：`admin` 74、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 3、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 22、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 1、`video-tasks` 2、`works` 7
+- Route 文件：**266**
+- 方法出现次数：DELETE 36、GET 153、HEAD 6、PATCH 44、POST 135、PUT 7
+- 一级域：`admin` 90、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 3、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 22、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（74）
+### `admin`（90）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -65,6 +65,22 @@
 | GET, POST | `/api/admin/courses` | 管理员 | [route.ts](web/src/app/api/admin/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses：查询、提交/执行 |
 | GET, PATCH | `/api/admin/courses/[id]` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项：查询、更新 |
 | POST | `/api/admin/courses/[id]/schools` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/schools/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项 / schools：提交/执行 |
+| GET, POST | `/api/admin/drama-lab/ai-configs` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/ai-configs/route.ts) | [admin-permissions](web/src/lib/admin-permissions.ts)<br>[request](web/src/lib/auth/request.ts)<br>[session](web/src/lib/auth/session.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / ai-configs：查询、提交/执行 |
+| DELETE, PUT | `/api/admin/drama-lab/ai-configs/[id]` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/ai-configs/[id]/route.ts) | [admin-permissions](web/src/lib/admin-permissions.ts)<br>[request](web/src/lib/auth/request.ts)<br>[session](web/src/lib/auth/session.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / ai-configs / 单项：删除、替换 |
+| POST | `/api/admin/drama-lab/ai-configs/[id]/test` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/ai-configs/[id]/test/route.ts) | [admin-permissions](web/src/lib/admin-permissions.ts)<br>[session](web/src/lib/auth/session.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / ai-configs / 单项 / 测试：提交/执行 |
+| GET, POST | `/api/admin/drama-lab/business-scenarios` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/business-scenarios/route.ts) | [request](web/src/lib/auth/request.ts)<br>[index](web/src/lib/server/database/index.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / business-scenarios：查询、提交/执行 |
+| DELETE, PUT | `/api/admin/drama-lab/business-scenarios/[id]` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/business-scenarios/[id]/route.ts) | [request](web/src/lib/auth/request.ts)<br>[index](web/src/lib/server/database/index.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / business-scenarios / 单项：删除、替换 |
+| DELETE, GET, POST, PUT | `/api/admin/drama-lab/generation-settings` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/generation-settings/route.ts) | [request](web/src/lib/auth/request.ts)<br>[index](web/src/lib/server/database/index.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / generation-settings：查询、删除、提交/执行、替换 |
+| GET, POST | `/api/admin/drama-lab/prompt-templates` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/prompt-templates/route.ts) | [drama-lab-prompt-templates](web/src/lib/drama-lab-prompt-templates.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / prompt-templates：查询、提交/执行 |
+| DELETE, PUT | `/api/admin/drama-lab/prompt-templates/[id]` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/prompt-templates/[id]/route.ts) | [drama-lab-prompt-templates](web/src/lib/drama-lab-prompt-templates.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / prompt-templates / 单项：删除、替换 |
+| GET, POST | `/api/admin/drama-lab/sd2-assets` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/sd2-assets/route.ts) | [request](web/src/lib/auth/request.ts)<br>[index](web/src/lib/server/database/index.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / sd2-assets：查询、提交/执行 |
+| DELETE, PUT | `/api/admin/drama-lab/sd2-assets/[id]` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/sd2-assets/[id]/route.ts) | [request](web/src/lib/auth/request.ts)<br>[index](web/src/lib/server/database/index.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / sd2-assets / 单项：删除、替换 |
+| GET | `/api/admin/drama-lab/sd2-assets/[id]/download` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/sd2-assets/[id]/download/route.ts) | [index](web/src/lib/server/database/index.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / sd2-assets / 单项 / download：查询 |
+| POST | `/api/admin/drama-lab/sd2-assets/upload` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/sd2-assets/upload/route.ts) | [index](web/src/lib/server/database/index.ts)<br>[request-body-limit](web/src/lib/server/request-body-limit.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / sd2-assets / upload：提交/执行 |
+| GET | `/api/admin/drama-projects` | 管理员 | [route.ts](web/src/app/api/admin/drama-projects/route.ts) | [drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-projects：查询 |
+| DELETE, GET | `/api/admin/drama-projects/[id]` | 管理员 | [route.ts](web/src/app/api/admin/drama-projects/[id]/route.ts) | [drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-projects / 单项：查询、删除 |
+| GET | `/api/admin/drama-projects/[id]/characters` | 管理员 | [route.ts](web/src/app/api/admin/drama-projects/[id]/characters/route.ts) | [admin-permissions](web/src/lib/admin-permissions.ts)<br>[session](web/src/lib/auth/session.ts)<br>[index](web/src/lib/server/database/index.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-projects / 单项 / characters：查询 |
+| GET | `/api/admin/drama-projects/[id]/episodes` | 管理员 | [route.ts](web/src/app/api/admin/drama-projects/[id]/episodes/route.ts) | [admin-permissions](web/src/lib/admin-permissions.ts)<br>[session](web/src/lib/auth/session.ts)<br>[index](web/src/lib/server/database/index.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-projects / 单项 / episodes：查询 |
 | DELETE, GET | `/api/admin/generation-assets` | 管理员 | [route.ts](web/src/app/api/admin/generation-assets/route.ts) | [local-media-storage](web/src/lib/server/local-media-storage.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 生成资产：查询、删除 |
 | DELETE, GET | `/api/admin/generation-logs` | 管理员 | [route.ts](web/src/app/api/admin/generation-logs/route.ts) | [generation-log-store](web/src/lib/server/generation-log-store.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成日志：查询、删除 |
 | GET | `/api/admin/generation-operations` | 管理员 | [route.ts](web/src/app/api/admin/generation-operations/route.ts) | [generation-operations-service](web/src/lib/server/generation-operations-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 生成运维：查询 |
@@ -233,6 +249,21 @@
 | GET | `/api/drama/render-capability` | 用户 | [route.ts](web/src/app/api/drama/render-capability/route.ts) | [ffmpeg](web/src/lib/server/ffmpeg.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 渲染能力：查询 |
 | GET, PATCH | `/api/drama/render/[id]` | 用户 | [route.ts](web/src/app/api/drama/render/[id]/route.ts) | [drama-render-store](web/src/lib/server/drama-render-store.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 渲染 / 单项：查询、更新 |
 | POST | `/api/drama/review` | 用户 | [route.ts](web/src/app/api/drama/review/route.ts) | [creative-review-service](web/src/lib/server/creative-review-service.ts)<br>[drama-visual-review](web/src/lib/server/drama-visual-review.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 审核：提交/执行 |
+
+### `drama-lab`（10）
+
+| 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
+| --- | --- | --- | --- | --- | --- | --- |
+| GET, POST | `/api/drama-lab/projects` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/route.ts) | [drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[drama-project-contract](web/src/lib/drama-project-contract.ts) | PostgreSQL | drama-lab / 项目：查询、提交/执行 |
+| DELETE, GET, PUT | `/api/drama-lab/projects/[id]` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/route.ts) | [drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL | drama-lab / 项目 / 单项：查询、删除、替换 |
+| POST | `/api/drama-lab/projects/[id]/export-jianying` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/export-jianying/route.ts) | [drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[drama-jianying-export](web/src/lib/server/drama-jianying-export.ts) | PostgreSQL | drama-lab / 项目 / 单项 / 剪映导出：提交/执行 |
+| POST | `/api/drama-lab/projects/[id]/extract-assets` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/extract-assets/route.ts) | [drama-lab-asset-extraction-service](web/src/lib/server/drama-lab-asset-extraction-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL | drama-lab / 项目 / 单项 / extract-assets：提交/执行 |
+| POST | `/api/drama-lab/projects/[id]/extract-storyboards` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/extract-storyboards/route.ts) | [drama-lab-storyboard-extraction-service](web/src/lib/server/drama-lab-storyboard-extraction-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[drama-project-contract](web/src/lib/drama-project-contract.ts) | PostgreSQL | drama-lab / 项目 / 单项 / extract-storyboards：提交/执行 |
+| POST | `/api/drama-lab/projects/[id]/generate-script` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/generate-script/route.ts) | [drama-lab-script-generation-service](web/src/lib/server/drama-lab-script-generation-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL | drama-lab / 项目 / 单项 / generate-script：提交/执行 |
+| POST | `/api/drama-lab/projects/[id]/shots/[shotId]/generate-frame` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/generate-frame/route.ts) | [drama-lab-frame-generation-service](web/src/lib/server/drama-lab-frame-generation-service.ts)<br>[drama-lab-shot-generation-service](web/src/lib/server/drama-lab-shot-generation-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / generate-frame：提交/执行 |
+| POST | `/api/drama-lab/projects/[id]/shots/[shotId]/generate-image` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/generate-image/route.ts) | [drama-lab-shot-generation-service](web/src/lib/server/drama-lab-shot-generation-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / generate-image：提交/执行 |
+| POST | `/api/drama-lab/projects/[id]/shots/[shotId]/generate-video` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/generate-video/route.ts) | [drama-lab-shot-generation-service](web/src/lib/server/drama-lab-shot-generation-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / generate-video：提交/执行 |
+| POST | `/api/drama-lab/projects/[id]/shots/[shotId]/sync-generation` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/sync-generation/route.ts) | [drama-lab-shot-generation-service](web/src/lib/server/drama-lab-shot-generation-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / sync-generation：提交/执行 |
 
 ### `generation-log-assets`（1）
 
@@ -443,11 +474,12 @@
 | POST | `/api/text-tasks` | 混合 | [route.ts](web/src/app/api/text-tasks/route.ts) | [generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts)<br>[ip-library-reference-service](web/src/lib/server/ip-library-reference-service.ts) | PostgreSQL、积分、模型上游、媒体 | 文本任务：提交/执行 |
 | GET, PATCH | `/api/text-tasks/[id]` | 混合 | [route.ts](web/src/app/api/text-tasks/[id]/route.ts) | [generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、积分、模型上游、媒体 | 文本任务 / 单项：查询、更新 |
 
-### `video-generation-tasks`（1）
+### `video-generation-tasks`（2）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | POST | `/api/video-generation-tasks` | 混合 | [route.ts](web/src/app/api/video-generation-tasks/route.ts) | [video-generation-route](web/src/app/api/video-generation-tasks/video-generation-route.ts)<br>[generation-task-scheduler](web/src/lib/server/generation-task-scheduler.ts) | PostgreSQL、积分、模型上游、媒体 | 视频生成任务：提交/执行 |
+| GET | `/api/video-generation-tasks/[id]` | 用户 | [route.ts](web/src/app/api/video-generation-tasks/[id]/route.ts) | [video-task-store](web/src/lib/server/video-task-store.ts) | PostgreSQL、积分、模型上游、媒体 | 视频生成任务 / 单项：查询 |
 
 ### `video-tasks`（2）
 

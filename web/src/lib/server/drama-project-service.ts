@@ -356,6 +356,7 @@ function normalizeShot(value: unknown, index: number): DramaShot {
         storyboardImageUrl: stableUrl(input.storyboardImageUrl),
         storyboardImageWidth: optionalPositiveInteger(input.storyboardImageWidth),
         storyboardImageHeight: optionalPositiveInteger(input.storyboardImageHeight),
+        storyboardHistory: normalizeGenerationHistory(input.storyboardHistory),
         storyboardEndStatus: taskStatus(input.storyboardEndStatus),
         storyboardEndAttempt: optionalPositiveInteger(input.storyboardEndAttempt),
         storyboardEndTaskId: optionalText(input.storyboardEndTaskId),
@@ -368,6 +369,7 @@ function normalizeShot(value: unknown, index: number): DramaShot {
         generationTaskId: optionalText(input.generationTaskId),
         generationError: optionalText(input.generationError),
         videoUrl: stableUrl(input.videoUrl),
+        videoHistory: normalizeGenerationHistory(input.videoHistory),
         subtitle: optionalText(input.subtitle),
         audioMode: input.audioMode === "voiceover" || input.audioMode === "mute" ? input.audioMode : "source",
         audioStatus: taskStatus(input.audioStatus),
@@ -498,6 +500,29 @@ function normalizeUtterances(value: unknown): DramaUtterance[] {
             } as DramaUtterance;
         })
         .filter((item) => item.text);
+}
+
+function normalizeGenerationHistory(value: unknown) {
+    return array(value)
+        .flatMap((item) => {
+            const input = object(item);
+            const id = cleanText(input.id);
+            const taskId = cleanText(input.taskId);
+            const url = stableUrl(input.url);
+            if (!id || !taskId || !url) return [];
+            return [
+                {
+                    id,
+                    taskId,
+                    url,
+                    prompt: cleanText(input.prompt),
+                    createdAt: timestamp(input.createdAt) || new Date(0).toISOString(),
+                    width: optionalPositiveInteger(input.width),
+                    height: optionalPositiveInteger(input.height),
+                },
+            ];
+        })
+        .slice(-20);
 }
 
 function ids(value: unknown) {

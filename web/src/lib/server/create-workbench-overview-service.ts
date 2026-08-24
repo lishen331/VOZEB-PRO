@@ -38,7 +38,7 @@ export function buildCreateGenerationOverview(logs: StoredGenerationLog[]): Pick
         .slice(0, 4)
         .map((log): CreateOverviewTask => ({
             id: log.id,
-            kind: log.kind,
+            kind: log.kind === "video" ? "video" : log.kind === "image" ? "image" : "agent",
             source: log.source,
             title: log.title || (log.kind === "video" ? "视频生成" : "图片生成"),
             createdAt: log.createdAt,

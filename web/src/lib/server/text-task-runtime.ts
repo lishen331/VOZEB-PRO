@@ -16,6 +16,8 @@ import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError, generationSubmissionResponseError, generationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
 import { resolveTextProtocol, type ResolvedTextProtocol } from "@/lib/server/text-protocol-resolver";
 import { refundTextTask, textTaskRefundIdempotencyKey } from "@/lib/server/text-task-refund";
+import { recordTextTaskLog } from "@/lib/server/text-task-log";
+import { getPublicUsersByIds } from "@/lib/auth/store-actions";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 
@@ -344,6 +346,11 @@ async function completeTextTask(task: TextTask, content: string, billing: { poin
         config: clearSecret(current.config),
         billing: hasSystemAiCharge(billing) ? { pointsCost: billing.pointsCost, billingReceiptId: billing.billingReceiptId, refunded: false } : current.billing,
     });
+    // 获取用户信息并记录日志
+    const users = await getPublicUsersByIds([current.userId]).catch(() => []);
+    const user = users[0];
+    const userInfo = { username: user?.username || "", displayName: user?.displayName || "" };
+    await recordTextTaskLog({ ...current, status: "success" }, userInfo, "success").catch((error) => console.warn("Text generation success log update failed", { taskId: task.id, error }));
     await updateTextTask(task.id, { config: clearSecret(current.config), candidateConfigs: [], attempts: succeeded, attemptNo: task.attemptNo || succeeded.at(-1)?.attemptNo });
     if (!completed && generationTaskShouldConsumePoints(task.executionProfile) && hasSystemAiCharge(billing))
         await refundGenerationCharge({ userId: task.userId, receiptId: billing.billingReceiptId, model: generationModelId(task.config), usageKind: "text", units: 1, idempotencyKey: textTaskRefundIdempotencyKey(task) });
@@ -352,6 +359,11 @@ async function completeTextTask(task: TextTask, content: string, billing: { poin
 
 async function failTextTask(task: TextTask, error: string, attempts: NonNullable<TextTask["attempts"]>): Promise<TextTaskStep> {
     const current = (await getTextTask(task.id)) || task;
+    // 获取用户信息并记录日志
+    const users = await getPublicUsersByIds([current.userId]).catch(() => []);
+    const user = users[0];
+    const userInfo = { username: user?.username || "", displayName: user?.displayName || "" };
+    await recordTextTaskLog(current, userInfo, "failed", error).catch((logError) => console.warn("Text generation failure log update failed", { taskId: task.id, error: logError }));
     if (current.status === "success") return { state: "completed" };
     if (current.status === "cancelled") return { state: "failed", error: current.error || "文本任务已取消" };
     if (generationTaskShouldConsumePoints(current.executionProfile) && current.billing?.billingReceiptId && !current.billing.refunded) {

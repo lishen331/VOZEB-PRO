@@ -31,7 +31,23 @@ export function readVideoProviderStatus(value: unknown, configuredPath?: string)
 }
 
 export function readVideoProviderUrl(value: unknown, configuredPath?: string) {
-    return readProviderString(value, configuredPath, VIDEO_PROVIDER_MEDIA_KEYS);
+    const configured = readProviderString(value, configuredPath, []);
+    // New API wraps the actual signed media URL several levels below `data`,
+    // while its compatibility `result_url` points to the unsupported
+    // `/v1/videos/:id/content` endpoint. Prefer a nested media field when the
+    // configured/fallback value is that stale compatibility URL.
+    if (configured && !isLegacyVideoContentUrl(configured)) return configured;
+    const nested = readProviderString(
+        value,
+        undefined,
+        VIDEO_PROVIDER_MEDIA_KEYS.filter((key) => !["result_url", "resultUrl", "url", "uri"].includes(key)),
+    );
+    if (nested && (!configured || isLegacyVideoContentUrl(configured))) return nested;
+    return configured || readProviderString(value, undefined, VIDEO_PROVIDER_MEDIA_KEYS);
+}
+
+function isLegacyVideoContentUrl(value: string) {
+    return /\/(?:v1\/)?videos\/[^/?#]+\/content(?:[?#]|$)/i.test(value.trim());
 }
 
 export function videoProviderMediaUrl(baseUrl: string, url: string) {

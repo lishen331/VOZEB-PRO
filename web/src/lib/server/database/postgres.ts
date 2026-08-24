@@ -98,6 +98,22 @@ const POSTGRES_TABLES = [
     "ip_items",
     "ip_school_grants",
     "ip_usage_records",
+    "drama_lab_ai_configs",
+    "drama_lab_character_library",
+    "drama_lab_scene_library",
+    "drama_lab_prop_library",
+    "drama_lab_async_tasks",
+    "drama_lab_image_generations",
+    "drama_lab_video_generations",
+    "drama_lab_video_merges",
+    "drama_lab_assets",
+    "drama_lab_image_proxy_cache",
+    "drama_lab_ai_model_map",
+    "drama_lab_global_settings",
+    "drama_lab_prompt_templates",
+    "drama_lab_business_scenarios",
+    "drama_lab_generation_settings",
+    "drama_lab_sd2_assets",
     "check_ins",
 ] as const;
 
@@ -294,6 +310,35 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "ip_usage_records_ip_created_idx",
     "ip_usage_records_school_created_idx",
     "ip_usage_records_user_created_idx",
+    "drama_lab_ai_configs_user_active_idx",
+    "drama_lab_character_library_user_idx",
+    "drama_lab_character_library_project_idx",
+    "drama_lab_scene_library_user_idx",
+    "drama_lab_scene_library_project_idx",
+    "drama_lab_prop_library_user_idx",
+    "drama_lab_prop_library_project_idx",
+    "drama_lab_async_tasks_user_status_idx",
+    "drama_lab_async_tasks_resource_idx",
+    "drama_lab_image_generations_user_idx",
+    "drama_lab_image_generations_project_idx",
+    "drama_lab_image_generations_task_idx",
+    "drama_lab_video_generations_user_idx",
+    "drama_lab_video_generations_project_idx",
+    "drama_lab_video_generations_task_idx",
+    "drama_lab_video_merges_user_idx",
+    "drama_lab_video_merges_project_idx",
+    "drama_lab_assets_user_idx",
+    "drama_lab_assets_project_idx",
+    "drama_lab_image_proxy_cache_created_idx",
+    "drama_lab_ai_model_map_user_key_idx",
+    "drama_lab_prompt_templates_user_category_idx",
+    "drama_lab_prompt_templates_user_key_idx",
+    "drama_lab_prompt_templates_global_key_idx",
+    "drama_lab_business_scenarios_user_updated_idx",
+    "drama_lab_sd2_assets_user_type_idx",
+    "drama_projects_episodes_gin_idx",
+    "drama_projects_characters_gin_idx",
+    "drama_projects_scenes_gin_idx",
     "ip_library_prevent_published_version_mutation",
     "ip_versions_immutable",
     "ip_library_prevent_published_item_mutation",
@@ -495,7 +540,7 @@ export async function initializePostgresSchema() {
     if (!globalForPostgres.__vozebProPostgresSchemaReady) {
         globalForPostgres.__vozebProPostgresSchemaReady = withPostgresTransaction(async (client) => {
             await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [POSTGRES_SCHEMA_LOCK_KEY]);
-            await client.query(POSTGRESQL_SCHEMA_SQL);
+            await client.query(prefixPostgresSql(POSTGRESQL_SCHEMA_SQL));
         })
             .then(() => undefined)
             .catch((error) => {
