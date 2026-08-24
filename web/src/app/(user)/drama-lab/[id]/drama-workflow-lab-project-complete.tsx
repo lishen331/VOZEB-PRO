@@ -52,6 +52,7 @@ const WORKFLOW_STEPS = [
 type StepKey = (typeof WORKFLOW_STEPS)[number]["key"];
 
 type SaveOptions = { silent?: boolean };
+type ProjectUpdate = Partial<Project> | ((current: Project) => Partial<Project>);
 
 type CollaborationStageKey = "script" | "asset_prompts" | "visual_images" | "storyboard_video" | "final_cut";
 type CollaborationApprovalStatus = "draft" | "submitted" | "approved" | "returned" | "requires_confirmation";
@@ -426,6 +427,12 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
     const [allowFeedbackAttachments, setAllowFeedbackAttachments] = useState(false);
     const [collaborationFeedback, setCollaborationFeedback] = useState<CollaborationFeedback[]>([]);
     const pendingStoryboardShotId = useRef<string | undefined>(undefined);
+    const projectRef = useRef<Project | null>(null);
+    const saveQueueRef = useRef<Promise<boolean>>(Promise.resolve(true));
+
+    useEffect(() => {
+        projectRef.current = project;
+    }, [project]);
 
     // 加载项目数据
     const loadProject = useCallback(async () => {
@@ -484,40 +491,52 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
     }, [activeEpisodeId, activeStep]);
 
     // 保存项目数据
-    const saveProject = async (updates: Partial<Project>, options: SaveOptions = {}): Promise<boolean> => {
-        if (!project) return false;
+    const saveProject = async (updatesOrUpdater: ProjectUpdate, options: SaveOptions = {}): Promise<boolean> => {
+        const save = async () => {
+            const current = projectRef.current;
+            if (!current) return false;
+            const updates = typeof updatesOrUpdater === "function" ? updatesOrUpdater(current) : updatesOrUpdater;
+            const nextProject = { ...current, ...updates };
 
-        setSaving(true);
-        try {
-            const response = await fetch(`/api/drama-lab/projects/${projectId}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    title: updates.title ?? project.title,
-                    summary: updates.description ?? project.description,
-                    style: updates.style ?? project.style,
-                    ratio: updates.aspectRatio ?? project.aspectRatio,
-                    episodes: updates.episodes ?? project.episodes,
-                    characters: updates.characters ?? project.characters,
-                    scenes: updates.scenes ?? project.scenes,
-                    props: updates.props ?? project.props,
-                    shots: updates.shots ?? project.shots,
-                }),
-            });
+            setSaving(true);
+            try {
+                const response = await fetch(`/api/drama-lab/projects/${projectId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        title: nextProject.title,
+                        summary: nextProject.description,
+                        style: nextProject.style,
+                        ratio: nextProject.aspectRatio,
+                        episodes: nextProject.episodes,
+                        characters: nextProject.characters,
+                        scenes: nextProject.scenes,
+                        props: nextProject.props,
+                        shots: nextProject.shots,
+                    }),
+                });
 
-            await assertJsonApiResponse(response);
-            const data = await response.json();
-            if (data.code !== 0) throw new Error(data.msg || "保存失败");
+                await assertJsonApiResponse(response);
+                const data = await response.json();
+                if (data.code !== 0) throw new Error(data.msg || "保存失败");
 
-            if (!options.silent) messageApi.success({ content: "保存成功", key: "drama-project-save" });
-            setProject((current) => (current ? { ...current, ...updates } : current));
-            return true;
-        } catch (err) {
-            if (!options.silent) messageApi.error({ content: err instanceof Error ? err.message : "保存失败", key: "drama-project-save" });
-            return false;
-        } finally {
-            setSaving(false);
-        }
+                if (!options.silent) messageApi.success({ content: "保存成功", key: "drama-project-save" });
+                projectRef.current = nextProject;
+                setProject(nextProject);
+                return true;
+            } catch (err) {
+                if (!options.silent) messageApi.error({ content: err instanceof Error ? err.message : "保存失败", key: "drama-project-save" });
+                return false;
+            } finally {
+                setSaving(false);
+            }
+        };
+
+        // Generation requests run in parallel, but full-project writes are
+        // serialized so every update is calculated from the latest project.
+        const queued = saveQueueRef.current.then(save, save);
+        saveQueueRef.current = queued.catch(() => false);
+        return queued;
     };
 
     const updateProjectShotFromSync = useCallback((episodeId: string, shotId: string, rawShot: unknown) => {
