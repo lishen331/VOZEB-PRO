@@ -5,7 +5,7 @@ import { normalizeCanvasImageDecomposition, canvasImageDecompositionInstruction,
 import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
-import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "@/lib/server/logical-model-router";
+import { resolveVisionModelCandidates, type ResolvedLogicalModel } from "@/lib/server/logical-model-router";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { strictJsonObjectText } from "@/lib/server/structured-model-output";
@@ -28,10 +28,12 @@ export class CanvasImageDecompositionError extends Error {
 }
 
 export async function decomposeCanvasImage(input: { origin: string; cookie: string; userId: string; requestId: string; source: string }): Promise<CanvasImageDecomposition> {
-    const [settings, source] = await Promise.all([getAuthSettings(), readSourceImage(input.source, input.origin, input.cookie)]);
-    const model = settings.defaultModels.textModel;
-    const candidates = resolveLogicalModelCandidates(settings, "text", model);
-    if (!model || !candidates.length) throw new CanvasImageDecompositionError("后台尚未配置可用的默认文本模型", 503);
+    const settings = await getAuthSettings();
+    const model = settings.defaultModels.visionModel || "";
+    if (!model) throw new CanvasImageDecompositionError("后台尚未配置 Canvas 图片理解模型，请在模型渠道的逻辑模型路由中选择支持视觉输入的文本模型", 503);
+    const candidates = resolveVisionModelCandidates(settings, model);
+    if (!candidates.length) throw new CanvasImageDecompositionError("Canvas 图片理解模型不可用或未声明视觉输入能力，请在该模型的能力档案中启用“视觉输入（图片理解）”", 503);
+    const source = await readSourceImage(input.source, input.origin, input.cookie);
 
     let latestError: unknown;
     for (const candidate of rankTextPlanningCandidates(candidates)) {
@@ -41,7 +43,7 @@ export async function decomposeCanvasImage(input: { origin: string; cookie: stri
             const result = parseDecomposition(call.arguments, source.width, source.height);
             if (result) return result;
             await refundInvalidResponse(input.userId, model, call.headers);
-            latestError = new CanvasImageDecompositionError("默认文本模型没有返回可靠的图片分层策略");
+            latestError = new CanvasImageDecompositionError("Canvas 图片理解模型没有返回可靠的图片分层策略");
         } catch (error) {
             latestError = error;
         }
@@ -52,7 +54,8 @@ export async function decomposeCanvasImage(input: { origin: string; cookie: stri
 
 async function requestDecomposition(candidate: ResolvedLogicalModel, source: SourceImage, origin: string, cookie: string, userId: string, billingModel: string, idempotencyKey: string): Promise<VisionCall> {
     const protocol = resolveTextProtocol({ model: candidate.upstreamModel, apiFormat: candidate.channel.apiFormat, advancedConfig: candidate.channel.advancedConfig, throughSystemProxy: true });
-    if (protocol.kind === "custom" || protocol.kind === "claude") throw new CanvasImageDecompositionError("当前默认文本模型协议不支持图片理解，请在后台配置支持视觉输入的文本模型", 503);
+    if (protocol.kind === "custom" || protocol.kind === "claude" || (protocol.kind === "chat" && protocol.providerKind !== "chat"))
+        throw new CanvasImageDecompositionError("当前 Canvas 图片理解模型协议不支持视觉输入，请配置原生 OpenAI Chat、Responses 或 Gemini 视觉模型；GlobalAiOpc Claude/Gemini 适配暂不支持图片分层", 503);
     const instruction = canvasImageDecompositionInstruction(source.width, source.height);
     const prompt = `请分析这张 ${source.width}x${source.height} 图片，先判断电商或普通主体策略，再按要求完成分层。JSON Schema：${JSON.stringify(canvasImageDecompositionTool.parameters)}`;
     const body = visionRequestBody(protocol.kind, candidate.upstreamModel, instruction, prompt, source);

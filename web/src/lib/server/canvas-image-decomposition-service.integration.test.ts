@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
     fetchInternalApi: vi.fn(),
     getAuthSettings: vi.fn(),
     refundGenerationCharge: vi.fn(),
-    resolveLogicalModelCandidates: vi.fn(),
+    resolveVisionModelCandidates: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/store", () => ({
@@ -15,7 +15,7 @@ vi.mock("@/lib/auth/store", () => ({
 }));
 vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refundGenerationCharge }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi }));
-vi.mock("@/lib/server/logical-model-router", () => ({ resolveLogicalModelCandidates: mocks.resolveLogicalModelCandidates }));
+vi.mock("@/lib/server/logical-model-router", () => ({ resolveVisionModelCandidates: mocks.resolveVisionModelCandidates }));
 
 import { decomposeCanvasImage } from "./canvas-image-decomposition-service";
 
@@ -55,8 +55,8 @@ afterAll(async () => {
 
 beforeEach(() => {
     fixture.requests.splice(0);
-    mocks.getAuthSettings.mockReset().mockResolvedValue({ defaultModels: { textModel: "planner" } });
-    mocks.resolveLogicalModelCandidates.mockReset().mockReturnValue([candidate]);
+    mocks.getAuthSettings.mockReset().mockResolvedValue({ defaultModels: { textModel: "planner", visionModel: "vision-planner" } });
+    mocks.resolveVisionModelCandidates.mockReset().mockReturnValue([{ ...candidate, capabilityProfile: { supportsImageInput: true } }]);
     mocks.refundGenerationCharge.mockReset();
     mocks.fetchInternalApi.mockReset().mockImplementation((input: string | URL, init?: RequestInit) => fetch(input, init));
 });
@@ -74,6 +74,7 @@ describe("canvas image decomposition service protocol integration", () => {
             layers: [{ kind: "decoration" }, { kind: "product" }, { kind: "headline" }, { kind: "badge" }, { kind: "logo" }],
         });
         expect(fixture.requests).toHaveLength(1);
+        expect(mocks.resolveVisionModelCandidates).toHaveBeenCalledWith(expect.any(Object), "vision-planner");
         expect(fixture.requests[0]).toMatchObject({ method: "POST", path: "/api/ai/system/fixture-text/chat/completions" });
         const payload = JSON.parse(fixture.requests[0].body.toString("utf8"));
         expect(payload.messages[1].content).toEqual(
@@ -98,10 +99,40 @@ describe("canvas image decomposition service protocol integration", () => {
         expect(mocks.refundGenerationCharge).toHaveBeenCalledWith({
             userId: "user-one",
             receiptId: "points:points-decomposition",
-            model: "planner",
+            model: "vision-planner",
             usageKind: "text",
             units: 1,
             idempotencyKey: "canvas-decompose-refund:points:points-decomposition",
         });
+    });
+
+    it("rejects a missing Canvas vision model before touching an upstream channel", async () => {
+        mocks.getAuthSettings.mockResolvedValueOnce({ defaultModels: { textModel: "planner", visionModel: "" } });
+
+        await expect(decomposeCanvasImage({ origin, cookie: "", userId: "user-one", requestId: "request-missing-vision", source })).rejects.toMatchObject({ status: 503 });
+
+        expect(mocks.resolveVisionModelCandidates).not.toHaveBeenCalled();
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    it("rejects a text model that has not declared image input", async () => {
+        mocks.resolveVisionModelCandidates.mockReturnValueOnce([]);
+
+        await expect(decomposeCanvasImage({ origin, cookie: "", userId: "user-one", requestId: "request-no-image-input", source })).rejects.toMatchObject({ status: 503 });
+
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    it("rejects GlobalAiOpc native adapters until their image conversion is implemented", async () => {
+        mocks.resolveVisionModelCandidates.mockReturnValueOnce([
+            {
+                ...candidate,
+                capabilityProfile: { supportsImageInput: true },
+                channel: { ...candidate.channel, advancedConfig: { protocol: "globalaiopc", globalAiOpcPreset: "text-claude-native" } },
+            },
+        ]);
+
+        await expect(decomposeCanvasImage({ origin, cookie: "", userId: "user-one", requestId: "request-global-adapter", source })).rejects.toMatchObject({ status: 503 });
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
     });
 });

@@ -353,13 +353,17 @@ export function protocolModelConfig(protocol: SystemChannelProtocol, capability:
 }
 
 export function applyModelProtocol(config: SystemChannelModelConfig, protocol: SystemChannelProtocol, model?: string): SystemChannelModelConfig {
-    return protocolModelConfig(protocol, config.capability, model) || { ...config, source: "manual", protocol };
+    const preset = protocolModelConfig(protocol, config.capability, model);
+    if (!preset) return { ...config, source: "manual", protocol };
+    // Image input is an explicit model capability, not a generic OpenAI protocol capability.
+    // Keep an administrator's model-level declaration when a strict preset is reapplied.
+    return { ...preset, ...(typeof config.supportsImageInput === "boolean" ? { supportsImageInput: config.supportsImageInput } : {}) };
 }
 
 export function normalizeStrictProtocolModelConfig(config: SystemChannelModelConfig, fallbackProtocol: SystemChannelProtocol, model?: string): SystemChannelModelConfig {
     const protocol = config.protocol || fallbackProtocol;
     if (!channelProtocolDefinition(protocol).strict) return config;
-    return protocolModelConfig(protocol, config.capability, model) || config;
+    return applyModelProtocol(config, protocol, model);
 }
 
 export function normalizeStrictChannelModelConfigs(channel: SystemModelChannel): SystemModelChannel {
@@ -439,7 +443,7 @@ export function applyChannelProtocol(channel: SystemModelChannel, protocol: Syst
         const key = normalizeModelId(model);
         const builtIn = definition.builtInModels?.find((item) => normalizeModelId(item.id) === key);
         const capability = builtIn?.capability || protocolCatalogCapability(protocol) || modelConfigs[key]?.capability || modelCapabilities[key] || inferModelCapability(model);
-        const strict = protocolModelConfig(protocol, capability, model);
+        const strict = applyModelProtocol({ ...modelConfigs[key], capability }, protocol, model);
         if (strict) modelConfigs[key] = strict;
         modelCapabilities[key] = capability;
     }

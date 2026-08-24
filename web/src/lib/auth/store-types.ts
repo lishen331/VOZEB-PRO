@@ -28,6 +28,8 @@ export type SystemChannelModelConfig = {
     statusField?: string;
     durationRange?: string;
     referenceRule?: string;
+    /** Whether a text model accepts an image as part of its input content. */
+    supportsImageInput?: boolean;
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
@@ -104,6 +106,7 @@ export type SystemModelChannel = {
 export type LogicalModelCapability = "text" | "image" | "video" | "audio";
 
 export type LogicalModelCapabilityProfile = {
+    supportsImageInput?: boolean;
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
@@ -145,6 +148,8 @@ export type SystemDefaultModels = {
     imageModel: string;
     videoModel: string;
     textModel: string;
+    /** Text-capability model that can accept an image input for Canvas analysis. */
+    visionModel?: string;
     audioModel: string;
 };
 

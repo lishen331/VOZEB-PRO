@@ -87,11 +87,11 @@ describe("updatePostgresAuthSettings", () => {
     });
 
     it("updates only the independent practice default model pool", async () => {
-        const practiceDefaultModels = { textModel: "practice-text", imageModel: "", videoModel: "", audioModel: "" };
+        const practiceDefaultModels = { textModel: "practice-text", visionModel: "", imageModel: "", videoModel: "", audioModel: "" };
 
         await updatePostgresAuthSettings({ practiceDefaultModels });
 
-        expect(mocks.updateSettings).toHaveBeenCalledWith({ practiceDefaultModels: { textModel: "", imageModel: "", videoModel: "", audioModel: "" } });
+        expect(mocks.updateSettings).toHaveBeenCalledWith({ practiceDefaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" } });
         expect(mocks.upsertSystemModelChannel).not.toHaveBeenCalled();
     });
 });

@@ -1,12 +1,12 @@
 "use client";
 
-import { App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Segmented, Select, Space, Switch, Tag } from "antd";
+import { Alert, App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Segmented, Select, Space, Switch, Tag } from "antd";
 import { AlertTriangle, GitBranch, Pencil, RefreshCw, Route, Search } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
 import type { LogicalModel, LogicalModelBinding, LogicalModelCapability, LogicalModelCapabilityProfile, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
-import { capabilityLabel, isLogicalModelResolvable, normalizeDefaultModelsConfig, resolveLogicalModelConfig, synchronizeLogicalModelsWithChannels } from "@/lib/model-routing-config";
+import { capabilityLabel, isLogicalModelResolvable, logicalModelSupportsImageInput, normalizeDefaultModelsConfig, resolveLogicalModelConfig, resolveVisionModelConfig, synchronizeLogicalModelsWithChannels } from "@/lib/model-routing-config";
 
 type Props = {
     channels: SystemModelChannel[];
@@ -25,6 +25,7 @@ const capabilityOptions: Array<{ label: string; value: LogicalModelCapability }>
 
 const defaultFields: Array<{ capability: LogicalModelCapability; key: keyof SystemDefaultModels; label: string }> = [
     { capability: "text", key: "textModel", label: "默认文本模型" },
+    { capability: "text", key: "visionModel", label: "Canvas 图片理解模型" },
     { capability: "image", key: "imageModel", label: "默认图片模型" },
     { capability: "video", key: "videoModel", label: "默认视频模型" },
     { capability: "audio", key: "audioModel", label: "默认音频模型" },
@@ -48,9 +49,16 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
     );
     const activeDefaults = defaultPool === "production" ? defaultModels : practiceDefaultModels;
     const activeExecutionProfile = defaultPool === "production" ? "production" : "open-source-practice";
-    const availableDefaultFields = defaultFields.filter(({ capability }) => logicalModels.some((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, activeExecutionProfile)));
+    const isEligibleDefaultModel = (field: (typeof defaultFields)[number], model: LogicalModel) =>
+        model.capability === field.capability &&
+        isLogicalModelResolvable(logicalModels, channels, field.capability, model.id, activeExecutionProfile) &&
+        (field.key !== "visionModel" || logicalModelSupportsImageInput(logicalModels, channels, field.capability, model.id, activeExecutionProfile));
+    const availableDefaultFields = defaultFields.filter((field) => field.key === "visionModel" || logicalModels.some((model) => isEligibleDefaultModel(field, model)));
     const availableCapabilityOptions = capabilityOptions.filter(({ value }) => availableDefaultFields.some(({ capability }) => capability === value));
-    const readyCount = availableDefaultFields.filter(({ capability, key }) => isLogicalModelResolvable(logicalModels, channels, capability, activeDefaults[key], activeExecutionProfile)).length;
+    const readyCount = availableDefaultFields.filter((field) => {
+        const selected = logicalModels.find((model) => model.id === activeDefaults[field.key]);
+        return Boolean(selected && isEligibleDefaultModel(field, selected));
+    }).length;
 
     const openEdit = (model: LogicalModel) => {
         setEditingId(model.id);
@@ -122,7 +130,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                     <div className="max-h-[680px] space-y-2 overflow-y-auto pr-1">
                         {visibleModels.map((model) => {
                             const resolved = resolveLogicalModelConfig(logicalModels, channels, model.capability, model.id, activeExecutionProfile);
-                            const isDefault = Object.values(activeDefaults).some((value) => value.toLowerCase() === model.id.toLowerCase());
+                            const isDefault = Object.values(activeDefaults).some((value) => typeof value === "string" && value.toLowerCase() === model.id.toLowerCase());
                             return (
                                 <div key={model.id} className="flex min-w-0 flex-col gap-3 rounded-lg border border-stone-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between dark:border-stone-800 dark:bg-stone-950">
                                     <div className="min-w-0">
@@ -169,11 +177,14 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                     <p className="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">练习默认模型只显示 shared 或 open-source-practice 渠道绑定；生产默认模型不会参与练习路由。</p>
                     <div className="mt-4 space-y-4">
                         {availableDefaultFields.map(({ capability, key, label }) => {
-                            const options = logicalModels
-                                .filter((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, activeExecutionProfile))
-                                .map((model) => ({ label: model.name, value: model.id }));
+                            const options = logicalModels.filter((model) => isEligibleDefaultModel({ capability, key, label }, model)).map((model) => ({ label: model.name, value: model.id }));
                             const selected = logicalModels.find((model) => model.id === activeDefaults[key]);
-                            const resolved = selected ? resolveLogicalModelConfig(logicalModels, channels, capability, selected.id, activeExecutionProfile) : null;
+                            const resolved =
+                                selected && isEligibleDefaultModel({ capability, key, label }, selected)
+                                    ? key === "visionModel"
+                                        ? resolveVisionModelConfig(logicalModels, channels, selected.id, activeExecutionProfile)
+                                        : resolveLogicalModelConfig(logicalModels, channels, capability, selected.id, activeExecutionProfile)
+                                    : null;
                             return (
                                 <LabeledControl key={key} label={label}>
                                     <Select
@@ -191,6 +202,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                                         {!resolved ? <AlertTriangle className="size-3.5 shrink-0" /> : null}
                                         <span>{resolved ? `实际路由：${resolved.channel.name} / ${resolved.binding.upstreamModel}` : activeDefaults[key] ? "当前默认模型不可解析" : "尚未设置默认模型"}</span>
                                     </div>
+                                    {key === "visionModel" && !options.length ? <Alert className="mt-2" type="info" showIcon message="先在文本模型绑定的能力档案中启用“支持视觉输入（Canvas）”，再选择 Canvas 图片理解模型。" /> : null}
                                 </LabeledControl>
                             );
                         })}
@@ -318,8 +330,11 @@ function BindingEditor({ binding, capability, channels, onChange }: { binding: L
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="flex flex-wrap items-center gap-3 text-xs text-stone-600 dark:text-stone-300 sm:col-span-2 lg:col-span-4">
-                        <Checkbox checked={profile.supportsReferenceImage === true} onChange={(event) => updateProfile({ supportsReferenceImage: event.target.checked })}>
-                            参考图片
+                        <Checkbox
+                            checked={capability === "text" ? profile.supportsImageInput === true : profile.supportsReferenceImage === true}
+                            onChange={(event) => updateProfile(capability === "text" ? { supportsImageInput: event.target.checked } : { supportsReferenceImage: event.target.checked })}
+                        >
+                            {capability === "text" ? "支持视觉输入（Canvas）" : "参考图片"}
                         </Checkbox>
                         <Checkbox checked={profile.supportsReferenceVideo === true} onChange={(event) => updateProfile({ supportsReferenceVideo: event.target.checked })}>
                             参考视频

@@ -243,6 +243,23 @@ describe("channel protocol registry", () => {
         expect(channelProtocolValidationErrors(configured)).toEqual([]);
     });
 
+    it("preserves an explicit vision capability while ordinary strict text remains unmarked", () => {
+        const ordinary = applyChannelProtocol({ ...channel, models: ["text-model"] }, "openai");
+        expect(ordinary.advancedConfig?.modelConfigs?.["text-model"]).not.toHaveProperty("supportsImageInput");
+
+        const vision = {
+            ...ordinary,
+            advancedConfig: {
+                ...ordinary.advancedConfig!,
+                modelConfigs: {
+                    ...ordinary.advancedConfig!.modelConfigs,
+                    "text-model": { ...ordinary.advancedConfig!.modelConfigs!["text-model"], supportsImageInput: true },
+                },
+            },
+        };
+        expect(normalizeStrictChannelModelConfigs(vision).advancedConfig?.modelConfigs?.["text-model"]).toMatchObject({ supportsImageInput: true });
+    });
+
     it("repairs stale strict model routes before an admin settings save", () => {
         const stale = applyChannelProtocol({ ...channel, models: ["doubao-seedance-2-0"] }, "newapi");
         const key = "doubao-seedance-2-0";

@@ -56,6 +56,10 @@ export function resolveLogicalModelCandidates(
     return capability === "text" ? resolved : filterHealthyRuntimeCandidates(resolved, capability);
 }
 
+export function resolveVisionModelCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, requestedModelId: string, preferredChannelId = "", executionProfile: PracticeExecutionProfile = "production"): ResolvedLogicalModel[] {
+    return resolveLogicalModelCandidates(settings, "text", requestedModelId, preferredChannelId, executionProfile).filter((candidate) => candidate.capabilityProfile?.supportsImageInput === true);
+}
+
 export function resolveLogicalBillingModel(logicalModels: AuthSettings["logicalModels"], capability: LogicalModelCapability, channelId: string, upstreamModel: string, preferredLogicalModelId = "") {
     const matches = logicalModels.filter(
         (logical) => logical.enabled && logical.capability === capability && logical.bindings.some((binding) => binding.enabled && binding.channelId === channelId && channelSupportsModel([binding.upstreamModel], upstreamModel)),

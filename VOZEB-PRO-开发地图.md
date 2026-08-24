@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-08-24，`main` 分支。当前源码包含 48 个 `page.tsx` 页面入口、268 个 API Route 文件和 105 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-08-25，`main` 分支。当前源码包含 48 个 `page.tsx` 页面入口、268 个 API Route 文件和 105 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
