@@ -18,13 +18,17 @@ export type Sd2AssetType = (typeof SD2_ASSET_TYPES)[number];
 
 type DramaLabAdmin = Awaited<ReturnType<typeof getCurrentUser>>;
 
+export function databaseNotConfiguredResponse() {
+    return NextResponse.json({ code: 501, msg: "需要启用 PostgreSQL" }, { status: 501 });
+}
+
 export async function authorizeDramaLabAdmin() {
     const user = await getCurrentUser();
     if (!user || !hasAnyAdminPermission(user, ["content.manage"])) {
         return { response: NextResponse.json({ code: 401, msg: "Unauthorized" }, { status: 401 }) };
     }
     if (getDatabaseProvider() !== "postgres") {
-        return { response: NextResponse.json({ code: 503, msg: "Database not configured" }, { status: 503 }) };
+        return { response: databaseNotConfiguredResponse() };
     }
     try {
         await ensurePostgresSchema();

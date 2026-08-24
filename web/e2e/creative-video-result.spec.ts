@@ -501,6 +501,7 @@ test("prompt library searches, filters and scrolls through bounded server pages"
     });
 
     await page.goto("/create", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".creative-composer")).toHaveAttribute("data-ready", "true", { timeout: 45_000 });
     await page.getByRole("button", { name: "打开资产面板" }).click();
     await page.getByRole("tab", { name: /提示词库/ }).click();
     const scroll = page.getByTestId("creative-prompt-scroll");

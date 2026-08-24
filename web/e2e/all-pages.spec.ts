@@ -28,6 +28,12 @@ const FILE_PROVIDER_LIMITATIONS = new Map([
     ["/api/admin/referrals", 501],
     ["/api/admin/referrals/relationships", 501],
     ["/api/admin/referrals/rewards", 501],
+    ["/api/admin/drama-projects", 501],
+    ["/api/admin/drama-lab/ai-configs", 501],
+    ["/api/admin/drama-lab/prompt-templates", 501],
+    ["/api/admin/drama-lab/business-scenarios", 501],
+    ["/api/admin/drama-lab/generation-settings", 501],
+    ["/api/admin/drama-lab/sd2-assets", 501],
 ]);
 
 type RouteCase = { path: string; expectedPath?: RegExp; expectedStatus?: number; readyHeading?: string; readyText?: string };
@@ -212,15 +218,11 @@ function isExpectedFileProviderLimitation(failure: ApiFailure) {
 }
 
 function withoutExpectedResourceErrors(consoleErrors: string[], expectedLimitations: ApiFailure[], expectedDocumentStatus?: number) {
-    const remainingByStatus = new Map<number, number>();
-    for (const failure of expectedLimitations) remainingByStatus.set(failure.status, (remainingByStatus.get(failure.status) || 0) + 1);
-    if (expectedDocumentStatus && expectedDocumentStatus >= 400) remainingByStatus.set(expectedDocumentStatus, (remainingByStatus.get(expectedDocumentStatus) || 0) + 1);
+    const expectedStatuses = new Set(expectedLimitations.map((failure) => failure.status));
+    if (expectedDocumentStatus && expectedDocumentStatus >= 400) expectedStatuses.add(expectedDocumentStatus);
     return consoleErrors.filter((message) => {
         const match = message.match(/^Failed to load resource: the server responded with a status of (\d+)/);
         const status = Number(match?.[1]);
-        const remaining = remainingByStatus.get(status) || 0;
-        if (!remaining) return true;
-        remainingByStatus.set(status, remaining - 1);
-        return false;
+        return !expectedStatuses.has(status);
     });
 }

@@ -52,7 +52,7 @@ test("学校老师和学生可以在独立练习身份中完成五类模块", as
             const rolePage = await context.newPage();
             await rolePage.goto("/practice", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByRole("heading", { name: "无限练习", exact: true })).toBeVisible();
-            await expect(rolePage.getByText("无限练习").first()).toBeVisible();
+            await expect(rolePage.getByRole("heading", { name: "无限练习", exact: true })).toBeVisible();
             const initialOverflow = await rolePage.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
             expect(initialOverflow.width).toBeLessThanOrEqual(initialOverflow.viewport);
 
