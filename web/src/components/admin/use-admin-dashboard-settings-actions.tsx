@@ -81,10 +81,11 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
     };
 
     const deleteChannel = async (id: string) => {
-        const systemChannels = settings.systemChannels.filter((channel) => channel.id !== id);
-        const logicalModels = synchronizeLogicalModelsWithChannels(settings.logicalModels, systemChannels);
-        const defaultModels = normalizeDefaultModelsConfig(settings.defaultModels, logicalModels, systemChannels);
-        const practiceDefaultModels = normalizeDefaultModelsConfig(settings.practiceDefaultModels, logicalModels, systemChannels, "open-source-practice", { allowFallback: false });
+        const current = getSettings();
+        const systemChannels = current.systemChannels.filter((channel: SystemModelChannel) => channel.id !== id);
+        const logicalModels = synchronizeLogicalModelsWithChannels(current.logicalModels, systemChannels);
+        const defaultModels = normalizeDefaultModelsConfig(current.defaultModels, logicalModels, systemChannels);
+        const practiceDefaultModels = normalizeDefaultModelsConfig(current.practiceDefaultModels, logicalModels, systemChannels, "open-source-practice", { allowFallback: false });
         return saveSettings({ systemChannels, logicalModels, defaultModels, practiceDefaultModels }, "渠道已删除");
     };
 

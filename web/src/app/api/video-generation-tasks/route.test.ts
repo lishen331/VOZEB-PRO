@@ -17,6 +17,9 @@ const mocks = vi.hoisted(() => ({
     updateVideoTask: vi.fn(),
     writeVideoGenerationLog: vi.fn(),
     scheduleGenerationTask: vi.fn(),
+    normalizeImageReferences: vi.fn(async (input: { references: unknown[] }) => input.references),
+    requireManagedMediaInputOwner: vi.fn(async () => "user"),
+    refundGenerationCharge: vi.fn(),
     validateGenerationContextIpReferences: vi.fn(),
     withGenerationConcurrencyLimit: vi.fn(async (_userId, _type, _staleMs, _limit, handler) => handler()),
     resolveSchoolComputeBillingContext: vi.fn(),
@@ -31,7 +34,7 @@ vi.mock("@/lib/auth/store", () => {
     class AuthInputError extends Error {
         status = 400;
     }
-    return { AuthInputError, getAuthSettings: mocks.getAuthSettings, isAuthInputError: (error: unknown) => error instanceof AuthInputError, refundUserPoints: mocks.refundUserPoints };
+    return { AuthInputError, getAuthSettings: mocks.getAuthSettings, isAuthInputError: (error: unknown) => error instanceof AuthInputError };
 });
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi, resolveInternalOrigin: vi.fn(() => "http://localhost") }));
 vi.mock("@/lib/server/generation-task-store", () => ({
@@ -49,6 +52,7 @@ vi.mock("@/lib/server/generation-task-recovery-service", () => ({ runGenerationT
 vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: mocks.scheduleGenerationTask }));
 vi.mock("@/lib/server/video-task-log", () => ({ writeVideoGenerationLog: mocks.writeVideoGenerationLog }));
 vi.mock("@/lib/server/video-reference-image", () => ({ normalizeVideoProviderImageReferences: mocks.normalizeImageReferences }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refundGenerationCharge }));
 vi.mock("@/lib/server/video-task-store", () => ({
     createVideoTask: mocks.createVideoTask,
     claimVideoTaskPoll: mocks.claimVideoTaskPoll,
@@ -86,6 +90,7 @@ const settings = {
         },
     ],
     defaultModels: { videoModel: "video" },
+    practiceDefaultModels: { videoModel: "video" },
     generationConcurrency: { video: 2 },
     generationDefaults: { imageSize: "16:9", videoQuality: "720", videoSeconds: 5 },
     generationPointMultipliers: { videoQuality: { "720": 1 }, videoSeconds: { "5": 1 } },
@@ -160,7 +165,7 @@ describe("video generation candidate failover", () => {
     });
 
     it("does not retry another binding after an ambiguous 2xx response", async () => {
-        mocks.fetchInternalApi.mockResolvedValue(new Response("not-json", { status: 200, headers: { "x-vozeb-pro-points-cost": "2.5", "x-vozeb-pro-points-record-id": "video-points-unknown" } }));
+        mocks.fetchInternalApi.mockResolvedValue(new Response("not-json", { status: 200, headers: { "x-vozeb-pro-points-cost": "2.5", "x-vozeb-pro-billing-receipt-id": "points:video-points-unknown" } }));
 
         const response = await POST(request());
 
@@ -168,20 +173,23 @@ describe("video generation candidate failover", () => {
         expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/ai/system/two/"))).toBe(false);
         expect(mocks.createVideoTask).toHaveBeenCalledOnce();
         expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "submission_outcome_unknown" }));
-        expect(mocks.refundUserPoints).not.toHaveBeenCalled();
-        expect(mocks.updateVideoTask).toHaveBeenCalledWith("local-task", expect.objectContaining({ upstream: expect.objectContaining({ pointsCost: 2.5, pointsUnits: expect.any(Number), pointsRecordId: "video-points-unknown", refunded: false }) }));
+        expect(mocks.refundGenerationCharge).not.toHaveBeenCalled();
+        expect(mocks.updateVideoTask).toHaveBeenCalledWith(
+            "local-task",
+            expect.objectContaining({ upstream: expect.objectContaining({ pointsCost: 2.5, pointsUnits: expect.any(Number), billingReceiptId: "points:video-points-unknown", refunded: false }) }),
+        );
     });
 
-    it("finishes the task with an explicit error after a server rejection", async () => {
+    it("keeps the task pending manual review after an ambiguous server rejection", async () => {
         mocks.fetchInternalApi.mockResolvedValue(json({ error: "gateway failed" }, 502));
 
         const response = await POST(request());
 
-        expect(response.status).toBe(502);
+        expect(response.status).toBe(202);
         expect(mocks.fetchInternalApi).toHaveBeenCalledTimes(1);
         expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/ai/system/two/"))).toBe(false);
         expect(mocks.createVideoTask).toHaveBeenCalledOnce();
-        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "completed", lastUpstreamStatus: "create_failed" }));
+        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "needs_review", lastUpstreamStatus: "submission_outcome_unknown" }));
     });
 
     it("surfaces an explicit HTTP 200 business failure after safe candidate fallback", async () => {
@@ -252,15 +260,15 @@ describe("video generation candidate failover", () => {
         mocks.fetchInternalApi.mockResolvedValue(
             new Response(body, {
                 status: 200,
-                headers: { "content-type": "application/json", "x-vozeb-pro-points-cost": "3.5", "x-vozeb-pro-points-record-id": "gemini-video-points-unknown" },
+                headers: { "content-type": "application/json", "x-vozeb-pro-points-cost": "3.5", "x-vozeb-pro-billing-receipt-id": "points:gemini-video-points-unknown" },
             }),
         );
 
         const response = await POST(request({ model: "gemini-video", videoSeconds: 5, size: "16:9", vquality: "720" }));
 
         expect(response.status).toBe(202);
-        expect(mocks.refundUserPoints).not.toHaveBeenCalled();
-        expect(mocks.updateVideoTask).toHaveBeenCalledWith("local-task", expect.objectContaining({ upstream: expect.objectContaining({ pointsCost: 3.5, pointsRecordId: "gemini-video-points-unknown", refunded: false }) }));
+        expect(mocks.refundGenerationCharge).not.toHaveBeenCalled();
+        expect(mocks.updateVideoTask).toHaveBeenCalledWith("local-task", expect.objectContaining({ upstream: expect.objectContaining({ pointsCost: 3.5, billingReceiptId: "points:gemini-video-points-unknown", refunded: false }) }));
         expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "needs_review", lastUpstreamStatus: "submission_outcome_unknown" }));
     });
 

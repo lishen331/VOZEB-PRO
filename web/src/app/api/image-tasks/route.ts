@@ -158,7 +158,15 @@ export async function POST(request: Request) {
         const existing = await getStoredGenerationTaskByRequest<ImageTask>("image", currentUser.id, requestId, resolvedBody.context?.attemptNo);
         if (existing) return NextResponse.json({ task: publicTask(existing) });
     }
-    if (requestId) resolvedBody.context = { ...(resolvedBody.context || {}), clientRequestId: requestId, ...(headerAttemptNo ? { attemptNo: headerAttemptNo } : {}) };
+    const layerGrant = resolveCanvasLayerGrant(resolvedBody, currentUser.id);
+    if (resolvedBody.layerBatch && !layerGrant) return NextResponse.json({ error: "图片分层批次凭证无效，请重新发起分层" }, { status: 400 });
+    const concurrencyRequestId = layerGrant?.requestId || requestId || `image-request:${currentUser.id}:${crypto.randomUUID()}`;
+    resolvedBody.context = {
+        ...(resolvedBody.context || {}),
+        clientRequestId: concurrencyRequestId,
+        ...(headerAttemptNo ? { attemptNo: headerAttemptNo } : {}),
+        ...(layerGrant ? { concurrencyClass: "canvas-layer" as const } : {}),
+    };
     try {
         await validateGenerationContextIpReferences(currentUser.id, resolvedBody.context);
     } catch (error) {
@@ -166,7 +174,7 @@ export async function POST(request: Request) {
         throw error;
     }
     const settings = await getAuthSettings();
-    const response = await withGenerationConcurrencyLimit(currentUser.id, "image", 10 * 60 * 1000, settings.generationConcurrency.image, async () => {
+    const createTask = async () => {
         const executionProfile = trustedPractice ? "open-source-practice" : "production";
         let trustedContext: GenerationTaskContext;
         try {

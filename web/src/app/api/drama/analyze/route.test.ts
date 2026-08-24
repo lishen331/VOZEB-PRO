@@ -3,18 +3,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
     getCurrentUser: vi.fn(),
     getAuthSettings: vi.fn(),
-    refundUserPoints: vi.fn(),
+    refundGenerationCharge: vi.fn(),
     resolveLogicalModelCandidates: vi.fn(),
     checkRateLimit: vi.fn(),
     requestStructuredText: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
-vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings, isAuthInputError: vi.fn(() => false), refundUserPoints: mocks.refundUserPoints }));
+vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings, isAuthInputError: vi.fn(() => false) }));
 vi.mock("@/lib/server/internal-origin", () => ({ resolveInternalOrigin: vi.fn((origin: string) => origin) }));
 vi.mock("@/lib/server/logical-model-router", () => ({ resolveLogicalModelCandidates: mocks.resolveLogicalModelCandidates }));
 vi.mock("@/lib/server/security", () => ({ checkRateLimit: mocks.checkRateLimit }));
 vi.mock("@/lib/server/text-planning-runtime", () => ({ isStructuredTextFailure: vi.fn(() => false), rankTextPlanningCandidates: vi.fn((items: unknown[]) => items), requestStructuredText: mocks.requestStructuredText }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refundGenerationCharge }));
 
 import { POST } from "./route";
 
@@ -251,7 +252,7 @@ describe("POST /api/drama/analyze", () => {
 
     it("splits a malformed single eight-second response before returning it to the editor", async () => {
         const lines = Array.from({ length: 78 }, (_, index) => `角色${index + 1}说：“第${index + 1}句对白必须保留。”`);
-        mocks.refundUserPoints.mockResolvedValue({ pointsBalance: 98 });
+        mocks.refundGenerationCharge.mockResolvedValue({ refunded: true, personalPointsRemaining: 98 });
         const responseForSegment = (segment: string) => ({
             arguments: JSON.stringify({
                 episode: { outline: "长篇对白", hook: "", nextPreview: "", sourceRange: "第一章" },
@@ -292,7 +293,7 @@ describe("POST /api/drama/analyze", () => {
                         { title: "错误合并镜头", description: "只概括了开头", sourceText: lines[0], shotBoundary: "没有正确切镜", dialogue: "", narration: "", utterances: [], duration: 8, characterNames: [], sceneName: "", propNames: [], clueNames: [] },
                     ],
                 }),
-                headers: new Headers({ "x-vozeb-pro-points-cost": "2", "x-vozeb-pro-points-record-id": "points-full" }),
+                headers: new Headers({ "x-vozeb-pro-points-cost": "2", "x-vozeb-pro-billing-receipt-id": "points:points-full" }),
                 protocol: "chat",
                 elapsedMs: 10,
             })
@@ -322,7 +323,14 @@ describe("POST /api/drama/analyze", () => {
         expect(requestedScripts).toHaveLength(3);
         expect(requestedScripts[0]).toBe(lines.join("\n"));
         expect(requestedScripts.slice(1).every((segment) => segment !== requestedScripts[0])).toBe(true);
-        expect(mocks.refundUserPoints).toHaveBeenCalledWith("user-one", "planner", 2, "text", 1, undefined, "points-full");
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledWith({
+            userId: "user-one",
+            receiptId: "points:points-full",
+            model: "planner",
+            usageKind: "text",
+            units: 1,
+            idempotencyKey: "drama-analyze-refund:points:points-full",
+        });
     });
 
     it("refunds successful segments when a later segment cannot be analyzed", async () => {
@@ -352,16 +360,16 @@ describe("POST /api/drama/analyze", () => {
                     },
                 ],
             }),
-            headers: billed ? new Headers({ "x-vozeb-pro-points-cost": "3", "x-vozeb-pro-points-record-id": "points-segment" }) : new Headers(),
+            headers: billed ? new Headers({ "x-vozeb-pro-points-cost": "3", "x-vozeb-pro-billing-receipt-id": "points:points-segment" }) : new Headers(),
             protocol: "chat",
             elapsedMs: 10,
         });
         const invalidResponse = (segment: string, billed = true, complete = true) => ({
             ...segmentResponse(segment),
-            headers: billed ? new Headers({ "x-vozeb-pro-points-cost": "4", "x-vozeb-pro-points-record-id": "points-failed-segment" }) : new Headers(),
+            headers: billed ? new Headers({ "x-vozeb-pro-points-cost": "4", "x-vozeb-pro-billing-receipt-id": "points:points-failed-segment" }) : new Headers(),
             arguments: JSON.stringify({ episode: { outline: "对白" }, shots: [{ sourceText: complete ? segment : segment.slice(0, 1), description: segment, utterances: [] }] }),
         });
-        mocks.refundUserPoints.mockResolvedValue({ pointsBalance: 90 });
+        mocks.refundGenerationCharge.mockResolvedValue({ refunded: true, personalPointsRemaining: 90 });
         mocks.requestStructuredText.mockImplementation(async (input) => {
             const messages = (input as { messages: Array<{ role: string; content: string }> }).messages;
             const requestedScript = (JSON.parse(messages.at(-1)!.content) as { script: string }).script;
@@ -379,8 +387,8 @@ describe("POST /api/drama/analyze", () => {
         );
 
         expect(response.status).toBe(502);
-        expect(mocks.refundUserPoints).toHaveBeenCalledTimes(2);
-        expect(mocks.refundUserPoints.mock.calls.map((call) => call[6])).toEqual(expect.arrayContaining(["points-failed-segment", "points-segment"]));
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledTimes(2);
+        expect(mocks.refundGenerationCharge.mock.calls.map(([input]) => input.receiptId)).toEqual(expect.arrayContaining(["points:points-failed-segment", "points:points-segment"]));
     });
 
     it("keeps one request idempotent while separate user actions use different billing keys", async () => {

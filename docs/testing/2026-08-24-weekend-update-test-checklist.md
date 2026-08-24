@@ -1,7 +1,7 @@
 # VOZEB-PRO 周末更新与短剧实验室测试清单
 
 更新时间：2026-08-24
-测试范围：群主 `upstream/main` 周末更新、当前 `develop` 短剧实验室真实业务
+测试范围：合并后的团队 `develop` 测试线（保留短剧实验室并吸收群主 `upstream/main` v0.0.7 能力）
 
 ## 1. 版本与部署基线
 
@@ -12,23 +12,25 @@
 - 周末最新提交：`04b32d3`，提交时间 `2026-08-23 05:18:11 +0800`
 - 发布标签：`v0.0.7`
 - 周末提交范围：`7d4937d`、`6ae3023`、`d654f54`、`a4b113b`、`887d9a4`、`31ffc13`、`a201e82`、`936cdc1`、`04b32d3`、`00d31f9`
+- 团队合并基点：`c18aa5d`（`develop` + `upstream/main`，保留团队短剧实验室、教师/学校、练习、商单和算力模块）
+- 本次交付分支：`chore/integrate-upstream-v007-repair`；完成质量门禁后推送到 `origin/develop`
 
-`upstream/main` 与当前短剧实验室 `develop` 在 `4de8360` 后分叉。主线已经移除了 `drama-lab` 页面和 API，因此没有直接把主线覆盖到 3001；本次采用隔离烟测，保留实验室测试线。
+上游 `main` 与团队分支曾在 `4de8360` 后分叉，不能直接用上游镜像覆盖团队环境。本次采用源码合并后由团队 staging 工作流构建镜像：上游功能进入团队合并提交，团队模块和数据卷继续保留。
 
 ### 服务器测试环境
 
 | 环境 | 地址 | 镜像 | 数据库/卷 | 用途 |
 | --- | --- | --- | --- | --- |
-| 实验室线 | `http://8.163.37.148:3001` | `ghcr.io/lishen331/vozeb-pro:sha-8f8f87ef6c854c27a637e373170955d17bfc68e0` | 原 `vozeb_staging`、`vozeb-staging_app-data` | 测试短剧实验室 |
+| 团队合并线 | `http://8.163.37.148:3001` | 当前基线为 `ghcr.io/lishen331/vozeb-pro:sha-8f8f87ef6c854c27a637e373170955d17bfc68e0`；推送后切换为本次 `develop` 提交对应的 `sha-<commit>` | 原 `vozeb_staging`、`vozeb-staging_app-data` | 测试短剧实验室及合并后的通用能力 |
 | 群主更新线 | 服务器本机 `http://127.0.0.1:3002`（公网端口尚未放行） | `ghcr.io/csyqlz/vozeb-pro:v0.0.7`，digest `sha256:07c75a90276f7f2ef8a911a04390a24ee9846848a1da31c4748ed36a96d80a20` | 隔离 `vozeb_v007`、`vozeb-upstream-v007-data` | 测试群主主线更新 |
 
-部署结果：两套应用和 Worker 均为运行状态，服务器本机的 `3001`、`3002` 两个健康探针均返回 200，`/api/health/ready` 返回 `ready=true`。公网访问 3001 正常，3002 当前被服务器前置网络拦截（外部请求返回 502/端口未放行），需要在测试机上通过 SSH 隧道访问，例如映射到本机 3302：`ssh -N -L 3302:127.0.0.1:3002 ...`，然后打开 `http://127.0.0.1:3302`。3002 的 `/drama-lab` 返回 404，这是主线不包含实验室路由的预期结果；短剧实验室请使用 3001。
+部署顺序：先完成本地质量门禁并推送 `origin/develop`，`.github/workflows/staging-image.yml` 会构建 `ghcr.io/lishen331/vozeb-pro:sha-<commit>`，在 `/opt/vozeb-pro/staging` 更新 3001，然后检查 `/api/health/live`、`/api/health/ready` 和 Worker。测试人员只在 3001 验收短剧实验室；3002 仅作为隔离上游对照线，不能作为团队功能通过依据。
 
-本次未修改 3001 的 Compose、`.env`、数据库和媒体卷；已保留旧镜像标签 `vozeb-staging:before-20260824`。
+部署时不得删除 3001 的 Compose、`.env`、数据库或媒体卷；部署前保留旧镜像标签 `vozeb-staging:before-20260824`，失败时只回滚 app 和 generation-worker 镜像。
 
 ### 回滚/清理
 
-本次隔离部署不需要回滚 3001。删除群主烟测线时执行：
+确认 3001 健康且测试完成后，才允许删除群主烟测线：
 
 ```bash
 docker rm -f vozeb-upstream-v007-worker vozeb-upstream-v007-smoke

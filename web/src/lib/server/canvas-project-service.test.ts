@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
     listCanvasProjectSummaries: vi.fn(),
     updateCanvasProject: vi.fn(),
     updateCanvasProjectMutationPatch: vi.fn(),
-    deleteUserLocalMediaAssets: vi.fn(),
+    deleteUserMediaAssetsCascade: vi.fn(),
     validateIpReferences: vi.fn(),
     recordIpReferenceUsage: vi.fn(),
 }));
@@ -34,7 +34,7 @@ vi.mock("@/lib/server/creative-entity-deletion-store", () => ({
     deleteCanvasProjectAggregates: mocks.deleteCanvasProjectAggregates,
     deleteCanvasAssistantConversationAggregates: mocks.deleteCanvasAssistantConversationAggregates,
 }));
-vi.mock("@/lib/server/local-media-storage", () => ({ deleteUserLocalMediaAssets: mocks.deleteUserLocalMediaAssets }));
+vi.mock("@/lib/server/user-media-deletion-service", () => ({ deleteUserMediaAssetsCascade: mocks.deleteUserMediaAssetsCascade }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({
     normalizeIpReferences: (value: unknown) => (Array.isArray(value) ? value : []),
     validateIpReferences: mocks.validateIpReferences,

@@ -194,7 +194,7 @@ describe("image task runtime submission safety", () => {
     });
 
     it("does not refund when success wins the failure transition race", async () => {
-        state = { ...imageTask(), status: "running", billing: { pointsCost: 2, pointsRecordId: "image-race", refunded: false } };
+        state = { ...imageTask(), status: "running", billing: { pointsCost: 2, billingReceiptId: "receipt-race", refunded: false } };
         mocks.transitionTask.mockImplementationOnce(async () => {
             state = { ...state, status: "success" };
             return null;
@@ -206,7 +206,7 @@ describe("image task runtime submission safety", () => {
     });
 
     it("commits the image error state before refunding", async () => {
-        state = { ...imageTask(), status: "running", billing: { pointsCost: 2, pointsRecordId: "image-failed", refunded: false } };
+        state = { ...imageTask(), status: "running", billing: { pointsCost: 2, billingReceiptId: "receipt-failed", refunded: false } };
         mocks.refund.mockImplementationOnce(async () => {
             expect(state.status).toBe("error");
             return undefined;
@@ -233,7 +233,7 @@ describe("image task runtime submission safety", () => {
         state.config = { ...state.config, advancedConfig: { ...emptyAdvancedConfig(), protocol: "openai" } };
         state.candidateConfigs = [];
         mocks.runOpenAi.mockResolvedValueOnce({ dataUrl: "data:image/png;base64,broken", pointsCost: 1, billingReceiptId: "school:batch-a" });
-        mocks.writeLog.mockRejectedValueOnce(new Error("pngload_buffer: libspng read error"));
+        mocks.normalizeAssets.mockRejectedValueOnce(new Error("pngload_buffer: libspng read error"));
 
         const step = await createImageTaskUpstreamStep(state, "http://internal", "https://public.example");
         expect(step).toMatchObject({ state: "failed", error: expect.stringContaining("pngload_buffer") });
@@ -244,7 +244,7 @@ describe("image task runtime submission safety", () => {
     it("stores only stable media references before scheduling a synchronous result", async () => {
         state.config = { ...state.config, advancedConfig: { ...emptyAdvancedConfig(), protocol: "openai" } };
         state.candidateConfigs = [];
-        mocks.runOpenAi.mockResolvedValueOnce({ dataUrl: "data:image/png;base64,c2FmZQ==", pointsCost: 1, pointsRecordId: "record-one" });
+        mocks.runOpenAi.mockResolvedValueOnce({ dataUrl: "data:image/png;base64,c2FmZQ==", pointsCost: 1, billingReceiptId: "receipt-one" });
 
         const step = await createImageTaskUpstreamStep(state, "http://internal", "https://public.example");
 
@@ -269,7 +269,7 @@ describe("image task runtime submission safety", () => {
     it("removes a newly prepared asset when cancellation wins the persistence race", async () => {
         state.config = { ...state.config, advancedConfig: { ...emptyAdvancedConfig(), protocol: "openai" } };
         state.candidateConfigs = [];
-        mocks.runOpenAi.mockResolvedValueOnce({ dataUrl: "data:image/png;base64,c2FmZQ==", pointsCost: 1, pointsRecordId: "record-one" });
+        mocks.runOpenAi.mockResolvedValueOnce({ dataUrl: "data:image/png;base64,c2FmZQ==", pointsCost: 1, billingReceiptId: "receipt-one" });
         mocks.normalizeAssets.mockImplementationOnce(async () => {
             state = { ...state, status: "cancelled" };
             const serverUrl = "/api/generation-log-assets/cancelled.png";
@@ -313,6 +313,18 @@ describe("image task runtime submission safety", () => {
             ],
         });
         mocks.directResult.mockImplementation((url?: string) => (url ? { dataUrl: url, remoteUrl: url } : null));
+        mocks.normalizeAssets.mockImplementationOnce(async (assets: Array<{ url: string; remoteUrl?: string }>) =>
+            assets.map((asset) => ({
+                type: "image",
+                url: asset.url.includes("first") ? "/api/generation-log-assets/first.png" : "/api/generation-log-assets/second.png",
+                serverUrl: asset.url.includes("first") ? "/api/generation-log-assets/first.png" : "/api/generation-log-assets/second.png",
+                remoteUrl: asset.remoteUrl,
+                mimeType: "image/png",
+                width: 4,
+                height: 4,
+                bytes: 128,
+            })),
+        );
         mocks.writeLog.mockResolvedValueOnce({
             assets: [
                 { type: "image", url: "/api/generation-log-assets/first.png", serverUrl: "/api/generation-log-assets/first.png" },
@@ -328,10 +340,7 @@ describe("image task runtime submission safety", () => {
         expect(mocks.register).toHaveBeenCalledWith(
             "user-one",
             expect.objectContaining({
-                assets: [
-                    { type: "image", url: "/api/generation-log-assets/first.png" },
-                    { type: "image", url: "/api/generation-log-assets/second.png" },
-                ],
+                assets: expect.arrayContaining([expect.objectContaining({ type: "image", url: "/api/generation-log-assets/first.png" }), expect.objectContaining({ type: "image", url: "/api/generation-log-assets/second.png" })]),
             }),
         );
     });
@@ -344,13 +353,13 @@ describe("image task runtime submission safety", () => {
             ...imageTask(),
             status: "running",
             config: { ...imageTask().config, outputBackground: "transparent" },
-            billing: { pointsCost: 3, pointsRecordId: "transparent-charge", refunded: false },
+            billing: { pointsCost: 3, billingReceiptId: "receipt-transparent", refunded: false },
             result: { dataUrl: `data:image/png;base64,${opaque.toString("base64")}` },
         };
         mocks.writeLog.mockResolvedValue(undefined);
 
         await expect(persistImageTaskResult(state, "http://internal", "inline://image-task-result")).resolves.toMatchObject({ status: "error", billing: { refunded: true } });
-        expect(mocks.refund).toHaveBeenCalledWith("user-one", "image-one", 3, "image", 1, expect.stringContaining("image-task:image-one"), "transparent-charge");
+        expect(mocks.refund).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-one", receiptId: "receipt-transparent", usageKind: "image" }));
         expect(mocks.register).not.toHaveBeenCalled();
     });
 
@@ -363,7 +372,7 @@ describe("image task runtime submission safety", () => {
             status: "running",
             kind: "edit",
             config: { ...imageTask().config, outputMode: "layers" },
-            billing: { pointsCost: 3, pointsRecordId: "layer-charge", refunded: false },
+            billing: { pointsCost: 3, billingReceiptId: "receipt-layer", refunded: false },
             references: [{ dataUrl: dataUrl(opaque) }],
             result: { dataUrl: dataUrl(opaque) },
         };
@@ -407,7 +416,7 @@ describe("image task runtime submission safety", () => {
             status: "running",
             kind: "edit",
             config: { ...imageTask().config, outputMode: "layers" },
-            billing: { pointsCost: 3, pointsRecordId: "duplicate-layer-charge", refunded: false },
+            billing: { pointsCost: 3, billingReceiptId: "receipt-duplicate-layer", refunded: false },
             references: [{ dataUrl: source }],
             result: { dataUrl: foreground, results: [{ dataUrl: foreground }, { dataUrl: foreground }, { dataUrl: background }] },
         };

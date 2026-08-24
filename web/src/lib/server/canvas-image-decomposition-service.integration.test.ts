@@ -6,14 +6,14 @@ import { createProtocolFixtureServer } from "../../../scripts/protocol-fixture-s
 const mocks = vi.hoisted(() => ({
     fetchInternalApi: vi.fn(),
     getAuthSettings: vi.fn(),
-    refundUserPoints: vi.fn(),
+    refundGenerationCharge: vi.fn(),
     resolveLogicalModelCandidates: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/store", () => ({
     getAuthSettings: mocks.getAuthSettings,
-    refundUserPoints: mocks.refundUserPoints,
 }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refundGenerationCharge }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi }));
 vi.mock("@/lib/server/logical-model-router", () => ({ resolveLogicalModelCandidates: mocks.resolveLogicalModelCandidates }));
 
@@ -57,7 +57,7 @@ beforeEach(() => {
     fixture.requests.splice(0);
     mocks.getAuthSettings.mockReset().mockResolvedValue({ defaultModels: { textModel: "planner" } });
     mocks.resolveLogicalModelCandidates.mockReset().mockReturnValue([candidate]);
-    mocks.refundUserPoints.mockReset();
+    mocks.refundGenerationCharge.mockReset();
     mocks.fetchInternalApi.mockReset().mockImplementation((input: string | URL, init?: RequestInit) => fetch(input, init));
 });
 
@@ -89,12 +89,19 @@ describe("canvas image decomposition service protocol integration", () => {
                 headers: {
                     "content-type": "application/json",
                     "x-vozeb-pro-points-cost": "0",
-                    "x-vozeb-pro-points-record-id": "points-decomposition",
+                    "x-vozeb-pro-billing-receipt-id": "points:points-decomposition",
                 },
             }),
         );
 
         await expect(decomposeCanvasImage({ origin, cookie: "", userId: "user-one", requestId: "request-invalid", source })).rejects.toThrow("图片理解模型返回了无效 JSON");
-        expect(mocks.refundUserPoints).toHaveBeenCalledWith("user-one", "planner", 0, "text", 1, undefined, "points-decomposition");
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledWith({
+            userId: "user-one",
+            receiptId: "points:points-decomposition",
+            model: "planner",
+            usageKind: "text",
+            units: 1,
+            idempotencyKey: "canvas-decompose-refund:points:points-decomposition",
+        });
     });
 });

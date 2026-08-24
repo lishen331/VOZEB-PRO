@@ -10,7 +10,7 @@ import { createCreativeConversation, getCreativeConversation, listCreativeConver
 import { createDramaProject, deleteDramaProject, DramaProjectStoreError, findDramaProjectBySourceHandoffId, getDramaProject, listDramaProjectSummaries, updateDramaProject } from "@/lib/server/drama-project-store";
 import { createDramaProjectVersion, getDramaProjectVersion, listDramaProjectVersions } from "@/lib/server/drama-project-version-store";
 import { collectLocalMediaStorageKeys } from "@/lib/server/local-media-references";
-import { deleteUserLocalMediaAssets } from "@/lib/server/local-media-storage";
+import { deleteUserMediaAssetsCascade } from "@/lib/server/user-media-deletion-service";
 import type { DramaProjectIdentityInput } from "@/lib/server/drama-project-store";
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "@/lib/server/ip-library-reference-service";
@@ -256,7 +256,7 @@ function referenceKey(reference: IpReference) {
     return `${reference.id}:${reference.versionId}:${reference.itemIds.join(",")}`;
 }
 
-function normalizeEpisode(value: unknown): DramaEpisode | null {
+function normalizeEpisode(value: unknown, index: number): DramaEpisode | null {
     const input = object(value);
     const id = cleanText(input.id);
     if (!id) return null;

@@ -1,6 +1,6 @@
 import sharp from "sharp";
 
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { normalizeCanvasImageDecomposition, canvasImageDecompositionInstruction, canvasImageDecompositionTool, type CanvasImageDecomposition } from "@/lib/canvas-image-decomposition";
 import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
@@ -12,6 +12,7 @@ import { strictJsonObjectText } from "@/lib/server/structured-model-output";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { rankTextPlanningCandidates } from "@/lib/server/text-planning-runtime";
 import { resolveTextProtocol } from "@/lib/server/text-protocol-resolver";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 
 type SourceImage = { dataUrl: string; mimeType: string; width: number; height: number };
 type VisionCall = { arguments: string; headers: Headers };
@@ -193,7 +194,7 @@ function parseDecomposition(value: string, width: number, height: number) {
 async function refundInvalidResponse(userId: string, model: string, headers: Headers) {
     if (!userId) return;
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+    if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `canvas-decompose-refund:${billing.billingReceiptId}` });
 }
 
 function records(value: unknown): Record<string, unknown>[] {

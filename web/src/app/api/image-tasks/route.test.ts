@@ -93,7 +93,7 @@ describe("image task route", () => {
 
         expect(response.status).toBe(403);
         expect(await response.json()).toEqual({ error: "IP 授权已失效" });
-        expect(mocks.validateGenerationContextIpReferences).toHaveBeenCalledWith("user-one", { surface: "canvas", projectId: "canvas-one" });
+        expect(mocks.validateGenerationContextIpReferences).toHaveBeenCalledWith("user-one", expect.objectContaining({ surface: "canvas", projectId: "canvas-one" }));
         expect(mocks.getAuthSettings).not.toHaveBeenCalled();
     });
 

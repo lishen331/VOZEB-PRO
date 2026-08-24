@@ -485,7 +485,7 @@ async function processImageLease(lease: GenerationTaskLease, workerId: string, o
         });
         return "needs_review";
     }
-    if (needsPersistence(lease)) return persistImageLease(task, lease, workerId, origin, cookie);
+    if (needsPersistence(lease)) return persistImageLease(task, lease, workerId, origin, cookie, userRequested);
     if (!task.upstream?.id) {
         try {
             await validateGenerationContextIpReferences(task.userId, task);
@@ -680,7 +680,7 @@ async function processAudioLease(lease: GenerationTaskLease, workerId: string, o
         });
         return "needs_review";
     }
-    if (needsPersistence(lease)) return persistAudioLease(task, lease, workerId, origin, cookie);
+    if (needsPersistence(lease)) return persistAudioLease(task, lease, workerId, origin, cookie, userRequested);
     if (!task.upstream?.id) {
         try {
             await validateGenerationContextIpReferences(task.userId, task);

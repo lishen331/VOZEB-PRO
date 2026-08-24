@@ -806,7 +806,7 @@ function isActiveConcurrencyPhase(phase: StoredGenerationTaskRecord["executionPh
 }
 
 function countsTowardGenerationConcurrency(task: StoredGenerationTaskRecord) {
-    return task.concurrencyClass !== "canvas-layer";
+    return (task as StoredGenerationTaskRecord & { concurrencyClass?: string }).concurrencyClass !== "canvas-layer";
 }
 
 async function upsertTask<T extends { id: string; userId: string; status: string; createdAt: number; updatedAt: number }>(type: GenerationTaskType, task: T, ttlMs: number) {

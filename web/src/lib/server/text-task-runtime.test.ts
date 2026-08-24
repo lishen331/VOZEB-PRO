@@ -182,14 +182,14 @@ describe("text task runtime recovery", () => {
             vi.fn().mockResolvedValueOnce(
                 new Response("not-json", {
                     status: 200,
-                    headers: { "content-type": "application/json", "x-vozeb-pro-points-cost": "1.5", "x-vozeb-pro-points-record-id": "text-points-unknown" },
+                    headers: { "content-type": "application/json", "x-vozeb-pro-points-cost": "1.5", "x-vozeb-pro-billing-receipt-id": "points:text-points-unknown" },
                 }),
             ),
         );
 
         await expect(runTextTaskStep(state, "http://internal", "")).resolves.toMatchObject({ state: "needs_review" });
         expect(state.config.channelId).toBe("channel-one");
-        expect(state.billing).toEqual({ pointsCost: 1.5, pointsRecordId: "text-points-unknown", refunded: false });
+        expect(state.billing).toEqual({ pointsCost: 1.5, billingReceiptId: "points:text-points-unknown", refunded: false });
         expect(mocks.refund).not.toHaveBeenCalled();
     });
 

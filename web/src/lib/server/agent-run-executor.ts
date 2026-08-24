@@ -141,6 +141,8 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
                     model,
                     false,
                     systemAiIdempotencyKey("agent-plan", run.userId, run.id, candidate.channel.id, candidate.upstreamModel),
+                    undefined,
+                    undefined,
                     claimed.billingContext,
                 );
                 plan = await parseAgentPlanCall(planCall, () => refundFunctionCall(claimed.userId, model, planCall), undefined, {

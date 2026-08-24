@@ -239,7 +239,11 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     }
     if (globalAdaptation && upstream.ok) {
         const payload = await upstream.json().catch(() => null);
-        if (!payload) return NextResponse.json({ error: "上游文本接口返回了无效 JSON" }, { status: 502, headers: responseHeaders(upstream.headers, chargeResult, refundedPointsRemaining, target) });
+        if (!payload) {
+            await refundConsumedPoints();
+            chargeResult = null;
+            return NextResponse.json({ error: "上游文本接口返回了无效 JSON" }, { status: 502, headers: responseHeaders(upstream.headers, null, refundedPointsRemaining, target) });
+        }
         return NextResponse.json(adaptGlobalAiOpcTextResponse(globalAdaptation.adapter, payload), { status: upstream.status, headers: responseHeaders(upstream.headers, chargeResult, refundedPointsRemaining, target) });
     }
     if (isJsonResponse(upstream)) {
@@ -249,11 +253,11 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
             return new Response(body, {
                 status: upstream.status,
                 statusText: upstream.statusText,
-                headers: responseHeaders(upstream.headers, pointsResult, refundedPointsRemaining, target),
+                headers: responseHeaders(upstream.headers, chargeResult, refundedPointsRemaining, target),
             });
         } catch (error) {
             await refundConsumedPoints();
-            pointsResult = null;
+            chargeResult = null;
             console.error("System API proxy response body failed", error instanceof Error ? error.message : error);
             return NextResponse.json({ error: DEFAULT_CHANNEL_CONNECT_ERROR }, { status: 502, headers: responseHeaders(new Headers(), null, refundedPointsRemaining) });
         }

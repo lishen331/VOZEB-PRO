@@ -283,7 +283,7 @@ export async function runOpenAiImageTaskWithBase64Response(task: ImageTask, orig
     const path = await openAiImageTaskPath(config, task.kind);
     const url = taskUrl(config, path, origin);
     const allowProtocolFallback = allowsImageProtocolFallback(config);
-    const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task), task.billingContext);
+    const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task, billingVariant), task.billingContext);
 
     if (task.kind === "edit") {
         let formData: FormData;

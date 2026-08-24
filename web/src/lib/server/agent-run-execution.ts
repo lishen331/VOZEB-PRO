@@ -558,6 +558,8 @@ export async function requestFunctionCall(
     billingModel: string,
     allowNaturalLanguage = false,
     pointsIdempotencyKey?: string,
+    stream = false,
+    onStreamStart?: () => Promise<void> | void,
     billingContext?: SchoolComputeBillingContext,
 ) {
     const requestHeaders = runtimeRequestHeaders(cookie, {

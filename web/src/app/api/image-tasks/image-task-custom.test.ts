@@ -49,7 +49,7 @@ describe("declarative image request size", () => {
         } satisfies ImageTask;
         mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ status: "processing" }));
 
-        await expect(pollCustomImageTask(task, "upstream-one", "http://localhost/api/ai/system/channel-one/images", "", true)).resolves.toMatchObject({ pending: { id: "upstream-one" } });
+        await expect(pollCustomImageTask(task, "upstream-one", "http://localhost/api/ai/system/channel-one/images", "http://localhost/api/ai/system/channel-one/images", "", true)).resolves.toMatchObject({ pending: { id: "upstream-one" } });
 
         const headers = new Headers((mocks.fetchInternalApi.mock.calls[0]?.[1] as RequestInit).headers);
         expect(readVerifiedSystemAiBusinessRequestId(headers, "practice-image", task.config.model, "open-source-practice")).toBe("image-task:image-one:attempt:4:poll");

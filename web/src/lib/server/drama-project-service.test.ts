@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => {
         createDramaProjectVersion: vi.fn(),
         getDramaProjectVersion: vi.fn(),
         listDramaProjectVersions: vi.fn(),
-        deleteUserLocalMediaAssets: vi.fn(),
+        deleteUserMediaAssetsCascade: vi.fn(),
         validateIpReferences: vi.fn(),
         recordIpReferenceUsage: vi.fn(),
     };
@@ -59,7 +59,7 @@ vi.mock("@/lib/server/drama-project-version-store", () => ({
     getDramaProjectVersion: mocks.getDramaProjectVersion,
     listDramaProjectVersions: mocks.listDramaProjectVersions,
 }));
-vi.mock("@/lib/server/local-media-storage", () => ({ deleteUserLocalMediaAssets: mocks.deleteUserLocalMediaAssets }));
+vi.mock("@/lib/server/user-media-deletion-service", () => ({ deleteUserMediaAssetsCascade: mocks.deleteUserMediaAssetsCascade }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({
     normalizeIpReferences: (value: unknown) => (Array.isArray(value) ? value : []),
     validateIpReferences: mocks.validateIpReferences,

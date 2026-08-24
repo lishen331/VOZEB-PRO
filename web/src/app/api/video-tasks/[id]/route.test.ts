@@ -43,25 +43,25 @@ describe("GET /api/video-tasks/[id]", () => {
         mocks.writeLog.mockResolvedValue(undefined);
     });
 
-    it("returns a running task without running recovery work", async () => {
+    it("returns a running task and schedules recovery work", async () => {
         const task = videoTask();
         mocks.getVideoTask.mockResolvedValue(task);
 
         const response = await GET(new Request("http://localhost/api/video-tasks/local-video", { headers: { cookie: "session=test" } }), context);
 
         expect(response.status).toBe(200);
-        expect(after).not.toHaveBeenCalled();
+        expect(after).toHaveBeenCalledWith(expect.any(Function));
         expect(mocks.recover).not.toHaveBeenCalled();
         expect((await response.json()).task).toMatchObject({ status: "running" });
     });
 
-    it("returns a legacy local timeout without running recovery work", async () => {
+    it("returns a legacy local timeout and schedules recovery work", async () => {
         const task = videoTask({ status: "error", error: "视频任务长时间未更新，请重新查询或生成。" });
         mocks.getVideoTask.mockResolvedValue(task);
 
         await GET(new Request("http://localhost/api/video-tasks/local-video"), context);
 
-        expect(after).not.toHaveBeenCalled();
+        expect(after).toHaveBeenCalledWith(expect.any(Function));
         expect(mocks.recover).not.toHaveBeenCalled();
     });
 

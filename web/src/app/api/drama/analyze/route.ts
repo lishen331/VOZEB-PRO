@@ -3,13 +3,17 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBody } from "@/lib/auth/request";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
-import { describeDramaAnalysisCandidate, describeDramaModelOutput, dramaContentTool, dramaVisualTool, hasUsableDramaToolArguments, normalizeDramaContentAnalysis, normalizeDramaVisualAnalysis } from "@/lib/server/drama-analysis";
+import { describeDramaAnalysisCandidate, dramaContentTool, dramaVisualTool, hasCompleteDramaContentAnalysis, hasUsableDramaToolArguments, normalizeDramaContentAnalysis, normalizeDramaToolArguments } from "@/lib/server/drama-analysis";
+import { mergeDramaContentAnalyses } from "@/lib/server/drama-analysis-merge";
+import { splitDramaScriptAtBoundary } from "@/lib/server/drama-analysis-segmentation";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { checkRateLimit } from "@/lib/server/security";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey, type SystemAiBilling } from "@/lib/server/system-ai-billing";
-import { rankTextPlanningCandidates, requestStructuredText, type TextPlanningCandidate } from "@/lib/server/text-planning-runtime";
-import { dramaAnalysisText, normalizeDramaVisualInput, type DramaAnalyzeBody } from "@/lib/server/drama-analysis-input";
+import { isStructuredTextFailure, rankTextPlanningCandidates, requestStructuredText, type TextPlanningCandidate } from "@/lib/server/text-planning-runtime";
+import { dramaAnalysisText, normalizeDramaVisualInput, type DramaAnalyzeBody, type NormalizedDramaVisualInput } from "@/lib/server/drama-analysis-input";
+import { dramaShotDurationInstruction, resolveDramaVideoDurationPolicy } from "@/lib/server/drama-shot-config";
+import { analyzeDramaVisualBatches } from "@/lib/server/drama-visual-analysis-runtime";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 
 export const runtime = "nodejs";
@@ -83,7 +87,7 @@ export async function POST(request: Request) {
                             return { value: JSON.parse(call.args), call };
                         },
                         releaseCall: async (call) => {
-                            if (hasSystemAiCharge(call)) refundedPointsRemaining = (await refund(user.id, model, call))?.pointsBalance;
+                            if (hasSystemAiCharge(call)) refundedPointsRemaining = (await refund(user.id, model, call))?.personalPointsRemaining;
                         },
                         shouldSplitError: isAdaptiveVisualBatchError,
                     });
@@ -102,24 +106,24 @@ export async function POST(request: Request) {
                     candidate,
                     model,
                     tool,
-                    systemAiIdempotencyKey("drama-analyze", user.id, phase, JSON.stringify(input), candidate.channel.id, candidate.upstreamModel),
-                );
-                try {
-                    const parsed = JSON.parse(call.args);
-                    const data = phase === "visual" ? normalizeDramaVisualAnalysis(parsed, visualInput!.shotIds) : normalizeDramaContentAnalysis(parsed, settings.generationDefaults.videoSeconds, script);
-                    const resultCount = data.shots.length;
-                    const expectedCount = phase === "visual" ? visualInput!.shotIds.length : 1;
-                    if (!resultCount || (phase === "visual" && resultCount !== expectedCount)) {
-                        console.error("[drama-analyze] normalized output invalid", JSON.stringify({ phase, channelId: candidate.channel.id, model: candidate.upstreamModel, resultCount, expectedCount, shape: describeDramaAnalysisCandidate(parsed) }));
-                        throw new Error(phase === "visual" ? "模型没有为全部镜头生成视觉结构" : "模型没有生成有效内容结构");
-                    }
-                    const response = NextResponse.json({ code: 0, data, msg: phase === "visual" ? "视觉结构已生成" : "内容结构待审核" });
-                    if (typeof call.pointsRemaining === "number") response.headers.set("x-vozeb-pro-points-remaining", String(call.pointsRemaining));
-                    return response;
-                } catch (error) {
-                    if (hasSystemAiCharge(call)) refundedPointsRemaining = (await refund(user.id, model, call))?.personalPointsRemaining;
-                    throw error;
-                }
+                    requestId,
+                    script,
+                    summary: dramaAnalysisText(body.summary),
+                    userId: user.id,
+                    durationPolicy,
+                    messagesFor,
+                    signal: request.signal,
+                    onRefund: (pointsBalance) => {
+                        if (typeof pointsBalance === "number") refundedPointsRemaining = pointsBalance;
+                    },
+                });
+                const response = NextResponse.json({ code: 0, data: result.data, msg: "内容结构待审核" });
+                const pointsRemaining = result.calls
+                    .map((call) => call.pointsRemaining)
+                    .filter((value): value is number => typeof value === "number")
+                    .at(-1);
+                if (typeof pointsRemaining === "number") response.headers.set("x-vozeb-pro-points-remaining", String(pointsRemaining));
+                return response;
             } catch (error) {
                 latestError = error;
                 if (!shouldTryAnotherTextCandidate(error)) break;
@@ -217,7 +221,7 @@ async function analyzeDramaContentCandidate(input: {
         for (const call of calls) {
             if (!hasSystemAiCharge(call)) continue;
             const result = await refund(input.userId, input.model, call);
-            input.onRefund(result && typeof result === "object" && "pointsBalance" in result ? result.pointsBalance : undefined);
+            input.onRefund(result?.personalPointsRemaining);
         }
         throw error;
     }
@@ -295,5 +299,14 @@ function describeArgumentsText(value: string) {
 
 async function refund(userId: string, model: string, source: Headers | SystemAiBilling) {
     const billing = source instanceof Headers ? readSystemAiBilling(source) : source;
-    return hasSystemAiCharge(billing) ? refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `drama-analyze-refund:${billing.billingReceiptId}` }) : null;
+    return hasSystemAiCharge(billing)
+        ? refundGenerationCharge({
+              userId,
+              receiptId: billing.billingReceiptId,
+              model,
+              usageKind: "text",
+              units: 1,
+              idempotencyKey: `drama-analyze-refund:${billing.billingReceiptId}`,
+          })
+        : null;
 }

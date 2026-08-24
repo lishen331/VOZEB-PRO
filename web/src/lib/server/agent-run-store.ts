@@ -12,6 +12,7 @@ import type { AgentRunPlannerAudit } from "./agent-run-audit";
 import { AGENT_REQUEST_SCHEMA } from "./agent-prompt-json";
 import { normalizeAgentRunCanvasSnapshot, selectedCanvasNodeIds } from "./agent-run-canvas-snapshot";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
+import { getDramaProject } from "./drama-project-store";
 
 export type AgentRunStatus = "planning" | "running" | "paused" | "completed" | "failed" | "cancelled";
 export type AgentRunReviewStatus = "review_pending" | "reviewing" | "review_completed" | "review_unavailable";

@@ -21,7 +21,9 @@ export async function buildOpenAiVideoFormData(input: OpenAiVideoFormInput) {
     // Drama shots can use arbitrary durations (for example 6 seconds), so map to
     // the smallest supported value that can contain the requested shot.
     formData.set("seconds", String(normalizeOpenAiVideoSeconds(input.seconds)));
-    formData.set("size", `${input.width}x${input.height}`);
+    if (Number.isFinite(input.width) && Number.isFinite(input.height)) {
+        formData.set("size", `${input.width}x${input.height}`);
+    }
     formData.set("watermark", "false");
     formData.set("private", "false");
     formData.set("character_url", "");

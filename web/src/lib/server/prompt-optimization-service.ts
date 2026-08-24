@@ -6,6 +6,7 @@ import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
+import { resolveSiteTitle } from "@/lib/site-brand";
 
 type PromptOptimizationMode = "agent" | CreativeGenerationMode;
 

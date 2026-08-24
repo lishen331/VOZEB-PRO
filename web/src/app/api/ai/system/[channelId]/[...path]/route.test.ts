@@ -2,8 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     checkMediaProxyRateLimit: vi.fn(),
+    chargeGeneration: vi.fn(async (input: { userId: string; amount: number; units: number; usageKind: string; model: string; idempotencyKey: string; requestFingerprint: string }) => {
+        const legacy = (await mocks.consumeUserPoints(input.userId, input.model, input.amount, input.usageKind, input.idempotencyKey, input.requestFingerprint)) || pointCharge();
+        return {
+            receiptId: `points:${legacy.recordId}`,
+            sources: ["personal_points"],
+            cost: legacy.cost ?? input.amount,
+            personalPointsRemaining: legacy.remaining,
+        };
+    }),
     consumeUserPoints: vi.fn(),
     getAuthSettings: vi.fn(),
+    refundGenerationCharge: vi.fn(async (input: { userId: string; receiptId: string; model: string; usageKind: string; units: number }) => {
+        const recordId = input.receiptId.replace(/^points:/, "");
+        const result = await mocks.refundUserPoints(input.userId, input.model, input.units, input.usageKind, input.units, undefined, recordId);
+        return { refunded: true, personalPointsRemaining: result?.pointsBalance };
+    }),
     refundUserPoints: vi.fn(),
     safeUrl: vi.fn(),
     acquire: vi.fn(),
@@ -22,6 +36,7 @@ vi.mock("@/lib/auth/store", () => ({
     refundUserPoints: mocks.refundUserPoints,
 }));
 vi.mock("@/lib/server/proxy-dispatcher", () => ({ configureServerProxyDispatcher: vi.fn() }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ chargeGeneration: mocks.chargeGeneration, refundGenerationCharge: mocks.refundGenerationCharge }));
 vi.mock("@/lib/server/media-concurrency", () => ({ acquireMediaConcurrency: mocks.acquire, withMediaConcurrency: mocks.wrap }));
 vi.mock("@/lib/server/safe-outbound-fetch", () => ({ fetchSafeOutbound: (url: string | URL, init?: RequestInit) => fetch(url, init) }));
 vi.mock("@/lib/server/generation-media-access", () => ({ authorizeGenerationMediaProxyRequest: mocks.mediaAccess }));
@@ -39,6 +54,11 @@ import { SYSTEM_PROXY_JSON_BODY_MAX_BYTES } from "@/lib/server/system-proxy-requ
 import { systemAiBillingHeaders, systemAiPointsIdempotencyKey } from "@/lib/server/system-ai-billing";
 
 const context = { params: Promise.resolve({ channelId: "channel-one", path: ["_media"] }) };
+
+beforeEach(() => {
+    mocks.chargeGeneration.mockClear();
+    mocks.refundGenerationCharge.mockClear();
+});
 
 describe("system generation proxy runtime", () => {
     it("keeps long image and video submissions alive beyond the framework default", () => {

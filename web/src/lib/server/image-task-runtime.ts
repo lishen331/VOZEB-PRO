@@ -17,6 +17,7 @@ import { GenerationSubmissionSafeFailure, generationSubmissionUncertainError } f
 import { getImageTask, transitionImageTask, updateImageTask, type ImageTask, type StoredImageTaskMediaResult } from "@/lib/server/image-task-store";
 import { maintenanceWorkerContext } from "@/lib/server/maintenance-auth";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
+import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 
 export type ImageUpstreamStep =
     | { state: "pending"; upstream: NonNullable<ImageTask["upstream"]>; status: string }
@@ -75,7 +76,7 @@ export async function queryImageTaskUpstreamStep(task: ImageTask, origin: string
     const authContext = cookie || maintenanceWorkerContext(workerUserId || task.userId);
     try {
         const result = usesDeclarativeImageProtocol(task.config.advancedConfig?.protocol)
-            ? await pollCustomImageTask(task, upstream.id, upstream.pollBaseUrl, authContext, true)
+            ? await pollCustomImageTask(task, upstream.id, upstream.mediaBaseUrl, upstream.pollBaseUrl, authContext, true)
             : await pollOpenAiImageTask(task.config, upstream.id, upstream.mediaBaseUrl, upstream.pollBaseUrl, authContext, upstream.explicitPollUrl || "", true, practiceImagePollRequestId(task), task.billingContext);
         return await handleImageProviderResult(task, { ...result, pointsCost: task.billing?.pointsCost, billingReceiptId: task.billing?.billingReceiptId }, origin, authContext);
     } catch (error) {
@@ -95,7 +96,7 @@ export async function prepareImageTaskAutomaticRetry(task: ImageTask, error: str
         status: "failed",
         error,
         pointsCost: current.billing?.pointsCost,
-        pointsRecordId: current.billing?.pointsRecordId,
+        billingReceiptId: current.billing?.billingReceiptId,
     });
     await refundImageCandidate(current);
     const nextConfig = current.candidateConfigs?.[0] || current.config;
@@ -116,7 +117,7 @@ export async function queryCancelledImageTaskUpstreamStep(task: ImageTask, origi
     const authContext = cookie || maintenanceWorkerContext(workerUserId || task.userId);
     try {
         const result = usesDeclarativeImageProtocol(task.config.advancedConfig?.protocol)
-            ? await pollCustomImageTask(task, upstream.id, upstream.pollBaseUrl, authContext, true)
+            ? await pollCustomImageTask(task, upstream.id, upstream.mediaBaseUrl, upstream.pollBaseUrl, authContext, true)
             : await pollOpenAiImageTask(task.config, upstream.id, upstream.mediaBaseUrl, upstream.pollBaseUrl, authContext, upstream.explicitPollUrl || "", true, practiceImagePollRequestId(task), task.billingContext);
         return result.pending ? { state: "pending" as const, status: "processing" } : { state: "terminal" as const, status: "completed" };
     } catch (error) {
@@ -134,26 +135,25 @@ export async function persistImageTaskResult(task: ImageTask, origin: string, re
     const inlineDataUrl = resultUrl === "inline://image-task-result" ? current.result?.dataUrl || "" : resultUrl;
     const remoteUrl = resultUrl === "inline://image-task-result" ? current.result?.remoteUrl : /^https?:\/\//i.test(resultUrl) ? resultUrl : undefined;
     if (!inlineDataUrl && !remoteUrl) throw new GenerationSubmissionSafeFailure("图片任务缺少可持久化结果");
-    const results = task.result?.results?.length ? task.result.results : [{ dataUrl: inlineDataUrl, remoteUrl }];
-    const normalizedResults = results.map((item, index) => (index === 0 ? { ...item, dataUrl: inlineDataUrl || item.dataUrl, remoteUrl: remoteUrl || item.remoteUrl } : item));
-    return completeImageResult(task, { ...normalizedResults[0], results: normalizedResults, pointsCost: task.billing?.pointsCost, billingReceiptId: task.billing?.billingReceiptId }, origin, authContext);
+    const legacyResults = current.result?.results?.length ? current.result.results : [{ dataUrl: inlineDataUrl, remoteUrl }];
+    const normalizedResults = legacyResults.map((item, index) => (index === 0 ? { ...item, dataUrl: inlineDataUrl || item.dataUrl, remoteUrl: remoteUrl || item.remoteUrl } : item));
+    try {
+        results = await prepareImageTaskResults(current, { ...normalizedResults[0], results: normalizedResults }, origin, authContext);
+    } catch (error) {
+        return markImageTaskFailed(current, error instanceof Error ? error.message : "Unable to persist the image result");
+    }
+    try {
+        await updateImageTask(current.id, { result: { ...results[0], results } });
+    } catch (error) {
+        await deletePreparedImageTaskResults(results);
+        throw error;
+    }
+    return completeImageResult(current, results);
 }
 
 export async function markImageTaskFailed(task: ImageTask, error: string) {
     const current = (await getImageTask(task.id)) || task;
     if (current.status === "success" || current.status === "cancelled") return current;
-    if (generationTaskShouldConsumePoints(current.executionProfile) && current.billing?.billingReceiptId && !current.billing.refunded) {
-        const settings = await getAuthSettings();
-        await refundGenerationCharge({
-            userId: current.userId,
-            receiptId: current.billing.billingReceiptId,
-            model: generationModelId(current.config),
-            usageKind: "image",
-            units: imageUnits(current.config.quality, settings.generationPointMultipliers.imageQuality),
-            idempotencyKey: `image-task:${current.id}:attempt:${current.attemptNo || 1}:refund`,
-        });
-        await updateImageTask(current.id, { billing: { ...current.billing, refunded: true } });
-    }
     const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || current.attempts?.at(-1)?.attemptNo || 1, {
         status: "failed",
         error,
@@ -300,8 +300,8 @@ async function completeImageResult(task: ImageTask, safeResults: StoredImageTask
     const finalResult = finalResults[0];
     const attempts = finishGenerationAttempt(completed.attempts || [], completed.attemptNo || completed.attempts?.at(-1)?.attemptNo || 1, {
         status: "succeeded",
-        pointsCost: result.pointsCost ?? completed.billing?.pointsCost,
-        billingReceiptId: result.billingReceiptId || completed.billing?.billingReceiptId,
+        pointsCost: completed.billing?.pointsCost,
+        billingReceiptId: completed.billing?.billingReceiptId,
     });
     const finalized = (await updateImageTask(task.id, { result: { ...finalResult, results: finalResults }, config: { ...completed.config, apiKey: "system" }, candidateConfigs: [], attempts, attemptNo: attempts.at(-1)?.attemptNo })) || completed;
     const assets = (finalized.result?.results?.length ? finalized.result.results : finalized.result ? [finalized.result] : []).flatMap((item) => {
