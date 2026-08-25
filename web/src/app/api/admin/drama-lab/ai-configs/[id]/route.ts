@@ -3,6 +3,7 @@ import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasAnyAdminPermission } from "@/lib/admin-permissions";
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery } from "@/lib/server/database";
+import { databaseNotConfiguredResponse } from "../../_lib";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser();
@@ -42,7 +43,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             });
         }
 
-        return NextResponse.json({ code: 500, msg: "Database not configured" }, { status: 500 });
+        return databaseNotConfiguredResponse();
     } catch (error) {
         console.error("Failed to update AI config:", error);
         return NextResponse.json({ code: 500, msg: "Internal Server Error" }, { status: 500 });
@@ -68,7 +69,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
             });
         }
 
-        return NextResponse.json({ code: 500, msg: "Database not configured" }, { status: 500 });
+        return databaseNotConfiguredResponse();
     } catch (error) {
         console.error("Failed to delete AI config:", error);
         return NextResponse.json({ code: 500, msg: "Internal Server Error" }, { status: 500 });

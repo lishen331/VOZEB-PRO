@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { hasAnyAdminPermission } from "@/lib/admin-permissions";
 import { listDramaProjectSummaries } from "@/lib/server/drama-project-store";
 import { getDatabaseProvider, postgresQuery } from "@/lib/server/database";
+import { databaseNotConfiguredResponse } from "../drama-lab/_lib";
 
 type DramaProjectJson = {
     title?: string;
@@ -89,7 +90,7 @@ export async function GET(req: NextRequest) {
             });
         }
 
-        return NextResponse.json({ code: 500, msg: "Database not configured" }, { status: 500 });
+        return databaseNotConfiguredResponse();
     } catch (error) {
         console.error("Failed to fetch drama projects:", error);
         return NextResponse.json({ code: 500, msg: "Internal Server Error" }, { status: 500 });

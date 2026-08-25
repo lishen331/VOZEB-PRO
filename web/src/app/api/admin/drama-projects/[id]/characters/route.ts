@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasAnyAdminPermission } from "@/lib/admin-permissions";
 import { getDatabaseProvider, postgresQuery } from "@/lib/server/database";
+import { databaseNotConfiguredResponse } from "../../../drama-lab/_lib";
 
 type DramaProjectJson = { characters?: unknown[] };
 type DramaProjectRow = { project_json: DramaProjectJson };
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             });
         }
 
-        return NextResponse.json({ code: 500, msg: "Database not configured" }, { status: 500 });
+        return databaseNotConfiguredResponse();
     } catch (error) {
         console.error("Failed to fetch characters:", error);
         return NextResponse.json({ code: 500, msg: "Internal Server Error" }, { status: 500 });
