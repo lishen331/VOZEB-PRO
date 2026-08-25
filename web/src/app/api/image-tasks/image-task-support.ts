@@ -740,7 +740,9 @@ export async function buildImageEditFormData(task: ImageTask, quality: string | 
 
 export async function imageReferenceToFile(reference: ImageTaskReference, name: string, origin: string, cookie: string) {
     let lastError: unknown;
-    for (const value of rawReferenceRequestUrlCandidates(reference).flatMap((candidate) => [candidate, alternateManagedMediaUrl(candidate)]).filter(Boolean)) {
+    for (const value of rawReferenceRequestUrlCandidates(reference)
+        .flatMap((candidate) => [candidate, alternateManagedMediaUrl(candidate)])
+        .filter(Boolean)) {
         try {
             if (/^data:image\//i.test(value)) return dataUrlToFile(value, name, reference.type);
             if (/^blob:/i.test(value)) throw new Error("参考图已失效，请重新上传");
