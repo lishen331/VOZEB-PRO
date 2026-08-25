@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { generationTaskNextPollAt, claimDueGenerationTasks, releaseGenerationTaskLease, renewGenerationTaskLeases, scheduleGenerationTask, type GenerationTaskLease } from "@/lib/server/generation-task-scheduler";
 import { failVideoTaskFromWorker, persistVideoTaskResult, queryVideoTaskUpstream } from "@/lib/server/video-task-runtime";
+import { isVideoProviderMediaUrl } from "@/lib/server/video-provider-response";
 import { getVideoTask, type VideoTask } from "@/lib/server/video-task-store";
 import { createAudioTaskUpstreamStep, markAudioTaskFailed, persistAudioTaskResult, queryAudioTaskUpstreamStep } from "@/lib/server/audio-task-runtime";
 import { getAudioTask, updateAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
@@ -829,6 +830,10 @@ async function processVideoLease(lease: GenerationTaskLease, workerId: string, o
         await releaseGenerationTaskLease("video", lease.id, workerId, { executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "submission_outcome_unknown" });
         return "needs_review";
     }
+    // A previous release could have persisted a provider's human-readable
+    // failure text as `resultPayload.url`. Ignore that stale lease payload and
+    // query the original upstream task again so we retain its real status and
+    // reason instead of treating the text as a terminal media result.
     if (needsPersistence(lease)) return persistVideoLease(task, lease, workerId, origin, cookie, userRequested);
 
     try {
@@ -901,9 +906,10 @@ async function processVideoLease(lease: GenerationTaskLease, workerId: string, o
 
 async function persistVideoLease(task: VideoTask, lease: GenerationTaskLease, workerId: string, origin: string, cookie: string, userRequested: boolean): Promise<RecoveryResult> {
     const resultUrl = typeof lease.resultPayload?.url === "string" ? lease.resultPayload.url.trim() : "";
-    if (!resultUrl) {
-        await failVideoTaskFromWorker(task, "视频任务已完成但没有返回视频地址");
-        await releaseGenerationTaskLease("video", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "result_url_missing" });
+    if (!isVideoProviderMediaUrl(resultUrl)) {
+        const reason = resultUrl && resultUrl.length <= 300 ? `上游返回了无效视频地址：${resultUrl}` : "视频任务已完成但没有返回有效视频地址";
+        await failVideoTaskFromWorker(task, reason, true);
+        await releaseGenerationTaskLease("video", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "invalid_result_url" });
         return "failed";
     }
     await scheduleGenerationTask("video", task.id, { executionPhase: "persisting", nextPollAt: lease.nextPollAt });
@@ -937,7 +943,9 @@ async function persistVideoLease(task: VideoTask, lease: GenerationTaskLease, wo
 }
 
 function needsPersistence(lease: GenerationTaskLease) {
-    return lease.executionPhase === "result_ready" || lease.executionPhase === "persisting";
+    if (lease.executionPhase !== "result_ready" && lease.executionPhase !== "persisting") return false;
+    const resultUrl = typeof lease.resultPayload?.url === "string" ? lease.resultPayload.url.trim() : "";
+    return isVideoProviderMediaUrl(resultUrl);
 }
 
 async function runWithConcurrency<T, R>(items: T[], limit: number, run: (item: T) => Promise<R>) {

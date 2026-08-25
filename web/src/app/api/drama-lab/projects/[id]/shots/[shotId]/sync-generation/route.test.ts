@@ -82,6 +82,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
                     storyboardStatus: "success",
                     storyboardImageUrl: "/api/generation-log-assets/image.png",
                     generationStatus: "success",
+                    generationNeedsReview: undefined,
                     videoUrl: "/api/generation-log-assets/video.mp4",
                 }),
             }),
@@ -150,6 +151,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
                     storyboardTaskId: undefined,
                     generationStatus: "error",
                     generationTaskId: undefined,
+                    generationNeedsReview: undefined,
                     storyboardError: expect.stringContaining("任务记录不存在"),
                     generationError: expect.stringContaining("任务记录不存在"),
                 }),
@@ -192,7 +194,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
         );
     });
 
-    it("stops a video task that needs upstream review instead of polling forever", async () => {
+    it("marks a video task needing review as recoverable without clearing its task ID", async () => {
         mocks.getImageTask.mockResolvedValue(null);
         mocks.getVideoTask.mockResolvedValue({
             id: "video-task-one",
@@ -209,8 +211,44 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
             expect.objectContaining({
                 patch: expect.objectContaining({
                     generationStatus: "error",
-                    generationTaskId: undefined,
+                    generationNeedsReview: true,
                     generationError: "OpenAI 视频协议最多支持 1 张参考图",
+                }),
+            }),
+        );
+        expect(mocks.persistDramaLabShotUpdate.mock.calls[0]?.[0].patch).not.toHaveProperty("generationTaskId");
+        expect(mocks.runGenerationTaskRecoveryBatch).not.toHaveBeenCalled();
+        expect((await response.json()).data.shot).toMatchObject({ generationTaskId: "video-task-one", generationStatus: "error", generationNeedsReview: true });
+    });
+
+    it("resumes automatic synchronization after a user rechecks the retained video task", async () => {
+        mocks.getImageTask.mockResolvedValue(null);
+        mocks.getVideoTask.mockResolvedValue({ id: "video-task-one", userId: "user-one", status: "running", executionPhase: "polling" });
+        mocks.getDramaProject.mockResolvedValue({ ...project, episodes: [{ ...project.episodes[0], shots: [{ ...shot, generationStatus: "error", generationNeedsReview: true, generationError: "待检查" }] }] });
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(expect.objectContaining({ patch: expect.objectContaining({ generationStatus: "running", generationNeedsReview: undefined, generationError: undefined }) }));
+        expect((await response.json()).data.shot).toMatchObject({ generationTaskId: "video-task-one", generationStatus: "running" });
+    });
+
+    it("unblocks a reviewable shot when its retained task has expired", async () => {
+        const reviewShot = { ...shot, generationStatus: "error", generationNeedsReview: true, generationError: "待检查" };
+        mocks.getDramaProject.mockResolvedValue({ ...project, episodes: [{ ...project.episodes[0], shots: [reviewShot] }] });
+        mocks.getImageTask.mockResolvedValue(null);
+        mocks.getVideoTask.mockResolvedValue(null);
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                patch: expect.objectContaining({
+                    generationStatus: "error",
+                    generationTaskId: undefined,
+                    generationNeedsReview: undefined,
+                    generationError: expect.stringContaining("任务记录不存在"),
                 }),
             }),
         );

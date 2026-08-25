@@ -6,6 +6,7 @@ import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-o
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { DramaLabShotGenerationError, persistDramaLabShotUpdate, prepareDramaLabStoryboardVideo } from "@/lib/server/drama-lab-shot-generation-service";
 import { DramaProjectStoreError, getDramaProject } from "@/lib/server/drama-project-store";
+import { getVideoTask } from "@/lib/server/video-task-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const project = await getDramaProject(id, user.id);
         if (!project) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
         const prepared = prepareDramaLabStoryboardVideo(project, episodeId, shotId);
+        const retainedTaskId = typeof prepared.shot.generationTaskId === "string" ? prepared.shot.generationTaskId.trim() : "";
+        const retainedTask = retainedTaskId ? await getVideoTask(retainedTaskId) : null;
+        const ownedRetainedTask = retainedTask?.userId === user.id ? retainedTask : null;
+        if (retainedTaskId && (prepared.shot.generationNeedsReview || ownedRetainedTask?.executionPhase === "needs_review")) {
+            throw new DramaLabShotGenerationError("当前视频任务待检查，请先点击“检查状态”继续查询原任务；系统不会重新提交或重复扣费。", 409);
+        }
+        const retainedTaskActive = ownedRetainedTask?.status === "running" || (ownedRetainedTask as { status?: string } | null)?.status === "pending";
+        if (retainedTaskId && (prepared.shot.generationStatus === "queued" || prepared.shot.generationStatus === "running" || retainedTaskActive)) {
+            throw new DramaLabShotGenerationError("当前分镜已有视频任务正在执行，请先同步任务状态后再操作。", 409);
+        }
         const settings = await getAuthSettings();
         if (!settings.defaultModels.videoModel) throw new DramaLabShotGenerationError("后台尚未配置可用的默认视频模型", 503);
         const attemptNo = (prepared.shot.generationAttempt || 0) + 1;
@@ -69,9 +80,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             shotId,
             patch: {
                 videoPrompt: prepared.visiblePrompt,
-                generationStatus: payload.task.status === "success" ? "success" : "running",
+                // Result URLs are persisted by sync-generation after the task record has
+                // been reconciled. Keep this active until that happens so an immediate
+                // upstream success cannot leave the card terminal without a playable URL.
+                generationStatus: "running",
                 generationTaskId: payload.task.id,
                 generationAttempt: attemptNo,
+                generationNeedsReview: undefined,
                 generationError: undefined,
             },
         });

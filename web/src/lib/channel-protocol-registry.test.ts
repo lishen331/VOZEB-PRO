@@ -307,6 +307,41 @@ describe("channel protocol registry", () => {
         expect(resolveChannelModelConfig(configured.advancedConfig, "kling-v3")).toMatchObject({ protocol: "newapi", createPath: "/videos" });
     });
 
+    it("routes a generic Seedance 2.5 model through the standard OpenAI video contract", () => {
+        const configured = applyChannelProtocol({ ...channel, models: ["seedance2.5"] }, "newapi");
+        const key = "seedance2.5";
+
+        expect(resolveChannelModelConfig(configured.advancedConfig, "seedance2.5")).toMatchObject({
+            protocol: "newapi",
+            createPath: "/videos",
+            imageToVideoPath: "/videos",
+            queryPath: "/videos/:task_id",
+            resultField: "/videos/:task_id/content",
+        });
+    });
+
+    it("repairs a persisted generic Seedance 2.5 model that was given the legacy JSON contract", () => {
+        const configured = applyChannelProtocol({ ...channel, models: ["seedance2.5"] }, "newapi");
+        const key = "seedance2.5";
+        configured.advancedConfig!.modelConfigs![key] = {
+            ...configured.advancedConfig!.modelConfigs![key],
+            createPath: "/video/generations",
+            imageToVideoPath: "/video/generations",
+            queryPath: "/video/generations/:task_id",
+            requestTemplate: '{"model":"{{model}}","seconds":"{{seconds_string}}"}',
+            resultField: "metadata.url",
+        };
+
+        expect(resolveChannelModelConfig(configured.advancedConfig, key)).toMatchObject({
+            protocol: "newapi",
+            createPath: "/videos",
+            imageToVideoPath: "/videos",
+            queryPath: "/videos/:task_id",
+            resultField: "/videos/:task_id/content",
+        });
+        expect(normalizeStrictChannelModelConfigs(configured).advancedConfig?.modelConfigs?.[key]).toMatchObject({ createPath: "/videos", imageToVideoPath: "/videos" });
+    });
+
     it("repairs a channel-level stale New API video operation when Seedance has no model entry", () => {
         const configured = applyChannelProtocol({ ...channel, models: ["doubao-seedance-2-0"] }, "newapi");
         const advanced = configured.advancedConfig!;

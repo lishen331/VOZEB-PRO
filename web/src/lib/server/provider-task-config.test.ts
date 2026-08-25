@@ -96,6 +96,17 @@ describe("provider task config", () => {
         expect(isProviderBusinessError({ id: "video_123", status: "queued", error: null })).toBe(false);
     });
 
+    it("prioritizes explicit nested failure reasons over a success envelope", () => {
+        const payload = { code: "success", message: "success", data: { status: "FAILURE", fail_reason: "provider capacity exhausted" } };
+        expect(readProviderError(payload)).toBe("provider capacity exhausted");
+        expect(isProviderBusinessError(payload)).toBe(true);
+    });
+
+    it("treats any non-empty failure reason as a provider business error", () => {
+        expect(isProviderBusinessError({ status: "processing", failure_reason: "queued by provider" })).toBe(true);
+        expect(readProviderError({ failureReason: "queued by provider", message: "success" })).toBe("queued by provider");
+    });
+
     it("rejects reference media disabled by the backend channel", () => {
         const config = { supportsReferenceImage: true, supportsReferenceVideo: false, supportsReferenceAudio: false } as never;
         expect(() => assertReferenceCapabilities(config, [{ type: "image" }])).not.toThrow();

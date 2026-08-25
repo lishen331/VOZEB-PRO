@@ -34,8 +34,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Asset } from "@/lib/library-asset-contract";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
+import { recoverVideoGenerationTask } from "@/services/api/video-core";
 import { cn } from "@/lib/utils";
 import { DramaLabVisualAssetsPanel } from "./drama-lab-visual-assets-panel";
+import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } from "./drama-lab-video-task-recovery";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -170,6 +172,7 @@ export interface Shot {
     generationStatus?: DramaLabTaskStatus;
     generationAttempt?: number;
     generationTaskId?: string;
+    generationNeedsReview?: boolean;
     generationError?: string;
     videoHistory?: DramaLabGenerationHistory[];
     status?: string;
@@ -178,7 +181,7 @@ export interface Shot {
     >;
 }
 
-type DramaLabTaskStatus = "idle" | "queued" | "running" | "success" | "error" | "cancelled";
+type DramaLabTaskStatus = "idle" | "queued" | "pending" | "running" | "success" | "error" | "cancelled";
 type DramaLabGenerationHistory = { id: string; taskId: string; url: string; prompt: string; createdAt: string; width?: number; height?: number };
 
 export interface Project {
@@ -261,7 +264,7 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
     const shot = value as Record<string, unknown>;
     const id = typeof shot.id === "string" ? shot.id : "";
     if (!id) return undefined;
-    const taskStatus = (value: unknown): DramaLabTaskStatus | undefined => (typeof value === "string" && ["idle", "queued", "running", "success", "error", "cancelled"].includes(value) ? (value as DramaLabTaskStatus) : undefined);
+    const taskStatus = (value: unknown): DramaLabTaskStatus | undefined => (typeof value === "string" && ["idle", "queued", "pending", "running", "success", "error", "cancelled"].includes(value) ? (value as DramaLabTaskStatus) : undefined);
     const continuity = shot.continuity && typeof shot.continuity === "object" ? (shot.continuity as Record<string, unknown>) : undefined;
     const description = typeof shot.description === "string" ? shot.description : typeof shot.script === "string" ? shot.script : typeof shot.title === "string" ? shot.title : "";
     const storyboardImageUrl = typeof shot.storyboardImageUrl === "string" ? shot.storyboardImageUrl : typeof shot.imageUrl === "string" ? shot.imageUrl : undefined;
@@ -298,6 +301,7 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
         generationStatus: taskStatus(shot.generationStatus) || (videoUrl ? "success" : "idle"),
         generationAttempt: typeof shot.generationAttempt === "number" ? shot.generationAttempt : undefined,
         generationTaskId: typeof shot.generationTaskId === "string" ? shot.generationTaskId : undefined,
+        generationNeedsReview: shot.generationNeedsReview === true ? true : undefined,
         generationError: typeof shot.generationError === "string" ? shot.generationError : undefined,
         videoHistory: normalizeGenerationHistory(shot.videoHistory),
         frames:
@@ -369,6 +373,16 @@ function missingShotAssetLabels(project: Project, shot: Shot) {
         if (prop && !hasReference(prop)) missing.push(`道具「${prop.name}」`);
     });
     return missing;
+}
+
+function dramaLabGenerationSyncKey(shot: Shot) {
+    return `${shot.id}:${shot.storyboardTaskId || ""}:${shot.generationTaskId || ""}:${Object.entries(shot.frames || {})
+        .map(([type, frame]) => `${type}:${frame?.taskId || ""}`)
+        .join(",")}`;
+}
+
+function isDramaLabTaskActive(status: DramaLabTaskStatus | undefined) {
+    return status === "queued" || status === "pending" || status === "running";
 }
 
 function normalizeProjectShots(project: Record<string, unknown>, episodes: Episode[], legacy: Record<string, unknown>): Shot[] {
@@ -553,7 +567,12 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
 
             const shots = [...current.shots];
             shots[shotIndex] = nextShot;
-            return { ...current, shots };
+            const nextProject = { ...current, shots };
+            // saveProject reads this ref before React effects run. Keep it in lockstep
+            // with a server-synchronized task update so a following full-project save
+            // cannot write an older task state back over the persisted result.
+            projectRef.current = nextProject;
+            return nextProject;
         });
     }, []);
 
@@ -2418,23 +2437,22 @@ function StoryboardPanel({
     const [modalVisible, setModalVisible] = useState(false);
     const [editingShot, setEditingShot] = useState<Shot | null>(null);
     const [extracting, setExtracting] = useState(false);
-    const [startingKey, setStartingKey] = useState("");
+    const [startingKeys, setStartingKeys] = useState<Set<string>>(() => new Set());
+    const startingKeysRef = useRef(new Set<string>());
     const [batchRunning, setBatchRunning] = useState<"image" | "video" | "">("");
     const [form] = Form.useForm();
+    const episodeId = episode?.id;
 
     const episodeShots = episode ? project.shots.filter((s) => s.episodeId === episode.id).sort((a, b) => a.shotNumber - b.shotNumber) : [];
-    const activeTaskShots = episodeShots.filter((shot) => shot.storyboardStatus === "running" || shot.generationStatus === "running" || Object.values(shot.frames || {}).some((frame) => frame?.status === "running"));
+    const activeTaskShots = episodeShots.filter((shot) => isDramaLabTaskActive(shot.storyboardStatus) || isDramaLabTaskActive(shot.generationStatus) || Object.values(shot.frames || {}).some((frame) => isDramaLabTaskActive(frame?.status)));
     const activeTaskShotsRef = useRef(activeTaskShots);
     activeTaskShotsRef.current = activeTaskShots;
-    const activeTaskSignature = activeTaskShots
-        .map(
-            (shot) =>
-                `${shot.id}:${shot.storyboardTaskId || ""}:${shot.generationTaskId || ""}:${Object.entries(shot.frames || {})
-                    .map(([type, frame]) => `${type}:${frame?.taskId || ""}`)
-                    .join(",")}`,
-        )
-        .join("|");
-    const episodeId = episode?.id;
+    const activeTaskSignature = activeTaskShots.map(dramaLabGenerationSyncKey).join("|");
+    const automaticSyncPausedRef = useRef(new Set<string>());
+    const syncInFlightRef = useRef(new Map<string, Promise<void>>());
+    const currentEpisodeIdRef = useRef(episodeId);
+    currentEpisodeIdRef.current = episodeId;
+    const [automaticSyncRevision, setAutomaticSyncRevision] = useState(0);
 
     const updateShot = async (shotId: string, patch: Partial<Shot>, options: SaveOptions = { silent: true }) => {
         const saved = await onSave({ shots: project.shots.map((shot) => (shot.id === shotId ? { ...shot, ...patch } : shot)) }, options);
@@ -2444,40 +2462,114 @@ function StoryboardPanel({
     const syncShot = useCallback(
         async (shotId: string, silent = true) => {
             if (!episodeId) return;
-            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shotId)}/sync-generation?episodeId=${encodeURIComponent(episodeId)}`, { method: "POST" });
-            await assertJsonApiResponse(response);
-            const data = await response.json();
-            if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务状态同步失败");
-            if (!data.data?.shot) throw new Error("任务状态同步响应缺少分镜数据");
-            onShotSynced(episodeId, shotId, data.data.shot);
-            if (!silent) messageApi.success("任务状态已同步");
+            const syncKey = `${episodeId}:${shotId}`;
+            const existing = syncInFlightRef.current.get(syncKey);
+            if (existing) return existing;
+            const pending = (async () => {
+                const controller = new AbortController();
+                const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+                try {
+                    const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shotId)}/sync-generation?episodeId=${encodeURIComponent(episodeId)}`, {
+                        method: "POST",
+                        signal: controller.signal,
+                    });
+                    await assertJsonApiResponse(response);
+                    const data = await response.json();
+                    if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务状态同步失败");
+                    if (!data.data?.shot) throw new Error("任务状态同步响应缺少分镜数据");
+                    if (currentEpisodeIdRef.current === episodeId) onShotSynced(episodeId, shotId, data.data.shot);
+                    if (!silent) messageApi.success("任务状态已同步");
+                } catch (error) {
+                    if (error instanceof DOMException && error.name === "AbortError") throw new Error("任务状态同步超时，请稍后使用同步按钮继续检查");
+                    throw error;
+                } finally {
+                    window.clearTimeout(timeoutId);
+                    syncInFlightRef.current.delete(syncKey);
+                }
+            })();
+            syncInFlightRef.current.set(syncKey, pending);
+            return pending;
         },
         [episodeId, messageApi, onShotSynced, project.id],
     );
 
+    const setActionBusy = (key: string, busy: boolean) => {
+        if (busy) startingKeysRef.current.add(key);
+        else startingKeysRef.current.delete(key);
+        setStartingKeys((current) => {
+            const next = new Set(current);
+            if (busy) next.add(key);
+            else next.delete(key);
+            return next;
+        });
+    };
+
+    const applyCreatedTask = (shot: Shot, kind: "image" | "video", taskId: string) => {
+        onShotSynced(episodeId!, shot.id, {
+            ...shot,
+            ...(kind === "image" ? { storyboardStatus: "running", storyboardTaskId: taskId, storyboardError: undefined } : { generationStatus: "running", generationTaskId: taskId, generationNeedsReview: undefined, generationError: undefined }),
+        });
+    };
+
+    const applyCreatedFrameTask = (shot: Shot, frameType: "first" | "key" | "last", taskId: string, prompt?: string, description?: string) => {
+        onShotSynced(episodeId!, shot.id, {
+            ...shot,
+            frames: {
+                ...shot.frames,
+                [frameType]: {
+                    ...shot.frames?.[frameType],
+                    prompt: prompt || shot.frames?.[frameType]?.prompt || "",
+                    description: description || shot.frames?.[frameType]?.description,
+                    status: "running",
+                    taskId,
+                    error: undefined,
+                },
+            },
+        });
+    };
+
+    const syncShotManually = async (shot: Shot) => {
+        await syncShot(shot.id, false);
+        const taskKey = dramaLabGenerationSyncKey(shot);
+        automaticSyncPausedRef.current.delete(taskKey);
+        setAutomaticSyncRevision((current) => current + 1);
+    };
+
     useEffect(() => {
         if (!episodeId || !activeTaskSignature) return;
         let disposed = false;
-        const inFlight = new Set<string>();
+        let timer: number | undefined;
+        const activeKeys = new Set(activeTaskShotsRef.current.map(dramaLabGenerationSyncKey));
+        for (const key of automaticSyncPausedRef.current) {
+            if (!activeKeys.has(key)) automaticSyncPausedRef.current.delete(key);
+        }
         const sync = async () => {
             for (const shot of activeTaskShotsRef.current) {
                 if (disposed) return;
-                if (inFlight.has(shot.id)) continue;
-                inFlight.add(shot.id);
+                const taskKey = dramaLabGenerationSyncKey(shot);
+                if (automaticSyncPausedRef.current.has(taskKey)) continue;
                 try {
-                    await syncShot(shot.id).catch(() => undefined);
-                } finally {
-                    inFlight.delete(shot.id);
+                    await syncShot(shot.id);
+                } catch {
+                    if (!automaticSyncPausedRef.current.has(taskKey)) {
+                        automaticSyncPausedRef.current.add(taskKey);
+                        messageApi.warning({
+                            key: `drama-lab-auto-sync-paused:${shot.id}`,
+                            content: "任务状态自动同步已暂停，请使用分镜卡片右上角的同步按钮继续检查。",
+                            duration: 6,
+                        });
+                    }
                 }
             }
+            const hasPendingAutomaticSync = activeTaskShotsRef.current.some((shot) => !automaticSyncPausedRef.current.has(dramaLabGenerationSyncKey(shot)));
+            if (!disposed && hasPendingAutomaticSync) timer = window.setTimeout(() => void sync(), 2500);
         };
         void sync();
-        const timer = window.setInterval(() => void sync(), 2500);
         return () => {
             disposed = true;
-            window.clearInterval(timer);
+            if (timer !== undefined) window.clearTimeout(timer);
         };
-    }, [activeTaskSignature, episodeId, syncShot]);
+    }, [activeTaskSignature, automaticSyncRevision, episodeId, messageApi, syncShot]);
 
     const handleAdd = () => {
         setEditingShot(null);
@@ -2598,6 +2690,10 @@ function StoryboardPanel({
 
     const startGeneration = async (shot: Shot, kind: "image" | "video") => {
         if (!episode) return;
+        if (kind === "video" && requiresDramaLabVideoTaskCheck(shot)) {
+            messageApi.warning("当前视频任务待检查，请先点击“检查状态”，不会重复提交生成任务。");
+            return;
+        }
         if (kind === "video" && !shot.frames?.key?.url && !shot.storyboardImageUrl) {
             Modal.warning({
                 title: "无法生成分镜视频",
@@ -2618,8 +2714,9 @@ function StoryboardPanel({
             }
         }
         const actionKey = `${kind}:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
         try {
-            setStartingKey(actionKey);
+            setActionBusy(actionKey, true);
             messageApi.loading({ content: kind === "image" ? "正在创建分镜图任务..." : "正在创建分镜视频任务...", key: actionKey, duration: 0 });
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-${kind}?episodeId=${encodeURIComponent(episode.id)}`, {
                 method: "POST",
@@ -2627,20 +2724,64 @@ function StoryboardPanel({
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务创建失败");
+            const taskId = typeof data.data?.task?.id === "string" ? data.data.task.id : "";
+            if (!taskId) throw new Error("任务创建响应缺少任务 ID");
+            // Keep the new task in this view even if the immediately following
+            // sync request fails. The server has already persisted it.
+            applyCreatedTask(shot, kind, taskId);
             // The generation route already persists the task ID. Sync just this
             // shot so a slow project reload cannot leave the card in a stale state.
-            await syncShot(shot.id, false);
+            await syncShot(shot.id, false).catch((error) => {
+                messageApi.warning({ content: error instanceof Error ? `${error.message}，任务已创建，可稍后同步。` : "任务已创建，可稍后同步。", key: `drama-lab-initial-sync:${shot.id}`, duration: 6 });
+            });
             messageApi.success({ content: kind === "image" ? "分镜图任务已提交" : "分镜视频任务已提交", key: actionKey });
         } catch (err) {
             messageApi.error({ content: err instanceof Error ? err.message : "任务创建失败", key: actionKey, duration: 6 });
         } finally {
-            setStartingKey("");
+            setActionBusy(actionKey, false);
+        }
+    };
+
+    const checkVideoStatus = async (shot: Shot) => {
+        if (!shot.generationTaskId) return;
+        const actionKey = `video-status:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
+        try {
+            setActionBusy(actionKey, true);
+            messageApi.loading({ content: "正在检查原视频任务状态...", key: actionKey, duration: 0 });
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+            try {
+                await recoverVideoGenerationTask(
+                    {
+                        id: shot.generationTaskId,
+                        serverTaskId: shot.generationTaskId,
+                        provider: "generation",
+                        model: "drama-lab-video",
+                        pollPath: "server",
+                    },
+                    { signal: controller.signal },
+                );
+            } finally {
+                window.clearTimeout(timeoutId);
+            }
+            await syncShot(shot.id, true);
+            messageApi.success({ content: "已检查原视频任务状态，正在同步结果。", key: actionKey, duration: 3 });
+        } catch (error) {
+            // The recovery endpoint may have just settled the original task. Sync it once
+            // so the card receives its definitive result or terminal error.
+            await syncShot(shot.id, true).catch(() => undefined);
+            messageApi.error({ content: error instanceof Error ? error.message : "检查原视频任务状态失败", key: actionKey, duration: 6 });
+        } finally {
+            setActionBusy(actionKey, false);
         }
     };
 
     const runBatch = async (kind: "image" | "video") => {
         const candidates = episodeShots.filter((shot) =>
-            kind === "image" ? !shot.storyboardImageUrl && shot.storyboardStatus !== "running" : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) && !shot.videoUrl && shot.generationStatus !== "running",
+            kind === "image"
+                ? !shot.storyboardImageUrl && !isDramaLabTaskActive(shot.storyboardStatus)
+                : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) && !shot.videoUrl && !isDramaLabTaskActive(shot.generationStatus) && !requiresDramaLabVideoTaskCheck(shot),
         );
         if (!candidates.length) return messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
         setBatchRunning(kind);
@@ -2663,19 +2804,25 @@ function StoryboardPanel({
             return;
         }
         const actionKey = `frame:${frameType}:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
         try {
-            setStartingKey(actionKey);
+            setActionBusy(actionKey, true);
             messageApi.loading({ content: `正在规划并创建${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务...`, key: actionKey, duration: 0 });
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-frame?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, { method: "POST" });
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "帧任务创建失败");
-            await syncShot(shot.id, false);
+            const taskId = typeof data.data?.task?.id === "string" ? data.data.task.id : "";
+            if (!taskId) throw new Error("帧任务创建响应缺少任务 ID");
+            applyCreatedFrameTask(shot, frameType, taskId, typeof data.data?.prompt === "string" ? data.data.prompt : undefined, typeof data.data?.description === "string" ? data.data.description : undefined);
+            await syncShot(shot.id, false).catch((error) => {
+                messageApi.warning({ content: error instanceof Error ? `${error.message}，任务已创建，可稍后同步。` : "任务已创建，可稍后同步。", key: `drama-lab-initial-sync:${shot.id}`, duration: 6 });
+            });
             messageApi.success({ content: `${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务已提交`, key: actionKey });
         } catch (error) {
             messageApi.error({ content: error instanceof Error ? error.message : "帧任务创建失败", key: actionKey });
         } finally {
-            setStartingKey("");
+            setActionBusy(actionKey, false);
         }
     };
 
@@ -2712,10 +2859,11 @@ function StoryboardPanel({
                         key={shot.id}
                         shot={shot}
                         project={project}
-                        busyKey={startingKey}
+                        busyKeys={startingKeys}
                         onStartGeneration={startGeneration}
+                        onCheckVideoStatus={checkVideoStatus}
                         onStartFrame={startFrame}
-                        onSync={() => void syncShot(shot.id, false).catch((error) => messageApi.error(error instanceof Error ? error.message : "任务状态同步失败"))}
+                        onSync={() => void syncShotManually(shot).catch((error) => messageApi.error(error instanceof Error ? error.message : "任务状态同步失败"))}
                         onUpdate={(patch) => void updateShot(shot.id, patch).catch((error) => messageApi.error(error instanceof Error ? error.message : "保存分镜失败"))}
                         onEdit={() => handleEdit(shot)}
                         onDelete={() => handleDelete(shot.id)}
@@ -2811,8 +2959,9 @@ function StoryboardPanel({
 function StoryboardWorkbenchCard({
     shot,
     project,
-    busyKey,
+    busyKeys,
     onStartGeneration,
+    onCheckVideoStatus,
     onSync,
     onUpdate,
     onEdit,
@@ -2821,16 +2970,19 @@ function StoryboardWorkbenchCard({
 }: {
     shot: Shot;
     project: Project;
-    busyKey: string;
+    busyKeys: ReadonlySet<string>;
     onStartGeneration: (shot: Shot, kind: "image" | "video") => Promise<void>;
+    onCheckVideoStatus: (shot: Shot) => Promise<void>;
     onStartFrame: (shot: Shot, frameType: "first" | "key" | "last") => Promise<void>;
     onSync: () => void;
     onUpdate: (patch: Partial<Shot>) => void;
     onEdit: () => void;
     onDelete: () => void;
 }) {
-    const imageBusy = busyKey === `image:${shot.id}` || shot.storyboardStatus === "running";
-    const videoBusy = busyKey === `video:${shot.id}` || shot.generationStatus === "running";
+    const imageBusy = busyKeys.has(`image:${shot.id}`) || isDramaLabTaskActive(shot.storyboardStatus);
+    const videoBusy = busyKeys.has(`video:${shot.id}`) || isDramaLabTaskActive(shot.generationStatus);
+    const checkingVideoStatus = busyKeys.has(`video-status:${shot.id}`);
+    const videoNeedsCheck = requiresDramaLabVideoTaskCheck(shot);
     const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
     return (
         <article id={`storyboard-shot-${shot.id}`} className="overflow-hidden rounded-lg border border-border bg-card">
@@ -2841,7 +2993,7 @@ function StoryboardWorkbenchCard({
                             分镜 {shot.shotNumber} · {shot.title}
                         </h3>
                         <StoryboardTaskTag status={shot.storyboardStatus} label="分镜图" />
-                        <StoryboardTaskTag status={shot.generationStatus} label="视频" />
+                        <StoryboardTaskTag status={shot.generationStatus} label="视频" needsReview={videoNeedsCheck} />
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                         {shot.duration}s{shot.cameraAngle ? ` · ${shot.cameraAngle}` : ""}
@@ -2875,7 +3027,7 @@ function StoryboardWorkbenchCard({
                     <div className="flex flex-wrap items-center gap-2">
                         {(["first", "key", "last"] as const).map((frameType) => {
                             const frame = shot.frames?.[frameType];
-                            const busy = busyKey === `frame:${frameType}:${shot.id}` || frame?.status === "running";
+                            const busy = busyKeys.has(`frame:${frameType}:${shot.id}`) || isDramaLabTaskActive(frame?.status);
                             return (
                                 <Button key={frameType} loading={busy} icon={<Sparkles className="size-4" />} onClick={() => void onStartFrame(shot, frameType)}>
                                     {frame?.url ? `重生成${frameLabel[frameType]}` : `生成${frameLabel[frameType]}`}
@@ -2915,12 +3067,18 @@ function StoryboardWorkbenchCard({
                 </section>
                 <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 视频`}>
                     <TextArea defaultValue={shot.videoPrompt} autoSize={{ minRows: 3, maxRows: 7 }} placeholder="镜头动作与动态补充（可选）" aria-label="视频提示词" onBlur={(event) => onUpdate({ videoPrompt: event.target.value.trim() })} />
-                    {shot.generationError ? <Alert type="error" showIcon message={shot.generationError} /> : null}
+                    {videoNeedsCheck ? <Alert type="warning" showIcon message="视频结果待检查" description={dramaLabVideoTaskReviewDescription(shot)} /> : null}
+                    {shot.generationError && !videoNeedsCheck ? <Alert type="error" showIcon message={shot.generationError} /> : null}
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button type="primary" loading={videoBusy} disabled={videoBusy} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
-                            {shot.videoUrl ? "重新生成视频" : "生成分镜视频"}
+                        {videoNeedsCheck ? (
+                            <Button loading={checkingVideoStatus} disabled={checkingVideoStatus} icon={<LoaderCircle className="size-4" />} onClick={() => void onCheckVideoStatus(shot)}>
+                                检查状态
+                            </Button>
+                        ) : null}
+                        <Button type="primary" loading={videoBusy} disabled={videoBusy || checkingVideoStatus || videoNeedsCheck} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
+                            {videoNeedsCheck ? "请先检查状态" : shot.videoUrl ? "重新生成视频" : "生成分镜视频"}
                         </Button>
-                        <GenerationHistory history={shot.videoHistory} activeUrl={shot.videoUrl} type="video" onRestore={(url) => onUpdate({ videoUrl: url, generationStatus: "success", generationError: undefined })} />
+                        <GenerationHistory history={shot.videoHistory} activeUrl={shot.videoUrl} type="video" onRestore={(url) => onUpdate({ videoUrl: url, generationStatus: "success", generationNeedsReview: undefined, generationError: undefined })} />
                     </div>
                     {shot.videoUrl ? (
                         <video src={shot.videoUrl} controls className="max-h-[460px] w-full rounded border border-border" />
@@ -2970,20 +3128,21 @@ function AssetBindingGroup({ label, assets, selectedIds, single = false, onChang
     );
 }
 
-function StoryboardTaskTag({ status, label }: { status?: DramaLabTaskStatus; label: string }) {
+function StoryboardTaskTag({ status, label, needsReview = false }: { status?: DramaLabTaskStatus; label: string; needsReview?: boolean }) {
     const value = status || "idle";
-    const labelMap: Record<DramaLabTaskStatus, string> = { idle: "待生成", queued: "排队中", running: "生成中", success: "已完成", error: "失败", cancelled: "已取消" };
+    const labelMap: Record<DramaLabTaskStatus, string> = { idle: "待生成", queued: "排队中", pending: "等待中", running: "生成中", success: "已完成", error: "失败", cancelled: "已取消" };
     const classMap: Record<DramaLabTaskStatus, string> = {
         idle: "border-border bg-muted text-muted-foreground",
         queued: "border-amber-300 bg-amber-50 text-amber-800",
+        pending: "border-amber-300 bg-amber-50 text-amber-800",
         running: "border-sky-300 bg-sky-50 text-sky-800",
         success: "border-emerald-300 bg-emerald-50 text-emerald-800",
         error: "border-rose-300 bg-rose-50 text-rose-800",
         cancelled: "border-border bg-muted text-muted-foreground",
     };
     return (
-        <span className={cn("border px-1.5 py-0.5 text-xs", classMap[value])}>
-            {label} {labelMap[value]}
+        <span className={cn("border px-1.5 py-0.5 text-xs", needsReview ? "border-amber-300 bg-amber-50 text-amber-800" : classMap[value])}>
+            {label} {needsReview ? "待检查" : labelMap[value]}
         </span>
     );
 }

@@ -83,13 +83,21 @@ export function readProviderValue(value: unknown, configuredPath: string | undef
 }
 
 export function readProviderError(value: unknown) {
-    return findString(value, new Set(["error_message", "errorMessage", "error", "msg", "message", "detail"]));
+    // Providers often wrap a terminal failure in a success envelope. Prefer
+    // the explicit failure fields over a generic outer `message` such as
+    // "success", otherwise the real reason is lost in the caller.
+    const explicitFailure = findString(value, PROVIDER_FAILURE_KEYS);
+    return explicitFailure || findString(value, PROVIDER_ERROR_KEYS);
 }
 
 export function isProviderBusinessError(value: unknown) {
     if (!value || typeof value !== "object") return false;
     const record = value as Record<string, unknown>;
     if (record.ok === false || record.success === false) return true;
+
+    // A non-empty fail_reason/failure_reason is already a provider decision;
+    // do not require English/Chinese keywords in an arbitrary provider code.
+    if (findString(value, PROVIDER_FAILURE_KEYS)) return true;
 
     const message = readProviderError(value);
     if (message && /失败|错误|无效|未授权|验证|禁止|过期|不足|不存在|拒绝|异常|error|fail|invalid|unauthorized|forbidden|expired|insufficient|not found|denied|unsupported/i.test(message)) return true;
@@ -279,6 +287,8 @@ function uniquePaths(paths: string[]) {
 }
 
 const EMPTY_REFERENCE = Symbol("empty-reference");
+const PROVIDER_FAILURE_KEYS = new Set(["fail_reason", "failReason", "failure_reason", "failureReason"]);
+const PROVIDER_ERROR_KEYS = new Set(["error_message", "errorMessage", "error", "msg", "message", "detail"]);
 const REFERENCE_FIELD_KEYS = new Set([
     "image",
     "images",

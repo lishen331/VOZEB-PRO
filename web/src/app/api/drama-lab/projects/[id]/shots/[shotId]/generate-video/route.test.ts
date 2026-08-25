@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
     getAuthSettings: vi.fn(),
     getCurrentUser: vi.fn(),
     getDramaProject: vi.fn(),
+    getVideoTask: vi.fn(),
     persistDramaLabShotUpdate: vi.fn(),
     prepareDramaLabStoryboardVideo: vi.fn(),
     resolveInternalOrigin: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("@/lib/server/drama-lab-shot-generation-service", () => {
         prepareDramaLabStoryboardVideo: mocks.prepareDramaLabStoryboardVideo,
     };
 });
+vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask }));
 
 import { POST } from "./route";
 
@@ -50,6 +52,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-video", () => 
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.getDramaProject.mockResolvedValue(project);
+        mocks.getVideoTask.mockResolvedValue(null);
         mocks.getAuthSettings.mockResolvedValue({ defaultModels: { videoModel: "video-logical" } });
         mocks.resolveInternalOrigin.mockReturnValue("http://internal.example.com");
         mocks.prepareDramaLabStoryboardVideo.mockReturnValue({
@@ -79,7 +82,23 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-video", () => 
         });
         expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(
             expect.objectContaining({
-                patch: { videoPrompt: "visible-motion-direction", generationStatus: "running", generationTaskId: "video-task-one", generationAttempt: 3, generationError: undefined },
+                patch: { videoPrompt: "visible-motion-direction", generationStatus: "running", generationTaskId: "video-task-one", generationAttempt: 3, generationNeedsReview: undefined, generationError: undefined },
+            }),
+        );
+    });
+
+    it("keeps an immediately completed upstream task running until sync-generation persists its video URL", async () => {
+        mocks.fetchInternalApi.mockResolvedValue(Response.json({ task: { id: "video-task-one", status: "success", model: "video-logical" } }));
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/generate-video?episodeId=episode-one", { method: "POST", headers: { cookie: "session=test" } }), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                patch: expect.objectContaining({
+                    generationStatus: "running",
+                    generationTaskId: "video-task-one",
+                }),
             }),
         );
     });
@@ -92,5 +111,55 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-video", () => 
         expect(response.status).toBe(503);
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
         expect(mocks.persistDramaLabShotUpdate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ["is waiting for manual review", { generationTaskId: "video-original", generationNeedsReview: true, generationStatus: "error" }, "待检查"],
+        ["is already running", { generationTaskId: "video-running", generationStatus: "running" }, "正在执行"],
+    ])("does not submit another task when the retained video task %s", async (_state, shot, message) => {
+        mocks.prepareDramaLabStoryboardVideo.mockReturnValue({
+            prompt: "server-composed-video-prompt",
+            visiblePrompt: "visible-motion-direction",
+            shot: { title: "Shot One", duration: 4, generationAttempt: 2, storyboardTaskId: "image-task-one", ...shot },
+            references: [{ id: "storyboard-shot-one", label: "Shot One storyboard", url: "/api/generation-log-assets/storyboard.png" }],
+        });
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/generate-video?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(409);
+        expect((await response.json()).msg).toContain(message);
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+        expect(mocks.persistDramaLabShotUpdate).not.toHaveBeenCalled();
+    });
+
+    it.each(["running", "pending"])("does not submit when the retained task store says it is still %s", async (status) => {
+        mocks.prepareDramaLabStoryboardVideo.mockReturnValue({
+            prompt: "server-composed-video-prompt",
+            visiblePrompt: "visible-motion-direction",
+            shot: { title: "Shot One", duration: 4, generationAttempt: 2, storyboardTaskId: "image-task-one", generationTaskId: "video-original", generationStatus: "error" },
+            references: [{ id: "storyboard-shot-one", label: "Shot One storyboard", url: "/api/generation-log-assets/storyboard.png" }],
+        });
+        mocks.getVideoTask.mockResolvedValue({ id: "video-original", userId: "user-one", status, executionPhase: "polling" });
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/generate-video?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(409);
+        expect((await response.json()).msg).toContain("正在执行");
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    it("does not expose or trust a retained task owned by another user", async () => {
+        mocks.prepareDramaLabStoryboardVideo.mockReturnValue({
+            prompt: "server-composed-video-prompt",
+            visiblePrompt: "visible-motion-direction",
+            shot: { title: "Shot One", duration: 4, generationAttempt: 2, storyboardTaskId: "image-task-one", generationTaskId: "video-other", generationStatus: "error" },
+            references: [{ id: "storyboard-shot-one", label: "Shot One storyboard", url: "/api/generation-log-assets/storyboard.png" }],
+        });
+        mocks.getVideoTask.mockResolvedValue({ id: "video-other", userId: "other-user", status: "running", executionPhase: "polling" });
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/generate-video?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.fetchInternalApi).toHaveBeenCalledTimes(1);
     });
 });

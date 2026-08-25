@@ -208,6 +208,7 @@ function pickStoryboardWorkflowFields(shot: Record<string, unknown>) {
         "generationStatus",
         "generationAttempt",
         "generationTaskId",
+        "generationNeedsReview",
         "generationError",
         "videoHistory",
     ];
