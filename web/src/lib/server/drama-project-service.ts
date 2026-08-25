@@ -5,15 +5,15 @@ import { dramaRichContentToPlainText, normalizeDramaScriptRichContent } from "@/
 import { normalizeDramaImageSize } from "@/lib/drama-image-size";
 import { resolveDramaShotDuration } from "@/lib/server/drama-shot-config";
 import { listAgentRuns } from "@/lib/server/agent-run-store";
-import { CreativeEntityDeletionConflict, deleteDramaConversationAggregate } from "@/lib/server/creative-entity-deletion-store";
+import { CreativeEntityDeletionConflict, deleteDramaConversationAggregate, deleteDramaProjectCanvasAggregates } from "@/lib/server/creative-entity-deletion-store";
 import { createCreativeConversation, getCreativeConversation, listCreativeConversations, updateCreativeConversation } from "@/lib/server/creative-runtime-store";
-import { createDramaProject, deleteDramaProject, DramaProjectStoreError, findDramaProjectBySourceHandoffId, getDramaProject, listDramaProjectSummaries, updateDramaProject } from "@/lib/server/drama-project-store";
+import { createDramaProject, DramaProjectStoreError, findDramaProjectBySourceHandoffId, getDramaProject, listDramaProjectSummaries, updateDramaProject } from "@/lib/server/drama-project-store";
 import { createDramaProjectVersion, getDramaProjectVersion, listDramaProjectVersions } from "@/lib/server/drama-project-version-store";
-import { collectLocalMediaStorageKeys } from "@/lib/server/local-media-references";
 import { deleteUserMediaAssetsCascade } from "@/lib/server/user-media-deletion-service";
 import type { DramaProjectIdentityInput } from "@/lib/server/drama-project-store";
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "@/lib/server/ip-library-reference-service";
+import { deleteDramaLabEpisodeCanvasForUser } from "@/lib/server/canvas-project-service";
 
 const MAX_PROJECT_BYTES = 2 * 1024 * 1024;
 
@@ -101,7 +101,12 @@ export async function updateDramaProjectForUser(userId: string, id: string, valu
     try {
         const added = addedIpReferences(current.ipReferences, ipReferences);
         if (added.length) await recordIpReferenceUsage(userId, { targetType: dramaUsageTarget(current), targetId: current.id, references: added });
-        return await updateDramaProject(userId, project, current.updatedAt);
+        const saved = await updateDramaProject(userId, project, current.updatedAt);
+        const remainingEpisodeIds = new Set(saved.episodes.map((episode) => episode.id));
+        for (const episode of current.episodes) {
+            if (!remainingEpisodeIds.has(episode.id)) await deleteDramaLabEpisodeCanvasForUser(userId, current.id, episode.id);
+        }
+        return saved;
     } catch (error) {
         if (error instanceof DramaProjectStoreError) throw new DramaProjectServiceError(error.message, error.status);
         throw error;
@@ -154,11 +159,15 @@ function dramaUsageTarget(project: DramaProject) {
 
 export async function deleteDramaProjectForUser(userId: string, id: string) {
     const projectId = cleanText(id);
-    const current = await getDramaProject(projectId, userId);
-    const deleted = await deleteDramaProject(userId, projectId);
-    if (!deleted) throw new DramaProjectServiceError("短剧项目不存在", 404);
-    if (current?.creativeConversationId) await updateCreativeConversation(current.creativeConversationId, userId, { status: "archived" });
-    if (current) await deleteUserMediaAssetsCascade(userId, collectLocalMediaStorageKeys(current));
+    let result: Awaited<ReturnType<typeof deleteDramaProjectCanvasAggregates>>;
+    try {
+        result = await deleteDramaProjectCanvasAggregates(userId, projectId);
+    } catch (error) {
+        if (error instanceof CreativeEntityDeletionConflict) throw new DramaProjectServiceError(error.message, 404);
+        throw error;
+    }
+    if (!result.deletedDramaProjects) throw new DramaProjectServiceError("短剧项目不存在", 404);
+    await deleteUserMediaAssetsCascade(userId, result.mediaStorageKeys);
 }
 
 export async function deleteDramaAgentConversationForUser(userId: string, projectIdValue: string, conversationIdValue: unknown) {

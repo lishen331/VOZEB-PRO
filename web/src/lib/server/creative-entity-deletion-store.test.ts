@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
     provider: "file" as "file" | "postgres",
     writeFailure: "",
     transaction: vi.fn(),
+    locks: vi.fn(),
 }));
 
 vi.mock("@/lib/server/database", () => ({
@@ -22,10 +23,10 @@ vi.mock("@/lib/server/data-adapter", () => ({
         }
         mocks.files.set(name, structuredClone(value));
     }),
-    withJsonDataFileLocks: vi.fn(async (_names: string[], callback: () => Promise<unknown>) => callback()),
+    withJsonDataFileLocks: mocks.locks,
 }));
 
-import { CreativeEntityDeletionConflict, deleteCanvasAssistantConversationAggregates, deleteCanvasProjectAggregates, deleteCreativeConversationAggregates, deleteDramaConversationAggregate } from "./creative-entity-deletion-store";
+import { CreativeEntityDeletionConflict, deleteCanvasAssistantConversationAggregates, deleteCanvasProjectAggregates, deleteCreativeConversationAggregates, deleteDramaConversationAggregate, deleteDramaProjectCanvasAggregates } from "./creative-entity-deletion-store";
 
 describe("creative entity deletion file provider", () => {
     beforeEach(() => {
@@ -34,6 +35,8 @@ describe("creative entity deletion file provider", () => {
         mocks.files.clear();
         seedFiles();
         mocks.transaction.mockReset();
+        mocks.locks.mockReset();
+        mocks.locks.mockImplementation(async (_names: string[], callback: () => Promise<unknown>) => callback());
     });
 
     it("hard-deletes one conversation and all of its owned records", async () => {
@@ -59,6 +62,35 @@ describe("creative entity deletion file provider", () => {
         expect(file<{ projects: Array<{ project: { id: string } }> }>("canvas-projects.json").projects.map((item) => item.project.id)).toEqual(["canvas-two"]);
         expect(file<{ conversations: Array<{ id: string }> }>("creative-runtime.json").conversations.map((item) => item.id)).toEqual(["conversation-two"]);
         expect(file<Array<{ id: string }>>("generation-tasks.json").map((item) => item.id)).toEqual(["run-two"]);
+    });
+
+    it("never deletes a drama-lab episode canvas through the ordinary aggregate", async () => {
+        const canvas = file<{ projects: Array<{ userId: string; project: Record<string, unknown> }> }>("canvas-projects.json");
+        canvas.projects.push({ userId: "user-one", project: { id: "canvas-drama", sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one", nodes: [] } });
+
+        const result = await deleteCanvasProjectAggregates("user-one", ["canvas-drama"]);
+
+        expect(result).toMatchObject({ deletedConversations: 0, deletedProjects: 0 });
+        expect(file<{ projects: Array<{ project: { id: string } }> }>("canvas-projects.json").projects.map((item) => item.project.id)).toContain("canvas-drama");
+    });
+
+    it("requires explicit drama-lab scope for episode-canvas assistant deletion", async () => {
+        const runtime = file<{ conversations: Array<Record<string, unknown>> }>("creative-runtime.json");
+        runtime.conversations.push({ ...runtime.conversations[0], id: "conversation-drama-agent", surface: "canvas", projectId: "canvas-drama" });
+        const canvas = file<{ projects: Array<{ userId: string; project: Record<string, unknown> }> }>("canvas-projects.json");
+        canvas.projects.push({
+            userId: "user-one",
+            project: {
+                id: "canvas-drama",
+                sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one",
+                chatSessions: [{ id: "session-drama", conversationId: "conversation-drama-agent", title: "Agent", messages: [], createdAt: "now", updatedAt: "now" }],
+                activeChatId: "session-drama",
+                nodes: [],
+            },
+        });
+
+        await expect(deleteCanvasAssistantConversationAggregates("user-one", "canvas-drama", ["conversation-drama-agent"])).rejects.toBeInstanceOf(CreativeEntityDeletionConflict);
+        await expect(deleteCanvasAssistantConversationAggregates("user-one", "canvas-drama", ["conversation-drama-agent"], { includeDramaLab: true })).resolves.toMatchObject({ deletedConversations: 1 });
     });
 
     it("deletes a directly requested Canvas assistant conversation without deleting its project", async () => {
@@ -131,6 +163,86 @@ describe("creative entity deletion file provider", () => {
         await expect(deleteDramaConversationAggregate("user-one", "drama-one", "conversation-one", "conversation-two")).rejects.toBeInstanceOf(CreativeEntityDeletionConflict);
     });
 
+    it("deletes a drama project and all of its episode canvases while archiving the primary conversation", async () => {
+        const runtime = file<{ conversations: Array<Record<string, unknown>> }>("creative-runtime.json");
+        runtime.conversations[0] = { ...runtime.conversations[0], surface: "drama", source: "drama", projectId: "drama-one" };
+        runtime.conversations[1] = { ...runtime.conversations[1], surface: "canvas", source: "canvas", projectId: "episode-canvas-one" };
+        const drama = file<{ projects: Array<{ userId: string; project: Record<string, unknown> }> }>("drama-projects.json");
+        drama.projects.push({ userId: "user-one", project: dramaProject("conversation-one") });
+        const canvas = file<{ projects: Array<{ userId: string; project: Record<string, unknown> }> }>("canvas-projects.json");
+        canvas.projects = canvas.projects.map((record) => ({ ...record, project: { ...record.project, creativeConversationId: undefined } }));
+        canvas.projects.push(
+            { userId: "user-one", project: { id: "episode-canvas-one", sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one", creativeConversationId: "conversation-two", nodes: [] } },
+            { userId: "user-one", project: { id: "episode-canvas-two", sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-two", nodes: [] } },
+            { userId: "user-one", project: { id: "other-drama-canvas", sourceHandoffId: "drama-lab-canvas:drama-two:episode:episode-one", nodes: [] } },
+        );
+
+        const result = await deleteDramaProjectCanvasAggregates("user-one", "drama-one");
+
+        expect(result).toMatchObject({ deletedDramaProjects: 1, deletedProjects: 2, deletedConversations: 1 });
+        expect(file<{ projects: Array<{ project: { id: string } }> }>("drama-projects.json").projects.map((item) => item.project.id)).toEqual([]);
+        expect(file<{ projects: Array<{ project: { id: string } }> }>("canvas-projects.json").projects.map((item) => item.project.id)).toEqual(["canvas-one", "canvas-two", "other-drama-canvas"]);
+        expect(file<{ conversations: Array<{ id: string; status: string }> }>("creative-runtime.json").conversations).toEqual([
+            expect.objectContaining({ id: "conversation-one", status: "archived" }),
+        ]);
+        expect(file<{ items: Array<{ id: string }> }>("drama-project-versions.json").items.map((item) => item.id)).toEqual(["version-other-project", "version-other-user"]);
+        expect(result.mediaStorageKeys).toContain("permanent/version-target.png");
+        expect(mocks.locks).toHaveBeenCalledWith(expect.arrayContaining(["drama-project-versions.json"]), expect.any(Function));
+    });
+
+    it("rolls back the drama project, episode canvases, and version history when the version write fails", async () => {
+        const runtime = file<{ conversations: Array<Record<string, unknown>> }>("creative-runtime.json");
+        runtime.conversations[0] = { ...runtime.conversations[0], surface: "drama", source: "drama", projectId: "drama-one" };
+        const drama = file<{ projects: Array<{ userId: string; project: Record<string, unknown> }> }>("drama-projects.json");
+        drama.projects.push({ userId: "user-one", project: dramaProject("conversation-one") });
+        const canvas = file<{ projects: Array<{ userId: string; project: Record<string, unknown> }> }>("canvas-projects.json");
+        canvas.projects.push({ userId: "user-one", project: { id: "episode-canvas-one", sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one", nodes: [] } });
+        const before = structuredClone(Object.fromEntries(mocks.files));
+        mocks.writeFailure = "drama-project-versions.json";
+
+        await expect(deleteDramaProjectCanvasAggregates("user-one", "drama-one")).rejects.toThrow("write failed");
+
+        expect(Object.fromEntries(mocks.files)).toEqual(before);
+    });
+
+    it("archives the primary drama conversation inside the PostgreSQL deletion transaction", async () => {
+        mocks.provider = "postgres";
+        const project = dramaProject("conversation-primary");
+        const query = vi.fn(async (sql: string, _params?: unknown[]) => {
+            if (sql.includes("SELECT project_json FROM drama_projects")) return { rows: [{ project_json: project }] };
+            if (sql.includes("SELECT id, project_json FROM canvas_projects")) return { rows: [{ id: "episode-canvas", project_json: { id: "episode-canvas", sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one", nodes: [] } }] };
+            return { rows: [] as Record<string, unknown>[], rowCount: 1 };
+        });
+        mocks.transaction.mockImplementation(async (callback: (client: { query: typeof query }) => Promise<unknown>) => callback({ query }));
+
+        await deleteDramaProjectCanvasAggregates("user-one", "drama-one");
+
+        const archive = query.mock.calls.find(([sql]) => String(sql).includes("UPDATE creative_conversations SET status = 'archived'"));
+        expect(archive?.[1]).toEqual(["user-one", "conversation-primary"]);
+        expect(query.mock.calls.some(([sql]) => String(sql).includes("DELETE FROM canvas_projects"))).toBe(true);
+        expect(query.mock.calls.some(([sql]) => String(sql).includes("DELETE FROM drama_projects"))).toBe(true);
+    });
+
+    it("locks and deletes only the owning drama version history in PostgreSQL", async () => {
+        mocks.provider = "postgres";
+        const project = dramaProject("conversation-primary");
+        const query = vi.fn(async (sql: string, _params?: unknown[]) => {
+            if (sql.includes("SELECT project_json FROM drama_projects") && sql.includes("FOR UPDATE")) return { rows: [{ project_json: project }] };
+            if (sql.includes("FROM drama_project_versions") && sql.includes("SELECT")) return { rows: [{ snapshot: { posterUrl: "/api/reference-assets/permanent/version-target.png" } }] };
+            return { rows: [] as Record<string, unknown>[], rowCount: 1 };
+        });
+        mocks.transaction.mockImplementation(async (callback: (client: { query: typeof query }) => Promise<unknown>) => callback({ query }));
+
+        const result = await deleteDramaProjectCanvasAggregates("user-one", "drama-one");
+
+        expect(result).toMatchObject({ deletedDramaProjects: 1, deletedProjects: 0, deletedConversations: 0 });
+        const versionLock = query.mock.calls.find(([sql]) => String(sql).includes("FROM drama_project_versions") && String(sql).includes("FOR UPDATE"));
+        expect(versionLock?.[1]).toEqual(["user-one", "drama-one"]);
+        const versionDelete = query.mock.calls.find(([sql]) => String(sql).includes("DELETE FROM drama_project_versions"));
+        expect(versionDelete?.[1]).toEqual(["user-one", "drama-one"]);
+        expect(result.mediaStorageKeys).toEqual(["permanent/version-target.png"]);
+    });
+
     it("uses one PostgreSQL transaction with owner-scoped entity deletes", async () => {
         mocks.provider = "postgres";
         const query = vi.fn(async (sql: string, _params?: unknown[]) => {
@@ -154,6 +266,16 @@ describe("creative entity deletion file provider", () => {
         const statements = query.mock.calls.map(([sql]) => String(sql)).join("\n");
         for (const table of ["creative_run_events", "generation_logs", "generation_tasks", "creative_conversations"]) expect(statements).toContain(`DELETE FROM ${table}`);
         expect(statements).not.toContain("SELECT *");
+    });
+
+    it("adds the drama-lab exclusion inside the PostgreSQL project deletion transaction", async () => {
+        mocks.provider = "postgres";
+        const query = vi.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [] as Record<string, unknown>[], rowCount: 0 }));
+        mocks.transaction.mockImplementation(async (callback: (client: { query: typeof query }) => Promise<unknown>) => callback({ query }));
+
+        await deleteCanvasProjectAggregates("user-one", ["canvas-drama"]);
+
+        expect(String(query.mock.calls[0]?.[0] as string | undefined)).toContain("NOT LIKE 'drama-lab-canvas:%'");
     });
 
     it("updates the Canvas assistant session list inside the PostgreSQL deletion transaction", async () => {
@@ -249,6 +371,14 @@ function seedFiles() {
         ],
     });
     mocks.files.set("drama-projects.json", { version: 1, projects: [] });
+    mocks.files.set("drama-project-versions.json", {
+        version: 1,
+        items: [
+            { id: "version-target", projectId: "drama-one", userId: "user-one", version: 1, reason: "target", createdAt: "2026-08-13T00:00:00.000Z", snapshot: { ...dramaProject("conversation-one"), posterUrl: "/api/reference-assets/permanent/version-target.png" } },
+            { id: "version-other-project", projectId: "drama-two", userId: "user-one", version: 1, reason: "other project", createdAt: "2026-08-13T00:00:00.000Z", snapshot: { ...dramaProject("conversation-two"), id: "drama-two" } },
+            { id: "version-other-user", projectId: "drama-one", userId: "user-two", version: 1, reason: "other user", createdAt: "2026-08-13T00:00:00.000Z", snapshot: dramaProject("conversation-one") },
+        ],
+    });
     mocks.files.set("local-media-assets.json", {
         version: 1,
         assets: [{ ownerUserId: "user-one", storageKey: "permanent/registered.png", conversationId: "conversation-one", taskId: "run-one" }],

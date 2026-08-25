@@ -7,7 +7,8 @@
 import { NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getDramaProject, updateDramaProject } from "@/lib/server/drama-project-store";
+import { getDramaProject } from "@/lib/server/drama-project-store";
+import { deleteDramaProjectForUser, DramaProjectServiceError, updateDramaProjectForUser } from "@/lib/server/drama-project-service";
 
 export const dynamic = "force-dynamic";
 
@@ -76,18 +77,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             updatedAt: new Date().toISOString(),
         };
 
-        await updateDramaProject(user.id, updated, existing.updatedAt);
+        const saved = await updateDramaProjectForUser(user.id, id, updated);
 
         return NextResponse.json({
             code: 0,
-            data: { project: updated },
+            data: { project: saved },
             msg: "项目更新成功",
         });
     } catch (error) {
         console.error("[drama-lab/projects/:id] PUT error:", error);
 
-        if (error instanceof Error && error.message.includes("已在其他页面更新")) {
-            return NextResponse.json({ code: 409, msg: error.message }, { status: 409 });
+        if (error instanceof DramaProjectServiceError) {
+            return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         }
 
         return NextResponse.json(
@@ -228,8 +229,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     try {
         const { id } = await params;
 
-        const { deleteDramaProject } = await import("@/lib/server/drama-project-store");
-        await deleteDramaProject(user.id, id);
+        await deleteDramaProjectForUser(user.id, id);
 
         return NextResponse.json({
             code: 0,
@@ -237,6 +237,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         });
     } catch (error) {
         console.error("[drama-lab/projects/:id] DELETE error:", error);
+        if (error instanceof DramaProjectServiceError) {
+            return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
+        }
         return NextResponse.json(
             {
                 code: 500,

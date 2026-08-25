@@ -89,6 +89,7 @@ export async function countLocalMediaReferences(storageKeys: string[]) {
         readJsonDataFile<unknown>("library-assets.json", {}),
         readJsonDataFile<unknown>("canvas-projects.json", {}),
         readJsonDataFile<unknown>("drama-projects.json", {}),
+        readJsonDataFile<unknown>("drama-project-versions.json", {}),
         readJsonDataFile<unknown>("generation-logs.json", {}),
         readJsonDataFile<unknown>("generation-tasks.json", []),
         readJsonDataFile<unknown>("auth.json", {}),

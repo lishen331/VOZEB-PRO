@@ -29,6 +29,7 @@ import {
     ShieldCheck,
     MessageSquare,
     LockKeyhole,
+    PanelsTopLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -41,6 +42,13 @@ import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } fr
 
 const { TextArea } = Input;
 const { Option } = Select;
+
+export function dramaLabEpisodeCanvasHref(projectId: string, episodeId: string, shotId?: string) {
+    const params = new URLSearchParams();
+    params.set("episodeId", episodeId);
+    if (shotId) params.set("shotId", shotId);
+    return `/drama-lab/${encodeURIComponent(projectId)}/canvas?${params.toString()}`;
+}
 
 // 步骤定义
 const WORKFLOW_STEPS = [
@@ -407,12 +415,12 @@ function normalizeProjectShots(project: Record<string, unknown>, episodes: Episo
     });
 }
 
-export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { projectId: string; initialEpisodeId?: string }) {
+export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialStep }: { projectId: string; initialEpisodeId?: string; initialStep?: StepKey }) {
     const [messageApi, contextHolder] = message.useMessage();
     const [project, setProject] = useState<Project | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>();
-    const [activeStep, setActiveStep] = useState<StepKey>("script");
+    const [activeStep, setActiveStep] = useState<StepKey>(initialStep || "script");
     const [activeEpisodeId, setActiveEpisodeId] = useState<string>();
     const [saving, setSaving] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -441,6 +449,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
     const [allowFeedbackAttachments, setAllowFeedbackAttachments] = useState(false);
     const [collaborationFeedback, setCollaborationFeedback] = useState<CollaborationFeedback[]>([]);
     const pendingStoryboardShotId = useRef<string | undefined>(undefined);
+    const initialStoryboardHashHandledRef = useRef(false);
     const projectRef = useRef<Project | null>(null);
     const saveQueueRef = useRef<Promise<boolean>>(Promise.resolve(true));
 
@@ -503,6 +512,28 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
         document.getElementById(`storyboard-shot-${pendingStoryboardShotId.current}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
         pendingStoryboardShotId.current = undefined;
     }, [activeEpisodeId, activeStep]);
+
+    // The canvas return link carries the shot in the URL hash so the server
+    // route stays cacheable. Resolve it after the client workbench mounts.
+    useEffect(() => {
+        if (activeStep !== "storyboard" || pendingStoryboardShotId.current || initialStoryboardHashHandledRef.current || typeof window === "undefined") return;
+        const match = window.location.hash.match(/^#storyboard-shot-(.+)$/);
+        if (!match?.[1]) return;
+        let shotId = "";
+        try {
+            shotId = decodeURIComponent(match[1]);
+        } catch {
+            return;
+        }
+        if (!shotId) return;
+        pendingStoryboardShotId.current = shotId;
+        requestAnimationFrame(() => {
+            const target = document.getElementById(`storyboard-shot-${shotId}`);
+            target?.scrollIntoView({ behavior: "smooth", block: "center" });
+            if (target) initialStoryboardHashHandledRef.current = true;
+            pendingStoryboardShotId.current = undefined;
+        });
+    }, [activeStep, activeEpisodeId, project]);
 
     // 保存项目数据
     const saveProject = async (updatesOrUpdater: ProjectUpdate, options: SaveOptions = {}): Promise<boolean> => {
@@ -726,6 +757,16 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
                     <h1 className="truncate text-base font-semibold">{project.title}</h1>
                     <p className="truncate text-xs text-muted-foreground">{activeEpisode?.title || `第 ${activeEpisode?.number || 1} 集`}</p>
                 </div>
+                {activeEpisode ? (
+                    <Button
+                        href={dramaLabEpisodeCanvasHref(projectId, activeEpisode.id)}
+                        icon={<PanelsTopLeft className="size-4" />}
+                        aria-label="打开本集画布"
+                        title="打开本集画布"
+                    >
+                        <span className="hidden xl:inline">打开本集画布</span>
+                    </Button>
+                ) : null}
                 <Button icon={<Sparkles className="size-4" />} onClick={() => setWorkflowModalOpen(true)}>
                     一键全流程
                 </Button>
@@ -813,6 +854,15 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId }: { proje
                                                 </>
                                             )}
                                         </button>
+                                        <Button
+                                            type="text"
+                                            size="small"
+                                            className="shrink-0"
+                                            href={dramaLabEpisodeCanvasHref(projectId, ep.id)}
+                                            aria-label={`打开${ep.title}画布`}
+                                            title={`打开${ep.title}画布`}
+                                            icon={<PanelsTopLeft className="size-3.5" />}
+                                        />
                                     </div>
 
                                     {!sidebarCollapsed && isExpanded && episodeShots.length > 0 && (
@@ -3001,6 +3051,14 @@ function StoryboardWorkbenchCard({
                     </p>
                 </div>
                 <div className="flex items-center gap-1">
+                    <Button
+                        type="text"
+                        size="small"
+                        title="在画布中打开此分镜"
+                        aria-label="在画布中打开此分镜"
+                        href={dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)}
+                        icon={<PanelsTopLeft className="size-4" />}
+                    />
                     <Button type="text" size="small" title="同步任务状态" aria-label="同步任务状态" icon={<LoaderCircle className="size-4" />} onClick={onSync} />
                     <Button type="text" size="small" title="编辑分镜" aria-label="编辑分镜" icon={<Edit2 className="size-4" />} onClick={onEdit} />
                     <Button type="text" danger size="small" title="删除分镜" aria-label="删除分镜" icon={<Trash2 className="size-4" />} onClick={onDelete} />

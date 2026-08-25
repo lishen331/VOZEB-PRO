@@ -2,6 +2,7 @@ import type { CanvasProject, CanvasProjectMutation, CanvasProjectSaveAck, Canvas
 import { applyCanvasProjectMutation } from "@/lib/canvas-project-mutation";
 import { summarizeCanvasProjectRecord } from "@/lib/canvas-project-summary";
 import { summarizeCanvasProject, type CreateOverviewMedia, type CreateOverviewProject } from "@/lib/create-workbench-overview";
+import { isDramaLabCanvasProject } from "@/lib/drama-lab-canvas-contract";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery } from "@/lib/server/database";
 import type { PracticeExecutionProfile, PracticeSource } from "@/lib/practice-domain";
@@ -16,23 +17,26 @@ export type CanvasProjectPage = { items: CanvasProject[]; total: number; page: n
 const FILE_NAME = "canvas-projects.json";
 let mutationQueue = Promise.resolve();
 
-export async function listCanvasProjects(userId: string) {
+export type CanvasProjectListOptions = { includeDramaLab?: boolean };
+
+export async function listCanvasProjects(userId: string, options: CanvasProjectListOptions = {}) {
     if (getDatabaseProvider() === "postgres") throw new Error("PostgreSQL Canvas reads must use a paginated project query");
     return (await readDatabase()).projects
-        .filter((record) => record.userId === userId)
+        .filter((record) => record.userId === userId && (options.includeDramaLab || !isDramaLabCanvasProject(record.project)))
         .map((record) => toPublicProject(record.project as StoredCanvasProject, record))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
 }
 
-export async function listCanvasProjectPage(userId: string, input: { page: number; pageSize: number }): Promise<CanvasProjectPage> {
+export async function listCanvasProjectPage(userId: string, input: { page: number; pageSize: number; includeDramaLab?: boolean }): Promise<CanvasProjectPage> {
     const offset = (input.page - 1) * input.pageSize;
+    const dramaLabClause = input.includeDramaLab ? "" : "\n                   AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<{ project_json?: StoredCanvasProject; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string; total_count: unknown }>(
             `WITH filtered AS (
                  SELECT id, updated_at, project_json, execution_profile, practice_source_work_id, practice_source_version_id
                  FROM canvas_projects
-                 WHERE user_id = $1
+                 WHERE user_id = $1${dramaLabClause}
              ), page_items AS (
                  SELECT id, updated_at, project_json, execution_profile, practice_source_work_id, practice_source_version_id
                  FROM filtered
@@ -46,18 +50,24 @@ export async function listCanvasProjectPage(userId: string, input: { page: numbe
             [userId, input.pageSize, offset],
         );
         return {
-            ...input,
+            page: input.page,
+            pageSize: input.pageSize,
             items: result.rows.flatMap((row) => (row.project_json ? [toPublicProject(row.project_json, row)] : [])),
             total: Math.max(0, Number(result.rows[0]?.total_count) || 0),
         };
     }
-    const projects = await listCanvasProjects(userId);
-    return { ...input, items: projects.slice(offset, offset + input.pageSize), total: projects.length };
+    const projects = await listCanvasProjects(userId, { includeDramaLab: input.includeDramaLab });
+    return { page: input.page, pageSize: input.pageSize, items: projects.slice(offset, offset + input.pageSize), total: projects.length };
 }
 
-export async function listCanvasProjectSummaries(userId: string, input: { page: number; pageSize: number; executionProfile?: PracticeExecutionProfile }): Promise<CanvasProjectSummaryPage> {
+export async function listCanvasProjectSummaries(userId: string, input: { page: number; pageSize: number; executionProfile?: PracticeExecutionProfile; includeDramaLab?: boolean; dramaLabOnly?: boolean }): Promise<CanvasProjectSummaryPage> {
     const offset = (input.page - 1) * input.pageSize;
     const profileClause = input.executionProfile ? " AND execution_profile = $4" : "";
+    const dramaLabClause = input.dramaLabOnly
+        ? " AND COALESCE(project_json->>'sourceHandoffId', '') LIKE 'drama-lab-canvas:%'"
+        : input.includeDramaLab
+          ? ""
+          : " AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<Record<string, unknown>>(
@@ -69,7 +79,7 @@ export async function listCanvasProjectSummaries(userId: string, input: { page: 
                         jsonb_array_length(CASE WHEN jsonb_typeof(project_json->'nodes') = 'array' THEN project_json->'nodes' ELSE '[]'::jsonb END) AS node_count,
                         jsonb_array_length(CASE WHEN jsonb_typeof(project_json->'connections') = 'array' THEN project_json->'connections' ELSE '[]'::jsonb END) AS connection_count
                  FROM canvas_projects
-                 WHERE user_id = $1${profileClause}
+                 WHERE user_id = $1${profileClause}${dramaLabClause}
              ), page_items AS (
                  SELECT * FROM filtered ORDER BY updated_at DESC, id ASC LIMIT $2 OFFSET $3
              )
@@ -79,10 +89,13 @@ export async function listCanvasProjectSummaries(userId: string, input: { page: 
              ORDER BY page_items.updated_at DESC NULLS LAST, page_items.id ASC`,
             input.executionProfile ? [userId, input.pageSize, offset, input.executionProfile] : [userId, input.pageSize, offset],
         );
-        return { projects: result.rows.filter((row) => row.id).map(mapProjectSummary), total: Math.max(0, Number(result.rows[0]?.total_count) || 0), ...input };
+        return { projects: result.rows.filter((row) => row.id).map(mapProjectSummary), total: Math.max(0, Number(result.rows[0]?.total_count) || 0), page: input.page, pageSize: input.pageSize };
     }
-    const projects = (await listCanvasProjects(userId)).filter((project) => !input.executionProfile || (project as CanvasProject & CanvasProjectIdentityView).executionProfile === input.executionProfile).map(summarizeCanvasProjectRecord);
-    return { projects: projects.slice(offset, offset + input.pageSize), total: projects.length, ...input };
+    const projects = (await listCanvasProjects(userId, { includeDramaLab: input.includeDramaLab || input.dramaLabOnly }))
+        .filter((project) => !input.dramaLabOnly || isDramaLabCanvasProject(project))
+        .filter((project) => !input.executionProfile || (project as CanvasProject & CanvasProjectIdentityView).executionProfile === input.executionProfile)
+        .map(summarizeCanvasProjectRecord);
+    return { projects: projects.slice(offset, offset + input.pageSize), total: projects.length, page: input.page, pageSize: input.pageSize };
 }
 
 export async function getLatestCanvasProjectOverview(userId: string): Promise<CreateOverviewProject | undefined> {
@@ -123,6 +136,7 @@ export async function getLatestCanvasProjectOverview(userId: string): Promise<Cr
                 ), '[]'::jsonb) AS previews
             FROM canvas_projects
             WHERE user_id = $1
+              AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'
             ORDER BY updated_at DESC
             LIMIT 1
             `,

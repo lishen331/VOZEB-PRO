@@ -41,7 +41,18 @@ vi.mock("@/lib/server/ip-library-reference-service", () => ({
     recordIpReferenceUsage: mocks.recordIpReferenceUsage,
 }));
 
-import { createCanvasProjectForUser, deleteCanvasAssistantConversationsForUser, deleteCanvasProjectsForUser, updateCanvasProjectForUser } from "./canvas-project-service";
+import {
+    createCanvasProjectForUser,
+    createDramaLabCanvasProjectForUser,
+    deleteCanvasAssistantConversationsForUser,
+    deleteDramaLabCanvasAssistantConversationsForUser,
+    deleteCanvasProjectsForUser,
+    deleteDramaLabEpisodeCanvasForUser,
+    getCanvasProjectForUser,
+    getDramaLabCanvasProjectForUser,
+    updateCanvasProjectForUser,
+    updateDramaLabCanvasProjectForUser,
+} from "./canvas-project-service";
 
 describe("canvas project service lifecycle", () => {
     beforeEach(() => {
@@ -79,6 +90,40 @@ describe("canvas project service lifecycle", () => {
         expect(first.id).not.toBe(second.id);
         expect(first.id).toMatch(/^canvas-handoff-/);
         expect(second.id).toMatch(/^canvas-handoff-/);
+    });
+
+    it("reserves the drama-lab handoff namespace for the episode canvas service", async () => {
+        const sourceHandoffId = "drama-lab-canvas:drama-one:episode:episode-one";
+        mocks.createCanvasProject.mockImplementation(async (_userId, value) => value);
+
+        await expect(createCanvasProjectForUser("user-one", { sourceHandoffId })).rejects.toMatchObject({ status: 400 });
+        await expect(createDramaLabCanvasProjectForUser("user-one", { sourceHandoffId })).resolves.toMatchObject({ sourceHandoffId });
+
+        expect(mocks.createCanvasProject).toHaveBeenCalledTimes(1);
+    });
+
+    it("hashes the complete episode handoff key instead of truncating distinct suffixes", async () => {
+        mocks.createCanvasProject.mockImplementation(async (_userId, value) => value);
+        const sharedPrefix = `drama-lab-canvas:${"project".repeat(20)}:episode:${"episode".repeat(20)}`;
+        const first = await createDramaLabCanvasProjectForUser("user-one", { sourceHandoffId: `${sharedPrefix}-one` });
+        const second = await createDramaLabCanvasProjectForUser("user-one", { sourceHandoffId: `${sharedPrefix}-two` });
+
+        expect(first.id).not.toBe(second.id);
+        expect(first.sourceHandoffId).toBe(`${sharedPrefix}-one`);
+        expect(second.sourceHandoffId).toBe(`${sharedPrefix}-two`);
+    });
+
+    it("rejects an oversized handoff key instead of silently collapsing it", async () => {
+        await expect(createDramaLabCanvasProjectForUser("user-one", { sourceHandoffId: `drama-lab-canvas:${"x".repeat(600)}` })).rejects.toMatchObject({ status: 400 });
+        expect(mocks.createCanvasProject).not.toHaveBeenCalled();
+    });
+
+    it("keeps drama-lab canvases inaccessible through ordinary detail reads", async () => {
+        const dramaCanvas = { ...project(), sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one" };
+        mocks.getCanvasProject.mockResolvedValue(dramaCanvas);
+
+        await expect(getCanvasProjectForUser("user-one", dramaCanvas.id)).rejects.toMatchObject({ status: 404 });
+        await expect(getDramaLabCanvasProjectForUser("user-one", dramaCanvas.id)).resolves.toEqual(dramaCanvas);
     });
 
     it("returns the winning handoff project after a concurrent insert conflict", async () => {
@@ -133,6 +178,33 @@ describe("canvas project service lifecycle", () => {
         expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("user-one", ["permanent/canvas.png"]);
     });
 
+    it("does not pass drama-lab canvas ids into the ordinary project deletion cascade", async () => {
+        mocks.getCanvasProject.mockResolvedValue({ ...project(), sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one" });
+
+        await expect(deleteCanvasProjectsForUser("user-one", ["canvas-one"])).rejects.toMatchObject({ status: 404 });
+
+        expect(mocks.deleteCanvasProjectAggregates).not.toHaveBeenCalled();
+        expect(mocks.deleteUserMediaAssetsCascade).not.toHaveBeenCalled();
+    });
+
+    it("deletes exactly one episode-bound drama canvas through the dedicated cascade", async () => {
+        mocks.createCanvasProject.mockImplementation(async (_userId, value) => value);
+        const created = await createDramaLabCanvasProjectForUser("user-one", { sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one" });
+        mocks.getCanvasProject.mockResolvedValue(created);
+
+        await expect(deleteDramaLabEpisodeCanvasForUser("user-one", "drama-one", "episode-one")).resolves.toBe(true);
+
+        expect(mocks.deleteCanvasProjectAggregates).toHaveBeenCalledWith("user-one", [created.id], { includeDramaLab: true });
+        expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("user-one", ["permanent/canvas.png"]);
+    });
+
+    it("does not delete a canvas whose stored handoff does not exactly match the episode", async () => {
+        mocks.getCanvasProject.mockResolvedValue({ ...project(), sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-other" });
+
+        await expect(deleteDramaLabEpisodeCanvasForUser("user-one", "drama-one", "episode-one")).resolves.toBe(false);
+        expect(mocks.deleteCanvasProjectAggregates).not.toHaveBeenCalled();
+    });
+
     it("deletes only assistant conversations linked to the current Canvas project", async () => {
         mocks.getCanvasProject.mockResolvedValue({ ...project(), chatSessions: [assistantSession("session-one", "conversation-agent")] });
 
@@ -140,6 +212,31 @@ describe("canvas project service lifecycle", () => {
 
         expect(mocks.deleteCanvasAssistantConversationAggregates).toHaveBeenCalledWith("user-one", "canvas-one", ["conversation-agent"]);
         expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("user-one", ["permanent/assistant.png"]);
+    });
+
+    it("blocks ordinary assistant-conversation deletion for drama-lab canvases", async () => {
+        mocks.getCanvasProject.mockResolvedValue({
+            ...project(),
+            sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one",
+            chatSessions: [assistantSession("session-one", "conversation-agent")],
+        });
+
+        await expect(deleteCanvasAssistantConversationsForUser("user-one", "canvas-one", ["conversation-agent"])).rejects.toMatchObject({ status: 404 });
+
+        expect(mocks.deleteCanvasAssistantConversationAggregates).not.toHaveBeenCalled();
+        expect(mocks.deleteUserMediaAssetsCascade).not.toHaveBeenCalled();
+    });
+
+    it("allows assistant-conversation deletion only through the dedicated drama-lab scope", async () => {
+        mocks.getCanvasProject.mockResolvedValue({
+            ...project(),
+            sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one",
+            chatSessions: [assistantSession("session-one", "conversation-agent")],
+        });
+
+        await deleteDramaLabCanvasAssistantConversationsForUser("user-one", "canvas-one", ["conversation-agent"]);
+
+        expect(mocks.deleteCanvasAssistantConversationAggregates).toHaveBeenCalledWith("user-one", "canvas-one", ["conversation-agent"], { includeDramaLab: true });
     });
 
     it("returns the owned project state when no assistant conversation id is provided", async () => {
@@ -236,6 +333,18 @@ describe("canvas project service lifecycle", () => {
         expect(mocks.updateCanvasProject).not.toHaveBeenCalled();
     });
 
+    it("blocks ordinary mutations while allowing the dedicated drama-lab mutation path", async () => {
+        const current = { ...project(), sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one" };
+        const mutation = { mutationId: "mutation-drama", baseUpdatedAt: current.updatedAt, title: "Drama Canvas" };
+        mocks.getCanvasProject.mockResolvedValue(current);
+        mocks.updateCanvasProjectMutationPatch.mockResolvedValue({ projectId: current.id, updatedAt: "2026-08-01T00:00:00.001Z", mutationId: mutation.mutationId });
+
+        await expect(updateCanvasProjectForUser("user-one", current.id, { mutation })).rejects.toMatchObject({ status: 404 });
+        await expect(updateDramaLabCanvasProjectForUser("user-one", current.id, { mutation })).resolves.toMatchObject({ projectId: current.id, mutationId: mutation.mutationId });
+
+        expect(mocks.updateCanvasProjectMutationPatch).toHaveBeenCalledTimes(1);
+    });
+
     it("keeps only stable unique entity ids in compact upserts", async () => {
         const current = project();
         mocks.getCanvasProject.mockResolvedValue(current);
@@ -265,6 +374,7 @@ describe("canvas project service lifecycle", () => {
 
     it("removes transient media payloads before compact persistence", async () => {
         const current = project();
+        mocks.getCanvasProject.mockResolvedValue(current);
         mocks.updateCanvasProjectMutationPatch.mockResolvedValue({ projectId: current.id, updatedAt: current.updatedAt, mutationId: "mutation-media" });
 
         await updateCanvasProjectForUser("user-one", current.id, {

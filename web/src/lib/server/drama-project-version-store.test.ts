@@ -13,6 +13,7 @@ vi.mock("@/lib/server/database", () => ({
 vi.mock("@/lib/server/data-adapter", () => ({
     readJsonDataFile: vi.fn(async (name: string, fallback: unknown) => structuredClone(mocks.files.has(name) ? mocks.files.get(name) : fallback)),
     writeJsonDataFile: vi.fn(async (name: string, value: unknown) => mocks.files.set(name, structuredClone(value))),
+    withJsonDataFileLock: vi.fn(async (_name: string, callback: () => Promise<unknown>) => callback()),
 }));
 
 import { createDramaProjectVersion, getDramaProjectVersion, listDramaProjectVersions } from "./drama-project-version-store";

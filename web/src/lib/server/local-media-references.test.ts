@@ -57,15 +57,14 @@ describe("countLocalMediaReferences", () => {
 
     it("keeps media referenced by another file-provider generation task", async () => {
         mocks.getDatabaseProvider.mockReturnValue("file");
-        mocks.readJsonDataFile.mockImplementation(async (name: string, fallback: unknown) => (name === "generation-tasks.json" ? [{ id: "task-two", payload: { referenceUrl: "/api/reference-assets/permanent/shared.png" }, resultPayload: {} }] : fallback));
+        mocks.readJsonDataFile.mockImplementation(async (name: string, fallback: unknown) => {
+            if (name === "generation-tasks.json") return [{ id: "task-two", payload: { referenceUrl: "/api/reference-assets/permanent/shared.png" }, resultPayload: {} }];
+            if (name === "drama-project-versions.json") return { version: 1, items: [{ id: "version-two", snapshot: { posterUrl: "/api/reference-assets/permanent/shared.png" } }] };
+            return fallback;
+        });
 
         const result = await countLocalMediaReferences(["permanent/shared.png", "permanent/unreferenced.png"]);
 
-        expect(result).toEqual(
-            new Map([
-                ["permanent/shared.png", 1],
-                ["permanent/unreferenced.png", 0],
-            ]),
-        );
+        expect(result).toEqual(new Map([["permanent/shared.png", 2], ["permanent/unreferenced.png", 0]]));
     });
 });
