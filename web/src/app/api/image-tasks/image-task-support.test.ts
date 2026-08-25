@@ -6,6 +6,7 @@ import { GenerationSubmissionSafeFailure } from "@/lib/server/generation-submiss
 import { maintenanceWorkerContext } from "@/lib/server/maintenance-auth";
 import {
     allowsImageProtocolFallback,
+    alternateManagedMediaUrl,
     findImageResult,
     ImageQueryContractError,
     imageRequestAspectRatio,
@@ -176,6 +177,11 @@ describe("GlobalAiOpc image task paths", () => {
         const result = await inlineRemoteImageResult("https://cdn.example.com/result", "http://localhost:3000", "");
 
         expect(result.dataUrl).toMatch(/^data:image\/png;base64,/);
+    });
+
+    it("maps a legacy reference route to the generation route without changing its key", () => {
+        expect(alternateManagedMediaUrl("/api/reference-assets/permanent/2026/08/25/images/generated.png")).toBe("/api/generation-log-assets/permanent/2026/08/25/images/generated.png");
+        expect(alternateManagedMediaUrl("/api/generation-log-assets/permanent/2026/08/25/images/generated.png?width=320")).toBe("/api/reference-assets/permanent/2026/08/25/images/generated.png?width=320");
     });
 
     it("prefers the edit endpoint declared by the channel reference rule", async () => {
