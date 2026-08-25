@@ -160,20 +160,15 @@ export async function markAudioTaskFailed(task: AudioTask, error: string) {
     const current = (await getAudioTask(task.id)) || task;
     if (current.status === "cancelled" || current.status === "success") return current;
     const billing = current.billing;
-    if (generationTaskShouldConsumePoints(current.executionProfile) && billing?.billingReceiptId && !billing.refunded) {
-        await refundGenerationCharge({
-            userId: current.userId,
-            receiptId: billing.billingReceiptId,
-            model: generationModelId(current.config),
-            usageKind: "audio",
-            units: 1,
-            idempotencyKey: audioTaskRefundIdempotencyKey({ id: current.id, attemptNo: current.attemptNo }),
-        });
-        await updateAudioTask(current.id, { billing: { ...billing, refunded: true } });
-    }
     const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || current.attempts?.at(-1)?.attemptNo || 1, { status: "failed", error, pointsCost: billing?.pointsCost, billingReceiptId: billing?.billingReceiptId });
+    const failed = await transitionAudioTask(current, ["pending", "running"], { status: "error", error: error.slice(0, 500), config: { ...current.config, apiKey: "" }, billing });
+    if (!failed) {
+        const latest = await getAudioTask(current.id);
+        if (latest?.status === "error" || latest?.status === "cancelled") return refundAudioTask(latest);
+        return latest;
+    }
     await updateAudioTask(current.id, { attempts, candidateConfigs: [], attemptNo: attempts.at(-1)?.attemptNo });
-    return transitionAudioTask(current, ["pending", "running"], { status: "error", error: error.slice(0, 500), config: { ...current.config, apiKey: "" }, billing: billing ? { ...billing, refunded: true } : undefined });
+    return refundAudioTask((await getAudioTask(current.id)) || failed);
 }
 
 async function createAudioUpstream(task: AudioTask, origin: string, cookie: string, workerUserId: string, payload: Record<string, unknown>) {

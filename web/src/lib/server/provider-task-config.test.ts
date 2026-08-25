@@ -25,6 +25,10 @@ describe("provider task config", () => {
         expect(buildProviderRequest('{"model":"{{model}}","duration":"{{duration}}","images":"{{images}}"}', {}, { model: "video-v1", duration: 10, images: ["a", "b"] })).toEqual({ model: "video-v1", duration: 10, images: ["a", "b"] });
     });
 
+    it("omits intelligent parameters that intentionally have no fixed upstream value", () => {
+        expect(buildProviderRequest('{"model":"{{model}}","ratio":"{{ratio}}","resolution":"{{resolution}}"}', {}, { model: "image-v1", ratio: undefined, resolution: undefined })).toEqual({ model: "image-v1" });
+    });
+
     it("removes empty optional reference placeholders and containers", () => {
         const template = '{"model":"{{model}}","image":"{{image}}","images":"{{images}}","reference_images":["{{image}}"],"referenceVideos":["https://..."],"ref_assets":[{"type":"image","url":"{{image}}"}],"metadata":{"label":""}}';
 
@@ -92,6 +96,17 @@ describe("provider task config", () => {
         expect(isProviderBusinessError({ id: "video_123", status: "queued", error: null })).toBe(false);
     });
 
+    it("prioritizes explicit nested failure reasons over a success envelope", () => {
+        const payload = { code: "success", message: "success", data: { status: "FAILURE", fail_reason: "provider capacity exhausted" } };
+        expect(readProviderError(payload)).toBe("provider capacity exhausted");
+        expect(isProviderBusinessError(payload)).toBe(true);
+    });
+
+    it("treats any non-empty failure reason as a provider business error", () => {
+        expect(isProviderBusinessError({ status: "processing", failure_reason: "queued by provider" })).toBe(true);
+        expect(readProviderError({ failureReason: "queued by provider", message: "success" })).toBe("queued by provider");
+    });
+
     it("rejects reference media disabled by the backend channel", () => {
         const config = { supportsReferenceImage: true, supportsReferenceVideo: false, supportsReferenceAudio: false } as never;
         expect(() => assertReferenceCapabilities(config, [{ type: "image" }])).not.toThrow();
@@ -129,5 +144,7 @@ describe("provider task config", () => {
         expect(() => assertReferenceUrls(config, [{ url: "https://drama.example/api/reference-assets/temporary/2026/07/25/images/file.png" }])).toThrow("站内参考素材");
         expect(() => assertReferenceUrls(config, [{ url: "https://drama.example/api/reference-assets/temporary/2026/07/25/images/file.png?expires=1&signature=test" }])).toThrow("站内参考素材");
         expect(() => assertReferenceUrls(config, [{ url: "https://drama.example/api/reference-assets/temporary/2026/07/25/images/file.png?purpose=provider-read&expires=1&signature=test" }])).not.toThrow();
+        expect(() => assertReferenceUrls(config, [{ url: "https://drama.example/api/generation-log-assets/permanent/2026/07/25/images/file.png?purpose=provider-read&expires=1&signature=test" }])).not.toThrow();
+        expect(() => assertReferenceUrls(config, [{ url: "https://drama.example/api/generation-log-assets/permanent/2026/07/25/images/file.png" }])).toThrow("站内参考素材");
     });
 });

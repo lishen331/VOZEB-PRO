@@ -187,6 +187,23 @@ describe("video task upstream reconciliation", () => {
         expect(mocks.normalize).not.toHaveBeenCalled();
     });
 
+    it("treats a New API failure result_url as an upstream failure instead of media", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                advancedConfig: { protocol: "newapi", createPath: "/video/generations", queryPath: "/video/generations/:task_id", resultField: "metadata.url", statusField: "status" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+        });
+        mocks.fetchInternalApi.mockResolvedValue(json({ code: "success", data: { task_id: task.upstream.id, status: "FAILURE", fail_reason: "no active tokens available", result_url: "no active tokens available" } }));
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toEqual({
+            state: "failed",
+            status: "failure",
+            error: "no active tokens available",
+        });
+        expect(mocks.normalize).not.toHaveBeenCalled();
+    });
+
     it("keeps a queued provider task pending without settling or refunding it", async () => {
         const task = videoTask();
         mocks.claim.mockResolvedValue(task);
@@ -199,6 +216,81 @@ describe("video task upstream reconciliation", () => {
         expect(mocks.complete).not.toHaveBeenCalled();
         expect(mocks.fail).not.toHaveBeenCalled();
         expect(mocks.refund).not.toHaveBeenCalled();
+    });
+
+    it("uses the declared OpenAI content endpoint when a completed task has no inline URL", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                model: "seedance2.5",
+                advancedConfig: {
+                    protocol: "newapi",
+                    createPath: "/videos",
+                    imageToVideoPath: "/videos",
+                    queryPath: "/videos/:task_id",
+                    resultField: "/videos/:task_id/content",
+                    statusField: "status",
+                } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, model: "seedance2.5", pollPath: "/videos" },
+        });
+        mocks.fetchInternalApi.mockResolvedValue(json({ id: task.upstream.id, status: "completed" }));
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toEqual({
+            state: "result_ready",
+            status: "completed",
+            resultUrl: `/videos/${task.upstream.id}/content`,
+        });
+    });
+
+    it("passes the model identity when saving a relative system video content URL", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                model: "seedance2.5",
+                logicalModel: "short-drama-video",
+                advancedConfig: {
+                    protocol: "newapi",
+                    createPath: "/videos",
+                    queryPath: "/videos/:task_id",
+                    resultField: "/videos/:task_id/content",
+                    statusField: "status",
+                } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, model: "seedance2.5", pollPath: "/videos", resultUrl: `/videos/${videoTask().upstream.id}/content` },
+        });
+        const completed = { ...task, status: "success" as const, result: { url: "/api/reference-assets/result.mp4", mimeType: "video/mp4" } };
+        mocks.get.mockResolvedValue(task);
+        mocks.complete.mockResolvedValue(completed);
+
+        await expect(persistVideoTaskResult(task, task.upstream.resultUrl!, "http://localhost", "session=test")).resolves.toEqual(completed);
+        const normalized = mocks.normalize.mock.calls.at(-1)?.[0] as { internalHeaders?: HeadersInit };
+        const headers = new Headers(normalized.internalHeaders);
+        expect(headers.get("x-vozeb-pro-upstream-model")).toBe("seedance2.5");
+        expect(headers.get("x-vozeb-pro-logical-model")).toBe("short-drama-video");
+    });
+
+    it("does not invent media URLs for arbitrary custom result fields", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                advancedConfig: {
+                    protocol: "custom",
+                    createPath: "/jobs",
+                    queryPath: "/jobs/:task_id",
+                    resultField: "/jobs/:task_id/content",
+                    statusField: "status",
+                } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, pollPath: "/jobs" },
+        });
+        mocks.fetchInternalApi.mockResolvedValue(json({ id: task.upstream.id, status: "completed" }));
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toEqual({
+            state: "failed",
+            status: "completed",
+            error: "视频任务已完成但没有返回有效视频地址",
+        });
     });
 
     it("recovers a completed New API video from the standard content endpoint when status queries are unavailable", async () => {
@@ -235,6 +327,20 @@ describe("video task upstream reconciliation", () => {
                 data: { data: { data: { content: { video_url: signed } } } },
             }),
         );
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toMatchObject({ state: "result_ready", resultUrl: signed });
+    });
+
+    it("uses a nested media URL when the configured result field contains an error string", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                advancedConfig: { protocol: "newapi", createPath: "/video/generations", queryPath: "/video/generations/:task_id", resultField: "metadata.url", statusField: "status" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, pollPath: "/video/generations" },
+        });
+        const signed = "https://cdn.example.com/video.mp4?signature=fixture";
+        mocks.fetchInternalApi.mockResolvedValue(json({ status: "SUCCESS", metadata: { url: "no active tokens available" }, data: { video_url: signed } }));
 
         await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toMatchObject({ state: "result_ready", resultUrl: signed });
     });

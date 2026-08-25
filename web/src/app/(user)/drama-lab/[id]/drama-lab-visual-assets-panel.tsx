@@ -19,6 +19,7 @@ import type { Character, DramaLabAssetProfile, DramaLabAssetReference, Episode, 
 type AssetKind = "characters" | "scenes" | "props";
 type VisualAsset = Character | Scene | Prop;
 type EditorState = { kind: AssetKind; asset?: VisualAsset };
+type ProjectUpdate = Partial<Project> | ((current: Project) => Partial<Project>);
 
 const EMPTY_PROFILE: DramaLabAssetProfile = { visualIdentity: "", styling: "", colorPalette: "", consistencyRules: "" };
 const ASSET_META = {
@@ -37,7 +38,7 @@ export function DramaLabVisualAssetsPanel({
 }: {
     project: Project;
     episode?: Episode;
-    onSave: (updates: Partial<Project>) => Promise<boolean>;
+    onSave: (updates: ProjectUpdate) => Promise<boolean>;
     onReload: () => Promise<void>;
     onLocateShot: (episodeId: string, shotId: string) => void;
     messageApi: MessageInstance;
@@ -64,11 +65,16 @@ export function DramaLabVisualAssetsPanel({
         return grouped;
     }, [project.shots]);
 
-    const replaceAssets = async (next: VisualAsset[]) => onSave({ [kind]: next } as Partial<Project>);
+    const replaceAssets = async (next: VisualAsset[] | ((current: VisualAsset[]) => VisualAsset[])) =>
+        onSave(
+            (currentProject) =>
+                ({
+                    [kind]: typeof next === "function" ? next(currentProject[kind] as VisualAsset[]) : next,
+                }) as Partial<Project>,
+        );
 
     const updateAsset = async (assetId: string, patch: Partial<VisualAsset>) => {
-        const current = project[kind] as VisualAsset[];
-        return replaceAssets(current.map((asset) => (asset.id === assetId ? { ...asset, ...patch } : asset)));
+        return replaceAssets((current) => current.map((asset) => (asset.id === assetId ? { ...asset, ...patch } : asset)));
     };
 
     const openLibrary = async () => {

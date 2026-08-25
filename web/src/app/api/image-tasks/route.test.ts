@@ -1,14 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+    after: vi.fn(),
     getAuthSettings: vi.fn(),
     getStoredGenerationTaskByRequest: vi.fn(),
+    generationCapacityRetryAfterSeconds: vi.fn(),
     rate: vi.fn(),
     validateGenerationContextIpReferences: vi.fn(),
     withGenerationConcurrencyLimit: vi.fn(),
     resolveSchoolComputeBillingContext: vi.fn(),
 }));
 
+vi.mock("next/server", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("next/server")>();
+    return { ...actual, after: mocks.after };
+});
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: vi.fn(async () => ({ id: "user-one", role: "user" })) }));
 vi.mock("@/lib/auth/store", () => ({
     getAuthSettings: mocks.getAuthSettings,
@@ -16,6 +22,7 @@ vi.mock("@/lib/auth/store", () => ({
     refundUserPoints: vi.fn(),
 }));
 vi.mock("@/lib/server/generation-task-store", () => ({
+    generationCapacityRetryAfterSeconds: mocks.generationCapacityRetryAfterSeconds,
     getStoredGenerationTaskByRequest: mocks.getStoredGenerationTaskByRequest,
     linkStoredGenerationTask: vi.fn(),
     withGenerationConcurrencyLimit: mocks.withGenerationConcurrencyLimit,
@@ -86,7 +93,7 @@ describe("image task route", () => {
 
         expect(response.status).toBe(403);
         expect(await response.json()).toEqual({ error: "IP 授权已失效" });
-        expect(mocks.validateGenerationContextIpReferences).toHaveBeenCalledWith("user-one", { surface: "canvas", projectId: "canvas-one" });
+        expect(mocks.validateGenerationContextIpReferences).toHaveBeenCalledWith("user-one", expect.objectContaining({ surface: "canvas", projectId: "canvas-one" }));
         expect(mocks.getAuthSettings).not.toHaveBeenCalled();
     });
 
@@ -99,3 +106,25 @@ describe("image task route", () => {
         expect(response.status).toBe(409);
     });
 });
+
+function imageRequest(body: unknown) {
+    return new Request("http://localhost/api/image-tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+
+function imageSettings() {
+    return {
+        generationConcurrency: { image: 1 },
+        generationDefaults: { imageSize: "auto", imageQuality: "auto" },
+        systemChannels: [{ id: "image-channel", name: "图片", enabled: true, baseUrl: "https://image.example.com/v1", apiKey: "secret", apiFormat: "openai", models: ["upstream-image"] }],
+        logicalModels: [
+            {
+                id: "image",
+                name: "图片",
+                capability: "image",
+                enabled: true,
+                bindings: [{ id: "binding", channelId: "image-channel", upstreamModel: "upstream-image", enabled: true, priority: 1 }],
+            },
+        ],
+        defaultModels: { imageModel: "image" },
+    };
+}

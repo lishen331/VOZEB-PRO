@@ -1,7 +1,7 @@
 import type { PracticeExecutionProfile, PracticeSource } from "@/lib/practice-domain";
 import type { IpReference } from "@/lib/ip-library-domain";
 
-export type DramaTaskStatus = "idle" | "queued" | "running" | "success" | "error" | "cancelled";
+export type DramaTaskStatus = "idle" | "queued" | "pending" | "running" | "success" | "error" | "cancelled";
 export type DramaReviewStatus = "draft" | "content_review" | "approved" | "visual_ready";
 export type DramaVideoMode = "storyboard" | "direct" | "reference";
 export type DramaStoryboardFrameMode = "single" | "first_last";
@@ -145,6 +145,8 @@ export type DramaShot = {
     generationStatus?: DramaTaskStatus;
     generationAttempt?: number;
     generationTaskId?: string;
+    /** The original upstream task can be checked again without submitting a new video task. */
+    generationNeedsReview?: boolean;
     generationError?: string;
     videoUrl?: string;
     videoHistory?: DramaShotGenerationHistory[];
@@ -175,6 +177,7 @@ export type DramaVisualReview = {
 
 export type DramaEpisode = {
     id: string;
+    episodeNumber?: number;
     title: string;
     script: string;
     scriptRichContent?: import("@/lib/drama-script-rich-content").DramaScriptRichContent;

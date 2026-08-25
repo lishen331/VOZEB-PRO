@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => {
         createDramaProjectVersion: vi.fn(),
         getDramaProjectVersion: vi.fn(),
         listDramaProjectVersions: vi.fn(),
-        deleteUserLocalMediaAssets: vi.fn(),
+        deleteUserMediaAssetsCascade: vi.fn(),
         validateIpReferences: vi.fn(),
         recordIpReferenceUsage: vi.fn(),
     };
@@ -59,7 +59,7 @@ vi.mock("@/lib/server/drama-project-version-store", () => ({
     getDramaProjectVersion: mocks.getDramaProjectVersion,
     listDramaProjectVersions: mocks.listDramaProjectVersions,
 }));
-vi.mock("@/lib/server/local-media-storage", () => ({ deleteUserLocalMediaAssets: mocks.deleteUserLocalMediaAssets }));
+vi.mock("@/lib/server/user-media-deletion-service", () => ({ deleteUserMediaAssetsCascade: mocks.deleteUserMediaAssetsCascade }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({
     normalizeIpReferences: (value: unknown) => (Array.isArray(value) ? value : []),
     validateIpReferences: mocks.validateIpReferences,
@@ -297,7 +297,7 @@ describe("drama project service updates", () => {
         await deleteDramaProjectForUser("user-one", "drama-one");
 
         expect(mocks.updateCreativeConversation).toHaveBeenCalledWith("conversation-one", "user-one", { status: "archived" });
-        expect(mocks.deleteUserLocalMediaAssets).toHaveBeenCalled();
+        expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalled();
     });
 
     it("deletes a project-owned drama conversation and returns the replacement project", async () => {
@@ -307,7 +307,7 @@ describe("drama project service updates", () => {
 
         expect(mocks.listAgentRuns).toHaveBeenCalledWith({ userId: "user-one", conversationId: "conversation-one", surface: "drama", statuses: ["planning", "running", "paused"], limit: 1 });
         expect(mocks.deleteDramaConversationAggregate).toHaveBeenCalledWith("user-one", "drama-one", "conversation-one", "conversation-two");
-        expect(mocks.deleteUserLocalMediaAssets).toHaveBeenCalledWith("user-one", ["permanent/agent.png"]);
+        expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("user-one", ["permanent/agent.png"]);
     });
 
     it("rejects deleting a running or unrelated drama conversation", async () => {

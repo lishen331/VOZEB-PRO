@@ -353,13 +353,17 @@ export function protocolModelConfig(protocol: SystemChannelProtocol, capability:
 }
 
 export function applyModelProtocol(config: SystemChannelModelConfig, protocol: SystemChannelProtocol, model?: string): SystemChannelModelConfig {
-    return protocolModelConfig(protocol, config.capability, model) || { ...config, source: "manual", protocol };
+    const preset = protocolModelConfig(protocol, config.capability, model);
+    if (!preset) return { ...config, source: "manual", protocol };
+    // Image input is an explicit model capability, not a generic OpenAI protocol capability.
+    // Keep an administrator's model-level declaration when a strict preset is reapplied.
+    return { ...preset, ...(typeof config.supportsImageInput === "boolean" ? { supportsImageInput: config.supportsImageInput } : {}) };
 }
 
 export function normalizeStrictProtocolModelConfig(config: SystemChannelModelConfig, fallbackProtocol: SystemChannelProtocol, model?: string): SystemChannelModelConfig {
     const protocol = config.protocol || fallbackProtocol;
     if (!channelProtocolDefinition(protocol).strict) return config;
-    return protocolModelConfig(protocol, config.capability, model) || config;
+    return applyModelProtocol(config, protocol, model);
 }
 
 export function normalizeStrictChannelModelConfigs(channel: SystemModelChannel): SystemModelChannel {
@@ -374,6 +378,12 @@ export function resolveChannelModelConfig(config: SystemChannelAdvancedConfig | 
     const key = normalizeModelId(model);
     const modelConfig = config.modelConfigs?.[key];
     const configuredProtocol = modelConfig?.protocol || config.protocol;
+    // Earlier releases applied the Doubao Seedance JSON operation to generic
+    // Seedance 2.5 names. Repair that persisted shape at read time so existing
+    // channels no longer require an unrelated admin settings save before use.
+    if (isGenericSeedance25Model(model) && configuredProtocol === "newapi" && isStaleGenericSeedance25Config(modelConfig || operationConfigsFor(config, key))) {
+        return protocolModelConfig("newapi", "video", model);
+    }
     // New API exposes Doubao/Seedance through `/video/generations`, while
     // generic New API video models continue to use the OpenAI `/videos` route.
     // Repair older saved Doubao entries that still contain the generic preset.
@@ -402,6 +412,10 @@ function isStaleNewApiVideoConfig(config: SystemChannelModelConfig | undefined) 
     return config.protocol === "newapi" && (config.createPath !== "/video/generations" || !config.requestTemplate?.trim().startsWith("{") || !config.requestTemplate.includes("{{seconds_string}}"));
 }
 
+function isStaleGenericSeedance25Config(config: SystemChannelModelConfig | undefined) {
+    return config?.capability === "video" && config.protocol === "newapi" && config.createPath === "/video/generations" && config.requestTemplate?.includes("{{seconds_string}}") === true;
+}
+
 function isLegacyVideoProtocol(protocol: SystemChannelProtocol | undefined) {
     // New API exposes Doubao/Seedance models through its OpenAI-compatible
     // `/v1/videos` multipart contract. Treating every New API model name as
@@ -412,7 +426,14 @@ function isLegacyVideoProtocol(protocol: SystemChannelProtocol | undefined) {
 
 export function isLegacyDoubaoSeedanceModel(model: string) {
     const value = normalizeModelId(model);
-    return /(?:^|[-_.])doubao[-_.]?seedance(?:[-_.]|$)/i.test(value) || /^seedance(?:[-_.]?2(?:[-_.]?(?:0|5))?)(?:[-_.]|$)/i.test(value);
+    // Only the explicitly named Doubao/Seedance 2.0 family uses the legacy
+    // New API JSON contract. Generic models such as `seedance2.5` may expose
+    // the standard `/videos` contract and must keep their model-level config.
+    return /(?:^|[-_.])doubao[-_.]?seedance(?:[-_.]|$)/i.test(value) || /^seedance(?:[-_.]?2[-_.]?0)(?:[-_.]|$)/i.test(value);
+}
+
+function isGenericSeedance25Model(model: string) {
+    return /^seedance(?:[-_.]?2[-_.]?5)(?:[-_.]|$)/i.test(normalizeModelId(model));
 }
 
 export function resolveChannelModelAdvancedConfig(config: SystemChannelAdvancedConfig | undefined, model: string) {
@@ -439,7 +460,7 @@ export function applyChannelProtocol(channel: SystemModelChannel, protocol: Syst
         const key = normalizeModelId(model);
         const builtIn = definition.builtInModels?.find((item) => normalizeModelId(item.id) === key);
         const capability = builtIn?.capability || protocolCatalogCapability(protocol) || modelConfigs[key]?.capability || modelCapabilities[key] || inferModelCapability(model);
-        const strict = protocolModelConfig(protocol, capability, model);
+        const strict = applyModelProtocol({ ...modelConfigs[key], capability }, protocol, model);
         if (strict) modelConfigs[key] = strict;
         modelCapabilities[key] = capability;
     }

@@ -59,6 +59,8 @@ export function normalizeSystemChannelAdvancedConfig(config: Partial<SystemChann
         supportsReferenceImage: Boolean(config.supportsReferenceImage),
         supportsReferenceVideo: Boolean(config.supportsReferenceVideo),
         supportsReferenceAudio: Boolean(config.supportsReferenceAudio),
+        ...(normalizeStreamingConfig(config.streaming) ? { streaming: normalizeStreamingConfig(config.streaming) } : {}),
+        ...(normalizePositiveInteger(config.contextWindowTokens) ? { contextWindowTokens: normalizePositiveInteger(config.contextWindowTokens) } : {}),
         ...(modelCatalogPaths.length ? { modelCatalogPaths } : {}),
         ...(Object.keys(modelCapabilities).length ? { modelCapabilities } : {}),
         ...(Object.keys(modelConfigs).length ? { modelConfigs } : {}),
@@ -115,14 +117,30 @@ function normalizeChannelModelConfigs(value: unknown) {
                         ...(textOrEmpty(config.statusField, 500) ? { statusField: textOrEmpty(config.statusField, 500) } : {}),
                         ...(textOrEmpty(config.durationRange, 120) ? { durationRange: textOrEmpty(config.durationRange, 120) } : {}),
                         ...(textOrEmpty(config.referenceRule, 1000) ? { referenceRule: textOrEmpty(config.referenceRule, 1000) } : {}),
+                        ...(typeof config.supportsImageInput === "boolean" ? { supportsImageInput: config.supportsImageInput } : {}),
                         ...(typeof config.supportsReferenceImage === "boolean" ? { supportsReferenceImage: config.supportsReferenceImage } : {}),
                         ...(typeof config.supportsReferenceVideo === "boolean" ? { supportsReferenceVideo: config.supportsReferenceVideo } : {}),
                         ...(typeof config.supportsReferenceAudio === "boolean" ? { supportsReferenceAudio: config.supportsReferenceAudio } : {}),
+                        ...(normalizeStreamingConfig(config.streaming) ? { streaming: normalizeStreamingConfig(config.streaming) } : {}),
                     },
                 ] as const,
             ];
         }),
     ) as NonNullable<SystemChannelAdvancedConfig["modelConfigs"]>;
+}
+
+function normalizeStreamingConfig(value: unknown) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    const input = value as Record<string, unknown>;
+    const path = normalizeApiPath(input.path);
+    const format = input.format === "sse" || input.format === "ndjson" ? input.format : undefined;
+    if (input.enabled !== true && input.enabled !== false && !path && !format) return undefined;
+    return { ...(typeof input.enabled === "boolean" ? { enabled: input.enabled } : {}), ...(path ? { path } : {}), ...(format ? { format } : {}) } as SystemChannelAdvancedConfig["streaming"];
+}
+
+function normalizePositiveInteger(value: unknown) {
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function normalizeChannelOperationConfigs(value: unknown) {

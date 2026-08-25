@@ -6,10 +6,12 @@ import {
     channelModelCapability,
     deriveLogicalModelsConfig,
     isLogicalModelResolvable,
+    isVisionModelResolvable,
     mergeChannelModelsIntoLogicalModels,
     modelRoutingValidationErrors,
     normalizeDefaultModelsConfig,
     normalizeLogicalModelsConfig,
+    logicalModelSupportsImageInput,
     resolveLogicalModelConfig,
     synchronizeLogicalModelsWithChannels,
 } from "./model-routing-config";
@@ -76,7 +78,7 @@ describe("model routing config", () => {
         expect(isLogicalModelResolvable(models, channels, "text", "writer-practice", "production")).toBe(false);
         expect(isLogicalModelResolvable(models, channels, "text", "writer-practice", "open-source-practice")).toBe(true);
         expect(isLogicalModelResolvable(models, channels, "text", "writer-shared", "open-source-practice")).toBe(true);
-        expect(normalizeDefaultModelsConfig(undefined, models, channels, "open-source-practice")).toEqual({ textModel: "", imageModel: "", videoModel: "", audioModel: "" });
+        expect(normalizeDefaultModelsConfig(undefined, models, channels, "open-source-practice")).toEqual({ textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" });
     });
 
     it("uses channel capability metadata before model-name inference", () => {
@@ -215,7 +217,7 @@ describe("model routing config", () => {
             { id: "voice", name: "Voice", capability: "audio", enabled: true, bindings: [{ id: "two", channelId: "off", upstreamModel: "voice", enabled: true, priority: 1 }] },
         ];
         expect(isLogicalModelResolvable(models, channels, "text", "writer")).toBe(true);
-        expect(normalizeDefaultModelsConfig({ textModel: "writer", imageModel: "writer", videoModel: "", audioModel: "voice" }, models, channels)).toEqual({ textModel: "writer", imageModel: "", videoModel: "", audioModel: "" });
+        expect(normalizeDefaultModelsConfig({ textModel: "writer", imageModel: "writer", videoModel: "", audioModel: "voice" }, models, channels)).toEqual({ textModel: "writer", visionModel: "", imageModel: "", videoModel: "", audioModel: "" });
     });
 
     it("switches a stale default to another resolvable model of the same capability", () => {
@@ -307,6 +309,62 @@ describe("model routing config", () => {
         const channels = [channel("one", ["stable-diffusion-2.0"])];
         const models: LogicalModel[] = [{ id: "stable-diffusion-2.0", name: "自定义视频能力", capability: "video", enabled: true, bindings: [{ id: "one", channelId: "one", upstreamModel: "stable-diffusion-2.0", enabled: true, priority: 1 }] }];
 
-        expect(modelRoutingValidationErrors(models, channels, { textModel: "", imageModel: "", videoModel: "stable-diffusion-2.0", audioModel: "" })).not.toContain("逻辑模型 stable-diffusion-2.0 更像图片模型，请调整能力类型");
+        expect(modelRoutingValidationErrors(models, channels, { textModel: "", visionModel: "", imageModel: "", videoModel: "stable-diffusion-2.0", audioModel: "" })).not.toContain("逻辑模型 stable-diffusion-2.0 更像图片模型，请调整能力类型");
+    });
+
+    it("migrates the legacy image-understanding default to visionModel without retaining the old key", () => {
+        const visionChannel = channel("one", ["vision", "writer"]);
+        visionChannel.advancedConfig = { modelConfigs: { vision: { capability: "text", supportsImageInput: true } } } as never;
+        const channels = [visionChannel];
+        const models = normalizeLogicalModelsConfig(undefined, channels);
+        const defaults = normalizeDefaultModelsConfig({ imageUnderstandingModel: "vision" } as never, models, channels);
+
+        expect(defaults).toMatchObject({ visionModel: "vision" });
+        expect(defaults).not.toHaveProperty("imageUnderstandingModel");
+        expect(normalizeDefaultModelsConfig({ visionModel: "missing" }, models, channels).visionModel).toBe("");
+    });
+
+    it("keeps image-input capability separate from reference-image generation", () => {
+        const source = channel("one", ["vision", "reference-only"]);
+        source.advancedConfig = {
+            modelConfigs: {
+                vision: { capability: "text", supportsImageInput: true },
+                "reference-only": { capability: "text", supportsReferenceImage: true },
+            },
+        } as never;
+        const models = normalizeLogicalModelsConfig(undefined, [source]);
+
+        expect(logicalModelSupportsImageInput(models, [source], "text", "vision")).toBe(true);
+        expect(logicalModelSupportsImageInput(models, [source], "text", "reference-only")).toBe(false);
+    });
+
+    it("allows any reachable text model to be selected for Canvas while keeping image support advisory", () => {
+        const source = channel("newapi", ["gpt-5.6-sol"]);
+        source.advancedConfig = { protocol: "newapi" } as never;
+        const models = deriveLogicalModelsConfig([source]);
+
+        expect(isVisionModelResolvable(models, [source], "gpt-5.6-sol")).toBe(true);
+        expect(normalizeDefaultModelsConfig({ visionModel: "gpt-5.6-sol" }, models, [source]).visionModel).toBe("gpt-5.6-sol");
+        expect(logicalModelSupportsImageInput(models, [source], "text", "gpt-5.6-sol")).toBe(false);
+    });
+
+    it("checks advisory image support across all reachable bindings", () => {
+        const primary = channel("primary", ["gpt-5.6-sol"]);
+        const backup = channel("backup", ["gpt-5.6-sol"]);
+        backup.advancedConfig = { modelConfigs: { "gpt-5.6-sol": { capability: "text", supportsImageInput: true } } } as never;
+        const models: LogicalModel[] = [
+            {
+                id: "gpt-5.6-sol",
+                name: "GPT-5.6 Sol",
+                capability: "text",
+                enabled: true,
+                bindings: [
+                    { id: "primary", channelId: "primary", upstreamModel: "gpt-5.6-sol", enabled: true, priority: 1 },
+                    { id: "backup", channelId: "backup", upstreamModel: "gpt-5.6-sol", enabled: true, priority: 2 },
+                ],
+            },
+        ];
+
+        expect(logicalModelSupportsImageInput(models, [primary, backup], "text", "gpt-5.6-sol")).toBe(true);
     });
 });

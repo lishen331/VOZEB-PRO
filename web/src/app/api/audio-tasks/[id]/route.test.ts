@@ -39,11 +39,11 @@ describe("audio task cancellation refund", () => {
         mocks.refundAudioTask.mockImplementation(async (value) => ({ ...value, billing: { ...value.billing, refunded: true } }));
     });
 
-    it("wakes the same running task when its status is read", async () => {
+    it("schedules recovery for a running task", async () => {
         const response = await GET(new Request("http://localhost/api/audio-tasks/audio-one"), { params: Promise.resolve({ id: "audio-one" }) });
 
         expect(response.status).toBe(200);
-        expect(after).toHaveBeenCalledOnce();
+        expect(after).toHaveBeenCalledWith(expect.any(Function));
     });
 
     it("returns the manual review reason without waking the task", async () => {

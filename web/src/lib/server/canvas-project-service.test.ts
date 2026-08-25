@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
     listCanvasProjectSummaries: vi.fn(),
     updateCanvasProject: vi.fn(),
     updateCanvasProjectMutationPatch: vi.fn(),
-    deleteUserLocalMediaAssets: vi.fn(),
+    deleteUserMediaAssetsCascade: vi.fn(),
     validateIpReferences: vi.fn(),
     recordIpReferenceUsage: vi.fn(),
 }));
@@ -34,7 +34,7 @@ vi.mock("@/lib/server/creative-entity-deletion-store", () => ({
     deleteCanvasProjectAggregates: mocks.deleteCanvasProjectAggregates,
     deleteCanvasAssistantConversationAggregates: mocks.deleteCanvasAssistantConversationAggregates,
 }));
-vi.mock("@/lib/server/local-media-storage", () => ({ deleteUserLocalMediaAssets: mocks.deleteUserLocalMediaAssets }));
+vi.mock("@/lib/server/user-media-deletion-service", () => ({ deleteUserMediaAssetsCascade: mocks.deleteUserMediaAssetsCascade }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({
     normalizeIpReferences: (value: unknown) => (Array.isArray(value) ? value : []),
     validateIpReferences: mocks.validateIpReferences,
@@ -130,7 +130,7 @@ describe("canvas project service lifecycle", () => {
         await deleteCanvasProjectsForUser("user-one", ["canvas-one"]);
 
         expect(mocks.deleteCanvasProjectAggregates).toHaveBeenCalledWith("user-one", ["canvas-one"]);
-        expect(mocks.deleteUserLocalMediaAssets).toHaveBeenCalledWith("user-one", ["permanent/canvas.png"]);
+        expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("user-one", ["permanent/canvas.png"]);
     });
 
     it("deletes only assistant conversations linked to the current Canvas project", async () => {
@@ -139,7 +139,7 @@ describe("canvas project service lifecycle", () => {
         await expect(deleteCanvasAssistantConversationsForUser("user-one", "canvas-one", ["conversation-agent"])).resolves.toMatchObject({ deleted: 1, activeChatId: "session-new" });
 
         expect(mocks.deleteCanvasAssistantConversationAggregates).toHaveBeenCalledWith("user-one", "canvas-one", ["conversation-agent"]);
-        expect(mocks.deleteUserLocalMediaAssets).toHaveBeenCalledWith("user-one", ["permanent/assistant.png"]);
+        expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("user-one", ["permanent/assistant.png"]);
     });
 
     it("returns the owned project state when no assistant conversation id is provided", async () => {
@@ -154,7 +154,7 @@ describe("canvas project service lifecycle", () => {
 
         expect(mocks.getCanvasProject).toHaveBeenCalledWith("canvas-one", "user-one");
         expect(mocks.deleteCanvasAssistantConversationAggregates).not.toHaveBeenCalled();
-        expect(mocks.deleteUserLocalMediaAssets).not.toHaveBeenCalled();
+        expect(mocks.deleteUserMediaAssetsCascade).not.toHaveBeenCalled();
     });
 
     it("protects the Canvas primary conversation and unrelated assistant conversations", async () => {
@@ -163,7 +163,7 @@ describe("canvas project service lifecycle", () => {
 
         await expect(deleteCanvasAssistantConversationsForUser("user-one", "canvas-one", ["conversation-one"])).rejects.toMatchObject({ status: 409 });
         await expect(deleteCanvasAssistantConversationsForUser("user-one", "canvas-one", ["conversation-other"])).rejects.toMatchObject({ status: 409 });
-        expect(mocks.deleteUserLocalMediaAssets).not.toHaveBeenCalled();
+        expect(mocks.deleteUserMediaAssetsCascade).not.toHaveBeenCalled();
     });
 
     it("passes the explicit server version to the conditional store update", async () => {

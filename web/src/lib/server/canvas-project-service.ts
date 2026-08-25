@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 
 import type { CanvasProject, CanvasProjectMutation, CanvasProjectSaveAck, CreateCanvasProjectInput } from "@/lib/canvas-project-contract";
 import { createCanvasProject, CanvasProjectStoreError, getCanvasProject, listCanvasProjectSummaries, updateCanvasProject, updateCanvasProjectMutationPatch } from "@/lib/server/canvas-project-store";
-import { deleteUserLocalMediaAssets } from "@/lib/server/local-media-storage";
+import { deleteUserMediaAssetsCascade } from "@/lib/server/user-media-deletion-service";
 import { createCreativeConversation, updateCreativeConversation } from "@/lib/server/creative-runtime-store";
 import { CreativeEntityDeletionConflict, deleteCanvasAssistantConversationAggregates, deleteCanvasProjectAggregates } from "@/lib/server/creative-entity-deletion-store";
 import type { CanvasProjectIdentityInput } from "@/lib/server/canvas-project-store";
@@ -126,7 +126,7 @@ function canvasUsageTarget(project: CanvasProject | null) {
 export async function deleteCanvasProjectsForUser(userId: string, value: unknown) {
     const ids = Array.isArray(value) ? value.map((id) => text(id, 160)).filter(Boolean) : [];
     const result = await deleteCanvasProjectAggregates(userId, ids);
-    await deleteUserLocalMediaAssets(userId, result.mediaStorageKeys);
+    await deleteUserMediaAssetsCascade(userId, result.mediaStorageKeys);
     return result.deletedProjects;
 }
 
@@ -141,7 +141,7 @@ export async function deleteCanvasAssistantConversationsForUser(userId: string, 
         if (error instanceof CreativeEntityDeletionConflict) throw new CanvasProjectServiceError(error.message, 409);
         throw error;
     }
-    await deleteUserLocalMediaAssets(userId, result.mediaStorageKeys);
+    await deleteUserMediaAssetsCascade(userId, result.mediaStorageKeys);
     return { deleted: result.deletedConversations, chatSessions: result.canvasAssistantState?.chatSessions || [], activeChatId: result.canvasAssistantState?.activeChatId || null };
 }
 

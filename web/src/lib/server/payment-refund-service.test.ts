@@ -164,7 +164,7 @@ describe("payment refunds", () => {
             "https://alipay.test/gateway.do",
             expect.objectContaining({
                 method: "POST",
-                headers: expect.objectContaining({ "content-type": "application/x-www-form-urlencoded" }),
+                headers: expect.objectContaining({ "content-type": "application/x-www-form-urlencoded; charset=utf-8" }),
             }),
         );
         const params = fetchMock.mock.calls[0]?.[1]?.body as URLSearchParams;

@@ -22,7 +22,7 @@ vi.mock("@/lib/server/text-task-store", () => ({
 import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
 import { createProtocolFixtureServer } from "../../../scripts/protocol-fixture-server.mjs";
 import { maintenanceWorkerContext } from "./maintenance-auth";
-import { runTextTaskStep, taskHeaders } from "./text-task-runtime";
+import { markTextTaskFailed, runTextTaskStep, taskHeaders } from "./text-task-runtime";
 import type { TextTask, TextTaskConfig } from "./text-task-store";
 
 describe("text task runtime recovery", () => {
@@ -177,10 +177,20 @@ describe("text task runtime recovery", () => {
 
     it("marks a 2xx invalid JSON response for manual review", async () => {
         state = textTask(openAiConfig("channel-one", "https://one.example"), [openAiConfig("channel-two", "https://two.example")]);
-        vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(new Response("not-json", { status: 200, headers: { "content-type": "application/json" } })));
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValueOnce(
+                new Response("not-json", {
+                    status: 200,
+                    headers: { "content-type": "application/json", "x-vozeb-pro-points-cost": "1.5", "x-vozeb-pro-billing-receipt-id": "points:text-points-unknown" },
+                }),
+            ),
+        );
 
         await expect(runTextTaskStep(state, "http://internal", "")).resolves.toMatchObject({ state: "needs_review" });
         expect(state.config.channelId).toBe("channel-one");
+        expect(state.billing).toEqual({ pointsCost: 1.5, billingReceiptId: "points:text-points-unknown", refunded: false });
+        expect(mocks.refund).not.toHaveBeenCalled();
     });
 
     it("refunds a zero-point billing receipt when the upstream task fails", async () => {

@@ -28,9 +28,18 @@ export type SystemChannelModelConfig = {
     statusField?: string;
     durationRange?: string;
     referenceRule?: string;
+    /** Whether a text model accepts an image as part of its input content. */
+    supportsImageInput?: boolean;
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
+    streaming?: SystemChannelStreamingConfig;
+};
+
+export type SystemChannelStreamingConfig = {
+    enabled?: boolean;
+    path?: string;
+    format?: "sse" | "ndjson";
 };
 
 export type SystemChannelAdvancedConfig = {
@@ -63,6 +72,8 @@ export type SystemChannelAdvancedConfig = {
     modelCapabilities?: Record<string, LogicalModelCapability>;
     modelConfigs?: Record<string, SystemChannelModelConfig>;
     operationConfigs?: Partial<Record<LogicalModelCapability, SystemChannelModelConfig>>;
+    streaming?: SystemChannelStreamingConfig;
+    contextWindowTokens?: number;
 };
 
 export type LegacyUserQuota = {
@@ -95,11 +106,14 @@ export type SystemModelChannel = {
 export type LogicalModelCapability = "text" | "image" | "video" | "audio";
 
 export type LogicalModelCapabilityProfile = {
+    supportsImageInput?: boolean;
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
     maxReferenceImages?: number;
     aspectRatios?: string[];
+    resolutions?: string[];
+    durationSeconds?: number[];
     minDurationSeconds?: number;
     maxDurationSeconds?: number;
     maxBatchSize?: number;
@@ -134,6 +148,8 @@ export type SystemDefaultModels = {
     imageModel: string;
     videoModel: string;
     textModel: string;
+    /** Text-capability model that can accept an image input for Canvas analysis. */
+    visionModel?: string;
     audioModel: string;
 };
 

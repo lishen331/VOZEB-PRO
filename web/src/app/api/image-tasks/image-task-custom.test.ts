@@ -13,8 +13,8 @@ import { readVerifiedSystemAiBusinessRequestId } from "@/lib/server/system-ai-bi
 import { pollCustomImageTask, resolveDeclarativeImageSize } from "./image-task-custom";
 
 describe("declarative image request size", () => {
-    it("uses a concrete square size for Stable Diffusion auto requests", () => {
-        expect(resolveDeclarativeImageSize({ quality: "auto", size: "auto", advancedConfig: { ...emptyAdvancedConfig(), protocol: "stable-diffusion" } })).toBe("1024x1024");
+    it("does not turn Stable Diffusion intelligent requests into a square size", () => {
+        expect(resolveDeclarativeImageSize({ quality: "auto", size: "auto", advancedConfig: { ...emptyAdvancedConfig(), protocol: "stable-diffusion" } })).toBe("");
     });
 
     it("preserves explicit dimensions and does not invent custom protocol defaults", () => {
@@ -49,7 +49,7 @@ describe("declarative image request size", () => {
         } satisfies ImageTask;
         mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ status: "processing" }));
 
-        await expect(pollCustomImageTask(task, "upstream-one", "http://localhost/api/ai/system/channel-one/images", "", true)).resolves.toMatchObject({ pending: { id: "upstream-one" } });
+        await expect(pollCustomImageTask(task, "upstream-one", "http://localhost/api/ai/system/channel-one/images", "http://localhost/api/ai/system/channel-one/images", "", true)).resolves.toMatchObject({ pending: { id: "upstream-one" } });
 
         const headers = new Headers((mocks.fetchInternalApi.mock.calls[0]?.[1] as RequestInit).headers);
         expect(readVerifiedSystemAiBusinessRequestId(headers, "practice-image", task.config.model, "open-source-practice")).toBe("image-task:image-one:attempt:4:poll");

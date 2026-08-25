@@ -170,14 +170,21 @@ function generationPatch(
     }
     if (videoTask && videoTask.userId && videoTask.executionPhase === "needs_review") {
         patch.generationStatus = "error";
-        patch.generationTaskId = undefined;
+        patch.generationNeedsReview = true;
         patch.generationError = videoTask.reviewReason || videoTask.error || "视频任务未能确认上游提交结果，请重新生成";
     } else if (videoTask && videoTask.userId) {
-        if (videoTask.status === "success") {
+        if (videoTask.status === "running") {
+            if (shot.generationStatus !== "running" || shot.generationNeedsReview || shot.generationError) {
+                patch.generationStatus = "running";
+                patch.generationNeedsReview = undefined;
+                patch.generationError = undefined;
+            }
+        } else if (videoTask.status === "success") {
             const url = stableUrl(videoTask.result?.url) || stableUrl(videoTask.result?.remoteUrl);
             if (url) {
-                if (shot.generationStatus !== "success" || shot.videoUrl !== url || shot.generationError || !shot.videoHistory?.some((entry) => entry.taskId === videoTask.id)) {
+                if (shot.generationStatus !== "success" || shot.videoUrl !== url || shot.generationNeedsReview || shot.generationError || !shot.videoHistory?.some((entry) => entry.taskId === videoTask.id)) {
                     patch.generationStatus = "success";
+                    patch.generationNeedsReview = undefined;
                     patch.videoUrl = url;
                     patch.generationError = undefined;
                     patch.videoHistory = appendDramaLabGenerationHistory(shot.videoHistory, {
@@ -191,6 +198,7 @@ function generationPatch(
             } else {
                 if (shot.generationStatus !== "error" || shot.generationError !== "分镜视频任务没有返回可播放地址") {
                     patch.generationStatus = "error";
+                    patch.generationNeedsReview = undefined;
                     patch.generationError = "分镜视频任务没有返回可播放地址";
                 }
             }
@@ -198,12 +206,18 @@ function generationPatch(
             const error = videoTask.error || (videoTask.status === "cancelled" ? "分镜视频任务已取消" : "分镜视频生成失败");
             if (shot.generationStatus !== videoTask.status || shot.generationError !== error) {
                 patch.generationStatus = videoTask.status;
+                patch.generationNeedsReview = undefined;
                 patch.generationError = error;
             }
         }
     }
-    if (options.videoTaskMissing && isActiveStatus(shot.generationStatus)) {
+    // A reviewable task is deliberately retained while it exists so the user can
+    // recover the original upstream submission. Once that task expires or is gone,
+    // clear the retained ID and review flag; otherwise the shot would remain
+    // permanently blocked from creating a new video task.
+    if (options.videoTaskMissing && (isActiveStatus(shot.generationStatus) || shot.generationNeedsReview)) {
         patch.generationStatus = "error";
+        patch.generationNeedsReview = undefined;
         patch.generationTaskId = undefined;
         patch.generationError = "分镜视频任务记录不存在，可能因服务重启或任务过期丢失，请重新生成";
     }

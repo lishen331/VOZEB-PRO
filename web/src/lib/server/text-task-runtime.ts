@@ -377,8 +377,18 @@ async function failTextTask(task: TextTask, error: string, attempts: NonNullable
         pointsCost: current.billing?.pointsCost,
         billingReceiptId: current.billing?.billingReceiptId,
     });
-    await transitionTextTask(current, ["pending", "running"], { status: "error", error: message, messages: [], config: clearSecret(current.config), billing: current.billing ? { ...current.billing, refunded: true } : undefined });
+    const failed = await transitionTextTask(current, ["pending", "running"], { status: "error", error: message, messages: [], config: clearSecret(current.config), billing: current.billing });
+    if (!failed) {
+        const latest = await getTextTask(current.id);
+        if (latest?.status === "success") return { state: "completed" };
+        if (latest?.status === "error" || latest?.status === "cancelled") {
+            await refundTextTask(latest);
+            return { state: "failed", error: latest.error || message };
+        }
+        return { state: "failed", error: "文本任务状态已变化" };
+    }
     await updateTextTask(current.id, { config: clearSecret(current.config), candidateConfigs: [], attempts: failedAttempts, attemptNo: failedAttempts.at(-1)?.attemptNo });
+    await refundTextTask(failed);
     return { state: "failed", error: message };
 }
 

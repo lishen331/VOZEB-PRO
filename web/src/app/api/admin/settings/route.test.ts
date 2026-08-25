@@ -20,8 +20,8 @@ import { DEFAULT_SITE_SETTINGS } from "@/lib/auth/store";
 const savedSettings = {
     systemChannels: [{ id: "one", name: "主渠道", baseUrl: "https://api.example.com/v1", apiKey: "saved-secret", webhookSecret: "0123456789abcdef0123456789abcdef", apiFormat: "openai", models: ["vendor/writer"], enabled: true }],
     logicalModels: [{ id: "writer", name: "Writer", capability: "text", enabled: true, bindings: [{ id: "binding", channelId: "one", upstreamModel: "vendor/writer", enabled: true, priority: 1 }] }],
-    defaultModels: { textModel: "writer", imageModel: "", videoModel: "", audioModel: "" },
-    practiceDefaultModels: { textModel: "", imageModel: "", videoModel: "", audioModel: "" },
+    defaultModels: { textModel: "writer", visionModel: "", imageModel: "", videoModel: "", audioModel: "" },
+    practiceDefaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" },
 };
 
 describe("admin settings model routing", () => {
@@ -54,7 +54,27 @@ describe("admin settings model routing", () => {
     it("deletes a channel together with stale logical bindings and defaults", async () => {
         const response = await PATCH(request({ systemChannels: [], logicalModels: savedSettings.logicalModels, defaultModels: savedSettings.defaultModels }));
         expect(response.status).toBe(200);
-        expect(mocks.setAuthSettings).toHaveBeenCalledWith(expect.objectContaining({ systemChannels: [], logicalModels: [], defaultModels: { textModel: "", imageModel: "", videoModel: "", audioModel: "" } }));
+        expect(mocks.setAuthSettings).toHaveBeenCalledWith(expect.objectContaining({ systemChannels: [], logicalModels: [], defaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" } }));
+    });
+
+    it("keeps channel deletion and addition visible to an immediate fresh read", async () => {
+        let persisted = structuredClone(savedSettings);
+        mocks.getFreshAuthSettings.mockImplementation(async () => persisted);
+        mocks.setAuthSettings.mockImplementation(async (patch) => {
+            persisted = { ...persisted, ...patch };
+            return persisted;
+        });
+
+        const deleted = await PATCH(request({ systemChannels: [], logicalModels: [], defaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" } }));
+        expect(deleted.status).toBe(200);
+        const afterDelete = (await (await GET()).json()) as { settings: typeof savedSettings };
+        expect(afterDelete.settings.systemChannels).toEqual([]);
+
+        const addedChannel = { id: "two", name: "备用渠道", baseUrl: "https://backup.example.com/v1", apiKey: "new-secret", apiFormat: "openai", models: ["vendor/backup"], enabled: true };
+        const added = await PATCH(request({ systemChannels: [addedChannel], logicalModels: [], defaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" } }));
+        expect(added.status).toBe(200);
+        const afterAdd = (await (await GET()).json()) as { settings: typeof savedSettings };
+        expect(afterAdd.settings.systemChannels).toEqual([expect.objectContaining({ id: "two", name: "备用渠道" })]);
     });
 
     it("rebuilds an explicitly empty logical model catalog from channels", async () => {
@@ -203,7 +223,7 @@ describe("admin settings model routing", () => {
                 },
             },
         };
-        const practiceDefaultModels = { textModel: "", imageModel: "workflow-image", videoModel: "", audioModel: "" };
+        const practiceDefaultModels = { textModel: "", visionModel: "", imageModel: "workflow-image", videoModel: "", audioModel: "" };
         const response = await PATCH(request({ systemChannels: [runningHub], logicalModels: [], defaultModels: savedSettings.defaultModels, practiceDefaultModels }));
         expect(response.status).toBe(200);
         expect(mocks.setAuthSettings).toHaveBeenCalledWith(expect.objectContaining({ practiceDefaultModels, systemChannels: [expect.objectContaining({ purpose: "open-source-practice", apiKey: "rh-secret" })] }));
@@ -228,7 +248,7 @@ describe("admin settings model routing", () => {
                     purpose: "production",
                 },
             ],
-            practiceDefaultModels: { textModel: "", imageModel: "", videoModel: "", audioModel: "" },
+            practiceDefaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" },
         });
         const response = await PATCH(request({ practiceDefaultModels: savedSettings.defaultModels }));
         expect(response.status).toBe(400);

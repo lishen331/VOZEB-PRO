@@ -7,7 +7,17 @@ import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy"
 import { isProviderBusinessError, providerQueryPaths, readProviderError, videoPollingPolicy } from "@/lib/server/provider-task-config";
 import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runtime-service";
 import { normalizeVideoResult } from "@/lib/server/video-result-normalizer";
-import { VIDEO_PROVIDER_FAILED, VIDEO_PROVIDER_SUCCESS, parseVideoProviderJson, readVideoProviderHttpError, readVideoProviderStatus, readVideoProviderUrl, videoProviderMediaUrl } from "@/lib/server/video-provider-response";
+import {
+    VIDEO_PROVIDER_FAILED,
+    VIDEO_PROVIDER_SUCCESS,
+    isVideoProviderMediaUrl,
+    parseVideoProviderJson,
+    readVideoProviderHttpError,
+    readVideoProviderStatus,
+    readVideoProviderUrl,
+    videoProviderContentPath,
+    videoProviderMediaUrl,
+} from "@/lib/server/video-provider-response";
 import { claimVideoTaskPoll, completeReconciledVideoTask, failReconciledVideoTask, getVideoTask, updateVideoTask, type VideoTask } from "@/lib/server/video-task-store";
 import { writeVideoGenerationLog } from "@/lib/server/video-task-log";
 import { maintenanceWorkerHeaders } from "@/lib/server/maintenance-auth";
@@ -29,15 +39,16 @@ export async function refreshVideoTaskFromUpstream(task: VideoTask, origin: stri
 }
 
 export async function queryVideoTaskUpstream(task: VideoTask, origin: string, cookie = "", workerUserId = ""): Promise<VideoUpstreamStep> {
-    if (task.upstream.resultUrl) return { state: "result_ready", status: "completed", resultUrl: task.upstream.resultUrl };
+    const cachedResultUrl = typeof task.upstream.resultUrl === "string" ? task.upstream.resultUrl.trim() : "";
+    if (isVideoProviderMediaUrl(cachedResultUrl)) return { state: "result_ready", status: "completed", resultUrl: cachedResultUrl };
     if (isGeminiVideoTask(task)) return queryGeminiVideoUpstream(task, origin, cookie, workerUserId);
     const data = await queryVideoUpstream(task, origin, cookie, workerUserId);
     const status = readVideoProviderStatus(data, task.config.advancedConfig?.statusField);
     const resultUrl = readVideoProviderUrl(data, task.config.advancedConfig?.resultField);
-    if (resultUrl || VIDEO_PROVIDER_SUCCESS.has(status)) {
-        return resultUrl ? { state: "result_ready", status: status || "completed", resultUrl } : { state: "failed", status: status || "completed", error: "视频任务已完成但没有返回视频地址" };
-    }
     if (isProviderBusinessError(data) || VIDEO_PROVIDER_FAILED.has(status)) return { state: "failed", status: status || "failed", error: readProviderError(data) || "视频生成失败" };
+    const contentPath = !resultUrl && VIDEO_PROVIDER_SUCCESS.has(status) ? videoProviderContentPath(task.config.advancedConfig?.resultField, task.upstream.id) : "";
+    if (resultUrl || contentPath) return { state: "result_ready", status: status || "completed", resultUrl: resultUrl || contentPath };
+    if (VIDEO_PROVIDER_SUCCESS.has(status)) return { state: "failed", status: status || "completed", error: "视频任务已完成但没有返回有效视频地址" };
     return { state: "pending", status: status || "processing" };
 }
 
@@ -91,6 +102,9 @@ async function completeVideoTask(task: VideoTask, resultUrl: string, origin: str
     await updateVideoTask(task.id, { attempts });
     const channelId = task.config.channelId || systemGenerationChannelId(task.config.baseUrl);
     const workerHeaders = new Headers(workerUserId ? maintenanceWorkerHeaders(workerUserId) : undefined);
+    if (task.config.baseUrl.startsWith("/")) {
+        Object.entries(systemAiBillingHeaders(generationModelId(task.config), undefined, task.config.model, task.executionProfile, task.billingContext)).forEach(([key, value]) => workerHeaders.set(key, value));
+    }
     if (/^https?:\/\//i.test(resultUrl) && channelId) {
         Object.entries(generationMediaProxyHeaders({ userId: task.userId, taskType: "video", taskId: task.id, channelId, upstreamModel: task.config.model, url: resultUrl })).forEach(([key, value]) => workerHeaders.set(key, value));
     }

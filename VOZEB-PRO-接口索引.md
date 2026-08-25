@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-08-24。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **266** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-08-25。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **268** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**266**
-- 方法出现次数：DELETE 36、GET 153、HEAD 6、PATCH 44、POST 135、PUT 7
-- 一级域：`admin` 90、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 3、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 22、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**268**
+- 方法出现次数：DELETE 36、GET 153、HEAD 6、PATCH 44、POST 141、PUT 7
+- 一级域：`admin` 91、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 22、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（90）
+### `admin`（91）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -96,6 +96,7 @@
 | POST | `/api/admin/models` | 管理员 | [route.ts](web/src/app/api/admin/models/route.ts) | [admin-channel-config](web/src/lib/server/admin-channel-config.ts)<br>[admin-model-catalog](web/src/lib/server/admin-model-catalog.ts)<br>[provider-task-config](web/src/lib/server/provider-task-config.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 模型目录：提交/执行 |
 | GET, PATCH, POST | `/api/admin/object-storage` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[object-storage-config](web/src/lib/server/object-storage-config.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储：查询、更新、提交/执行 |
 | DELETE, GET | `/api/admin/object-storage/files` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/files/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储 / 文件：查询、删除 |
+| POST | `/api/admin/object-storage/files/cleanup` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/files/cleanup/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储 / 文件 / cleanup：提交/执行 |
 | GET | `/api/admin/object-storage/files/preview` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/files/preview/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储 / 文件 / 预览：查询 |
 | POST | `/api/admin/object-storage/sync` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/sync/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储 / 迁移同步：提交/执行 |
 | GET, POST | `/api/admin/prompts` | 管理员 | [route.ts](web/src/app/api/admin/prompts/route.ts) | [store](web/src/lib/auth/store.ts)<br>[store](web/src/lib/prompts/store.ts) | PostgreSQL、公开内容/站点设置 | 管理后台 / 提示词：查询、提交/执行 |
@@ -133,7 +134,7 @@
 | GET, POST | `/api/agent/runs` | 混合 | [route.ts](web/src/app/api/agent/runs/route.ts) | [agent-run-store](web/src/lib/server/agent-run-store.ts)<br>[creative-runtime-store](web/src/lib/server/creative-runtime-store.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL、生成任务、模型上游 | Agent / 运行：查询、提交/执行 |
 | GET | `/api/agent/runs/[id]` | 混合 | [route.ts](web/src/app/api/agent/runs/[id]/route.ts) | [agent-run-store](web/src/lib/server/agent-run-store.ts)<br>[agent-run-public](web/src/lib/server/agent-run-public.ts) | PostgreSQL、生成任务、模型上游 | Agent / 运行 / 单项：查询 |
 | POST | `/api/agent/runs/[id]/[action]` | 混合 | [route.ts](web/src/app/api/agent/runs/[id]/[action]/route.ts) | [agent-run-store](web/src/lib/server/agent-run-store.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、生成任务、模型上游 | Agent / 运行 / 单项 / 指定动作：提交/执行 |
-| GET | `/api/agent/runs/[id]/events` | 用户 | [route.ts](web/src/app/api/agent/runs/[id]/events/route.ts) | [agent-run-store](web/src/lib/server/agent-run-store.ts)<br>[creative-runtime-store](web/src/lib/server/creative-runtime-store.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL、生成任务、模型上游 | Agent / 运行 / 单项 / 事件：查询 |
+| GET | `/api/agent/runs/[id]/events` | 用户 | [route.ts](web/src/app/api/agent/runs/[id]/events/route.ts) | [agent-run-store](web/src/lib/server/agent-run-store.ts)<br>[creative-runtime-store](web/src/lib/server/creative-runtime-store.ts)<br>[agent-run-public](web/src/lib/server/agent-run-public.ts) | PostgreSQL、生成任务、模型上游 | Agent / 运行 / 单项 / 事件：查询 |
 | POST | `/api/agent/runs/[id]/tasks/[taskId]/retry` | 混合 | [route.ts](web/src/app/api/agent/runs/[id]/tasks/[taskId]/retry/route.ts) | [agent-run-store](web/src/lib/server/agent-run-store.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、生成任务、模型上游 | Agent / 运行 / 单项 / 任务 / 指定任务 / 重试：提交/执行 |
 | GET | `/api/agent/skills` | 用户 | [route.ts](web/src/app/api/agent/skills/route.ts) | [store](web/src/lib/auth/store.ts)<br>[store-types](web/src/lib/auth/store-types.ts) | PostgreSQL、生成任务、模型上游 | Agent / 技能：查询 |
 
@@ -154,7 +155,7 @@
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | POST | `/api/audio-tasks` | 混合 | [route.ts](web/src/app/api/audio-tasks/route.ts) | [audio-task-store](web/src/lib/server/audio-task-store.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、积分、模型上游、媒体 | 音频任务：提交/执行 |
-| GET, PATCH | `/api/audio-tasks/[id]` | 混合 | [route.ts](web/src/app/api/audio-tasks/[id]/route.ts) | [audio-task-store](web/src/lib/server/audio-task-store.ts)<br>[generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL、积分、模型上游、媒体 | 音频任务 / 单项：查询、更新 |
+| GET, PATCH, POST | `/api/audio-tasks/[id]` | 混合 | [route.ts](web/src/app/api/audio-tasks/[id]/route.ts) | [audio-task-store](web/src/lib/server/audio-task-store.ts)<br>[generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL、积分、模型上游、媒体 | 音频任务 / 单项：查询、更新、提交/执行 |
 
 ### `auth`（13）
 
@@ -190,10 +191,11 @@
 | POST | `/api/billing/quotes` | 用户 | [route.ts](web/src/app/api/billing/quotes/route.ts) | [billing-commerce-service](web/src/lib/server/billing-commerce-service.ts) | PostgreSQL、积分/商业事务 | 计费 / 报价：提交/执行 |
 | POST | `/api/billing/webhooks/[provider]` | Webhook | [route.ts](web/src/app/api/billing/webhooks/[provider]/route.ts) | [billing-service](web/src/lib/server/billing-service.ts)<br>[payment-webhook-service](web/src/lib/server/payment-webhook-service.ts) | 外部回调、签名校验、PostgreSQL 幂等记录 | 计费 / 支付回调 / 指定支付渠道：提交/执行 |
 
-### `canvas`（3）
+### `canvas`（4）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
+| POST | `/api/canvas/image-decomposition` | 混合 | [route.ts](web/src/app/api/canvas/image-decomposition/route.ts) | [canvas-image-decomposition-service](web/src/lib/server/canvas-image-decomposition-service.ts)<br>[canvas-image-layer-grant](web/src/lib/server/canvas-image-layer-grant.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、创作数据 | 画布 / image-decomposition：提交/执行 |
 | DELETE, GET, POST | `/api/canvas/projects` | 用户 | [route.ts](web/src/app/api/canvas/projects/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts) | PostgreSQL、创作数据 | 画布 / 项目：查询、删除、提交/执行 |
 | GET, PATCH | `/api/canvas/projects/[id]` | 用户 | [route.ts](web/src/app/api/canvas/projects/[id]/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts) | PostgreSQL、创作数据 | 画布 / 项目 / 单项：查询、更新 |
 | DELETE | `/api/canvas/projects/[id]/assistant-conversations` | 混合 | [route.ts](web/src/app/api/canvas/projects/[id]/assistant-conversations/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts) | PostgreSQL、创作数据 | 画布 / 项目 / 单项 / 助手对话：删除 |
@@ -262,14 +264,14 @@
 | POST | `/api/drama-lab/projects/[id]/generate-script` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/generate-script/route.ts) | [drama-lab-script-generation-service](web/src/lib/server/drama-lab-script-generation-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL | drama-lab / 项目 / 单项 / generate-script：提交/执行 |
 | POST | `/api/drama-lab/projects/[id]/shots/[shotId]/generate-frame` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/generate-frame/route.ts) | [drama-lab-frame-generation-service](web/src/lib/server/drama-lab-frame-generation-service.ts)<br>[drama-lab-shot-generation-service](web/src/lib/server/drama-lab-shot-generation-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / generate-frame：提交/执行 |
 | POST | `/api/drama-lab/projects/[id]/shots/[shotId]/generate-image` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/generate-image/route.ts) | [drama-lab-shot-generation-service](web/src/lib/server/drama-lab-shot-generation-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / generate-image：提交/执行 |
-| POST | `/api/drama-lab/projects/[id]/shots/[shotId]/generate-video` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/generate-video/route.ts) | [drama-lab-shot-generation-service](web/src/lib/server/drama-lab-shot-generation-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / generate-video：提交/执行 |
+| POST | `/api/drama-lab/projects/[id]/shots/[shotId]/generate-video` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/generate-video/route.ts) | [drama-lab-shot-generation-service](web/src/lib/server/drama-lab-shot-generation-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[video-task-store](web/src/lib/server/video-task-store.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / generate-video：提交/执行 |
 | POST | `/api/drama-lab/projects/[id]/shots/[shotId]/sync-generation` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/sync-generation/route.ts) | [drama-lab-shot-generation-service](web/src/lib/server/drama-lab-shot-generation-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / sync-generation：提交/执行 |
 
 ### `generation-log-assets`（1）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| GET, HEAD | `/api/generation-log-assets/[...path]` | 用户 | [route.ts](web/src/app/api/generation-log-assets/[...path]/route.ts) | [generation-log-store](web/src/lib/server/generation-log-store.ts)<br>[object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[data-dir](web/src/lib/server/data-dir.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 生成日志媒体 / 指定路径：查询、读取元数据 |
+| GET, HEAD | `/api/generation-log-assets/[...path]` | 混合 | [route.ts](web/src/app/api/generation-log-assets/[...path]/route.ts) | [generation-log-store](web/src/lib/server/generation-log-store.ts)<br>[object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[data-dir](web/src/lib/server/data-dir.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 生成日志媒体 / 指定路径：查询、读取元数据 |
 
 ### `generation-logs`（1）
 
@@ -295,7 +297,7 @@
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | POST | `/api/image-tasks` | 混合 | [route.ts](web/src/app/api/image-tasks/route.ts) | [creative-runtime-service](web/src/lib/server/creative-runtime-service.ts)<br>[generation-log-store](web/src/lib/server/generation-log-store.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL、积分、模型上游、媒体 | 图像任务：提交/执行 |
-| GET, PATCH | `/api/image-tasks/[id]` | 混合 | [route.ts](web/src/app/api/image-tasks/[id]/route.ts) | [generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、积分、模型上游、媒体 | 图像任务 / 单项：查询、更新 |
+| GET, PATCH, POST | `/api/image-tasks/[id]` | 混合 | [route.ts](web/src/app/api/image-tasks/[id]/route.ts) | [generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、积分、模型上游、媒体 | 图像任务 / 单项：查询、更新、提交/执行 |
 
 ### `install`（2）
 
@@ -329,14 +331,14 @@
 | POST | `/api/maintenance/billing-refunds/run` | Worker | [route.ts](web/src/app/api/maintenance/billing-refunds/run/route.ts) | [billing-refund-orchestration-service](web/src/lib/server/billing-refund-orchestration-service.ts)<br>[install-status](web/src/lib/server/install-status.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | Worker Token、PostgreSQL、支付退款 | 后台维护 / 计费退款 / 执行：提交/执行 |
 | POST | `/api/maintenance/data-lifecycle/run` | 维护 | [route.ts](web/src/app/api/maintenance/data-lifecycle/run/route.ts) | [data-lifecycle-service](web/src/lib/server/data-lifecycle-service.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | 维护 Token、PostgreSQL | 后台维护 / 数据生命周期 / 执行：提交/执行 |
 | POST | `/api/maintenance/generation-tasks/heartbeat` | Worker | [route.ts](web/src/app/api/maintenance/generation-tasks/heartbeat/route.ts) | [generation-worker-heartbeat](web/src/lib/server/generation-worker-heartbeat.ts)<br>[install-status](web/src/lib/server/install-status.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | Worker Token、PostgreSQL、模型上游 | 后台维护 / 生成任务 / 心跳：提交/执行 |
-| POST | `/api/maintenance/generation-tasks/run` | Worker | [route.ts](web/src/app/api/maintenance/generation-tasks/run/route.ts) | [generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[install-status](web/src/lib/server/install-status.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | Worker Token、PostgreSQL、模型上游 | 后台维护 / 生成任务 / 执行：提交/执行 |
+| POST | `/api/maintenance/generation-tasks/run` | Worker | [route.ts](web/src/app/api/maintenance/generation-tasks/run/route.ts) | [generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-scheduler](web/src/lib/server/generation-task-scheduler.ts)<br>[install-status](web/src/lib/server/install-status.ts) | Worker Token、PostgreSQL、模型上游 | 后台维护 / 生成任务 / 执行：提交/执行 |
 | POST | `/api/maintenance/referrals/settle` | 维护 | [route.ts](web/src/app/api/maintenance/referrals/settle/route.ts) | [referral-service](web/src/lib/server/referral-service.ts)<br>[maintenance-auth](web/src/lib/server/maintenance-auth.ts) | 维护 Token、PostgreSQL | 后台维护 / 邀请返利 / 结算：提交/执行 |
 
 ### `media-assets`（1）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| DELETE | `/api/media-assets` | 用户 | [route.ts](web/src/app/api/media-assets/route.ts) | [local-media-storage](web/src/lib/server/local-media-storage.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 媒体资产：删除 |
+| DELETE | `/api/media-assets` | 用户 | [route.ts](web/src/app/api/media-assets/route.ts) | [user-media-deletion-service](web/src/lib/server/user-media-deletion-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 媒体资产：删除 |
 
 ### `media-proxy`（1）
 
@@ -405,7 +407,7 @@
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
-| POST | `/api/reference-assets` | 用户 | [route.ts](web/src/app/api/reference-assets/route.ts) | [reference-asset-store](web/src/lib/server/reference-asset-store.ts)<br>[reference-asset-access](web/src/lib/server/reference-asset-access.ts)<br>[creative-upload](web/src/lib/creative-upload.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 参考素材：提交/执行 |
+| POST | `/api/reference-assets` | 混合 | [route.ts](web/src/app/api/reference-assets/route.ts) | [reference-asset-store](web/src/lib/server/reference-asset-store.ts)<br>[reference-asset-access](web/src/lib/server/reference-asset-access.ts)<br>[creative-upload](web/src/lib/creative-upload.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 参考素材：提交/执行 |
 | GET, HEAD | `/api/reference-assets/[...path]` | 混合 | [route.ts](web/src/app/api/reference-assets/[...path]/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[reference-asset-store](web/src/lib/server/reference-asset-store.ts)<br>[local-media-registry](web/src/lib/server/local-media-registry.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 参考素材 / 指定路径：查询、读取元数据 |
 
 ### `referrals`（1）
@@ -472,7 +474,7 @@
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | POST | `/api/text-tasks` | 混合 | [route.ts](web/src/app/api/text-tasks/route.ts) | [generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts)<br>[ip-library-reference-service](web/src/lib/server/ip-library-reference-service.ts) | PostgreSQL、积分、模型上游、媒体 | 文本任务：提交/执行 |
-| GET, PATCH | `/api/text-tasks/[id]` | 混合 | [route.ts](web/src/app/api/text-tasks/[id]/route.ts) | [generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、积分、模型上游、媒体 | 文本任务 / 单项：查询、更新 |
+| GET, PATCH, POST | `/api/text-tasks/[id]` | 混合 | [route.ts](web/src/app/api/text-tasks/[id]/route.ts) | [generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、积分、模型上游、媒体 | 文本任务 / 单项：查询、更新、提交/执行 |
 
 ### `video-generation-tasks`（2）
 
@@ -486,7 +488,7 @@
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | POST | `/api/video-tasks` | 公开 | [route.ts](web/src/app/api/video-tasks/route.ts) | Route 内部实现 | PostgreSQL、积分、模型上游、媒体 | 已停用旧视频任务入口：固定返回 410 |
-| GET, PATCH | `/api/video-tasks/[id]` | 混合 | [route.ts](web/src/app/api/video-tasks/[id]/route.ts) | [generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、积分、模型上游、媒体 | 视频任务 / 单项：查询、更新 |
+| GET, PATCH, POST | `/api/video-tasks/[id]` | 混合 | [route.ts](web/src/app/api/video-tasks/[id]/route.ts) | [generation-task-cancellation-service](web/src/lib/server/generation-task-cancellation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、积分、模型上游、媒体 | 视频任务 / 单项：查询、更新、提交/执行 |
 
 ### `works`（7）
 
