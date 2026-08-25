@@ -77,6 +77,8 @@ export async function extractDramaLabAssets(input: { userId: string; origin: str
                 await recordDramaLabTextGenerationLog({
                     id: logId,
                     userId: input.userId,
+                    projectId: input.project.id,
+                    episodeId: input.episodeId,
                     title,
                     prompt: userPrompt,
                     model,
@@ -96,6 +98,8 @@ export async function extractDramaLabAssets(input: { userId: string; origin: str
     await recordDramaLabTextGenerationLog({
         id: logId,
         userId: input.userId,
+        projectId: input.project.id,
+        episodeId: input.episodeId,
         title,
         prompt: userPrompt,
         model,

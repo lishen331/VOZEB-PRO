@@ -92,6 +92,8 @@ export async function extractDramaLabStoryboards(input: { userId: string; origin
                 await recordDramaLabTextGenerationLog({
                     id: logId,
                     userId: input.userId,
+                    projectId: input.project.id,
+                    episodeId: input.episodeId,
                     title: "分镜提取",
                     prompt: userPrompt,
                     model,
@@ -112,6 +114,8 @@ export async function extractDramaLabStoryboards(input: { userId: string; origin
     await recordDramaLabTextGenerationLog({
         id: logId,
         userId: input.userId,
+        projectId: input.project.id,
+        episodeId: input.episodeId,
         title: "分镜提取",
         prompt: userPrompt,
         model,

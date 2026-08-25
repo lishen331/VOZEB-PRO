@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 
 import type { CreateDramaProjectInput, DramaAssetProfile, DramaAssetReference, DramaEpisode, DramaNamedAsset, DramaProject, DramaShot, DramaShotContinuity, DramaUtterance, DramaVideoMode } from "@/lib/drama-project-contract";
+import { parseDramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract";
 import { dramaRichContentToPlainText, normalizeDramaScriptRichContent } from "@/lib/drama-script-rich-content";
 import { normalizeDramaImageSize } from "@/lib/drama-image-size";
 import { resolveDramaShotDuration } from "@/lib/server/drama-shot-config";
@@ -13,7 +14,7 @@ import { deleteUserMediaAssetsCascade } from "@/lib/server/user-media-deletion-s
 import type { DramaProjectIdentityInput } from "@/lib/server/drama-project-store";
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "@/lib/server/ip-library-reference-service";
-import { deleteDramaLabEpisodeCanvasForUser } from "@/lib/server/canvas-project-service";
+import { deleteDramaLabEpisodeCanvasForUser, listDramaLabCanvasProjectsForUser } from "@/lib/server/canvas-project-service";
 
 const MAX_PROJECT_BYTES = 2 * 1024 * 1024;
 
@@ -93,7 +94,10 @@ export async function updateDramaProjectForUser(userId: string, id: string, valu
     const size = Buffer.byteLength(JSON.stringify(value || {}));
     if (size > MAX_PROJECT_BYTES) throw new DramaProjectServiceError("短剧项目数据过大", 413);
     const incomingUpdatedAt = parseTimestamp(object(value).updatedAt);
-    if (incomingUpdatedAt && incomingUpdatedAt < parseTimestamp(current.updatedAt)) return current;
+    if (incomingUpdatedAt && incomingUpdatedAt < parseTimestamp(current.updatedAt)) {
+        await cleanupOrphanDramaEpisodeCanvases(userId, current.id, current.episodes);
+        return current;
+    }
     const source = object(value);
     const ipReferences = source.ipReferences === undefined ? current.ipReferences || [] : await validateIpReferenceUpdate(userId, current.ipReferences, source.ipReferences);
     const project = normalizeProject({ ...source, ipReferences }, current);
@@ -102,10 +106,7 @@ export async function updateDramaProjectForUser(userId: string, id: string, valu
         const added = addedIpReferences(current.ipReferences, ipReferences);
         if (added.length) await recordIpReferenceUsage(userId, { targetType: dramaUsageTarget(current), targetId: current.id, references: added });
         const saved = await updateDramaProject(userId, project, current.updatedAt);
-        const remainingEpisodeIds = new Set(saved.episodes.map((episode) => episode.id));
-        for (const episode of current.episodes) {
-            if (!remainingEpisodeIds.has(episode.id)) await deleteDramaLabEpisodeCanvasForUser(userId, current.id, episode.id);
-        }
+        await cleanupOrphanDramaEpisodeCanvases(userId, saved.id, saved.episodes, current.episodes);
         return saved;
     } catch (error) {
         if (error instanceof DramaProjectStoreError) throw new DramaProjectServiceError(error.message, error.status);
@@ -141,11 +142,30 @@ export async function restoreDramaProjectVersionForUser(userId: string, id: stri
         const added = addedIpReferences(current.ipReferences, restored.ipReferences);
         if (added.length) await recordIpReferenceUsage(userId, { targetType: dramaUsageTarget(current), targetId: current.id, references: added });
         await createDramaProjectVersion(userId, projectId, "恢复前自动快照", current);
-        return await updateDramaProject(userId, restored, current.updatedAt);
+        const saved = await updateDramaProject(userId, restored, current.updatedAt);
+        await cleanupOrphanDramaEpisodeCanvases(userId, saved.id, saved.episodes, current.episodes);
+        return saved;
     } catch (error) {
         if (error instanceof DramaProjectStoreError) throw new DramaProjectServiceError(error.message, error.status);
         throw error;
     }
+}
+
+async function cleanupOrphanDramaEpisodeCanvases(userId: string, projectId: string, episodes: DramaEpisode[], previousEpisodes: DramaEpisode[] = []) {
+    const activeEpisodeIds = new Set(episodes.map((episode) => episode.id));
+    const orphanEpisodeIds = new Set(previousEpisodes.map((episode) => episode.id).filter((episodeId) => !activeEpisodeIds.has(episodeId)));
+    let listedCanvases = 0;
+    for (let page = 1; ; page += 1) {
+        const result = await listDramaLabCanvasProjectsForUser(userId, { page, pageSize: 100 });
+        for (const canvas of result.projects) {
+            const binding = parseDramaLabEpisodeCanvasHandoffId(canvas.sourceHandoffId);
+            if (binding?.projectId === projectId && !activeEpisodeIds.has(binding.episodeId)) orphanEpisodeIds.add(binding.episodeId);
+        }
+        listedCanvases += result.projects.length;
+        if (!result.projects.length || listedCanvases >= result.total) break;
+    }
+
+    for (const episodeId of orphanEpisodeIds) await deleteDramaLabEpisodeCanvasForUser(userId, projectId, episodeId);
 }
 
 async function validateIpReferenceUpdate(userId: string, current: unknown, incoming: unknown) {

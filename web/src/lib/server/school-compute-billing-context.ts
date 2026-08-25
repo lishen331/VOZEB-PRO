@@ -1,5 +1,7 @@
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
+import { parseDramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract";
 import type { GenerationTaskContext } from "./generation-task-types";
+import { getCanvasProject } from "./canvas-project-store";
 import { requireActiveSchoolContext, SchoolServiceError } from "./school-access-service";
 import { validateSchoolContentReferences } from "./school-content-reference-service";
 import { createSchoolComputeRepository } from "./school-compute-repository";
@@ -18,11 +20,24 @@ export type SchoolProjectBillingSummary = {
 export async function resolveSchoolComputeBillingContext(userId: string, context?: GenerationTaskContext): Promise<SchoolComputeBillingContext | undefined> {
     if (!context || context.executionProfile === "open-source-practice" || (context.surface !== "canvas" && context.surface !== "drama") || !context.projectId) return undefined;
 
-    const projectType = context.surface;
-    const projectId = context.projectId.trim();
+    let projectType = context.surface;
+    let projectId = context.projectId.trim();
     if (!projectId) return undefined;
     const compute = createSchoolComputeRepository();
-    const link = await compute.getGroupProjectByProject(projectType, projectId);
+    let link;
+    if (projectType === "canvas") {
+        const canvasProject = await getCanvasProject(projectId, userId);
+        const dramaBinding = parseDramaLabEpisodeCanvasHandoffId(canvasProject?.sourceHandoffId);
+        if (dramaBinding) {
+            projectType = "drama";
+            projectId = dramaBinding.projectId;
+            link = await compute.getGroupProjectByProject(projectType, projectId);
+        } else {
+            link = await compute.getGroupProjectByProject(projectType, projectId);
+        }
+    } else {
+        link = await compute.getGroupProjectByProject(projectType, projectId);
+    }
     if (!link) return undefined;
 
     try {

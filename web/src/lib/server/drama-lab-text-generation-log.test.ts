@@ -21,6 +21,8 @@ describe("drama lab text generation log", () => {
         await recordDramaLabTextGenerationLog({
             id: "drama-lab-script:project-one:episode-one:request-one",
             userId: "user-one",
+            projectId: "project-one",
+            episodeId: "episode-one",
             title: "Script generation",
             prompt: "A story outline",
             model: "writer",
@@ -47,6 +49,7 @@ describe("drama lab text generation log", () => {
             count: 1,
             successCount: 1,
             failCount: 0,
+            requestSnapshot: { version: 1, projectId: "project-one", episodeId: "episode-one", parameters: {}, references: [], slots: [] },
             createdAt: "2023-11-14T22:13:20.000Z",
             completedAt: expect.any(String),
         });
@@ -60,6 +63,8 @@ describe("drama lab text generation log", () => {
             recordDramaLabTextGenerationLog({
                 id: "drama-lab-script:project-one:episode-one:request-two",
                 userId: "user-one",
+                projectId: "project-one",
+                episodeId: "episode-one",
                 title: "Script generation",
                 prompt: "A story outline",
                 model: "writer",

@@ -4,6 +4,8 @@ import { recordGenerationLog } from "@/lib/server/generation-log-store";
 type DramaLabTextGenerationLogInput = {
     id: string;
     userId: string;
+    projectId: string;
+    episodeId: string;
     title: string;
     prompt: string;
     model: string;
@@ -35,6 +37,14 @@ export async function recordDramaLabTextGenerationLog(input: DramaLabTextGenerat
             count: 1,
             successCount: input.status === "success" ? 1 : 0,
             failCount: input.status === "failed" ? 1 : 0,
+            requestSnapshot: {
+                version: 1,
+                projectId: input.projectId,
+                episodeId: input.episodeId,
+                parameters: {},
+                references: [],
+                slots: [],
+            },
             error: input.status === "failed" ? input.error : undefined,
             createdAt: input.createdAt ? new Date(input.createdAt).toISOString() : undefined,
             completedAt: new Date().toISOString(),

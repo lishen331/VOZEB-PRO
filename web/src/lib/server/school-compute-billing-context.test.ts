@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     getGroup: vi.fn(),
     getGroupMember: vi.fn(),
     getCommercialOrder: vi.fn(),
+    getCanvasProject: vi.fn(),
 }));
 
 vi.mock("./school-access-service", () => ({
@@ -29,6 +30,7 @@ vi.mock("./school-compute-repository", () => ({
     }),
 }));
 vi.mock("./school-domain-repository", () => ({ createSchoolDomainRepository: () => ({ getCommercialOrder: mocks.getCommercialOrder }) }));
+vi.mock("./canvas-project-store", () => ({ getCanvasProject: mocks.getCanvasProject }));
 
 import { resolveSchoolComputeBillingContext } from "./school-compute-billing-context";
 
@@ -57,6 +59,7 @@ describe("resolveSchoolComputeBillingContext", () => {
         mocks.getGroupMember.mockResolvedValue({ id: "member-a", membershipId: "membership-a", groupId: "group-a", schoolId: "school-a" });
         mocks.getCommercialOrder.mockResolvedValue({ id: "order-a", assignedSchoolId: "school-a", productionGroupId: "group-a", status: "in_progress" });
         mocks.validateReferences.mockResolvedValue([{ reference: { type: "canvas", id: "canvas-a" }, title: "项目" }]);
+        mocks.getCanvasProject.mockResolvedValue(null);
     });
 
     it("derives billing context from the owned project link", async () => {
@@ -81,6 +84,40 @@ describe("resolveSchoolComputeBillingContext", () => {
     it("returns no billing context for an unlinked project", async () => {
         mocks.getGroupProjectByProject.mockResolvedValue(null);
         await expect(resolveSchoolComputeBillingContext("student-user", { surface: "drama", projectId: "drama-a" })).resolves.toBeUndefined();
+    });
+
+    it("charges an episode canvas through its owning drama project association", async () => {
+        mocks.getGroupProjectByProject.mockResolvedValue({ ...link, projectType: "drama", projectId: "drama-a" });
+        mocks.getCanvasProject.mockResolvedValue({ id: "canvas-episode", sourceHandoffId: "drama-lab-canvas:drama-a:episode:episode-one" });
+        mocks.validateReferences.mockResolvedValue([{ reference: { type: "drama", id: "drama-a" }, title: "短剧项目" }]);
+
+        await expect(resolveSchoolComputeBillingContext("student-user", { surface: "canvas", projectId: "canvas-episode", executionProfile: "production" })).resolves.toEqual({
+            schoolId: "school-a",
+            groupId: "group-a",
+            orderId: "order-a",
+            projectType: "drama",
+            projectId: "drama-a",
+        });
+
+        expect(mocks.getCanvasProject).toHaveBeenCalledWith("canvas-episode", "student-user");
+        expect(mocks.getGroupProjectByProject).toHaveBeenCalledOnce();
+        expect(mocks.getGroupProjectByProject).toHaveBeenCalledWith("drama", "drama-a");
+        expect(mocks.validateReferences).toHaveBeenCalledWith({ userId: "student-user", schoolId: "school-a", references: [{ type: "drama", id: "drama-a" }] });
+    });
+
+    it("prefers the owning drama association over a stale canvas association", async () => {
+        mocks.getCanvasProject.mockResolvedValue({ id: "canvas-episode", sourceHandoffId: "drama-lab-canvas:drama-a:episode:episode-one" });
+        mocks.getGroupProjectByProject.mockImplementation(async (projectType: string) => (projectType === "drama" ? { ...link, projectType: "drama", projectId: "drama-a" } : link));
+        mocks.validateReferences.mockResolvedValue([{ reference: { type: "drama", id: "drama-a" }, title: "短剧项目" }]);
+
+        await expect(resolveSchoolComputeBillingContext("student-user", { surface: "canvas", projectId: "canvas-episode", executionProfile: "production" })).resolves.toMatchObject({
+            projectType: "drama",
+            projectId: "drama-a",
+        });
+
+        expect(mocks.getGroupProjectByProject).toHaveBeenCalledTimes(1);
+        expect(mocks.getGroupProjectByProject).toHaveBeenCalledWith("drama", "drama-a");
+        expect(mocks.validateReferences).toHaveBeenCalledWith({ userId: "student-user", schoolId: "school-a", references: [{ type: "drama", id: "drama-a" }] });
     });
 
     it.each([

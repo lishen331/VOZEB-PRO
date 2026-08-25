@@ -83,6 +83,15 @@ describe("generation log asset normalization", () => {
         expect(log.requestSnapshot).toMatchObject({ userPrompt: "用户原始需求", slots: [{ prompt: "内部执行提示词", clientRequestId: "image-workbench:conversation:slot-1", canRetry: true }] });
     });
 
+    it("preserves project ownership in an otherwise empty request snapshot", () => {
+        const log = normalizeStoredLog({
+            ...storedLogWithAssets(1),
+            requestSnapshot: { version: 1, projectId: "drama-one", episodeId: "episode-one", parameters: {}, references: [], slots: [] },
+        });
+
+        expect(log.requestSnapshot).toEqual({ version: 1, projectId: "drama-one", episodeId: "episode-one", parameters: {}, references: [], slots: [] });
+    });
+
     it("preserves long public and execution prompts at the generation contract lengths", () => {
         const publicPrompt = "原".repeat(4000);
         const executionPrompt = "执".repeat(5000);

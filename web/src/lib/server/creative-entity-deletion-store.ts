@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 
 import type { CanvasProject } from "@/lib/canvas-project-contract";
-import { DRAMA_LAB_CANVAS_HANDOFF_PREFIX, isDramaLabCanvasProject } from "@/lib/drama-lab-canvas-contract";
+import { dramaLabCanvasProjectHandoffPrefix, isDramaLabCanvasProject } from "@/lib/drama-lab-canvas-contract";
 import type { DramaProject, DramaProjectVersion } from "@/lib/drama-project-contract";
 import { readJsonDataFile, withJsonDataFileLocks, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { ensurePostgresSchema, getDatabaseProvider, withPostgresTransaction, type QueryExecutor } from "@/lib/server/database";
@@ -91,7 +91,7 @@ async function deletePostgresEntities(client: QueryExecutor, userId: string, sco
           )
         : { rows: [] };
     const archiveConversationId = scope.deleteDramaProjectId ? text(deletedDramaResult.rows[0]?.project_json?.creativeConversationId) : "";
-    const dramaCanvasPrefix = scope.deleteDramaProjectId ? `${DRAMA_LAB_CANVAS_HANDOFF_PREFIX}${scope.deleteDramaProjectId}:episode:` : "";
+    const dramaCanvasPrefix = scope.deleteDramaProjectId ? dramaLabCanvasProjectHandoffPrefix(scope.deleteDramaProjectId) : "";
     const dramaLabClause = scope.excludeDramaLabCanvas ? "\n           AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'" : "";
     const projectResult = await client.query<Record<string, unknown>>(
         `SELECT id, project_json FROM canvas_projects
@@ -101,6 +101,7 @@ async function deletePostgresEntities(client: QueryExecutor, userId: string, sco
         [userId, scope.projectIds, dramaCanvasPrefix],
     );
     const projectIds = projectResult.rows.map((row) => text(row.id)).filter(Boolean);
+    const ownedProjectIds = normalizeIds([...projectIds, scope.deleteDramaProjectId || ""]);
     const linkedConversationIds = projectResult.rows.flatMap((row) => collectProjectConversationIds(row.project_json));
     const assistantProjectResult = scope.assistantProjectId
         ? await client.query<{ project_json: CanvasProject }>(
@@ -132,10 +133,7 @@ async function deletePostgresEntities(client: QueryExecutor, userId: string, sco
         [userId, normalizeIds([...scope.conversationIds, ...linkedConversationIds]), projectIds, linkedConversationIds],
     );
     if (archiveConversationId) {
-        await client.query(
-            "UPDATE creative_conversations SET status = 'archived', updated_at = now() WHERE user_id = $1 AND id = $2",
-            [userId, archiveConversationId],
-        );
+        await client.query("UPDATE creative_conversations SET status = 'archived', updated_at = now() WHERE user_id = $1 AND id = $2", [userId, archiveConversationId]);
     }
     let canvasAssistantState: CreativeEntityDeletionResult["canvasAssistantState"];
     let dramaProject: DramaProject | undefined;
@@ -172,14 +170,17 @@ async function deletePostgresEntities(client: QueryExecutor, userId: string, sco
         [conversationIds],
     );
     const messageRunIds = messageRunResult.rows.map((row) => text(row.run_id)).filter(Boolean);
-    const taskRows = await selectPostgresTasks(client, userId, conversationIds, projectIds, messageRunIds);
+    const taskRows = await selectPostgresTasks(client, userId, conversationIds, ownedProjectIds, messageRunIds);
     const taskIds = taskRows.map((row) => text(row.id)).filter(Boolean);
     const logResult = await client.query<Record<string, unknown>>(
         `SELECT id, request_snapshot FROM generation_logs
-         WHERE user_id = $1
-           AND (conversation_id = ANY($2::text[]) OR task_id = ANY($3::text[]))
-         FOR UPDATE`,
-        [userId, conversationIds, taskIds],
+          WHERE user_id = $1
+            AND (conversation_id = ANY($2::text[]) OR task_id = ANY($3::text[])
+                 OR ($4 <> '' AND (request_snapshot->>'projectId' = $4
+                     OR request_snapshot->>'dramaProjectId' = $4
+                     OR request_snapshot->'context'->>'projectId' = $4)))
+          FOR UPDATE`,
+        [userId, conversationIds, taskIds, scope.deleteDramaProjectId || ""],
     );
     const logIds = logResult.rows.map((row) => text(row.id)).filter(Boolean);
     const assetResult = await client.query<Record<string, unknown>>(
@@ -196,10 +197,10 @@ async function deletePostgresEntities(client: QueryExecutor, userId: string, sco
     );
     const mediaRegistrationResult = await client.query<Record<string, unknown>>(
         `SELECT storage_key FROM local_media_assets
-         WHERE owner_user_id = $1
-           AND (conversation_id = ANY($2::text[]) OR project_id = ANY($3::text[]) OR task_id = ANY($4::text[]))
-         FOR UPDATE`,
-        [userId, conversationIds, projectIds, taskIds],
+          WHERE owner_user_id = $1
+            AND (conversation_id = ANY($2::text[]) OR project_id = ANY($3::text[]) OR task_id = ANY($4::text[]))
+          FOR UPDATE`,
+        [userId, conversationIds, ownedProjectIds, taskIds],
     );
     const mediaStorageKeys = collectDeletionMediaKeys([...projectResult.rows, ...deletedDramaResult.rows, ...deletedDramaVersionsResult.rows, ...taskRows, ...logResult.rows, ...assetResult.rows, ...logAssetResult.rows, ...mediaRegistrationResult.rows]);
     const runIds = normalizeIds([...messageRunIds, ...taskRows.flatMap((row) => [text(row.id), text(row.run_id)])]);
@@ -238,7 +239,7 @@ async function selectPostgresTasks(client: QueryExecutor, userId: string, conver
                   `SELECT id, run_id, parent_task_id, payload, result_payload FROM generation_tasks
                    WHERE user_id = $1
                      AND (conversation_id = ANY($2::text[]) OR project_id = ANY($3::text[]) OR id = ANY($4::text[]) OR run_id = ANY($4::text[]))
-                   FOR UPDATE`,
+                    FOR UPDATE`,
                   [userId, conversationIds, projectIds, rootRunIds],
               );
         parentIds = result.rows.map((row) => text(row.id)).filter((id) => id && !ids.has(id));
@@ -259,17 +260,19 @@ async function deleteFileEntities(userId: string, scope: DeletionScope): Promise
         if (scope.deleteDramaProjectId && !deletedDramaProjectRecord) throw new CreativeEntityDeletionConflict("短剧项目不存在");
         const deletedDramaProjectVersions = scope.deleteDramaProjectId ? before.versions.items.filter((item) => item.userId === userId && item.projectId === scope.deleteDramaProjectId) : [];
         const archiveConversationId = scope.deleteDramaProjectId ? text(deletedDramaProjectRecord?.project.creativeConversationId) : "";
-        const dramaCanvasPrefix = scope.deleteDramaProjectId ? `${DRAMA_LAB_CANVAS_HANDOFF_PREFIX}${scope.deleteDramaProjectId}:episode:` : "";
+        const dramaCanvasPrefix = scope.deleteDramaProjectId ? dramaLabCanvasProjectHandoffPrefix(scope.deleteDramaProjectId) : "";
         const projects = before.canvas.projects.filter(
             (record) =>
                 record.userId === userId &&
-                ((scope.projectIds.includes(record.project.id) && (!scope.excludeDramaLabCanvas || !isDramaLabCanvasProject(record.project))) ||
-                    (dramaCanvasPrefix && record.project.sourceHandoffId?.startsWith(dramaCanvasPrefix))),
+                ((scope.projectIds.includes(record.project.id) && (!scope.excludeDramaLabCanvas || !isDramaLabCanvasProject(record.project))) || (dramaCanvasPrefix && record.project.sourceHandoffId?.startsWith(dramaCanvasPrefix))),
         );
         const projectIds = projects.map((record) => record.project.id);
+        const ownedProjectIds = new Set(normalizeIds([...projectIds, scope.deleteDramaProjectId || ""]));
         const linkedConversationIds = projects.flatMap((record) => collectProjectConversationIds(record.project));
         const requestedConversationIds = new Set([...scope.conversationIds, ...linkedConversationIds]);
-        const assistantProjectRecord = scope.assistantProjectId ? before.canvas.projects.find((record) => record.userId === userId && record.project.id === scope.assistantProjectId && (!scope.excludeDramaLabCanvas || !isDramaLabCanvasProject(record.project))) : undefined;
+        const assistantProjectRecord = scope.assistantProjectId
+            ? before.canvas.projects.find((record) => record.userId === userId && record.project.id === scope.assistantProjectId && (!scope.excludeDramaLabCanvas || !isDramaLabCanvasProject(record.project)))
+            : undefined;
         if (scope.assistantProjectId && !assistantProjectRecord) throw new CreativeEntityDeletionConflict("Agent 对话与当前画布不匹配");
         let assistantProjectUpdate: ReturnType<typeof removeCanvasAssistantConversations> | undefined;
         if (assistantProjectRecord && scope.assistantProjectId) {
@@ -298,14 +301,16 @@ async function deleteFileEntities(userId: string, scope: DeletionScope): Promise
         if (!conversationIds.size && !projectIds.length && !assistantProjectUpdate?.changed && !deletedDramaProjectRecord) return { ...emptyResult(), ...(assistantProjectUpdate ? { canvasAssistantState: assistantProjectUpdate.state } : {}) };
 
         const messageRunIds = new Set(before.runtime.messages.filter((message) => conversationIds.has(message.conversationId) && message.runId).map((message) => message.runId!));
-        const tasks = selectFileTasks(before.tasks, userId, conversationIds, new Set(projectIds), messageRunIds);
+        const tasks = selectFileTasks(before.tasks, userId, conversationIds, ownedProjectIds, messageRunIds);
         const taskIds = new Set(tasks.map((task) => task.id));
-        const logs = before.logs.logs.filter((log) => log.userId === userId && ((Boolean(log.conversationId) && conversationIds.has(log.conversationId!)) || (Boolean(log.taskId) && taskIds.has(log.taskId!))));
+        const logs = before.logs.logs.filter(
+            (log) => log.userId === userId && ((Boolean(log.conversationId) && conversationIds.has(log.conversationId!)) || (Boolean(log.taskId) && taskIds.has(log.taskId!)) || hasProjectOwnership(log, scope.deleteDramaProjectId)),
+        );
         const logIds = new Set(logs.map((log) => log.id));
         const deletedAssets = before.runtime.assets.filter((asset) => asset.userId === userId && conversationIds.has(asset.conversationId));
         const runIds = new Set([...messageRunIds, ...tasks.flatMap((task) => [task.id, task.runId || ""]).filter(Boolean)]);
         const mediaRegistrations = before.media.assets.filter(
-            (asset) => asset.ownerUserId === userId && ((asset.conversationId && conversationIds.has(asset.conversationId)) || (asset.projectId && projectIds.includes(asset.projectId)) || (asset.taskId && taskIds.has(asset.taskId))),
+            (asset) => asset.ownerUserId === userId && ((asset.conversationId && conversationIds.has(asset.conversationId)) || (asset.projectId && ownedProjectIds.has(asset.projectId)) || (asset.taskId && taskIds.has(asset.taskId))),
         );
         const mediaStorageKeys = collectDeletionMediaKeys([...projects, ...(deletedDramaProjectRecord ? [deletedDramaProjectRecord] : []), ...deletedDramaProjectVersions, ...deletedAssets, ...logs, ...tasks, ...mediaRegistrations]);
 
@@ -315,9 +320,7 @@ async function deleteFileEntities(userId: string, scope: DeletionScope): Promise
                 conversations: before.runtime.conversations
                     .filter((conversation) => !conversationIds.has(conversation.id))
                     .map((conversation) =>
-                        archiveConversationId && conversation.userId === userId && conversation.id === archiveConversationId
-                            ? { ...conversation, status: "archived" as const, updatedAt: nextConversationUpdatedAt(conversation.updatedAt) }
-                            : conversation,
+                        archiveConversationId && conversation.userId === userId && conversation.id === archiveConversationId ? { ...conversation, status: "archived" as const, updatedAt: nextConversationUpdatedAt(conversation.updatedAt) } : conversation,
                     ),
                 messages: before.runtime.messages.filter((message) => !conversationIds.has(message.conversationId)),
                 assets: before.runtime.assets.filter((asset) => !conversationIds.has(asset.conversationId)),
@@ -469,6 +472,14 @@ function collectDeletionMediaKeys(values: unknown[]) {
 function collectProjectConversationIds(value: unknown) {
     const source = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
     return normalizeIds([text(source.creativeConversationId), text(source.creative_conversation_id)]);
+}
+
+function hasProjectOwnership(value: unknown, projectId: string | undefined) {
+    if (!projectId || !value || typeof value !== "object") return false;
+    const source = value as Record<string, unknown>;
+    const snapshot = source.requestSnapshot && typeof source.requestSnapshot === "object" ? (source.requestSnapshot as Record<string, unknown>) : {};
+    const context = snapshot.context && typeof snapshot.context === "object" ? (snapshot.context as Record<string, unknown>) : {};
+    return [source.projectId, source.dramaProjectId, snapshot.projectId, snapshot.dramaProjectId, context.projectId].some((candidate) => text(candidate) === projectId);
 }
 
 function normalizeIds(values: string[]) {

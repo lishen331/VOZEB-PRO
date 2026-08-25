@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-08-25。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **268** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-08-26。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **272** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,9 +23,9 @@
 
 ## 接口总览
 
-- Route 文件：**268**
-- 方法出现次数：DELETE 36、GET 153、HEAD 6、PATCH 44、POST 141、PUT 7
-- 一级域：`admin` 91、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 22、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**272**
+- 方法出现次数：DELETE 38、GET 155、HEAD 6、PATCH 45、POST 143、PUT 7
+- 一级域：`admin` 91、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 14、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 22、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
@@ -42,9 +42,9 @@
 | GET | `/api/admin/audit-logs` | 管理员 | [route.ts](web/src/app/api/admin/audit-logs/route.ts) | [admin-permissions](web/src/lib/admin-permissions.ts)<br>[session](web/src/lib/auth/session.ts)<br>[audit-log-store](web/src/lib/server/audit-log-store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 审计日志：查询 |
 | POST | `/api/admin/backup` | 管理员 | [route.ts](web/src/app/api/admin/backup/route.ts) | [admin-backup-store](web/src/lib/server/admin-backup-store.ts)<br>[admin-backup-policy](web/src/lib/server/admin-backup-policy.ts)<br>[data-adapter](web/src/lib/server/data-adapter.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 业务备份：提交/执行 |
 | POST | `/api/admin/backup/export` | 管理员 | [route.ts](web/src/app/api/admin/backup/export/route.ts) | [admin-backup-store](web/src/lib/server/admin-backup-store.ts)<br>[admin-backup-policy](web/src/lib/server/admin-backup-policy.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 业务备份 / 导出：提交/执行 |
-| POST | `/api/admin/billing/coupons/grant` | 管理员 | [route.ts](web/src/app/api/admin/billing/coupons/grant/route.ts) | [coupon-service](web/src/lib/server/coupon-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 优惠券 / 发放：提交/执行 |
 | GET, POST | `/api/admin/billing/coupon-templates` | 管理员 | [route.ts](web/src/app/api/admin/billing/coupon-templates/route.ts) | [coupon-service](web/src/lib/server/coupon-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 优惠券模板：查询、提交/执行 |
 | DELETE, PATCH | `/api/admin/billing/coupon-templates/[id]` | 管理员 | [route.ts](web/src/app/api/admin/billing/coupon-templates/[id]/route.ts) | [coupon-service](web/src/lib/server/coupon-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 优惠券模板 / 单项：更新、删除 |
+| POST | `/api/admin/billing/coupons/grant` | 管理员 | [route.ts](web/src/app/api/admin/billing/coupons/grant/route.ts) | [coupon-service](web/src/lib/server/coupon-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 优惠券 / 发放：提交/执行 |
 | GET | `/api/admin/billing/orders` | 管理员 | [route.ts](web/src/app/api/admin/billing/orders/route.ts) | [billing-service](web/src/lib/server/billing-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 订单：查询 |
 | POST | `/api/admin/billing/orders/[id]/close` | 管理员 | [route.ts](web/src/app/api/admin/billing/orders/[id]/close/route.ts) | [billing-service](web/src/lib/server/billing-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 订单 / 单项 / 关闭：提交/执行 |
 | POST | `/api/admin/billing/orders/[id]/complete` | 管理员 | [route.ts](web/src/app/api/admin/billing/orders/[id]/complete/route.ts) | [billing-service](web/src/lib/server/billing-service.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 计费 / 订单 / 单项 / 完成：提交/执行 |
@@ -248,16 +248,20 @@
 | GET, POST | `/api/drama/projects/[id]/versions` | 用户 | [route.ts](web/src/app/api/drama/projects/[id]/versions/route.ts) | [drama-project-service](web/src/lib/server/drama-project-service.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 项目 / 单项 / 版本：查询、提交/执行 |
 | POST | `/api/drama/projects/[id]/versions/[versionId]` | 用户 | [route.ts](web/src/app/api/drama/projects/[id]/versions/[versionId]/route.ts) | [drama-project-service](web/src/lib/server/drama-project-service.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 项目 / 单项 / 版本 / 指定版本：提交/执行 |
 | POST | `/api/drama/render` | 用户 | [route.ts](web/src/app/api/drama/render/route.ts) | [creative-runtime-service](web/src/lib/server/creative-runtime-service.ts)<br>[drama-render-store](web/src/lib/server/drama-render-store.ts)<br>[generation-task-store](web/src/lib/server/generation-task-store.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 渲染：提交/执行 |
-| GET, PATCH | `/api/drama/render/[id]` | 用户 | [route.ts](web/src/app/api/drama/render/[id]/route.ts) | [drama-render-store](web/src/lib/server/drama-render-store.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 渲染 / 单项：查询、更新 |
 | GET | `/api/drama/render-capability` | 用户 | [route.ts](web/src/app/api/drama/render-capability/route.ts) | [ffmpeg](web/src/lib/server/ffmpeg.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 渲染能力：查询 |
+| GET, PATCH | `/api/drama/render/[id]` | 用户 | [route.ts](web/src/app/api/drama/render/[id]/route.ts) | [drama-render-store](web/src/lib/server/drama-render-store.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 渲染 / 单项：查询、更新 |
 | POST | `/api/drama/review` | 用户 | [route.ts](web/src/app/api/drama/review/route.ts) | [creative-review-service](web/src/lib/server/creative-review-service.ts)<br>[drama-visual-review](web/src/lib/server/drama-visual-review.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 审核：提交/执行 |
 
-### `drama-lab`（10）
+### `drama-lab`（14）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
+| DELETE, GET, POST | `/api/drama-lab/canvas-projects` | 混合 | [route.ts](web/src/app/api/drama-lab/canvas-projects/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts) | PostgreSQL、创作数据 | drama-lab / canvas-projects：查询、删除、提交/执行 |
+| GET, PATCH | `/api/drama-lab/canvas-projects/[id]` | 用户 | [route.ts](web/src/app/api/drama-lab/canvas-projects/[id]/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts) | PostgreSQL、创作数据 | drama-lab / canvas-projects / 单项：查询、更新 |
+| DELETE | `/api/drama-lab/canvas-projects/[id]/assistant-conversations` | 混合 | [route.ts](web/src/app/api/drama-lab/canvas-projects/[id]/assistant-conversations/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts) | PostgreSQL、创作数据 | drama-lab / canvas-projects / 单项 / 助手对话：删除 |
 | GET, POST | `/api/drama-lab/projects` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/route.ts) | [drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[drama-project-contract](web/src/lib/drama-project-contract.ts) | PostgreSQL | drama-lab / 项目：查询、提交/执行 |
-| DELETE, GET, PUT | `/api/drama-lab/projects/[id]` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/route.ts) | [drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL | drama-lab / 项目 / 单项：查询、删除、替换 |
+| DELETE, GET, PUT | `/api/drama-lab/projects/[id]` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/route.ts) | [drama-project-service](web/src/lib/server/drama-project-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL | drama-lab / 项目 / 单项：查询、删除、替换 |
+| POST | `/api/drama-lab/projects/[id]/episode-canvas` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/episode-canvas/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts)<br>[drama-lab-episode-canvas-service](web/src/lib/server/drama-lab-episode-canvas-service.ts) | PostgreSQL、创作数据 | drama-lab / 项目 / 单项 / episode-canvas：提交/执行 |
 | POST | `/api/drama-lab/projects/[id]/export-jianying` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/export-jianying/route.ts) | [drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[drama-jianying-export](web/src/lib/server/drama-jianying-export.ts) | PostgreSQL | drama-lab / 项目 / 单项 / 剪映导出：提交/执行 |
 | POST | `/api/drama-lab/projects/[id]/extract-assets` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/extract-assets/route.ts) | [drama-lab-asset-extraction-service](web/src/lib/server/drama-lab-asset-extraction-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL | drama-lab / 项目 / 单项 / extract-assets：提交/执行 |
 | POST | `/api/drama-lab/projects/[id]/extract-storyboards` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/extract-storyboards/route.ts) | [drama-lab-storyboard-extraction-service](web/src/lib/server/drama-lab-storyboard-extraction-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts)<br>[drama-project-contract](web/src/lib/drama-project-contract.ts) | PostgreSQL | drama-lab / 项目 / 单项 / extract-storyboards：提交/执行 |

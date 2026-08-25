@@ -88,6 +88,8 @@ describe("drama lab storyboard extraction", () => {
             expect.objectContaining({
                 id: "drama-lab-storyboard:project-one:episode-one:request-one",
                 userId: "user-one",
+                projectId: "project-one",
+                episodeId: "episode-one",
                 status: "success",
                 model: "writer",
             }),

@@ -505,12 +505,14 @@ export function normalizeStoredLog(log: Partial<StoredGenerationLog>): StoredGen
 export function normalizeGenerationLogRequestSnapshot(value: unknown): GenerationLogRequestSnapshot | undefined {
     const source = jsonObject(value);
     if (!source || Number(source.version) !== 1) return undefined;
+    const projectId = normalizeOptionalText(source.projectId, undefined, 500);
+    const episodeId = normalizeOptionalText(source.episodeId, undefined, 500);
     const userPrompt = normalizeOptionalText(source.userPrompt, undefined, 4000);
     const parameters = normalizeSnapshotParameters(source.parameters);
     const references = Array.isArray(source.references) ? source.references.flatMap(normalizeSnapshotReference) : [];
     const slots = Array.isArray(source.slots) ? source.slots.flatMap(normalizeSnapshotSlot) : [];
-    if (!userPrompt && !Object.keys(parameters).length && !references.length && !slots.length) return undefined;
-    return { version: 1, ...(userPrompt ? { userPrompt } : {}), parameters, references, slots };
+    if (!projectId && !episodeId && !userPrompt && !Object.keys(parameters).length && !references.length && !slots.length) return undefined;
+    return { version: 1, ...(projectId ? { projectId } : {}), ...(episodeId ? { episodeId } : {}), ...(userPrompt ? { userPrompt } : {}), parameters, references, slots };
 }
 
 function normalizeSnapshotParameters(value: unknown): GenerationLogSnapshotParameters {

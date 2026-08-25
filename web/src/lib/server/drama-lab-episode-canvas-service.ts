@@ -2,7 +2,7 @@ import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type Canvas
 import type { CanvasProject } from "@/lib/canvas-project-contract";
 import { dramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract";
 import type { DramaEpisode, DramaNamedAsset, DramaProject, DramaShot } from "@/lib/drama-project-contract";
-import { createDramaLabCanvasProjectForUser } from "@/lib/server/canvas-project-service";
+import { createDramaLabCanvasProjectForUser, deleteDramaLabEpisodeCanvasForUser } from "@/lib/server/canvas-project-service";
 import { getCanvasProject, updateCanvasProject } from "@/lib/server/canvas-project-store";
 import { getDramaProject } from "@/lib/server/drama-project-store";
 
@@ -64,6 +64,11 @@ export async function getOrCreateDramaLabEpisodeCanvasForUser(userIdValue: strin
             viewport: requestedViewport,
         },
     });
+    const latestProject = await getDramaProject(project.id, userId);
+    if (!latestProject || !latestProject.episodes.some((item) => item.id === episode.id)) {
+        await deleteDramaLabEpisodeCanvasForUser(userId, project.id, episode.id);
+        throw new DramaLabEpisodeCanvasServiceError("剧集不存在或已被删除，请刷新后重试", 404);
+    }
     const mergeInput = { prefix: `dl:${project.id}:episode:${episode.id}`, title, requestedViewport, locateShot: shotIndex >= 0 };
     const syncedProject = mergeEpisodeProjection(canvasProject, projection, mergeInput);
     const savedProject = await persistEpisodeProjectionWithRetry(userId, canvasProject, syncedProject, projection, mergeInput);
@@ -73,13 +78,7 @@ export async function getOrCreateDramaLabEpisodeCanvasForUser(userIdValue: strin
     };
 }
 
-async function persistEpisodeProjectionWithRetry(
-    userId: string,
-    current: CanvasProject,
-    merged: CanvasProject,
-    projection: ReturnType<typeof projectEpisodeToCanvas>,
-    input: Parameters<typeof mergeEpisodeProjection>[2],
-) {
+async function persistEpisodeProjectionWithRetry(userId: string, current: CanvasProject, merged: CanvasProject, projection: ReturnType<typeof projectEpisodeToCanvas>, input: Parameters<typeof mergeEpisodeProjection>[2]) {
     if (merged === current) return current;
     try {
         return await updateCanvasProject(userId, merged, current.updatedAt);
@@ -143,11 +142,7 @@ export function projectEpisodeToCanvas(project: DramaProject, episode: DramaEpis
     return { nodes, connections, viewport: { x: 120, y: 120, k: 0.72 } };
 }
 
-export function mergeEpisodeProjection(
-    current: CanvasProject,
-    projection: ReturnType<typeof projectEpisodeToCanvas>,
-    input: { prefix: string; title: string; requestedViewport: CanvasProject["viewport"]; locateShot: boolean },
-): CanvasProject {
+export function mergeEpisodeProjection(current: CanvasProject, projection: ReturnType<typeof projectEpisodeToCanvas>, input: { prefix: string; title: string; requestedViewport: CanvasProject["viewport"]; locateShot: boolean }): CanvasProject {
     const currentById = new Map(current.nodes.map((node) => [node.id, node]));
     const projectedNodes = projection.nodes.map((node) => {
         const existing = currentById.get(node.id);
@@ -158,9 +153,7 @@ export function mergeEpisodeProjection(
     const nodes = [...projectedNodes, ...freeNodes];
     const nodeIds = new Set(nodes.map((node) => node.id));
     const projectedEdges = new Set(projection.connections.map((edge) => edge.id));
-    const freeConnections = current.connections.filter(
-        (edge) => !isProjectionConnection(edge, input.prefix, currentProjectionNodeIds) && !projectedEdges.has(edge.id) && nodeIds.has(edge.fromNodeId) && nodeIds.has(edge.toNodeId),
-    );
+    const freeConnections = current.connections.filter((edge) => !isProjectionConnection(edge, input.prefix, currentProjectionNodeIds) && !projectedEdges.has(edge.id) && nodeIds.has(edge.fromNodeId) && nodeIds.has(edge.toNodeId));
     const connections = [...projection.connections, ...freeConnections];
     const viewport = input.locateShot ? input.requestedViewport : current.viewport;
     const changed = current.title !== input.title || !sameJson(current.nodes, nodes) || !sameJson(current.connections, connections) || !sameJson(current.viewport, viewport);
@@ -323,7 +316,8 @@ function shotViewport(index: number): CanvasProject["viewport"] {
 
 function isProjectionNode(node: CanvasNodeData, prefix: string) {
     const metadata = node.metadata as Partial<DramaLabCanvasMetadata> | undefined;
-    if (!(node.id === `${prefix}:episode` || node.id === `${prefix}:script` || node.id.startsWith(`${prefix}:character:`) || node.id.startsWith(`${prefix}:scene:`) || node.id.startsWith(`${prefix}:prop:`) || node.id.startsWith(`${prefix}:shot:`))) return false;
+    if (!(node.id === `${prefix}:episode` || node.id === `${prefix}:script` || node.id.startsWith(`${prefix}:character:`) || node.id.startsWith(`${prefix}:scene:`) || node.id.startsWith(`${prefix}:prop:`) || node.id.startsWith(`${prefix}:shot:`)))
+        return false;
     return Boolean(metadata?.projectionOwned === true || (metadata?.dramaProjectId && metadata.episodeId && metadata.sourceEntityType && metadata.sourceEntityId));
 }
 

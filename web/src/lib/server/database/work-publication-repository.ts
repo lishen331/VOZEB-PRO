@@ -375,11 +375,11 @@ export class WorkPublicationRepository {
         const keyword = input.keyword?.trim().toLowerCase() || "";
         const table = input.sourceType === "media" ? "library_assets" : input.sourceType === "canvas" ? "canvas_projects" : "drama_projects";
         const kindProjection = input.sourceType === "media" ? "kind" : "NULL::text AS kind";
-        const mediaFilter = input.sourceType === "media" ? "AND kind IN ('image', 'video')" : "";
+        const sourceFilter = input.sourceType === "media" ? "AND kind IN ('image', 'video')" : input.sourceType === "canvas" ? "AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'" : "";
         const result = await this.db.query(
             `SELECT id, title, ${kindProjection}, updated_at, count(*) OVER() AS total_count
              FROM ${table}
-             WHERE user_id = $1 ${mediaFilter}
+             WHERE user_id = $1 ${sourceFilter}
                AND ($2 = '' OR position($2 in lower(title)) > 0)
              ORDER BY updated_at DESC, id DESC
              LIMIT $3 OFFSET $4`,
@@ -401,7 +401,8 @@ export class WorkPublicationRepository {
     async getSourceJson(userId: string, sourceType: PublishedWorkSourceType, sourceId: string): Promise<{ title: string; value: JsonValue } | null> {
         const table = sourceType === "media" ? "library_assets" : sourceType === "canvas" ? "canvas_projects" : "drama_projects";
         const jsonColumn = sourceType === "media" ? "asset_json" : "project_json";
-        const result = await this.db.query(`SELECT title, ${jsonColumn} AS source_json FROM ${table} WHERE id = $1 AND user_id = $2`, [sourceId, userId]);
+        const sourceFilter = sourceType === "canvas" ? " AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'" : "";
+        const result = await this.db.query(`SELECT title, ${jsonColumn} AS source_json FROM ${table} WHERE id = $1 AND user_id = $2${sourceFilter}`, [sourceId, userId]);
         return result.rows[0] ? { title: String(result.rows[0].title || ""), value: (result.rows[0].source_json || {}) as JsonValue } : null;
     }
 }

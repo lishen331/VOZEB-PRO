@@ -62,7 +62,18 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
                     shot.characterIds.map((id) => input.project.characters.find((asset) => asset.id === id)?.name || "").filter(Boolean),
                     input.project.characters.map((asset) => asset.name),
                 );
-                await recordDramaLabTextGenerationLog({ id: logId, userId: input.userId, title: `${input.frameType} 帧提示词规划`, prompt: userPrompt, model, status: "success", durationMs: call.elapsedMs, createdAt: startedAt });
+                await recordDramaLabTextGenerationLog({
+                    id: logId,
+                    userId: input.userId,
+                    projectId: input.project.id,
+                    episodeId: input.episodeId,
+                    title: `${input.frameType} 帧提示词规划`,
+                    prompt: userPrompt,
+                    model,
+                    status: "success",
+                    durationMs: call.elapsedMs,
+                    createdAt: startedAt,
+                });
                 return { ...sanitized, description: parsed.description, templateKey: template.key, references, model, shot };
             } catch (error) {
                 await refundInvalidFrameResponse(input.userId, model, call.headers);
@@ -75,6 +86,8 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
     await recordDramaLabTextGenerationLog({
         id: logId,
         userId: input.userId,
+        projectId: input.project.id,
+        episodeId: input.episodeId,
         title: `${input.frameType} 帧提示词规划`,
         prompt: userPrompt,
         model,

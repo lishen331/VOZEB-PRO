@@ -51,6 +51,8 @@ describe("drama lab script generation", () => {
             expect.objectContaining({
                 id: "drama-lab-script:project-one:episode-one:request-one",
                 userId: "user-one",
+                projectId: "project-one",
+                episodeId: "episode-one",
                 status: "success",
                 model: "writer",
             }),

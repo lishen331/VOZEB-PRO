@@ -56,6 +56,8 @@ export async function generateDramaLabScript(input: { userId: string; origin: st
                 await recordDramaLabTextGenerationLog({
                     id: logId,
                     userId: input.userId,
+                    projectId: input.projectId,
+                    episodeId: input.episodeId,
                     title: "剧本生成",
                     prompt: context,
                     model,
@@ -75,6 +77,8 @@ export async function generateDramaLabScript(input: { userId: string; origin: st
     await recordDramaLabTextGenerationLog({
         id: logId,
         userId: input.userId,
+        projectId: input.projectId,
+        episodeId: input.episodeId,
         title: "剧本生成",
         prompt: context,
         model,

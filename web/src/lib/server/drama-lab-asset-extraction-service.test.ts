@@ -77,6 +77,8 @@ describe("drama lab asset extraction", () => {
             expect.objectContaining({
                 id: "drama-lab-extract:project-one:episode-one:character:request-one",
                 userId: "user-one",
+                projectId: "project-one",
+                episodeId: "episode-one",
                 status: "success",
                 model: "writer",
             }),

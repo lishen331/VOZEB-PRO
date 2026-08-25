@@ -4,12 +4,16 @@ import type { DramaProject } from "@/lib/drama-project-contract";
 const mocks = vi.hoisted(() => ({
     getDramaProject: vi.fn(),
     createDramaLabCanvasProjectForUser: vi.fn(),
+    deleteDramaLabEpisodeCanvasForUser: vi.fn(),
     getCanvasProject: vi.fn(),
     updateCanvasProject: vi.fn(),
 }));
 
 vi.mock("@/lib/server/drama-project-store", () => ({ getDramaProject: mocks.getDramaProject }));
-vi.mock("@/lib/server/canvas-project-service", () => ({ createDramaLabCanvasProjectForUser: mocks.createDramaLabCanvasProjectForUser }));
+vi.mock("@/lib/server/canvas-project-service", () => ({
+    createDramaLabCanvasProjectForUser: mocks.createDramaLabCanvasProjectForUser,
+    deleteDramaLabEpisodeCanvasForUser: mocks.deleteDramaLabEpisodeCanvasForUser,
+}));
 vi.mock("@/lib/server/canvas-project-store", () => ({ getCanvasProject: mocks.getCanvasProject, updateCanvasProject: mocks.updateCanvasProject }));
 
 import { dramaLabEpisodeCanvasSourceHandoffId, getOrCreateDramaLabEpisodeCanvasForUser, projectEpisodeToCanvas } from "./drama-lab-episode-canvas-service";
@@ -90,6 +94,18 @@ describe("drama lab episode canvas service", () => {
         expect(mocks.createDramaLabCanvasProjectForUser).not.toHaveBeenCalled();
     });
 
+    it("removes a canvas created from a stale episode snapshot", async () => {
+        const current = projectFixture();
+        let reads = 0;
+        mocks.getDramaProject.mockImplementation(async () => (++reads === 1 ? current : { ...current, episodes: [] }));
+        mocks.deleteDramaLabEpisodeCanvasForUser.mockResolvedValue(true);
+
+        await expect(getOrCreateDramaLabEpisodeCanvasForUser("user-one", "drama-one", "episode-one")).rejects.toMatchObject({ status: 404 });
+
+        expect(mocks.deleteDramaLabEpisodeCanvasForUser).toHaveBeenCalledWith("user-one", "drama-one", "episode-one");
+        expect(mocks.updateCanvasProject).not.toHaveBeenCalled();
+    });
+
     it("uses the exact project and episode handoff key", () => {
         expect(dramaLabEpisodeCanvasSourceHandoffId("drama-one", "episode-one")).toBe("drama-lab-canvas:drama-one:episode:episode-one");
     });
@@ -146,11 +162,7 @@ describe("drama lab episode canvas service", () => {
         expect(mocks.updateCanvasProject).toHaveBeenCalledTimes(1);
         const saved = mocks.updateCanvasProject.mock.calls[0][1];
         expect(saved.nodes).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({ id: "free-note" }),
-                expect.objectContaining({ id: `${prefix}:custom:note` }),
-                expect.objectContaining({ id: `${prefix}:script`, position: { x: 777, y: 888 }, width: 500, height: 360 }),
-            ]),
+            expect.arrayContaining([expect.objectContaining({ id: "free-note" }), expect.objectContaining({ id: `${prefix}:custom:note` }), expect.objectContaining({ id: `${prefix}:script`, position: { x: 777, y: 888 }, width: 500, height: 360 })]),
         );
         expect(saved.nodes.some((node: { id: string }) => node.id === `${prefix}:shot:deleted`)).toBe(false);
         expect(saved.connections).toContainEqual({ id: "free-edge", fromNodeId: "free-note", toNodeId: `${prefix}:script` });
@@ -182,12 +194,7 @@ describe("drama lab episode canvas service", () => {
         const projection = projectEpisodeToCanvas(fixture, fixture.episodes[0]);
         const ids = projection.nodes.map((node) => node.id);
         expect(ids).toEqual(
-            expect.arrayContaining([
-                expect.stringMatching(/:shot:shot-one:image$/),
-                expect.stringMatching(/:shot:shot-one:frame:first$/),
-                expect.stringMatching(/:shot:shot-one:frame:key$/),
-                expect.stringMatching(/:shot:shot-one:frame:last$/),
-            ]),
+            expect.arrayContaining([expect.stringMatching(/:shot:shot-one:image$/), expect.stringMatching(/:shot:shot-one:frame:first$/), expect.stringMatching(/:shot:shot-one:frame:key$/), expect.stringMatching(/:shot:shot-one:frame:last$/)]),
         );
     });
 

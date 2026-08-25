@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-08-25，`main` 分支。当前源码包含 48 个 `page.tsx` 页面入口、268 个 API Route 文件和 105 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-08-26，`main` 分支。当前源码包含 50 个 `page.tsx` 页面入口、272 个 API Route 文件和 105 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -277,8 +277,8 @@ Schema 初始化在 [schema.ts](web/src/lib/server/database/schema.ts)、[schema
 | 认证与账户 | 登录、注册、Profile | `/api/auth` | `lib/auth`、Profile/Deletion Service | 用户、Session、SMTP | 注册登录、Cookie、并发修改 |
 | 创建工作台 | `/create` | `/api/create`、`/api/agent` | Agent Executor、Creative Runtime | 生成任务、模型上游 | Agent run、事件流、重试 |
 | 图像/视频/音频/文本 | `/image`、`/video` | `/*-tasks`、`/video-generation-tasks` | 各类型 config/runtime/store/refund | 积分、Worker、模型、媒体 | 创建、轮询、取消、退款 |
-| Canvas | `/canvas` | `/api/canvas` | Canvas Project Service/Store | `canvas_projects` | CRUD、所有权 |
-| 短剧 | `/drama` | `/api/drama` | Drama Project、Analysis、Render、Jianying | FFmpeg、生成任务、项目 JSON | 分析、版本、渲染、导出 |
+| Canvas | `/canvas` | `/api/canvas` | Canvas Project Service/Store | `canvas_projects` | 普通画布 CRUD、所有权、短剧专属画布隔离 |
+| 短剧 | `/drama`、`/drama-lab`、`/drama-canvas/[id]` | `/api/drama`、`/api/drama-lab` | Drama Project、Episode Canvas、Analysis、Render、Jianying | `drama_projects`、按集隔离的 `canvas_projects`、FFmpeg、生成任务 | 分析、版本、一集一画布、剧集切换、渲染、导出 |
 | 素材与媒体 | `/assets` | `/api/library-assets`、`/api/reference-assets`、`/api/media-*` | Library/Reference/Media Service | 本地卷、对象存储 | 上传、读取、删除引用保护 |
 | 提示词 | `/prompts`、`/my-prompts` | `/api/prompts`、`/api/my-prompts` | Auth Store/Prompt 数据 | PostgreSQL | 公开筛选、用户 CRUD |
 | 作品与社区 | `/works`、`/gallery`、分享页 | `/api/works`、`/api/public`、`/api/community` | Publication/Governance/Community | 作品版本、互动、媒体授权 | 发布、审核、互动、匿名读取 |
