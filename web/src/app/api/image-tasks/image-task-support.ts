@@ -112,7 +112,11 @@ export function textOrEmpty(value: unknown) {
 }
 
 export async function preferredImageResponseFormat(config: ImageTaskConfig): Promise<(typeof IMAGE_RESPONSE_FORMATS)[number]> {
-    return "url";
+    // New API image gateways commonly place URL results on a separate CDN that
+    // is not reachable from the application server. Prefer the inline response
+    // already declared by the protocol so result persistence does not depend on
+    // that CDN being available.
+    return config.advancedConfig?.protocol === "newapi" ? "b64_json" : "url";
 }
 
 export async function openAiImageTaskPath(config: ImageTaskConfig, kind: ImageTask["kind"]) {

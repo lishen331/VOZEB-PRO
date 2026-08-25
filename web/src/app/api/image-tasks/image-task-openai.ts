@@ -143,7 +143,7 @@ export async function runOpenAiImageTask(task: ImageTask, origin: string, public
     if (task.kind === "edit") {
         let formData: FormData;
         try {
-            formData = await buildImageEditFormData(task, quality, requestSize, origin, cookie, "url", allowProtocolFallback);
+            formData = await buildImageEditFormData(task, quality, requestSize, origin, cookie, responseFormat, allowProtocolFallback || responseFormat !== "url");
         } catch (error) {
             throw new GenerationSubmissionSafeFailure(error instanceof Error ? error.message : "参考图读取失败，请重新上传参考图");
         }
@@ -166,7 +166,7 @@ export async function runOpenAiImageTask(task: ImageTask, origin: string, public
                 ...(config.outputMode === "layers" ? {} : { n: 1 }),
                 ...(quality ? { quality } : {}),
                 ...(requestSize ? { size: requestSize } : {}),
-                ...(allowProtocolFallback ? { response_format: responseFormat, output_format: IMAGE_OUTPUT_FORMAT } : {}),
+                ...(allowProtocolFallback || responseFormat !== "url" ? { response_format: responseFormat, output_format: IMAGE_OUTPUT_FORMAT } : {}),
             }),
             cache: "no-store",
         });
