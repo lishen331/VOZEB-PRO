@@ -3,6 +3,7 @@ import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasAnyAdminPermission } from "@/lib/admin-permissions";
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery } from "@/lib/server/database";
+import { databaseNotConfiguredResponse } from "../_lib";
 
 export async function GET() {
     const user = await getCurrentUser();
@@ -30,7 +31,7 @@ export async function GET() {
             });
         }
 
-        return NextResponse.json({ code: 500, msg: "Database not configured" }, { status: 500 });
+        return databaseNotConfiguredResponse();
     } catch (error) {
         console.error("Failed to fetch AI configs:", error);
         return NextResponse.json({ code: 500, msg: "Internal Server Error" }, { status: 500 });
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        return NextResponse.json({ code: 500, msg: "Database not configured" }, { status: 500 });
+        return databaseNotConfiguredResponse();
     } catch (error) {
         console.error("Failed to create AI config:", error);
         return NextResponse.json({ code: 500, msg: "Internal Server Error" }, { status: 500 });
