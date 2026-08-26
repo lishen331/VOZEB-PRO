@@ -18,9 +18,14 @@ describe("admin courses section", () => {
         expect(source).toContain("Form.List");
         expect(source).toContain("md:hidden");
         expect(source).toContain("hidden md:block");
-        expect(source).toContain('size="min(720px, 100vw)"');
-        expect(source).toContain("afterOpenChange");
-        expect(source).not.toContain('<Drawer\n                title={editing ? "编辑课程" : "创建课程"}\n                open={editorOpen}\n                destroyOnHidden\n                width=');
+        expect(source).toContain('width="min(920px, calc(100vw - 24px))"');
+        expect(source).toContain("coursesApi.uploadPlatformCourseAttachment");
+        expect(source).toContain("if (!committed && uploadedKeys.length)");
+        expect(source).toContain("COURSE_ATTACHMENT_ACCEPT");
+        expect(source).toContain("multiple");
+        expect(source).not.toContain("Drawer");
+        expect(source).not.toContain('type: "url"');
+        expect(source).not.toContain('placeholder="https://"');
         expect(source).toContain('course.status === "draft"');
         expect(source).not.toContain("typeof window");
         expect(source).not.toContain("forceRender");

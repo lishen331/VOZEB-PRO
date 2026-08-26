@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-08-25。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **268** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-08-26。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **269** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**268**
-- 方法出现次数：DELETE 36、GET 153、HEAD 6、PATCH 44、POST 141、PUT 7
-- 一级域：`admin` 91、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 22、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**269**
+- 方法出现次数：DELETE 37、GET 153、HEAD 6、PATCH 44、POST 141、PUT 8
+- 一级域：`admin` 92、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 22、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（91）
+### `admin`（92）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -62,6 +62,7 @@
 | GET, POST | `/api/admin/commercial-orders` | 管理员 | [route.ts](web/src/app/api/admin/commercial-orders/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / commercial-orders：查询、提交/执行 |
 | GET, PATCH | `/api/admin/commercial-orders/[id]` | 管理员 | [route.ts](web/src/app/api/admin/commercial-orders/[id]/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / commercial-orders / 单项：查询、更新 |
 | POST | `/api/admin/commercial-orders/[id]/review` | 管理员 | [route.ts](web/src/app/api/admin/commercial-orders/[id]/review/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / commercial-orders / 单项 / 审核：提交/执行 |
+| DELETE, PUT | `/api/admin/course-attachments` | 管理员 | [route.ts](web/src/app/api/admin/course-attachments/route.ts) | [course-attachment-service](web/src/lib/server/course-attachment-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-attachments：删除、替换 |
 | GET, POST | `/api/admin/courses` | 管理员 | [route.ts](web/src/app/api/admin/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses：查询、提交/执行 |
 | GET, PATCH | `/api/admin/courses/[id]` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项：查询、更新 |
 | POST | `/api/admin/courses/[id]/schools` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/schools/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项 / schools：提交/执行 |

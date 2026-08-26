@@ -40,4 +40,14 @@ describe("courses api", () => {
         expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/teaching/assignments/task-a/submissions?page=1", expect.objectContaining({ signal: controller.signal }));
         expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/teaching/submissions?page=1", expect.objectContaining({ signal: controller.signal }));
     });
+
+    it("uploads a local course attachment as the raw file body", async () => {
+        const attachment = { title: "课程案例.zip", fileName: "课程案例.zip", url: "/api/reference-assets/permanent/file.zip", storageKey: "permanent/file.zip", mimeType: "application/zip", bytes: 4 };
+        const fetchMock = vi.fn(async () => Response.json({ code: 0, data: attachment, msg: "ok" }));
+        vi.stubGlobal("fetch", fetchMock);
+        const file = new File(["file"], "课程案例.zip", { type: "application/zip" });
+
+        await expect(coursesApi.uploadPlatformCourseAttachment(file)).resolves.toEqual(attachment);
+        expect(fetchMock).toHaveBeenCalledWith("/api/admin/course-attachments", expect.objectContaining({ method: "PUT", body: file, headers: { "Content-Type": "application/zip", "X-File-Name": encodeURIComponent(file.name) } }));
+    });
 });

@@ -30,6 +30,45 @@ type ApiFailure = { path: string; status: number; body: string };
 
 test.use({ actionTimeout: 15_000 });
 
+test("admin creates a course in a modal with local attachments", async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
+    const title = `本地附件课程 ${testInfo.project.name} ${randomUUID().slice(0, 8)}`;
+    const errors = watchPageErrors(page);
+    try {
+        await page.goto("/admin?section=courses", { waitUntil: "domcontentloaded" });
+        await expect(page.locator("[data-hydrated='true']")).toBeVisible();
+        await page.getByRole("button", { name: "创建课程", exact: true }).click();
+        const editor = page.getByRole("dialog", { name: "创建课程", exact: true });
+        await expect(editor).toBeVisible();
+        await expect(page.locator(".ant-drawer")).toHaveCount(0);
+        await fillField(editor.getByLabel("课程标题"), title);
+        await editor.locator('input[type="file"]').setInputFiles([
+            { name: "课程案例.zip", mimeType: "application/zip", buffer: Buffer.from("PK course package") },
+            { name: "课程封面.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]) },
+        ]);
+        await expect(editor.getByText("课程案例.zip", { exact: true })).toBeVisible();
+        await expect(editor.getByText("课程封面.png", { exact: true })).toBeVisible();
+        await expect(editor.locator('input[placeholder="https://"]')).toHaveCount(0);
+        await expectElementWithinViewport(page, editor, "course attachment modal");
+        await expectNoHorizontalOverflow(page, "course attachment modal");
+        await editor.getByRole("button", { name: /保\s*存/ }).click();
+        await expect(editor).toBeHidden();
+
+        const courses = await apiData<PageResult<PlatformCourse>>(await page.context().request.get(`/api/admin/courses?page=1&pageSize=20&keyword=${encodeURIComponent(title)}`));
+        const course = courses.items.find((item) => item.title === title);
+        expect(course?.attachments).toEqual([
+            expect.objectContaining({ fileName: "课程案例.zip", mimeType: "application/zip", bytes: 17, storageKey: expect.stringContaining("/attachments/"), url: expect.stringContaining("/api/reference-assets/") }),
+            expect.objectContaining({ fileName: "课程封面.png", mimeType: "image/png", bytes: 4, storageKey: expect.stringContaining("/attachments/"), url: expect.stringContaining("/api/reference-assets/") }),
+        ]);
+        const download = await page.context().request.head(`${course!.attachments[0]!.url}?download=original`);
+        expect(download.status()).toBe(200);
+        expect(download.headers()["content-disposition"]).toContain("attachment");
+        expect(await errors.values(), "course attachment browser errors").toEqual([]);
+    } finally {
+        errors.stop();
+    }
+});
+
 test("two schools complete teaching and commercial-order workflows without crossing tenants", async ({ browser, page }, testInfo) => {
     test.setTimeout(360_000);
     const suffix = `${testInfo.project.name.replace(/\W/g, "").slice(0, 5)}${randomUUID().replaceAll("-", "").slice(0, 7)}`.toLowerCase();

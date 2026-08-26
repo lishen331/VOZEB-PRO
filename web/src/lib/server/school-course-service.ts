@@ -4,6 +4,7 @@ import { hasAdminPermission } from "@/lib/admin-permissions";
 import { getPublicUsersByIds } from "@/lib/auth/store";
 import type {
     CourseOfferingInput,
+    CourseAttachment,
     PageResult,
     PlatformCourse,
     PlatformCourseInput,
@@ -21,6 +22,7 @@ import type {
 import type { PlatformCourseRecord, SchoolCourseOfferingRecord, SchoolDomainRepository, SchoolMembershipRecord, TeachingAssignmentRecord, TeachingSubmissionRecord } from "@/lib/server/school-domain-repository";
 import type { JsonValue } from "@/lib/server/database/repository-types";
 import { createSchoolDomainRepository } from "@/lib/server/school-domain-repository";
+import { getLocalMediaRegistrations } from "@/lib/server/local-media-registry";
 import { validateSchoolContentReferences } from "./school-content-reference-service";
 import { requireActiveSchoolContext, requireSchoolManager, requireStudent, requireTeacher, SchoolServiceError } from "./school-access-service";
 
@@ -46,7 +48,7 @@ export async function createPlatformCourse(actorId: string, input: PlatformCours
         summary: text(input.summary, 500),
         content: objectValue(input.content),
         chapters: arrayValue(input.chapters),
-        attachments: arrayValue(input.attachments),
+        attachments: await validateCourseAttachments(actorId, input.attachments),
         status: "draft",
         createdByUserId: actorId,
         createdAt: now,
@@ -65,7 +67,7 @@ export async function updatePlatformCourse(actorId: string, courseId: string, in
         ...(input.summary === undefined ? {} : { summary: text(input.summary, 500) }),
         ...(input.content === undefined ? {} : { content: objectValue(input.content) }),
         ...(input.chapters === undefined ? {} : { chapters: arrayValue(input.chapters) }),
-        ...(input.attachments === undefined ? {} : { attachments: arrayValue(input.attachments) }),
+        ...(input.attachments === undefined ? {} : { attachments: await validateCourseAttachments(actorId, input.attachments) }),
         ...(input.status === undefined ? {} : { status: input.status }),
         updatedAt: new Date().toISOString(),
     };
@@ -432,7 +434,7 @@ function toPlatformCourse(record: PlatformCourseRecord): PlatformCourse {
         summary: record.summary,
         content: record.content as Record<string, unknown>,
         chapters: record.chapters as unknown[],
-        attachments: record.attachments as unknown[],
+        attachments: courseAttachmentsFromValue(record.attachments),
         status: record.status,
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,
@@ -449,6 +451,43 @@ function objectValue(value: unknown): JsonValue {
 
 function arrayValue(value: unknown): JsonValue {
     return Array.isArray(value) ? (structuredClone(value) as JsonValue) : [];
+}
+
+async function validateCourseAttachments(actorId: string, value: unknown): Promise<JsonValue> {
+    const attachments = courseAttachmentsFromValue(value);
+    if (!Array.isArray(value) || attachments.length !== value.length) throw new SchoolServiceError(400, "课程附件无效");
+    if (!attachments.length) return [];
+    const storageKeys = attachments.map((attachment) => attachment.storageKey);
+    const registrations = await getLocalMediaRegistrations(storageKeys, { ownerUserId: actorId });
+    const registrationByKey = new Map(registrations.map((registration) => [registration.storageKey, registration]));
+    for (const attachment of attachments) {
+        const registration = registrationByKey.get(attachment.storageKey);
+        if (!registration || registration.storageClass !== "permanent" || registration.type !== "attachment" || registration.source !== "course-attachment" || registration.mimeType !== attachment.mimeType || registration.bytes !== attachment.bytes) {
+            throw new SchoolServiceError(400, "课程附件不存在或无权使用");
+        }
+    }
+    return structuredClone(attachments) as JsonValue;
+}
+
+function courseAttachmentsFromValue(value: unknown): CourseAttachment[] {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const source = item as Record<string, unknown>;
+        const title = text(source.title, 260);
+        const fileName = text(source.fileName, 260);
+        const storageKey = text(source.storageKey, 700);
+        const mimeType = text(source.mimeType, 160);
+        const bytes = Number(source.bytes);
+        const expectedUrl = storageKey
+            ? `/api/reference-assets/${storageKey
+                  .split("/")
+                  .map((part) => encodeURIComponent(part))
+                  .join("/")}`
+            : "";
+        if (!title || !fileName || !storageKey.startsWith("permanent/") || text(source.url, 1200) !== expectedUrl || !mimeType || !Number.isSafeInteger(bytes) || bytes <= 0) return [];
+        return [{ title, fileName, url: expectedUrl, storageKey, mimeType, bytes }];
+    });
 }
 
 function dueAtValue(value: unknown) {
