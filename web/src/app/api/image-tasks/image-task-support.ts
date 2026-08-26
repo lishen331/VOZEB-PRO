@@ -112,7 +112,11 @@ export function textOrEmpty(value: unknown) {
 }
 
 export async function preferredImageResponseFormat(config: ImageTaskConfig): Promise<(typeof IMAGE_RESPONSE_FORMATS)[number]> {
-    return "url";
+    // New API image gateways commonly place URL results on a separate CDN that
+    // is not reachable from the application server. Prefer the inline response
+    // already declared by the protocol so result persistence does not depend on
+    // that CDN being available.
+    return config.advancedConfig?.protocol === "newapi" ? "b64_json" : "url";
 }
 
 export async function openAiImageTaskPath(config: ImageTaskConfig, kind: ImageTask["kind"]) {
@@ -736,7 +740,9 @@ export async function buildImageEditFormData(task: ImageTask, quality: string | 
 
 export async function imageReferenceToFile(reference: ImageTaskReference, name: string, origin: string, cookie: string) {
     let lastError: unknown;
-    for (const value of rawReferenceRequestUrlCandidates(reference)) {
+    for (const value of rawReferenceRequestUrlCandidates(reference)
+        .flatMap((candidate) => [candidate, alternateManagedMediaUrl(candidate)])
+        .filter(Boolean)) {
         try {
             if (/^data:image\//i.test(value)) return dataUrlToFile(value, name, reference.type);
             if (/^blob:/i.test(value)) throw new Error("参考图已失效，请重新上传");
@@ -762,6 +768,12 @@ export async function imageReferenceToFile(reference: ImageTaskReference, name: 
         }
     }
     throw lastError instanceof Error ? lastError : new Error("参考图读取失败");
+}
+
+export function alternateManagedMediaUrl(value: string) {
+    if (value.startsWith("/api/reference-assets/")) return value.replace("/api/reference-assets/", "/api/generation-log-assets/");
+    if (value.startsWith("/api/generation-log-assets/")) return value.replace("/api/generation-log-assets/", "/api/reference-assets/");
+    return "";
 }
 
 export async function imageReferenceToDataUrl(reference: ImageTaskReference, name: string, origin: string, cookie: string) {
