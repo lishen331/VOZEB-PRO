@@ -1,4 +1,15 @@
-import type { CommercialOrderStatus, PlatformCourseStatus, SchoolMemberRole, SchoolMembershipStatus, SchoolPermission, SchoolStatus, TeachingAssignmentKind, TeachingAssignmentStatus, TeachingSubmissionStatus } from "@/lib/school-domain";
+import type {
+    CommercialOrderStatus,
+    PlatformCourseDetail,
+    PlatformCourseStatus,
+    SchoolMemberRole,
+    SchoolMembershipStatus,
+    SchoolPermission,
+    SchoolStatus,
+    TeachingAssignmentKind,
+    TeachingAssignmentStatus,
+    TeachingSubmissionStatus,
+} from "@/lib/school-domain";
 import type {
     CommercialOrderDeliveryRecord,
     CommercialOrderDeliveryUpdate,
@@ -14,6 +25,14 @@ import type {
     PlatformCoursePageQuery,
     PlatformCourseRecord,
     PlatformCourseUpdate,
+    CourseChapterRecord,
+    CourseChapterUpdate,
+    CourseLessonRecord,
+    CourseLessonUpdate,
+    CourseMaterialQuery,
+    CourseMaterialRecord,
+    CourseMaterialUpdate,
+    CourseDeletionImpact,
     SchoolClassRecord,
     SchoolClassUpdate,
     SchoolContextRecord,
@@ -234,16 +253,23 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
     }
 
     async listAssignedCourses(schoolId: string, input: PageQuery) {
-        return this.tenantPage("school_course_assignments", schoolId, input, mapCourseAssignment);
+        const { page, pageSize, offset } = pagination(input);
+        const from = `FROM school_course_assignments a
+                      JOIN platform_courses c ON c.id = a.course_id
+                      WHERE a.school_id = $1 AND a.status = 'active' AND c.status = 'published'`;
+        const [rows, count] = await Promise.all([this.db.query(`SELECT a.* ${from} ORDER BY a.updated_at DESC, a.id DESC LIMIT $2 OFFSET $3`, [schoolId, pageSize, offset]), this.db.query(`SELECT COUNT(*)::int AS total ${from}`, [schoolId])]);
+        return pageResult(rows.rows.map(mapCourseAssignment), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
     async listVisibleCourses(schoolId: string, membershipId: string, role: SchoolMemberRole, input: PageQuery) {
         const { page, pageSize, offset } = pagination(input);
         const relationship =
             role === "teacher"
-                ? "EXISTS (SELECT 1 FROM school_course_offerings o WHERE o.school_id = a.school_id AND o.assignment_id = a.id AND o.teacher_membership_id = $2)"
-                : "EXISTS (SELECT 1 FROM school_course_offerings o JOIN school_class_members cm ON cm.school_id = o.school_id AND cm.class_id = o.class_id WHERE o.school_id = a.school_id AND o.assignment_id = a.id AND cm.membership_id = $2)";
-        const from = `FROM school_course_assignments a WHERE a.school_id = $1 AND ${relationship}`;
+                ? "EXISTS (SELECT 1 FROM school_course_offerings o WHERE o.school_id = a.school_id AND o.assignment_id = a.id AND o.status = 'active' AND o.teacher_membership_id = $2)"
+                : "EXISTS (SELECT 1 FROM school_course_offerings o JOIN school_class_members cm ON cm.school_id = o.school_id AND cm.class_id = o.class_id WHERE o.school_id = a.school_id AND o.assignment_id = a.id AND o.status = 'active' AND cm.membership_id = $2)";
+        const from = `FROM school_course_assignments a
+                      JOIN platform_courses c ON c.id = a.course_id AND c.status = 'published'
+                      WHERE a.school_id = $1 AND a.status = 'active' AND ${relationship}`;
         const [rows, count] = await Promise.all([
             this.db.query(`SELECT a.* ${from} ORDER BY a.updated_at DESC, a.id DESC LIMIT $3 OFFSET $4`, [schoolId, membershipId, pageSize, offset]),
             this.db.query(`SELECT COUNT(*)::int AS total ${from}`, [schoolId, membershipId]),
@@ -257,14 +283,28 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         const status = input.status || null;
         const where = "WHERE ($1::text IS NULL OR status = $1) AND ($2::text IS NULL OR id ILIKE '%' || $2 || '%' OR title ILIKE '%' || $2 || '%' OR summary ILIKE '%' || $2 || '%')";
         const [rows, count] = await Promise.all([
-            this.db.query(`SELECT * FROM platform_courses ${where} ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4`, [status, keyword, pageSize, offset]),
+            this.db.query(
+                `SELECT platform_courses.*,
+                (SELECT COUNT(*)::int FROM platform_course_chapters WHERE course_id = platform_courses.id) AS chapter_count,
+                (SELECT COUNT(*)::int FROM platform_course_lessons WHERE course_id = platform_courses.id) AS lesson_count,
+                (SELECT COUNT(*)::int FROM course_materials WHERE course_id = platform_courses.id AND status = 'active') AS material_count
+                FROM platform_courses ${where} ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4`,
+                [status, keyword, pageSize, offset],
+            ),
             this.db.query(`SELECT COUNT(*)::int AS total FROM platform_courses ${where}`, [status, keyword]),
         ]);
         return pageResult(rows.rows.map(mapPlatformCourse), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
     async getPlatformCourse(courseId: string, forUpdate = false) {
-        const result = await this.db.query(`SELECT * FROM platform_courses WHERE id = $1${forUpdate ? " FOR UPDATE" : ""}`, [courseId]);
+        const result = await this.db.query(
+            `SELECT platform_courses.*,
+                (SELECT COUNT(*)::int FROM platform_course_chapters WHERE course_id = platform_courses.id) AS chapter_count,
+                (SELECT COUNT(*)::int FROM platform_course_lessons WHERE course_id = platform_courses.id) AS lesson_count,
+                (SELECT COUNT(*)::int FROM course_materials WHERE course_id = platform_courses.id AND status = 'active') AS material_count
+                FROM platform_courses WHERE id = $1${forUpdate ? " FOR UPDATE" : ""}`,
+            [courseId],
+        );
         return result.rows[0] ? mapPlatformCourse(result.rows[0]) : null;
     }
 
@@ -274,11 +314,216 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         addUpdate(assignments, values, "title", patch.title);
         addUpdate(assignments, values, "summary", patch.summary);
         addUpdate(assignments, values, "content", patch.content === undefined ? undefined : jsonParam(patch.content));
-        addUpdate(assignments, values, "chapters", patch.chapters === undefined ? undefined : jsonParam(patch.chapters));
-        addUpdate(assignments, values, "attachments", patch.attachments === undefined ? undefined : jsonParam(patch.attachments));
         addUpdate(assignments, values, "status", patch.status);
         const result = await this.db.query(`UPDATE platform_courses SET ${assignments.join(", ")} WHERE id = $1 RETURNING *`, values);
         return result.rows[0] ? mapPlatformCourse(result.rows[0]) : null;
+    }
+
+    async getPlatformCourseTree(courseId: string, options: { schoolCourseAssignmentId?: string } = {}): Promise<PlatformCourseDetail | null> {
+        const courseResult = await this.db.query(
+            `SELECT c.*,
+                    (SELECT COUNT(*)::int FROM platform_course_chapters ch WHERE ch.course_id = c.id) AS chapter_count,
+                    (SELECT COUNT(*)::int FROM platform_course_lessons l WHERE l.course_id = c.id) AS lesson_count,
+                    (SELECT COUNT(*)::int FROM course_materials m WHERE m.course_id = c.id AND m.status = 'active' AND (m.source_scope = 'platform' OR ($2::text IS NOT NULL AND m.school_course_assignment_id = $2))) AS material_count
+             FROM platform_courses c WHERE c.id = $1`,
+            [courseId, options.schoolCourseAssignmentId || null],
+        );
+        if (!courseResult.rows[0]) return null;
+        const materialScope = `(m.source_scope = 'platform' OR ($2::text IS NOT NULL AND m.school_course_assignment_id = $2))`;
+        const [chapterResult, lessonResult, materialResult] = await Promise.all([
+            this.db.query("SELECT * FROM platform_course_chapters WHERE course_id = $1 ORDER BY sort_order, id", [courseId]),
+            this.db.query("SELECT * FROM platform_course_lessons WHERE course_id = $1 ORDER BY chapter_id, sort_order, id", [courseId]),
+            this.db.query(`SELECT * FROM course_materials m WHERE m.course_id = $1 AND m.status = 'active' AND ${materialScope} ORDER BY COALESCE(m.chapter_id, m.lesson_id), m.sort_order, m.id`, [courseId, options.schoolCourseAssignmentId || null]),
+        ]);
+        const chapters = chapterResult.rows.map(mapCourseChapter);
+        const lessons = lessonResult.rows.map(mapCourseLesson);
+        const materials = materialResult.rows.map(mapCourseMaterial);
+        const materialByChapter = new Map<string, CourseMaterialRecord[]>();
+        const materialByLesson = new Map<string, CourseMaterialRecord[]>();
+        for (const material of materials) {
+            if (material.chapterId) materialByChapter.set(material.chapterId, [...(materialByChapter.get(material.chapterId) || []), material]);
+            if (material.lessonId) materialByLesson.set(material.lessonId, [...(materialByLesson.get(material.lessonId) || []), material]);
+        }
+        return {
+            ...mapPlatformCourseSummary(courseResult.rows[0]),
+            chapters: chapters.map((chapter) => ({
+                ...chapter,
+                materials: materialByChapter.get(chapter.id) || [],
+                lessons: lessons.filter((lesson) => lesson.chapterId === chapter.id).map((lesson) => ({ ...lesson, materials: materialByLesson.get(lesson.id) || [] })),
+            })),
+        };
+    }
+
+    async listCourseChapters(courseId: string) {
+        const result = await this.db.query("SELECT * FROM platform_course_chapters WHERE course_id = $1 ORDER BY sort_order, id", [courseId]);
+        return result.rows.map(mapCourseChapter);
+    }
+
+    async getCourseChapter(chapterId: string) {
+        const result = await this.db.query("SELECT * FROM platform_course_chapters WHERE id = $1", [chapterId]);
+        return result.rows[0] ? mapCourseChapter(result.rows[0]) : null;
+    }
+
+    async insertCourseChapter(record: CourseChapterRecord) {
+        const result = await this.db.query("INSERT INTO platform_course_chapters (id, course_id, title, description, sort_order, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *", [
+            record.id,
+            record.courseId,
+            record.title,
+            record.description,
+            record.sortOrder,
+            record.createdAt,
+            record.updatedAt,
+        ]);
+        return mapCourseChapter(result.rows[0]);
+    }
+
+    async updateCourseChapter(courseId: string, chapterId: string, patch: CourseChapterUpdate) {
+        const values: unknown[] = [courseId, chapterId, patch.updatedAt];
+        const assignments = ["updated_at = $3"];
+        addUpdate(assignments, values, "title", patch.title);
+        addUpdate(assignments, values, "description", patch.description);
+        addUpdate(assignments, values, "sort_order", patch.sortOrder);
+        const result = await this.db.query(`UPDATE platform_course_chapters SET ${assignments.join(", ")} WHERE course_id = $1 AND id = $2 RETURNING *`, values);
+        return result.rows[0] ? mapCourseChapter(result.rows[0]) : null;
+    }
+
+    async deleteCourseChapter(courseId: string, chapterId: string) {
+        const result = await this.db.query("DELETE FROM platform_course_chapters WHERE course_id = $1 AND id = $2", [courseId, chapterId]);
+        return (result.rowCount || 0) > 0;
+    }
+
+    async insertCourseLesson(record: CourseLessonRecord) {
+        const result = await this.db.query("INSERT INTO platform_course_lessons (id, course_id, chapter_id, title, description, sort_order, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *", [
+            record.id,
+            record.courseId,
+            record.chapterId,
+            record.title,
+            record.description,
+            record.sortOrder,
+            record.createdAt,
+            record.updatedAt,
+        ]);
+        return mapCourseLesson(result.rows[0]);
+    }
+
+    async getCourseLesson(lessonId: string) {
+        const result = await this.db.query("SELECT * FROM platform_course_lessons WHERE id = $1", [lessonId]);
+        return result.rows[0] ? mapCourseLesson(result.rows[0]) : null;
+    }
+
+    async updateCourseLesson(courseId: string, lessonId: string, patch: CourseLessonUpdate) {
+        const values: unknown[] = [courseId, lessonId, patch.updatedAt];
+        const assignments = ["updated_at = $3"];
+        addUpdate(assignments, values, "title", patch.title);
+        addUpdate(assignments, values, "description", patch.description);
+        addUpdate(assignments, values, "sort_order", patch.sortOrder);
+        const result = await this.db.query(`UPDATE platform_course_lessons SET ${assignments.join(", ")} WHERE course_id = $1 AND id = $2 RETURNING *`, values);
+        return result.rows[0] ? mapCourseLesson(result.rows[0]) : null;
+    }
+
+    async deleteCourseLesson(courseId: string, lessonId: string) {
+        const result = await this.db.query("DELETE FROM platform_course_lessons WHERE course_id = $1 AND id = $2", [courseId, lessonId]);
+        return (result.rowCount || 0) > 0;
+    }
+
+    async listCourseMaterials(input: CourseMaterialQuery) {
+        const { page, pageSize, offset } = pagination(input);
+        const values: unknown[] = [input.courseId, input.schoolCourseAssignmentId || null, input.sourceScope || null, input.chapterId || null, input.lessonId || null];
+        const where =
+            "WHERE m.course_id = $1 AND (m.source_scope = 'platform' OR ($2::text IS NOT NULL AND m.school_course_assignment_id = $2)) AND ($3::text IS NULL OR m.source_scope = $3) AND ($4::text IS NULL OR m.chapter_id = $4) AND ($5::text IS NULL OR m.lesson_id = $5)";
+        const [rows, count] = await Promise.all([
+            this.db.query(`SELECT m.* FROM course_materials m ${where} ORDER BY m.sort_order, m.id LIMIT $6 OFFSET $7`, [...values, pageSize, offset]),
+            this.db.query(`SELECT COUNT(*)::int AS total FROM course_materials m ${where}`, values),
+        ]);
+        return pageResult(rows.rows.map(mapCourseMaterial), numberValue(count.rows[0]?.total), page, pageSize);
+    }
+
+    async getCourseMaterial(materialId: string, schoolId?: string) {
+        const result = await this.db.query(
+            `SELECT m.* FROM course_materials m
+             LEFT JOIN school_course_assignments a ON a.course_id = m.course_id AND a.id = m.school_course_assignment_id
+             WHERE m.id = $1 AND (m.source_scope = 'platform' OR ($2::text IS NOT NULL AND a.school_id = $2))`,
+            [materialId, schoolId || null],
+        );
+        return result.rows[0] ? mapCourseMaterial(result.rows[0]) : null;
+    }
+
+    async insertCourseMaterial(record: CourseMaterialRecord) {
+        const result = await this.db.query(
+            `INSERT INTO course_materials (id, course_id, chapter_id, lesson_id, source_scope, school_course_assignment_id, title, file_name, mime_type, bytes, storage_key, url, sort_order, status, created_by_user_id, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+            [
+                record.id,
+                record.courseId,
+                record.chapterId || null,
+                record.lessonId || null,
+                record.sourceScope,
+                record.schoolCourseAssignmentId || null,
+                record.title,
+                record.fileName,
+                record.mimeType,
+                record.bytes,
+                record.storageKey,
+                record.url,
+                record.sortOrder,
+                record.status,
+                record.createdByUserId || null,
+                record.createdAt,
+                record.updatedAt,
+            ],
+        );
+        return mapCourseMaterial(result.rows[0]);
+    }
+
+    async updateCourseMaterial(materialId: string, patch: CourseMaterialUpdate) {
+        const values: unknown[] = [materialId, patch.updatedAt];
+        const assignments = ["updated_at = $2"];
+        addUpdate(assignments, values, "title", patch.title);
+        addUpdate(assignments, values, "sort_order", patch.sortOrder);
+        addUpdate(assignments, values, "status", patch.status);
+        const result = await this.db.query(`UPDATE course_materials SET ${assignments.join(", ")} WHERE id = $1 RETURNING *`, values);
+        return result.rows[0] ? mapCourseMaterial(result.rows[0]) : null;
+    }
+
+    async deleteCourseMaterial(materialId: string) {
+        const result = await this.db.query("DELETE FROM course_materials WHERE id = $1", [materialId]);
+        return (result.rowCount || 0) > 0;
+    }
+
+    async getPlatformCourseDeletionImpact(courseId: string) {
+        const result = await this.db.query(
+            `SELECT $1::text AS course_id,
+                    (SELECT COUNT(*)::int FROM platform_course_chapters WHERE course_id = $1) AS chapter_count,
+                    (SELECT COUNT(*)::int FROM platform_course_lessons WHERE course_id = $1) AS lesson_count,
+                    (SELECT COUNT(*)::int FROM course_materials WHERE course_id = $1) AS material_count,
+                    (SELECT COUNT(*)::int FROM school_course_assignments WHERE course_id = $1) AS school_count,
+                    (SELECT COUNT(*)::int FROM school_course_offerings o JOIN school_course_assignments a ON a.id = o.assignment_id AND a.school_id = o.school_id WHERE a.course_id = $1) AS offering_count,
+                    (SELECT COUNT(*)::int FROM teaching_assignments t JOIN school_course_offerings o ON o.id = t.offering_id AND o.school_id = t.school_id JOIN school_course_assignments a ON a.id = o.assignment_id AND a.school_id = o.school_id WHERE a.course_id = $1) AS teaching_assignment_count,
+                    (SELECT COUNT(*)::int FROM teaching_submissions s JOIN teaching_assignments t ON t.id = s.assignment_id AND t.school_id = s.school_id JOIN school_course_offerings o ON o.id = t.offering_id AND o.school_id = t.school_id JOIN school_course_assignments a ON a.id = o.assignment_id AND a.school_id = o.school_id WHERE a.course_id = $1) AS submission_count,
+                    COALESCE((SELECT array_agg(DISTINCT storage_key) FROM course_materials WHERE course_id = $1), ARRAY[]::text[]) AS storage_keys`,
+            [courseId],
+        );
+        return mapCourseDeletionImpact(result.rows[0], courseId);
+    }
+
+    async disablePlatformCourse(courseId: string, patch: { deletedAt: string; deletedByUserId: string; updatedAt: string }) {
+        const result = await this.db.query("UPDATE platform_courses SET status = 'disabled', deleted_at = $2, deleted_by_user_id = $3, updated_at = $4 WHERE id = $1 RETURNING *", [courseId, patch.deletedAt, patch.deletedByUserId, patch.updatedAt]);
+        return result.rows[0] ? mapPlatformCourse(result.rows[0]) : null;
+    }
+
+    async restorePlatformCourse(courseId: string, patch: { updatedAt: string }) {
+        const result = await this.db.query("UPDATE platform_courses SET status = 'published', deleted_at = NULL, deleted_by_user_id = NULL, updated_at = $2 WHERE id = $1 AND status = 'disabled' RETURNING *", [courseId, patch.updatedAt]);
+        return result.rows[0] ? mapPlatformCourse(result.rows[0]) : null;
+    }
+
+    permanentlyDeletePlatformCourse(courseId: string) {
+        return this.transact(async (repository) => {
+            const target = repository as PostgresSchoolDomainRepository;
+            const materials = await target.db.query("SELECT DISTINCT storage_key FROM course_materials WHERE course_id = $1", [courseId]);
+            const result = await target.db.query("DELETE FROM platform_courses WHERE id = $1", [courseId]);
+            if (!(result.rowCount || 0)) return { storageKeys: [] };
+            return { storageKeys: materials.rows.map((row) => stringValue(row.storage_key)).filter(Boolean) };
+        });
     }
 
     async getSchoolCourseAssignment(schoolId: string, assignmentId: string, forUpdate = false) {
@@ -286,11 +531,46 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         return result.rows[0] ? mapCourseAssignment(result.rows[0]) : null;
     }
 
+    async hasVisibleCourseAssignment(schoolId: string, membershipId: string, role: SchoolMemberRole, assignmentId: string) {
+        const relationship =
+            role === "teacher"
+                ? "EXISTS (SELECT 1 FROM school_course_offerings o WHERE o.school_id = a.school_id AND o.assignment_id = a.id AND o.status = 'active' AND o.teacher_membership_id = $2)"
+                : "EXISTS (SELECT 1 FROM school_course_offerings o JOIN school_class_members cm ON cm.school_id = o.school_id AND cm.class_id = o.class_id WHERE o.school_id = a.school_id AND o.assignment_id = a.id AND o.status = 'active' AND cm.membership_id = $2)";
+        const result = await this.db.query(
+            `SELECT EXISTS (
+                SELECT 1 FROM school_course_assignments a
+                JOIN platform_courses c ON c.id = a.course_id
+                WHERE a.school_id = $1 AND a.id = $3 AND a.status = 'active' AND c.status = 'published' AND ${relationship}
+            ) AS present`,
+            [schoolId, membershipId, assignmentId],
+        );
+        return result.rows[0]?.present === true;
+    }
+
+    async hasActiveOfferingForTeacher(schoolId: string, membershipId: string, assignmentId: string) {
+        const result = await this.db.query(
+            `SELECT EXISTS (
+                SELECT 1
+                FROM school_course_offerings o
+                JOIN school_course_assignments a ON a.school_id = o.school_id AND a.id = o.assignment_id
+                JOIN platform_courses c ON c.id = a.course_id
+                WHERE o.school_id = $1 AND o.teacher_membership_id = $2 AND o.assignment_id = $3
+                  AND o.status = 'active' AND a.status = 'active' AND c.status = 'published'
+            ) AS present`,
+            [schoolId, membershipId, assignmentId],
+        );
+        return result.rows[0]?.present === true;
+    }
+
     async listOfferingsForAssignment(schoolId: string, assignmentId: string, input: PageQuery) {
         const { page, pageSize, offset } = pagination(input);
+        const from = `FROM school_course_offerings o
+                      JOIN school_course_assignments a ON a.school_id = o.school_id AND a.id = o.assignment_id
+                      JOIN platform_courses c ON c.id = a.course_id
+                      WHERE o.school_id = $1 AND o.assignment_id = $2 AND o.status = 'active' AND a.status = 'active' AND c.status = 'published'`;
         const [rows, count] = await Promise.all([
-            this.db.query("SELECT * FROM school_course_offerings WHERE school_id = $1 AND assignment_id = $2 ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4", [schoolId, assignmentId, pageSize, offset]),
-            this.db.query("SELECT COUNT(*)::int AS total FROM school_course_offerings WHERE school_id = $1 AND assignment_id = $2", [schoolId, assignmentId]),
+            this.db.query(`SELECT o.* ${from} ORDER BY o.updated_at DESC, o.id DESC LIMIT $3 OFFSET $4`, [schoolId, assignmentId, pageSize, offset]),
+            this.db.query(`SELECT COUNT(*)::int AS total ${from}`, [schoolId, assignmentId]),
         ]);
         return pageResult(rows.rows.map(mapCourseOffering), numberValue(count.rows[0]?.total), page, pageSize);
     }
@@ -302,21 +582,27 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
 
     async listOfferingsForTeacher(schoolId: string, membershipId: string, input: PageQuery) {
         const { page, pageSize, offset } = pagination(input);
+        const from = `FROM school_course_offerings o
+                      JOIN school_course_assignments a ON a.school_id = o.school_id AND a.id = o.assignment_id
+                      JOIN platform_courses c ON c.id = a.course_id
+                      WHERE o.school_id = $1 AND o.teacher_membership_id = $2 AND o.status = 'active' AND a.status = 'active' AND c.status = 'published'`;
         const [rows, count] = await Promise.all([
-            this.db.query("SELECT * FROM school_course_offerings WHERE school_id = $1 AND teacher_membership_id = $2 ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4", [schoolId, membershipId, pageSize, offset]),
-            this.db.query("SELECT COUNT(*)::int AS total FROM school_course_offerings WHERE school_id = $1 AND teacher_membership_id = $2", [schoolId, membershipId]),
+            this.db.query(`SELECT o.* ${from} ORDER BY o.updated_at DESC, o.id DESC LIMIT $3 OFFSET $4`, [schoolId, membershipId, pageSize, offset]),
+            this.db.query(`SELECT COUNT(*)::int AS total ${from}`, [schoolId, membershipId]),
         ]);
         return pageResult(rows.rows.map(mapCourseOffering), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
     async listAssignmentsForStudent(schoolId: string, membershipId: string, input: PageQuery) {
         const { page, pageSize, offset } = pagination(input);
-        const from = `FROM teaching_assignments a
-                      JOIN school_course_offerings o ON o.school_id = a.school_id AND o.id = a.offering_id
-                      WHERE a.school_id = $1 AND a.status IN ('published', 'closed')
+        const from = `FROM teaching_assignments t
+                      JOIN school_course_offerings o ON o.school_id = t.school_id AND o.id = t.offering_id
+                      JOIN school_course_assignments ca ON ca.school_id = o.school_id AND ca.id = o.assignment_id
+                      JOIN platform_courses c ON c.id = ca.course_id
+                      WHERE t.school_id = $1 AND t.status IN ('published', 'closed') AND o.status = 'active' AND ca.status = 'active' AND c.status = 'published'
                         AND EXISTS (SELECT 1 FROM school_class_members cm WHERE cm.school_id = o.school_id AND cm.class_id = o.class_id AND cm.membership_id = $2)`;
         const [rows, count] = await Promise.all([
-            this.db.query(`SELECT a.* ${from} ORDER BY a.updated_at DESC, a.id DESC LIMIT $3 OFFSET $4`, [schoolId, membershipId, pageSize, offset]),
+            this.db.query(`SELECT t.* ${from} ORDER BY t.updated_at DESC, t.id DESC LIMIT $3 OFFSET $4`, [schoolId, membershipId, pageSize, offset]),
             this.db.query(`SELECT COUNT(*)::int AS total ${from}`, [schoolId, membershipId]),
         ]);
         return pageResult(rows.rows.map(mapTeachingAssignment), numberValue(count.rows[0]?.total), page, pageSize);
@@ -324,9 +610,14 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
 
     async listAssignmentsForTeacher(schoolId: string, membershipId: string, input: PageQuery) {
         const { page, pageSize, offset } = pagination(input);
+        const from = `FROM teaching_assignments t
+                      JOIN school_course_offerings o ON o.school_id = t.school_id AND o.id = t.offering_id
+                      JOIN school_course_assignments ca ON ca.school_id = o.school_id AND ca.id = o.assignment_id
+                      JOIN platform_courses c ON c.id = ca.course_id
+                      WHERE t.school_id = $1 AND t.teacher_membership_id = $2 AND o.status = 'active' AND ca.status = 'active' AND c.status = 'published'`;
         const [rows, count] = await Promise.all([
-            this.db.query("SELECT * FROM teaching_assignments WHERE school_id = $1 AND teacher_membership_id = $2 ORDER BY updated_at DESC, id DESC LIMIT $3 OFFSET $4", [schoolId, membershipId, pageSize, offset]),
-            this.db.query("SELECT COUNT(*)::int AS total FROM teaching_assignments WHERE school_id = $1 AND teacher_membership_id = $2", [schoolId, membershipId]),
+            this.db.query(`SELECT t.* ${from} ORDER BY t.updated_at DESC, t.id DESC LIMIT $3 OFFSET $4`, [schoolId, membershipId, pageSize, offset]),
+            this.db.query(`SELECT COUNT(*)::int AS total ${from}`, [schoolId, membershipId]),
         ]);
         return pageResult(rows.rows.map(mapTeachingAssignment), numberValue(count.rows[0]?.total), page, pageSize);
     }
@@ -343,6 +634,8 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         addUpdate(assignments, values, "title", patch.title);
         addUpdate(assignments, values, "instructions", patch.instructions);
         addUpdate(assignments, values, "resources", patch.resources === undefined ? undefined : jsonParam(patch.resources));
+        addUpdate(assignments, values, "chapter_id", patch.chapterId === undefined ? undefined : patch.chapterId || null);
+        addUpdate(assignments, values, "lesson_id", patch.lessonId === undefined ? undefined : patch.lessonId || null);
         addUpdate(assignments, values, "due_at", patch.dueAt === undefined ? undefined : patch.dueAt || null);
         addUpdate(assignments, values, "status", patch.status);
         const result = await this.db.query(`UPDATE teaching_assignments SET ${assignments.join(", ")} WHERE school_id = $1 AND id = $2 RETURNING *`, values);
@@ -363,11 +656,13 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         const assignmentIds = input.assignmentIds?.filter(Boolean) || [];
         const values = [schoolId, studentMembershipId, assignmentIds];
         const from = `FROM teaching_submissions s
-                      JOIN teaching_assignments a ON a.school_id = s.school_id AND a.id = s.assignment_id
-                      JOIN school_course_offerings o ON o.school_id = a.school_id AND o.id = a.offering_id
+                      JOIN teaching_assignments ta ON ta.school_id = s.school_id AND ta.id = s.assignment_id
+                      JOIN school_course_offerings o ON o.school_id = ta.school_id AND o.id = ta.offering_id
+                      JOIN school_course_assignments ca ON ca.school_id = o.school_id AND ca.id = o.assignment_id
+                      JOIN platform_courses c ON c.id = ca.course_id
                       JOIN school_class_members cm ON cm.school_id = o.school_id AND cm.class_id = o.class_id AND cm.membership_id = s.student_membership_id
                       WHERE s.school_id = $1 AND s.student_membership_id = $2
-                        AND a.status IN ('published', 'closed')
+                        AND ta.status IN ('published', 'closed') AND o.status = 'active' AND ca.status = 'active' AND c.status = 'published'
                         AND (cardinality($3::text[]) = 0 OR s.assignment_id = ANY($3::text[]))`;
         const [rows, count] = await Promise.all([this.db.query(`SELECT s.* ${from} ORDER BY s.updated_at DESC, s.id DESC LIMIT $4 OFFSET $5`, [...values, pageSize, offset]), this.db.query(`SELECT COUNT(*)::int AS total ${from}`, values)]);
         return pageResult(rows.rows.map(mapTeachingSubmission), numberValue(count.rows[0]?.total), page, pageSize);
@@ -602,13 +897,11 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
     }
 
     async insertPlatformCourse(record: PlatformCourseRecord) {
-        const result = await this.db.query("INSERT INTO platform_courses (id, title, summary, content, chapters, attachments, status, created_by_user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *", [
+        const result = await this.db.query("INSERT INTO platform_courses (id, title, summary, content, status, created_by_user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *", [
             record.id,
             record.title,
             record.summary,
             jsonParam(record.content),
-            jsonParam(record.chapters),
-            jsonParam(record.attachments),
             record.status,
             record.createdByUserId || null,
             record.createdAt,
@@ -636,17 +929,38 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
     }
 
     async insertCourseOffering(record: SchoolCourseOfferingRecord) {
-        const result = await this.db.query(
-            "INSERT INTO school_course_offerings (id, school_id, assignment_id, class_id, teacher_membership_id, supplemental_resources, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
-            [record.id, record.schoolId, record.assignmentId, record.classId, record.teacherMembershipId, jsonParam(record.supplementalResources), record.status, record.createdAt, record.updatedAt],
-        );
+        const result = await this.db.query("INSERT INTO school_course_offerings (id, school_id, assignment_id, class_id, teacher_membership_id, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *", [
+            record.id,
+            record.schoolId,
+            record.assignmentId,
+            record.classId,
+            record.teacherMembershipId,
+            record.status,
+            record.createdAt,
+            record.updatedAt,
+        ]);
         return mapCourseOffering(result.rows[0]);
     }
 
     async insertTeachingAssignment(record: TeachingAssignmentRecord) {
         const result = await this.db.query(
-            "INSERT INTO teaching_assignments (id, school_id, offering_id, teacher_membership_id, kind, title, instructions, resources, due_at, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *",
-            [record.id, record.schoolId, record.offeringId, record.teacherMembershipId, record.kind, record.title, record.instructions, jsonParam(record.resources), record.dueAt || null, record.status, record.createdAt, record.updatedAt],
+            "INSERT INTO teaching_assignments (id, school_id, offering_id, teacher_membership_id, chapter_id, lesson_id, kind, title, instructions, resources, due_at, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *",
+            [
+                record.id,
+                record.schoolId,
+                record.offeringId,
+                record.teacherMembershipId,
+                record.chapterId || null,
+                record.lessonId || null,
+                record.kind,
+                record.title,
+                record.instructions,
+                jsonParam(record.resources),
+                record.dueAt || null,
+                record.status,
+                record.createdAt,
+                record.updatedAt,
+            ],
         );
         return mapTeachingAssignment(result.rows[0]);
     }
@@ -868,12 +1182,86 @@ function mapPlatformCourse(row: Record<string, unknown>): PlatformCourseRecord {
         title: stringValue(row.title),
         summary: stringValue(row.summary),
         content: jsonValue(row.content),
-        chapters: jsonValue(row.chapters),
-        attachments: jsonValue(row.attachments),
         status: courseStatus(row.status),
+        deletedAt: optionalIso(row.deleted_at),
+        deletedByUserId: optionalString(row.deleted_by_user_id),
         createdByUserId: optionalString(row.created_by_user_id),
         createdAt: isoValue(row.created_at),
         updatedAt: isoValue(row.updated_at),
+        chapterCount: row.chapter_count === undefined ? undefined : numberValue(row.chapter_count),
+        lessonCount: row.lesson_count === undefined ? undefined : numberValue(row.lesson_count),
+        materialCount: row.material_count === undefined ? undefined : numberValue(row.material_count),
+    };
+}
+
+function mapPlatformCourseSummary(row: Record<string, unknown>) {
+    return {
+        ...mapPlatformCourse(row),
+        content: (jsonValue(row.content) as Record<string, unknown>) || {},
+        chapterCount: numberValue(row.chapter_count),
+        lessonCount: numberValue(row.lesson_count),
+        materialCount: numberValue(row.material_count),
+    };
+}
+
+function mapCourseChapter(row: Record<string, unknown>): CourseChapterRecord {
+    return {
+        id: stringValue(row.id),
+        courseId: stringValue(row.course_id),
+        title: stringValue(row.title),
+        description: stringValue(row.description),
+        sortOrder: numberValue(row.sort_order),
+        createdAt: isoValue(row.created_at),
+        updatedAt: isoValue(row.updated_at),
+    };
+}
+
+function mapCourseLesson(row: Record<string, unknown>): CourseLessonRecord {
+    return {
+        id: stringValue(row.id),
+        courseId: stringValue(row.course_id),
+        chapterId: stringValue(row.chapter_id),
+        title: stringValue(row.title),
+        description: stringValue(row.description),
+        sortOrder: numberValue(row.sort_order),
+        createdAt: isoValue(row.created_at),
+        updatedAt: isoValue(row.updated_at),
+    };
+}
+
+function mapCourseMaterial(row: Record<string, unknown>): CourseMaterialRecord {
+    return {
+        id: stringValue(row.id),
+        courseId: stringValue(row.course_id),
+        chapterId: optionalString(row.chapter_id),
+        lessonId: optionalString(row.lesson_id),
+        sourceScope: row.source_scope === "school" ? "school" : "platform",
+        schoolCourseAssignmentId: optionalString(row.school_course_assignment_id),
+        title: stringValue(row.title),
+        fileName: stringValue(row.file_name),
+        mimeType: stringValue(row.mime_type),
+        bytes: numberValue(row.bytes),
+        storageKey: stringValue(row.storage_key),
+        url: stringValue(row.url),
+        sortOrder: numberValue(row.sort_order),
+        status: row.status === "disabled" ? "disabled" : "active",
+        createdByUserId: optionalString(row.created_by_user_id),
+        createdAt: isoValue(row.created_at),
+        updatedAt: isoValue(row.updated_at),
+    };
+}
+
+function mapCourseDeletionImpact(row: Record<string, unknown>, courseId: string): CourseDeletionImpact {
+    return {
+        courseId,
+        chapterCount: numberValue(row.chapter_count),
+        lessonCount: numberValue(row.lesson_count),
+        materialCount: numberValue(row.material_count),
+        schoolCount: numberValue(row.school_count),
+        offeringCount: numberValue(row.offering_count),
+        teachingAssignmentCount: numberValue(row.teaching_assignment_count),
+        submissionCount: numberValue(row.submission_count),
+        storageKeys: Array.isArray(row.storage_keys) ? row.storage_keys.map(String) : [],
     };
 }
 
@@ -888,7 +1276,6 @@ function mapCourseOffering(row: Record<string, unknown>): SchoolCourseOfferingRe
         assignmentId: stringValue(row.assignment_id),
         classId: stringValue(row.class_id),
         teacherMembershipId: stringValue(row.teacher_membership_id),
-        supplementalResources: jsonValue(row.supplemental_resources),
         status: schoolStatus(row.status),
         createdAt: isoValue(row.created_at),
         updatedAt: isoValue(row.updated_at),
@@ -901,6 +1288,8 @@ function mapTeachingAssignment(row: Record<string, unknown>): TeachingAssignment
         schoolId: stringValue(row.school_id),
         offeringId: stringValue(row.offering_id),
         teacherMembershipId: stringValue(row.teacher_membership_id),
+        chapterId: optionalString(row.chapter_id),
+        lessonId: optionalString(row.lesson_id),
         kind: assignmentKind(row.kind),
         title: stringValue(row.title),
         instructions: stringValue(row.instructions),

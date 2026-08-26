@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-08-26。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **269** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-08-26。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **282** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**269**
-- 方法出现次数：DELETE 37、GET 153、HEAD 6、PATCH 44、POST 141、PUT 8
-- 一级域：`admin` 92、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 22、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**282**
+- 方法出现次数：DELETE 43、GET 156、HEAD 6、PATCH 48、POST 146、PUT 9
+- 一级域：`admin` 101、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 26、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（92）
+### `admin`（101）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -63,9 +63,18 @@
 | GET, PATCH | `/api/admin/commercial-orders/[id]` | 管理员 | [route.ts](web/src/app/api/admin/commercial-orders/[id]/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / commercial-orders / 单项：查询、更新 |
 | POST | `/api/admin/commercial-orders/[id]/review` | 管理员 | [route.ts](web/src/app/api/admin/commercial-orders/[id]/review/route.ts) | [commercial-order-service](web/src/lib/server/commercial-order-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / commercial-orders / 单项 / 审核：提交/执行 |
 | DELETE, PUT | `/api/admin/course-attachments` | 管理员 | [route.ts](web/src/app/api/admin/course-attachments/route.ts) | [course-attachment-service](web/src/lib/server/course-attachment-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-attachments：删除、替换 |
+| DELETE, PATCH | `/api/admin/course-chapters/[id]` | 管理员 | [route.ts](web/src/app/api/admin/course-chapters/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-chapters / 单项：更新、删除 |
+| POST | `/api/admin/course-chapters/[id]/lessons` | 管理员 | [route.ts](web/src/app/api/admin/course-chapters/[id]/lessons/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-chapters / 单项 / lessons：提交/执行 |
+| DELETE, PATCH | `/api/admin/course-lessons/[id]` | 管理员 | [route.ts](web/src/app/api/admin/course-lessons/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-lessons / 单项：更新、删除 |
+| DELETE, PATCH | `/api/admin/course-materials/[id]` | 管理员 | [route.ts](web/src/app/api/admin/course-materials/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-materials / 单项：更新、删除 |
 | GET, POST | `/api/admin/courses` | 管理员 | [route.ts](web/src/app/api/admin/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses：查询、提交/执行 |
-| GET, PATCH | `/api/admin/courses/[id]` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项：查询、更新 |
+| DELETE, GET, PATCH | `/api/admin/courses/[id]` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项：查询、更新、删除 |
+| POST | `/api/admin/courses/[id]/chapters` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/chapters/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项 / chapters：提交/执行 |
+| GET | `/api/admin/courses/[id]/deletion-impact` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/deletion-impact/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项 / deletion-impact：查询 |
+| POST | `/api/admin/courses/[id]/materials` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/materials/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项 / materials：提交/执行 |
+| POST | `/api/admin/courses/[id]/restore` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/restore/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项 / restore：提交/执行 |
 | POST | `/api/admin/courses/[id]/schools` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/schools/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项 / schools：提交/执行 |
+| GET | `/api/admin/courses/[id]/tree` | 管理员 | [route.ts](web/src/app/api/admin/courses/[id]/tree/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses / 单项 / tree：查询 |
 | GET, POST | `/api/admin/drama-lab/ai-configs` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/ai-configs/route.ts) | [admin-permissions](web/src/lib/admin-permissions.ts)<br>[request](web/src/lib/auth/request.ts)<br>[session](web/src/lib/auth/session.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / ai-configs：查询、提交/执行 |
 | DELETE, PUT | `/api/admin/drama-lab/ai-configs/[id]` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/ai-configs/[id]/route.ts) | [admin-permissions](web/src/lib/admin-permissions.ts)<br>[request](web/src/lib/auth/request.ts)<br>[session](web/src/lib/auth/session.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / ai-configs / 单项：删除、替换 |
 | POST | `/api/admin/drama-lab/ai-configs/[id]/test` | 管理员 | [route.ts](web/src/app/api/admin/drama-lab/ai-configs/[id]/test/route.ts) | [admin-permissions](web/src/lib/admin-permissions.ts)<br>[session](web/src/lib/auth/session.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / drama-lab / ai-configs / 单项 / 测试：提交/执行 |
@@ -417,7 +426,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/referrals` | 用户 | [route.ts](web/src/app/api/referrals/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 邀请返利：查询 |
 
-### `school`（22）
+### `school`（26）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -428,8 +437,12 @@
 | GET | `/api/school/compute` | 用户 | [route.ts](web/src/app/api/school/compute/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / compute：查询 |
 | GET | `/api/school/compute/ledger` | 用户 | [route.ts](web/src/app/api/school/compute/ledger/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / compute / ledger：查询 |
 | GET | `/api/school/context` | 用户 | [route.ts](web/src/app/api/school/context/route.ts) | [school-access-service](web/src/lib/server/school-access-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / context：查询 |
+| DELETE, PUT | `/api/school/course-material-uploads` | 混合 | [route.ts](web/src/app/api/school/course-material-uploads/route.ts) | [course-attachment-service](web/src/lib/server/course-attachment-service.ts)<br>[school-access-service](web/src/lib/server/school-access-service.ts) | PostgreSQL | school / course-material-uploads：删除、替换 |
+| DELETE, PATCH | `/api/school/course-materials/[id]` | 混合 | [route.ts](web/src/app/api/school/course-materials/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / course-materials / 单项：更新、删除 |
 | GET | `/api/school/courses` | 用户 | [route.ts](web/src/app/api/school/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / courses：查询 |
+| POST | `/api/school/courses/[id]/materials` | 用户 | [route.ts](web/src/app/api/school/courses/[id]/materials/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / courses / 单项 / materials：提交/执行 |
 | GET, POST | `/api/school/courses/[id]/offerings` | 用户 | [route.ts](web/src/app/api/school/courses/[id]/offerings/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL | school / courses / 单项 / offerings：查询、提交/执行 |
+| GET | `/api/school/courses/[id]/tree` | 用户 | [route.ts](web/src/app/api/school/courses/[id]/tree/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / courses / 单项 / tree：查询 |
 | POST | `/api/school/invitations` | 用户 | [route.ts](web/src/app/api/school/invitations/route.ts) | [school-member-provisioning-service](web/src/lib/server/school-member-provisioning-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL | school / invitations：提交/执行 |
 | GET, POST | `/api/school/invitations/join` | 用户 | [route.ts](web/src/app/api/school/invitations/join/route.ts) | [school-member-provisioning-service](web/src/lib/server/school-member-provisioning-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / invitations / join：查询、提交/执行 |
 | GET, POST | `/api/school/members` | 用户 | [route.ts](web/src/app/api/school/members/route.ts) | [school-member-provisioning-service](web/src/lib/server/school-member-provisioning-service.ts)<br>[school-tenant-service](web/src/lib/server/school-tenant-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / members：查询、提交/执行 |

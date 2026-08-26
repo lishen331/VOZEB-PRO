@@ -3,13 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     deleteUserLocalMediaAssets: vi.fn(),
+    deleteLocalMediaAssetsByStorageKeys: vi.fn(),
     writePersistentAttachmentFile: vi.fn(),
 }));
 
-vi.mock("@/lib/server/local-media-storage", () => ({ deleteUserLocalMediaAssets: mocks.deleteUserLocalMediaAssets }));
+vi.mock("@/lib/server/local-media-storage", () => ({ deleteUserLocalMediaAssets: mocks.deleteUserLocalMediaAssets, deleteLocalMediaAssetsByStorageKeys: mocks.deleteLocalMediaAssetsByStorageKeys }));
 vi.mock("@/lib/server/reference-asset-store", () => ({ writePersistentAttachmentFile: mocks.writePersistentAttachmentFile }));
 
-import { deleteCourseAttachments, storeCourseAttachment } from "./course-attachment-service";
+import { cleanupDeletedCourseMaterials, deleteCourseAttachments, storeCourseAttachment } from "./course-attachment-service";
 
 describe("course attachment service", () => {
     beforeEach(() => {
@@ -64,6 +65,7 @@ describe("course attachment service", () => {
 
     it("rejects unsupported and empty files before persistence", async () => {
         await expect(storeCourseAttachment({ ownerUserId: "admin-one", fileName: "notes.txt", declaredMimeType: "text/plain", body: new Blob(["notes"]).stream(), contentLength: 5 })).rejects.toMatchObject({ status: 400 });
+        await expect(storeCourseAttachment({ ownerUserId: "admin-one", fileName: "notes.zip", declaredMimeType: "image/png", body: new Blob(["notes"]).stream(), contentLength: 5 })).rejects.toMatchObject({ status: 400 });
         await expect(storeCourseAttachment({ ownerUserId: "admin-one", fileName: "empty.zip", declaredMimeType: "application/zip", body: new Blob([]).stream(), contentLength: 0 })).rejects.toMatchObject({ status: 400 });
         expect(mocks.writePersistentAttachmentFile).not.toHaveBeenCalled();
     });
@@ -84,5 +86,11 @@ describe("course attachment service", () => {
 
         await expect(deleteCourseAttachments("admin-one", [" permanent/file.zip ", "permanent/file.zip"])).resolves.toEqual({ deletedFiles: 1, deletedBytes: 3, blocked: [] });
         expect(mocks.deleteUserLocalMediaAssets).toHaveBeenCalledWith("admin-one", ["permanent/file.zip"]);
+    });
+
+    it("cleans only unreferenced course files after commit", async () => {
+        mocks.deleteLocalMediaAssetsByStorageKeys.mockResolvedValue({ deletedFiles: 1, deletedBytes: 3, blocked: [{ storageKey: "permanent/shared.zip" }] });
+        await expect(cleanupDeletedCourseMaterials(["permanent/file.zip", "permanent/file.zip", "permanent/shared.zip"])).resolves.toEqual({ deletedFiles: 1, deletedBytes: 3, skippedShared: 1, failed: ["permanent/shared.zip"] });
+        expect(mocks.deleteLocalMediaAssetsByStorageKeys).toHaveBeenCalledWith(["permanent/file.zip", "permanent/shared.zip"], "reference");
     });
 });

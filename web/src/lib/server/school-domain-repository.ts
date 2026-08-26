@@ -1,5 +1,7 @@
 import type {
     CommercialOrderStatus,
+    CourseMaterialSourceScope,
+    CourseMaterialStatus,
     PlatformCourseStatus,
     SchoolContentReference,
     SchoolMemberRole,
@@ -57,14 +59,17 @@ export type PlatformCourseRecord = {
     title: string;
     summary: string;
     content: JsonValue;
-    chapters: JsonValue;
-    attachments: JsonValue;
     status: PlatformCourseStatus;
+    deletedAt?: string;
+    deletedByUserId?: string;
     createdByUserId?: string;
     createdAt: string;
     updatedAt: string;
+    chapterCount?: number;
+    lessonCount?: number;
+    materialCount?: number;
 };
-export type PlatformCourseUpdate = Partial<Pick<PlatformCourseRecord, "title" | "summary" | "content" | "chapters" | "attachments" | "status">> & { updatedAt: string };
+export type PlatformCourseUpdate = Partial<Pick<PlatformCourseRecord, "title" | "summary" | "content" | "status">> & { updatedAt: string };
 export type SchoolCourseAssignmentRecord = { id: string; courseId: string; schoolId: string; status: SchoolStatus; createdAt: string; updatedAt: string };
 export type SchoolCourseAssignmentInput = Omit<SchoolCourseAssignmentRecord, "courseId">;
 export type SchoolCourseOfferingRecord = {
@@ -73,7 +78,6 @@ export type SchoolCourseOfferingRecord = {
     assignmentId: string;
     classId: string;
     teacherMembershipId: string;
-    supplementalResources: JsonValue;
     status: SchoolStatus;
     createdAt: string;
     updatedAt: string;
@@ -83,6 +87,8 @@ export type TeachingAssignmentRecord = {
     schoolId: string;
     offeringId: string;
     teacherMembershipId: string;
+    chapterId?: string;
+    lessonId?: string;
     kind: TeachingAssignmentKind;
     title: string;
     instructions: string;
@@ -92,7 +98,44 @@ export type TeachingAssignmentRecord = {
     createdAt: string;
     updatedAt: string;
 };
-export type TeachingAssignmentUpdate = Partial<Pick<TeachingAssignmentRecord, "kind" | "title" | "instructions" | "resources" | "dueAt" | "status">> & { updatedAt: string };
+export type TeachingAssignmentUpdate = Partial<Pick<TeachingAssignmentRecord, "kind" | "title" | "instructions" | "resources" | "dueAt" | "status" | "chapterId" | "lessonId">> & { updatedAt: string };
+export type CourseChapterRecord = { id: string; courseId: string; title: string; description: string; sortOrder: number; createdAt: string; updatedAt: string };
+export type CourseChapterUpdate = Partial<Pick<CourseChapterRecord, "title" | "description" | "sortOrder">> & { updatedAt: string };
+export type CourseLessonRecord = { id: string; courseId: string; chapterId: string; title: string; description: string; sortOrder: number; createdAt: string; updatedAt: string };
+export type CourseLessonUpdate = Partial<Pick<CourseLessonRecord, "title" | "description" | "sortOrder">> & { updatedAt: string };
+export type CourseMaterialRecord = {
+    id: string;
+    courseId: string;
+    chapterId?: string;
+    lessonId?: string;
+    sourceScope: CourseMaterialSourceScope;
+    schoolCourseAssignmentId?: string;
+    title: string;
+    fileName: string;
+    mimeType: string;
+    bytes: number;
+    storageKey: string;
+    url: string;
+    sortOrder: number;
+    status: CourseMaterialStatus;
+    createdByUserId?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+export type CourseMaterialInput = { chapterId?: string; lessonId?: string; title: string; storageKey: string };
+export type CourseMaterialUpdate = Partial<Pick<CourseMaterialRecord, "title" | "sortOrder" | "status">> & { updatedAt: string };
+export type CourseMaterialQuery = { courseId: string; schoolCourseAssignmentId?: string; sourceScope?: CourseMaterialSourceScope; chapterId?: string; lessonId?: string; page?: number; pageSize?: number };
+export type CourseDeletionImpact = {
+    courseId: string;
+    chapterCount: number;
+    lessonCount: number;
+    materialCount: number;
+    schoolCount: number;
+    offeringCount: number;
+    teachingAssignmentCount: number;
+    submissionCount: number;
+    storageKeys: string[];
+};
 export type TeachingSubmissionRecord = {
     id: string;
     schoolId: string;
@@ -182,7 +225,28 @@ export interface SchoolDomainRepository {
     listPlatformCourses(input: PlatformCoursePageQuery): Promise<Page<PlatformCourseRecord>>;
     getPlatformCourse(courseId: string, forUpdate?: boolean): Promise<PlatformCourseRecord | null>;
     updatePlatformCourse(courseId: string, patch: PlatformCourseUpdate): Promise<PlatformCourseRecord | null>;
+    getPlatformCourseTree(courseId: string, options?: { schoolCourseAssignmentId?: string }): Promise<import("@/lib/school-domain").PlatformCourseDetail | null>;
+    listCourseChapters(courseId: string): Promise<CourseChapterRecord[]>;
+    getCourseChapter(chapterId: string): Promise<CourseChapterRecord | null>;
+    insertCourseChapter(record: CourseChapterRecord): Promise<CourseChapterRecord>;
+    updateCourseChapter(courseId: string, chapterId: string, patch: CourseChapterUpdate): Promise<CourseChapterRecord | null>;
+    deleteCourseChapter(courseId: string, chapterId: string): Promise<boolean>;
+    insertCourseLesson(record: CourseLessonRecord): Promise<CourseLessonRecord>;
+    getCourseLesson(lessonId: string): Promise<CourseLessonRecord | null>;
+    updateCourseLesson(courseId: string, lessonId: string, patch: CourseLessonUpdate): Promise<CourseLessonRecord | null>;
+    deleteCourseLesson(courseId: string, lessonId: string): Promise<boolean>;
+    listCourseMaterials(input: CourseMaterialQuery): Promise<Page<CourseMaterialRecord>>;
+    getCourseMaterial(materialId: string, schoolId?: string): Promise<CourseMaterialRecord | null>;
+    insertCourseMaterial(record: CourseMaterialRecord): Promise<CourseMaterialRecord>;
+    updateCourseMaterial(materialId: string, patch: CourseMaterialUpdate): Promise<CourseMaterialRecord | null>;
+    deleteCourseMaterial(materialId: string): Promise<boolean>;
+    getPlatformCourseDeletionImpact(courseId: string): Promise<CourseDeletionImpact>;
+    disablePlatformCourse(courseId: string, patch: { deletedAt: string; deletedByUserId: string; updatedAt: string }): Promise<PlatformCourseRecord | null>;
+    restorePlatformCourse(courseId: string, patch: { updatedAt: string }): Promise<PlatformCourseRecord | null>;
+    permanentlyDeletePlatformCourse(courseId: string): Promise<{ storageKeys: string[] }>;
     getSchoolCourseAssignment(schoolId: string, assignmentId: string, forUpdate?: boolean): Promise<SchoolCourseAssignmentRecord | null>;
+    hasVisibleCourseAssignment(schoolId: string, membershipId: string, role: SchoolMemberRole, assignmentId: string): Promise<boolean>;
+    hasActiveOfferingForTeacher(schoolId: string, membershipId: string, assignmentId: string): Promise<boolean>;
     listOfferingsForAssignment(schoolId: string, assignmentId: string, input: PageQuery): Promise<Page<SchoolCourseOfferingRecord>>;
     getCourseOffering(schoolId: string, offeringId: string, forUpdate?: boolean): Promise<SchoolCourseOfferingRecord | null>;
     listOfferingsForTeacher(schoolId: string, membershipId: string, input: PageQuery): Promise<Page<SchoolCourseOfferingRecord>>;

@@ -30,6 +30,7 @@ import { schoolApi } from "@/services/api/school";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { parseSchoolMemberCsv } from "./school-csv";
 import { ProductionGroupsPanel } from "./components/production-groups-panel";
+import { SchoolCourseTree } from "@/components/school/school-course-tree";
 
 const PAGE_SIZE = 12;
 const roleOptions = [
@@ -740,7 +741,6 @@ function CoursesPanel() {
             setTeachers([]);
             await Promise.all([searchClasses(""), searchTeachers("")]);
             form.resetFields();
-            form.setFieldsValue({ supplementalResources: [] });
             setArranging(assignment);
         } catch (error) {
             setArranging(null);
@@ -757,7 +757,6 @@ function CoursesPanel() {
             const input: CourseOfferingInput = {
                 classId: values.classId,
                 teacherMembershipId: values.teacherMembershipId,
-                supplementalResources: (values.supplementalResources || []).map((item) => ({ title: item.title.trim(), url: item.url.trim() })),
             };
             await coursesApi.createCourseOffering(arranging.id, input);
             message.success("教学安排已创建");
@@ -802,7 +801,7 @@ function CoursesPanel() {
                 </div>
             ),
         },
-        { title: "章节/课时", width: 110, render: (_, assignment) => assignment.course.chapters.length },
+        { title: "章节/课时", width: 110, render: (_, assignment) => `${assignment.course.chapterCount}/${assignment.course.lessonCount}` },
         { title: "状态", width: 110, render: (_, assignment) => <CourseAssignmentStatus assignment={assignment} /> },
         { title: "操作", width: 260, align: "right", render: (_, assignment) => actions(assignment) },
     ];
@@ -857,25 +856,8 @@ function CoursesPanel() {
             >
                 {viewing ? (
                     <div className="space-y-5">
-                        <section>
-                            <h3 className="text-sm font-medium">课程正文</h3>
-                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{courseBody(viewing) || viewing.course.summary || "暂无正文"}</p>
-                        </section>
-                        <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-                            <h3 className="text-sm font-medium">章节与课时</h3>
-                            <div className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-800">
-                                {viewing.course.chapters.map((chapter, index) => (
-                                    <div key={`${index}-${outlineTitle(chapter)}`} className="py-2 text-sm">
-                                        {outlineTitle(chapter) || `课时 ${index + 1}`}
-                                    </div>
-                                ))}
-                                {!viewing.course.chapters.length ? <p className="py-3 text-sm text-zinc-500">暂无章节或课时</p> : null}
-                            </div>
-                        </section>
-                        <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-                            <h3 className="text-sm font-medium">课程附件</h3>
-                            <ResourceList values={viewing.course.attachments} emptyText="暂无课程附件" />
-                        </section>
+                        {/* 课程附件现在统一呈现在课程树的课程资料节点中。 */}
+                        <SchoolCourseTree assignmentId={viewing.id} canManage />
                         <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
                             <h3 className="text-sm font-medium">本校教学安排</h3>
                             <div className="mt-2 space-y-2">
@@ -890,7 +872,6 @@ function CoursesPanel() {
                                             负责老师：{offering.teacher.displayName}
                                             {offering.teacher.accountId ? `（ID：${offering.teacher.accountId}）` : ""}
                                         </div>
-                                        <div className="mt-1 text-xs text-zinc-500">补充资料 {offering.supplementalResources.length} 项</div>
                                     </div>
                                 ))}
                                 {!offerings.length ? <p className="py-3 text-sm text-zinc-500">暂无教学安排</p> : null}
@@ -936,31 +917,6 @@ function CoursesPanel() {
                             <Select optionFilterProp="label" showSearch filterOption={false} options={teachers.map(memberOption)} onSearch={(value) => void searchTeachers(value)} />
                         </Form.Item>
                     </div>
-                    <Form.List name="supplementalResources">
-                        {(fields, { add, remove }) => (
-                            <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-                                <div className="mb-3 flex items-center justify-between gap-2">
-                                    <h3 className="text-sm font-medium">补充资料</h3>
-                                    <Button size="small" icon={<Plus className="size-3.5" />} onClick={() => add({ title: "", url: "" })}>
-                                        添加
-                                    </Button>
-                                </div>
-                                <div className="space-y-3">
-                                    {fields.map((field) => (
-                                        <div key={field.key} className="grid grid-cols-[minmax(96px,0.7fr)_minmax(0,1.3fr)_32px] gap-2">
-                                            <Form.Item name={[field.name, "title"]} className="mb-0" rules={[{ required: true, message: "请填写名称" }]}>
-                                                <Input placeholder="资料名称" />
-                                            </Form.Item>
-                                            <Form.Item name={[field.name, "url"]} className="mb-0" rules={[{ required: true, type: "url", message: "请填写有效 URL" }]}>
-                                                <Input placeholder="https://" />
-                                            </Form.Item>
-                                            <Button danger type="text" icon={<Trash2 className="size-4" />} aria-label="删除补充资料" onClick={() => remove(field.name)} />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-                    </Form.List>
                 </Form>
             </Modal>
         </section>
@@ -1408,18 +1364,10 @@ function mergeOptions(selected: SelectOption[], loaded: SelectOption[]) {
     return [...new Map([...selected, ...loaded].map((item) => [item.value, item])).values()];
 }
 
-type CourseOfferingForm = Omit<CourseOfferingInput, "supplementalResources"> & { supplementalResources: Array<{ title: string; url: string }> };
+type CourseOfferingForm = CourseOfferingInput;
 
 function CourseAssignmentStatus({ assignment }: { assignment: SchoolCourseAssignment }) {
     return assignment.status === "active" && assignment.course.status === "published" ? <Tag color="green">可安排</Tag> : <Tag>已停用</Tag>;
-}
-
-function courseBody(assignment: SchoolCourseAssignment) {
-    return typeof assignment.course.content.body === "string" ? assignment.course.content.body : "";
-}
-
-function outlineTitle(value: unknown) {
-    return value && typeof value === "object" && typeof (value as Record<string, unknown>).title === "string" ? String((value as Record<string, unknown>).title) : "";
 }
 
 function ResourceList({ values, emptyText }: { values: unknown[]; emptyText: string }) {

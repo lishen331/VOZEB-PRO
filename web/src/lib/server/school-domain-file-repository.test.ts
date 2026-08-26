@@ -15,6 +15,138 @@ const now = "2026-08-17T00:00:00.000Z";
 describe("file school domain repository", () => {
     beforeEach(() => files.clear());
 
+    it("stores a normalized course tree and rejects materials without exactly one target", async () => {
+        const repository = createFileSchoolDomainRepository();
+        await repository.insertPlatformCourse({ id: "course-tree", title: "课程树", summary: "", content: {}, status: "draft", createdAt: now, updatedAt: now });
+        await repository.insertCourseChapter({ id: "chapter-tree", courseId: "course-tree", title: "第一章", description: "", sortOrder: 1, createdAt: now, updatedAt: now });
+        await repository.insertCourseLesson({ id: "lesson-tree", courseId: "course-tree", chapterId: "chapter-tree", title: "第一课时", description: "", sortOrder: 1, createdAt: now, updatedAt: now });
+        await repository.insertCourseMaterial({
+            id: "material-tree",
+            courseId: "course-tree",
+            chapterId: "chapter-tree",
+            sourceScope: "platform",
+            title: "讲义",
+            fileName: "lesson.docx",
+            mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            bytes: 10,
+            storageKey: "course-tree/lesson.docx",
+            url: "/api/media/course-tree/lesson.docx",
+            sortOrder: 1,
+            status: "active",
+            createdAt: now,
+            updatedAt: now,
+        });
+        await repository.insertCourseMaterial({
+            id: "material-first",
+            courseId: "course-tree",
+            chapterId: "chapter-tree",
+            sourceScope: "platform",
+            title: "排序靠前",
+            fileName: "first.zip",
+            mimeType: "application/zip",
+            bytes: 1,
+            storageKey: "course-tree/first.zip",
+            url: "/api/media/course-tree/first.zip",
+            sortOrder: 0,
+            status: "active",
+            createdAt: now,
+            updatedAt: now,
+        });
+        await repository.insertCourseMaterial({
+            id: "material-last",
+            courseId: "course-tree",
+            chapterId: "chapter-tree",
+            sourceScope: "platform",
+            title: "排序靠后",
+            fileName: "last.zip",
+            mimeType: "application/zip",
+            bytes: 1,
+            storageKey: "course-tree/last.zip",
+            url: "/api/media/course-tree/last.zip",
+            sortOrder: 2,
+            status: "active",
+            createdAt: now,
+            updatedAt: now,
+        });
+
+        await expect(repository.getPlatformCourseTree("course-tree")).resolves.toMatchObject({});
+        await expect(repository.listCourseMaterials({ courseId: "course-tree", page: 1, pageSize: 3 })).resolves.toMatchObject({
+            items: [{ id: "material-first" }, { id: "material-tree" }, { id: "material-last" }],
+        });
+        await expect(
+            repository.insertCourseMaterial({
+                id: "material-invalid",
+                courseId: "course-tree",
+                sourceScope: "platform",
+                title: "无目标",
+                fileName: "empty.zip",
+                mimeType: "application/zip",
+                bytes: 1,
+                storageKey: "course-tree/empty.zip",
+                url: "/api/media/course-tree/empty.zip",
+                sortOrder: 1,
+                status: "active",
+                createdAt: now,
+                updatedAt: now,
+            }),
+        ).rejects.toThrow("章节或课时");
+    });
+
+    it("rejects teaching assignments that target both a chapter and a lesson", async () => {
+        const repository = createFileSchoolDomainRepository();
+        await repository.insertSchool(school("school-course", "课程学校"));
+        await repository.insertMembership(membership("teacher-course", "school-course", "teacher-course-user", "teacher"));
+        await repository.insertClass({ id: "class-course", schoolId: "school-course", name: "一班", description: "", status: "active", createdAt: now, updatedAt: now });
+        await repository.insertPlatformCourse({ id: "course-target", title: "目标课程", summary: "", content: {}, status: "published", createdAt: now, updatedAt: now });
+        await repository.insertCourseChapter({ id: "chapter-target", courseId: "course-target", title: "章节", description: "", sortOrder: 1, createdAt: now, updatedAt: now });
+        await repository.insertCourseLesson({ id: "lesson-target", courseId: "course-target", chapterId: "chapter-target", title: "课时", description: "", sortOrder: 1, createdAt: now, updatedAt: now });
+        await repository.assignCourseToSchools("course-target", [{ id: "assignment-target", schoolId: "school-course", status: "active", createdAt: now, updatedAt: now }]);
+        await repository.insertCourseOffering({ id: "offering-target", schoolId: "school-course", assignmentId: "assignment-target", classId: "class-course", teacherMembershipId: "teacher-course", status: "active", createdAt: now, updatedAt: now });
+        await repository.insertCourseMaterial({
+            id: "school-material",
+            courseId: "course-target",
+            lessonId: "lesson-target",
+            sourceScope: "school",
+            schoolCourseAssignmentId: "assignment-target",
+            title: "本校资料",
+            fileName: "school.zip",
+            mimeType: "application/zip",
+            bytes: 1,
+            storageKey: "course-target/school.zip",
+            url: "/api/media/course-target/school.zip",
+            sortOrder: 1,
+            status: "active",
+            createdAt: now,
+            updatedAt: now,
+        });
+
+        await expect(repository.getCourseMaterial("school-material")).resolves.toBeNull();
+        await expect(repository.getCourseMaterial("school-material", "school-course")).resolves.toMatchObject({ id: "school-material" });
+        await expect(repository.listCourseMaterials({ courseId: "course-target", sourceScope: "school", page: 1, pageSize: 20 })).resolves.toMatchObject({ items: [], total: 0 });
+        await expect(repository.listCourseMaterials({ courseId: "course-target", schoolCourseAssignmentId: "assignment-target", page: 1, pageSize: 20 })).resolves.toMatchObject({
+            items: [expect.objectContaining({ id: "school-material" })],
+            total: 1,
+        });
+
+        await expect(
+            repository.insertTeachingAssignment({
+                id: "teaching-both-targets",
+                schoolId: "school-course",
+                offeringId: "offering-target",
+                teacherMembershipId: "teacher-course",
+                chapterId: "chapter-target",
+                lessonId: "lesson-target",
+                kind: "lesson",
+                title: "双目标",
+                instructions: "",
+                resources: [],
+                status: "draft",
+                createdAt: now,
+                updatedAt: now,
+            }),
+        ).rejects.toThrow("章节或课时");
+    });
+
     it("keeps school reads tenant-scoped and paginated", async () => {
         const repository = createFileSchoolDomainRepository();
         await repository.insertSchool(school("school-a", "甲学校"));
@@ -39,7 +171,7 @@ describe("file school domain repository", () => {
 
         await expect(repository.replaceClassMembers("school-a", "class-a", ["teacher-a", "student-b"])).rejects.toThrow("学校成员");
         await repository.replaceClassMembers("school-a", "class-a", ["teacher-a", "student-a"]);
-        await repository.insertPlatformCourse({ id: "course-a", title: "课程", summary: "", content: {}, chapters: [], attachments: [], status: "published", createdAt: now, updatedAt: now });
+        await repository.insertPlatformCourse({ id: "course-a", title: "课程", summary: "", content: {}, status: "published", createdAt: now, updatedAt: now });
         await repository.assignCourseToSchools("course-a", [{ id: "course-assignment-a", schoolId: "school-a", status: "active", createdAt: now, updatedAt: now }]);
         await repository.insertCourseOffering({
             id: "offering-a",
@@ -47,7 +179,6 @@ describe("file school domain repository", () => {
             assignmentId: "course-assignment-a",
             classId: "class-a",
             teacherMembershipId: "teacher-a",
-            supplementalResources: [],
             status: "active",
             createdAt: now,
             updatedAt: now,
@@ -141,7 +272,6 @@ describe("file school domain repository", () => {
                 assignmentId: "course-assignment-a",
                 classId: "class-a",
                 teacherMembershipId: "teacher-a",
-                supplementalResources: [],
                 status: "active",
                 createdAt: now,
                 updatedAt: now,
@@ -332,9 +462,9 @@ async function seedTeachingDomain(repository: ReturnType<typeof createFileSchool
     await repository.insertClass({ id: "class-a", schoolId: "school-a", name: "一班", description: "", status: "active", createdAt: now, updatedAt: now });
     await repository.insertClass({ id: "class-b", schoolId: "school-b", name: "二班", description: "", status: "active", createdAt: now, updatedAt: now });
     await repository.replaceClassMembers("school-a", "class-a", ["teacher-a", "student-a"]);
-    await repository.insertPlatformCourse({ id: "course-a", title: "课程", summary: "", content: {}, chapters: [], attachments: [], status: "published", createdAt: now, updatedAt: now });
+    await repository.insertPlatformCourse({ id: "course-a", title: "课程", summary: "", content: {}, status: "published", createdAt: now, updatedAt: now });
     await repository.assignCourseToSchools("course-a", [{ id: "course-assignment-a", schoolId: "school-a", status: "active", createdAt: now, updatedAt: now }]);
-    await repository.insertCourseOffering({ id: "offering-a", schoolId: "school-a", assignmentId: "course-assignment-a", classId: "class-a", teacherMembershipId: "teacher-a", supplementalResources: [], status: "active", createdAt: now, updatedAt: now });
+    await repository.insertCourseOffering({ id: "offering-a", schoolId: "school-a", assignmentId: "course-assignment-a", classId: "class-a", teacherMembershipId: "teacher-a", status: "active", createdAt: now, updatedAt: now });
     await repository.insertTeachingAssignment({
         id: "teaching-a",
         schoolId: "school-a",

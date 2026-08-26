@@ -8,6 +8,7 @@ import type {
     CommercialOrderParticipantSubmission,
     PageResult,
     PlatformCourse,
+    PlatformCourseDetail,
     SchoolClass,
     SchoolClassDetail,
     SchoolCommercialOrder,
@@ -30,7 +31,7 @@ type ApiFailure = { path: string; status: number; body: string };
 
 test.use({ actionTimeout: 15_000 });
 
-test("admin creates a course in a modal with local attachments", async ({ page }, testInfo) => {
+test("admin creates a normalized course tree with local materials", async ({ page }, testInfo) => {
     test.setTimeout(120_000);
     const title = `本地附件课程 ${testInfo.project.name} ${randomUUID().slice(0, 8)}`;
     const errors = watchPageErrors(page);
@@ -42,12 +43,6 @@ test("admin creates a course in a modal with local attachments", async ({ page }
         await expect(editor).toBeVisible();
         await expect(page.locator(".ant-drawer")).toHaveCount(0);
         await fillField(editor.getByLabel("课程标题"), title);
-        await editor.locator('input[type="file"]').setInputFiles([
-            { name: "课程案例.zip", mimeType: "application/zip", buffer: Buffer.from("PK course package") },
-            { name: "课程封面.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]) },
-        ]);
-        await expect(editor.getByText("课程案例.zip", { exact: true })).toBeVisible();
-        await expect(editor.getByText("课程封面.png", { exact: true })).toBeVisible();
         await expect(editor.locator('input[placeholder="https://"]')).toHaveCount(0);
         await expectElementWithinViewport(page, editor, "course attachment modal");
         await expectNoHorizontalOverflow(page, "course attachment modal");
@@ -56,11 +51,35 @@ test("admin creates a course in a modal with local attachments", async ({ page }
 
         const courses = await apiData<PageResult<PlatformCourse>>(await page.context().request.get(`/api/admin/courses?page=1&pageSize=20&keyword=${encodeURIComponent(title)}`));
         const course = courses.items.find((item) => item.title === title);
-        expect(course?.attachments).toEqual([
-            expect.objectContaining({ fileName: "课程案例.zip", mimeType: "application/zip", bytes: 17, storageKey: expect.stringContaining("/attachments/"), url: expect.stringContaining("/api/reference-assets/") }),
-            expect.objectContaining({ fileName: "课程封面.png", mimeType: "image/png", bytes: 4, storageKey: expect.stringContaining("/attachments/"), url: expect.stringContaining("/api/reference-assets/") }),
-        ]);
-        const download = await page.context().request.head(`${course!.attachments[0]!.url}?download=original`);
+        expect(course).toBeTruthy();
+        const row = businessRow(page, title);
+        await row.getByRole("button", { name: "课程结构", exact: true }).click();
+        const tree = page.getByRole("dialog", { name: new RegExp(`${title}.*课程结构`) });
+        await expect(tree).toBeVisible();
+        await tree.getByRole("button", { name: "章节", exact: true }).click();
+        const chapterDialog = page.getByRole("dialog", { name: "新建章节", exact: true });
+        await fillField(chapterDialog.getByLabel("名称"), "需求拆解");
+        await page.getByRole("button", { name: /保\s*存/ }).click();
+        await expect(tree.getByRole("button", { name: "需求拆解", exact: true })).toBeVisible();
+        await tree.getByRole("button", { name: "添加课时", exact: true }).click();
+        const lessonDialog = page.getByRole("dialog", { name: "新建课时", exact: true });
+        await fillField(lessonDialog.getByLabel("名称"), "镜头基础");
+        await page.getByRole("button", { name: /保\s*存/ }).click();
+        await tree.getByRole("button", { name: "镜头基础", exact: true }).click();
+        await tree.locator('input[type="file"]').setInputFiles({ name: "课程案例.zip", mimeType: "application/zip", buffer: Buffer.from("PK course package") });
+        await expect(tree.getByText("课程案例.zip", { exact: true })).toBeVisible();
+        await tree.getByRole("button", { name: "需求拆解", exact: true }).click();
+        await tree.locator('input[type="file"]').setInputFiles({ name: "课程封面.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]) });
+        await expect(tree.getByText("课程封面.png", { exact: true })).toBeVisible();
+        const detail = await apiData<PlatformCourseDetail>(await page.context().request.get(`/api/admin/courses/${course!.id}/tree`));
+        const materials = [...detail.chapters.flatMap((chapter) => chapter.materials), ...detail.chapters.flatMap((chapter) => chapter.lessons.flatMap((lesson) => lesson.materials))];
+        expect(materials).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ fileName: "课程案例.zip", mimeType: "application/zip", bytes: 17, lessonId: expect.any(String), url: expect.stringContaining("/api/reference-assets/") }),
+                expect.objectContaining({ fileName: "课程封面.png", mimeType: "image/png", bytes: 4, chapterId: expect.any(String), url: expect.stringContaining("/api/reference-assets/") }),
+            ]),
+        );
+        const download = await page.context().request.head(`${materials.find((material) => material.fileName === "课程案例.zip")!.url}?download=original`);
         expect(download.status()).toBe(200);
         expect(download.headers()["content-disposition"]).toContain("attachment");
         expect(await errors.values(), "course attachment browser errors").toEqual([]);
@@ -157,7 +176,7 @@ test("two schools complete teaching and commercial-order workflows without cross
         await expectApiStatus(managerBContext.request.delete(`/api/school/classes/${schoolClass.id}`), 404);
         await expectApiStatus(managerBContext.request.patch(`/api/school/members/${teacher.id}`, { data: { status: "disabled" } }), 404);
         await expectApiStatus(managerBContext.request.delete(`/api/school/members/${student.id}`), 404);
-        await expectApiStatus(managerBContext.request.post(`/api/school/courses/${courseAssignment.id}/offerings`, { data: { classId: schoolClass.id, teacherMembershipId: teacher.id, supplementalResources: [], status: "active" } }), 404);
+        await expectApiStatus(managerBContext.request.post(`/api/school/courses/${courseAssignment.id}/offerings`, { data: { classId: schoolClass.id, teacherMembershipId: teacher.id, status: "active" } }), 404);
         await expectApiStatus(managerBContext.request.patch(`/api/teaching/assignments/${teachingAssignment.id}`, { data: { title: "越权修改作业" } }), 404);
         await expectApiStatus(managerBContext.request.get(`/api/teaching/assignments/${teachingAssignment.id}/submissions?page=1&pageSize=12`), 404);
         await expectApiStatus(managerBContext.request.post(`/api/teaching/submissions/${teachingSubmission.id}/review`, { data: { status: "reviewed", feedback: "越权批改" } }), 404);
@@ -301,20 +320,29 @@ async function createPublishAndAssignCourseInBrowser(context: BrowserContext, ti
         await expectAnimationsFinished(drawer);
         await fillField(drawer.getByLabel("课程标题"), title);
         await fillField(drawer.getByLabel("课程摘要"), "从需求到交付的真实课程闭环");
-        await fillField(drawer.getByLabel("平台课程正文"), "完成品牌短片策划、制作与复盘。");
-        await drawer.getByRole("button", { name: "添加", exact: true }).first().click();
-        await fillField(drawer.getByPlaceholder("章节或课时名称"), "需求拆解");
+        await fillField(drawer.getByLabel("课程介绍"), "完成品牌短片策划、制作与复盘。");
         await expectElementWithinViewport(page, drawer, "course editor");
         await drawer.getByRole("button", { name: /保\s*存/ }).click();
         await expect(drawer).toBeHidden();
         const row = businessRow(page, title);
         await expect(row).toBeVisible();
+        await row.getByRole("button", { name: "课程结构", exact: true }).click();
+        const tree = page.getByRole("dialog", { name: new RegExp(`${title}.*课程结构`) });
+        await tree.getByRole("button", { name: "章节", exact: true }).click();
+        const chapterDialog = page.getByRole("dialog", { name: "新建章节", exact: true });
+        await fillField(chapterDialog.getByLabel("名称"), "需求拆解");
+        await page.getByRole("button", { name: /保\s*存/ }).click();
+        await tree.getByRole("button", { name: "添加课时", exact: true }).click();
+        const lessonDialog = page.getByRole("dialog", { name: "新建课时", exact: true });
+        await fillField(lessonDialog.getByLabel("名称"), "镜头基础");
+        await page.getByRole("button", { name: /保\s*存/ }).click();
+        await tree.locator(".ant-modal-close").click();
         await row.getByRole("button", { name: "发布", exact: true }).click();
         const publish = page.getByRole("dialog", { name: `发布“${title}”`, exact: true });
         await publish.getByRole("button", { name: "确认发布", exact: true }).click();
         await expect(row.getByText("已发布", { exact: true })).toBeVisible();
         await row.getByRole("button", { name: "分配学校", exact: true }).click();
-        const assign = page.getByRole("dialog", { name: new RegExp(`^分配学校.*${title}`) });
+        const assign = page.getByRole("dialog", { name: new RegExp(title) });
         await expect(assign).toBeVisible();
         await expectAnimationsFinished(assign);
         const schoolSelect = assign.getByRole("combobox");

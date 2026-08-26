@@ -77,7 +77,7 @@ export async function countLocalMediaReferences(storageKeys: string[]) {
                 UNION ALL
                 SELECT r.storage_key, count(*)::int
                 FROM requested r
-                JOIN platform_courses c ON position(r.storage_key in COALESCE(c.attachments::text, '')) > 0
+                JOIN course_materials c ON c.storage_key = r.storage_key
                 GROUP BY r.storage_key
             )
             SELECT r.storage_key, COALESCE(sum(c.total), 0)::int AS total
