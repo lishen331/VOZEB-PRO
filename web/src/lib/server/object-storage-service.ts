@@ -63,7 +63,7 @@ export async function createExternalMediaReadUrl(request: Request, registration:
         key: registration.externalObjectKey,
         contentType: registration.mimeType || undefined,
         contentDisposition: mediaContentDisposition(download ? "attachment" : "inline", registration.originalName || basename(registration.storageKey), registration.mimeType, download ? registration.storageKey : ""),
-        expiresIn: registration.type === "video" || registration.type === "audio" ? STREAMING_MEDIA_READ_URL_TTL_SECONDS : IMAGE_ORIGINAL_READ_URL_TTL_SECONDS,
+        expiresIn: registration.type === "image" ? IMAGE_ORIGINAL_READ_URL_TTL_SECONDS : STREAMING_MEDIA_READ_URL_TTL_SECONDS,
     });
 }
 

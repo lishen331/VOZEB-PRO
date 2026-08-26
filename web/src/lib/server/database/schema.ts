@@ -481,7 +481,7 @@ CREATE TABLE IF NOT EXISTS local_media_assets (
     expires_at timestamptz,
     CONSTRAINT local_media_assets_scope CHECK (scope IN ('generation', 'reference')),
     CONSTRAINT local_media_assets_class CHECK (storage_class IN ('temporary', 'permanent')),
-    CONSTRAINT local_media_assets_type CHECK (type IN ('image', 'video', 'audio'))
+    CONSTRAINT local_media_assets_type CHECK (type IN ('image', 'video', 'audio', 'attachment'))
 );
 
 CREATE INDEX IF NOT EXISTS local_media_assets_owner_created_idx ON local_media_assets (owner_user_id, created_at DESC);
@@ -492,6 +492,15 @@ ALTER TABLE local_media_assets ADD COLUMN IF NOT EXISTS storage_provider text NO
 ALTER TABLE local_media_assets ADD COLUMN IF NOT EXISTS external_storage_id text;
 ALTER TABLE local_media_assets ADD COLUMN IF NOT EXISTS external_object_key text;
 ALTER TABLE local_media_assets ADD COLUMN IF NOT EXISTS external_synced_at timestamptz;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'local_media_assets_type') THEN
+        ALTER TABLE local_media_assets DROP CONSTRAINT local_media_assets_type;
+    END IF;
+    ALTER TABLE local_media_assets ADD CONSTRAINT local_media_assets_type CHECK (type IN ('image', 'video', 'audio', 'attachment'));
+END;
+$$;
 
 DO $$
 BEGIN

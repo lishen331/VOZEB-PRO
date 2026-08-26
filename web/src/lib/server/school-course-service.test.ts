@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     requireStudent: vi.fn(),
     requireActiveSchoolContext: vi.fn(),
     validateReferences: vi.fn(),
+    getLocalMediaRegistrations: vi.fn(),
     repository: {
         getPlatformCourse: vi.fn(),
         getSchool: vi.fn(),
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => ({
         isClassMember: vi.fn(),
         assignCourseToSchools: vi.fn(),
         insertCourseOffering: vi.fn(),
+        insertPlatformCourse: vi.fn(),
         insertTeachingAssignment: vi.fn(),
         insertTeachingSubmission: vi.fn(),
         updateTeachingSubmission: vi.fn(),
@@ -52,9 +54,11 @@ vi.mock("./school-access-service", () => ({
 }));
 vi.mock("./school-content-reference-service", () => ({ validateSchoolContentReferences: mocks.validateReferences }));
 vi.mock("./school-domain-repository", () => ({ createSchoolDomainRepository: () => mocks.repository }));
+vi.mock("@/lib/server/local-media-registry", () => ({ getLocalMediaRegistrations: mocks.getLocalMediaRegistrations }));
 
 import {
     assignCourseToSchools,
+    createPlatformCourse,
     createCourseOffering,
     createTeachingAssignment,
     getTeachingAssignment,
@@ -202,6 +206,28 @@ describe("school course service", () => {
         await expect(createTeachingAssignment("teacher-user", "offering-a", { kind: "homework", title: "作业", status: "broken" as never })).rejects.toMatchObject({ status: 400 });
         await expect(createTeachingAssignment("teacher-user", "offering-a", { kind: "homework", title: "作业", dueAt: "not-a-date" })).rejects.toMatchObject({ status: 400 });
         await expect(createTeachingAssignment("teacher-user", "offering-a", { kind: "homework", title: "作业", dueAt: "2026-08-18T09:00" })).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("accepts only owned permanent course attachment registrations", async () => {
+        const attachment = {
+            title: "课程案例.zip",
+            fileName: "课程案例.zip",
+            url: "/api/reference-assets/permanent/2026/08/25/attachments/file.zip",
+            storageKey: "permanent/2026/08/25/attachments/file.zip",
+            mimeType: "application/zip",
+            bytes: 4,
+        };
+        mocks.getLocalMediaRegistrations.mockResolvedValue([
+            { storageKey: attachment.storageKey, storageClass: "permanent", type: "attachment", ownerUserId: "admin-a", source: "course-attachment", mimeType: attachment.mimeType, bytes: attachment.bytes },
+        ]);
+        mocks.repository.insertPlatformCourse.mockImplementation(async (record) => record);
+
+        await expect(createPlatformCourse("admin-a", { title: "课程", summary: "", content: {}, chapters: [], attachments: [attachment] })).resolves.toMatchObject({ attachments: [attachment] });
+        expect(mocks.getLocalMediaRegistrations).toHaveBeenCalledWith([attachment.storageKey], { ownerUserId: "admin-a" });
+
+        await expect(createPlatformCourse("admin-a", { title: "课程", summary: "", content: {}, chapters: [], attachments: [{ ...attachment, url: "https://example.com/file.zip" }] })).rejects.toMatchObject({ status: 400 });
+        mocks.getLocalMediaRegistrations.mockResolvedValue([]);
+        await expect(createPlatformCourse("admin-a", { title: "课程", summary: "", content: {}, chapters: [], attachments: [attachment] })).rejects.toMatchObject({ status: 400 });
     });
 
     it("rechecks the active teaching path before publishing an existing task", async () => {

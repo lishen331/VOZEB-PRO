@@ -33,7 +33,7 @@ const imageExtensions = new Set(["png", "jpg", "jpeg", "webp", "gif", "avif", "b
 const videoExtensions = new Set(["mp4", "webm", "mov", "m4v", "avi", "mkv"]);
 const audioExtensions = new Set(["mp3", "wav", "ogg", "opus", "aac", "flac", "m4a"]);
 
-export function classifyManagedMediaType(input: { type?: LocalMediaType; mimeType?: string; name?: string }): ManagedMediaType {
+export function classifyManagedMediaType(input: { type?: ManagedMediaType; mimeType?: string; name?: string }): ManagedMediaType {
     if (input.type) return input.type;
     const mimeType = (input.mimeType || "").toLowerCase();
     if (mimeType.startsWith("image/")) return "image";
@@ -57,7 +57,7 @@ export function mediaSourceGroup(source?: string): Exclude<MediaSourceGroup, "">
     if (value === "video-workbench" || value === "video-task") return "video-workbench";
     if (value === "canvas") return "canvas";
     if (value === "drama" || value === "drama-render") return "drama";
-    if (value === "user-upload" || value === "creative-upload") return "upload";
+    if (value === "user-upload" || value === "creative-upload" || value === "course-attachment") return "upload";
     return "other";
 }
 
@@ -87,6 +87,7 @@ export function mediaSourceLabel(source?: string) {
         "drama-render": "短剧整集合成",
         "user-upload": "用户上传",
         "creative-upload": "创作会话上传",
+        "course-attachment": "平台课程附件",
     };
     return source ? labels[source] || source : "未登记来源";
 }
