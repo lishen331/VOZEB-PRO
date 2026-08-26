@@ -1,5 +1,6 @@
 import type {
     CourseOfferingInput,
+    CourseAttachment,
     PageResult,
     PlatformCourse,
     PlatformCourseInput,
@@ -19,6 +20,16 @@ export const coursesApi = {
     },
     createPlatformCourse(input: PlatformCourseInput) {
         return request<PlatformCourse>("/api/admin/courses", jsonRequest("POST", input));
+    },
+    uploadPlatformCourseAttachment(file: File) {
+        return request<CourseAttachment>("/api/admin/course-attachments", {
+            method: "PUT",
+            headers: { "Content-Type": file.type || "application/octet-stream", "X-File-Name": encodeURIComponent(file.name) },
+            body: file,
+        });
+    },
+    deletePlatformCourseAttachments(storageKeys: string[]) {
+        return request<{ deletedFiles: number; deletedBytes: number; blocked: unknown[] }>("/api/admin/course-attachments", jsonRequest("DELETE", { storageKeys }));
     },
     updatePlatformCourse(id: string, input: PlatformCoursePatch) {
         return request<PlatformCourse>(`/api/admin/courses/${encodeURIComponent(id)}`, jsonRequest("PATCH", input));
@@ -75,7 +86,7 @@ function query(input: Record<string, string | string[] | number | number[] | und
     return params.size ? `?${params.toString()}` : "";
 }
 
-function jsonRequest(method: "POST" | "PATCH", body: unknown): RequestInit {
+function jsonRequest(method: "POST" | "PATCH" | "DELETE", body: unknown): RequestInit {
     return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
 }
 

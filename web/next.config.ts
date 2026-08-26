@@ -33,7 +33,8 @@ export default function nextConfig(phase: string): NextConfig {
         },
         experimental: {
             ...(Number.isSafeInteger(configuredBuildCpus) && configuredBuildCpus > 0 ? { cpus: configuredBuildCpus } : {}),
-            proxyClientMaxBodySize: "32mb",
+            // Course packages are streamed through the request proxy; the case archive is about 2GB.
+            proxyClientMaxBodySize: "3gb",
         },
         async rewrites() {
             return {

@@ -1,25 +1,26 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { App, Button, Drawer, Form, Input, Modal, Pagination, Select, Table, Tag } from "antd";
-import { BookOpen, Pencil, Plus, RefreshCw, Send, Trash2 } from "lucide-react";
+import { App, Button, Form, Input, Modal, Pagination, Select, Table, Tag, Upload } from "antd";
+import { Archive, BookOpen, FileText, Film, Image as ImageIcon, Paperclip, Pencil, Plus, RefreshCw, Send, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { PlatformCourse, PlatformCourseInput, PlatformCourseStatus, SchoolSummary } from "@/lib/school-domain";
+import type { CourseAttachment, PlatformCourse, PlatformCourseInput, PlatformCourseStatus, SchoolSummary } from "@/lib/school-domain";
 import { adminEducationApi } from "@/services/api/admin-education";
 import { coursesApi } from "@/services/api/courses";
 
 const PAGE_SIZE = 12;
 
 type CourseOutlineItem = { kind: "chapter" | "lesson"; title: string; description?: string };
-type CourseAttachment = { title: string; url: string };
 type CourseForm = {
     title: string;
     summary?: string;
     body?: string;
     outline?: CourseOutlineItem[];
-    attachments?: CourseAttachment[];
 };
+
+export const COURSE_ATTACHMENT_ACCEPT = ".docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.mov,.zip";
+const COURSE_ATTACHMENT_EXTENSIONS = new Set(COURSE_ATTACHMENT_ACCEPT.split(","));
 
 export function AdminCoursesSection() {
     const { message, modal } = App.useApp();
@@ -34,6 +35,10 @@ export function AdminCoursesSection() {
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<PlatformCourse | null>(null);
     const [editorOpen, setEditorOpen] = useState(false);
+    const [savedAttachments, setSavedAttachments] = useState<CourseAttachment[]>([]);
+    const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+    const [uploadingFileName, setUploadingFileName] = useState("");
+    const [removedAttachmentKeys, setRemovedAttachmentKeys] = useState<string[]>([]);
     const [assigning, setAssigning] = useState<PlatformCourse | null>(null);
     const [schools, setSchools] = useState<SchoolSummary[]>([]);
     const [schoolIds, setSchoolIds] = useState<string[]>([]);
@@ -59,7 +64,10 @@ export function AdminCoursesSection() {
     const openCreate = () => {
         setEditing(null);
         form.resetFields();
-        form.setFieldsValue({ outline: [], attachments: [] });
+        form.setFieldsValue({ outline: [] });
+        setSavedAttachments([]);
+        setPendingFiles([]);
+        setRemovedAttachmentKeys([]);
         setEditorOpen(true);
     };
 
@@ -71,36 +79,60 @@ export function AdminCoursesSection() {
             summary: course.summary,
             body: textField(course.content, "body"),
             outline: outlineItems(course.chapters),
-            attachments: attachmentItems(course.attachments),
         });
+        setSavedAttachments(attachmentItems(course.attachments));
+        setPendingFiles([]);
+        setRemovedAttachmentKeys([]);
         setEditorOpen(true);
     };
 
-    const initializeEditor = (open: boolean) => {
-        if (!open) form.resetFields();
+    const closeEditor = () => {
+        if (saving) return;
+        setEditorOpen(false);
+        setPendingFiles([]);
+        setRemovedAttachmentKeys([]);
+        form.resetFields();
     };
 
     const save = async (values: CourseForm) => {
         setSaving(true);
+        const uploadedKeys: string[] = [];
+        let committed = false;
         try {
+            const uploaded = [] as CourseAttachment[];
+            for (const file of pendingFiles) {
+                setUploadingFileName(file.name);
+                const attachment = await coursesApi.uploadPlatformCourseAttachment(file);
+                uploaded.push(attachment);
+                uploadedKeys.push(attachment.storageKey);
+            }
             const input: PlatformCourseInput = {
                 title: values.title.trim(),
                 summary: values.summary?.trim() || "",
                 content: { body: values.body?.trim() || "" },
                 chapters: (values.outline || []).map((item) => ({ kind: item.kind, title: item.title.trim(), description: item.description?.trim() || "" })),
-                attachments: (values.attachments || []).map((item) => ({ title: item.title.trim(), url: item.url.trim() })),
+                attachments: [...savedAttachments, ...uploaded],
             };
             if (editing) await coursesApi.updatePlatformCourse(editing.id, input);
             else await coursesApi.createPlatformCourse(input);
+            committed = true;
+            if (editing && removedAttachmentKeys.length) {
+                await coursesApi.deletePlatformCourseAttachments(removedAttachmentKeys).catch(() => message.warning("课程已保存，已移除附件的存储清理稍后可在媒体管理中处理"));
+            }
             message.success(editing ? "课程已更新" : "课程草稿已创建");
             setEditorOpen(false);
             setEditing(null);
+            setSavedAttachments([]);
+            setPendingFiles([]);
+            setRemovedAttachmentKeys([]);
             form.resetFields();
             await load();
         } catch (error) {
+            if (!committed && uploadedKeys.length) await coursesApi.deletePlatformCourseAttachments(uploadedKeys).catch(() => undefined);
             message.error(errorMessage(error, "课程保存失败"));
             throw error;
         } finally {
+            setUploadingFileName("");
             setSaving(false);
         }
     };
@@ -251,18 +283,18 @@ export function AdminCoursesSection() {
             </div>
             <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
 
-            <Drawer
+            <Modal
                 title={editing ? "编辑课程" : "创建课程"}
                 open={editorOpen}
                 destroyOnHidden
-                size="min(720px, 100vw)"
-                afterOpenChange={initializeEditor}
-                onClose={() => setEditorOpen(false)}
-                extra={
-                    <Button type="primary" loading={saving} onClick={() => form.submit()}>
-                        保存
-                    </Button>
-                }
+                width="min(920px, calc(100vw - 24px))"
+                centered
+                okText="保存"
+                cancelText="取消"
+                confirmLoading={saving}
+                onOk={() => form.submit()}
+                onCancel={closeEditor}
+                styles={{ body: { maxHeight: "min(70vh, 760px)", overflowY: "auto", paddingRight: 4 } }}
             >
                 <Form form={form} layout="vertical" requiredMark={false} preserve={false} onFinish={(values) => void save(values)}>
                     <Form.Item label="课程标题" name="title" rules={[{ required: true, message: "请填写课程标题" }]}>
@@ -299,33 +331,61 @@ export function AdminCoursesSection() {
                             </section>
                         )}
                     </Form.List>
-                    <Form.List name="attachments">
-                        {(fields, { add, remove }) => (
-                            <section className="mt-5 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-                                <div className="mb-3 flex items-center justify-between gap-2">
-                                    <h3 className="text-sm font-medium">平台附件</h3>
-                                    <Button size="small" icon={<Plus className="size-3.5" />} onClick={() => add({ title: "", url: "" })}>
-                                        添加
-                                    </Button>
+                    <section className="mt-5 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                            <div>
+                                <h3 className="text-sm font-medium">平台附件</h3>
+                                <p className="mt-1 text-xs text-zinc-500">支持 Word、PPT、Excel、图片、视频和 ZIP，可一次选择多个本地文件。</p>
+                            </div>
+                            <Upload
+                                multiple
+                                accept={COURSE_ATTACHMENT_ACCEPT}
+                                showUploadList={false}
+                                beforeUpload={(file) => {
+                                    if (!isAcceptedCourseAttachment(file.name)) {
+                                        message.error("该文件格式不在课程附件支持范围内");
+                                        return Upload.LIST_IGNORE;
+                                    }
+                                    setPendingFiles((current) => (current.some((item) => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified) ? current : [...current, file]));
+                                    return false;
+                                }}
+                            >
+                                <Button size="small" icon={<Plus className="size-3.5" />}>
+                                    添加附件
+                                </Button>
+                            </Upload>
+                        </div>
+                        <div className="space-y-2">
+                            {savedAttachments.map((attachment) => (
+                                <AttachmentRow
+                                    key={attachment.storageKey}
+                                    name={attachment.fileName}
+                                    meta={`${attachment.mimeType} · ${formatBytes(attachment.bytes)}`}
+                                    href={`${attachment.url}?download=original`}
+                                    onRemove={() => {
+                                        setSavedAttachments((current) => current.filter((item) => item.storageKey !== attachment.storageKey));
+                                        setRemovedAttachmentKeys((current) => [...current, attachment.storageKey]);
+                                    }}
+                                />
+                            ))}
+                            {pendingFiles.map((file) => (
+                                <AttachmentRow
+                                    key={`${file.name}-${file.lastModified}-${file.size}`}
+                                    name={file.name}
+                                    meta={`${file.type || "按扩展名识别"} · ${formatBytes(file.size)}`}
+                                    onRemove={() => setPendingFiles((current) => current.filter((item) => item !== file))}
+                                />
+                            ))}
+                            {!savedAttachments.length && !pendingFiles.length ? <div className="rounded-md border border-dashed border-zinc-300 px-3 py-4 text-center text-xs text-zinc-500 dark:border-zinc-700">尚未添加课程附件</div> : null}
+                            {uploadingFileName ? (
+                                <div className="text-xs text-blue-600 dark:text-blue-400" role="status">
+                                    正在上传：{uploadingFileName}
                                 </div>
-                                <div className="space-y-3">
-                                    {fields.map((field) => (
-                                        <div key={field.key} className="grid grid-cols-[minmax(96px,0.7fr)_minmax(0,1.3fr)_32px] gap-2">
-                                            <Form.Item name={[field.name, "title"]} className="mb-0" rules={[{ required: true, message: "请填写名称" }]}>
-                                                <Input placeholder="附件名称" maxLength={160} />
-                                            </Form.Item>
-                                            <Form.Item name={[field.name, "url"]} className="mb-0" rules={[{ required: true, type: "url", message: "请填写有效 URL" }]}>
-                                                <Input placeholder="https://" />
-                                            </Form.Item>
-                                            <Button danger type="text" icon={<Trash2 className="size-4" />} aria-label="删除附件" onClick={() => remove(field.name)} />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-                    </Form.List>
+                            ) : null}
+                        </div>
+                    </section>
                 </Form>
-            </Drawer>
+            </Modal>
 
             <Modal
                 title={`分配学校${assigning ? ` · ${assigning.title}` : ""}`}
@@ -387,9 +447,65 @@ function attachmentItems(value: unknown[]): CourseAttachment[] {
     return value.flatMap((item) => {
         if (!item || typeof item !== "object") return [];
         const source = item as Record<string, unknown>;
-        if (typeof source.url !== "string") return [];
-        return [{ title: typeof source.title === "string" ? source.title : source.url, url: source.url }];
+        if (typeof source.url !== "string" || typeof source.storageKey !== "string" || typeof source.fileName !== "string" || typeof source.mimeType !== "string" || !Number.isSafeInteger(source.bytes)) return [];
+        return [
+            {
+                title: typeof source.title === "string" ? source.title : source.fileName,
+                url: source.url,
+                storageKey: source.storageKey,
+                fileName: source.fileName,
+                mimeType: source.mimeType,
+                bytes: Number(source.bytes),
+            },
+        ];
     });
+}
+
+function AttachmentRow({ name, meta, href, onRemove }: { name: string; meta: string; href?: string; onRemove: () => void }) {
+    const content = (
+        <>
+            <AttachmentIcon name={name} />
+            <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium" title={name}>
+                    {name}
+                </div>
+                <div className="truncate text-xs text-zinc-500">{meta}</div>
+            </div>
+        </>
+    );
+    return (
+        <div className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800">
+            {href ? (
+                <a className="flex min-w-0 flex-1 items-center gap-2 text-inherit hover:text-blue-600" href={href} download>
+                    {content}
+                </a>
+            ) : (
+                <div className="flex min-w-0 flex-1 items-center gap-2">{content}</div>
+            )}
+            <Button type="text" size="small" icon={<X className="size-4" />} aria-label={`移除附件 ${name}`} onClick={onRemove} />
+        </div>
+    );
+}
+
+function AttachmentIcon({ name }: { name: string }) {
+    const extension = name.toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
+    if (extension === ".zip") return <Archive className="size-4 shrink-0 text-amber-600" />;
+    if (extension === ".mp4" || extension === ".mov") return <Film className="size-4 shrink-0 text-blue-600" />;
+    if (extension === ".png" || extension === ".jpg" || extension === ".jpeg" || extension === ".webp") return <ImageIcon className="size-4 shrink-0 text-emerald-600" />;
+    if (extension === ".docx" || extension === ".pptx" || extension === ".xlsx") return <FileText className="size-4 shrink-0 text-indigo-600" />;
+    return <Paperclip className="size-4 shrink-0 text-zinc-500" />;
+}
+
+function isAcceptedCourseAttachment(name: string) {
+    const extension = name.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] || "";
+    return COURSE_ATTACHMENT_EXTENSIONS.has(extension);
+}
+
+function formatBytes(value: number) {
+    if (value < 1024) return `${value} B`;
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+    if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 function textField(value: Record<string, unknown>, key: string) {

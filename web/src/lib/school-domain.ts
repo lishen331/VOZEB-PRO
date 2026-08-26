@@ -61,13 +61,21 @@ export type SchoolMemberPatch = { role?: SchoolMemberRole; permissions?: SchoolP
 export type SchoolClassInput = { name: string; description?: string };
 export type CreateSchoolInput = { name: string; profile?: Record<string, unknown>; administrator: Omit<SchoolMemberCreateInput, "role"> };
 export type UpdateSchoolInput = { name?: string; profile?: Record<string, unknown>; status?: SchoolStatus };
+export type CourseAttachment = {
+    title: string;
+    url: string;
+    storageKey: string;
+    fileName: string;
+    mimeType: string;
+    bytes: number;
+};
 export type PlatformCourse = {
     id: string;
     title: string;
     summary: string;
     content: Record<string, unknown>;
     chapters: unknown[];
-    attachments: unknown[];
+    attachments: CourseAttachment[];
     status: PlatformCourseStatus;
     createdAt: string;
     updatedAt: string;
