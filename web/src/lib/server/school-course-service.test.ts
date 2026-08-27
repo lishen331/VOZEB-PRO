@@ -104,7 +104,7 @@ describe("school course service", () => {
         mocks.repository.getMembership.mockResolvedValue({ id: "teacher-a", schoolId: "school-a", role: "teacher", status: "active" });
         mocks.repository.insertCourseOffering.mockImplementation(async (record) => record);
 
-        await expect(createCourseOffering("manager-user", "assignment-a", { classId: "class-a", teacherMembershipId: "teacher-a", supplementalResources: [] })).resolves.toMatchObject({ schoolId: "school-a", assignmentId: "assignment-a" });
+        await expect(createCourseOffering("manager-user", "assignment-a", { classId: "class-a", teacherMembershipId: "teacher-a" })).resolves.toMatchObject({ schoolId: "school-a", assignmentId: "assignment-a" });
         expect(mocks.repository.insertCourseOffering).toHaveBeenCalledTimes(1);
 
         mocks.repository.getClass.mockResolvedValue(null);
@@ -208,28 +208,6 @@ describe("school course service", () => {
         await expect(createTeachingAssignment("teacher-user", "offering-a", { kind: "homework", title: "作业", dueAt: "2026-08-18T09:00" })).rejects.toMatchObject({ status: 400 });
     });
 
-    it("accepts only owned permanent course attachment registrations", async () => {
-        const attachment = {
-            title: "课程案例.zip",
-            fileName: "课程案例.zip",
-            url: "/api/reference-assets/permanent/2026/08/25/attachments/file.zip",
-            storageKey: "permanent/2026/08/25/attachments/file.zip",
-            mimeType: "application/zip",
-            bytes: 4,
-        };
-        mocks.getLocalMediaRegistrations.mockResolvedValue([
-            { storageKey: attachment.storageKey, storageClass: "permanent", type: "attachment", ownerUserId: "admin-a", source: "course-attachment", mimeType: attachment.mimeType, bytes: attachment.bytes },
-        ]);
-        mocks.repository.insertPlatformCourse.mockImplementation(async (record) => record);
-
-        await expect(createPlatformCourse("admin-a", { title: "课程", summary: "", content: {}, chapters: [], attachments: [attachment] })).resolves.toMatchObject({ attachments: [attachment] });
-        expect(mocks.getLocalMediaRegistrations).toHaveBeenCalledWith([attachment.storageKey], { ownerUserId: "admin-a" });
-
-        await expect(createPlatformCourse("admin-a", { title: "课程", summary: "", content: {}, chapters: [], attachments: [{ ...attachment, url: "https://example.com/file.zip" }] })).rejects.toMatchObject({ status: 400 });
-        mocks.getLocalMediaRegistrations.mockResolvedValue([]);
-        await expect(createPlatformCourse("admin-a", { title: "课程", summary: "", content: {}, chapters: [], attachments: [attachment] })).rejects.toMatchObject({ status: 400 });
-    });
-
     it("rechecks the active teaching path before publishing an existing task", async () => {
         mocks.repository.getTeachingAssignment.mockResolvedValue({ id: "task-a", schoolId: "school-a", offeringId: "offering-a", teacherMembershipId: "teacher-a", status: "draft" });
         mocks.repository.getCourseOffering.mockResolvedValue({ id: "offering-a", schoolId: "school-a", assignmentId: "assignment-a", classId: "class-a", teacherMembershipId: "teacher-a", status: "active" });
@@ -317,7 +295,6 @@ describe("school course service", () => {
                     assignmentId: "assignment-a",
                     classId: "class-a",
                     teacherMembershipId: "teacher-a",
-                    supplementalResources: [],
                     status: "active",
                     createdAt: "2026-08-17T00:00:00.000Z",
                     updatedAt: "2026-08-17T00:00:00.000Z",
@@ -379,7 +356,7 @@ function context(membershipId: string, role: "teacher" | "student", permissions:
 }
 
 function course(status: "draft" | "published" | "disabled") {
-    return { id: "course-a", title: "课程", summary: "", content: {}, chapters: [], attachments: [], status, createdByUserId: "admin-internal-uuid", createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" };
+    return { id: "course-a", title: "课程", summary: "", content: {}, status, createdByUserId: "admin-internal-uuid", createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" };
 }
 
 function assignment(schoolId: string) {
