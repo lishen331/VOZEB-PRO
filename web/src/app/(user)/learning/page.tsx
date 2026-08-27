@@ -4,7 +4,7 @@ import { App, Button, Checkbox, Drawer, Form, Input, Pagination, Spin, Tabs, Tag
 import { BookOpen, CheckCircle2, ClipboardList, Eye, RefreshCw, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import type { PlatformCourse, SchoolCommercialOrder, SchoolContentReference, SchoolCourseAssignment, TeachingAssignment, TeachingSubmission } from "@/lib/school-domain";
+import type { CourseLesson, SchoolCommercialOrder, SchoolContentReference, SchoolCourseAssignment, TeachingAssignment, TeachingSubmission } from "@/lib/school-domain";
 import { listCanvasProjectSummaries } from "@/services/api/canvas-projects";
 import { coursesApi } from "@/services/api/courses";
 import { commercialOrdersApi, type CommercialOrderSubmissions } from "@/services/api/commercial-orders";
@@ -13,6 +13,7 @@ import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { listWorkPublications } from "@/services/api/work-publications";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { ProductionGroupMemberPanel } from "@/components/school/production-group-member-panel";
+import { SchoolCourseTree } from "@/components/school/school-course-tree";
 
 type ReferenceCandidate = { reference: SchoolContentReference; title: string; detail: string };
 type SubmissionForm = { note?: string };
@@ -30,8 +31,9 @@ export default function LearningPage() {
     const [submissions, setSubmissions] = useState<Record<string, TeachingSubmission | undefined>>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [viewingCourse, setViewingCourse] = useState<PlatformCourse | null>(null);
-    const [viewingLesson, setViewingLesson] = useState<{ course: PlatformCourse; item: unknown; index: number } | null>(null);
+    const [viewingCourse, setViewingCourse] = useState<SchoolCourseAssignment | null>(null);
+    const [viewingLesson, setViewingLesson] = useState<{ course: SchoolCourseAssignment; item: CourseLesson; index: number } | null>(null);
+    const [courseTrees, setCourseTrees] = useState<Record<string, Awaited<ReturnType<typeof coursesApi.getSchoolCourseTree>>>>({});
     const [submitting, setSubmitting] = useState<TeachingAssignment | null>(null);
     const [viewingCommercialOrder, setViewingCommercialOrder] = useState<SchoolCommercialOrder | null>(null);
     const [commercialDetails, setCommercialDetails] = useState<CommercialOrderSubmissions | null>(null);
@@ -73,6 +75,17 @@ export default function LearningPage() {
                 : { items: [] as TeachingSubmission[] };
             if (requestId !== loadRequestSequence.current) return;
             setCourses(courseResult.items);
+            const treeEntries = await Promise.all(
+                courseResult.items.map(async (item) => {
+                    try {
+                        return [item.id, await coursesApi.getSchoolCourseTree(item.id, { signal: controller.signal })] as const;
+                    } catch {
+                        return null;
+                    }
+                }),
+            );
+            if (requestId !== loadRequestSequence.current) return;
+            setCourseTrees(Object.fromEntries(treeEntries.filter((entry): entry is readonly [string, Awaited<ReturnType<typeof coursesApi.getSchoolCourseTree>>] => Boolean(entry))));
             setCourseTotal(courseResult.total);
             setAssignments(assignmentResult.items);
             setAssignmentTotal(assignmentResult.total);
@@ -80,6 +93,7 @@ export default function LearningPage() {
         } catch (error) {
             if (controller.signal.aborted || requestId !== loadRequestSequence.current) return;
             setCourses([]);
+            setCourseTrees({});
             setAssignments([]);
             setSubmissions({});
             message.error(errorMessage(error, "学习中心加载失败"));
@@ -120,7 +134,7 @@ export default function LearningPage() {
         [],
     );
 
-    const lessons = useMemo(() => courses.flatMap((item) => item.course.chapters.map((chapter, index) => ({ course: item.course, item: chapter, index }))), [courses]);
+    const lessons = useMemo(() => courses.flatMap((item) => (courseTrees[item.id]?.chapters || []).flatMap((chapter) => chapter.lessons.map((lesson, index) => ({ course: item, item: lesson, index })))), [courseTrees, courses]);
     const homework = useMemo(() => assignments.filter((item) => item.kind !== "commercial_practice"), [assignments]);
     const practices = useMemo(() => assignments.filter((item) => item.kind === "commercial_practice"), [assignments]);
     const pending = useMemo(() => homework.filter((item) => item.status === "published" && (!submissions[item.id] || submissions[item.id]?.status === "revision_required")), [homework, submissions]);
@@ -291,8 +305,10 @@ export default function LearningPage() {
                             <h2 className="truncate text-sm font-medium">{item.course.title}</h2>
                             <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-zinc-500">{item.course.summary || "暂无摘要"}</p>
                             <div className="mt-3 flex items-center justify-between gap-2">
-                                <span className="text-xs text-zinc-500">{item.course.chapters.length} 个课时</span>
-                                <Button size="small" icon={<BookOpen className="size-3.5" />} onClick={() => setViewingCourse(item.course)}>
+                                <span className="text-xs text-zinc-500">
+                                    {item.course.chapterCount} 章 · {item.course.lessonCount} 个课时
+                                </span>
+                                <Button size="small" icon={<BookOpen className="size-3.5" />} onClick={() => setViewingCourse(item)}>
                                     查看课程
                                 </Button>
                             </div>
@@ -309,8 +325,8 @@ export default function LearningPage() {
                     {lessons.map((lesson) => (
                         <div key={`${lesson.course.id}-${lesson.index}`} className="flex items-center justify-between gap-3 py-3">
                             <div className="min-w-0">
-                                <h2 className="truncate text-sm font-medium">{outlineTitle(lesson.item) || `课时 ${lesson.index + 1}`}</h2>
-                                <p className="mt-0.5 truncate text-xs text-zinc-500">{lesson.course.title}</p>
+                                <h2 className="truncate text-sm font-medium">{lesson.item.title || `课时 ${lesson.index + 1}`}</h2>
+                                <p className="mt-0.5 truncate text-xs text-zinc-500">{lesson.course.course.title}</p>
                             </div>
                             <Button size="small" icon={<Eye className="size-3.5" />} onClick={() => setViewingLesson(lesson)}>
                                 课时详情
@@ -403,15 +419,15 @@ export default function LearningPage() {
                 )}
             </div>
 
-            <Drawer title={viewingCourse?.title || "课程详情"} open={Boolean(viewingCourse)} destroyOnHidden size="min(720px, 100vw)" onClose={() => setViewingCourse(null)}>
-                {viewingCourse ? <CourseDetail course={viewingCourse} /> : null}
+            <Drawer title={viewingCourse?.course.title || "课程详情"} open={Boolean(viewingCourse)} destroyOnHidden size="min(720px, 100vw)" onClose={() => setViewingCourse(null)}>
+                {viewingCourse ? <CourseDetail assignment={viewingCourse} /> : null}
             </Drawer>
 
             <Drawer title={viewingLesson ? outlineTitle(viewingLesson.item) || `课时 ${viewingLesson.index + 1}` : "课时详情"} open={Boolean(viewingLesson)} destroyOnHidden size="min(620px, 100vw)" onClose={() => setViewingLesson(null)}>
                 {viewingLesson ? (
                     <div className="space-y-4">
-                        <p className="text-xs text-zinc-500">{viewingLesson.course.title}</p>
-                        <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{outlineDescription(viewingLesson.item) || "本课时暂无补充说明"}</p>
+                        <p className="text-xs text-zinc-500">{viewingLesson.course.course.title}</p>
+                        <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{viewingLesson.item.description || "本课时暂无补充说明"}</p>
                     </div>
                 ) : null}
             </Drawer>
@@ -709,27 +725,13 @@ function ResponsiveGrid({ children, empty, emptyText }: { children: ReactNode; e
     return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{children}</div>;
 }
 
-function CourseDetail({ course }: { course: PlatformCourse }) {
-    const body = typeof course.content.body === "string" ? course.content.body : "";
+function CourseDetail({ assignment }: { assignment: SchoolCourseAssignment }) {
+    // 课程附件统一作为课程资料展示，平台与本校来源在课程树中区分。
+    const body = typeof assignment.course.content.body === "string" ? assignment.course.content.body : "";
     return (
         <div className="space-y-5">
-            <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{body || course.summary || "暂无正文"}</p>
-            <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-                <h2 className="text-sm font-medium">课时</h2>
-                <div className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {course.chapters.map((item, index) => (
-                        <div key={`${index}-${outlineTitle(item)}`} className="py-2">
-                            <div className="text-sm font-medium">{outlineTitle(item) || `课时 ${index + 1}`}</div>
-                            {outlineDescription(item) ? <p className="mt-1 text-xs leading-5 text-zinc-500">{outlineDescription(item)}</p> : null}
-                        </div>
-                    ))}
-                    {!course.chapters.length ? <p className="py-3 text-sm text-zinc-500">暂无课时</p> : null}
-                </div>
-            </section>
-            <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-                <h2 className="text-sm font-medium">课程附件</h2>
-                <ResourceList values={course.attachments} emptyText="暂无课程附件" />
-            </section>
+            <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{body || assignment.course.summary || "暂无正文"}</p>
+            <SchoolCourseTree assignmentId={assignment.id} />
         </div>
     );
 }

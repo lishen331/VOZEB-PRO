@@ -4,7 +4,10 @@ import { hasAdminPermission } from "@/lib/admin-permissions";
 import { getPublicUsersByIds } from "@/lib/auth/store";
 import type {
     CourseOfferingInput,
-    CourseAttachment,
+    CourseChapter,
+    CourseLesson,
+    CourseMaterial,
+    PlatformCourseDetail,
     PageResult,
     PlatformCourse,
     PlatformCourseInput,
@@ -19,12 +22,23 @@ import type {
     TeachingAssignmentStatus,
     TeachingSubmission,
 } from "@/lib/school-domain";
-import type { PlatformCourseRecord, SchoolCourseOfferingRecord, SchoolDomainRepository, SchoolMembershipRecord, TeachingAssignmentRecord, TeachingSubmissionRecord } from "@/lib/server/school-domain-repository";
+import type {
+    CourseChapterRecord,
+    CourseLessonRecord,
+    CourseMaterialRecord,
+    PlatformCourseRecord,
+    SchoolCourseOfferingRecord,
+    SchoolDomainRepository,
+    SchoolMembershipRecord,
+    TeachingAssignmentRecord,
+    TeachingSubmissionRecord,
+} from "@/lib/server/school-domain-repository";
 import type { JsonValue } from "@/lib/server/database/repository-types";
 import { createSchoolDomainRepository } from "@/lib/server/school-domain-repository";
-import { getLocalMediaRegistrations } from "@/lib/server/local-media-registry";
 import { validateSchoolContentReferences } from "./school-content-reference-service";
 import { requireActiveSchoolContext, requireSchoolManager, requireStudent, requireTeacher, SchoolServiceError } from "./school-access-service";
+import { getLocalMediaRegistrations } from "@/lib/server/local-media-registry";
+import { cleanupDeletedCourseMaterials } from "./course-attachment-service";
 
 export async function listPlatformCourses(actorId: string, input: { page?: number; pageSize?: number; keyword?: string; status?: PlatformCourse["status"] } = {}) {
     await requireEducationAdmin(actorId);
@@ -47,8 +61,6 @@ export async function createPlatformCourse(actorId: string, input: PlatformCours
         title: requiredText(input.title, "课程标题", 160),
         summary: text(input.summary, 500),
         content: objectValue(input.content),
-        chapters: arrayValue(input.chapters),
-        attachments: await validateCourseAttachments(actorId, input.attachments),
         status: "draft",
         createdByUserId: actorId,
         createdAt: now,
@@ -61,19 +73,225 @@ export async function updatePlatformCourse(actorId: string, courseId: string, in
     await requireEducationAdmin(actorId);
     if (input.status !== undefined && !isPlatformCourseStatus(input.status)) throw new SchoolServiceError(400, "课程状态无效");
     const repository = createSchoolDomainRepository();
-    if (!(await repository.getPlatformCourse(courseId))) throw new SchoolServiceError(404, "课程不存在");
+    const existing = await repository.getPlatformCourse(courseId);
+    if (!existing) throw new SchoolServiceError(404, "课程不存在");
+    if (existing.status === "disabled" && input.status === "published") throw new SchoolServiceError(409, "停用课程请使用恢复操作");
     const patch = {
         ...(input.title === undefined ? {} : { title: requiredText(input.title, "课程标题", 160) }),
         ...(input.summary === undefined ? {} : { summary: text(input.summary, 500) }),
         ...(input.content === undefined ? {} : { content: objectValue(input.content) }),
-        ...(input.chapters === undefined ? {} : { chapters: arrayValue(input.chapters) }),
-        ...(input.attachments === undefined ? {} : { attachments: await validateCourseAttachments(actorId, input.attachments) }),
         ...(input.status === undefined ? {} : { status: input.status }),
         updatedAt: new Date().toISOString(),
     };
     const updated = await repository.updatePlatformCourse(courseId, patch);
     if (!updated) throw new SchoolServiceError(404, "课程不存在");
     return toPlatformCourse(updated);
+}
+
+export async function getPlatformCourseTree(actorId: string, courseId: string) {
+    await requireEducationAdmin(actorId);
+    const tree = await createSchoolDomainRepository().getPlatformCourseTree(courseId);
+    if (!tree) throw new SchoolServiceError(404, "课程不存在");
+    return tree;
+}
+
+export async function getSchoolCourseTree(userId: string, assignmentId: string) {
+    const context = await requireActiveSchoolContext(userId);
+    const repository = createSchoolDomainRepository();
+    const assignment = await repository.getSchoolCourseAssignment(context.school.id, assignmentId);
+    if (!assignment || assignment.status !== "active") throw new SchoolServiceError(404, "学校课程不存在");
+    const course = await repository.getPlatformCourse(assignment.courseId);
+    if (!course || course.status !== "published") throw new SchoolServiceError(404, "学校课程不存在");
+    if (!context.canManageSchool && !(await repository.hasVisibleCourseAssignment(context.school.id, context.membership.id, context.membership.role, assignmentId))) throw new SchoolServiceError(404, "学校课程不存在");
+    return repository.getPlatformCourseTree(course.id, { schoolCourseAssignmentId: assignmentId });
+}
+
+export async function createPlatformChapter(actorId: string, courseId: string, input: { title: string; description?: string; sortOrder?: number }) {
+    await requireEducationAdmin(actorId);
+    const repository = createSchoolDomainRepository();
+    await requireEditableCourse(repository, courseId);
+    const now = new Date().toISOString();
+    return repository.insertCourseChapter({ id: randomUUID(), courseId, title: requiredText(input.title, "章节标题", 160), description: text(input.description, 2000), sortOrder: positiveOrder(input.sortOrder), createdAt: now, updatedAt: now });
+}
+
+export async function updatePlatformChapter(actorId: string, chapterId: string, input: { title?: string; description?: string; sortOrder?: number }) {
+    await requireEducationAdmin(actorId);
+    const repository = createSchoolDomainRepository();
+    const chapter = await findChapter(repository, chapterId);
+    if (!chapter) throw new SchoolServiceError(404, "章节不存在");
+    await requireEditableCourse(repository, chapter.courseId);
+    const updated = await repository.updateCourseChapter(chapter.courseId, chapterId, {
+        ...(input.title === undefined ? {} : { title: requiredText(input.title, "章节标题", 160) }),
+        ...(input.description === undefined ? {} : { description: text(input.description, 2000) }),
+        ...(input.sortOrder === undefined ? {} : { sortOrder: positiveOrder(input.sortOrder) }),
+        updatedAt: new Date().toISOString(),
+    });
+    if (!updated) throw new SchoolServiceError(404, "章节不存在");
+    return updated;
+}
+
+export async function deletePlatformChapter(actorId: string, chapterId: string) {
+    await requireEducationAdmin(actorId);
+    const repository = createSchoolDomainRepository();
+    const chapter = await findChapter(repository, chapterId);
+    if (!chapter) throw new SchoolServiceError(404, "章节不存在");
+    await requireEditableCourse(repository, chapter.courseId);
+    const tree = await repository.getPlatformCourseTree(chapter.courseId);
+    const selected = tree?.chapters.find((item) => item.id === chapterId);
+    const storageKeys = [...(selected?.materials || []), ...(selected?.lessons.flatMap((lesson) => lesson.materials) || [])].map((material) => material.storageKey);
+    const deleted = await repository.deleteCourseChapter(chapter.courseId, chapterId);
+    return { deleted, cleanup: deleted ? await cleanupDeletedCourseMaterials(storageKeys) : { deletedFiles: 0, deletedBytes: 0, skippedShared: 0, failed: [] as string[] } };
+}
+
+export async function createPlatformLesson(actorId: string, chapterId: string, input: { title: string; description?: string; sortOrder?: number }) {
+    await requireEducationAdmin(actorId);
+    const repository = createSchoolDomainRepository();
+    const chapter = await findChapter(repository, chapterId);
+    if (!chapter) throw new SchoolServiceError(404, "章节不存在");
+    await requireEditableCourse(repository, chapter.courseId);
+    const now = new Date().toISOString();
+    return repository.insertCourseLesson({
+        id: randomUUID(),
+        courseId: chapter.courseId,
+        chapterId,
+        title: requiredText(input.title, "课时标题", 160),
+        description: text(input.description, 2000),
+        sortOrder: positiveOrder(input.sortOrder),
+        createdAt: now,
+        updatedAt: now,
+    });
+}
+
+export async function updatePlatformLesson(actorId: string, lessonId: string, input: { title?: string; description?: string; sortOrder?: number }) {
+    await requireEducationAdmin(actorId);
+    const repository = createSchoolDomainRepository();
+    const lesson = await findLesson(repository, lessonId);
+    if (!lesson) throw new SchoolServiceError(404, "课时不存在");
+    await requireEditableCourse(repository, lesson.courseId);
+    const updated = await repository.updateCourseLesson(lesson.courseId, lessonId, {
+        ...(input.title === undefined ? {} : { title: requiredText(input.title, "课时标题", 160) }),
+        ...(input.description === undefined ? {} : { description: text(input.description, 2000) }),
+        ...(input.sortOrder === undefined ? {} : { sortOrder: positiveOrder(input.sortOrder) }),
+        updatedAt: new Date().toISOString(),
+    });
+    if (!updated) throw new SchoolServiceError(404, "课时不存在");
+    return updated;
+}
+
+export async function deletePlatformLesson(actorId: string, lessonId: string) {
+    await requireEducationAdmin(actorId);
+    const repository = createSchoolDomainRepository();
+    const lesson = await findLesson(repository, lessonId);
+    if (!lesson) throw new SchoolServiceError(404, "课时不存在");
+    await requireEditableCourse(repository, lesson.courseId);
+    const tree = await repository.getPlatformCourseTree(lesson.courseId);
+    const materialKeys = tree?.chapters.flatMap((chapter) => chapter.lessons.find((item) => item.id === lessonId)?.materials || []).map((material) => material.storageKey) || [];
+    const deleted = await repository.deleteCourseLesson(lesson.courseId, lessonId);
+    return { deleted, cleanup: deleted ? await cleanupDeletedCourseMaterials(materialKeys) : { deletedFiles: 0, deletedBytes: 0, skippedShared: 0, failed: [] as string[] } };
+}
+
+export async function createPlatformMaterial(actorId: string, courseId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; sortOrder?: number }) {
+    await requireEducationAdmin(actorId);
+    const repository = createSchoolDomainRepository();
+    await requireEditableCourse(repository, courseId);
+    await assertTreeTarget(repository, courseId, input.chapterId, input.lessonId);
+    return repository.insertCourseMaterial(await materialRecord(repository, actorId, courseId, input, "platform"));
+}
+
+export async function createSchoolMaterial(userId: string, assignmentId: string, input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; sortOrder?: number }) {
+    const context = await requireActiveSchoolContext(userId);
+    const repository = createSchoolDomainRepository();
+    const assignment = await repository.getSchoolCourseAssignment(context.school.id, assignmentId);
+    if (!assignment || assignment.status !== "active") throw new SchoolServiceError(404, "学校课程不存在");
+    const course = await repository.getPlatformCourse(assignment.courseId);
+    if (!course || course.status !== "published") throw new SchoolServiceError(409, "课程未发布或已停用");
+    if (context.membership.role !== "teacher") throw new SchoolServiceError(403, "只有老师可以上传本校资料");
+    if (!context.canManageSchool && !(await repository.hasActiveOfferingForTeacher(context.school.id, context.membership.id, assignmentId))) throw new SchoolServiceError(403, "当前老师不是该课程负责人");
+    await assertTreeTarget(repository, assignment.courseId, input.chapterId, input.lessonId);
+    return repository.insertCourseMaterial(await materialRecord(repository, userId, assignment.courseId, input, "school", assignmentId));
+}
+
+export async function updateCourseMaterial(userId: string, materialId: string, input: { title?: string; sortOrder?: number; status?: "active" | "disabled" }) {
+    const repository = createSchoolDomainRepository();
+    let material = await repository.getCourseMaterial(materialId);
+    let schoolContext: Awaited<ReturnType<typeof requireActiveSchoolContext>> | null = null;
+    if (!material) {
+        schoolContext = await requireActiveSchoolContext(userId);
+        material = await repository.getCourseMaterial(materialId, schoolContext.school.id);
+    }
+    if (!material) throw new SchoolServiceError(404, "课程资料不存在");
+    if (material.sourceScope === "platform") {
+        await requireEducationAdmin(userId);
+    } else {
+        const context = schoolContext || (await requireActiveSchoolContext(userId));
+        if (!(await repository.getCourseMaterial(materialId, context.school.id))) throw new SchoolServiceError(404, "课程资料不存在");
+        await assertSchoolMaterialManager(repository, context.school.id, context.membership.id, context.canManageSchool, material.schoolCourseAssignmentId);
+    }
+    const updated = await repository.updateCourseMaterial(materialId, {
+        ...(input.title === undefined ? {} : { title: requiredText(input.title, "资料标题", 260) }),
+        ...(input.sortOrder === undefined ? {} : { sortOrder: positiveOrder(input.sortOrder) }),
+        ...(input.status === undefined ? {} : { status: input.status }),
+        updatedAt: new Date().toISOString(),
+    });
+    if (!updated) throw new SchoolServiceError(404, "课程资料不存在");
+    return updated;
+}
+
+export async function deleteCourseMaterial(userId: string, materialId: string) {
+    const repository = createSchoolDomainRepository();
+    let material = await repository.getCourseMaterial(materialId);
+    let schoolContext: Awaited<ReturnType<typeof requireActiveSchoolContext>> | null = null;
+    if (!material) {
+        schoolContext = await requireActiveSchoolContext(userId);
+        material = await repository.getCourseMaterial(materialId, schoolContext.school.id);
+    }
+    if (!material) throw new SchoolServiceError(404, "课程资料不存在");
+    if (material.sourceScope === "platform") await requireEducationAdmin(userId);
+    else {
+        const context = schoolContext || (await requireActiveSchoolContext(userId));
+        if (!(await repository.getCourseMaterial(materialId, context.school.id))) throw new SchoolServiceError(404, "课程资料不存在");
+        await assertSchoolMaterialManager(repository, context.school.id, context.membership.id, context.canManageSchool, material.schoolCourseAssignmentId);
+    }
+    const deleted = await repository.deleteCourseMaterial(materialId);
+    return { deleted, cleanup: deleted ? await cleanupDeletedCourseMaterials([material.storageKey]) : { deletedFiles: 0, deletedBytes: 0, skippedShared: 0, failed: [] as string[] } };
+}
+
+export async function disableCourse(actorId: string, courseId: string) {
+    await requireEducationAdmin(actorId);
+    const repository = createSchoolDomainRepository();
+    const course = await repository.getPlatformCourse(courseId, true);
+    if (!course) throw new SchoolServiceError(404, "课程不存在");
+    if (course.status !== "published") throw new SchoolServiceError(409, "只有已发布课程可以停用");
+    const result = await repository.disablePlatformCourse(courseId, { deletedAt: new Date().toISOString(), deletedByUserId: actorId, updatedAt: new Date().toISOString() });
+    if (!result) throw new SchoolServiceError(404, "课程不存在");
+    return toPlatformCourse((await repository.getPlatformCourse(courseId)) || result);
+}
+
+export async function restoreCourse(actorId: string, courseId: string) {
+    await requireEducationAdmin(actorId);
+    const repository = createSchoolDomainRepository();
+    const result = await repository.restorePlatformCourse(courseId, { updatedAt: new Date().toISOString() });
+    if (!result) throw new SchoolServiceError(404, "停用课程不存在");
+    return toPlatformCourse((await repository.getPlatformCourse(courseId)) || result);
+}
+
+export async function getCourseDeletionImpact(actorId: string, courseId: string) {
+    await requireEducationAdmin(actorId);
+    const repository = createSchoolDomainRepository();
+    if (!(await repository.getPlatformCourse(courseId))) throw new SchoolServiceError(404, "课程不存在");
+    return repository.getPlatformCourseDeletionImpact(courseId);
+}
+
+export async function permanentlyDeleteCourse(actorId: string, courseId: string, titleConfirmation: string) {
+    await requireEducationAdmin(actorId);
+    const repository = createSchoolDomainRepository();
+    const course = await repository.getPlatformCourse(courseId, true);
+    if (!course) throw new SchoolServiceError(404, "课程不存在");
+    if (titleConfirmation !== course.title) throw new SchoolServiceError(400, "请输入完整课程名称确认永久删除");
+    const impact = await repository.getPlatformCourseDeletionImpact(courseId);
+    const deleted = await repository.permanentlyDeletePlatformCourse(courseId);
+    const cleanup = await cleanupDeletedCourseMaterials(deleted.storageKeys);
+    return { courseId, impact, cleanup };
 }
 
 export async function assignCourseToSchools(actorId: string, courseId: string, schoolIds: string[]): Promise<SchoolCourseAssignment[]> {
@@ -111,7 +329,7 @@ export async function listSchoolCourses(userId: string, input: { page?: number; 
 export async function listCourseOfferings(managerId: string, assignmentId: string, input: { page?: number; pageSize?: number }) {
     const context = await requireSchoolManager(managerId);
     const repository = createSchoolDomainRepository();
-    if (!(await repository.getSchoolCourseAssignment(context.school.id, assignmentId))) throw new SchoolServiceError(404, "学校课程不存在");
+    await requireActiveCourseAssignment(repository, context.school.id, assignmentId);
     return mapPage(await repository.listOfferingsForAssignment(context.school.id, assignmentId, input), (offering) => toCourseOffering(repository, offering));
 }
 
@@ -133,7 +351,6 @@ export async function createCourseOffering(managerId: string, assignmentId: stri
             assignmentId,
             classId: schoolClass.id,
             teacherMembershipId: teacher.id,
-            supplementalResources: arrayValue(input.supplementalResources),
             status: input.status === "disabled" ? "disabled" : "active",
             createdAt: now,
             updatedAt: now,
@@ -176,12 +393,15 @@ export async function createTeachingAssignment(teacherId: string, offeringId: st
         if (!schoolClass || schoolClass.status !== "active") throw new SchoolServiceError(409, "班级已停用，不能创建新的教学安排");
         const kind = input.kind === "lesson" || input.kind === "homework" || input.kind === "commercial_practice" ? input.kind : null;
         if (!kind) throw new SchoolServiceError(400, "作业类型无效");
+        await assertTeachingTarget(transaction, context.school.id, offeringSnapshot.assignmentId, input.chapterId, input.lessonId);
         const now = new Date().toISOString();
         return transaction.insertTeachingAssignment({
             id: randomUUID(),
             schoolId: context.school.id,
             offeringId,
             teacherMembershipId: context.membership.id,
+            ...(input.chapterId ? { chapterId: input.chapterId } : {}),
+            ...(input.lessonId ? { lessonId: input.lessonId } : {}),
             kind,
             title: requiredText(input.title, "作业标题", 160),
             instructions: text(input.instructions, 5000),
@@ -210,6 +430,9 @@ export async function getTeachingAssignment(userId: string, assignmentId: string
     if (context.membership.role === "student" && assignment.status !== "published" && assignment.status !== "closed") throw new SchoolServiceError(404, "教学任务不存在");
     const offering = await repository.getCourseOffering(context.school.id, assignment.offeringId);
     if (!offering) throw new SchoolServiceError(404, "课程安排不存在");
+    const courseAssignment = await repository.getSchoolCourseAssignment(context.school.id, offering.assignmentId);
+    const course = courseAssignment ? await repository.getPlatformCourse(courseAssignment.courseId) : null;
+    if (!courseAssignment || courseAssignment.status !== "active" || !course || course.status !== "published") throw new SchoolServiceError(404, "教学任务不存在");
     if (context.membership.role === "teacher" && offering.teacherMembershipId !== context.membership.id) throw new SchoolServiceError(404, "教学任务不存在");
     if (context.membership.role === "student" && !(await repository.isClassMember(context.school.id, offering.classId, context.membership.id))) throw new SchoolServiceError(404, "教学任务不存在");
     return toTeachingAssignment(repository, assignment);
@@ -227,6 +450,8 @@ export async function updateTeachingAssignment(teacherId: string, assignmentId: 
         ...(input.resources === undefined ? {} : { resources: arrayValue(input.resources) }),
         ...(input.dueAt === undefined ? {} : { dueAt: dueAtValue(input.dueAt) }),
         ...(input.status === undefined ? {} : { status: input.status }),
+        ...(input.chapterId === undefined ? {} : { chapterId: input.chapterId || undefined }),
+        ...(input.lessonId === undefined ? {} : { lessonId: input.lessonId || undefined }),
         updatedAt: new Date().toISOString(),
     };
     const assignment = await repository.transact(async (transaction) => {
@@ -241,6 +466,7 @@ export async function updateTeachingAssignment(teacherId: string, assignmentId: 
         if (!schoolClass || schoolClass.status !== "active") throw new SchoolServiceError(409, "班级已停用，不能更新教学任务");
         const assignment = await transaction.getTeachingAssignment(context.school.id, assignmentId, true);
         if (!assignment || assignment.offeringId !== offering.id || assignment.teacherMembershipId !== context.membership.id) throw new SchoolServiceError(404, "教学任务不存在或无权操作");
+        await assertTeachingTarget(transaction, context.school.id, offeringSnapshot.assignmentId, input.chapterId === undefined ? assignment.chapterId : input.chapterId, input.lessonId === undefined ? assignment.lessonId : input.lessonId);
         const updated = await transaction.updateTeachingAssignment(context.school.id, assignmentId, patch);
         if (!updated) throw new SchoolServiceError(404, "教学任务不存在");
         return updated;
@@ -381,7 +607,6 @@ async function toCourseOffering(repository: SchoolDomainRepository, record: Scho
     const [course, teacher] = await Promise.all([courseAssignment ? repository.getPlatformCourse(courseAssignment.courseId) : null, toPublicIdentity(teacherMembership)]);
     return {
         ...record,
-        supplementalResources: Array.isArray(record.supplementalResources) ? record.supplementalResources : [],
         courseTitle: course?.title || "课程信息不可用",
         className: schoolClass?.name || "班级信息不可用",
         teacher,
@@ -433,12 +658,95 @@ function toPlatformCourse(record: PlatformCourseRecord): PlatformCourse {
         title: record.title,
         summary: record.summary,
         content: record.content as Record<string, unknown>,
-        chapters: record.chapters as unknown[],
-        attachments: courseAttachmentsFromValue(record.attachments),
         status: record.status,
+        ...(record.deletedAt ? { deletedAt: record.deletedAt } : {}),
+        ...(record.deletedByUserId ? { deletedByUserId: record.deletedByUserId } : {}),
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,
+        chapterCount: record.chapterCount || 0,
+        lessonCount: record.lessonCount || 0,
+        materialCount: record.materialCount || 0,
     };
+}
+
+async function requireEditableCourse(repository: SchoolDomainRepository, courseId: string) {
+    const course = await repository.getPlatformCourse(courseId, true);
+    if (!course) throw new SchoolServiceError(404, "课程不存在");
+    if (course.status === "disabled") throw new SchoolServiceError(409, "课程已停用");
+    return course;
+}
+
+async function findChapter(repository: SchoolDomainRepository, chapterId: string) {
+    return repository.getCourseChapter(chapterId);
+}
+
+async function findLesson(repository: SchoolDomainRepository, lessonId: string) {
+    return repository.getCourseLesson(lessonId);
+}
+
+async function assertTreeTarget(repository: SchoolDomainRepository, courseId: string, chapterId?: string, lessonId?: string) {
+    if (Boolean(chapterId) === Boolean(lessonId)) throw new SchoolServiceError(400, "资料必须绑定一个章节或课时");
+    const tree = await repository.getPlatformCourseTree(courseId);
+    if (!tree) throw new SchoolServiceError(404, "课程不存在");
+    if (chapterId && !tree.chapters.some((chapter) => chapter.id === chapterId)) throw new SchoolServiceError(404, "章节不存在或不属于课程");
+    if (lessonId && !tree.chapters.some((chapter) => chapter.lessons.some((lesson) => lesson.id === lessonId))) throw new SchoolServiceError(404, "课时不存在或不属于课程");
+}
+
+async function assertTeachingTarget(repository: SchoolDomainRepository, schoolId: string, assignmentId: string, chapterId?: string, lessonId?: string) {
+    if (chapterId && lessonId) throw new SchoolServiceError(400, "教学任务只能关联章节或课时");
+    if (!chapterId && !lessonId) return;
+    const assignment = await repository.getSchoolCourseAssignment(schoolId, assignmentId);
+    const courseId = assignment?.courseId;
+    if (!courseId) return;
+    const tree = await repository.getPlatformCourseTree(courseId);
+    if (!tree) throw new SchoolServiceError(404, "课程不存在");
+    if (chapterId && !tree.chapters.some((chapter) => chapter.id === chapterId)) throw new SchoolServiceError(400, "教学任务章节不属于课程");
+    if (lessonId && !tree.chapters.some((chapter) => chapter.lessons.some((lesson) => lesson.id === lessonId))) throw new SchoolServiceError(400, "教学任务课时不属于课程");
+}
+
+async function materialRecord(
+    repository: SchoolDomainRepository,
+    ownerUserId: string,
+    courseId: string,
+    input: { chapterId?: string; lessonId?: string; title: string; storageKey: string; sortOrder?: number },
+    sourceScope: "platform" | "school",
+    schoolCourseAssignmentId?: string,
+): Promise<CourseMaterialRecord> {
+    const storageKey = text(input.storageKey, 1000);
+    const registration = (await getLocalMediaRegistrations([storageKey], { ownerUserId }))[0];
+    if (!registration || registration.storageClass !== "permanent" || registration.type !== "attachment" || registration.source !== "course-attachment") throw new SchoolServiceError(400, "课程资料文件不存在或无权使用");
+    return {
+        id: randomUUID(),
+        courseId,
+        ...(input.chapterId ? { chapterId: input.chapterId } : {}),
+        ...(input.lessonId ? { lessonId: input.lessonId } : {}),
+        sourceScope,
+        ...(schoolCourseAssignmentId ? { schoolCourseAssignmentId } : {}),
+        title: requiredText(input.title, "资料标题", 260),
+        fileName: registration.originalName || storageKey.split("/").pop() || "课程资料",
+        mimeType: registration.mimeType,
+        bytes: registration.bytes,
+        storageKey,
+        url: `/api/reference-assets/${storageKey
+            .split("/")
+            .map((part) => encodeURIComponent(part))
+            .join("/")}`,
+        sortOrder: positiveOrder(input.sortOrder),
+        status: "active",
+        createdByUserId: ownerUserId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    };
+}
+
+async function assertSchoolMaterialManager(repository: SchoolDomainRepository, schoolId: string, membershipId: string, canManageSchool: boolean, assignmentId?: string) {
+    if (canManageSchool) return;
+    if (!assignmentId) throw new SchoolServiceError(403, "当前老师不是该课程负责人");
+    if (!(await repository.hasActiveOfferingForTeacher(schoolId, membershipId, assignmentId))) throw new SchoolServiceError(403, "当前老师不是该课程负责人");
+}
+
+function positiveOrder(value: unknown) {
+    return Number.isFinite(Number(value)) && Number(value) >= 0 ? Math.floor(Number(value)) : 0;
 }
 
 function text(value: unknown, max: number) {
@@ -451,43 +759,6 @@ function objectValue(value: unknown): JsonValue {
 
 function arrayValue(value: unknown): JsonValue {
     return Array.isArray(value) ? (structuredClone(value) as JsonValue) : [];
-}
-
-async function validateCourseAttachments(actorId: string, value: unknown): Promise<JsonValue> {
-    const attachments = courseAttachmentsFromValue(value);
-    if (!Array.isArray(value) || attachments.length !== value.length) throw new SchoolServiceError(400, "课程附件无效");
-    if (!attachments.length) return [];
-    const storageKeys = attachments.map((attachment) => attachment.storageKey);
-    const registrations = await getLocalMediaRegistrations(storageKeys, { ownerUserId: actorId });
-    const registrationByKey = new Map(registrations.map((registration) => [registration.storageKey, registration]));
-    for (const attachment of attachments) {
-        const registration = registrationByKey.get(attachment.storageKey);
-        if (!registration || registration.storageClass !== "permanent" || registration.type !== "attachment" || registration.source !== "course-attachment" || registration.mimeType !== attachment.mimeType || registration.bytes !== attachment.bytes) {
-            throw new SchoolServiceError(400, "课程附件不存在或无权使用");
-        }
-    }
-    return structuredClone(attachments) as JsonValue;
-}
-
-function courseAttachmentsFromValue(value: unknown): CourseAttachment[] {
-    if (!Array.isArray(value)) return [];
-    return value.flatMap((item) => {
-        if (!item || typeof item !== "object") return [];
-        const source = item as Record<string, unknown>;
-        const title = text(source.title, 260);
-        const fileName = text(source.fileName, 260);
-        const storageKey = text(source.storageKey, 700);
-        const mimeType = text(source.mimeType, 160);
-        const bytes = Number(source.bytes);
-        const expectedUrl = storageKey
-            ? `/api/reference-assets/${storageKey
-                  .split("/")
-                  .map((part) => encodeURIComponent(part))
-                  .join("/")}`
-            : "";
-        if (!title || !fileName || !storageKey.startsWith("permanent/") || text(source.url, 1200) !== expectedUrl || !mimeType || !Number.isSafeInteger(bytes) || bytes <= 0) return [];
-        return [{ title, fileName, url: expectedUrl, storageKey, mimeType, bytes }];
-    });
 }
 
 function dueAtValue(value: unknown) {
