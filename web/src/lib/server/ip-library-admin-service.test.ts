@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
     createSchoolGrant: vi.fn(),
     updateSchoolGrant: vi.fn(),
     listSchoolGrants: vi.fn(),
-    listIpUsage: vi.fn(),
+    listIpDownloads: vi.fn(),
     listSchoolsByIds: vi.fn(),
     getIpContentFile: vi.fn(),
     listIpContentFiles: vi.fn(),
@@ -40,7 +40,7 @@ vi.mock("./ip-library-access-service", () => ({
         createSchoolGrant: mocks.createSchoolGrant,
         updateSchoolGrant: mocks.updateSchoolGrant,
         listSchoolGrants: mocks.listSchoolGrants,
-        listIpUsage: mocks.listIpUsage,
+        listIpDownloads: mocks.listIpDownloads,
         getIpContentFile: mocks.getIpContentFile,
         listIpContentFiles: mocks.listIpContentFiles,
         createIpContentFile: mocks.createIpContentFile,
@@ -235,9 +235,9 @@ describe("IP library administration service", () => {
         expect(mocks.deleteStoredIpContentFile).not.toHaveBeenCalled();
     });
 
-    it("projects usage records to public user identities and school names", async () => {
-        mocks.listIpUsage.mockResolvedValue({
-            items: [{ id: "usage-one", ipId: "ip-one", versionId: "version-one", schoolId: "school-a", userId: "student-user", action: "view", createdAt: "2026-08-19T00:00:00.000Z" }],
+    it("projects independent download records to public user identities and school names", async () => {
+        mocks.listIpDownloads.mockResolvedValue({
+            items: [{ id: "download-one", ipId: "ip-one", versionId: "version-one", itemId: "item-one", schoolId: "school-a", userId: "student-user", downloadType: "item", result: "succeeded", createdAt: "2026-08-19T00:00:00.000Z" }],
             total: 1,
             page: 1,
             pageSize: 20,
@@ -248,9 +248,10 @@ describe("IP library administration service", () => {
             ),
         );
 
-        await expect(listAdminIpUsage("content-admin", { page: 1, pageSize: 20 })).resolves.toMatchObject({
-            items: [{ id: "usage-one", user: { accountId: "0007", username: "student", displayName: "练习学生" }, school: { id: "school-a", name: "甲学校" } }],
+        await expect(listAdminIpUsage("content-admin", { page: 1, pageSize: 20, downloadType: "item", result: "succeeded" })).resolves.toMatchObject({
+            items: [{ id: "download-one", downloadType: "item", result: "succeeded", user: { accountId: "0007", username: "student", displayName: "练习学生" }, school: { id: "school-a", name: "甲学校" } }],
         });
+        expect(mocks.listIpDownloads).toHaveBeenCalledWith({ page: 1, pageSize: 20, downloadType: "item", result: "succeeded" });
         expect(mocks.listSchoolsByIds).toHaveBeenCalledWith(["school-a"]);
     });
 

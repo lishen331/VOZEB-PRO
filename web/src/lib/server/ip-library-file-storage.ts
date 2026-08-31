@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, resolve, sep } from "node:path";
 
 import { fileTypeFromBuffer } from "file-type";
@@ -9,7 +9,7 @@ import type { IpAssetKind } from "@/lib/ip-library-domain";
 import type { IpContentFileCreateInput, IpContentFileRecord } from "@/lib/server/database/repository-types";
 import { getIpLibraryFilesDir } from "@/lib/server/data-dir";
 import { createLocalMediaResponse, mediaContentDisposition } from "@/lib/server/local-media-response";
-import { deleteObjects, putObjectBytes, signObjectRead } from "@/lib/server/object-storage-client";
+import { deleteObjects, getObjectBytes, putObjectBytes, signObjectRead } from "@/lib/server/object-storage-client";
 import { assertObjectStorageConfigured, getObjectStorageRuntimeConfig } from "@/lib/server/object-storage-config";
 import { createExternalStorageImagePreviewUrl } from "@/lib/server/object-storage-service";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
@@ -119,6 +119,26 @@ export async function readIpContentFile(request: Request, record: IpContentFileR
         });
     }
     return Response.redirect(url, 302);
+}
+
+export async function readIpContentFileBytes(record: IpContentFileRecord | IpContentFileCreateInput) {
+    if (record.status !== "ready") return null;
+    if (record.storageProvider === "local") {
+        return readFile(localFilePath(record.storageKey)).catch((error) => {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+            throw error;
+        });
+    }
+    if (!record.externalObjectKey) return null;
+    const config = await getObjectStorageRuntimeConfig();
+    assertObjectStorageConfigured(config);
+    if (record.externalStorageId && record.externalStorageId !== config.id) return null;
+    return getObjectBytes(config, record.externalObjectKey).catch((error) => {
+        const status = Number((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode || 0);
+        const name = (error as { name?: string }).name;
+        if (status === 404 || name === "NoSuchKey" || name === "NotFound") return null;
+        throw error;
+    });
 }
 
 export async function deleteStoredIpContentFile(record: IpContentFileRecord | IpContentFileCreateInput) {

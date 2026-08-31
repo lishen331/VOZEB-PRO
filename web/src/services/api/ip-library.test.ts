@@ -20,6 +20,11 @@ describe("IP library API client", () => {
         expect(result).toMatchObject({ fileName: "星海-v2.zip", blob: expect.any(Blob) });
     });
 
+    it("preserves an uploaded TXT file name for a single download", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("正文", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Content-Disposition": "attachment; filename=download; filename*=UTF-8''%E6%95%85%E4%BA%8B%E6%A2%97%E6%A6%82.txt" } })));
+        await expect(ipLibraryApi.download("ip-one", { itemIds: ["text-one"], package: false })).resolves.toMatchObject({ fileName: "故事梗概.txt", blob: expect.any(Blob) });
+    });
+
     it("returns a short-lived URL without storing it in client state", async () => {
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 0, data: { url: "https://objects.example/signed", fileName: "角色.png" }, msg: "ok" }), { status: 200, headers: { "Content-Type": "application/json" } })));
         await expect(ipLibraryApi.download("ip-one", { itemIds: ["item-one"], package: false })).resolves.toEqual({ url: "https://objects.example/signed", fileName: "角色.png" });

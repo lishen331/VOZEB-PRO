@@ -1,5 +1,5 @@
-import type { IpStatus, IpUsageAction, IpVisibility } from "@/lib/ip-library-domain";
-import type { IpContentFileRecord, IpPackageRecord, IpSchoolGrantRecord, IpUsageRecord, IpVersionRecord, PageResult } from "@/lib/server/database/repository-types";
+import type { IpStatus, IpVisibility } from "@/lib/ip-library-domain";
+import type { IpContentFileRecord, IpDownloadRecord, IpDownloadResult, IpDownloadType, IpPackageRecord, IpSchoolGrantRecord, IpVersionRecord, PageResult } from "@/lib/server/database/repository-types";
 import type { AdminIpCreateInput, AdminIpCreateVersionInput, AdminIpGrantInput, AdminIpGrantPatchInput, AdminIpPatchInput, AdminIpVersionInput } from "@/lib/server/ip-library-admin-service";
 import { serializeApiParams } from "@/services/api/request";
 
@@ -53,7 +53,7 @@ export const adminIpLibraryApi = {
     updateGrant(id: string, grantId: string, input: AdminIpGrantPatchInput) {
         return request<IpSchoolGrantRecord>(`${ipPath(id)}/schools/${encodeURIComponent(grantId)}`, jsonRequest("PATCH", input));
     },
-    listUsage(input: { page?: number; pageSize?: number; ipId?: string; versionId?: string; schoolId?: string; userId?: string; action?: IpUsageAction } = {}) {
+    listUsage(input: { page?: number; pageSize?: number; ipId?: string; versionId?: string; schoolId?: string; userId?: string; downloadType?: IpDownloadType; result?: IpDownloadResult } = {}) {
         return getPage<AdminIpUsageItem>("/api/admin/ip-library/usage", input);
     },
 };
@@ -71,7 +71,7 @@ export function isConfirmedAdminIpLibraryFailure(error: unknown): error is Admin
     return error instanceof AdminIpLibraryRequestError && error.outcome === "confirmed_failure";
 }
 
-export type AdminIpUsageItem = Omit<IpUsageRecord, "userId"> & {
+export type AdminIpUsageItem = Omit<IpDownloadRecord, "userId"> & {
     user?: { accountId: string; username: string; displayName: string; email?: string };
     school?: { id: string; name: string };
 };

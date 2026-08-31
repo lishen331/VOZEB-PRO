@@ -13,18 +13,16 @@ import {
     IP_AUTHORIZATION_MODES,
     IP_ITEM_CATEGORIES,
     IP_STATUSES,
-    IP_USAGE_ACTIONS,
     IP_VISIBILITIES,
     ipAuthorizationLabel,
     type IpAssetKind,
     type IpAuthorizationMode,
     type IpItemCategory,
     type IpStatus,
-    type IpUsageAction,
     type IpVisibility,
 } from "@/lib/ip-library-domain";
 import type { SchoolSummary } from "@/lib/school-domain";
-import type { IpContentFileRecord, IpItemRecord, IpPackageRecord, IpSchoolGrantRecord, IpVersionRecord } from "@/lib/server/database/repository-types";
+import type { IpContentFileRecord, IpDownloadResult, IpDownloadType, IpItemRecord, IpPackageRecord, IpSchoolGrantRecord, IpVersionRecord } from "@/lib/server/database/repository-types";
 import { adminEducationApi } from "@/services/api/admin-education";
 import { adminIpLibraryApi, type AdminIpGrantItem, type AdminIpUsageItem } from "@/services/api/admin-ip-library";
 import { IpContentPreview } from "./ip-content-preview";
@@ -43,7 +41,7 @@ export function AdminIpLibrarySection({ currentUser }: { currentUser: PublicUser
     const tabs = [
         { key: "content", label: "IP 内容", children: <IpContentPanel canManageContent={canManageContent} canManageEducation={canManageEducation} /> },
         ...(canManageEducation ? [{ key: "grants", label: "学校授权", children: <GrantPanel /> }] : []),
-        { key: "usage", label: "使用记录", children: <UsagePanel /> },
+        { key: "usage", label: "下载记录", children: <UsagePanel /> },
     ];
     return <Tabs items={tabs} destroyOnHidden />;
 }
@@ -747,26 +745,27 @@ function UsagePanel() {
     const [items, setItems] = useState<AdminIpUsageItem[]>([]);
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
-    const [action, setAction] = useState<IpUsageAction>();
+    const [downloadType, setDownloadType] = useState<IpDownloadType>();
+    const [result, setResult] = useState<IpDownloadResult>();
     const [loading, setLoading] = useState(false);
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const result = await adminIpLibraryApi.listUsage({ page, pageSize: PAGE_SIZE, action });
-            setItems(result.items);
-            setTotal(result.total);
+            const pageResult = await adminIpLibraryApi.listUsage({ page, pageSize: PAGE_SIZE, downloadType, result });
+            setItems(pageResult.items);
+            setTotal(pageResult.total);
         } catch (error) {
-            message.error(errorMessage(error, "使用记录加载失败"));
+            message.error(errorMessage(error, "下载记录加载失败"));
         } finally {
             setLoading(false);
         }
-    }, [action, message, page]);
+    }, [downloadType, message, page, result]);
     useEffect(() => void load(), [load]);
     const columns: TableColumnsType<AdminIpUsageItem> = [
         { title: "用户", render: (_, item) => (item.user ? <AdminUserIdentity accountId={item.user.accountId} username={item.user.username} displayName={item.user.displayName} /> : <span className="text-sm text-zinc-500">用户信息不可用</span>) },
         { title: "学校", width: 180, render: (_, item) => item.school?.name || "公共访问" },
-        { title: "动作", width: 130, dataIndex: "action", render: (value: IpUsageAction) => usageActionLabel[value] },
-        { title: "内容项", width: 90, render: (_, item) => item.itemIds.length },
+        { title: "下载类型", width: 130, dataIndex: "downloadType", render: (value: IpDownloadType) => downloadTypeLabel[value] },
+        { title: "结果", width: 100, dataIndex: "result", render: (value: IpDownloadResult) => <Tag color={value === "succeeded" ? "green" : "red"}>{downloadResultLabel[value]}</Tag> },
         { title: "时间", width: 170, dataIndex: "createdAt", render: (value: string) => <span className="text-xs text-zinc-500">{formatTime(value)}</span> },
     ];
     return (
@@ -774,12 +773,23 @@ function UsagePanel() {
             <div className="flex justify-end gap-2">
                 <Select
                     allowClear
-                    value={action}
+                    value={downloadType}
                     className="w-40"
-                    placeholder="使用动作"
-                    options={IP_USAGE_ACTIONS.map((value) => ({ value, label: usageActionLabel[value] }))}
+                    placeholder="下载类型"
+                    options={(Object.keys(downloadTypeLabel) as IpDownloadType[]).map((value) => ({ value, label: downloadTypeLabel[value] }))}
                     onChange={(value) => {
-                        setAction(value);
+                        setDownloadType(value);
+                        setPage(1);
+                    }}
+                />
+                <Select
+                    allowClear
+                    value={result}
+                    className="w-32"
+                    placeholder="下载结果"
+                    options={(Object.keys(downloadResultLabel) as IpDownloadResult[]).map((value) => ({ value, label: downloadResultLabel[value] }))}
+                    onChange={(value) => {
+                        setResult(value);
                         setPage(1);
                     }}
                 />
@@ -794,7 +804,7 @@ function UsagePanel() {
                         {item.user ? <AdminUserIdentity accountId={item.user.accountId} username={item.user.username} displayName={item.user.displayName} /> : <span className="text-sm text-zinc-500">用户信息不可用</span>}
                         <div className="mt-2 flex justify-between text-xs text-zinc-500">
                             <span>
-                                {item.school?.name || "公共访问"} · {usageActionLabel[item.action]}
+                                {item.school?.name || "公共访问"} · {downloadTypeLabel[item.downloadType]} · {downloadResultLabel[item.result]}
                             </span>
                             <span>{formatTime(item.createdAt)}</span>
                         </div>
@@ -837,7 +847,8 @@ const kindOptions = IP_ASSET_KINDS.map((value) => ({ value, label: { text: "文�
 const kindLabel: Record<IpAssetKind, string> = { text: "文本", image: "图片", audio: "音乐与声音", video: "视频参考" };
 const statusLabel: Record<IpStatus, string> = { draft: "草稿", published: "已发布", disabled: "已停用" };
 const versionStatusLabel = { draft: "草稿", published: "已发布", disabled: "已停用" } as const;
-const usageActionLabel: Record<IpUsageAction, string> = { reference: "工作区引用", download_item: "单项下载", download_package: "完整包下载" };
+const downloadTypeLabel: Record<IpDownloadType, string> = { item: "单项下载", package: "完整包下载" };
+const downloadResultLabel: Record<IpDownloadResult, string> = { succeeded: "成功", failed: "失败" };
 const categoryLabels: Partial<Record<IpItemCategory, string>> = {
     story_summary: "故事梗概",
     worldbuilding: "世界观",

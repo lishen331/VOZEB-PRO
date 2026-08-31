@@ -389,11 +389,11 @@ export class FileIpLibraryRepository {
         });
     }
 
-    async listIpDownloads(input: { ipId?: string; versionId?: string; schoolId?: string; userId?: string; downloadType?: string; page?: number; pageSize?: number } = {}): Promise<PageResult<IpDownloadRecord>> {
+    async listIpDownloads(input: { ipId?: string; versionId?: string; schoolId?: string; userId?: string; downloadType?: string; result?: string; page?: number; pageSize?: number } = {}): Promise<PageResult<IpDownloadRecord>> {
         const page = positiveInteger(input.page, 1);
         const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
         const records = (await readFile()).downloads
-            .filter((item) => (!input.ipId || item.ipId === input.ipId) && (!input.versionId || item.versionId === input.versionId) && (!input.schoolId || item.schoolId === input.schoolId) && (!input.userId || item.userId === input.userId) && (!input.downloadType || item.downloadType === input.downloadType))
+            .filter((item) => (!input.ipId || item.ipId === input.ipId) && (!input.versionId || item.versionId === input.versionId) && (!input.schoolId || item.schoolId === input.schoolId) && (!input.userId || item.userId === input.userId) && (!input.downloadType || item.downloadType === input.downloadType) && (!input.result || item.result === input.result))
             .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id));
         return { items: structuredClone(records.slice((page - 1) * pageSize, page * pageSize)), total: records.length, page, pageSize };
     }

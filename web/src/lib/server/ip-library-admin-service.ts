@@ -236,9 +236,9 @@ export async function updateAdminIpGrant(actorId: string, ipId: string, grantId:
     return updated;
 }
 
-export async function listAdminIpUsage(actorId: string, input: PageInput & { ipId?: string; versionId?: string; schoolId?: string; userId?: string; action?: string } = {}) {
+export async function listAdminIpUsage(actorId: string, input: PageInput & { ipId?: string; versionId?: string; schoolId?: string; userId?: string; downloadType?: string; result?: string } = {}) {
     await requireAnyIpDuty(actorId);
-    const page = await createIpLibraryRepository().listIpUsage(input);
+    const page = await createIpLibraryRepository().listIpDownloads(input);
     const users = new Map((await getPublicUsersByIds([...new Set(page.items.map((item) => item.userId))])).map((user) => [user.id, user]));
     const schools = new Map((await createSchoolDomainRepository().listSchoolsByIds([...new Set(page.items.map((item) => item.schoolId).filter((schoolId): schoolId is string => Boolean(schoolId)))])).map((school) => [school.id, school]));
     return {
