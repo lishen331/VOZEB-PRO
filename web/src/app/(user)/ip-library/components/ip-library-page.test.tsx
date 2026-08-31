@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { availableIpLibraryScopes } from "./ip-library-page";
+import { availableIpLibraryScopes, shouldShowExclusiveBadge } from "./ip-library-page";
 
 describe("IP library page contract", () => {
     it("shows only public IPs to an ordinary user", () => {
@@ -9,5 +9,11 @@ describe("IP library page contract", () => {
 
     it("adds the current-school scope for an active school member", () => {
         expect(availableIpLibraryScopes(true).map((item) => item.label)).toEqual(["公共 IP", "本校 IP"]);
+    });
+
+    it("shows exclusive authorization only on school IP cards", () => {
+        expect(shouldShowExclusiveBadge("public", true)).toBe(false);
+        expect(shouldShowExclusiveBadge("school", true)).toBe(true);
+        expect(shouldShowExclusiveBadge("school", false)).toBe(false);
     });
 });

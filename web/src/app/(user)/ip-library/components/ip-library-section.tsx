@@ -4,7 +4,7 @@ import { Button } from "antd";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
-export function IpLibrarySection<T extends { id: string }>({ title, description, items, renderItem, initialCount = 4 }: { title: string; description: string; items: T[]; renderItem: (item: T) => ReactNode; initialCount?: number }) {
+export function IpLibrarySection<T extends { id: string }>({ title, description, items, renderItem, initialCount = 4, layout = "grid" }: { title: string; description: string; items: T[]; renderItem: (item: T) => ReactNode; initialCount?: number; layout?: "grid" | "list" }) {
     const [expanded, setExpanded] = useState(false);
     const visible = expanded ? items : items.slice(0, initialCount);
     return (
@@ -21,7 +21,7 @@ export function IpLibrarySection<T extends { id: string }>({ title, description,
                 ) : null}
             </div>
             {visible.length ? (
-                <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{visible.map(renderItem)}</div>
+                <div className={layout === "list" ? "mt-3 grid min-w-0 gap-3" : "mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}>{visible.map(renderItem)}</div>
             ) : (
                 <p className="mt-3 border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">暂无内容</p>
             )}
