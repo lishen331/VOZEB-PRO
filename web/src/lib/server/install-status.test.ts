@@ -59,6 +59,17 @@ describe("install status cache", () => {
         expect(mocks.postgresQuery.mock.calls.map(([statement]) => String(statement))).toEqual(["SELECT 1", expect.stringContaining("to_regclass"), expect.stringContaining("count(*)")]);
     });
 
+    it("reports an existing database as not ready when schema initialization fails", async () => {
+        mockHealthySchema(["1"]);
+        mocks.initializePostgresSchema.mockRejectedValue(new Error('column "chapter_id" does not exist'));
+
+        const status = await getInstallStatus({ verifySchema: true });
+
+        expect(status.database).toMatchObject({ healthy: false, schemaReady: false });
+        expect(status.ready).toBe(false);
+        expect(mocks.initializePostgresSchema).toHaveBeenCalledTimes(1);
+    });
+
     it("does not retain the first-admin-required result", async () => {
         mockHealthySchema(["0", "1"]);
 

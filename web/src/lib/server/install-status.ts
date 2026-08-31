@@ -36,10 +36,11 @@ const globalForInstallStatus = globalThis as typeof globalThis & {
     };
 };
 
-export async function getInstallStatus(): Promise<InstallStatus> {
+export async function getInstallStatus(options: { verifySchema?: boolean } = {}): Promise<InstallStatus> {
     const provider = getDatabaseProvider();
     const encryption = getEncryptionKeyStatus();
-    const key = `${provider}:${provider === "postgres" ? getPostgresConnectionString() : ""}:${encryption.ready}`;
+    const verifySchema = options.verifySchema === true;
+    const key = `${provider}:${provider === "postgres" ? getPostgresConnectionString() : ""}:${encryption.ready}:${verifySchema ? "schema" : "basic"}`;
     const now = Date.now();
     const cached = globalForInstallStatus.__vozebProInstallStatusCache;
     if (cached?.key === key) {
@@ -47,7 +48,7 @@ export async function getInstallStatus(): Promise<InstallStatus> {
         if (cached.pending) return cached.pending;
     }
 
-    const pending = loadInstallStatus(provider, encryption);
+    const pending = loadInstallStatus(provider, encryption, { verifySchema });
     globalForInstallStatus.__vozebProInstallStatusCache = { key, expiresAt: 0, pending };
     try {
         const value = await pending;
@@ -64,7 +65,7 @@ export function invalidateInstallStatusCache() {
     globalForInstallStatus.__vozebProInstallStatusCache = undefined;
 }
 
-async function loadInstallStatus(provider: "file" | "postgres", encryption = getEncryptionKeyStatus()): Promise<InstallStatus> {
+async function loadInstallStatus(provider: "file" | "postgres", encryption = getEncryptionKeyStatus(), options: { verifySchema: boolean } = { verifySchema: false }): Promise<InstallStatus> {
     const installToken = getInstallTokenStatus();
     if (provider === "file") {
         try {
@@ -151,6 +152,7 @@ async function loadInstallStatus(provider: "file" | "postgres", encryption = get
                 },
             });
         }
+        if (options.verifySchema) await initializePostgresSchema();
         const result = await postgresQuery<{ total: string | number }>("SELECT count(*) AS total FROM users");
         const userCount = Number(result.rows[0]?.total || 0);
         return buildStatus({

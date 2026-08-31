@@ -127,8 +127,8 @@ jobs:
 
           for attempt in $(seq 1 30); do
             if curl --fail --silent --show-error --output /dev/null --max-time 10 \
-              http://127.0.0.1:3001/api/health/live; then
-              printf 'Health check passed on attempt %s/30\n' "$attempt"
+              http://127.0.0.1:3001/api/health/ready; then
+              printf 'Readiness check passed on attempt %s/30\n' "$attempt"
               docker compose ps
               exit 0
             fi
@@ -138,7 +138,9 @@ jobs:
             fi
           done
 
-          printf 'Health check failed after 30 attempts.\n' >&2
+          printf 'Readiness check failed after 30 attempts.\n' >&2
+          curl --silent --show-error --max-time 10 http://127.0.0.1:3001/api/health/ready || true
           docker compose ps
+          docker compose logs --tail=100 app generation-worker || true
           exit 1
           REMOTE_SCRIPT

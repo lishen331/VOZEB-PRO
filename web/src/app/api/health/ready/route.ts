@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
     try {
-        const install = await getInstallStatus();
+        const install = await getInstallStatus({ verifySchema: true });
         const generationWorker = install.database.schemaReady ? await getGenerationWorkerHealth() : { required: true, healthy: false, lastHeartbeatAt: null, reason: "installation_pending" as const };
         const ready = install.ready && generationWorker.healthy;
         const data = {

@@ -82,6 +82,23 @@ CREATE TABLE IF NOT EXISTS platform_courses (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE platform_courses ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE platform_courses ADD COLUMN IF NOT EXISTS deleted_by_user_id text;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'platform_courses'::regclass
+          AND conname = 'platform_courses_deleted_by_user_id_fkey'
+    ) THEN
+        ALTER TABLE platform_courses
+            ADD CONSTRAINT platform_courses_deleted_by_user_id_fkey
+            FOREIGN KEY (deleted_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+
 CREATE INDEX IF NOT EXISTS platform_courses_status_updated_idx ON platform_courses (status, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS platform_course_chapters (
@@ -194,6 +211,23 @@ CREATE TABLE IF NOT EXISTS teaching_assignments (
     FOREIGN KEY (school_id, teacher_membership_id) REFERENCES school_memberships(school_id, id),
     CONSTRAINT teaching_assignments_course_target CHECK (chapter_id IS NULL OR lesson_id IS NULL)
 );
+
+ALTER TABLE teaching_assignments ADD COLUMN IF NOT EXISTS chapter_id text;
+ALTER TABLE teaching_assignments ADD COLUMN IF NOT EXISTS lesson_id text;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'teaching_assignments'::regclass
+          AND conname = 'teaching_assignments_course_target'
+    ) THEN
+        ALTER TABLE teaching_assignments
+            ADD CONSTRAINT teaching_assignments_course_target
+            CHECK (chapter_id IS NULL OR lesson_id IS NULL);
+    END IF;
+END
+$$;
 
 CREATE INDEX IF NOT EXISTS teaching_assignments_school_status_updated_idx ON teaching_assignments (school_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS teaching_assignments_school_offering_updated_idx ON teaching_assignments (school_id, offering_id, updated_at DESC);

@@ -271,6 +271,7 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "school_class_members_school_class_idx",
     "school_class_members_school_membership_idx",
     "platform_courses_status_updated_idx",
+    "platform_courses_deleted_by_user_id_fkey",
     "platform_course_chapters_course_sort_idx",
     "platform_course_lessons_course_chapter_sort_idx",
     "course_materials_course_target_sort_idx",
