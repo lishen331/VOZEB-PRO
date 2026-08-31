@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
 
+import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL } from "./schema-school-domain";
 import { initializePostgresSchema, postgresQuery } from "./postgres";
 
 const postgresIt = process.env.VOZEB_PRO_RUN_POSTGRES_INTEGRATION === "1" ? it : it.skip;
+const postgresLegacyIt = process.env.VOZEB_RUN_POSTGRES_LEGACY_UPGRADE === "1" ? it : it.skip;
 const suffix = randomUUID();
 const ids = {
     schoolA: `school-schema-a-${suffix}`,
@@ -27,6 +30,99 @@ const ids = {
 };
 
 describe("PostgreSQL school domain schema", () => {
+    it("declares legacy column upgrades before dependent indexes", () => {
+        const ddl = POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL.toLowerCase();
+        const addCourseDeletedAt = ddl.indexOf("alter table platform_courses add column if not exists deleted_at");
+        const addCourseDeletedBy = ddl.indexOf("alter table platform_courses add column if not exists deleted_by_user_id");
+        const addAssignmentChapter = ddl.indexOf("alter table teaching_assignments add column if not exists chapter_id");
+        const addAssignmentLesson = ddl.indexOf("alter table teaching_assignments add column if not exists lesson_id");
+        const courseIndex = ddl.indexOf("create index if not exists platform_courses_status_updated_idx");
+        const assignmentChapterIndex = ddl.indexOf("create index if not exists teaching_assignments_school_chapter_idx");
+        const assignmentLessonIndex = ddl.indexOf("create index if not exists teaching_assignments_school_lesson_idx");
+
+        expect(addCourseDeletedAt).toBeGreaterThan(-1);
+        expect(addCourseDeletedBy).toBeGreaterThan(-1);
+        expect(addAssignmentChapter).toBeGreaterThan(-1);
+        expect(addAssignmentLesson).toBeGreaterThan(-1);
+        expect(addCourseDeletedAt).toBeLessThan(courseIndex);
+        expect(addCourseDeletedBy).toBeLessThan(courseIndex);
+        expect(addAssignmentChapter).toBeLessThan(assignmentChapterIndex);
+        expect(addAssignmentLesson).toBeLessThan(assignmentLessonIndex);
+        expect(ddl).toContain("from pg_constraint");
+    });
+
+    postgresLegacyIt("upgrades legacy course tables without deleting JSON data", async () => {
+        const connectionString = process.env.DATABASE_URL;
+        if (!connectionString) throw new Error("DATABASE_URL must point to a dedicated PostgreSQL test database");
+
+        const client = new Client({ connectionString });
+        const schemaName = `legacy_school_${randomUUID().replaceAll("-", "")}`;
+        const schemaIdentifier = `"${schemaName}"`;
+        await client.connect();
+        try {
+            await client.query(`CREATE SCHEMA ${schemaIdentifier}`);
+            await client.query(`SET search_path TO ${schemaIdentifier}`);
+            await client.query("CREATE TABLE users (id text PRIMARY KEY)");
+            await client.query("INSERT INTO users (id) VALUES ('legacy-user')");
+            await client.query(`
+                CREATE TABLE platform_courses (
+                    id text PRIMARY KEY,
+                    title text NOT NULL,
+                    summary text NOT NULL DEFAULT '',
+                    content jsonb NOT NULL DEFAULT '{}'::jsonb,
+                    chapters jsonb NOT NULL DEFAULT '[]'::jsonb,
+                    attachments jsonb NOT NULL DEFAULT '[]'::jsonb,
+                    status text NOT NULL DEFAULT 'draft',
+                    created_by_user_id text REFERENCES users(id),
+                    created_at timestamptz NOT NULL DEFAULT now(),
+                    updated_at timestamptz NOT NULL DEFAULT now()
+                )
+            `);
+            await client.query(`
+                CREATE TABLE teaching_assignments (
+                    id text PRIMARY KEY,
+                    school_id text NOT NULL,
+                    offering_id text NOT NULL,
+                    teacher_membership_id text NOT NULL,
+                    kind text NOT NULL,
+                    title text NOT NULL,
+                    instructions text NOT NULL DEFAULT '',
+                    resources jsonb NOT NULL DEFAULT '[]'::jsonb,
+                    due_at timestamptz,
+                    status text NOT NULL DEFAULT 'draft',
+                    created_at timestamptz NOT NULL DEFAULT now(),
+                    updated_at timestamptz NOT NULL DEFAULT now(),
+                    UNIQUE (school_id, id)
+                )
+            `);
+            await client.query("INSERT INTO platform_courses (id, title, chapters, attachments) VALUES ('legacy-course', '旧课程', '[{\"title\":\"旧章节\"}]', '[{\"name\":\"旧附件\"}]')");
+            await client.query(POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL);
+            await client.query(POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL);
+
+            const columns = await client.query<{ table_name: string; column_name: string }>("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name IN ('platform_courses', 'teaching_assignments')", [
+                schemaName,
+            ]);
+            const tables = await client.query<{ table_name: string }>("SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_name IN ('platform_course_chapters', 'platform_course_lessons', 'course_materials')", [schemaName]);
+            const indexes = await client.query<{ indexname: string }>("SELECT indexname FROM pg_indexes WHERE schemaname = $1 AND indexname IN ('teaching_assignments_school_chapter_idx', 'teaching_assignments_school_lesson_idx')", [schemaName]);
+            const legacyCourse = await client.query<{ chapters: unknown; attachments: unknown }>("SELECT chapters, attachments FROM platform_courses WHERE id = 'legacy-course'");
+
+            expect(columns.rows.filter((row) => row.table_name === "platform_courses").map((row) => row.column_name)).toEqual(expect.arrayContaining(["deleted_at", "deleted_by_user_id", "chapters", "attachments"]));
+            expect(columns.rows.filter((row) => row.table_name === "teaching_assignments").map((row) => row.column_name)).toEqual(expect.arrayContaining(["chapter_id", "lesson_id"]));
+            expect(tables.rows.map((row) => row.table_name)).toEqual(expect.arrayContaining(["platform_course_chapters", "platform_course_lessons", "course_materials"]));
+            expect(indexes.rows.map((row) => row.indexname)).toEqual(expect.arrayContaining(["teaching_assignments_school_chapter_idx", "teaching_assignments_school_lesson_idx"]));
+            expect(legacyCourse.rows[0]).toEqual({ chapters: [{ title: "旧章节" }], attachments: [{ name: "旧附件" }] });
+        } finally {
+            await client.query(`DROP SCHEMA ${schemaIdentifier} CASCADE`);
+            await client.end();
+        }
+    });
+
+    postgresIt("creates one prefixed course soft-delete foreign key", async () => {
+        const result = await postgresQuery<{ total: string }>("SELECT count(*)::text AS total FROM pg_constraint WHERE conrelid = 'platform_courses'::regclass AND conname = 'platform_courses_deleted_by_user_id_fkey'");
+
+        expect(result.rows[0]?.total).toBe("1");
+    });
+
     beforeAll(async () => {
         if (process.env.VOZEB_PRO_RUN_POSTGRES_INTEGRATION !== "1") return;
         if (!process.env.DATABASE_URL?.trim()) throw new Error("DATABASE_URL must point to a dedicated PostgreSQL test database");
