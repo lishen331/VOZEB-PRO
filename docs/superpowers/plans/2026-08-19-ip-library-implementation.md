@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** 在保留现有 IP 库页面、权限和版本骨架的基础上，把 IP 内容从个人素材引用改为平台独立文件上传，补齐后台真实预览、学校整套开放和原文件下载，并删除第一期不再需要的 Canvas、短剧、无限练习引用能力。
+**Goal:** 在保留现有 IP 库页面、权限和版本骨架的基础上，把 IP 内容从个人素材引用改为平台独立文件上传，补齐后台真实预览、学校整套开放和原文件下载；Canvas、短剧、无限练习的既有 IP 引用能力保留为休眠能力，本期只隐藏入口。
 
 **Architecture:** `ip_packages` 保存稳定 IP 身份，`ip_versions` 保存不可变发布快照，`ip_content_files` 保存不属于个人的原文件与存储信息，`ip_items` 通过 `fileId` 组织版本内容。平台授权与学校开放共同决定本校访问，用户每次预览和下载都重新经过统一 access service。文件落盘复用现有数据目录、对象存储配置、S3 客户端、媒体检测和签名能力，但不写入 `library_assets` 或强制个人归属的 `local_media_assets`。
 
@@ -25,11 +25,12 @@
 - 单项下载保持原始文件名和格式，完整 ZIP 包含封面、目录、版本、来源和 manifest。
 - 发布新版本后自动成为最新版本，旧版本、旧文件和下载记录保持可追溯。
 
-本期明确删除：
+本期明确隐藏或停止新增：
 
 - “一键使用”和导入 Canvas、短剧、无限练习。
-- 项目、生成任务和练习会话中的 `IpReference`、`ipReferences` 与引用使用记录。
 - IP 内容对个人 `library_assets.assetId` 的依赖。
+
+既有项目、生成任务和练习会话中的 `IpReference`、`ipReferences`、引用 service 与历史使用记录不得删除；它们通过统一的默认关闭开关隐藏所有可见入口，本期不新增调用，后续启用时继续复用。
 
 ## 最终数据契约
 
@@ -109,74 +110,36 @@ type IpDownloadRecord = {
 
 `ip_packages.title/summary` 只作为后台草稿识别信息；用户列表和详情必须从最新已发布 `ip_versions` 读取标题、简介、封面、标签和来源快照。授权模式只属于 `ip_school_grants`，不再保存在 `ip_packages`。
 
-## Task 1: 删除第一期之外的 IP 项目引用链路
+## Task 1: 隐藏 IP 项目引用入口并保留休眠链路
 
 **Files:**
 
-- Delete: `web/src/components/ip-library/ip-reference-picker.tsx`
-- Delete: `web/src/components/ip-library/ip-reference-picker.test.tsx`
-- Delete: `web/src/lib/server/ip-library-reference-service.ts`
-- Delete: `web/src/lib/server/ip-library-reference-service.test.ts`
 - Modify: `web/src/lib/ip-library-domain.ts`
 - Modify: `web/src/lib/ip-library-domain.test.ts`
-- Modify: `web/src/lib/canvas-project-contract.ts`
-- Modify: `web/src/lib/canvas-project-mutation.ts`
-- Modify: `web/src/lib/drama-project-contract.ts`
-- Modify: `web/src/lib/school-domain.ts`
-- Modify: `web/src/lib/school-domain.test.ts`
-- Modify: `web/src/lib/server/canvas-project-service.ts`
-- Modify: `web/src/lib/server/canvas-project-service.test.ts`
-- Modify: `web/src/lib/server/canvas-project-store.ts`
-- Modify: `web/src/lib/server/drama-project-service.ts`
-- Modify: `web/src/lib/server/drama-project-service.test.ts`
-- Modify: `web/src/lib/server/practice-project-service.ts`
-- Modify: `web/src/lib/server/practice-project-service.test.ts`
-- Modify: `web/src/lib/server/practice-session-service.ts`
-- Modify: `web/src/lib/server/practice-session-service.test.ts`
-- Modify: `web/src/lib/server/school-content-reference-service.ts`
-- Modify: `web/src/lib/server/generation-task-types.ts`
-- Modify: `web/src/lib/server/generation-task-store.ts`
-- Modify: `web/src/lib/server/generation-task-store.test.ts`
-- Modify: `web/src/lib/server/generation-task-recovery-service.ts`
-- Modify: `web/src/lib/server/generation-task-recovery-service.test.ts`
-- Modify: `web/src/app/api/agent/runs/route.ts`
-- Modify: `web/src/app/api/agent/runs/route.test.ts`
-- Modify: `web/src/app/api/text-tasks/route.ts`
-- Modify: `web/src/app/api/image-tasks/route.ts`
-- Modify: `web/src/app/api/image-tasks/route.test.ts`
-- Modify: `web/src/app/api/audio-tasks/route.ts`
-- Modify: `web/src/app/api/audio-tasks/route.test.ts`
-- Modify: `web/src/app/api/video-generation-tasks/video-generation-route.ts`
-- Modify: `web/src/app/api/video-generation-tasks/route.test.ts`
-- Modify: `web/src/app/api/practice/sessions/route.ts`
-- Modify: `web/src/app/api/practice/sessions/route.test.ts`
-- Modify: `web/src/services/api/practice.ts`
+- Modify: `web/src/app/(user)/ip-library/components/ip-library-detail.tsx`
+- Modify: `web/src/app/(user)/ip-library/components/ip-library-detail.test.tsx`
 - Modify: `web/src/app/(user)/canvas/components/canvas-assets-panel.tsx`
 - Modify: `web/src/app/(user)/canvas/components/canvas-assets-panel.test.ts`
-- Modify: `web/src/app/(user)/canvas/stores/use-canvas-store.ts`
-- Modify: `web/src/app/(user)/canvas/page.tsx`
 - Modify: `web/src/app/(user)/drama/[id]/drama-assets-panel.tsx`
 - Modify: `web/src/app/(user)/drama/[id]/drama-assets-panel.test.ts`
-- Modify: `web/src/app/(user)/drama/stores/use-drama-store.ts`
+- Modify: `web/src/app/(user)/drama/drama-project-entry.test.ts`
 - Modify: `web/src/app/(user)/drama/page.tsx`
-- Modify: `web/src/app/(user)/practice/components/practice-home.tsx`
-- Modify: `web/src/app/(user)/practice/components/practice-home.test.tsx`
 - Modify: `web/src/app/(user)/practice/components/practice-module-workbench.tsx`
 - Modify: `web/src/app/(user)/practice/components/practice-module-workbench.test.tsx`
 
-- [ ] **Step 1: 先把现有引用行为改成失败测试**
+- [x] **Step 1: 先把隐藏入口与保留契约写成失败测试**
 
-  页面测试断言 Canvas、短剧和无限练习不存在“引用 IP”选择器；项目与任务测试断言请求、持久化快照和生成 context 不再接受或转发 `ipReferences`。
+  页面测试断言 Canvas、短剧、无限练习和 IP 详情不存在可见“引用 IP/一键使用”入口；领域测试同时断言 `IpReference` 归一化与 `reference` action 仍然存在。
 
-- [ ] **Step 2: 删除引用类型、服务、UI 和持久化字段**
+- [x] **Step 2: 用统一开关隐藏入口并保留后台链路**
 
-  删除 `IpReference`、`normalizeIpReference`、项目创建/更新引用校验、生成任务恢复校验和 `reference` 使用记录入口。普通素材引用继续保持现有 `asset` 语义，不影响 Canvas、短剧和无限练习本身。
+  新增默认关闭的 `IP_REFERENCE_ENTRY_VISIBLE`，只保护可见入口；保留 `IpReference`、`normalizeIpReference`、picker、引用 service、项目创建/更新校验、生成任务恢复校验、持久化字段和 `reference` 使用记录。
 
 - [ ] **Step 3: 运行定向测试与类型检查**
 
   ```powershell
   cd web
-  pnpm exec vitest run src/lib/ip-library-domain.test.ts src/lib/server/canvas-project-service.test.ts src/lib/server/drama-project-service.test.ts src/lib/server/practice-project-service.test.ts src/lib/server/practice-session-service.test.ts src/app/api/image-tasks/route.test.ts src/app/api/audio-tasks/route.test.ts src/app/api/video-generation-tasks/route.test.ts src/app/api/practice/sessions/route.test.ts
+  pnpm exec vitest run 'src/lib/ip-library-domain.test.ts' 'src/app/(user)/canvas/components/canvas-assets-panel.test.ts' 'src/app/(user)/drama/[id]/drama-assets-panel.test.ts' 'src/app/(user)/drama/drama-project-entry.test.ts' 'src/app/(user)/practice/components/practice-module-workbench.test.tsx' 'src/app/(user)/ip-library/components/ip-library-detail.test.tsx'
   pnpm typecheck
   ```
 
@@ -185,10 +148,10 @@ type IpDownloadRecord = {
   ```powershell
   git status --short
   # 逐项暂存本 Task 的 Files 清单，不能使用覆盖整个工作区的宽泛路径。
-  git commit -m "refactor: remove IP project references"
+  git commit -m "feat: hide dormant IP reference entries"
   ```
 
-## Task 2: 直接切换 IP 数据结构和 Repository
+## Task 2: 增量升级 IP 数据结构并切换 Repository
 
 **Files:**
 
@@ -205,11 +168,11 @@ type IpDownloadRecord = {
 
 - [ ] **Step 1: 写新结构失败测试**
 
-  覆盖 `ip_content_files`、`fileId` 内容项、版本封面/标签/来源快照、默认关闭的 `memberAccessEnabled`、授权级模式、`ip_download_records` 和已发布文件不可变。测试明确断言 DDL 不再出现 `cover_asset_id`、`asset_id`、`text_content`、包级 `authorization_mode`、`ip_usage_records` 或 `reference` action。
+  覆盖 `ip_content_files`、`fileId` 内容项、版本封面/标签/来源快照、默认关闭的 `memberAccessEnabled`、授权级模式、`ip_download_records` 和已发布文件不可变。测试明确断言新发布流程不再依赖 `cover_asset_id`、`asset_id`、`text_content` 或包级 `authorization_mode`；既有 `ip_usage_records` 与 `reference` action 保留，新增下载记录使用独立表。
 
-- [ ] **Step 2: 替换 Schema**
+- [ ] **Step 2: 增量升级 Schema**
 
-  直接按最终结构修改建表 SQL，不写旧字段兼容或旧数据迁移逻辑。新增已发布版本、内容项和已发布内容文件不可变约束；独家/同校重叠授权由事务内校验和数据库触发器共同拒绝。同步更新 `postgres.ts` 的表、索引、函数和触发器注册清单。
+  新库按最终结构建表；已有库在创建依赖索引和约束前，使用幂等 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` 补齐新列并创建新表。业务代码不双读旧字段，但旧列保留到后续明确清理任务。新增已发布版本、内容项和已发布内容文件不可变约束；独家/同校重叠授权由事务内校验和数据库触发器共同拒绝。同步更新 `postgres.ts` 的表、索引、函数和触发器注册清单，并增加旧 Schema 升级与重复初始化测试。
 
 - [ ] **Step 3: 替换 Repository 契约**
 
@@ -509,11 +472,11 @@ PATCH /api/school/ip-library/:grantId/access   { enabled: boolean }
 
 - [ ] **Step 2: 验证完整闭环**
 
-  浏览器依次验证：后台本地上传与草稿真实预览、发布 v1、授权默认关闭、学校开启、用户四区预览、单项原文件下载、完整 ZIP、发布 v2 自动切换、暂停/恢复、关闭、撤销、跨校隔离和历史下载记录。断言任何页面都不存在“一键使用”或 IP 项目引用。
+  浏览器依次验证：后台本地上传与草稿真实预览、发布 v1、授权默认关闭、学校开启、用户四区预览、单项原文件下载、完整 ZIP、发布 v2 自动切换、暂停/恢复、关闭、撤销、跨校隔离和历史下载记录。断言任何页面都不存在“一键使用”或可见 IP 项目引用入口，同时定向测试证明休眠契约仍可用。
 
 - [ ] **Step 3: 更新项目文档**
 
-  `backend-database.mdx` 记录五张 IP 领域表及约束；`page-api-evidence.md` 记录后台、学校、用户页面到 API/service/repository 的证据链；接口索引和开发地图记录新增文件上传、草稿版本、学校开放、媒体预览和下载路由，并删除项目引用说明。
+  `backend-database.mdx` 记录新增 IP 领域表及约束；`page-api-evidence.md` 记录后台、学校、用户页面到 API/service/repository 的证据链；接口索引和开发地图记录新增文件上传、草稿版本、学校开放、媒体预览和下载路由，并把项目引用说明标记为隐藏保留。
 
 - [ ] **Step 4: 更新与验证开发地图**
 
@@ -558,10 +521,10 @@ PATCH /api/school/ip-library/:grantId/access   { enabled: boolean }
 5. 新学校授权默认关闭；只有学校管理员整套开放后，本校 active 成员才可访问。
 6. 多校和独家授权冲突受 service 与数据库约束保护；用户端只显示独家标签。
 7. 单项下载保持原格式，完整 ZIP 不缺文件并含 manifest、版本和来源说明。
-8. 用户端不存在“一键使用”，Canvas、短剧和无限练习不存在 IP 引用字段、选择器或任务校验。
+8. 用户端不存在“一键使用”，Canvas、短剧和无限练习不显示 IP 引用入口；既有字段、picker、service 和任务校验保持可测试的休眠状态。
 9. 跨校详情、媒体和下载地址均不可读取，授权/开放/IP 状态失效后立即阻止新访问。
 10. 定向 Vitest、`pnpm typecheck`、`pnpm check:release`、全量 Playwright、UTF-8/乱码检查和开发文档验证全部通过。
 
 ## 实施顺序
 
-严格按 Task 1 → 9 执行。Task 1 先删除错误范围，避免继续围绕项目引用扩展旧模型；Task 2 建立最终数据契约；Task 3 → 5 完成平台上传和发布；Task 6 完成学校开放；Task 7 → 8 完成用户预览下载；Task 9 才做全链路验收和文档收口。每个 Task 完成后都必须保留其定向测试与提交，禁止把所有变更堆到最后一次提交。
+严格按 Task 1 → 9 执行。Task 1 先隐藏现有入口并锁定休眠契约，避免本期误删后续能力或继续扩展旧模型；Task 2 建立最终数据契约；Task 3 → 5 完成平台上传和发布；Task 6 完成学校开放；Task 7 → 8 完成用户预览下载；Task 9 才做全链路验收和文档收口。每个 Task 完成后都必须保留其定向测试与提交，禁止把所有变更堆到最后一次提交。

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 import { IP_IMAGE_CATEGORIES, ipUseTargetPath } from "./ip-library-detail";
 
@@ -12,5 +14,13 @@ describe("IP library detail contract", () => {
         expect(ipUseTargetPath("canvas", detail as never)).toBe("/canvas?ipId=ip+one&versionId=version+one");
         expect(ipUseTargetPath("drama", detail as never)).toBe("/drama?ipId=ip+one&versionId=version+one");
         expect(ipUseTargetPath("practice", detail as never)).toBe("/practice?ipId=ip+one&versionId=version+one");
+    });
+
+    it("keeps creative handoff code dormant behind the shared entry flag", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/ip-library/components/ip-library-detail.tsx"), "utf8");
+
+        expect(source).toContain("IP_REFERENCE_ENTRY_VISIBLE ? (");
+        expect(source).toContain("一键使用");
+        expect(source).toContain("ipUseTargetPath");
     });
 });

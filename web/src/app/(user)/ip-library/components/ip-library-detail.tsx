@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import type { IpDetail, IpPublicItem } from "@/lib/server/ip-library-service";
+import { IP_REFERENCE_ENTRY_VISIBLE } from "@/lib/ip-library-domain";
 import { ipLibraryApi } from "@/services/api/ip-library";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { IpLibrarySection } from "./ip-library-section";
@@ -91,9 +92,11 @@ export default function IpLibraryDetail({ ipId }: { ipId: string }) {
                         <p className="mt-2 text-sm leading-6 text-muted-foreground">{detail.summary || detail.version.summary || "暂无简介"}</p>
                         <p className="mt-2 text-xs text-muted-foreground">当前版本：{detail.version.title}</p>
                         <div className="mt-5 flex flex-wrap gap-2">
-                            <Button type="primary" icon={<Sparkles className="size-4" />} onClick={() => setUseOpen(true)}>
-                                一键使用
-                            </Button>
+                            {IP_REFERENCE_ENTRY_VISIBLE ? (
+                                <Button type="primary" icon={<Sparkles className="size-4" />} onClick={() => setUseOpen(true)}>
+                                    一键使用
+                                </Button>
+                            ) : null}
                             <Button icon={<Download className="size-4" />} loading={downloading === "package"} onClick={() => void download()}>
                                 下载资源包
                             </Button>
@@ -141,13 +144,15 @@ export default function IpLibraryDetail({ ipId }: { ipId: string }) {
                 />
             </div>
 
-            <Modal title="选择使用位置" open={useOpen} footer={null} destroyOnHidden width="min(520px, 100vw)" onCancel={() => setUseOpen(false)}>
-                <div className="grid gap-2 sm:grid-cols-3">
-                    <UseTarget icon={<Maximize2 className="size-5" />} title="画布" onClick={() => router.push(ipUseTargetPath("canvas", detail))} />
-                    <UseTarget icon={<Clapperboard className="size-5" />} title="短剧" onClick={() => router.push(ipUseTargetPath("drama", detail))} />
-                    {schoolContext ? <UseTarget icon={<Boxes className="size-5" />} title="无限练习" onClick={() => router.push(ipUseTargetPath("practice", detail))} /> : null}
-                </div>
-            </Modal>
+            {IP_REFERENCE_ENTRY_VISIBLE ? (
+                <Modal title="选择使用位置" open={useOpen} footer={null} destroyOnHidden width="min(520px, 100vw)" onCancel={() => setUseOpen(false)}>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                        <UseTarget icon={<Maximize2 className="size-5" />} title="画布" onClick={() => router.push(ipUseTargetPath("canvas", detail))} />
+                        <UseTarget icon={<Clapperboard className="size-5" />} title="短剧" onClick={() => router.push(ipUseTargetPath("drama", detail))} />
+                        {schoolContext ? <UseTarget icon={<Boxes className="size-5" />} title="无限练习" onClick={() => router.push(ipUseTargetPath("practice", detail))} /> : null}
+                    </div>
+                </Modal>
+            ) : null}
         </main>
     );
 }
