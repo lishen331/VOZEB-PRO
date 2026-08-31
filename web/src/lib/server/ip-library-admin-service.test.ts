@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     createIpPackage: vi.fn(),
     updateIpPackage: vi.fn(),
     createIpDraftVersion: vi.fn(),
+    updateIpDraftVersion: vi.fn(),
     getIpVersion: vi.fn(),
     publishIpVersion: vi.fn(),
     listIpVersions: vi.fn(),
@@ -15,7 +16,13 @@ const mocks = vi.hoisted(() => ({
     listSchoolGrants: vi.fn(),
     listIpUsage: vi.fn(),
     listSchoolsByIds: vi.fn(),
-    getLibraryAssetById: vi.fn(),
+    getIpContentFile: vi.fn(),
+    listIpContentFiles: vi.fn(),
+    createIpContentFile: vi.fn(),
+    deleteIpContentFile: vi.fn(),
+    writeIpContentFile: vi.fn(),
+    readIpContentFile: vi.fn(),
+    deleteStoredIpContentFile: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/store", () => ({ getPublicUsersByIds: mocks.getPublicUsersByIds }));
@@ -26,6 +33,7 @@ vi.mock("./ip-library-access-service", () => ({
         createIpPackage: mocks.createIpPackage,
         updateIpPackage: mocks.updateIpPackage,
         createIpDraftVersion: mocks.createIpDraftVersion,
+        updateIpDraftVersion: mocks.updateIpDraftVersion,
         getIpVersion: mocks.getIpVersion,
         publishIpVersion: mocks.publishIpVersion,
         listIpVersions: mocks.listIpVersions,
@@ -33,12 +41,20 @@ vi.mock("./ip-library-access-service", () => ({
         updateSchoolGrant: mocks.updateSchoolGrant,
         listSchoolGrants: mocks.listSchoolGrants,
         listIpUsage: mocks.listIpUsage,
+        getIpContentFile: mocks.getIpContentFile,
+        listIpContentFiles: mocks.listIpContentFiles,
+        createIpContentFile: mocks.createIpContentFile,
+        deleteIpContentFile: mocks.deleteIpContentFile,
     }),
 }));
-vi.mock("@/lib/server/library-asset-store", () => ({ getLibraryAssetById: mocks.getLibraryAssetById }));
 vi.mock("@/lib/server/school-domain-repository", () => ({ createSchoolDomainRepository: () => ({ listSchoolsByIds: mocks.listSchoolsByIds }) }));
+vi.mock("@/lib/server/ip-library-file-storage", () => ({
+    writeIpContentFile: mocks.writeIpContentFile,
+    readIpContentFile: mocks.readIpContentFile,
+    deleteStoredIpContentFile: mocks.deleteStoredIpContentFile,
+}));
 
-import { createAdminIp, createAdminIpGrant, createAdminIpVersion, listAdminIpGrants, listAdminIpUsage, publishAdminIpVersion, updateAdminIp } from "./ip-library-admin-service";
+import { createAdminIp, createAdminIpGrant, createAdminIpVersion, deleteAdminIpFile, listAdminIpFiles, listAdminIpGrants, listAdminIpUsage, publishAdminIpVersion, readAdminIpFile, updateAdminIp, updateAdminIpVersion, uploadAdminIpFile } from "./ip-library-admin-service";
 
 const packageRecord = {
     id: "ip-one",
@@ -64,10 +80,16 @@ describe("IP library administration service", () => {
         mocks.createIpPackage.mockImplementation(async (input) => ({ ...input, createdAt: "2026-08-19T00:00:00.000Z", updatedAt: "2026-08-19T00:00:00.000Z" }));
         mocks.updateIpPackage.mockImplementation(async (_id, patch) => ({ ...packageRecord, ...patch }));
         mocks.createIpDraftVersion.mockImplementation(async (_id, input) => ({ ...input, ipId: "ip-one", versionNumber: 2, status: "draft", manifest: {}, createdAt: "2026-08-19T00:00:00.000Z" }));
+        mocks.updateIpDraftVersion.mockImplementation(async (_ipId, _versionId, input) => ({ ...input, ipId: "ip-one", versionNumber: 2, status: "draft", manifest: {}, createdAt: "2026-08-19T00:00:00.000Z" }));
         mocks.getIpVersion.mockResolvedValue({ id: "version-two", ipId: "ip-one", status: "draft", items: [{ id: "text-one" }] });
         mocks.publishIpVersion.mockResolvedValue({ id: "version-two", ipId: "ip-one", status: "published", items: [{ id: "text-one" }] });
         mocks.createSchoolGrant.mockImplementation(async (input) => ({ ...input, createdAt: "2026-08-19T00:00:00.000Z", updatedAt: "2026-08-19T00:00:00.000Z" }));
-        mocks.getLibraryAssetById.mockResolvedValue({ id: "asset-one", kind: "image" });
+        mocks.getIpContentFile.mockImplementation(async (_ipId: string, fileId: string) => ({ id: fileId, ipId: "ip-one", kind: fileId === "text-one" ? "text" : "image", status: "ready" }));
+        mocks.listIpContentFiles.mockResolvedValue([]);
+        mocks.writeIpContentFile.mockResolvedValue({ id: "file-new", ipId: "ip-one", kind: "text", status: "ready", storageProvider: "local", storageKey: "ip-one/file-new/original.txt" });
+        mocks.createIpContentFile.mockImplementation(async (input) => ({ ...input, createdAt: "2026-08-19T00:00:00.000Z", updatedAt: "2026-08-19T00:00:00.000Z" }));
+        mocks.deleteIpContentFile.mockResolvedValue(true);
+        mocks.readIpContentFile.mockResolvedValue(new Response("正文"));
         mocks.listSchoolsByIds.mockResolvedValue([{ id: "school-a", name: "甲学校" }]);
     });
 
@@ -89,22 +111,74 @@ describe("IP library administration service", () => {
         expect(mocks.updateIpPackage).toHaveBeenCalledWith("ip-one", { coverAssetId: null });
     });
 
-    it("validates draft content and referenced media kinds before persistence", async () => {
+    it("validates independent ready files before persisting the version snapshot", async () => {
         await createAdminIpVersion("content-admin", "ip-one", {
             title: "第二版",
             summary: "版本简介",
+            coverFileId: "image-one",
+            tags: [" 科幻 ", "科幻", "教学"],
+            sourceNote: " 平台线下审核 ",
+            changeNote: " 首次发布 ",
             items: [
-                { kind: "text", category: "story_summary", title: "梗概", summary: "", textContent: "正文" },
-                { kind: "image", category: "character", title: "主角", summary: "", assetId: "asset-one" },
+                { kind: "text", category: "story_summary", title: "梗概", summary: "", fileId: "text-one" },
+                { kind: "image", category: "character", title: "主角", summary: "", fileId: "image-one" },
             ],
         });
         expect(mocks.createIpDraftVersion).toHaveBeenCalledWith(
             "ip-one",
-            expect.objectContaining({ id: expect.any(String), createdByUserId: "content-admin", items: expect.arrayContaining([expect.objectContaining({ kind: "image", assetId: "asset-one" })]) }),
+            expect.objectContaining({
+                id: expect.any(String),
+                createdByUserId: "content-admin",
+                coverFileId: "image-one",
+                tags: ["科幻", "教学"],
+                sourceNote: "平台线下审核",
+                changeNote: "首次发布",
+                items: expect.arrayContaining([expect.objectContaining({ kind: "image", fileId: "image-one" })]),
+            }),
         );
 
-        mocks.getLibraryAssetById.mockResolvedValue({ id: "asset-one", kind: "video" });
-        await expect(createAdminIpVersion("content-admin", "ip-one", { title: "错误版本", summary: "", items: [{ kind: "image", category: "character", title: "主角", summary: "", assetId: "asset-one" }] })).rejects.toMatchObject({ status: 400 });
+        mocks.getIpContentFile.mockResolvedValue({ id: "image-one", ipId: "ip-one", kind: "video", status: "ready" });
+        await expect(createAdminIpVersion("content-admin", "ip-one", { title: "错误版本", summary: "", items: [{ kind: "image", category: "character", title: "主角", summary: "", fileId: "image-one" }] })).rejects.toMatchObject({ status: 400 });
+
+        mocks.getIpContentFile.mockResolvedValue({ id: "image-one", ipId: "ip-one", kind: "image", status: "processing" });
+        await expect(createAdminIpVersion("content-admin", "ip-one", { title: "未就绪版本", summary: "", items: [{ kind: "image", category: "character", title: "主角", summary: "", fileId: "image-one" }] })).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("creates either an empty draft or a draft copied from an existing version", async () => {
+        await createAdminIpVersion("content-admin", "ip-one", { title: "空白第三版" });
+        expect(mocks.createIpDraftVersion).toHaveBeenLastCalledWith(
+            "ip-one",
+            expect.objectContaining({ title: "空白第三版", items: [] }),
+        );
+
+        mocks.getIpVersion.mockResolvedValue({
+            id: "version-one",
+            ipId: "ip-one",
+            versionNumber: 1,
+            title: "第一版",
+            summary: "第一版摘要",
+            coverFileId: "image-one",
+            tags: ["教学"],
+            sourceNote: "平台审核",
+            changeNote: "首次发布",
+            status: "published",
+            manifest: {},
+            items: [{ id: "old-item", versionId: "version-one", kind: "text", category: "story_summary", title: "梗概", summary: "", fileId: "text-one", sortOrder: 0 }],
+            createdByUserId: "content-admin",
+            createdAt: "2026-08-19T00:00:00.000Z",
+            publishedAt: "2026-08-19T01:00:00.000Z",
+        });
+        await createAdminIpVersion("content-admin", "ip-one", { sourceVersionId: "version-one", changeNote: "第二次发布" });
+        expect(mocks.createIpDraftVersion).toHaveBeenLastCalledWith(
+            "ip-one",
+            expect.objectContaining({
+                title: "第一版",
+                coverFileId: "image-one",
+                tags: ["教学"],
+                changeNote: "第二次发布",
+                items: [expect.objectContaining({ id: expect.not.stringMatching(/^old-item$/), fileId: "text-one" })],
+            }),
+        );
     });
 
     it("publishes only a non-empty draft version and keeps historical versions immutable", async () => {
@@ -114,13 +188,51 @@ describe("IP library administration service", () => {
         expect(mocks.publishIpVersion).toHaveBeenCalledTimes(1);
     });
 
-    it("allows grants only for matching published school IPs and validates the time window", async () => {
-        await createAdminIpGrant("education-admin", "ip-one", { schoolId: "school-a", mode: "exclusive", startsAt: "2026-08-19T00:00:00.000Z", endsAt: "2026-09-19T00:00:00.000Z", note: "线下教学" });
-        expect(mocks.createSchoolGrant).toHaveBeenCalledWith(expect.objectContaining({ ipId: "ip-one", schoolId: "school-a", createdByUserId: "education-admin", status: "active" }));
+    it("atomically replaces draft metadata and items without changing published versions", async () => {
+        await updateAdminIpVersion("content-admin", "ip-one", "version-two", {
+            title: "第二版修订",
+            summary: "修订摘要",
+            tags: ["教学"],
+            sourceNote: "平台审核",
+            changeNote: "替换角色图",
+            items: [{ kind: "image", category: "character", title: "新角色", fileId: "image-one" }],
+        });
+        expect(mocks.updateIpDraftVersion).toHaveBeenCalledWith(
+            "ip-one",
+            "version-two",
+            expect.objectContaining({ id: "version-two", title: "第二版修订", items: [expect.objectContaining({ fileId: "image-one" })] }),
+        );
+
+        mocks.getIpVersion.mockResolvedValue({ id: "version-one", ipId: "ip-one", status: "published", items: [{ id: "item-one" }] });
+        await expect(updateAdminIpVersion("content-admin", "ip-one", "version-one", { title: "覆盖", items: [{ kind: "image", category: "character", title: "角色", fileId: "image-one" }] })).rejects.toMatchObject({ status: 409 });
+        expect(mocks.updateIpDraftVersion).toHaveBeenCalledTimes(1);
+    });
+
+    it("stores authorization mode on each grant and validates the time window", async () => {
+        await createAdminIpGrant("education-admin", "ip-one", { schoolId: "school-a", mode: "multi_school", startsAt: "2026-08-19T00:00:00.000Z", endsAt: "2026-09-19T00:00:00.000Z", note: "线下教学" });
+        expect(mocks.createSchoolGrant).toHaveBeenCalledWith(expect.objectContaining({ ipId: "ip-one", schoolId: "school-a", mode: "multi_school", createdByUserId: "education-admin", status: "active" }));
 
         await expect(createAdminIpGrant("education-admin", "ip-one", { schoolId: "school-a", mode: "exclusive", startsAt: "2026-09-19T00:00:00.000Z", endsAt: "2026-08-19T00:00:00.000Z", note: "" })).rejects.toMatchObject({ status: 400 });
         mocks.getIpPackage.mockResolvedValue({ ...packageRecord, status: "draft" });
         await expect(createAdminIpGrant("education-admin", "ip-one", { schoolId: "school-a", mode: "exclusive", startsAt: "2026-08-19T00:00:00.000Z", note: "" })).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("uploads, reads, lists and deletes independent files under content duty", async () => {
+        const file = new File(["正文"], "story.txt", { type: "text/plain" });
+        await expect(uploadAdminIpFile("content-admin", "ip-one", "text", file)).resolves.toMatchObject({ id: "file-new", ipId: "ip-one" });
+        expect(mocks.writeIpContentFile).toHaveBeenCalledWith(expect.objectContaining({ ipId: "ip-one", kind: "text", originalName: "story.txt", bytes: expect.any(Buffer), uploadedByUserId: "content-admin" }));
+        await expect(listAdminIpFiles("content-admin", "ip-one")).resolves.toEqual([]);
+        await expect(readAdminIpFile("content-admin", new Request("http://localhost/file"), "ip-one", "image-one")).resolves.toBeInstanceOf(Response);
+        await expect(deleteAdminIpFile("content-admin", "ip-one", "image-one")).resolves.toBeUndefined();
+        expect(mocks.deleteStoredIpContentFile).toHaveBeenCalled();
+
+        await expect(uploadAdminIpFile("education-admin", "ip-one", "text", file)).rejects.toMatchObject({ status: 403 });
+    });
+
+    it("does not remove stored bytes when a file is still referenced", async () => {
+        mocks.deleteIpContentFile.mockRejectedValue(new Error("IP 内容文件已被引用"));
+        await expect(deleteAdminIpFile("content-admin", "ip-one", "image-one")).rejects.toMatchObject({ status: 409 });
+        expect(mocks.deleteStoredIpContentFile).not.toHaveBeenCalled();
     });
 
     it("projects usage records to public user identities and school names", async () => {

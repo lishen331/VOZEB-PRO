@@ -2,13 +2,13 @@ import { hasAdminPermission, hasAnyAdminPermission } from "@/lib/admin-permissio
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { auditActorFromRequest, safeRecordAuditLog } from "@/lib/server/audit-log-store";
-import { createAdminIpVersion, listAdminIpVersions, publishAdminIpVersion, type AdminIpVersionInput } from "@/lib/server/ip-library-admin-service";
+import { createAdminIpVersion, listAdminIpVersions, publishAdminIpVersion, type AdminIpCreateVersionInput } from "@/lib/server/ip-library-admin-service";
 import { isSchoolApiObject, positiveInteger, schoolApiError, schoolApiErrorStatus, schoolApiFailure, schoolApiOk } from "@/lib/server/school-api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ id: string }> };
-type Body = ({ action: "create" } & AdminIpVersionInput) | { action: "publish"; versionId: string };
+type Body = ({ action: "create" } & AdminIpCreateVersionInput) | { action: "publish"; versionId: string };
 
 export async function GET(request: Request, context: Context) {
     const user = await getCurrentUser();
@@ -32,7 +32,7 @@ export async function POST(request: Request, context: Context) {
     const ipId = (await context.params).id;
     const action = parsed.data.action;
     try {
-        const version = action === "publish" ? await publishAdminIpVersion(user.id, ipId, String(parsed.data.versionId || "")) : await createAdminIpVersion(user.id, ipId, parsed.data as unknown as AdminIpVersionInput);
+        const version = action === "publish" ? await publishAdminIpVersion(user.id, ipId, String(parsed.data.versionId || "")) : await createAdminIpVersion(user.id, ipId, parsed.data as unknown as AdminIpCreateVersionInput);
         await safeRecordAuditLog({
             action: action === "publish" ? "admin.ip.version.publish" : "admin.ip.version.create",
             actor: auditActorFromRequest(request, user),

@@ -14,3 +14,7 @@ export function getServerDataDir() {
 export function resolveServerDataPath(fileName: string) {
     return resolve(getServerDataDir(), fileName);
 }
+
+export function getIpLibraryFilesDir() {
+    return resolveServerDataPath("ip-library-files");
+}

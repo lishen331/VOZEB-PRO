@@ -20,6 +20,10 @@ export type PageResult<T> = {
 
 export type IpSchoolGrantStatus = "active" | "suspended" | "revoked" | "expired";
 export type IpUsageTargetType = "canvas" | "drama" | "practice" | "download";
+export type IpContentFileStatus = "processing" | "ready" | "failed";
+export type IpStorageProvider = "local" | "object";
+export type IpDownloadType = "item" | "package";
+export type IpDownloadResult = "succeeded" | "failed";
 
 export type IpPackageRecord = {
     id: string;
@@ -43,6 +47,7 @@ export type IpItemRecord = {
     category: IpItemCategory;
     title: string;
     summary: string;
+    fileId: string;
     textContent?: string;
     assetId?: string;
     sortOrder: number;
@@ -55,6 +60,10 @@ export type IpVersionRecord = {
     versionNumber: number;
     title: string;
     summary: string;
+    coverFileId?: string;
+    tags: string[];
+    sourceNote: string;
+    changeNote: string;
     status: IpVersionStatus;
     manifest: JsonValue;
     publishedAt?: string;
@@ -65,9 +74,12 @@ export type IpVersionRecord = {
 
 export type IpPackageCreateInput = Omit<IpPackageRecord, "currentVersionId" | "createdAt" | "updatedAt">;
 export type IpPackagePatch = Partial<Pick<IpPackageRecord, "title" | "slug" | "summary" | "visibility" | "authorizationMode" | "status">> & { coverAssetId?: string | null };
-export type IpDraftItemInput = Omit<IpItemRecord, "versionId" | "createdAt">;
-export type IpDraftVersionInput = Pick<IpVersionRecord, "id" | "title" | "summary"> & { createdByUserId?: string; items: IpDraftItemInput[] };
-export type IpSummaryRecord = IpPackageRecord & { versionNumber: number; itemCount: number; grantMode?: IpAuthorizationMode };
+export type IpDraftItemInput = Omit<IpItemRecord, "versionId" | "createdAt" | "textContent" | "assetId">;
+export type IpDraftVersionInput = Pick<IpVersionRecord, "id" | "title" | "summary" | "coverFileId" | "tags" | "sourceNote" | "changeNote"> & {
+    createdByUserId?: string;
+    items: IpDraftItemInput[];
+};
+export type IpSummaryRecord = IpPackageRecord & { versionNumber: number; itemCount: number; grantMode?: IpAuthorizationMode; coverFileId?: string; tags?: string[] };
 export type IpDetailRecord = IpPackageRecord & { version: IpVersionRecord; grantMode?: IpAuthorizationMode };
 
 export type IpSchoolGrantRecord = {
@@ -79,13 +91,42 @@ export type IpSchoolGrantRecord = {
     startsAt: string;
     endsAt?: string;
     note: string;
+    memberAccessEnabled: boolean;
+    memberAccessUpdatedByUserId?: string;
+    memberAccessUpdatedAt?: string;
     createdByUserId?: string;
     createdAt: string;
     updatedAt: string;
 };
 
-export type IpSchoolGrantCreateInput = Omit<IpSchoolGrantRecord, "createdAt" | "updatedAt">;
-export type IpSchoolGrantUpdateInput = Partial<Pick<IpSchoolGrantRecord, "status" | "endsAt" | "note">> & { updatedAt: string };
+export type IpSchoolGrantCreateInput = Omit<IpSchoolGrantRecord, "createdAt" | "updatedAt" | "memberAccessEnabled" | "memberAccessUpdatedByUserId" | "memberAccessUpdatedAt"> &
+    Partial<Pick<IpSchoolGrantRecord, "memberAccessEnabled" | "memberAccessUpdatedByUserId" | "memberAccessUpdatedAt">>;
+export type IpSchoolGrantUpdateInput = Partial<Pick<IpSchoolGrantRecord, "status" | "endsAt" | "note" | "memberAccessEnabled" | "memberAccessUpdatedByUserId" | "memberAccessUpdatedAt">> & { updatedAt: string };
+
+export type IpContentFileRecord = {
+    id: string;
+    ipId: string;
+    kind: IpAssetKind;
+    originalName: string;
+    extension: string;
+    mimeType: string;
+    byteSize: number;
+    sha256: string;
+    storageProvider: IpStorageProvider;
+    storageKey: string;
+    externalStorageId?: string;
+    externalObjectKey?: string;
+    extractedText?: string;
+    metadata: { width?: number; height?: number; durationSeconds?: number };
+    status: IpContentFileStatus;
+    errorMessage?: string;
+    uploadedByUserId?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type IpContentFileCreateInput = Omit<IpContentFileRecord, "createdAt" | "updatedAt">;
+export type IpContentFilePatch = Partial<Pick<IpContentFileRecord, "status" | "errorMessage" | "metadata" | "extractedText">>;
 
 export type IpUsageRecord = {
     id: string;
@@ -101,6 +142,20 @@ export type IpUsageRecord = {
 };
 
 export type IpUsageCreateInput = Omit<IpUsageRecord, "createdAt">;
+
+export type IpDownloadRecord = {
+    id: string;
+    ipId: string;
+    versionId: string;
+    itemId?: string;
+    schoolId?: string;
+    userId: string;
+    downloadType: IpDownloadType;
+    result: IpDownloadResult;
+    createdAt: string;
+};
+
+export type IpDownloadCreateInput = Omit<IpDownloadRecord, "createdAt">;
 
 export type UserRole = "admin" | "user";
 export type UserStatus = "active" | "disabled";

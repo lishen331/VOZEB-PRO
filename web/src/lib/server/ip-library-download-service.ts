@@ -52,6 +52,7 @@ export async function previewIpMediaForUser(userId: string, request: Request, ip
             category: "style",
             title: `${access.detail.title}封面`,
             summary: "",
+            fileId: access.detail.version.coverFileId || "",
             assetId: access.detail.coverAssetId,
             sortOrder: 0,
             createdAt: access.detail.createdAt,
