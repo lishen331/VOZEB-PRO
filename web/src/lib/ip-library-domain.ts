@@ -4,6 +4,7 @@ export const IP_STATUSES = ["draft", "published", "disabled"] as const;
 export const IP_VERSION_STATUSES = ["draft", "published", "disabled"] as const;
 export const IP_ASSET_KINDS = ["text", "image", "audio", "video"] as const;
 export const IP_USAGE_ACTIONS = ["reference", "download_item", "download_package"] as const;
+export const IP_REFERENCE_ENTRY_VISIBLE = false;
 
 export const IP_ITEM_CATEGORIES = {
     text: ["story_summary", "worldbuilding", "character_biography", "script", "derivative_script", "creation_notes"],

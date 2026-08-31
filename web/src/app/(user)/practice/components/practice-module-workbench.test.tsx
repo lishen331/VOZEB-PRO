@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 import type { IpReference } from "@/lib/ip-library-domain";
 import { PRACTICE_MODULES, buildPracticeSessionInput, editablePracticeTextReducer, publicPracticeResult } from "./practice-module-workbench";
@@ -15,6 +17,13 @@ describe("practice module workbench contract", () => {
         const reference: IpReference = { type: "ip", id: "ip-one", versionId: "version-two", itemIds: ["item-three"] };
 
         expect(buildPracticeSessionInput("music", "雨夜配乐", ["asset-1"], [reference]).references).toEqual([{ type: "asset", id: "asset-1" }, reference]);
+    });
+
+    it("keeps the IP picker code dormant behind the shared entry flag", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/components/practice-module-workbench.tsx"), "utf8");
+
+        expect(source).toContain("IP_REFERENCE_ENTRY_VISIBLE ? (");
+        expect(source).toContain("<IpReferencePicker");
     });
 
     it("keeps public result metadata free of task and provider details", () => {

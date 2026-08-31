@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     getIpPackage: vi.fn(),
+    getIpContentFile: vi.fn(),
     getVisibleIp: vi.fn(),
     listVisibleIps: vi.fn(),
     recordIpUsage: vi.fn(),
@@ -15,6 +16,7 @@ vi.mock("@/lib/server/database/repositories", () => ({
     createPostgresRepositories: () => ({
         ipLibrary: {
             getIpPackage: mocks.getIpPackage,
+            getIpContentFile: mocks.getIpContentFile,
             getVisibleIp: mocks.getVisibleIp,
             listVisibleIps: mocks.listVisibleIps,
             recordIpUsage: mocks.recordIpUsage,
@@ -45,13 +47,17 @@ const version = {
     versionNumber: 1,
     title: "星海计划 v1",
     summary: "版本简介",
+    coverFileId: "file-cover",
+    tags: ["科幻"],
+    sourceNote: "线下审核",
+    changeNote: "初版",
     status: "published" as const,
     manifest: {},
     publishedAt: "2026-08-19T00:00:00.000Z",
     createdAt: "2026-08-18T00:00:00.000Z",
     items: [
-        { id: "item-text", versionId: "version-one", kind: "text" as const, category: "story_summary" as const, title: "故事梗概", summary: "", textContent: "内容", sortOrder: 0, createdAt: "2026-08-18T00:00:00.000Z" },
-        { id: "item-image", versionId: "version-one", kind: "image" as const, category: "character" as const, title: "主角", summary: "", assetId: "asset-one", sortOrder: 1, createdAt: "2026-08-18T00:00:00.000Z" },
+        { id: "item-text", versionId: "version-one", kind: "text" as const, category: "story_summary" as const, title: "故事梗概", summary: "", fileId: "file-text", sortOrder: 0, createdAt: "2026-08-18T00:00:00.000Z" },
+        { id: "item-image", versionId: "version-one", kind: "image" as const, category: "character" as const, title: "主角", summary: "", fileId: "file-image", sortOrder: 1, createdAt: "2026-08-18T00:00:00.000Z" },
     ],
 };
 
@@ -80,6 +86,7 @@ describe("IP library user service", () => {
         mocks.getUserById.mockResolvedValue({ id: "user-one", role: "user", status: "active" });
         mocks.getIpPackage.mockResolvedValue(packageRecord());
         mocks.getVisibleIp.mockResolvedValue(detail());
+        mocks.getIpContentFile.mockImplementation(async (_ipId: string, fileId: string) => (fileId === "file-text" ? { id: fileId, kind: "text", status: "ready", extractedText: "内容" } : { id: fileId, kind: "image", status: "ready" }));
         mocks.listVisibleIps.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
         mocks.requireActiveSchoolContext.mockResolvedValue({ school: { id: "school-a", status: "active" }, membership: { id: "member-a", role: "teacher", status: "active" } });
         mocks.getSchoolContextForUser.mockResolvedValue(null);
@@ -112,17 +119,17 @@ describe("IP library user service", () => {
             id: "ip-one",
             version: {
                 id: "version-one",
-                items: [expect.not.objectContaining({ previewUrl: expect.anything() }), expect.objectContaining({ previewUrl: "/api/ip-library/ip-one/items/item-image/media?versionId=version-one" })],
+                items: [expect.objectContaining({ textContent: "内容" }), expect.objectContaining({ previewUrl: "/api/ip-library/ip-one/items/item-image/media?versionId=version-one" })],
             },
+            title: "星海计划 v1",
+            summary: "版本简介",
         });
 
         expect(mocks.requireActiveSchoolContext).not.toHaveBeenCalled();
         expect(mocks.getVisibleIp).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-one", ipId: "ip-one", versionId: "version-one" }));
     });
 
-    it("exposes only stable authorized cover previews instead of source asset URLs", async () => {
-        mocks.getVisibleIp.mockResolvedValue({ ...detail(), coverAssetId: "cover-one" });
-
+    it("exposes only stable authorized previews instead of independent file storage details", async () => {
         const result = await getIpDetailForUser("user-one", "ip-one");
 
         expect(result).toMatchObject({ coverPreviewUrl: "/api/ip-library/ip-one/cover?versionId=version-one" });

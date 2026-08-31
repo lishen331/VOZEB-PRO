@@ -1,6 +1,11 @@
 import type { QueryExecutor } from "./postgres";
 import type {
+    IpContentFileCreateInput,
+    IpContentFilePatch,
+    IpContentFileRecord,
     IpDetailRecord,
+    IpDownloadCreateInput,
+    IpDownloadRecord,
     IpDraftVersionInput,
     IpItemRecord,
     IpPackageCreateInput,
@@ -30,8 +35,9 @@ export type VisibleIpListInput = PageInput & {
 
 export type VisibleIpDetailInput = { userId: string; schoolId?: string; ipId: string; versionId?: string; at?: string };
 export type IpUsageListInput = PageInput & { ipId?: string; versionId?: string; schoolId?: string; userId?: string; action?: string };
+export type IpDownloadListInput = PageInput & { ipId?: string; versionId?: string; schoolId?: string; userId?: string; downloadType?: string; result?: string };
 export type AdminIpListInput = PageInput & { keyword?: string; status?: string; visibility?: string };
-export type IpGrantListInput = PageInput & { ipId: string; schoolId?: string; status?: string };
+export type IpGrantListInput = PageInput & { ipId?: string; grantId?: string; schoolId?: string; status?: string };
 
 export class IpLibraryRepository {
     constructor(private readonly db: QueryExecutor) {}
@@ -84,6 +90,84 @@ export class IpLibraryRepository {
         return result.rows[0] ? mapPackage(result.rows[0]) : null;
     }
 
+    async createIpContentFile(input: IpContentFileCreateInput): Promise<IpContentFileRecord> {
+        const result = await this.db.query(
+            `INSERT INTO ip_content_files (
+                id, ip_id, kind, original_name, extension, mime_type, byte_size, sha256,
+                storage_provider, storage_key, external_storage_id, external_object_key,
+                extracted_text, metadata_json, status, error_message, uploaded_by_user_id
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+             RETURNING *`,
+            [
+                input.id,
+                input.ipId,
+                input.kind,
+                input.originalName,
+                input.extension,
+                input.mimeType,
+                input.byteSize,
+                input.sha256,
+                input.storageProvider,
+                input.storageKey,
+                input.externalStorageId || null,
+                input.externalObjectKey || null,
+                input.extractedText || null,
+                jsonParam(input.metadata),
+                input.status,
+                input.errorMessage || null,
+                input.uploadedByUserId || null,
+            ],
+        );
+        return mapContentFile(result.rows[0]);
+    }
+
+    async getIpContentFile(ipId: string, fileId: string): Promise<IpContentFileRecord | null> {
+        const result = await this.db.query("SELECT * FROM ip_content_files WHERE ip_id = $1 AND id = $2", [ipId, fileId]);
+        return result.rows[0] ? mapContentFile(result.rows[0]) : null;
+    }
+
+    async listIpContentFiles(ipId: string): Promise<IpContentFileRecord[]> {
+        const result = await this.db.query("SELECT * FROM ip_content_files WHERE ip_id = $1 ORDER BY created_at, id", [ipId]);
+        return result.rows.map(mapContentFile);
+    }
+
+    async updateIpContentFile(ipId: string, fileId: string, patch: IpContentFilePatch): Promise<IpContentFileRecord | null> {
+        const result = await this.db.query(
+            `UPDATE ip_content_files SET
+                status = CASE WHEN $3 THEN $4 ELSE status END,
+                error_message = CASE WHEN $5 THEN $6 ELSE error_message END,
+                metadata_json = CASE WHEN $7 THEN $8::jsonb ELSE metadata_json END,
+                extracted_text = CASE WHEN $9 THEN $10 ELSE extracted_text END
+             WHERE ip_id = $1 AND id = $2
+             RETURNING *`,
+            [
+                ipId,
+                fileId,
+                patch.status !== undefined,
+                patch.status || null,
+                patch.errorMessage !== undefined,
+                patch.errorMessage || null,
+                patch.metadata !== undefined,
+                jsonParam(patch.metadata || {}),
+                patch.extractedText !== undefined,
+                patch.extractedText || null,
+            ],
+        );
+        return result.rows[0] ? mapContentFile(result.rows[0]) : null;
+    }
+
+    async deleteIpContentFile(ipId: string, fileId: string): Promise<boolean> {
+        const result = await this.db.query(
+            `DELETE FROM ip_content_files AS file
+             WHERE file.ip_id = $1 AND file.id = $2
+               AND NOT EXISTS (SELECT 1 FROM ip_versions AS version WHERE version.cover_file_id = file.id)
+               AND NOT EXISTS (SELECT 1 FROM ip_items AS item WHERE item.file_id = file.id)
+             RETURNING file.id`,
+            [ipId, fileId],
+        );
+        return Boolean(result.rows[0]);
+    }
+
     async createIpDraftVersion(ipId: string, input: IpDraftVersionInput): Promise<IpVersionRecord> {
         const items = input.items.map((item) => ({
             id: item.id,
@@ -91,28 +175,90 @@ export class IpLibraryRepository {
             category: item.category,
             title: item.title,
             summary: item.summary,
-            text_content: item.textContent || null,
-            asset_id: item.assetId || null,
+            file_id: item.fileId || null,
             sort_order: item.sortOrder,
         }));
         const result = await this.db.query(
-            `WITH inserted_version AS (
-                INSERT INTO ip_versions (id, ip_id, version_number, title, summary, status, created_by_user_id)
-                SELECT $2, locked.id, COALESCE((SELECT MAX(version_number) FROM ip_versions WHERE ip_id = locked.id), 0) + 1, $3, $4, 'draft', $5
-                FROM (SELECT id FROM ip_packages WHERE id = $1 FOR UPDATE) AS locked
+            `WITH requested_items AS (
+                SELECT * FROM jsonb_to_recordset($10::jsonb)
+                    AS item(id text, kind text, category text, title text, summary text, file_id text, sort_order integer)
+             ), locked AS (
+                SELECT package.id FROM ip_packages AS package
+                WHERE package.id = $1
+                  AND ($5::text IS NULL OR EXISTS (SELECT 1 FROM ip_content_files AS file WHERE file.id = $5 AND file.ip_id = package.id AND file.status = 'ready'))
+                  AND NOT EXISTS (
+                      SELECT 1 FROM requested_items AS item
+                      LEFT JOIN ip_content_files AS file ON file.id = item.file_id AND file.ip_id = package.id AND file.status = 'ready'
+                      WHERE item.file_id IS NULL OR file.id IS NULL
+                  )
+                FOR UPDATE
+             ), inserted_version AS (
+                INSERT INTO ip_versions (id, ip_id, version_number, title, summary, cover_file_id, tags_json, source_note, change_note, status, created_by_user_id)
+                SELECT $2, locked.id, COALESCE((SELECT MAX(version_number) FROM ip_versions WHERE ip_id = locked.id), 0) + 1,
+                       $3, $4, $5, $6::jsonb, $7, $8, 'draft', $9
+                FROM locked
                 RETURNING *
              ), inserted_items AS (
-                INSERT INTO ip_items (id, version_id, kind, category, title, summary, text_content, asset_id, sort_order)
-                SELECT item.id, version.id, item.kind, item.category, item.title, item.summary, item.text_content, item.asset_id, item.sort_order
+                INSERT INTO ip_items (id, version_id, kind, category, title, summary, file_id, sort_order)
+                SELECT item.id, version.id, item.kind, item.category, item.title, item.summary, item.file_id, item.sort_order
                 FROM inserted_version AS version
-                CROSS JOIN jsonb_to_recordset($6::jsonb) AS item(id text, kind text, category text, title text, summary text, text_content text, asset_id text, sort_order integer)
+                CROSS JOIN requested_items AS item
                 RETURNING *
              )
              SELECT version.*, COALESCE((SELECT jsonb_agg(to_jsonb(item) ORDER BY item.sort_order, item.created_at) FROM inserted_items AS item), '[]'::jsonb) AS items
              FROM inserted_version AS version`,
-            [ipId, input.id, input.title, input.summary, input.createdByUserId || null, jsonParam(items)],
+            [ipId, input.id, input.title, input.summary, input.coverFileId || null, jsonParam(input.tags || []), input.sourceNote || "", input.changeNote || "", input.createdByUserId || null, jsonParam(items)],
         );
-        if (!result.rows[0]) throw new Error("IP 不存在");
+        if (!result.rows[0]) throw new Error("IP 不存在，或内容文件未就绪");
+        return mapVersion(result.rows[0]);
+    }
+
+    async updateIpDraftVersion(ipId: string, versionId: string, input: IpDraftVersionInput): Promise<IpVersionRecord> {
+        const items = input.items.map((item) => ({
+            id: item.id,
+            kind: item.kind,
+            category: item.category,
+            title: item.title,
+            summary: item.summary,
+            file_id: item.fileId,
+            sort_order: item.sortOrder,
+        }));
+        const result = await this.db.query(
+            `WITH requested_items AS (
+                SELECT * FROM jsonb_to_recordset($9::jsonb)
+                    AS item(id text, kind text, category text, title text, summary text, file_id text, sort_order integer)
+             ), target AS (
+                SELECT version.id, version.ip_id FROM ip_versions AS version
+                WHERE version.id = $2 AND version.ip_id = $1 AND version.status = 'draft'
+                  AND ($5::text IS NULL OR EXISTS (SELECT 1 FROM ip_content_files AS file WHERE file.id = $5 AND file.ip_id = version.ip_id AND file.status = 'ready'))
+                  AND NOT EXISTS (
+                      SELECT 1 FROM requested_items AS item
+                      LEFT JOIN ip_content_files AS file ON file.id = item.file_id AND file.ip_id = version.ip_id AND file.status = 'ready'
+                      WHERE item.file_id IS NULL OR file.id IS NULL
+                  )
+                FOR UPDATE
+             ), updated_version AS (
+                UPDATE ip_versions AS version
+                SET title = $3, summary = $4, cover_file_id = $5, tags_json = $6::jsonb, source_note = $7, change_note = $8
+                FROM target WHERE version.id = target.id
+                RETURNING version.*
+             ), deleted_items AS (
+                DELETE FROM ip_items AS item USING updated_version AS version
+                WHERE item.version_id = version.id
+                RETURNING item.id
+             ), inserted_items AS (
+                INSERT INTO ip_items (id, version_id, kind, category, title, summary, file_id, sort_order)
+                SELECT item.id, version.id, item.kind, item.category, item.title, item.summary, item.file_id, item.sort_order
+                FROM updated_version AS version
+                CROSS JOIN requested_items AS item
+                WHERE (SELECT COUNT(*) FROM deleted_items) >= 0
+                RETURNING *
+             )
+             SELECT version.*, COALESCE((SELECT jsonb_agg(to_jsonb(item) ORDER BY item.sort_order, item.created_at) FROM inserted_items AS item), '[]'::jsonb) AS items
+             FROM updated_version AS version`,
+            [ipId, versionId, input.title, input.summary, input.coverFileId || null, jsonParam(input.tags), input.sourceNote, input.changeNote, jsonParam(items)],
+        );
+        if (!result.rows[0]) throw new Error("IP 草稿版本不存在，或内容文件未就绪");
         return mapVersion(result.rows[0]);
     }
 
@@ -122,6 +268,8 @@ export class IpLibraryRepository {
                 SELECT version.* FROM ip_versions AS version
                 JOIN ip_packages AS package ON package.id = version.ip_id
                 WHERE version.id = $2 AND version.ip_id = $1 AND version.status = 'draft'
+                  AND (version.cover_file_id IS NULL OR EXISTS (SELECT 1 FROM ip_content_files AS cover_file WHERE cover_file.id = version.cover_file_id AND cover_file.ip_id = version.ip_id AND cover_file.status = 'ready'))
+                  AND NOT EXISTS (SELECT 1 FROM ip_items AS item LEFT JOIN ip_content_files AS file ON file.id = item.file_id AND file.ip_id = version.ip_id AND file.status = 'ready' WHERE item.version_id = version.id AND file.id IS NULL)
                 FOR UPDATE OF version, package
              ), manifest AS (
                 SELECT target.id,
@@ -131,13 +279,17 @@ export class IpLibraryRepository {
                            'versionNumber', target.version_number,
                            'title', target.title,
                            'summary', target.summary,
+                           'coverFileId', target.cover_file_id,
+                           'tags', target.tags_json,
+                           'sourceNote', target.source_note,
+                           'changeNote', target.change_note,
                            'items', COALESCE((SELECT jsonb_agg(jsonb_build_object(
                                'id', item.id,
                                'kind', item.kind,
                                'category', item.category,
                                'title', item.title,
                                'summary', item.summary,
-                               'assetId', item.asset_id,
+                               'fileId', item.file_id,
                                'sortOrder', item.sort_order
                            ) ORDER BY item.sort_order, item.created_at) FROM ip_items AS item WHERE item.version_id = target.id), '[]'::jsonb)
                        ) AS value
@@ -176,8 +328,10 @@ export class IpLibraryRepository {
         values.push(pageSize, (page - 1) * pageSize);
         const result = await this.db.query(
             `SELECT package.*, version.version_number,
+                    version.title AS published_title, version.summary AS published_summary,
+                    version.cover_file_id, version.tags_json,
                     (SELECT COUNT(*)::integer FROM ip_items AS item_count WHERE item_count.version_id = version.id) AS item_count,
-                    CASE WHEN $2::text = 'school' THEN (SELECT school_grant.mode FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3::text AND school_grant.status = 'active' AND school_grant.starts_at <= $4::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $4::timestamptz) ORDER BY school_grant.created_at DESC LIMIT 1) END AS grant_mode
+                    CASE WHEN $2::text = 'school' THEN (SELECT school_grant.mode FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3::text AND school_grant.status = 'active' AND school_grant.member_access_enabled AND school_grant.starts_at <= $4::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $4::timestamptz) ORDER BY school_grant.created_at DESC LIMIT 1) END AS grant_mode
              FROM ip_packages AS package
              JOIN users AS account ON account.id = $1 AND account.status = 'active'
              JOIN ip_versions AS version ON version.id = package.current_version_id AND version.status = 'published'
@@ -193,7 +347,7 @@ export class IpLibraryRepository {
         const at = input.at || new Date().toISOString();
         const result = await this.db.query(
             `SELECT package.*,
-                    CASE WHEN package.visibility = 'school' THEN (SELECT school_grant.mode FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3 AND school_grant.status = 'active' AND school_grant.starts_at <= $5::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $5::timestamptz) ORDER BY school_grant.created_at DESC LIMIT 1) END AS grant_mode,
+                    CASE WHEN package.visibility = 'school' THEN (SELECT school_grant.mode FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3 AND school_grant.status = 'active' AND school_grant.member_access_enabled AND school_grant.starts_at <= $5::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $5::timestamptz) ORDER BY school_grant.created_at DESC LIMIT 1) END AS grant_mode,
                     version.id AS visible_version_id
              FROM ip_packages AS package
              JOIN users AS account ON account.id = $1 AND account.status = 'active'
@@ -203,7 +357,7 @@ export class IpLibraryRepository {
                    package.visibility = 'public'
                    OR (package.visibility = 'school' AND $3 IS NOT NULL
                        AND EXISTS (SELECT 1 FROM schools AS school JOIN school_memberships AS membership ON membership.school_id = school.id WHERE school.id = $3 AND school.status = 'active' AND membership.user_id = $1 AND membership.status = 'active')
-                       AND EXISTS (SELECT 1 FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3 AND school_grant.status = 'active' AND school_grant.starts_at <= $5::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $5::timestamptz)))
+                       AND EXISTS (SELECT 1 FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3 AND school_grant.status = 'active' AND school_grant.member_access_enabled AND school_grant.starts_at <= $5::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $5::timestamptz)))
                )`,
             [input.userId, input.ipId, input.schoolId || null, input.versionId || null, at],
         );
@@ -233,10 +387,25 @@ export class IpLibraryRepository {
 
     async createSchoolGrant(input: IpSchoolGrantCreateInput): Promise<IpSchoolGrantRecord> {
         const result = await this.db.query(
-            `INSERT INTO ip_school_grants (id, ip_id, school_id, mode, status, starts_at, ends_at, note, created_by_user_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            `INSERT INTO ip_school_grants (
+                id, ip_id, school_id, mode, status, starts_at, ends_at, note,
+                member_access_enabled, member_access_updated_by_user_id, member_access_updated_at, created_by_user_id
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING *`,
-            [input.id, input.ipId, input.schoolId, input.mode, input.status, input.startsAt, input.endsAt || null, input.note, input.createdByUserId || null],
+            [
+                input.id,
+                input.ipId,
+                input.schoolId,
+                input.mode,
+                input.status,
+                input.startsAt,
+                input.endsAt || null,
+                input.note,
+                input.memberAccessEnabled || false,
+                input.memberAccessUpdatedByUserId || null,
+                input.memberAccessUpdatedAt || null,
+                input.createdByUserId || null,
+            ],
         );
         return mapGrant(result.rows[0]);
     }
@@ -244,10 +413,28 @@ export class IpLibraryRepository {
     async updateSchoolGrant(ipId: string, grantId: string, patch: IpSchoolGrantUpdateInput): Promise<IpSchoolGrantRecord | null> {
         const result = await this.db.query(
             `UPDATE ip_school_grants
-             SET status = COALESCE($3, status), ends_at = CASE WHEN $4 THEN $5::timestamptz ELSE ends_at END, note = COALESCE($6, note), updated_at = $7::timestamptz
+             SET status = COALESCE($3, status),
+                 ends_at = CASE WHEN $4 THEN $5::timestamptz ELSE ends_at END,
+                 note = COALESCE($6, note),
+                 member_access_enabled = CASE WHEN $7 THEN $8 ELSE member_access_enabled END,
+                 member_access_updated_by_user_id = CASE WHEN $7 THEN $9 ELSE member_access_updated_by_user_id END,
+                 member_access_updated_at = CASE WHEN $7 THEN $10::timestamptz ELSE member_access_updated_at END,
+                 updated_at = $11::timestamptz
              WHERE ip_id = $1 AND id = $2
              RETURNING *`,
-            [ipId, grantId, patch.status || null, patch.endsAt !== undefined, patch.endsAt || null, patch.note ?? null, patch.updatedAt],
+            [
+                ipId,
+                grantId,
+                patch.status || null,
+                patch.endsAt !== undefined,
+                patch.endsAt || null,
+                patch.note ?? null,
+                patch.memberAccessEnabled !== undefined,
+                patch.memberAccessEnabled || false,
+                patch.memberAccessUpdatedByUserId || null,
+                patch.memberAccessUpdatedAt || null,
+                patch.updatedAt,
+            ],
         );
         return result.rows[0] ? mapGrant(result.rows[0]) : null;
     }
@@ -255,12 +442,40 @@ export class IpLibraryRepository {
     async listSchoolGrants(input: IpGrantListInput): Promise<PageResult<IpSchoolGrantRecord>> {
         const page = normalizePage(input.page);
         const pageSize = normalizePageSize(input.pageSize);
-        const values: unknown[] = [input.ipId, input.schoolId || null, input.status || null];
-        const where = "school_grant.ip_id = $1 AND ($2::text IS NULL OR school_grant.school_id = $2) AND ($3::text IS NULL OR school_grant.status = $3)";
+        const values: unknown[] = [input.ipId || null, input.grantId || null, input.schoolId || null, input.status || null];
+        const where = "($1::text IS NULL OR school_grant.ip_id = $1) AND ($2::text IS NULL OR school_grant.id = $2) AND ($3::text IS NULL OR school_grant.school_id = $3) AND ($4::text IS NULL OR school_grant.status = $4)";
         const count = await this.db.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM ip_school_grants AS school_grant WHERE ${where}`, values);
         values.push(pageSize, (page - 1) * pageSize);
-        const result = await this.db.query(`SELECT school_grant.* FROM ip_school_grants AS school_grant WHERE ${where} ORDER BY school_grant.created_at DESC, school_grant.id LIMIT $4 OFFSET $5`, values);
+        const result = await this.db.query(`SELECT school_grant.* FROM ip_school_grants AS school_grant WHERE ${where} ORDER BY school_grant.created_at DESC, school_grant.id LIMIT $5 OFFSET $6`, values);
         return pageResult(result.rows.map(mapGrant), numberValue(count.rows[0]?.count), page, pageSize);
+    }
+
+    async recordIpDownload(input: IpDownloadCreateInput): Promise<IpDownloadRecord> {
+        const result = await this.db.query(
+            `INSERT INTO ip_download_records (id, ip_id, version_id, item_id, school_id, user_id, download_type, result)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING *`,
+            [input.id, input.ipId, input.versionId, input.itemId || null, input.schoolId || null, input.userId, input.downloadType, input.result],
+        );
+        return mapDownload(result.rows[0]);
+    }
+
+    async listIpDownloads(input: IpDownloadListInput = {}): Promise<PageResult<IpDownloadRecord>> {
+        const page = normalizePage(input.page);
+        const pageSize = normalizePageSize(input.pageSize);
+        const values: unknown[] = [];
+        const filters: string[] = [];
+        addFilter(filters, values, "record.ip_id", input.ipId);
+        addFilter(filters, values, "record.version_id", input.versionId);
+        addFilter(filters, values, "record.school_id", input.schoolId);
+        addFilter(filters, values, "record.user_id", input.userId);
+        addFilter(filters, values, "record.download_type", input.downloadType);
+        addFilter(filters, values, "record.result", input.result);
+        const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+        const count = await this.db.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM ip_download_records AS record ${where}`, values);
+        values.push(pageSize, (page - 1) * pageSize);
+        const result = await this.db.query(`SELECT record.* FROM ip_download_records AS record ${where} ORDER BY record.created_at DESC, record.id LIMIT $${values.length - 1} OFFSET $${values.length}`, values);
+        return pageResult(result.rows.map(mapDownload), numberValue(count.rows[0]?.count), page, pageSize);
     }
 
     async recordIpUsage(input: IpUsageCreateInput): Promise<IpUsageRecord> {
@@ -337,7 +552,7 @@ function visibleWhere() {
     return `package.status = 'published'
         AND (($2::text = 'public' AND package.visibility = 'public') OR ($2::text = 'school' AND package.visibility = 'school' AND $3::text IS NOT NULL
             AND EXISTS (SELECT 1 FROM schools AS school JOIN school_memberships AS membership ON membership.school_id = school.id WHERE school.id = $3::text AND school.status = 'active' AND membership.user_id = $1 AND membership.status = 'active')
-            AND EXISTS (SELECT 1 FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3::text AND school_grant.status = 'active' AND school_grant.starts_at <= $4::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $4::timestamptz))))
+            AND EXISTS (SELECT 1 FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3::text AND school_grant.status = 'active' AND school_grant.member_access_enabled AND school_grant.starts_at <= $4::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $4::timestamptz))))
         AND ($5::text IS NULL OR package.title ILIKE '%' || $5::text || '%' OR package.summary ILIKE '%' || $5::text || '%')
         AND ($6::text IS NULL OR EXISTS (SELECT 1 FROM ip_items AS item WHERE item.version_id = version.id AND item.kind = $6::text))
         AND ($7::text IS NULL OR EXISTS (SELECT 1 FROM ip_items AS item WHERE item.version_id = version.id AND item.category = $7::text))`;
@@ -367,17 +582,32 @@ function mapPackage(row: Record<string, unknown>): IpPackageRecord {
 }
 
 function mapSummary(row: Record<string, unknown>): IpSummaryRecord {
-    return { ...mapPackage(row), versionNumber: numberValue(row.version_number), itemCount: numberValue(row.item_count), ...(optionalString(row.grant_mode) ? { grantMode: optionalString(row.grant_mode) as IpSummaryRecord["grantMode"] } : {}) };
+    const rawTags = jsonValue(row.tags_json);
+    return {
+        ...mapPackage(row),
+        ...(optionalString(row.published_title) ? { title: optionalString(row.published_title)! } : {}),
+        ...(row.published_summary !== undefined ? { summary: stringValue(row.published_summary) } : {}),
+        versionNumber: numberValue(row.version_number),
+        itemCount: numberValue(row.item_count),
+        coverFileId: optionalString(row.cover_file_id),
+        tags: Array.isArray(rawTags) ? rawTags.filter((item): item is string => typeof item === "string") : [],
+        ...(optionalString(row.grant_mode) ? { grantMode: optionalString(row.grant_mode) as IpSummaryRecord["grantMode"] } : {}),
+    };
 }
 
 function mapVersion(row: Record<string, unknown>): IpVersionRecord {
     const rawItems = Array.isArray(row.items) ? row.items : [];
+    const rawTags = jsonValue(row.tags_json);
     return {
         id: stringValue(row.id),
         ipId: stringValue(row.ip_id),
         versionNumber: numberValue(row.version_number),
         title: stringValue(row.title),
         summary: stringValue(row.summary),
+        coverFileId: optionalString(row.cover_file_id),
+        tags: Array.isArray(rawTags) ? rawTags.filter((item): item is string => typeof item === "string") : [],
+        sourceNote: stringValue(row.source_note),
+        changeNote: stringValue(row.change_note),
         status: row.status === "published" || row.status === "disabled" ? row.status : "draft",
         manifest: jsonValue(row.manifest_json),
         publishedAt: optionalIso(row.published_at),
@@ -395,6 +625,7 @@ function mapItem(row: Record<string, unknown>): IpItemRecord {
         category: stringValue(row.category) as IpItemRecord["category"],
         title: stringValue(row.title),
         summary: stringValue(row.summary),
+        fileId: stringValue(row.file_id),
         textContent: optionalString(row.text_content),
         assetId: optionalString(row.asset_id),
         sortOrder: numberValue(row.sort_order),
@@ -412,9 +643,56 @@ function mapGrant(row: Record<string, unknown>): IpSchoolGrantRecord {
         startsAt: isoValue(row.starts_at),
         endsAt: optionalIso(row.ends_at),
         note: stringValue(row.note),
+        memberAccessEnabled: row.member_access_enabled === true,
+        memberAccessUpdatedByUserId: optionalString(row.member_access_updated_by_user_id),
+        memberAccessUpdatedAt: optionalIso(row.member_access_updated_at),
         createdByUserId: optionalString(row.created_by_user_id),
         createdAt: isoValue(row.created_at),
         updatedAt: isoValue(row.updated_at),
+    };
+}
+
+function mapContentFile(row: Record<string, unknown>): IpContentFileRecord {
+    const value = jsonValue(row.metadata_json);
+    const rawMetadata = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const metadata: IpContentFileRecord["metadata"] = {};
+    if (typeof rawMetadata.width === "number") metadata.width = rawMetadata.width;
+    if (typeof rawMetadata.height === "number") metadata.height = rawMetadata.height;
+    if (typeof rawMetadata.durationSeconds === "number") metadata.durationSeconds = rawMetadata.durationSeconds;
+    return {
+        id: stringValue(row.id),
+        ipId: stringValue(row.ip_id),
+        kind: row.kind === "image" || row.kind === "audio" || row.kind === "video" ? row.kind : "text",
+        originalName: stringValue(row.original_name),
+        extension: stringValue(row.extension),
+        mimeType: stringValue(row.mime_type),
+        byteSize: numberValue(row.byte_size),
+        sha256: stringValue(row.sha256),
+        storageProvider: row.storage_provider === "object" ? "object" : "local",
+        storageKey: stringValue(row.storage_key),
+        externalStorageId: optionalString(row.external_storage_id),
+        externalObjectKey: optionalString(row.external_object_key),
+        extractedText: optionalString(row.extracted_text),
+        metadata,
+        status: row.status === "ready" || row.status === "failed" ? row.status : "processing",
+        errorMessage: optionalString(row.error_message),
+        uploadedByUserId: optionalString(row.uploaded_by_user_id),
+        createdAt: isoValue(row.created_at),
+        updatedAt: isoValue(row.updated_at),
+    };
+}
+
+function mapDownload(row: Record<string, unknown>): IpDownloadRecord {
+    return {
+        id: stringValue(row.id),
+        ipId: stringValue(row.ip_id),
+        versionId: stringValue(row.version_id),
+        itemId: optionalString(row.item_id),
+        schoolId: optionalString(row.school_id),
+        userId: stringValue(row.user_id),
+        downloadType: row.download_type === "package" ? "package" : "item",
+        result: row.result === "failed" ? "failed" : "succeeded",
+        createdAt: isoValue(row.created_at),
     };
 }
 

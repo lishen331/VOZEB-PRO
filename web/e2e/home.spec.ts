@@ -21,6 +21,7 @@ test("public homepage is functional for signed-out visitors", async ({ browser }
     const page = await context.newPage();
     const browserErrors = collectBrowserErrors(page);
     let galleryRequest = "";
+    let billingProductRequests = 0;
     await mockPublicWorkDetails(page);
     await page.route("**/api/public/gallery?**", async (route) => {
         galleryRequest = route.request().url();
