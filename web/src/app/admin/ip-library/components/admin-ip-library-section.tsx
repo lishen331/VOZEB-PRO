@@ -1,13 +1,14 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { App, Button, Drawer, Form, Input, InputNumber, Modal, Pagination, Select, Space, Table, Tabs, Tag } from "antd";
-import { Ban, Building2, FilePlus2, History, Pencil, Plus, RefreshCw, Send, ShieldCheck, Trash2 } from "lucide-react";
+import { App, Button, Drawer, Form, Input, InputNumber, Modal, Pagination, Select, Space, Table, Tabs, Tag, Upload } from "antd";
+import { Ban, Building2, FilePlus2, History, Pencil, Plus, RefreshCw, Send, ShieldCheck, Trash2, Upload as UploadIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AdminUserIdentity } from "@/components/admin/admin-user-identity";
 import { hasAdminPermission } from "@/lib/admin-permissions";
 import type { PublicUser } from "@/lib/auth/store";
+import { CREATIVE_UPLOAD_MAX_BYTES, isCreativeUploadMimeType } from "@/lib/creative-upload";
 import {
     IP_ASSET_KINDS,
     IP_AUTHORIZATION_MODES,
@@ -28,7 +29,7 @@ import type { SchoolSummary } from "@/lib/school-domain";
 import type { IpItemRecord, IpPackageRecord, IpSchoolGrantRecord, IpVersionRecord } from "@/lib/server/database/repository-types";
 import { adminEducationApi } from "@/services/api/admin-education";
 import { adminIpLibraryApi, type AdminIpGrantItem, type AdminIpUsageItem } from "@/services/api/admin-ip-library";
-import { listLibraryAssetPage } from "@/services/api/library-assets";
+import { deleteLibraryAsset, listLibraryAssetPage, uploadLibraryImageAsset } from "@/services/api/library-assets";
 
 const PAGE_SIZE = 12;
 type AdminIp = IpPackageRecord & { versionNumber: number; itemCount: number };
@@ -62,6 +63,7 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<AdminIp>();
     const [editorOpen, setEditorOpen] = useState(false);
+    const [pendingCoverFile, setPendingCoverFile] = useState<File>();
     const [versionIp, setVersionIp] = useState<AdminIp>();
     const [grantIp, setGrantIp] = useState<AdminIp>();
     const requestId = useRef(0);
@@ -84,19 +86,25 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
 
     const openEditor = (ip?: AdminIp) => {
         setEditing(ip);
+        setPendingCoverFile(undefined);
         form.resetFields();
         form.setFieldsValue(ip ? { title: ip.title, slug: ip.slug, summary: ip.summary, coverAssetId: ip.coverAssetId, visibility: ip.visibility, authorizationMode: ip.authorizationMode } : { visibility: "public", authorizationMode: "multi_school" });
         setEditorOpen(true);
     };
     const save = async (values: IpForm) => {
         setSaving(true);
+        let uploadedCoverAssetId: string | undefined;
         try {
-            if (editing) await adminIpLibraryApi.update(editing.id, values);
-            else await adminIpLibraryApi.create(values);
+            const nextValues = pendingCoverFile ? { ...values, coverAssetId: (await uploadLibraryImageAsset(pendingCoverFile)).id } : values;
+            uploadedCoverAssetId = pendingCoverFile ? nextValues.coverAssetId : undefined;
+            if (editing) await adminIpLibraryApi.update(editing.id, nextValues);
+            else await adminIpLibraryApi.create(nextValues);
             message.success(editing ? "IP 已更新" : "IP 草稿已创建");
+            setPendingCoverFile(undefined);
             setEditorOpen(false);
             await load();
         } catch (error) {
+            if (uploadedCoverAssetId) await deleteLibraryAsset(uploadedCoverAssetId).catch(() => undefined);
             message.error(errorMessage(error, "IP 保存失败"));
             throw error;
         } finally {
@@ -244,7 +252,20 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
             </div>
             <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage responsive showSizeChanger={false} onChange={setPage} />
 
-            <Modal title={editing ? "编辑 IP 档案" : "创建 IP 档案"} open={editorOpen} destroyOnHidden width="min(640px, 100vw)" okText="保存" cancelText="取消" confirmLoading={saving} onCancel={() => setEditorOpen(false)} onOk={() => form.submit()}>
+            <Modal
+                title={editing ? "编辑 IP 档案" : "创建 IP 档案"}
+                open={editorOpen}
+                destroyOnHidden
+                width="min(640px, 100vw)"
+                okText="保存"
+                cancelText="取消"
+                confirmLoading={saving}
+                onCancel={() => {
+                    setPendingCoverFile(undefined);
+                    setEditorOpen(false);
+                }}
+                onOk={() => form.submit()}
+            >
                 <Form form={form} layout="vertical" onFinish={save} className="pt-2">
                     <div className="grid gap-x-3 sm:grid-cols-2">
                         <Form.Item name="title" label="IP 名称" rules={[{ required: true, message: "请填写 IP 名称" }]}>
@@ -276,8 +297,42 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
                             )}
                         </Form.Item>
                     </div>
-                    <Form.Item name="coverAssetId" label="封面素材">
-                        <AssetSelect kind="image" placeholder="分页搜索图片素材" />
+                    <Form.Item label="封面素材" extra="支持 PNG、JPG、WEBP、GIF，单个文件不超过 20MB">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                            <div className="min-w-0 flex-1">
+                                <Form.Item name="coverAssetId" noStyle>
+                                    <AssetSelect kind="image" placeholder="分页搜索图片素材" onAssetChange={() => setPendingCoverFile(undefined)} />
+                                </Form.Item>
+                            </div>
+                            <Upload
+                                accept="image/png,image/jpeg,image/webp,image/gif"
+                                maxCount={1}
+                                showUploadList={false}
+                                beforeUpload={(file) => {
+                                    const mimeType = file.type.toLowerCase();
+                                    const hasSupportedExtension = /\.(?:png|jpe?g|webp|gif)$/i.test(file.name);
+                                    if (!(isCreativeUploadMimeType(mimeType) && mimeType.startsWith("image/")) && !hasSupportedExtension) {
+                                        message.error("请选择 PNG、JPG、WEBP 或 GIF 图片");
+                                        return Upload.LIST_IGNORE;
+                                    }
+                                    if (file.size > CREATIVE_UPLOAD_MAX_BYTES) {
+                                        message.error("封面图片不能超过 20MB");
+                                        return Upload.LIST_IGNORE;
+                                    }
+                                    setPendingCoverFile(file);
+                                    form.setFieldValue("coverAssetId", undefined);
+                                    return Upload.LIST_IGNORE;
+                                }}
+                            >
+                                <Button icon={<UploadIcon className="size-4" />}>本地上传</Button>
+                            </Upload>
+                        </div>
+                        {pendingCoverFile ? (
+                            <div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
+                                <span className="min-w-0 truncate">待上传：{pendingCoverFile.name}</span>
+                                <Button type="text" size="small" icon={<Trash2 className="size-3.5" />} aria-label="移除本地封面" onClick={() => setPendingCoverFile(undefined)} />
+                            </div>
+                        ) : null}
                     </Form.Item>
                 </Form>
             </Modal>
@@ -751,7 +806,7 @@ function UsagePanel() {
     );
 }
 
-function AssetSelect({ kind, placeholder }: { kind: Asset["kind"]; placeholder: string }) {
+function AssetSelect({ kind, placeholder, value, onChange, onAssetChange }: { kind: Asset["kind"]; placeholder: string; value?: string; onChange?: (value: string | undefined) => void; onAssetChange?: (value: string | undefined) => void }) {
     const [assets, setAssets] = useState<Asset[]>([]);
     const [loading, setLoading] = useState(false);
     const requestId = useRef(0);
@@ -771,9 +826,14 @@ function AssetSelect({ kind, placeholder }: { kind: Asset["kind"]; placeholder: 
             allowClear
             filterOption={false}
             loading={loading}
+            value={value}
             placeholder={placeholder}
             options={assets.map((asset) => ({ value: asset.id, label: asset.title }))}
             onSearch={(value) => void search(value)}
+            onChange={(nextValue) => {
+                onChange?.(nextValue);
+                onAssetChange?.(nextValue);
+            }}
             onOpenChange={(open) => {
                 if (open && !assets.length) void search();
             }}

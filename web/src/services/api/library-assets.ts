@@ -1,4 +1,5 @@
 import type { Asset, CreateLibraryAssetInput } from "@/lib/library-asset-contract";
+import { deleteStoredImages, uploadImage } from "@/services/image-storage";
 
 export function listLibraryAssets() {
     return listLibraryAssetPage({ page: 1, pageSize: 100 }).then((data) => data.assets);
@@ -24,6 +25,31 @@ export async function listAllLibraryAssets() {
 
 export function createLibraryAsset(asset: CreateLibraryAssetInput) {
     return request<{ asset: Asset }>("/api/library-assets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(asset) }).then((data) => data.asset);
+}
+
+export async function uploadLibraryImageAsset(file: File) {
+    const image = await uploadImage(file);
+    try {
+        return await createLibraryAsset({
+            kind: "image",
+            title: file.name.trim() || "本地封面",
+            coverUrl: image.url,
+            tags: [],
+            source: "admin-ip-cover-upload",
+            data: {
+                dataUrl: image.url,
+                storageKey: image.storageKey,
+                serverUrl: image.url,
+                width: image.width,
+                height: image.height,
+                bytes: image.bytes,
+                mimeType: image.mimeType,
+            },
+        });
+    } catch (error) {
+        await deleteStoredImages([image.storageKey]).catch(() => undefined);
+        throw error;
+    }
 }
 
 export function saveLibraryAsset(id: string, asset: CreateLibraryAssetInput) {
