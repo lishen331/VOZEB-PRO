@@ -18,4 +18,10 @@ describe("admin IP library section", () => {
         expect(source).toContain('width="min(760px, 100vw)"');
         expect(source).toContain("destroyOnHidden");
     });
+
+    it("keeps an uploaded cover when the IP save outcome is unknown", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/admin/ip-library/components/admin-ip-library-section.tsx"), "utf8");
+        expect(source).toContain("isConfirmedAdminIpLibraryFailure(error)");
+        expect(source).not.toContain("if (uploadedCoverAssetId) await deleteLibraryAsset(uploadedCoverAssetId).catch(() => undefined);");
+    });
 });

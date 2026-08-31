@@ -28,7 +28,7 @@ import type { Asset } from "@/lib/library-asset-contract";
 import type { SchoolSummary } from "@/lib/school-domain";
 import type { IpItemRecord, IpPackageRecord, IpSchoolGrantRecord, IpVersionRecord } from "@/lib/server/database/repository-types";
 import { adminEducationApi } from "@/services/api/admin-education";
-import { adminIpLibraryApi, type AdminIpGrantItem, type AdminIpUsageItem } from "@/services/api/admin-ip-library";
+import { adminIpLibraryApi, isConfirmedAdminIpLibraryFailure, type AdminIpGrantItem, type AdminIpUsageItem } from "@/services/api/admin-ip-library";
 import { deleteLibraryAsset, listLibraryAssetPage, uploadLibraryImageAsset } from "@/services/api/library-assets";
 
 const PAGE_SIZE = 12;
@@ -104,7 +104,7 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
             setEditorOpen(false);
             await load();
         } catch (error) {
-            if (uploadedCoverAssetId) await deleteLibraryAsset(uploadedCoverAssetId).catch(() => undefined);
+            if (uploadedCoverAssetId && isConfirmedAdminIpLibraryFailure(error)) await deleteLibraryAsset(uploadedCoverAssetId).catch(() => undefined);
             message.error(errorMessage(error, "IP 保存失败"));
             throw error;
         } finally {

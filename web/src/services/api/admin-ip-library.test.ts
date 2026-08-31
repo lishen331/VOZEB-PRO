@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { adminIpLibraryApi } from "./admin-ip-library";
+import { adminIpLibraryApi, isConfirmedAdminIpLibraryFailure } from "./admin-ip-library";
 
 describe("admin IP library API client", () => {
     afterEach(() => vi.unstubAllGlobals());
@@ -22,5 +22,21 @@ describe("admin IP library API client", () => {
         await adminIpLibraryApi.createGrant("ip-a", { schoolId: "school-a", mode: "exclusive", startsAt: "2026-08-19T00:00:00.000Z" });
         await adminIpLibraryApi.updateGrant("ip-a", "grant-a", { status: "revoked" });
         expect(fetchMock.mock.calls.map((call) => call[0])).toEqual(["/api/admin/ip-library/ip-a/schools", "/api/admin/ip-library/ip-a/schools/grant-a"]);
+    });
+
+    it("distinguishes confirmed API rejection from an unknown response outcome", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockResolvedValueOnce(new Response(JSON.stringify({ code: 400, msg: "slug 已存在" }), { status: 400 }))
+                .mockRejectedValueOnce(new Error("网络中断")),
+        );
+
+        const confirmed = await adminIpLibraryApi.create({ title: "测试", slug: "test", visibility: "public", authorizationMode: "multi_school" }).catch((error) => error);
+        const unknown = await adminIpLibraryApi.create({ title: "测试", slug: "test-2", visibility: "public", authorizationMode: "multi_school" }).catch((error) => error);
+
+        expect(isConfirmedAdminIpLibraryFailure(confirmed)).toBe(true);
+        expect(isConfirmedAdminIpLibraryFailure(unknown)).toBe(false);
     });
 });
