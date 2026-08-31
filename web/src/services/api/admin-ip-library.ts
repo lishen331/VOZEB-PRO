@@ -39,6 +39,19 @@ export const adminIpLibraryApi = {
     },
 };
 
+export class AdminIpLibraryRequestError extends Error {
+    constructor(
+        message: string,
+        readonly outcome: "confirmed_failure" | "unknown",
+    ) {
+        super(message);
+    }
+}
+
+export function isConfirmedAdminIpLibraryFailure(error: unknown): error is AdminIpLibraryRequestError {
+    return error instanceof AdminIpLibraryRequestError && error.outcome === "confirmed_failure";
+}
+
 export type AdminIpUsageItem = Omit<IpUsageRecord, "userId"> & {
     user?: { accountId: string; username: string; displayName: string; email?: string };
     school?: { id: string; name: string };
@@ -59,8 +72,16 @@ function jsonRequest(method: "POST" | "PATCH", body: unknown): RequestInit {
 }
 
 async function request<T>(url: string, init?: RequestInit) {
-    const response = await fetch(url, { cache: "no-store", ...init });
+    let response: Response;
+    try {
+        response = await fetch(url, { cache: "no-store", ...init });
+    } catch (error) {
+        throw new AdminIpLibraryRequestError(error instanceof Error ? error.message : "IP 库请求失败", "unknown");
+    }
     const payload = (await response.json().catch(() => null)) as { code?: number; data?: T; msg?: string } | null;
-    if (!response.ok || !payload || payload.code !== 0 || payload.data === undefined) throw new Error(payload?.msg || "IP 库请求失败");
+    if (!response.ok || !payload || payload.code !== 0 || payload.data === undefined) {
+        const outcome = payload && payload.code !== undefined && payload.code !== 0 ? "confirmed_failure" : "unknown";
+        throw new AdminIpLibraryRequestError(payload?.msg || "IP 库请求失败", outcome);
+    }
     return payload.data;
 }

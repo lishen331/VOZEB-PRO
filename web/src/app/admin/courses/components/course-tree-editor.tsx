@@ -227,8 +227,8 @@ export function CourseTreeEditor({ course, open, onClose, onChanged }: { course:
     );
 }
 
-function nodeClass(active: boolean) {
-    return `flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm ${active ? "bg-zinc-950 text-white dark:bg-zinc-100 dark:text-zinc-950" : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"}`;
+export function nodeClass(active: boolean) {
+    return `flex w-full items-center gap-2 rounded-md border px-2 py-2 text-left text-sm transition-colors ${active ? "border-zinc-300 bg-zinc-50 text-zinc-950 shadow-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100" : "border-transparent text-zinc-700 hover:border-zinc-200 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"}`;
 }
 function formatBytes(bytes: number) {
     return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
