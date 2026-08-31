@@ -4,7 +4,21 @@ import { Button } from "antd";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
-export function IpLibrarySection<T extends { id: string }>({ title, description, items, renderItem, initialCount = 4, layout = "grid" }: { title: string; description: string; items: T[]; renderItem: (item: T) => ReactNode; initialCount?: number; layout?: "grid" | "list" }) {
+export function IpLibrarySection<T extends { id: string }>({
+    title,
+    description,
+    items,
+    renderItem,
+    initialCount = 4,
+    layout = "grid",
+}: {
+    title: string;
+    description: string;
+    items: T[];
+    renderItem: (item: T) => ReactNode;
+    initialCount?: number;
+    layout?: "grid" | "list";
+}) {
     const [expanded, setExpanded] = useState(false);
     const visible = expanded ? items : items.slice(0, initialCount);
     return (

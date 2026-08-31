@@ -54,7 +54,20 @@ vi.mock("@/lib/server/ip-library-file-storage", () => ({
     deleteStoredIpContentFile: mocks.deleteStoredIpContentFile,
 }));
 
-import { createAdminIp, createAdminIpGrant, createAdminIpVersion, deleteAdminIpFile, listAdminIpFiles, listAdminIpGrants, listAdminIpUsage, publishAdminIpVersion, readAdminIpFile, updateAdminIp, updateAdminIpVersion, uploadAdminIpFile } from "./ip-library-admin-service";
+import {
+    createAdminIp,
+    createAdminIpGrant,
+    createAdminIpVersion,
+    deleteAdminIpFile,
+    listAdminIpFiles,
+    listAdminIpGrants,
+    listAdminIpUsage,
+    publishAdminIpVersion,
+    readAdminIpFile,
+    updateAdminIp,
+    updateAdminIpVersion,
+    uploadAdminIpFile,
+} from "./ip-library-admin-service";
 
 const packageRecord = {
     id: "ip-one",
@@ -146,10 +159,7 @@ describe("IP library administration service", () => {
 
     it("creates either an empty draft or a draft copied from an existing version", async () => {
         await createAdminIpVersion("content-admin", "ip-one", { title: "空白第三版" });
-        expect(mocks.createIpDraftVersion).toHaveBeenLastCalledWith(
-            "ip-one",
-            expect.objectContaining({ title: "空白第三版", items: [] }),
-        );
+        expect(mocks.createIpDraftVersion).toHaveBeenLastCalledWith("ip-one", expect.objectContaining({ title: "空白第三版", items: [] }));
 
         mocks.getIpVersion.mockResolvedValue({
             id: "version-one",
@@ -197,11 +207,7 @@ describe("IP library administration service", () => {
             changeNote: "替换角色图",
             items: [{ kind: "image", category: "character", title: "新角色", fileId: "image-one" }],
         });
-        expect(mocks.updateIpDraftVersion).toHaveBeenCalledWith(
-            "ip-one",
-            "version-two",
-            expect.objectContaining({ id: "version-two", title: "第二版修订", items: [expect.objectContaining({ fileId: "image-one" })] }),
-        );
+        expect(mocks.updateIpDraftVersion).toHaveBeenCalledWith("ip-one", "version-two", expect.objectContaining({ id: "version-two", title: "第二版修订", items: [expect.objectContaining({ fileId: "image-one" })] }));
 
         mocks.getIpVersion.mockResolvedValue({ id: "version-one", ipId: "ip-one", status: "published", items: [{ id: "item-one" }] });
         await expect(updateAdminIpVersion("content-admin", "ip-one", "version-one", { title: "覆盖", items: [{ kind: "image", category: "character", title: "角色", fileId: "image-one" }] })).rejects.toMatchObject({ status: 409 });

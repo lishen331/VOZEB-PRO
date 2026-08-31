@@ -98,7 +98,15 @@ export default function IpLibraryDetail({ ipId }: { ipId: string }) {
                                 更新于 {formatDate(detail.version.publishedAt || detail.updatedAt)}
                             </span>
                         </div>
-                        {detail.version.tags.length ? <div className="mt-3 flex flex-wrap gap-1.5">{detail.version.tags.map((tag) => <Tag key={tag} className="!m-0">{tag}</Tag>)}</div> : null}
+                        {detail.version.tags.length ? (
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                                {detail.version.tags.map((tag) => (
+                                    <Tag key={tag} className="!m-0">
+                                        {tag}
+                                    </Tag>
+                                ))}
+                            </div>
+                        ) : null}
                         <div className="mt-5 flex flex-wrap gap-2">
                             {IP_REFERENCE_ENTRY_VISIBLE ? <DormantReferenceActions detail={detail} /> : null}
                             <Button icon={<Download className="size-4" />} loading={downloading === "package"} onClick={() => void download()}>
@@ -130,13 +138,17 @@ export default function IpLibraryDetail({ ipId }: { ipId: string }) {
                                     <div key={category.value} className="min-w-0">
                                         <h3 className="text-sm font-medium">{category.label}</h3>
                                         <div className="mt-2 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                            {grouped.images[category.value].map((item) => <MediaItem key={item.id} item={item} onDownload={() => void download(item.id)} loading={downloading === item.id} />)}
+                                            {grouped.images[category.value].map((item) => (
+                                                <MediaItem key={item.id} item={item} onDownload={() => void download(item.id)} loading={downloading === item.id} />
+                                            ))}
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         </AntImage.PreviewGroup>
-                    ) : <p className="mt-3 border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">暂无内容</p>}
+                    ) : (
+                        <p className="mt-3 border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">暂无内容</p>
+                    )}
                 </section>
                 <IpLibrarySection
                     title="音乐与声音"
@@ -151,7 +163,6 @@ export default function IpLibraryDetail({ ipId }: { ipId: string }) {
                     renderItem={(item) => <MediaItem key={item.id} item={item} onDownload={() => void download(item.id)} loading={downloading === item.id} />}
                 />
             </div>
-
         </main>
     );
 }
@@ -159,7 +170,13 @@ export default function IpLibraryDetail({ ipId }: { ipId: string }) {
 export function groupIpLibraryItems(items: IpPublicItem[]) {
     const images = Object.fromEntries(IP_IMAGE_CATEGORIES.map((category) => [category.value, [] as IpPublicItem[]])) as Record<(typeof IP_IMAGE_CATEGORIES)[number]["value"], IpPublicItem[]>;
     for (const item of items) if (item.kind === "image" && item.category in images) images[item.category as keyof typeof images].push(item);
-    return { text: items.filter((item) => item.kind === "text"), images, imageCount: Object.values(images).reduce((total, group) => total + group.length, 0), audio: items.filter((item) => item.kind === "audio"), video: items.filter((item) => item.kind === "video") };
+    return {
+        text: items.filter((item) => item.kind === "text"),
+        images,
+        imageCount: Object.values(images).reduce((total, group) => total + group.length, 0),
+        audio: items.filter((item) => item.kind === "audio"),
+        video: items.filter((item) => item.kind === "video"),
+    };
 }
 
 function TextItem({ item, onDownload, loading }: { item: IpPublicItem; onDownload: () => void; loading: boolean }) {

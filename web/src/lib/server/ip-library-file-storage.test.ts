@@ -52,7 +52,9 @@ describe("IP library source file storage", () => {
     });
 
     it("detects real image bytes, rejects extension mismatches and extracts dimensions", async () => {
-        const png = await sharp({ create: { width: 37, height: 23, channels: 3, background: "#336699" } }).png().toBuffer();
+        const png = await sharp({ create: { width: 37, height: 23, channels: 3, background: "#336699" } })
+            .png()
+            .toBuffer();
         const record = await writeIpContentFile({ ipId: "ip-one", fileId: "file-image", kind: "image", originalName: "角色.png", bytes: png, uploadedByUserId: "admin-one" });
         expect(record).toMatchObject({ kind: "image", extension: ".png", mimeType: "image/png", byteSize: png.length, metadata: { width: 37, height: 23 }, status: "ready" });
 

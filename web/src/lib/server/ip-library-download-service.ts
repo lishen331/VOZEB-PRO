@@ -9,13 +9,8 @@ import { readIpContentFile, readIpContentFileBytes } from "./ip-library-file-sto
 
 export type IpDownloadInput = { versionId?: string; itemIds?: string[]; package: boolean };
 export type IpDownloadResult =
-    | { kind: "redirect"; url: string; fileName: string; downloadId: string }
-    | { kind: "response"; response: Response; fileName: string; downloadId: string }
-    | { kind: "file"; bytes: Buffer; mimeType: string; fileName: string; downloadId: string };
-type PreparedIpDownload =
-    | { kind: "redirect"; url: string; fileName: string }
-    | { kind: "response"; response: Response; fileName: string }
-    | { kind: "file"; bytes: Buffer; mimeType: string; fileName: string };
+    { kind: "redirect"; url: string; fileName: string; downloadId: string } | { kind: "response"; response: Response; fileName: string; downloadId: string } | { kind: "file"; bytes: Buffer; mimeType: string; fileName: string; downloadId: string };
+type PreparedIpDownload = { kind: "redirect"; url: string; fileName: string } | { kind: "response"; response: Response; fileName: string } | { kind: "file"; bytes: Buffer; mimeType: string; fileName: string };
 export type IpPreviewInput = { versionId?: string; itemId?: string; cover?: boolean };
 
 export async function downloadIpForUser(userId: string, request: Request, ipId: string, input: IpDownloadInput): Promise<IpDownloadResult> {

@@ -21,7 +21,10 @@ describe("IP library API client", () => {
     });
 
     it("preserves an uploaded TXT file name for a single download", async () => {
-        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("正文", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Content-Disposition": "attachment; filename=download; filename*=UTF-8''%E6%95%85%E4%BA%8B%E6%A2%97%E6%A6%82.txt" } })));
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue(new Response("正文", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Content-Disposition": "attachment; filename=download; filename*=UTF-8''%E6%95%85%E4%BA%8B%E6%A2%97%E6%A6%82.txt" } })),
+        );
         await expect(ipLibraryApi.download("ip-one", { itemIds: ["text-one"], package: false })).resolves.toMatchObject({ fileName: "故事梗概.txt", blob: expect.any(Blob) });
     });
 

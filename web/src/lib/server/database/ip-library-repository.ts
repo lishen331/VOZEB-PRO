@@ -392,7 +392,20 @@ export class IpLibraryRepository {
                 member_access_enabled, member_access_updated_by_user_id, member_access_updated_at, created_by_user_id
              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING *`,
-            [input.id, input.ipId, input.schoolId, input.mode, input.status, input.startsAt, input.endsAt || null, input.note, input.memberAccessEnabled || false, input.memberAccessUpdatedByUserId || null, input.memberAccessUpdatedAt || null, input.createdByUserId || null],
+            [
+                input.id,
+                input.ipId,
+                input.schoolId,
+                input.mode,
+                input.status,
+                input.startsAt,
+                input.endsAt || null,
+                input.note,
+                input.memberAccessEnabled || false,
+                input.memberAccessUpdatedByUserId || null,
+                input.memberAccessUpdatedAt || null,
+                input.createdByUserId || null,
+            ],
         );
         return mapGrant(result.rows[0]);
     }
@@ -409,7 +422,19 @@ export class IpLibraryRepository {
                  updated_at = $11::timestamptz
              WHERE ip_id = $1 AND id = $2
              RETURNING *`,
-            [ipId, grantId, patch.status || null, patch.endsAt !== undefined, patch.endsAt || null, patch.note ?? null, patch.memberAccessEnabled !== undefined, patch.memberAccessEnabled || false, patch.memberAccessUpdatedByUserId || null, patch.memberAccessUpdatedAt || null, patch.updatedAt],
+            [
+                ipId,
+                grantId,
+                patch.status || null,
+                patch.endsAt !== undefined,
+                patch.endsAt || null,
+                patch.note ?? null,
+                patch.memberAccessEnabled !== undefined,
+                patch.memberAccessEnabled || false,
+                patch.memberAccessUpdatedByUserId || null,
+                patch.memberAccessUpdatedAt || null,
+                patch.updatedAt,
+            ],
         );
         return result.rows[0] ? mapGrant(result.rows[0]) : null;
     }

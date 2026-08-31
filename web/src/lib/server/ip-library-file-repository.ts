@@ -122,7 +122,10 @@ export class FileIpLibraryRepository {
         return mutate(async (state) => {
             const index = state.files.findIndex((item) => item.ipId === ipId && item.id === fileId);
             if (index < 0) return false;
-            if (state.versions.some((version) => version.coverFileId === fileId || version.items.some((item) => item.fileId === fileId)) || state.downloads.some((download) => download.ipId === ipId && download.itemId && state.versions.some((version) => version.id === download.versionId && version.items.some((item) => item.id === download.itemId && item.fileId === fileId)))) {
+            if (
+                state.versions.some((version) => version.coverFileId === fileId || version.items.some((item) => item.fileId === fileId)) ||
+                state.downloads.some((download) => download.ipId === ipId && download.itemId && state.versions.some((version) => version.id === download.versionId && version.items.some((item) => item.id === download.itemId && item.fileId === fileId)))
+            ) {
                 throw new Error("IP 内容文件已被引用");
             }
             state.files.splice(index, 1);
@@ -393,7 +396,15 @@ export class FileIpLibraryRepository {
         const page = positiveInteger(input.page, 1);
         const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
         const records = (await readFile()).downloads
-            .filter((item) => (!input.ipId || item.ipId === input.ipId) && (!input.versionId || item.versionId === input.versionId) && (!input.schoolId || item.schoolId === input.schoolId) && (!input.userId || item.userId === input.userId) && (!input.downloadType || item.downloadType === input.downloadType) && (!input.result || item.result === input.result))
+            .filter(
+                (item) =>
+                    (!input.ipId || item.ipId === input.ipId) &&
+                    (!input.versionId || item.versionId === input.versionId) &&
+                    (!input.schoolId || item.schoolId === input.schoolId) &&
+                    (!input.userId || item.userId === input.userId) &&
+                    (!input.downloadType || item.downloadType === input.downloadType) &&
+                    (!input.result || item.result === input.result),
+            )
             .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id));
         return { items: structuredClone(records.slice((page - 1) * pageSize, page * pageSize)), total: records.length, page, pageSize };
     }

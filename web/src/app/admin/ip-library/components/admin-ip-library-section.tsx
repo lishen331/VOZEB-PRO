@@ -1,26 +1,14 @@
 "use client";
 
 import type { TableColumnsType } from "antd";
-import { App, Button, Drawer, Form, Input, InputNumber, Modal, Pagination, Select, Space, Table, Tabs, Tag } from "antd";
+import { App, Button, Drawer, Form, Input, InputNumber, Modal, Pagination, Select, Space, Table, Tabs, Tag, Tooltip } from "antd";
 import { Ban, Building2, FilePlus2, History, Pencil, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AdminUserIdentity } from "@/components/admin/admin-user-identity";
 import { hasAdminPermission } from "@/lib/admin-permissions";
 import type { PublicUser } from "@/lib/auth/store";
-import {
-    IP_ASSET_KINDS,
-    IP_AUTHORIZATION_MODES,
-    IP_ITEM_CATEGORIES,
-    IP_STATUSES,
-    IP_VISIBILITIES,
-    ipAuthorizationLabel,
-    type IpAssetKind,
-    type IpAuthorizationMode,
-    type IpItemCategory,
-    type IpStatus,
-    type IpVisibility,
-} from "@/lib/ip-library-domain";
+import { IP_ASSET_KINDS, IP_AUTHORIZATION_MODES, IP_ITEM_CATEGORIES, IP_STATUSES, IP_VISIBILITIES, ipAuthorizationLabel, type IpAssetKind, type IpAuthorizationMode, type IpItemCategory, type IpStatus, type IpVisibility } from "@/lib/ip-library-domain";
 import type { SchoolSummary } from "@/lib/school-domain";
 import type { IpContentFileRecord, IpDownloadResult, IpDownloadType, IpItemRecord, IpPackageRecord, IpSchoolGrantRecord, IpVersionRecord } from "@/lib/server/database/repository-types";
 import { adminEducationApi } from "@/services/api/admin-education";
@@ -129,13 +117,7 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
                 </Button>
             ) : null}
             {canManageContent && ip.status === "published" ? (
-                <Button
-                    type="text"
-                    size="small"
-                    danger
-                    icon={<Ban className="size-3.5" />}
-                    onClick={() => disableIp(ip)}
-                >
+                <Button type="text" size="small" danger icon={<Ban className="size-3.5" />} onClick={() => disableIp(ip)}>
                     停用
                 </Button>
             ) : null}
@@ -242,17 +224,7 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
             </div>
             <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage responsive showSizeChanger={false} onChange={setPage} />
 
-            <Modal
-                title={editing ? "编辑 IP 档案" : "创建 IP 档案"}
-                open={editorOpen}
-                destroyOnHidden
-                width="min(640px, 100vw)"
-                okText="保存"
-                cancelText="取消"
-                confirmLoading={saving}
-                onCancel={() => setEditorOpen(false)}
-                onOk={() => form.submit()}
-            >
+            <Modal title={editing ? "编辑 IP 档案" : "创建 IP 档案"} open={editorOpen} destroyOnHidden width="min(640px, 100vw)" okText="保存" cancelText="取消" confirmLoading={saving} onCancel={() => setEditorOpen(false)} onOk={() => form.submit()}>
                 <Form form={form} layout="vertical" onFinish={save} className="pt-2">
                     <div className="grid gap-x-3 sm:grid-cols-2">
                         <Form.Item name="title" label="IP 名称" rules={[{ required: true, message: "请填写 IP 名称" }]}>
@@ -362,11 +334,12 @@ function VersionDrawer({ ip, canManage, onClose, onChanged }: { ip?: AdminIp; ca
             width="min(760px, 100vw)"
             destroyOnHidden
             onClose={onClose}
+            styles={{ wrapper: { maxWidth: "100vw" }, header: { minWidth: 0 } }}
             extra={
                 canManage ? (
-                    <Button type="primary" icon={<FilePlus2 className="size-4" />} onClick={openNew}>
-                        新建版本
-                    </Button>
+                    <Tooltip title="新建版本">
+                        <Button type="primary" icon={<FilePlus2 className="size-4" />} aria-label="新建版本" onClick={openNew} />
+                    </Tooltip>
                 ) : null
             }
         >
@@ -386,21 +359,48 @@ function VersionDrawer({ ip, canManage, onClose, onChanged }: { ip?: AdminIp; ca
                                 <Tag color={version.status === "published" ? "green" : version.status === "draft" ? "gold" : "default"}>{versionStatusLabel[version.status]}</Tag>
                                 {canManage && version.status === "draft" ? (
                                     <>
-                                        <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => openEdit(version)}>编辑</Button>
-                                        <Button size="small" type="primary" disabled={!versionReady(version, files)} loading={saving} onClick={() => void publish(version)}>发布</Button>
+                                        <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => openEdit(version)}>
+                                            编辑
+                                        </Button>
+                                        <Button size="small" type="primary" disabled={!versionReady(version, files)} loading={saving} onClick={() => void publish(version)}>
+                                            发布
+                                        </Button>
                                     </>
                                 ) : null}
                             </Space>
                         </div>
                         {version.summary ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{version.summary}</p> : null}
-                        {version.tags.length ? <div className="mt-2 flex flex-wrap gap-1">{version.tags.map((tag) => <Tag key={tag}>{tag}</Tag>)}</div> : null}
-                        {version.coverFileId ? <div className="mt-3"><IpContentPreview ipId={version.ipId} file={files.find((file) => file.id === version.coverFileId)} compact /></div> : null}
+                        {version.tags.length ? (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                                {version.tags.map((tag) => (
+                                    <Tag key={tag}>{tag}</Tag>
+                                ))}
+                            </div>
+                        ) : null}
+                        {version.coverFileId ? (
+                            <div className="mt-3">
+                                <IpContentPreview ipId={version.ipId} file={files.find((file) => file.id === version.coverFileId)} compact />
+                            </div>
+                        ) : null}
                         <VersionItems ipId={version.ipId} items={version.items} files={files} />
                     </section>
                 ))}
             </div>
             <Pagination className="mt-3" current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
-            <Modal title={editingVersion ? `编辑 v${editingVersion.versionNumber} 草稿` : "创建不可覆盖的新版本"} open={creating} destroyOnHidden width="min(880px, 100vw)" okText="保存草稿" cancelText="取消" confirmLoading={saving} onCancel={() => { setCreating(false); setEditingVersion(undefined); }} onOk={() => form.submit()}>
+            <Modal
+                title={editingVersion ? `编辑 v${editingVersion.versionNumber} 草稿` : "创建不可覆盖的新版本"}
+                open={creating}
+                destroyOnHidden
+                width="min(880px, 100vw)"
+                okText="保存草稿"
+                cancelText="取消"
+                confirmLoading={saving}
+                onCancel={() => {
+                    setCreating(false);
+                    setEditingVersion(undefined);
+                }}
+                onOk={() => form.submit()}
+            >
                 <Form form={form} layout="vertical" onFinish={save} className="pt-2">
                     <div className="grid gap-x-3 sm:grid-cols-2">
                         <Form.Item name="title" label="版本名称" rules={[{ required: true, message: "请填写版本名称" }]}>
@@ -576,9 +576,7 @@ function GrantPanel() {
                     <article key={ip.id} className="flex items-center justify-between gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
                         <div className="min-w-0">
                             <h2 className="truncate text-sm font-medium">{ip.title}</h2>
-                            <p className="mt-1 text-xs text-zinc-500">
-                                授权方式按学校单独设置 · v{ip.versionNumber}
-                            </p>
+                            <p className="mt-1 text-xs text-zinc-500">授权方式按学校单独设置 · v{ip.versionNumber}</p>
                         </div>
                         <Button size="small" icon={<ShieldCheck className="size-3.5" />} onClick={() => setSelected(ip)}>
                             管理授权

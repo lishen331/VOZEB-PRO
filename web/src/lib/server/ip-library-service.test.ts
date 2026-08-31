@@ -86,11 +86,7 @@ describe("IP library user service", () => {
         mocks.getUserById.mockResolvedValue({ id: "user-one", role: "user", status: "active" });
         mocks.getIpPackage.mockResolvedValue(packageRecord());
         mocks.getVisibleIp.mockResolvedValue(detail());
-        mocks.getIpContentFile.mockImplementation(async (_ipId: string, fileId: string) =>
-            fileId === "file-text"
-                ? { id: fileId, kind: "text", status: "ready", extractedText: "内容" }
-                : { id: fileId, kind: "image", status: "ready" },
-        );
+        mocks.getIpContentFile.mockImplementation(async (_ipId: string, fileId: string) => (fileId === "file-text" ? { id: fileId, kind: "text", status: "ready", extractedText: "内容" } : { id: fileId, kind: "image", status: "ready" }));
         mocks.listVisibleIps.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
         mocks.requireActiveSchoolContext.mockResolvedValue({ school: { id: "school-a", status: "active" }, membership: { id: "member-a", role: "teacher", status: "active" } });
         mocks.getSchoolContextForUser.mockResolvedValue(null);

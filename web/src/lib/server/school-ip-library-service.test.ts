@@ -10,7 +10,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("./school-access-service", () => ({
     requireSchoolManager: mocks.requireSchoolManager,
     SchoolServiceError: class SchoolServiceError extends Error {
-        constructor(public readonly status: number, message: string) {
+        constructor(
+            public readonly status: number,
+            message: string,
+        ) {
             super(message);
         }
     },

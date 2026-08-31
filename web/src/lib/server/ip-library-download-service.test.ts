@@ -37,11 +37,7 @@ const baseDetail = {
         tags: ["科幻", "教学"],
         sourceNote: "平台线下审核",
         changeNote: "新增角色设定",
-        items: [
-            item("text-one", "text", "story_summary", "故事梗概", "file-text", 0),
-            item("md-one", "text", "creation_notes", "创作说明", "file-md", 1),
-            item("image-one", "image", "character", "主角", "file-image", 2),
-        ],
+        items: [item("text-one", "text", "story_summary", "故事梗概", "file-text", 0), item("md-one", "text", "creation_notes", "创作说明", "file-md", 1), item("image-one", "image", "character", "主角", "file-image", 2)],
     },
 };
 
@@ -51,7 +47,10 @@ describe("IP library downloads", () => {
         mocks.requireVisibleIp.mockResolvedValue({ userId: "user-one", schoolId: "school-a", detail: structuredClone(baseDetail) });
         mocks.getIpContentFile.mockImplementation(async (_ipId: string, fileId: string) => structuredClone(files[fileId as keyof typeof files] || null));
         mocks.recordIpDownload.mockImplementation(async (input) => ({ ...input, createdAt: "2026-08-19T00:00:00.000Z" }));
-        mocks.readIpContentFile.mockImplementation(async (_request: Request, record: (typeof files)[keyof typeof files]) => new Response(record.extractedText || "image", { headers: { "Content-Type": record.mimeType, "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(record.originalName)}` } }));
+        mocks.readIpContentFile.mockImplementation(
+            async (_request: Request, record: (typeof files)[keyof typeof files]) =>
+                new Response(record.extractedText || "image", { headers: { "Content-Type": record.mimeType, "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(record.originalName)}` } }),
+        );
         mocks.readIpContentFileBytes.mockImplementation(async (record: (typeof files)[keyof typeof files]) => Buffer.from(record.extractedText || record.id));
     });
 

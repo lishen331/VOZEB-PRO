@@ -16,21 +16,7 @@ const ACCEPT: Record<IpAssetKind, string> = {
     video: ".mp4,.webm,.mov,video/mp4,video/webm,video/quicktime",
 };
 
-export function IpContentUpload({
-    ipId,
-    kind,
-    files,
-    value,
-    onChange,
-    onUploaded,
-}: {
-    ipId: string;
-    kind: IpAssetKind;
-    files: IpContentFileRecord[];
-    value?: string;
-    onChange?: (value?: string) => void;
-    onUploaded: (file: IpContentFileRecord) => void;
-}) {
+export function IpContentUpload({ ipId, kind, files, value, onChange, onUploaded }: { ipId: string; kind: IpAssetKind; files: IpContentFileRecord[]; value?: string; onChange?: (value?: string) => void; onUploaded: (file: IpContentFileRecord) => void }) {
     const { message } = App.useApp();
     const [uploading, setUploading] = useState(false);
     const [manualText, setManualText] = useState("");
@@ -67,18 +53,15 @@ export function IpContentUpload({
                         return Upload.LIST_IGNORE;
                     }}
                 >
-                    <Button icon={<UploadIcon className="size-4" />} loading={uploading}>上传原文件</Button>
+                    <Button icon={<UploadIcon className="size-4" />} loading={uploading}>
+                        上传原文件
+                    </Button>
                 </Upload>
             </div>
             {kind === "text" ? (
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                     <Input.TextArea value={manualText} rows={3} placeholder="手工录入正文" onChange={(event) => setManualText(event.target.value)} />
-                    <Button
-                        icon={<FileText className="size-4" />}
-                        disabled={!manualText.trim()}
-                        loading={uploading}
-                        onClick={() => void upload(new File([manualText], "手工正文.txt", { type: "text/plain;charset=utf-8" }))}
-                    >
+                    <Button icon={<FileText className="size-4" />} disabled={!manualText.trim()} loading={uploading} onClick={() => void upload(new File([manualText], "手工正文.txt", { type: "text/plain;charset=utf-8" }))}>
                         保存正文
                     </Button>
                 </div>
@@ -86,7 +69,9 @@ export function IpContentUpload({
             {selected ? (
                 <div className="rounded-md border border-zinc-200 p-2 dark:border-zinc-800">
                     <div className="mb-2 flex items-center justify-between gap-2 text-xs text-zinc-500">
-                        <span className="min-w-0 truncate" title={selected.originalName}>{selected.originalName}</span>
+                        <span className="min-w-0 truncate" title={selected.originalName}>
+                            {selected.originalName}
+                        </span>
                         <Button type="text" size="small" icon={<Trash2 className="size-3.5" />} aria-label="移除当前文件" onClick={() => onChange?.(undefined)} />
                     </div>
                     <IpContentPreview ipId={ipId} file={selected} compact />

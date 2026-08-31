@@ -40,7 +40,12 @@ describe("POST /api/ip-library/:id/download", () => {
     });
 
     it("passes through a streamed local original and appends the download id", async () => {
-        mocks.downloadIpForUser.mockResolvedValue({ kind: "response", response: new Response("plain text", { headers: { "Content-Type": "text/plain", "Content-Disposition": "attachment; filename*=UTF-8''story.txt" } }), fileName: "story.txt", downloadId: "download-stream" });
+        mocks.downloadIpForUser.mockResolvedValue({
+            kind: "response",
+            response: new Response("plain text", { headers: { "Content-Type": "text/plain", "Content-Disposition": "attachment; filename*=UTF-8''story.txt" } }),
+            fileName: "story.txt",
+            downloadId: "download-stream",
+        });
         const response = await POST(new Request("http://localhost/api/ip-library/ip-one/download", { method: "POST", body: JSON.stringify({ itemIds: ["item-one"], package: false }), headers: { "Content-Type": "application/json" } }), {
             params: Promise.resolve({ id: "ip-one" }),
         });
