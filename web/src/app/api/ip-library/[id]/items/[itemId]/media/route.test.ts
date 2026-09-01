@@ -10,7 +10,7 @@ describe("GET /api/ip-library/:id/items/:itemId/media", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
-        mocks.previewIpMediaForUser.mockResolvedValue({ kind: "file", bytes: Buffer.from("image"), mimeType: "image/png", fileName: "主角.png" });
+        mocks.previewIpMediaForUser.mockResolvedValue({ kind: "response", response: new Response("image", { headers: { "Content-Type": "image/png" } }), fileName: "主角.png" });
     });
 
     it("streams an authorized item inline with private caching", async () => {

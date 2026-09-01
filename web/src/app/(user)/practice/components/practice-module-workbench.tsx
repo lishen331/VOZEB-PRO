@@ -6,7 +6,7 @@ import { ArrowLeft, CheckCircle2, RefreshCw, Send } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { IpReferencePicker, ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
-import type { IpReference } from "@/lib/ip-library-domain";
+import { IP_REFERENCE_ENTRY_VISIBLE, type IpReference } from "@/lib/ip-library-domain";
 import type { PracticeModuleKind } from "@/lib/practice-domain";
 import { practiceApi, type PracticeSession, type PracticeSessionInput, type PracticeSessionResult } from "@/services/api/practice";
 import { PRACTICE_MODULES } from "./practice-home";
@@ -170,9 +170,11 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                             <Input.TextArea id="practice-references" value={referenceText} onChange={(event) => setReferenceText(event.target.value)} placeholder="例如：asset-0001" autoSize={{ minRows: 2, maxRows: 4 }} className="!mt-2" />
                         </div>
                     ) : null}
-                    <div className="mt-4">
-                        <IpReferencePicker value={ipReferences} onChange={setIpReferences} />
-                    </div>
+                    {IP_REFERENCE_ENTRY_VISIBLE ? (
+                        <div className="mt-4">
+                            <IpReferencePicker value={ipReferences} onChange={setIpReferences} />
+                        </div>
+                    ) : null}
                     <div className="mt-4 flex justify-end">
                         <Button type="primary" icon={<Send className="size-4" />} loading={submitting} disabled={!prompt.trim()} onClick={() => void submit()}>
                             开始练习

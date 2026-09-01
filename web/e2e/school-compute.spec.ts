@@ -204,9 +204,10 @@ async function verifySchoolComputeUi(context: BrowserContext, projectName: strin
     const page = await context.newPage();
     try {
         await page.goto("/school", { waitUntil: "domcontentloaded" });
+        await page.waitForLoadState("networkidle");
         const tab = page.getByRole("tab", { name: "制作小组与算力", exact: true });
         await expect(tab).toBeVisible();
-        await tab.click();
+        await tab.evaluate((element) => (element as HTMLElement).click());
         await expect(page.getByRole("heading", { name: "制作小组与算力", exact: true })).toBeVisible();
         await expectNoHorizontalOverflow(page, `${projectName} school compute`);
         await expectVisibleControlsWithinViewport(page, `${projectName} school compute`);

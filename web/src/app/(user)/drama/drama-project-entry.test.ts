@@ -11,6 +11,7 @@ describe("drama project entry", () => {
         expect(source).toContain('htmlFor="drama-project-title"');
         expect(source).toContain('<div className="min-w-0">');
         expect(source).not.toContain('<label className="block space-y-2.5">');
+        expect(source).toContain("IP_REFERENCE_ENTRY_VISIBLE ? <IpReferencePicker");
     });
 
     it("uses a whole-card project link while keeping publish and delete as independent actions", async () => {

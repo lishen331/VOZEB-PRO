@@ -6,8 +6,8 @@ import { createIpLibraryRepository, requireActiveIpLibraryUser, requireVisibleIp
 import { getSchoolContextForUser, requireActiveSchoolContext, SchoolServiceError } from "./school-access-service";
 
 export type IpListInput = { scope: "public" | "school"; page?: number; pageSize?: number; keyword?: string; kind?: IpAssetKind; category?: IpItemCategory };
-export type IpSummary = Omit<IpSummaryRecord, "authorizationMode" | "grantMode" | "createdByUserId" | "coverAssetId"> & { isExclusive: boolean; coverPreviewUrl?: string };
-export type IpPublicItem = Omit<IpItemRecord, "assetId"> & { previewUrl?: string };
+export type IpSummary = Omit<IpSummaryRecord, "authorizationMode" | "grantMode" | "createdByUserId" | "coverAssetId" | "coverFileId"> & { isExclusive: boolean; coverPreviewUrl?: string };
+export type IpPublicItem = Omit<IpItemRecord, "assetId" | "fileId" | "textContent"> & { textContent?: string; previewUrl?: string };
 export type IpDetail = Omit<IpDetailRecord, "authorizationMode" | "grantMode" | "createdByUserId" | "coverAssetId" | "version"> & {
     isExclusive: boolean;
     coverPreviewUrl?: string;
@@ -75,20 +75,28 @@ function referenceUsageId(userId: string, ipId: string, versionId: string, itemI
 }
 
 function toUserSummary(record: IpSummaryRecord): IpSummary {
-    const { authorizationMode: _authorizationMode, grantMode, createdByUserId: _createdByUserId, coverAssetId, ...summary } = record;
-    return { ...summary, isExclusive: grantMode === "exclusive", ...(coverAssetId ? { coverPreviewUrl: coverPreview(record.id, record.currentVersionId) } : {}) };
+    const { authorizationMode: _authorizationMode, grantMode, createdByUserId: _createdByUserId, coverAssetId: _coverAssetId, coverFileId, ...summary } = record;
+    return { ...summary, isExclusive: grantMode === "exclusive", ...(coverFileId ? { coverPreviewUrl: coverPreview(record.id, record.currentVersionId) } : {}) };
 }
 
-function toUserDetail(record: IpDetailRecord): IpDetail {
-    const { authorizationMode: _authorizationMode, grantMode, createdByUserId: _createdByUserId, coverAssetId, version, ...detail } = record;
+async function toUserDetail(record: IpDetailRecord): Promise<IpDetail> {
+    const { authorizationMode: _authorizationMode, grantMode, createdByUserId: _createdByUserId, coverAssetId: _coverAssetId, version, ...detail } = record;
     const { manifest: _manifest, createdByUserId: _versionCreator, items, ...publicVersion } = version;
+    const repository = createIpLibraryRepository();
+    const files = await Promise.all(items.map((item) => (item.fileId ? repository.getIpContentFile(record.id, item.fileId) : null)));
     return {
         ...detail,
+        title: version.title,
+        summary: version.summary,
         isExclusive: grantMode === "exclusive",
-        ...(coverAssetId ? { coverPreviewUrl: coverPreview(record.id, version.id) } : {}),
+        ...(version.coverFileId ? { coverPreviewUrl: coverPreview(record.id, version.id) } : {}),
         version: {
             ...publicVersion,
-            items: items.map(({ assetId, ...item }) => ({ ...item, ...(assetId ? { previewUrl: itemPreview(record.id, version.id, item.id) } : {}) })),
+            items: items.map(({ assetId: _assetId, fileId: _fileId, textContent: _textContent, ...item }, index) => ({
+                ...item,
+                ...(files[index]?.kind === "text" && files[index]?.extractedText ? { textContent: files[index]!.extractedText } : {}),
+                ...(files[index]?.status === "ready" && files[index]?.kind !== "text" ? { previewUrl: itemPreview(record.id, version.id, item.id) } : {}),
+            })),
         },
     };
 }
