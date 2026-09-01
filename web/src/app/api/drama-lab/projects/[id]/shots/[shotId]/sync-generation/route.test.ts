@@ -93,6 +93,18 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
         expect((await response.json()).data.shot).toMatchObject({ storyboardImageUrl: "/api/generation-log-assets/image.png", videoUrl: "/api/generation-log-assets/video.mp4" });
     });
 
+    it("returns the worker execution phase without persisting scheduler internals", async () => {
+        mocks.getImageTask.mockResolvedValue({ id: "image-task-one", userId: "user-one", status: "running", prompt: "server-image-prompt" });
+        mocks.getVideoTask.mockResolvedValue({ id: "video-task-one", userId: "user-one", status: "running", executionPhase: "result_ready", prompt: "server-video-prompt" });
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        const body = await response.json();
+        expect(body.data).toMatchObject({ executionPhase: "result_ready", shot: { generationExecutionPhase: "result_ready" } });
+        expect(mocks.persistDramaLabShotUpdate).not.toHaveBeenCalled();
+    });
+
     it("does not rewrite a completed frame history entry on every poll", async () => {
         const frameShot = {
             ...shot,
@@ -307,6 +319,41 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
             }),
         );
         expect((await response.json()).data.shot).not.toMatchObject({ storyboardImageUrl: "/wrong-shot.png", videoUrl: "/wrong-shot.mp4" });
+    });
+
+    it("rejects a task whose nested payload context belongs to another shot", async () => {
+        mocks.getImageTask.mockResolvedValue({ id: "image-task-one", userId: "user-one", status: "running" });
+        mocks.getVideoTask.mockResolvedValue({
+            id: "video-task-one",
+            userId: "user-one",
+            status: "success",
+            context: { surface: "drama", projectId: "project-other", episodeId: "episode-one", shotId: "shot-one" },
+            prompt: "nested-foreign",
+            result: { url: "/private-context.mp4" },
+        });
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(expect.objectContaining({ patch: expect.objectContaining({ generationTaskId: undefined, generationStatus: "error" }) }));
+        expect((await response.json()).data.shot).not.toMatchObject({ videoUrl: "/private-context.mp4" });
+    });
+
+    it("accepts a legacy task whose complete context is nested under payload.context", async () => {
+        mocks.getImageTask.mockResolvedValue({ id: "image-task-one", userId: "user-one", status: "running" });
+        mocks.getVideoTask.mockResolvedValue({
+            id: "video-task-one",
+            userId: "user-one",
+            status: "success",
+            context: { surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" },
+            prompt: "nested-valid",
+            result: { url: "/api/generation-log-assets/nested-valid.mp4" },
+        });
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(expect.objectContaining({ patch: expect.objectContaining({ generationStatus: "success", videoUrl: "/api/generation-log-assets/nested-valid.mp4" }) }));
     });
 
     it("detaches an owned task whose project context does not match the current shot", async () => {

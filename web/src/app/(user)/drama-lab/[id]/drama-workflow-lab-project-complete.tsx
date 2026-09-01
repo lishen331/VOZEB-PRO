@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { DramaLabVisualAssetsPanel } from "./drama-lab-visual-assets-panel";
 import { DramaLabNovelImport } from "./drama-lab-novel-import";
 import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } from "./drama-lab-video-task-recovery";
+import { DramaLabVideoBatchWaitError, waitForDramaLabVideoBatch, type DramaLabVideoBatchExecutionPhase } from "@/lib/drama-lab-video-batch";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -215,6 +216,8 @@ export interface Shot {
     generationStatus?: DramaLabTaskStatus;
     generationAttempt?: number;
     generationTaskId?: string;
+    /** Non-persisted execution detail returned by sync-generation. */
+    generationExecutionPhase?: DramaLabVideoBatchExecutionPhase;
     generationNeedsReview?: boolean;
     generationError?: string;
     videoHistory?: DramaLabGenerationHistory[];
@@ -393,6 +396,7 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
         generationStatus: taskStatus(shot.generationStatus) || (videoUrl ? "success" : "idle"),
         generationAttempt: typeof shot.generationAttempt === "number" ? shot.generationAttempt : undefined,
         generationTaskId: typeof shot.generationTaskId === "string" ? shot.generationTaskId : undefined,
+        generationExecutionPhase: normalizeVideoExecutionPhase(shot.generationExecutionPhase ?? shot.executionPhase),
         generationNeedsReview: shot.generationNeedsReview === true ? true : undefined,
         generationError: typeof shot.generationError === "string" ? shot.generationError : undefined,
         videoHistory: normalizeGenerationHistory(shot.videoHistory),
@@ -509,6 +513,7 @@ function mergeSynchronizedShot(current: Shot, raw: unknown, episodeId: string): 
         "generationStatus",
         "generationAttempt",
         "generationTaskId",
+        "generationExecutionPhase",
         "generationNeedsReview",
         "generationError",
         "videoUrl",
@@ -573,6 +578,38 @@ function normalizeGenerationHistory(value: unknown): DramaLabGenerationHistory[]
     });
 }
 
+function normalizeVideoExecutionPhase(value: unknown): DramaLabVideoBatchExecutionPhase | undefined {
+    return typeof value === "string" && ["created", "submitting", "submitted", "polling", "result_ready", "persisting", "cancel_requested", "cancel_polling", "needs_review", "completed"].includes(value)
+        ? (value as DramaLabVideoBatchExecutionPhase)
+        : undefined;
+}
+
+function abortOperationError() {
+    return new DOMException("Aborted", "AbortError");
+}
+
+function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal) {
+    if (!signal) return promise;
+    if (signal.aborted) return Promise.reject(abortOperationError());
+    return new Promise<T>((resolve, reject) => {
+        const abort = () => {
+            signal.removeEventListener("abort", abort);
+            reject(abortOperationError());
+        };
+        signal.addEventListener("abort", abort, { once: true });
+        promise.then(
+            (value) => {
+                signal.removeEventListener("abort", abort);
+                resolve(value);
+            },
+            (error) => {
+                signal.removeEventListener("abort", abort);
+                reject(error);
+            },
+        );
+    });
+}
+
 function missingShotAssetLabels(project: Project, shot: Shot) {
     const missing: string[] = [];
     const hasReference = (asset: Character | Scene | Prop) => {
@@ -600,6 +637,10 @@ function dramaLabGenerationSyncKey(shot: Shot) {
 
 function isDramaLabTaskActive(status: DramaLabTaskStatus | undefined) {
     return status === "queued" || status === "pending" || status === "running";
+}
+
+function isDramaLabExecutionActive(phase: DramaLabVideoBatchExecutionPhase | undefined) {
+    return phase === "created" || phase === "submitting" || phase === "submitted" || phase === "polling" || phase === "result_ready" || phase === "persisting" || phase === "cancel_requested" || phase === "cancel_polling";
 }
 
 function normalizeProjectShots(project: Record<string, unknown>, episodes: Episode[], legacy: Record<string, unknown>): Shot[] {
@@ -701,7 +742,9 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             });
 
             if (episodes.length > 0) {
-                setActiveEpisodeId(initialEpisodeId || episodes[0].id);
+                // Keep the episode currently being edited when a background
+                // task recovery reloads the project.
+                setActiveEpisodeId((current) => (current && episodes.some((episode) => episode.id === current) ? current : initialEpisodeId || episodes[0].id));
             }
             setExpandedEpisodeIds(new Set(episodes.map((episode: Episode) => episode.id)));
         } catch (err) {
@@ -751,6 +794,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             if (!current) return false;
             const updates = typeof updatesOrUpdater === "function" ? updatesOrUpdater(current) : updatesOrUpdater;
             const nextProject = { ...current, ...updates };
+            const persistedShots = nextProject.shots.map(({ generationExecutionPhase: _generationExecutionPhase, ...shot }) => shot);
 
             setSaving(true);
             try {
@@ -766,7 +810,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                         characters: nextProject.characters,
                         scenes: nextProject.scenes,
                         props: nextProject.props,
-                        shots: nextProject.shots,
+                        shots: persistedShots,
                     }),
                 });
 
@@ -2762,19 +2806,29 @@ function StoryboardPanel({
     const [startingKeys, setStartingKeys] = useState<Set<string>>(() => new Set());
     const startingKeysRef = useRef(new Set<string>());
     const [batchRunning, setBatchRunning] = useState<"image" | "video" | "">("");
+    const batchRunningRef = useRef<"image" | "video" | "">("");
+    const batchAbortRef = useRef<AbortController | null>(null);
+    const operationAbortRef = useRef(new Map<string, AbortController>());
+    const disposedRef = useRef(false);
+    const latestProjectRef = useRef(project);
+    latestProjectRef.current = project;
     const [form] = Form.useForm();
     const episodeId = episode?.id;
 
     const episodeShots = episode ? project.shots.filter((s) => s.episodeId === episode.id).sort((a, b) => a.shotNumber - b.shotNumber) : [];
-    const activeTaskShots = episodeShots.filter((shot) => isDramaLabTaskActive(shot.storyboardStatus) || isDramaLabTaskActive(shot.generationStatus) || Object.values(shot.frames || {}).some((frame) => isDramaLabTaskActive(frame?.status)));
+    const activeTaskShots = episodeShots.filter((shot) => isDramaLabTaskActive(shot.storyboardStatus) || isDramaLabTaskActive(shot.generationStatus) || isDramaLabExecutionActive(shot.generationExecutionPhase) || Object.values(shot.frames || {}).some((frame) => isDramaLabTaskActive(frame?.status)));
     const activeTaskShotsRef = useRef(activeTaskShots);
     activeTaskShotsRef.current = activeTaskShots;
     const activeTaskSignature = activeTaskShots.map(dramaLabGenerationSyncKey).join("|");
     const automaticSyncPausedRef = useRef(new Set<string>());
-    const syncInFlightRef = useRef(new Map<string, Promise<void>>());
+    const syncInFlightRef = useRef(new Map<string, { promise: Promise<Shot | undefined>; controller: AbortController }>());
     const currentEpisodeIdRef = useRef(episodeId);
     currentEpisodeIdRef.current = episodeId;
     const [automaticSyncRevision, setAutomaticSyncRevision] = useState(0);
+    const recoveryAttemptedRef = useRef(new Set<string>());
+    const recoveryInFlightRef = useRef(new Map<string, Promise<boolean>>());
+    const recoveryStateRef = useRef(new Map<string, "pending" | "ready" | "failed">());
+    const recoveryAbortRef = useRef<AbortController | null>(null);
 
     const updateShot = async (shotId: string, patch: Partial<Shot>, options: SaveOptions = { silent: true }) => {
         const saved = await onSave(
@@ -2787,14 +2841,17 @@ function StoryboardPanel({
     };
 
     const syncShot = useCallback(
-        async (shotId: string, silent = true) => {
+        async (shotId: string, silent = true, signal?: AbortSignal): Promise<Shot | undefined> => {
             if (!episodeId) return;
-            const syncKey = `${episodeId}:${shotId}`;
+            const syncKey = `${project.id}:${episodeId}:${shotId}`;
             const existing = syncInFlightRef.current.get(syncKey);
-            if (existing) return existing;
-            const pending = (async () => {
-                const controller = new AbortController();
+            if (existing) return raceWithAbort(existing.promise, signal);
+            const controller = new AbortController();
+            const pending = Promise.resolve().then(async () => {
                 const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+                const abortFromCaller = () => controller.abort();
+                if (signal?.aborted) controller.abort();
+                signal?.addEventListener("abort", abortFromCaller, { once: true });
                 try {
                     const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shotId)}/sync-generation?episodeId=${encodeURIComponent(episodeId)}`, {
                         method: "POST",
@@ -2804,17 +2861,22 @@ function StoryboardPanel({
                     const data = await response.json();
                     if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务状态同步失败");
                     if (!data.data?.shot) throw new Error("任务状态同步响应缺少分镜数据");
-                    if (currentEpisodeIdRef.current === episodeId) onShotSynced(episodeId, shotId, data.data.shot);
-                    if (!silent) messageApi.success("任务状态已同步");
+                    const responsePhase = normalizeVideoExecutionPhase(data.data.shot.generationExecutionPhase ?? data.data.executionPhase);
+                    const responseShot = responsePhase && typeof data.data.shot === "object" ? { ...data.data.shot, generationExecutionPhase: responsePhase } : data.data.shot;
+                    if (!disposedRef.current && currentEpisodeIdRef.current === episodeId) onShotSynced(episodeId, shotId, responseShot);
+                    if (!disposedRef.current && !silent) messageApi.success("任务状态已同步");
+                    return responseShot as Shot;
                 } catch (error) {
+                    if (error instanceof DOMException && error.name === "AbortError" && (controller.signal.aborted || signal?.aborted || disposedRef.current)) throw error;
                     if (error instanceof DOMException && error.name === "AbortError") throw new Error("任务状态同步超时，请稍后使用同步按钮继续检查");
                     throw error;
                 } finally {
+                    signal?.removeEventListener("abort", abortFromCaller);
                     window.clearTimeout(timeoutId);
-                    syncInFlightRef.current.delete(syncKey);
+                    if (syncInFlightRef.current.get(syncKey)?.promise === pending) syncInFlightRef.current.delete(syncKey);
                 }
-            })();
-            syncInFlightRef.current.set(syncKey, pending);
+            });
+            syncInFlightRef.current.set(syncKey, { promise: pending, controller });
             return pending;
         },
         [episodeId, messageApi, onShotSynced, project.id],
@@ -2831,10 +2893,51 @@ function StoryboardPanel({
         });
     };
 
+    const abortTrackedOperations = useCallback(() => {
+        batchAbortRef.current?.abort();
+        recoveryAbortRef.current?.abort();
+        for (const controller of operationAbortRef.current.values()) controller.abort();
+        operationAbortRef.current.clear();
+        for (const request of syncInFlightRef.current.values()) request.controller.abort();
+        syncInFlightRef.current.clear();
+        for (const key of startingKeysRef.current) messageApi.destroy(key);
+        messageApi.destroy("drama-video-batch");
+        startingKeysRef.current.clear();
+        if (!disposedRef.current) {
+            setStartingKeys(new Set());
+            batchRunningRef.current = "";
+            setBatchRunning("");
+            batchAbortRef.current = null;
+        }
+    }, [messageApi]);
+
+    useEffect(
+        () => {
+            disposedRef.current = false;
+            return () => {
+                disposedRef.current = true;
+                abortTrackedOperations();
+            };
+        },
+        [abortTrackedOperations],
+    );
+
+    // Register the scope cleanup before the polling effects below. React runs
+    // dependency cleanups before the next effect setup; keeping this effect
+    // first guarantees that an old episode is aborted before the new episode
+    // starts its initial automatic sync.
+    useEffect(() => {
+        return () => {
+            abortTrackedOperations();
+        };
+    }, [abortTrackedOperations, episodeId, project.id]);
+
     const applyCreatedTask = (shot: Shot, kind: "image" | "video", taskId: string) => {
         onShotSynced(episodeId!, shot.id, {
             id: shot.id,
-            ...(kind === "image" ? { storyboardStatus: "running", storyboardTaskId: taskId, storyboardError: undefined } : { generationStatus: "running", generationTaskId: taskId, generationNeedsReview: undefined, generationError: undefined }),
+            ...(kind === "image"
+                ? { storyboardStatus: "running", storyboardTaskId: taskId, storyboardError: undefined }
+                : { generationStatus: "running", generationTaskId: taskId, generationExecutionPhase: "created" as const, generationNeedsReview: undefined, generationError: undefined }),
         });
     };
 
@@ -2875,7 +2978,8 @@ function StoryboardPanel({
                 if (automaticSyncPausedRef.current.has(taskKey)) continue;
                 try {
                     await syncShot(shot.id);
-                } catch {
+                } catch (error) {
+                    if (disposed || (error instanceof DOMException && error.name === "AbortError")) return;
                     if (!automaticSyncPausedRef.current.has(taskKey)) {
                         automaticSyncPausedRef.current.add(taskKey);
                         messageApi.warning({
@@ -2895,6 +2999,71 @@ function StoryboardPanel({
             if (timer !== undefined) window.clearTimeout(timer);
         };
     }, [activeTaskSignature, automaticSyncRevision, episodeId, messageApi, syncShot]);
+
+    // Re-discover durable video tasks whenever an episode is opened. This is
+    // intentionally scoped to the current project and episode; it repairs a
+    // lost in-memory binding without allowing a task from another project to
+    // be guessed from a prompt or a display name.
+    useEffect(() => {
+        if (!episodeId) return;
+        const recoveryKey = `${project.id}:${episodeId}`;
+        const previousState = recoveryStateRef.current.get(recoveryKey);
+        if (previousState === "pending" || previousState === "ready" || recoveryAttemptedRef.current.has(recoveryKey)) return;
+        let disposed = false;
+        const controller = new AbortController();
+        recoveryAbortRef.current?.abort();
+        recoveryAbortRef.current = controller;
+        recoveryStateRef.current.set(recoveryKey, "pending");
+
+        const recover = async (): Promise<boolean> => {
+            try {
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/episodes/${encodeURIComponent(episodeId)}/recover-generation`, {
+                    method: "GET",
+                    cache: "no-store",
+                    signal: controller.signal,
+                });
+                await assertJsonApiResponse(response);
+                const data = await response.json();
+                if (!response.ok || data.code !== 0) throw new Error(data.msg || "视频任务恢复失败");
+                if (disposed) return false;
+                const result = data.data as { tasks?: Array<{ binding?: string }>; syncedShotIds?: string[]; syncErrors?: unknown[] } | undefined;
+                const discovered = Boolean(result?.tasks?.some((task) => task.binding === "discovered"));
+                const changed = discovered || Boolean(result?.syncedShotIds?.length);
+                if (changed) await onReload();
+                if (disposed || controller.signal.aborted) return false;
+                if (result?.syncErrors?.length) {
+                    messageApi.warning({ key: `drama-lab-recovery:${episodeId}`, content: "部分分镜视频任务未能自动恢复，请在对应分镜卡片中手动同步。", duration: 6 });
+                }
+                recoveryAttemptedRef.current.add(recoveryKey);
+                recoveryStateRef.current.set(recoveryKey, "ready");
+                return true;
+            } catch (error) {
+                if (disposed || controller.signal.aborted) return false;
+                recoveryStateRef.current.set(recoveryKey, "failed");
+                messageApi.warning({ key: `drama-lab-recovery:${episodeId}`, content: error instanceof Error ? `${error.message}，可在分镜卡片中手动同步。` : "视频任务恢复失败，可在分镜卡片中手动同步。", duration: 6 });
+                return false;
+            } finally {
+                if (recoveryAbortRef.current === controller) recoveryAbortRef.current = null;
+            }
+        };
+        const pending = recover();
+        recoveryInFlightRef.current.set(recoveryKey, pending);
+        void pending.then(
+            () => {
+                if (recoveryInFlightRef.current.get(recoveryKey) === pending) recoveryInFlightRef.current.delete(recoveryKey);
+            },
+            () => {
+                if (recoveryInFlightRef.current.get(recoveryKey) === pending) recoveryInFlightRef.current.delete(recoveryKey);
+            },
+        );
+        return () => {
+            disposed = true;
+            controller.abort();
+            if (recoveryAbortRef.current === controller) recoveryAbortRef.current = null;
+            if (recoveryInFlightRef.current.get(recoveryKey) === pending) recoveryInFlightRef.current.delete(recoveryKey);
+            if (recoveryStateRef.current.get(recoveryKey) === "pending") recoveryStateRef.current.delete(recoveryKey);
+        };
+    }, [episodeId, messageApi, onReload, project.id]);
 
     const handleAdd = () => {
         setEditingShot(null);
@@ -3013,11 +3182,13 @@ function StoryboardPanel({
         });
     };
 
-    const startGeneration = async (shot: Shot, kind: "image" | "video") => {
-        if (!episode) return;
+    const startGeneration = async (shot: Shot, kind: "image" | "video", signal?: AbortSignal): Promise<string | undefined> => {
+        if (!episode) return undefined;
+        if (signal?.aborted || disposedRef.current) return undefined;
+        if (currentEpisodeIdRef.current !== episode.id || latestProjectRef.current.id !== project.id) return undefined;
         if (kind === "video" && requiresDramaLabVideoTaskCheck(shot)) {
             messageApi.warning("当前视频任务待检查，请先点击“检查状态”，不会重复提交生成任务。");
-            return;
+            return undefined;
         }
         if (kind === "video" && !shot.frames?.key?.url && !shot.storyboardImageUrl) {
             Modal.warning({
@@ -3025,7 +3196,7 @@ function StoryboardPanel({
                 content: "请先生成当前镜头的关键帧或分镜图，再提交视频生成任务。",
                 okText: "知道了",
             });
-            return;
+            return undefined;
         }
         if (kind === "image") {
             const missing = missingShotAssetLabels(project, shot);
@@ -3035,35 +3206,52 @@ function StoryboardPanel({
                     content: `当前镜头绑定的资产缺少参考图：${missing.join("、")}。请先到“资产准备”中生成或添加参考图。`,
                     okText: "知道了",
                 });
-                return;
+                return undefined;
             }
         }
         const actionKey = `${kind}:${shot.id}`;
         if (startingKeysRef.current.has(actionKey)) return;
+        const operationEpisodeId = episode.id;
+        const operationProjectId = project.id;
+        const ownedController = signal ? undefined : new AbortController();
+        const requestSignal = signal || ownedController?.signal;
+        const isStale = () => disposedRef.current || currentEpisodeIdRef.current !== operationEpisodeId || latestProjectRef.current.id !== operationProjectId;
+        if (ownedController) operationAbortRef.current.set(actionKey, ownedController);
         try {
             setActionBusy(actionKey, true);
             messageApi.loading({ content: kind === "image" ? "正在创建分镜图任务..." : "正在创建分镜视频任务...", key: actionKey, duration: 0 });
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-${kind}?episodeId=${encodeURIComponent(episode.id)}`, {
                 method: "POST",
+                signal: requestSignal,
             });
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务创建失败");
             const taskId = typeof data.data?.task?.id === "string" ? data.data.task.id : "";
             if (!taskId) throw new Error("任务创建响应缺少任务 ID");
+            if (requestSignal?.aborted || isStale()) return taskId;
             // Keep the new task in this view even if the immediately following
             // sync request fails. The server has already persisted it.
             applyCreatedTask(shot, kind, taskId);
             // The generation route already persists the task ID. Sync just this
             // shot so a slow project reload cannot leave the card in a stale state.
-            await syncShot(shot.id, false).catch((error) => {
+            if (requestSignal?.aborted || isStale()) return taskId;
+            await syncShot(shot.id, false, requestSignal).catch((error) => {
+                if (requestSignal?.aborted || isStale()) throw error;
                 messageApi.warning({ content: error instanceof Error ? `${error.message}，任务已创建，可稍后同步。` : "任务已创建，可稍后同步。", key: `drama-lab-initial-sync:${shot.id}`, duration: 6 });
             });
+            if (requestSignal?.aborted || isStale()) return taskId;
             messageApi.success({ content: kind === "image" ? "分镜图任务已提交" : "分镜视频任务已提交", key: actionKey });
+            return taskId;
         } catch (err) {
+            if (requestSignal?.aborted || isStale()) return undefined;
             messageApi.error({ content: err instanceof Error ? err.message : "任务创建失败", key: actionKey, duration: 6 });
+            return undefined;
         } finally {
-            setActionBusy(actionKey, false);
+            if (ownedController && operationAbortRef.current.get(actionKey) === ownedController) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+            if (requestSignal?.aborted || isStale()) messageApi.destroy(actionKey);
         }
     };
 
@@ -3071,10 +3259,14 @@ function StoryboardPanel({
         if (!shot.generationTaskId) return;
         const actionKey = `video-status:${shot.id}`;
         if (startingKeysRef.current.has(actionKey)) return;
+        const operationEpisodeId = episodeId;
+        const operationProjectId = project.id;
+        const isStale = () => disposedRef.current || currentEpisodeIdRef.current !== operationEpisodeId || latestProjectRef.current.id !== operationProjectId;
+        const controller = new AbortController();
+        operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
             messageApi.loading({ content: "正在检查原视频任务状态...", key: actionKey, duration: 0 });
-            const controller = new AbortController();
             const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
             try {
                 await recoverVideoGenerationTask(
@@ -3090,30 +3282,167 @@ function StoryboardPanel({
             } finally {
                 window.clearTimeout(timeoutId);
             }
-            await syncShot(shot.id, true);
+            if (controller.signal.aborted || isStale()) return;
+            await syncShot(shot.id, true, controller.signal);
+            if (controller.signal.aborted || isStale()) return;
             messageApi.success({ content: "已检查原视频任务状态，正在同步结果。", key: actionKey, duration: 3 });
         } catch (error) {
             // The recovery endpoint may have just settled the original task. Sync it once
             // so the card receives its definitive result or terminal error.
-            await syncShot(shot.id, true).catch(() => undefined);
-            messageApi.error({ content: error instanceof Error ? error.message : "检查原视频任务状态失败", key: actionKey, duration: 6 });
+            if (!controller.signal.aborted && !isStale()) {
+                await syncShot(shot.id, true, controller.signal).catch(() => undefined);
+                if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "检查原视频任务状态失败", key: actionKey, duration: 6 });
+            }
         } finally {
-            setActionBusy(actionKey, false);
+            if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+            if (controller.signal.aborted || isStale()) messageApi.destroy(actionKey);
         }
     };
 
+    const waitForEpisodeRecovery = async (recoveryKey: string, signal: AbortSignal) => {
+        const pending = recoveryInFlightRef.current.get(recoveryKey);
+        if (pending) await raceWithAbort(pending, signal);
+        const state = recoveryStateRef.current.get(recoveryKey);
+        // A batch must never race the mount effect that starts recovery. An
+        // absent state means recovery has not been established yet, not that
+        // it succeeded; the user can retry once the episode is ready.
+        return state === "ready" || recoveryAttemptedRef.current.has(recoveryKey);
+    };
+
     const runBatch = async (kind: "image" | "video") => {
-        const candidates = episodeShots.filter((shot) =>
-            kind === "image"
-                ? !shot.storyboardImageUrl && !isDramaLabTaskActive(shot.storyboardStatus)
-                : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) && !shot.videoUrl && !isDramaLabTaskActive(shot.generationStatus) && !requiresDramaLabVideoTaskCheck(shot),
-        );
-        if (!candidates.length) return messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
+        if (!episode || batchRunningRef.current) return;
+        const currentEpisode = episode;
+        const recoveryKey = `${project.id}:${currentEpisode.id}`;
+        // Set the lock before the first await. React state is intentionally not
+        // used as the mutex because two clicks can arrive in the same event
+        // turn before a re-render commits.
+        batchRunningRef.current = kind;
         setBatchRunning(kind);
+        const abortController = new AbortController();
+        batchAbortRef.current?.abort();
+        batchAbortRef.current = abortController;
         try {
-            for (const shot of candidates) await startGeneration(shot, kind);
+            try {
+                const recoveryReady = await waitForEpisodeRecovery(recoveryKey, abortController.signal);
+                if (!recoveryReady) {
+                    if (!disposedRef.current && !abortController.signal.aborted) messageApi.warning("剧集任务恢复未完成，请先同步现有任务后再批量生成");
+                    return;
+                }
+            } catch (error) {
+                if (abortController.signal.aborted || disposedRef.current) return;
+                messageApi.warning({ content: error instanceof Error ? error.message : "剧集任务恢复失败，请先同步现有任务", key: "drama-video-batch", duration: 6 });
+                return;
+            }
+            if (abortController.signal.aborted || disposedRef.current) return;
+            const sourceProject = latestProjectRef.current;
+            const sourceShots = sourceProject.shots.filter((shot) => shot.episodeId === currentEpisode.id).sort((a, b) => a.shotNumber - b.shotNumber);
+            const candidates = sourceShots.filter((shot) =>
+                kind === "image"
+                    ? !shot.storyboardImageUrl && !isDramaLabTaskActive(shot.storyboardStatus)
+                    : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) &&
+                      !shot.videoUrl &&
+                      !requiresDramaLabVideoTaskCheck(shot) &&
+                      (!isDramaLabTaskActive(shot.generationStatus) || Boolean(shot.generationTaskId)) &&
+                      !isDramaLabExecutionActive(shot.generationExecutionPhase),
+            );
+            if (!candidates.length) {
+                if (!disposedRef.current) messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
+                return;
+            }
+            const targets: Array<{ shotId: string; taskId: string }> = [];
+            const submissionFailures: Array<{ shotId: string; error: string }> = [];
+            for (const shot of candidates) {
+                if (abortController.signal.aborted || disposedRef.current) return;
+                let observedShot = shot;
+                if (kind === "video" && shot.generationTaskId) {
+                    // Reconcile a task retained by the server before creating
+                    // a new one after a stale page refresh.
+                    observedShot = (await syncShot(shot.id, true, abortController.signal).catch(() => undefined)) || shot;
+                    if (observedShot.generationTaskId && (isDramaLabTaskActive(observedShot.generationStatus) || observedShot.generationNeedsReview)) {
+                        targets.push({ shotId: observedShot.id, taskId: observedShot.generationTaskId });
+                        continue;
+                    }
+                }
+                const taskId = await startGeneration(observedShot, kind, abortController.signal);
+                if (kind === "video") {
+                    if (taskId) targets.push({ shotId: observedShot.id, taskId });
+                    else if (!abortController.signal.aborted && !disposedRef.current) submissionFailures.push({ shotId: observedShot.id, error: "任务未创建" });
+                }
+            }
+            if (kind === "video" && (targets.length || submissionFailures.length) && !abortController.signal.aborted && !disposedRef.current) {
+                const summary = await waitForDramaLabVideoBatch({
+                    targets,
+                    initialFailures: submissionFailures,
+                    signal: abortController.signal,
+                    // Keep a stuck provider from leaving the workbench in a
+                    // spinner forever; the task remains recoverable by sync.
+                    maxPollRounds: 240,
+                    read: async (target, context) => {
+                        if (context.signal?.aborted || disposedRef.current) throw new DOMException("Aborted", "AbortError");
+                        let synced: Shot | undefined;
+                        try {
+                            synced = await syncShot(target.shotId, true, context.signal);
+                        } catch (error) {
+                            if (context.signal?.aborted || disposedRef.current) throw error;
+                            // A temporary sync/read failure should not make the
+                            // whole batch appear failed. Keep this child
+                            // pending and let the next round retry it.
+                            return {
+                                ...target,
+                                status: "running",
+                                executionPhase: "polling",
+                                error: error instanceof Error ? error.message : "任务状态同步失败",
+                            };
+                        }
+                        if (context.signal?.aborted || disposedRef.current) throw new DOMException("Aborted", "AbortError");
+                        const latestProject = latestProjectRef.current;
+                        const latestShot = latestProject.shots.find((shot) => shot.id === target.shotId && shot.episodeId === currentEpisode.id);
+                        const syncedRecord = synced && typeof synced === "object" ? (synced as unknown as Record<string, unknown>) : undefined;
+                        const syncedEpisodeId = typeof syncedRecord?.episodeId === "string" ? syncedRecord.episodeId : typeof syncedRecord?.episode_id === "string" ? syncedRecord.episode_id : undefined;
+                        const syncedScopeMismatch = Boolean(syncedEpisodeId && syncedEpisodeId !== currentEpisode.id);
+                        const syncedShot = synced ? normalizeShot(synced as unknown, currentEpisode.id, Math.max(0, (latestShot?.shotNumber || 1) - 1)) : undefined;
+                        // If a user or another recovery pass replaced the task
+                        // while this batch was polling, prefer the latest
+                        // project binding so the helper records a mismatch
+                        // instead of attaching the old result to the shot.
+                        const latestReplacedTask = Boolean(latestShot?.generationTaskId && latestShot.generationTaskId !== target.taskId);
+                        const observed = latestReplacedTask ? latestShot : syncedShot || latestShot;
+                        const observedShotId = syncedScopeMismatch ? "" : observed?.id || target.shotId;
+                        const observedTaskId = observed ? observed.generationTaskId || "" : target.taskId;
+                        const executionPhase = observed?.generationExecutionPhase || (observed?.generationNeedsReview ? "needs_review" : observed?.generationStatus === "success" || observed?.generationStatus === "error" || observed?.generationStatus === "cancelled" ? "completed" : "polling");
+                        return {
+                            shotId: observedShotId,
+                            taskId: observedTaskId,
+                            status: observed?.generationStatus || "running",
+                            executionPhase,
+                            needsReview: observed?.generationNeedsReview,
+                            videoUrl: observed?.videoUrl,
+                            error: observed?.generationError,
+                        };
+                    },
+                    onProgress: (progress) => {
+                        if (disposedRef.current || abortController.signal.aborted) return;
+                        messageApi.loading({ content: `视频批量处理中：${progress.terminalCount}/${progress.totalCount} 已结束`, key: "drama-video-batch", duration: 0 });
+                    },
+                });
+                const detail = [`成功 ${summary.successCount}`, `失败 ${summary.failedCount}`, `待检查 ${summary.needsReviewCount}`, `取消 ${summary.cancelledCount}`].join("，");
+                messageApi[summary.allSucceeded ? "success" : "warning"]({ content: `视频批量任务已结束：${detail}`, key: "drama-video-batch", duration: 6 });
+            }
+        } catch (error) {
+            if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason !== "aborted") {
+                messageApi.warning({ content: `视频批量仍有 ${error.progress.pendingCount} 个任务未结束，已保留任务状态，可稍后继续同步。`, key: "drama-video-batch", duration: 8 });
+            } else if (!disposedRef.current && !(error instanceof DOMException && error.name === "AbortError")) {
+                messageApi.error({ content: error instanceof Error ? error.message : "批量视频任务等待失败", key: "drama-video-batch", duration: 8 });
+            }
         } finally {
-            setBatchRunning("");
+            if (batchAbortRef.current === abortController) {
+                batchAbortRef.current = null;
+                batchRunningRef.current = "";
+                if (!disposedRef.current) setBatchRunning("");
+            }
+            if (abortController.signal.aborted || disposedRef.current) messageApi.destroy("drama-video-batch");
         }
     };
 
@@ -3130,24 +3459,35 @@ function StoryboardPanel({
         }
         const actionKey = `frame:${frameType}:${shot.id}`;
         if (startingKeysRef.current.has(actionKey)) return;
+        const operationEpisodeId = episode.id;
+        const operationProjectId = project.id;
+        const controller = new AbortController();
+        const isStale = () => disposedRef.current || currentEpisodeIdRef.current !== operationEpisodeId || latestProjectRef.current.id !== operationProjectId;
+        operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
             messageApi.loading({ content: `正在规划并创建${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务...`, key: actionKey, duration: 0 });
-            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-frame?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, { method: "POST" });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-frame?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, { method: "POST", signal: controller.signal });
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "帧任务创建失败");
             const taskId = typeof data.data?.task?.id === "string" ? data.data.task.id : "";
             if (!taskId) throw new Error("帧任务创建响应缺少任务 ID");
+            if (controller.signal.aborted || isStale()) return;
             applyCreatedFrameTask(shot, frameType, taskId, typeof data.data?.prompt === "string" ? data.data.prompt : undefined, typeof data.data?.description === "string" ? data.data.description : undefined);
-            await syncShot(shot.id, false).catch((error) => {
+            await syncShot(shot.id, false, controller.signal).catch((error) => {
+                if (controller.signal.aborted || isStale()) throw error;
                 messageApi.warning({ content: error instanceof Error ? `${error.message}，任务已创建，可稍后同步。` : "任务已创建，可稍后同步。", key: `drama-lab-initial-sync:${shot.id}`, duration: 6 });
             });
+            if (controller.signal.aborted || isStale()) return;
             messageApi.success({ content: `${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务已提交`, key: actionKey });
         } catch (error) {
-            messageApi.error({ content: error instanceof Error ? error.message : "帧任务创建失败", key: actionKey });
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "帧任务创建失败", key: actionKey });
         } finally {
-            setActionBusy(actionKey, false);
+            if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+            if (controller.signal.aborted || isStale()) messageApi.destroy(actionKey);
         }
     };
 
@@ -3158,13 +3498,19 @@ function StoryboardPanel({
         }
         const actionKey = `tail-frame:${shot.id}`;
         if (startingKeysRef.current.has(actionKey)) return;
+        const operationEpisodeId = episode.id;
+        const operationProjectId = project.id;
+        const controller = new AbortController();
+        const isStale = () => disposedRef.current || currentEpisodeIdRef.current !== operationEpisodeId || latestProjectRef.current.id !== operationProjectId;
+        operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
             messageApi.loading({ content: "正在从已完成视频提取尾帧...", key: actionKey, duration: 0 });
-            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/extract-tail-frame?episodeId=${encodeURIComponent(episode.id)}`, { method: "POST" });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/extract-tail-frame?episodeId=${encodeURIComponent(episode.id)}`, { method: "POST", signal: controller.signal });
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0 || !data.data?.frame) throw new Error(data.msg || "视频尾帧提取失败");
+            if (controller.signal.aborted || isStale()) return;
             onShotSynced(episode.id, shot.id, { id: shot.id, frames: { last: data.data.frame } });
             const next = data.data.nextShot;
             if (next?.id && next.candidate) {
@@ -3175,9 +3521,12 @@ function StoryboardPanel({
                 messageApi.success({ content: "尾帧已提取并保存", key: actionKey, duration: 4 });
             }
         } catch (error) {
-            messageApi.error({ content: error instanceof Error ? error.message : "视频尾帧提取失败", key: actionKey, duration: 6 });
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "视频尾帧提取失败", key: actionKey, duration: 6 });
         } finally {
-            setActionBusy(actionKey, false);
+            if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+            if (controller.signal.aborted || isStale()) messageApi.destroy(actionKey);
         }
     };
 
@@ -3196,21 +3545,30 @@ function StoryboardPanel({
         }
         const actionKey = `candidate-accept:${shot.id}`;
         if (startingKeysRef.current.has(actionKey)) return;
+        const operationEpisodeId = episode.id;
+        const operationProjectId = project.id;
+        const controller = new AbortController();
+        const isStale = () => disposedRef.current || currentEpisodeIdRef.current !== operationEpisodeId || latestProjectRef.current.id !== operationProjectId;
+        operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
             messageApi.loading({ content: "正在应用候选首帧...", key: actionKey, duration: 0 });
             const query = new URLSearchParams({ episodeId: episode.id, candidateId: candidate.id });
             if (replaceExisting) query.set("replaceExisting", "true");
-            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/accept-first-frame-candidate?${query.toString()}`, { method: "POST" });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/accept-first-frame-candidate?${query.toString()}`, { method: "POST", signal: controller.signal });
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0 || !data.data?.shot) throw new Error(data.msg || "候选首帧应用失败");
+            if (controller.signal.aborted || isStale()) return;
             onShotSynced(episode.id, shot.id, { ...data.data.shot, firstFrameCandidate: data.data.candidate ?? null });
             messageApi.success({ content: "候选首帧已应用并锁定", key: actionKey, duration: 4 });
         } catch (error) {
-            messageApi.error({ content: error instanceof Error ? error.message : "候选首帧应用失败", key: actionKey, duration: 6 });
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "候选首帧应用失败", key: actionKey, duration: 6 });
         } finally {
-            setActionBusy(actionKey, false);
+            if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+            if (controller.signal.aborted || isStale()) messageApi.destroy(actionKey);
         }
     };
 
@@ -3219,22 +3577,32 @@ function StoryboardPanel({
         if (!episode || !frame?.url) return;
         const actionKey = `frame-lock:${frameType}:${shot.id}`;
         if (startingKeysRef.current.has(actionKey)) return;
+        const operationEpisodeId = episode.id;
+        const operationProjectId = project.id;
+        const controller = new AbortController();
+        const isStale = () => disposedRef.current || currentEpisodeIdRef.current !== operationEpisodeId || latestProjectRef.current.id !== operationProjectId;
+        operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/frames/${frameType}/lock?episodeId=${encodeURIComponent(episode.id)}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ locked: !frame.locked }),
+                signal: controller.signal,
             });
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0 || !data.data?.frame) throw new Error(data.msg || "帧锁定状态保存失败");
+            if (controller.signal.aborted || isStale()) return;
             onShotSynced(episode.id, shot.id, { id: shot.id, frames: { [frameType]: data.data.frame } });
             messageApi.success({ content: data.msg || (frame.locked ? "帧已解锁" : "帧已锁定"), key: actionKey, duration: 3 });
         } catch (error) {
-            messageApi.error({ content: error instanceof Error ? error.message : "帧锁定状态保存失败", key: actionKey, duration: 5 });
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "帧锁定状态保存失败", key: actionKey, duration: 5 });
         } finally {
-            setActionBusy(actionKey, false);
+            if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+            if (controller.signal.aborted || isStale()) messageApi.destroy(actionKey);
         }
     };
 
@@ -3242,20 +3610,29 @@ function StoryboardPanel({
         if (!episode) return;
         const actionKey = `frame-upload:${frameType}:${shot.id}`;
         if (startingKeysRef.current.has(actionKey)) return;
+        const operationEpisodeId = episode.id;
+        const operationProjectId = project.id;
+        const controller = new AbortController();
+        const isStale = () => disposedRef.current || currentEpisodeIdRef.current !== operationEpisodeId || latestProjectRef.current.id !== operationProjectId;
+        operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
             const formData = new FormData();
             formData.set("file", file);
-            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/frames/upload?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, { method: "POST", body: formData });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/frames/upload?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, { method: "POST", body: formData, signal: controller.signal });
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0 || !data.data?.frame) throw new Error(data.msg || "帧图片上传失败");
+            if (controller.signal.aborted || isStale()) return;
             onShotSynced(episode.id, shot.id, { id: shot.id, frames: { [frameType]: data.data.frame } });
             messageApi.success({ content: `${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧图片已上传`, key: actionKey, duration: 3 });
         } catch (error) {
-            messageApi.error({ content: error instanceof Error ? error.message : "帧图片上传失败", key: actionKey, duration: 6 });
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "帧图片上传失败", key: actionKey, duration: 6 });
         } finally {
-            setActionBusy(actionKey, false);
+            if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+            if (controller.signal.aborted || isStale()) messageApi.destroy(actionKey);
         }
     };
 
@@ -3414,7 +3791,7 @@ function StoryboardWorkbenchCard({
     shot: Shot;
     project: Project;
     busyKeys: ReadonlySet<string>;
-    onStartGeneration: (shot: Shot, kind: "image" | "video") => Promise<void>;
+    onStartGeneration: (shot: Shot, kind: "image" | "video") => Promise<string | undefined>;
     onCheckVideoStatus: (shot: Shot) => Promise<void>;
     onStartFrame: (shot: Shot, frameType: "first" | "key" | "last") => Promise<void>;
     onExtractTailFrame: (shot: Shot) => Promise<void>;
@@ -3428,7 +3805,7 @@ function StoryboardWorkbenchCard({
     onDelete: () => void;
 }) {
     const imageBusy = busyKeys.has(`image:${shot.id}`) || isDramaLabTaskActive(shot.storyboardStatus);
-    const videoBusy = busyKeys.has(`video:${shot.id}`) || isDramaLabTaskActive(shot.generationStatus);
+    const videoBusy = busyKeys.has(`video:${shot.id}`) || isDramaLabTaskActive(shot.generationStatus) || isDramaLabExecutionActive(shot.generationExecutionPhase);
     const checkingVideoStatus = busyKeys.has(`video-status:${shot.id}`);
     const videoNeedsCheck = requiresDramaLabVideoTaskCheck(shot);
     const uploadInputRefs = useRef<Partial<Record<"first" | "key" | "last", HTMLInputElement | null>>>({});
@@ -3442,7 +3819,7 @@ function StoryboardWorkbenchCard({
                             分镜 {shot.shotNumber} · {shot.title}
                         </h3>
                         <StoryboardTaskTag status={shot.storyboardStatus} label="分镜图" />
-                        <StoryboardTaskTag status={shot.generationStatus} label="视频" needsReview={videoNeedsCheck} />
+                        <StoryboardTaskTag status={shot.generationStatus} executionPhase={shot.generationExecutionPhase} label="视频" needsReview={videoNeedsCheck} />
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                         {shot.duration}s{shot.cameraAngle ? ` · ${shot.cameraAngle}` : ""}
@@ -3609,7 +3986,7 @@ function AssetBindingGroup({ label, assets, selectedIds, single = false, onChang
     );
 }
 
-function StoryboardTaskTag({ status, label, needsReview = false }: { status?: DramaLabTaskStatus; label: string; needsReview?: boolean }) {
+function StoryboardTaskTag({ status, executionPhase, label, needsReview = false }: { status?: DramaLabTaskStatus; executionPhase?: DramaLabVideoBatchExecutionPhase; label: string; needsReview?: boolean }) {
     const value = status || "idle";
     const labelMap: Record<DramaLabTaskStatus, string> = { idle: "待生成", queued: "排队中", pending: "等待中", running: "生成中", success: "已完成", error: "失败", cancelled: "已取消" };
     const classMap: Record<DramaLabTaskStatus, string> = {
@@ -3621,11 +3998,22 @@ function StoryboardTaskTag({ status, label, needsReview = false }: { status?: Dr
         error: "border-rose-300 bg-rose-50 text-rose-800",
         cancelled: "border-border bg-muted text-muted-foreground",
     };
-    return (
-        <span className={cn("border px-1.5 py-0.5 text-xs", needsReview ? "border-amber-300 bg-amber-50 text-amber-800" : classMap[value])}>
-            {label} {needsReview ? "待检查" : labelMap[value]}
-        </span>
-    );
+    const phaseLabelMap: Partial<Record<DramaLabVideoBatchExecutionPhase, string>> = {
+        created: "已创建",
+        submitting: "提交中",
+        submitted: "已提交",
+        polling: "处理中",
+        result_ready: "结果待保存",
+        persisting: "保存中",
+        cancel_requested: "取消中",
+        cancel_polling: "确认取消中",
+        completed: "已结束",
+        needs_review: "待检查",
+    };
+    const phaseIsActive = executionPhase === "created" || executionPhase === "submitting" || executionPhase === "submitted" || executionPhase === "polling" || executionPhase === "result_ready" || executionPhase === "persisting" || executionPhase === "cancel_requested" || executionPhase === "cancel_polling";
+    const phaseClass = executionPhase === "result_ready" || executionPhase === "persisting" || executionPhase === "needs_review" ? "border-amber-300 bg-amber-50 text-amber-800" : phaseIsActive ? "border-sky-300 bg-sky-50 text-sky-800" : undefined;
+    const phaseLabel = executionPhase && value !== "success" && value !== "error" && value !== "cancelled" ? phaseLabelMap[executionPhase] : undefined;
+    return <span className={cn("border px-1.5 py-0.5 text-xs", needsReview ? "border-amber-300 bg-amber-50 text-amber-800" : phaseClass || classMap[value])}>{label} {needsReview ? "待检查" : phaseLabel || labelMap[value]}</span>;
 }
 
 function GenerationHistory({ history = [], activeUrl, type, onRestore }: { history?: DramaLabGenerationHistory[]; activeUrl?: string; type: "image" | "video"; onRestore: (url: string) => void }) {

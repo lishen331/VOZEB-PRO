@@ -8,6 +8,7 @@ import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { getVideoTask } from "@/lib/server/video-task-store";
+import { hasStoredGenerationTaskContextConflict } from "@/lib/server/generation-task-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,7 +62,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         }
 
         const synchronized = findShot(updated, episodeId, shotId).shot;
-        return NextResponse.json({ code: 0, data: { shot: synchronized }, msg: "任务状态已同步" });
+        // Execution phase is worker state, not project content. Return it as
+        // a transient field so the workbench can distinguish submitted,
+        // polling, result-ready and persisting without writing scheduler
+        // internals into the project JSON.
+        const generationExecutionPhase = taskState.videoTask?.executionPhase;
+        const responseShot = generationExecutionPhase ? { ...synchronized, generationExecutionPhase } : synchronized;
+        return NextResponse.json({ code: 0, data: { shot: responseShot, executionPhase: generationExecutionPhase }, msg: "任务状态已同步" });
     } catch (error) {
         const status = errorStatus(error);
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "任务状态同步失败" }, { status });
@@ -112,33 +119,47 @@ async function readTaskState(shot: ReturnType<typeof findShot>["shot"], userId: 
 }
 
 function classifyTaskContext(
-    task: { userId?: string; surface?: string; projectId?: string; episodeId?: string; shotId?: string; frameType?: string } | null | undefined,
+    task: { userId?: string; surface?: string; projectId?: string; episodeId?: string; shotId?: string; frameType?: string; context?: unknown } | null | undefined,
     userId: string,
     scope: { projectId: string; episodeId: string; shotId: string; frameType?: string },
 ): TaskContextMatch {
     if (!task) return "missing";
-    if (task.userId !== userId) return "foreign";
+    const nested = task.context && typeof task.context === "object" && !Array.isArray(task.context) ? (task.context as Record<string, unknown>) : {};
+    const owner = typeof task.userId === "string" && task.userId.trim() ? task.userId.trim() : typeof nested.userId === "string" && nested.userId.trim() ? nested.userId.trim() : "";
+    if (!owner || owner !== userId) return "foreign";
     return taskMatchesDramaShot(task, scope) ? "valid" : "mismatch";
 }
 
-function taskMatchesDramaShot(task: { surface?: string; projectId?: string; episodeId?: string; shotId?: string; frameType?: string } | null | undefined, scope: { projectId: string; episodeId: string; shotId: string; frameType?: string }) {
+function taskMatchesDramaShot(task: { surface?: string; projectId?: string; episodeId?: string; shotId?: string; frameType?: string; context?: unknown } | null | undefined, scope: { projectId: string; episodeId: string; shotId: string; frameType?: string }) {
     if (!task) return false;
-    const coreContext = [task.surface, task.projectId, task.episodeId, task.shotId];
+    if (hasStoredGenerationTaskContextConflict(task)) return false;
+    const nested = task.context && typeof task.context === "object" && !Array.isArray(task.context) ? (task.context as Record<string, unknown>) : {};
+    const resolve = (...values: unknown[]) => {
+        const normalized = values.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim());
+        return { value: normalized[0] || "", conflict: new Set(normalized).size > 1 };
+    };
+    const surface = resolve(task.surface, nested.surface);
+    const projectId = resolve(task.projectId, nested.projectId);
+    const episodeId = resolve(task.episodeId, nested.episodeId);
+    const shotId = resolve(task.shotId, nested.shotId);
+    const frameType = resolve(task.frameType, nested.frameType);
+    if (surface.conflict || projectId.conflict || episodeId.conflict || shotId.conflict || frameType.conflict) return false;
+    const coreContext = [surface.value, projectId.value, episodeId.value, shotId.value];
     const hasCoreContext = coreContext.every(Boolean);
-    const hasAnyContext = coreContext.some(Boolean) || Boolean(task.frameType);
+    const hasAnyContext = coreContext.some(Boolean) || Boolean(frameType.value);
 
     // Existing projects may contain tasks created before the drama context
     // contract. Those records can only be reconciled when they carry no
     // context at all; a partial context is ambiguous and must be rejected.
     if (!hasAnyContext) return true;
     if (!hasCoreContext) return false;
-    if (task.surface !== "drama" || task.projectId !== scope.projectId || task.episodeId !== scope.episodeId || task.shotId !== scope.shotId) return false;
+    if (surface.value !== "drama" || projectId.value !== scope.projectId || episodeId.value !== scope.episodeId || shotId.value !== scope.shotId) return false;
 
     // Frame slots are part of the task identity. A task created for one slot
     // must never be promoted into another slot (or into the legacy storyboard
     // field), even when all other shot coordinates happen to match.
-    if (scope.frameType) return task.frameType === scope.frameType;
-    return !task.frameType;
+    if (scope.frameType) return frameType.value === scope.frameType;
+    return !frameType.value;
 }
 
 function isConflict(error: unknown) {

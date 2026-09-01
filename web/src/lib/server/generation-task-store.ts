@@ -23,6 +23,7 @@ type GenerationTaskSummaryAccumulator = Omit<GenerationTaskRecordSummary, "avera
 
 const TASK_FILE = "generation-tasks.json";
 const ACTIVE_CONCURRENCY_PHASES = ["created", "submitting", "submitted", "polling", "result_ready", "persisting"] as const;
+const STORED_TASK_CONTEXT_CONFLICT = "__vozebStoredTaskContextConflict";
 let fileMutationQueue = Promise.resolve();
 const concurrencyQueues = new Map<string, Promise<void>>();
 
@@ -65,16 +66,20 @@ export async function cleanupExpiredStoredGenerationTasks(input: { limit: number
 export async function getStoredGenerationTask<T>(type: GenerationTaskType, id: string): Promise<(T & GenerationTaskExecutionState) | null> {
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<{ payload: T; execution_phase?: unknown; last_upstream_status?: unknown; result_payload?: unknown }>(
-            "SELECT payload, execution_phase, last_upstream_status, result_payload FROM generation_tasks WHERE id = $1 AND task_type = $2 AND expires_at > now()",
+        const result = await postgresQuery<{ payload: T; user_id?: unknown; surface?: unknown; project_id?: unknown; execution_phase?: unknown; last_upstream_status?: unknown; result_payload?: unknown }>(
+            "SELECT payload, user_id, surface, project_id, execution_phase, last_upstream_status, result_payload FROM generation_tasks WHERE id = $1 AND task_type = $2 AND expires_at > now()",
             [id, type],
         );
         const row = result.rows[0];
-        return row?.payload ? withExecutionState(row.payload, row.execution_phase, row.last_upstream_status, row.result_payload) : null;
+        if (!row?.payload) return null;
+        const hydrated = hydrateTaskPayload(row.payload, { userId: row.user_id, surface: row.surface, projectId: row.project_id });
+        return withExecutionState(hydrated.payload, row.execution_phase, row.last_upstream_status, row.result_payload, hydrated.conflict);
     }
     const tasks = await readFileTasks();
     const record = tasks.find((task) => task.id === id && task.type === type && task.expiresAt > Date.now());
-    return record ? withExecutionState(record.payload as T, record.executionPhase, record.lastUpstreamStatus, record.resultPayload) : null;
+    if (!record) return null;
+    const hydrated = hydrateTaskPayload(record.payload as T, record);
+    return withExecutionState(hydrated.payload, record.executionPhase, record.lastUpstreamStatus, record.resultPayload, hydrated.conflict);
 }
 
 export async function getStoredGenerationTaskRecord(type: GenerationTaskType, id: string): Promise<StoredGenerationTaskRecord | null> {
@@ -188,6 +193,81 @@ export async function queryStoredGenerationTasks<T>(type: GenerationTaskType, op
         .slice(0, limit)
         .map((task) => task.payload as T);
 }
+
+/**
+ * Read only video tasks that carry the complete Drama Lab coordinate tuple.
+ *
+ * This intentionally lives beside the general task store instead of widening
+ * the admin query API: recovery must never discover a task by a prompt, name,
+ * or an incomplete/legacy context.  `episodeId` and `shotId` are kept in the
+ * payload for PostgreSQL records, while the file provider may have them both
+ * on the record and in the payload.
+ */
+export async function listStoredDramaTaskRecords(input: {
+    userId: string;
+    projectId: string;
+    episodeId: string;
+    shotIds?: string[];
+    type?: "video";
+    limit?: number;
+}): Promise<StoredGenerationTaskRecord[]> {
+    const userId = cleanContextText(input.userId);
+    const projectId = cleanContextText(input.projectId);
+    const episodeId = cleanContextText(input.episodeId);
+    const type = input.type || "video";
+    const shotIds = input.shotIds === undefined ? undefined : Array.from(new Set(input.shotIds.map(cleanContextText).filter((value): value is string => Boolean(value))));
+    const limit = Math.max(1, Math.min(1_000, Math.floor(Number(input.limit) || 500)));
+
+    // An empty allow-list means the caller has no shots in the current
+    // episode.  Returning early also avoids an unbounded query when a caller
+    // accidentally passes an empty array.
+    if (!userId || !projectId || !episodeId || type !== "video" || (shotIds !== undefined && !shotIds.length)) return [];
+
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<Record<string, unknown>>(
+            `SELECT *
+             FROM generation_tasks
+             WHERE user_id = $1
+               AND task_type = $2
+               -- Older PostgreSQL rows may not have denormalized context
+               -- columns. This is only a candidate prefilter; the mapper
+               -- below rejects any disagreement between stored sources.
+               AND COALESCE(${sqlNormalizedContextSource("surface")}, ${sqlNormalizedContextSource("payload->>'surface'")}, ${sqlNormalizedContextSource("payload#>>'{context,surface}'")}) = 'drama'
+               AND COALESCE(${sqlNormalizedContextSource("project_id")}, ${sqlNormalizedContextSource("payload->>'projectId'")}, ${sqlNormalizedContextSource("payload#>>'{context,projectId}'")}) = $3
+               AND COALESCE(${sqlNormalizedContextSource("payload->>'episodeId'")}, ${sqlNormalizedContextSource("payload#>>'{context,episodeId}'")}) = $4
+               AND expires_at > now()
+               AND ($5::text[] IS NULL OR COALESCE(${sqlNormalizedContextSource("payload->>'shotId'")}, ${sqlNormalizedContextSource("payload#>>'{context,shotId}'")}) = ANY($5::text[]))
+               -- Apply the same source-agreement rule in SQL before LIMIT.
+               -- Otherwise corrupt rows that are later rejected in JavaScript
+               -- could consume the page and hide a valid task behind them.
+               AND ${sqlDramaTaskContextAgreement()}
+             ORDER BY COALESCE(
+                 attempt_no,
+                 CASE WHEN ${sqlNormalizedContextSource("payload->>'attemptNo'")} ~ '^[0-9]+$' THEN ${sqlNormalizedContextSource("payload->>'attemptNo'")}::integer END,
+                 CASE WHEN ${sqlNormalizedContextSource("payload#>>'{context,attemptNo}'")} ~ '^[0-9]+$' THEN ${sqlNormalizedContextSource("payload#>>'{context,attemptNo}'")}::integer END,
+                 0
+             ) DESC, updated_at DESC, id DESC
+             LIMIT $6`,
+            [userId, type, projectId, episodeId, shotIds?.length ? shotIds : null, limit],
+        );
+        return result.rows
+            .map(mapStoredTaskRecord)
+            .filter((record) => isCompleteDramaTaskRecord(record, { userId, projectId, episodeId, shotIds }))
+            .map(withPayloadTaskContext);
+    }
+
+    const now = Date.now();
+    return (await readFileTasks())
+        .filter((record) => record.expiresAt > now && record.type === type)
+        .filter((record) => isCompleteDramaTaskRecord(record, { userId, projectId, episodeId, shotIds }))
+        .map(withPayloadTaskContext)
+        .sort((left, right) => taskAttempt(right) - taskAttempt(left) || right.updatedAt - left.updatedAt || right.id.localeCompare(left.id))
+        .slice(0, limit);
+}
+
+// Kept as a descriptive alias for callers that prefer the longer store name.
+export const listStoredGenerationTaskRecordsByDramaContext = listStoredDramaTaskRecords;
 
 export async function listStoredGenerationTaskRecords(options: GenerationTaskRecordListOptions = {}) {
     let records: StoredGenerationTaskRecord[];
@@ -1072,9 +1152,13 @@ function normalizeGenerationTaskStatus(status: string): GenerationTaskStatus {
 
 function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTaskRecord {
     const payload = row.payload && typeof row.payload === "object" ? (row.payload as Record<string, unknown>) : {};
+    const resultPayload = recordObject(row.result_payload);
+    const executionPhase = isExecutionPhase(row.execution_phase) ? row.execution_phase : undefined;
+    const lastUpstreamStatus = cleanContextText(String(row.last_upstream_status || ""));
+    const durableSurface = cleanContextText(typeof row.surface === "string" ? row.surface : "");
     return {
         id: String(row.id || ""),
-        userId: String(row.user_id || ""),
+        userId: cleanContextText(String(row.user_id || "")) || "",
         type: isTaskType(row.task_type) ? row.task_type : "text",
         status: isTaskStatus(row.status) ? row.status : "error",
         payload,
@@ -1083,17 +1167,17 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         expiresAt: databaseTime(row.expires_at),
         conversationId: cleanContextText(String(row.conversation_id || "")),
         runId: cleanContextText(String(row.run_id || "")),
-        surface: isTaskSurface(row.surface) ? row.surface : undefined,
+        surface: isTaskSurface(durableSurface) ? durableSurface : undefined,
         executionProfile: row.execution_profile === "open-source-practice" ? "open-source-practice" : "production",
         projectId: cleanContextText(String(row.project_id || "")),
-        episodeId: cleanContextText(String(payload.episodeId || "")),
-        shotId: cleanContextText(String(payload.shotId || "")),
+        episodeId: payloadContextText(payload, "episodeId"),
+        shotId: payloadContextText(payload, "shotId"),
         frameType: isGenerationFrameType(payload.frameType) ? payload.frameType : undefined,
         estimatedPoints: positiveContextNumber(payload.estimatedPoints),
         parentTaskId: cleanContextText(String(row.parent_task_id || "")),
         attemptNo: row.attempt_no === null || row.attempt_no === undefined ? undefined : Math.max(0, Math.floor(Number(row.attempt_no) || 0)),
         clientRequestId: cleanContextText(String(row.client_request_id || "")),
-        executionPhase: isExecutionPhase(row.execution_phase) ? row.execution_phase : undefined,
+        executionPhase,
         upstreamTaskId: cleanUpstreamTaskId(String(row.upstream_task_id || "")),
         channelId: cleanContextText(String(row.channel_id || "")),
         provider: cleanContextText(String(row.provider || "")),
@@ -1101,14 +1185,128 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         submittedAt: optionalDatabaseTime(row.submitted_at),
         nextPollAt: optionalDatabaseTime(row.next_poll_at),
         lastPollAt: optionalDatabaseTime(row.last_poll_at),
-        lastUpstreamStatus: cleanContextText(String(row.last_upstream_status || "")),
-        resultPayload: recordObject(row.result_payload),
+        lastUpstreamStatus,
+        resultPayload,
+        reviewReason: resolveGenerationReviewReason({ executionPhase, lastUpstreamStatus, resultPayload }),
         workerId: cleanContextText(String(row.worker_id || "")),
         leaseUntil: optionalDatabaseTime(row.lease_until),
         lastHeartbeatAt: optionalDatabaseTime(row.last_heartbeat_at),
         ipReferences: normalizeContextIpReferences(payload.ipReferences),
         frameSnapshot: normalizeFrameSnapshot(payload.frameSnapshot),
     };
+}
+
+function withPayloadTaskContext(record: StoredGenerationTaskRecord): StoredGenerationTaskRecord {
+    const payload = recordObject(record.payload);
+    const nested = recordObject(payload.context);
+    const payloadSurface = taskContextText(payload, "surface");
+    const nestedSurface = taskContextText(nested, "surface");
+    const surface = [taskContextText(record, "surface"), payloadSurface, nestedSurface].find(isTaskSurface);
+    return {
+        ...record,
+        userId: cleanContextText(record.userId) || taskContextText(payload, "userId") || taskContextText(nested, "userId") || "",
+        surface,
+        projectId: taskContextText(record, "projectId") || taskContextText(payload, "projectId") || taskContextText(nested, "projectId"),
+        episodeId: taskContextText(record, "episodeId") || payloadContextText(payload, "episodeId"),
+        shotId: taskContextText(record, "shotId") || payloadContextText(payload, "shotId"),
+        frameType: record.frameType || (isGenerationFrameType(payload.frameType) ? payload.frameType : undefined),
+        attemptNo: record.attemptNo ?? normalizedAttemptNoValue(payload.attemptNo ?? nested.attemptNo),
+    };
+}
+
+function isCompleteDramaTaskRecord(record: StoredGenerationTaskRecord, scope: { userId: string; projectId: string; episodeId: string; shotIds?: string[] }) {
+    // A row can carry the same coordinate in more than one place.  Never let
+    // a matching durable column mask a conflicting payload value: otherwise a
+    // stale task could be attached to the wrong Drama Lab shot.
+    if (hasDramaTaskContextConflict(record)) return false;
+    const hydrated = withPayloadTaskContext(record);
+    const surface = hydrated.surface;
+    const projectId = hydrated.projectId;
+    const episodeId = hydrated.episodeId;
+    const shotId = hydrated.shotId;
+    if (!shotId) return false;
+    return hydrated.userId === scope.userId && surface === "drama" && projectId === scope.projectId && episodeId === scope.episodeId && (scope.shotIds === undefined || scope.shotIds.includes(shotId));
+}
+
+function hasDramaTaskContextConflict(record: StoredGenerationTaskRecord) {
+    const payload = recordObject(record.payload);
+    const nested = recordObject(payload.context);
+    return [
+        [record.userId, payload.userId, nested.userId],
+        [record.surface, payload.surface, nested.surface],
+        [record.projectId, payload.projectId, nested.projectId],
+        [record.episodeId, payload.episodeId, nested.episodeId],
+        [record.shotId, payload.shotId, nested.shotId],
+    ].some((values) => {
+        const normalized = values.map(contextValueText).filter((value): value is string => Boolean(value));
+        return new Set(normalized).size > 1;
+    });
+}
+
+function contextValueText(value: unknown) {
+    return typeof value === "string" ? cleanContextText(value) : undefined;
+}
+
+/**
+ * Normalize a context source in SQL exactly as the JavaScript mapper does.
+ * Legacy rows occasionally contain padded IDs; using BTRIM here keeps the
+ * PostgreSQL and file providers from disagreeing about the same task.
+ */
+function sqlNormalizedContextSource(expression: string) {
+    return `NULLIF(BTRIM(${expression}), '')`;
+}
+
+/**
+ * Return pairwise non-conflict predicates for a set of optional sources.
+ * Empty sources are ignored, while two populated sources must agree. Keeping
+ * this predicate in the database ensures invalid rows cannot consume LIMIT
+ * slots before the JavaScript safety check runs.
+ */
+function sqlContextSourceAgreement(expressions: string[]) {
+    const normalized = expressions.map(sqlNormalizedContextSource);
+    const predicates: string[] = [];
+    for (let index = 0; index < normalized.length; index += 1) {
+        for (let next = index + 1; next < normalized.length; next += 1) {
+            const left = normalized[index];
+            const right = normalized[next];
+            predicates.push(`(${left} IS NULL OR ${right} IS NULL OR ${left} = ${right})`);
+        }
+    }
+    return predicates.join(" AND ");
+}
+
+function sqlDramaTaskContextAgreement() {
+    return [
+        ["user_id", "payload->>'userId'", "payload#>>'{context,userId}'"],
+        ["surface", "payload->>'surface'", "payload#>>'{context,surface}'"],
+        ["project_id", "payload->>'projectId'", "payload#>>'{context,projectId}'"],
+        ["payload->>'episodeId'", "payload#>>'{context,episodeId}'"],
+        ["payload->>'shotId'", "payload#>>'{context,shotId}'"],
+    ]
+        .map(sqlContextSourceAgreement)
+        .filter(Boolean)
+        .join(" AND ");
+}
+
+function taskAttempt(record: StoredGenerationTaskRecord) {
+    return normalizedAttemptNoValue(record.attemptNo);
+}
+
+function normalizedAttemptNoValue(value: unknown) {
+    const attempt = Number(value);
+    return Number.isFinite(attempt) && attempt >= 0 ? Math.floor(attempt) : 0;
+}
+
+function payloadContextText(payload: Record<string, unknown>, key: "episodeId" | "shotId") {
+    return taskContextText(payload, key) || (() => {
+        const nested = recordObject(payload.context);
+        return taskContextText(nested, key);
+    })();
+}
+
+function taskContextText(value: Record<string, unknown>, key: string) {
+    const candidate = value[key];
+    return typeof candidate === "string" ? cleanContextText(candidate) : undefined;
 }
 
 function normalizeContextIpReferences(value: unknown) {
@@ -1213,15 +1411,61 @@ function optionalDatabaseTime(value: unknown) {
     return value ? databaseTime(value) || undefined : undefined;
 }
 
-function withExecutionState<T>(payload: T, phase: unknown, status: unknown, resultPayload: unknown): T & GenerationTaskExecutionState {
+function withExecutionState<T>(payload: T, phase: unknown, status: unknown, resultPayload: unknown, contextConflict = false): T & GenerationTaskExecutionState {
     const executionPhase = isExecutionPhase(phase) ? phase : undefined;
     const lastUpstreamStatus = cleanContextText(typeof status === "string" ? status : "");
-    return {
+    const task = {
         ...payload,
         executionPhase,
         lastUpstreamStatus,
         reviewReason: resolveGenerationReviewReason({ executionPhase, lastUpstreamStatus, resultPayload }),
     };
+    if (contextConflict) {
+        // Keep the marker out of API JSON while allowing scoped consumers to
+        // reject a record whose durable and payload context disagree.
+        Object.defineProperty(task, STORED_TASK_CONTEXT_CONFLICT, { value: true, enumerable: false, configurable: false });
+    }
+    return task;
+}
+
+export function hasStoredGenerationTaskContextConflict(value: unknown) {
+    return Boolean(value && typeof value === "object" && (value as Record<string, unknown>)[STORED_TASK_CONTEXT_CONFLICT] === true);
+}
+
+type TaskContextHydrationSource = {
+    userId?: unknown;
+    surface?: unknown;
+    projectId?: unknown;
+    episodeId?: unknown;
+    shotId?: unknown;
+    frameType?: unknown;
+};
+
+/**
+ * Older task payloads may keep context below `payload.context`, while newer
+ * PostgreSQL rows also duplicate owner/surface/project in durable columns.
+ * Hydrate missing fields for task consumers, but retain a private conflict
+ * marker whenever two populated sources disagree.
+ */
+function hydrateTaskPayload<T>(payload: T, durable: TaskContextHydrationSource) {
+    const source = recordObject(payload);
+    const nested = recordObject(source.context);
+    const keys = ["userId", "surface", "projectId", "episodeId", "shotId", "frameType"] as const;
+    const hydrated = { ...source };
+    let conflict = false;
+    for (const key of keys) {
+        const values = [source[key], nested[key], durable[key]].map(normalizeHydrationText).filter((value): value is string => Boolean(value));
+        if (new Set(values).size > 1) conflict = true;
+        if (!normalizeHydrationText(hydrated[key])) {
+            const fallback = values[0];
+            if (fallback) hydrated[key] = fallback;
+        }
+    }
+    return { payload: hydrated as T, conflict };
+}
+
+function normalizeHydrationText(value: unknown) {
+    return typeof value === "string" ? value.trim().slice(0, 160) || undefined : undefined;
 }
 
 function recordObject(value: unknown) {

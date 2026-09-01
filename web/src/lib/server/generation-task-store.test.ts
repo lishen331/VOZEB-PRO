@@ -24,6 +24,7 @@ import {
     getStoredGenerationTaskRecord,
     getStoredGenerationTaskByRequest,
     getStoredGenerationTaskByUpstream,
+    hasStoredGenerationTaskContextConflict,
     generationCapacityRetryAfterSeconds,
     generationTaskPointsCost,
     listStoredGenerationTaskRecordsByRunIds,
@@ -259,6 +260,51 @@ describe("mutateStoredGenerationTask", () => {
         ];
 
         await expect(getStoredGenerationTask<TestTask>("image", "image-review")).resolves.toMatchObject({ reviewReason: expect.stringContaining("避免重复生成和扣费") });
+    });
+
+    it("hydrates nested and durable Drama context for typed task reads and marks conflicts", async () => {
+        const now = Date.now();
+        mocks.records = [
+            {
+                id: "nested-task",
+                userId: "user",
+                type: "video",
+                status: "running",
+                payload: { id: "nested-task", userId: "user", status: "running", context: { surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" } },
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: now + 60_000,
+                executionPhase: "polling",
+            },
+            {
+                id: "conflict-task",
+                userId: "user",
+                type: "video",
+                status: "running",
+                surface: "drama",
+                projectId: "project-one",
+                payload: { id: "conflict-task", userId: "user", status: "running", surface: "canvas", projectId: "project-one" },
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: now + 60_000,
+                executionPhase: "polling",
+            },
+        ];
+
+        const nested = await getStoredGenerationTask<TestTask & { projectId?: string; episodeId?: string; shotId?: string }>("video", "nested-task");
+        expect(nested).toMatchObject({ surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" });
+        const conflict = await getStoredGenerationTask("video", "conflict-task");
+        expect(hasStoredGenerationTaskContextConflict(conflict)).toBe(true);
+    });
+
+    it("hydrates PostgreSQL durable owner, surface and project columns", async () => {
+        vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
+        vi.mocked(postgresQuery).mockResolvedValueOnce({
+            rows: [{ payload: { id: "postgres-task", status: "running" }, user_id: "user", surface: "drama", project_id: "project-one", execution_phase: "polling" }],
+        } as never);
+
+        await expect(getStoredGenerationTask("video", "postgres-task")).resolves.toMatchObject({ userId: "user", surface: "drama", projectId: "project-one", executionPhase: "polling" });
+        vi.mocked(getDatabaseProvider).mockReturnValue("file");
     });
 
     it("deduplicates the same request attempt but allows a later retry attempt", async () => {
