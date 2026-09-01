@@ -30,9 +30,7 @@ test("平台管理员按学校管理成员个人永久积分", async ({ browser,
         const managerA = await createAuthenticatedE2EContext(browser, BASE_URL, { username: names.managerA, password: PASSWORD }, e2eProjectContextOptions(testInfo.project.name));
         const managerB = await createAuthenticatedE2EContext(browser, BASE_URL, { username: names.managerB, password: PASSWORD }, e2eProjectContextOptions(testInfo.project.name));
         contexts.push(managerA, managerB);
-        const members = await apiData<SchoolMember[]>(
-            await managerA.request.post("/api/school/members", { data: { rows: [{ username: names.student, displayName: `积分学生 ${suffix}`, password: PASSWORD, role: "student" }] } }),
-        );
+        const members = await apiData<SchoolMember[]>(await managerA.request.post("/api/school/members", { data: { rows: [{ username: names.student, displayName: `积分学生 ${suffix}`, password: PASSWORD, role: "student" }] } }));
         const schoolMember = members.find((item) => item.username === names.student);
         expect(schoolMember).toBeTruthy();
         const student = await createAuthenticatedE2EContext(browser, BASE_URL, { username: names.student, password: PASSWORD }, e2eProjectContextOptions(testInfo.project.name));
@@ -142,7 +140,12 @@ async function verifyAdminUi(page: Page, schoolName: string, accountId: string, 
     await expect(modal.getByText(`调整后：${formatPoints(permanentPoints - 2.25)}`, { exact: true })).toBeVisible();
     await modal.getByRole("button", { name: "确认调整", exact: true }).click();
     await expect(modal).toBeHidden();
-    await expect(page.getByText(formatPoints(permanentPoints - 2.25), { exact: true }).filter({ visible: true }).first()).toBeVisible();
+    await expect(
+        page
+            .getByText(formatPoints(permanentPoints - 2.25), { exact: true })
+            .filter({ visible: true })
+            .first(),
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page, `${projectName} ${theme} school member points`);
     await expectVisibleControlsWithinViewport(page, `${projectName} ${theme} school member points`);
     return permanentPoints - 2.25;

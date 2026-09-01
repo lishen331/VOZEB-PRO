@@ -116,8 +116,8 @@ describe("PostgreSQL auth entity concurrency", () => {
                 ),
             );
             const [user, record] = await Promise.all([repositories.users.getById(userId), repositories.points.getRecordByIdempotencyKey(idempotencyKey)]);
-            expect(results.filter((result) => result.applied)).toHaveLength(1);
-            expect(results.filter((result) => !result.applied)).toHaveLength(1);
+            expect(results.filter((result) => result?.applied)).toHaveLength(1);
+            expect(results.filter((result) => result && !result.applied)).toHaveLength(1);
             expect(user).toMatchObject({ pointsBalance: 22.5 });
             expect(record).toMatchObject({ userId, amount: 12.5, requestFingerprint: fingerprint, permanentBalanceAfter: 22.5 });
         } finally {

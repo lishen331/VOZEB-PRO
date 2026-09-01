@@ -17,7 +17,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const parsed = await readJsonBodyResult<AdminSchoolMemberPointsAdjustmentInput>(request);
     if (!parsed.ok || !isSchoolApiObject(parsed.data)) {
         const status = parsed.ok ? 400 : parsed.status;
-        await safeRecordAuditLog({ action: "admin.school-member.points-adjust", status: "failure", actor: auditActorFromRequest(request, user), target: { type: "school_member", id: membershipId }, metadata: { schoolId, membershipId, errorStatus: status } });
+        await safeRecordAuditLog({
+            action: "admin.school-member.points-adjust",
+            status: "failure",
+            actor: auditActorFromRequest(request, user),
+            target: { type: "school_member", id: membershipId },
+            metadata: { schoolId, membershipId, errorStatus: status },
+        });
         return parsed.ok ? schoolApiError(400, "请求参数无效") : schoolApiError(parsed.status, parsed.message);
     }
     const body = parsed.data;
@@ -49,7 +55,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         });
         return schoolApiOk(result);
     } catch (error) {
-        await safeRecordAuditLog({ action: "admin.school-member.points-adjust", status: "failure", actor: auditActorFromRequest(request, user), target: { type: "school_member", id: membershipId }, metadata: { schoolId, membershipId, errorStatus: schoolApiErrorStatus(error) } });
+        await safeRecordAuditLog({
+            action: "admin.school-member.points-adjust",
+            status: "failure",
+            actor: auditActorFromRequest(request, user),
+            target: { type: "school_member", id: membershipId },
+            metadata: { schoolId, membershipId, errorStatus: schoolApiErrorStatus(error) },
+        });
         return schoolApiFailure(error, "调整成员积分失败");
     }
 }

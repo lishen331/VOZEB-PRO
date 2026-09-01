@@ -111,7 +111,11 @@ export function AdminSchoolMembersList({ school, onBack }: { school: SchoolSumma
             key: "actions",
             width: 128,
             align: "right",
-            render: (_, member) => <Button type="text" size="small" icon={<WalletCards className="size-3.5" />} onClick={() => openAdjustment(member)}>调整积分</Button>,
+            render: (_, member) => (
+                <Button type="text" size="small" icon={<WalletCards className="size-3.5" />} onClick={() => openAdjustment(member)}>
+                    调整积分
+                </Button>
+            ),
         },
     ];
 
@@ -120,10 +124,14 @@ export function AdminSchoolMembersList({ school, onBack }: { school: SchoolSumma
         <div className="min-w-0 space-y-3" data-school-members>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                    <Button type="text" size="small" icon={<ArrowLeft className="size-3.5" />} onClick={onBack}>返回学校列表</Button>
+                    <Button type="text" size="small" icon={<ArrowLeft className="size-3.5" />} onClick={onBack}>
+                        返回学校列表
+                    </Button>
                     <h2 className="mt-1 truncate text-base font-semibold text-zinc-950 dark:text-zinc-100">{school.name}的成员</h2>
                 </div>
-                <Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void load()}>刷新</Button>
+                <Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void load()}>
+                    刷新
+                </Button>
             </div>
             <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_8rem]">
                 <Input.Search
@@ -139,7 +147,10 @@ export function AdminSchoolMembersList({ school, onBack }: { school: SchoolSumma
                     allowClear
                     value={role}
                     placeholder="学校角色"
-                    options={[{ value: "teacher", label: "老师" }, { value: "student", label: "学生" }]}
+                    options={[
+                        { value: "teacher", label: "老师" },
+                        { value: "student", label: "学生" },
+                    ]}
                     onChange={(value) => {
                         setRole(value);
                         setPage(1);
@@ -149,7 +160,10 @@ export function AdminSchoolMembersList({ school, onBack }: { school: SchoolSumma
                     allowClear
                     value={status}
                     placeholder="成员状态"
-                    options={[{ value: "active", label: "可用" }, { value: "disabled", label: "停用" }]}
+                    options={[
+                        { value: "active", label: "可用" },
+                        { value: "disabled", label: "停用" },
+                    ]}
                     onChange={(value) => {
                         setStatus(value);
                         setPage(1);
@@ -172,7 +186,11 @@ export function AdminSchoolMembersList({ school, onBack }: { school: SchoolSumma
                             <PointsMetric label="每日积分" value={member.dailyPoints} />
                             <PointsMetric label="总积分" value={member.totalPoints} />
                         </div>
-                        <div className="mt-2 flex justify-end"><Button type="text" size="small" icon={<WalletCards className="size-3.5" />} onClick={() => openAdjustment(member)}>调整积分</Button></div>
+                        <div className="mt-2 flex justify-end">
+                            <Button type="text" size="small" icon={<WalletCards className="size-3.5" />} onClick={() => openAdjustment(member)}>
+                                调整积分
+                            </Button>
+                        </div>
                     </div>
                 ))}
                 {!loading && !items.length ? <div className="py-10 text-center text-sm text-zinc-500">暂无匹配成员</div> : null}
@@ -195,20 +213,30 @@ export function AdminSchoolMembersList({ school, onBack }: { school: SchoolSumma
                             当前个人永久积分：<strong>{formatPoints(draft.member.permanentPoints)}</strong>
                             {projectedBalance !== null ? <span className={projectedBalance < 0 ? "ml-2 text-red-600 dark:text-red-300" : "ml-2 text-zinc-500 dark:text-zinc-400"}>调整后：{formatPoints(projectedBalance)}</span> : null}
                         </div>
-                        {draft.member.accountStatus === "disabled" ? <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">停用账号当前不能生成；本次调账不会改变账号状态。</div> : null}
+                        {draft.member.accountStatus === "disabled" ? (
+                            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">停用账号当前不能生成；本次调账不会改变账号状态。</div>
+                        ) : null}
                         <div className="grid gap-3 sm:grid-cols-2">
                             <label className="space-y-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200">
                                 操作
-                                <Segmented className="block" value={draft.operation} options={[{ value: "credit", label: "增加" }, { value: "debit", label: "扣减" }]} onChange={(value) => setDraft((current) => current ? { ...current, operation: value as AdjustmentDraft["operation"] } : current)} />
+                                <Segmented
+                                    className="block"
+                                    value={draft.operation}
+                                    options={[
+                                        { value: "credit", label: "增加" },
+                                        { value: "debit", label: "扣减" },
+                                    ]}
+                                    onChange={(value) => setDraft((current) => (current ? { ...current, operation: value as AdjustmentDraft["operation"] } : current))}
+                                />
                             </label>
                             <label className="space-y-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200">
                                 积分数量
-                                <InputNumber className="w-full" min={0.01} precision={2} value={draft.amount} onChange={(value) => setDraft((current) => current ? { ...current, amount: value === null ? null : Number(value) } : current)} />
+                                <InputNumber className="w-full" min={0.01} precision={2} value={draft.amount} onChange={(value) => setDraft((current) => (current ? { ...current, amount: value === null ? null : Number(value) } : current))} />
                             </label>
                         </div>
                         <label className="block space-y-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200">
                             调账原因
-                            <Input.TextArea value={draft.reason} autoSize={{ minRows: 3, maxRows: 6 }} maxLength={500} onChange={(event) => setDraft((current) => current ? { ...current, reason: event.target.value } : current)} />
+                            <Input.TextArea value={draft.reason} autoSize={{ minRows: 3, maxRows: 6 }} maxLength={500} onChange={(event) => setDraft((current) => (current ? { ...current, reason: event.target.value } : current))} />
                         </label>
                     </div>
                 ) : null}
@@ -221,18 +249,30 @@ function MemberIdentity({ member }: { member: AdminSchoolMemberPoints }) {
     return (
         <div className="min-w-0">
             <div className="truncate text-sm font-medium text-zinc-950 dark:text-zinc-100">{member.displayName}</div>
-            <div className="truncate text-xs text-zinc-500">账号 ID：{member.accountId} · @{member.username}</div>
+            <div className="truncate text-xs text-zinc-500">
+                账号 ID：{member.accountId} · @{member.username}
+            </div>
             {member.email ? <div className="truncate text-xs text-zinc-400">{member.email}</div> : null}
         </div>
     );
 }
 
 function MemberStatus({ member }: { member: AdminSchoolMemberPoints }) {
-    return <div className="flex shrink-0 flex-wrap justify-end gap-1"><Tag color={member.status === "active" ? "green" : "default"}>{member.status === "active" ? "成员可用" : "成员停用"}</Tag>{member.accountStatus === "disabled" ? <Tag color="orange">停用账号当前不能生成</Tag> : null}</div>;
+    return (
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+            <Tag color={member.status === "active" ? "green" : "default"}>{member.status === "active" ? "成员可用" : "成员停用"}</Tag>
+            {member.accountStatus === "disabled" ? <Tag color="orange">停用账号当前不能生成</Tag> : null}
+        </div>
+    );
 }
 
 function PointsMetric({ label, value }: { label: string; value: number }) {
-    return <div><div className="text-zinc-500">{label}</div><div className="mt-0.5 font-medium text-zinc-900 dark:text-zinc-100">{formatPoints(value)}</div></div>;
+    return (
+        <div>
+            <div className="text-zinc-500">{label}</div>
+            <div className="mt-0.5 font-medium text-zinc-900 dark:text-zinc-100">{formatPoints(value)}</div>
+        </div>
+    );
 }
 
 function formatPoints(value: number) {

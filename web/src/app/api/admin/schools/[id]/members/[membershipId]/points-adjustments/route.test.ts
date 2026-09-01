@@ -22,10 +22,34 @@ describe("admin school member points adjustment route", () => {
     });
 
     it("passes session and path identities, ignores body userId, and audits the persisted result", async () => {
-        const response = await POST(new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ operation: "credit", amount: 12.5, reason: "合同额度修正", idempotencyKey: "adjust-a", userId: "attacker" }) }), context);
+        const response = await POST(
+            new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ operation: "credit", amount: 12.5, reason: "合同额度修正", idempotencyKey: "adjust-a", userId: "attacker" }),
+            }),
+            context,
+        );
         expect(response.status).toBe(200);
         expect(mocks.adjust).toHaveBeenCalledWith("admin-a", "school-a", "membership-a", { operation: "credit", amount: 12.5, reason: "合同额度修正", idempotencyKey: "adjust-a" });
-        expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ action: "admin.school-member.points-adjust", metadata: expect.objectContaining({ schoolId: "school-a", membershipId: "membership-a", userId: "user-a", accountId: "1001", operation: "credit", amount: 12.5, balanceBefore: 20, balanceAfter: 32.5, reason: "合同额度修正", recordId: "record-a", idempotencyKey: "adjust-a" }) }));
+        expect(mocks.audit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                action: "admin.school-member.points-adjust",
+                metadata: expect.objectContaining({
+                    schoolId: "school-a",
+                    membershipId: "membership-a",
+                    userId: "user-a",
+                    accountId: "1001",
+                    operation: "credit",
+                    amount: 12.5,
+                    balanceBefore: 20,
+                    balanceAfter: 32.5,
+                    reason: "合同额度修正",
+                    recordId: "record-a",
+                    idempotencyKey: "adjust-a",
+                }),
+            }),
+        );
     });
 
     it("maps service errors and records redacted failure metadata", async () => {

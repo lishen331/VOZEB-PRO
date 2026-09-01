@@ -13,7 +13,17 @@ const mocks = vi.hoisted(() => ({
     adjustPermanentPointsInPostgresTransaction: vi.fn(),
 }));
 
-vi.mock("@/lib/server/school-access-service", () => ({ requirePlatformAdmin: mocks.requirePlatformAdmin, SchoolServiceError: class SchoolServiceError extends Error { constructor(public status: number, message: string) { super(message); } } }));
+vi.mock("@/lib/server/school-access-service", () => ({
+    requirePlatformAdmin: mocks.requirePlatformAdmin,
+    SchoolServiceError: class SchoolServiceError extends Error {
+        constructor(
+            public status: number,
+            message: string,
+        ) {
+            super(message);
+        }
+    },
+}));
 vi.mock("@/lib/server/school-domain-repository", () => ({ createSchoolDomainRepository: mocks.createSchoolDomainRepository }));
 vi.mock("@/lib/auth/store", () => ({ getPublicUsersByIds: mocks.getPublicUsersByIds }));
 vi.mock("@/lib/server/database", () => ({ isPostgresDatabaseEnabled: mocks.isPostgresDatabaseEnabled, ensurePostgresSchema: mocks.ensurePostgresSchema, withPostgresTransaction: mocks.withPostgresTransaction }));
@@ -23,8 +33,39 @@ vi.mock("@/lib/server/points-wallet-service", () => ({ adjustPermanentPointsInAu
 
 import { adjustSchoolMemberPointsByAdmin, listSchoolMembersByAdmin } from "./admin-school-member-points-service";
 
-const user = (id = "user-1", overrides = {}) => ({ id, accountId: "1001", username: "student", displayName: "学生", email: "student@example.com", role: "user", status: "active", pointsBalance: 20, permanentPointsBalance: 20, dailyPointsBalance: 5, dailyPointsExpiresAt: "2026-09-01T15:59:59.000Z", adminPermissions: [], planId: "free", planName: "Free", hasActivePlan: false, bio: "", mfaEnabled: false, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", ...overrides });
-const membership = { id: "membership-1", schoolId: "school-1", userId: "user-1", role: "student" as const, permissions: [], status: "active" as const, joinSource: "admin" as const, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" };
+const user = (id = "user-1", overrides = {}) => ({
+    id,
+    accountId: "1001",
+    username: "student",
+    displayName: "学生",
+    email: "student@example.com",
+    role: "user",
+    status: "active",
+    pointsBalance: 20,
+    permanentPointsBalance: 20,
+    dailyPointsBalance: 5,
+    dailyPointsExpiresAt: "2026-09-01T15:59:59.000Z",
+    adminPermissions: [],
+    planId: "free",
+    planName: "Free",
+    hasActivePlan: false,
+    bio: "",
+    mfaEnabled: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+});
+const membership = {
+    id: "membership-1",
+    schoolId: "school-1",
+    userId: "user-1",
+    role: "student" as const,
+    permissions: [],
+    status: "active" as const,
+    joinSource: "admin" as const,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+};
 
 describe("admin school member points service", () => {
     beforeEach(() => {

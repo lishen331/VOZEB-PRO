@@ -156,9 +156,19 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
             align: "right",
             render: (_, school) => (
                 <div className="flex justify-end gap-1">
-                    <Button type="text" size="small" icon={<Users className="size-3.5" />} onClick={() => setSelectedSchool(school)}>成员</Button>
-                    {canManageEducation ? <Button type="text" size="small" icon={<Eye className="size-3.5" />} onClick={() => void openDetail(school)}>详情</Button> : null}
-                    {canManageEducation ? <Button type="text" size="small" icon={<Pencil className="size-3.5" />} onClick={() => void openEdit(school)}>编辑</Button> : null}
+                    <Button type="text" size="small" icon={<Users className="size-3.5" />} onClick={() => setSelectedSchool(school)}>
+                        成员
+                    </Button>
+                    {canManageEducation ? (
+                        <Button type="text" size="small" icon={<Eye className="size-3.5" />} onClick={() => void openDetail(school)}>
+                            详情
+                        </Button>
+                    ) : null}
+                    {canManageEducation ? (
+                        <Button type="text" size="small" icon={<Pencil className="size-3.5" />} onClick={() => void openEdit(school)}>
+                            编辑
+                        </Button>
+                    ) : null}
                 </div>
             ),
         },
@@ -197,7 +207,11 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
                 </div>
                 <div className="flex shrink-0 gap-2">
                     <Button icon={<RefreshCw className="size-4" />} loading={loading} aria-label="刷新学校列表" onClick={() => void load()} />
-                    {canManageEducation ? <Button type="primary" icon={<Plus className="size-4" />} onClick={openCreate} data-create-school>新建学校</Button> : null}
+                    {canManageEducation ? (
+                        <Button type="primary" icon={<Plus className="size-4" />} onClick={openCreate} data-create-school>
+                            新建学校
+                        </Button>
+                    ) : null}
                 </div>
             </div>
             {error ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{error}</div> : null}
@@ -218,9 +232,19 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
                             <SchoolStatusTag status={school.status} />
                         </div>
                         <div className="mt-2 flex justify-end gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
-                            <Button type="text" size="small" icon={<Users className="size-3.5" />} onClick={() => setSelectedSchool(school)}>成员</Button>
-                            {canManageEducation ? <Button type="text" size="small" icon={<Eye className="size-3.5" />} onClick={() => void openDetail(school)}>详情</Button> : null}
-                            {canManageEducation ? <Button type="text" size="small" icon={<Pencil className="size-3.5" />} onClick={() => void openEdit(school)}>编辑</Button> : null}
+                            <Button type="text" size="small" icon={<Users className="size-3.5" />} onClick={() => setSelectedSchool(school)}>
+                                成员
+                            </Button>
+                            {canManageEducation ? (
+                                <Button type="text" size="small" icon={<Eye className="size-3.5" />} onClick={() => void openDetail(school)}>
+                                    详情
+                                </Button>
+                            ) : null}
+                            {canManageEducation ? (
+                                <Button type="text" size="small" icon={<Pencil className="size-3.5" />} onClick={() => void openEdit(school)}>
+                                    编辑
+                                </Button>
+                            ) : null}
                         </div>
                     </div>
                 ))}
@@ -228,25 +252,29 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
             </div>
             <Pagination current={page} pageSize={PAGE_SIZE} total={total} showSizeChanger={false} hideOnSinglePage onChange={setPage} />
 
-            {canManageEducation ? <Modal
-                forceRender
-                title={editing ? "编辑学校" : "新建学校"}
-                open={modalOpen}
-                okText={editing ? "保存修改" : "创建学校"}
-                cancelText="取消"
-                confirmLoading={saving}
-                width={560}
-                onOk={() => form.submit()}
-                onCancel={() => {
-                    setEditing(undefined);
-                    form.resetFields();
-                }}
-            >
-                <SchoolEditorForm form={form} editing={Boolean(editing)} onFinish={save} />
-            </Modal> : null}
-            {canManageEducation ? <Drawer title="学校详情" open={Boolean(viewing)} size={Math.min(560, typeof window === "undefined" ? 560 : window.innerWidth)} onClose={() => setViewing(null)}>
-                {viewing ? <SchoolDetailView school={viewing} /> : null}
-            </Drawer> : null}
+            {canManageEducation ? (
+                <Modal
+                    forceRender
+                    title={editing ? "编辑学校" : "新建学校"}
+                    open={modalOpen}
+                    okText={editing ? "保存修改" : "创建学校"}
+                    cancelText="取消"
+                    confirmLoading={saving}
+                    width={560}
+                    onOk={() => form.submit()}
+                    onCancel={() => {
+                        setEditing(undefined);
+                        form.resetFields();
+                    }}
+                >
+                    <SchoolEditorForm form={form} editing={Boolean(editing)} onFinish={save} />
+                </Modal>
+            ) : null}
+            {canManageEducation ? (
+                <Drawer title="学校详情" open={Boolean(viewing)} size={Math.min(560, typeof window === "undefined" ? 560 : window.innerWidth)} onClose={() => setViewing(null)}>
+                    {viewing ? <SchoolDetailView school={viewing} /> : null}
+                </Drawer>
+            ) : null}
         </div>
     );
 }

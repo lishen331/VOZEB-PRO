@@ -19,18 +19,11 @@ export async function listSchoolMembersByAdmin(actorId: string, schoolId: string
     return { ...page, items: page.items.map((member) => adminMember(member, usersById.get(member.userId))) };
 }
 
-export async function adjustSchoolMemberPointsByAdmin(
-    actorId: string,
-    schoolId: string,
-    membershipId: string,
-    input: AdminSchoolMemberPointsAdjustmentInput,
-): Promise<AdminSchoolMemberPointsAdjustmentResult> {
+export async function adjustSchoolMemberPointsByAdmin(actorId: string, schoolId: string, membershipId: string, input: AdminSchoolMemberPointsAdjustmentInput): Promise<AdminSchoolMemberPointsAdjustmentResult> {
     await requirePlatformAdmin(actorId);
     const normalized = normalizeAdjustment(input);
     const amount = normalized.operation === "credit" ? normalized.amount : -normalized.amount;
-    const wallet = isPostgresDatabaseEnabled()
-        ? await adjustPostgres(actorId, schoolId, membershipId, amount, normalized)
-        : await adjustFile(actorId, schoolId, membershipId, amount, normalized);
+    const wallet = isPostgresDatabaseEnabled() ? await adjustPostgres(actorId, schoolId, membershipId, amount, normalized) : await adjustFile(actorId, schoolId, membershipId, amount, normalized);
     const member = await loadAdminMember(schoolId, membershipId);
     const balanceAfter = wallet.record.permanentBalanceAfter;
     return {

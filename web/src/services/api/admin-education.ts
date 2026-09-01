@@ -1,4 +1,15 @@
-import type { AdminSchoolMemberPoints, AdminSchoolMemberPointsAdjustmentInput, AdminSchoolMemberPointsAdjustmentResult, AdminSchoolMemberQuery, CreateSchoolInput, PageResult, SchoolDetail, SchoolStatus, SchoolSummary, UpdateSchoolInput } from "@/lib/school-domain";
+import type {
+    AdminSchoolMemberPoints,
+    AdminSchoolMemberPointsAdjustmentInput,
+    AdminSchoolMemberPointsAdjustmentResult,
+    AdminSchoolMemberQuery,
+    CreateSchoolInput,
+    PageResult,
+    SchoolDetail,
+    SchoolStatus,
+    SchoolSummary,
+    UpdateSchoolInput,
+} from "@/lib/school-domain";
 import { serializeApiParams } from "@/services/api/request";
 
 export const adminEducationApi = {
