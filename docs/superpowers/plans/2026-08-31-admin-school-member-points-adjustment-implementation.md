@@ -4,7 +4,7 @@
 
 **Goal:** Allow every active platform administrator to find members inside any school and add or deduct that member's personal permanent points with a mandatory reason, complete ledger history, audit history, cross-school isolation, and idempotent writes.
 
-**Architecture:** Reuse the existing school membership repository for school-scoped paging/search and the existing personal points wallet for permanent-point mutations. Add an admin-only orchestration service that validates the school/member relationship and coordinates wallet mutation. PostgreSQL performs membership validation and point mutation in one transaction; the file provider performs one serialized auth-wallet mutation after a school-scoped membership read. Expose two admin Route Handlers and a responsive member Drawer/adjustment Modal in the existing school management section. No new tables are required.
+**Architecture:** Reuse the existing school membership repository for school-scoped paging/search and the existing personal points wallet for permanent-point mutations. Add an admin-only orchestration service that validates the school/member relationship and coordinates wallet mutation. PostgreSQL performs membership validation and point mutation in one transaction; the file provider performs one serialized auth-wallet mutation after a school-scoped membership read. Expose two admin Route Handlers and a school member list view with a compact adjustment Modal in the existing school management section. No new tables are required.
 
 **Tech Stack:** Next.js App Router and Route Handlers, React, TypeScript, Ant Design 6, Tailwind CSS, PostgreSQL/file providers, Vitest, Playwright.
 
@@ -13,7 +13,7 @@
 - Treat `docs/superpowers/specs/2026-08-31-admin-school-member-points-adjustment-design.md` as the approved product contract.
 - Preserve all existing user changes and untracked files; do not reformat or include unrelated files in task commits.
 - Use public account ID in every administrator-facing member row, search result, adjustment dialog, and audit target metadata.
-- All active global `admin` accounts can read the school list, open the school member Drawer, and adjust member points. Only administrators with `education.manage` can create schools, view/edit full school details, or use other existing education-management mutations.
+- All active global `admin` accounts can read the school list, enter a school's member list, and adjust member points. Only administrators with `education.manage` can create schools, view/edit full school details, or use other existing education-management mutations.
 - School managers, teachers, students, ordinary users, inactive administrators, and unauthenticated callers cannot use the new admin member APIs.
 - Adjust only personal permanent points. Do not modify daily points, school compute pools, production-group balances, personal advances, project billing context, or infinite-practice charging.
 - Allow adjustment while the school, membership, or target user account is disabled; do not reactivate any of them.
@@ -252,31 +252,31 @@ adjustSchoolMemberPoints(schoolId: string, membershipId: string, input: AdminSch
 
 ---
 
-### Task 5: Add the responsive member Drawer and adjustment Modal to school management
+### Task 5: Add the responsive member list and adjustment Modal to school management
 
 **Files:**
-- Create: `web/src/app/admin/schools/components/admin-school-members-drawer.tsx`
-- Create: `web/src/app/admin/schools/components/admin-school-members-drawer.test.tsx`
+- Create: `web/src/app/admin/schools/components/admin-school-members-list.tsx`
+- Create: `web/src/app/admin/schools/components/admin-school-members-list.test.tsx`
 - Modify: `web/src/app/admin/schools/components/admin-schools-section.tsx`
 - Modify: `web/src/app/admin/schools/components/admin-schools-section.test.tsx`
 - Modify: `web/src/components/admin/admin-dashboard.tsx`
 
-- [ ] Add failing component/source-contract tests that require `AdminSchoolsSection` to receive `currentUser`, show “成员” for every platform admin, hide “新建学校/详情/编辑” without `education.manage`, call the typed API rather than `fetch`, use public account ID, and use responsive Drawer width without `size="large"`.
+- [ ] Add failing component/source-contract tests that require `AdminSchoolsSection` to receive `currentUser`, show “成员” for every platform admin, switch to a school-scoped member list with a visible “返回学校列表” action, hide “新建学校/详情/编辑” without `education.manage`, call the typed API rather than `fetch`, and use public account ID.
 - [ ] Add behavioral assertions for form validation: amount is required, positive, and at most two decimals; reason is required; debit preview below zero blocks submission; successful response updates the current row; failed response preserves the open Modal and entered values.
 - [ ] Run the focused frontend tests and confirm the new assertions fail.
 
 ```powershell
 Set-Location web
-pnpm exec vitest run src/app/admin/schools/components/admin-schools-section.test.tsx src/app/admin/schools/components/admin-school-members-drawer.test.tsx --no-file-parallelism
+pnpm exec vitest run src/app/admin/schools/components/admin-schools-section.test.tsx src/app/admin/schools/components/admin-school-members-list.test.tsx --no-file-parallelism
 ```
 
 - [ ] Pass `currentUser` from `AdminDashboard` into `AdminSchoolsSection`. Compute `canManageEducation = hasAdminPermission(currentUser, "education.manage")` once inside the school section.
 - [ ] Add a “成员” button with a `Users` icon to both the desktop operation column and mobile school card. Keep it visible for every active platform admin. Render create/detail/edit only when `canManageEducation` is true.
-- [ ] Implement `AdminSchoolMembersDrawer` with server-side keyword/role/status/page state, request-sequence protection, explicit loading/error/empty states, and a refresh button. Use a desktop table and compact mobile rows; do not fetch the whole school or all users.
+- [ ] Implement `AdminSchoolMembersList` as the selected-school view inside the school management section. Keep the selected `schoolId` in the URL query or equivalent page state, provide “返回学校列表”, and use server-side keyword/role/status/page state, request-sequence protection, explicit loading/error/empty states, and a refresh button. Use a desktop table and compact mobile rows; do not fetch the whole school or all users.
 - [ ] Display member name, public account ID, username, school role, membership status, account status, permanent points, daily points, total points, and “调整积分”. When the account is disabled, show “停用账号当前不能生成”.
 - [ ] Implement the adjustment Modal with Ant Design `Segmented`, `InputNumber`, and required reason `Input.TextArea`. Generate one stable `crypto.randomUUID()` idempotency key when the Modal opens; reuse it across retries and replace it only after success or when opening a different adjustment.
 - [ ] Preview only permanent balance. On success replace the matching member row with `result.member`, close/reset the Modal, and show a success message. On error leave the values and idempotency key intact.
-- [ ] Use a Drawer width equivalent to `Math.min(760, window.innerWidth)` and a Modal width bounded by the viewport. Keep Ant Design controls inside normal `div` layout wrappers so their root display styles cannot break the grid.
+- [ ] Keep the member list within the existing admin content width and use a Modal width bounded by the viewport for adjustments. Keep Ant Design controls inside normal `div` layout wrappers so their root display styles cannot break the grid.
 - [ ] Rerun the focused tests, typecheck, and lint for the changed files.
 
 ---
@@ -293,14 +293,14 @@ pnpm exec vitest run src/app/admin/schools/components/admin-schools-section.test
 - [ ] Use school A's URL with school B's membership ID and assert 404. Verify a school-manager Session and ordinary-user Session receive 403 from both new admin endpoints.
 - [ ] Disable the target account and verify the platform administrator can still adjust it, the UI displays “停用账号当前不能生成”, and the account remains disabled.
 - [ ] Add a limited-duty active administrator check: the school section/member action is accessible, while “新建学校”, “详情”, and “编辑” are absent and POST/PATCH school operations remain 403.
-- [ ] Run the spec on the configured desktop project and 390px/430px mobile projects. For each viewport and both light/dark themes, call the existing responsive helpers to verify Drawer/Modal controls remain inside the viewport and the page has no horizontal overflow.
+- [ ] Run the spec on the configured desktop project and 390px/430px mobile projects. For each viewport and both light/dark themes, call the existing responsive helpers to verify the member list/Modal controls remain inside the viewport and the page has no horizontal overflow.
 
 ```powershell
 Set-Location web
 pnpm exec playwright test e2e/admin-school-member-points.spec.ts
 ```
 
-- [ ] Capture the browser evidence needed for handoff: school row/member entry, populated member Drawer, credit Modal, debit Modal, disabled-account warning, and post-adjustment balance.
+- [ ] Capture the browser evidence needed for handoff: school row/member entry, populated member list, credit Modal, debit Modal, disabled-account warning, and post-adjustment balance.
 
 ---
 
@@ -325,7 +325,7 @@ pwsh -NoProfile -File .\过程文件\验证开发文档.ps1
 
 ```powershell
 Set-Location web
-pnpm exec vitest run src/lib/server/points-wallet-service.test.ts src/lib/server/points-wallet-idempotency.postgres.test.ts src/lib/server/database/auth-entity-concurrency.postgres.test.ts src/lib/server/admin-school-member-points-service.test.ts src/app/api/admin/schools/route.test.ts src/app/api/admin/schools/[id]/members/route.test.ts src/app/api/admin/schools/[id]/members/[membershipId]/points-adjustments/route.test.ts src/services/api/admin-education.test.ts src/components/admin/admin-sections.test.ts src/app/admin/schools/components/admin-schools-section.test.tsx src/app/admin/schools/components/admin-school-members-drawer.test.tsx --no-file-parallelism
+pnpm exec vitest run src/lib/server/points-wallet-service.test.ts src/lib/server/points-wallet-idempotency.postgres.test.ts src/lib/server/database/auth-entity-concurrency.postgres.test.ts src/lib/server/admin-school-member-points-service.test.ts src/app/api/admin/schools/route.test.ts src/app/api/admin/schools/[id]/members/route.test.ts src/app/api/admin/schools/[id]/members/[membershipId]/points-adjustments/route.test.ts src/services/api/admin-education.test.ts src/components/admin/admin-sections.test.ts src/app/admin/schools/components/admin-schools-section.test.tsx src/app/admin/schools/components/admin-school-members-list.test.tsx --no-file-parallelism
 pnpm run typecheck
 pnpm run lint
 ```
