@@ -39,6 +39,21 @@ describe("POST /api/ip-library/:id/download", () => {
         expect(await response.json()).toMatchObject({ code: 403, data: null });
     });
 
+    it("passes through a streamed local original and appends the download id", async () => {
+        mocks.downloadIpForUser.mockResolvedValue({
+            kind: "response",
+            response: new Response("plain text", { headers: { "Content-Type": "text/plain", "Content-Disposition": "attachment; filename*=UTF-8''story.txt" } }),
+            fileName: "story.txt",
+            downloadId: "download-stream",
+        });
+        const response = await POST(new Request("http://localhost/api/ip-library/ip-one/download", { method: "POST", body: JSON.stringify({ itemIds: ["item-one"], package: false }), headers: { "Content-Type": "application/json" } }), {
+            params: Promise.resolve({ id: "ip-one" }),
+        });
+        expect(response.headers.get("x-ip-download-id")).toBe("download-stream");
+        expect(response.headers.get("content-disposition")).toContain("story.txt");
+        expect(await response.text()).toBe("plain text");
+    });
+
     it("redirects object storage downloads without persisting the signed URL", async () => {
         mocks.downloadIpForUser.mockResolvedValue({ kind: "redirect", url: "https://objects.example/short-lived", fileName: "角色.png", downloadId: "download-two" });
         const response = await POST(new Request("http://localhost/api/ip-library/ip-one/download", { method: "POST", body: JSON.stringify({ itemIds: ["item-one"], package: false }), headers: { "Content-Type": "application/json" } }), {

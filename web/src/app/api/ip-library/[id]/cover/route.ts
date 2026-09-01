@@ -20,6 +20,12 @@ export async function GET(request: Request, context: RouteContext) {
 
 function previewResponse(result: Awaited<ReturnType<typeof previewIpMediaForUser>>) {
     if (result.kind === "redirect") return new Response(null, { status: 307, headers: { Location: result.url, "Cache-Control": "private, no-store, max-age=0" } });
+    if (result.kind === "response") {
+        const headers = new Headers(result.response.headers);
+        headers.set("Cache-Control", "private, no-store, max-age=0");
+        headers.set("X-Content-Type-Options", "nosniff");
+        return new Response(result.response.body, { status: result.response.status, headers });
+    }
     return new Response(new Uint8Array(result.bytes), {
         headers: {
             "Content-Type": result.mimeType,

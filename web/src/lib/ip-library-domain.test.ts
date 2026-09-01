@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { IP_ASSET_KINDS, IP_AUTHORIZATION_MODES, IP_STATUSES, IP_VERSION_STATUSES, IP_VISIBILITIES, ipAuthorizationLabel, normalizeIpItemCategory, normalizeIpReference } from "./ip-library-domain";
+import { IP_ASSET_KINDS, IP_AUTHORIZATION_MODES, IP_REFERENCE_ENTRY_VISIBLE, IP_STATUSES, IP_USAGE_ACTIONS, IP_VERSION_STATUSES, IP_VISIBILITIES, ipAuthorizationLabel, normalizeIpItemCategory, normalizeIpReference } from "./ip-library-domain";
 
 describe("IP library domain contracts", () => {
     it("keeps the designed visibility, authorization, status, and asset values", () => {
@@ -33,6 +33,12 @@ describe("IP library domain contracts", () => {
                 manifest: { hidden: true },
             }),
         ).toEqual({ type: "ip", id: "ip-a", versionId: "version-2", itemIds: ["item-a", "item-b"] });
+    });
+
+    it("keeps the reference contract dormant while its user entry is hidden", () => {
+        expect(IP_REFERENCE_ENTRY_VISIBLE).toBe(false);
+        expect(IP_USAGE_ACTIONS).toContain("reference");
+        expect(normalizeIpReference({ type: "ip", id: "ip-a", versionId: "v1", itemIds: [] })).not.toBeNull();
     });
 
     it("rejects duplicate item IDs and malformed IP references", () => {

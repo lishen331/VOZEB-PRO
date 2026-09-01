@@ -30,6 +30,7 @@ import { schoolApi } from "@/services/api/school";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { parseSchoolMemberCsv } from "./school-csv";
 import { ProductionGroupsPanel } from "./components/production-groups-panel";
+import { SchoolIpAccessPanel } from "./components/school-ip-access-panel";
 import { SchoolCourseTree } from "@/components/school/school-course-tree";
 
 const PAGE_SIZE = 12;
@@ -65,6 +66,7 @@ export function SchoolAdministration() {
                         { key: "courses", label: "课程安排", children: <CoursesPanel /> },
                         { key: "commercial-orders", label: "商单", children: <CommercialOrdersPanel /> },
                         { key: "production-groups", label: "制作小组与算力", children: <ProductionGroupsPanel /> },
+                        { key: "ip-access", label: "IP 开放", children: <SchoolIpAccessPanel /> },
                     ]}
                 />
             </div>

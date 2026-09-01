@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useUserStore } from "@/stores/use-user-store";
 import { CompactEmptyState } from "@/components/compact-empty-state";
 import { IpReferencePicker, ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
-import type { IpReference } from "@/lib/ip-library-domain";
+import { IP_REFERENCE_ENTRY_VISIBLE, type IpReference } from "@/lib/ip-library-domain";
 import { normalizeDramaImageSize } from "@/lib/drama-image-size";
 
 import { DramaProjectCard } from "./components/drama-project-card";
@@ -202,7 +202,7 @@ export default function DramaPage() {
                             </div>
                         ) : null}
                     </div>
-                    <IpReferencePicker value={ipReferences} onChange={setIpReferences} />
+                    {IP_REFERENCE_ENTRY_VISIBLE ? <IpReferencePicker value={ipReferences} onChange={setIpReferences} /> : null}
                 </div>
             </Modal>
         </main>
