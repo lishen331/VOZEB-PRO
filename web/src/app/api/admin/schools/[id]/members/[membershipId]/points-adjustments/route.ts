@@ -45,9 +45,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
             target: { type: "school_member", id: membershipId, label: result.member.accountId },
             metadata: {
                 schoolId,
+                schoolName: result.schoolName,
                 membershipId,
                 userId: result.member.userId,
                 accountId: result.member.accountId,
+                memberDisplayName: result.member.displayName,
                 operation: result.adjustment.operation,
                 amount: result.adjustment.amount,
                 balanceBefore: result.adjustment.balanceBefore,
@@ -57,7 +59,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
                 idempotencyKey: input.idempotencyKey,
             },
         });
-        return schoolApiOk(result);
+        const { schoolName: _schoolName, ...publicResult } = result;
+        return schoolApiOk(publicResult);
     } catch (error) {
         await safeRecordAuditLog({
             action: "admin.school-member.points-adjust",

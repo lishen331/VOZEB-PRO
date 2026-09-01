@@ -113,6 +113,26 @@ describe("points wallet service", () => {
         expect(db.users[0].pointsBalance).toBe(5);
         expect(db.pointRecords).toHaveLength(0);
     });
+
+    it("rejects a credit that would exceed the permanent balance limit without partial application", () => {
+        const db = emptyDb();
+        db.users.push(user(999_999, "free"));
+
+        expect(() =>
+            adjustPermanentPointsInAuthDb(db, {
+                userId: "user-one",
+                amount: 2,
+                description: "额度修正",
+                idempotencyKey: "school-member-adjust:file:overflow",
+                requestFingerprint: "d".repeat(64),
+                minimumBalance: 0,
+                requireActive: false,
+                now: at("2026-07-22T08:00:00+08:00"),
+            }),
+        ).toThrow("个人永久积分超出上限");
+        expect(db.users[0].pointsBalance).toBe(999_999);
+        expect(db.pointRecords).toHaveLength(0);
+    });
     it("settles one daily plan wallet lazily", async () => {
         await seedWallet({ permanentPoints: 50, dailyPoints: 30 });
 

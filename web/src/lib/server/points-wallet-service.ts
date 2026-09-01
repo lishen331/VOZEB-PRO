@@ -6,7 +6,7 @@ import utc from "dayjs/plugin/utc";
 
 import { AuthInputError, QuotaExceededError } from "@/lib/auth/store-foundation";
 import { mutateAuthDb } from "@/lib/auth/store-repository";
-import { normalizePointAmount, resolveDefaultPlan, resolveUserPlan } from "@/lib/auth/store-normalizers";
+import { MAX_POINT_AMOUNT, normalizePointAmount, resolveDefaultPlan, resolveUserPlan } from "@/lib/auth/store-normalizers";
 import type { AuthDatabase, PointUsageKind, PublicPointRecord, StoredDailyPlanPointWallet, StoredPointRecord, StoredUser } from "@/lib/auth/store-types";
 import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled, withPostgresTransaction, type QueryExecutor } from "@/lib/server/database";
 import type { AppSettingsRecord, EntitlementPlanRecord, JsonValue, UserPlanAssignmentRecord, UserRecord } from "@/lib/server/database/repository-shared";
@@ -175,6 +175,7 @@ export function adjustPermanentPointsInAuthDb(db: AuthDatabase, input: AdjustPer
     const snapshotBefore = permanentFileSnapshot(db, user, clock);
     if (existing) return existingAdjustmentFileMutation(existing, snapshotBefore, input, amount, requestFingerprint);
 
+    assertAdjustmentBalance(user.pointsBalance, amount);
     const nextPermanentPoints = normalizePointAmount(user.pointsBalance + amount, 0);
     assertMinimumBalance(nextPermanentPoints, input.minimumBalance);
     user.pointsBalance = nextPermanentPoints;
@@ -301,10 +302,9 @@ export async function adjustPermanentPointsInPostgresTransaction(client: QueryEx
     const context = await settlePostgresWallet(client, user, walletClock(input));
     if (existing) return existingAdjustmentMutation(existing, context, input, requestedAmount, requestFingerprint);
 
+    assertAdjustmentBalance(user.pointsBalance, requestedAmount);
     const nextPermanentPoints = normalizePointAmount(user.pointsBalance + requestedAmount, 0);
     assertMinimumBalance(nextPermanentPoints, input.minimumBalance);
-    const appliedAmount = normalizePointAmount(nextPermanentPoints - user.pointsBalance, 0);
-    if (!appliedAmount) return null;
     const updatedUser = await repos.users.update(user.id, { pointsBalance: nextPermanentPoints });
     if (!updatedUser) throw new AuthInputError("用户不存在");
     context.user = updatedUser;
@@ -313,9 +313,9 @@ export async function adjustPermanentPointsInPostgresTransaction(client: QueryEx
         id: randomUUID(),
         userId: user.id,
         type: input.type,
-        amount: appliedAmount,
+        amount: requestedAmount,
         balanceAfter: snapshot.totalPoints,
-        permanentAmount: appliedAmount,
+        permanentAmount: requestedAmount,
         dailyAmount: 0,
         permanentBalanceAfter: snapshot.permanentPoints,
         dailyBalanceAfter: snapshot.dailyPoints,
@@ -325,6 +325,11 @@ export async function adjustPermanentPointsInPostgresTransaction(client: QueryEx
         createdAt: context.clock.now.toISOString(),
     });
     return { snapshot, record, applied: true };
+}
+
+function assertAdjustmentBalance(currentBalance: number, amount: number) {
+    const nextBalance = Number((currentBalance + amount).toFixed(2));
+    if (nextBalance > MAX_POINT_AMOUNT) throw new PointsWalletConflictError("个人永久积分超出上限");
 }
 
 async function getPostgresSnapshot(userId: string, input: WalletClockInput) {

@@ -10,6 +10,7 @@ import { POST } from "./route";
 
 const context = { params: Promise.resolve({ id: "school-a", membershipId: "membership-a" }) };
 const result = {
+    schoolName: "甲学校",
     member: { id: "membership-a", userId: "user-a", accountId: "1001", username: "student", displayName: "学生", permanentPoints: 32.5, dailyPoints: 5, totalPoints: 37.5, accountStatus: "active" },
     adjustment: { recordId: "record-a", operation: "credit", amount: 12.5, balanceBefore: 20, balanceAfter: 32.5, reason: "合同额度修正", createdAt: "2026-09-01T00:00:00.000Z" },
 };
@@ -37,9 +38,11 @@ describe("admin school member points adjustment route", () => {
                 action: "admin.school-member.points-adjust",
                 metadata: expect.objectContaining({
                     schoolId: "school-a",
+                    schoolName: "甲学校",
                     membershipId: "membership-a",
                     userId: "user-a",
                     accountId: "1001",
+                    memberDisplayName: "学生",
                     operation: "credit",
                     amount: 12.5,
                     balanceBefore: 20,

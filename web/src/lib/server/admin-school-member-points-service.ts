@@ -19,12 +19,14 @@ export async function listSchoolMembersByAdmin(actorId: string, schoolId: string
     return { ...page, items: page.items.map((member) => adminMember(member, usersById.get(member.userId))) };
 }
 
-export async function adjustSchoolMemberPointsByAdmin(actorId: string, schoolId: string, membershipId: string, input: AdminSchoolMemberPointsAdjustmentInput): Promise<AdminSchoolMemberPointsAdjustmentResult> {
+type AdminSchoolMemberPointsAdjustmentServiceResult = AdminSchoolMemberPointsAdjustmentResult & { schoolName: string };
+
+export async function adjustSchoolMemberPointsByAdmin(actorId: string, schoolId: string, membershipId: string, input: AdminSchoolMemberPointsAdjustmentInput): Promise<AdminSchoolMemberPointsAdjustmentServiceResult> {
     await requirePlatformAdmin(actorId);
     const normalized = normalizeAdjustment(input);
     const amount = normalized.operation === "credit" ? normalized.amount : -normalized.amount;
     const wallet = isPostgresDatabaseEnabled() ? await adjustPostgres(actorId, schoolId, membershipId, amount, normalized) : await adjustFile(actorId, schoolId, membershipId, amount, normalized);
-    const member = await loadAdminMember(schoolId, membershipId);
+    const { member, schoolName } = await loadAdminMember(schoolId, membershipId);
     const balanceAfter = wallet.record.permanentBalanceAfter;
     return {
         member,
@@ -37,6 +39,7 @@ export async function adjustSchoolMemberPointsByAdmin(actorId: string, schoolId:
             reason: wallet.record.description,
             createdAt: wallet.record.createdAt,
         },
+        schoolName,
     };
 }
 
@@ -90,11 +93,13 @@ async function adjustFile(actorId: string, schoolId: string, membershipId: strin
     });
 }
 
-async function loadAdminMember(schoolId: string, membershipId: string): Promise<AdminSchoolMemberPoints> {
-    const membership = await createSchoolDomainRepository().getMembership(schoolId, membershipId);
+async function loadAdminMember(schoolId: string, membershipId: string): Promise<{ member: AdminSchoolMemberPoints; schoolName: string }> {
+    const repository = createSchoolDomainRepository();
+    const [school, membership] = await Promise.all([repository.getSchool(schoolId), repository.getMembership(schoolId, membershipId)]);
+    if (!school) throw new SchoolServiceError(404, "学校不存在");
     if (!membership) throw new SchoolServiceError(404, "学校成员不存在");
     const user = (await getPublicUsersByIds([membership.userId]))[0];
-    return adminMember(membership, user);
+    return { member: adminMember(membership, user), schoolName: school.name };
 }
 
 function adminMember(member: SchoolMembershipRecord, user: Awaited<ReturnType<typeof getPublicUsersByIds>>[number] | undefined): AdminSchoolMemberPoints {
