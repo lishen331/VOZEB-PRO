@@ -1,4 +1,15 @@
-import type { CreateSchoolInput, PageResult, SchoolDetail, SchoolStatus, SchoolSummary, UpdateSchoolInput } from "@/lib/school-domain";
+import type {
+    AdminSchoolMemberPoints,
+    AdminSchoolMemberPointsAdjustmentInput,
+    AdminSchoolMemberPointsAdjustmentResult,
+    AdminSchoolMemberQuery,
+    CreateSchoolInput,
+    PageResult,
+    SchoolDetail,
+    SchoolStatus,
+    SchoolSummary,
+    UpdateSchoolInput,
+} from "@/lib/school-domain";
 import { serializeApiParams } from "@/services/api/request";
 
 export const adminEducationApi = {
@@ -14,6 +25,13 @@ export const adminEducationApi = {
     },
     updateSchool(id: string, input: UpdateSchoolInput) {
         return request<SchoolDetail>(`/api/admin/schools/${encodeURIComponent(id)}`, jsonRequest("PATCH", input));
+    },
+    listSchoolMembers(schoolId: string, input: AdminSchoolMemberQuery = {}) {
+        const query = serializeApiParams(input);
+        return request<PageResult<AdminSchoolMemberPoints>>(`/api/admin/schools/${encodeURIComponent(schoolId)}/members${query.size ? `?${query.toString()}` : ""}`);
+    },
+    adjustSchoolMemberPoints(schoolId: string, membershipId: string, input: AdminSchoolMemberPointsAdjustmentInput) {
+        return request<AdminSchoolMemberPointsAdjustmentResult>(`/api/admin/schools/${encodeURIComponent(schoolId)}/members/${encodeURIComponent(membershipId)}/points-adjustments`, jsonRequest("POST", input));
     },
 };
 

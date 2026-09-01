@@ -269,7 +269,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                             onRefresh={() => void loadOperationsSummary()}
                         />
                     ) : null}
-                    {activeSection === "schools" ? <AdminSchoolsSection /> : null}
+                    {activeSection === "schools" ? <AdminSchoolsSection currentUser={currentUser} /> : null}
                     {activeSection === "schoolCompute" ? <AdminSchoolComputeSection currentUser={currentUser} /> : null}
                     {activeSection === "courses" ? <AdminCoursesSection /> : null}
                     {activeSection === "commercialOrders" ? <AdminCommercialOrdersSection /> : null}

@@ -17,6 +17,7 @@ import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/li
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
+import { attachPracticeWorkflowToChannel } from "@/lib/server/runninghub-workflow-runtime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
             throw error;
         }
         const channels = resolveLogicalModelCandidates(settings, "audio", body.config?.model || (trustedPractice ? settings.practiceDefaultModels.audioModel : settings.defaultModels.audioModel), "", executionProfile).map((resolved) => ({
-            ...toSystemGenerationChannel(resolved),
+            ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, trustedContext),
             channelId: resolved.channelId,
             executionProfile,
         }));

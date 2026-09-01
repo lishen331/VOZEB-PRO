@@ -6,11 +6,11 @@ import { hasAdminPermission } from "@/lib/admin-permissions";
 import type { CreateSchoolInput, PageResult, SchoolAdministratorSummary, SchoolClass, SchoolClassDetail, SchoolClassInput, SchoolDetail, SchoolMember, SchoolMemberPatch, SchoolStatus, SchoolSummary, UpdateSchoolInput } from "@/lib/school-domain";
 import { SchoolDomainReferenceConflictError } from "@/lib/server/school-domain-errors";
 import { createSchoolDomainRepository, type SchoolDomainRepository, type SchoolMembershipRecord } from "@/lib/server/school-domain-repository";
-import { SchoolServiceError, requireSchoolManager } from "./school-access-service";
+import { SchoolServiceError, requirePlatformAdmin, requireSchoolManager } from "./school-access-service";
 import { createSchoolWithAdministrator } from "./school-member-provisioning-service";
 
 export async function listSchoolsByAdmin(actorId: string, input: { page?: number; pageSize?: number; keyword?: string; status?: "active" | "disabled" }): Promise<PageResult<SchoolSummary>> {
-    await requireEducationAdmin(actorId);
+    await requirePlatformAdmin(actorId);
     const repository = createSchoolDomainRepository();
     const result = await repository.listSchools(input);
     const managers = await repository.listFirstManagers(result.items.map((school) => school.id));

@@ -59,6 +59,10 @@ export function hasAnyAdminPermission(user: { role?: unknown; status?: unknown; 
     return permissions.some((permission) => hasAdminPermission(user, permission));
 }
 
+export function isActivePlatformAdmin(user: { role?: unknown; status?: unknown } | null | undefined) {
+    return user?.role === "admin" && user.status === "active";
+}
+
 export function hasAllAdminPermissions(user: { role?: unknown; status?: unknown; adminPermissions?: unknown } | null | undefined, permissions: readonly AdminPermission[]) {
     return permissions.every((permission) => hasAdminPermission(user, permission));
 }

@@ -8,7 +8,8 @@ vi.mock("@/lib/server/ip-library-reference-service", () => ({
     recordIpReferenceUsage: mocks.recordIpReferenceUsage,
 }));
 
-import { createPracticeSessionForUser, getPracticeSessionForUser, retryPracticeSessionForUser, type PracticeSessionStore, type PracticeTaskDispatchResult } from "./practice-session-service";
+import { createPracticeSessionForUser, getPracticeSessionForUser, resolvePracticeModelFromSettings, retryPracticeSessionForUser, type PracticeSessionStore, type PracticeTaskDispatchResult } from "./practice-session-service";
+import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { PracticeSessionRecord } from "./database/repository-types";
 
 function memoryStore(): PracticeSessionStore {
@@ -59,6 +60,64 @@ describe("practice sessions", () => {
         vi.clearAllMocks();
         mocks.validateIpReferences.mockResolvedValue([]);
         mocks.recordIpReferenceUsage.mockResolvedValue(undefined);
+    });
+
+    it("resolves the enabled workflow for a bound practice business code", () => {
+        const settings = structuredClone(DEFAULT_SETTINGS);
+        settings.practiceDefaultModels.imageModel = "practice-image";
+        settings.practiceWorkflowModels = { "storyboard-image": "practice-image" };
+        settings.logicalModels = [{ id: "practice-image", name: "练习图片", capability: "image", enabled: true, bindings: [{ id: "binding", channelId: "rh", upstreamModel: "rh-image", enabled: true, priority: 1 }] }];
+        settings.systemChannels = [
+            {
+                id: "rh",
+                name: "练习 RunningHub",
+                baseUrl: "https://runninghub.example",
+                apiKey: "key",
+                apiFormat: "openai",
+                models: ["rh-image"],
+                enabled: true,
+                purpose: "open-source-practice",
+                advancedConfig: {
+                    protocol: "runninghub",
+                    textModel: "",
+                    imageModel: "rh-image",
+                    videoModel: "",
+                    createPath: "/task/create",
+                    queryPath: "/task/query",
+                    requestTemplate: "{}",
+                    resultField: "data.result",
+                    statusField: "data.status",
+                    durationRange: "",
+                    referenceRule: "",
+                    supportsReferenceImage: true,
+                    supportsReferenceVideo: false,
+                    supportsReferenceAudio: false,
+                    workflowConfigs: {
+                        workflow: {
+                            workflowKey: "workflow",
+                            workflowName: "分镜图",
+                            businessCode: "storyboard-image",
+                            capability: "image",
+                            providerType: "runninghub",
+                            channelId: "rh",
+                            workflowId: "wf-1",
+                            version: 1,
+                            enabled: true,
+                            createPath: "/task/create",
+                            queryPath: "/task/query",
+                            taskIdField: "data.taskId",
+                            statusField: "data.status",
+                            resultField: "data.result",
+                            requestTemplate: "{}",
+                            inputSchema: [{ key: "prompt", label: "提示词", type: "textarea", required: true }],
+                            nodeMappings: [{ paramKey: "prompt", nodeId: "1", fieldName: "text", valueType: "STRING", source: "INPUT", inputKey: "prompt" }],
+                            outputMappings: [{ key: "image", label: "图片", assetType: "IMAGE", required: true }],
+                        },
+                    },
+                },
+            },
+        ];
+        expect(resolvePracticeModelFromSettings(settings, "storyboard-image")).toMatchObject({ logicalModelId: "practice-image", capability: "image", workflow: { workflowKey: "workflow", version: 1, businessCode: "storyboard-image" } });
     });
 
     it("dispatches once for an idempotent client request and keeps provider details private", async () => {

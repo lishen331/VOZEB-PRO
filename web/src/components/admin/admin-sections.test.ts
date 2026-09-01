@@ -18,8 +18,8 @@ describe("admin sections", () => {
         const auditor = { role: "admin", status: "active", adminPermissions: ["audit.read"] };
 
         expect(canAccessAdminSection(auditor, "backup")).toBe(false);
-        expect(allowedAdminSections(auditor)).toEqual(["updates", "adminHelp"]);
-        expect(resolveAdminSection(auditor, "backup")).toBe("updates");
+        expect(allowedAdminSections(auditor)).toEqual(["schools", "updates", "adminHelp"]);
+        expect(resolveAdminSection(auditor, "backup")).toBe("schools");
     });
 
     it("limits school operations to the education duty", () => {
@@ -30,7 +30,10 @@ describe("admin sections", () => {
         expect(allowedAdminSections(educator)).toContain("schools");
         expect(allowedAdminSections(educator)).toContain("courses");
         expect(allowedAdminSections(educator)).toContain("commercialOrders");
-        expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "schools")).toBe(false);
+        expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "schools")).toBe(true);
+        expect(canAccessAdminSection({ ...educator, adminPermissions: [] }, "schools")).toBe(true);
+        expect(canAccessAdminSection({ ...educator, status: "disabled" }, "schools")).toBe(false);
+        expect(canAccessAdminSection({ role: "user", status: "active", adminPermissions: [] }, "schools")).toBe(false);
         expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "courses")).toBe(false);
         expect(canAccessAdminSection({ ...educator, adminPermissions: ["users.manage"] }, "commercialOrders")).toBe(false);
         expect(canAccessAdminSection(educator, "schoolCompute")).toBe(true);

@@ -17,6 +17,7 @@ import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError, ge
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
+import { buildRunningHubWorkflowPayload, workflowConfigForTask } from "@/lib/server/runninghub-workflow-runtime";
 
 export type AudioUpstreamStep =
     | { state: "pending"; status: string; upstreamTaskId: string; createPath: string; pointsCost?: number; billingReceiptId?: string }
@@ -55,7 +56,8 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
             };
             let payload: Record<string, unknown>;
             try {
-                payload = buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults);
+                const workflow = workflowConfigForTask(candidate);
+                payload = workflow ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: defaults, references: [] }) : buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults);
             } catch (error) {
                 throw new GenerationSubmissionSafeFailure(error instanceof Error ? error.message : "音频请求模板无效");
             }

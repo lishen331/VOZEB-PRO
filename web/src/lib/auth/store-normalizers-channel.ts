@@ -1,5 +1,6 @@
 import { safeProtocolDocumentationUrl } from "@/lib/channel-protocol-security";
 import { isGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
+import { normalizeRunningHubWorkflowConfig } from "@/lib/server/runninghub-workflow-domain";
 
 import type { LogicalModelCapability, SystemChannelAdvancedConfig, SystemChannelProtocol } from "./store-types";
 
@@ -29,6 +30,7 @@ export function normalizeSystemChannelAdvancedConfig(config: Partial<SystemChann
     const modelCapabilities = normalizeChannelModelCapabilities(config.modelCapabilities);
     const modelConfigs = normalizeChannelModelConfigs(config.modelConfigs);
     const operationConfigs = normalizeChannelOperationConfigs(config.operationConfigs);
+    const workflowConfigs = normalizeWorkflowConfigs(config.workflowConfigs);
     const modelCatalogPaths = Array.from(new Set((Array.isArray(config.modelCatalogPaths) ? config.modelCatalogPaths : []).map(normalizeApiPath).filter(Boolean))).slice(0, 12);
     return {
         protocol,
@@ -65,7 +67,19 @@ export function normalizeSystemChannelAdvancedConfig(config: Partial<SystemChann
         ...(Object.keys(modelCapabilities).length ? { modelCapabilities } : {}),
         ...(Object.keys(modelConfigs).length ? { modelConfigs } : {}),
         ...(Object.keys(operationConfigs).length ? { operationConfigs } : {}),
+        workflowConfigs,
     };
+}
+
+function normalizeWorkflowConfigs(value: unknown) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).flatMap(([key, raw]) => {
+            const normalizedKey = textOrEmpty(key, 160);
+            if (!normalizedKey || !raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+            return [[normalizedKey, normalizeRunningHubWorkflowConfig(raw)] as const];
+        }),
+    ) as NonNullable<SystemChannelAdvancedConfig["workflowConfigs"]>;
 }
 
 export function normalizeApiPath(value: unknown) {

@@ -134,6 +134,14 @@ describe("admin settings model routing", () => {
         expect(mocks.safeRecordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ metadata: { fields: ["dataLifecycle"] } }));
     });
 
+    it("persists practice workflow model bindings under the upstream duty", async () => {
+        const practiceWorkflowModels = { script: "practice-script", "storyboard-image": "practice-image" };
+        const response = await PATCH(request({ practiceWorkflowModels }));
+
+        expect(response.status).toBe(200);
+        expect(mocks.setAuthSettings).toHaveBeenCalledWith({ practiceWorkflowModels });
+    });
+
     it("accepts common social address formats without silently deleting them", async () => {
         const site = {
             ...DEFAULT_SITE_SETTINGS,
