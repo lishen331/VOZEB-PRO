@@ -28,19 +28,19 @@ export default defineConfig({
         { name: "setup", testMatch: /installation\.spec\.ts/ },
         {
             name: "chromium",
-            testMatch: [/(?:all-pages|canvas|commerce|core|creative-video-result|home|infinite-practice|ip-library|responsive|school-compute|school-education)\.spec\.ts/],
+            testMatch: [/(?:admin-school-member-points|all-pages|canvas|commerce|core|creative-video-result|home|infinite-practice|ip-library|responsive|school-compute|school-education)\.spec\.ts/],
             dependencies: ["setup"],
             use: { ...devices["Desktop Chrome"], storageState },
         },
         {
             name: "mobile-390",
-            testMatch: /(?:all-pages|commerce|creative-video-result|home|infinite-practice|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
+            testMatch: /(?:admin-school-member-points|all-pages|commerce|creative-video-result|home|infinite-practice|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
             dependencies: ["setup"],
             use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 390, height: 844 }, storageState },
         },
         {
             name: "mobile-430",
-            testMatch: /(?:all-pages|commerce|creative-video-result|home|infinite-practice|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
+            testMatch: /(?:admin-school-member-points|all-pages|commerce|creative-video-result|home|infinite-practice|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
             dependencies: ["setup"],
             use: { ...devices["iPhone 14 Pro Max"], browserName: "chromium", viewport: { width: 430, height: 932 }, storageState },
         },

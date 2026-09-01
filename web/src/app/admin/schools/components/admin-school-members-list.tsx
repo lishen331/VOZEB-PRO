@@ -172,7 +172,6 @@ export function AdminSchoolMembersList({ school, onBack }: { school: SchoolSumma
                             <PointsMetric label="每日积分" value={member.dailyPoints} />
                             <PointsMetric label="总积分" value={member.totalPoints} />
                         </div>
-                        {member.accountStatus === "disabled" ? <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">停用账号当前不能生成</div> : null}
                         <div className="mt-2 flex justify-end"><Button type="text" size="small" icon={<WalletCards className="size-3.5" />} onClick={() => openAdjustment(member)}>调整积分</Button></div>
                     </div>
                 ))}
@@ -229,7 +228,7 @@ function MemberIdentity({ member }: { member: AdminSchoolMemberPoints }) {
 }
 
 function MemberStatus({ member }: { member: AdminSchoolMemberPoints }) {
-    return <div className="flex shrink-0 gap-1"><Tag color={member.status === "active" ? "green" : "default"}>{member.status === "active" ? "成员可用" : "成员停用"}</Tag>{member.accountStatus === "disabled" ? <Tag color="orange">账号停用</Tag> : null}</div>;
+    return <div className="flex shrink-0 flex-wrap justify-end gap-1"><Tag color={member.status === "active" ? "green" : "default"}>{member.status === "active" ? "成员可用" : "成员停用"}</Tag>{member.accountStatus === "disabled" ? <Tag color="orange">停用账号当前不能生成</Tag> : null}</div>;
 }
 
 function PointsMetric({ label, value }: { label: string; value: number }) {
