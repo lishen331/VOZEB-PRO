@@ -231,6 +231,7 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "generation_tasks_channel_upstream_idx",
     "generation_tasks_conversation_idx",
     "generation_tasks_run_idx",
+    "generation_tasks_workflow_idx",
     "generation_tasks_user_project_idx",
     "generation_tasks_recovery_due_idx",
     "generation_concurrency_reservations_expires_idx",

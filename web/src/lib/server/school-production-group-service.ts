@@ -146,7 +146,7 @@ export async function linkCommercialOrderToGroup(managerId: string, groupId: str
             : await withJsonDataFileLocks([SCHOOL_DOMAIN_DATA_FILE, SCHOOL_COMPUTE_DATA_FILE], async () => {
                   const [schoolBefore, computeBefore] = await Promise.all([readJsonDataFile<Record<string, unknown>>(SCHOOL_DOMAIN_DATA_FILE, {}), readJsonDataFile<Record<string, unknown>>(SCHOOL_COMPUTE_DATA_FILE, {})]);
                   try {
-                      return await mutateFileSchoolDomainInsideLock((school) => mutateFileSchoolComputeInsideLock((compute) => link(school, compute)));
+                      return await mutateFileSchoolDomainInsideLock((school) => mutateFileSchoolComputeInsideLock((compute) => link(school, compute)), { lockAlreadyHeld: true });
                   } catch (error) {
                       await Promise.all([writeJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, schoolBefore), writeJsonDataFile(SCHOOL_COMPUTE_DATA_FILE, computeBefore)]);
                       throw error;

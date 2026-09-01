@@ -1,4 +1,5 @@
 import { normalizeIpReference, type IpReference } from "./ip-library-domain";
+import type { UserStatus } from "./auth/store-types";
 
 export type SchoolStatus = "active" | "disabled";
 export type SchoolMemberRole = "teacher" | "student";
@@ -45,6 +46,20 @@ export type SchoolMember = {
     joinSource: "admin" | "import" | "invite";
     createdAt: string;
     updatedAt: string;
+};
+export type AdminSchoolMemberQuery = { page?: number; pageSize?: number; keyword?: string; role?: SchoolMemberRole; status?: SchoolMembershipStatus };
+export type AdminSchoolMemberPoints = SchoolMember & {
+    userId: string;
+    accountStatus: UserStatus;
+    permanentPoints: number;
+    dailyPoints: number;
+    totalPoints: number;
+    dailyPointsExpiresAt: string;
+};
+export type AdminSchoolMemberPointsAdjustmentInput = { operation: "credit" | "debit"; amount: number; reason: string; idempotencyKey: string };
+export type AdminSchoolMemberPointsAdjustmentResult = {
+    member: AdminSchoolMemberPoints;
+    adjustment: { recordId: string; operation: "credit" | "debit"; amount: number; balanceBefore: number; balanceAfter: number; reason: string; createdAt: string };
 };
 export type SchoolClass = {
     id: string;

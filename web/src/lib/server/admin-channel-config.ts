@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import { isLogicalModelResolvable, resolveVisionModelConfig } from "@/lib/model-routing-config";
 import { isEncryptedSecretValue } from "@/lib/server/secret-crypto";
 import { normalizeModelId } from "@/lib/model-capability";
+import { validateRunningHubWorkflowConfig } from "./runninghub-workflow-domain";
 
 type ChannelCredentialInput = {
     channelId?: unknown;
@@ -39,6 +40,7 @@ export function serializeAdminSettingsForUser(settings: AuthSettings, user: { ro
         serialized.agentSkills = [];
         serialized.systemChannels = serialized.systemChannels.map(channelSummaryWithoutConfiguration);
         serialized.practiceDefaultModels = { ...DEFAULT_SETTINGS.practiceDefaultModels };
+        serialized.practiceWorkflowModels = {};
     }
     return serialized;
 }
@@ -98,6 +100,11 @@ export function runningHubChannelValidationErrors(channel: SystemModelChannel) {
             if (!field?.trim()) errors.push(`${model} 缺少 RunningHub ${title}`);
         }
         if (config.protocol && config.protocol !== "runninghub") errors.push(`${model} 的模型协议必须为 RunningHub`);
+    }
+    const workflowConfigs = channel.advancedConfig.workflowConfigs || {};
+    const workflowValues = Object.values(workflowConfigs);
+    for (const [workflowKey, workflowConfig] of Object.entries(workflowConfigs)) {
+        for (const error of validateRunningHubWorkflowConfig(workflowConfig, workflowValues)) errors.push(`${workflowKey}：${error}`);
     }
     return errors;
 }

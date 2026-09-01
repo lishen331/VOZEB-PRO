@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
+import { attachPracticeWorkflowToChannel } from "@/lib/server/runninghub-workflow-runtime";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
-        const configs = sanitizeConfigs(body.config, settings, executionProfile);
+        const configs = sanitizeConfigs(body.config, settings, executionProfile, trustedContext);
         const messages = sanitizeMessages(body.messages);
         if (!configs.length || !messages.length) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
 
@@ -86,9 +87,19 @@ function publicTask(task: TextTask) {
     return { id: task.id, status: task.status, model: generationModelId(task.config), result: task.result, error: task.error };
 }
 
-function sanitizeConfigs(config: TextTaskConfig | undefined, settings: Awaited<ReturnType<typeof getAuthSettings>>, executionProfile: "production" | "open-source-practice" = "production"): TextTaskConfig[] {
+function sanitizeConfigs(
+    config: TextTaskConfig | undefined,
+    settings: Awaited<ReturnType<typeof getAuthSettings>>,
+    executionProfile: "production" | "open-source-practice" = "production",
+    context?: import("@/lib/server/generation-task-types").GenerationTaskContext,
+): TextTaskConfig[] {
     const requestedModel = config?.model || (executionProfile === "open-source-practice" ? settings.practiceDefaultModels.textModel : settings.defaultModels.textModel);
-    return resolveLogicalModelCandidates(settings, "text", requestedModel, "", executionProfile).map((resolved) => ({ ...toSystemGenerationChannel(resolved), channelId: resolved.channelId, systemPrompt: "", executionProfile }));
+    return resolveLogicalModelCandidates(settings, "text", requestedModel, "", executionProfile).map((resolved) => ({
+        ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {}),
+        channelId: resolved.channelId,
+        systemPrompt: "",
+        executionProfile,
+    }));
 }
 
 function sanitizeMessages(messages?: AiTextMessage[]) {

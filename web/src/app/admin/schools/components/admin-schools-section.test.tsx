@@ -14,5 +14,10 @@ describe("admin schools section", () => {
         expect(source).toContain("hidden md:block");
         expect(source).toContain("size={Math.min(560");
         expect(source).toContain("forceRender");
+        expect(source).toContain("currentUser");
+        expect(source).toContain("hasAdminPermission");
+        expect(source).toContain("canManageEducation");
+        expect(source).toContain("成员");
+        expect(source).toContain("AdminSchoolMembersList");
     });
 });

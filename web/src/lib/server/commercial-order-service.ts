@@ -338,13 +338,15 @@ async function reviewAcceptedInFileTransaction(orderId: string, reviewInsideTran
         ]);
         const authDb = normalizeDb(authBefore);
         try {
-            return await mutateFileSchoolDomainInsideLock(async (school) =>
-                mutateFileSchoolComputeInsideLock(async (compute) => {
-                    const reviewed = await reviewInsideTransaction(school);
-                    await openCommercialOrderSettlementInsideTransaction(orderId, school, compute, authDb);
-                    await writeAuthDb(authDb);
-                    return reviewed;
-                }),
+            return await mutateFileSchoolDomainInsideLock(
+                async (school) =>
+                    mutateFileSchoolComputeInsideLock(async (compute) => {
+                        const reviewed = await reviewInsideTransaction(school);
+                        await openCommercialOrderSettlementInsideTransaction(orderId, school, compute, authDb);
+                        await writeAuthDb(authDb);
+                        return reviewed;
+                    }),
+                { lockAlreadyHeld: true },
             );
         } catch (error) {
             await Promise.all([writeJsonDataFile(AUTH_DATA_FILE, authBefore), writeJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, schoolBefore), writeJsonDataFile(SCHOOL_COMPUTE_DATA_FILE, computeBefore)]);

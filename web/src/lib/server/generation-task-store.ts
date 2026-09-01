@@ -2,6 +2,7 @@ import { getDatabaseProvider, ensurePostgresSchema, postgresQuery, withPostgresT
 import { resolveGenerationReviewReason } from "@/lib/server/generation-task-review-reason";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { normalizeIpReference } from "@/lib/ip-library-domain";
+import { isRunningHubWorkflowBusinessCode } from "@/lib/server/runninghub-workflow-domain";
 import type {
     GenerationTaskContext,
     GenerationTaskCostAggregate,
@@ -660,13 +661,21 @@ export async function linkStoredGenerationTask(type: GenerationTaskType, id: str
     const normalized = normalizeGenerationTaskContext(context);
     const linkedContext = { ...normalized };
     if (!context.executionProfile) delete linkedContext.executionProfile;
+    if (!context.workflowKey) delete linkedContext.workflowKey;
+    if (context.workflowVersion === undefined) delete linkedContext.workflowVersion;
+    if (!context.upstreamWorkflowId) delete linkedContext.upstreamWorkflowId;
+    if (!context.businessCode) delete linkedContext.businessCode;
+    if (!context.taskOrigin) delete linkedContext.taskOrigin;
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         await postgresQuery(
             `UPDATE generation_tasks
              SET conversation_id = COALESCE($3, conversation_id), run_id = COALESCE($4, run_id), surface = COALESCE($5, surface),
                  project_id = COALESCE($6, project_id), parent_task_id = COALESCE($7, parent_task_id), attempt_no = COALESCE($8, attempt_no),
-                 client_request_id = COALESCE($9, client_request_id), payload = payload || $10::jsonb
+                 client_request_id = COALESCE($9, client_request_id),
+                 workflow_key = COALESCE($11, workflow_key), workflow_version = COALESCE($12, workflow_version),
+                 upstream_workflow_id = COALESCE($13, upstream_workflow_id), business_code = COALESCE($14, business_code),
+                 task_origin = COALESCE($15, task_origin), payload = payload || $10::jsonb
              WHERE id = $1 AND task_type = $2`,
             [
                 id,
@@ -679,6 +688,11 @@ export async function linkStoredGenerationTask(type: GenerationTaskType, id: str
                 normalized.attemptNo ?? null,
                 normalized.clientRequestId || null,
                 JSON.stringify(linkedContext),
+                normalized.workflowKey || null,
+                normalized.workflowVersion ?? null,
+                normalized.upstreamWorkflowId || null,
+                normalized.businessCode || null,
+                context.taskOrigin || null,
             ],
         );
         return;
@@ -817,15 +831,19 @@ async function upsertTask<T extends { id: string; userId: string; status: string
         await postgresQuery(
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
-                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile
+                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
+                workflow_key, workflow_version, upstream_workflow_id, business_code, task_origin
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
              ON CONFLICT (id) DO UPDATE SET
                 status = EXCLUDED.status, payload = jsonb_set(EXCLUDED.payload, '{executionProfile}', to_jsonb(generation_tasks.execution_profile), true), updated_at = EXCLUDED.updated_at, expires_at = EXCLUDED.expires_at,
                 conversation_id = COALESCE(EXCLUDED.conversation_id, generation_tasks.conversation_id),
                 run_id = COALESCE(EXCLUDED.run_id, generation_tasks.run_id), surface = COALESCE(EXCLUDED.surface, generation_tasks.surface),
                 project_id = COALESCE(EXCLUDED.project_id, generation_tasks.project_id), parent_task_id = COALESCE(EXCLUDED.parent_task_id, generation_tasks.parent_task_id),
-                attempt_no = COALESCE(EXCLUDED.attempt_no, generation_tasks.attempt_no), client_request_id = COALESCE(EXCLUDED.client_request_id, generation_tasks.client_request_id), execution_profile = generation_tasks.execution_profile`,
+                attempt_no = COALESCE(EXCLUDED.attempt_no, generation_tasks.attempt_no), client_request_id = COALESCE(EXCLUDED.client_request_id, generation_tasks.client_request_id), execution_profile = generation_tasks.execution_profile,
+                workflow_key = COALESCE(EXCLUDED.workflow_key, generation_tasks.workflow_key), workflow_version = COALESCE(EXCLUDED.workflow_version, generation_tasks.workflow_version),
+                upstream_workflow_id = COALESCE(EXCLUDED.upstream_workflow_id, generation_tasks.upstream_workflow_id), business_code = COALESCE(EXCLUDED.business_code, generation_tasks.business_code),
+                task_origin = COALESCE(EXCLUDED.task_origin, generation_tasks.task_origin)`,
             [
                 task.id,
                 task.userId,
@@ -843,6 +861,11 @@ async function upsertTask<T extends { id: string; userId: string; status: string
                 context.attemptNo ?? null,
                 context.clientRequestId || null,
                 context.executionProfile,
+                context.workflowKey || null,
+                context.workflowVersion ?? null,
+                context.upstreamWorkflowId || null,
+                context.businessCode || null,
+                context.taskOrigin,
             ],
         );
         return;
@@ -874,9 +897,10 @@ async function insertTask<T extends { id: string; userId: string; status: string
         const inserted = await postgresQuery<{ payload: T }>(
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
-                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile
+                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
+                workflow_key, workflow_version, upstream_workflow_id, business_code, task_origin
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
              ON CONFLICT DO NOTHING
              RETURNING payload`,
             values,
@@ -923,6 +947,11 @@ function taskValues<T extends { id: string; userId: string; createdAt: number; u
         context.attemptNo ?? null,
         context.clientRequestId || null,
         context.executionProfile,
+        context.workflowKey || null,
+        context.workflowVersion ?? null,
+        context.upstreamWorkflowId || null,
+        context.businessCode || null,
+        context.taskOrigin,
     ];
 }
 
@@ -951,6 +980,8 @@ export function withGenerationTaskFileMutation<T>(mutator: (tasks: StoredGenerat
 
 function normalizeGenerationTaskContext(context: GenerationTaskContext): GenerationTaskContext {
     const attempt = Number(context.attemptNo);
+    const workflowVersion = Number(context.workflowVersion);
+    const businessCode = isRunningHubWorkflowBusinessCode(context.businessCode) ? context.businessCode : undefined;
     return {
         conversationId: cleanContextText(context.conversationId),
         runId: cleanContextText(context.runId),
@@ -967,6 +998,11 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         generationSlotId: cleanContextText(context.generationSlotId),
         ipReferences: normalizeContextIpReferences(context.ipReferences),
         billingContext: normalizeBillingContext(context.billingContext),
+        workflowKey: cleanContextText(context.workflowKey),
+        workflowVersion: Number.isSafeInteger(workflowVersion) && workflowVersion > 0 ? workflowVersion : undefined,
+        upstreamWorkflowId: cleanContextText(context.upstreamWorkflowId),
+        businessCode,
+        taskOrigin: context.taskOrigin === "admin-workflow-test" ? "admin-workflow-test" : "user",
     };
 }
 
@@ -986,6 +1022,11 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         generationSlotId: next.generationSlotId || previous?.generationSlotId,
         ipReferences: next.ipReferences?.length ? next.ipReferences : previous?.ipReferences,
         billingContext: next.billingContext || previous?.billingContext,
+        workflowKey: next.workflowKey || previous?.workflowKey,
+        workflowVersion: next.workflowVersion ?? previous?.workflowVersion,
+        upstreamWorkflowId: next.upstreamWorkflowId || previous?.upstreamWorkflowId,
+        businessCode: next.businessCode || previous?.businessCode,
+        taskOrigin: next.taskOrigin || previous?.taskOrigin || "user",
         executionProfile: previous?.executionProfile || next.executionProfile || "production",
     };
 }
@@ -1041,6 +1082,11 @@ function positiveContextNumber(value: unknown) {
     return Number.isFinite(number) && number >= 0 ? Number(number.toFixed(2)) : undefined;
 }
 
+function positiveWorkflowVersion(value: unknown) {
+    const number = Number(value);
+    return Number.isSafeInteger(number) && number > 0 ? number : undefined;
+}
+
 function normalizeGenerationTaskStatus(status: string): GenerationTaskStatus {
     const value = status.trim().toLowerCase();
     if (["planning", "queued", "created", "pending"].includes(value)) return "pending";
@@ -1054,6 +1100,7 @@ function normalizeGenerationTaskStatus(status: string): GenerationTaskStatus {
 
 function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTaskRecord {
     const payload = row.payload && typeof row.payload === "object" ? (row.payload as Record<string, unknown>) : {};
+    const workflowBusinessCode = row.business_code || payload.businessCode;
     return {
         id: String(row.id || ""),
         userId: String(row.user_id || ""),
@@ -1074,6 +1121,11 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         parentTaskId: cleanContextText(String(row.parent_task_id || "")),
         attemptNo: row.attempt_no === null || row.attempt_no === undefined ? undefined : Math.max(0, Math.floor(Number(row.attempt_no) || 0)),
         clientRequestId: cleanContextText(String(row.client_request_id || "")),
+        workflowKey: cleanContextText(String(row.workflow_key || payload.workflowKey || "")),
+        workflowVersion: positiveWorkflowVersion(row.workflow_version ?? payload.workflowVersion),
+        upstreamWorkflowId: cleanContextText(String(row.upstream_workflow_id || payload.upstreamWorkflowId || "")),
+        businessCode: isRunningHubWorkflowBusinessCode(workflowBusinessCode) ? workflowBusinessCode : undefined,
+        taskOrigin: row.task_origin === "admin-workflow-test" || payload.taskOrigin === "admin-workflow-test" ? "admin-workflow-test" : "user",
         executionPhase: isExecutionPhase(row.execution_phase) ? row.execution_phase : undefined,
         upstreamTaskId: cleanUpstreamTaskId(String(row.upstream_task_id || "")),
         channelId: cleanContextText(String(row.channel_id || "")),
