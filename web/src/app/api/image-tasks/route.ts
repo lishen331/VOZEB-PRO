@@ -186,7 +186,7 @@ export async function POST(request: Request) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
-        const configs = sanitizeConfigs(resolvedBody.config, settings, executionProfile);
+        const configs = sanitizeConfigs(resolvedBody.config, settings, executionProfile, trustedContext);
         const prompt = (resolvedBody.prompt || "").trim();
         const kind = resolvedBody.kind === "edit" ? "edit" : "generation";
         if (!configs.length || !prompt) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });

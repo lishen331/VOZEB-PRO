@@ -2,7 +2,7 @@ import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEna
 import { formatAccountId } from "@/lib/account-id";
 import { normalizeRegistrationPolicyConsent } from "@/lib/registration-consent";
 import { normalizeAdminPermissions } from "@/lib/admin-permissions";
-import { readJsonDataFile, writeJsonDataFile } from "@/lib/server/data-adapter";
+import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { decryptSecretValue, encryptSecretValue } from "@/lib/server/secret-crypto";
 import {
     type UserRole,
@@ -165,17 +165,19 @@ export async function readAuthDb(): Promise<AuthDatabase> {
 
 export async function mutateAuthDb<T>(mutator: (db: AuthDatabase) => T | Promise<T>) {
     if (isPostgresDatabaseEnabled()) throw new Error("PostgreSQL auth mutations must use entity repositories");
-    const run = mutationQueue.then(async () => {
-        const db = await readAuthDb();
-        try {
-            const result = await mutator(db);
-            await writeAuthDb(db);
-            return result;
-        } catch (error) {
-            if (error instanceof EmailCodeAttemptError) await writeAuthDb(db);
-            throw error;
-        }
-    });
+    const run = mutationQueue.then(() =>
+        withJsonDataFileLock(AUTH_DATA_FILE, async () => {
+            const db = await readAuthDb();
+            try {
+                const result = await mutator(db);
+                await writeAuthDb(db);
+                return result;
+            } catch (error) {
+                if (error instanceof EmailCodeAttemptError) await writeAuthDb(db);
+                throw error;
+            }
+        }),
+    );
     mutationQueue = run.then(
         () => undefined,
         () => undefined,

@@ -13,6 +13,8 @@ import { getVideoTask } from "@/lib/server/video-task-store";
 import { getAudioTask } from "@/lib/server/audio-task-store";
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "./ip-library-reference-service";
+import type { RunningHubWorkflowConfig } from "@/lib/auth/store-types";
+import { resolveEnabledWorkflow } from "./runninghub-workflow-domain";
 
 export type PracticeSessionCreateInput = {
     module: PracticeModuleKind;
@@ -35,10 +37,11 @@ export type PracticeTaskDispatchInput = {
     logicalModelId: string;
     clientRequestId: string;
     projectKind: PracticeProjectKind;
+    workflow?: RunningHubWorkflowConfig;
 };
 
 export type PracticeTaskDispatchResult = { taskId: string; taskType: "text" | "image" | "video" | "audio" };
-export type PracticeModelResolution = { logicalModelId: string; capability: PracticeTaskDispatchInput["capability"] };
+export type PracticeModelResolution = { logicalModelId: string; capability: PracticeTaskDispatchInput["capability"]; workflow?: RunningHubWorkflowConfig };
 
 export interface PracticeSessionStore {
     getByRequest(userId: string, clientRequestId: string): Promise<PracticeSessionRecord | null>;
@@ -129,6 +132,7 @@ async function dispatchQueuedSession(
             logicalModelId: model.logicalModelId,
             clientRequestId,
             projectKind: claimed.projectKind,
+            ...(model.workflow ? { workflow: model.workflow } : {}),
         });
         const running = await store.update(userId, claimed.id, { taskRefs: [{ taskId: task.taskId, taskType: task.taskType }] as unknown as JsonValue });
         return publicSession(running || claimed);
@@ -237,11 +241,20 @@ async function publicTaskResult(session: PracticeSessionRecord) {
 
 async function defaultResolveModel(module: PracticeModuleKind): Promise<PracticeModelResolution> {
     const settings = await getAuthSettings();
+    return resolvePracticeModelFromSettings(settings, module);
+}
+
+export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<typeof getAuthSettings>>, module: PracticeModuleKind): PracticeModelResolution {
     const capability = module === "script" ? "text" : module === "storyboard-image" ? "image" : module === "storyboard-video" ? "video" : "audio";
     const key = `${capability}Model` as "textModel" | "imageModel" | "videoModel" | "audioModel";
-    const model = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, settings.practiceDefaultModels[key], "", "open-source-practice");
+    const requestedModel = settings.practiceWorkflowModels[module] || settings.practiceDefaultModels[key];
+    const model = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, requestedModel, "", "open-source-practice");
     if (!model || !model.channel || !["open-source-practice", "shared"].includes(model.channel.purpose || "shared")) throw new PracticeServiceError("当前练习模块没有可用的开源模型", 503);
-    return { logicalModelId: model.logicalModelId, capability };
+    const workflowModelBinding = settings.practiceWorkflowModels[module];
+    if (!workflowModelBinding) return { logicalModelId: model.logicalModelId, capability };
+    const workflow = resolveEnabledWorkflow(Object.values(model.channel.advancedConfig?.workflowConfigs || {}), model.channel.id, module);
+    if (!workflow) throw new PracticeServiceError("当前练习模块没有可用的 RunningHub 工作流", 503);
+    return { logicalModelId: model.logicalModelId, capability, workflow };
 }
 
 function defaultPracticeSessionStore(): PracticeSessionStore & { list(userId: string, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {

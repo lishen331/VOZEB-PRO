@@ -66,13 +66,15 @@ async function openWithFileProvider(orderId: string) {
         ]);
         const authDb = normalizeDb(authBefore);
         try {
-            return await mutateFileSchoolDomainInsideLock((school) =>
-                mutateFileSchoolComputeInsideLock((compute) =>
-                    openCommercialOrderSettlementInsideTransaction(orderId, school, compute, authDb).then(async (bundle) => {
-                        await writeAuthDb(authDb);
-                        return bundle;
-                    }),
-                ),
+            return await mutateFileSchoolDomainInsideLock(
+                (school) =>
+                    mutateFileSchoolComputeInsideLock((compute) =>
+                        openCommercialOrderSettlementInsideTransaction(orderId, school, compute, authDb).then(async (bundle) => {
+                            await writeAuthDb(authDb);
+                            return bundle;
+                        }),
+                    ),
+                { lockAlreadyHeld: true },
             );
         } catch (error) {
             await restoreSnapshots(authBefore, schoolBefore, computeBefore);
@@ -90,13 +92,15 @@ async function confirmWithFileProvider(schoolId: string, groupId: string, settle
         ]);
         const authDb = normalizeDb(authBefore);
         try {
-            return await mutateFileSchoolDomainInsideLock((school) =>
-                mutateFileSchoolComputeInsideLock((compute) =>
-                    confirmWithRepositories(schoolId, groupId, settlementId, input, school, compute, async (walletInput) => mutatePermanentPointsInAuthDb(authDb, walletInput)).then(async (bundle) => {
-                        await writeAuthDb(authDb);
-                        return bundle;
-                    }),
-                ),
+            return await mutateFileSchoolDomainInsideLock(
+                (school) =>
+                    mutateFileSchoolComputeInsideLock((compute) =>
+                        confirmWithRepositories(schoolId, groupId, settlementId, input, school, compute, async (walletInput) => mutatePermanentPointsInAuthDb(authDb, walletInput)).then(async (bundle) => {
+                            await writeAuthDb(authDb);
+                            return bundle;
+                        }),
+                    ),
+                { lockAlreadyHeld: true },
             );
         } catch (error) {
             await restoreSnapshots(authBefore, schoolBefore, computeBefore);

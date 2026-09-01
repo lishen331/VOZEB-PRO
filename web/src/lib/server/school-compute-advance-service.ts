@@ -54,12 +54,14 @@ async function createFileAdvance(userId: string, schoolId: string, membershipId:
         ]);
         const authDb = normalizeDb(authBefore);
         try {
-            return await mutateFileSchoolDomainInsideLock((school) =>
-                mutateFileSchoolComputeInsideLock(async (compute) => {
-                    const record = await createInsideTransaction(userId, schoolId, membershipId, groupId, input, school, compute, async (walletInput) => mutatePermanentPointsInAuthDb(authDb, walletInput));
-                    await writeAuthDb(authDb);
-                    return record;
-                }),
+            return await mutateFileSchoolDomainInsideLock(
+                (school) =>
+                    mutateFileSchoolComputeInsideLock(async (compute) => {
+                        const record = await createInsideTransaction(userId, schoolId, membershipId, groupId, input, school, compute, async (walletInput) => mutatePermanentPointsInAuthDb(authDb, walletInput));
+                        await writeAuthDb(authDb);
+                        return record;
+                    }),
+                { lockAlreadyHeld: true },
             );
         } catch (error) {
             await Promise.all([writeJsonDataFile(AUTH_DATA_FILE, authBefore), writeJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, schoolBefore), writeJsonDataFile(SCHOOL_COMPUTE_DATA_FILE, computeBefore)]);

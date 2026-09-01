@@ -40,6 +40,8 @@ import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
+import { attachPracticeWorkflowToChannel } from "@/lib/server/runninghub-workflow-runtime";
+import { buildRunningHubWorkflowPayload, type RunningHubWorkflowConfig } from "@/lib/server/runninghub-workflow-runtime";
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
 type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext };
@@ -96,7 +98,7 @@ export async function POST(request: Request) {
                 throw error;
             }
             const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : trustedPractice ? settings.practiceDefaultModels.videoModel : settings.defaultModels.videoModel;
-            const channels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile).map((channel) => ({ ...toSystemGenerationChannel(channel), executionProfile }));
+            const channels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile).map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }));
             const prompt = String(body.prompt || "").trim();
             if (!channels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
             const publicOrigin = requestPublicOrigin(request);
@@ -213,7 +215,21 @@ export async function POST(request: Request) {
                     lastUpstreamStatus: "submitting",
                 });
                 try {
-                    const upstream = await createUpstream(user.id, origin, cookie, channel, providerPrompt, parameters, references, settings.generationPointMultipliers, billingRequestId, trustedContext.billingContext, trustedContext.executionProfile);
+                    const workflow = trustedContext.workflowKey && trustedContext.workflowVersion && trustedContext.businessCode ? (channel.advancedConfig?.workflowConfigs?.[trustedContext.workflowKey] as RunningHubWorkflowConfig | undefined) : undefined;
+                    const upstream = await createUpstream(
+                        user.id,
+                        origin,
+                        cookie,
+                        channel,
+                        providerPrompt,
+                        parameters,
+                        references,
+                        settings.generationPointMultipliers,
+                        billingRequestId,
+                        trustedContext.billingContext,
+                        trustedContext.executionProfile,
+                        workflow,
+                    );
                     await updateVideoTask(localTask.id, { config: channel, upstream, requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds, attempts });
                     const task = { ...localTask, config: channel, upstream, requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds, attempts };
                     const submittedAt = Date.now();
@@ -291,6 +307,7 @@ export async function createUpstream(
     billingRequestId: string,
     billingContext?: SchoolComputeBillingContext,
     executionProfile: PracticeExecutionProfile = "production",
+    workflow?: RunningHubWorkflowConfig,
 ) {
     let lastError = "";
     const regularReferences = regularVideoReferences(references);
@@ -358,64 +375,66 @@ export async function createUpstream(
     };
     const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
     const multipart = channel.advancedConfig?.requestTemplate?.trim().toLowerCase().startsWith("multipart/form-data") === true;
-    const payload = multipart
-        ? undefined
-        : channel.advancedConfig?.protocol === "vozeb-recommended"
-          ? buildVozebRecommendedVideoRequest({
-                model: channel.model,
-                prompt,
-                duration: values.duration as number,
-                aspectRatio: values.aspect_ratio as string,
-                resolution: values.resolution as string,
-                generateAudio,
-                images,
-                videos,
-                audios,
-            })
-          : channel.advancedConfig?.protocol === "seedance-special"
-            ? buildSeedanceSpecialRequest({
+    const payload = workflow
+        ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: { ...values, ...raw }, references: references.map((reference) => ({ type: reference.type, url: reference.url })) })
+        : multipart
+          ? undefined
+          : channel.advancedConfig?.protocol === "vozeb-recommended"
+            ? buildVozebRecommendedVideoRequest({
                   model: channel.model,
                   prompt,
-                  duration: values.duration === -1 ? 5 : (values.duration as number),
-                  ratio: (values.ratio as string | undefined) || "adaptive",
+                  duration: values.duration as number,
+                  aspectRatio: values.aspect_ratio as string,
+                  resolution: values.resolution as string,
                   generateAudio,
-                  references,
+                  images,
+                  videos,
+                  audios,
               })
-            : channel.advancedConfig?.protocol === "yumeng"
-              ? buildYumengVideoRequest({
+            : channel.advancedConfig?.protocol === "seedance-special"
+              ? buildSeedanceSpecialRequest({
                     model: channel.model,
                     prompt,
-                    duration: values.duration as number,
-                    aspectRatio: values.aspect_ratio as string,
-                    resolution: values.resolution as string,
+                    duration: values.duration === -1 ? 5 : (values.duration as number),
+                    ratio: (values.ratio as string | undefined) || "adaptive",
                     generateAudio,
-                    watermark: booleanValue(raw.videoWatermark),
-                    images: requestImages,
-                    videos,
-                    audios,
-                    firstFrame: firstFrameUrl || undefined,
-                    lastFrame: lastFrameUrl || undefined,
+                    references,
                 })
-              : globalPreset
-                ? buildGlobalAiOpcVideoRequest(globalPreset, {
+              : channel.advancedConfig?.protocol === "yumeng"
+                ? buildYumengVideoRequest({
                       model: channel.model,
                       prompt,
                       duration: values.duration as number,
-                      ratio: values.ratio as string,
+                      aspectRatio: values.aspect_ratio as string,
                       resolution: values.resolution as string,
-                      images: requestImages.length ? requestImages : requestImage ? [requestImage] : [],
+                      generateAudio,
+                      watermark: booleanValue(raw.videoWatermark),
+                      images: requestImages,
                       videos,
                       audios,
-                      generateAudio,
                       firstFrame: firstFrameUrl || undefined,
                       lastFrame: lastFrameUrl || undefined,
                   })
-                : buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, defaults, values);
+                : globalPreset
+                  ? buildGlobalAiOpcVideoRequest(globalPreset, {
+                        model: channel.model,
+                        prompt,
+                        duration: values.duration as number,
+                        ratio: values.ratio as string,
+                        resolution: values.resolution as string,
+                        images: requestImages.length ? requestImages : requestImage ? [requestImage] : [],
+                        videos,
+                        audios,
+                        generateAudio,
+                        firstFrame: firstFrameUrl || undefined,
+                        lastFrame: lastFrameUrl || undefined,
+                    })
+                  : buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, defaults, values);
     const requestBody = multipart
         ? await buildOpenAiVideoFormData({ model: channel.model, prompt, seconds: values.seconds as number, width: dimensions.width, height: dimensions.height, imageUrls: firstFrameUrl ? [firstFrameUrl] : images, origin, cookie })
         : JSON.stringify(payload);
     const imageToVideoPath = images.length || firstFrameUrl ? channel.advancedConfig?.imageToVideoPath?.trim() : "";
-    const createPaths = globalPreset ? [globalPreset.createPath] : imageToVideoPath ? [imageToVideoPath] : resolvedProviderCreatePaths(channel.advancedConfig, "video", CREATE_PATHS);
+    const createPaths = workflow ? [workflow.createPath] : globalPreset ? [globalPreset.createPath] : imageToVideoPath ? [imageToVideoPath] : resolvedProviderCreatePaths(channel.advancedConfig, "video", CREATE_PATHS);
     for (const path of createPaths) {
         const response = await proxyFetch(origin, channel.baseUrl, path, cookie, {
             method: "POST",

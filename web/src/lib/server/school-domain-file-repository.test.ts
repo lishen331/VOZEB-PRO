@@ -1,19 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const files = new Map<string, unknown>();
+const { files, withFileLock } = vi.hoisted(() => ({
+    files: new Map<string, unknown>(),
+    withFileLock: vi.fn(async (_name: string, operation: () => Promise<unknown>) => operation()),
+}));
 
 vi.mock("@/lib/server/data-adapter", () => ({
     readJsonDataFile: vi.fn(async (name: string, fallback: unknown) => structuredClone(files.has(name) ? files.get(name) : fallback)),
     writeJsonDataFile: vi.fn(async (name: string, value: unknown) => files.set(name, structuredClone(value))),
-    withJsonDataFileLock: vi.fn(async (_name: string, operation: () => Promise<unknown>) => operation()),
+    withJsonDataFileLock: withFileLock,
 }));
 
-import { createFileSchoolDomainRepository } from "./school-domain-file-repository";
+import { createFileSchoolDomainRepository, mutateFileSchoolDomainInsideLock } from "./school-domain-file-repository";
 
 const now = "2026-08-17T00:00:00.000Z";
 
 describe("file school domain repository", () => {
-    beforeEach(() => files.clear());
+    beforeEach(() => {
+        files.clear();
+        withFileLock.mockClear();
+    });
+
+    it("uses the file lock for standalone mutations", async () => {
+        await mutateFileSchoolDomainInsideLock(async (repository) => {
+            await repository.insertSchool({ id: "school-lock", name: "锁测试", profile: {}, status: "active", createdAt: now, updatedAt: now });
+        });
+        expect(withFileLock).toHaveBeenCalledWith("school-domain.json", expect.any(Function));
+    });
 
     it("stores a normalized course tree and rejects materials without exactly one target", async () => {
         const repository = createFileSchoolDomainRepository();

@@ -40,6 +40,7 @@ export function serializeAdminSettingsForUser(settings: AuthSettings, user: { ro
         serialized.agentSkills = [];
         serialized.systemChannels = serialized.systemChannels.map(channelSummaryWithoutConfiguration);
         serialized.practiceDefaultModels = { ...DEFAULT_SETTINGS.practiceDefaultModels };
+        serialized.practiceWorkflowModels = {};
     }
     return serialized;
 }

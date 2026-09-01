@@ -1,12 +1,16 @@
 import { createHash } from "node:crypto";
 
 import { getPublicUsersByIds } from "@/lib/auth/store";
+import { AUTH_DATA_FILE } from "@/lib/auth/store-foundation";
+import { emptyDb, MAX_POINT_AMOUNT, normalizeDb } from "@/lib/auth/store-normalizers";
+import { publicUserFromAuthenticatedRecord, toPublicUser } from "@/lib/auth/store-user-projection";
 import type { AdminSchoolMemberPoints, AdminSchoolMemberPointsAdjustmentInput, AdminSchoolMemberPointsAdjustmentResult, AdminSchoolMemberQuery, PageResult } from "@/lib/school-domain";
-import { adjustPermanentPointsInAuthDb, adjustPermanentPointsInPostgresTransaction, type PointsWalletMutationResult } from "@/lib/server/points-wallet-service";
+import { adjustPermanentPointsInAuthDb, adjustPermanentPointsInPostgresTransaction } from "@/lib/server/points-wallet-service";
 import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled, withPostgresTransaction } from "@/lib/server/database";
-import { mutateAuthDb } from "@/lib/auth/store-repository";
+import { readJsonDataFile, withJsonDataFileLocks, writeJsonDataFile } from "@/lib/server/data-adapter";
+import { writeAuthDb } from "@/lib/auth/store-repository";
 import { createSchoolDomainRepository, type SchoolMembershipRecord } from "@/lib/server/school-domain-repository";
-import { mutateFileSchoolDomainInsideLock } from "@/lib/server/school-domain-file-repository";
+import { mutateFileSchoolDomainInsideLock, SCHOOL_DOMAIN_DATA_FILE } from "@/lib/server/school-domain-file-repository";
 import { SchoolServiceError, requirePlatformAdmin } from "@/lib/server/school-access-service";
 
 export async function listSchoolMembersByAdmin(actorId: string, schoolId: string, query: AdminSchoolMemberQuery = {}): Promise<PageResult<AdminSchoolMemberPoints>> {
@@ -25,21 +29,20 @@ export async function adjustSchoolMemberPointsByAdmin(actorId: string, schoolId:
     await requirePlatformAdmin(actorId);
     const normalized = normalizeAdjustment(input);
     const amount = normalized.operation === "credit" ? normalized.amount : -normalized.amount;
-    const wallet = isPostgresDatabaseEnabled() ? await adjustPostgres(actorId, schoolId, membershipId, amount, normalized) : await adjustFile(actorId, schoolId, membershipId, amount, normalized);
-    const { member, schoolName } = await loadAdminMember(schoolId, membershipId);
-    const balanceAfter = wallet.record.permanentBalanceAfter;
+    const result = isPostgresDatabaseEnabled() ? await adjustPostgres(actorId, schoolId, membershipId, amount, normalized) : await adjustFile(actorId, schoolId, membershipId, amount, normalized);
+    const balanceAfter = result.wallet.record.permanentBalanceAfter;
     return {
-        member,
+        member: result.member,
         adjustment: {
-            recordId: wallet.record.id,
-            operation: wallet.record.amount >= 0 ? "credit" : "debit",
-            amount: Math.abs(wallet.record.amount),
-            balanceBefore: balanceAfter - wallet.record.permanentAmount,
+            recordId: result.wallet.record.id,
+            operation: result.wallet.record.amount >= 0 ? "credit" : "debit",
+            amount: Math.abs(result.wallet.record.amount),
+            balanceBefore: balanceAfter - result.wallet.record.permanentAmount,
             balanceAfter,
-            reason: wallet.record.description,
-            createdAt: wallet.record.createdAt,
+            reason: result.wallet.record.description,
+            createdAt: result.wallet.record.createdAt,
         },
-        schoolName,
+        schoolName: result.schoolName,
     };
 }
 
@@ -47,13 +50,15 @@ async function adjustPostgres(actorId: string, schoolId: string, membershipId: s
     await ensurePostgresSchema();
     return withPostgresTransaction(async (client) => {
         const repository = createSchoolDomainRepository(client);
-        if (!(await repository.getSchool(schoolId, true))) throw new SchoolServiceError(404, "学校不存在");
+        const authRepositories = createPostgresRepositories(client);
+        const school = await repository.getSchool(schoolId, true);
+        if (!school) throw new SchoolServiceError(404, "学校不存在");
         const membership = await repository.getMembership(schoolId, membershipId, true);
         if (!membership) throw new SchoolServiceError(404, "学校成员不存在");
-        const user = await createPostgresRepositories(client).users.getById(membership.userId, true);
+        const user = await authRepositories.users.getById(membership.userId, true);
         if (!user) throw new SchoolServiceError(404, "学校成员不存在");
         const requestFingerprint = fingerprint({ actorId, schoolId, membershipId, userId: membership.userId, operation: input.operation, amount: input.amount, reason: input.reason });
-        return adjustPermanentPointsInPostgresTransaction(client, {
+        const wallet = await adjustPermanentPointsInPostgresTransaction(client, {
             userId: membership.userId,
             amount,
             description: input.reason,
@@ -63,43 +68,50 @@ async function adjustPostgres(actorId: string, schoolId: string, membershipId: s
             requireActive: false,
             requestFingerprint,
         });
-    }).then((result) => {
-        if (!result) throw new SchoolServiceError(409, "个人永久积分调整未生效");
-        return result;
+        if (!wallet) throw new SchoolServiceError(409, "个人永久积分调整未生效");
+        const now = new Date().toISOString();
+        const details = await authRepositories.users.getPublicDetails([membership.userId], { now, date: wallet.snapshot.dailyDate });
+        const publicUser = details[0] ? publicUserFromAuthenticatedRecord(details[0], wallet.snapshot.dailyExpiresAt) : undefined;
+        if (!publicUser) throw new SchoolServiceError(404, "学校成员不存在");
+        return { wallet, member: adminMember(membership, publicUser), schoolName: school.name };
     });
 }
 
 async function adjustFile(actorId: string, schoolId: string, membershipId: string, amount: number, input: NormalizedAdjustment) {
-    return mutateFileSchoolDomainInsideLock(async (repository) => {
-        const school = await repository.getSchool(schoolId);
-        if (!school) throw new SchoolServiceError(404, "学校不存在");
-        const membership = await repository.getMembership(schoolId, membershipId);
-        if (!membership) throw new SchoolServiceError(404, "学校成员不存在");
-        const requestFingerprint = fingerprint({ actorId, schoolId, membershipId, userId: membership.userId, operation: input.operation, amount: input.amount, reason: input.reason });
-        let wallet: PointsWalletMutationResult | null | undefined;
-        await mutateAuthDb(async (db) => {
-            wallet = adjustPermanentPointsInAuthDb(db, {
-                userId: membership.userId,
-                amount,
-                description: input.reason,
-                idempotencyKey: input.idempotencyKey,
-                requestFingerprint,
-                minimumBalance: 0,
-                requireActive: false,
-            });
-        });
-        if (!wallet) throw new SchoolServiceError(409, "个人永久积分调整未生效");
-        return wallet;
+    return withJsonDataFileLocks([AUTH_DATA_FILE, SCHOOL_DOMAIN_DATA_FILE], async () => {
+        const [authBefore, schoolBefore] = await Promise.all([readJsonDataFile(AUTH_DATA_FILE, emptyDb()), readJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, {})]);
+        const authDb = normalizeDb(authBefore);
+        try {
+            const result = await mutateFileSchoolDomainInsideLock(
+                async (repository) => {
+                    const school = await repository.getSchool(schoolId);
+                    if (!school) throw new SchoolServiceError(404, "学校不存在");
+                    const membership = await repository.getMembership(schoolId, membershipId);
+                    if (!membership) throw new SchoolServiceError(404, "学校成员不存在");
+                    const requestFingerprint = fingerprint({ actorId, schoolId, membershipId, userId: membership.userId, operation: input.operation, amount: input.amount, reason: input.reason });
+                    const wallet = adjustPermanentPointsInAuthDb(authDb, {
+                        userId: membership.userId,
+                        amount,
+                        description: input.reason,
+                        idempotencyKey: input.idempotencyKey,
+                        requestFingerprint,
+                        minimumBalance: 0,
+                        requireActive: false,
+                    });
+                    if (!wallet) throw new SchoolServiceError(409, "个人永久积分调整未生效");
+                    const user = authDb.users.find((item) => item.id === membership.userId);
+                    if (!user) throw new SchoolServiceError(404, "学校成员不存在");
+                    return { wallet, member: adminMember(membership, toPublicUser(user, authDb)), schoolName: school.name };
+                },
+                { lockAlreadyHeld: true },
+            );
+            await writeAuthDb(authDb);
+            return result;
+        } catch (error) {
+            await Promise.all([writeJsonDataFile(AUTH_DATA_FILE, authBefore), writeJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, schoolBefore)]);
+            throw error;
+        }
     });
-}
-
-async function loadAdminMember(schoolId: string, membershipId: string): Promise<{ member: AdminSchoolMemberPoints; schoolName: string }> {
-    const repository = createSchoolDomainRepository();
-    const [school, membership] = await Promise.all([repository.getSchool(schoolId), repository.getMembership(schoolId, membershipId)]);
-    if (!school) throw new SchoolServiceError(404, "学校不存在");
-    if (!membership) throw new SchoolServiceError(404, "学校成员不存在");
-    const user = (await getPublicUsersByIds([membership.userId]))[0];
-    return { member: adminMember(membership, user), schoolName: school.name };
 }
 
 function adminMember(member: SchoolMembershipRecord, user: Awaited<ReturnType<typeof getPublicUsersByIds>>[number] | undefined): AdminSchoolMemberPoints {
@@ -132,6 +144,7 @@ function normalizeAdjustment(input: AdminSchoolMemberPointsAdjustmentInput): Nor
     const amountText = String(input.amount).trim();
     const amount = Number(amountText);
     if (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(amountText) || !Number.isFinite(amount) || amount <= 0) throw new SchoolServiceError(400, "积分数量必须为最多两位小数的正数");
+    if (amount > MAX_POINT_AMOUNT) throw new SchoolServiceError(409, "个人永久积分调整超出上限");
     const reason = input.reason.trim();
     if (!reason) throw new SchoolServiceError(400, "请填写调账原因");
     const idempotencyKey = input.idempotencyKey.trim();

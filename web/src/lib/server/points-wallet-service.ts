@@ -164,6 +164,7 @@ export function creditPermanentPointsInAuthDb(db: AuthDatabase, input: CreditPer
 }
 
 export function adjustPermanentPointsInAuthDb(db: AuthDatabase, input: AdjustPermanentPointsInput): PointsWalletMutationResult | null {
+    if (Number.isFinite(input.amount) && Math.abs(input.amount) > MAX_POINT_AMOUNT) throw new PointsWalletConflictError("个人永久积分超出上限");
     const amount = normalizePointAmount(input.amount, 0);
     if (!amount) return null;
     const idempotencyKey = requiredIdempotencyKey(input.idempotencyKey);
@@ -290,6 +291,7 @@ export async function refundPoints(input: RefundPointsInput): Promise<PointsWall
 }
 
 export async function adjustPermanentPointsInPostgresTransaction(client: QueryExecutor, input: PostgresPermanentAdjustmentInput): Promise<PointsWalletMutationResult | null> {
+    if (Number.isFinite(input.amount) && Math.abs(input.amount) > MAX_POINT_AMOUNT) throw new PointsWalletConflictError("个人永久积分超出上限");
     const requestedAmount = normalizePointAmount(input.amount, 0);
     if (!requestedAmount) return null;
     const idempotencyKey = requiredIdempotencyKey(input.idempotencyKey);

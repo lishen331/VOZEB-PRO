@@ -20,6 +20,7 @@ import { recordTextTaskLog } from "@/lib/server/text-task-log";
 import { getPublicUsersByIds } from "@/lib/auth/store-actions";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
+import { buildRunningHubWorkflowPayload, workflowConfigForTask } from "@/lib/server/runninghub-workflow-runtime";
 
 configureServerProxyDispatcher();
 
@@ -148,7 +149,8 @@ async function runOpenAiResponsesTask(task: TextTask, origin: string, cookie: st
 
 async function createCustomTextTaskStep(task: TextTask, origin: string, cookie: string, protocol: ResolvedTextProtocol) {
     const config = task.config;
-    const createPath = protocol.path;
+    const workflow = workflowConfigForTask(task);
+    const createPath = workflow?.createPath || protocol.path;
     const messages = toChatMessages(withSystemMessage(config, task.messages));
     const prompt = messages
         .filter((message) => message.role === "user")
@@ -158,7 +160,7 @@ async function createCustomTextTaskStep(task: TextTask, origin: string, cookie: 
     const values = { model: config.model, prompt, input: prompt, text: prompt, messages };
     let payload: Record<string, unknown>;
     try {
-        payload = buildProviderRequest(protocol.requestTemplate!, values, values);
+        payload = workflow ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: values, references: [] }) : buildProviderRequest(protocol.requestTemplate!, values, values);
     } catch (error) {
         throw new GenerationSubmissionSafeFailure(error instanceof Error ? error.message : "自定义文本请求模板无效");
     }
