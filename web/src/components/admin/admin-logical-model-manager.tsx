@@ -6,6 +6,7 @@ import { useDeferredValue, useMemo, useState } from "react";
 
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
 import type { LogicalModel, LogicalModelBinding, LogicalModelCapability, LogicalModelCapabilityProfile, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
+import type { RunningHubWorkflowBusinessCode } from "@/lib/auth/store-types";
 import { capabilityLabel, isLogicalModelResolvable, logicalModelSupportsImageInput, normalizeDefaultModelsConfig, resolveLogicalModelConfig, resolveVisionModelConfig, synchronizeLogicalModelsWithChannels } from "@/lib/model-routing-config";
 
 type Props = {
@@ -13,7 +14,8 @@ type Props = {
     logicalModels: LogicalModel[];
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
-    onChange: (value: { logicalModels: LogicalModel[]; defaultModels: SystemDefaultModels; practiceDefaultModels: SystemDefaultModels }) => void;
+    practiceWorkflowModels?: Partial<Record<RunningHubWorkflowBusinessCode, string>>;
+    onChange: (value: { logicalModels: LogicalModel[]; defaultModels: SystemDefaultModels; practiceDefaultModels: SystemDefaultModels; practiceWorkflowModels?: Partial<Record<RunningHubWorkflowBusinessCode, string>> }) => void;
 };
 
 const capabilityOptions: Array<{ label: string; value: LogicalModelCapability }> = [
@@ -31,7 +33,15 @@ const defaultFields: Array<{ capability: LogicalModelCapability; key: keyof Syst
     { capability: "audio", key: "audioModel", label: "默认音频模型" },
 ];
 
-export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, practiceDefaultModels, onChange }: Props) {
+const practiceWorkflowFields: Array<{ code: RunningHubWorkflowBusinessCode; label: string; capability: LogicalModelCapability }> = [
+    { code: "script", label: "脚本", capability: "text" },
+    { code: "storyboard-image", label: "分镜图片", capability: "image" },
+    { code: "storyboard-video", label: "分镜视频", capability: "video" },
+    { code: "dubbing", label: "配音", capability: "audio" },
+    { code: "music", label: "音乐", capability: "audio" },
+];
+
+export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, practiceDefaultModels, practiceWorkflowModels = {}, onChange }: Props) {
     const { message } = App.useApp();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [editingId, setEditingId] = useState("");
@@ -80,6 +90,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             logicalModels: nextModels,
             defaultModels: normalizeDefaultModelsConfig(defaultModels, nextModels, channels),
             practiceDefaultModels: normalizeDefaultModelsConfig(practiceDefaultModels, nextModels, channels, "open-source-practice", { allowFallback: false }),
+            practiceWorkflowModels,
         });
         setDrawerOpen(false);
         message.success("模型路由设置已更新，请保存渠道配置");
@@ -95,6 +106,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             logicalModels: nextModels,
             defaultModels: normalizeDefaultModelsConfig(defaultModels, nextModels, channels),
             practiceDefaultModels: normalizeDefaultModelsConfig(practiceDefaultModels, nextModels, channels, "open-source-practice", { allowFallback: false }),
+            practiceWorkflowModels,
         });
         message.success(`已按上游模型名同步 ${nextModels.length} 个逻辑模型`);
     };
@@ -104,6 +116,7 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             logicalModels,
             defaultModels: defaultPool === "production" ? { ...defaultModels, [key]: modelId } : defaultModels,
             practiceDefaultModels: defaultPool === "production" ? practiceDefaultModels : { ...practiceDefaultModels, [key]: modelId },
+            practiceWorkflowModels,
         });
     };
 
@@ -228,6 +241,37 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                             );
                         })}
                     </div>
+                </div>
+            </div>
+
+            <div className="mt-4 rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <SectionTitle icon={<GitBranch className="size-4" />} title="无限练习工作流绑定" />
+                    <Tag color="blue">仅业务 code</Tag>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">绑定逻辑模型后，学校练习会解析该模型在 open-source-practice/shared 渠道上的当前启用工作流。这里不填写渠道、Workflow ID 或节点参数。</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {practiceWorkflowFields.map((field) => {
+                        const options = logicalModels
+                            .filter((model) => model.capability === field.capability && isLogicalModelResolvable(logicalModels, channels, field.capability, model.id, "open-source-practice"))
+                            .map((model) => ({ label: model.name, value: model.id }));
+                        const selected = practiceWorkflowModels[field.code];
+                        return (
+                            <LabeledControl key={field.code} label={`${field.label}（${field.code}）`}>
+                                <Select
+                                    className="w-full"
+                                    allowClear
+                                    showSearch
+                                    optionFilterProp="label"
+                                    value={selected || undefined}
+                                    options={options}
+                                    placeholder="不绑定，使用练习默认模型"
+                                    onChange={(value) => onChange({ logicalModels, defaultModels, practiceDefaultModels, practiceWorkflowModels: { ...practiceWorkflowModels, [field.code]: value || "" } })}
+                                />
+                                {selected && !options.some((option) => option.value === selected) ? <div className="mt-1 text-xs text-amber-600">当前绑定不可解析，请选择可用逻辑模型</div> : null}
+                            </LabeledControl>
+                        );
+                    })}
                 </div>
             </div>
 

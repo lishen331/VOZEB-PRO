@@ -464,7 +464,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 const answers = await Promise.all(
                     textTargetIds.map(async (targetNodeId) => {
                         try {
-                            const task = await createTextGenerationTask(generationConfig, buildNodeResponseMessages({ ...generationContext, prompt: effectivePrompt }), { signal: controller.signal });
+                            const task = await createTextGenerationTask(generationConfig, buildNodeResponseMessages({ ...generationContext, prompt: effectivePrompt }), { signal: controller.signal, context: { surface: "canvas", projectId } });
                             setNodes((prev) =>
                                 prev.map((node) =>
                                     node.id === targetNodeId
@@ -672,7 +672,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             try {
                 if (node.type === CanvasNodeType.Text) {
                     if (!context) return;
-                    const task = await createTextGenerationTask(generationConfig, buildNodeResponseMessages({ ...context, prompt }), { signal: controller.signal });
+                    const task = await createTextGenerationTask(generationConfig, buildNodeResponseMessages({ ...context, prompt }), { signal: controller.signal, context: { surface: "canvas", projectId } });
                     setNodes((prev) =>
                         prev.map((item) => (item.id === node.id ? { ...item, type: CanvasNodeType.Text, metadata: { ...item.metadata, prompt, status: NODE_STATUS_LOADING, textTask: { id: task.id, model: task.model }, errorDetails: undefined } } : item)),
                     );

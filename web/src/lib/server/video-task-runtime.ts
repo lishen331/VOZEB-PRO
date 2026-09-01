@@ -24,6 +24,7 @@ import { maintenanceWorkerHeaders } from "@/lib/server/maintenance-auth";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
 import { refundVideoTask } from "@/lib/server/video-task-refund";
 import { geminiVideoQueryPath, parseGeminiVideoOperation } from "@/lib/server/gemini-video-provider";
+import { workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 
 export type VideoUpstreamStep = { state: "pending"; status: string } | { state: "result_ready"; status: string; resultUrl: string } | { state: "failed"; status: string; error: string };
 
@@ -196,7 +197,7 @@ async function queryVideoUpstream(task: VideoTask, origin: string, cookie: strin
         const response = await fetchInternalApi(`${origin}${task.config.baseUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`, {
             headers: videoProxyHeaders(task, cookie, workerUserId),
             cache: "no-store",
-            signal: AbortSignal.timeout(Math.min(resolveModelRequestTimeoutMs(task.config, "video"), 60_000)),
+            signal: AbortSignal.timeout(workflowTimeoutMs(workflowConfigForTask(task), Math.min(resolveModelRequestTimeoutMs(task.config, "video"), 60_000))),
         });
         if (seedanceSpecial && videoContentReady(response)) {
             await response.body?.cancel().catch(() => undefined);
@@ -222,15 +223,16 @@ async function queryVideoUpstream(task: VideoTask, origin: string, cookie: strin
 async function readyVideoContentPath(task: VideoTask, origin: string, cookie: string, workerUserId: string) {
     const id = encodeURIComponent(task.upstream.id);
     const paths = [`/v1/videos/${id}/content`, `/videos/${id}/content`];
+    const contentProbeTimeoutMs = workflowTimeoutMs(workflowConfigForTask(task), 60_000);
     for (const path of paths) {
         const url = `${origin}${task.config.baseUrl.replace(/\/+$/, "")}${path}`;
         const headers = videoProxyHeaders(task, cookie, workerUserId);
-        const head = await fetchInternalApi(url, { method: "HEAD", headers, cache: "no-store", signal: AbortSignal.timeout(60_000) }).catch(() => null);
+        const head = await fetchInternalApi(url, { method: "HEAD", headers, cache: "no-store", signal: AbortSignal.timeout(contentProbeTimeoutMs) }).catch(() => null);
         if (head && videoContentReady(head)) return path;
         if (head && ![405, 501].includes(head.status)) continue;
         const rangeHeaders = new Headers(headers);
         rangeHeaders.set("range", "bytes=0-0");
-        const probe = await fetchInternalApi(url, { headers: rangeHeaders, cache: "no-store", signal: AbortSignal.timeout(60_000) }).catch(() => null);
+        const probe = await fetchInternalApi(url, { headers: rangeHeaders, cache: "no-store", signal: AbortSignal.timeout(contentProbeTimeoutMs) }).catch(() => null);
         if (!probe) continue;
         const ready = videoContentReady(probe);
         await probe.body?.cancel().catch(() => undefined);

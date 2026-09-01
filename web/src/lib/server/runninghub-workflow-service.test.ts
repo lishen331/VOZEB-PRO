@@ -119,6 +119,14 @@ describe("runninghub workflow service", () => {
         expect(mocks.setAuthSettings).not.toHaveBeenCalled();
     });
 
+    it("ignores a client channelId when editing a workflow", async () => {
+        const disabled = { ...workflow, enabled: false };
+        mocks.getFreshAuthSettings.mockResolvedValue(settingsWith(disabled));
+        await updateWorkflow(workflow.workflowKey, { channelId: "other-channel", workflowName: "更新" });
+        const saved = mocks.setAuthSettings.mock.calls[0][0].systemChannels as SystemModelChannel[];
+        expect(saved[0].advancedConfig?.workflowConfigs?.[workflow.workflowKey]?.channelId).toBe("rh-practice");
+    });
+
     it("returns a 404 for unknown workflow keys", async () => {
         await expect(getWorkflow("missing")).rejects.toMatchObject({ status: 404 });
     });

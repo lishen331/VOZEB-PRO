@@ -1,4 +1,5 @@
 import type { LogicalModelCapability, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
+import type { RunningHubWorkflowBusinessCode } from "@/lib/auth/store-types";
 import { channelDetectedCapabilities, normalizeDefaultModelsConfig } from "@/lib/model-routing-config";
 import { channelProtocolDefinition } from "@/lib/channel-protocol-registry";
 
@@ -7,6 +8,7 @@ export type ChannelWorkspaceSettings = {
     logicalModels: import("@/lib/auth/store").LogicalModel[];
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
+    practiceWorkflowModels?: Partial<Record<RunningHubWorkflowBusinessCode, string>>;
 };
 
 export type ChannelWorkspaceStatus = "enabled" | "draft" | "disabled";
@@ -43,6 +45,7 @@ export function removeChannelFromWorkspace(settings: ChannelWorkspaceSettings, c
         logicalModels,
         defaultModels: Object.fromEntries(Object.entries(settings.defaultModels).map(([key, value]) => [key, liveIds.has(value) ? value : ""])) as SystemDefaultModels,
         practiceDefaultModels: Object.fromEntries(Object.entries(settings.practiceDefaultModels).map(([key, value]) => [key, liveIds.has(value) ? value : ""])) as SystemDefaultModels,
+        ...(settings.practiceWorkflowModels ? { practiceWorkflowModels: Object.fromEntries(Object.entries(settings.practiceWorkflowModels).filter(([, value]) => liveIds.has(value))) as Partial<Record<RunningHubWorkflowBusinessCode, string>> } : {}),
     };
 }
 
@@ -53,6 +56,7 @@ export function updateChannelInWorkspace(settings: ChannelWorkspaceSettings, cha
         systemChannels,
         defaultModels: normalizeDefaultModelsConfig(settings.defaultModels, settings.logicalModels, systemChannels),
         practiceDefaultModels: normalizeDefaultModelsConfig(settings.practiceDefaultModels, settings.logicalModels, systemChannels, "open-source-practice", { allowFallback: false }),
+        practiceWorkflowModels: settings.practiceWorkflowModels,
     };
 }
 

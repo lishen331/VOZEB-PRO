@@ -11,6 +11,7 @@ import { capabilityLabel, channelModelCapability } from "@/lib/model-routing-con
 import { ChannelStatusBadge } from "./admin-channel-status-badge";
 import { channelBindingCount, channelCapabilityLabels, channelProtocolLabel, channelWorkspaceStatus, type ChannelWorkspaceSettings } from "./admin-channel-workspace-model";
 import { ChannelPurposeControl, RunningHubChannelFields } from "./runninghub-channel-fields";
+import { RunningHubWorkflowList } from "./runninghub-workflow-list";
 
 type Props = {
     open: boolean;
@@ -55,6 +56,7 @@ export function AdminChannelDetailDrawer({ open, channel, settings, fetching, on
                         ),
                     },
                     { key: "models", label: `上游模型 ${channel.models.length}`, children: <ChannelModels channel={channel} /> },
+                    ...(channel.advancedConfig?.protocol === "runninghub" ? [{ key: "workflows", label: "工作流", children: <RunningHubWorkflowList channel={channel} /> }] : []),
                 ]}
             />
         </Drawer>

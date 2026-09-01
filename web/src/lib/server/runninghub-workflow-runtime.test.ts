@@ -2,7 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import type { RunningHubWorkflowConfig } from "@/lib/auth/store";
 
-import { attachPracticeWorkflowToChannel, buildRunningHubWorkflowPayload, recordWorkflowTaskContext } from "./runninghub-workflow-runtime";
+import {
+    attachPracticeWorkflowToChannel,
+    buildRunningHubWorkflowPayload,
+    generationBusinessCode,
+    recordWorkflowTaskContext,
+    resolvePracticeLogicalModel,
+    workflowConfigForTask,
+    workflowTaskContextForChannel,
+    workflowTimeoutMs,
+} from "./runninghub-workflow-runtime";
 
 const config: RunningHubWorkflowConfig = {
     workflowKey: "practice-image",
@@ -33,6 +42,8 @@ const config: RunningHubWorkflowConfig = {
         { paramKey: "referenceImage", nodeId: "90", fieldName: "image", valueType: "STRING", source: "INPUT", inputKey: "referenceImage" },
     ],
     outputMappings: [{ key: "image", label: "图片", nodeId: "90", assetType: "IMAGE", required: true, primary: true }],
+    runOptions: { priority: "low", seed: 7 },
+    timeoutSeconds: 11,
 };
 
 describe("RunningHub workflow runtime", () => {
@@ -52,6 +63,7 @@ describe("RunningHub workflow runtime", () => {
                 { nodeId: "90", fieldName: "image", fieldValue: "https://cdn.example/reference.png" },
             ],
             extra: "kept",
+            runOptions: { priority: "low", seed: 7 },
         });
     });
 
@@ -113,5 +125,82 @@ describe("RunningHub workflow runtime", () => {
             { executionProfile: "open-source-practice", businessCode: config.businessCode, workflowKey: config.workflowKey, workflowVersion: config.version },
         );
         expect(attached.advancedConfig).toMatchObject({ createPath: config.createPath, queryPath: config.queryPath, requestTemplate: config.requestTemplate, workflowConfigs: { [config.workflowKey]: config } });
+    });
+
+    it("selects an enabled practice workflow when the trusted context omits a client workflow key", () => {
+        const channel = { channelId: "rh-practice", advancedConfig: { workflowConfigs: { [config.workflowKey]: config } } } as unknown as Parameters<typeof attachPracticeWorkflowToChannel>[0];
+        const attached = attachPracticeWorkflowToChannel(
+            channel,
+            {
+                practiceWorkflowModels: {},
+                systemChannels: [
+                    {
+                        id: "rh-practice",
+                        name: "练习",
+                        baseUrl: "https://runninghub.example",
+                        apiKey: "",
+                        apiFormat: "openai",
+                        models: [],
+                        enabled: true,
+                        purpose: "open-source-practice",
+                        advancedConfig: {
+                            protocol: "runninghub",
+                            workflowConfigs: { [config.workflowKey]: config },
+                            textModel: "",
+                            imageModel: "",
+                            videoModel: "",
+                            createPath: "",
+                            queryPath: "",
+                            requestTemplate: "",
+                            resultField: "",
+                            statusField: "",
+                            durationRange: "",
+                            referenceRule: "",
+                            supportsReferenceImage: false,
+                            supportsReferenceVideo: false,
+                            supportsReferenceAudio: false,
+                        },
+                    },
+                ],
+            },
+            { executionProfile: "open-source-practice", businessCode: "storyboard-image" },
+        );
+        expect(attached.advancedConfig?.workflowConfigs?.[config.workflowKey]).toMatchObject({ version: 3, enabled: true });
+    });
+
+    it("does not resolve a production or stopped workflow from task metadata", () => {
+        expect(
+            workflowConfigForTask({
+                executionProfile: "production",
+                workflowKey: config.workflowKey,
+                workflowVersion: config.version,
+                businessCode: config.businessCode,
+                config: { advancedConfig: { workflowConfigs: { [config.workflowKey]: config } } } as never,
+            }),
+        ).toBeUndefined();
+        expect(
+            workflowConfigForTask({
+                executionProfile: "open-source-practice",
+                workflowKey: config.workflowKey,
+                workflowVersion: config.version,
+                businessCode: config.businessCode,
+                config: { advancedConfig: { workflowConfigs: { [config.workflowKey]: { ...config, enabled: false } } } } as never,
+            }),
+        ).toBeUndefined();
+    });
+
+    it("uses workflow timeout when scheduling a RunningHub request", () => {
+        expect(workflowTimeoutMs(config, 999)).toBe(11_000);
+        expect(workflowTimeoutMs({ ...config, timeoutSeconds: undefined }, 999)).toBe(999);
+    });
+
+    it("uses the practice script business code for drama text and tolerates no channels", () => {
+        expect(generationBusinessCode("drama", "text")).toBe("script");
+        expect(workflowTaskContextForChannel(undefined, "script")).toEqual({});
+    });
+
+    it("always chooses the server practice model binding for a practice task", () => {
+        expect(resolvePracticeLogicalModel({ practiceWorkflowModels: { script: "practice-script" }, practiceDefaultModels: { textModel: "practice-default" } } as never, "text", "script", "production-model")).toBe("practice-script");
+        expect(resolvePracticeLogicalModel({ practiceWorkflowModels: {}, practiceDefaultModels: { textModel: "practice-default" } } as never, "text", "script", "production-model")).toBe("practice-default");
     });
 });

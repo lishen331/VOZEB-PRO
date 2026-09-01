@@ -152,6 +152,7 @@ export function AdminChannelWorkspace({ settings, fetchingModelId, saving, onCha
                                 logicalModels={settings.logicalModels}
                                 defaultModels={settings.defaultModels}
                                 practiceDefaultModels={settings.practiceDefaultModels}
+                                practiceWorkflowModels={settings.practiceWorkflowModels}
                                 onChange={(routing) => onChange({ ...settings, ...routing })}
                             />
                         ),
