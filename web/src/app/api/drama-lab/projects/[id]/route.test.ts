@@ -70,6 +70,93 @@ describe("DELETE /api/drama-lab/projects/[id]", () => {
         expect(mocks.updateDramaProjectForUser).toHaveBeenCalledWith("user-one", "drama-one", expect.objectContaining({ id: "drama-one", title: "新标题", episodes: [] }));
     });
 
+    it("preserves frame workflow data when the workbench saves flat shots", async () => {
+        mocks.getDramaProject.mockResolvedValue({
+            id: "drama-one",
+            title: "Project",
+            episodes: [{ id: "episode-one", title: "Episode One", script: "", shots: [{ id: "shot-one", order: 1 }] }],
+            updatedAt: "2026-09-01T00:00:00.000Z",
+        });
+        const frameWorkflow = {
+            frames: {
+                first: {
+                    prompt: "first frame prompt",
+                    description: "opening state",
+                    status: "success",
+                    taskId: "first-frame-task",
+                    attempt: 2,
+                    url: "/api/reference-assets/permanent/first.png",
+                    storageKey: "permanent/first.png",
+                    width: 1280,
+                    height: 720,
+                    history: [{ id: "first-history", taskId: "first-frame-task", url: "/api/reference-assets/permanent/first.png", prompt: "first frame prompt", createdAt: "2026-09-01T01:00:00.000Z" }],
+                    source: "uploaded",
+                    locked: true,
+                },
+                key: { prompt: "key frame prompt", status: "running", taskId: "key-frame-task", attempt: 1, source: "generated", locked: false },
+                last: {
+                    prompt: "last frame prompt",
+                    status: "success",
+                    url: "/api/reference-assets/permanent/tail.png",
+                    storageKey: "permanent/tail.png",
+                    source: "video_tail",
+                    sourceVideoTaskId: "video-task-one",
+                    sourceShotId: "shot-one",
+                    sourceVideoHistoryId: "video-history-one",
+                    locked: true,
+                },
+            },
+            firstFrameCandidate: {
+                id: "candidate-one",
+                frameType: "first",
+                url: "/api/reference-assets/permanent/candidate.png",
+                storageKey: "permanent/candidate.png",
+                width: 1280,
+                height: 720,
+                source: "video_tail",
+                sourceVideoTaskId: "video-task-zero",
+                sourceShotId: "shot-zero",
+                sourceVideoHistoryId: "video-history-zero",
+                createdAt: "2026-09-01T01:01:00.000Z",
+                projectUpdatedAt: "2026-09-01T01:00:00.000Z",
+            },
+            videoFrameSnapshot: {
+                capturedAt: "2026-09-01T01:02:00.000Z",
+                model: "video-model",
+                supportsFirstFrame: true,
+                supportsLastFrame: true,
+                maxReferenceImages: 2,
+                references: [{ role: "first_frame", frameType: "first", url: "/api/reference-assets/permanent/first.png", storageKey: "permanent/first.png", source: "uploaded" }],
+            },
+            startFramePrompt: "legacy first-frame prompt",
+            endFramePrompt: "legacy last-frame prompt",
+            negativePrompt: "legacy negative prompt",
+            storyboardFrameMode: "first_last",
+            storyboardEndStatus: "success",
+            storyboardEndAttempt: 3,
+            storyboardEndTaskId: "storyboard-end-task",
+            storyboardEndImageUrl: "/api/reference-assets/permanent/end.png",
+            storyboardEndImageWidth: 1280,
+            storyboardEndImageHeight: 720,
+        };
+
+        const response = await PUT(
+            new Request("http://localhost/api/drama-lab/projects/drama-one", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    episodes: [{ id: "episode-one", title: "Episode One", number: 1, script: "" }],
+                    shots: [{ id: "shot-one", episodeId: "episode-one", shotNumber: 1, script: "Shot One", duration: 3, characterIds: [], propIds: [], ...frameWorkflow }],
+                }),
+            }),
+            context("drama-one"),
+        );
+
+        expect(response.status).toBe(200);
+        const savedProject = mocks.updateDramaProjectForUser.mock.calls[0]?.[2] as { episodes?: Array<{ shots?: unknown[] }> };
+        expect(savedProject.episodes?.[0]?.shots?.[0]).toMatchObject(frameWorkflow);
+    });
+
     it.each([
         [404, "短剧项目不存在"],
         [409, "项目存在关联任务，暂时不能删除"],

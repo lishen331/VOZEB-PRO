@@ -1,7 +1,8 @@
-import type { DramaAssetReference, DramaEpisode, DramaProject, DramaShot, DramaShotGenerationHistory } from "@/lib/drama-project-contract";
+import type { DramaAssetReference, DramaEpisode, DramaProject, DramaShot, DramaShotFrameSource, DramaShotFrameType, DramaShotGenerationHistory, DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
 import { dramaAssetPrimaryReference, dramaShotAssetReferences } from "@/lib/drama-asset-references";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
 import { DramaProjectStoreError, getDramaProject, updateDramaProject } from "@/lib/server/drama-project-store";
+import type { VideoReferenceRole } from "@/lib/video-reference-contract";
 
 export class DramaLabShotGenerationError extends Error {
     constructor(
@@ -18,6 +19,23 @@ type ShotContext = {
 };
 
 export type DramaLabGenerationReference = Pick<DramaAssetReference, "id" | "url" | "storageKey" | "label" | "width" | "height">;
+
+export type DramaLabVideoGenerationReference = DramaLabGenerationReference & {
+    role: VideoReferenceRole;
+    frameType?: DramaShotFrameType;
+    taskId?: string;
+    source?: DramaShotFrameSource;
+    sourceVideoTaskId?: string;
+    sourceShotId?: string;
+    sourceVideoHistoryId?: string;
+};
+
+export type DramaLabStoryboardVideoOptions = {
+    model?: string;
+    supportsFirstFrame?: boolean;
+    supportsLastFrame?: boolean;
+    maxReferenceImages?: number;
+};
 
 export type DramaLabMissingAssetReference = {
     type: "scene" | "character" | "prop";
@@ -42,10 +60,12 @@ export async function prepareDramaLabStoryboardImage(project: DramaProject, epis
     };
 }
 
-export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId: string, shotId: string) {
+export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId: string, shotId: string, options: DramaLabStoryboardVideoOptions = {}) {
     const context = findShot(project, episodeId, shotId);
     assertProjectAssetBindings(project, context.shot);
+    const firstFrame = context.shot.frames?.first;
     const keyFrame = context.shot.frames?.key;
+    const lastFrame = context.shot.frames?.last;
     const visualSource = keyFrame?.url
         ? {
               id: `key-frame-${context.shot.id}`,
@@ -67,6 +87,33 @@ export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId:
           : undefined;
     if (!visualSource) throw new DramaLabShotGenerationError("请先生成当前镜头的关键帧或分镜图");
     const visualPrompt = context.shot.videoPrompt.trim() || defaultVideoPrompt(context.shot);
+    // Capability is opt-in: callers that have not resolved a provider must not
+    // accidentally submit a frame role to an endpoint that only accepts a
+    // generic reference image. The direct service default still keeps a first
+    // frame (the common image-to-video contract); routes with a resolved model
+    // pass an explicit capability decision.
+    const supportsFirstFrame = options.supportsFirstFrame !== false;
+    const supportsLastFrame = supportsFirstFrame && options.supportsLastFrame === true;
+    const maxReferenceImages = positiveReferenceLimit(options.maxReferenceImages);
+    const fallbackReasons: string[] = [];
+    if (firstFrame?.url && !supportsFirstFrame) fallbackReasons.push("当前视频模型不支持显式首帧输入，已使用关键帧/分镜图参考");
+    if (lastFrame?.url && !firstFrame?.url) fallbackReasons.push("尾帧输入必须同时提供首帧，已省略尾帧");
+    if (lastFrame?.url && firstFrame?.url && !supportsLastFrame) fallbackReasons.push("当前视频模型不支持尾帧输入，已降级为首帧/关键帧模式");
+    const allReferences = [
+        firstFrame?.url && supportsFirstFrame ? frameReference(context.shot, firstFrame, "first", "first_frame") : undefined,
+        lastFrame?.url && firstFrame?.url && supportsLastFrame ? frameReference(context.shot, lastFrame, "last", "last_frame") : undefined,
+        frameReference(context.shot, keyFrame, "key", "reference", visualSource),
+    ].filter((reference): reference is DramaLabVideoGenerationReference => Boolean(reference));
+    const references = limitVideoReferences(allReferences, maxReferenceImages, fallbackReasons);
+    const frameSnapshot: DramaShotVideoFrameSnapshot = {
+        capturedAt: new Date().toISOString(),
+        model: options.model?.trim() || undefined,
+        supportsFirstFrame,
+        supportsLastFrame,
+        maxReferenceImages,
+        fallbackReason: fallbackReasons.length ? fallbackReasons.join("；") : undefined,
+        references: references.map(({ role, frameType, url, storageKey, taskId, source, sourceVideoTaskId, sourceShotId, sourceVideoHistoryId }) => ({ role, frameType, url, storageKey, taskId, source, sourceVideoTaskId, sourceShotId, sourceVideoHistoryId })),
+    };
     return {
         prompt: [
             "【短剧实验室分镜视频任务】",
@@ -77,21 +124,65 @@ export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId:
             "【不可编辑执行约束】仅使用当前镜头绑定的场景、角色和道具，以及当前分镜图作为画面依据。保持角色身份、服装、场景空间、道具尺度、视线和运动方向一致；不得出现未绑定角色、项目外物体、字幕或水印。",
         ].join("\n\n"),
         visiblePrompt: visualPrompt,
-        // The OpenAI-compatible video protocol accepts one input reference.
-        // The current key frame/storyboard already contains the bound assets;
-        // keep their whitelist in the prompt instead of submitting extra files.
-        references: [
-            {
-                id: visualSource.id,
-                url: visualSource.url,
-                label: visualSource.label,
-                width: visualSource.width,
-                height: visualSource.height,
-            },
-        ],
+        references,
         parentTaskId: visualSource.taskId,
+        frameSnapshot,
         shot: context.shot,
     };
+}
+
+function frameReference(
+    shot: DramaShot,
+    frame: NonNullable<DramaShot["frames"]>[DramaShotFrameType] | undefined,
+    frameType: DramaShotFrameType,
+    role: VideoReferenceRole,
+    fallback?: { id: string; url: string; label: string; width?: number; height?: number; taskId?: string },
+): DramaLabVideoGenerationReference | undefined {
+    const url = frame?.url || fallback?.url;
+    if (!url) return undefined;
+    return {
+        id: fallback?.id || `${frameType}-frame-${shot.id}`,
+        url,
+        storageKey: frame?.storageKey,
+        label: fallback?.label || `${shot.title || shot.id}${frameType === "first" ? " 首帧" : frameType === "last" ? " 尾帧" : " 关键帧"}`,
+        width: frame?.width || fallback?.width,
+        height: frame?.height || fallback?.height,
+        role,
+        frameType,
+        taskId: frame?.taskId || fallback?.taskId,
+        source: frame?.source || (fallback ? "generated" : undefined),
+        sourceVideoTaskId: frame?.sourceVideoTaskId,
+        sourceShotId: frame?.sourceShotId,
+        sourceVideoHistoryId: frame?.sourceVideoHistoryId,
+    };
+}
+
+function positiveReferenceLimit(value: number | undefined) {
+    const limit = Math.floor(Number(value));
+    return Number.isFinite(limit) && limit > 0 ? limit : undefined;
+}
+
+/**
+ * Keep explicit frame roles ahead of ordinary references. A provider's
+ * maxReferenceImages applies to the complete image list, so silently sending
+ * three images to a one-image endpoint merely causes an avoidable fallback.
+ */
+function limitVideoReferences(references: DramaLabVideoGenerationReference[], max: number | undefined, fallbackReasons: string[]) {
+    if (!max || references.length <= max) return references;
+    const first = references.find((reference) => reference.role === "first_frame");
+    const last = references.find((reference) => reference.role === "last_frame");
+    const regular = references.filter((reference) => reference.role === "reference");
+    const selected: DramaLabVideoGenerationReference[] = [];
+    if (first && selected.length < max) selected.push(first);
+    if (last && selected.length < max) selected.push(last);
+    for (const reference of regular) {
+        if (selected.length >= max) break;
+        selected.push(reference);
+    }
+    if (last && !selected.includes(last)) fallbackReasons.push(`当前视频模型最多接受 ${max} 张参考图，已省略尾帧输入`);
+    const droppedRegular = regular.some((reference) => !selected.includes(reference));
+    if (droppedRegular) fallbackReasons.push(`当前视频模型最多接受 ${max} 张参考图，已省略普通关键帧参考图`);
+    return selected;
 }
 
 export function findShot(project: DramaProject, episodeId: string, shotId: string): ShotContext {
@@ -122,7 +213,7 @@ export function updateDramaLabShot(project: DramaProject, episodeId: string, sho
  * of the project. Reapply only the task-owned shot fields to the latest copy
  * once so that the task ID remains reachable for later synchronization.
  */
-export async function persistDramaLabShotUpdate(input: { userId: string; project: DramaProject; episodeId: string; shotId: string; patch: Partial<DramaShot> }) {
+export async function persistDramaLabShotUpdate(input: { userId: string; project: DramaProject; episodeId: string; shotId: string; patch: Partial<DramaShot>; retryOnConflict?: boolean }) {
     const persist = async (project: DramaProject) => {
         const updated = updateDramaLabShot(project, input.episodeId, input.shotId, input.patch);
         await updateDramaProject(input.userId, updated, project.updatedAt);
@@ -132,6 +223,7 @@ export async function persistDramaLabShotUpdate(input: { userId: string; project
     try {
         return await persist(input.project);
     } catch (error) {
+        if (input.retryOnConflict === false) throw error;
         if (!(error instanceof DramaProjectStoreError) || error.status !== 409) throw error;
         const latest = await getDramaProject(input.project.id, input.userId);
         if (!latest) throw new DramaLabShotGenerationError("短剧项目不存在", 404);

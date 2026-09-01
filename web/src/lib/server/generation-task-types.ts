@@ -20,6 +20,8 @@ export type GenerationTaskContext = {
     projectId?: string;
     episodeId?: string;
     shotId?: string;
+    /** Drama Lab frame slot associated with an image task. */
+    frameType?: "first" | "key" | "last";
     estimatedPoints?: number;
     parentTaskId?: string;
     attemptNo?: number;
@@ -28,6 +30,8 @@ export type GenerationTaskContext = {
     generationSlotId?: string;
     ipReferences?: IpReference[];
     billingContext?: SchoolComputeBillingContext;
+    /** Optional short-lived, non-secret input snapshot for domain recovery/audit. */
+    frameSnapshot?: Record<string, unknown>;
 };
 
 export type StoredGenerationTaskRecord = {

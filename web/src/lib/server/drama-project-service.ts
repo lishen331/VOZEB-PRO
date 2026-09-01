@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 
-import type { CreateDramaProjectInput, DramaAssetProfile, DramaAssetReference, DramaEpisode, DramaNamedAsset, DramaProject, DramaShot, DramaShotContinuity, DramaUtterance, DramaVideoMode } from "@/lib/drama-project-contract";
+import type { CreateDramaProjectInput, DramaAssetProfile, DramaAssetReference, DramaEpisode, DramaNamedAsset, DramaProject, DramaShot, DramaShotContinuity, DramaUtterance, DramaVideoMode, DramaShotFrameCandidate, DramaShotFrameSource, DramaShotFrameType, DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
 import { parseDramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract";
 import { dramaRichContentToPlainText, normalizeDramaScriptRichContent } from "@/lib/drama-script-rich-content";
 import { normalizeDramaImageSize } from "@/lib/drama-image-size";
@@ -388,6 +388,8 @@ function normalizeShot(value: unknown, index: number): DramaShot {
         emotionIntensity: Number.isFinite(Number(input.emotionIntensity)) ? Math.max(-1, Math.min(3, Math.round(Number(input.emotionIntensity)))) : undefined,
         layoutDescription: optionalText(input.layoutDescription),
         frames: normalizeFrameStates(input.frames),
+        firstFrameCandidate: normalizeFrameCandidate(input.firstFrameCandidate),
+        videoFrameSnapshot: normalizeVideoFrameSnapshot(input.videoFrameSnapshot),
         startFramePrompt: optionalText(input.startFramePrompt),
         endFramePrompt: optionalText(input.endFramePrompt),
         negativePrompt: optionalText(input.negativePrompt),
@@ -597,10 +599,82 @@ function normalizeFrameStates(value: unknown) {
             height: optionalPositiveInteger(frame.height),
             error: optionalText(frame.error),
             history: normalizeGenerationHistory(frame.history),
+            storageKey: optionalText(frame.storageKey),
+            source: frameSource(frame.source),
+            sourceVideoTaskId: optionalText(frame.sourceVideoTaskId),
+            sourceShotId: optionalText(frame.sourceShotId),
+            sourceVideoHistoryId: optionalText(frame.sourceVideoHistoryId),
+            locked: typeof frame.locked === "boolean" ? frame.locked : undefined,
         };
         return result;
     }, {} as Record<string, unknown>);
     return Object.keys(frames).length ? frames : undefined;
+}
+
+function normalizeFrameCandidate(value: unknown): DramaShotFrameCandidate | undefined {
+    const input = object(value);
+    const id = cleanText(input.id);
+    const url = stableUrl(input.url);
+    const sourceVideoTaskId = cleanText(input.sourceVideoTaskId);
+    const sourceShotId = cleanText(input.sourceShotId);
+    const sourceVideoHistoryId = cleanText(input.sourceVideoHistoryId);
+    const createdAt = timestamp(input.createdAt);
+    const projectUpdatedAt = timestamp(input.projectUpdatedAt);
+    if (!id || !url || !sourceVideoTaskId || !sourceShotId || !sourceVideoHistoryId || !createdAt || !projectUpdatedAt) return undefined;
+    return {
+        id,
+        frameType: "first",
+        url,
+        storageKey: optionalText(input.storageKey),
+        width: optionalPositiveInteger(input.width),
+        height: optionalPositiveInteger(input.height),
+        source: "video_tail",
+        sourceVideoTaskId,
+        sourceShotId,
+        sourceVideoHistoryId,
+        createdAt,
+        projectUpdatedAt,
+    };
+}
+
+function frameSource(value: unknown): DramaShotFrameSource | undefined {
+    return value === "generated" || value === "uploaded" || value === "video_tail" || value === "restored" ? value : undefined;
+}
+
+function normalizeVideoFrameSnapshot(value: unknown): DramaShotVideoFrameSnapshot | undefined {
+    const input = object(value);
+    const capturedAt = timestamp(input.capturedAt);
+    if (!capturedAt || typeof input.supportsLastFrame !== "boolean") return undefined;
+    const references = array(input.references).flatMap((item) => {
+        const reference = object(item);
+        const role = reference.role === "first_frame" || reference.role === "last_frame" || reference.role === "reference" ? (reference.role as DramaShotVideoFrameSnapshot["references"][number]["role"]) : undefined;
+        const url = stableUrl(reference.url);
+        if (!role || !url) return [];
+        const frameType = reference.frameType === "first" || reference.frameType === "key" || reference.frameType === "last" ? (reference.frameType as DramaShotFrameType) : undefined;
+        return [
+            {
+                role,
+                frameType,
+                url,
+                storageKey: optionalText(reference.storageKey),
+                taskId: optionalText(reference.taskId),
+                source: frameSource(reference.source),
+                sourceVideoTaskId: optionalText(reference.sourceVideoTaskId),
+                sourceShotId: optionalText(reference.sourceShotId),
+                sourceVideoHistoryId: optionalText(reference.sourceVideoHistoryId),
+            },
+        ];
+    });
+    if (!references.length) return undefined;
+    return {
+        capturedAt,
+        model: optionalText(input.model),
+        supportsFirstFrame: typeof input.supportsFirstFrame === "boolean" ? input.supportsFirstFrame : undefined,
+        supportsLastFrame: input.supportsLastFrame,
+        maxReferenceImages: optionalPositiveInteger(input.maxReferenceImages),
+        fallbackReason: optionalText(input.fallbackReason),
+        references,
+    };
 }
 
 function ids(value: unknown) {
@@ -637,7 +711,7 @@ function normalizeSourceAssets(value: unknown) {
 }
 
 function taskStatus(value: unknown) {
-    return ["idle", "queued", "running", "success", "error", "cancelled"].includes(String(value)) ? (value as DramaShot["generationStatus"]) : undefined;
+    return ["idle", "queued", "pending", "running", "success", "error", "cancelled"].includes(String(value)) ? (value as DramaShot["generationStatus"]) : undefined;
 }
 
 function optionalPositiveInteger(value: unknown) {

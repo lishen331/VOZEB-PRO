@@ -7,6 +7,12 @@ import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { DramaLabShotGenerationError, persistDramaLabShotUpdate, prepareDramaLabStoryboardVideo } from "@/lib/server/drama-lab-shot-generation-service";
 import { DramaProjectStoreError, getDramaProject } from "@/lib/server/drama-project-store";
 import { getVideoTask } from "@/lib/server/video-task-store";
+import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
+import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
+import { templateVideoReferenceRoles } from "@/lib/server/provider-task-config";
+import type { VideoReferenceRole } from "@/lib/video-reference-contract";
+
+type VideoCandidate = ReturnType<typeof resolveLogicalModelCandidates>[number];
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +28,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!episodeId) throw new DramaLabShotGenerationError("当前剧集不能为空");
         const project = await getDramaProject(id, user.id);
         if (!project) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
-        const prepared = prepareDramaLabStoryboardVideo(project, episodeId, shotId);
+        const settings = await getAuthSettings();
+        if (!settings.defaultModels.videoModel) throw new DramaLabShotGenerationError("后台尚未配置可用的默认视频模型", 503);
+        const candidates = Array.isArray(settings.logicalModels) && Array.isArray(settings.systemChannels)
+            ? resolveLogicalModelCandidates(settings, "video", settings.defaultModels.videoModel)
+            : [];
+        // A logical model can fail over across channels. Keep the tail frame
+        // only when every viable candidate explicitly supports it; otherwise
+        // the provider route would reject the whole request after fallback.
+        const supportsFirstFrame = candidates.length ? candidates.every(candidateSupportsFirstFrame) : undefined;
+        const supportsLastFrame = candidates.length ? candidates.every(candidateSupportsLastFrame) : false;
+        const maxReferenceImages = minimumReferenceLimit(candidates);
+        const prepared = prepareDramaLabStoryboardVideo(project, episodeId, shotId, { model: settings.defaultModels.videoModel, supportsFirstFrame, supportsLastFrame, maxReferenceImages });
         const retainedTaskId = typeof prepared.shot.generationTaskId === "string" ? prepared.shot.generationTaskId.trim() : "";
         const retainedTask = retainedTaskId ? await getVideoTask(retainedTaskId) : null;
         const ownedRetainedTask = retainedTask?.userId === user.id ? retainedTask : null;
@@ -33,8 +50,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (retainedTaskId && (prepared.shot.generationStatus === "queued" || prepared.shot.generationStatus === "running" || retainedTaskActive)) {
             throw new DramaLabShotGenerationError("当前分镜已有视频任务正在执行，请先同步任务状态后再操作。", 409);
         }
-        const settings = await getAuthSettings();
-        if (!settings.defaultModels.videoModel) throw new DramaLabShotGenerationError("后台尚未配置可用的默认视频模型", 503);
         const attemptNo = (prepared.shot.generationAttempt || 0) + 1;
         const requestId = `drama-lab-video:${project.id}:${episodeId}:${shotId}:attempt-${attemptNo}`;
         // Keep internal dispatch on the listener that accepted this request;
@@ -53,10 +68,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             body: JSON.stringify({
                 config: { model: settings.defaultModels.videoModel, size: project.ratio, videoSeconds: prepared.shot.duration },
                 prompt: prepared.prompt,
-                // OpenAI-compatible video endpoints accept one input reference.
-                // The preparation service returns the storyboard/key frame first;
-                // keep this boundary defensive if another caller adds extras.
-                references: prepared.references.slice(0, 1).map((reference) => ({ type: "image", role: "reference", url: reference.url })),
+                references: prepared.references.map((reference) => ({ type: "image" as const, role: reference.role || "reference", url: reference.url })),
                 source: "drama",
                 context: {
                     conversationId: project.creativeConversationId,
@@ -67,6 +79,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                     parentTaskId: prepared.parentTaskId || prepared.shot.storyboardTaskId,
                     attemptNo,
                     clientRequestId: requestId,
+                    frameSnapshot: prepared.frameSnapshot,
                 },
             }),
         });
@@ -88,6 +101,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                 generationAttempt: attemptNo,
                 generationNeedsReview: undefined,
                 generationError: undefined,
+                videoFrameSnapshot: prepared.frameSnapshot,
             },
         });
         return NextResponse.json({ code: 0, data: { task: payload.task }, msg: "分镜视频任务已创建" });
@@ -100,4 +114,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜视频任务创建失败" }, { status });
     }
+}
+
+function candidateSupportsLastFrame(candidate: VideoCandidate) {
+    return candidateVideoReferenceRoles(candidate).includes("last_frame");
+}
+
+function candidateSupportsFirstFrame(candidate: VideoCandidate) {
+    return candidateVideoReferenceRoles(candidate).includes("first_frame");
+}
+
+function candidateVideoReferenceRoles(candidate: VideoCandidate): VideoReferenceRole[] {
+    const advanced = candidate.channel.advancedConfig;
+    const preset = resolveGlobalAiOpcPreset(advanced, candidate.upstreamModel);
+    if (preset?.videoReferenceRoles) return preset.videoReferenceRoles;
+    if (candidate.channel.apiFormat === "gemini" || advanced?.protocol === "gemini") return ["reference", "first_frame", "last_frame"];
+    if (advanced?.protocol === "seedance" || advanced?.protocol === "volcengine-video" || advanced?.protocol === "seedance-special") return ["reference", "first_frame", "last_frame"];
+    if (advanced?.protocol === "openai" || advanced?.protocol === "newapi" || advanced?.protocol === "sub2api") return ["reference", "first_frame"];
+    return templateVideoReferenceRoles(advanced?.requestTemplate);
+}
+
+function minimumReferenceLimit(candidates: VideoCandidate[]) {
+    const limits = candidates
+        .flatMap((candidate) => {
+            const value = candidate.capabilityProfile?.maxReferenceImages;
+            return typeof value === "number" && Number.isFinite(value) && value > 0 ? [Math.floor(value)] : [];
+        });
+    return limits.length ? Math.min(...limits) : undefined;
 }

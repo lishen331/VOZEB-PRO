@@ -29,11 +29,13 @@ import {
     ShieldCheck,
     MessageSquare,
     LockKeyhole,
+    Upload,
     PanelsTopLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Asset } from "@/lib/library-asset-contract";
+import type { DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { recoverVideoGenerationTask } from "@/services/api/video-core";
 import { cn } from "@/lib/utils";
@@ -218,8 +220,10 @@ export interface Shot {
     videoHistory?: DramaLabGenerationHistory[];
     status?: string;
     frames?: Partial<
-        Record<"first" | "key" | "last", { prompt: string; description?: string; status?: DramaLabTaskStatus; taskId?: string; attempt?: number; url?: string; width?: number; height?: number; error?: string; history?: DramaLabGenerationHistory[] }>
+        Record<"first" | "key" | "last", { prompt: string; description?: string; status?: DramaLabTaskStatus; taskId?: string; attempt?: number; url?: string; storageKey?: string; width?: number; height?: number; error?: string; history?: DramaLabGenerationHistory[]; source?: "generated" | "uploaded" | "video_tail" | "restored"; sourceVideoTaskId?: string; sourceShotId?: string; sourceVideoHistoryId?: string; locked?: boolean }>
     >;
+    firstFrameCandidate?: { id: string; frameType: "first"; url: string; storageKey?: string; width?: number; height?: number; source: "video_tail"; sourceVideoTaskId: string; sourceShotId: string; sourceVideoHistoryId: string; createdAt: string; projectUpdatedAt: string };
+    videoFrameSnapshot?: DramaShotVideoFrameSnapshot;
 }
 
 type DramaLabTaskStatus = "idle" | "queued" | "pending" | "running" | "success" | "error" | "cancelled";
@@ -408,17 +412,137 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
                                       taskId: typeof frame.taskId === "string" ? frame.taskId : undefined,
                                       attempt: typeof frame.attempt === "number" ? frame.attempt : undefined,
                                       url: typeof frame.url === "string" ? frame.url : undefined,
+                                      storageKey: typeof frame.storageKey === "string" ? frame.storageKey : undefined,
                                       width: typeof frame.width === "number" ? frame.width : undefined,
                                       height: typeof frame.height === "number" ? frame.height : undefined,
                                       error: typeof frame.error === "string" ? frame.error : undefined,
                                       history: normalizeGenerationHistory(frame.history),
+                                      source: frame.source === "generated" || frame.source === "uploaded" || frame.source === "video_tail" || frame.source === "restored" ? frame.source : undefined,
+                                      sourceVideoTaskId: typeof frame.sourceVideoTaskId === "string" ? frame.sourceVideoTaskId : undefined,
+                                      sourceShotId: typeof frame.sourceShotId === "string" ? frame.sourceShotId : undefined,
+                                      sourceVideoHistoryId: typeof frame.sourceVideoHistoryId === "string" ? frame.sourceVideoHistoryId : undefined,
+                                      locked: frame.locked === true,
                                   },
                               ],
                           ];
                       }),
                   ) as Shot["frames"])
                 : undefined,
+        firstFrameCandidate: normalizeFrameCandidate(shot.firstFrameCandidate),
+        videoFrameSnapshot: normalizeVideoFrameSnapshot(shot.videoFrameSnapshot),
     };
+}
+
+function normalizeFrameCandidate(value: unknown): Shot["firstFrameCandidate"] {
+    if (!value || typeof value !== "object") return undefined;
+    const candidate = value as Record<string, unknown>;
+    if (typeof candidate.id !== "string" || typeof candidate.url !== "string" || candidate.source !== "video_tail") return undefined;
+    if (typeof candidate.sourceVideoTaskId !== "string" || typeof candidate.sourceShotId !== "string" || typeof candidate.sourceVideoHistoryId !== "string") return undefined;
+    return {
+        id: candidate.id,
+        frameType: "first",
+        url: candidate.url,
+        storageKey: typeof candidate.storageKey === "string" ? candidate.storageKey : undefined,
+        width: typeof candidate.width === "number" ? candidate.width : undefined,
+        height: typeof candidate.height === "number" ? candidate.height : undefined,
+        source: "video_tail",
+        sourceVideoTaskId: candidate.sourceVideoTaskId,
+        sourceShotId: candidate.sourceShotId,
+        sourceVideoHistoryId: candidate.sourceVideoHistoryId,
+        createdAt: typeof candidate.createdAt === "string" ? candidate.createdAt : "",
+        projectUpdatedAt: typeof candidate.projectUpdatedAt === "string" ? candidate.projectUpdatedAt : "",
+    };
+}
+
+function normalizeVideoFrameSnapshot(value: unknown): DramaShotVideoFrameSnapshot | undefined {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    const input = value as Record<string, unknown>;
+    const capturedAt = typeof input.capturedAt === "string" ? input.capturedAt : "";
+    if (!capturedAt || typeof input.supportsLastFrame !== "boolean" || !Array.isArray(input.references)) return undefined;
+    const references = input.references.flatMap((item) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+        const reference = item as Record<string, unknown>;
+        const role = reference.role === "first_frame" || reference.role === "last_frame" || reference.role === "reference" ? (reference.role as DramaShotVideoFrameSnapshot["references"][number]["role"]) : undefined;
+        const url = typeof reference.url === "string" ? reference.url.trim() : "";
+        if (!role || !url) return [];
+        return [{
+            role,
+            frameType: reference.frameType === "first" || reference.frameType === "key" || reference.frameType === "last" ? (reference.frameType as "first" | "key" | "last") : undefined,
+            url,
+            storageKey: typeof reference.storageKey === "string" ? reference.storageKey : undefined,
+            taskId: typeof reference.taskId === "string" ? reference.taskId : undefined,
+            source: reference.source === "generated" || reference.source === "uploaded" || reference.source === "video_tail" || reference.source === "restored" ? (reference.source as NonNullable<DramaShotVideoFrameSnapshot["references"][number]["source"]>) : undefined,
+            sourceVideoTaskId: typeof reference.sourceVideoTaskId === "string" ? reference.sourceVideoTaskId : undefined,
+            sourceShotId: typeof reference.sourceShotId === "string" ? reference.sourceShotId : undefined,
+            sourceVideoHistoryId: typeof reference.sourceVideoHistoryId === "string" ? reference.sourceVideoHistoryId : undefined,
+        }];
+    });
+    if (!references.length) return undefined;
+    return {
+        capturedAt,
+        model: typeof input.model === "string" ? input.model : undefined,
+        supportsFirstFrame: typeof input.supportsFirstFrame === "boolean" ? input.supportsFirstFrame : undefined,
+        supportsLastFrame: input.supportsLastFrame,
+        maxReferenceImages: typeof input.maxReferenceImages === "number" ? input.maxReferenceImages : undefined,
+        fallbackReason: typeof input.fallbackReason === "string" ? input.fallbackReason : undefined,
+        references,
+    };
+}
+
+// Task polling and frame actions return a complete server-side shot.  The
+// response may have been based on an older project revision than a local text
+// edit, so only merge fields owned by generation/synchronization workflows.
+function mergeSynchronizedShot(current: Shot, raw: unknown, episodeId: string): Shot {
+    const normalized = normalizeShot(raw, episodeId, Math.max(0, current.shotNumber - 1));
+    if (!normalized || !raw || typeof raw !== "object" || Array.isArray(raw)) return current;
+    const source = raw as Record<string, unknown>;
+    const patch: Partial<Shot> = {};
+    const taskFields: Array<keyof Shot> = [
+        "storyboardStatus",
+        "storyboardAttempt",
+        "storyboardTaskId",
+        "storyboardError",
+        "storyboardImageUrl",
+        "storyboardImageWidth",
+        "storyboardImageHeight",
+        "storyboardHistory",
+        "generationStatus",
+        "generationAttempt",
+        "generationTaskId",
+        "generationNeedsReview",
+        "generationError",
+        "videoUrl",
+        "videoHistory",
+        "videoFrameSnapshot",
+    ];
+    for (const field of taskFields) {
+        if (Object.prototype.hasOwnProperty.call(source, field)) {
+            (patch as Record<string, unknown>)[field] = normalized[field];
+        }
+    }
+    if (Object.prototype.hasOwnProperty.call(source, "frames")) {
+        if (!source.frames || typeof source.frames !== "object" || Array.isArray(source.frames)) {
+            patch.frames = normalized.frames;
+        } else {
+            const mergedFrames = { ...(current.frames || {}) } as NonNullable<Shot["frames"]>;
+            for (const [frameType, rawFrame] of Object.entries(source.frames)) {
+                if (!(frameType === "first" || frameType === "key" || frameType === "last") || !rawFrame || typeof rawFrame !== "object" || Array.isArray(rawFrame)) continue;
+                const normalizedFrame = normalized.frames?.[frameType];
+                if (!normalizedFrame) continue;
+                const nextFrame = { ...(current.frames?.[frameType] || {}) } as Record<string, unknown>;
+                for (const field of ["prompt", "description", "status", "taskId", "attempt", "url", "storageKey", "width", "height", "error", "history", "source", "sourceVideoTaskId", "sourceShotId", "sourceVideoHistoryId", "locked"]) {
+                    if (!Object.prototype.hasOwnProperty.call(rawFrame, field)) continue;
+                    const value = (normalizedFrame as Record<string, unknown>)[field];
+                    if (value === undefined) delete nextFrame[field];
+                    else nextFrame[field] = value;
+                }
+                mergedFrames[frameType] = nextFrame as NonNullable<Shot["frames"]>["first"];
+            }
+            patch.frames = mergedFrames;
+        }
+    }
+    if (Object.prototype.hasOwnProperty.call(source, "firstFrameCandidate")) patch.firstFrameCandidate = normalized.firstFrameCandidate;
+    return Object.keys(patch).length ? { ...current, ...patch } : current;
 }
 
 function readContinuityText(value: Record<string, unknown>, ...keys: string[]) {
@@ -675,10 +799,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             const shotIndex = current.shots.findIndex((shot) => shot.id === shotId && shot.episodeId === episodeId);
             if (shotIndex < 0) return current;
             const currentShot = current.shots[shotIndex];
-            const normalized = normalizeShot(rawShot, episodeId, Math.max(0, currentShot.shotNumber - 1));
-            if (!normalized) return current;
-
-            const nextShot = { ...currentShot, ...normalized };
+            const nextShot = mergeSynchronizedShot(currentShot, rawShot, episodeId);
             if (JSON.stringify(currentShot) === JSON.stringify(nextShot)) return current;
 
             const shots = [...current.shots];
@@ -2630,7 +2751,7 @@ function StoryboardPanel({
 }: {
     project: Project;
     episode?: Episode;
-    onSave: (updates: Partial<Project>, options?: SaveOptions) => Promise<boolean>;
+    onSave: (updates: ProjectUpdate, options?: SaveOptions) => Promise<boolean>;
     onReload: () => Promise<void>;
     onShotSynced: (episodeId: string, shotId: string, shot: unknown) => void;
     messageApi: ReturnType<typeof message.useMessage>[0];
@@ -2656,7 +2777,12 @@ function StoryboardPanel({
     const [automaticSyncRevision, setAutomaticSyncRevision] = useState(0);
 
     const updateShot = async (shotId: string, patch: Partial<Shot>, options: SaveOptions = { silent: true }) => {
-        const saved = await onSave({ shots: project.shots.map((shot) => (shot.id === shotId ? { ...shot, ...patch } : shot)) }, options);
+        const saved = await onSave(
+            (current) => ({
+                shots: current.shots.map((shot) => (shot.id === shotId ? { ...shot, ...patch } : shot)),
+            }),
+            options,
+        );
         if (!saved) throw new Error("保存分镜失败");
     };
 
@@ -2707,18 +2833,16 @@ function StoryboardPanel({
 
     const applyCreatedTask = (shot: Shot, kind: "image" | "video", taskId: string) => {
         onShotSynced(episodeId!, shot.id, {
-            ...shot,
+            id: shot.id,
             ...(kind === "image" ? { storyboardStatus: "running", storyboardTaskId: taskId, storyboardError: undefined } : { generationStatus: "running", generationTaskId: taskId, generationNeedsReview: undefined, generationError: undefined }),
         });
     };
 
     const applyCreatedFrameTask = (shot: Shot, frameType: "first" | "key" | "last", taskId: string, prompt?: string, description?: string) => {
         onShotSynced(episodeId!, shot.id, {
-            ...shot,
+            id: shot.id,
             frames: {
-                ...shot.frames,
                 [frameType]: {
-                    ...shot.frames?.[frameType],
                     prompt: prompt || shot.frames?.[frameType]?.prompt || "",
                     description: description || shot.frames?.[frameType]?.description,
                     status: "running",
@@ -3027,6 +3151,114 @@ function StoryboardPanel({
         }
     };
 
+    const extractTailFrame = async (shot: Shot) => {
+        if (!episode || !shot.generationTaskId) {
+            messageApi.warning("请先完成当前分镜视频，再提取真实尾帧");
+            return;
+        }
+        const actionKey = `tail-frame:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
+        try {
+            setActionBusy(actionKey, true);
+            messageApi.loading({ content: "正在从已完成视频提取尾帧...", key: actionKey, duration: 0 });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/extract-tail-frame?episodeId=${encodeURIComponent(episode.id)}`, { method: "POST" });
+            await assertJsonApiResponse(response);
+            const data = await response.json();
+            if (!response.ok || data.code !== 0 || !data.data?.frame) throw new Error(data.msg || "视频尾帧提取失败");
+            onShotSynced(episode.id, shot.id, { id: shot.id, frames: { last: data.data.frame } });
+            const next = data.data.nextShot;
+            if (next?.id && next.candidate) {
+                const nextShot = project.shots.find((item) => item.id === next.id && item.episodeId === episode.id);
+                if (nextShot) onShotSynced(episode.id, next.id, { id: next.id, firstFrameCandidate: next.candidate });
+                messageApi.success({ content: "尾帧已提取，下一镜出现待确认的首帧候选", key: actionKey, duration: 5 });
+            } else {
+                messageApi.success({ content: "尾帧已提取并保存", key: actionKey, duration: 4 });
+            }
+        } catch (error) {
+            messageApi.error({ content: error instanceof Error ? error.message : "视频尾帧提取失败", key: actionKey, duration: 6 });
+        } finally {
+            setActionBusy(actionKey, false);
+        }
+    };
+
+    const acceptFirstFrameCandidate = async (shot: Shot, replaceExisting = false) => {
+        const candidate = shot.firstFrameCandidate;
+        if (!episode || !candidate) return;
+        if (shot.frames?.first?.url && !replaceExisting) {
+            Modal.confirm({
+                title: "当前分镜已有首帧",
+                content: "应用候选会保留当前首帧到历史记录并替换它，是否继续？",
+                okText: "替换并锁定",
+                cancelText: "保留当前首帧",
+                onOk: () => acceptFirstFrameCandidate(shot, true),
+            });
+            return;
+        }
+        const actionKey = `candidate-accept:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
+        try {
+            setActionBusy(actionKey, true);
+            messageApi.loading({ content: "正在应用候选首帧...", key: actionKey, duration: 0 });
+            const query = new URLSearchParams({ episodeId: episode.id, candidateId: candidate.id });
+            if (replaceExisting) query.set("replaceExisting", "true");
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/accept-first-frame-candidate?${query.toString()}`, { method: "POST" });
+            await assertJsonApiResponse(response);
+            const data = await response.json();
+            if (!response.ok || data.code !== 0 || !data.data?.shot) throw new Error(data.msg || "候选首帧应用失败");
+            onShotSynced(episode.id, shot.id, { ...data.data.shot, firstFrameCandidate: data.data.candidate ?? null });
+            messageApi.success({ content: "候选首帧已应用并锁定", key: actionKey, duration: 4 });
+        } catch (error) {
+            messageApi.error({ content: error instanceof Error ? error.message : "候选首帧应用失败", key: actionKey, duration: 6 });
+        } finally {
+            setActionBusy(actionKey, false);
+        }
+    };
+
+    const toggleFrameLock = async (shot: Shot, frameType: "first" | "key" | "last") => {
+        const frame = shot.frames?.[frameType];
+        if (!episode || !frame?.url) return;
+        const actionKey = `frame-lock:${frameType}:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
+        try {
+            setActionBusy(actionKey, true);
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/frames/${frameType}/lock?episodeId=${encodeURIComponent(episode.id)}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ locked: !frame.locked }),
+            });
+            await assertJsonApiResponse(response);
+            const data = await response.json();
+            if (!response.ok || data.code !== 0 || !data.data?.frame) throw new Error(data.msg || "帧锁定状态保存失败");
+            onShotSynced(episode.id, shot.id, { id: shot.id, frames: { [frameType]: data.data.frame } });
+            messageApi.success({ content: data.msg || (frame.locked ? "帧已解锁" : "帧已锁定"), key: actionKey, duration: 3 });
+        } catch (error) {
+            messageApi.error({ content: error instanceof Error ? error.message : "帧锁定状态保存失败", key: actionKey, duration: 5 });
+        } finally {
+            setActionBusy(actionKey, false);
+        }
+    };
+
+    const uploadFrame = async (shot: Shot, frameType: "first" | "key" | "last", file: File) => {
+        if (!episode) return;
+        const actionKey = `frame-upload:${frameType}:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
+        try {
+            setActionBusy(actionKey, true);
+            const formData = new FormData();
+            formData.set("file", file);
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/frames/upload?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, { method: "POST", body: formData });
+            await assertJsonApiResponse(response);
+            const data = await response.json();
+            if (!response.ok || data.code !== 0 || !data.data?.frame) throw new Error(data.msg || "帧图片上传失败");
+            onShotSynced(episode.id, shot.id, { id: shot.id, frames: { [frameType]: data.data.frame } });
+            messageApi.success({ content: `${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧图片已上传`, key: actionKey, duration: 3 });
+        } catch (error) {
+            messageApi.error({ content: error instanceof Error ? error.message : "帧图片上传失败", key: actionKey, duration: 6 });
+        } finally {
+            setActionBusy(actionKey, false);
+        }
+    };
+
     if (!episode) {
         return <div className="text-center text-muted-foreground">请先选择一个剧集</div>;
     }
@@ -3064,6 +3296,11 @@ function StoryboardPanel({
                         onStartGeneration={startGeneration}
                         onCheckVideoStatus={checkVideoStatus}
                         onStartFrame={startFrame}
+                        onExtractTailFrame={extractTailFrame}
+                        onAcceptFirstFrameCandidate={acceptFirstFrameCandidate}
+                        onKeepFirstFrameCandidate={() => messageApi.info("候选首帧已保留，未覆盖当前首帧")}
+                        onToggleFrameLock={toggleFrameLock}
+                        onUploadFrame={uploadFrame}
                         onSync={() => void syncShotManually(shot).catch((error) => messageApi.error(error instanceof Error ? error.message : "任务状态同步失败"))}
                         onUpdate={(patch) => void updateShot(shot.id, patch).catch((error) => messageApi.error(error instanceof Error ? error.message : "保存分镜失败"))}
                         onEdit={() => handleEdit(shot)}
@@ -3168,6 +3405,11 @@ function StoryboardWorkbenchCard({
     onEdit,
     onDelete,
     onStartFrame,
+    onExtractTailFrame,
+    onAcceptFirstFrameCandidate,
+    onKeepFirstFrameCandidate,
+    onToggleFrameLock,
+    onUploadFrame,
 }: {
     shot: Shot;
     project: Project;
@@ -3175,6 +3417,11 @@ function StoryboardWorkbenchCard({
     onStartGeneration: (shot: Shot, kind: "image" | "video") => Promise<void>;
     onCheckVideoStatus: (shot: Shot) => Promise<void>;
     onStartFrame: (shot: Shot, frameType: "first" | "key" | "last") => Promise<void>;
+    onExtractTailFrame: (shot: Shot) => Promise<void>;
+    onAcceptFirstFrameCandidate: (shot: Shot, replaceExisting?: boolean) => Promise<void>;
+    onKeepFirstFrameCandidate: (shot: Shot) => void;
+    onToggleFrameLock: (shot: Shot, frameType: "first" | "key" | "last") => Promise<void>;
+    onUploadFrame: (shot: Shot, frameType: "first" | "key" | "last", file: File) => Promise<void>;
     onSync: () => void;
     onUpdate: (patch: Partial<Shot>) => void;
     onEdit: () => void;
@@ -3184,6 +3431,7 @@ function StoryboardWorkbenchCard({
     const videoBusy = busyKeys.has(`video:${shot.id}`) || isDramaLabTaskActive(shot.generationStatus);
     const checkingVideoStatus = busyKeys.has(`video-status:${shot.id}`);
     const videoNeedsCheck = requiresDramaLabVideoTaskCheck(shot);
+    const uploadInputRefs = useRef<Partial<Record<"first" | "key" | "last", HTMLInputElement | null>>>({});
     const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
     return (
         <article id={`storyboard-shot-${shot.id}`} className="overflow-hidden rounded-lg border border-border bg-card">
@@ -3243,6 +3491,17 @@ function StoryboardWorkbenchCard({
                                 </Button>
                             );
                         })}
+                        {(["first", "key", "last"] as const).map((frameType) => {
+                            const frame = shot.frames?.[frameType];
+                            return (
+                                <span key={`frame-tools-${frameType}`} className="contents">
+                                    <input ref={(node) => { uploadInputRefs.current[frameType] = node; }} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void onUploadFrame(shot, frameType, file); }} />
+                                    <Button size="small" title={`上传${frameLabel[frameType]}`} aria-label={`上传${frameLabel[frameType]}`} loading={busyKeys.has(`frame-upload:${frameType}:${shot.id}`)} icon={<Upload className="size-3.5" />} onClick={() => uploadInputRefs.current[frameType]?.click()} />
+                                    {frame?.url ? <Button size="small" title={frame.locked ? `解锁${frameLabel[frameType]}` : `锁定${frameLabel[frameType]}`} aria-label={frame.locked ? `解锁${frameLabel[frameType]}` : `锁定${frameLabel[frameType]}`} loading={busyKeys.has(`frame-lock:${frameType}:${shot.id}`)} icon={<LockKeyhole className={cn("size-3.5", frame.locked && "text-emerald-600")} />} onClick={() => void onToggleFrameLock(shot, frameType)} /> : null}
+                                </span>
+                            );
+                        })}
+                        {shot.generationTaskId && shot.generationStatus === "success" ? <Button size="small" loading={busyKeys.has(`tail-frame:${shot.id}`)} icon={<Film className="size-3.5" />} onClick={() => void onExtractTailFrame(shot)}>从视频提取尾帧</Button> : null}
                         <Button type="primary" loading={imageBusy} icon={<Sparkles className="size-4" />} onClick={() => void onStartGeneration(shot, "image")}>
                             {shot.storyboardImageUrl ? "重新生成分镜图" : "生成分镜图"}
                         </Button>
@@ -3268,6 +3527,19 @@ function StoryboardWorkbenchCard({
                             );
                         })}
                     </div>
+                    {shot.firstFrameCandidate ? (
+                        <div className="space-y-2 border border-amber-300 bg-amber-50/60 p-3" role="status" aria-label="待确认的候选首帧">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="text-xs font-medium text-amber-900">上一镜尾帧候选</div>
+                                <span className="text-[11px] text-amber-800">仅候选，尚未覆盖当前首帧</span>
+                            </div>
+                            <img src={shot.firstFrameCandidate.url} alt="候选首帧预览" className="aspect-video w-full rounded border border-amber-300 object-cover" />
+                            <div className="flex flex-wrap gap-2">
+                                <Button size="small" type="primary" loading={busyKeys.has(`candidate-accept:${shot.id}`)} onClick={() => void onAcceptFirstFrameCandidate(shot)}>应用为首帧</Button>
+                                <Button size="small" onClick={() => onKeepFirstFrameCandidate(shot)}>保留候选</Button>
+                            </div>
+                        </div>
+                    ) : null}
                     {shot.storyboardImageUrl ? (
                         <img src={shot.storyboardImageUrl} alt={`分镜 ${shot.shotNumber} 图像`} className="max-h-[460px] w-full rounded border border-border object-contain" />
                     ) : (

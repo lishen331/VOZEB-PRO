@@ -19,6 +19,7 @@ export type DramaShotGenerationHistory = {
 };
 
 export type DramaShotFrameType = "first" | "key" | "last";
+export type DramaShotFrameSource = "generated" | "uploaded" | "video_tail" | "restored";
 export type DramaShotFrameState = {
     prompt: string;
     description?: string;
@@ -26,10 +27,52 @@ export type DramaShotFrameState = {
     taskId?: string;
     attempt?: number;
     url?: string;
+    storageKey?: string;
     width?: number;
     height?: number;
     error?: string;
     history?: DramaShotGenerationHistory[];
+    source?: DramaShotFrameSource;
+    sourceVideoTaskId?: string;
+    sourceShotId?: string;
+    sourceVideoHistoryId?: string;
+    locked?: boolean;
+};
+
+export type DramaShotFrameCandidate = {
+    id: string;
+    frameType: "first";
+    url: string;
+    storageKey?: string;
+    width?: number;
+    height?: number;
+    source: "video_tail";
+    sourceVideoTaskId: string;
+    sourceShotId: string;
+    sourceVideoHistoryId: string;
+    createdAt: string;
+    projectUpdatedAt: string;
+};
+
+/** Immutable inputs captured when a storyboard video task is submitted. */
+export type DramaShotVideoFrameSnapshot = {
+    capturedAt: string;
+    model?: string;
+    supportsFirstFrame?: boolean;
+    supportsLastFrame: boolean;
+    maxReferenceImages?: number;
+    fallbackReason?: string;
+    references: Array<{
+        role: "first_frame" | "last_frame" | "reference";
+        frameType?: DramaShotFrameType;
+        url: string;
+        storageKey?: string;
+        taskId?: string;
+        source?: DramaShotFrameSource;
+        sourceVideoTaskId?: string;
+        sourceShotId?: string;
+        sourceVideoHistoryId?: string;
+    }>;
 };
 
 export type DramaAssetReference = {
@@ -129,6 +172,8 @@ export type DramaShot = {
     emotionIntensity?: number;
     layoutDescription?: string;
     frames?: Partial<Record<DramaShotFrameType, DramaShotFrameState>>;
+    firstFrameCandidate?: DramaShotFrameCandidate;
+    videoFrameSnapshot?: DramaShotVideoFrameSnapshot;
     startFramePrompt?: string;
     endFramePrompt?: string;
     negativePrompt?: string;

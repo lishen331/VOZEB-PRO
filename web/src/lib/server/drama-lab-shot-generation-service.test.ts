@@ -138,9 +138,78 @@ describe("drama lab shot generation service", () => {
             },
         });
 
-        const prepared = prepareDramaLabStoryboardVideo(withKeyFrame, "episode-one", "shot-one");
+        const prepared = prepareDramaLabStoryboardVideo(withKeyFrame, "episode-one", "shot-one", { supportsLastFrame: true });
         expect(prepared.parentTaskId).toBe("key-task");
-        expect(prepared.references.map((item) => item.id)).toEqual(["key-frame-shot-one"]);
+        expect(prepared.references.map((item) => item.id)).toEqual(["first-frame-shot-one", "last-frame-shot-one", "key-frame-shot-one"]);
+        expect(prepared.references.map((item) => item.role)).toEqual(["first_frame", "last_frame", "reference"]);
+        expect(prepared.references.find((item) => item.role === "first_frame")).toMatchObject({
+            frameType: "first",
+            url: "/api/generation-log-assets/first.png",
+            taskId: "first-task",
+        });
+        expect(prepared.references.find((item) => item.role === "last_frame")).toMatchObject({
+            frameType: "last",
+            url: "/api/generation-log-assets/last.png",
+            taskId: "last-task",
+        });
+        expect(prepared.frameSnapshot).toMatchObject({
+            supportsLastFrame: true,
+            references: [
+                { role: "first_frame", frameType: "first", url: "/api/generation-log-assets/first.png", taskId: "first-task" },
+                { role: "last_frame", frameType: "last", url: "/api/generation-log-assets/last.png", taskId: "last-task" },
+                { role: "reference", frameType: "key", url: "/api/generation-log-assets/key.png", taskId: "key-task" },
+            ],
+        });
+    });
+
+    it("does not silently turn an unsupported tail frame into a regular reference", () => {
+        const withKeyFrame = updateDramaLabShot(project, "episode-one", "shot-one", {
+            frames: {
+                first: { prompt: "起始状态", status: "success", url: "/first.png", taskId: "first-task", source: "generated" },
+                key: { prompt: "关键状态", status: "success", url: "/key.png", taskId: "key-task", source: "generated" },
+                last: { prompt: "结束状态", status: "success", url: "/last.png", taskId: "last-task", source: "generated" },
+            },
+        });
+
+        const prepared = prepareDramaLabStoryboardVideo(withKeyFrame, "episode-one", "shot-one", { model: "video-first-only", supportsLastFrame: false });
+        expect(prepared.references.map((item) => item.role)).toEqual(["first_frame", "reference"]);
+        expect(prepared.references.some((item) => item.url === "/last.png")).toBe(false);
+        expect(prepared.frameSnapshot).toMatchObject({
+            model: "video-first-only",
+            supportsLastFrame: false,
+            fallbackReason: expect.stringContaining("不支持尾帧"),
+        });
+    });
+
+    it("defaults to a conservative first-frame-only request when capability is unknown", () => {
+        const withKeyFrame = updateDramaLabShot(project, "episode-one", "shot-one", {
+            frames: {
+                first: { prompt: "起始状态", status: "success", url: "/first.png", taskId: "first-task" },
+                key: { prompt: "关键状态", status: "success", url: "/key.png", taskId: "key-task" },
+                last: { prompt: "结束状态", status: "success", url: "/last.png", taskId: "last-task" },
+            },
+        });
+
+        const prepared = prepareDramaLabStoryboardVideo(withKeyFrame, "episode-one", "shot-one");
+        expect(prepared.references.map((item) => item.role)).toEqual(["first_frame", "reference"]);
+        expect(prepared.references.some((item) => item.url === "/last.png")).toBe(false);
+        expect(prepared.frameSnapshot.supportsLastFrame).toBe(false);
+    });
+
+    it("clips references by provider capacity without changing frame roles", () => {
+        const withKeyFrame = updateDramaLabShot(project, "episode-one", "shot-one", {
+            frames: {
+                first: { prompt: "起始状态", status: "success", url: "/first.png", taskId: "first-task" },
+                key: { prompt: "关键状态", status: "success", url: "/key.png", taskId: "key-task" },
+                last: { prompt: "结束状态", status: "success", url: "/last.png", taskId: "last-task" },
+            },
+        });
+
+        const prepared = prepareDramaLabStoryboardVideo(withKeyFrame, "episode-one", "shot-one", { supportsLastFrame: true, maxReferenceImages: 2 });
+        expect(prepared.references.map((item) => item.role)).toEqual(["first_frame", "last_frame"]);
+        expect(prepared.references.some((item) => item.role === "reference")).toBe(false);
+        expect(prepared.frameSnapshot).toMatchObject({ maxReferenceImages: 2, supportsLastFrame: true });
+        expect(prepared.frameSnapshot.fallbackReason).toContain("省略普通关键帧参考图");
     });
 
     it("links the previous shot tail frame to the next shot first-frame plan", () => {

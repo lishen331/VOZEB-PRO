@@ -3,8 +3,9 @@ import { getAuthSettings } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { getDramaProject } from "@/lib/server/drama-project-store";
-import { DramaLabShotGenerationError, persistDramaLabShotUpdate } from "@/lib/server/drama-lab-shot-generation-service";
+import { appendDramaLabGenerationHistory, DramaLabShotGenerationError, persistDramaLabShotUpdate } from "@/lib/server/drama-lab-shot-generation-service";
 import { findShot } from "@/lib/server/drama-lab-shot-generation-service";
+import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 import { isDramaShotFrameType, prepareDramaLabFrame } from "@/lib/server/drama-lab-frame-generation-service";
 
 export const runtime = "nodejs";
@@ -23,7 +24,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!isDramaShotFrameType(frameType)) throw new DramaLabShotGenerationError("frameType 必须是 first、key 或 last");
         const project = await getDramaProject(id, user.id);
         if (!project) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
-        const attemptNo = (findShot(project, episodeId, shotId).shot.frames?.[frameType]?.attempt || 0) + 1;
+        const shotContext = findShot(project, episodeId, shotId);
+        assertFrameMutable(shotContext.shot, frameType);
+        const attemptNo = (shotContext.shot.frames?.[frameType]?.attempt || 0) + 1;
         const requestId = `drama-lab-frame:${project.id}:${episodeId}:${shotId}:${frameType}:attempt-${attemptNo}`;
         const prepared = await prepareDramaLabFrame({ userId: user.id, origin: url.origin, cookie: request.headers.get("cookie") || "", requestId, project, episodeId, shotId, frameType });
         const settings = await getAuthSettings();
@@ -44,11 +47,53 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         const payload = (await response.json().catch(() => ({}))) as { task?: { id?: string; status?: string; model?: string }; error?: string };
         if (!response.ok || !payload.task?.id) throw new DramaLabShotGenerationError(payload.error || "帧图任务创建失败", response.status || 502);
-        const frame = { prompt: prepared.prompt, description: prepared.description, status: payload.task.status === "success" ? "success" : "running", taskId: payload.task.id, attempt: attemptNo, error: undefined } as const;
-        await persistDramaLabShotUpdate({ userId: user.id, project, episodeId, shotId, patch: { frames: { ...findShot(project, episodeId, shotId).shot.frames, [frameType]: frame } } });
+        const currentFrame = shotContext.shot.frames?.[frameType];
+        const history = currentFrame?.url
+            ? appendDramaLabGenerationHistory(currentFrame.history, {
+                  id: `frame:${frameType}:${currentFrame.taskId || currentFrame.url}`,
+                  taskId: currentFrame.taskId || `frame:${frameType}:${currentFrame.url}`,
+                  url: currentFrame.url,
+                  prompt: currentFrame.prompt || "",
+                  createdAt: new Date().toISOString(),
+                  width: currentFrame.width,
+                  height: currentFrame.height,
+              })
+            : currentFrame?.history;
+        const frame = {
+            prompt: prepared.prompt,
+            description: prepared.description,
+            status: payload.task.status === "success" ? "success" : "running",
+            taskId: payload.task.id,
+            attempt: attemptNo,
+            error: undefined,
+            url: undefined,
+            storageKey: undefined,
+            width: undefined,
+            height: undefined,
+            history,
+            source: "generated" as const,
+            sourceVideoTaskId: undefined,
+            sourceShotId: undefined,
+            sourceVideoHistoryId: undefined,
+            locked: false,
+        };
+        await persistDramaLabShotUpdate({
+            userId: user.id,
+            project,
+            episodeId,
+            shotId,
+            patch: { frames: { ...shotContext.shot.frames, [frameType]: frame } },
+            retryOnConflict: false,
+        });
         return NextResponse.json({ code: 0, data: { task: payload.task, frameType, templateKey: prepared.templateKey, prompt: prepared.prompt, description: prepared.description }, msg: "帧图任务已创建" });
     } catch (error) {
-        const status = error instanceof DramaLabShotGenerationError ? error.status : 500;
+        const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "帧图任务创建失败" }, { status });
     }
+}
+
+function assertFrameMutable(shot: ReturnType<typeof findShot>["shot"], frameType: "first" | "key" | "last") {
+    if (!shot.frames?.[frameType]?.locked) return;
+    const label = frameType === "first" ? "首帧" : frameType === "key" ? "关键帧" : "尾帧";
+    throw new DramaLabShotGenerationError(`当前${label}已锁定，请先解锁后再修改`, 409);
 }

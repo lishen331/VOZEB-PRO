@@ -74,7 +74,7 @@ vi.mock("@/lib/server/ip-library-reference-service", () => ({
     recordIpReferenceUsage: mocks.recordIpReferenceUsage,
 }));
 
-import { createDramaProjectForUser, createDramaProjectVersionForUser, deleteDramaAgentConversationForUser, deleteDramaProjectForUser, restoreDramaProjectVersionForUser, updateDramaProjectForUser } from "./drama-project-service";
+import { createDramaProjectForUser, createDramaProjectVersionForUser, deleteDramaAgentConversationForUser, deleteDramaProjectForUser, normalizeProject, restoreDramaProjectVersionForUser, updateDramaProjectForUser } from "./drama-project-service";
 import { DramaProjectStoreError } from "./drama-project-store";
 
 describe("drama project service updates", () => {
@@ -208,6 +208,72 @@ describe("drama project service updates", () => {
         const saved = await updateDramaProjectForUser("user-one", current.id, input);
 
         expect(saved).toMatchObject({ ratio: "1080x1920", characters: [{ references: [{ width: 1080, height: 1920 }] }] });
+    });
+
+    it("persists frame provenance and the next-shot first-frame candidate", () => {
+        const current = project("2026-07-19T08:00:01.000Z", "Frame continuity");
+        const candidate = {
+            id: "tail-frame-video-task-shot-two",
+            frameType: "first" as const,
+            url: "/api/reference-assets/permanent/2026/09/01/images/tail.jpg",
+            storageKey: "permanent/2026/09/01/images/tail.jpg",
+            width: 720,
+            height: 1280,
+            source: "video_tail" as const,
+            sourceVideoTaskId: "video-task-one",
+            sourceShotId: "shot-one",
+            sourceVideoHistoryId: "video-history-one",
+            createdAt: "2026-09-01T00:00:00.000Z",
+            projectUpdatedAt: current.updatedAt,
+        };
+        const shot = {
+            id: "shot-two",
+            order: 2,
+            title: "Shot two",
+            description: "",
+            sourceText: "",
+            shotBoundary: "",
+            dialogue: "",
+            narration: "",
+            utterances: [],
+            imagePrompt: "",
+            videoPrompt: "",
+            cameraMotion: "",
+            duration: 5,
+            characterIds: [],
+            propIds: [],
+            clueIds: [],
+            frames: {
+                last: {
+                    prompt: "tail prompt",
+                    description: "tail description",
+                    status: "success" as const,
+                    taskId: "video-task-one",
+                    url: candidate.url,
+                    storageKey: candidate.storageKey,
+                    width: 720,
+                    height: 1280,
+                    source: "video_tail" as const,
+                    sourceVideoTaskId: candidate.sourceVideoTaskId,
+                    sourceShotId: candidate.sourceShotId,
+                    sourceVideoHistoryId: candidate.sourceVideoHistoryId,
+                    locked: true,
+                },
+            },
+            firstFrameCandidate: candidate,
+        };
+
+        const normalized = normalizeProject({ ...current, episodes: [{ ...current.episodes[0], shots: [shot] }] }, current);
+        const normalizedShot = normalized.episodes[0].shots[0];
+        expect(normalizedShot.frames?.last).toMatchObject({
+            source: "video_tail",
+            storageKey: candidate.storageKey,
+            sourceVideoTaskId: candidate.sourceVideoTaskId,
+            sourceShotId: candidate.sourceShotId,
+            sourceVideoHistoryId: candidate.sourceVideoHistoryId,
+            locked: true,
+        });
+        expect(normalizedShot.firstFrameCandidate).toEqual(candidate);
     });
 
     it("preserves exact project dimensions without a platform ceiling", async () => {

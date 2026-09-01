@@ -315,6 +315,20 @@ describe("mutateStoredGenerationTask", () => {
         await expect(getStoredGenerationTaskRecord("image", "school-image")).resolves.toMatchObject({ billingContext, payload: { billingContext } });
     });
 
+    it("persists a bounded drama frame snapshot for video recovery", async () => {
+        mocks.records = [];
+        const now = Date.now();
+        const frameSnapshot = {
+            capturedAt: "2026-09-01T00:00:00.000Z",
+            model: "video-model",
+            supportsLastFrame: true,
+            references: [{ role: "first_frame", frameType: "first", url: "/first.png", taskId: "first-task" }],
+        };
+        await createStoredGenerationTask("video", { id: "frame-video", userId: "user", status: "pending", surface: "drama", projectId: "project-one", frameSnapshot, createdAt: now, updatedAt: now }, 60_000);
+
+        await expect(getStoredGenerationTaskRecord("video", "frame-video")).resolves.toMatchObject({ frameSnapshot, payload: { frameSnapshot } });
+    });
+
     it("finds only the current user's exact channel task identity", async () => {
         const now = Date.now();
         mocks.records = [

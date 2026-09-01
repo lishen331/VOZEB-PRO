@@ -959,6 +959,7 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         projectId: cleanContextText(context.projectId),
         episodeId: cleanContextText(context.episodeId),
         shotId: cleanContextText(context.shotId),
+        frameType: isGenerationFrameType(context.frameType) ? context.frameType : undefined,
         estimatedPoints: positiveContextNumber(context.estimatedPoints),
         parentTaskId: cleanContextText(context.parentTaskId),
         attemptNo: Number.isFinite(attempt) && attempt >= 0 ? Math.floor(attempt) : undefined,
@@ -967,6 +968,7 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         generationSlotId: cleanContextText(context.generationSlotId),
         ipReferences: normalizeContextIpReferences(context.ipReferences),
         billingContext: normalizeBillingContext(context.billingContext),
+        frameSnapshot: normalizeFrameSnapshot(context.frameSnapshot),
     };
 }
 
@@ -986,8 +988,20 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         generationSlotId: next.generationSlotId || previous?.generationSlotId,
         ipReferences: next.ipReferences?.length ? next.ipReferences : previous?.ipReferences,
         billingContext: next.billingContext || previous?.billingContext,
+        frameSnapshot: next.frameSnapshot || (previous?.frameSnapshot as Record<string, unknown> | undefined),
         executionProfile: previous?.executionProfile || next.executionProfile || "production",
     };
+}
+
+function normalizeFrameSnapshot(value: unknown): Record<string, unknown> | undefined {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    try {
+        const serialized = JSON.stringify(value);
+        if (!serialized || serialized.length > 64 * 1024) return undefined;
+        return JSON.parse(serialized) as Record<string, unknown>;
+    } catch {
+        return undefined;
+    }
 }
 
 function normalizeBillingContext(value: GenerationTaskContext["billingContext"]): GenerationTaskContext["billingContext"] {
@@ -1017,6 +1031,10 @@ function preserveTaskExecution(previous?: StoredGenerationTaskRecord) {
         leaseUntil: previous.leaseUntil,
         lastHeartbeatAt: previous.lastHeartbeatAt,
     };
+}
+
+function isGenerationFrameType(value: unknown): value is "first" | "key" | "last" {
+    return value === "first" || value === "key" || value === "last";
 }
 
 function cleanContextText(value?: string) {
@@ -1070,6 +1088,7 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         projectId: cleanContextText(String(row.project_id || "")),
         episodeId: cleanContextText(String(payload.episodeId || "")),
         shotId: cleanContextText(String(payload.shotId || "")),
+        frameType: isGenerationFrameType(payload.frameType) ? payload.frameType : undefined,
         estimatedPoints: positiveContextNumber(payload.estimatedPoints),
         parentTaskId: cleanContextText(String(row.parent_task_id || "")),
         attemptNo: row.attempt_no === null || row.attempt_no === undefined ? undefined : Math.max(0, Math.floor(Number(row.attempt_no) || 0)),
@@ -1088,6 +1107,7 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         leaseUntil: optionalDatabaseTime(row.lease_until),
         lastHeartbeatAt: optionalDatabaseTime(row.last_heartbeat_at),
         ipReferences: normalizeContextIpReferences(payload.ipReferences),
+        frameSnapshot: normalizeFrameSnapshot(payload.frameSnapshot),
     };
 }
 

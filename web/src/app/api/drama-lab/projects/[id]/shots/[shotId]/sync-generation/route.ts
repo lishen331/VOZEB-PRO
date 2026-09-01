@@ -23,21 +23,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!episodeId) throw new DramaLabShotGenerationError("当前剧集不能为空");
         const project = await getDramaProject(id, user.id);
         if (!project) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
-        const { shot } = findShot(project, episodeId, shotId);
-        const frameTasks = await Promise.all([
-            ...(Object.entries(shot.frames || {}) as Array<["first" | "key" | "last", NonNullable<typeof shot.frames>["first"]]>).map(async ([frameType, frame]) => [frameType, frame?.taskId ? await getImageTask(frame.taskId) : null] as const),
-        ]);
-        const [storedImageTask, storedVideoTask] = await Promise.all([shot.storyboardTaskId ? getImageTask(shot.storyboardTaskId) : null, shot.generationTaskId ? getVideoTask(shot.generationTaskId) : null]);
-        const imageTask = storedImageTask?.userId === user.id ? storedImageTask : null;
-        const videoTask = storedVideoTask?.userId === user.id ? storedVideoTask : null;
-        const patch = generationPatch(shot, imageTask, videoTask, frameTasks, {
-            imageTaskMissing: Boolean(shot.storyboardTaskId && !storedImageTask),
-            videoTaskMissing: Boolean(shot.generationTaskId && !storedVideoTask),
-            userId: user.id,
-        });
-        const updated = Object.keys(patch).length ? await persistDramaLabShotUpdate({ userId: user.id, project, episodeId, shotId, patch }) : project;
+        let { shot } = findShot(project, episodeId, shotId);
+        let taskState = await readTaskState(shot, user.id, { projectId: id, episodeId, shotId });
+        let patch = generationPatch(shot, taskState.imageTask, taskState.videoTask, taskState.frameTasks, taskState);
+        let updated: Awaited<ReturnType<typeof persistDramaLabShotUpdate>> = project;
 
-        const activeTaskIds = [imageTask, videoTask, ...frameTasks.map(([, task]) => (task && task.userId === user.id ? task : null))].flatMap((task) =>
+        if (Object.keys(patch).length) {
+            try {
+                // Keep the first write conflict-safe: the patch may contain a
+                // complete frame map, so blindly replaying it over a newer
+                // project snapshot could undo a user's lock or upload.
+                updated = await persistDramaLabShotUpdate({ userId: user.id, project, episodeId, shotId, patch, retryOnConflict: false });
+            } catch (error) {
+                if (!isConflict(error)) throw error;
+                const latest = await getDramaProject(id, user.id);
+                if (!latest) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
+                ({ shot } = findShot(latest, episodeId, shotId));
+                taskState = await readTaskState(shot, user.id, { projectId: id, episodeId, shotId });
+                patch = generationPatch(shot, taskState.imageTask, taskState.videoTask, taskState.frameTasks, taskState);
+                // The latest snapshot may already include the task result (or
+                // a newer user decision), in which case there is nothing to
+                // persist. Otherwise apply the freshly computed task-only patch
+                // against that snapshot, still without replaying stale data.
+                updated = Object.keys(patch).length
+                    ? await persistDramaLabShotUpdate({ userId: user.id, project: latest, episodeId, shotId, patch, retryOnConflict: false })
+                    : latest;
+            }
+        }
+
+        const activeTaskIds = [taskState.imageTask, taskState.videoTask, ...taskState.frameTasks.map(([, task, match]) => (match === "valid" && task && task.userId === user.id ? task : null))].flatMap((task) =>
             task && (task.status === "pending" || task.status === "running") && task.executionPhase !== "needs_review" ? [task.id] : [],
         );
         if (activeTaskIds.length) {
@@ -49,23 +63,127 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const synchronized = findShot(updated, episodeId, shotId).shot;
         return NextResponse.json({ code: 0, data: { shot: synchronized }, msg: "任务状态已同步" });
     } catch (error) {
-        const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError ? error.status : 500;
+        const status = errorStatus(error);
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "任务状态同步失败" }, { status });
     }
+}
+
+type SyncTaskState = {
+    imageTask: Awaited<ReturnType<typeof getImageTask>>;
+    videoTask: Awaited<ReturnType<typeof getVideoTask>>;
+    frameTasks: ReadonlyArray<readonly ["first" | "key" | "last", Awaited<ReturnType<typeof getImageTask>>, TaskContextMatch]>;
+    imageTaskMissing: boolean;
+    videoTaskMissing: boolean;
+    imageTaskContextMismatch: boolean;
+    videoTaskContextMismatch: boolean;
+    userId: string;
+};
+
+type TaskContextMatch = "valid" | "missing" | "foreign" | "mismatch";
+
+async function readTaskState(shot: ReturnType<typeof findShot>["shot"], userId: string, scope: { projectId: string; episodeId: string; shotId: string }): Promise<SyncTaskState> {
+    const frameTasks = await Promise.all(
+        (Object.entries(shot.frames || {}) as Array<["first" | "key" | "last", NonNullable<typeof shot.frames>["first"]]>).map(async ([frameType, frame]) => [frameType, frame?.taskId ? await getImageTask(frame.taskId) : null] as const),
+    );
+    const [storedImageTask, storedVideoTask] = await Promise.all([shot.storyboardTaskId ? getImageTask(shot.storyboardTaskId) : null, shot.generationTaskId ? getVideoTask(shot.generationTaskId) : null]);
+    const imageMatch = classifyTaskContext(storedImageTask, userId, scope);
+    const videoMatch = classifyTaskContext(storedVideoTask, userId, scope);
+    const scopedFrameTasks = frameTasks.map(([frameType, task]) => {
+        const match = classifyTaskContext(task, userId, { ...scope, frameType });
+        // Keep the reason alongside the task. A foreign task must remain
+        // untouched; an owned task with stale context can be detached and
+        // retried without ever applying its result to this shot.
+        return [frameType, match === "valid" ? task : null, match] as const;
+    });
+    return {
+        imageTask: imageMatch === "valid" ? storedImageTask : null,
+        videoTask: videoMatch === "valid" ? storedVideoTask : null,
+        frameTasks: scopedFrameTasks,
+        // A missing record or an owned record whose context no longer matches
+        // is recoverable by the current user. A foreign record is deliberately
+        // not treated as missing, otherwise a guessed task ID could mutate a
+        // user's shot merely by polling it.
+        imageTaskMissing: Boolean(shot.storyboardTaskId && (imageMatch === "missing" || imageMatch === "mismatch")),
+        videoTaskMissing: Boolean(shot.generationTaskId && (videoMatch === "missing" || videoMatch === "mismatch")),
+        imageTaskContextMismatch: imageMatch === "mismatch",
+        videoTaskContextMismatch: videoMatch === "mismatch",
+        userId,
+    };
+}
+
+function classifyTaskContext(
+    task: { userId?: string; surface?: string; projectId?: string; episodeId?: string; shotId?: string; frameType?: string } | null | undefined,
+    userId: string,
+    scope: { projectId: string; episodeId: string; shotId: string; frameType?: string },
+): TaskContextMatch {
+    if (!task) return "missing";
+    if (task.userId !== userId) return "foreign";
+    return taskMatchesDramaShot(task, scope) ? "valid" : "mismatch";
+}
+
+function taskMatchesDramaShot(task: { surface?: string; projectId?: string; episodeId?: string; shotId?: string; frameType?: string } | null | undefined, scope: { projectId: string; episodeId: string; shotId: string; frameType?: string }) {
+    if (!task) return false;
+    const coreContext = [task.surface, task.projectId, task.episodeId, task.shotId];
+    const hasCoreContext = coreContext.every(Boolean);
+    const hasAnyContext = coreContext.some(Boolean) || Boolean(task.frameType);
+
+    // Existing projects may contain tasks created before the drama context
+    // contract. Those records can only be reconciled when they carry no
+    // context at all; a partial context is ambiguous and must be rejected.
+    if (!hasAnyContext) return true;
+    if (!hasCoreContext) return false;
+    if (task.surface !== "drama" || task.projectId !== scope.projectId || task.episodeId !== scope.episodeId || task.shotId !== scope.shotId) return false;
+
+    // Frame slots are part of the task identity. A task created for one slot
+    // must never be promoted into another slot (or into the legacy storyboard
+    // field), even when all other shot coordinates happen to match.
+    if (scope.frameType) return task.frameType === scope.frameType;
+    return !task.frameType;
+}
+
+function isConflict(error: unknown) {
+    if (error instanceof DramaProjectStoreError) return error.status === 409;
+    return Boolean(error && typeof error === "object" && "status" in error && Number((error as { status?: unknown }).status) === 409);
+}
+
+function errorStatus(error: unknown) {
+    if (error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError) return error.status;
+    const status = error && typeof error === "object" && "status" in error ? Number((error as { status?: unknown }).status) : 500;
+    return Number.isInteger(status) && status >= 400 && status < 600 ? status : 500;
 }
 
 function generationPatch(
     shot: ReturnType<typeof findShot>["shot"],
     imageTask: Awaited<ReturnType<typeof getImageTask>>,
     videoTask: Awaited<ReturnType<typeof getVideoTask>>,
-    frameTasks: ReadonlyArray<readonly ["first" | "key" | "last", Awaited<ReturnType<typeof getImageTask>>]>,
-    options: { imageTaskMissing?: boolean; videoTaskMissing?: boolean; userId?: string } = {},
+    frameTasks: ReadonlyArray<readonly ["first" | "key" | "last", Awaited<ReturnType<typeof getImageTask>>, TaskContextMatch]>,
+    options: { imageTaskMissing?: boolean; videoTaskMissing?: boolean; imageTaskContextMismatch?: boolean; videoTaskContextMismatch?: boolean; userId?: string } = {},
 ) {
     const patch: Record<string, unknown> = {};
     const frames = { ...(shot.frames || {}) };
-    for (const [frameType, task] of frameTasks) {
+    for (const [frameType, task, contextMatch] of frameTasks) {
         const frame = frames[frameType];
         if (!frame) continue;
+        // A locked frame is an explicit user choice. Task reconciliation may
+        // still observe its task, but it must never replace the chosen media
+        // or append a new history entry behind the user's back.
+        if (frame.locked) continue;
+        // A retry can be based on a newer shot snapshot. Do not apply a task
+        // result to a frame whose task ID changed while the first write was in
+        // flight.
+        if (task && frame.taskId !== task.id) continue;
+        if (contextMatch === "foreign") continue;
+        if (contextMatch === "mismatch") {
+            // Preserve a user-selected URL, but detach the stale task ID so a
+            // later poll cannot accidentally reconcile a task from another
+            // project, episode, shot, or frame slot.
+            if (frame.taskId) {
+                frames[frameType] = frame.url
+                    ? { ...frame, taskId: undefined }
+                    : { ...frame, status: "error", taskId: undefined, error: "帧任务上下文与当前分镜不匹配，请重新生成" };
+            }
+            continue;
+        }
         if (!task) {
             if (frame.taskId && isActiveStatus(frame.status)) {
                 frames[frameType] = {
@@ -89,7 +207,8 @@ function generationPatch(
                     width: positive(result?.width),
                     height: positive(result?.height),
                     error: undefined,
-                    history: appendDramaLabGenerationHistory(frame.history, {
+                    source: frame.source || "generated",
+                    history: appendGenerationHistoryIdempotently(frame.history, {
                         id: `frame:${frameType}:${task.id}`,
                         taskId: task.id,
                         url,
@@ -107,9 +226,31 @@ function generationPatch(
     // Keep the established storyboard fields in sync so legacy project data and
     // the video route can use the same generated image without a second task.
     const keyFrame = frames.key;
+    // The key frame remains authoritative even after the user locks it. A
+    // lock prevents task reconciliation from replacing the frame itself, but
+    // legacy storyboard fields still need to mirror the chosen key-frame URL
+    // so older consumers and the video workflow read the same visual source.
     if (keyFrame?.url) {
-        const keyTaskId = keyFrame.taskId;
-        if (shot.storyboardStatus !== "success" || shot.storyboardImageUrl !== keyFrame.url || shot.storyboardTaskId !== keyTaskId || shot.storyboardImageWidth !== keyFrame.width || shot.storyboardImageHeight !== keyFrame.height || shot.storyboardError) {
+        const keyTaskId = keyFrame.taskId || undefined;
+        const storyboardTaskId = shot.storyboardTaskId || undefined;
+        const storyboardHistoryEntry = {
+            id: `key-frame:${keyTaskId || keyFrame.url}`,
+            taskId: keyTaskId || `key-frame:${keyFrame.url}`,
+            url: keyFrame.url,
+            prompt: keyFrame.prompt,
+            createdAt: new Date().toISOString(),
+            width: keyFrame.width,
+            height: keyFrame.height,
+        };
+        const needsPromotion =
+            shot.storyboardStatus !== "success" ||
+            shot.storyboardImageUrl !== keyFrame.url ||
+            storyboardTaskId !== keyTaskId ||
+            shot.storyboardImageWidth !== keyFrame.width ||
+            shot.storyboardImageHeight !== keyFrame.height ||
+            Boolean(shot.storyboardError) ||
+            !hasStableGenerationHistory(shot.storyboardHistory, storyboardHistoryEntry);
+        if (needsPromotion) {
             patch.storyboardStatus = "success";
             patch.storyboardTaskId = keyTaskId;
             patch.storyboardAttempt = keyFrame.attempt;
@@ -117,18 +258,10 @@ function generationPatch(
             patch.storyboardImageWidth = keyFrame.width;
             patch.storyboardImageHeight = keyFrame.height;
             patch.storyboardError = undefined;
-            patch.storyboardHistory = appendDramaLabGenerationHistory(shot.storyboardHistory, {
-                id: `key-frame:${keyTaskId || keyFrame.url}`,
-                taskId: keyTaskId || `key-frame:${keyFrame.url}`,
-                url: keyFrame.url,
-                prompt: keyFrame.prompt,
-                createdAt: new Date().toISOString(),
-                width: keyFrame.width,
-                height: keyFrame.height,
-            });
+            patch.storyboardHistory = appendGenerationHistoryIdempotently(shot.storyboardHistory, storyboardHistoryEntry);
         }
     }
-    if (imageTask && imageTask.userId && !keyFrame?.url) {
+    if (imageTask && imageTask.userId && shot.storyboardTaskId === imageTask.id && !keyFrame?.url) {
         if (imageTask.status === "success") {
             const result = imageTask.result as Record<string, unknown> | undefined;
             const url = stableUrl(result?.serverUrl) || stableUrl(result?.remoteUrl) || stableUrl(result?.dataUrl);
@@ -139,7 +272,7 @@ function generationPatch(
                     patch.storyboardImageWidth = positive(result?.width);
                     patch.storyboardImageHeight = positive(result?.height);
                     patch.storyboardError = undefined;
-                    patch.storyboardHistory = appendDramaLabGenerationHistory(shot.storyboardHistory, {
+                    patch.storyboardHistory = appendGenerationHistoryIdempotently(shot.storyboardHistory, {
                         id: `image:${imageTask.id}`,
                         taskId: imageTask.id,
                         url,
@@ -163,16 +296,27 @@ function generationPatch(
             }
         }
     }
-    if (options.imageTaskMissing && !keyFrame?.url && isActiveStatus(shot.storyboardStatus)) {
+    if (options.imageTaskContextMismatch && shot.storyboardTaskId) {
+        // Keep an already persisted image, but remove the unusable task
+        // binding. If the slot was still active, expose an actionable error
+        // instead of reporting a task from another shot as pending forever.
+        const hasPromotedKeyTask = Boolean(keyFrame?.url && !keyFrame.locked && keyFrame.taskId);
+        if (!hasPromotedKeyTask) patch.storyboardTaskId = undefined;
+        if (!keyFrame?.url && isActiveStatus(shot.storyboardStatus)) {
+            patch.storyboardStatus = "error";
+            patch.storyboardError = "分镜图任务上下文与当前项目、剧集或分镜不匹配，请重新生成";
+        }
+    }
+    if (options.imageTaskMissing && !options.imageTaskContextMismatch && !keyFrame?.url && isActiveStatus(shot.storyboardStatus)) {
         patch.storyboardStatus = "error";
         patch.storyboardTaskId = undefined;
         patch.storyboardError = "分镜图任务记录不存在，可能因服务重启或任务过期丢失，请重新生成";
     }
-    if (videoTask && videoTask.userId && videoTask.executionPhase === "needs_review") {
+    if (videoTask && videoTask.userId && shot.generationTaskId === videoTask.id && videoTask.executionPhase === "needs_review") {
         patch.generationStatus = "error";
         patch.generationNeedsReview = true;
         patch.generationError = videoTask.reviewReason || videoTask.error || "视频任务未能确认上游提交结果，请重新生成";
-    } else if (videoTask && videoTask.userId) {
+    } else if (videoTask && videoTask.userId && shot.generationTaskId === videoTask.id) {
         if (videoTask.status === "running") {
             if (shot.generationStatus !== "running" || shot.generationNeedsReview || shot.generationError) {
                 patch.generationStatus = "running";
@@ -187,7 +331,7 @@ function generationPatch(
                     patch.generationNeedsReview = undefined;
                     patch.videoUrl = url;
                     patch.generationError = undefined;
-                    patch.videoHistory = appendDramaLabGenerationHistory(shot.videoHistory, {
+                    patch.videoHistory = appendGenerationHistoryIdempotently(shot.videoHistory, {
                         id: `video:${videoTask.id}`,
                         taskId: videoTask.id,
                         url,
@@ -211,17 +355,52 @@ function generationPatch(
             }
         }
     }
+    if (options.videoTaskContextMismatch && shot.generationTaskId) {
+        // Do not discard a completed video URL, but detach the task ID so a
+        // later poll cannot ever apply a result belonging to another shot.
+        patch.generationTaskId = undefined;
+        if (isActiveStatus(shot.generationStatus) || shot.generationNeedsReview) {
+            patch.generationStatus = "error";
+            patch.generationNeedsReview = undefined;
+            patch.generationError = "分镜视频任务上下文与当前项目、剧集或分镜不匹配，请重新生成";
+        }
+    }
     // A reviewable task is deliberately retained while it exists so the user can
     // recover the original upstream submission. Once that task expires or is gone,
     // clear the retained ID and review flag; otherwise the shot would remain
     // permanently blocked from creating a new video task.
-    if (options.videoTaskMissing && (isActiveStatus(shot.generationStatus) || shot.generationNeedsReview)) {
+    if (options.videoTaskMissing && !options.videoTaskContextMismatch && (isActiveStatus(shot.generationStatus) || shot.generationNeedsReview)) {
         patch.generationStatus = "error";
         patch.generationNeedsReview = undefined;
         patch.generationTaskId = undefined;
         patch.generationError = "分镜视频任务记录不存在，可能因服务重启或任务过期丢失，请重新生成";
     }
     return patch;
+}
+
+function appendGenerationHistoryIdempotently(
+    history: Parameters<typeof appendDramaLabGenerationHistory>[0],
+    entry: Parameters<typeof appendDramaLabGenerationHistory>[1],
+) {
+    const existing = history || [];
+    const sameTask = existing.filter((item) => item.taskId === entry.taskId);
+    const matches = hasStableGenerationHistory(existing, entry);
+    // Reuse the original array when the task result is unchanged. This keeps
+    // polling idempotent and, crucially, preserves the original createdAt.
+    // Even if historical data already contains duplicate entries for the same
+    // task, an unchanged result is stable. Returning the original array avoids
+    // rewriting the project on every poll while leaving legacy duplicates
+    // untouched for a separate cleanup operation.
+    if (matches) return existing;
+    return appendDramaLabGenerationHistory(existing, entry);
+}
+
+function hasStableGenerationHistory(
+    history: Parameters<typeof appendDramaLabGenerationHistory>[0],
+    entry: Parameters<typeof appendDramaLabGenerationHistory>[1],
+) {
+    const sameTask = (history || []).filter((item) => item.taskId === entry.taskId);
+    return sameTask.some((item) => item.url === entry.url && item.prompt === entry.prompt && item.width === entry.width && item.height === entry.height);
 }
 
 function isActiveStatus(value: unknown) {

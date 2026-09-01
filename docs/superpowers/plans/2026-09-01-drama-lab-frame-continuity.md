@@ -31,10 +31,10 @@
 - `DramaShot` 增加 `firstFrameCandidate?: DramaShotFrameCandidate`。
 - `extractDramaLabTailFrame(input)` 返回持久化尾帧和下一镜候选；相同项目/源视频任务重复调用幂等。
 
-- [ ] **Step 1: Write the failing test**：覆盖完成视频下载、FFmpeg 末帧输出、参考素材登记、下一镜候选和重复任务幂等；覆盖无视频、无下一镜、FFmpeg 失败。
-- [ ] **Step 2: Run test to verify it fails**：`web/node_modules/.bin/vitest.cmd run web/src/lib/server/drama-lab-tail-frame-service.test.ts`，预期因服务和契约缺失失败。
-- [ ] **Step 3: Write minimal implementation**：使用临时目录、`downloadMediaToFile`、`runFfmpeg`、`runFfprobe` 和持久化图片文件；依据 `generationTaskId`/`videoUrl` 校验源任务，构造稳定候选 ID，返回 `/api/reference-assets/<token>`。
-- [ ] **Step 4: Run test to verify it passes**：同一命令，预期全部通过。
+- [x] **Step 1: Write the failing test**：覆盖完成视频下载、FFmpeg 末帧输出、参考素材登记、下一镜候选和重复任务幂等；覆盖无视频、无下一镜、FFmpeg 失败。
+- [x] **Step 2: Run test to verify it fails**：`web/node_modules/.bin/vitest.cmd run web/src/lib/server/drama-lab-tail-frame-service.test.ts`，预期因服务和契约缺失失败。
+- [x] **Step 3: Write minimal implementation**：使用临时目录、`downloadMediaToFile`、`runFfmpeg`、`runFfprobe` 和持久化图片文件；依据 `generationTaskId`/`videoUrl` 校验源任务，构造稳定候选 ID，返回 `/api/reference-assets/<token>`。
+- [x] **Step 4: Run test to verify it passes**：同一命令，预期全部通过。
 - [ ] **Step 5: Commit**：`git add` 仅列出契约、服务、存储和测试，提交 `feat(drama-lab): add persisted tail frame extraction`。
 
 ### Task 2: 提取、候选确认、上传和锁定路由
@@ -52,10 +52,10 @@
 - 上传 Route：`POST .../frames/upload?episodeId=&frameType=first|key|last`，multipart `file`，可选 `prompt`/`description`。
 - 锁定 Route：`POST .../frames/:frameType/lock?episodeId=`，JSON `{ locked: boolean }`。
 
-- [ ] **Step 1: Write the failing tests**：覆盖登录/权限、参数、提取成功与错误映射、已有首帧不覆盖、显式替换保留历史、上传格式限制、锁定帧拒绝后台修改和项目版本冲突。
-- [ ] **Step 2: Run tests to verify they fail**：运行四个新增 Route 测试，预期 Route 文件不存在或行为缺失。
-- [ ] **Step 3: Write minimal implementation**：统一使用 `getDramaProject`、`persistDramaLabShotUpdate`、用户归属任务校验；上传通过 `writePersistentMediaDataUrl`；确认只接受项目内候选 ID，默认 `replaceExisting=false`。
-- [ ] **Step 4: Run tests to verify they pass**：运行四个测试文件，预期全部通过。
+- [x] **Step 1: Write the failing tests**：覆盖登录/权限、参数、提取成功与错误映射、已有首帧不覆盖、显式替换保留历史、上传格式限制、锁定帧拒绝后台修改和项目版本冲突。
+- [x] **Step 2: Run tests to verify they fail**：运行四个新增 Route 测试，预期 Route 文件不存在或行为缺失。
+- [x] **Step 3: Write minimal implementation**：统一使用 `getDramaProject`、`persistDramaLabShotUpdate`、用户归属任务校验；上传通过 `writePersistentMediaDataUrl`；确认只接受项目内候选 ID，默认 `replaceExisting=false`。
+- [x] **Step 4: Run tests to verify they pass**：运行四个测试文件，预期全部通过。
 - [ ] **Step 5: Commit**：`feat(drama-lab): expose tail frame candidate workflow`。
 
 ### Task 3: 视频引用角色与任务快照
@@ -71,10 +71,10 @@
 - `prepareDramaLabStoryboardVideo` 返回带 `role: "first_frame" | "last_frame" | "reference"` 的引用和 `frameSnapshot`。
 - 首帧/尾帧按模型能力传递；不支持尾帧时只降级为首帧并记录原因，不静默当普通参考图。
 
-- [ ] **Step 1: Write failing tests**：覆盖首尾帧角色、当前镜头资产白名单、首尾帧来源和任务 ID 快照、尾帧不支持时的明确降级。
-- [ ] **Step 2: Run tests to verify failure**：运行两个定向测试文件，预期现有返回值不含角色和快照。
-- [ ] **Step 3: Implement minimal changes**：从当前 `frames` 构造角色化引用和不可变快照，保留现有唯一参考图兼容逻辑；路由将快照写入 `context`。
-- [ ] **Step 4: Run tests to verify pass**：运行两个定向测试文件。
+- [x] **Step 1: Write failing tests**：覆盖首尾帧角色、当前镜头资产白名单、首尾帧来源和任务 ID 快照、尾帧不支持时的明确降级。
+- [x] **Step 2: Run tests to verify failure**：运行两个定向测试文件，预期现有返回值不含角色和快照。
+- [x] **Step 3: Implement minimal changes**：从当前 `frames` 构造角色化引用和不可变快照，保留现有唯一参考图兼容逻辑；路由将快照写入 `context`。
+- [x] **Step 4: Run tests to verify pass**：运行两个定向测试文件。
 - [ ] **Step 5: Commit**：`feat(drama-lab): preserve frame roles in video tasks`。
 
 ### Task 4: 同步保护和工作台交互
@@ -89,10 +89,12 @@
 - 已锁定帧不能被任务同步覆盖；任务状态同步保留来源字段、候选和历史。
 - UI 提供提取末帧、候选预览/确认/保留、来源/锁定标识和明确错误提示；刷新后完全由服务端状态恢复。
 
-- [ ] **Step 1: Write failing tests**：覆盖锁定帧同步保护、候选状态渲染/动作调用、无下一镜和任务失败提示。
-- [ ] **Step 2: Run tests to verify failure**：运行同步 Route 和页面测试，预期缺少锁定保护/UI 行为。
-- [ ] **Step 3: Implement minimal changes**：在 `generationPatch` 中只更新任务拥有字段；增加候选动作和逐镜头 busy key，所有请求失败显示可读提示。
+- [x] **Step 1: Write failing tests**：覆盖锁定帧同步保护、候选状态渲染/动作调用、无下一镜和任务失败提示。
+- [x] **Step 2: Run tests to verify failure**：运行同步 Route 和页面测试，预期缺少锁定保护/UI 行为。
+- [x] **Step 3: Implement minimal changes**：在 `generationPatch` 中只更新任务拥有字段；增加候选动作和逐镜头 busy key，所有请求失败显示可读提示。
 - [ ] **Step 4: Run tests to verify pass**：运行定向测试并手动检查桌面/390px 布局。
+
+**Task 4 状态（2026-09-01）**：同步 Route 的锁定保护和工作台控件已写入工作区。UI 已接入逐镜头末帧提取、候选预览/应用/保留、帧上传、锁定切换和独立 busy key；当前只有源码契约测试，尚无组件渲染或 E2E 页面测试，最终渲染及桌面/390px 人工检查仍待完成，因此不将 Task 4 整体标记为完成。
 - [ ] **Step 5: Commit**：`feat(drama-lab): add frame continuity controls`。
 
 ### Task 5: 集成验证与阶段交付
@@ -102,8 +104,8 @@
 - Modify: `docs/content/docs/progress/pending-test.mdx`
 - Create: `docs/superpowers/reports/2026-09-01-drama-lab-frame-continuity.md`
 
-- [ ] **Step 1: Run targeted tests**：服务、四个 Route、同步、视频引用相关测试全部通过。
-- [ ] **Step 2: Run project checks**：`npm run typecheck`、`npm run lint`、`git diff --check`。
-- [ ] **Step 3: Review scope**：确认 `git diff --name-only` 只包含短剧契约/服务/Route/UI/文档，不包含普通 Canvas 和用户运行产物。
-- [ ] **Step 4: Write delivery report**：列出已实现、未实现、测试命令、FFmpeg/真实供应商人工验收步骤。
+- [x] **Step 1: Run targeted tests**：帧服务、帧/图像/视频/同步 Route、视频引用、项目/任务存储及工作台源码契约回归测试全部通过（当前套件 12 个文件、125 项）。
+- [x] **Step 2: Run project checks**：`npm run typecheck`、`npm run lint`、`git diff --check` 均通过。
+- [ ] **Step 3: Review scope**：当前工作区同时存在其他协作者的既有修改和运行产物；已确认本阶段新增/修改路径限定为短剧契约、服务、Route、工作台和文档，但尚未进行清理后独立提交，因此不把工作区整体范围标记为完成。
+- [x] **Step 4: Write delivery report**：已在 `docs/superpowers/reports/2026-09-01-drama-lab-frame-continuity.md` 列出已实现、未验证、测试命令及人工验收步骤。
 - [ ] **Step 5: Commit**：`git add` 显式列出 Phase 2A 文件，提交 `feat(drama-lab): complete phase 2a frame continuity`。
