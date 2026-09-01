@@ -124,7 +124,7 @@ async function verifyAdminUi(page: Page, schoolName: string, accountId: string, 
     if (theme === "dark") await expect(page.locator("html")).toHaveClass(/dark/);
     else await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
     await page.getByPlaceholder("搜索学校名称").fill(schoolName);
-    const memberButton = page.getByRole("button", { name: "成员", exact: true }).filter({ visible: true });
+    const memberButton = page.locator("tbody tr, [data-school-card]").filter({ hasText: schoolName }).getByRole("button", { name: "成员", exact: true }).filter({ visible: true });
     await memberButton.click();
     await expect(page.locator("[data-school-members]")).toBeVisible();
     await page.getByPlaceholder("搜索账号 ID、用户名、姓名或邮箱").fill(accountId);
