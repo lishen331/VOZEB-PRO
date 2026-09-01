@@ -49,56 +49,56 @@ VOZEB PRO 当前是以 Next.js 为 Web/BFF、PostgreSQL 为主数据源、独立
 
 ```mermaid
 flowchart TB
-    subgraph Client[客户端]
-        Public[公开站点与作品页]
-        Workspace[用户创作工作区]
-        Admin[管理后台]
+    subgraph Client["客户端"]
+        Public["公开站点与作品页"]
+        Workspace["用户创作工作区"]
+        Admin["管理后台"]
     end
 
-    subgraph Web[Next.js 16 应用]
-        Pages[App Router 页面与 React 组件]
-        Routes[Route Handlers /api/*]
-        Guard[请求安全与限流]
+    subgraph Web["Next.js 16 应用"]
+        Pages["App Router 页面与 React 组件"]
+        Routes["Route Handlers /api/*"]
+        Guard["请求安全与限流"]
     end
 
-    subgraph Domains[业务域]
-        Account[统一账号与登录]
-        School[学校、教学、商单与制作组]
-        Create[Create / Agent 创作]
-        MediaGen[图像、视频、音频、文本生成]
-        Canvas[普通 Canvas]
-        Drama[短剧与短剧实验室]
-        Assets[素材与媒体]
-        Works[作品、社区与发布]
-        Billing[计费、积分与增长]
-        Ops[管理与运营]
+    subgraph Domains["业务域"]
+        Account["统一账号与登录"]
+        School["学校、教学、商单与制作组"]
+        Create["Create / Agent 创作"]
+        MediaGen["图像、视频、音频、文本生成"]
+        Canvas["普通 Canvas"]
+        Drama["短剧与短剧实验室"]
+        Assets["素材与媒体"]
+        Works["作品、社区与发布"]
+        Billing["计费、积分与增长"]
+        Ops["管理与运营"]
     end
 
-    subgraph Platform[平台核心能力]
-        Auth[Session、平台管理员权限]
-        SchoolAccess[学校成员守卫与租户隔离]
-        SchoolCompute[学校算力与个人积分结算]
-        ModelRouter[逻辑模型路由与系统 AI 代理]
-        TaskSystem[generation_tasks、调度与恢复]
-        Worker[Generation Worker]
-        Maintenance[内部维护 API：run、heartbeat、refund]
-        TaskRuntime[图片、视频、音频、文本任务 Runtime]
-        Charge[积分、幂等、结算与退款]
-        Logs[generation_logs 与审计]
-        Registry[媒体登记与引用保护]
-        Config[系统渠道、模型与应用配置]
+    subgraph Platform["平台核心能力"]
+        Auth["Session、平台管理员权限"]
+        SchoolAccess["学校成员守卫与租户隔离"]
+        SchoolCompute["学校算力与个人积分结算"]
+        ModelRouter["逻辑模型路由与系统 AI 代理"]
+        TaskSystem["generation_tasks、调度与恢复"]
+        Worker["Generation Worker"]
+        Maintenance["内部维护 API：run、heartbeat、refund"]
+        TaskRuntime["图片、视频、音频、文本任务 Runtime"]
+        Charge["积分、幂等、结算与退款"]
+        Logs["generation_logs 与审计"]
+        Registry["媒体登记与引用保护"]
+        Config["系统渠道、模型与应用配置"]
     end
 
-    subgraph Data[数据与文件]
-        PG[(PostgreSQL 16：用户、项目、学校、任务)]
-        Local[(本地持久卷 .data)]
-        Object[(S3 兼容对象存储)]
+    subgraph Data["数据与文件"]
+        PG[("PostgreSQL 16：用户、项目、学校、任务")]
+        Local[("本地持久卷 .data")]
+        Object[("S3 兼容对象存储")]
     end
 
-    subgraph External[外部服务]
-        AI[文本、图片、视频、音频上游]
-        Pay[支付渠道]
-        Mail[SMTP]
+    subgraph External["外部服务"]
+        AI["文本、图片、视频、音频上游"]
+        Pay["支付渠道"]
+        Mail["SMTP"]
     end
 
     Public --> Pages
@@ -199,20 +199,20 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    User[用户] --> LabUI[/drama-lab 工作台]
-    LabUI --> LabAPI[/api/drama-lab/*]
+    User["用户"] --> LabUI["/drama-lab 工作台"]
+    LabUI --> LabAPI["/api/drama-lab/*"]
 
-    subgraph DramaDomain[短剧领域]
-        ProjectService[Drama Project Service / Store]
-        ScriptService[剧本生成服务]
-        AssetService[角色、场景、道具提取服务]
-        StoryboardService[分镜提取与真实资产 ID 校验]
-        FrameService[首帧、关键帧、尾帧提示词规划]
-        ShotService[分镜图与视频任务编排]
-        SyncService[任务结果同步与镜头回写]
-        PromptService[九套短剧系统模板]
-        EpisodeCanvas[一集一个 Canvas 投影服务]
-        Jianying[当前集剪映草稿导出]
+    subgraph DramaDomain["短剧领域"]
+        ProjectService["Drama Project Service / Store"]
+        ScriptService["剧本生成服务"]
+        AssetService["角色、场景、道具提取服务"]
+        StoryboardService["分镜提取与真实资产 ID 校验"]
+        FrameService["首帧、关键帧、尾帧提示词规划"]
+        ShotService["分镜图与视频任务编排"]
+        SyncService["任务结果同步与镜头回写"]
+        PromptService["九套短剧系统模板"]
+        EpisodeCanvas["一集一个 Canvas 投影服务"]
+        Jianying["当前集剪映草稿导出"]
     end
 
     LabAPI --> ProjectService
@@ -231,28 +231,28 @@ flowchart LR
     PromptService --> FrameService
     PromptService --> ShotService
 
-    ProjectService --> DramaDB[(drama_projects)]
-    ProjectService --> Versions[(drama_project_versions)]
-    ScriptService --> TextPlatform[平台文本模型路由、计费与日志]
+    ProjectService --> DramaDB[("drama_projects")]
+    ProjectService --> Versions[("drama_project_versions")]
+    ScriptService --> TextPlatform["平台文本模型路由、计费与日志"]
     AssetService --> TextPlatform
     StoryboardService --> TextPlatform
     FrameService --> TextPlatform
 
-    ShotService --> ImageTasks[/api/image-tasks]
-    ShotService --> VideoTasks[/api/video-generation-tasks]
-    ImageTasks --> Tasks[(generation_tasks)]
+    ShotService --> ImageTasks["/api/image-tasks"]
+    ShotService --> VideoTasks["/api/video-generation-tasks"]
+    ImageTasks --> Tasks[("generation_tasks")]
     VideoTasks --> Tasks
-    Worker[Generation Worker] --> Maintenance[App 内部维护 API]
+    Worker["Generation Worker"] --> Maintenance["App 内部维护 API"]
     Maintenance --> Tasks
-    Maintenance --> TaskRuntime[App 内任务 Runtime]
-    TaskRuntime --> Providers[模型上游]
-    TaskRuntime --> Media[媒体登记与存储]
+    Maintenance --> TaskRuntime["App 内任务 Runtime"]
+    TaskRuntime --> Providers["模型上游"]
+    TaskRuntime --> Media["媒体登记与存储"]
     Tasks --> SyncService
     SyncService --> DramaDB
 
-    EpisodeCanvas --> CanvasDB[(canvas_projects)]
-    CanvasDB --> DramaCanvas[/drama-canvas/:canvasId]
-    DramaCanvas --> IsolatedRuntime[短剧专属 Canvas 运行时副本]
+    EpisodeCanvas --> CanvasDB[("canvas_projects")]
+    CanvasDB --> DramaCanvas["/drama-canvas/:canvasId"]
+    DramaCanvas --> IsolatedRuntime["短剧专属 Canvas 运行时副本"]
     IsolatedRuntime --> ImageTasks
     IsolatedRuntime --> VideoTasks
 
