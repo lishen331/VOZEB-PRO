@@ -54,7 +54,10 @@ describe("admin school member points adjustment route", () => {
 
     it("maps service errors and records redacted failure metadata", async () => {
         mocks.adjust.mockRejectedValue(Object.assign(new Error("个人永久积分不足"), { status: 409 }));
-        const response = await POST(new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", { method: "POST", body: JSON.stringify({ operation: "debit", amount: 99, reason: "修正", idempotencyKey: "key-b" }) }), context);
+        const response = await POST(
+            new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", { method: "POST", body: JSON.stringify({ operation: "debit", amount: 99, reason: "修正", idempotencyKey: "key-b" }) }),
+            context,
+        );
         expect(response.status).toBe(409);
         expect(await response.json()).toMatchObject({ code: 409, msg: "个人永久积分不足" });
         expect(JSON.stringify(mocks.audit.mock.calls)).not.toContain("个人永久积分不足");
