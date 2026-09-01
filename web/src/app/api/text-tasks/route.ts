@@ -4,8 +4,9 @@ import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
-import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
-import { attachPracticeWorkflowToChannel } from "@/lib/server/runninghub-workflow-runtime";
+import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
+import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeLogicalModel, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
+import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
@@ -49,18 +50,20 @@ export async function POST(request: Request) {
     const settings = await getAuthSettings();
     const response = await withGenerationConcurrencyLimit(currentUser.id, "text", 5 * 60 * 1000, settings.generationConcurrency.text, async () => {
         const trustedPractice = isTrustedPracticeTaskRequest(request, currentUser.id, body.context);
-        if (hasUntrustedExecutionProfile(body) && !trustedPractice) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
         try {
             await validateGenerationContextIpReferences(currentUser.id, body.context);
         } catch (error) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
-        const executionProfile = trustedPractice ? "open-source-practice" : "production";
+        const projectProfile = await resolveProjectExecutionProfile(currentUser.id, body.context || {});
+        const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
+        if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
+        const executionProfile = practiceRequest ? "open-source-practice" : "production";
         let trustedContext: import("@/lib/server/generation-task-types").GenerationTaskContext;
         try {
-            const clientContext = { ...(body.context || {}) };
-            delete clientContext.billingContext;
+            const clientContext = sanitizeGenerationContext(body.context, trustedPractice);
+            if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "text");
             const billingContext = await resolveSchoolComputeBillingContext(currentUser.id, { ...clientContext, executionProfile });
             trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
         } catch (error) {
@@ -70,6 +73,7 @@ export async function POST(request: Request) {
         const configs = sanitizeConfigs(body.config, settings, executionProfile, trustedContext);
         const messages = sanitizeMessages(body.messages);
         if (!configs.length || !messages.length) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
+        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(configs[0], trustedContext.businessCode) };
 
         const task = await createTextTask({ ...trustedContext, userId: currentUser.id, config: configs[0], candidateConfigs: configs.slice(1), messages });
         await recordTextTaskLog(task, currentUser, "pending").catch((error) => console.warn("Text generation log creation failed", { taskId: task.id, error }));
@@ -93,7 +97,7 @@ function sanitizeConfigs(
     executionProfile: "production" | "open-source-practice" = "production",
     context?: import("@/lib/server/generation-task-types").GenerationTaskContext,
 ): TextTaskConfig[] {
-    const requestedModel = config?.model || (executionProfile === "open-source-practice" ? settings.practiceDefaultModels.textModel : settings.defaultModels.textModel);
+    const requestedModel = executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "text", context?.businessCode || "script", config?.model) : config?.model || settings.defaultModels.textModel;
     return resolveLogicalModelCandidates(settings, "text", requestedModel, "", executionProfile).map((resolved) => ({
         ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {}),
         channelId: resolved.channelId,

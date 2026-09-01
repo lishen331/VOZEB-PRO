@@ -16,7 +16,7 @@ import { parseImageDimensions } from "@/lib/image-size";
 import { signGenerationAssetInputUrl, signReferenceAssetInputUrl } from "@/lib/server/reference-asset-access";
 import { requireManagedMediaInputOwner } from "@/lib/server/managed-media-input-access";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
-import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
+import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { mediaTaskSource } from "@/lib/media-management-contract";
@@ -40,8 +40,17 @@ import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
-import { attachPracticeWorkflowToChannel } from "@/lib/server/runninghub-workflow-runtime";
-import { buildRunningHubWorkflowPayload, type RunningHubWorkflowConfig } from "@/lib/server/runninghub-workflow-runtime";
+import {
+    attachPracticeWorkflowToChannel,
+    buildRunningHubWorkflowPayload,
+    generationBusinessCode,
+    resolvePracticeLogicalModel,
+    type RunningHubWorkflowConfig,
+    workflowConfigForTask,
+    workflowTaskContextForChannel,
+    workflowTimeoutMs,
+} from "@/lib/server/runninghub-workflow-runtime";
+import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
 type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext };
@@ -65,7 +74,6 @@ export async function POST(request: Request) {
         throw error;
     }
     const trustedPractice = isTrustedPracticeTaskRequest(request, user.id, body.context);
-    if (hasUntrustedExecutionProfile(body) && !trustedPractice) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
     if (!headerRequestId && body.context?.clientRequestId) {
         const existing = await getStoredGenerationTaskByRequest<VideoTask>("video", user.id, body.context.clientRequestId, body.context.attemptNo);
         if (existing) return NextResponse.json({ task: publicTask(existing) });
@@ -79,6 +87,9 @@ export async function POST(request: Request) {
         if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
+    const projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+    const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
+    if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
     const response = await withGenerationConcurrencyLimit(
         user.id,
@@ -86,21 +97,26 @@ export async function POST(request: Request) {
         30 * 60_000,
         settings.generationConcurrency.video,
         async () => {
-            const executionProfile: PracticeExecutionProfile = trustedPractice ? "open-source-practice" : "production";
+            const executionProfile: PracticeExecutionProfile = practiceRequest ? "open-source-practice" : "production";
             let trustedContext: GenerationTaskContext;
             try {
-                const clientContext = { ...(body.context || {}) };
-                delete clientContext.billingContext;
+                const clientContext = sanitizeGenerationContext(body.context, trustedPractice);
+                if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "video");
                 const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
                 trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
             } catch (error) {
                 if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
                 throw error;
             }
-            const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : trustedPractice ? settings.practiceDefaultModels.videoModel : settings.defaultModels.videoModel;
+            const requestedModel = practiceRequest
+                ? resolvePracticeLogicalModel(settings, "video", trustedContext.businessCode || "storyboard-video", typeof body.config?.model === "string" ? body.config.model : undefined)
+                : typeof body.config?.model === "string" && body.config.model.trim()
+                  ? body.config.model
+                  : settings.defaultModels.videoModel;
             const channels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile).map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }));
             const prompt = String(body.prompt || "").trim();
             if (!channels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
+            if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(channels[0], trustedContext.businessCode) };
             const publicOrigin = requestPublicOrigin(request);
             let references: VideoGenerationReference[];
             try {
@@ -215,7 +231,7 @@ export async function POST(request: Request) {
                     lastUpstreamStatus: "submitting",
                 });
                 try {
-                    const workflow = trustedContext.workflowKey && trustedContext.workflowVersion && trustedContext.businessCode ? (channel.advancedConfig?.workflowConfigs?.[trustedContext.workflowKey] as RunningHubWorkflowConfig | undefined) : undefined;
+                    const workflow = workflowConfigForTask({ ...trustedContext, config: channel });
                     const upstream = await createUpstream(
                         user.id,
                         origin,
@@ -445,7 +461,7 @@ export async function createUpstream(
                 ...systemAiBillingHeaders(generationModelId(channel), `video-request:${billingRequestId}`, channel.model, executionProfile, billingContext),
             },
             body: requestBody,
-            signal: AbortSignal.timeout(resolveModelRequestTimeoutMs(channel, "video")),
+            signal: AbortSignal.timeout(workflowTimeoutMs(workflow, resolveModelRequestTimeoutMs(channel, "video"))),
         });
         const text = await response.text();
         if (!response.ok) {

@@ -9,7 +9,16 @@ export function RunningHubWorkflowTestPanel({ open, workflow, onClose }: { open:
     const [inputText, setInputText] = useState('{\n  "prompt": "测试工作流"\n}');
     const [referencesText, setReferencesText] = useState("[]");
     const [runId, setRunId] = useState("");
-    const [result, setResult] = useState<{ status?: string; taskId?: string; resultUrl?: string; error?: string; durationMs?: number } | null>(null);
+    const [result, setResult] = useState<{
+        status?: string;
+        taskId?: string;
+        resultUrl?: string;
+        resultUrls?: string[];
+        resultText?: string;
+        outputs?: Array<{ key: string; label: string; assetType: string; values: unknown[] }>;
+        error?: string;
+        durationMs?: number;
+    } | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const submit = async () => {
@@ -72,10 +81,32 @@ export function RunningHubWorkflowTestPanel({ open, workflow, onClose }: { open:
                         <div>runId：{runId}</div>
                         {result.taskId ? <div className="mt-1">taskId：{result.taskId}</div> : null}
                         {result.durationMs ? <div className="mt-1">耗时：{result.durationMs} ms</div> : null}
-                        {result.resultUrl ? (
+                        {result.resultUrl && (!result.resultUrls || result.resultUrls.length <= 1) ? (
                             <a className="mt-2 block break-all text-blue-600 underline" href={result.resultUrl} target="_blank" rel="noreferrer">
                                 查看结果
                             </a>
+                        ) : null}
+                        {result.resultUrls && result.resultUrls.length > 1 ? (
+                            <div className="mt-2 space-y-1">
+                                {result.resultUrls.map((url, index) => (
+                                    <a key={`${url}-${index}`} className="block break-all text-blue-600 underline" href={url} target="_blank" rel="noreferrer">
+                                        查看结果 {index + 1}
+                                    </a>
+                                ))}
+                            </div>
+                        ) : null}
+                        {result.resultText ? <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-2 text-sm dark:bg-stone-900">{result.resultText}</pre> : null}
+                        {result.outputs?.length ? (
+                            <div className="mt-2 space-y-2">
+                                {result.outputs.map((output) => (
+                                    <div key={output.key}>
+                                        <div className="font-medium">
+                                            {output.label} · {output.assetType}
+                                        </div>
+                                        <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-2 text-xs dark:bg-stone-900">{JSON.stringify(output.values, null, 2)}</pre>
+                                    </div>
+                                ))}
+                            </div>
                         ) : null}
                         {result.error ? <div className="mt-2 text-red-600">{result.error}</div> : null}
                     </div>

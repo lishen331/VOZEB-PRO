@@ -2,7 +2,7 @@ import type { ImageTask } from "@/lib/server/image-task-store";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
 import { buildProviderRequest, isProviderBusinessError, readProviderError, readProviderString, readProviderValue } from "@/lib/server/provider-task-config";
 import { buildYumengImageRequest, resolveYumengImageResolution } from "@/lib/yumeng-model-center";
-import { buildRunningHubWorkflowPayload, workflowConfigForTask } from "@/lib/server/runninghub-workflow-runtime";
+import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 
 import { publicImageReferenceRequestUrl } from "./image-task-openai";
 import { IMAGE_TASK_POLL_INTERVAL_MS, type ImageApiResponse, type ImageTaskResult } from "./image-task-types";
@@ -27,6 +27,7 @@ import {
     withSystemPrompt,
     withImageOutputInstructions,
     ImageUpstreamTerminalError,
+    imageTaskRequestTimeoutMs,
 } from "./image-task-support";
 
 export async function runCustomImageTask(task: ImageTask, origin: string, publicOrigin: string, cookie: string, singleStep = false) {
@@ -71,7 +72,13 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
     const url = taskUrl(config, task.kind === "edit" ? advanced.editPath || advanced.createPath : advanced.createPath, origin);
     const headers = taskHeaders(config, cookie, imagePointsIdempotencyKey(task), task.billingContext);
     headers.set("content-type", "application/json");
-    const response = await imageSubmissionFetch(config, url, { method: "POST", headers, body: JSON.stringify(payload), cache: "no-store" });
+    const response = await imageSubmissionFetch(config, url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        cache: "no-store",
+        signal: workflow ? AbortSignal.timeout(workflowTimeoutMs(workflow, imageTaskRequestTimeoutMs(config))) : undefined,
+    });
     if (!response.ok) throw imageSubmissionResponseError(response.status, await readFetchError(response, "自定义图片接口调用失败"));
     const data = await parseImageSubmissionJson<ImageApiResponse>(task, response);
     return parseChargedImageResponse(task, response, async () => {
@@ -96,7 +103,12 @@ export async function pollCustomImageTask(task: ImageTask, taskId: string, media
     let lastError = "";
     for (let attempt = 0; attempt < (singleStep ? 1 : imageTaskPollAttempts(config)); attempt += 1) {
         for (const url of imageTaskPollUrls(config, pollBaseUrl, taskId)) {
-            const response = await taskFetch(config, url, { headers: taskHeaders(config, cookie, practiceImagePollRequestId(task), task.billingContext), cache: "no-store" });
+            const workflow = workflowConfigForTask(task);
+            const response = await taskFetch(config, url, {
+                headers: taskHeaders(config, cookie, practiceImagePollRequestId(task), task.billingContext),
+                cache: "no-store",
+                signal: AbortSignal.timeout(workflowTimeoutMs(workflow, imageTaskRequestTimeoutMs(config))),
+            });
             if (!response.ok) {
                 lastError = await readFetchError(response, "自定义图片任务查询失败");
                 continue;

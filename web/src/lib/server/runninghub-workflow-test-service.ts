@@ -4,7 +4,7 @@ import { getFreshAuthSettings, setAuthSettings } from "@/lib/auth/store";
 import type { GenerationTaskType } from "@/lib/server/generation-task-types";
 import { buildRunningHubWorkflowPayload } from "@/lib/server/runninghub-workflow-runtime";
 import { queryRunningHubTask, submitRunningHubTask, uploadRunningHubMedia } from "@/lib/server/runninghub-provider";
-import { getWorkflowExecution } from "@/lib/server/runninghub-workflow-service";
+import { getWorkflowChannel, getWorkflowExecution } from "@/lib/server/runninghub-workflow-service";
 
 import { createAdminWorkflowTest, getAdminWorkflowTest, updateAdminWorkflowTest, type AdminWorkflowTestRecord } from "./admin-workflow-test-store";
 
@@ -26,6 +26,7 @@ export async function startRunningHubWorkflowTest(input: StartWorkflowTestInput)
         type,
         status: "pending",
         durationMs: undefined,
+        workflowConfig: structuredClone(config),
     });
     try {
         const submitted = await submitRunningHubTask({ baseUrl: channel.baseUrl, apiKey: channel.apiKey || "", config, payload });
@@ -39,20 +40,27 @@ export async function startRunningHubWorkflowTest(input: StartWorkflowTestInput)
 }
 
 export async function inspectRunningHubWorkflowTest(input: { workflowKey: string; runId: string; adminId: string }) {
-    const { config, channel } = await getWorkflowExecution(input.workflowKey);
-    const type = taskType(config.capability);
-    const record = await getAdminWorkflowTest(type, input.runId, input.adminId);
-    if (!record || record.workflowKey !== config.workflowKey) throw new Error("测试运行不存在");
+    const record =
+        (await getAdminWorkflowTest("text", input.runId, input.adminId)) ||
+        (await getAdminWorkflowTest("image", input.runId, input.adminId)) ||
+        (await getAdminWorkflowTest("video", input.runId, input.adminId)) ||
+        (await getAdminWorkflowTest("audio", input.runId, input.adminId));
+    if (!record || record.workflowKey !== input.workflowKey || !record.workflowConfig) throw new Error("测试运行不存在");
+    const config = record.workflowConfig;
+    const channel = await getWorkflowChannel(config.channelId);
     if (!record.taskId) return publicTest(record);
     if (["success", "error", "cancelled"].includes(record.status)) return publicTest(record);
     try {
         const result = await queryRunningHubTask({ baseUrl: channel.baseUrl, apiKey: channel.apiKey || "", config, taskId: record.taskId });
-        const status = normalizeUpstreamStatus(result.status, result.resultUrl);
+        const status = normalizeUpstreamStatus(result);
         const next: AdminWorkflowTestRecord = {
             ...record,
             status,
             taskId: record.taskId,
             ...(result.resultUrl ? { resultUrl: result.resultUrl } : {}),
+            ...(result.resultUrls ? { resultUrls: result.resultUrls } : {}),
+            ...(result.resultText ? { resultText: result.resultText } : {}),
+            ...(result.outputs ? { outputs: result.outputs } : {}),
             ...(status === "error" ? { error: result.status || "RunningHub 工作流失败" } : {}),
             durationMs: Date.now() - record.createdAt,
         };
@@ -80,10 +88,11 @@ async function prepareReferences(baseUrl: string, apiKey: string, references: Wo
     );
 }
 
-function normalizeUpstreamStatus(status: string, resultUrl?: string): AdminWorkflowTestRecord["status"] {
-    const normalized = status.trim().toLowerCase();
-    if (resultUrl || ["success", "succeeded", "completed", "done", "finished"].includes(normalized)) return "success";
+function normalizeUpstreamStatus(result: { status: string; resultUrl?: string; resultUrls?: string[]; resultText?: string; outputs?: unknown[] }): AdminWorkflowTestRecord["status"] {
+    const normalized = result.status.trim().toLowerCase();
     if (["failed", "failure", "error", "cancelled", "canceled"].includes(normalized)) return "error";
+    if (["pending", "queued", "running", "processing", "in_progress", "created", "submitted"].includes(normalized)) return "running";
+    if (result.resultUrl || result.resultUrls?.length || result.resultText || result.outputs?.length || ["success", "succeeded", "completed", "done", "finished"].includes(normalized)) return "success";
     return "running";
 }
 
@@ -96,7 +105,9 @@ function publicTest(record: AdminWorkflowTestRecord) {
         workflowVersion: record.workflowVersion,
         durationMs: record.durationMs,
         resultUrl: record.resultUrl,
+        resultUrls: record.resultUrls,
         resultText: record.resultText,
+        outputs: record.outputs,
         error: record.error,
     };
 }

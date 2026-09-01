@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { createStoredGenerationTask, getStoredGenerationTask, updateStoredGenerationTask } from "@/lib/server/generation-task-store";
 import type { GenerationTaskStatus, GenerationTaskType } from "@/lib/server/generation-task-types";
+import type { RunningHubWorkflowConfig } from "@/lib/auth/store-types";
 
 export type AdminWorkflowTestRecord = {
     id: string;
@@ -14,12 +15,15 @@ export type AdminWorkflowTestRecord = {
     status: GenerationTaskStatus;
     taskId?: string;
     resultUrl?: string;
+    resultUrls?: string[];
     resultText?: string;
+    outputs?: Array<{ key: string; label: string; assetType: "IMAGE" | "VIDEO" | "AUDIO" | "TEXT"; required: boolean; primary?: boolean; values: unknown[] }>;
     error?: string;
     createdAt: number;
     updatedAt: number;
     durationMs?: number;
     taskOrigin: "admin-workflow-test";
+    workflowConfig?: RunningHubWorkflowConfig;
 };
 
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
