@@ -2,9 +2,9 @@
 
 > **For agentic workers:** 使用 `superpowers:executing-plans` 按任务顺序执行。每个任务先写失败测试，再写最小实现；每个任务完成后执行定向测试、`pnpm typecheck`，并单独提交。执行前先阅读已确认设计：[2026-09-01-runninghub-workflow-practice-design.md](../specs/2026-09-01-runninghub-workflow-practice-design.md)。
 
-**Goal:** 在已有无限练习、系统渠道、RunningHub provider 和统一生成任务基础上，完成一条可运行且可维护的自定义 RunningHub 工作流链路：平台管理员在后台配置工作流、参数契约、节点映射和出参映射，后台可以真实测试提交/查询/结果读取，学生或老师在绑定学校的无限练习中只按业务 code 使用当前启用版本，结果继续复用现有文本、图片、视频和音频任务组件。正式生产、积分、Canvas、短剧和普通 C 端能力不被改变。
+**Goal:** 在已有无限练习、系统渠道、RunningHub provider 和统一生成任务基础上，完成一条可运行且可维护的自定义 RunningHub 工作流链路：平台管理员在后台配置工作流、参数契约、节点映射和出参映射，后台可以真实测试提交/查询/结果读取，学生或老师在绑定学校的无限练习中只按业务 code 使用当前启用版本，结果继续复用现有文本、图片、视频和音频任务组件。无限练习和正式生产执行档案严格隔离；本计划不实施“短剧实验室”替换当前短剧生产模块的页面和生产流程，也不让它进入无限练习。
 
-**Architecture:** 不新增本地模型中台，不把工作流节点图搬到平台编辑。RunningHub 渠道继续保存在 `system_model_channels`，API Key 只属于渠道；运行时字段继续复用 `SystemChannelModelConfig`、`provider-task-config.ts` 和 `runninghub-provider.ts`。为支持业务 code、版本和后台测试，在同一个 `advancedConfig` JSONB 中沿用现有 `modelConfigs` 的归一化/序列化通道，增加轻量 `workflowConfigs` 注册信息；旧的 `modelConfigs` 仍作为兼容读取入口。`AuthSettings.practiceWorkflowModels` 只保存 `PracticeModuleKind -> logicalModelId` 的绑定，不让前端传 provider、Workflow ID 或节点 ID。启用版本解析后，现有练习服务把业务参数转换为 RunningHub 请求，再交给现有 text/image/video/audio 任务 API、worker、轮询、落盘和结果读取。
+**Architecture:** 不新增本地模型中台，不把工作流节点图搬到平台编辑。RunningHub 渠道继续保存在 `system_model_channels`，API Key 只属于渠道；运行时字段继续复用 `SystemChannelModelConfig`、`provider-task-config.ts` 和 `runninghub-provider.ts`。为支持业务 code、版本和后台测试，在同一个 `advancedConfig` JSONB 中沿用现有 `modelConfigs` 的归一化/序列化通道，增加轻量 `workflowConfigs` 注册信息；旧的 `modelConfigs` 仍作为兼容读取入口。`AuthSettings.practiceWorkflowModels` 只保存 `PracticeModuleKind -> logicalModelId` 的绑定，不让前端传 provider、Workflow ID 或节点 ID。启用版本解析后，现有练习服务把业务参数转换为 RunningHub 请求，再交给现有 text/image/video/audio 任务 API、worker、轮询、落盘和结果读取。这里的 `drama` 业务 code 只表示无限练习中的短剧项目类型；短剧实验室是另一个正式生产替换项目，不复用 `practiceWorkflowModels`，也不使用 `open-source-practice`。
 
 **Tech Stack:** Next.js 16 App Router、React 19、TypeScript、Ant Design 6、Tailwind CSS 4、Zustand、PostgreSQL JSONB、Vitest、Playwright。继续沿用现有 `fetchInternalApi`、`{ code, data, msg }` 响应、管理员 Session/`upstream.manage` 权限和系统渠道脱敏审计。
 
@@ -12,6 +12,7 @@
 
 - 本计划只实现 RunningHub 自定义工作流的一期接入；不实现本地模型中台、机房 GPU、队列优先级、Git 集成、完整节点图编辑器、自动依赖安装或自动节点差异分析。
 - 无限练习入口和学校绑定、独立 `open-source-practice` 项目身份、现有结果展示已经由 `docs/superpowers/plans/2026-08-18-infinite-practice-pull-film-implementation.md` 覆盖；本计划只补齐工作流配置和调用。若实现发现既有计划与已确认设计冲突，先更新 spec 和本计划。
+- “短剧实验室替换当前短剧模块”不属于本计划；本计划不得新增或改写 `drama-lab` 生产页面、生产路由、生产默认模型或生产计费策略。若未来短剧实验室也采用 RunningHub，另以 `production` 执行档案建立独立绑定和验收。
 - 工作流状态只有 `enabled | disabled`，绝不增加“待测试”。测试结果单独保存 `lastTestAt`、`lastTestResult`、`lastTestError`，测试不会自动启用或停用版本。
 - 后台测试只能由平台管理员执行，不能创建学校项目、学生作品、正式历史或积分消费；测试使用独立 `admin-workflow-test` 业务身份和审计类型。RunningHub 异步任务仍必须可查询、可恢复、可显示真实错误。
 - 练习前端只发送稳定 `PracticeModuleKind`/业务 code 和业务输入；服务端根据 `practiceWorkflowModels`、`open-source-practice` 渠道用途和启用版本解析 RunningHub 配置。不能接受客户端传来的 channelId、Workflow ID、节点映射、请求模板或执行档案覆盖。
@@ -109,7 +110,7 @@ export type RunningHubWorkflowConfig = {
 
 - [ ] **Step 1: 先写失败测试**
 
-  测试业务 code 白名单、能力映射、输入/节点/出参 JSON 结构校验、版本必须为正整数、同一渠道同一业务 code 只能存在一个启用版本、空设置默认值和旧 `modelConfigs` 兼容读取。测试还要断言 `script`/`dubbing`/`music` 分别允许 text/audio 配置，不能把任意 capability 当作合法配置。
+  测试业务 code 白名单、能力映射、输入/节点/出参 JSON 结构校验、版本必须为正整数、同一渠道同一业务 code 只能存在一个启用版本、空设置默认值和旧 `modelConfigs` 兼容读取。测试还要断言 `script`/`dubbing`/`music` 分别允许 text/audio 配置，不能把任意 capability 当作合法配置；`drama` 仅作为无限练习项目类型标识，不能自动解析为短剧实验室生产配置。
 
 - [ ] **Step 2: 运行失败测试**
 
@@ -294,7 +295,7 @@ export async function resolvePracticeWorkflow(module: PracticeModuleKind): Promi
 
 - [ ] **Step 3: 实现 workflow router**
 
-  `practice-workflow-router.ts` 读取 `practiceWorkflowModels[module]`，调用现有 `resolveLogicalModel(..., "open-source-practice")`，再从匹配渠道的 `workflowConfigs` 解析业务 code 的唯一启用版本。若没有显式 binding，退回现有 capability 默认模型；若 binding 存在但工作流无效，直接报配置错误，不能静默调用错误工作流。Canvas/短剧大项目不绑定一个“整项目”上游任务：其内部图片、视频、配音和文本动作分别使用 `storyboard-image`、`storyboard-video`、`dubbing`、`script`/`music` 业务 code，保留 `canvas`/`drama` 作为未来整项目工作流的稳定保留 code。
+  `practice-workflow-router.ts` 读取 `practiceWorkflowModels[module]`，调用现有 `resolveLogicalModel(..., "open-source-practice")`，再从匹配渠道的 `workflowConfigs` 解析业务 code 的唯一启用版本。若没有显式 binding，退回现有 capability 默认模型；若 binding 存在但工作流无效，直接报配置错误，不能静默调用错误工作流。无限练习 Canvas/短剧项目不绑定一个“整项目”上游任务：其内部图片、视频、配音和文本动作分别使用 `storyboard-image`、`storyboard-video`、`dubbing`、`script`/`music` 业务 code，保留 `canvas`/`drama` 作为练习项目类型和未来整项目工作流的稳定保留 code。这里不读取短剧实验室配置，也不把短剧实验室路由接入 practice dispatch。
 
 - [ ] **Step 4: 接入 practice dispatch**
 
@@ -434,7 +435,7 @@ export async function resolvePracticeWorkflow(module: PracticeModuleKind): Promi
 
 - [ ] **Step 1: 先写端到端失败测试**
 
-  使用本地 fixture 覆盖四种结果类型和至少一种上游错误：平台管理员创建 RunningHub workflow → 绑定业务 code → 测试运行成功 → 启用版本 → 学校 active teacher/student 创建无限练习 → 练习任务进入现有 task/result API → 页面展示结果。另测复制新版本、停用旧版本、刷新后版本追踪，以及正式生产请求仍不使用 practice workflow。
+  使用本地 fixture 覆盖四种结果类型和至少一种上游错误：平台管理员创建 RunningHub workflow → 绑定业务 code → 测试运行成功 → 启用版本 → 学校 active teacher/student 创建无限练习 → 练习任务进入现有 task/result API → 页面展示结果。另测复制新版本、停用旧版本、刷新后版本追踪，以及正式生产请求仍不使用 practice workflow。断言短剧实验室生产路由不在本计划新增的 practice API、绑定或测试结果中；若已有生产路由被回归，必须继续使用 production 配置。
 
 - [ ] **Step 2: 运行失败测试**
 
