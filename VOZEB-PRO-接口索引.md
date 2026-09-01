@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-01。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **292** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-09-01。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **294** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**292**
-- 方法出现次数：DELETE 44、GET 162、HEAD 6、PATCH 50、POST 150、PUT 10
-- 一级域：`admin` 109、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**294**
+- 方法出现次数：DELETE 44、GET 163、HEAD 6、PATCH 50、POST 151、PUT 10
+- 一级域：`admin` 111、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（109）
+### `admin`（111）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -121,6 +121,8 @@
 | POST | `/api/admin/referrals/settle` | 管理员 | [route.ts](web/src/app/api/admin/referrals/settle/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 管理后台 / 邀请返利 / 结算：提交/执行 |
 | GET, POST | `/api/admin/runninghub/workflows` | 管理员 | [route.ts](web/src/app/api/admin/runninghub/workflows/route.ts) | [runninghub-workflow-service](web/src/lib/server/runninghub-workflow-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / runninghub / workflows：查询、提交/执行 |
 | GET, PUT | `/api/admin/runninghub/workflows/[workflowKey]` | 管理员 | [route.ts](web/src/app/api/admin/runninghub/workflows/[workflowKey]/route.ts) | [runninghub-workflow-service](web/src/lib/server/runninghub-workflow-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / runninghub / workflows / [workflowKey]：查询、替换 |
+| POST | `/api/admin/runninghub/workflows/[workflowKey]/test` | 管理员 | [route.ts](web/src/app/api/admin/runninghub/workflows/[workflowKey]/test/route.ts) | [runninghub-workflow-service](web/src/lib/server/runninghub-workflow-service.ts)<br>[runninghub-workflow-test-service](web/src/lib/server/runninghub-workflow-test-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / runninghub / workflows / [workflowKey] / 测试：提交/执行 |
+| GET | `/api/admin/runninghub/workflows/[workflowKey]/test/[runId]` | 管理员 | [route.ts](web/src/app/api/admin/runninghub/workflows/[workflowKey]/test/[runId]/route.ts) | [runninghub-workflow-service](web/src/lib/server/runninghub-workflow-service.ts)<br>[runninghub-workflow-test-service](web/src/lib/server/runninghub-workflow-test-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / runninghub / workflows / [workflowKey] / 测试 / [runId]：查询 |
 | POST | `/api/admin/runninghub/workflows/[workflowKey]/versions` | 管理员 | [route.ts](web/src/app/api/admin/runninghub/workflows/[workflowKey]/versions/route.ts) | [runninghub-workflow-service](web/src/lib/server/runninghub-workflow-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / runninghub / workflows / [workflowKey] / 版本：提交/执行 |
 | GET | `/api/admin/school-compute` | 管理员 | [route.ts](web/src/app/api/admin/school-compute/route.ts) | [school-compute-service](web/src/lib/server/school-compute-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-compute-domain](web/src/lib/school-compute-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / school-compute：查询 |
 | GET, POST | `/api/admin/schools` | 管理员 | [route.ts](web/src/app/api/admin/schools/route.ts) | [school-tenant-service](web/src/lib/server/school-tenant-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / schools：查询、提交/执行 |
