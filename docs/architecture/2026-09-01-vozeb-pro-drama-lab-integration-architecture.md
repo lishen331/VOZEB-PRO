@@ -203,9 +203,11 @@ flowchart LR
     ShotService --> VideoTasks[/api/video-generation-tasks]
     ImageTasks --> Tasks[(generation_tasks)]
     VideoTasks --> Tasks
-    Tasks --> Worker[Generation Worker]
-    Worker --> Providers[模型上游]
-    Worker --> Media[媒体登记与存储]
+    Worker[Generation Worker] --> Maintenance[App 内部维护 API]
+    Maintenance --> Tasks
+    Maintenance --> TaskRuntime[App 内任务 Runtime]
+    TaskRuntime --> Providers[模型上游]
+    TaskRuntime --> Media[媒体登记与存储]
     Tasks --> SyncService
     SyncService --> DramaDB
 
