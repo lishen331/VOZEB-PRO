@@ -1,4 +1,6 @@
 import type { SchoolContext } from "@/lib/school-domain";
+import { getPublicUsersByIds } from "@/lib/auth/store";
+import { isActivePlatformAdmin } from "@/lib/admin-permissions";
 import { createSchoolDomainRepository } from "@/lib/server/school-domain-repository";
 
 export class SchoolServiceError extends Error {
@@ -35,6 +37,12 @@ export async function requireSchoolManager(userId: string) {
     const context = await requireActiveSchoolContext(userId);
     if (context.membership.role !== "teacher" || !context.canManageSchool) throw new SchoolServiceError(403, "当前账号没有学校管理权限");
     return context;
+}
+
+export async function requirePlatformAdmin(userId: string) {
+    const user = (await getPublicUsersByIds([userId]))[0];
+    if (!isActivePlatformAdmin(user)) throw new SchoolServiceError(403, "当前账号没有平台管理员权限");
+    return user;
 }
 
 export async function requireTeacher(userId: string) {

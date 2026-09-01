@@ -634,10 +634,12 @@ export function normalizePoints(value: unknown, fallback: number) {
     return normalizePointAmount(value, fallback);
 }
 
+export const MAX_POINT_AMOUNT = 1_000_000;
+
 export function normalizePointAmount(value: unknown, fallback: number) {
     const numberValue = Number(value);
     if (!Number.isFinite(numberValue)) return fallback;
-    return Math.min(Number(numberValue.toFixed(2)), 1_000_000);
+    return Math.min(Number(numberValue.toFixed(2)), MAX_POINT_AMOUNT);
 }
 
 export function normalizePointMultiplier(value: unknown, fallback = 1) {
