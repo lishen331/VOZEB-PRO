@@ -58,10 +58,12 @@ flowchart TB
     subgraph Web[Next.js 16 应用]
         Pages[App Router 页面与 React 组件]
         Routes[Route Handlers /api/*]
-        Guard[Session、权限、请求安全与限流]
+        Guard[请求安全与限流]
     end
 
     subgraph Domains[业务域]
+        Account[统一账号与登录]
+        School[学校、教学、商单与制作组]
         Create[Create / Agent 创作]
         MediaGen[图像、视频、音频、文本生成]
         Canvas[普通 Canvas]
@@ -73,6 +75,9 @@ flowchart TB
     end
 
     subgraph Platform[平台核心能力]
+        Auth[Session、平台管理员权限]
+        SchoolAccess[学校成员守卫与租户隔离]
+        SchoolCompute[学校算力与个人积分结算]
         ModelRouter[逻辑模型路由与系统 AI 代理]
         TaskSystem[generation_tasks、调度与恢复]
         Worker[Generation Worker]
@@ -85,7 +90,7 @@ flowchart TB
     end
 
     subgraph Data[数据与文件]
-        PG[(PostgreSQL 16)]
+        PG[(PostgreSQL 16：用户、项目、学校、任务)]
         Local[(本地持久卷 .data)]
         Object[(S3 兼容对象存储)]
     end
@@ -101,6 +106,10 @@ flowchart TB
     Admin --> Pages
     Pages --> Routes
     Routes --> Guard
+    Routes --> Auth
+    Auth --> Guard
+    Guard --> Account
+    Guard --> School
     Guard --> Create
     Guard --> MediaGen
     Guard --> Canvas
@@ -110,12 +119,17 @@ flowchart TB
     Guard --> Billing
     Guard --> Ops
 
+    Account --> Auth
+    School --> SchoolAccess
+    School --> SchoolCompute
     Create --> ModelRouter
     MediaGen --> TaskSystem
     Canvas --> TaskSystem
+    Canvas --> SchoolCompute
     Drama --> ModelRouter
     Drama --> TaskSystem
     Drama --> Registry
+    Drama --> SchoolCompute
     Assets --> Registry
     Billing --> Charge
     Ops --> Config
@@ -123,6 +137,9 @@ flowchart TB
     ModelRouter --> Charge
     ModelRouter --> Logs
     ModelRouter --> AI
+    Auth --> PG
+    SchoolAccess --> PG
+    SchoolCompute --> PG
     TaskSystem --> PG
     Worker --> Maintenance
     Maintenance --> TaskSystem
@@ -155,6 +172,28 @@ flowchart TB
 | Store/Repository 层 | 数据持久化、事务和并发控制 | `web/src/lib/server/database` 及各领域 Store |
 | 任务执行层 | Worker 触发内部维护 API；App 内任务 Runtime 完成领取、上游调用、轮询、恢复和退款 | `generation_tasks`、维护 Route、`generation-worker.mjs` |
 | 外部适配层 | 模型渠道、对象存储、支付和邮件 | 系统 AI 代理及对应服务端适配器 |
+
+### 3.2 账号、学校与创作资产边界
+
+这部分决定短剧实验室是否真正进入 VOZEB PRO 主架构，而不只是复刻一个页面：
+
+| 边界 | 当前实现 | 真实含义 |
+| --- | --- | --- |
+| 统一身份 | `users` + `vozeb_pro_session` Cookie + 数据库 Session | 教师、学生、普通用户和平台管理员都从同一登录入口进入；教师/学生不是另一套账号系统 |
+| 平台授权 | `users.role = admin \| user`，再叠加 `users.manage`、`education.manage` 等细粒度权限 | 平台管理员权限与学校成员权限是两条正交授权链，不能互相替代 |
+| 学校身份 | `school_memberships.role = teacher \| student`，`school.manage` 只授予学校管理能力 | 学校管理员本质是“教师 + `school.manage`”，不是新的平台角色 |
+| 学校租户 | 业务表携带 `school_id`，服务端从 Session 推导学校并显式过滤；复合外键约束同校关系 | 已有真实学校隔离，但当前没有 PostgreSQL RLS，隔离依赖服务层和 SQL 条件 |
+| 学校数量 | `school_memberships.user_id` 唯一 | 当前模型是一账号最多加入一所学校，不是任意多学校切换 |
+| 创作资产归属 | `drama_projects`、`canvas_projects`、`library_assets`、`generation_tasks` 按 `user_id`/`owner_user_id` 归属 | 学校不直接拥有成员的全部创作资产；学校作业、商单和制作组只保存经过校验的个人成果引用 |
+| 学校算力 | 学校池 → 制作组额度 → 商单项目 → 生成任务；不足时使用组内个人垫付 | 短剧和 Canvas 只有在有效学校商单/制作组关联下使用学校算力，否则走个人积分 |
+
+短剧实验室因此复用的是同一条平台底座：登录和 Session、用户所有权、学校上下文、模型路由、生成任务、计费/退款、日志和媒体登记。学校作业或商单引用短剧项目时，服务端会再次校验项目确实属于当前用户和当前学校，不能只相信前端传入的 `schoolId` 或 `billingContext`。
+
+这也给出“融合程度”的准确判断：
+
+1. **平台架构层：已融合。** 短剧已经进入 VOZEB PRO 的统一身份、主数据库、任务、模型、计费、日志、媒体和学校算力边界。
+2. **短剧基础生产层：已形成真实链路。** 剧本、资产、分镜、帧、分镜图、单镜视频和一集一个 Canvas 均有服务端实现。
+3. **L/LocalMiniDrama 行为等价层：仍在迁移。** 多集故事任务、小说导入、分镜断点恢复、跨镜首尾帧连续性、音频/TTS、完整导入导出等不应因为平台层已融合就标记为完成。
 
 ## 4. 短剧实验室如何接入 VOZEB PRO
 
