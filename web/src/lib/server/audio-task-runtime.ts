@@ -17,7 +17,7 @@ import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError, ge
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
-import { buildRunningHubWorkflowPayload, workflowConfigForTask } from "@/lib/server/runninghub-workflow-runtime";
+import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 
 export type AudioUpstreamStep =
     | { state: "pending"; status: string; upstreamTaskId: string; createPath: string; pointsCost?: number; billingReceiptId?: string }
@@ -54,14 +54,14 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
                 speed: Number(config.speed) || 1,
                 ...(config.instructions ? { instructions: config.instructions } : {}),
             };
+            const workflow = workflowConfigForTask(candidate);
             let payload: Record<string, unknown>;
             try {
-                const workflow = workflowConfigForTask(candidate);
                 payload = workflow ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: defaults, references: [] }) : buildProviderRequest(config.advancedConfig?.requestTemplate, defaults, defaults);
             } catch (error) {
                 throw new GenerationSubmissionSafeFailure(error instanceof Error ? error.message : "音频请求模板无效");
             }
-            const { response, path } = await createAudioUpstream(candidate, origin, cookie, workerUserId, payload);
+            const { response, path } = await createAudioUpstream(candidate, origin, cookie, workerUserId, payload, workflow);
             const billing = readBilling(response.headers);
             if (billing.billingReceiptId) await updateAudioTask(task.id, { billing: { pointsCost: billing.pointsCost ?? 0, billingReceiptId: billing.billingReceiptId, refunded: false } });
             const contentType = response.headers.get("content-type")?.split(";")[0].toLowerCase() || "";
@@ -125,7 +125,8 @@ export async function queryAudioTaskUpstreamStep(task: AudioTask, origin: string
     if (!task.upstream?.id) return { state: "failed", status: "missing_upstream_id", error: "音频任务缺少上游任务 ID" };
     let lastError = "";
     for (const path of providerQueryPaths(task.config.advancedConfig, task.upstream.id, [`${task.upstream.createPath.replace(/\/+$/, "")}/${encodeURIComponent(task.upstream.id)}`])) {
-        const response = await providerFetch(task, origin, cookie, workerUserId, path, { cache: "no-store", signal: AbortSignal.timeout(Math.min(resolveModelRequestTimeoutMs(task.config, "audio"), 60_000)) });
+        const workflow = workflowConfigForTask(task);
+        const response = await providerFetch(task, origin, cookie, workerUserId, path, { cache: "no-store", signal: AbortSignal.timeout(workflowTimeoutMs(workflow, Math.min(resolveModelRequestTimeoutMs(task.config, "audio"), 60_000))) });
         const text = await response.text();
         if (!response.ok) {
             lastError = readAudioError(text, response.status);
@@ -153,7 +154,7 @@ export async function persistAudioTaskResult(task: AudioTask, origin: string, re
         return completeAudioTask(task, asset.url || `${origin}/api/reference-assets/${asset.token}`, resultUrl.slice(5, resultUrl.indexOf(";")) || mimeFromFormat(task.config.format || "mp3"));
     }
     const path = /^https?:\/\//i.test(resultUrl) ? `/_media?url=${encodeURIComponent(resultUrl)}` : `/${resultUrl.replace(/^\/+/, "")}`;
-    const response = await providerFetch(task, origin, cookie, workerUserId, path, { signal: AbortSignal.timeout(resolveModelRequestTimeoutMs(task.config, "audio")) });
+    const response = await providerFetch(task, origin, cookie, workerUserId, path, { signal: AbortSignal.timeout(workflowTimeoutMs(workflowConfigForTask(task), resolveModelRequestTimeoutMs(task.config, "audio"))) });
     if (!response.ok) throw new Error(readAudioError(await response.text(), response.status));
     return persistAudioBytes(task, origin, Buffer.from(await response.arrayBuffer()), response.headers.get("content-type")?.split(";")[0] || "");
 }
@@ -173,7 +174,7 @@ export async function markAudioTaskFailed(task: AudioTask, error: string) {
     return refundAudioTask((await getAudioTask(current.id)) || failed);
 }
 
-async function createAudioUpstream(task: AudioTask, origin: string, cookie: string, workerUserId: string, payload: Record<string, unknown>) {
+async function createAudioUpstream(task: AudioTask, origin: string, cookie: string, workerUserId: string, payload: Record<string, unknown>, workflow?: ReturnType<typeof workflowConfigForTask>) {
     let lastError = "";
     const idempotencyKey = `audio-task:${task.id}:attempt:${task.attemptNo || 1}`;
     for (const path of resolvedProviderCreatePaths(task.config.advancedConfig, "audio", ["/audio/speech"])) {
@@ -188,7 +189,7 @@ async function createAudioUpstream(task: AudioTask, origin: string, cookie: stri
                     ...(task.config.baseUrl.startsWith("/") ? systemAiBillingHeaders(generationModelId(task.config), idempotencyKey, task.config.model, task.executionProfile, task.billingContext) : {}),
                 },
                 body: JSON.stringify(payload),
-                signal: AbortSignal.timeout(resolveModelRequestTimeoutMs(task.config, "audio")),
+                signal: AbortSignal.timeout(workflowTimeoutMs(workflow, resolveModelRequestTimeoutMs(task.config, "audio"))),
             });
         } catch (error) {
             throw generationSubmissionUncertainError(error, "音频任务创建结果未知");

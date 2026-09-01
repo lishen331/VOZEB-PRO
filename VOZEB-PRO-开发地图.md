@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-09-01，`main` 分支。当前源码包含 48 个 `page.tsx` 页面入口、292 个 API Route 文件和 110 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-09-01，`main` 分支。当前源码包含 48 个 `page.tsx` 页面入口、294 个 API Route 文件和 110 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -261,11 +261,11 @@ flowchart TD
 | --- | --- | --- |
 | 账号与安全 | `users`、`sessions`、`email_codes`、`rate_limits`、`audit_logs` | `web/src/lib/auth`、用户 Repository |
 | 权益与积分 | `entitlement_plans`、`user_plan_assignments`、`point_records`、`quota_usage` | Auth Store、Points Wallet Service |
-| 生成 | `generation_tasks`、`generation_logs`、`generation_log_assets`、`generation_webhook_events`、`generation_worker_heartbeats` | Generation Store、Scheduler |
+| 生成 | `generation_tasks`、`generation_logs`、`generation_log_assets`、`generation_webhook_events`、`generation_worker_heartbeats` | Generation Store、Scheduler；RunningHub workflow context 和 `admin-workflow-test` origin 复用同一任务骨架 |
 | 创作 | `creative_*`、`canvas_projects`、`drama_projects`、`drama_project_versions`、`library_assets` | 对应领域 Service/Store |
 | 商业化 | `billing_*`、`payment_*`、`coupon_*`、`promotion_*`、`cdk_*` | Billing/Coupon/Promotion Service |
 | 社区作品 | `published_works`、`published_work_*`、`user_follows`、`user_blocks`、`user_notifications` | Work Publication/Governance/Community Service |
-| 媒体与配置 | `local_media_assets`、`object_storage_settings`、`app_settings`、`system_model_channels` | Media Registry、Object Storage Repository、Settings Store |
+| 媒体与配置 | `local_media_assets`、`object_storage_settings`、`app_settings`、`system_model_channels` | Media Registry、Object Storage Repository、Settings Store；RunningHub 工作流版本保存在渠道 `advancedConfig.workflowConfigs`，练习绑定保存在 `app_settings.practice_workflow_models` |
 
 Schema 初始化在 [schema.ts](web/src/lib/server/database/schema.ts)、[schema-commercial-features.ts](web/src/lib/server/database/schema-commercial-features.ts) 和 [schema-triggers.ts](web/src/lib/server/database/schema-triggers.ts)。不要只加 TypeScript 类型而不更新 Schema，也不要把破坏性 SQL 塞进普通请求路径。
 
@@ -283,7 +283,7 @@ Schema 初始化在 [schema.ts](web/src/lib/server/database/schema.ts)、[schema
 | 提示词 | `/prompts`、`/my-prompts` | `/api/prompts`、`/api/my-prompts` | Auth Store/Prompt 数据 | PostgreSQL | 公开筛选、用户 CRUD |
 | 作品与社区 | `/works`、`/gallery`、分享页 | `/api/works`、`/api/public`、`/api/community` | Publication/Governance/Community | 作品版本、互动、媒体授权 | 发布、审核、互动、匿名读取 |
 | 计费与增长 | `/billing` | `/api/billing`、`/api/cdk`、`/api/referrals` | Billing/Coupon/Promotion/Referral | 支付上游、积分事务 | 下单、回调、退款、幂等 |
-| 管理后台 | `/admin` | `/api/admin` | 各管理 Service | 全部领域、审计日志 | 权限矩阵、敏感字段脱敏 |
+| 管理后台 | `/admin`（上游配置 / RunningHub 工作流） | `/api/admin`、`/api/admin/runninghub/workflows` | RunningHub Workflow Service/Test Service、各管理 Service | 渠道配置、generation_tasks、审计日志、RunningHub | 版本启停、业务 code 绑定、独立测试 origin、敏感字段脱敏 |
 | 后台维护 | 无用户页面 | `/api/maintenance` | Recovery、Refund、Lifecycle | Worker/维护 Token | 未授权拒绝、领取幂等、心跳 |
 | 上游代理 | 创作页面间接使用 | `/api/ai/system`、`/api/generation-webhooks` | Channel Router、Proxy Policy | 模型渠道、Webhook | SSRF、凭据隔离、签名 |
 

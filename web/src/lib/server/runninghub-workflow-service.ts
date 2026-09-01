@@ -60,6 +60,21 @@ export async function getWorkflow(workflowKey: string) {
     return publicWorkflow(found.config, found.channel);
 }
 
+export async function getWorkflowExecution(workflowKey: string) {
+    const found = findWorkflow(await getFreshAuthSettings(), workflowKey);
+    if (!found) throw new RunningHubWorkflowError("工作流不存在", 404);
+    if (found.channel.advancedConfig?.protocol !== "runninghub") throw new RunningHubWorkflowError("工作流渠道协议无效", 400);
+    return { config: found.config, channel: found.channel };
+}
+
+export async function getWorkflowChannel(channelId: string) {
+    const settings = await getFreshAuthSettings();
+    const channel = settings.systemChannels.find((item) => item.id === channelId);
+    if (!channel) throw new RunningHubWorkflowError("工作流渠道不存在", 404);
+    if (channel.advancedConfig?.protocol !== "runninghub") throw new RunningHubWorkflowError("工作流渠道协议无效", 400);
+    return channel;
+}
+
 export async function createWorkflow(input: unknown) {
     const settings = await getFreshAuthSettings();
     const raw = asRecord(input);
@@ -90,6 +105,7 @@ export async function updateWorkflow(workflowKey: string, input: unknown) {
         workflowKey: found.config.workflowKey,
         version: found.config.version,
         providerType: "runninghub",
+        channelId: found.channel.id,
         enabled: false,
         lastTestAt: found.config.lastTestAt,
         lastTestResult: found.config.lastTestResult,

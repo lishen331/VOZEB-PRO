@@ -33,6 +33,27 @@ export function hasUntrustedExecutionProfile(value: unknown) {
     return Boolean(context && typeof context === "object" && !Array.isArray(context) && Object.prototype.hasOwnProperty.call(context, "executionProfile"));
 }
 
+export function hasUntrustedWorkflowContext(value: unknown) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const context = (value as Record<string, unknown>).context;
+    if (!context || typeof context !== "object" || Array.isArray(context)) return false;
+    return ["workflowKey", "workflowVersion", "upstreamWorkflowId", "businessCode", "taskOrigin"].some((key) => Object.prototype.hasOwnProperty.call(context, key));
+}
+
+export function sanitizeGenerationContext(value: unknown, preserveWorkflow: boolean) {
+    const context = value && typeof value === "object" && !Array.isArray(value) ? { ...(value as Record<string, unknown>) } : {};
+    delete context.billingContext;
+    if (!preserveWorkflow) {
+        delete context.executionProfile;
+        delete context.workflowKey;
+        delete context.workflowVersion;
+        delete context.upstreamWorkflowId;
+        delete context.businessCode;
+        delete context.taskOrigin;
+    }
+    return context;
+}
+
 export function trustedPracticeTaskHeaders(userId: string, clientRequestId: string) {
     const user = userId.trim().slice(0, 160);
     const request = clientRequestId.trim().slice(0, 160);

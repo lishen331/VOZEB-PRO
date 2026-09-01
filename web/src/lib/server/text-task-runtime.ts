@@ -20,7 +20,7 @@ import { recordTextTaskLog } from "@/lib/server/text-task-log";
 import { getPublicUsersByIds } from "@/lib/auth/store-actions";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
-import { buildRunningHubWorkflowPayload, workflowConfigForTask } from "@/lib/server/runninghub-workflow-runtime";
+import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 
 configureServerProxyDispatcher();
 
@@ -166,7 +166,13 @@ async function createCustomTextTaskStep(task: TextTask, origin: string, cookie: 
     }
     const headers = taskHeaders(config, cookie, pointsIdempotencyKey(task, protocol), task.executionProfile, task.billingContext);
     headers.set("content-type", "application/json");
-    const response = await submissionFetch(config, taskUrl(config, createPath, origin), { method: "POST", headers, body: JSON.stringify(payload), cache: "no-store" });
+    const response = await submissionFetch(config, taskUrl(config, createPath, origin), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        cache: "no-store",
+        signal: workflow ? AbortSignal.timeout(workflowTimeoutMs(workflow, resolveModelRequestTimeoutMs(config, "text"))) : undefined,
+    });
     if (!response.ok) {
         const message = await readFetchError(response, "自定义文本接口调用失败");
         const responseError = generationSubmissionResponseError(response.status, message);
@@ -191,7 +197,12 @@ async function queryCustomTextTaskStep(task: TextTask, origin: string, cookie: s
     if (!upstream?.id) return { state: "needs_review", error: "文本任务缺少上游任务 ID" };
     let lastError = "";
     for (const path of providerQueryPaths(config.advancedConfig, upstream.id, [])) {
-        const response = await taskFetch(config, taskUrl(config, path, origin), { headers: taskHeaders(config, cookie, undefined, task.executionProfile, task.billingContext), cache: "no-store" });
+        const workflow = workflowConfigForTask(task);
+        const response = await taskFetch(config, taskUrl(config, path, origin), {
+            headers: taskHeaders(config, cookie, undefined, task.executionProfile, task.billingContext),
+            cache: "no-store",
+            signal: AbortSignal.timeout(workflowTimeoutMs(workflow, resolveModelRequestTimeoutMs(config, "text"))),
+        });
         if (!response.ok) {
             lastError = await readFetchError(response, "自定义文本任务查询失败");
             continue;
