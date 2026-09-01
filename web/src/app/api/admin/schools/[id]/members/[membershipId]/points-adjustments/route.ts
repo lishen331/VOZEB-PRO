@@ -27,6 +27,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         return parsed.ok ? schoolApiError(400, "请求参数无效") : schoolApiError(parsed.status, parsed.message);
     }
     const body = parsed.data;
+    if ((body.operation !== "credit" && body.operation !== "debit") || typeof body.amount !== "number" || !Number.isFinite(body.amount) || typeof body.reason !== "string" || typeof body.idempotencyKey !== "string") {
+        await safeRecordAuditLog({ action: "admin.school-member.points-adjust", status: "failure", actor: auditActorFromRequest(request, user), target: { type: "school_member", id: membershipId }, metadata: { schoolId, membershipId, errorStatus: 400 } });
+        return schoolApiError(400, "请求参数无效");
+    }
     const input: AdminSchoolMemberPointsAdjustmentInput = {
         operation: body.operation,
         amount: body.amount,

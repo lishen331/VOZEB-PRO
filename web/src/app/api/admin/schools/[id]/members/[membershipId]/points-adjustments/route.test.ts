@@ -54,7 +54,7 @@ describe("admin school member points adjustment route", () => {
 
     it("maps service errors and records redacted failure metadata", async () => {
         mocks.adjust.mockRejectedValue(Object.assign(new Error("个人永久积分不足"), { status: 409 }));
-        const response = await POST(new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", { method: "POST", body: "{}" }), context);
+        const response = await POST(new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", { method: "POST", body: JSON.stringify({ operation: "debit", amount: 99, reason: "修正", idempotencyKey: "key-b" }) }), context);
         expect(response.status).toBe(409);
         expect(await response.json()).toMatchObject({ code: 409, msg: "个人永久积分不足" });
         expect(JSON.stringify(mocks.audit.mock.calls)).not.toContain("个人永久积分不足");
@@ -66,6 +66,15 @@ describe("admin school member points adjustment route", () => {
         expect((await POST(new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", { method: "POST", body: "{}" }), context)).status).toBe(401);
         mocks.getCurrentUser.mockResolvedValue({ id: "admin-a", role: "admin", status: "active", adminPermissions: [] });
         expect((await POST(new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", { method: "POST", body: JSON.stringify([]) }), context)).status).toBe(400);
+        expect(mocks.adjust).not.toHaveBeenCalled();
+    });
+
+    it("rejects invalid runtime field types with 400", async () => {
+        const response = await POST(
+            new Request("http://localhost/api/admin/schools/school-a/members/membership-a/points-adjustments", { method: "POST", body: JSON.stringify({ operation: "credit", amount: 1, reason: null, idempotencyKey: "key-a" }) }),
+            context,
+        );
+        expect(response.status).toBe(400);
         expect(mocks.adjust).not.toHaveBeenCalled();
     });
 });

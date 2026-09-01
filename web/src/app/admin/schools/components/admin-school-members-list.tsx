@@ -101,7 +101,7 @@ export function AdminSchoolMembersList({ school, onBack }: { school: SchoolSumma
             title: "状态",
             key: "status",
             width: 130,
-            render: (_, member) => <MemberStatus member={member} />,
+            render: (_, member) => <MemberStatus member={member} schoolDisabled={school.status === "disabled"} />,
         },
         { title: "个人永久积分", dataIndex: "permanentPoints", width: 132, render: (value: number) => formatPoints(value) },
         { title: "每日积分", dataIndex: "dailyPoints", width: 100, render: (value: number) => formatPoints(value) },
@@ -179,7 +179,7 @@ export function AdminSchoolMembersList({ school, onBack }: { school: SchoolSumma
                     <div key={member.id} className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
                         <div className="flex items-start justify-between gap-3">
                             <MemberIdentity member={member} />
-                            <MemberStatus member={member} />
+                            <MemberStatus member={member} schoolDisabled={school.status === "disabled"} />
                         </div>
                         <div className="mt-3 grid grid-cols-3 gap-2 border-y border-zinc-100 py-2 text-xs dark:border-zinc-800">
                             <PointsMetric label="永久积分" value={member.permanentPoints} />
@@ -257,11 +257,11 @@ function MemberIdentity({ member }: { member: AdminSchoolMemberPoints }) {
     );
 }
 
-function MemberStatus({ member }: { member: AdminSchoolMemberPoints }) {
+function MemberStatus({ member, schoolDisabled = false }: { member: AdminSchoolMemberPoints; schoolDisabled?: boolean }) {
     return (
         <div className="flex shrink-0 flex-wrap justify-end gap-1">
             <Tag color={member.status === "active" ? "green" : "default"}>{member.status === "active" ? "成员可用" : "成员停用"}</Tag>
-            {member.accountStatus === "disabled" ? <Tag color="orange">停用账号当前不能生成</Tag> : null}
+            {member.accountStatus === "disabled" || member.status === "disabled" || schoolDisabled ? <Tag color="orange">停用账号当前不能生成</Tag> : null}
         </div>
     );
 }
