@@ -20,8 +20,9 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
     assertDramaLabShotAssetReferences(input.project, shot);
     const promptKey = `${input.frameType}_frame_prompt` as "first_frame_prompt" | "key_frame_prompt" | "last_frame_prompt";
     const template = await resolveDramaLabPrompt(promptKey);
-    const references = frameReferences(input.project, shot, input.frameType);
-    const context = frameContext(input.project, episode.title, shot, input.frameType);
+    const previousShot = previousDramaLabShot(episode.shots, shot);
+    const references = buildDramaLabFrameReferences(input.project, shot, input.frameType, previousShot);
+    const context = frameContext(input.project, episode.title, shot, input.frameType, previousShot);
     const systemPrompt = withDramaLabPromptContract(
         `${template.template}\n\n${context}`,
         `只返回 JSON 对象，字段严格为 prompt 和 description。prompt 必须是可直接交给图片模型的中文提示词。只允许本镜 characterIds 中角色，不得引入未绑定资产；角色外貌只能引用参考图；场景必须是纯空间描述；道具必须符合时代真实尺度。${input.frameType === "last" ? "尾帧必须读取首帧布局并根据 declared movement 做自然取景演化。" : ""}`,
@@ -99,7 +100,7 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
     throw latestError instanceof Error ? latestError : new DramaLabShotGenerationError("帧提示词规划失败", 502);
 }
 
-function frameContext(project: DramaProject, episodeTitle: string, shot: DramaShot, frameType: DramaShotFrameType) {
+function frameContext(project: DramaProject, episodeTitle: string, shot: DramaShot, frameType: DramaShotFrameType, previousShot?: DramaShot) {
     return [
         "【短剧实验室帧提示词上下文】",
         `项目：${project.title}`,
@@ -121,15 +122,29 @@ function frameContext(project: DramaProject, episodeTitle: string, shot: DramaSh
         shot.dialogue ? `对白：${shot.dialogue}` : "",
         shot.narration ? `旁白：${shot.narration}` : "",
         frameType === "last" && shot.frames?.first?.prompt ? `首帧布局参考：${shot.frames.first.prompt}` : "",
+        frameType === "first" && previousShot?.continuity?.actionEnd ? `上一镜动作终点：${previousShot.continuity.actionEnd}` : "",
+        frameType === "first" && previousShot?.frames?.last?.prompt ? `上一镜尾帧连续性参考：${previousShot.frames.last.prompt}` : "",
     ]
         .filter(Boolean)
         .join("\n");
 }
 
-function frameReferences(project: DramaProject, shot: DramaShot, frameType: DramaShotFrameType): DramaLabGenerationReference[] {
+export function buildDramaLabFrameReferences(project: DramaProject, shot: DramaShot, frameType: DramaShotFrameType, previousShot?: DramaShot): DramaLabGenerationReference[] {
     const references = shotReferences(project, shot);
-    if (frameType === "last" && shot.frames?.first?.url) return [{ id: `first-frame-${shot.id}`, url: shot.frames.first.url, label: `${shot.title} 首帧`, width: shot.frames.first.width, height: shot.frames.first.height }, ...references];
-    return references;
+    const continuityReference =
+        frameType === "first" && previousShot?.frames?.last?.url
+            ? { id: `previous-last-frame-${previousShot.id}`, url: previousShot.frames.last.url, label: `${previousShot.title} 尾帧`, width: previousShot.frames.last.width, height: previousShot.frames.last.height }
+            : (frameType === "key" || frameType === "last") && shot.frames?.first?.url
+              ? { id: `first-frame-${shot.id}`, url: shot.frames.first.url, label: `${shot.title} 首帧`, width: shot.frames.first.width, height: shot.frames.first.height }
+              : undefined;
+    if (!continuityReference) return references;
+    return [continuityReference, ...references.filter((reference) => reference.url !== continuityReference.url)];
+}
+
+export function previousDramaLabShot(shots: DramaShot[], shot: DramaShot) {
+    return shots
+        .filter((candidate) => candidate.id !== shot.id && candidate.order < shot.order)
+        .sort((left, right) => right.order - left.order)[0];
 }
 
 function assertBindings(project: DramaProject, shot: DramaShot) {

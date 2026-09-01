@@ -10,6 +10,7 @@ import { createImageTaskUpstreamStep, markImageTaskFailed, persistImageTaskResul
 import { getImageTask, updateImageTask, type ImageTask } from "@/lib/server/image-task-store";
 import { getTextTask, transitionTextTask, updateTextTask } from "@/lib/server/text-task-store";
 import { queryCancelledTextTaskUpstreamStep, runTextTaskStep } from "@/lib/server/text-task-runtime";
+import { materializeDramaLabStoryTask } from "@/lib/server/drama-lab-story-generation-service";
 import { maintenanceWorkerContext } from "@/lib/server/maintenance-auth";
 import { executeAgentRun } from "@/lib/server/agent-run-executor";
 import { processAgentRunReview } from "@/lib/server/agent-run-execution";
@@ -330,6 +331,26 @@ export function pendingAgentChildTaskIds(run: Pick<AgentRun, "tasks">) {
 async function processTextLease(lease: GenerationTaskLease, workerId: string, origin: string, cookie: string, userRequested: boolean): Promise<RecoveryResult> {
     const task = await getTextTask(lease.id);
     if (!task || task.status === "success" || task.status === "error" || task.status === "cancelled") {
+        if (task?.status === "success" && task.storyBatch) {
+            try {
+                await materializeDramaLabStoryTask(task);
+            } catch (error) {
+                // The text result is durable even if project persistence is
+                // temporarily unavailable. The story task endpoint retries
+                // materialization on the next poll.
+                console.warn("Drama story result materialization deferred", { taskId: task.id, error: safeError(error) });
+            }
+            const latest = await getTextTask(task.id);
+            if (latest?.storyBatch && !["completed", "error", "cancelled"].includes(latest.storyBatch.status)) {
+                await releaseGenerationTaskLease("text", lease.id, workerId, {
+                    executionPhase: "persisting",
+                    nextPollAt: Date.now() + 5_000,
+                    lastPollAt: Date.now(),
+                    lastUpstreamStatus: "story_persistence_pending",
+                });
+                return "deferred";
+            }
+        }
         await releaseGenerationTaskLease("text", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined });
         return task?.status === "success" ? "completed" : "failed";
     }
@@ -364,6 +385,8 @@ async function processTextLease(lease: GenerationTaskLease, workerId: string, or
     try {
         const step = await runTextTaskStep(task, origin, cookie || maintenanceWorkerContext(task.userId));
         if (step.state === "completed") {
+            const completedTask = await getTextTask(task.id);
+            if (completedTask?.storyBatch) await materializeDramaLabStoryTask(completedTask);
             await releaseGenerationTaskLease("text", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "completed" });
             return "completed";
         }

@@ -80,6 +80,7 @@ export async function claimDueGenerationTasks(input: { workerId: string; now?: n
                     FROM generation_tasks
                     WHERE ((status IN ('pending', 'running')
                       AND execution_phase IN ('created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting'))
+                      OR (task_type = 'text' AND status = 'success' AND payload->'storyBatch'->>'status' IN ('pending', 'persisting'))
                       OR (task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing'))
                       OR (status = 'cancelled' AND execution_phase IN ('cancel_requested', 'cancel_polling')))
                       AND task_type = ANY($6::text[])
@@ -120,6 +121,7 @@ export async function getNextGenerationTaskDueAt(now = Date.now()) {
              FROM generation_tasks
              WHERE ((status IN ('pending', 'running')
                       AND execution_phase IN ('created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting'))
+                    OR (task_type = 'text' AND status = 'success' AND payload->'storyBatch'->>'status' IN ('pending', 'persisting'))
                     OR (task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing'))
                     OR (status = 'cancelled' AND execution_phase IN ('cancel_requested', 'cancel_polling')))
                AND task_type = ANY($1::text[])
@@ -263,9 +265,10 @@ function isDue(task: StoredGenerationTaskRecord, now: number, taskIds: string[])
 
 function isSchedulable(task: StoredGenerationTaskRecord, now: number) {
     const active = (task.status === "pending" || task.status === "running") && ACTIVE_PHASES.has(task.executionPhase || "created");
+    const dramaStoryPersistence = task.type === "text" && task.status === "success" && ["pending", "persisting"].includes(String((task.payload as { storyBatch?: { status?: string } }).storyBatch?.status || ""));
     const review = task.type === "agent" && task.status === "success" && REVIEW_PHASES.has(task.executionPhase || "created");
     const cancellation = task.status === "cancelled" && CANCELLATION_PHASES.has(task.executionPhase || "created");
-    return SCHEDULABLE_TYPES.has(task.type) && (active || review || cancellation) && task.expiresAt > now && Number(task.nextPollAt || 0) > 0;
+    return SCHEDULABLE_TYPES.has(task.type) && (active || dramaStoryPersistence || review || cancellation) && task.expiresAt > now && Number(task.nextPollAt || 0) > 0;
 }
 
 function canApplySchedulePatch(task: StoredGenerationTaskRecord, options: GenerationTaskScheduleOptions) {

@@ -92,7 +92,9 @@ export const DRAMA_LAB_PROMPT_DEFINITIONS: readonly DramaLabPromptDefinition[] =
         name: "分镜输出字段与空间合同",
         category: "storyboard",
         description: "追加在分镜任务上的详细要素说明，固定 JSON 契约由系统保留。",
-        template: `每个镜头必须包含 title、segment_index、segment_title、location、time、shot_type、camera_angle、camera_movement、lighting_style、depth_of_field、action、result、dialogue、narration、emotion、emotion_intensity、duration、layoutDescription、sceneId、characterIds、propIds。
+        template: `每个镜头必须包含 shotNumber、title、description、sourceText、shotBoundary、segmentIndex、segmentTitle、location、time、shotType、cameraAngle、cameraMotion、angleH、angleV、angleS、lightingStyle、depthOfField、atmosphere、action、result、dialogue、narration、emotion、emotionIntensity、duration、layoutDescription、creationMode、universalSegmentText、polishedPrompt、imagePrompt、videoPrompt、continuity、sceneId、characterIds、propIds。
+
+工具调用统一使用上述 camelCase 字段；LocalMiniDrama 的 shot_number、segment_index、scene_id、character_ids、prop_ids、camera_movement、lighting_style、depth_of_field、creation_mode、universal_segment_text、image_prompt、video_prompt、layout_description、continuity_notes 等 snake_case 仅作为非工具 JSON 回退的兼容输入。imagePrompt 和 videoPrompt 必须是可直接执行的提示词文本，不要填写链接。creationMode 只能为 classic 或 universal；classic 模式的 universalSegmentText 可以为空字符串，universal 模式的 universalSegmentText 必须包含时间线、动作阶段和至少两步连续运镜。continuity 必须是对象，并包含 shotSize、cameraAngle、composition、characterBlocking、gazeDirection、actionStart、actionEnd、screenDirection、axisRule、continuityNotes，未使用时填空字符串。
 
 sceneId 只能引用 availableAssets.scenes 内真实 ID；characterIds 和 propIds 只能分别引用对应真实 ID，绝不能根据名称猜测、编造或新建 ID。layoutDescription 必须明确角色站位、道具真实尺度、整体构图和 declared movement 的演化空间；角色名单只能包含本镜实际出场者，场景描述不得包含人物外貌。`,
         variables: ["当前剧本", "分镜数量", "角色", "场景", "道具"],

@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-08-26，`main` 分支。当前源码包含 50 个 `page.tsx` 页面入口、272 个 API Route 文件和 105 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-09-01，`main` 分支。当前源码包含 50 个 `page.tsx` 页面入口、273 个 API Route 文件和 105 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -127,7 +127,7 @@ flowchart TD
 
 ## API 分层与权限
 
-172 个 Route 文件分布在 36 个一级域。数量最多的是 `admin` 55、`public` 14、`auth` 13、`drama` 12、`billing` 11。完整列表见 [接口索引](VOZEB-PRO-接口索引.md)。
+273 个 Route 文件分布在 41 个一级域。数量最多的是 `admin` 91、`school` 22、`public` 16、`drama-lab` 15、`teaching` 15、`auth` 13、`drama` 12、`billing` 11。完整列表见 [接口索引](VOZEB-PRO-接口索引.md)。
 
 权限分类不是目录规则，而是实现规则：
 
@@ -348,7 +348,7 @@ flowchart LR
     class PG,Data,PGData data
 ```
 
-- [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)：221 个 Route 文件逐项权限、服务和边界。
+- [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)：273 个 Route 文件逐项权限、服务和边界。
 - [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)：本地验证、GitHub、版本镜像、远程更新与回滚。
 - [README](README.md)：产品能力、安装方式和上游项目说明。
 - [项目结构与流程](docs/content/docs/overview/project-structure.mdx)：上游维护的结构说明。

@@ -367,6 +367,27 @@ function normalizeShot(value: unknown, index: number): DramaShot {
         imagePrompt: cleanText(input.imagePrompt),
         videoPrompt: cleanText(input.videoPrompt),
         cameraMotion: cleanText(input.cameraMotion),
+        shotType: optionalText(input.shotType),
+        segmentIndex: optionalPositiveInteger(input.segmentIndex),
+        segmentTitle: optionalText(input.segmentTitle),
+        atmosphere: optionalText(input.atmosphere),
+        lightingStyle: optionalText(input.lightingStyle),
+        depthOfField: optionalText(input.depthOfField),
+        creationMode: input.creationMode === "universal" ? "universal" : "classic",
+        universalSegmentText: optionalText(input.universalSegmentText),
+        polishedPrompt: optionalText(input.polishedPrompt),
+        cameraAngle: optionalText(input.cameraAngle),
+        angleH: optionalText(input.angleH),
+        angleV: optionalText(input.angleV),
+        angleS: optionalText(input.angleS),
+        location: optionalText(input.location),
+        time: optionalText(input.time),
+        action: optionalText(input.action),
+        result: optionalText(input.result),
+        emotion: optionalText(input.emotion),
+        emotionIntensity: Number.isFinite(Number(input.emotionIntensity)) ? Math.max(-1, Math.min(3, Math.round(Number(input.emotionIntensity)))) : undefined,
+        layoutDescription: optionalText(input.layoutDescription),
+        frames: normalizeFrameStates(input.frames),
         startFramePrompt: optionalText(input.startFramePrompt),
         endFramePrompt: optionalText(input.endFramePrompt),
         negativePrompt: optionalText(input.negativePrompt),
@@ -398,6 +419,7 @@ function normalizeShot(value: unknown, index: number): DramaShot {
         generationStatus: taskStatus(input.generationStatus),
         generationAttempt: optionalPositiveInteger(input.generationAttempt),
         generationTaskId: optionalText(input.generationTaskId),
+        generationNeedsReview: input.generationNeedsReview === true ? true : undefined,
         generationError: optionalText(input.generationError),
         videoUrl: stableUrl(input.videoUrl),
         videoHistory: normalizeGenerationHistory(input.videoHistory),
@@ -554,6 +576,31 @@ function normalizeGenerationHistory(value: unknown) {
             ];
         })
         .slice(-20);
+}
+
+function normalizeFrameStates(value: unknown) {
+    const input = object(value);
+    const frames = (['first', 'key', 'last'] as const).reduce((result, type) => {
+        const frame = object(input[type]);
+        if (!frame) return result;
+        const status = taskStatus(frame.status);
+        const prompt = cleanText(frame.prompt);
+        if (!prompt && !stableUrl(frame.url) && status === 'idle') return result;
+        result[type] = {
+            prompt,
+            description: optionalText(frame.description),
+            status,
+            taskId: optionalText(frame.taskId),
+            attempt: optionalPositiveInteger(frame.attempt),
+            url: stableUrl(frame.url),
+            width: optionalPositiveInteger(frame.width),
+            height: optionalPositiveInteger(frame.height),
+            error: optionalText(frame.error),
+            history: normalizeGenerationHistory(frame.history),
+        };
+        return result;
+    }, {} as Record<string, unknown>);
+    return Object.keys(frames).length ? frames : undefined;
 }
 
 function ids(value: unknown) {

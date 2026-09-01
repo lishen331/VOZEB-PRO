@@ -23,6 +23,7 @@ vi.mock("@/lib/server/drama-project-store", () => {
 
 import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 import { DramaLabShotGenerationError, appendDramaLabGenerationHistory, persistDramaLabShotUpdate, prepareDramaLabStoryboardImage, prepareDramaLabStoryboardVideo, updateDramaLabShot } from "./drama-lab-shot-generation-service";
+import { buildDramaLabFrameReferences, previousDramaLabShot } from "./drama-lab-frame-generation-service";
 
 const project = {
     id: "project-one",
@@ -140,6 +141,23 @@ describe("drama lab shot generation service", () => {
         const prepared = prepareDramaLabStoryboardVideo(withKeyFrame, "episode-one", "shot-one");
         expect(prepared.parentTaskId).toBe("key-task");
         expect(prepared.references.map((item) => item.id)).toEqual(["key-frame-shot-one"]);
+    });
+
+    it("links the previous shot tail frame to the next shot first-frame plan", () => {
+        const nextShot = {
+            ...project.episodes[0].shots[0],
+            id: "shot-two",
+            order: 2,
+            title: "回头",
+            frames: undefined,
+        };
+        const previous = project.episodes[0].shots[0];
+        const withTail = updateDramaLabShot(project, "episode-one", "shot-one", {
+            frames: { last: { prompt: "人物停在站台右侧", status: "success", url: "/tail.png", taskId: "tail-task" } },
+        });
+        const episodeShots = [withTail.episodes[0].shots[0], nextShot];
+        expect(previousDramaLabShot(episodeShots, nextShot)?.id).toBe(previous.id);
+        expect(buildDramaLabFrameReferences(withTail, nextShot, "first", episodeShots[0]).map((item) => item.id)).toEqual(["previous-last-frame-shot-one", "scene-ref", "character-ref", "prop-ref"]);
     });
 
     it("keeps historical media versions by task identity and updates only the selected shot", () => {

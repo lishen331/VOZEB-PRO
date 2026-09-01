@@ -4,6 +4,7 @@ import type { IpReference } from "@/lib/ip-library-domain";
 export type DramaTaskStatus = "idle" | "queued" | "pending" | "running" | "success" | "error" | "cancelled";
 export type DramaReviewStatus = "draft" | "content_review" | "approved" | "visual_ready";
 export type DramaVideoMode = "storyboard" | "direct" | "reference";
+export type DramaShotCreationMode = "classic" | "universal";
 export type DramaStoryboardFrameMode = "single" | "first_last";
 export type DramaShotAudioMode = "source" | "voiceover" | "mute";
 
@@ -107,7 +108,19 @@ export type DramaShot = {
     cameraMotion: string;
     /** LocalMiniDrama storyboard context used by frame planning. */
     shotType?: string;
+    /** LocalMiniDrama's optional segment and photography fields. */
+    segmentIndex?: number;
+    segmentTitle?: string;
+    atmosphere?: string;
+    lightingStyle?: string;
+    depthOfField?: string;
+    creationMode?: DramaShotCreationMode;
+    universalSegmentText?: string;
+    polishedPrompt?: string;
     cameraAngle?: string;
+    angleH?: string;
+    angleV?: string;
+    angleS?: string;
     location?: string;
     time?: string;
     action?: string;

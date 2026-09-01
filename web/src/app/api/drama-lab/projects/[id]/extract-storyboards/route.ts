@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
-import type { DramaShot } from "@/lib/drama-project-contract";
+import type { DramaProject, DramaShot } from "@/lib/drama-project-contract";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { DramaLabStoryboardExtractionError, extractDramaLabStoryboards } from "@/lib/server/drama-lab-storyboard-extraction-service";
@@ -24,6 +24,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const project = await getDramaProject(id, user.id);
         if (!project) return NextResponse.json({ code: 404, data: null, msg: "短剧项目不存在" }, { status: 404 });
 
+        // Checkpoints persist the domain project payload; the store's public
+        // identity view is intentionally not copied into project_json.
+        let latestProject: DramaProject = project;
+        const resume = body.resume === true;
         const result = await extractDramaLabStoryboards({
             userId: user.id,
             origin: new URL(request.url).origin,
@@ -31,17 +35,33 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             requestId,
             project,
             episodeId,
+            resumeShots: resume ? project.episodes.find((episode) => episode.id === episodeId)?.shots || [] : undefined,
+            onPartial: async (shots) => {
+                if (!shots.length) return;
+                const next = {
+                    ...latestProject,
+                    episodes: latestProject.episodes.map((episode) => (episode.id === episodeId ? { ...episode, shots } : episode)),
+                    updatedAt: new Date().toISOString(),
+                };
+                try {
+                    latestProject = (await updateDramaProject(user.id, next, latestProject.updatedAt)) || next;
+                } catch (error) {
+                    // The completed extraction is still returned. A later
+                    // explicit resume request can persist the recovered prefix.
+                    console.warn("Drama storyboard checkpoint deferred", { projectId: id, episodeId, error: error instanceof Error ? error.message : String(error) });
+                }
+            },
         });
         const updated = {
-            ...project,
-            episodes: project.episodes.map((episode) => (episode.id === episodeId ? { ...episode, shots: result.shots } : episode)),
+            ...latestProject,
+            episodes: latestProject.episodes.map((episode) => (episode.id === episodeId ? { ...episode, shots: result.shots } : episode)),
             updatedAt: new Date().toISOString(),
         };
-        await updateDramaProject(user.id, updated, project.updatedAt);
+        await updateDramaProject(user.id, updated, latestProject.updatedAt);
 
         return NextResponse.json({
             code: 0,
-            data: { shots: result.shots.map((shot) => toDramaLabShot(shot, episodeId)), templateKeys: result.templateKeys },
+            data: { shots: result.shots.map((shot) => toDramaLabShot(shot, episodeId)), templateKeys: result.templateKeys, meta: { truncated: result.truncated, recoveredCount: result.recoveredCount, duplicateCount: result.duplicateCount, continuationAttempts: result.continuationAttempts } },
             msg: "分镜提取完成",
         });
     } catch (error) {

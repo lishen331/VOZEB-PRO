@@ -38,6 +38,7 @@ import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { recoverVideoGenerationTask } from "@/services/api/video-core";
 import { cn } from "@/lib/utils";
 import { DramaLabVisualAssetsPanel } from "./drama-lab-visual-assets-panel";
+import { DramaLabNovelImport } from "./drama-lab-novel-import";
 import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } from "./drama-lab-video-task-recovery";
 
 const { TextArea } = Input;
@@ -89,6 +90,7 @@ export interface Episode {
     title: string;
     number: number;
     script: string;
+    sourceRange?: string;
     status?: string;
 }
 
@@ -165,6 +167,37 @@ export interface Shot {
     imagePrompt?: string;
     videoPrompt?: string;
     cameraMotion?: string;
+    shotType?: string;
+    segmentIndex?: number;
+    segmentTitle?: string;
+    atmosphere?: string;
+    lightingStyle?: string;
+    depthOfField?: string;
+    creationMode?: "classic" | "universal";
+    universalSegmentText?: string;
+    polishedPrompt?: string;
+    angleH?: string;
+    angleV?: string;
+    angleS?: string;
+    location?: string;
+    time?: string;
+    action?: string;
+    result?: string;
+    emotion?: string;
+    emotionIntensity?: number;
+    layoutDescription?: string;
+    continuity?: {
+        shotSize: string;
+        cameraAngle: string;
+        composition: string;
+        characterBlocking: string;
+        gazeDirection: string;
+        actionStart: string;
+        actionEnd: string;
+        screenDirection: string;
+        axisRule: string;
+        continuityNotes: string;
+    };
     imageUrl?: string;
     videoUrl?: string;
     duration: number;
@@ -235,6 +268,7 @@ function normalizeEpisodes(value: unknown): Episode[] {
                 title: typeof episode.title === "string" && episode.title.trim() ? episode.title : `第 ${index + 1} 集`,
                 number: typeof episode.number === "number" && Number.isFinite(episode.number) ? episode.number : index + 1,
                 script: typeof episode.script === "string" ? episode.script : "",
+                sourceRange: typeof episode.sourceRange === "string" ? episode.sourceRange : undefined,
                 status: typeof episode.status === "string" ? episode.status : undefined,
             },
         ];
@@ -277,10 +311,23 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
     const description = typeof shot.description === "string" ? shot.description : typeof shot.script === "string" ? shot.script : typeof shot.title === "string" ? shot.title : "";
     const storyboardImageUrl = typeof shot.storyboardImageUrl === "string" ? shot.storyboardImageUrl : typeof shot.imageUrl === "string" ? shot.imageUrl : undefined;
     const videoUrl = typeof shot.videoUrl === "string" ? shot.videoUrl : undefined;
+    const readText = (...keys: string[]) => {
+        for (const key of keys) {
+            if (typeof shot[key] === "string" && shot[key].trim()) return shot[key].trim();
+        }
+        return undefined;
+    };
+    const readNumber = (...keys: string[]) => {
+        for (const key of keys) {
+            const number = Number(shot[key]);
+            if (Number.isFinite(number)) return number;
+        }
+        return undefined;
+    };
     return {
         id,
         episodeId: typeof shot.episodeId === "string" ? shot.episodeId : episodeId,
-        shotNumber: typeof shot.shotNumber === "number" ? shot.shotNumber : typeof shot.order === "number" ? shot.order : index + 1,
+        shotNumber: readNumber("shotNumber", "shot_number", "order") || index + 1,
         sceneId: typeof shot.sceneId === "string" ? shot.sceneId : undefined,
         characterIds: Array.isArray(shot.characterIds) ? shot.characterIds.filter((item): item is string => typeof item === "string") : [],
         propIds: Array.isArray(shot.propIds) ? shot.propIds.filter((item): item is string => typeof item === "string") : [],
@@ -294,6 +341,39 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
         imagePrompt: typeof shot.imagePrompt === "string" ? shot.imagePrompt : undefined,
         videoPrompt: typeof shot.videoPrompt === "string" ? shot.videoPrompt : undefined,
         cameraMotion: typeof shot.cameraMotion === "string" ? shot.cameraMotion : undefined,
+        shotType: readText("shotType", "shot_type"),
+        segmentIndex: readNumber("segmentIndex", "segment_index"),
+        segmentTitle: readText("segmentTitle", "segment_title"),
+        atmosphere: readText("atmosphere"),
+        lightingStyle: readText("lightingStyle", "lighting_style"),
+        depthOfField: readText("depthOfField", "depth_of_field"),
+        creationMode: readText("creationMode", "creation_mode") === "universal" ? "universal" : "classic",
+        universalSegmentText: readText("universalSegmentText", "universal_segment_text"),
+        polishedPrompt: readText("polishedPrompt", "polished_prompt"),
+        angleH: readText("angleH", "angle_h"),
+        angleV: readText("angleV", "angle_v"),
+        angleS: readText("angleS", "angle_s"),
+        location: readText("location", "sceneLocation", "scene_location"),
+        time: readText("time", "timeOfDay", "time_of_day"),
+        action: readText("action"),
+        result: readText("result", "outcome"),
+        emotion: readText("emotion"),
+        emotionIntensity: readNumber("emotionIntensity", "emotion_intensity"),
+        layoutDescription: readText("layoutDescription", "layout_description"),
+        continuity: continuity
+            ? {
+                  shotSize: readContinuityText(continuity, "shotSize", "shot_size"),
+                  cameraAngle: readContinuityText(continuity, "cameraAngle", "camera_angle"),
+                  composition: readContinuityText(continuity, "composition"),
+                  characterBlocking: readContinuityText(continuity, "characterBlocking", "character_blocking"),
+                  gazeDirection: readContinuityText(continuity, "gazeDirection", "gaze_direction"),
+                  actionStart: readContinuityText(continuity, "actionStart", "action_start"),
+                  actionEnd: readContinuityText(continuity, "actionEnd", "action_end"),
+                  screenDirection: readContinuityText(continuity, "screenDirection", "screen_direction"),
+                  axisRule: readContinuityText(continuity, "axisRule", "axis_rule"),
+                  continuityNotes: readContinuityText(continuity, "continuityNotes", "continuity_notes"),
+              }
+            : undefined,
         imageUrl: storyboardImageUrl,
         videoUrl,
         duration: typeof shot.duration === "number" ? shot.duration : 3,
@@ -339,6 +419,11 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
                   ) as Shot["frames"])
                 : undefined,
     };
+}
+
+function readContinuityText(value: Record<string, unknown>, ...keys: string[]) {
+    for (const key of keys) if (typeof value[key] === "string" && value[key].trim()) return value[key].trim();
+    return "";
 }
 
 function normalizeGenerationHistory(value: unknown): DramaLabGenerationHistory[] {
@@ -909,7 +994,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                         strictApprovalBlock={activeCollaborationStage ? stageApprovalBlock(activeCollaborationStage.key) : undefined}
                         onSubmit={submitForApproval}
                     />
-                    {activeStep === "script" && <ScriptEditor project={project} episode={activeEpisode} onSave={saveProject} onActiveEpisodeChange={setActiveEpisodeId} messageApi={messageApi} />}
+                    {activeStep === "script" && <ScriptEditor project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onActiveEpisodeChange={setActiveEpisodeId} messageApi={messageApi} />}
                     {activeStep === "review" && <ReviewPanel project={project} episode={activeEpisode} onStepChange={setActiveStep} />}
                     {activeStep === "assets" && <DramaLabVisualAssetsPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onLocateShot={locateStoryboardShot} messageApi={messageApi} />}
                     {activeStep === "storyboard" && <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onShotSynced={updateProjectShotFromSync} messageApi={messageApi} />}
@@ -964,12 +1049,14 @@ function ScriptEditor({
     project,
     episode,
     onSave,
+    onReload,
     onActiveEpisodeChange,
     messageApi,
 }: {
     project: Project;
     episode?: Episode;
     onSave: (updates: Partial<Project>, options?: SaveOptions) => Promise<boolean>;
+    onReload: () => Promise<void>;
     onActiveEpisodeChange: (episodeId: string) => void;
     messageApi: ReturnType<typeof message.useMessage>[0];
 }) {
@@ -988,6 +1075,7 @@ function ScriptEditor({
     const [scriptLibraryProjects, setScriptLibraryProjects] = useState<ScriptLibraryProject[]>([]);
     const [previewEpisodeId, setPreviewEpisodeId] = useState<string>();
 
+    type StoryTaskState = { status?: string; error?: string; episodeCount?: number; persistedEpisodeCount?: number; taskId?: string };
     useEffect(() => {
         form.setFieldsValue({
             storyOutline: project.description || "",
@@ -1039,6 +1127,61 @@ function ScriptEditor({
         [],
     );
 
+    const waitForStoryTask = useCallback(
+        async (taskId: string, isCancelled: () => boolean = () => false) => {
+            const deadline = Date.now() + 30 * 60 * 1000;
+            let taskState: StoryTaskState | null = null;
+            while (Date.now() < deadline) {
+                if (isCancelled()) return null;
+                await new Promise((resolve) => window.setTimeout(resolve, 1500));
+                if (isCancelled()) return null;
+                const poll = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/generate-script?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store" });
+                await assertJsonApiResponse(poll);
+                const payload = await poll.json();
+                if (!poll.ok || payload.code !== 0) throw new Error(payload.msg || "剧本任务查询失败");
+                taskState = payload.data || {};
+                if (taskState?.status === "success") break;
+                if (taskState?.status === "error" || taskState?.status === "cancelled") throw new Error(taskState.error || "剧本生成失败");
+            }
+            if (!taskState || taskState.status !== "success") throw new Error("剧本生成超时，请刷新页面继续查询");
+            if (isCancelled()) return null;
+            await onReload();
+            return taskState;
+        },
+        [onReload, project.id],
+    );
+
+    // Reattach to a durable story task after a page refresh. The server owns
+    // task state, so the UI must not rely on an in-memory taskId from the
+    // previous page instance.
+    useEffect(() => {
+        let disposed = false;
+        const recover = async () => {
+            try {
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/generate-script`, { cache: "no-store" });
+                await assertJsonApiResponse(response);
+                const payload = await response.json();
+                if (!response.ok || payload.code !== 0 || !payload.data?.taskId) return;
+                if (payload.data.status === "success") {
+                    await onReload();
+                    return;
+                }
+                setGenerating(true);
+                messageApi.loading({ content: "正在恢复剧本生成任务...", key: "generate-script", duration: 0 });
+                const taskState = await waitForStoryTask(String(payload.data.taskId), () => disposed);
+                if (!disposed && taskState) messageApi.success({ content: `剧本生成成功，共 ${taskState.episodeCount || taskState.persistedEpisodeCount || 1} 集`, key: "generate-script", duration: 3 });
+            } catch (error) {
+                if (!disposed) messageApi.error({ content: error instanceof Error ? error.message : "剧本任务恢复失败", key: "generate-script", duration: 3 });
+            } finally {
+                if (!disposed) setGenerating(false);
+            }
+        };
+        void recover();
+        return () => {
+            disposed = true;
+        };
+    }, [messageApi, project.id, waitForStoryTask]);
+
     // AI 生成剧本
     const handleGenerateScript = async () => {
         const values = form.getFieldsValue();
@@ -1068,11 +1211,11 @@ function ScriptEditor({
             });
             await assertJsonApiResponse(response);
             const data = await response.json();
-            if (!response.ok || data.code !== 0 || !data.data?.script) throw new Error(data.msg || "生成失败");
-            scriptForm.setFieldsValue({ script: data.data.script });
-            const saved = await saveNow();
-            if (!saved) throw new Error("保存剧本失败");
-            messageApi.success({ content: "剧本生成成功", key: "generate-script", duration: 3 });
+            if (!response.ok || data.code !== 0 || !data.data?.taskId) throw new Error(data.msg || "生成失败");
+            const taskId = String(data.data.taskId);
+            const taskState = await waitForStoryTask(taskId);
+            if (!taskState) return;
+            messageApi.success({ content: `剧本生成成功，共 ${taskState.episodeCount || taskState.persistedEpisodeCount || 1} 集`, key: "generate-script", duration: 3 });
         } catch (err) {
             messageApi.error({ content: err instanceof Error ? err.message : "生成剧本失败", key: "generate-script", duration: 3 });
         } finally {
@@ -1200,7 +1343,15 @@ function ScriptEditor({
                                                 {generating ? "生成中..." : "生成剧本"}
                                             </Button>
 
-                                            <Button icon={<Download className="size-4" />}>导入小说</Button>
+                                            <DramaLabNovelImport
+                                                projectId={project.id}
+                                                currentEpisodeCount={project.episodes.length}
+                                                messageApi={messageApi}
+                                                onImported={async (episodeId) => {
+                                                    await onReload();
+                                                    if (episodeId) onActiveEpisodeChange(episodeId);
+                                                }}
+                                            />
                                             <div className="ml-auto flex min-h-5 items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
                                                 {saveStatus === "pending" ? (
                                                     <>

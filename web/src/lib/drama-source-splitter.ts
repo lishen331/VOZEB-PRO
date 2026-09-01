@@ -34,17 +34,24 @@ function headingSections(source: string) {
     let lines: string[] = [];
     for (const line of source.split("\n")) {
         const trimmed = line.trim();
-        if (HEADING_PATTERN.test(trimmed) && lines.some((item) => item.trim())) {
+        const heading = sourceHeading(trimmed);
+        if (heading && lines.some((item) => item.trim())) {
             sections.push({ title, text: lines.join("\n").trim() });
-            title = trimmed;
-            lines = [trimmed];
+            title = heading;
+            lines = [line];
             continue;
         }
-        if (HEADING_PATTERN.test(trimmed) && !lines.length) title = trimmed;
+        if (heading && !lines.length) title = heading;
         lines.push(line);
     }
     if (lines.some((item) => item.trim())) sections.push({ title, text: lines.join("\n").trim() });
     return sections.length ? sections : [{ title: "", text: source }];
+}
+
+/** Markdown files commonly prefix chapter titles with one or more `#` marks. */
+function sourceHeading(value: string) {
+    const heading = value.replace(/^#{1,6}\s+/u, "").trim();
+    return HEADING_PATTERN.test(heading) ? heading : "";
 }
 
 function chunkText(value: string, target: number) {
