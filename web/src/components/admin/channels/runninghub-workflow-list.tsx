@@ -43,7 +43,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState<"all" | "enabled" | "disabled">("all");
-    const [editor, setEditor] = useState<PublicRunningHubWorkflow | null | undefined>();
+    const [editor, setEditor] = useState<{ workflow?: PublicRunningHubWorkflow; autoDiscover?: boolean } | null | undefined>();
     const [testWorkflow, setTestWorkflow] = useState<PublicRunningHubWorkflow | null>(null);
 
     const load = useCallback(async () => {
@@ -124,10 +124,10 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
             },
             getRunningHubWorkflowActionColumn((_, item) => (
                 <Space size={4} wrap>
-                    <Button size="small" icon={<Settings2 className="size-3.5" />} onClick={() => setEditor(item)}>
+                    <Button size="small" icon={<Settings2 className="size-3.5" />} onClick={() => setEditor({ workflow: item })}>
                         编辑
                     </Button>
-                    <Button size="small" icon={<RefreshCw className="size-3.5" />} onClick={() => setEditor(item)}>
+                    <Button size="small" icon={<RefreshCw className="size-3.5" />} onClick={() => setEditor({ workflow: item, autoDiscover: true })}>
                         读取工作流
                     </Button>
                     <Button size="small" icon={<TestTube className="size-3.5" />} onClick={() => setTestWorkflow(item)}>
@@ -200,10 +200,10 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                             <Tag color={item.enabled ? "success" : "default"}>{item.enabled ? "启用" : "停用"}</Tag>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
-                            <Button size="small" onClick={() => setEditor(item)}>
+                            <Button size="small" onClick={() => setEditor({ workflow: item })}>
                                 编辑
                             </Button>
-                            <Button size="small" onClick={() => setEditor(item)}>
+                            <Button size="small" onClick={() => setEditor({ workflow: item, autoDiscover: true })}>
                                 读取工作流
                             </Button>
                             <Button size="small" onClick={() => setTestWorkflow(item)}>
@@ -217,7 +217,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                 ))}
                 {!items.length && !loading ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有工作流" /> : null}
             </div>
-            {editor !== undefined ? <RunningHubWorkflowEditor open channelId={channel.id} workflow={editor || undefined} onClose={() => setEditor(undefined)} onSaved={load} /> : null}
+            {editor !== undefined ? <RunningHubWorkflowEditor open channelId={channel.id} workflow={editor?.workflow} autoDiscover={editor?.autoDiscover} onClose={() => setEditor(undefined)} onSaved={load} /> : null}
             {testWorkflow ? <RunningHubWorkflowTestPanel open workflow={testWorkflow} onClose={() => setTestWorkflow(null)} /> : null}
         </section>
     );

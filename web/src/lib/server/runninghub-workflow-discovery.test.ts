@@ -29,6 +29,8 @@ describe("RunningHub workflow discovery", () => {
         );
         expect(result.warnings.some((warning) => warning.includes("默认文件依赖"))).toBe(true);
         expect(result.suggestedOutputs[0]).toMatchObject({ nodeId: "92", assetType: "VIDEO" });
+        expect(result.suggestedInputs.filter((item) => item.type === "image")).toHaveLength(3);
+        expect(result.suggestedNodeMappings.filter((item) => item.inputKey.startsWith("referenceImage"))).toHaveLength(3);
     });
 
     it("recognizes Boogu prompt and image candidates without hard-coding universal node ids", () => {
@@ -58,5 +60,11 @@ describe("RunningHub workflow discovery", () => {
     it("keeps nodes without writable semantic fields as low-confidence unknown candidates", () => {
         const result = analyzeRunningHubWorkflowJson({ workflowId: "wf", raw: { "999": { class_type: "CustomNode", inputs: { upstream: ["1", 0] } } }, capability: "image" });
         expect(result.candidates).toEqual([expect.objectContaining({ nodeId: "999", role: "unknown", confidence: "low" })]);
+    });
+
+    it("preserves enum arrays and redacts sensitive defaults", () => {
+        const result = analyzeRunningHubWorkflowJson({ workflowId: "wf", raw: { "1": { class_type: "Control", inputs: { quality: ["low", "high"], apiKey: "secret" } } }, capability: "image" });
+        expect(result.candidates).toEqual(expect.arrayContaining([expect.objectContaining({ fieldName: "quality", role: "enum" })]));
+        expect(JSON.stringify(result)).not.toContain("secret");
     });
 });

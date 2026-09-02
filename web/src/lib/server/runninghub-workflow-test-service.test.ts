@@ -12,7 +12,13 @@ const mocks = vi.hoisted(() => ({
     getSettings: vi.fn(),
     setSettings: vi.fn(),
 }));
-vi.mock("@/lib/server/runninghub-workflow-service", () => ({ getWorkflowExecution: mocks.getWorkflowExecution, getWorkflowChannel: mocks.getWorkflowChannel }));
+vi.mock("@/lib/server/runninghub-workflow-service", () => ({
+    getWorkflowExecution: mocks.getWorkflowExecution,
+    getWorkflowChannel: mocks.getWorkflowChannel,
+    RunningHubWorkflowError: class RunningHubWorkflowError extends Error {
+        status = 400;
+    },
+}));
 vi.mock("@/lib/server/runninghub-provider", () => ({ submitRunningHubTask: mocks.submit, queryRunningHubTask: mocks.query, uploadRunningHubMedia: mocks.upload }));
 vi.mock("@/lib/server/admin-workflow-test-store", () => ({ createAdminWorkflowTest: mocks.create, getAdminWorkflowTest: mocks.get, updateAdminWorkflowTest: mocks.update }));
 vi.mock("@/lib/auth/store", () => ({ getFreshAuthSettings: mocks.getSettings, setAuthSettings: mocks.setSettings }));
@@ -36,7 +42,7 @@ const config = {
     requestTemplate: "",
     inputSchema: [{ key: "prompt", label: "提示词", type: "text", required: true }],
     nodeMappings: [{ paramKey: "prompt", nodeId: "1", fieldName: "text", valueType: "STRING", source: "INPUT", inputKey: "prompt" }],
-    outputMappings: [],
+    outputMappings: [{ key: "text", label: "文本", nodeId: "2", assetType: "TEXT", required: true }],
 } as const;
 
 describe("runninghub workflow test service", () => {

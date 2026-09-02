@@ -5,6 +5,7 @@ import { readJsonBodyResult } from "@/lib/auth/request";
 import { getPracticeSessionForUser, retryPracticeSessionForUser } from "@/lib/server/practice-session-service";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { trustedPracticeTaskHeaders } from "@/lib/server/generation-execution-policy";
+import { recordWorkflowTaskContext } from "@/lib/server/runninghub-workflow-runtime";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser(request);
@@ -44,10 +45,7 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
         clientRequestId: input.clientRequestId,
         ...(input.workflow
             ? {
-                  workflowKey: input.workflow.workflowKey,
-                  workflowVersion: input.workflow.version,
-                  upstreamWorkflowId: input.workflow.workflowId,
-                  businessCode: input.workflow.businessCode,
+                  ...recordWorkflowTaskContext(input.workflow),
                   taskOrigin: "user" as const,
               }
             : {}),

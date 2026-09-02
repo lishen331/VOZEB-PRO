@@ -48,10 +48,12 @@ async function readTestBody(request: Request): Promise<{ ok: true; data: { input
         const form = await new Request(request.url, { method: request.method, headers: { "content-type": contentType }, body: bytes }).formData();
         const input = JSON.parse(String(form.get("input") || "{}")) as unknown;
         const references = JSON.parse(String(form.get("references") || "[]")) as unknown;
+        const fileKeys = JSON.parse(String(form.get("fileKeys") || "[]")) as unknown;
+        const keys = Array.isArray(fileKeys) ? fileKeys.filter((key): key is string => typeof key === "string") : [];
         const files = form
             .getAll("file")
             .filter((item): item is File => typeof File !== "undefined" && item instanceof File)
-            .map((file) => ({ type: file.type.startsWith("image/") ? "image" : file.type.startsWith("video/") ? "video" : "audio", file, fileName: file.name }));
+            .map((file, index) => ({ type: file.type.startsWith("image/") ? "image" : file.type.startsWith("video/") ? "video" : "audio", inputKey: keys[index], file, fileName: file.name }));
         return { ok: true, data: { input, references: [...(Array.isArray(references) ? references : []), ...files] } };
     } catch {
         return { ok: false, status: 400, message: "测试 multipart 参数无效" };

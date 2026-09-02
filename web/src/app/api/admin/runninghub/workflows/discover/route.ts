@@ -17,12 +17,13 @@ export async function POST(request: Request) {
     if (!isObject(parsed.data) || typeof parsed.data.channelId !== "string" || typeof parsed.data.workflowIdOrUrl !== "string" || !isCapability(parsed.data.capability)) return schoolApiError(400, "读取工作流参数无效");
     if (!parseWorkflowId(parsed.data.workflowIdOrUrl)) return schoolApiError(400, "Workflow ID 必须是数字或包含数字 ID 的完整链接");
     try {
-        const result = await discoverWorkflow({ channelId: parsed.data.channelId, workflowIdOrUrl: parsed.data.workflowIdOrUrl, capability: parsed.data.capability });
+        const capability = parsed.data.capability;
+        const result = await discoverWorkflow({ channelId: parsed.data.channelId, workflowIdOrUrl: parsed.data.workflowIdOrUrl, capability });
         await safeRecordAuditLog({
             action: "admin.runninghub.workflow.discover",
             actor: auditActorFromRequest(request, user),
             target: { type: "runninghub_workflow", id: result.workflowId },
-            metadata: { capability: result.workflowType, nodeCount: result.nodeCount },
+            metadata: { capability, workflowType: result.workflowType, nodeCount: result.nodeCount },
         });
         return schoolApiOk(result);
     } catch (error) {

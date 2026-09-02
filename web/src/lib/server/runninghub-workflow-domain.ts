@@ -52,6 +52,7 @@ export function normalizeRunningHubWorkflowConfig(value: unknown): RunningHubWor
         inputSchema: normalizeInputSchema(input.inputSchema),
         nodeMappings: normalizeNodeMappings(input.nodeMappings),
         outputMappings: normalizeOutputMappings(input.outputMappings),
+        ...(input.testRequired === true ? { testRequired: true } : {}),
         ...(text(input.workflowJsonFingerprint, 128) ? { workflowJsonFingerprint: text(input.workflowJsonFingerprint, 128) } : {}),
         ...(text(input.lastTestConfigFingerprint, 128) ? { lastTestConfigFingerprint: text(input.lastTestConfigFingerprint, 128) } : {}),
         ...(positiveInteger(input.timeoutSeconds, 0) ? { timeoutSeconds: positiveInteger(input.timeoutSeconds, 0) } : {}),
@@ -122,7 +123,9 @@ export function validateRunningHubWorkflowConfig(value: unknown, siblings: reado
         if (mapping.nodeId !== undefined && !text(mapping.nodeId, 200)) errors.push(`${path}.nodeId 不能为空`);
     }
 
-    if (input.enabled && (text(input.workflowJsonFingerprint, 128) || text(input.lastTestConfigFingerprint, 128) || input.lastTestResult !== undefined)) {
+    const evidenceRequired = input.testRequired === true || Boolean(text(input.workflowJsonFingerprint, 128) || text(input.lastTestConfigFingerprint, 128));
+    if (input.enabled && evidenceRequired) {
+        if (!normalized.inputSchema.length || !normalized.nodeMappings.length || !normalized.outputMappings.length) errors.push("启用前必须确认至少一个输入映射、节点映射和输出映射");
         if (input.lastTestResult !== "success" || text(input.lastTestConfigFingerprint, 128) !== runningHubWorkflowConfigFingerprint(input)) errors.push("启用前必须存在当前配置对应的成功测试证据");
     }
     const duplicateEnabled = siblings.filter((sibling) => {
@@ -157,17 +160,25 @@ export function runningHubWorkflowConfigFingerprint(value: unknown): string {
         businessCode: text(input.businessCode, 160),
         capability: text(input.capability, 40),
         workflowJsonFingerprint: text(input.workflowJsonFingerprint, 128),
+        createPath: path(input.createPath) || "/task/openapi/create",
+        queryPath: path(input.queryPath) || "/openapi/v2/query",
+        taskIdField: text(input.taskIdField, 500) || "data.taskId",
+        statusField: text(input.statusField, 500) || "data.status",
+        resultField: text(input.resultField, 500) || "data.result",
+        requestTemplate: text(input.requestTemplate, 12_000) || "{}",
+        runOptions: normalizeRunOptions(input.runOptions) || null,
+        timeoutSeconds: positiveInteger(input.timeoutSeconds, 0) || null,
         inputSchema: sortByKey(normalizeInputSchema(input.inputSchema), "key"),
         nodeMappings: sortByKey(normalizeNodeMappings(input.nodeMappings), "paramKey"),
         outputMappings: sortByKey(normalizeOutputMappings(input.outputMappings), "key"),
     };
-    return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    return createHash("sha256").update(stableStringify(payload)).digest("hex");
 }
 
 export function workflowRequiresRetest(value: unknown): boolean {
     const input = asRecord(value);
     const recorded = text(input.lastTestConfigFingerprint, 128);
-    if (!recorded && !text(input.workflowJsonFingerprint, 128)) return false;
+    if (input.testRequired !== true && !recorded && !text(input.workflowJsonFingerprint, 128)) return false;
     return input.lastTestResult !== "success" || recorded !== runningHubWorkflowConfigFingerprint(value);
 }
 
@@ -241,4 +252,15 @@ function isJsonPrimitive(value: unknown): value is string | number | boolean | n
 
 function sortByKey<T extends Record<string, unknown>>(items: T[], key: string): T[] {
     return [...items].sort((left, right) => String(left[key] || "").localeCompare(String(right[key] || "")));
+}
+
+function stableStringify(value: unknown): string {
+    if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+    if (value && typeof value === "object") {
+        return `{${Object.entries(value as Record<string, unknown>)
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
+            .join(",")}}`;
+    }
+    return JSON.stringify(value);
 }
