@@ -489,7 +489,7 @@ export async function reviewDramaLabJoinRequest(userId: string, projectId: strin
             if (!request) throw new DramaLabCollaborationError("加入申请不存在", 404);
             if (request.status !== "pending") throw new DramaLabCollaborationError("加入申请已处理", 409);
             const status = decision === "approve" ? "approved" : "rejected";
-            const updated = await client.query<DbJoinRequest>("UPDATE drama_lab_join_requests SET status = $3, reviewed_by = $4, reviewed_at = $5, note = $6, updated_at = $5 WHERE id = $1 AND status = 'pending' RETURNING *", [requestId, group.id, status, userId, new Date(now), note.slice(0, 2000)]);
+            const updated = await client.query<DbJoinRequest>("UPDATE drama_lab_join_requests SET status = $3, reviewed_by = $4, reviewed_at = $5, note = $6, updated_at = $5 WHERE id = $1 AND group_id = $2 AND status = 'pending' RETURNING *", [requestId, group.id, status, userId, new Date(now), note.slice(0, 2000)]);
             if (!updated.rows[0]) throw new DramaLabCollaborationError("加入申请已被其他管理员处理", 409);
             if (decision === "approve") await client.query("INSERT INTO drama_lab_project_members (group_id,user_id,role,status,permissions,joined_at,updated_at) VALUES ($1,$2,'member','active',$3::jsonb,$4,$4) ON CONFLICT (group_id,user_id) DO UPDATE SET status='active', updated_at=EXCLUDED.updated_at", [group.id, request.applicant_user_id, JSON.stringify({ manageMembers: false, approve: false }), new Date(now)]);
             return mapJoinRequest(updated.rows[0]);

@@ -82,6 +82,33 @@ describe("drama lab collaboration service", () => {
         await expect(listDramaLabMembers("owner", "project-one", "member")).resolves.toEqual([expect.objectContaining({ userId: "member", role: "member" })]);
     });
 
+    it("scopes PostgreSQL join-request review to the group and uses contiguous parameters", async () => {
+        mocks.getDatabaseProvider.mockReturnValue("postgres");
+        const groupRow = { id: "group-one", project_id: "project-one", owner_user_id: "owner", created_at: "2026-09-02T00:00:00.000Z", updated_at: "2026-09-02T00:00:00.000Z" };
+        const requestRow = { id: "request-one", group_id: "group-one", project_id: "project-one", applicant_user_id: "member", status: "pending", created_at: "2026-09-02T00:00:00.000Z", updated_at: "2026-09-02T00:00:00.000Z" };
+        const memberRow = { group_id: "group-one", user_id: "owner", role: "owner", status: "active", permissions: { manageMembers: true, approve: true }, joined_at: "2026-09-02T00:00:00.000Z", updated_at: "2026-09-02T00:00:00.000Z" };
+        mocks.postgresQuery.mockImplementation(async (sql: string) => {
+            if (sql.includes("drama_lab_project_groups")) return { rows: [groupRow] };
+            if (sql.includes("drama_lab_project_members")) return { rows: [memberRow] };
+            return { rows: [] };
+        });
+        const client = {
+            query: vi.fn(async (sql: string, _params?: unknown[]) => {
+                if (sql.includes("SELECT * FROM drama_lab_join_requests")) return { rows: [requestRow] };
+                if (sql.includes("UPDATE drama_lab_join_requests")) return { rows: [{ ...requestRow, status: "approved", reviewed_by: "owner" }] };
+                return { rows: [] };
+            }),
+        };
+        mocks.withPostgresTransaction.mockImplementation(async (callback: (value: typeof client) => Promise<unknown>) => callback(client));
+
+        await expect(reviewDramaLabJoinRequest("owner", "project-one", "request-one", "approve")).resolves.toMatchObject({ id: "request-one", status: "approved" });
+
+        const updateCall = client.query.mock.calls.find(([sql]) => String(sql).includes("UPDATE drama_lab_join_requests"));
+        expect(updateCall?.[0]).toContain("group_id = $2");
+        expect(updateCall?.[0]).toMatch(/WHERE id = \$1 AND group_id = \$2 AND status = 'pending'/);
+        expect(updateCall?.[1]).toHaveLength(6);
+    });
+
     it("does not expose or search users outside the project", async () => {
         await ensureDramaLabProjectGroup("project-one", "owner");
         const invite = await createDramaLabInvite("owner", "project-one");
