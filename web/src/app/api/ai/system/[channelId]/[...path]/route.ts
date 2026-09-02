@@ -216,10 +216,11 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
 
     let upstream: Response;
     try {
+        const outboundBody = injectRunningHubWorkflowApiKey(globalAdaptation?.body || requestBody.body, globalAdaptation?.path || path, modelConfig?.protocol || channel.advancedConfig?.protocol, channel.apiKey);
         upstream = await fetchSafeOutbound(target, {
             method: request.method,
             headers,
-            body: globalAdaptation?.body || requestBody.body,
+            body: outboundBody,
             cache: "no-store",
             redirect: "manual",
             signal: request.signal,
@@ -273,6 +274,19 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
 
 function isJsonResponse(response: Response) {
     return /^\s*(?:application|text)\/(?:[a-z0-9.+-]+\+)?json\b/i.test(response.headers.get("content-type") || "");
+}
+
+function injectRunningHubWorkflowApiKey(body: BodyInit | undefined, path: string[], protocol: string | undefined, apiKey: string) {
+    if (protocol !== "runninghub" || path.join("/").replace(/^\/+|\/+$/g, "") !== "task/openapi/create" || !(body instanceof ArrayBuffer)) return body;
+    try {
+        const parsed = JSON.parse(new TextDecoder().decode(body)) as unknown;
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return body;
+        const record = parsed as Record<string, unknown>;
+        if (record.apiKey === apiKey) return body;
+        return JSON.stringify({ ...record, apiKey });
+    } catch {
+        return body;
+    }
 }
 
 function channelHasModel(models: string[], requested: string) {

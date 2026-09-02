@@ -899,6 +899,60 @@ describe("custom protocol model routing", () => {
     });
 });
 
+describe("RunningHub official workflow proxy", () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.refundUserPoints.mockReset();
+        mocks.safeUrl.mockResolvedValue(true);
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("minimax-video", "video", "workflow-minimax-h3-base")],
+            systemChannels: [
+                {
+                    id: "channel-one",
+                    enabled: true,
+                    baseUrl: "https://www.runninghub.cn",
+                    apiKey: "shared-secret",
+                    apiFormat: "openai",
+                    models: ["workflow-minimax-h3-base"],
+                    advancedConfig: {
+                        protocol: "runninghub",
+                        modelConfigs: {
+                            "workflow-minimax-h3-base": {
+                                capability: "video",
+                                protocol: "runninghub",
+                                createPath: "/task/openapi/create",
+                                queryPath: "/openapi/v2/query",
+                                taskIdField: "data.taskId",
+                                statusField: "status",
+                                resultField: "results",
+                            },
+                        },
+                    },
+                },
+            ],
+        });
+    });
+
+    it("injects the channel key into the official workflow create body", async () => {
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ code: 0, data: { taskId: "task-one" } }));
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/task/openapi/create", {
+                method: "POST",
+                headers: { "content-type": "application/json", ...systemModelHeaders("minimax-video", "workflow-minimax-h3-base") },
+                body: JSON.stringify({ workflowId: "2090436199843454978", nodeInfoList: [], apiKey: "client-supplied-key" }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["task", "openapi", "create"] }) },
+        );
+
+        expect(response.status).toBe(200);
+        const rawBody = fetchMock.mock.calls[0]?.[1]?.body;
+        const upstreamBody = JSON.parse(typeof rawBody === "string" ? rawBody : new TextDecoder().decode(rawBody as ArrayBuffer));
+        expect(upstreamBody).toMatchObject({ workflowId: "2090436199843454978", apiKey: "shared-secret" });
+    });
+});
+
 describe("system proxy authorization", () => {
     beforeEach(() => {
         vi.restoreAllMocks();

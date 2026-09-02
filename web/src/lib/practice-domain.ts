@@ -1,6 +1,26 @@
 export type PracticeExecutionProfile = "production" | "open-source-practice";
 export type PracticeProjectKind = "canvas" | "drama";
 export type PracticeModuleKind = "script" | "storyboard-image" | "storyboard-video" | "dubbing" | "music";
+export type PracticeSessionMode = "manual" | "workflow";
+export type PracticeSessionPublicStatus = "draft" | "queued" | "running" | "success" | "failed" | "cancelled";
+export type PracticeModuleModelOption = { id: string; label: string };
+export type PracticeModuleInputField = {
+    key: string;
+    label: string;
+    type: "text" | "textarea" | "image" | "number" | "enum" | "boolean";
+    required: boolean;
+    options?: string[];
+    defaultValue?: string | number | boolean | null;
+};
+export type PracticeModuleCapability = {
+    module: PracticeModuleKind;
+    mode: PracticeSessionMode;
+    available: boolean;
+    unavailableReason?: string;
+    models: PracticeModuleModelOption[];
+    inputSchema: PracticeModuleInputField[];
+    outputType: "text" | "image" | "video" | "audio";
+};
 export type SystemChannelPurpose = "production" | "open-source-practice" | "shared";
 export type PullFilmSourceType = "canvas" | "drama";
 

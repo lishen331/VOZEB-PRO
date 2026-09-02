@@ -1,7 +1,7 @@
 import type { AuthSettings, RunningHubWorkflowConfig, RunningHubWorkflowInputField, RunningHubNodeMapping } from "@/lib/auth/store";
 
 import { buildProviderRequest } from "./provider-task-config";
-import { isRunningHubWorkflowBusinessCode, normalizeRunningHubWorkflowConfig } from "./runninghub-workflow-domain";
+import { isRunningHubWorkflowBusinessCode, normalizeRunningHubWorkflowConfig, runningHubWorkflowConfigFingerprint, workflowRequiresRetest } from "./runninghub-workflow-domain";
 
 export type { RunningHubWorkflowConfig } from "@/lib/auth/store";
 
@@ -25,7 +25,7 @@ export function buildRunningHubWorkflowPayload(input: RunningHubWorkflowRuntimeI
 }
 
 export function recordWorkflowTaskContext(config: RunningHubWorkflowConfig) {
-    return { workflowKey: config.workflowKey, workflowVersion: config.version, upstreamWorkflowId: config.workflowId, businessCode: config.businessCode };
+    return { workflowKey: config.workflowKey, workflowVersion: config.version, upstreamWorkflowId: config.workflowId, businessCode: config.businessCode, workflowConfigFingerprint: runningHubWorkflowConfigFingerprint(config) };
 }
 
 export function workflowTimeoutMs(config: Pick<RunningHubWorkflowConfig, "timeoutSeconds"> | undefined, fallbackMs: number) {
@@ -42,18 +42,19 @@ export function workflowTaskContextForChannel(channel: { advancedConfig?: import
     if (!channel || !businessCode) return {};
     const workflow = Object.values(channel.advancedConfig?.workflowConfigs || {})
         .map(normalizeRunningHubWorkflowConfig)
-        .filter((item) => item.enabled && item.businessCode === businessCode)
+        .filter((item) => item.enabled && item.businessCode === businessCode && !workflowRequiresRetest(item))
         .sort((left, right) => right.version - left.version)[0];
     return workflow ? { ...recordWorkflowTaskContext(workflow), taskOrigin: "user" as const } : {};
 }
 
 export function resolvePracticeLogicalModel(
-    settings: { practiceWorkflowModels?: Record<string, string | undefined>; practiceDefaultModels?: Record<string, string | undefined> },
+    settings: { practiceWorkflowModels?: Record<string, string | string[] | undefined>; practiceDefaultModels?: Record<string, string | undefined> },
     capability: "text" | "image" | "video" | "audio",
     businessCode: string,
     requestedModel?: string,
 ) {
-    const bound = settings.practiceWorkflowModels?.[businessCode];
+    const rawBound = settings.practiceWorkflowModels?.[businessCode];
+    const bound = Array.isArray(rawBound) ? rawBound[0] : rawBound;
     if (bound) return bound;
     const key = `${capability}Model`;
     return settings.practiceDefaultModels?.[key] || requestedModel || "";
@@ -67,14 +68,15 @@ export function attachPracticeWorkflowToChannel<T extends { channelId?: string; 
     if (context.executionProfile !== "open-source-practice" || !context.businessCode) return channel;
     if (!isRunningHubWorkflowBusinessCode(context.businessCode)) throw new Error("练习工作流业务 code 无效");
     const logicalModelId = channel.logicalModel || "";
-    const boundModelId = settings.practiceWorkflowModels[context.businessCode];
+    const rawBoundModelId = settings.practiceWorkflowModels[context.businessCode];
+    const boundModelId = Array.isArray(rawBoundModelId) ? rawBoundModelId[0] : rawBoundModelId;
     if (boundModelId && boundModelId !== logicalModelId) throw new Error("练习工作流与逻辑模型绑定不匹配");
     const sourceChannel = settings.systemChannels.find((item) => item.id === channel.channelId);
     if (!sourceChannel || sourceChannel.advancedConfig?.protocol !== "runninghub") throw new Error("练习工作流渠道不可用");
     const workflows = Object.values(sourceChannel.advancedConfig.workflowConfigs || {}).map(normalizeRunningHubWorkflowConfig);
     const workflow = context.workflowKey
-        ? workflows.find((item) => item.workflowKey === context.workflowKey && item.version === context.workflowVersion && item.businessCode === context.businessCode && item.enabled)
-        : workflows.filter((item) => item.businessCode === context.businessCode && item.enabled).sort((left, right) => right.version - left.version)[0];
+        ? workflows.find((item) => item.workflowKey === context.workflowKey && item.version === context.workflowVersion && item.businessCode === context.businessCode && item.enabled && !workflowRequiresRetest(item))
+        : workflows.filter((item) => item.businessCode === context.businessCode && item.enabled && !workflowRequiresRetest(item)).sort((left, right) => right.version - left.version)[0];
     if (!workflow) throw new Error("练习工作流版本不存在或已停用");
     const advancedConfig = {
         ...(channel.advancedConfig || sourceChannel.advancedConfig),
@@ -103,7 +105,12 @@ export function workflowConfigForTask(task: {
     const config = task.config.advancedConfig?.workflowConfigs?.[task.workflowKey];
     if (!config) return undefined;
     const normalized = normalizeRunningHubWorkflowConfig(config);
-    return normalized.workflowKey === task.workflowKey && normalized.version === task.workflowVersion && normalized.businessCode === task.businessCode && normalized.enabled && (!task.config.channelId || normalized.channelId === task.config.channelId)
+    return normalized.workflowKey === task.workflowKey &&
+        normalized.version === task.workflowVersion &&
+        normalized.businessCode === task.businessCode &&
+        normalized.enabled &&
+        (!task.config.channelId || normalized.channelId === task.config.channelId) &&
+        !workflowRequiresRetest(normalized)
         ? normalized
         : undefined;
 }

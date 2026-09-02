@@ -5,6 +5,7 @@ import type { GenerationTaskType } from "@/lib/server/generation-task-types";
 import { buildRunningHubWorkflowPayload } from "@/lib/server/runninghub-workflow-runtime";
 import { queryRunningHubTask, submitRunningHubTask, uploadRunningHubMedia } from "@/lib/server/runninghub-provider";
 import { getWorkflowChannel, getWorkflowExecution } from "@/lib/server/runninghub-workflow-service";
+import { runningHubWorkflowConfigFingerprint } from "@/lib/server/runninghub-workflow-domain";
 
 import { createAdminWorkflowTest, getAdminWorkflowTest, updateAdminWorkflowTest, type AdminWorkflowTestRecord } from "./admin-workflow-test-store";
 
@@ -15,6 +16,7 @@ export async function startRunningHubWorkflowTest(input: StartWorkflowTestInput)
     const { config, channel } = await getWorkflowExecution(input.workflowKey);
     const references = await prepareReferences(channel.baseUrl, channel.apiKey || "", input.references || []);
     const payload = buildRunningHubWorkflowPayload({ config, businessInput: input.input, references });
+    const configFingerprint = runningHubWorkflowConfigFingerprint(config);
     const type = taskType(config.capability);
     const record = await createAdminWorkflowTest({
         id: randomUUID(),
@@ -27,6 +29,7 @@ export async function startRunningHubWorkflowTest(input: StartWorkflowTestInput)
         status: "pending",
         durationMs: undefined,
         workflowConfig: structuredClone(config),
+        configFingerprint,
     });
     try {
         const submitted = await submitRunningHubTask({ baseUrl: channel.baseUrl, apiKey: channel.apiKey || "", config, payload });
@@ -65,7 +68,7 @@ export async function inspectRunningHubWorkflowTest(input: { workflowKey: string
             durationMs: Date.now() - record.createdAt,
         };
         const saved = await updateAdminWorkflowTest(next);
-        if (saved.status === "success" || saved.status === "error") await saveWorkflowTestSummary(config.workflowKey, saved.status === "success" ? "success" : "failed", saved.error);
+        if (saved.status === "success" || saved.status === "error") await saveWorkflowTestSummary(config.workflowKey, saved.status === "success" ? "success" : "failed", saved.error, saved.configFingerprint);
         return publicTest(saved);
     } catch (error) {
         const saved = await updateAdminWorkflowTest({ ...record, status: "error", error: safeError(error), durationMs: Date.now() - record.createdAt });
@@ -101,6 +104,8 @@ function publicTest(record: AdminWorkflowTestRecord) {
         runId: record.id,
         status: record.status,
         taskId: record.taskId,
+        workflowId: record.upstreamWorkflowId,
+        configFingerprint: record.configFingerprint,
         workflowKey: record.workflowKey,
         workflowVersion: record.workflowVersion,
         durationMs: record.durationMs,
@@ -112,7 +117,7 @@ function publicTest(record: AdminWorkflowTestRecord) {
     };
 }
 
-async function saveWorkflowTestSummary(workflowKey: string, result: "success" | "failed", error?: string) {
+async function saveWorkflowTestSummary(workflowKey: string, result: "success" | "failed", error?: string, configFingerprint?: string) {
     const settings = await getFreshAuthSettings();
     const systemChannels = settings.systemChannels.map((channel) => {
         const workflows = channel.advancedConfig?.workflowConfigs;
@@ -122,7 +127,16 @@ async function saveWorkflowTestSummary(workflowKey: string, result: "success" | 
             ...channel,
             advancedConfig: {
                 ...channel.advancedConfig!,
-                workflowConfigs: { ...workflows, [workflowKey]: { ...current, lastTestAt: new Date().toISOString(), lastTestResult: result, lastTestError: result === "failed" ? error?.slice(0, 500) : undefined } },
+                workflowConfigs: {
+                    ...workflows,
+                    [workflowKey]: {
+                        ...current,
+                        lastTestAt: new Date().toISOString(),
+                        lastTestResult: result,
+                        ...(result === "success" && configFingerprint ? { lastTestConfigFingerprint: configFingerprint } : { lastTestConfigFingerprint: undefined }),
+                        lastTestError: result === "failed" ? error?.slice(0, 500) : undefined,
+                    },
+                },
             },
         };
     });

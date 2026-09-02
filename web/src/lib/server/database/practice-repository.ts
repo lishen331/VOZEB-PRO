@@ -9,11 +9,27 @@ export class PracticeRepository {
 
     async createPracticeSession(input: PracticeSessionCreateInput) {
         const result = await this.db.query(
-            `INSERT INTO practice_sessions (id, user_id, project_id, project_kind, module, title, client_request_id, execution_profile, prompt_json, input_json, task_refs, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'open-source-practice', $8::jsonb, $9::jsonb, $10::jsonb, $11)
+            `INSERT INTO practice_sessions (id, user_id, project_id, project_kind, module, mode, title, client_request_id, execution_profile, prompt_json, input_json, task_refs, selected_logical_model_id, error_code, error_message, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'open-source-practice', $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, $15)
              ON CONFLICT (user_id, client_request_id) DO UPDATE SET updated_at = practice_sessions.updated_at
              RETURNING *`,
-            [input.id, input.userId, input.projectId || null, input.projectKind, input.module, input.title || "练习会话", input.clientRequestId || input.id, jsonParam(input.prompt), jsonParam(input.input), jsonParam(input.taskRefs), input.status],
+            [
+                input.id,
+                input.userId,
+                input.projectId || null,
+                input.projectKind,
+                input.module,
+                input.mode || "workflow",
+                input.title || "练习会话",
+                input.clientRequestId || input.id,
+                jsonParam(input.prompt),
+                jsonParam(input.input),
+                jsonParam(input.taskRefs),
+                input.selectedLogicalModelId || null,
+                input.errorCode || null,
+                input.errorMessage || null,
+                input.status,
+            ],
         );
         return mapPracticeSession(result.rows[0]);
     }
@@ -37,23 +53,38 @@ export class PracticeRepository {
     async resetPracticeSessionForRetry(userId: string, id: string) {
         const result = await this.db.query(
             `UPDATE practice_sessions
-             SET status = 'queued', task_refs = '[]'::jsonb
-             WHERE user_id = $1 AND id = $2 AND status IN ('failed', 'cancelled')
+             SET status = 'queued', task_refs = '[]'::jsonb, error_code = NULL, error_message = NULL
+             WHERE user_id = $1 AND id = $2 AND (status IN ('failed', 'cancelled') OR (status = 'running' AND task_refs = '[]'::jsonb))
              RETURNING *`,
             [userId, id],
         );
         return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
     }
 
-    async updatePracticeSession(userId: string, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title">>) {
+    async updatePracticeSession(userId: string, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title" | "selectedLogicalModelId" | "errorCode" | "errorMessage">>) {
         const current = await this.getPracticeSessionForUser(userId, id);
         if (!current) return null;
+        const values: unknown[] = [userId, id];
+        const assignments: string[] = [];
+        const add = (column: string, value: unknown, cast = "") => {
+            values.push(value);
+            assignments.push(`${column} = $${values.length}${cast}`);
+        };
+        if (patch.status !== undefined) add("status", patch.status);
+        if (Object.prototype.hasOwnProperty.call(patch, "taskRefs")) add("task_refs", patch.taskRefs === undefined ? null : jsonParam(patch.taskRefs), "::jsonb");
+        if (patch.prompt !== undefined) add("prompt_json", jsonParam(patch.prompt), "::jsonb");
+        if (patch.input !== undefined) add("input_json", jsonParam(patch.input), "::jsonb");
+        if (patch.title !== undefined) add("title", patch.title || null);
+        if (patch.selectedLogicalModelId !== undefined) add("selected_logical_model_id", patch.selectedLogicalModelId || null);
+        if (Object.prototype.hasOwnProperty.call(patch, "errorCode")) add("error_code", patch.errorCode || null);
+        if (Object.prototype.hasOwnProperty.call(patch, "errorMessage")) add("error_message", patch.errorMessage || null);
+        if (!assignments.length) return current;
         const result = await this.db.query(
             `UPDATE practice_sessions
-             SET status = COALESCE($3, status), task_refs = COALESCE($4::jsonb, task_refs), prompt_json = COALESCE($5::jsonb, prompt_json), input_json = COALESCE($6::jsonb, input_json), title = COALESCE($7, title)
+             SET ${assignments.join(", ")}
              WHERE user_id = $1 AND id = $2
              RETURNING *`,
-            [userId, id, patch.status || null, patch.taskRefs === undefined ? null : jsonParam(patch.taskRefs), patch.prompt === undefined ? null : jsonParam(patch.prompt), patch.input === undefined ? null : jsonParam(patch.input), patch.title || null],
+            values,
         );
         return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
     }
@@ -166,12 +197,16 @@ function mapPracticeSession(row: Record<string, unknown>): PracticeSessionRecord
         projectId: optionalString(row.project_id),
         projectKind: row.project_kind === "drama" ? "drama" : "canvas",
         module: practiceModule(row.module),
+        mode: row.mode === "manual" ? "manual" : "workflow",
         title: optionalString(row.title) || "练习会话",
         clientRequestId: stringValue(row.client_request_id),
         executionProfile: "open-source-practice",
         prompt: jsonValue(row.prompt_json),
         input: jsonValue(row.input_json),
         taskRefs: jsonValue(row.task_refs),
+        ...(optionalString(row.selected_logical_model_id) ? { selectedLogicalModelId: optionalString(row.selected_logical_model_id) } : {}),
+        ...(optionalString(row.error_code) ? { errorCode: optionalString(row.error_code) } : {}),
+        ...(optionalString(row.error_message) ? { errorMessage: optionalString(row.error_message) } : {}),
         status: practiceSessionStatus(row.status),
         createdAt: isoValue(row.created_at),
         updatedAt: isoValue(row.updated_at),
