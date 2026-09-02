@@ -51,7 +51,7 @@ describe("RunningHub workflow discovery", () => {
     });
 
     it("does not silently map ambiguous prompts and never returns secrets", () => {
-        const result = analyzeRunningHubWorkflowJson({ workflowId: "wf", raw: { "1": { class_type: "TextInput", inputs: { prompt: "one", text: "two", apiKey: "secret" } } }, capability: "text" });
+        const result = analyzeRunningHubWorkflowJson({ workflowId: "wf", raw: { "1": { class_type: "TextInput", inputs: { prompt: "one", text: "two", value: "example-placeholder-value", apiKey: "secret" } } }, capability: "text" });
         expect(result.suggestedNodeMappings.filter((item) => item.inputKey === "prompt")).toHaveLength(0);
         expect(result.warnings.some((warning) => warning.includes("多个提示词"))).toBe(true);
         expect(JSON.stringify(result)).not.toContain("secret");

@@ -178,6 +178,8 @@ function outputLabel(node: Node, capability: LogicalModelCapability) {
 
 function inputKeyFor(candidate: RunningHubNodeCandidate, role: RunningHubNodeCandidate["role"], index = 0) {
     if (role === "image") return `referenceImage${index + 1}`;
+    if (role === "video") return `referenceVideo${index + 1}`;
+    if (role === "audio") return `referenceAudio${index + 1}`;
     return role === "duration" ? "duration" : role;
 }
 
@@ -223,7 +225,7 @@ function isNodeLink(value: unknown) {
 
 function safeDefaultValue(fieldName: string, value: unknown) {
     if (!isJsonPrimitive(value) || isSensitiveField(fieldName)) return undefined;
-    if (typeof value === "string" && (/^(?:https?:\/\/|file:\/\/|[A-Za-z]:\\|\/)/.test(value.trim()) || /(?:token|secret|password|api[_-]?key|authorization|private)/i.test(value))) return undefined;
+    if (typeof value === "string") return /^\{\{[^}]+\}\}$/.test(value.trim()) ? value : undefined;
     return value;
 }
 
