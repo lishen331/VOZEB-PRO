@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 
 import { getFreshAuthSettings, setAuthSettings, type AuthSettings, type SystemModelChannel } from "@/lib/auth/store";
 import type { RunningHubWorkflowConfig } from "@/lib/auth/store-types";
-import { isRunningHubWorkflowBusinessCode, nextWorkflowVersion, normalizeRunningHubWorkflowConfig, validateRunningHubWorkflowConfig } from "./runninghub-workflow-domain";
+import { isRunningHubWorkflowBusinessCode, nextWorkflowVersion, normalizeRunningHubWorkflowConfig, validateRunningHubWorkflowConfig, workflowRequiresRetest } from "./runninghub-workflow-domain";
+import { analyzeRunningHubWorkflowJson, type RunningHubWorkflowDiscovery } from "./runninghub-workflow-discovery";
+import { fetchRunningHubWorkflowJson } from "./runninghub-provider";
 
 export class RunningHubWorkflowError extends Error {
     constructor(
@@ -18,6 +20,7 @@ export type PublicRunningHubWorkflow = Omit<RunningHubWorkflowConfig, "requestTe
     requestTemplate?: string;
     requestTemplateConfigured: boolean;
     channelName: string;
+    requiresRetest: boolean;
 };
 
 export type RunningHubWorkflowListResult = {
@@ -75,14 +78,24 @@ export async function getWorkflowChannel(channelId: string) {
     return channel;
 }
 
+export async function discoverWorkflow(input: { channelId: string; workflowIdOrUrl: string; capability: "text" | "image" | "video" | "audio" }): Promise<RunningHubWorkflowDiscovery> {
+    const channel = await getWorkflowChannel(input.channelId);
+    const workflowId = parseWorkflowId(input.workflowIdOrUrl);
+    if (!workflowId) throw new RunningHubWorkflowError("Workflow ID 必须是数字或包含数字 ID 的完整链接", 400);
+    const raw = await fetchRunningHubWorkflowJson({ baseUrl: channel.baseUrl, apiKey: channel.apiKey || "", workflowId });
+    return analyzeRunningHubWorkflowJson({ workflowId, raw, capability: input.capability });
+}
+
 export async function createWorkflow(input: unknown) {
     const settings = await getFreshAuthSettings();
     const raw = asRecord(input);
     const channelId = text(raw.channelId);
     const channel = requireRunningHubChannel(settings, channelId);
     if (!isRunningHubWorkflowBusinessCode(raw.businessCode)) throw new RunningHubWorkflowError("businessCode 无效");
+    const workflowId = parseWorkflowId(raw.workflowId);
+    if (!workflowId) throw new RunningHubWorkflowError("Workflow ID 必须是数字或包含数字 ID 的完整链接");
     const workflowKey = `workflow-${randomUUID()}`;
-    const candidate = normalizeRunningHubWorkflowConfig({ ...raw, workflowKey, providerType: "runninghub", version: 1, enabled: false, lastTestAt: undefined, lastTestResult: undefined, lastTestError: undefined });
+    const candidate = normalizeRunningHubWorkflowConfig({ ...raw, workflowId, workflowKey, providerType: "runninghub", version: 1, enabled: false, lastTestAt: undefined, lastTestResult: undefined, lastTestError: undefined });
     assertValid(
         candidate,
         workflowEntries(settings).map((entry) => entry.config),
@@ -102,6 +115,7 @@ export async function updateWorkflow(workflowKey: string, input: unknown) {
     const candidate = normalizeRunningHubWorkflowConfig({
         ...found.config,
         ...raw,
+        ...(Object.prototype.hasOwnProperty.call(raw, "workflowId") ? { workflowId: parseWorkflowId(raw.workflowId) } : {}),
         workflowKey: found.config.workflowKey,
         version: found.config.version,
         providerType: "runninghub",
@@ -111,6 +125,7 @@ export async function updateWorkflow(workflowKey: string, input: unknown) {
         lastTestResult: found.config.lastTestResult,
         lastTestError: found.config.lastTestError,
     });
+    if (!candidate.workflowId) throw new RunningHubWorkflowError("Workflow ID 必须是数字或包含数字 ID 的完整链接");
     assertValid(
         candidate,
         workflowEntries(settings)
@@ -240,7 +255,7 @@ function assertValid(candidate: RunningHubWorkflowConfig, siblings: readonly Run
 
 function publicWorkflow(config: RunningHubWorkflowConfig, channel: SystemModelChannel): PublicRunningHubWorkflow {
     const { requestTemplate, ...safe } = config;
-    return { ...safe, requestTemplate: requestTemplate ? undefined : "", requestTemplateConfigured: Boolean(requestTemplate), channelName: channel.name };
+    return { ...safe, requestTemplate: requestTemplate ? undefined : "", requestTemplateConfigured: Boolean(requestTemplate), channelName: channel.name, requiresRetest: workflowRequiresRetest(config) };
 }
 
 function uniqueWorkflowKey(settings: AuthSettings, base: string) {
@@ -261,4 +276,17 @@ function text(value: unknown) {
 
 function positiveInteger(value: unknown, fallback: number) {
     return Number.isSafeInteger(value) && Number(value) > 0 ? Number(value) : fallback;
+}
+
+export function parseWorkflowId(value: unknown) {
+    const raw = text(value);
+    if (!raw) return "";
+    if (/^\d+$/.test(raw)) return raw;
+    try {
+        const url = new URL(raw);
+        const parts = `${url.pathname} ${url.search} ${url.hash}`.match(/\d{6,}/g) || [];
+        return parts.sort((left, right) => right.length - left.length)[0] || "";
+    } catch {
+        return "";
+    }
 }

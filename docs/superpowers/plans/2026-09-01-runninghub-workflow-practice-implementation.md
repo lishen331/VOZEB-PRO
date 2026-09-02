@@ -1,5 +1,7 @@
 # RunningHub 无限练习工作流接入实施计划
 
+> 2026-09-02 修订：原“前端不选择模型”条款改为“前端只选择后台绑定的开源逻辑模型”。支持多个绑定，单个绑定显示只读名称，无可用绑定时模块不可提交；provider、channel、workflow、任务和计费字段继续由服务端白名单校验。
+
 > **For agentic workers:** 使用 `superpowers:executing-plans` 按任务顺序执行。每个任务先写失败测试，再写最小实现；每个任务完成后执行定向测试、`pnpm typecheck`，并单独提交。执行前先阅读已确认设计：[2026-09-01-runninghub-workflow-practice-design.md](../specs/2026-09-01-runninghub-workflow-practice-design.md)。
 
 **Goal:** 在已有无限练习、系统渠道、RunningHub provider 和统一生成任务基础上，完成一条可运行且可维护的自定义 RunningHub 工作流链路：平台管理员在后台配置工作流、参数契约、节点映射和出参映射，后台可以真实测试提交/查询/结果读取，学生或老师在绑定学校的无限练习中只按业务 code 使用当前启用版本，结果继续复用现有文本、图片、视频和音频任务组件。无限练习和正式生产执行档案严格隔离；本计划不实施“短剧实验室”替换当前短剧生产模块的页面和生产流程，也不让它进入无限练习。

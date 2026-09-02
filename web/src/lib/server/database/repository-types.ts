@@ -1,7 +1,7 @@
 import type { RegistrationPolicyConsent } from "@/lib/registration-consent";
 import type { AdminPermission } from "@/lib/admin-permissions";
 import type { IpAssetKind, IpAuthorizationMode, IpItemCategory, IpStatus, IpUsageAction, IpVersionStatus, IpVisibility } from "@/lib/ip-library-domain";
-import type { PracticeExecutionProfile, PracticeModuleKind, PracticeProjectKind, SystemChannelPurpose } from "@/lib/practice-domain";
+import type { PracticeExecutionProfile, PracticeModuleKind, PracticeProjectKind, PracticeSessionMode, SystemChannelPurpose } from "@/lib/practice-domain";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -890,18 +890,22 @@ export type PracticeSessionRecord = {
     projectId?: string;
     projectKind: PracticeProjectKind;
     module: PracticeModuleKind;
+    mode: PracticeSessionMode;
     title: string;
     clientRequestId: string;
     executionProfile: PracticeExecutionProfile;
     prompt: JsonValue;
     input: JsonValue;
     taskRefs: JsonValue;
+    selectedLogicalModelId?: string;
+    errorCode?: string;
+    errorMessage?: string;
     status: PracticeSessionStatus;
     createdAt: string;
     updatedAt: string;
 };
 
-export type PracticeSessionCreateInput = Omit<PracticeSessionRecord, "createdAt" | "updatedAt" | "executionProfile" | "title" | "clientRequestId"> & Partial<Pick<PracticeSessionRecord, "executionProfile" | "title" | "clientRequestId">>;
+export type PracticeSessionCreateInput = Omit<PracticeSessionRecord, "createdAt" | "updatedAt" | "executionProfile" | "title" | "clientRequestId" | "mode"> & Partial<Pick<PracticeSessionRecord, "executionProfile" | "title" | "clientRequestId" | "mode">>;
 
 export type PracticeCopyRequestRecord = {
     userId: string;

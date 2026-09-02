@@ -56,6 +56,7 @@ import {
     type AuthSettings,
     type AuthDatabase,
     type RunningHubWorkflowBusinessCode,
+    type PracticeWorkflowModelBindings,
 } from "./store-types";
 import {
     AuthInputError,
@@ -264,16 +265,20 @@ export function normalizeSettings(settings: AuthSettings): AuthSettings {
     };
 }
 
-export function normalizePracticeWorkflowModels(value: unknown): Partial<Record<RunningHubWorkflowBusinessCode, string>> {
+export function normalizePracticeWorkflowModels(value: unknown): PracticeWorkflowModelBindings {
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const allowed = new Set<RunningHubWorkflowBusinessCode>(["script", "storyboard-image", "storyboard-video", "dubbing", "music", "canvas", "drama"]);
     return Object.fromEntries(
-        Object.entries(value as Record<string, unknown>).flatMap(([key, model]) => {
-            if (!allowed.has(key as RunningHubWorkflowBusinessCode) || typeof model !== "string") return [];
-            const normalized = model.trim().slice(0, 160);
-            return normalized ? [[key, normalized] as const] : [];
+        Object.entries(value as Record<string, unknown>).flatMap(([key, raw]) => {
+            if (!allowed.has(key as RunningHubWorkflowBusinessCode)) return [];
+            const ids = (Array.isArray(raw) ? raw : [raw])
+                .filter((item): item is string => typeof item === "string")
+                .map((item) => item.trim().slice(0, 160))
+                .filter(Boolean);
+            const unique = [...new Set(ids)];
+            return unique.length ? [[key, unique] as const] : [];
         }),
-    ) as Partial<Record<RunningHubWorkflowBusinessCode, string>>;
+    ) as PracticeWorkflowModelBindings;
 }
 
 export function normalizeLogicalModels(models: LogicalModel[] | undefined, channels: SystemModelChannel[]): LogicalModel[] {
