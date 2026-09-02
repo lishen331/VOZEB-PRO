@@ -22,6 +22,19 @@ const labels: Record<RunningHubWorkflowBusinessCode, string> = {
     drama: "短剧练习",
 };
 
+type WorkflowActionColumnRenderer = NonNullable<TableColumnsType<PublicRunningHubWorkflow>[number]["render"]>;
+
+export function getRunningHubWorkflowActionColumn(render: WorkflowActionColumnRenderer): TableColumnsType<PublicRunningHubWorkflow>[number] {
+    return {
+        title: "操作",
+        key: "actions",
+        fixed: "right",
+        width: 320,
+        className: "runninghub-workflow-actions",
+        render,
+    };
+}
+
 export function RunningHubWorkflowList({ channel }: { channel: SystemModelChannel }) {
     const { message } = App.useApp();
     const [items, setItems] = useState<PublicRunningHubWorkflow[]>([]);
@@ -107,11 +120,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                         <span className="text-stone-500">未测试</span>
                     ),
             },
-            {
-                title: "操作",
-                key: "actions",
-                width: 250,
-                render: (_, item) => (
+            getRunningHubWorkflowActionColumn((_, item) => (
                     <Space size={4} wrap>
                         <Button size="small" icon={<Settings2 className="size-3.5" />} onClick={() => setEditor(item)}>
                             编辑
@@ -128,8 +137,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                             </Button>
                         </Popconfirm>
                     </Space>
-                ),
-            },
+                )),
         ],
         [load, message],
     );
