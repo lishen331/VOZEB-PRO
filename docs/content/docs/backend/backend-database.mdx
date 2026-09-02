@@ -92,7 +92,7 @@ RunningHub 无限练习工作流配置保存在 `system_model_channels.advanced_
 - `vozeb_pro_course_materials`：平台标准资料和学校补充资料，保存目标章节或课时、来源范围、学校课程分配、长期媒体登记、站内保护 URL、MIME、大小、排序和状态；CHECK 保证恰好一个目标，复合外键保证目标与学校分配属于同一课程。学校资料按课程分配对本校所有教学安排共享，平台资料不可被学校编辑或删除。
 - `vozeb_pro_drama_projects`：短剧项目聚合快照，保存用户、标题、状态和完整 `project_json`；`execution_profile` 与可选拉片来源在创建后不可变；项目内包含创作会话 ID、多集、角色/场景/道具/线索、内容审核状态、分镜及图片、视频、音频、整集合成任务状态，并按用户、执行 profile 与更新时间建立列表索引。
 - `vozeb_pro_drama_lab_*`（16 张表）：隔离的短剧工作流实验室数据域，包括 AI 配置、角色/场景/道具库、异步任务、图片/视频生成、视频合并、实验资产、图片代理缓存、模型映射、全局设置、提示词模板、业务场景、生成设置和 SD2 资产。所有用户数据按 `user_id` 定向查询，项目关联表按 `project_id` 建立索引；提示词模板使用稳定 `template_key`，生成并发、批量大小和超时由数据库 CHECK 约束。旧的无项目名前缀 `drama_lab_*` 表只在目标前缀表不存在时改名为 `vozeb_pro_drama_lab_*`，不会覆盖已存在的新表。
-- `vozeb_pro_practice_sessions`：剧本、分镜图、分镜视频、配音和音乐练习会话，按用户保存所属项目、公开输入、任务引用和状态；只允许 `open-source-practice` 执行 profile，并使用用户与项目定向分页索引。
+- `vozeb_pro_practice_sessions`：剧本、分镜图、分镜视频、配音和音乐练习会话，按用户保存所属项目、公开输入、任务引用、模式（`manual`/`workflow`）、所选逻辑模型和脱敏错误状态；只允许 `open-source-practice` 执行 profile，并使用用户与项目定向分页索引。旧表通过幂等补列升级，缺失模式按 `workflow` 兼容读取，只有新建剧本练习才使用人工模式。
 - `vozeb_pro_practice_copy_requests`：作品复制到练习的幂等声明，以 `(user_id, client_request_id)` 为主键保存来源版本和结果项目；同一用户重试返回原项目，不同用户可复用同一客户端请求 ID。
 - `vozeb_pro_drama_project_versions`：短剧项目独立版本快照，按项目保存递增版本号、保存原因、完整快照和创建时间；项目或用户删除时级联删除，`(project_id, version)` 保持唯一。
 - `vozeb_pro_published_works`：作品稳定身份，保存所有者、公开 slug、素材/Canvas/短剧来源、当前编辑版本、当前公开版本、生命周期、访问量、精选状态和用户下架时间；slug 忽略大小写唯一，下架或公开版本变化会清除精选状态。

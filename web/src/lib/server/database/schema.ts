@@ -632,20 +632,36 @@ CREATE TABLE IF NOT EXISTS practice_sessions (
     project_id text,
     project_kind text NOT NULL,
     module text NOT NULL,
+    mode text NOT NULL DEFAULT 'workflow',
     title text NOT NULL DEFAULT '',
     client_request_id text NOT NULL,
     execution_profile text NOT NULL DEFAULT 'open-source-practice',
     prompt_json jsonb NOT NULL DEFAULT '{}'::jsonb,
     input_json jsonb NOT NULL DEFAULT '{}'::jsonb,
     task_refs jsonb NOT NULL DEFAULT '[]'::jsonb,
+    selected_logical_model_id text,
+    error_code text,
+    error_message text,
     status text NOT NULL DEFAULT 'queued',
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT practice_sessions_project_kind CHECK (project_kind IN ('canvas', 'drama')),
     CONSTRAINT practice_sessions_module CHECK (module IN ('script', 'storyboard-image', 'storyboard-video', 'dubbing', 'music')),
+    CONSTRAINT practice_sessions_mode CHECK (mode IN ('manual', 'workflow')),
     CONSTRAINT practice_sessions_profile CHECK (execution_profile = 'open-source-practice'),
     CONSTRAINT practice_sessions_status CHECK (status IN ('draft', 'queued', 'running', 'success', 'failed', 'cancelled'))
 );
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS mode text;
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS selected_logical_model_id text;
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS error_code text;
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS error_message text;
+UPDATE practice_sessions SET mode = 'workflow' WHERE mode IS NULL;
+ALTER TABLE practice_sessions ALTER COLUMN mode SET DEFAULT 'workflow';
+ALTER TABLE practice_sessions ALTER COLUMN mode SET NOT NULL;
+ALTER TABLE practice_sessions DROP CONSTRAINT IF EXISTS practice_sessions_mode;
+ALTER TABLE practice_sessions ADD CONSTRAINT practice_sessions_mode CHECK (mode IN ('manual', 'workflow'));
+ALTER TABLE practice_sessions DROP CONSTRAINT IF EXISTS practice_sessions_status;
+ALTER TABLE practice_sessions ADD CONSTRAINT practice_sessions_status CHECK (status IN ('draft', 'queued', 'running', 'success', 'failed', 'cancelled'));
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS title text NOT NULL DEFAULT '';
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS client_request_id text;
 UPDATE practice_sessions SET client_request_id = id WHERE client_request_id IS NULL;

@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 
-import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-domain";
+import type { PracticeModuleKind, PracticeProjectKind, PracticeSessionMode } from "@/lib/practice-domain";
 import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModel } from "@/lib/server/logical-model-router";
 import { getDatabaseProvider, createPostgresRepositories } from "@/lib/server/database";
@@ -18,9 +18,11 @@ import { resolveEnabledWorkflow } from "./runninghub-workflow-domain";
 
 export type PracticeSessionCreateInput = {
     module: PracticeModuleKind;
+    mode?: PracticeSessionMode;
     title: string;
     input: Record<string, unknown>;
     references?: unknown[];
+    logicalModelId?: string;
     clientRequestId: string;
     projectId?: string;
     projectKind?: PracticeProjectKind;
@@ -49,8 +51,10 @@ export interface PracticeSessionStore {
     get(userId: string, id: string): Promise<PracticeSessionRecord | null>;
     claimDispatch(userId: string, id: string): Promise<PracticeSessionRecord | null>;
     resetForRetry(userId: string, id: string): Promise<PracticeSessionRecord | null>;
-    update(userId: string, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title">>): Promise<PracticeSessionRecord | null>;
+    update(userId: string, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title" | "mode" | "selectedLogicalModelId" | "errorCode" | "errorMessage">>): Promise<PracticeSessionRecord | null>;
 }
+
+export type PracticePublicErrorCode = "PRACTICE_MODEL_UNAVAILABLE" | "PRACTICE_WORKFLOW_UNAVAILABLE" | "PRACTICE_INPUT_INVALID" | "PRACTICE_REFERENCE_INVALID" | "PRACTICE_DISPATCH_FAILED" | "PRACTICE_DISPATCH_NOT_STARTED";
 
 export async function createPracticeSessionForUser(
     actor: PracticeActor,
@@ -69,33 +73,45 @@ export async function createPracticeSessionForUser(
     const moduleKind = normalizeModule(input.module);
     const title = clean(input.title, 120) || "练习会话";
     const sourcePayload = object(input.input);
-    const prompt = text(sourcePayload.prompt);
-    if (!prompt) throw new PracticeServiceError("练习内容不能为空", 400);
+    const requestedMode = input.mode || (moduleKind === "script" && (text(sourcePayload.content) || text(sourcePayload.script) || text(sourcePayload.title)) ? "manual" : "workflow");
+    const mode: PracticeSessionMode = moduleKind === "script" && requestedMode === "manual" ? "manual" : "workflow";
+    if (mode === "manual") {
+        if (!text(sourcePayload.title) || !text(sourcePayload.content)) throw new PracticeServiceError("剧本标题和正文不能为空", 400, "PRACTICE_INPUT_INVALID");
+    } else if (!text(sourcePayload.prompt)) {
+        throw new PracticeServiceError("练习内容不能为空", 400, "PRACTICE_INPUT_INVALID");
+    }
     const references = normalizeReferences(input.references);
     const ipReferences = references.filter((reference): reference is IpReference => reference.type === "ip");
     await validateIpReferences(actor.id, ipReferences);
-    const payload = { prompt, ...(references.length ? { references } : {}) };
-    if (!deps.dispatch) await (deps.resolveModel || defaultResolveModel)(moduleKind);
+    const payload = mode === "manual" ? { title: text(sourcePayload.title), content: text(sourcePayload.content), ...(references.length ? { references } : {}) } : { prompt: text(sourcePayload.prompt), ...(references.length ? { references } : {}) };
+    const resolveModel = deps.resolveModel || defaultResolveModel;
+    const model = mode === "workflow" ? await resolveModel(moduleKind) : undefined;
     const created = await store.create({
         id: `practice-session-${nanoid()}`,
         userId: actor.id,
         projectId: cleanOptional(input.projectId, 160),
         projectKind: input.projectKind === "drama" ? "drama" : "canvas",
         module: moduleKind,
+        mode,
         title,
         clientRequestId,
         executionProfile: "open-source-practice",
-        prompt: (payload.prompt || "") as JsonValue,
+        prompt: (mode === "workflow" ? text(sourcePayload.prompt) : "") as JsonValue,
         input: payload as JsonValue,
         taskRefs: [],
-        status: "queued",
+        ...(model ? { selectedLogicalModelId: model.logicalModelId } : {}),
+        status: mode === "manual" ? "draft" : "queued",
     });
+    if (mode === "manual") {
+        if (ipReferences.length) await recordIpReferenceUsage(actor.id, { targetType: "practice", targetId: created.id, references: ipReferences });
+        return publicSession(created);
+    }
     const dispatch = deps.dispatch;
     if (!dispatch) {
         if (ipReferences.length) await recordIpReferenceUsage(actor.id, { targetType: "practice", targetId: created.id, references: ipReferences });
         return publicSession(created);
     }
-    return dispatchQueuedSession(actor.id, created, clientRequestId, store, dispatch, deps.resolveModel || defaultResolveModel);
+    return dispatchQueuedSession(actor.id, created, clientRequestId, store, dispatch, resolveModel, model);
 }
 
 async function dispatchQueuedSession(
@@ -105,6 +121,7 @@ async function dispatchQueuedSession(
     store: PracticeSessionStore,
     dispatch: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>,
     resolveModel: (module: PracticeModuleKind) => Promise<PracticeModelResolution>,
+    preflightModel?: PracticeModelResolution,
 ) {
     const claimed = await store.claimDispatch(userId, session.id);
     if (!claimed) return publicSession((await store.get(userId, session.id)) || session);
@@ -115,9 +132,10 @@ async function dispatchQueuedSession(
     try {
         await validateIpReferences(userId, ipReferences);
         if (ipReferences.length) await recordIpReferenceUsage(userId, { targetType: "practice", targetId: claimed.id, references: ipReferences });
-        model = await resolveModel(claimed.module);
+        model = preflightModel || (await resolveModel(claimed.module));
     } catch (error) {
-        await store.update(userId, claimed.id, { status: "queued" });
+        if (shouldPersistFailed(error)) await store.update(userId, claimed.id, { status: "failed", errorCode: publicErrorCode(error, "PRACTICE_MODEL_UNAVAILABLE"), errorMessage: publicErrorMessage(error, "PRACTICE_MODEL_UNAVAILABLE") });
+        else await store.update(userId, claimed.id, { status: "queued" });
         throw error;
     }
     try {
@@ -137,7 +155,7 @@ async function dispatchQueuedSession(
         const running = await store.update(userId, claimed.id, { taskRefs: [{ taskId: task.taskId, taskType: task.taskType }] as unknown as JsonValue });
         return publicSession(running || claimed);
     } catch (error) {
-        await store.update(userId, claimed.id, { status: "failed" });
+        await store.update(userId, claimed.id, { status: "failed", errorCode: "PRACTICE_DISPATCH_FAILED", errorMessage: publicErrorMessage(error, "PRACTICE_DISPATCH_FAILED") });
         throw error;
     }
 }
@@ -191,6 +209,7 @@ export class PracticeServiceError extends Error {
     constructor(
         readonly message: string,
         readonly status: number,
+        readonly code?: PracticePublicErrorCode,
     ) {
         super(message);
     }
@@ -198,21 +217,27 @@ export class PracticeServiceError extends Error {
 
 type PracticeSessionListStore = PracticeSessionStore & { list(userId: string, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> };
 
-async function publicSession(session: PracticeSessionRecord) {
+export async function publicPracticeSession(session: PracticeSessionRecord) {
     const task = await publicTaskResult(session);
+    const dispatchNeverStarted = session.mode === "workflow" && session.status === "queued" && (!Array.isArray(session.taskRefs) || !session.taskRefs.length);
     return {
         id: session.id,
         title: session.title,
         module: session.module,
+        mode: session.mode,
         projectId: session.projectId,
         projectKind: session.projectKind,
         input: session.input,
-        status: task?.status === "success" ? "success" : task?.status === "error" ? "failed" : task?.status === "cancelled" ? "cancelled" : session.status,
+        status: task?.status === "success" ? "success" : task?.status === "error" ? "failed" : task?.status === "cancelled" ? "cancelled" : dispatchNeverStarted ? "failed" : session.status,
+        ...(session.selectedLogicalModelId ? { selectedLogicalModelId: session.selectedLogicalModelId } : {}),
+        ...(dispatchNeverStarted ? { errorCode: "PRACTICE_DISPATCH_NOT_STARTED" as const, errorMessage: "练习任务尚未提交，请重试" } : session.errorCode ? { errorCode: session.errorCode, errorMessage: session.errorMessage } : {}),
         ...(task ? { result: task } : {}),
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
     };
 }
+
+const publicSession = publicPracticeSession;
 
 async function publicTaskResult(session: PracticeSessionRecord) {
     if (getDatabaseProvider() === "postgres" && !process.env.DATABASE_URL) return undefined;
@@ -285,7 +310,7 @@ function fileSessionStore(): PracticeSessionStore & { list(userId: string, input
     const read = () => readJsonDataFile<FileDatabase>(FILE_NAME, { version: 1, sessions: [] });
     return {
         async getByRequest(userId, clientRequestId) {
-            return (await read()).sessions.find((item) => item.userId === userId && item.clientRequestId === clientRequestId) || null;
+            return (await read()).sessions.map(normalizeFileSession).find((item) => item.userId === userId && item.clientRequestId === clientRequestId) || null;
         },
         async create(input) {
             let record: PracticeSessionRecord;
@@ -297,7 +322,7 @@ function fileSessionStore(): PracticeSessionStore & { list(userId: string, input
             return record!;
         },
         async get(userId, id) {
-            return (await read()).sessions.find((item) => item.userId === userId && item.id === id) || null;
+            return (await read()).sessions.map(normalizeFileSession).find((item) => item.userId === userId && item.id === id) || null;
         },
         async claimDispatch(userId, id) {
             let claimed: PracticeSessionRecord | null = null;
@@ -318,7 +343,7 @@ function fileSessionStore(): PracticeSessionStore & { list(userId: string, input
                 const db = await read();
                 const sessions = db.sessions.map((item) => {
                     if (item.userId !== userId || item.id !== id || (item.status !== "failed" && item.status !== "cancelled")) return item;
-                    reset = { ...item, status: "queued", taskRefs: [], updatedAt: new Date().toISOString() };
+                    reset = { ...item, status: "queued", taskRefs: [], errorCode: undefined, errorMessage: undefined, updatedAt: new Date().toISOString() };
                     return reset;
                 });
                 if (reset) await writeJsonDataFile(FILE_NAME, { ...db, sessions });
@@ -335,10 +360,14 @@ function fileSessionStore(): PracticeSessionStore & { list(userId: string, input
             return updated;
         },
         async list(userId, input) {
-            const all = (await read()).sessions.filter((item) => item.userId === userId && (!input.module || item.module === input.module)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
+            const all = (await read()).sessions.map(normalizeFileSession).filter((item) => item.userId === userId && (!input.module || item.module === input.module)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
             return { items: all.slice((input.page - 1) * input.pageSize, input.page * input.pageSize), total: all.length };
         },
     };
+}
+
+function normalizeFileSession(value: PracticeSessionRecord): PracticeSessionRecord {
+    return { ...value, mode: value.mode === "manual" ? "manual" : "workflow" };
 }
 
 function normalizeModule(value: unknown): PracticeModuleKind {
@@ -381,4 +410,21 @@ function cleanOptional(value: unknown, max: number) {
 function positive(value: unknown, fallback: number) {
     const number = Math.floor(Number(value));
     return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+function publicErrorCode(error: unknown, fallback: PracticePublicErrorCode): PracticePublicErrorCode {
+    return error instanceof PracticeServiceError && error.code ? error.code : fallback;
+}
+
+function publicErrorMessage(_error: unknown, code: PracticePublicErrorCode) {
+    if (code === "PRACTICE_MODEL_UNAVAILABLE") return "当前练习模块没有可用的开源模型";
+    if (code === "PRACTICE_WORKFLOW_UNAVAILABLE") return "当前练习模块没有可用工作流";
+    if (code === "PRACTICE_INPUT_INVALID") return "练习输入不完整";
+    if (code === "PRACTICE_REFERENCE_INVALID") return "练习引用素材不可用";
+    if (code === "PRACTICE_DISPATCH_NOT_STARTED") return "练习任务尚未提交，请重试";
+    return "练习任务提交失败，请重试";
+}
+
+function shouldPersistFailed(error: unknown) {
+    return error instanceof PracticeServiceError || (typeof error === "object" && error !== null && "status" in error && Number((error as { status?: unknown }).status) >= 500);
 }

@@ -8,7 +8,7 @@ vi.mock("@/lib/server/ip-library-reference-service", () => ({
     recordIpReferenceUsage: mocks.recordIpReferenceUsage,
 }));
 
-import { createPracticeSessionForUser, getPracticeSessionForUser, resolvePracticeModelFromSettings, retryPracticeSessionForUser, type PracticeSessionStore, type PracticeTaskDispatchResult } from "./practice-session-service";
+import { createPracticeSessionForUser, getPracticeSessionForUser, publicPracticeSession, resolvePracticeModelFromSettings, retryPracticeSessionForUser, type PracticeSessionStore, type PracticeTaskDispatchResult } from "./practice-session-service";
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { PracticeSessionRecord } from "./database/repository-types";
 
@@ -60,6 +60,47 @@ describe("practice sessions", () => {
         vi.clearAllMocks();
         mocks.validateIpReferences.mockResolvedValue([]);
         mocks.recordIpReferenceUsage.mockResolvedValue(undefined);
+    });
+
+    it("does not create a workflow session when model preflight fails", async () => {
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const store = memoryStore();
+        const resolveModel = vi.fn(async () => {
+            throw Object.assign(new Error("当前练习模块没有可用的开源模型"), { status: 503 });
+        });
+        await expect(createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "storyboard-image", title: "镜头", input: { prompt: "雨夜" }, clientRequestId: "preflight-fail" }, { store, dispatch: vi.fn(), resolveModel })).rejects.toMatchObject({ status: 503 });
+        expect(store.create).not.toHaveBeenCalled();
+    });
+
+    it("saves manual script without resolving a model or dispatching a task", async () => {
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const store = memoryStore();
+        const resolveModel = vi.fn();
+        const dispatch = vi.fn();
+        const result = await createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "人工剧本", input: { title: "第一幕", content: "夜幕降临" }, clientRequestId: "manual-script" }, { store, dispatch, resolveModel });
+        expect(result).toMatchObject({ mode: "manual", status: "draft" });
+        expect(resolveModel).not.toHaveBeenCalled();
+        expect(dispatch).not.toHaveBeenCalled();
+    });
+
+    it("maps a legacy queued session without task refs to a visible dispatch failure", async () => {
+        const legacy = {
+            id: "legacy-session",
+            userId: "student-one",
+            projectKind: "canvas" as const,
+            module: "storyboard-image" as const,
+            mode: "workflow" as const,
+            title: "旧会话",
+            clientRequestId: "legacy-request",
+            executionProfile: "open-source-practice" as const,
+            prompt: { prompt: "雨夜" },
+            input: { prompt: "雨夜" },
+            taskRefs: [],
+            status: "queued" as const,
+            createdAt: "2026-09-02T00:00:00.000Z",
+            updatedAt: "2026-09-02T00:00:00.000Z",
+        };
+        await expect(publicPracticeSession(legacy)).resolves.toMatchObject({ status: "failed", errorCode: "PRACTICE_DISPATCH_NOT_STARTED" });
     });
 
     it("resolves the enabled workflow for a bound practice business code", () => {
@@ -198,6 +239,7 @@ describe("practice sessions", () => {
         expect(session).not.toBeNull();
         if (!session) throw new Error("练习会话未创建");
         expect(session.input).toEqual({ prompt: "雨夜车站", references: [{ type: "asset", id: "asset-one" }] });
+        expect(session).toMatchObject({ status: "failed", errorCode: "PRACTICE_DISPATCH_FAILED", errorMessage: "练习任务提交失败，请重试" });
 
         await retryPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store, dispatch: retryDispatch, resolveModel });
         expect(retryDispatch).toHaveBeenCalledWith(expect.objectContaining({ input: { prompt: "雨夜车站" }, references: [{ type: "asset", id: "asset-one" }], clientRequestId: "request-three" }));

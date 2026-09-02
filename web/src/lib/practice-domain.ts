@@ -2,6 +2,7 @@ export type PracticeExecutionProfile = "production" | "open-source-practice";
 export type PracticeProjectKind = "canvas" | "drama";
 export type PracticeModuleKind = "script" | "storyboard-image" | "storyboard-video" | "dubbing" | "music";
 export type PracticeSessionMode = "manual" | "workflow";
+export type PracticeSessionPublicStatus = "draft" | "queued" | "running" | "success" | "failed" | "cancelled";
 export type PracticeModuleModelOption = { id: string; label: string };
 export type PracticeModuleInputField = {
     key: string;
