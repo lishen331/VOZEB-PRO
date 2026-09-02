@@ -16,6 +16,8 @@ const MAX_FRAME_BYTES = 20 * 1024 * 1024;
 
 export type DramaLabTailFrameExtractionInput = {
     userId: string;
+    /** Storage owner for the project aggregate; task/media ownership stays userId. */
+    projectOwnerUserId?: string;
     origin: string;
     cookie: string;
     project: DramaProject;
@@ -30,6 +32,8 @@ export type DramaLabTailFrameExtractionResult = {
 
 export type DramaLabFirstFrameCandidateInput = {
     userId: string;
+    /** Storage owner for the project aggregate; task/media ownership stays userId. */
+    projectOwnerUserId?: string;
     project: DramaProject;
     episodeId: string;
     shotId: string;
@@ -54,8 +58,8 @@ export async function extractDramaLabTailFrame(input: DramaLabTailFrameExtractio
     if (!generationTaskId) throw new DramaLabShotGenerationError("当前分镜没有可提取尾帧的视频任务", 409);
 
     const task = await getVideoTask(generationTaskId);
-    if (task && task.userId === input.userId && !taskBelongsToShot(task, input.project.id, input.episodeId, shot.id)) throw new DramaLabShotGenerationError("video task context does not match this drama shot", 409);
-    if (!task || task.userId !== input.userId) throw new DramaLabShotGenerationError("当前分镜的视频任务不存在或不属于当前用户", 409);
+    if (task && isProjectActor(task.userId, input) && !taskBelongsToShot(task, input.project.id, input.episodeId, shot.id)) throw new DramaLabShotGenerationError("video task context does not match this drama shot", 409);
+    if (!task || !isProjectActor(task.userId, input)) throw new DramaLabShotGenerationError("当前分镜的视频任务不存在或不属于当前项目成员", 409);
     if (task.status !== "success") throw new DramaLabShotGenerationError("当前分镜的视频任务尚未成功完成", 409);
 
     const taskResult = task.result as (Record<string, unknown> | undefined);
@@ -104,7 +108,7 @@ export async function extractDramaLabTailFrame(input: DramaLabTailFrameExtractio
         let asset: Awaited<ReturnType<typeof writeReferenceMediaFile>>;
         try {
             asset = await writeReferenceMediaFile(outputPath, "image", "image/jpeg", true, {
-                ownerUserId: input.userId,
+                ownerUserId: input.projectOwnerUserId || input.userId,
                 source: "drama-lab-tail-frame",
                 taskId: generationTaskId,
                 projectId: input.project.id,
@@ -137,6 +141,7 @@ export async function extractDramaLabTailFrame(input: DramaLabTailFrameExtractio
 
         const persistedCurrent = await persistDramaLabShotUpdate({
             userId: input.userId,
+            projectOwnerUserId: input.projectOwnerUserId,
             project: input.project,
             episodeId: input.episodeId,
             shotId: shot.id,
@@ -173,10 +178,10 @@ export async function acceptDramaLabFirstFrameCandidate(input: DramaLabFirstFram
     if (!sourceHistory && candidate.sourceVideoHistoryId !== candidate.sourceVideoTaskId) throw new DramaLabShotGenerationError("候选首帧的来源视频记录无效", 404);
     const sourceTask = await getVideoTask(candidate.sourceVideoTaskId);
     if (sourceTask && !taskBelongsToShot(sourceTask, input.project.id, input.episodeId, source.id)) throw new DramaLabShotGenerationError("candidate source task is invalid", 404);
-    if (!sourceTask || sourceTask.userId !== input.userId || sourceTask.status !== "success") throw new DramaLabShotGenerationError("候选首帧的来源视频任务无效", 404);
+    if (!sourceTask || !isProjectActor(sourceTask.userId, input) || sourceTask.status !== "success") throw new DramaLabShotGenerationError("候选首帧的来源视频任务无效", 404);
     if (!candidate.storageKey) throw new DramaLabShotGenerationError("候选首帧媒体未完成登记", 404);
     const registration = await getLocalMediaRegistration(candidate.storageKey);
-    if (!registration || registration.ownerUserId !== input.userId || registration.projectId !== input.project.id || registration.taskId !== candidate.sourceVideoTaskId || registration.type !== "image" || registration.source !== "drama-lab-tail-frame" || registration.storageClass !== "permanent" || Boolean(registration.expiresAt && Date.parse(registration.expiresAt) <= Date.now())) {
+    if (!registration || !isProjectActor(registration.ownerUserId, input) || registration.projectId !== input.project.id || registration.taskId !== candidate.sourceVideoTaskId || registration.type !== "image" || registration.source !== "drama-lab-tail-frame" || registration.storageClass !== "permanent" || Boolean(registration.expiresAt && Date.parse(registration.expiresAt) <= Date.now())) {
         throw new DramaLabShotGenerationError("候选首帧媒体不存在或不属于当前项目", 404);
     }
     if (canonicalReferenceStorageKey(candidate.url) !== normalizeStorageKey(candidate.storageKey)) throw new DramaLabShotGenerationError("candidate media URL does not match its storage key", 404);
@@ -219,6 +224,7 @@ export async function acceptDramaLabFirstFrameCandidate(input: DramaLabFirstFram
     };
     const persisted = await persistDramaLabShotUpdate({
         userId: input.userId,
+        projectOwnerUserId: input.projectOwnerUserId,
         project: input.project,
         episodeId: input.episodeId,
         shotId: input.shotId,
@@ -294,6 +300,7 @@ async function ensureNextShotCandidate(args: EnsureCandidateInput): Promise<Dram
     };
     const persisted = await persistDramaLabShotUpdate({
         userId: input.userId,
+        projectOwnerUserId: input.projectOwnerUserId,
         project: input.project,
         episodeId: input.episodeId,
         shotId: nextShot.id,
@@ -308,7 +315,7 @@ async function ensureNextShotCandidate(args: EnsureCandidateInput): Promise<Dram
     return { frame, nextShot: latestNextShot?.firstFrameCandidate ? { id: latestNextShot.id, candidate: latestNextShot.firstFrameCandidate } : { id: nextShot.id, candidate } };
 }
 
-async function isReusableTailFrame(frame: DramaShotFrameState | undefined, generationTaskId: string, input: Pick<DramaLabTailFrameExtractionInput, "userId" | "project">) {
+async function isReusableTailFrame(frame: DramaShotFrameState | undefined, generationTaskId: string, input: Pick<DramaLabTailFrameExtractionInput, "userId" | "project" | "projectOwnerUserId">) {
     if (!frame || frame.source !== "video_tail" || frame.sourceVideoTaskId !== generationTaskId || frame.status !== "success") return false;
     return isRegisteredTailFrameMedia(frame.storageKey, frame.url, generationTaskId, input);
 }
@@ -321,7 +328,7 @@ async function isReusableCandidate(candidate: DramaShotFrameCandidate, targetSho
     const expectedTarget = nextDramaLabShot(episode?.shots || [], sourceShot);
     if (!expectedTarget || expectedTarget.id !== targetShot.id) return false;
     const sourceTask = await getVideoTask(candidate.sourceVideoTaskId);
-    if (!sourceTask || sourceTask.userId !== input.userId || sourceTask.status !== "success") return false;
+    if (!sourceTask || !isProjectActor(sourceTask.userId, input) || sourceTask.status !== "success") return false;
     if (!taskBelongsToShot(sourceTask, input.project.id, input.episodeId, sourceShot.id)) return false;
     return isRegisteredTailFrameMedia(candidate.storageKey, candidate.url, candidate.sourceVideoTaskId, input);
 }
@@ -345,13 +352,22 @@ function normalizeStorageKey(value: string) {
     return value.trim().replace(/\\/g, "/").replace(/^\/+/, "");
 }
 
-async function isRegisteredTailFrameMedia(storageKey: string | undefined, url: string | undefined, generationTaskId: string, input: Pick<DramaLabTailFrameExtractionInput, "userId" | "project">) {
+/** Tasks and registered media may have been created by the project owner
+ * while an active collaborator performs the current request. Keep the
+ * caller/member identity for audit and billing, but accept the owner-backed
+ * resource only after the route has already resolved project membership. */
+function isProjectActor(actorId: string | undefined, input: { userId: string; projectOwnerUserId?: string }) {
+    if (!actorId) return false;
+    return actorId === input.userId || actorId === (input.projectOwnerUserId || input.userId);
+}
+
+async function isRegisteredTailFrameMedia(storageKey: string | undefined, url: string | undefined, generationTaskId: string, input: Pick<DramaLabTailFrameExtractionInput, "userId" | "project" | "projectOwnerUserId">) {
     if (!storageKey || !isPersistentMediaUrl(url || "")) return false;
     const registration = await getLocalMediaRegistration(storageKey);
     if (!registration) return false;
     if (registration.scope !== "reference") return false;
     if (registration.storageKey !== normalizeStorageKey(storageKey)) return false;
-    if (registration.ownerUserId !== input.userId) return false;
+    if (!isProjectActor(registration.ownerUserId, input)) return false;
     if (registration.projectId !== input.project.id) return false;
     if (registration.taskId !== generationTaskId) return false;
     if (registration.type !== "image") return false;

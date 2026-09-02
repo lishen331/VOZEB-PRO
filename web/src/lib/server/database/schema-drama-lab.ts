@@ -494,4 +494,105 @@ CREATE TABLE IF NOT EXISTS drama_lab_sd2_assets (
 CREATE INDEX IF NOT EXISTS drama_lab_sd2_assets_user_type_idx
     ON drama_lab_sd2_assets (user_id, type, updated_at DESC)
     WHERE deleted_at IS NULL;
+
+-- 短剧实验室项目协作与审批（与平台账户体系解耦，仅引用 user_id）
+CREATE TABLE IF NOT EXISTS drama_lab_project_groups (
+    id text PRIMARY KEY,
+    project_id text NOT NULL UNIQUE REFERENCES drama_projects(id) ON DELETE CASCADE,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    last_transfer_by text REFERENCES users(id) ON DELETE SET NULL,
+    last_transfer_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS drama_lab_project_members (
+    id bigserial PRIMARY KEY,
+    group_id text NOT NULL REFERENCES drama_lab_project_groups(id) ON DELETE CASCADE,
+    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role text NOT NULL DEFAULT 'member',
+    status text NOT NULL DEFAULT 'active',
+    permissions jsonb NOT NULL DEFAULT '{"manageMembers":false,"approve":false}'::jsonb,
+    joined_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT drama_lab_project_members_role CHECK (role IN ('owner', 'admin', 'member')),
+    CONSTRAINT drama_lab_project_members_status CHECK (status IN ('active', 'removed', 'left')),
+    UNIQUE (group_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS drama_lab_project_invites (
+    id text PRIMARY KEY,
+    group_id text NOT NULL REFERENCES drama_lab_project_groups(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES drama_projects(id) ON DELETE CASCADE,
+    token_hash text NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    revoked_at timestamptz,
+    created_by text NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS drama_lab_join_requests (
+    id text PRIMARY KEY,
+    group_id text NOT NULL REFERENCES drama_lab_project_groups(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES drama_projects(id) ON DELETE CASCADE,
+    invite_id text REFERENCES drama_lab_project_invites(id) ON DELETE SET NULL,
+    applicant_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status text NOT NULL DEFAULT 'pending',
+    reviewed_by text REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at timestamptz,
+    note text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT drama_lab_join_requests_status CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled'))
+);
+
+CREATE TABLE IF NOT EXISTS drama_lab_approval_configs (
+    id text PRIMARY KEY,
+    group_id text NOT NULL REFERENCES drama_lab_project_groups(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES drama_projects(id) ON DELETE CASCADE,
+    stage text NOT NULL,
+    enabled boolean NOT NULL DEFAULT false,
+    reviewer_scope text NOT NULL DEFAULT 'admins',
+    reviewer_user_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+    strict_mode boolean NOT NULL DEFAULT true,
+    updated_by text NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT drama_lab_approval_configs_reviewer_scope CHECK (reviewer_scope IN ('owner', 'admins')),
+    UNIQUE (group_id, stage)
+);
+
+CREATE TABLE IF NOT EXISTS drama_lab_approvals (
+    id text PRIMARY KEY,
+    group_id text NOT NULL REFERENCES drama_lab_project_groups(id) ON DELETE CASCADE,
+    project_id text NOT NULL REFERENCES drama_projects(id) ON DELETE CASCADE,
+    episode_id text,
+    stage text NOT NULL,
+    resource_type text NOT NULL,
+    resource_id text NOT NULL,
+    version_id text,
+    version_number integer,
+    submitted_by text NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    submitted_at timestamptz NOT NULL DEFAULT now(),
+    snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+    status text NOT NULL DEFAULT 'pending',
+    reviewer_id text REFERENCES users(id) ON DELETE SET NULL,
+    review_comment text,
+    reviewed_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT drama_lab_approvals_status CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled'))
+);
+
+CREATE INDEX IF NOT EXISTS drama_lab_project_groups_owner_idx ON drama_lab_project_groups (owner_user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS drama_lab_project_members_group_status_idx ON drama_lab_project_members (group_id, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS drama_lab_project_members_user_idx ON drama_lab_project_members (user_id, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS drama_lab_project_invites_group_idx ON drama_lab_project_invites (group_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS drama_lab_join_requests_group_status_idx ON drama_lab_join_requests (group_id, status, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS drama_lab_join_requests_pending_idx ON drama_lab_join_requests (group_id, applicant_user_id) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS drama_lab_approval_configs_group_idx ON drama_lab_approval_configs (group_id, stage);
+CREATE INDEX IF NOT EXISTS drama_lab_approvals_project_status_idx ON drama_lab_approvals (project_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS drama_lab_approvals_group_reviewer_idx ON drama_lab_approvals (group_id, reviewer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS drama_lab_approvals_group_created_idx ON drama_lab_approvals (group_id, created_at DESC);
 `;

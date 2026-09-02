@@ -5,8 +5,9 @@ import { NextResponse } from "next/server";
 import type { DramaProject, DramaShot } from "@/lib/drama-project-contract";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
+import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabStoryboardExtractionError, extractDramaLabStoryboards } from "@/lib/server/drama-lab-storyboard-extraction-service";
-import { DramaProjectStoreError, getDramaProject, updateDramaProject } from "@/lib/server/drama-project-store";
+import { DramaProjectStoreError, updateDramaProject } from "@/lib/server/drama-project-store";
 
 export const runtime = "nodejs";
 
@@ -21,7 +22,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const requestId = typeof body.requestId === "string" && body.requestId.trim() ? body.requestId.trim().slice(0, 160) : randomUUID();
         if (!episodeId) return NextResponse.json({ code: 400, data: null, msg: "当前剧集不能为空" }, { status: 400 });
 
-        const project = await getDramaProject(id, user.id);
+        const { project, ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
+        await assertDramaLabStageAllowed(user.id, id, "storyboard");
         if (!project) return NextResponse.json({ code: 404, data: null, msg: "短剧项目不存在" }, { status: 404 });
 
         // Checkpoints persist the domain project payload; the store's public
@@ -44,7 +46,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                     updatedAt: new Date().toISOString(),
                 };
                 try {
-                    latestProject = (await updateDramaProject(user.id, next, latestProject.updatedAt)) || next;
+                    latestProject = (await updateDramaProject(ownerUserId, next, latestProject.updatedAt)) || next;
                 } catch (error) {
                     // The completed extraction is still returned. A later
                     // explicit resume request can persist the recovered prefix.
@@ -57,7 +59,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             episodes: latestProject.episodes.map((episode) => (episode.id === episodeId ? { ...episode, shots: result.shots } : episode)),
             updatedAt: new Date().toISOString(),
         };
-        await updateDramaProject(user.id, updated, latestProject.updatedAt);
+        await updateDramaProject(ownerUserId, updated, latestProject.updatedAt);
 
         return NextResponse.json({
             code: 0,
@@ -65,7 +67,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             msg: "分镜提取完成",
         });
     } catch (error) {
-        const status = error instanceof DramaLabStoryboardExtractionError || error instanceof DramaProjectStoreError ? error.status : 500;
+        const status = error instanceof DramaLabStoryboardExtractionError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜提取失败" }, { status });
     }
 }

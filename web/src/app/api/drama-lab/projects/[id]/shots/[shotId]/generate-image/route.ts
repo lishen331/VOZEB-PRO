@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 
 import { getAuthSettings } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
+import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { DramaLabShotGenerationError, persistDramaLabShotUpdate, prepareDramaLabStoryboardImage } from "@/lib/server/drama-lab-shot-generation-service";
-import { DramaProjectStoreError, getDramaProject } from "@/lib/server/drama-project-store";
+import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
+import { maintenanceWorkerContextHeaders, requestRuntimeCredential } from "@/lib/server/maintenance-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,7 +21,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const { id, shotId } = await params;
         const episodeId = new URL(request.url).searchParams.get("episodeId")?.trim() || "";
         if (!episodeId) throw new DramaLabShotGenerationError("当前剧集不能为空");
-        const project = await getDramaProject(id, user.id);
+        const { project, ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
+        await assertDramaLabStageAllowed(user.id, id, "storyboard_image", { episodeId, resourceType: "shot", resourceId: shotId });
         if (!project) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
         const prepared = await prepareDramaLabStoryboardImage(project, episodeId, shotId);
         const settings = await getAuthSettings();
@@ -31,15 +34,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         // another local dev port. Resolve from the request Host first.
         const requestOrigin = resolvePublicRequestOrigin(request);
         const origin = resolveInternalOrigin(requestOrigin);
+        const credential = requestRuntimeCredential(request, user.id);
         console.info("[drama-lab/generate-image] dispatch", { requestOrigin, origin, configuredOrigin: process.env.VOZEB_PRO_INTERNAL_ORIGIN, port: process.env.PORT });
         const response = await fetchInternalApi(`${origin}/api/image-tasks`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                cookie: request.headers.get("cookie") || "",
+            headers: runtimeRequestHeaders(credential, {
                 "X-VOZEB-PRO-Client-Request-Id": requestId,
                 "X-VOZEB-PRO-Attempt-No": String(attemptNo),
-            },
+            }),
             body: JSON.stringify({
                 kind: prepared.references.length ? "edit" : "generation",
                 config: { model: settings.defaultModels.imageModel, size: project.ratio },
@@ -70,6 +72,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
         await persistDramaLabShotUpdate({
             userId: user.id,
+            projectOwnerUserId: ownerUserId,
             project,
             episodeId,
             shotId,
@@ -87,7 +90,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             cause: error instanceof Error ? error.cause : undefined,
             name: error instanceof Error ? error.name : undefined,
         });
-        const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError ? error.status : 500;
+        const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜图任务创建失败" }, { status });
     }
+}
+
+function runtimeRequestHeaders(credential: string, initial: Record<string, string>) {
+    const workerHeaders = maintenanceWorkerContextHeaders(credential);
+    return {
+        "Content-Type": "application/json",
+        ...(workerHeaders || (credential ? { cookie: credential } : {})),
+        ...initial,
+    };
 }

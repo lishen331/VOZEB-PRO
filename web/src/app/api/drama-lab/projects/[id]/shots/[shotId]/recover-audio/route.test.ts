@@ -20,9 +20,16 @@ const mocks = vi.hoisted(() => ({
     scheduleGenerationTask: vi.fn(),
     recoverGenerationTaskFromUpstream: vi.fn(),
     syncDramaLabAudioTask: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
+    resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
+    DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
+        constructor(message: string, readonly status = 403) { super(message); }
+    },
+}));
 vi.mock("@/lib/server/drama-project-store", () => ({
     getDramaProject: mocks.getDramaProject,
     DramaProjectStoreError: class DramaProjectStoreError extends Error {
@@ -86,6 +93,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/recover-audio", () => {
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.getDramaProject.mockResolvedValue(project);
+        mocks.resolveDramaLabProjectForRequest.mockImplementation(async (_userId: string, _projectId: string) => ({ project: await mocks.getDramaProject(), ownerUserId: "user-one" }));
         mocks.getAudioTask.mockResolvedValue(task);
         mocks.getStoredGenerationTaskRecord.mockResolvedValue({ upstreamTaskId: "upstream-one", submittedAt: 10 });
         mocks.hasStoredGenerationTaskContextConflict.mockReturnValue(false);

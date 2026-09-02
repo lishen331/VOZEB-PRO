@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { getDramaProject } from "@/lib/server/drama-project-store";
+import { resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { DramaLabVideoRecoveryError, recoverDramaLabVideoTasks } from "@/lib/server/drama-lab-video-recovery-service";
@@ -30,7 +30,7 @@ async function handleRecovery(request: Request, { params }: RouteContext) {
         const currentEpisodeId = normalizeId(episodeId);
         if (!projectId || !currentEpisodeId) throw new DramaLabVideoRecoveryError("短剧项目和剧集不能为空", 400);
 
-        const project = await getDramaProject(projectId, user.id);
+        const { project, ownerUserId } = await resolveDramaLabProjectForRequest(user.id, projectId);
         if (!project) throw new DramaLabVideoRecoveryError("短剧项目不存在", 404);
         if (project.id !== projectId) throw new DramaLabVideoRecoveryError("短剧项目不存在", 404);
         if (!project.episodes?.some((episode) => episode.id === currentEpisodeId)) throw new DramaLabVideoRecoveryError("当前剧集不存在", 404);
@@ -39,6 +39,7 @@ async function handleRecovery(request: Request, { params }: RouteContext) {
         const origin = resolveInternalOrigin(publicOrigin);
         const data = await recoverDramaLabVideoTasks({
             userId: user.id,
+            projectOwnerUserId: ownerUserId,
             project,
             episodeId: currentEpisodeId,
             origin,

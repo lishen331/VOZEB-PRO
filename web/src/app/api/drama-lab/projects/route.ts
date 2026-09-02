@@ -10,6 +10,7 @@ import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { DramaProject } from "@/lib/drama-project-contract";
 import { listDramaProjectSummaries } from "@/lib/server/drama-project-store";
+import { ensureDramaLabProjectGroup, listDramaLabProjectsForUser } from "@/lib/server/drama-lab-collaboration-service";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,12 @@ export async function GET(request: Request) {
         const page = parseInt(searchParams.get("page") || "1", 10);
         const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
 
-        const result = await listDramaProjectSummaries(user.id, {
+        // Backfill groups for legacy projects owned by this user before listing
+        // the collaboration graph. This keeps pre-Phase-3 projects visible
+        // while allowing approved members to see the same list.
+        const owned = await listDramaProjectSummaries(user.id, { page: 1, pageSize: 100, executionProfile: "production" });
+        await Promise.all(owned.items.map((project) => ensureDramaLabProjectGroup(project.id, user.id).catch(() => undefined)));
+        const result = await listDramaLabProjectsForUser(user.id, {
             page: Math.max(1, page),
             pageSize: Math.min(100, Math.max(1, pageSize)),
         });
@@ -101,6 +107,7 @@ export async function POST(request: Request) {
 
         const { createDramaProject } = await import("@/lib/server/drama-project-store");
         const created = await createDramaProject(user.id, project);
+        await ensureDramaLabProjectGroup(created.id, user.id);
 
         return NextResponse.json({
             code: 0,

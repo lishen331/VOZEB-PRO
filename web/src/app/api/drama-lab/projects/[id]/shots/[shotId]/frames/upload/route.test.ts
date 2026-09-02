@@ -5,10 +5,13 @@ const mocks = vi.hoisted(() => ({
     getDramaProject: vi.fn(),
     persistDramaLabShotUpdate: vi.fn(),
     writePersistentMediaDataUrl: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
+    assertDramaLabStageAllowed: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/server/drama-project-store", () => ({ getDramaProject: mocks.getDramaProject }));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({ resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest, assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed }));
 vi.mock("@/lib/server/drama-lab-shot-generation-service", () => ({ persistDramaLabShotUpdate: mocks.persistDramaLabShotUpdate }));
 vi.mock("@/lib/server/reference-asset-store", () => ({ writePersistentMediaDataUrl: mocks.writePersistentMediaDataUrl }));
 
@@ -30,6 +33,8 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/frames/upload", () => {
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.getDramaProject.mockResolvedValue(project);
+        mocks.resolveDramaLabProjectForRequest.mockImplementation(async (_userId: string, _projectId: string) => ({ project: await mocks.getDramaProject(), ownerUserId: "user-one" }));
+        mocks.assertDramaLabStageAllowed.mockResolvedValue(undefined);
         mocks.writePersistentMediaDataUrl.mockResolvedValue({ token: "permanent/frame.png", url: "/api/reference-assets/permanent/frame.png", mimeType: "image/png", bytes: 4 });
         mocks.persistDramaLabShotUpdate.mockResolvedValue({ ...project, episodes: [{ ...project.episodes[0], shots: [{ ...project.episodes[0].shots[0], frames: { first: { status: "success", source: "uploaded", url: "/api/reference-assets/permanent/frame.png" } } }] }] });
     });
@@ -41,6 +46,17 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/frames/upload", () => {
         expect(await response.json()).toMatchObject({ code: 0, data: { frame: { source: "uploaded", status: "success", url: "/api/reference-assets/permanent/frame.png" } } });
         expect(mocks.writePersistentMediaDataUrl).toHaveBeenCalledWith(expect.stringMatching(/^data:image\/png;base64,/), "image", expect.objectContaining({ ownerUserId: "user-one", projectId: "project-one" }));
         expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(expect.objectContaining({ episodeId: "episode-one", shotId: "shot-one", patch: expect.objectContaining({ frames: expect.objectContaining({ first: expect.objectContaining({ source: "uploaded" }) }) }) }));
+    });
+
+    it("keeps collaborator uploads under the project's stable storage owner", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "collaborator" });
+        mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project, ownerUserId: "project-owner" });
+
+        const response = await POST(uploadRequest(new File([new Uint8Array([137, 80, 78, 71])], "frame.png", { type: "image/png" })), params);
+
+        expect(response.status).toBe(200);
+        expect(mocks.writePersistentMediaDataUrl).toHaveBeenCalledWith(expect.stringMatching(/^data:image\/png;base64,/), "image", expect.objectContaining({ ownerUserId: "project-owner", projectId: "project-one" }));
+        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(expect.objectContaining({ userId: "collaborator", projectOwnerUserId: "project-owner" }));
     });
 
     it("rejects non-image files and unknown frame types before writing media", async () => {

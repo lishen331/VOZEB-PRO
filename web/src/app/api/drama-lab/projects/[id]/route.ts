@@ -7,8 +7,8 @@
 import { NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getDramaProject } from "@/lib/server/drama-project-store";
-import { deleteDramaProjectForUser, DramaProjectServiceError, updateDramaProjectForUser } from "@/lib/server/drama-project-service";
+import { DramaProjectServiceError, updateDramaProjectForUser } from "@/lib/server/drama-project-service";
+import { deleteDramaLabProjectForUser, DramaLabCollaborationError, resolveDramaLabProjectForRequest, updateDramaLabProjectForUser } from "@/lib/server/drama-lab-collaboration-service";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +24,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     try {
         const { id } = await params;
-        const project = await getDramaProject(id, user.id);
-
-        if (!project) {
-            return NextResponse.json({ code: 404, msg: "项目不存在" }, { status: 404 });
-        }
+        const { project } = await resolveDramaLabProjectForRequest(user.id, id);
 
         return NextResponse.json({
             code: 0,
@@ -37,6 +33,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         });
     } catch (error) {
         console.error("[drama-lab/projects/:id] GET error:", error);
+        if (error instanceof DramaLabCollaborationError) return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         return NextResponse.json(
             {
                 code: 500,
@@ -62,7 +59,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         const body = await readJsonBody<Record<string, unknown>>(request, 2 * 1024 * 1024);
 
         // 获取现有项目
-        const existing = await getDramaProject(id, user.id);
+        const resolved = await resolveDramaLabProjectForRequest(user.id, id);
+        const existing = resolved.project;
         if (!existing) {
             return NextResponse.json({ code: 404, msg: "项目不存在" }, { status: 404 });
         }
@@ -77,7 +75,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             updatedAt: new Date().toISOString(),
         };
 
-        const saved = await updateDramaProjectForUser(user.id, id, updated);
+        const saved = resolved.ownerUserId === user.id ? await updateDramaProjectForUser(user.id, id, updated) : await updateDramaLabProjectForUser(user.id, id, updated);
 
         return NextResponse.json({
             code: 0,
@@ -88,6 +86,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         console.error("[drama-lab/projects/:id] PUT error:", error);
 
         if (error instanceof DramaProjectServiceError) {
+            return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
+        }
+        if (error instanceof DramaLabCollaborationError) {
             return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         }
 
@@ -299,7 +300,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     try {
         const { id } = await params;
 
-        await deleteDramaProjectForUser(user.id, id);
+        await deleteDramaLabProjectForUser(user.id, id);
 
         return NextResponse.json({
             code: 0,
@@ -308,6 +309,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     } catch (error) {
         console.error("[drama-lab/projects/:id] DELETE error:", error);
         if (error instanceof DramaProjectServiceError) {
+            return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
+        }
+        if (error instanceof DramaLabCollaborationError) {
             return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         }
         return NextResponse.json(

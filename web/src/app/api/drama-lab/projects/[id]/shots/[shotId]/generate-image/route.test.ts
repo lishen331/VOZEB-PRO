@@ -5,9 +5,13 @@ const mocks = vi.hoisted(() => ({
     getAuthSettings: vi.fn(),
     getCurrentUser: vi.fn(),
     getDramaProject: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
     persistDramaLabShotUpdate: vi.fn(),
     prepareDramaLabStoryboardImage: vi.fn(),
     resolveInternalOrigin: vi.fn(),
+    assertDramaLabStageAllowed: vi.fn(),
+    requestRuntimeCredential: vi.fn((request: Request) => request.headers.get("x-runtime-credential") || request.headers.get("cookie") || ""),
+    maintenanceWorkerContextHeaders: vi.fn((credential: string) => credential.startsWith("worker-context") ? { authorization: "Bearer worker-token", "x-vozeb-pro-worker-user-id": "user-one" } : null),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -39,6 +43,14 @@ vi.mock("@/lib/server/drama-lab-shot-generation-service", () => {
         prepareDramaLabStoryboardImage: mocks.prepareDramaLabStoryboardImage,
     };
 });
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
+    resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
+    assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed,
+}));
+vi.mock("@/lib/server/maintenance-auth", () => ({
+    requestRuntimeCredential: mocks.requestRuntimeCredential,
+    maintenanceWorkerContextHeaders: mocks.maintenanceWorkerContextHeaders,
+}));
 
 import { POST } from "./route";
 
@@ -49,6 +61,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-image", () => 
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
+        mocks.resolveDramaLabProjectForRequest.mockImplementation(async () => ({ project: await mocks.getDramaProject("project-one", "user-one"), ownerUserId: "user-one" }));
         mocks.getDramaProject.mockResolvedValue(project);
         mocks.getAuthSettings.mockResolvedValue({ defaultModels: { imageModel: "image-logical" } });
         mocks.resolveInternalOrigin.mockReturnValue("http://internal.example.com");
@@ -101,6 +114,15 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-image", () => 
         expect(response.status).toBe(401);
         expect(mocks.getDramaProject).not.toHaveBeenCalled();
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    it("forwards the signed worker identity when recovery invokes the route without a browser cookie", async () => {
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/generate-image?episodeId=episode-one", { method: "POST", headers: { "x-runtime-credential": "worker-context:user-one" } }), context);
+
+        expect(response.status).toBe(200);
+        const [, init] = mocks.fetchInternalApi.mock.calls[0] as [string, RequestInit];
+        expect(init.headers).toMatchObject({ authorization: "Bearer worker-token", "x-vozeb-pro-worker-user-id": "user-one" });
+        expect((init.headers as Record<string, string>).cookie).toBeUndefined();
     });
 
     it("rejects a shot generation request when the project is not owned by the current user", async () => {

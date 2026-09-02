@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
     persistDramaLabShotUpdate: vi.fn(),
     prepareDramaLabFrame: vi.fn(),
     resolveInternalOrigin: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
+    assertDramaLabStageAllowed: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -25,6 +27,11 @@ vi.mock("@/lib/server/drama-project-store", () => {
     }
     return { DramaProjectStoreError, getDramaProject: mocks.getDramaProject };
 });
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
+    resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
+    assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed,
+    DramaLabCollaborationError: class DramaLabCollaborationError extends Error { constructor(message: string, readonly status = 403) { super(message); } },
+}));
 vi.mock("@/lib/server/drama-lab-shot-generation-service", () => {
     class DramaLabShotGenerationError extends Error {
         constructor(
@@ -79,6 +86,8 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-frame", () => 
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.getDramaProject.mockResolvedValue(project);
+        mocks.resolveDramaLabProjectForRequest.mockImplementation(async (_userId: string, _projectId: string) => ({ project: await mocks.getDramaProject(), ownerUserId: "user-one" }));
+        mocks.assertDramaLabStageAllowed.mockResolvedValue(undefined);
         mocks.getAuthSettings.mockResolvedValue({ defaultModels: { imageModel: "image-logical" } });
         mocks.resolveInternalOrigin.mockReturnValue("http://internal.example.com");
         mocks.prepareDramaLabFrame.mockResolvedValue({ prompt: "new frame prompt", description: "new frame description", templateKey: "key_frame_prompt", references: [] });

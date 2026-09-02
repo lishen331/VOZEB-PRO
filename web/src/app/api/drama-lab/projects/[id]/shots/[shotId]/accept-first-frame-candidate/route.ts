@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { getDramaProject } from "@/lib/server/drama-project-store";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { acceptDramaLabFirstFrameCandidate } from "@/lib/server/drama-lab-tail-frame-service";
 
 export const runtime = "nodejs";
@@ -17,10 +17,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const candidateId = search.get("candidateId")?.trim() || "";
         if (!episodeId) return NextResponse.json({ code: 400, data: null, msg: "当前剧集不能为空" }, { status: 400 });
         if (!candidateId) return NextResponse.json({ code: 400, data: null, msg: "候选首帧不能为空" }, { status: 400 });
-        const project = await getDramaProject(id, user.id);
+        const { project, ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
+        await assertDramaLabStageAllowed(user.id, id, "storyboard_image", { episodeId, resourceType: "shot", resourceId: shotId });
         if (!project) return NextResponse.json({ code: 404, data: null, msg: "短剧项目不存在" }, { status: 404 });
         const replaceExisting = search.get("replaceExisting") === "true";
-        const data = await acceptDramaLabFirstFrameCandidate({ userId: user.id, project, episodeId, shotId, candidateId, replaceExisting });
+        const data = await acceptDramaLabFirstFrameCandidate({ userId: user.id, projectOwnerUserId: ownerUserId, project, episodeId, shotId, candidateId, replaceExisting });
         return NextResponse.json({ code: 0, data, msg: "候选首帧已应用" });
     } catch (error) {
         const status = errorStatus(error);

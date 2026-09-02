@@ -2,7 +2,7 @@ import type { CanvasProject, CanvasProjectMutation, CanvasProjectSaveAck, Canvas
 import { applyCanvasProjectMutation } from "@/lib/canvas-project-mutation";
 import { summarizeCanvasProjectRecord } from "@/lib/canvas-project-summary";
 import { summarizeCanvasProject, type CreateOverviewMedia, type CreateOverviewProject } from "@/lib/create-workbench-overview";
-import { isDramaLabCanvasProject } from "@/lib/drama-lab-canvas-contract";
+import { dramaLabCanvasProjectHandoffPrefix, isDramaLabCanvasProject, parseDramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery } from "@/lib/server/database";
 import type { PracticeExecutionProfile, PracticeSource } from "@/lib/practice-domain";
@@ -98,6 +98,55 @@ export async function listCanvasProjectSummaries(userId: string, input: { page: 
     return { projects: projects.slice(offset, offset + input.pageSize), total: projects.length, page: input.page, pageSize: input.pageSize };
 }
 
+/**
+ * List episode canvases for an already-authorized set of Drama Lab project
+ * IDs.  Drama canvases are stored under the physical Canvas owner, which may
+ * differ from the requesting collaborator after a project ownership
+ * transfer.  Filtering by the signed handoff prefix keeps the query scoped to
+ * those projects without exposing every Canvas belonging to that owner.
+ */
+export async function listDramaLabCanvasProjectSummariesForProjects(projectIds: string[], input: { page: number; pageSize: number }): Promise<CanvasProjectSummaryPage> {
+    const ids = Array.from(new Set(projectIds.map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean)));
+    if (!ids.length) return { projects: [], total: 0, page: input.page, pageSize: input.pageSize };
+    const offset = (input.page - 1) * input.pageSize;
+    const prefixes = ids.map((id) => dramaLabCanvasProjectHandoffPrefix(id));
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<Record<string, unknown>>(
+            `WITH allowed_prefixes AS (
+                 SELECT DISTINCT unnest($1::text[]) AS prefix
+             ), filtered AS (
+                 SELECT project.id, project.title, project.created_at, project.updated_at,
+                        project.project_json->>'sourceHandoffId' AS source_handoff_id,
+                        project.project_json->>'creativeConversationId' AS creative_conversation_id,
+                        project.execution_profile, project.practice_source_work_id, project.practice_source_version_id,
+                        jsonb_array_length(CASE WHEN jsonb_typeof(project.project_json->'nodes') = 'array' THEN project.project_json->'nodes' ELSE '[]'::jsonb END) AS node_count,
+                        jsonb_array_length(CASE WHEN jsonb_typeof(project.project_json->'connections') = 'array' THEN project.project_json->'connections' ELSE '[]'::jsonb END) AS connection_count
+                 FROM canvas_projects project
+                 JOIN allowed_prefixes allowed ON left(COALESCE(project.project_json->>'sourceHandoffId', ''), length(allowed.prefix)) = allowed.prefix
+                 WHERE COALESCE(project.project_json->>'sourceHandoffId', '') LIKE 'drama-lab-canvas:%'
+             ), page_items AS (
+                 SELECT * FROM filtered ORDER BY updated_at DESC, id ASC LIMIT $2 OFFSET $3
+             )
+             SELECT page_items.*, totals.total_count
+             FROM (SELECT count(*)::integer AS total_count FROM filtered) totals
+             LEFT JOIN page_items ON TRUE
+             ORDER BY page_items.updated_at DESC NULLS LAST, page_items.id ASC`,
+            [prefixes, input.pageSize, offset],
+        );
+        return { projects: result.rows.filter((row) => row.id).map(mapProjectSummary), total: Math.max(0, Number(result.rows[0]?.total_count) || 0), page: input.page, pageSize: input.pageSize };
+    }
+    const allowed = new Set(ids);
+    const projects = (await readDatabase()).projects
+        .filter((record) => {
+            const binding = parseDramaLabEpisodeCanvasHandoffId(record.project.sourceHandoffId);
+            return Boolean(binding && allowed.has(binding.projectId));
+        })
+        .map((record) => summarizeCanvasProjectRecord(record.project))
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
+    return { projects: projects.slice(offset, offset + input.pageSize), total: projects.length, page: input.page, pageSize: input.pageSize };
+}
+
 export async function getLatestCanvasProjectOverview(userId: string): Promise<CreateOverviewProject | undefined> {
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
@@ -159,6 +208,23 @@ export async function getCanvasProject(id: string, userId: string) {
     }
     const record = (await readDatabase()).projects.find((item) => item.userId === userId && item.project.id === id);
     return record ? toPublicProject(record.project as StoredCanvasProject, record) : null;
+}
+
+/** Internal lookup used after a Drama Lab collaboration membership check. */
+export async function getCanvasProjectWithOwner(id: string) {
+    const projectId = typeof id === "string" ? id.trim() : "";
+    if (!projectId) return null;
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<{ project_json: StoredCanvasProject; user_id: string; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }>(
+            "SELECT project_json, user_id, execution_profile, practice_source_work_id, practice_source_version_id FROM canvas_projects WHERE id = $1",
+            [projectId],
+        );
+        const row = result.rows[0];
+        return row ? { project: toPublicProject(row.project_json, row), ownerUserId: row.user_id } : null;
+    }
+    const record = (await readDatabase()).projects.find((item) => item.project.id === projectId);
+    return record ? { project: toPublicProject(record.project as StoredCanvasProject, record), ownerUserId: record.userId } : null;
 }
 
 export async function createCanvasProject(userId: string, project: CanvasProject, identity: CanvasProjectIdentityInput = {}) {

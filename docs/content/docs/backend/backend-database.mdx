@@ -84,6 +84,10 @@ VOZEB PRO 的 PostgreSQL 真实表名统一使用项目名前缀 `vozeb_pro_`。
 - `vozeb_pro_practice_sessions`：剧本、分镜图、分镜视频、配音和音乐练习会话，按用户保存所属项目、公开输入、任务引用和状态；只允许 `open-source-practice` 执行 profile，并使用用户与项目定向分页索引。
 - `vozeb_pro_practice_copy_requests`：作品复制到练习的幂等声明，以 `(user_id, client_request_id)` 为主键保存来源版本和结果项目；同一用户重试返回原项目，不同用户可复用同一客户端请求 ID。
 - `vozeb_pro_drama_project_versions`：短剧项目独立版本快照，按项目保存递增版本号、保存原因、完整快照和创建时间；项目或用户删除时级联删除，`(project_id, version)` 保持唯一。
+- `drama_lab_project_groups` / `drama_lab_project_members`：短剧项目协作组及成员关系。项目创建时建立一组并写入 owner；成员角色为 `owner/admin/member`，状态为 `active/removed/left`，权限 JSON 只控制项目成员管理和审批。管理权转交不改变 `drama_projects.user_id` 这一稳定存储所有者，所有成员读取仍按项目组关系授权。
+- `drama_lab_project_invites` / `drama_lab_join_requests`：短剧项目邀请和加入申请。数据库只保存邀请 token 哈希，不保存可直接使用的 token；邀请有过期、撤销和轮换状态，申请人必须通过有效邀请申请加入，项目 owner/admin 明确批准后才写入 active 成员。待处理申请按组和状态分页，重复待处理申请由部分唯一索引阻止。
+- `drama_lab_approval_configs` / `drama_lab_approvals`：短剧六个阶段（`script`、`assets`、`storyboard`、`storyboard_image`、`storyboard_video`、`final_export`）的审批配置和不可变提交记录。配置保存启用状态、严格门禁、审核人范围和更新时间；审批记录保存剧集、资源、版本、提交快照、审核意见、审核人和定位信息，驳回后通过新记录重提，不覆盖历史。
+- 短剧一键全流程父/子任务继续复用 `vozeb_pro_generation_tasks` 的 `task_type=render`，子任务通过 `parent_task_id`、`run_id` 和项目/剧集/镜头上下文关联；不会另建一套工作流任务表。工作流导出 ZIP 及元数据落在服务端 `drama-lab-workflow-exports` 文件存储，任务 JSON 仅保存 artifact 引用和下载边界，不把大媒体写入数据库。
 - `vozeb_pro_published_works`：作品稳定身份，保存所有者、公开 slug、素材/Canvas/短剧来源、当前编辑版本、当前公开版本、生命周期、访问量、精选状态和用户下架时间；slug 忽略大小写唯一，下架或公开版本变化会清除精选状态。
 - `vozeb_pro_published_work_versions`：不可变发布版本，保存标题、说明、用户确认公开的必填提示词 `public_prompt`、分类、标签、可见性、作者展示快照、内容审核 Provider/风险信号及 `draft/pending/approved/rejected/taken_down` 审核状态；拉片开关、启用人、启用时间和经 sanitizer 生成的公开制作流程快照绑定到具体版本，与作品精选状态独立，新版本默认关闭且不继承旧快照。同一作品的版本号唯一，审核通过时在事务内原子切换公开版本。自动信号不能直接批准公开，内部 Agent 规划与模型理由不得写入 `public_prompt`。
 - `vozeb_pro_published_work_assets`：版本媒体引用，只保存 `local_media_assets.storage_key`、媒体类型、封面/内容角色、顺序和公开展示元数据，不保存对象 Key、签名 URL、提示词或内部规划；外键与全局媒体引用计数共同阻止仍被作品版本使用的媒体被物理删除。用户或管理员先下架再永久删除作品时，会在事务中清空这些关联和全部发布快照，但不会删除源素材、源项目或媒体文件。

@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabNovelImportError, importDramaLabNovelForUser } from "@/lib/server/drama-lab-novel-import-service";
+import { readRequestBodyBytes, RequestBodyTooLargeError } from "@/lib/server/request-body-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,10 +24,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     try {
         const { id } = await params;
+        const { ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
         const input = await readNovelImportRequest(request);
         if (!input.ok) return NextResponse.json({ code: input.status, data: null, msg: input.message }, { status: input.status });
         const { sourceText, fileName, targetCharacters, commit } = input;
-        const result = await importDramaLabNovelForUser({ userId: user.id, projectId: id, sourceText, fileName, targetCharacters, commit });
+        if (commit) await assertDramaLabStageAllowed(user.id, id, "script");
+        const result = await importDramaLabNovelForUser({ userId: ownerUserId, projectId: id, sourceText, fileName, targetCharacters, commit });
         return NextResponse.json({ code: 0, data: result, msg: result.committed ? "小说已导入" : "小说解析完成，请确认导入" });
     } catch (error) {
         if (error instanceof DramaLabNovelImportError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
@@ -54,8 +58,10 @@ async function readNovelImportRequest(request: Request) {
     if (Number.isFinite(length) && length > MAX_IMPORT_REQUEST_BYTES + 256 * 1024) return { ok: false as const, status: 413, message: "小说文件请求超过大小限制" };
     let form: FormData;
     try {
-        form = await request.formData();
-    } catch {
+        const bytes = await readRequestBodyBytes(request, MAX_IMPORT_REQUEST_BYTES + 256 * 1024);
+        form = await new Request(request.url, { method: "POST", headers: { "content-type": contentType }, body: bytes }).formData();
+    } catch (error) {
+        if (error instanceof RequestBodyTooLargeError) return { ok: false as const, status: error.status, message: "小说文件请求超过大小限制" };
         return { ok: false as const, status: 400, message: "无法读取小说文件" };
     }
     const fileValue = form.get("file") || form.get("novel") || form.get("sourceFile");

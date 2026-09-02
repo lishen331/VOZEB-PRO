@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getDramaProject } from "@/lib/server/drama-project-store";
+import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { extractDramaLabAssets, isDramaLabAssetType, DramaLabAssetExtractionError } from "@/lib/server/drama-lab-asset-extraction-service";
 
 export const runtime = "nodejs";
@@ -21,7 +21,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const requestId = typeof body.requestId === "string" && body.requestId.trim() ? body.requestId.trim().slice(0, 160) : randomUUID();
         if (!episodeId || !isDramaLabAssetType(assetType)) return NextResponse.json({ code: 400, data: null, msg: "提取参数不正确" }, { status: 400 });
 
-        const project = await getDramaProject(id, user.id);
+        const { project } = await resolveDramaLabProjectForRequest(user.id, id);
+        await assertDramaLabStageAllowed(user.id, id, "assets");
         if (!project) return NextResponse.json({ code: 404, data: null, msg: "短剧项目不存在" }, { status: 404 });
 
         const result = await extractDramaLabAssets({
@@ -35,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         return NextResponse.json({ code: 0, data: result, msg: "资产提取完成" });
     } catch (error) {
-        const status = error instanceof DramaLabAssetExtractionError ? error.status : 500;
+        const status = error instanceof DramaLabAssetExtractionError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "资产提取失败" }, { status });
     }
 }

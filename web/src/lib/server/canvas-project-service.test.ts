@@ -10,12 +10,18 @@ const mocks = vi.hoisted(() => ({
     deleteCanvasProjectAggregates: vi.fn(),
     deleteCanvasAssistantConversationAggregates: vi.fn(),
     getCanvasProject: vi.fn(),
+    getCanvasProjectWithOwner: vi.fn(),
     listCanvasProjectSummaries: vi.fn(),
+    listDramaLabCanvasProjectSummariesForProjects: vi.fn(),
+    listDramaLabProjectIdsForUser: vi.fn(),
     updateCanvasProject: vi.fn(),
     updateCanvasProjectMutationPatch: vi.fn(),
     deleteUserMediaAssetsCascade: vi.fn(),
     validateIpReferences: vi.fn(),
     recordIpReferenceUsage: vi.fn(),
+    getDramaLabProjectGroup: vi.fn(),
+    getDramaLabMembership: vi.fn(),
+    getDramaProjectWithOwner: vi.fn(),
 }));
 
 vi.mock("@/lib/server/creative-runtime-store", () => ({ createCreativeConversation: mocks.createCreativeConversation, updateCreativeConversation: mocks.updateCreativeConversation }));
@@ -25,10 +31,14 @@ vi.mock("@/lib/server/canvas-project-store", () => ({
     },
     createCanvasProject: mocks.createCanvasProject,
     getCanvasProject: mocks.getCanvasProject,
+    getCanvasProjectWithOwner: mocks.getCanvasProjectWithOwner,
     listCanvasProjectSummaries: mocks.listCanvasProjectSummaries,
+    listDramaLabCanvasProjectSummariesForProjects: mocks.listDramaLabCanvasProjectSummariesForProjects,
     updateCanvasProject: mocks.updateCanvasProject,
     updateCanvasProjectMutationPatch: mocks.updateCanvasProjectMutationPatch,
 }));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({ getDramaLabProjectGroup: mocks.getDramaLabProjectGroup, getDramaLabMembership: mocks.getDramaLabMembership, listDramaLabProjectIdsForUser: mocks.listDramaLabProjectIdsForUser }));
+vi.mock("@/lib/server/drama-project-store", () => ({ getDramaProjectWithOwner: mocks.getDramaProjectWithOwner }));
 vi.mock("@/lib/server/creative-entity-deletion-store", () => ({
     CreativeEntityDeletionConflict: mocks.CreativeEntityDeletionConflict,
     deleteCanvasProjectAggregates: mocks.deleteCanvasProjectAggregates,
@@ -50,6 +60,7 @@ import {
     deleteDramaLabEpisodeCanvasForUser,
     getCanvasProjectForUser,
     getDramaLabCanvasProjectForUser,
+    listDramaLabCanvasProjectsForUser,
     updateCanvasProjectForUser,
     updateDramaLabCanvasProjectForUser,
 } from "./canvas-project-service";
@@ -67,6 +78,12 @@ describe("canvas project service lifecycle", () => {
             canvasAssistantState: { chatSessions: [assistantSession("session-new")], activeChatId: "session-new" },
         });
         mocks.getCanvasProject.mockResolvedValue(null);
+        mocks.getCanvasProjectWithOwner.mockResolvedValue(null);
+        mocks.getDramaLabProjectGroup.mockResolvedValue(null);
+        mocks.getDramaLabMembership.mockResolvedValue(null);
+        mocks.listDramaLabProjectIdsForUser.mockResolvedValue([]);
+        mocks.listDramaLabCanvasProjectSummariesForProjects.mockResolvedValue({ projects: [], total: 0, page: 1, pageSize: 12 });
+        mocks.getDramaProjectWithOwner.mockResolvedValue({ project: { id: "drama-one", episodes: [{ id: "episode-one", shots: [] }] }, ownerUserId: "owner-one" });
         mocks.validateIpReferences.mockResolvedValue([]);
         mocks.recordIpReferenceUsage.mockResolvedValue(undefined);
     });
@@ -198,6 +215,34 @@ describe("canvas project service lifecycle", () => {
         expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("user-one", ["permanent/canvas.png"]);
     });
 
+    it("lists episode canvases for every project the caller can access", async () => {
+        mocks.listDramaLabProjectIdsForUser.mockResolvedValue(["drama-one", "drama-two"]);
+        mocks.listDramaLabCanvasProjectSummariesForProjects.mockResolvedValue({ projects: [{ id: "canvas-one" }], total: 1, page: 2, pageSize: 5 });
+
+        await expect(listDramaLabCanvasProjectsForUser("collaborator", { page: 2, pageSize: 5 })).resolves.toMatchObject({ total: 1, page: 2, pageSize: 5 });
+
+        expect(mocks.listDramaLabProjectIdsForUser).toHaveBeenCalledWith("collaborator");
+        expect(mocks.listDramaLabCanvasProjectSummariesForProjects).toHaveBeenCalledWith(["drama-one", "drama-two"], { page: 2, pageSize: 5 });
+        expect(mocks.listCanvasProjectSummaries).not.toHaveBeenCalled();
+    });
+
+    it("deletes a collaborator-visible episode Canvas under the stable storage owner", async () => {
+        const dramaCanvas = { ...project(), id: "canvas-owner", sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one" };
+        mocks.getDramaLabProjectGroup.mockResolvedValue({ id: "group-one", projectId: "drama-one", ownerUserId: "manager-one" });
+        mocks.getDramaLabMembership.mockResolvedValue({ userId: "collaborator", role: "member", status: "active" });
+        mocks.getDramaProjectWithOwner.mockResolvedValue({ project: { id: "drama-one", episodes: [{ id: "episode-one", shots: [] }] }, ownerUserId: "owner-one" });
+        mocks.getCanvasProject.mockImplementation(async (id: string, ownerUserId: string) => (id === "canvas-owner" && ownerUserId === "owner-one" ? dramaCanvas : null));
+
+        // The production id is derived from the owner/source handoff pair;
+        // use the same helper indirectly by accepting the actual lookup.
+        mocks.getCanvasProject.mockResolvedValue(dramaCanvas);
+        await expect(deleteDramaLabEpisodeCanvasForUser("collaborator", "drama-one", "episode-one")).resolves.toBe(true);
+
+        expect(mocks.getDramaLabMembership).toHaveBeenCalledWith("collaborator", "drama-one");
+        expect(mocks.deleteCanvasProjectAggregates).toHaveBeenCalledWith("owner-one", [expect.stringMatching(/^canvas-handoff-/)], { includeDramaLab: true });
+        expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("owner-one", ["permanent/canvas.png"]);
+    });
+
     it("does not delete a canvas whose stored handoff does not exactly match the episode", async () => {
         mocks.getCanvasProject.mockResolvedValue({ ...project(), sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-other" });
 
@@ -237,6 +282,39 @@ describe("canvas project service lifecycle", () => {
         await deleteDramaLabCanvasAssistantConversationsForUser("user-one", "canvas-one", ["conversation-agent"]);
 
         expect(mocks.deleteCanvasAssistantConversationAggregates).toHaveBeenCalledWith("user-one", "canvas-one", ["conversation-agent"], { includeDramaLab: true });
+    });
+
+    it("allows an active project member to read, mutate, and delete assistant conversations through the Canvas storage owner", async () => {
+        const dramaCanvas = {
+            ...project(),
+            sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one",
+            chatSessions: [assistantSession("session-one", "conversation-agent")],
+        };
+        mocks.getCanvasProject.mockResolvedValue(null);
+        mocks.getCanvasProjectWithOwner.mockResolvedValue({ project: dramaCanvas, ownerUserId: "owner-one" });
+        mocks.getDramaLabProjectGroup.mockResolvedValue({ id: "group-one", projectId: "drama-one", ownerUserId: "owner-one" });
+        mocks.getDramaLabMembership.mockResolvedValue({ userId: "member-one", role: "member", status: "active", permissions: { manageMembers: false, approve: false } });
+        mocks.getDramaProjectWithOwner.mockResolvedValue({ project: { id: "drama-one", episodes: [{ id: "episode-one", shots: [] }] }, ownerUserId: "owner-one" });
+        mocks.updateCanvasProjectMutationPatch.mockResolvedValue({ projectId: dramaCanvas.id, updatedAt: "2026-09-02T00:00:01.000Z", mutationId: "member-mutation" });
+
+        await expect(getDramaLabCanvasProjectForUser("member-one", dramaCanvas.id)).resolves.toEqual(dramaCanvas);
+        await expect(updateDramaLabCanvasProjectForUser("member-one", dramaCanvas.id, { mutation: { mutationId: "member-mutation", baseUpdatedAt: dramaCanvas.updatedAt } })).resolves.toMatchObject({ projectId: dramaCanvas.id });
+        await expect(deleteDramaLabCanvasAssistantConversationsForUser("member-one", dramaCanvas.id, ["conversation-agent"])).resolves.toMatchObject({ deleted: 1 });
+
+        expect(mocks.updateCanvasProjectMutationPatch).toHaveBeenCalledWith("owner-one", dramaCanvas.id, expect.objectContaining({ mutationId: "member-mutation" }));
+        expect(mocks.deleteCanvasAssistantConversationAggregates).toHaveBeenCalledWith("owner-one", dramaCanvas.id, ["conversation-agent"], { includeDramaLab: true });
+        expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("owner-one", ["permanent/assistant.png"]);
+    });
+
+    it("rejects a drama Canvas whose handoff points at a deleted episode", async () => {
+        const dramaCanvas = { ...project(), sourceHandoffId: "drama-lab-canvas:drama-one:episode:deleted-episode" };
+        mocks.getCanvasProject.mockResolvedValue(null);
+        mocks.getCanvasProjectWithOwner.mockResolvedValue({ project: dramaCanvas, ownerUserId: "owner-one" });
+        mocks.getDramaLabProjectGroup.mockResolvedValue({ id: "group-one", projectId: "drama-one", ownerUserId: "owner-one" });
+        mocks.getDramaLabMembership.mockResolvedValue({ userId: "member-one", role: "member", status: "active", permissions: { manageMembers: false, approve: false } });
+        mocks.getDramaProjectWithOwner.mockResolvedValue({ project: { id: "drama-one", episodes: [{ id: "episode-one", shots: [] }] }, ownerUserId: "owner-one" });
+
+        await expect(getDramaLabCanvasProjectForUser("member-one", dramaCanvas.id)).rejects.toMatchObject({ status: 404 });
     });
 
     it("returns the owned project state when no assistant conversation id is provided", async () => {

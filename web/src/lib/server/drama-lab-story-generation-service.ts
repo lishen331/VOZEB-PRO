@@ -5,7 +5,7 @@ import { getAuthSettings } from "@/lib/auth/store";
 import { toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
-import { getDramaProjectForUser, updateDramaProjectForUser } from "@/lib/server/drama-project-service";
+import { updateDramaProjectForUser } from "@/lib/server/drama-project-service";
 import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, queryStoredGenerationTasks, withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { createTextTask, getTextTask, transitionTextTask, updateTextTask, type TextTask } from "@/lib/server/text-task-store";
@@ -14,6 +14,7 @@ import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-r
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { cancellationExecutionPatch, type GenerationCancellationTarget } from "@/lib/server/generation-task-cancellation-service";
 import { extractJsonObjectText } from "@/lib/server/structured-model-output";
+import { getDramaLabCollaborationForUser, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 
 const MAX_EPISODES = 100;
 const MAX_OUTLINE_LENGTH = 100_000;
@@ -61,24 +62,17 @@ export async function startDramaLabStoryGeneration(input: StartDramaLabStoryGene
     if (!projectId || !sourceEpisodeId || !requestId) throw new DramaLabStoryGenerationError("故事生成任务参数不完整", 400);
 
     const episodeCount = normalizeEpisodeCount(input.episodeCount);
-    const project = await getDramaProjectForUser(input.userId, projectId);
+    const { project, ownerUserId } = await resolveDramaLabProjectForRequest(input.userId, projectId);
     const sourceIndex = project.episodes.findIndex((episode) => episode.id === sourceEpisodeId);
     if (sourceIndex < 0) throw new DramaLabStoryGenerationError("当前剧集不存在", 400);
 
-    const existing = await getStoredGenerationTaskByRequest<TextTask>("text", input.userId, requestId);
+    const taskOwnerIds = uniqueTaskOwnerIds(input.userId, ownerUserId);
+    const existingCandidates = await Promise.all(taskOwnerIds.map((taskOwnerId) => getStoredGenerationTaskByRequest<TextTask>("text", taskOwnerId, requestId)));
+    const existing = existingCandidates.find((candidate) => candidate?.storyBatch?.projectId === projectId) || existingCandidates.find(Boolean);
     if (existing?.storyBatch?.projectId === projectId) return existing;
     if (existing) throw new DramaLabStoryGenerationError("请求标识已被其他文本任务使用", 409);
 
-    const active = await queryStoredGenerationTasks<TextTask>("text", {
-        userId: input.userId,
-        projectId,
-        surface: "drama",
-        // A completed text task can remain `success` while its storyBatch is
-        // still being materialized into project episodes. Treat that window
-        // as active so a second click cannot create a duplicate task.
-        statuses: ["pending", "running", "success"],
-        limit: 100,
-    });
+    const active = await queryStoryTasksForProject(input.userId, projectId, ownerUserId);
     const runningStory = active.find((task) => task.storyBatch?.projectId === projectId && ["pending", "persisting"].includes(task.storyBatch.status));
     if (runningStory) return runningStory;
 
@@ -102,6 +96,7 @@ export async function startDramaLabStoryGeneration(input: StartDramaLabStoryGene
     const storyBatch: DramaStoryBatch = {
         version: 1,
         projectId,
+        projectOwnerUserId: ownerUserId,
         sourceEpisodeId,
         sourceEpisodeIndex: sourceIndex,
         targetEpisodeIds,
@@ -163,7 +158,7 @@ export async function startDramaLabStoryGeneration(input: StartDramaLabStoryGene
 
 export async function getDramaLabStoryTaskView(taskId: string, userId: string, projectId: string) {
     const task = await getTextTask(taskId);
-    if (!task || task.userId !== userId || task.storyBatch?.projectId !== projectId) return null;
+    if (!task || task.storyBatch?.projectId !== projectId || !(await resolveStoryTaskAccess(userId, projectId))) return null;
     try {
         const materialized = await materializeDramaLabStoryTask(task);
         return storyTaskView(materialized || task);
@@ -177,13 +172,8 @@ export async function getDramaLabStoryTaskView(taskId: string, userId: string, p
 }
 
 export async function findActiveDramaLabStoryTask(userId: string, projectId: string) {
-    const tasks = await queryStoredGenerationTasks<TextTask>("text", {
-        userId,
-        projectId,
-        surface: "drama",
-        statuses: ["pending", "running", "success"],
-        limit: 100,
-    });
+    const { ownerUserId } = await resolveDramaLabProjectForRequest(userId, projectId);
+    const tasks = await queryStoryTasksForProject(userId, projectId, ownerUserId);
     const task = tasks.find((candidate) => candidate.storyBatch?.projectId === projectId && ["pending", "persisting"].includes(candidate.storyBatch.status));
     if (!task) return null;
     try {
@@ -245,8 +235,9 @@ export async function materializeDramaLabStoryTask(task: TextTask) {
     });
 }
 
-export async function cancelDramaLabStoryTask(task: TextTask, origin: string, cookie: string) {
+export async function cancelDramaLabStoryTask(task: TextTask, origin: string, cookie: string, userId = task.userId, projectId = task.storyBatch?.projectId || "") {
     if (!task.storyBatch || !["pending", "running"].includes(task.status)) return null;
+    if (!projectId || task.storyBatch.projectId !== projectId || !(await resolveStoryTaskAccess(userId, projectId))) return null;
     const target: GenerationCancellationTarget = {
         type: "text",
         taskId: task.id,
@@ -287,6 +278,56 @@ export function storyTaskView(task: TextTask): DramaStoryTaskView {
         ...(batch.status === "completed" ? { result: { episodeCount: persistedEpisodeCount } } : {}),
         ...(batch.error || task.error ? { error: batch.error || task.error } : {}),
     };
+}
+
+/**
+ * Return the task owners that can legitimately be used for project-scoped
+ * task discovery.  Generation task storage remains keyed by the creator, but
+ * a collaborator must also be able to discover work created by the stable
+ * project storage owner.
+ */
+function uniqueTaskOwnerIds(userId: string, ownerUserId: string) {
+    return Array.from(new Set([userId.trim(), ownerUserId.trim()].filter(Boolean)));
+}
+
+async function queryStoryTasksForProject(userId: string, projectId: string, ownerUserId: string) {
+    const collaboration = await getDramaLabCollaborationForUser(userId, projectId);
+    const ownerIds = uniqueTaskOwnerIds(userId, ownerUserId).concat(collaboration.members.map((member) => member.userId));
+    const taskLists = await Promise.all(
+        ownerIds.map((taskOwnerId) =>
+            queryStoredGenerationTasks<TextTask>("text", {
+                userId: taskOwnerId,
+                projectId,
+                surface: "drama",
+                // A completed text task can remain `success` while its
+                // storyBatch is still being materialized into episodes.
+                statuses: ["pending", "running", "success"],
+                limit: 100,
+            }),
+        ),
+    );
+    const unique = new Map<string, TextTask>();
+    for (const task of taskLists.flat()) {
+        if (task.storyBatch?.projectId !== projectId) continue;
+        if (!unique.has(task.id)) unique.set(task.id, task);
+    }
+    return Array.from(unique.values()).sort((left, right) => right.updatedAt - left.updatedAt || right.id.localeCompare(left.id));
+}
+
+/** Resolve task access through the Drama Lab collaboration boundary. */
+async function resolveStoryTaskAccess(userId: string, projectId: string) {
+    let resolved: Awaited<ReturnType<typeof resolveDramaLabProjectForRequest>>;
+    try {
+        resolved = await resolveDramaLabProjectForRequest(userId, projectId);
+    } catch {
+        return null;
+    }
+    if (!resolved?.project) return null;
+    // The project resolver has already established that the viewer is an
+    // active collaborator. Task ownership is deliberately independent from
+    // that viewer identity: generation rows remain billed and stored under
+    // their original creator, while every project member can follow the run.
+    return resolved;
 }
 
 export function normalizeEpisodeCount(value: string | number) {
@@ -344,7 +385,8 @@ async function persistStoryEpisode(userId: string, batch: DramaStoryBatch, index
     const targetId = batch.targetEpisodeIds[index];
     if (!targetId) throw new DramaLabStoryGenerationError(`第 ${index + 1} 集缺少持久化 ID`, 500);
     for (let attempt = 0; attempt < 3; attempt += 1) {
-        const project = await getDramaProjectForUser(userId, batch.projectId);
+        const resolved = await resolveDramaLabProjectForRequest(userId, batch.projectId);
+        const project = resolved.project;
         const existingIndex = project.episodes.findIndex((episode) => episode.id === targetId);
         const existing = existingIndex >= 0 ? project.episodes[existingIndex] : undefined;
         if (existing?.script?.trim() === generated.content.trim() && existing.title === generated.title) return;
@@ -370,11 +412,11 @@ async function persistStoryEpisode(userId: string, batch: DramaStoryBatch, index
         if (existingIndex >= 0) episodes[existingIndex] = episode;
         else episodes.splice(Math.min(project.episodes.length, batch.sourceEpisodeIndex + index), 0, episode);
         try {
-            await updateDramaProjectForUser(userId, batch.projectId, { ...project, episodes, activeEpisodeId: index === 0 ? targetId : project.activeEpisodeId, updatedAt: new Date().toISOString() });
+            await updateDramaProjectForUser(resolved.ownerUserId, batch.projectId, { ...project, episodes, activeEpisodeId: index === 0 ? targetId : project.activeEpisodeId, updatedAt: new Date().toISOString() });
             return;
         } catch (error) {
             if (attempt >= 2) throw error;
-            const latest = await getDramaProjectForUser(userId, batch.projectId);
+            const latest = await resolveDramaLabProjectForRequest(userId, batch.projectId).then((value) => value.project);
             const saved = latest.episodes.find((candidate) => candidate.id === targetId);
             if (saved?.script?.trim() === generated.content.trim()) return;
         }

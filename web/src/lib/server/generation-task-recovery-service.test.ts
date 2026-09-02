@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => ({
     refundTextTask: vi.fn(),
     getAuthSettings: vi.fn(),
     validateGenerationContextIpReferences: vi.fn(),
+    advanceDramaLabWorkflow: vi.fn(),
 }));
 
 vi.mock("@/lib/server/generation-task-scheduler", () => ({
@@ -82,6 +83,7 @@ vi.mock("@/lib/server/generation-task-cancellation-service", () => ({
 }));
 vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
+vi.mock("@/lib/server/drama-lab-workflow-task-service", () => ({ advanceDramaLabWorkflow: mocks.advanceDramaLabWorkflow }));
 
 import { runGenerationTaskRecoveryBatch } from "./generation-task-recovery-service";
 import { SchoolServiceError } from "./school-access-service";
@@ -100,6 +102,44 @@ describe("generation task recovery service", () => {
 
         await expect(runGenerationTaskRecoveryBatch({ origin: "http://internal" })).resolves.toEqual({ claimed: 0, pending: 0, resultReady: 0, completed: 0, failed: 0, needsReview: 0, deferred: 0 });
         expect(mocks.release).not.toHaveBeenCalled();
+    });
+
+    it("advances a durable Drama Lab workflow parent from the shared worker", async () => {
+        const task = { id: "workflow-one", userId: "user-one", status: "running" };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: task.id, userId: task.userId, type: "render", status: "running", executionPhase: "created" }]);
+        mocks.advanceDramaLabWorkflow.mockResolvedValue(task);
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.advanceDramaLabWorkflow).toHaveBeenCalledWith({ userId: "user-one", taskId: "workflow-one", origin: "http://internal", cookie: "worker-context:user-one" });
+        expect(mocks.release).toHaveBeenCalledWith(
+            "render",
+            "workflow-one",
+            "worker-one",
+            expect.objectContaining({ executionPhase: "polling", lastUpstreamStatus: "workflow_running", nextPollAt: expect.any(Number) }),
+        );
+        expect(result).toMatchObject({ claimed: 1, pending: 1, failed: 0, needsReview: 0 });
+    });
+
+    it("closes a durable Drama Lab workflow lease when the parent reaches a terminal state", async () => {
+        const task = { id: "workflow-one", userId: "user-one", status: "success" };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: task.id, userId: task.userId, type: "render", status: "running", executionPhase: "polling" }]);
+        mocks.advanceDramaLabWorkflow.mockResolvedValue(task);
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.release).toHaveBeenCalledWith("render", "workflow-one", "worker-one", expect.objectContaining({ executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "workflow_success" }));
+        expect(result).toMatchObject({ claimed: 1, completed: 1, pending: 0 });
+    });
+
+    it("increments the persisted workflow retry counter instead of restarting at one", async () => {
+        mocks.claim.mockResolvedValue([{ ...lease(), id: "workflow-one", type: "render", status: "running", executionPhase: "polling", lastUpstreamStatus: "workflow_error:3" }]);
+        mocks.advanceDramaLabWorkflow.mockRejectedValue(new Error("temporary workflow failure"));
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.release).toHaveBeenCalledWith("render", "workflow-one", "worker-one", expect.objectContaining({ lastUpstreamStatus: "workflow_error:4" }));
+        expect(result).toMatchObject({ claimed: 1, deferred: 1 });
     });
 
     it("executes an active Agent through its persisted lease and closes the terminal schedule", async () => {

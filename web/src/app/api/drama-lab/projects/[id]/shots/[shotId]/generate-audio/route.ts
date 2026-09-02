@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
+import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { getAuthSettings } from "@/lib/auth/store";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { DramaLabAudioError, legacyDramaAudioTaskId, prepareDramaLabAudio } from "@/lib/server/drama-lab-audio-service";
 import { persistDramaLabShotUpdate } from "@/lib/server/drama-lab-shot-generation-service";
-import { DramaProjectStoreError, getDramaProject } from "@/lib/server/drama-project-store";
+import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 import { getAudioTask } from "@/lib/server/audio-task-store";
 
 export const runtime = "nodejs";
@@ -23,8 +24,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const { id, shotId } = await params;
         const episodeId = new URL(request.url).searchParams.get("episodeId")?.trim() || "";
         if (!episodeId) throw new DramaLabAudioError("当前剧集不能为空");
-        const project = await getDramaProject(id, user.id);
+        const { project, ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
         if (!project) throw new DramaLabAudioError("短剧项目不存在", 404);
+        await assertDramaLabStageAllowed(user.id, id, "storyboard_video", { episodeId, resourceType: "shot", resourceId: shotId });
         const parsed = await readJsonBodyResult<AudioBody>(request);
         if (!parsed.ok) return NextResponse.json({ code: parsed.status, data: null, msg: parsed.message }, { status: parsed.status });
         const input = prepareDramaLabAudio(project, episodeId, shotId, parsed.data.kind);
@@ -87,6 +89,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         } as const;
         await persistDramaLabShotUpdate({
             userId: user.id,
+            projectOwnerUserId: ownerUserId,
             project,
             episodeId,
             shotId,
@@ -101,7 +104,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         return NextResponse.json({ code: 0, data: { task: payload.task, kind: input.kind, speaker: input.speaker }, msg: "短剧音频任务已创建" });
     } catch (error) {
-        const status = error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError ? error.status : 500;
+        const status = error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "短剧音频任务创建失败" }, { status });
     }
 }

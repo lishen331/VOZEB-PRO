@@ -4,6 +4,7 @@ import { dramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract"
 import type { DramaEpisode, DramaNamedAsset, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 import { createDramaLabCanvasProjectForUser, deleteDramaLabEpisodeCanvasForUser } from "@/lib/server/canvas-project-service";
 import { getCanvasProject, updateCanvasProject } from "@/lib/server/canvas-project-store";
+import { resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { getDramaProject } from "@/lib/server/drama-project-store";
 
 type DramaLabSourceEntityType = "episode" | "script" | "character" | "scene" | "prop" | "shot" | "image" | "video";
@@ -40,7 +41,9 @@ export async function getOrCreateDramaLabEpisodeCanvasForUser(userIdValue: strin
     const userId = requiredId(userIdValue, "用户");
     const projectId = requiredId(projectIdValue, "短剧项目");
     const episodeId = requiredId(episodeIdValue, "剧集");
-    const project = await getDramaProject(projectId, userId);
+    const resolved = await resolveDramaLabProjectForRequest(userId, projectId);
+    const project = resolved.project;
+    const ownerUserId = resolved.ownerUserId;
     if (!project) throw new DramaLabEpisodeCanvasServiceError("短剧项目不存在", 404);
     const episode = project.episodes.find((item) => item.id === episodeId);
     if (!episode) throw new DramaLabEpisodeCanvasServiceError("剧集不存在或不属于当前短剧项目", 404);
@@ -52,7 +55,7 @@ export async function getOrCreateDramaLabEpisodeCanvasForUser(userIdValue: strin
     const projection = projectEpisodeToCanvas(project, episode);
     const title = `${project.title} · ${episode.title}`;
     const requestedViewport = shotIndex >= 0 ? shotViewport(shotIndex) : projection.viewport;
-    const canvasProject = await createDramaLabCanvasProjectForUser(userId, {
+    const canvasProject = await createDramaLabCanvasProjectForUser(ownerUserId, {
         title,
         sourceHandoffId,
         ipReferences: project.ipReferences,
@@ -64,14 +67,14 @@ export async function getOrCreateDramaLabEpisodeCanvasForUser(userIdValue: strin
             viewport: requestedViewport,
         },
     });
-    const latestProject = await getDramaProject(project.id, userId);
+    const latestProject = await getDramaProject(project.id, ownerUserId);
     if (!latestProject || !latestProject.episodes.some((item) => item.id === episode.id)) {
-        await deleteDramaLabEpisodeCanvasForUser(userId, project.id, episode.id);
+        await deleteDramaLabEpisodeCanvasForUser(ownerUserId, project.id, episode.id);
         throw new DramaLabEpisodeCanvasServiceError("剧集不存在或已被删除，请刷新后重试", 404);
     }
     const mergeInput = { prefix: `dl:${project.id}:episode:${episode.id}`, title, requestedViewport, locateShot: shotIndex >= 0 };
     const syncedProject = mergeEpisodeProjection(canvasProject, projection, mergeInput);
-    const savedProject = await persistEpisodeProjectionWithRetry(userId, canvasProject, syncedProject, projection, mergeInput);
+    const savedProject = await persistEpisodeProjectionWithRetry(ownerUserId, canvasProject, syncedProject, projection, mergeInput);
     return {
         project: savedProject,
         binding: { dramaProjectId: project.id, episodeId: episode.id, sourceHandoffId, ...(shotId ? { shotId } : {}) },

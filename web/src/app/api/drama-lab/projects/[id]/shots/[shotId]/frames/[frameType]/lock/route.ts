@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
 import type { DramaProject, DramaShot } from "@/lib/drama-project-contract";
+import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getDramaProject } from "@/lib/server/drama-project-store";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { persistDramaLabShotUpdate } from "@/lib/server/drama-lab-shot-generation-service";
 
 const FRAME_TYPES = new Set(["first", "key", "last"]);
@@ -19,16 +20,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!FRAME_TYPES.has(frameType)) return NextResponse.json({ code: 400, data: null, msg: "帧类型无效" }, { status: 400 });
         const episodeId = new URL(request.url).searchParams.get("episodeId")?.trim() || "";
         if (!episodeId) return NextResponse.json({ code: 400, data: null, msg: "当前剧集不能为空" }, { status: 400 });
-        const project = await getDramaProject(id, user.id);
+        const { project, ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
+        await assertDramaLabStageAllowed(user.id, id, "storyboard_image", { episodeId, resourceType: "shot", resourceId: shotId });
         if (!project) return NextResponse.json({ code: 404, data: null, msg: "短剧项目不存在" }, { status: 404 });
         const shot = findShot(project, episodeId, shotId);
         const current = shot?.frames?.[frameType as FrameType];
         if (!shot || !current) return NextResponse.json({ code: 404, data: null, msg: "当前帧不存在" }, { status: 404 });
-        const body = await request.json().catch(() => null);
-        if (!body || typeof body.locked !== "boolean") return NextResponse.json({ code: 400, data: null, msg: "locked 必须是布尔值" }, { status: 400 });
+        const parsed = await readJsonBodyResult<{ locked?: unknown }>(request, 16 * 1024);
+        if (!parsed.ok || typeof parsed.data.locked !== "boolean") return NextResponse.json({ code: parsed.ok ? 400 : parsed.status, data: null, msg: parsed.ok ? "locked 必须是布尔值" : parsed.message }, { status: parsed.ok ? 400 : parsed.status });
+        const body = parsed.data;
         if (body.locked) assertFrameLockable(current, frameType as FrameType);
         const frame = { ...current, locked: body.locked };
-        const saved = await persistDramaLabShotUpdate({ userId: user.id, project, episodeId, shotId, patch: { frames: { ...shot.frames, [frameType]: frame } }, retryOnConflict: false });
+        const saved = await persistDramaLabShotUpdate({ userId: user.id, projectOwnerUserId: ownerUserId, project, episodeId, shotId, patch: { frames: { ...shot.frames, [frameType]: frame } }, retryOnConflict: false });
         const savedFrame = findShot(saved, episodeId, shotId)?.frames?.[frameType as FrameType] || frame;
         return NextResponse.json({ code: 0, data: { frame: savedFrame }, msg: body.locked ? "帧已锁定" : "帧已解锁" });
     } catch (error) {

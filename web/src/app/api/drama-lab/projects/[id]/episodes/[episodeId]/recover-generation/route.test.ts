@@ -6,10 +6,12 @@ const mocks = vi.hoisted(() => ({
     recoverDramaLabVideoTasks: vi.fn(),
     resolveInternalOrigin: vi.fn(),
     resolvePublicRequestOrigin: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/server/drama-project-store", () => ({ getDramaProject: mocks.getDramaProject }));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({ resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest }));
 vi.mock("@/lib/server/drama-lab-video-recovery-service", () => {
     class DramaLabVideoRecoveryError extends Error {
         constructor(
@@ -34,6 +36,7 @@ describe("Drama Lab episode video recovery route", () => {
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.getDramaProject.mockResolvedValue(project);
+        mocks.resolveDramaLabProjectForRequest.mockImplementation(async (_userId: string, _projectId: string) => ({ project: await mocks.getDramaProject(), ownerUserId: "user-one" }));
         mocks.resolvePublicRequestOrigin.mockReturnValue("https://public.example");
         mocks.resolveInternalOrigin.mockReturnValue("http://internal.example");
         mocks.recoverDramaLabVideoTasks.mockResolvedValue({ episodeId: "episode-one", tasks: [], activeTaskIds: [], syncedShotIds: [], syncErrors: [] });
@@ -51,6 +54,7 @@ describe("Drama Lab episode video recovery route", () => {
             origin: "http://internal.example",
             publicOrigin: "https://public.example",
             cookie: "session=one",
+            projectOwnerUserId: "user-one",
         });
         await expect(response.json()).resolves.toMatchObject({ code: 0, data: { episodeId: "episode-one" } });
     });

@@ -19,8 +19,8 @@ describe("drama workflow lab batch run demo", () => {
         expect(workflowModal).toContain("视觉风格");
         expect(workflowModal).toContain("自动导出");
         expect(workflowModal).toContain("使用后台默认渠道");
-        expect(workflowModal).toContain("开始模拟执行");
-        expect(workflowModal).not.toContain("fetch(");
-        expect(workflowModal).not.toContain("onSave(");
+        expect(workflowModal).toContain("开始执行");
+        expect(workflowModal).toContain("/api/drama-lab/projects/");
+        expect(workflowModal).not.toContain("开始模拟执行");
     });
 });

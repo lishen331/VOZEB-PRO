@@ -2,14 +2,16 @@ import { NextResponse } from "next/server";
 
 import { getAuthSettings } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
+import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { DramaLabShotGenerationError, persistDramaLabShotUpdate, prepareDramaLabStoryboardVideo } from "@/lib/server/drama-lab-shot-generation-service";
-import { DramaProjectStoreError, getDramaProject } from "@/lib/server/drama-project-store";
+import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 import { getVideoTask } from "@/lib/server/video-task-store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { templateVideoReferenceRoles } from "@/lib/server/provider-task-config";
+import { maintenanceWorkerContextHeaders, requestRuntimeCredential } from "@/lib/server/maintenance-auth";
 import type { VideoReferenceRole } from "@/lib/video-reference-contract";
 
 type VideoCandidate = ReturnType<typeof resolveLogicalModelCandidates>[number];
@@ -26,7 +28,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const { id, shotId } = await params;
         const episodeId = new URL(request.url).searchParams.get("episodeId")?.trim() || "";
         if (!episodeId) throw new DramaLabShotGenerationError("当前剧集不能为空");
-        const project = await getDramaProject(id, user.id);
+        const { project, ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
+        await assertDramaLabStageAllowed(user.id, id, "storyboard_video", { episodeId, resourceType: "shot", resourceId: shotId });
         if (!project) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
         const settings = await getAuthSettings();
         if (!settings.defaultModels.videoModel) throw new DramaLabShotGenerationError("后台尚未配置可用的默认视频模型", 503);
@@ -56,15 +59,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         // request.url may contain a stale local development port.
         const requestOrigin = resolvePublicRequestOrigin(request);
         const origin = resolveInternalOrigin(requestOrigin);
+        const credential = requestRuntimeCredential(request, user.id);
         console.info("[drama-lab/generate-video] dispatch", { requestOrigin, origin, configuredOrigin: process.env.VOZEB_PRO_INTERNAL_ORIGIN, port: process.env.PORT });
         const response = await fetchInternalApi(`${origin}/api/video-generation-tasks`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                cookie: request.headers.get("cookie") || "",
+            headers: runtimeRequestHeaders(credential, {
                 "X-VOZEB-PRO-Client-Request-Id": requestId,
                 "X-VOZEB-PRO-Attempt-No": String(attemptNo),
-            },
+            }),
             body: JSON.stringify({
                 config: { model: settings.defaultModels.videoModel, size: project.ratio, videoSeconds: prepared.shot.duration },
                 prompt: prepared.prompt,
@@ -88,6 +90,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
         await persistDramaLabShotUpdate({
             userId: user.id,
+            projectOwnerUserId: ownerUserId,
             project,
             episodeId,
             shotId,
@@ -111,9 +114,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             cause: error instanceof Error ? error.cause : undefined,
             name: error instanceof Error ? error.name : undefined,
         });
-        const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError ? error.status : 500;
+        const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜视频任务创建失败" }, { status });
     }
+}
+
+function runtimeRequestHeaders(credential: string, initial: Record<string, string>) {
+    const workerHeaders = maintenanceWorkerContextHeaders(credential);
+    return {
+        "Content-Type": "application/json",
+        ...(workerHeaders || (credential ? { cookie: credential } : {})),
+        ...initial,
+    };
 }
 
 function candidateSupportsLastFrame(candidate: VideoCandidate) {

@@ -3,6 +3,8 @@ export type DramaStoryBatchStatus = "pending" | "persisting" | "completed" | "er
 export type DramaStoryBatch = {
     version: 1;
     projectId: string;
+    /** Owner-backed project storage identity for collaboration members. */
+    projectOwnerUserId?: string;
     sourceEpisodeId: string;
     sourceEpisodeIndex: number;
     targetEpisodeIds: string[];

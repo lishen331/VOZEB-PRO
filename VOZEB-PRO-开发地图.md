@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-09-01，`main` 分支。当前源码包含 50 个 `page.tsx` 页面入口、273 个 API Route 文件和 105 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-09-02，当前工作区。源码包含 51 个 `page.tsx` 页面入口、299 个 API Route 文件和 111 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -86,7 +86,7 @@ flowchart LR
 
 ## 前端页面与状态
 
-页面共 34 个入口，主要分为：
+页面共 51 个入口，主要分为：
 
 | 页面组 | 入口示例 | 外壳/状态 | 说明 |
 | --- | --- | --- | --- |
@@ -127,7 +127,7 @@ flowchart TD
 
 ## API 分层与权限
 
-273 个 Route 文件分布在 41 个一级域。数量最多的是 `admin` 91、`school` 22、`public` 16、`drama-lab` 15、`teaching` 15、`auth` 13、`drama` 12、`billing` 11。完整列表见 [接口索引](VOZEB-PRO-接口索引.md)。
+299 个 Route 文件分布在 41 个一级域。数量最多的是 `admin` 91、`school` 22、`public` 16、`drama-lab` 41、`teaching` 15、`auth` 13、`drama` 12、`billing` 11。完整列表见 [接口索引](VOZEB-PRO-接口索引.md)。
 
 权限分类不是目录规则，而是实现规则：
 
@@ -287,6 +287,19 @@ Schema 初始化在 [schema.ts](web/src/lib/server/database/schema.ts)、[schema
 | 后台维护 | 无用户页面 | `/api/maintenance` | Recovery、Refund、Lifecycle | Worker/维护 Token | 未授权拒绝、领取幂等、心跳 |
 | 上游代理 | 创作页面间接使用 | `/api/ai/system`、`/api/generation-webhooks` | Channel Router、Proxy Policy | 模型渠道、Webhook | SSRF、凭据隔离、签名 |
 
+### 短剧实验室 Phase 3 边界
+
+Phase 3 的四条主线均位于 `drama-lab` 领域，不改变普通 Canvas 或平台账户体系：
+
+| 主线 | Route | Service | 事实源/边界 |
+| --- | --- | --- | --- |
+| 一键全流程 | `/api/drama-lab/projects/[id]/workflow`、`workflow/export/*` | `drama-lab-workflow-task-service`、`drama-lab-workflow-review-service` | 父/子任务复用 `generation_tasks(task_type=render)`；Worker、取消、恢复、审核和导出均按项目成员授权 |
+| 团队协作与审批 | `/api/drama-lab/projects/[id]/collaboration/*`、`/api/drama-lab/invites/*` | `drama-lab-collaboration-service` | 六张 `drama_lab_*` 协作/审批表；邀请 token 只存哈希，成员/管理员关系决定项目访问和阶段门禁 |
+| Canvas 显式回写 | `/api/drama-lab/canvas-projects/[id]/writeback` | `drama-lab-canvas-writeback-service` | Canvas 是 staging；仅显式目标写回短剧项目，并校验 handoff、节点绑定、媒体所有权和乐观版本 |
+| 完整项目归档 | `/api/drama-lab/projects/[id]/export`、`/api/drama-lab/projects/import` | `drama-lab-project-archive` | 项目 JSON + ZIP 媒体；导入重映射业务 ID、清除旧任务引用，失败回滚并清理已写媒体 |
+
+详细实现和人工验收项见 [短剧实验室 Phase 3 交付报告](docs/superpowers/reports/2026-09-02-drama-lab-phase-3.md)。
+
 ## 常见二次开发落点
 
 | 目标 | 必改位置 | 同步检查 |
@@ -348,7 +361,7 @@ flowchart LR
     class PG,Data,PGData data
 ```
 
-- [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)：273 个 Route 文件逐项权限、服务和边界。
+- [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)：299 个 Route 文件逐项权限、服务和边界。
 - [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)：本地验证、GitHub、版本镜像、远程更新与回滚。
 - [README](README.md)：产品能力、安装方式和上游项目说明。
 - [项目结构与流程](docs/content/docs/overview/project-structure.mdx)：上游维护的结构说明。

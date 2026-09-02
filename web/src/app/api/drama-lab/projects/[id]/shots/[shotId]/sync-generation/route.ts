@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
+import { getDramaLabCollaborationForUser, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { appendDramaLabGenerationHistory, DramaLabShotGenerationError, findShot, persistDramaLabShotUpdate } from "@/lib/server/drama-lab-shot-generation-service";
 import { DramaProjectStoreError, getDramaProject } from "@/lib/server/drama-project-store";
 import { getImageTask } from "@/lib/server/image-task-store";
@@ -22,11 +23,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const { id, shotId } = await params;
         const episodeId = new URL(request.url).searchParams.get("episodeId")?.trim() || "";
         if (!episodeId) throw new DramaLabShotGenerationError("当前剧集不能为空");
-        const project = await getDramaProject(id, user.id);
+        const { project, ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
         if (!project) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
         let { shot } = findShot(project, episodeId, shotId);
-        let taskState = await readTaskState(shot, user.id, { projectId: id, episodeId, shotId });
-        let patch = generationPatch(shot, taskState.imageTask, taskState.videoTask, taskState.frameTasks, taskState);
+        // Generation rows are keyed by their creator, but every active
+        // collaborator may legitimately poll and persist a result for the
+        // shared project. Keep the allow-list project-scoped; never fall back
+        // to a platform-wide user lookup.
+        const collaboration = await getDramaLabCollaborationForUser(user.id, id);
+        const allowedUserIds = Array.from(new Set([user.id, ownerUserId, ...collaboration.members.filter((member) => member.status === "active").map((member) => member.userId)]));
+        let taskState = await readTaskState(shot, user.id, { projectId: id, episodeId, shotId }, allowedUserIds);
+        let patch = generationPatch(shot, taskState.imageTask, taskState.videoTask, taskState.frameTasks, { ...taskState, allowedUserIds });
         let updated: Awaited<ReturnType<typeof persistDramaLabShotUpdate>> = project;
 
         if (Object.keys(patch).length) {
@@ -34,25 +41,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                 // Keep the first write conflict-safe: the patch may contain a
                 // complete frame map, so blindly replaying it over a newer
                 // project snapshot could undo a user's lock or upload.
-                updated = await persistDramaLabShotUpdate({ userId: user.id, project, episodeId, shotId, patch, retryOnConflict: false });
+                updated = await persistDramaLabShotUpdate({ userId: user.id, projectOwnerUserId: ownerUserId, project, episodeId, shotId, patch, retryOnConflict: false });
             } catch (error) {
                 if (!isConflict(error)) throw error;
-                const latest = await getDramaProject(id, user.id);
+                const latest = await getDramaProject(id, ownerUserId);
                 if (!latest) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
                 ({ shot } = findShot(latest, episodeId, shotId));
-                taskState = await readTaskState(shot, user.id, { projectId: id, episodeId, shotId });
-                patch = generationPatch(shot, taskState.imageTask, taskState.videoTask, taskState.frameTasks, taskState);
+                taskState = await readTaskState(shot, user.id, { projectId: id, episodeId, shotId }, allowedUserIds);
+                patch = generationPatch(shot, taskState.imageTask, taskState.videoTask, taskState.frameTasks, { ...taskState, allowedUserIds });
                 // The latest snapshot may already include the task result (or
                 // a newer user decision), in which case there is nothing to
                 // persist. Otherwise apply the freshly computed task-only patch
                 // against that snapshot, still without replaying stale data.
                 updated = Object.keys(patch).length
-                    ? await persistDramaLabShotUpdate({ userId: user.id, project: latest, episodeId, shotId, patch, retryOnConflict: false })
+                    ? await persistDramaLabShotUpdate({ userId: user.id, projectOwnerUserId: ownerUserId, project: latest, episodeId, shotId, patch, retryOnConflict: false })
                     : latest;
             }
         }
 
-        const activeTaskIds = [taskState.imageTask, taskState.videoTask, ...taskState.frameTasks.map(([, task, match]) => (match === "valid" && task && task.userId === user.id ? task : null))].flatMap((task) =>
+        const activeTaskIds = [taskState.imageTask, taskState.videoTask, ...taskState.frameTasks.map(([, task, match]) => (match === "valid" && task && task.userId && allowedUserIds.includes(task.userId) ? task : null))].flatMap((task) =>
             task && (task.status === "pending" || task.status === "running") && task.executionPhase !== "needs_review" ? [task.id] : [],
         );
         if (activeTaskIds.length) {
@@ -88,15 +95,15 @@ type SyncTaskState = {
 
 type TaskContextMatch = "valid" | "missing" | "foreign" | "mismatch";
 
-async function readTaskState(shot: ReturnType<typeof findShot>["shot"], userId: string, scope: { projectId: string; episodeId: string; shotId: string }): Promise<SyncTaskState> {
+async function readTaskState(shot: ReturnType<typeof findShot>["shot"], userId: string, scope: { projectId: string; episodeId: string; shotId: string }, allowedUserIds: readonly string[] = [userId]): Promise<SyncTaskState> {
     const frameTasks = await Promise.all(
         (Object.entries(shot.frames || {}) as Array<["first" | "key" | "last", NonNullable<typeof shot.frames>["first"]]>).map(async ([frameType, frame]) => [frameType, frame?.taskId ? await getImageTask(frame.taskId) : null] as const),
     );
     const [storedImageTask, storedVideoTask] = await Promise.all([shot.storyboardTaskId ? getImageTask(shot.storyboardTaskId) : null, shot.generationTaskId ? getVideoTask(shot.generationTaskId) : null]);
-    const imageMatch = classifyTaskContext(storedImageTask, userId, scope);
-    const videoMatch = classifyTaskContext(storedVideoTask, userId, scope);
+    const imageMatch = classifyTaskContext(storedImageTask, allowedUserIds, scope);
+    const videoMatch = classifyTaskContext(storedVideoTask, allowedUserIds, scope);
     const scopedFrameTasks = frameTasks.map(([frameType, task]) => {
-        const match = classifyTaskContext(task, userId, { ...scope, frameType });
+        const match = classifyTaskContext(task, allowedUserIds, { ...scope, frameType });
         // Keep the reason alongside the task. A foreign task must remain
         // untouched; an owned task with stale context can be detached and
         // retried without ever applying its result to this shot.
@@ -114,19 +121,19 @@ async function readTaskState(shot: ReturnType<typeof findShot>["shot"], userId: 
         videoTaskMissing: Boolean(shot.generationTaskId && (videoMatch === "missing" || videoMatch === "mismatch")),
         imageTaskContextMismatch: imageMatch === "mismatch",
         videoTaskContextMismatch: videoMatch === "mismatch",
-        userId,
+    userId,
     };
 }
 
 function classifyTaskContext(
     task: { userId?: string; surface?: string; projectId?: string; episodeId?: string; shotId?: string; frameType?: string; context?: unknown } | null | undefined,
-    userId: string,
+    allowedUserIds: readonly string[],
     scope: { projectId: string; episodeId: string; shotId: string; frameType?: string },
 ): TaskContextMatch {
     if (!task) return "missing";
     const nested = task.context && typeof task.context === "object" && !Array.isArray(task.context) ? (task.context as Record<string, unknown>) : {};
     const owner = typeof task.userId === "string" && task.userId.trim() ? task.userId.trim() : typeof nested.userId === "string" && nested.userId.trim() ? nested.userId.trim() : "";
-    if (!owner || owner !== userId) return "foreign";
+    if (!owner || !allowedUserIds.includes(owner)) return "foreign";
     return taskMatchesDramaShot(task, scope) ? "valid" : "mismatch";
 }
 
@@ -178,7 +185,7 @@ function generationPatch(
     imageTask: Awaited<ReturnType<typeof getImageTask>>,
     videoTask: Awaited<ReturnType<typeof getVideoTask>>,
     frameTasks: ReadonlyArray<readonly ["first" | "key" | "last", Awaited<ReturnType<typeof getImageTask>>, TaskContextMatch]>,
-    options: { imageTaskMissing?: boolean; videoTaskMissing?: boolean; imageTaskContextMismatch?: boolean; videoTaskContextMismatch?: boolean; userId?: string } = {},
+    options: { imageTaskMissing?: boolean; videoTaskMissing?: boolean; imageTaskContextMismatch?: boolean; videoTaskContextMismatch?: boolean; userId?: string; allowedUserIds?: readonly string[] } = {},
 ) {
     const patch: Record<string, unknown> = {};
     const frames = { ...(shot.frames || {}) };
@@ -216,7 +223,7 @@ function generationPatch(
             }
             continue;
         }
-        if (task.userId === undefined || (options.userId && task.userId !== options.userId)) continue;
+        if (task.userId === undefined || (options.allowedUserIds ? !options.allowedUserIds.includes(task.userId) : options.userId && task.userId !== options.userId)) continue;
         if (task.status === "success") {
             const result = task.result as Record<string, unknown> | undefined;
             const url = stableUrl(result?.serverUrl) || stableUrl(result?.remoteUrl) || stableUrl(result?.dataUrl);

@@ -213,10 +213,15 @@ export function updateDramaLabShot(project: DramaProject, episodeId: string, sho
  * of the project. Reapply only the task-owned shot fields to the latest copy
  * once so that the task ID remains reachable for later synchronization.
  */
-export async function persistDramaLabShotUpdate(input: { userId: string; project: DramaProject; episodeId: string; shotId: string; patch: Partial<DramaShot>; retryOnConflict?: boolean }) {
+export async function persistDramaLabShotUpdate(input: { userId: string; project: DramaProject; episodeId: string; shotId: string; patch: Partial<DramaShot>; retryOnConflict?: boolean; projectOwnerUserId?: string }) {
+    // `userId` identifies the actor/task and remains unchanged for billing,
+    // task ownership and media checks. Project aggregates, however, are stored
+    // under the collaboration group's owner, so member requests must provide
+    // that owner identity for the optimistic project write.
+    const projectStorageUserId = input.projectOwnerUserId || input.userId;
     const persist = async (project: DramaProject) => {
         const updated = updateDramaLabShot(project, input.episodeId, input.shotId, input.patch);
-        await updateDramaProject(input.userId, updated, project.updatedAt);
+        await updateDramaProject(projectStorageUserId, updated, project.updatedAt);
         return updated;
     };
 
@@ -225,7 +230,7 @@ export async function persistDramaLabShotUpdate(input: { userId: string; project
     } catch (error) {
         if (input.retryOnConflict === false) throw error;
         if (!(error instanceof DramaProjectStoreError) || error.status !== 409) throw error;
-        const latest = await getDramaProject(input.project.id, input.userId);
+        const latest = await getDramaProject(input.project.id, projectStorageUserId);
         if (!latest) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
         return persist(latest);
     }

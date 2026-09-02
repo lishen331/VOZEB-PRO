@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
+import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabAudioSplitError, applyDramaAudioSplitDetailed, findDramaAudioSplitShot, normalizeDramaAudioSplitOptions, planDramaAudioSplit } from "@/lib/server/drama-lab-audio-split-service";
-import { DramaProjectStoreError, getDramaProject } from "@/lib/server/drama-project-store";
+import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const { id, shotId } = await params;
         const episodeId = new URL(request.url).searchParams.get("episodeId")?.trim() || "";
         if (!episodeId) throw new DramaLabAudioSplitError("当前剧集不能为空", 400);
-        const project = await getDramaProject(id, user.id);
+        const { project, ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
         if (!project) throw new DramaLabAudioSplitError("短剧项目不存在", 404);
         const { shot } = findDramaAudioSplitShot(project, episodeId, shotId);
         const body = parsed.data || {};
@@ -59,9 +60,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             return NextResponse.json({ code: 0, data: { plan, sourceUpdatedAt: project.updatedAt }, msg: "拆镜预览已生成" });
         }
 
+        await assertDramaLabStageAllowed(user.id, id, "storyboard", { episodeId, resourceType: "shot", resourceId: shotId });
         const plan = body.plan || planDramaAudioSplit(shot, options);
         const result = await applyDramaAudioSplitDetailed({
             userId: user.id,
+            projectOwnerUserId: ownerUserId,
             project,
             episodeId,
             shotId,
@@ -80,7 +83,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             msg: result.createdShots.length ? `已追加 ${result.createdShots.length} 条音频拆镜候选` : "音频拆镜候选已存在，未重复创建",
         });
     } catch (error) {
-        const status = error instanceof DramaLabAudioSplitError || error instanceof DramaProjectStoreError ? error.status : 500;
+        const status = error instanceof DramaLabAudioSplitError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "按音频拆镜失败" }, { status });
     }
 }

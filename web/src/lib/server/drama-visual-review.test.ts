@@ -27,4 +27,35 @@ describe("normalizeDramaVisualReviewInput", () => {
         expect(result.tasks).toHaveLength(21);
         expect(result.tasks.at(-1)).toMatchObject({ id: "shot-20", imageUrls: ["/api/media-assets/20"] });
     });
+
+    it("keeps a video-only shot reviewable and preserves its media type", () => {
+        const result = normalizeDramaVisualReviewInput({
+            project: { title: "video project", ratio: "16:9" },
+            episode: { title: "episode one", shots: [{ id: "video-shot", title: "motion", videoUrl: "https://cdn.example.com/shot.mp4" }] },
+        });
+
+        expect(result.tasks).toEqual([expect.objectContaining({ id: "video-shot", type: "video", videoUrls: ["https://cdn.example.com/shot.mp4"] })]);
+        expect(result.tasks[0]).not.toHaveProperty("imageUrls");
+    });
+
+    it("keeps both storyboard images and video when a shot has both", () => {
+        const result = normalizeDramaVisualReviewInput({
+            project: { title: "video project" },
+            episode: {
+                title: "episode one",
+                shots: [{ id: "mixed-shot", storyboardImageUrl: "/api/media-assets/frame.png", videoUrl: "https://cdn.example.com/shot.mp4" }],
+            },
+        });
+
+        expect(result.tasks[0]).toMatchObject({ type: "video", imageUrls: ["/api/media-assets/frame.png"], videoUrls: ["https://cdn.example.com/shot.mp4"] });
+    });
+
+    it("drops invalid video URLs", () => {
+        const result = normalizeDramaVisualReviewInput({
+            project: { title: "video project" },
+            episode: { shots: [{ id: "invalid-shot", videoUrl: "blob:expired" }] },
+        });
+
+        expect(result.tasks).toHaveLength(0);
+    });
 });

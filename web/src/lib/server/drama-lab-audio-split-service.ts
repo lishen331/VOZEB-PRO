@@ -200,6 +200,7 @@ export function validateDramaAudioSplitPlan(shot: DramaShot, value: unknown, inp
 /** Backwards-compatible convenience wrapper returning only the saved project. */
 export async function applyDramaAudioSplit(input: {
     userId: string;
+    projectOwnerUserId?: string;
     project: DramaProject;
     episodeId: string;
     shotId: string;
@@ -217,6 +218,7 @@ export async function applyDramaAudioSplit(input: {
  */
 export async function applyDramaAudioSplitDetailed(input: {
     userId: string;
+    projectOwnerUserId?: string;
     project: DramaProject;
     episodeId: string;
     shotId: string;
@@ -266,7 +268,7 @@ export async function applyDramaAudioSplitDetailed(input: {
         updatedAt: new Date().toISOString(),
     };
     try {
-        const saved = await updateDramaProject(input.userId, nextProject, input.expectedUpdatedAt || input.project.updatedAt);
+        const saved = await updateDramaProject(input.projectOwnerUserId || input.userId, nextProject, input.expectedUpdatedAt || input.project.updatedAt);
         return { project: saved, sourceShotId: input.shotId, createdShots: created, skippedSegmentIndexes, preservedShotIds: episode.shots.map((shot) => shot.id) } satisfies DramaAudioSplitApplyResult;
     } catch (error) {
         if (error instanceof DramaProjectStoreError) throw new DramaLabAudioSplitError(error.message, error.status);

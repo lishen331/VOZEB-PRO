@@ -94,6 +94,29 @@ export async function getDramaProject(id: string, userId: string) {
     return record ? toPublicProject(record.project, record) : null;
 }
 
+/**
+ * Resolve a project by its stable id and include the platform owner.  This is
+ * intentionally an internal, ownership-aware primitive: callers must perform
+ * their own authorization before using it.  Drama Lab collaboration uses it
+ * after validating active project membership so logical ownership transfers do
+ * not require migrating every media/task row between platform accounts.
+ */
+export async function getDramaProjectWithOwner(id: string) {
+    const projectId = typeof id === "string" ? id.trim() : "";
+    if (!projectId) return null;
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<{ project_json: DramaProject; user_id: string; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }>(
+            "SELECT project_json, user_id, execution_profile, practice_source_work_id, practice_source_version_id FROM drama_projects WHERE id = $1",
+            [projectId],
+        );
+        const row = result.rows[0];
+        return row ? { project: toPublicProject(row.project_json, row), ownerUserId: row.user_id } : null;
+    }
+    const record = (await readDatabase()).projects.find((item) => item.project.id === projectId);
+    return record ? { project: toPublicProject(record.project, record), ownerUserId: record.userId } : null;
+}
+
 export async function createDramaProject(userId: string, project: DramaProject, identity: DramaProjectIdentityInput = {}) {
     const metadata = normalizeIdentity(identity);
     const storedProject = stripProjectIdentity(project);

@@ -1,9 +1,9 @@
 "use client";
 
 import { Alert, App, Button, Input, InputNumber, Modal, Segmented, Spin, Tag } from "antd";
-import { ArrowRight, Clapperboard, FlaskConical, Pencil, Plus, RefreshCcw, UserRound, Image as ImageIcon, Box } from "lucide-react";
+import { ArrowRight, Clapperboard, Download, FlaskConical, Pencil, Plus, RefreshCcw, Upload, UserRound, Image as ImageIcon, Box } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { DRAMA_WORKFLOW_LAB_STAGES } from "@/lib/drama-workflow-lab";
 import type { DramaProjectSummary } from "@/lib/drama-project-contract";
@@ -27,6 +27,9 @@ export function DramaWorkflowLabHome() {
     const [ratio, setRatio] = useState("9:16");
     const [customWidth, setCustomWidth] = useState(1080);
     const [customHeight, setCustomHeight] = useState(1920);
+    const [importing, setImporting] = useState(false);
+    const [exportingId, setExportingId] = useState<string>();
+    const importInputRef = useRef<HTMLInputElement>(null);
 
     // 素材库弹窗状态
     const [characterLibraryOpen, setCharacterLibraryOpen] = useState(false);
@@ -52,6 +55,49 @@ export function DramaWorkflowLabHome() {
     useEffect(() => {
         void loadProjects();
     }, [loadProjects]);
+
+    const importProject = async (file: File) => {
+        setImporting(true);
+        try {
+            const form = new FormData();
+            form.set("file", file);
+            const response = await fetch("/api/drama-lab/projects/import", { method: "POST", body: form });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; data?: { project?: { id?: string } }; msg?: string };
+            if (!response.ok || payload.code !== 0 || !payload.data?.project?.id) throw new Error(payload.msg || "短剧项目导入失败");
+            message.success("短剧项目导入成功");
+            window.location.assign(`/drama-lab/${encodeURIComponent(payload.data.project.id)}`);
+        } catch (importError) {
+            message.error(importError instanceof Error ? importError.message : "短剧项目导入失败");
+        } finally {
+            setImporting(false);
+            if (importInputRef.current) importInputRef.current.value = "";
+        }
+    };
+
+    const exportProject = async (project: DramaProjectSummary) => {
+        setExportingId(project.id);
+        try {
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/export`, { cache: "no-store" });
+            if (!response.ok) {
+                const payload = (await response.json().catch(() => ({}))) as { msg?: string };
+                throw new Error(payload.msg || "短剧项目导出失败");
+            }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = decodeURIComponent(response.headers.get("content-disposition")?.match(/filename\*=UTF-8''([^;]+)/i)?.[1] || `${project.title}-短剧实验室.zip`);
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+            message.success("短剧项目已导出");
+        } catch (exportError) {
+            message.error(exportError instanceof Error ? exportError.message : "短剧项目导出失败");
+        } finally {
+            setExportingId(undefined);
+        }
+    };
 
     const resetCreateForm = () => {
         setTitle("");
@@ -97,6 +143,19 @@ export function DramaWorkflowLabHome() {
                         <p className="mt-1 text-sm text-muted-foreground">先创建短剧项目，再进入剧本、分集、资产和镜头制作。</p>
                     </div>
                     <div className="flex items-center gap-2">
+                        <input
+                            ref={importInputRef}
+                            type="file"
+                            accept=".zip,application/zip,application/x-zip-compressed"
+                            className="hidden"
+                            onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                if (file) void importProject(file);
+                            }}
+                        />
+                        <Button icon={<Upload className="size-4" />} loading={importing} onClick={() => importInputRef.current?.click()}>
+                            导入项目
+                        </Button>
                         <Button icon={<UserRound className="size-4" />} onClick={() => setCharacterLibraryOpen(true)} className="hidden sm:inline-flex">
                             素材角色
                         </Button>
@@ -169,7 +228,10 @@ export function DramaWorkflowLabHome() {
                                             <h3 className="mt-3 truncate text-lg font-semibold">{project.title}</h3>
                                             <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-muted-foreground">{project.summary || "暂无项目简介"}</p>
                                         </Link>
-                                        <Button type="text" size="small" icon={<Pencil className="size-4" />} aria-label="编辑项目" />
+                                        <div className="flex items-center gap-1">
+                                            <Button type="text" size="small" icon={<Download className="size-4" />} aria-label="导出项目" title="导出项目" loading={exportingId === project.id} onClick={() => void exportProject(project)} />
+                                            <Button type="text" size="small" icon={<Pencil className="size-4" />} aria-label="编辑项目" title="编辑项目" />
+                                        </div>
                                     </div>
                                     <div className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
                                         <Tag>{project.episodeCount} 集</Tag>

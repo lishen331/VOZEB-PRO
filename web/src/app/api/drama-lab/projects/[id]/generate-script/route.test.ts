@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
     getCurrentUser: vi.fn(),
     getDramaProject: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
     startDramaLabStoryGeneration: vi.fn(),
     storyTaskView: vi.fn(),
     findActiveDramaLabStoryTask: vi.fn(),
     getDramaLabStoryTaskView: vi.fn(),
     getTextTask: vi.fn(),
     runGenerationTaskRecoveryBatch: vi.fn(),
+    assertDramaLabStageAllowed: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -28,12 +30,17 @@ vi.mock("@/lib/server/drama-lab-story-generation-service", () => ({
 vi.mock("@/lib/server/internal-origin", () => ({ resolveInternalOrigin: vi.fn((value: string) => value) }));
 vi.mock("@/lib/server/generation-task-recovery-service", () => ({ runGenerationTaskRecoveryBatch: mocks.runGenerationTaskRecoveryBatch }));
 vi.mock("@/lib/server/text-task-store", () => ({ getTextTask: mocks.getTextTask }));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
+    resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
+    assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed,
+}));
 
 import { GET, POST } from "./route";
 
 describe("Drama Lab story generation route", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.resolveDramaLabProjectForRequest.mockImplementation(async () => ({ project: await mocks.getDramaProject("project-one", "user-one"), ownerUserId: "user-one" }));
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.getDramaProject.mockResolvedValue({ id: "project-one", summary: "outline", style: "现代", activeEpisodeId: "episode-one", episodes: [{ id: "episode-one" }] });
         mocks.startDramaLabStoryGeneration.mockResolvedValue({ id: "task-one" });
@@ -59,6 +66,19 @@ describe("Drama Lab story generation route", () => {
         const response = await GET(new Request("http://localhost/api/drama-lab/projects/project-one/generate-script?taskId=task-one"), { params: Promise.resolve({ id: "project-one" }) });
         expect(response.status).toBe(200);
         expect(await response.json()).toMatchObject({ code: 0, data: { id: "task-one", persistedEpisodeCount: 1 } });
+    });
+
+    it("passes a collaborator identity through when reading the owner's task", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "member-two" });
+        mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project: { ...await mocks.getDramaProject("project-one", "user-one"), id: "project-one" }, ownerUserId: "user-one" });
+        mocks.getTextTask.mockResolvedValue({ id: "task-one", userId: "user-one", storyBatch: { projectId: "project-one" } });
+        mocks.getDramaLabStoryTaskView.mockResolvedValue({ id: "task-one", status: "running", phase: "persisting", progress: 50, episodeCount: 2, persistedEpisodeCount: 1 });
+
+        const response = await GET(new Request("http://localhost/api/drama-lab/projects/project-one/generate-script?taskId=task-one"), { params: Promise.resolve({ id: "project-one" }) });
+
+        expect(response.status).toBe(200);
+        expect(mocks.getDramaLabStoryTaskView).toHaveBeenCalledWith("task-one", "member-two", "project-one");
+        expect(await response.json()).toMatchObject({ code: 0, data: { id: "task-one" } });
     });
 
     it("discovers the active project task when taskId is omitted", async () => {

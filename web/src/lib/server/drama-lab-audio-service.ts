@@ -98,9 +98,10 @@ export function findShot(project: DramaProject, episodeId: string, shotId: strin
 
 export function assertAudioTaskContext(
     task: { userId?: string; surface?: string; projectId?: string; episodeId?: string; shotId?: string; audioKind?: unknown },
-    input: { userId: string; projectId: string; episodeId: string; shotId: string; audioKind?: DramaLabAudioKind; shot?: DramaShot },
+    input: { userId: string; projectId: string; episodeId: string; shotId: string; audioKind?: DramaLabAudioKind; shot?: DramaShot; projectOwnerUserId?: string; allowedUserIds?: readonly string[] },
 ) {
-    if (task.userId !== input.userId || task.surface !== "drama" || task.projectId !== input.projectId || task.episodeId !== input.episodeId || task.shotId !== input.shotId) {
+    const allowedUserIds = input.allowedUserIds || [input.userId, input.projectOwnerUserId].filter((value): value is string => Boolean(value));
+    if (!task.userId || !allowedUserIds.includes(task.userId) || task.surface !== "drama" || task.projectId !== input.projectId || task.episodeId !== input.episodeId || task.shotId !== input.shotId) {
         throw new DramaLabAudioError("音频任务上下文与当前短剧镜头不匹配", 409);
     }
     const rawTaskKind = typeof task.audioKind === "string" ? task.audioKind.trim() : "";
@@ -133,7 +134,7 @@ export function assertAudioTaskBinding(shot: DramaShot, kind: DramaLabAudioKind,
     if (!boundTaskId || boundTaskId !== taskId) throw new DramaLabAudioError("音频任务未绑定到当前镜头轨道", 409);
 }
 
-export async function syncDramaLabAudioTask(input: { userId: string; project: DramaProject; episodeId: string; shotId: string; taskId: string; kind?: DramaLabAudioKind }) {
+export async function syncDramaLabAudioTask(input: { userId: string; project: DramaProject; episodeId: string; shotId: string; taskId: string; kind?: DramaLabAudioKind; projectOwnerUserId?: string }) {
     const context = findShot(input.project, input.episodeId, input.shotId);
     const task = await getAudioTask(input.taskId);
     if (!task) throw new DramaLabAudioError("音频任务不存在或已过期", 404);
@@ -142,7 +143,7 @@ export async function syncDramaLabAudioTask(input: { userId: string; project: Dr
     const storedTaskKind = audioKindFromMetadata(metadata.audioKind);
     const inferredKind: DramaLabAudioKind = context.shot.narrationAudio && !context.shot.dialogueAudio ? "narration" : !context.shot.narrationAudio && !context.shot.dialogueAudio ? legacyDramaAudioKind(context.shot) : "dialogue";
     const kind: DramaLabAudioKind = input.kind || storedTaskKind || inferredKind;
-    assertAudioTaskContext(task, { userId: input.userId, projectId: input.project.id, episodeId: input.episodeId, shotId: input.shotId, audioKind: kind, shot: context.shot });
+    assertAudioTaskContext(task, { userId: input.userId, projectOwnerUserId: input.projectOwnerUserId, projectId: input.project.id, episodeId: input.episodeId, shotId: input.shotId, audioKind: kind, shot: context.shot });
     assertAudioTaskBinding(context.shot, kind, task.id);
 
     const patch: Partial<DramaShot> = {};
@@ -188,7 +189,7 @@ export async function syncDramaLabAudioTask(input: { userId: string; project: Dr
     const nextEpisode = { ...context.episode, shots: context.episode.shots.map((shot) => (shot.id === latestShot.id ? { ...shot, ...patch } : shot)) };
     const nextProject = { ...input.project, episodes: input.project.episodes.map((episode) => (episode.id === nextEpisode.id ? nextEpisode : episode)), updatedAt: new Date().toISOString() };
     try {
-        return await updateDramaProject(input.userId, nextProject, input.project.updatedAt);
+        return await updateDramaProject(input.projectOwnerUserId || input.userId, nextProject, input.project.updatedAt);
     } catch (error) {
         if (error instanceof DramaProjectStoreError) throw new DramaLabAudioError(error.message, error.status);
         throw error;

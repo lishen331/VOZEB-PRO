@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
     persistDramaLabShotUpdate: vi.fn(),
     resolveInternalOrigin: vi.fn(),
     runGenerationTaskRecoveryBatch: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
+    getDramaLabCollaborationForUser: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -18,6 +20,7 @@ vi.mock("next/server", async (importOriginal) => {
     return { ...actual, after: mocks.after };
 });
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({ resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest, getDramaLabCollaborationForUser: mocks.getDramaLabCollaborationForUser }));
 vi.mock("@/lib/server/internal-origin", () => ({ resolveInternalOrigin: mocks.resolveInternalOrigin }));
 vi.mock("@/lib/server/image-task-store", () => ({ getImageTask: mocks.getImageTask }));
 vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask }));
@@ -61,6 +64,8 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.getDramaProject.mockResolvedValue(project);
+        mocks.resolveDramaLabProjectForRequest.mockImplementation(async (_userId: string, _projectId: string) => ({ project: await mocks.getDramaProject(), ownerUserId: "user-one" }));
+        mocks.getDramaLabCollaborationForUser.mockResolvedValue({ members: [{ userId: "user-one", status: "active" }] });
         mocks.findShot.mockImplementation((candidate) => ({ episode: candidate.episodes[0], shot: candidate.episodes[0].shots[0] }));
         mocks.persistDramaLabShotUpdate.mockImplementation(async ({ project: candidate, patch }) => ({
             ...candidate,
@@ -91,6 +96,19 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
         expect(patch.storyboardHistory[0]).toMatchObject({ taskId: "image-task-one", prompt: "server-image-prompt", width: 720, height: 1280 });
         expect(patch.videoHistory[0]).toMatchObject({ taskId: "video-task-one", prompt: "server-video-prompt" });
         expect((await response.json()).data.shot).toMatchObject({ storyboardImageUrl: "/api/generation-log-assets/image.png", videoUrl: "/api/generation-log-assets/video.mp4" });
+    });
+
+    it("accepts a completed task created by another active project collaborator", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "member-three" });
+        mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project, ownerUserId: "user-one" });
+        mocks.getDramaLabCollaborationForUser.mockResolvedValue({ members: [{ userId: "user-one", status: "active" }, { userId: "member-two", status: "active" }, { userId: "member-three", status: "active" }] });
+        mocks.getImageTask.mockResolvedValue({ id: "image-task-one", userId: "member-two", surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", status: "success", prompt: "collaborator-image", result: { serverUrl: "/api/generation-log-assets/collaborator.png" } });
+        mocks.getVideoTask.mockResolvedValue(null);
+
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
+
+        expect(response.status).toBe(200);
+        expect((await response.json()).data.shot).toMatchObject({ storyboardImageUrl: "/api/generation-log-assets/collaborator.png", storyboardTaskId: "image-task-one" });
     });
 
     it("returns the worker execution phase without persisting scheduler internals", async () => {

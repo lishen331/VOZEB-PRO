@@ -4,8 +4,10 @@ const mocks = vi.hoisted(() => ({
     getCurrentUser: vi.fn(),
     readJsonBody: vi.fn(),
     getDramaProject: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
     updateDramaProject: vi.fn(),
     extractDramaLabStoryboards: vi.fn(),
+    assertDramaLabStageAllowed: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -19,11 +21,16 @@ vi.mock("@/lib/server/drama-lab-storyboard-extraction-service", () => ({
     DramaLabStoryboardExtractionError: class DramaLabStoryboardExtractionError extends Error {},
     extractDramaLabStoryboards: mocks.extractDramaLabStoryboards,
 }));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
+    resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
+    assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed,
+}));
 
 import { POST } from "./route";
 
 describe("POST /api/drama-lab/projects/:id/extract-storyboards", () => {
     it("replaces only the selected episode shots after extraction", async () => {
+        mocks.resolveDramaLabProjectForRequest.mockImplementation(async () => ({ project: await mocks.getDramaProject("project-one", "user-one"), ownerUserId: "user-one" }));
         const originalProject = {
             id: "project-one",
             title: "短剧",

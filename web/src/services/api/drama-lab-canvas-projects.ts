@@ -1,4 +1,6 @@
 import type { CanvasProject, CanvasProjectMutation, CanvasProjectSaveAck, CanvasProjectSummaryPage, CreateCanvasProjectInput } from "@/lib/canvas-project-contract";
+import type { DramaCanvasWritebackApplied, DramaCanvasWritebackInput } from "@/lib/drama-lab-canvas-writeback-contract";
+import type { DramaProject } from "@/lib/drama-project-contract";
 
 import { CanvasProjectRequestError } from "./canvas-projects";
 
@@ -30,6 +32,20 @@ export function saveDramaLabCanvasProjectMutation(projectId: string, mutation: C
         body: JSON.stringify({ mutation }),
         keepalive: options?.keepalive,
     }).then((data) => data.ack);
+}
+
+export type DramaCanvasWritebackData = {
+    project: DramaProject;
+    canvas: { id: string; updatedAt: string };
+    applied: DramaCanvasWritebackApplied;
+};
+
+export function writebackDramaCanvas(canvasId: string, input: DramaCanvasWritebackInput) {
+    return request<DramaCanvasWritebackData>(`${BASE_PATH}/${encodeURIComponent(canvasId)}/writeback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+    });
 }
 
 export function deleteDramaLabCanvasAssistantConversations(projectId: string, conversationIds: string[]) {

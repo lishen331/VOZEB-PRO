@@ -35,6 +35,8 @@ export type DramaLabVideoRecoveryResult = {
 
 export type RecoverDramaLabVideoTasksInput = {
     userId: string;
+    /** Storage owner for project writes; task ownership remains userId. */
+    projectOwnerUserId?: string;
     project: DramaProject;
     episodeId: string;
     origin: string;
@@ -113,6 +115,7 @@ export async function recoverDramaLabVideoTasks(input: RecoverDramaLabVideoTasks
         try {
             currentProject = await persistDramaLabShotUpdate({
                 userId,
+                projectOwnerUserId: input.projectOwnerUserId,
                 project: currentProject,
                 episodeId,
                 shotId,

@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     deleteDramaProjectForUser: vi.fn(),
+    deleteDramaLabProjectForUser: vi.fn(),
     getCurrentUser: vi.fn(),
     getDramaProject: vi.fn(),
     updateDramaProjectForUser: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -23,8 +25,17 @@ vi.mock("@/lib/server/drama-project-service", () => ({
     deleteDramaProjectForUser: mocks.deleteDramaProjectForUser,
     updateDramaProjectForUser: mocks.updateDramaProjectForUser,
 }));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
+    deleteDramaLabProjectForUser: mocks.deleteDramaLabProjectForUser,
+    resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
+    updateDramaLabProjectForUser: mocks.updateDramaProjectForUser,
+    DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
+        constructor(message: string, readonly status: number) { super(message); }
+    },
+}));
 
 import { DramaProjectServiceError } from "@/lib/server/drama-project-service";
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-service";
 import { DELETE, PUT } from "./route";
 
 describe("DELETE /api/drama-lab/projects/[id]", () => {
@@ -32,7 +43,9 @@ describe("DELETE /api/drama-lab/projects/[id]", () => {
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.deleteDramaProjectForUser.mockResolvedValue(undefined);
+        mocks.deleteDramaLabProjectForUser.mockResolvedValue(undefined);
         mocks.getDramaProject.mockResolvedValue({ id: "drama-one", title: "项目", episodes: [{ id: "episode-one", title: "第一集", script: "", shots: [] }], updatedAt: "2026-08-25T00:00:00.000Z" });
+        mocks.resolveDramaLabProjectForRequest.mockImplementation(async (_userId: string, _projectId: string) => ({ project: await mocks.getDramaProject(), ownerUserId: "user-one" }));
         mocks.updateDramaProjectForUser.mockImplementation(async (_userId: string, _id: string, value: unknown) => value);
         vi.spyOn(console, "error").mockImplementation(() => undefined);
     });
@@ -52,7 +65,7 @@ describe("DELETE /api/drama-lab/projects/[id]", () => {
         const response = await DELETE(new Request("http://localhost/api/drama-lab/projects/drama-one", { method: "DELETE" }), context("drama-one"));
 
         expect(response.status).toBe(200);
-        expect(mocks.deleteDramaProjectForUser).toHaveBeenCalledWith("user-one", "drama-one");
+        expect(mocks.deleteDramaLabProjectForUser).toHaveBeenCalledWith("user-one", "drama-one");
         await expect(response.json()).resolves.toMatchObject({ code: 0, msg: "项目删除成功" });
     });
 
@@ -161,13 +174,22 @@ describe("DELETE /api/drama-lab/projects/[id]", () => {
         [404, "短剧项目不存在"],
         [409, "项目存在关联任务，暂时不能删除"],
     ])("preserves the service error status for %s", async (status, message) => {
-        mocks.deleteDramaProjectForUser.mockRejectedValue(new DramaProjectServiceError(message, status));
+        mocks.deleteDramaLabProjectForUser.mockRejectedValue(new DramaProjectServiceError(message, status));
 
         const response = await DELETE(new Request("http://localhost/api/drama-lab/projects/drama-one", { method: "DELETE" }), context("drama-one"));
 
         expect(response.status).toBe(status);
-        expect(mocks.deleteDramaProjectForUser).toHaveBeenCalledWith("user-one", "drama-one");
+        expect(mocks.deleteDramaLabProjectForUser).toHaveBeenCalledWith("user-one", "drama-one");
         await expect(response.json()).resolves.toMatchObject({ code: status, msg: message });
+    });
+
+    it("preserves collaboration authorization failures when deleting", async () => {
+        mocks.deleteDramaLabProjectForUser.mockRejectedValue(new DramaLabCollaborationError("只有项目管理员可以删除项目", 403));
+
+        const response = await DELETE(new Request("http://localhost/api/drama-lab/projects/drama-one", { method: "DELETE" }), context("drama-one"));
+
+        expect(response.status).toBe(403);
+        await expect(response.json()).resolves.toMatchObject({ code: 403 });
     });
 });
 

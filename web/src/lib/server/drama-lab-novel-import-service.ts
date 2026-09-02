@@ -33,6 +33,8 @@ export type DramaLabNovelImportResult = DramaLabNovelImportPreview & {
 
 export type DramaLabNovelImportInput = {
     userId: string;
+    /** Owner-backed project storage identity for approved collaborators. */
+    projectOwnerUserId?: string;
     projectId: string;
     sourceText: string;
     fileName?: string;
@@ -61,12 +63,13 @@ export async function importDramaLabNovelForUser(input: DramaLabNovelImportInput
     const preview = previewDramaLabNovelImport(input);
     if (!input.commit) return { ...preview, committed: false };
 
-    const project = await getDramaProjectForUser(input.userId, input.projectId);
+    const storageUserId = input.projectOwnerUserId || input.userId;
+    const project = await getDramaProjectForUser(storageUserId, input.projectId);
     const episodes = preview.drafts.map(toEpisode);
 
     // Keep a server-side restore point before replacing the current scripts.
-    const version = await createDramaProjectVersionForUser(input.userId, project.id, { reason: "整本小说导入前", snapshot: project });
-    const saved = await updateDramaProjectForUser(input.userId, project.id, {
+    const version = await createDramaProjectVersionForUser(storageUserId, project.id, { reason: "整本小说导入前", snapshot: project });
+    const saved = await updateDramaProjectForUser(storageUserId, project.id, {
         ...project,
         activeEpisodeId: episodes[0]?.id,
         episodes,

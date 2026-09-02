@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
+import { DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabAudioError, assertAudioTaskBinding, assertAudioTaskContext, legacyDramaAudioTaskId, syncDramaLabAudioTask } from "@/lib/server/drama-lab-audio-service";
 import { getAudioTask } from "@/lib/server/audio-task-store";
 import { getStoredGenerationTaskRecord, hasStoredGenerationTaskContextConflict } from "@/lib/server/generation-task-store";
@@ -8,7 +9,7 @@ import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-rec
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { recoverGenerationTaskFromUpstream } from "@/lib/server/generation-task-user-recovery";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
-import { DramaProjectStoreError, getDramaProject } from "@/lib/server/drama-project-store";
+import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const episodeId = query.get("episodeId")?.trim() || "";
         const kind = query.get("kind") === "narration" ? "narration" : "dialogue";
         if (!episodeId) throw new DramaLabAudioError("当前剧集不能为空");
-        const project = await getDramaProject(id, user.id);
+        const { project, ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
         if (!project) throw new DramaLabAudioError("短剧项目不存在", 404);
         const shot = project.episodes.find((episode) => episode.id === episodeId)?.shots.find((item) => item.id === shotId);
         const trackState = shot ? (kind === "narration" ? shot.narrationAudio : shot.dialogueAudio) : undefined;
@@ -41,9 +42,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         // state, even when the project/episode/shot ids happen to match.
         if (!shot) throw new DramaLabAudioError("短剧镜头不存在", 404);
         assertAudioTaskBinding(shot, kind, taskId);
-        assertAudioTaskContext(task, { userId: user.id, projectId: id, episodeId, shotId, audioKind: kind, shot });
+        assertAudioTaskContext(task, { userId: user.id, projectOwnerUserId: ownerUserId, projectId: id, episodeId, shotId, audioKind: kind, shot });
         if (task.status === "success") {
-            const updated = await syncDramaLabAudioTask({ userId: user.id, project, episodeId, shotId, taskId, kind });
+            const updated = await syncDramaLabAudioTask({ userId: user.id, projectOwnerUserId: ownerUserId, project, episodeId, shotId, taskId, kind });
             return NextResponse.json({ code: 0, data: { task, project: updated }, msg: "音频任务已完成" });
         }
         if (task.status !== "pending" && task.status !== "running") throw new DramaLabAudioError("当前音频任务无法继续检查", 409);
@@ -86,11 +87,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             if (!recovered) throw new DramaLabAudioError("音频任务状态无法恢复，请刷新后重试", 409);
         }
         const latestTask = await getAudioTask(taskId);
-        const latestProject = await getDramaProject(id, user.id);
-        const updated = latestProject && latestTask ? await syncDramaLabAudioTask({ userId: user.id, project: latestProject, episodeId, shotId, taskId, kind }) : latestProject;
+        const latestProject = (await resolveDramaLabProjectForRequest(user.id, id)).project;
+        const updated = latestProject && latestTask ? await syncDramaLabAudioTask({ userId: user.id, projectOwnerUserId: ownerUserId, project: latestProject, episodeId, shotId, taskId, kind }) : latestProject;
         return NextResponse.json({ code: 0, data: { task: latestTask, project: updated }, msg: "音频任务已重新检查" });
     } catch (error) {
-        const status = error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError ? error.status : 500;
+        const status = error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "音频任务恢复失败" }, { status });
     }
 }

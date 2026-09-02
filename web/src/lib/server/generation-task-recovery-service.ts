@@ -11,7 +11,6 @@ import { getImageTask, updateImageTask, type ImageTask } from "@/lib/server/imag
 import { getTextTask, transitionTextTask, updateTextTask } from "@/lib/server/text-task-store";
 import { queryCancelledTextTaskUpstreamStep, runTextTaskStep } from "@/lib/server/text-task-runtime";
 import { materializeDramaLabStoryTask } from "@/lib/server/drama-lab-story-generation-service";
-import { maintenanceWorkerContext } from "@/lib/server/maintenance-auth";
 import { executeAgentRun } from "@/lib/server/agent-run-executor";
 import { processAgentRunReview } from "@/lib/server/agent-run-execution";
 import { getAgentRun, updateAgentRunById, type AgentRun } from "@/lib/server/agent-run-store";
@@ -25,6 +24,7 @@ import { toSafeGenerationReviewReason } from "@/lib/server/generation-errors";
 import { getAuthSettings } from "@/lib/auth/store";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
+import { maintenanceWorkerContext } from "@/lib/server/maintenance-auth";
 
 type RecoveryResult = "pending" | "result_ready" | "completed" | "failed" | "needs_review" | "deferred";
 
@@ -56,11 +56,52 @@ async function processGenerationTaskLease(lease: GenerationTaskLease, workerId: 
     if (lease.type === "image") return processImageLease(lease, workerId, origin, publicOrigin, cookie, userRequested);
     if (lease.type === "audio") return processAudioLease(lease, workerId, origin, cookie, userRequested);
     if (lease.type === "agent") return processAgentLease(lease, workerId, origin, cookie);
+    if (lease.type === "render") return processDramaWorkflowLease(lease, workerId, origin, cookie);
     if (lease.type !== "video") {
         await releaseGenerationTaskLease(lease.type, lease.id, workerId, { executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "worker_handler_missing" });
         return "needs_review";
     }
     return processVideoLease(lease, workerId, origin, cookie, userRequested);
+}
+
+/**
+ * Drama Lab workflow parents use the shared generation-task scheduler as a
+ * durable wake-up mechanism, but they do not have an upstream provider of
+ * their own.  Advance the persisted state machine here so a browser closing
+ * after starting a run does not strand the parent at its first step.
+ */
+async function processDramaWorkflowLease(lease: GenerationTaskLease, workerId: string, origin: string, cookie: string): Promise<RecoveryResult> {
+    const now = Date.now();
+    try {
+        const { advanceDramaLabWorkflow } = await import("@/lib/server/drama-lab-workflow-task-service");
+        const credential = cookie || maintenanceWorkerContext(lease.userId);
+        const task = await advanceDramaLabWorkflow({ userId: lease.userId, taskId: lease.id, origin, cookie: credential });
+        if (!task) {
+            await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: now, lastUpstreamStatus: "workflow_missing" });
+            return "failed";
+        }
+        if (task.status === "success" || task.status === "error" || task.status === "cancelled") {
+            await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: now, lastUpstreamStatus: `workflow_${task.status}` });
+            return task.status === "success" || task.status === "cancelled" ? "completed" : "failed";
+        }
+        await releaseGenerationTaskLease("render", lease.id, workerId, {
+            executionPhase: "polling",
+            nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now }),
+            lastPollAt: now,
+            lastUpstreamStatus: `workflow_${task.status}`,
+        });
+        return "pending";
+    } catch (error) {
+        const count = errorCount(lease.lastUpstreamStatus) + 1;
+        await releaseGenerationTaskLease("render", lease.id, workerId, {
+            executionPhase: "polling",
+            nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now, consecutiveErrors: count }),
+            lastPollAt: now,
+            lastUpstreamStatus: `workflow_error:${count}`,
+        });
+        console.warn("Drama workflow recovery deferred", { taskId: lease.id, error: safeError(error) });
+        return "deferred";
+    }
 }
 
 async function processCancelledLease(lease: GenerationTaskLease, workerId: string, origin: string): Promise<RecoveryResult> {
@@ -1020,7 +1061,10 @@ function summarize(results: RecoveryResult[]) {
 }
 
 function errorCount(status?: string) {
-    const count = Number(status?.match(/(?:query|persist|cancel_query)_error:(\d+)/)?.[1] || 0);
+    // Workflow parents use the same lease status field as media tasks. Keep
+    // their retry counter monotonic instead of restarting at one after every
+    // worker exception.
+    const count = Number(status?.match(/(?:query|persist|cancel_query|workflow)_error:(\d+)/)?.[1] || 0);
     return Number.isFinite(count) ? Math.max(0, count) : 0;
 }
 

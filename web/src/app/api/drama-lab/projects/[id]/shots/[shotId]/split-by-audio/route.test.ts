@@ -4,6 +4,8 @@ const mocks = vi.hoisted(() => ({
     getCurrentUser: vi.fn(),
     readJsonBodyResult: vi.fn(),
     getDramaProject: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
+    assertDramaLabStageAllowed: vi.fn(),
     findDramaAudioSplitShot: vi.fn(),
     normalizeDramaAudioSplitOptions: vi.fn(),
     planDramaAudioSplit: vi.fn(),
@@ -12,6 +14,15 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/auth/request", () => ({ readJsonBodyResult: mocks.readJsonBodyResult }));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
+    resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
+    assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed,
+    DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
+        constructor(message: string, readonly status = 403) {
+            super(message);
+        }
+    },
+}));
 vi.mock("@/lib/server/drama-project-store", () => ({
     getDramaProject: mocks.getDramaProject,
     DramaProjectStoreError: class DramaProjectStoreError extends Error {
@@ -45,6 +56,8 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/split-by-audio", () => 
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.readJsonBodyResult.mockResolvedValue({ ok: true, data: {} });
         mocks.getDramaProject.mockResolvedValue(project);
+        mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project, ownerUserId: "user-one" });
+        mocks.assertDramaLabStageAllowed.mockResolvedValue(undefined);
         mocks.findDramaAudioSplitShot.mockReturnValue({ episode: project.episodes[0], shot: sourceShot });
         mocks.normalizeDramaAudioSplitOptions.mockReturnValue({});
         mocks.planDramaAudioSplit.mockReturnValue(previewPlan);
@@ -57,6 +70,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/split-by-audio", () => 
         expect(response.status).toBe(200);
         expect(mocks.planDramaAudioSplit).toHaveBeenCalledWith(sourceShot, {});
         expect(mocks.applyDramaAudioSplitDetailed).not.toHaveBeenCalled();
+        expect(mocks.assertDramaLabStageAllowed).not.toHaveBeenCalled();
         await expect(response.json()).resolves.toMatchObject({ code: 0, data: { plan: previewPlan, sourceUpdatedAt: project.updatedAt } });
     });
 
@@ -66,6 +80,11 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/split-by-audio", () => 
 
         expect(response.status).toBe(200);
         expect(mocks.applyDramaAudioSplitDetailed).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-one", project, episodeId: "episode-one", shotId: "shot-one", plan: previewPlan, expectedUpdatedAt: "version-one" }));
+        expect(mocks.assertDramaLabStageAllowed).toHaveBeenCalledWith("user-one", "project-one", "storyboard", {
+            episodeId: "episode-one",
+            resourceType: "shot",
+            resourceId: "shot-one",
+        });
         await expect(response.json()).resolves.toMatchObject({ code: 0, data: { sourceShotId: "shot-one", skippedSegmentIndexes: [0, 1] } });
     });
 

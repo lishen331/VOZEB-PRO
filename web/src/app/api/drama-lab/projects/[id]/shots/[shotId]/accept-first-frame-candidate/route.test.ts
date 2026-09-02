@@ -4,10 +4,13 @@ const mocks = vi.hoisted(() => ({
     acceptDramaLabFirstFrameCandidate: vi.fn(),
     getCurrentUser: vi.fn(),
     getDramaProject: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
+    assertDramaLabStageAllowed: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/server/drama-project-store", () => ({ getDramaProject: mocks.getDramaProject }));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({ resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest, assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed }));
 vi.mock("@/lib/server/drama-lab-tail-frame-service", () => ({
     acceptDramaLabFirstFrameCandidate: mocks.acceptDramaLabFirstFrameCandidate,
 }));
@@ -27,6 +30,8 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/accept-first-frame-cand
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.getDramaProject.mockResolvedValue(project);
+        mocks.resolveDramaLabProjectForRequest.mockImplementation(async (_userId: string, _projectId: string) => ({ project: await mocks.getDramaProject(), ownerUserId: "user-one" }));
+        mocks.assertDramaLabStageAllowed.mockResolvedValue(undefined);
         mocks.acceptDramaLabFirstFrameCandidate.mockResolvedValue({
             shot: { id: "shot-two", frames: { first: { status: "success", source: "video_tail", locked: true, url: "/api/reference-assets/permanent/tail.png" } } },
             candidate: null,

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     deleteDramaLabEpisodeCanvasForUser: vi.fn(),
     getCanvasProject: vi.fn(),
     updateCanvasProject: vi.fn(),
+    resolveDramaLabProjectForRequest: vi.fn(),
 }));
 
 vi.mock("@/lib/server/drama-project-store", () => ({ getDramaProject: mocks.getDramaProject }));
@@ -15,12 +16,14 @@ vi.mock("@/lib/server/canvas-project-service", () => ({
     deleteDramaLabEpisodeCanvasForUser: mocks.deleteDramaLabEpisodeCanvasForUser,
 }));
 vi.mock("@/lib/server/canvas-project-store", () => ({ getCanvasProject: mocks.getCanvasProject, updateCanvasProject: mocks.updateCanvasProject }));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({ resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest }));
 
 import { dramaLabEpisodeCanvasSourceHandoffId, getOrCreateDramaLabEpisodeCanvasForUser, projectEpisodeToCanvas } from "./drama-lab-episode-canvas-service";
 
 describe("drama lab episode canvas service", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.resolveDramaLabProjectForRequest.mockImplementation(async (userId: string, projectId: string) => ({ project: await mocks.getDramaProject(projectId, userId), ownerUserId: userId }));
         mocks.createDramaLabCanvasProjectForUser.mockImplementation(async (_userId: string, value: { sourceHandoffId?: string; project?: unknown }) => ({
             id: "canvas-episode-one",
             sourceHandoffId: value.sourceHandoffId,
@@ -179,6 +182,17 @@ describe("drama lab episode canvas service", () => {
         expect(result.binding).toMatchObject({ shotId: "shot-one" });
 
         await expect(getOrCreateDramaLabEpisodeCanvasForUser("user-one", "drama-one", "episode-one", "shot-foreign")).rejects.toMatchObject({ status: 404 });
+    });
+
+    it("projects a member-accessed episode through the stable project owner", async () => {
+        const project = projectFixture();
+        mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project, ownerUserId: "owner-one" });
+        mocks.getDramaProject.mockResolvedValue(project);
+
+        await getOrCreateDramaLabEpisodeCanvasForUser("member-one", "drama-one", "episode-one");
+
+        expect(mocks.createDramaLabCanvasProjectForUser).toHaveBeenCalledWith("owner-one", expect.objectContaining({ sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one" }));
+        expect(mocks.getDramaProject).toHaveBeenCalledWith("drama-one", "owner-one");
     });
 
     it("keeps distinct frame-role nodes when several roles reuse the same media URL", () => {

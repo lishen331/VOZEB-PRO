@@ -4,7 +4,7 @@ import { after, NextResponse } from "next/server";
 
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getDramaProject } from "@/lib/server/drama-project-store";
+import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { cancelDramaLabStoryTask, DramaLabStoryGenerationError, findActiveDramaLabStoryTask, getDramaLabStoryTaskView, startDramaLabStoryGeneration, storyTaskView } from "@/lib/server/drama-lab-story-generation-service";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
@@ -22,7 +22,8 @@ export async function POST(request: Request, { params }: RouteContext) {
     try {
         const { id } = await params;
         const body = await readJsonBody<Record<string, unknown>>(request, 256 * 1024);
-        const project = await getDramaProject(id, user.id);
+        const { project } = await resolveDramaLabProjectForRequest(user.id, id);
+        await assertDramaLabStageAllowed(user.id, id, "script");
         if (!project) return NextResponse.json({ code: 404, data: null, msg: "短剧项目不存在" }, { status: 404 });
         const episodeId = typeof body.episodeId === "string" ? body.episodeId.trim() : project.activeEpisodeId || project.episodes[0]?.id || "";
         if (!episodeId || !project.episodes.some((episode) => episode.id === episodeId)) return NextResponse.json({ code: 400, data: null, msg: "当前剧集不存在" }, { status: 400 });
@@ -42,7 +43,7 @@ export async function POST(request: Request, { params }: RouteContext) {
         after(() => runGenerationTaskRecoveryBatch({ origin, cookie: request.headers.get("cookie") || "", limit: 1, taskIds: [task.id] }));
         return NextResponse.json({ code: 0, data: { ...data, taskId: task.id }, msg: "剧本生成任务已创建" }, { status: 202 });
     } catch (error) {
-        const status = error instanceof DramaLabStoryGenerationError ? error.status : 500;
+        const status = error instanceof DramaLabStoryGenerationError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "剧本生成失败" }, { status });
     }
 }
@@ -63,8 +64,13 @@ export async function GET(request: Request, { params }: RouteContext) {
             }
             return NextResponse.json({ code: 0, data: { ...activeData, taskId: activeTask.id }, msg: "OK" });
         }
+        // The service verifies the caller's active project membership and the
+        // task's project boundary. Do not substitute the task owner here:
+        // project task visibility is a collaboration permission, not a
+        // storage-owner identity.
         const task = await getTextTask(taskId);
-        if (!task || task.userId !== user.id || task.storyBatch?.projectId !== id) return NextResponse.json({ code: 404, data: null, msg: "故事生成任务不存在或已过期" }, { status: 404 });
+        await resolveDramaLabProjectForRequest(user.id, id);
+        if (!task || task.storyBatch?.projectId !== id) return NextResponse.json({ code: 404, data: null, msg: "故事生成任务不存在或已过期" }, { status: 404 });
         const data = await getDramaLabStoryTaskView(task.id, user.id, id);
         if (!data) return NextResponse.json({ code: 404, data: null, msg: "故事生成任务不存在或已过期" }, { status: 404 });
         if (data.status === "pending" || data.status === "running") {
@@ -73,7 +79,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         }
         return NextResponse.json({ code: 0, data, msg: "OK" });
     } catch (error) {
-        const status = error instanceof DramaLabStoryGenerationError ? error.status : 500;
+        const status = error instanceof DramaLabStoryGenerationError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "任务状态查询失败" }, { status });
     }
 }
@@ -87,12 +93,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         const taskId = typeof body.taskId === "string" ? body.taskId.trim() : "";
         if (body.action !== "cancel" || !taskId) return NextResponse.json({ code: 400, data: null, msg: "仅支持取消故事生成任务" }, { status: 400 });
         const task = await getTextTask(taskId);
-        if (!task || task.userId !== user.id || task.storyBatch?.projectId !== id) return NextResponse.json({ code: 404, data: null, msg: "故事生成任务不存在或已过期" }, { status: 404 });
-        const cancelled = await cancelDramaLabStoryTask(task, resolveInternalOrigin(new URL(request.url).origin), request.headers.get("cookie") || "");
+        await resolveDramaLabProjectForRequest(user.id, id);
+        if (!task || task.storyBatch?.projectId !== id) return NextResponse.json({ code: 404, data: null, msg: "故事生成任务不存在或已过期" }, { status: 404 });
+        const cancelled = await cancelDramaLabStoryTask(task, resolveInternalOrigin(new URL(request.url).origin), request.headers.get("cookie") || "", user.id, id);
         if (!cancelled) return NextResponse.json({ code: 409, data: null, msg: "当前故事生成任务无法取消" }, { status: 409 });
         return NextResponse.json({ code: 0, data: storyTaskView(cancelled), msg: "故事生成任务已取消" });
     } catch (error) {
-        const status = error instanceof DramaLabStoryGenerationError ? error.status : 500;
+        const status = error instanceof DramaLabStoryGenerationError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "任务取消失败" }, { status });
     }
 }

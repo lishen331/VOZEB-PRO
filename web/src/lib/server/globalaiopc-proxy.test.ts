@@ -22,6 +22,28 @@ describe("GlobalAiOpc native text proxy", () => {
         expect(JSON.parse((adapted as { body: string }).body)).toMatchObject({ systemInstruction: { parts: [{ text: "be concise" }] }, tools: [{ functionDeclarations: [{ name: "create_plan" }] }] });
     });
 
+    it("keeps video_url media when adapting Chat input for Gemini", () => {
+        const adapted = adaptGlobalAiOpcTextRequest(
+            { protocol: "globalaiopc", globalAiOpcPreset: "text-gemini-native" } as never,
+            ["chat", "completions"],
+            JSON.stringify({
+                model: "gemini-3.1-pro-preview",
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: "review this shot" },
+                            { type: "video_url", role: "reference_video", video_url: { url: "https://cdn.example.com/shot.mp4" } },
+                        ],
+                    },
+                ],
+            }),
+        );
+
+        const body = JSON.parse((adapted as { body: string }).body);
+        expect(body.contents[0].parts).toContainEqual({ fileData: { fileUri: "https://cdn.example.com/shot.mp4", mimeType: "video/mp4" } });
+    });
+
     it("converts Claude tool responses back to the canonical Chat completion shape", () => {
         expect(adaptGlobalAiOpcTextResponse("claude", { content: [{ type: "tool_use", id: "tool-1", name: "create_plan", input: { title: "test" } }] })).toEqual({
             choices: [{ message: { role: "assistant", content: "", tool_calls: [{ id: "tool-1", type: "function", function: { name: "create_plan", arguments: '{"title":"test"}' } }] }, finish_reason: "stop" }],

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
+import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { exportDramaEpisodeAsJianying, DramaJianyingExportError } from "@/lib/server/drama-jianying-export";
-import { getDramaProject } from "@/lib/server/drama-project-store";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 
 export const runtime = "nodejs";
@@ -19,7 +19,8 @@ export async function POST(request: Request, context: Context) {
         if (!parsed.ok) return NextResponse.json({ code: parsed.status, data: null, msg: parsed.message }, { status: parsed.status });
 
         const projectId = (await context.params).id;
-        const project = await getDramaProject(projectId, user.id);
+        const { project } = await resolveDramaLabProjectForRequest(user.id, projectId);
+        await assertDramaLabStageAllowed(user.id, projectId, "final_export");
         if (!project) return NextResponse.json({ code: 404, data: null, msg: "项目不存在" }, { status: 404 });
 
         const episode = project.episodes.find((item) => item.id === String(parsed.data.episodeId || ""));
@@ -43,7 +44,7 @@ export async function POST(request: Request, context: Context) {
             },
         });
     } catch (error) {
-        if (error instanceof DramaJianyingExportError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
+        if (error instanceof DramaJianyingExportError || error instanceof DramaLabCollaborationError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
         console.error("[drama-lab] jianying export failed:", error);
         return NextResponse.json({ code: 500, data: null, msg: "剪映草稿导出失败" }, { status: 500 });
     }
