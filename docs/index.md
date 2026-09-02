@@ -29,6 +29,7 @@ VOZEB PRO 是面向图片、视频、短剧与品牌物料生产的 AI 创作工
 - [RunningHub 工作流调通与后台简化经验](/docs/runninghub-workflow-ops-and-simplification)
 - [RunningHub 工作流自动发现与轻量测试设计](/docs/superpowers/specs/2026-09-02-runninghub-workflow-discovery-design)
 - [RunningHub 工作流自动发现与轻量测试实施计划](/docs/superpowers/plans/2026-09-02-runninghub-workflow-discovery-implementation)
+- [RunningHub 工作流编号核验与运维配置手册](/docs/runninghub-workflow-verified-ids-and-ops-runbook)
 
 ## 项目治理
 
