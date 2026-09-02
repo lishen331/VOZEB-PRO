@@ -11,6 +11,7 @@ import { getTextTask } from "@/lib/server/text-task-store";
 import { getImageTask } from "@/lib/server/image-task-store";
 import { getVideoTask } from "@/lib/server/video-task-store";
 import { getAudioTask } from "@/lib/server/audio-task-store";
+import { getStoredGenerationTaskByRequest } from "@/lib/server/generation-task-store";
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "./ip-library-reference-service";
 import type { RunningHubWorkflowConfig } from "@/lib/auth/store-types";
@@ -182,10 +183,18 @@ async function dispatchQueuedSession(
         await store.update(userId, claimed.id, { status: "failed", errorCode: "PRACTICE_DISPATCH_FAILED", errorMessage: publicErrorMessage(error, "PRACTICE_DISPATCH_FAILED") });
         throw error;
     }
+    const taskRefs = [{ taskId: task.taskId, taskType: task.taskType }] as unknown as JsonValue;
     try {
-        const running = await store.update(userId, claimed.id, { taskRefs: [{ taskId: task.taskId, taskType: task.taskType }] as unknown as JsonValue });
+        const running = await store.update(userId, claimed.id, { status: "running", taskRefs, errorCode: undefined, errorMessage: undefined });
+        if (!running) throw new Error("练习任务引用写回未确认");
         return publicSession(running || claimed);
     } catch (error) {
+        try {
+            const linked = await store.update(userId, claimed.id, { status: "running", taskRefs, errorCode: undefined, errorMessage: undefined });
+            if (linked) return publicSession(linked);
+        } catch {
+            // The durable generation task remains available for reconciliation on the next read.
+        }
         await store.update(userId, claimed.id, { status: "running", errorCode: "PRACTICE_SUBMISSION_UNKNOWN", errorMessage: publicErrorMessage(error, "PRACTICE_SUBMISSION_UNKNOWN") }).catch(() => undefined);
         throw new PracticeServiceError("练习任务已提交，结果待确认", 503, "PRACTICE_SUBMISSION_UNKNOWN");
     }
@@ -254,22 +263,23 @@ export class PracticeServiceError extends Error {
 type PracticeSessionListStore = PracticeSessionStore & { list(userId: string, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> };
 
 export async function publicPracticeSession(session: PracticeSessionRecord) {
-    const task = await publicTaskResult(session);
-    const dispatchNeverStarted = session.mode === "workflow" && (session.status === "queued" || session.status === "running") && !hasTaskReference(session) && session.errorCode !== "PRACTICE_SUBMISSION_UNKNOWN";
+    const reconciled = await reconcileUnknownSubmission(session);
+    const task = await publicTaskResult(reconciled);
+    const dispatchNeverStarted = reconciled.mode === "workflow" && (reconciled.status === "queued" || reconciled.status === "running") && !hasTaskReference(reconciled) && reconciled.errorCode !== "PRACTICE_SUBMISSION_UNKNOWN";
     return {
-        id: session.id,
-        title: session.title,
-        module: session.module,
-        mode: session.mode,
-        projectId: session.projectId,
-        projectKind: session.projectKind,
-        input: session.input,
-        status: task?.status === "success" ? "success" : task?.status === "error" ? "failed" : task?.status === "cancelled" ? "cancelled" : dispatchNeverStarted ? "failed" : session.status,
-        ...(session.selectedLogicalModelId ? { selectedLogicalModelId: session.selectedLogicalModelId } : {}),
-        ...(dispatchNeverStarted ? { errorCode: "PRACTICE_DISPATCH_NOT_STARTED" as const, errorMessage: "练习任务尚未提交，请重试" } : session.errorCode ? { errorCode: session.errorCode, errorMessage: session.errorMessage } : {}),
+        id: reconciled.id,
+        title: reconciled.title,
+        module: reconciled.module,
+        mode: reconciled.mode,
+        projectId: reconciled.projectId,
+        projectKind: reconciled.projectKind,
+        input: reconciled.input,
+        status: task?.status === "success" ? "success" : task?.status === "error" ? "failed" : task?.status === "cancelled" ? "cancelled" : dispatchNeverStarted ? "failed" : reconciled.status,
+        ...(reconciled.selectedLogicalModelId ? { selectedLogicalModelId: reconciled.selectedLogicalModelId } : {}),
+        ...(dispatchNeverStarted ? { errorCode: "PRACTICE_DISPATCH_NOT_STARTED" as const, errorMessage: "练习任务尚未提交，请重试" } : reconciled.errorCode ? { errorCode: reconciled.errorCode, errorMessage: reconciled.errorMessage } : {}),
         ...(task ? { result: task } : {}),
-        createdAt: session.createdAt,
-        updatedAt: session.updatedAt,
+        createdAt: reconciled.createdAt,
+        updatedAt: reconciled.updatedAt,
     };
 }
 
@@ -301,18 +311,35 @@ async function publicTaskResult(session: PracticeSessionRecord) {
 }
 
 async function synchronizePracticeSessionLifecycle(store: PracticeSessionStore, session: PracticeSessionRecord) {
-    if (session.mode !== "workflow" || !Array.isArray(session.taskRefs) || !session.taskRefs.length) return session;
-    const task = await publicTaskResult(session);
-    if (!task || (task.status !== "success" && task.status !== "error" && task.status !== "cancelled")) return session;
+    if (session.mode !== "workflow") return session;
+    const reconciled = await reconcileUnknownSubmission(session, store);
+    if (!Array.isArray(reconciled.taskRefs) || !reconciled.taskRefs.length) return reconciled;
+    const task = await publicTaskResult(reconciled);
+    if (!task || (task.status !== "success" && task.status !== "error" && task.status !== "cancelled")) return reconciled;
     const status = task.status === "success" ? "success" : task.status === "cancelled" ? "cancelled" : "failed";
-    if (session.status === status && (status !== "failed" || session.errorMessage === task.error)) return session;
-    const updated = await store.update(session.userId, session.id, {
+    if (reconciled.status === status && (status !== "failed" || reconciled.errorMessage === task.error)) return reconciled;
+    const updated = await store.update(reconciled.userId, reconciled.id, {
         status,
         ...(status === "failed" || status === "cancelled"
             ? { errorCode: status === "cancelled" ? "PRACTICE_TASK_CANCELLED" : "PRACTICE_TASK_FAILED", errorMessage: task.error || (status === "cancelled" ? "练习任务已取消" : "练习失败") }
             : { errorCode: undefined, errorMessage: undefined }),
     });
-    return updated || session;
+    return updated || reconciled;
+}
+
+async function reconcileUnknownSubmission(session: PracticeSessionRecord, store?: PracticeSessionStore) {
+    if (session.mode !== "workflow" || session.errorCode !== "PRACTICE_SUBMISSION_UNKNOWN" || hasTaskReference(session)) return session;
+    const reference = await findDurableTaskReference(session.userId, session.clientRequestId, session.module).catch(() => null);
+    if (!reference) return session;
+    if (!store) return { ...session, taskRefs: [reference] as unknown as JsonValue, errorCode: undefined, errorMessage: undefined };
+    const linked = await store.update(session.userId, session.id, { status: "running", taskRefs: [reference] as unknown as JsonValue, errorCode: undefined, errorMessage: undefined }).catch(() => null);
+    return linked || session;
+}
+
+async function findDurableTaskReference(userId: string, clientRequestId: string, module: PracticeModuleKind) {
+    const taskType = module === "script" ? "text" : module === "storyboard-image" ? "image" : module === "storyboard-video" ? "video" : "audio";
+    const task = await getStoredGenerationTaskByRequest<{ id?: unknown }>(taskType, userId, clientRequestId);
+    return task && typeof task.id === "string" && task.id.trim() ? { taskId: task.id, taskType } : null;
 }
 
 async function defaultResolveModel(module: PracticeModuleKind, requestedLogicalModelId?: string): Promise<PracticeModelResolution> {

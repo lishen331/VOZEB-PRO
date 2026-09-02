@@ -88,6 +88,8 @@ export type RunningHubWorkflowConfig = {
     inputSchema: RunningHubWorkflowInputField[];
     nodeMappings: RunningHubNodeMapping[];
     outputMappings: RunningHubOutputMapping[];
+    workflowJsonFingerprint?: string;
+    lastTestConfigFingerprint?: string;
     timeoutSeconds?: number;
     runOptions?: Record<string, string | number | boolean | null>;
     lastTestAt?: string;

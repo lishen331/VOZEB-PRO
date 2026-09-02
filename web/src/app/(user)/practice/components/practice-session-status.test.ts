@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { practiceSessionPreview, practiceSessionStatusLabel, PRACTICE_SESSION_STATUS_LABELS } from "./practice-session-status";
+import { practiceSessionCanRetry, practiceSessionPreview, practiceSessionStatusLabel, PRACTICE_SESSION_STATUS_LABELS } from "./practice-session-status";
 
 describe("practice session status", () => {
     it("maps every persisted status without a processing fallback", () => {
@@ -13,5 +13,11 @@ describe("practice session status", () => {
     it("summarizes public text and media results", () => {
         expect(practiceSessionPreview({ module: "script", input: { content: "场景一" }, result: undefined })).toBe("场景一");
         expect(practiceSessionPreview({ module: "music", input: { prompt: "雨夜" }, result: { status: "success", media: { kind: "audio", url: "/audio.mp3" } } })).toBe("音频结果");
+    });
+
+    it("allows retrying both failed and cancelled sessions", () => {
+        expect(practiceSessionCanRetry({ status: "failed" })).toBe(true);
+        expect(practiceSessionCanRetry({ status: "cancelled" })).toBe(true);
+        expect(practiceSessionCanRetry({ status: "success" })).toBe(false);
     });
 });

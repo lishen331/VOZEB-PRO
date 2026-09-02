@@ -34,7 +34,15 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
                 </Button>
             </div>
         );
-    if (session.status === "cancelled" || session.result?.status === "cancelled") return <p className="mt-4 text-sm text-muted-foreground">练习已取消</p>;
+    if (session.status === "cancelled" || session.result?.status === "cancelled")
+        return (
+            <div className="mt-4 flex items-center justify-between gap-3 text-sm text-muted-foreground">
+                <span>练习已取消</span>
+                <Button size="small" onClick={onRetry}>
+                    重试
+                </Button>
+            </div>
+        );
     if (session.result?.text !== undefined) return <pre className="mt-4 whitespace-pre-wrap rounded border border-border bg-muted/20 p-3 text-sm leading-6">{session.result.text}</pre>;
     if (session.result?.media?.kind === "image") return <img src={session.result.media.url} alt="练习结果" className="mt-4 max-h-[60vh] w-full object-contain" />;
     if (session.result?.media?.kind === "video") return <video controls src={session.result.media.url} className="mt-4 max-h-[60vh] w-full" />;

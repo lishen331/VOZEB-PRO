@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ requirePracticeAccess: vi.fn(), validateIpReferences: vi.fn(), recordIpReferenceUsage: vi.fn(), getTextTask: vi.fn(), getImageTask: vi.fn(), getVideoTask: vi.fn(), getAudioTask: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+    requirePracticeAccess: vi.fn(),
+    validateIpReferences: vi.fn(),
+    recordIpReferenceUsage: vi.fn(),
+    getTextTask: vi.fn(),
+    getImageTask: vi.fn(),
+    getVideoTask: vi.fn(),
+    getAudioTask: vi.fn(),
+    getStoredGenerationTaskByRequest: vi.fn(),
+}));
 vi.mock("@/lib/server/practice-access-service", () => ({ requirePracticeAccess: mocks.requirePracticeAccess }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({
     normalizeIpReferences: (value: unknown) => (Array.isArray(value) ? value : []),
@@ -11,6 +20,7 @@ vi.mock("@/lib/server/text-task-store", () => ({ getTextTask: mocks.getTextTask 
 vi.mock("@/lib/server/image-task-store", () => ({ getImageTask: mocks.getImageTask }));
 vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask }));
 vi.mock("@/lib/server/audio-task-store", () => ({ getAudioTask: mocks.getAudioTask }));
+vi.mock("@/lib/server/generation-task-store", () => ({ getStoredGenerationTaskByRequest: mocks.getStoredGenerationTaskByRequest }));
 vi.mock("@/lib/server/database", () => ({ getDatabaseProvider: () => "file", createPostgresRepositories: vi.fn() }));
 
 import {
@@ -78,6 +88,7 @@ describe("practice sessions", () => {
         mocks.getImageTask.mockResolvedValue(undefined);
         mocks.getVideoTask.mockResolvedValue(undefined);
         mocks.getAudioTask.mockResolvedValue(undefined);
+        mocks.getStoredGenerationTaskByRequest.mockResolvedValue(null);
     });
 
     it("validates module-specific workflow inputs", () => {
@@ -152,6 +163,32 @@ describe("practice sessions", () => {
         const resolveModel = vi.fn(async (_module, requested) => ({ logicalModelId: requested || "practice-image-a", capability: "image" as const }));
         await expect(retryPracticeSessionForUser({ id: "student-one", role: "user" }, created.id, { store, dispatch: retryDispatch, resolveModel })).resolves.toMatchObject({ status: "running" });
         expect(resolveModel).toHaveBeenCalledWith("storyboard-image", "practice-image-b");
+    });
+
+    it("retries a cancelled workflow session through the same dispatch path", async () => {
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const store = memoryStore();
+        const cancelled = await store.create({
+            id: "cancelled-session",
+            userId: "student-one",
+            projectKind: "canvas",
+            module: "storyboard-image",
+            mode: "workflow",
+            title: "已取消镜头",
+            clientRequestId: "cancelled-request",
+            executionProfile: "open-source-practice",
+            prompt: { prompt: "雨夜" },
+            input: { prompt: "雨夜" },
+            taskRefs: [],
+            status: "cancelled",
+            errorCode: "PRACTICE_TASK_CANCELLED",
+            errorMessage: "用户取消",
+        });
+        const dispatch = vi.fn(async () => ({ taskId: "retry-task", taskType: "image" as const }));
+        const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-image", capability: "image" as const }));
+
+        await expect(retryPracticeSessionForUser({ id: "student-one", role: "user" }, cancelled.id, { store, dispatch, resolveModel })).resolves.toMatchObject({ status: "running" });
+        expect(dispatch).toHaveBeenCalledOnce();
     });
 
     it("maps a legacy queued session without task refs to a visible dispatch failure", async () => {
@@ -321,7 +358,7 @@ describe("practice sessions", () => {
         expect(retryDispatch).toHaveBeenCalledWith(expect.objectContaining({ input: { prompt: "雨夜车站" }, references: [{ type: "asset", id: "asset-one" }], clientRequestId: "request-three" }));
     });
 
-    it("marks the submission outcome unknown when its task reference cannot persist", async () => {
+    it("keeps the accepted task reference when the first write-back fails", async () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
         const baseStore = memoryStore();
         const update = baseStore.update;
@@ -346,18 +383,68 @@ describe("practice sessions", () => {
         });
         const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-text", capability: "text" as const }));
 
-        await expect(createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "写回恢复", input: { prompt: "续写" }, clientRequestId: "request-write-back" }, { store, dispatch, resolveModel })).rejects.toMatchObject({
-            status: 503,
-            code: "PRACTICE_SUBMISSION_UNKNOWN",
+        await expect(createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "写回恢复", input: { prompt: "续写" }, clientRequestId: "request-write-back" }, { store, dispatch, resolveModel })).resolves.toMatchObject({
+            status: "running",
         });
         const session = await store.getByRequest("student-one", "request-write-back");
         if (!session) throw new Error("练习会话未创建");
 
-        await expect(retryPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store, dispatch, resolveModel })).rejects.toMatchObject({ status: 409 });
+        expect(session).toMatchObject({ status: "running", taskRefs: [{ taskId: "task-one", taskType: "text" }] });
 
         expect(dispatch).toHaveBeenCalledTimes(1);
         expect(dispatch.mock.calls.map(([input]) => input.clientRequestId)).toEqual(["request-write-back"]);
         expect(acceptedRequests).toHaveLength(1);
+    });
+
+    it("reconciles an unknown submission from the durable generation task record", async () => {
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const store = memoryStore();
+        const session = await store.create({
+            id: "unknown-session",
+            userId: "student-one",
+            projectKind: "canvas",
+            module: "script",
+            mode: "workflow",
+            title: "待确认提交",
+            clientRequestId: "unknown-request",
+            executionProfile: "open-source-practice",
+            prompt: { prompt: "续写" },
+            input: { prompt: "续写" },
+            taskRefs: [],
+            status: "running",
+            errorCode: "PRACTICE_SUBMISSION_UNKNOWN",
+            errorMessage: "写回失败",
+        });
+        mocks.getStoredGenerationTaskByRequest.mockResolvedValue({ id: "durable-task", userId: "student-one", status: "pending", clientRequestId: "unknown-request" });
+
+        await expect(getPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store })).resolves.toMatchObject({ id: session.id, status: "running" });
+        expect(store.update).toHaveBeenCalledWith("student-one", session.id, expect.objectContaining({ taskRefs: [{ taskId: "durable-task", taskType: "text" }] }));
+    });
+
+    it("does not lose a task when both immediate reference writes fail", async () => {
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const baseStore = memoryStore();
+        const store: PracticeSessionStore = {
+            ...baseStore,
+            update: vi.fn(async (userId, id, patch) => {
+                if (patch.taskRefs) throw new Error("write-back unavailable");
+                return baseStore.update(userId, id, patch);
+            }),
+        };
+        mocks.getStoredGenerationTaskByRequest.mockResolvedValue({ id: "durable-task", userId: "student-one", status: "pending", clientRequestId: "orphan-request" });
+        const dispatch = vi.fn(async () => ({ taskId: "durable-task", taskType: "text" as const }));
+        const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-text", capability: "text" as const }));
+
+        await expect(createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "孤儿任务保护", input: { prompt: "续写" }, clientRequestId: "orphan-request" }, { store, dispatch, resolveModel })).rejects.toMatchObject({
+            code: "PRACTICE_SUBMISSION_UNKNOWN",
+        });
+        const session = await store.getByRequest("student-one", "orphan-request");
+        if (!session) throw new Error("练习会话未创建");
+        expect(session).toMatchObject({ status: "running", errorCode: "PRACTICE_SUBMISSION_UNKNOWN", taskRefs: [] });
+
+        await expect(getPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store })).resolves.toMatchObject({ status: "running" });
+        expect(mocks.getStoredGenerationTaskByRequest).toHaveBeenCalledWith("text", "student-one", "orphan-request");
+        expect(dispatch).toHaveBeenCalledOnce();
     });
 
     it("keeps a pinned IP version in the session and records its practice usage", async () => {

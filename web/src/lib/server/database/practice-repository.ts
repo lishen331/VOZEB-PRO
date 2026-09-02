@@ -64,23 +64,27 @@ export class PracticeRepository {
     async updatePracticeSession(userId: string, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title" | "selectedLogicalModelId" | "errorCode" | "errorMessage">>) {
         const current = await this.getPracticeSessionForUser(userId, id);
         if (!current) return null;
+        const values: unknown[] = [userId, id];
+        const assignments: string[] = [];
+        const add = (column: string, value: unknown, cast = "") => {
+            values.push(value);
+            assignments.push(`${column} = $${values.length}${cast}`);
+        };
+        if (patch.status !== undefined) add("status", patch.status);
+        if (Object.prototype.hasOwnProperty.call(patch, "taskRefs")) add("task_refs", patch.taskRefs === undefined ? null : jsonParam(patch.taskRefs), "::jsonb");
+        if (patch.prompt !== undefined) add("prompt_json", jsonParam(patch.prompt), "::jsonb");
+        if (patch.input !== undefined) add("input_json", jsonParam(patch.input), "::jsonb");
+        if (patch.title !== undefined) add("title", patch.title || null);
+        if (patch.selectedLogicalModelId !== undefined) add("selected_logical_model_id", patch.selectedLogicalModelId || null);
+        if (Object.prototype.hasOwnProperty.call(patch, "errorCode")) add("error_code", patch.errorCode || null);
+        if (Object.prototype.hasOwnProperty.call(patch, "errorMessage")) add("error_message", patch.errorMessage || null);
+        if (!assignments.length) return current;
         const result = await this.db.query(
             `UPDATE practice_sessions
-             SET status = COALESCE($3, status), task_refs = COALESCE($4::jsonb, task_refs), prompt_json = COALESCE($5::jsonb, prompt_json), input_json = COALESCE($6::jsonb, input_json), title = COALESCE($7, title), selected_logical_model_id = COALESCE($8, selected_logical_model_id), error_code = COALESCE($9, error_code), error_message = COALESCE($10, error_message)
+             SET ${assignments.join(", ")}
              WHERE user_id = $1 AND id = $2
              RETURNING *`,
-            [
-                userId,
-                id,
-                patch.status || null,
-                patch.taskRefs === undefined ? null : jsonParam(patch.taskRefs),
-                patch.prompt === undefined ? null : jsonParam(patch.prompt),
-                patch.input === undefined ? null : jsonParam(patch.input),
-                patch.title || null,
-                patch.selectedLogicalModelId || null,
-                patch.errorCode || null,
-                patch.errorMessage || null,
-            ],
+            values,
         );
         return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
     }

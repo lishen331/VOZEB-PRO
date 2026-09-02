@@ -12,6 +12,7 @@ import {
     workflowTaskContextForChannel,
     workflowTimeoutMs,
 } from "./runninghub-workflow-runtime";
+import { runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
 
 const config: RunningHubWorkflowConfig = {
     workflowKey: "practice-image",
@@ -79,7 +80,7 @@ describe("RunningHub workflow runtime", () => {
     });
 
     it("records the immutable workflow version and upstream id separately from business input", () => {
-        expect(recordWorkflowTaskContext(config)).toEqual({ workflowKey: "practice-image", workflowVersion: 3, upstreamWorkflowId: "workflow-image", businessCode: "storyboard-image" });
+        expect(recordWorkflowTaskContext(config)).toMatchObject({ workflowKey: "practice-image", workflowVersion: 3, upstreamWorkflowId: "workflow-image", businessCode: "storyboard-image", workflowConfigFingerprint: expect.any(String) });
     });
 
     it("attaches only the enabled server-side workflow selected by a trusted practice context", () => {
@@ -166,6 +167,53 @@ describe("RunningHub workflow runtime", () => {
             { executionProfile: "open-source-practice", businessCode: "storyboard-image" },
         );
         expect(attached.advancedConfig?.workflowConfigs?.[config.workflowKey]).toMatchObject({ version: 3, enabled: true });
+    });
+
+    it("rejects a newly discovered workflow until its current mapping fingerprint has a successful test", () => {
+        const discovered = { ...config, workflowJsonFingerprint: "json-1" };
+        const channel = { channelId: "rh-practice", advancedConfig: { workflowConfigs: { [discovered.workflowKey]: discovered } } } as unknown as Parameters<typeof attachPracticeWorkflowToChannel>[0];
+        const settings = {
+            practiceWorkflowModels: {},
+            systemChannels: [
+                {
+                    id: "rh-practice",
+                    name: "练习",
+                    baseUrl: "https://runninghub.example",
+                    apiKey: "",
+                    apiFormat: "openai",
+                    models: [],
+                    enabled: true,
+                    purpose: "open-source-practice",
+                    advancedConfig: {
+                        ...channel.advancedConfig,
+                        protocol: "runninghub",
+                        textModel: "",
+                        imageModel: "",
+                        videoModel: "",
+                        createPath: "",
+                        queryPath: "",
+                        requestTemplate: "",
+                        resultField: "",
+                        statusField: "",
+                        durationRange: "",
+                        referenceRule: "",
+                        supportsReferenceImage: false,
+                        supportsReferenceVideo: false,
+                        supportsReferenceAudio: false,
+                    },
+                },
+            ],
+        };
+        expect(() => attachPracticeWorkflowToChannel(channel, settings as never, { executionProfile: "open-source-practice", businessCode: config.businessCode })).toThrow("版本不存在或已停用");
+        const tested = { ...discovered, lastTestResult: "success" as const, lastTestConfigFingerprint: runningHubWorkflowConfigFingerprint(discovered) };
+        const testedChannel = { ...channel, advancedConfig: { ...channel.advancedConfig, workflowConfigs: { [tested.workflowKey]: tested } } } as Parameters<typeof attachPracticeWorkflowToChannel>[0];
+        expect(
+            attachPracticeWorkflowToChannel(
+                testedChannel,
+                { ...settings, systemChannels: [{ ...settings.systemChannels[0], advancedConfig: { ...settings.systemChannels[0].advancedConfig, workflowConfigs: { [tested.workflowKey]: tested } } }] } as never,
+                { executionProfile: "open-source-practice", businessCode: config.businessCode },
+            ).advancedConfig?.workflowConfigs,
+        ).toBeTruthy();
     });
 
     it("does not resolve a production or stopped workflow from task metadata", () => {

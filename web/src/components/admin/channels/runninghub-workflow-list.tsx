@@ -2,7 +2,7 @@
 
 import { App, Button, Empty, Input, Popconfirm, Select, Space, Table, Tag } from "antd";
 import type { TableColumnsType } from "antd";
-import { Copy, Plus, RefreshCw, Settings2, TestTube, ToggleLeft } from "lucide-react";
+import { Plus, RefreshCw, Settings2, TestTube, ToggleLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { SystemModelChannel } from "@/lib/auth/store";
@@ -67,17 +67,17 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
         void load();
     }, [load]);
 
-    const mutate = async (workflow: PublicRunningHubWorkflow, action: "enable" | "disable" | "copy") => {
+    const mutate = async (workflow: PublicRunningHubWorkflow, action: "enable" | "disable") => {
         try {
-            const endpoint = action === "copy" ? `/api/admin/runninghub/workflows/${encodeURIComponent(workflow.workflowKey)}/versions` : `/api/admin/runninghub/workflows/${encodeURIComponent(workflow.workflowKey)}`;
+            const endpoint = `/api/admin/runninghub/workflows/${encodeURIComponent(workflow.workflowKey)}`;
             const response = await fetch(endpoint, {
-                method: action === "copy" ? "POST" : "PUT",
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(action === "copy" ? { activateVersion: false } : { enabled: action === "enable" }),
+                body: JSON.stringify({ enabled: action === "enable" }),
             });
             const result = (await response.json()) as { msg?: string };
             if (!response.ok) throw new Error(result.msg || "操作失败");
-            message.success(action === "copy" ? "新版本已复制并停用" : action === "enable" ? "工作流已启用" : "工作流已停用");
+            message.success(action === "enable" ? "工作流已启用" : "工作流已停用");
             await load();
         } catch (error) {
             message.error(error instanceof Error ? error.message : "操作失败");
@@ -115,8 +115,8 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                 width: 150,
                 render: (_, item) =>
                     item.lastTestAt ? (
-                        <span className={item.lastTestResult === "success" ? "text-emerald-600" : "text-red-600"}>
-                            {item.lastTestResult === "success" ? "成功" : "失败"} · {new Date(item.lastTestAt).toLocaleString()}
+                        <span className={item.requiresRetest ? "text-amber-600" : item.lastTestResult === "success" ? "text-emerald-600" : "text-red-600"}>
+                            {item.requiresRetest ? "配置已修改，请重新测试" : item.lastTestResult === "success" ? "成功" : "失败"} · {new Date(item.lastTestAt).toLocaleString()}
                         </span>
                     ) : (
                         <span className="text-stone-500">未测试</span>
@@ -127,8 +127,8 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                     <Button size="small" icon={<Settings2 className="size-3.5" />} onClick={() => setEditor(item)}>
                         编辑
                     </Button>
-                    <Button size="small" icon={<Copy className="size-3.5" />} onClick={() => void mutate(item, "copy")}>
-                        复制版本
+                    <Button size="small" icon={<RefreshCw className="size-3.5" />} onClick={() => setEditor(item)}>
+                        读取工作流
                     </Button>
                     <Button size="small" icon={<TestTube className="size-3.5" />} onClick={() => setTestWorkflow(item)}>
                         测试
@@ -203,8 +203,8 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                             <Button size="small" onClick={() => setEditor(item)}>
                                 编辑
                             </Button>
-                            <Button size="small" onClick={() => void mutate(item, "copy")}>
-                                复制版本
+                            <Button size="small" onClick={() => setEditor(item)}>
+                                读取工作流
                             </Button>
                             <Button size="small" onClick={() => setTestWorkflow(item)}>
                                 测试

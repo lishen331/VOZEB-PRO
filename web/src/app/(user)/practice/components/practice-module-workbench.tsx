@@ -17,6 +17,7 @@ import PracticeMusicPanel from "./practice-music-panel";
 import { PracticeSessionResult as SessionResult } from "./practice-session-result";
 import PracticeSessionHistory from "./practice-session-history";
 import { PRACTICE_MODULES } from "./practice-home";
+import { practiceSessionCanRetry } from "./practice-session-status";
 export { PRACTICE_MODULES } from "./practice-home";
 
 export function buildPracticeSessionInput(module: PracticeModuleKind, prompt: string, referenceIds: string[], ipReferences: IpReference[] = []): PracticeSessionInput {
@@ -122,11 +123,11 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
             setRefreshing(false);
         }
     };
-    const retry = async () => {
-        if (!current || current.status !== "failed" || refreshing) return;
+    const retry = async (target: PracticeSession | undefined = current) => {
+        if (!target || !practiceSessionCanRetry(target) || refreshing) return;
         setRefreshing(true);
         try {
-            onCreated((await practiceApi.retrySession(current.id)).session);
+            onCreated((await practiceApi.retrySession(target.id)).session);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "练习重试失败");
         } finally {
@@ -200,6 +201,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                                 setCurrent(session);
                                 router.replace(`/practice/${module}?sessionId=${encodeURIComponent(session.id)}`);
                             }}
+                            onRetry={(session) => void retry(session)}
                         />
                     ) : (
                         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="提交第一次练习后，结果会显示在这里" className="!my-5" />

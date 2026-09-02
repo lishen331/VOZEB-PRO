@@ -59,7 +59,7 @@ test("管理员可以维护 RunningHub 工作流版本和练习绑定", async ({
             workflowName: "E2E 脚本工作流",
             businessCode: "script",
             capability: "text",
-            workflowId: "workflow-e2e-script",
+            workflowId: "2090436199843454978",
             createPath: "/openapi/v2/task/create",
             queryPath: "/openapi/v2/task/query/{taskId}",
             taskIdField: "data.taskId",
@@ -76,30 +76,29 @@ test("管理员可以维护 RunningHub 工作流版本和练习绑定", async ({
     expect(workflow).toMatchObject({ enabled: false, version: 1 });
 
     await page.goto("/admin?section=channels");
-    const runningHubRow = page.locator("tr").filter({ hasText: "E2E RunningHub" });
-    await expect(runningHubRow).toHaveCount(1, { timeout: 30_000 });
+    const runningHubRow = page
+        .locator("tr:visible")
+        .filter({ has: page.getByText("E2E RunningHub", { exact: true }) })
+        .first();
+    await expect(runningHubRow).toBeVisible({ timeout: 30_000 });
     await runningHubRow.locator("button").nth(1).click({ timeout: 30_000 });
     await page.getByRole("tab", { name: "工作流" }).click();
     await expect(page.getByText("E2E 脚本工作流", { exact: true }).first()).toBeVisible();
     const workflowActions = page.getByRole("button", { name: "启用", exact: true }).last();
     await expect(page.getByRole("button", { name: "编辑", exact: true }).last()).toBeVisible();
-    await expect(page.getByRole("button", { name: "复制版本", exact: true }).last()).toBeVisible();
+    await expect(page.getByRole("button", { name: "读取工作流", exact: true }).last()).toBeVisible();
     await expect(page.getByRole("button", { name: "测试", exact: true }).last()).toBeVisible();
     await expect(workflowActions).toBeVisible();
     const actionGeometry = await workflowActions.evaluate((element) => {
         const actionRect = element.getBoundingClientRect();
-        const rowRect = element.closest("tr")?.getBoundingClientRect();
-        return { actionRight: actionRect.right, rowRight: rowRect?.right || 0 };
+        return { actionRight: actionRect.right, viewportRight: document.documentElement.clientWidth };
     });
-    expect(actionGeometry.actionRight).toBeGreaterThan(actionGeometry.rowRight - 360);
+    expect(actionGeometry.actionRight).toBeGreaterThan(actionGeometry.viewportRight - 360);
+    expect(actionGeometry.actionRight).toBeLessThanOrEqual(actionGeometry.viewportRight);
     await page.getByRole("button", { name: "测试", exact: true }).last().click();
     await expect(page.getByText("独立管理员测试", { exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "编辑", exact: true }).click();
-    for (const tab of ["基础配置", "平台对接", "参数契约", "节点映射", "出参映射", "测试运行"]) await expect(page.getByRole("tab", { name: tab })).toBeVisible();
+    for (const tab of ["基础配置", "识别结果", "高级配置", "节点与出参高级信息", "测试运行"]) await expect(page.getByRole("tab", { name: tab })).toBeVisible();
     await page.keyboard.press("Escape");
-
-    const copied = await page.request.post(`/api/admin/runninghub/workflows/${workflow.workflowKey}/versions`, { data: { activateVersion: false } });
-    expect(copied.ok(), await copied.text()).toBe(true);
-    expect((await copied.json()).data).toMatchObject({ enabled: false, version: 2 });
 });

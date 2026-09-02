@@ -3,7 +3,15 @@ import { describe, expect, it } from "vitest";
 import type { SystemChannelAdvancedConfig } from "@/lib/auth/store";
 import { normalizeSettings } from "@/lib/auth/store-normalizers";
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
-import { nextWorkflowVersion, normalizeRunningHubWorkflowConfig, resolveEnabledWorkflow, validateRunningHubWorkflowConfig, workflowCapabilityForBusinessCode } from "./runninghub-workflow-domain";
+import {
+    nextWorkflowVersion,
+    normalizeRunningHubWorkflowConfig,
+    resolveEnabledWorkflow,
+    runningHubWorkflowConfigFingerprint,
+    validateRunningHubWorkflowConfig,
+    workflowCapabilityForBusinessCode,
+    workflowRequiresRetest,
+} from "./runninghub-workflow-domain";
 
 const baseConfig = {
     workflowKey: "practice-image",
@@ -70,7 +78,7 @@ describe("RunningHub workflow domain", () => {
 
     it("normalizes an empty/legacy workflow config without mutating unknown legacy model fields", () => {
         expect(normalizeSettings({ ...DEFAULT_SETTINGS, practiceWorkflowModels: undefined as never }).practiceWorkflowModels).toEqual({});
-        expect(normalizeSettings({ ...DEFAULT_SETTINGS, practiceWorkflowModels: { script: "  logical-script ", unknown: "ignored", canvas: 42 } as never }).practiceWorkflowModels).toEqual({ script: "logical-script" });
+        expect(normalizeSettings({ ...DEFAULT_SETTINGS, practiceWorkflowModels: { script: "  logical-script ", unknown: "ignored", canvas: 42 } as never }).practiceWorkflowModels).toEqual({ script: ["logical-script"] });
 
         const normalized = normalizeRunningHubWorkflowConfig({
             ...baseConfig,
@@ -104,6 +112,40 @@ describe("RunningHub workflow domain", () => {
             .systemChannels[0];
         expect(channel.advancedConfig?.modelConfigs?.["legacy-image"]).toMatchObject({ capability: "image", createPath: "/create" });
         expect(channel.advancedConfig?.workflowConfigs).toEqual({});
+    });
+
+    it("fills the official protocol defaults and normalizes a missing version for quick configuration", () => {
+        const normalized = normalizeRunningHubWorkflowConfig({
+            workflowKey: "quick",
+            workflowName: "快速配置",
+            businessCode: "storyboard-image",
+            capability: "image",
+            providerType: "runninghub",
+            channelId: "rh",
+            workflowId: "2087498214948823042",
+            enabled: false,
+            inputSchema: baseConfig.inputSchema,
+            nodeMappings: baseConfig.nodeMappings,
+            outputMappings: baseConfig.outputMappings,
+        });
+        expect(normalized).toMatchObject({ version: 1, createPath: "/task/openapi/create", queryPath: "/openapi/v2/query", taskIdField: "data.taskId", statusField: "data.status", resultField: "data.result", requestTemplate: "{}" });
+        expect(validateRunningHubWorkflowConfig(normalized)).toEqual([]);
+        expect(validateRunningHubWorkflowConfig({ ...normalized, version: undefined })).toEqual([]);
+    });
+
+    it("uses a stable configuration fingerprint and marks changed mappings as needing a new test", () => {
+        const fingerprint = runningHubWorkflowConfigFingerprint(baseConfig);
+        expect(runningHubWorkflowConfigFingerprint({ ...baseConfig, inputSchema: [...baseConfig.inputSchema].reverse() })).toBe(fingerprint);
+        expect(workflowRequiresRetest({ ...baseConfig, lastTestResult: "success", lastTestConfigFingerprint: fingerprint })).toBe(false);
+        expect(workflowRequiresRetest({ ...baseConfig, nodeMappings: [{ ...baseConfig.nodeMappings[0], fieldName: "value" }], lastTestResult: "success", lastTestConfigFingerprint: fingerprint })).toBe(true);
+    });
+
+    it("requires successful current evidence before enabling new configurations while preserving legacy enabled configs", () => {
+        const fingerprint = runningHubWorkflowConfigFingerprint(baseConfig);
+        expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true })).toEqual([]);
+        expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true, workflowJsonFingerprint: "json-1" })).toEqual(expect.arrayContaining([expect.stringContaining("测试")]));
+        expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true, lastTestResult: "success", lastTestConfigFingerprint: fingerprint })).toEqual([]);
+        expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true, lastTestResult: "failed", lastTestConfigFingerprint: fingerprint })).toEqual(expect.arrayContaining([expect.stringContaining("测试")]));
     });
 
     it("requires one enabled version per channel and business code", () => {

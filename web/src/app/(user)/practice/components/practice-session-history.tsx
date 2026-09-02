@@ -4,7 +4,7 @@ import { Button } from "antd";
 import { AudioLines, FileText, Film, Image as ImageIcon, RotateCcw } from "lucide-react";
 
 import type { PracticeSession } from "@/services/api/practice";
-import { practiceSessionPreview, practiceSessionStatusLabel } from "./practice-session-status";
+import { practiceSessionCanRetry, practiceSessionPreview, practiceSessionStatusLabel } from "./practice-session-status";
 
 export default function PracticeSessionHistory({ sessions, currentId, onOpen, onRetry }: { sessions: PracticeSession[]; currentId?: string; onOpen: (session: PracticeSession) => void; onRetry?: (session: PracticeSession) => void }) {
     if (!sessions.length) return null;
@@ -20,7 +20,7 @@ export default function PracticeSessionHistory({ sessions, currentId, onOpen, on
                             <span className="mt-2 block truncate text-xs text-muted-foreground">{session.errorMessage || practiceSessionPreview(session)}</span>
                         </span>
                     </button>
-                    {session.status === "failed" && onRetry ? (
+                    {practiceSessionCanRetry(session) && onRetry ? (
                         <Button type="text" size="small" icon={<RotateCcw className="size-3.5" />} onClick={() => onRetry(session)} className="!mt-2">
                             重试
                         </Button>

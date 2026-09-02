@@ -118,6 +118,20 @@ describe("PracticeRepository", () => {
         expect(query).toHaveBeenCalledOnce();
     });
 
+    it("clears nullable error fields when a successful patch supplies undefined", async () => {
+        const { executor, query } = mockExecutor([
+            [{ id: "session-one", user_id: "user-one", module: "script", status: "success", prompt_json: {}, input_json: {}, task_refs: [], error_code: null, error_message: null }],
+            [{ id: "session-one", user_id: "user-one", module: "script", status: "success", prompt_json: {}, input_json: {}, task_refs: [], error_code: null, error_message: null }],
+        ]);
+        const repository = new PracticeRepository(executor);
+
+        await repository.updatePracticeSession("user-one", "session-one", { status: "success", errorCode: undefined, errorMessage: undefined });
+
+        expect(String(query.mock.calls[1]?.[0])).not.toContain("COALESCE");
+        const values = query.mock.calls[1]?.[1] as unknown[] | undefined;
+        expect(values?.slice(-2)).toEqual([null, null]);
+    });
+
     it("creates a copy inside the caller transaction with the practice execution profile", async () => {
         const { executor, query } = mockExecutor([[], []]);
         const repository = new PracticeRepository(executor);

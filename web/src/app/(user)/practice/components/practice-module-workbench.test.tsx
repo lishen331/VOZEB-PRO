@@ -43,4 +43,11 @@ describe("practice module workbench contract", () => {
         expect(editablePracticeTextReducer("初稿", { type: "edit", value: "人工修改稿" })).toBe("人工修改稿");
         expect(editablePracticeTextReducer("人工修改稿", { type: "replace", value: "另一份结果" })).toBe("另一份结果");
     });
+
+    it("wires history retry actions, including cancelled sessions, back to the API", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/components/practice-module-workbench.tsx"), "utf8");
+
+        expect(source).toContain("practiceSessionCanRetry(target)");
+        expect(source).toContain("onRetry={(session) => void retry(session)}");
+    });
 });
