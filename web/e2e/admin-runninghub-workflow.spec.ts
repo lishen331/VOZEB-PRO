@@ -81,6 +81,20 @@ test("管理员可以维护 RunningHub 工作流版本和练习绑定", async ({
     await runningHubRow.locator("button").nth(1).click({ timeout: 30_000 });
     await page.getByRole("tab", { name: "工作流" }).click();
     await expect(page.getByText("E2E 脚本工作流", { exact: true }).first()).toBeVisible();
+    const workflowActions = page.getByRole("button", { name: "启用", exact: true }).last();
+    await expect(page.getByRole("button", { name: "编辑", exact: true }).last()).toBeVisible();
+    await expect(page.getByRole("button", { name: "复制版本", exact: true }).last()).toBeVisible();
+    await expect(page.getByRole("button", { name: "测试", exact: true }).last()).toBeVisible();
+    await expect(workflowActions).toBeVisible();
+    const actionGeometry = await workflowActions.evaluate((element) => {
+        const actionRect = element.getBoundingClientRect();
+        const rowRect = element.closest("tr")?.getBoundingClientRect();
+        return { actionRight: actionRect.right, rowRight: rowRect?.right || 0 };
+    });
+    expect(actionGeometry.actionRight).toBeGreaterThan(actionGeometry.rowRight - 360);
+    await page.getByRole("button", { name: "测试", exact: true }).last().click();
+    await expect(page.getByText("独立管理员测试", { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "编辑", exact: true }).click();
     for (const tab of ["基础配置", "平台对接", "参数契约", "节点映射", "出参映射", "测试运行"]) await expect(page.getByRole("tab", { name: tab })).toBeVisible();
     await page.keyboard.press("Escape");

@@ -31,6 +31,8 @@ export function getRunningHubWorkflowActionColumn(render: WorkflowActionColumnRe
         fixed: "right",
         width: 320,
         className: "runninghub-workflow-actions",
+        onHeaderCell: () => ({ className: "runninghub-workflow-actions" }),
+        onCell: () => ({ className: "runninghub-workflow-actions" }),
         render,
     };
 }
@@ -121,23 +123,23 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                     ),
             },
             getRunningHubWorkflowActionColumn((_, item) => (
-                    <Space size={4} wrap>
-                        <Button size="small" icon={<Settings2 className="size-3.5" />} onClick={() => setEditor(item)}>
-                            编辑
+                <Space size={4} wrap>
+                    <Button size="small" icon={<Settings2 className="size-3.5" />} onClick={() => setEditor(item)}>
+                        编辑
+                    </Button>
+                    <Button size="small" icon={<Copy className="size-3.5" />} onClick={() => void mutate(item, "copy")}>
+                        复制版本
+                    </Button>
+                    <Button size="small" icon={<TestTube className="size-3.5" />} onClick={() => setTestWorkflow(item)}>
+                        测试
+                    </Button>
+                    <Popconfirm title={item.enabled ? "停用这个版本？" : "启用这个版本？"} onConfirm={() => void mutate(item, item.enabled ? "disable" : "enable")}>
+                        <Button size="small" icon={<ToggleLeft className="size-3.5" />}>
+                            {item.enabled ? "停用" : "启用"}
                         </Button>
-                        <Button size="small" icon={<Copy className="size-3.5" />} onClick={() => void mutate(item, "copy")}>
-                            复制版本
-                        </Button>
-                        <Button size="small" icon={<TestTube className="size-3.5" />} onClick={() => setTestWorkflow(item)}>
-                            测试
-                        </Button>
-                        <Popconfirm title={item.enabled ? "停用这个版本？" : "启用这个版本？"} onConfirm={() => void mutate(item, item.enabled ? "disable" : "enable")}>
-                            <Button size="small" icon={<ToggleLeft className="size-3.5" />}>
-                                {item.enabled ? "停用" : "启用"}
-                            </Button>
-                        </Popconfirm>
-                    </Space>
-                )),
+                    </Popconfirm>
+                </Space>
+            )),
         ],
         [load, message],
     );
