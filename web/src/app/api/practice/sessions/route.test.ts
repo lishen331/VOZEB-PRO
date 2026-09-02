@@ -125,7 +125,13 @@ describe("/api/practice/sessions", () => {
             return { id: "session-one", module: "storyboard-video", status: "running", input: { prompt: "镜头推进" } };
         });
 
-        const response = await POST(new Request("http://localhost/api/practice/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ module: "storyboard-video", input: { prompt: "镜头推进", seed: 12 }, clientRequestId: "request-video" }) }));
+        const response = await POST(
+            new Request("http://localhost/api/practice/sessions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ module: "storyboard-video", input: { prompt: "镜头推进", seed: 12 }, clientRequestId: "request-video" }),
+            }),
+        );
         expect(response.status).toBe(200);
         const [, init] = mocks.fetchInternalApi.mock.calls[0];
         expect(JSON.parse(String(init.body))).toMatchObject({ seed: 12, prompt: "镜头推进", references: [{ type: "image", url: "/api/reference-assets/permanent/2026/09/02/images/reference.png" }] });

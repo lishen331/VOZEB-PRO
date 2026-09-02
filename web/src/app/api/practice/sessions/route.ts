@@ -79,7 +79,7 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
             ? { ...workflowInput, config: { model: input.logicalModelId }, messages: [{ role: "user", content: prompt }], context }
             : input.capability === "image"
               ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
-            : input.capability === "video"
+              : input.capability === "video"
                 ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
                 : { ...workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" };
     const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(input.userId, input.clientRequestId) });

@@ -30,10 +30,13 @@ export function practiceProjectPath(kind: PracticeProjectKind, id: string) {
 
 export function practiceModulePath(module: PracticeModuleKind, options?: IpReference | { reference?: IpReference; sessionId?: string }) {
     const reference = options && "id" in options ? options : options?.reference;
-    const sessionId = options && ! ("id" in options) ? options.sessionId : undefined;
+    const sessionId = options && !("id" in options) ? options.sessionId : undefined;
     if (!reference && !sessionId) return `/practice/${module}`;
     const query = new URLSearchParams();
-    if (reference) { query.set("ipId", reference.id); query.set("versionId", reference.versionId); }
+    if (reference) {
+        query.set("ipId", reference.id);
+        query.set("versionId", reference.versionId);
+    }
     if (sessionId) query.set("sessionId", sessionId);
     return `/practice/${module}?${query.toString()}`;
 }

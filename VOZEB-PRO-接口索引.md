@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-01。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **294** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-09-02。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **295** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,9 +23,9 @@
 
 ## 接口总览
 
-- Route 文件：**294**
-- 方法出现次数：DELETE 44、GET 163、HEAD 6、PATCH 50、POST 151、PUT 10
-- 一级域：`admin` 111、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 4、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**295**
+- 方法出现次数：DELETE 44、GET 164、HEAD 6、PATCH 50、POST 151、PUT 10
+- 一级域：`admin` 111、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`drama` 12、`drama-lab` 10、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 5、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
@@ -387,10 +387,11 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/points` | 用户 | [route.ts](web/src/app/api/points/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 积分：查询 |
 
-### `practice`（4）
+### `practice`（5）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
+| GET | `/api/practice/modules` | 混合 | [route.ts](web/src/app/api/practice/modules/route.ts) | [practice-module-service](web/src/lib/server/practice-module-service.ts) | PostgreSQL | practice / modules：查询 |
 | GET, POST | `/api/practice/projects` | 混合 | [route.ts](web/src/app/api/practice/projects/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts) | PostgreSQL | practice / 项目：查询、提交/执行 |
 | GET | `/api/practice/projects/[id]` | 混合 | [route.ts](web/src/app/api/practice/projects/[id]/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts) | PostgreSQL | practice / 项目 / 单项：查询 |
 | GET, POST | `/api/practice/sessions` | 混合 | [route.ts](web/src/app/api/practice/sessions/route.ts) | [practice-session-service](web/src/lib/server/practice-session-service.ts)<br>[generation-execution-policy](web/src/lib/server/generation-execution-policy.ts) | PostgreSQL | practice / sessions：查询、提交/执行 |
