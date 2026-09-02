@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { analyzeRunningHubWorkflowJson } from "./runninghub-workflow-discovery";
+import { validateRunningHubWorkflowConfig } from "./runninghub-workflow-domain";
 
 const minimax = {
     workflowType: "MiniMaxH3ReferenceToVideo",
@@ -50,6 +51,31 @@ describe("RunningHub workflow discovery", () => {
         expect(result.suggestedOutputs[0]).toMatchObject({ nodeId: "44", assetType: "IMAGE" });
     });
 
+    it("parses nested JSON string payloads such as RunningHub data.prompt", () => {
+        const nodes = {
+            "35": { class_type: "TextInput", inputs: { text: "{{prompt}}" } },
+            "13": { class_type: "LoadImage", inputs: { image: "reference.png" } },
+            "67": { class_type: "SaveImage", inputs: { images: ["13", 0] } },
+        };
+        const result = analyzeRunningHubWorkflowJson({ workflowId: "2090436220538150914", raw: { code: 0, msg: "SUCCESS", data: { prompt: JSON.stringify(nodes) } }, capability: "image" });
+        expect(result.nodeCount).toBe(3);
+        expect(result.warnings).not.toContain("未识别到可配置的工作流节点");
+        expect(result.candidates).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ nodeId: "35", fieldName: "text", role: "prompt" }),
+                expect.objectContaining({ nodeId: "13", fieldName: "image", role: "image", hasExternalFileDependency: true }),
+                expect.objectContaining({ nodeId: "67", role: "output" }),
+            ]),
+        );
+        expect(result.suggestedOutputs[0]).toMatchObject({ nodeId: "67", assetType: "IMAGE" });
+    });
+
+    it("keeps template placeholders and numeric-looking strings untouched while unwrapping", () => {
+        const result = analyzeRunningHubWorkflowJson({ workflowId: "wf", raw: { data: { prompt: JSON.stringify({ "1": { class_type: "TextInput", inputs: { text: "{{prompt}}", steps: "20" } } }) } }, capability: "image" });
+        expect(result.candidates).toEqual(expect.arrayContaining([expect.objectContaining({ fieldName: "text", role: "prompt", defaultValue: "{{prompt}}" })]));
+        expect(result.candidates.find((item) => item.fieldName === "steps")).toBeUndefined();
+    });
+
     it("does not silently map ambiguous prompts and never returns secrets", () => {
         const result = analyzeRunningHubWorkflowJson({ workflowId: "wf", raw: { "1": { class_type: "TextInput", inputs: { prompt: "one", text: "two", value: "example-placeholder-value", apiKey: "secret" } } }, capability: "text" });
         expect(result.suggestedNodeMappings.filter((item) => item.inputKey === "prompt")).toHaveLength(0);
@@ -66,5 +92,47 @@ describe("RunningHub workflow discovery", () => {
         const result = analyzeRunningHubWorkflowJson({ workflowId: "wf", raw: { "1": { class_type: "Control", inputs: { quality: ["low", "high"], apiKey: "secret" } } }, capability: "image" });
         expect(result.candidates).toEqual(expect.arrayContaining([expect.objectContaining({ fieldName: "quality", role: "enum" })]));
         expect(JSON.stringify(result)).not.toContain("secret");
+    });
+
+    it("produces unique input keys and options so a multi-parameter workflow passes save validation", () => {
+        const nodes = {
+            "35": { class_type: "TextInput", inputs: { text: "{{prompt}}" } },
+            "13": { class_type: "LoadImage", inputs: { image: "ref.png" } },
+            "40": { class_type: "KSampler", inputs: { steps: 20, cfg: 7.5, seed: 12345, denoise: 1 } },
+            "41": { class_type: "EmptyLatentImage", inputs: { width: 1024, height: 1024 } },
+            "50": { class_type: "Control", inputs: { quality: ["low", "high"], mode: ["a", "b"] } },
+            "51": { class_type: "Toggle", inputs: { enableUpscale: true, enableFix: false } },
+            "67": { class_type: "SaveImage", inputs: { images: ["13", 0] } },
+        };
+        const result = analyzeRunningHubWorkflowJson({ workflowId: "2090436220538150914", raw: { code: 0, data: { prompt: JSON.stringify(nodes) } }, capability: "image" });
+
+        const inputKeys = result.suggestedInputs.map((item) => item.key);
+        expect(new Set(inputKeys).size).toBe(inputKeys.length);
+        const mappingKeys = result.suggestedNodeMappings.map((item) => item.paramKey);
+        expect(new Set(mappingKeys).size).toBe(mappingKeys.length);
+        for (const field of result.suggestedInputs) {
+            if (field.type === "enum") expect(field.options && field.options.length).toBeTruthy();
+        }
+
+        const errors = validateRunningHubWorkflowConfig({
+            workflowKey: "wf-1",
+            workflowName: "多参数工作流",
+            channelId: "rh",
+            workflowId: "2090436220538150914",
+            providerType: "runninghub",
+            businessCode: "storyboard-image",
+            capability: "image",
+            createPath: "/task/openapi/create",
+            queryPath: "/openapi/v2/query",
+            taskIdField: "data.taskId",
+            statusField: "data.status",
+            resultField: "data.result",
+            requestTemplate: "{}",
+            version: 1,
+            inputSchema: result.suggestedInputs,
+            nodeMappings: result.suggestedNodeMappings,
+            outputMappings: result.suggestedOutputs,
+        });
+        expect(errors).toEqual([]);
     });
 });

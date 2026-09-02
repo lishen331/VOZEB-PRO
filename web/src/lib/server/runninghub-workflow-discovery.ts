@@ -11,6 +11,7 @@ export type RunningHubNodeCandidate = {
     label: string;
     inputType?: RunningHubWorkflowInputField["type"];
     defaultValue?: string | number | boolean | null;
+    options?: string[];
     hasExternalFileDependency: boolean;
     confidence: "high" | "medium" | "low";
 };
@@ -45,10 +46,16 @@ export function analyzeRunningHubWorkflowJson(input: { workflowId: string; raw: 
         const roleCandidates = candidates.filter((item) => item.role === role);
         if (!roleCandidates.length || (role === "prompt" && roleCandidates.length !== 1)) continue;
         roleCandidates.forEach((candidate, index) => {
-            const key = inputKeyFor(candidate, role, index);
+            const key = inputKeyFor(role, index);
             const inputType = candidate.inputType || inputTypeForRole(role);
             if (!inputType) return;
-            suggestedInputs.push({ key, label: roleCandidates.length > 1 && role === "image" ? `参考图 ${index + 1}` : candidate.label, type: inputType, required: candidate.hasExternalFileDependency || role === "prompt" });
+            suggestedInputs.push({
+                key,
+                label: roleCandidates.length > 1 && role === "image" ? `参考图 ${index + 1}` : candidate.label,
+                type: inputType,
+                required: candidate.hasExternalFileDependency || role === "prompt",
+                ...(role === "enum" && candidate.options && candidate.options.length ? { options: candidate.options } : {}),
+            });
             suggestedNodeMappings.push({
                 paramKey: key,
                 nodeId: candidate.nodeId,
@@ -62,7 +69,7 @@ export function analyzeRunningHubWorkflowJson(input: { workflowId: string; raw: 
     }
     const outputCandidates = candidates.filter((item) => item.role === "output");
     const suggestedOutputs = outputCandidates.map((candidate, index) => ({
-        key: outputKeyFor(candidate, input.capability, index),
+        key: outputKeyFor(input.capability, index),
         label: candidate.label,
         nodeId: candidate.nodeId,
         assetType: outputTypeFor(candidate, input.capability),
@@ -85,7 +92,7 @@ export function analyzeRunningHubWorkflowJson(input: { workflowId: string; raw: 
 function extractNodes(raw: unknown): Node[] {
     const found: Node[] = [];
     const seen = new Set<string>();
-    walk(parseJsonValue(raw), "", (value, key) => {
+    walk(raw, "", (value, key) => {
         if (!value || typeof value !== "object" || Array.isArray(value)) return;
         const record = value as Record<string, unknown>;
         const inputs = record.inputs;
@@ -117,6 +124,7 @@ function analyzeNode(node: Node, capability: LogicalModelCapability): RunningHub
                 label: candidateLabel(role, fieldName, node.id),
                 ...(inputType ? { inputType } : {}),
                 ...(safeDefaultValue(fieldName, value) !== undefined ? { defaultValue: safeDefaultValue(fieldName, value) } : {}),
+                ...(role === "enum" ? { options: enumOptions(value) } : {}),
                 hasExternalFileDependency: isExternalFileDependency(value, role),
                 confidence: confidenceFor(node, fieldName, role),
             },
@@ -176,14 +184,16 @@ function outputLabel(node: Node, capability: LogicalModelCapability) {
     return type === "IMAGE" ? "输出图片" : type === "VIDEO" ? "输出视频" : type === "AUDIO" ? "输出音频" : "输出文本";
 }
 
-function inputKeyFor(candidate: RunningHubNodeCandidate, role: RunningHubNodeCandidate["role"], index = 0) {
+function inputKeyFor(role: RunningHubNodeCandidate["role"], index = 0) {
     if (role === "image") return `referenceImage${index + 1}`;
     if (role === "video") return `referenceVideo${index + 1}`;
     if (role === "audio") return `referenceAudio${index + 1}`;
-    return role === "duration" ? "duration" : role;
+    if (role === "duration") return "duration";
+    if (role === "prompt") return "prompt";
+    return `${role}${index + 1}`;
 }
 
-function outputKeyFor(candidate: RunningHubNodeCandidate, capability: LogicalModelCapability, index: number) {
+function outputKeyFor(capability: LogicalModelCapability, index: number) {
     return capability === "image" ? `image${index + 1}` : capability === "video" ? `video${index + 1}` : capability === "audio" ? `audio${index + 1}` : `text${index + 1}`;
 }
 
@@ -202,7 +212,7 @@ function ambiguousWarnings(candidates: RunningHubNodeCandidate[]) {
 
 function readWorkflowType(raw: unknown) {
     let result = "";
-    walk(parseJsonValue(raw), "", (value) => {
+    walk(raw, "", (value) => {
         if (result || !value || typeof value !== "object" || Array.isArray(value)) return;
         const record = value as Record<string, unknown>;
         result = text(record.workflowType) || text(record.workflow_type) || (text(record.type) && !record.inputs ? text(record.type) : "");
@@ -235,18 +245,21 @@ function isSensitiveField(value: string) {
 
 function parseJsonValue(value: unknown): unknown {
     if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return value;
     try {
-        const parsed: unknown = JSON.parse(value);
-        return parsed;
+        const parsed: unknown = JSON.parse(trimmed);
+        return parsed && typeof parsed === "object" ? parsed : value;
     } catch {
         return value;
     }
 }
 
 function walk(value: unknown, key: string, visitor: (value: unknown, key: string) => void) {
-    visitor(value, key);
-    if (Array.isArray(value)) value.forEach((item, index) => walk(item, String(index), visitor));
-    else if (value && typeof value === "object") Object.entries(value).forEach(([childKey, child]) => walk(child, childKey, visitor));
+    const current = parseJsonValue(value);
+    visitor(current, key);
+    if (Array.isArray(current)) current.forEach((item, index) => walk(item, String(index), visitor));
+    else if (current && typeof current === "object") Object.entries(current).forEach(([childKey, child]) => walk(child, childKey, visitor));
 }
 
 function stableStringify(value: unknown): string {
@@ -261,6 +274,10 @@ function stableStringify(value: unknown): string {
 
 function isJsonPrimitive(value: unknown): value is string | number | boolean | null {
     return value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+}
+
+function enumOptions(value: unknown): string[] {
+    return Array.isArray(value) ? value.map((item) => (isJsonPrimitive(item) ? String(item) : "")).filter(Boolean) : [];
 }
 
 function text(value: unknown) {
