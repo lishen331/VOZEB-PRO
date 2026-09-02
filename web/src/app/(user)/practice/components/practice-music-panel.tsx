@@ -1,0 +1,8 @@
+"use client";
+import { Button, Input } from "antd";
+import { Music2 } from "lucide-react";
+import { useState } from "react";
+import { practiceApi } from "@/services/api/practice";
+import { WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
+import { ModelField } from "./practice-storyboard-image-panel";
+export default function PracticeMusicPanel({ capability, onCreated }: PracticePanelProps) { const [prompt, setPrompt] = useState(""); const [model, setModel] = useState(capability.models[0]?.id); const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => workflowFieldDefaults(capability)); const [busy, setBusy] = useState(false); const submit = async () => { if (!prompt.trim() || !model || busy) return; setBusy(true); try { onCreated((await practiceApi.createSession({ module: "music", mode: "workflow", title: "音乐练习", input: { prompt: prompt.trim(), ...workflowInput }, logicalModelId: model, clientRequestId: crypto.randomUUID() })).session); } finally { setBusy(false); } }; return <div className="space-y-4"><ModelField capability={capability} value={model} onChange={setModel} /><label className="block text-sm font-medium">音乐需求<Input.TextArea value={prompt} onChange={(event) => setPrompt(event.target.value)} autoSize={{ minRows: 7, maxRows: 14 }} className="!mt-2" placeholder="描述情绪、节奏、乐器和使用场景" /></label><WorkflowOptionalFields capability={capability} value={workflowInput} onChange={(key, value) => setWorkflowInput((current) => ({ ...current, [key]: value }))} /><Button type="primary" icon={<Music2 className="size-4" />} loading={busy} disabled={!capability.available || !model || !prompt.trim()} onClick={() => void submit()}>生成音乐</Button></div>; }

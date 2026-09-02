@@ -9,6 +9,7 @@ import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-dom
 import type { IpReference } from "@/lib/ip-library-domain";
 import { ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
 import { practiceApi, type PracticeProjectSummary, type PracticeSession } from "@/services/api/practice";
+import PracticeSessionHistory from "./practice-session-history";
 
 export const PRACTICE_PROJECT_CARDS: Array<{ kind: PracticeProjectKind; title: string; description: string; icon: LucideIcon }> = [
     { kind: "canvas", title: "无限画布", description: "自由组合文字、图片、视频和音频，练习节点式创作。", icon: Maximize2 },
@@ -27,9 +28,13 @@ export function practiceProjectPath(kind: PracticeProjectKind, id: string) {
     return `/${kind}/${encodeURIComponent(id)}`;
 }
 
-export function practiceModulePath(module: PracticeModuleKind, reference?: IpReference) {
-    if (!reference) return `/practice/${module}`;
-    const query = new URLSearchParams({ ipId: reference.id, versionId: reference.versionId });
+export function practiceModulePath(module: PracticeModuleKind, options?: IpReference | { reference?: IpReference; sessionId?: string }) {
+    const reference = options && "id" in options ? options : options?.reference;
+    const sessionId = options && ! ("id" in options) ? options.sessionId : undefined;
+    if (!reference && !sessionId) return `/practice/${module}`;
+    const query = new URLSearchParams();
+    if (reference) { query.set("ipId", reference.id); query.set("versionId", reference.versionId); }
+    if (sessionId) query.set("sessionId", sessionId);
     return `/practice/${module}?${query.toString()}`;
 }
 
@@ -177,14 +182,7 @@ export default function PracticeHome() {
                             <Spin />
                         </div>
                     ) : sessions.length ? (
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            {sessions.map((session) => (
-                                <button key={session.id} type="button" className="min-w-0 border border-border px-3 py-3 text-left hover:bg-muted/30" onClick={() => router.push(practiceModulePath(session.module))}>
-                                    <span className="block truncate text-sm font-medium">{session.title}</span>
-                                    <span className="mt-1 block text-xs text-muted-foreground">{session.status === "success" ? "已完成" : session.status === "failed" ? "需要重试" : "处理中"}</span>
-                                </button>
-                            ))}
-                        </div>
+                        <PracticeSessionHistory sessions={sessions} onOpen={(session) => router.push(practiceModulePath(session.module, { sessionId: session.id }))} />
                     ) : (
                         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有单项练习记录" className="!my-5" />
                     )}

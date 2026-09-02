@@ -20,9 +20,9 @@ describe("practice module workbench contract", () => {
     });
 
     it("keeps the IP picker code dormant behind the shared entry flag", async () => {
-        const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/components/practice-module-workbench.tsx"), "utf8");
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/components/practice-storyboard-image-panel.tsx"), "utf8");
 
-        expect(source).toContain("IP_REFERENCE_ENTRY_VISIBLE ? (");
+        expect(source).toContain("IP_REFERENCE_ENTRY_VISIBLE ? <IpReferencePicker");
         expect(source).toContain("<IpReferencePicker");
     });
 

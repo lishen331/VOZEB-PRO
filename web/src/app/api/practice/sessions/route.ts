@@ -67,14 +67,21 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
             : {}),
     };
     const prompt = typeof input.input.prompt === "string" ? input.input.prompt : typeof input.input.text === "string" ? input.input.text : "练习任务";
+    const workflowInput = Object.fromEntries(Object.entries(input.input).filter(([key]) => key !== "prompt" && key !== "text" && key !== "references"));
+    const references = input.references.flatMap((reference) => {
+        if (!reference || typeof reference !== "object" || Array.isArray(reference)) return [];
+        const source = reference as { type?: unknown; id?: unknown };
+        if (source.type !== "asset" || typeof source.id !== "string" || !source.id.trim()) return [];
+        return [{ type: "image" as const, url: practiceReferenceUrl(source.id) }];
+    });
     const body =
         input.capability === "text"
-            ? { config: { model: input.logicalModelId }, messages: Array.isArray(input.input.messages) ? input.input.messages : [{ role: "user", content: prompt }], context }
+            ? { ...workflowInput, config: { model: input.logicalModelId }, messages: [{ role: "user", content: prompt }], context }
             : input.capability === "image"
-              ? { config: { model: input.logicalModelId }, prompt, references: input.references, context, source: "practice" }
-              : input.capability === "video"
-                ? { config: { model: input.logicalModelId }, prompt, references: input.references, context, source: "practice" }
-                : { config: { model: input.logicalModelId }, prompt, context, source: "practice" };
+              ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
+            : input.capability === "video"
+                ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
+                : { ...workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" };
     const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(input.userId, input.clientRequestId) });
     const cookie = request.headers.get("cookie");
     if (cookie) headers.set("cookie", cookie);
@@ -82,6 +89,12 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
     const payload = (await response.json().catch(() => ({}))) as { task?: { id?: string; type?: string }; error?: string };
     if (!response.ok || !payload.task?.id) throw new Error(payload.error || "练习任务调度失败");
     return { taskId: payload.task.id, taskType: input.capability };
+}
+
+function practiceReferenceUrl(storageKey: string) {
+    const value = storageKey.trim();
+    if (!/^(?:temporary|permanent)\//.test(value)) throw new Error("练习参考素材无效");
+    return `/api/reference-assets/${value.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 function knownError(error: unknown) {
