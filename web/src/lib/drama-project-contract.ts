@@ -7,6 +7,22 @@ export type DramaVideoMode = "storyboard" | "direct" | "reference";
 export type DramaShotCreationMode = "classic" | "universal";
 export type DramaStoryboardFrameMode = "single" | "first_last";
 export type DramaShotAudioMode = "source" | "voiceover" | "mute";
+export type DramaShotAudioKind = "dialogue" | "narration";
+
+/** Persisted state for one independently generated dialogue/narration track. */
+export type DramaShotAudioState = {
+    status: DramaTaskStatus;
+    attempt?: number;
+    taskId?: string;
+    error?: string;
+    url?: string;
+    mimeType?: string;
+    speaker?: string;
+    voice?: string;
+    speed?: number;
+    instructions?: string;
+    durationMs?: number;
+};
 
 export type DramaShotGenerationHistory = {
     id: string;
@@ -210,11 +226,17 @@ export type DramaShot = {
     videoHistory?: DramaShotGenerationHistory[];
     subtitle?: string;
     audioMode?: DramaShotAudioMode;
+    /** Per-kind tracks mirror LocalMiniDrama's dialogue/narration audio fields. */
+    dialogueAudio?: DramaShotAudioState;
+    narrationAudio?: DramaShotAudioState;
     audioStatus?: DramaTaskStatus;
     audioAttempt?: number;
     audioTaskId?: string;
     audioError?: string;
     audioUrl?: string;
+    /** Provenance for an explicit append-only split-by-audio operation. */
+    audioSplitSourceShotId?: string;
+    audioSplitSegmentIndex?: number;
 };
 
 export type DramaRenderTask = {

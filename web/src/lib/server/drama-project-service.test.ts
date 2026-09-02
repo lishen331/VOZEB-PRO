@@ -276,6 +276,22 @@ describe("drama project service updates", () => {
         expect(normalizedShot.firstFrameCandidate).toEqual(candidate);
     });
 
+    it("treats a legacy dedicated audio URL without status as ready", () => {
+        const current = project("2026-07-19T08:00:01.000Z", "Audio compatibility");
+        const normalized = normalizeProject(
+            {
+                ...current,
+                episodes: [{
+                    ...current.episodes[0],
+                    shots: [{ ...current.episodes[0].shots[0], dialogueAudio: { url: "/dialogue.mp3" } }],
+                }],
+            },
+            current,
+        );
+
+        expect(normalized.episodes[0].shots[0].dialogueAudio).toMatchObject({ status: "success", url: "/dialogue.mp3" });
+    });
+
     it("preserves exact project dimensions without a platform ceiling", async () => {
         const current = project("2026-07-19T08:00:01.000Z", "旧标题");
         mocks.getDramaProject.mockResolvedValue(current);

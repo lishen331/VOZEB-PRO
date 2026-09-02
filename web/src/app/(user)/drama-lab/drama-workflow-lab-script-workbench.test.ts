@@ -18,4 +18,17 @@ describe("drama script workbench", () => {
         expect(source).toContain("onActiveEpisodeChange(importedEpisodes[0].id)");
         expect(source).toContain("不会导入角色、场景、分镜、图片或视频");
     });
+    it("keeps legacy subtitle text available to the dialogue audio card", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/drama-workflow-lab-project-complete.tsx"), "utf8");
+        expect(source).toContain('subtitle: typeof shot.subtitle === "string" ? shot.subtitle : undefined');
+        expect(source).toContain('kind === "narration" ? shot.narration || "" : shot.dialogue || shot.subtitle || ""');
+    });
+
+    it("keeps a partially migrated legacy root audio state on only its proven track", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/drama-workflow-lab-project-complete.tsx"), "utf8");
+        expect(source).toContain('const opposite = kind === "narration" ? shot.dialogueAudio : shot.narrationAudio;');
+        expect(source).toContain('opposite?.taskId?.trim() === legacyTaskId');
+        expect(source).toContain('strictLegacyAudioKind(shot) !== kind');
+        expect(source).not.toContain("never mirror the old root state into the missing card");
+    });
 });

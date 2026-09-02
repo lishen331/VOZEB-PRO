@@ -676,7 +676,7 @@ async function persistImageLease(task: ImageTask, lease: GenerationTaskLease, wo
 }
 
 async function processAudioLease(lease: GenerationTaskLease, workerId: string, origin: string, cookie: string, userRequested: boolean): Promise<RecoveryResult> {
-    const task = await getAudioTask(lease.id);
+    let task = await getAudioTask(lease.id);
     if (!task || task.status === "success" || task.status === "cancelled") {
         await releaseGenerationTaskLease("audio", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined });
         return "completed";
@@ -705,6 +705,28 @@ async function processAudioLease(lease: GenerationTaskLease, workerId: string, o
         return "needs_review";
     }
     if (needsPersistence(lease)) return persistAudioLease(task, lease, workerId, origin, cookie, userRequested);
+    // A scheduler row may retain the provider task id even when the audio
+    // task payload was not persisted before the worker/request was
+    // interrupted. Restore that identity before polling; never submit a
+    // second upstream task in this recovery path.
+    if (!task.upstream?.id && lease.upstreamTaskId) {
+        const restored = await updateAudioTask(task.id, {
+            upstream: {
+                id: lease.upstreamTaskId,
+                createPath: task.config.advancedConfig?.createPath?.trim() || "/audio/speech",
+            },
+        });
+        if (!restored?.upstream?.id) {
+            await releaseGenerationTaskLease("audio", lease.id, workerId, {
+                executionPhase: "needs_review",
+                nextPollAt: undefined,
+                lastUpstreamStatus: "upstream_identity_restore_failed",
+                resultPayload: reviewPayload(lease, "音频任务的上游身份无法恢复，请重新检查任务状态"),
+            });
+            return "needs_review";
+        }
+        task = restored;
+    }
     if (!task.upstream?.id) {
         try {
             await validateGenerationContextIpReferences(task.userId, task);

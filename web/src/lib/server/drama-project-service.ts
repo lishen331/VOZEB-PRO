@@ -432,6 +432,30 @@ function normalizeShot(value: unknown, index: number): DramaShot {
         audioTaskId: optionalText(input.audioTaskId),
         audioError: optionalText(input.audioError),
         audioUrl: stableUrl(input.audioUrl),
+        dialogueAudio: normalizeAudioState(input.dialogueAudio),
+        narrationAudio: normalizeAudioState(input.narrationAudio),
+        audioSplitSourceShotId: optionalText(input.audioSplitSourceShotId),
+        audioSplitSegmentIndex: optionalNonNegativeInteger(input.audioSplitSegmentIndex),
+    };
+}
+
+function normalizeAudioState(value: unknown) {
+    if (!value || typeof value !== "object") return undefined;
+    const input = value as Record<string, unknown>;
+    const url = stableUrl(input.url);
+    const status = taskStatus(input.status) || (url ? "success" : "idle");
+    return {
+        status,
+        attempt: optionalPositiveInteger(input.attempt),
+        taskId: optionalText(input.taskId),
+        error: optionalText(input.error),
+        url,
+        mimeType: optionalText(input.mimeType),
+        speaker: optionalText(input.speaker),
+        voice: optionalText(input.voice),
+        speed: Number.isFinite(Number(input.speed)) ? Math.max(0.25, Math.min(4, Number(input.speed))) : undefined,
+        instructions: optionalText(input.instructions),
+        durationMs: optionalPositiveInteger(input.durationMs),
     };
 }
 
@@ -717,6 +741,11 @@ function taskStatus(value: unknown) {
 function optionalPositiveInteger(value: unknown) {
     const number = Math.floor(Number(value));
     return Number.isFinite(number) && number > 0 ? number : undefined;
+}
+
+function optionalNonNegativeInteger(value: unknown) {
+    const number = Math.floor(Number(value));
+    return Number.isFinite(number) && number >= 0 ? number : undefined;
 }
 
 function stableUrl(value: unknown) {

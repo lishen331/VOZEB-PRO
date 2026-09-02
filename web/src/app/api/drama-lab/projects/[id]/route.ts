@@ -278,6 +278,10 @@ function pickStoryboardWorkflowFields(shot: Record<string, unknown>) {
         "audioTaskId",
         "audioError",
         "audioUrl",
+        "dialogueAudio",
+        "narrationAudio",
+        "audioSplitSourceShotId",
+        "audioSplitSegmentIndex",
     ];
     return Object.fromEntries(keys.filter((key) => shot[key] !== undefined).map((key) => [key, shot[key]]));
 }

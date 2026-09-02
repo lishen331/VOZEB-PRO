@@ -12,7 +12,7 @@ vi.mock("@/lib/server/media-download", () => ({
     }),
 }));
 
-import { buildJianyingDraftName, DramaJianyingExportError, exportDramaEpisodeAsJianying } from "./drama-jianying-export";
+import { buildJianyingDraftName, DramaJianyingExportError, exportDramaEpisodeAsJianying, resolveJianyingAudioTracks, shouldMuteJianyingVideoAudio } from "./drama-jianying-export";
 
 describe("Jianying draft export", () => {
     it("sanitizes the draft folder name", () => {
@@ -29,6 +29,94 @@ describe("Jianying draft export", () => {
         await expect(exportDramaEpisodeAsJianying({ project: project(), episode: episode([]), draftPath: "C:\\JianyingDrafts", version: "6", origin: "http://127.0.0.1:3000" })).rejects.toEqual(
             expect.objectContaining<Partial<DramaJianyingExportError>>({ status: 422 }),
         );
+    });
+
+    it("exports independent dialogue and narration tracks while preserving legacy audio", () => {
+        expect(
+            resolveJianyingAudioTracks({
+                ...shot(),
+                audioUrl: "/legacy.mp3",
+                dialogueAudio: { status: "success", url: "/dialogue.mp3" },
+                narrationAudio: { status: "success", url: "/narration.mp3" },
+            }),
+        ).toEqual([
+            { kind: "dialogue", url: "/dialogue.mp3" },
+            { kind: "narration", url: "/narration.mp3" },
+        ]);
+        expect(resolveJianyingAudioTracks({ ...shot(), audioUrl: "/legacy.mp3" })).toEqual([{ kind: "legacy", url: "/legacy.mp3" }]);
+        expect(resolveJianyingAudioTracks({ ...shot(), audioUrl: "/legacy.mp3", audioMode: "mute" })).toEqual([]);
+        expect(resolveJianyingAudioTracks({ ...shot(), audioUrl: "/legacy.mp3", audioMode: "source" })).toEqual([]);
+        expect(resolveJianyingAudioTracks({ ...shot(), audioMode: "source", dialogueAudio: { status: "success", url: "/dialogue.mp3" } })).toEqual([{ kind: "dialogue", url: "/dialogue.mp3" }]);
+        expect(shouldMuteJianyingVideoAudio({ ...shot(), audioMode: "source" })).toBe(false);
+        expect(shouldMuteJianyingVideoAudio({ ...shot(), audioMode: "source", dialogueAudio: { status: "success", url: "/dialogue.mp3" } })).toBe(true);
+        expect(shouldMuteJianyingVideoAudio({ ...shot(), audioMode: "voiceover", audioUrl: "/voice.mp3" })).toBe(true);
+        expect(shouldMuteJianyingVideoAudio({ ...shot(), audioMode: "mute", audioUrl: "/voice.mp3" })).toBe(true);
+    });
+
+    it("writes dedicated audio assets and track names into the draft", async () => {
+        const result = await exportDramaEpisodeAsJianying({
+            project: project(),
+            episode: episode([
+                {
+                    ...shot(),
+                    dialogueAudio: { status: "success", url: "/dialogue.mp3" },
+                    narrationAudio: { status: "success", url: "/narration.mp3" },
+                },
+            ]),
+            draftPath: "C:\\JianyingDrafts",
+            version: "5",
+            origin: "http://127.0.0.1:3000",
+        });
+        const files = unzipSync(result.data);
+        const assetNames = Object.keys(files).filter((entry) => entry.includes("/assets/")).join("\n");
+        expect(assetNames).toContain("dialogue_audio_001.mp3");
+        expect(assetNames).toContain("narration_audio_001.mp3");
+        const contentEntry = Object.keys(files).find((entry) => entry.endsWith("draft_content.json"));
+        expect(contentEntry).toBeDefined();
+        const content = new TextDecoder().decode(files[contentEntry!]);
+        expect(content).toContain("对白");
+        expect(content).toContain("旁白");
+    });
+
+    it("marks embedded video audio silent when exporting voiceover or mute shots", async () => {
+        const voiceover = await exportDramaEpisodeAsJianying({
+            project: project(),
+            episode: episode([{ ...shot(), audioMode: "voiceover", audioUrl: "/voice.mp3" }]),
+            draftPath: "C:\\JianyingDrafts",
+            version: "5",
+            origin: "http://127.0.0.1:3000",
+        });
+        const voiceoverFiles = unzipSync(voiceover.data);
+        const voiceoverContentEntry = Object.keys(voiceoverFiles).find((entry) => entry.endsWith("draft_content.json"));
+        expect(voiceoverContentEntry).toBeDefined();
+        const voiceoverContent = new TextDecoder().decode(voiceoverFiles[voiceoverContentEntry!]);
+        expect(voiceoverContent).toContain('"volume":0');
+
+        const muted = await exportDramaEpisodeAsJianying({
+            project: project(),
+            episode: episode([{ ...shot(), audioMode: "mute", audioUrl: "/voice.mp3" }]),
+            draftPath: "C:\\JianyingDrafts",
+            version: "5",
+            origin: "http://127.0.0.1:3000",
+        });
+        const mutedFiles = unzipSync(muted.data);
+        const mutedNames = Object.keys(mutedFiles).filter((entry) => entry.includes("/assets/")).join("\n");
+        expect(mutedNames).not.toContain("audio_");
+        const mutedContentEntry = Object.keys(mutedFiles).find((entry) => entry.endsWith("draft_content.json"));
+        expect(mutedContentEntry).toBeDefined();
+        expect(new TextDecoder().decode(mutedFiles[mutedContentEntry!])).toContain('"volume":0');
+    });
+
+    it("rejects a voiceover export when no completed track is available", async () => {
+        await expect(
+            exportDramaEpisodeAsJianying({
+                project: project(),
+                episode: episode([{ ...shot(), audioMode: "voiceover", audioUrl: "" }]),
+                draftPath: "C:\\JianyingDrafts",
+                version: "5",
+                origin: "http://127.0.0.1:3000",
+            }),
+        ).rejects.toEqual(expect.objectContaining<Partial<DramaJianyingExportError>>({ status: 422 }));
     });
 });
 

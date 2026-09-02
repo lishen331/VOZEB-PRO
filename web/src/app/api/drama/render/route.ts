@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { readJsonBody } from "@/lib/auth/request";
 import { createDramaRenderTask, getDramaRenderTask, touchDramaRenderTask, transitionDramaRenderTask, type DramaRenderTask } from "@/lib/server/drama-render-store";
-import { resolveDramaRenderAudioPlan } from "@/lib/server/drama-render-audio";
+import { buildDramaRenderAudioFilter, DRAMA_RENDER_AUDIO_CHANNEL_LAYOUT, DRAMA_RENDER_AUDIO_SAMPLE_RATE, resolveDramaRenderAudioPlan } from "@/lib/server/drama-render-audio";
 import { normalizeDramaRenderShots, type NormalizedDramaRenderShot } from "@/lib/server/drama-render-input";
 import { ffmpegAvailable, runFfmpeg, runFfprobe } from "@/lib/server/ffmpeg";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
@@ -38,9 +38,12 @@ export async function POST(request: Request) {
         }
         const projectId = text(body.projectId);
         const title = text(body.title) || "短剧成片";
-        const shots = normalizeDramaRenderShots(body.shots);
+        // Keep the legacy /drama renderer's explicit audioMode semantics. The
+        // shared shot contract may contain short-drama-lab TTS fields, but
+        // those must not silently switch a source-audio shot to voiceover.
+        const shots = normalizeDramaRenderShots(body.shots, { preferDedicatedAudio: false });
         if (!projectId || !shots.length || shots.some((shot) => !shot.videoUrl)) return NextResponse.json({ code: 400, data: null, msg: "请先完成全部镜头视频" }, { status: 400 });
-        if (shots.some((shot) => shot.audioMode === "voiceover" && !shot.audioUrl)) return NextResponse.json({ code: 400, data: null, msg: "部分镜头选择了 AI 配音，但配音尚未完成" }, { status: 400 });
+        if (shots.some((shot) => shot.audioMode === "voiceover" && !(shot.audioTracks?.length || shot.audioUrl))) return NextResponse.json({ code: 400, data: null, msg: "部分镜头选择了 AI 配音，但配音尚未完成" }, { status: 400 });
         const size = normalizeDramaImageSize(body.ratio);
         if (!size) return NextResponse.json({ code: 400, data: null, msg: "短剧尺寸无效" }, { status: 400 });
         const task = await createDramaRenderTask({ userId: user.id, projectId, conversationId: text(body.conversationId) || undefined, title });
@@ -80,15 +83,26 @@ async function renderDrama(task: DramaRenderTask, shots: NormalizedDramaRenderSh
             await downloadMedia(current.videoUrl, videoPath, origin, cookie, 300 * 1024 * 1024);
             const clipPath = join(workdir, `clip-${index}.mp4`);
             const baseArgs = ["-y", "-i", videoPath];
-            const audioPlan = resolveDramaRenderAudioPlan(current.audioMode, current.audioUrl, current.audioMode === "source" ? await hasAudioStream(videoPath, workdir, abortController.signal) : false);
+            const renderAudioUrl = current.audioUrl || current.audioTracks?.[0]?.url || "";
+            const audioPlan = resolveDramaRenderAudioPlan(current.audioMode, renderAudioUrl, current.audioMode === "source" ? await hasAudioStream(videoPath, workdir, abortController.signal) : false);
             if (audioPlan === "voiceover") {
-                const audioPath = join(workdir, `audio-${index}.mp3`);
-                await downloadMedia(current.audioUrl, audioPath, origin, cookie, 30 * 1024 * 1024);
+                const audioTracks = current.audioTracks?.length ? current.audioTracks : current.audioUrl ? [{ kind: "legacy" as const, url: current.audioUrl }] : [];
+                if (!audioTracks.length) throw new Error("AI 配音尚未完成");
+                const audioPaths: string[] = [];
+                for (let trackIndex = 0; trackIndex < audioTracks.length; trackIndex += 1) {
+                    const audioPath = join(workdir, `audio-${index}-${trackIndex}.mp3`);
+                    await downloadMedia(audioTracks[trackIndex].url, audioPath, origin, cookie, 30 * 1024 * 1024);
+                    audioPaths.push(audioPath);
+                }
+                baseArgs.push(...audioPaths.flatMap((audioPath) => ["-i", audioPath]));
+                // Normalize every generated track before mixing. Providers may
+                // return mono/48 kHz while local TTS often returns stereo/44.1
+                // kHz; concat with heterogeneous stream parameters is not
+                // reliable even when each individual clip encodes correctly.
+                const audioFilter = buildDramaRenderAudioFilter(audioPaths.length, current.duration);
                 baseArgs.push(
-                    "-i",
-                    audioPath,
                     "-filter_complex",
-                    `[0:v]scale=${size.width}:${size.height}:force_original_aspect_ratio=decrease,pad=${size.width}:${size.height}:(ow-iw)/2:(oh-ih)/2,setsar=1,tpad=stop_mode=clone:stop_duration=${current.duration},trim=0:${current.duration}[v];[1:a]apad,atrim=0:${current.duration}[a]`,
+                    `[0:v]scale=${size.width}:${size.height}:force_original_aspect_ratio=decrease,pad=${size.width}:${size.height}:(ow-iw)/2:(oh-ih)/2,setsar=1,tpad=stop_mode=clone:stop_duration=${current.duration},trim=0:${current.duration}[v];${audioFilter}`,
                     "-map",
                     "[v]",
                     "-map",
@@ -97,7 +111,7 @@ async function renderDrama(task: DramaRenderTask, shots: NormalizedDramaRenderSh
             } else if (audioPlan === "source") {
                 baseArgs.push(
                     "-filter_complex",
-                    `[0:v]scale=${size.width}:${size.height}:force_original_aspect_ratio=decrease,pad=${size.width}:${size.height}:(ow-iw)/2:(oh-ih)/2,setsar=1,tpad=stop_mode=clone:stop_duration=${current.duration},trim=0:${current.duration}[v];[0:a]aresample=async=1:first_pts=0,apad,atrim=0:${current.duration}[a]`,
+                    `[0:v]scale=${size.width}:${size.height}:force_original_aspect_ratio=decrease,pad=${size.width}:${size.height}:(ow-iw)/2:(oh-ih)/2,setsar=1,tpad=stop_mode=clone:stop_duration=${current.duration},trim=0:${current.duration}[v];[0:a]aresample=async=1:first_pts=0,aformat=sample_rates=44100:channel_layouts=stereo,apad,atrim=0:${current.duration}[a]`,
                     "-map",
                     "[v]",
                     "-map",
@@ -110,7 +124,7 @@ async function renderDrama(task: DramaRenderTask, shots: NormalizedDramaRenderSh
                     "-t",
                     String(current.duration),
                     "-i",
-                    "anullsrc=channel_layout=stereo:sample_rate=44100",
+                    `anullsrc=channel_layout=${DRAMA_RENDER_AUDIO_CHANNEL_LAYOUT}:sample_rate=${DRAMA_RENDER_AUDIO_SAMPLE_RATE}`,
                     "-filter_complex",
                     `[0:v]scale=${size.width}:${size.height}:force_original_aspect_ratio=decrease,pad=${size.width}:${size.height}:(ow-iw)/2:(oh-ih)/2,setsar=1,tpad=stop_mode=clone:stop_duration=${current.duration},trim=0:${current.duration}[v]`,
                     "-map",
@@ -119,7 +133,7 @@ async function renderDrama(task: DramaRenderTask, shots: NormalizedDramaRenderSh
                     "1:a",
                 );
             }
-            baseArgs.push("-t", String(current.duration), "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", clipPath);
+            baseArgs.push("-t", String(current.duration), "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", String(DRAMA_RENDER_AUDIO_SAMPLE_RATE), "-ac", "2", "-b:a", "160k", "-movflags", "+faststart", clipPath);
             await runFfmpeg(baseArgs, { cwd: workdir, signal: abortController.signal });
             clipPaths.push(clipPath);
         }

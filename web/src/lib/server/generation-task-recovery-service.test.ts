@@ -542,6 +542,87 @@ describe("generation task recovery service", () => {
         expect(result).toMatchObject({ claimed: 1, pending: 1, needsReview: 0 });
     });
 
+    it("restores a scheduler-only audio upstream identity before querying", async () => {
+        const task = {
+            id: "audio-scheduler-only",
+            userId: "user-one",
+            status: "running",
+            config: {
+                channelId: "channel-audio",
+                apiFormat: "openai",
+                advancedConfig: { protocol: "custom", createPath: "/audio/speech", queryPath: "/audio/:task_id" },
+            },
+        };
+        const restored = {
+            ...task,
+            upstream: { id: "upstream-audio-scheduler-only", createPath: "/audio/speech" },
+        };
+        mocks.claim.mockResolvedValue([
+            {
+                ...lease(),
+                id: task.id,
+                userId: task.userId,
+                type: "audio",
+                status: "running",
+                executionPhase: "polling",
+                upstreamTaskId: "upstream-audio-scheduler-only",
+                queryPath: "/audio/:task_id",
+            },
+        ]);
+        mocks.getAudioTask.mockResolvedValue(task);
+        mocks.updateAudioTask.mockResolvedValue(restored);
+        mocks.queryAudioTaskUpstreamStep.mockResolvedValue({
+            state: "pending",
+            status: "processing",
+            upstreamTaskId: restored.upstream.id,
+            createPath: restored.upstream.createPath,
+        });
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.updateAudioTask).toHaveBeenCalledWith(task.id, { upstream: restored.upstream });
+        expect(mocks.queryAudioTaskUpstreamStep).toHaveBeenCalledWith(restored, "http://internal", "", task.userId);
+        expect(mocks.createAudioTaskUpstreamStep).not.toHaveBeenCalled();
+        expect(result).toMatchObject({ claimed: 1, pending: 1, needsReview: 0 });
+    });
+
+    it("moves a scheduler-only audio task to review when identity restoration fails", async () => {
+        const task = {
+            id: "audio-scheduler-only-failed",
+            userId: "user-one",
+            status: "running",
+            config: { channelId: "channel-audio", apiFormat: "openai", advancedConfig: { protocol: "custom" } },
+        };
+        mocks.claim.mockResolvedValue([
+            {
+                ...lease(),
+                id: task.id,
+                userId: task.userId,
+                type: "audio",
+                status: "running",
+                executionPhase: "polling",
+                upstreamTaskId: "upstream-audio-lost",
+            },
+        ]);
+        mocks.getAudioTask.mockResolvedValue(task);
+        mocks.updateAudioTask.mockResolvedValue(undefined);
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.updateAudioTask).toHaveBeenCalledWith(task.id, {
+            upstream: { id: "upstream-audio-lost", createPath: "/audio/speech" },
+        });
+        expect(mocks.queryAudioTaskUpstreamStep).not.toHaveBeenCalled();
+        expect(mocks.createAudioTaskUpstreamStep).not.toHaveBeenCalled();
+        expect(mocks.release).toHaveBeenCalledWith(
+            "audio",
+            task.id,
+            "worker-one",
+            expect.objectContaining({ executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "upstream_identity_restore_failed" }),
+        );
+        expect(result).toMatchObject({ claimed: 1, pending: 0, needsReview: 1 });
+    });
+
     it("persists the selected text channel before the next upstream query", async () => {
         const task = {
             id: "text-one",

@@ -295,6 +295,8 @@ describe("mutateStoredGenerationTask", () => {
         expect(nested).toMatchObject({ surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" });
         const conflict = await getStoredGenerationTask("video", "conflict-task");
         expect(hasStoredGenerationTaskContextConflict(conflict)).toBe(true);
+        const conflictRecord = await getStoredGenerationTaskRecord("video", "conflict-task");
+        expect(hasStoredGenerationTaskContextConflict(conflictRecord)).toBe(true);
     });
 
     it("hydrates PostgreSQL durable owner, surface and project columns", async () => {
@@ -373,6 +375,123 @@ describe("mutateStoredGenerationTask", () => {
         await createStoredGenerationTask("video", { id: "frame-video", userId: "user", status: "pending", surface: "drama", projectId: "project-one", frameSnapshot, createdAt: now, updatedAt: now }, 60_000);
 
         await expect(getStoredGenerationTaskRecord("video", "frame-video")).resolves.toMatchObject({ frameSnapshot, payload: { frameSnapshot } });
+    });
+
+    it("normalizes and round-trips short-drama audio context", async () => {
+        mocks.records = [];
+        const now = Date.now();
+        await createStoredGenerationTask(
+            "audio",
+            {
+                id: "dialogue-audio",
+                userId: "user",
+                status: "pending",
+                surface: "drama",
+                projectId: "project-one",
+                episodeId: "episode-one",
+                shotId: "shot-one",
+                audioKind: "dialogue",
+                speaker: `  林夏${"x".repeat(200)}  `,
+                createdAt: now,
+                updatedAt: now,
+            },
+            60_000,
+        );
+
+        await expect(getStoredGenerationTaskRecord("audio", "dialogue-audio")).resolves.toMatchObject({
+            audioKind: "dialogue",
+            speaker: `林夏${"x".repeat(158)}`,
+            payload: { audioKind: "dialogue", speaker: `林夏${"x".repeat(158)}` },
+        });
+        await expect(getStoredGenerationTask<Record<string, unknown>>("audio", "dialogue-audio")).resolves.toMatchObject({ audioKind: "dialogue", speaker: `林夏${"x".repeat(158)}` });
+    });
+
+    it("hydrates audio context from a legacy nested payload", async () => {
+        const now = Date.now();
+        mocks.records = [
+            {
+                id: "nested-audio",
+                userId: "user",
+                type: "audio",
+                status: "running",
+                payload: { id: "nested-audio", userId: "user", status: "running", context: { audioKind: "narration", speaker: "旁白" } },
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: now + 60_000,
+            },
+        ];
+
+        await expect(getStoredGenerationTaskRecord("audio", "nested-audio")).resolves.toMatchObject({ audioKind: "narration", speaker: "旁白" });
+        await expect(getStoredGenerationTask<Record<string, unknown>>("audio", "nested-audio")).resolves.toMatchObject({ audioKind: "narration", speaker: "旁白" });
+    });
+
+    it("marks conflicting audio kind and speaker sources on typed and raw reads", async () => {
+        const now = Date.now();
+        mocks.records = [
+            {
+                id: "conflicting-audio",
+                userId: "user",
+                type: "audio",
+                status: "running",
+                audioKind: "dialogue",
+                speaker: "林夏",
+                payload: {
+                    id: "conflicting-audio",
+                    userId: "user",
+                    status: "running",
+                    audioKind: "dialogue",
+                    speaker: "林夏",
+                    context: { audioKind: "narration", speaker: "旁白" },
+                },
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: now + 60_000,
+            },
+        ];
+
+        const typed = await getStoredGenerationTask("audio", "conflicting-audio");
+        expect(hasStoredGenerationTaskContextConflict(typed)).toBe(true);
+        const raw = await getStoredGenerationTaskRecord("audio", "conflicting-audio");
+        expect(hasStoredGenerationTaskContextConflict(raw)).toBe(true);
+    });
+
+    it("marks conflicting audio metadata in PostgreSQL task records", async () => {
+        vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
+        vi.mocked(postgresQuery).mockResolvedValueOnce({
+            rows: [{
+                id: "postgres-conflicting-audio",
+                user_id: "user",
+                task_type: "audio",
+                status: "running",
+                payload: { id: "postgres-conflicting-audio", audioKind: "dialogue", speaker: "林夏", context: { audioKind: "narration", speaker: "旁白" } },
+                created_at: new Date(),
+                updated_at: new Date(),
+                expires_at: new Date(Date.now() + 60_000),
+            }],
+        } as never);
+
+        const raw = await getStoredGenerationTaskRecord("audio", "postgres-conflicting-audio");
+        expect(hasStoredGenerationTaskContextConflict(raw)).toBe(true);
+        vi.mocked(getDatabaseProvider).mockReturnValue("file");
+    });
+
+    it("maps audio context from a PostgreSQL payload", async () => {
+        vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
+        vi.mocked(postgresQuery).mockResolvedValueOnce({
+            rows: [{
+                id: "postgres-audio",
+                user_id: "user",
+                task_type: "audio",
+                status: "running",
+                payload: { id: "postgres-audio", audioKind: "narration", speaker: "旁白" },
+                created_at: new Date(),
+                updated_at: new Date(),
+                expires_at: new Date(Date.now() + 60_000),
+            }],
+        } as never);
+
+        await expect(getStoredGenerationTaskRecord("audio", "postgres-audio")).resolves.toMatchObject({ audioKind: "narration", speaker: "旁白" });
+        vi.mocked(getDatabaseProvider).mockReturnValue("file");
     });
 
     it("finds only the current user's exact channel task identity", async () => {

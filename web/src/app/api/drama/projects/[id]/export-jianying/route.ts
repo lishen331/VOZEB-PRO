@@ -27,6 +27,7 @@ export async function POST(request: Request, context: Context) {
             version: body.version === "5" ? "5" : "6",
             origin: resolveInternalOrigin(new URL(request.url).origin),
             cookie: request.headers.get("cookie") || "",
+            preferDedicatedAudio: false,
         });
         return new Response(result.data, {
             headers: {

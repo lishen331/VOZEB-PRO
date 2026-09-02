@@ -24,6 +24,7 @@ type GenerationTaskSummaryAccumulator = Omit<GenerationTaskRecordSummary, "avera
 const TASK_FILE = "generation-tasks.json";
 const ACTIVE_CONCURRENCY_PHASES = ["created", "submitting", "submitted", "polling", "result_ready", "persisting"] as const;
 const STORED_TASK_CONTEXT_CONFLICT = "__vozebStoredTaskContextConflict";
+const INVALID_AUDIO_METADATA = Symbol("invalid-audio-metadata");
 let fileMutationQueue = Promise.resolve();
 const concurrencyQueues = new Map<string, Promise<void>>();
 
@@ -86,9 +87,11 @@ export async function getStoredGenerationTaskRecord(type: GenerationTaskType, id
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<Record<string, unknown>>("SELECT * FROM generation_tasks WHERE id = $1 AND task_type = $2 AND expires_at > now()", [id, type]);
-        return result.rows[0] ? mapStoredTaskRecord(result.rows[0]) : null;
+        const record = result.rows[0] ? mapStoredTaskRecord(result.rows[0]) : null;
+        return record ? markStoredTaskContextConflict(record) : null;
     }
-    return (await readFileTasks()).find((task) => task.id === id && task.type === type && task.expiresAt > Date.now()) || null;
+    const record = (await readFileTasks()).find((task) => task.id === id && task.type === type && task.expiresAt > Date.now());
+    return record ? markStoredTaskContextConflict(withPayloadTaskContext(record)) : null;
 }
 
 export async function listStoredGenerationTaskRecordsByRunIds(runIds: string[], userIds: string[] = []) {
@@ -1049,6 +1052,8 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         ipReferences: normalizeContextIpReferences(context.ipReferences),
         billingContext: normalizeBillingContext(context.billingContext),
         frameSnapshot: normalizeFrameSnapshot(context.frameSnapshot),
+        audioKind: normalizeAudioKind(context.audioKind),
+        speaker: cleanContextText(context.speaker),
     };
 }
 
@@ -1069,6 +1074,8 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         ipReferences: next.ipReferences?.length ? next.ipReferences : previous?.ipReferences,
         billingContext: next.billingContext || previous?.billingContext,
         frameSnapshot: next.frameSnapshot || (previous?.frameSnapshot as Record<string, unknown> | undefined),
+        audioKind: next.audioKind || storedAudioKind(previous),
+        speaker: next.speaker || storedSpeaker(previous),
         executionProfile: previous?.executionProfile || next.executionProfile || "production",
     };
 }
@@ -1152,6 +1159,7 @@ function normalizeGenerationTaskStatus(status: string): GenerationTaskStatus {
 
 function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTaskRecord {
     const payload = row.payload && typeof row.payload === "object" ? (row.payload as Record<string, unknown>) : {};
+    const nested = recordObject(payload.context);
     const resultPayload = recordObject(row.result_payload);
     const executionPhase = isExecutionPhase(row.execution_phase) ? row.execution_phase : undefined;
     const lastUpstreamStatus = cleanContextText(String(row.last_upstream_status || ""));
@@ -1193,6 +1201,8 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         lastHeartbeatAt: optionalDatabaseTime(row.last_heartbeat_at),
         ipReferences: normalizeContextIpReferences(payload.ipReferences),
         frameSnapshot: normalizeFrameSnapshot(payload.frameSnapshot),
+        audioKind: normalizeAudioKind(payload.audioKind) || normalizeAudioKind(nested.audioKind),
+        speaker: cleanContextText(typeof payload.speaker === "string" ? payload.speaker : typeof nested.speaker === "string" ? nested.speaker : undefined),
     };
 }
 
@@ -1211,6 +1221,8 @@ function withPayloadTaskContext(record: StoredGenerationTaskRecord): StoredGener
         shotId: taskContextText(record, "shotId") || payloadContextText(payload, "shotId"),
         frameType: record.frameType || (isGenerationFrameType(payload.frameType) ? payload.frameType : undefined),
         attemptNo: record.attemptNo ?? normalizedAttemptNoValue(payload.attemptNo ?? nested.attemptNo),
+        audioKind: normalizeAudioKind(record.audioKind) || normalizeAudioKind(payload.audioKind) || normalizeAudioKind(nested.audioKind),
+        speaker: cleanContextText(record.speaker) || cleanContextText(typeof payload.speaker === "string" ? payload.speaker : typeof nested.speaker === "string" ? nested.speaker : undefined),
     };
 }
 
@@ -1231,7 +1243,7 @@ function isCompleteDramaTaskRecord(record: StoredGenerationTaskRecord, scope: { 
 function hasDramaTaskContextConflict(record: StoredGenerationTaskRecord) {
     const payload = recordObject(record.payload);
     const nested = recordObject(payload.context);
-    return [
+    const coordinateConflict = [
         [record.userId, payload.userId, nested.userId],
         [record.surface, payload.surface, nested.surface],
         [record.projectId, payload.projectId, nested.projectId],
@@ -1241,10 +1253,45 @@ function hasDramaTaskContextConflict(record: StoredGenerationTaskRecord) {
         const normalized = values.map(contextValueText).filter((value): value is string => Boolean(value));
         return new Set(normalized).size > 1;
     });
+    return coordinateConflict || hasAudioTaskMetadataConflict(record, payload, nested);
 }
 
 function contextValueText(value: unknown) {
     return typeof value === "string" ? cleanContextText(value) : undefined;
+}
+
+/**
+ * Audio tasks duplicate their track metadata in the task payload and, for
+ * legacy rows, sometimes below payload.context or on the file record itself.
+ * A disagreement must be treated like any other task-context conflict so a
+ * stale track cannot be recovered into the wrong Drama shot.
+ */
+function hasAudioTaskMetadataConflict(record: StoredGenerationTaskRecord, payload: Record<string, unknown>, nested: Record<string, unknown>) {
+    const hasAudioMetadata = record.type === "audio" || [payload, nested].some((source) => Object.prototype.hasOwnProperty.call(source, "audioKind") || Object.prototype.hasOwnProperty.call(source, "speaker"));
+    if (!hasAudioMetadata) return false;
+    return hasAudioKindValuesConflict([record.audioKind, payload.audioKind, nested.audioKind]) || hasSpeakerValuesConflict([record.speaker, payload.speaker, nested.speaker]);
+}
+
+function hasAudioKindValuesConflict(values: unknown[]) {
+    const normalized = values.map(audioKindContextValue).filter((value): value is string | typeof INVALID_AUDIO_METADATA => value !== undefined);
+    return normalized.includes(INVALID_AUDIO_METADATA) || normalized.some((value) => value !== "dialogue" && value !== "narration") || new Set(normalized).size > 1;
+}
+
+function hasSpeakerValuesConflict(values: unknown[]) {
+    const normalized = values.map(speakerContextValue).filter((value): value is string | typeof INVALID_AUDIO_METADATA => value !== undefined);
+    return normalized.includes(INVALID_AUDIO_METADATA) || new Set(normalized).size > 1;
+}
+
+function audioKindContextValue(value: unknown) {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value !== "string") return INVALID_AUDIO_METADATA;
+    return value.trim() || undefined;
+}
+
+function speakerContextValue(value: unknown) {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value !== "string") return INVALID_AUDIO_METADATA;
+    return cleanContextText(value);
 }
 
 /**
@@ -1295,6 +1342,25 @@ function taskAttempt(record: StoredGenerationTaskRecord) {
 function normalizedAttemptNoValue(value: unknown) {
     const attempt = Number(value);
     return Number.isFinite(attempt) && attempt >= 0 ? Math.floor(attempt) : 0;
+}
+
+function normalizeAudioKind(value: unknown): GenerationTaskContext["audioKind"] {
+    const normalized = typeof value === "string" ? value.trim() : "";
+    return normalized === "dialogue" || normalized === "narration" ? normalized : undefined;
+}
+
+function storedAudioKind(record: StoredGenerationTaskRecord | undefined) {
+    if (!record) return undefined;
+    const payload = recordObject(record.payload);
+    const nested = recordObject(payload.context);
+    return normalizeAudioKind(record.audioKind) || normalizeAudioKind(payload.audioKind) || normalizeAudioKind(nested.audioKind);
+}
+
+function storedSpeaker(record: StoredGenerationTaskRecord | undefined) {
+    if (!record) return undefined;
+    const payload = recordObject(record.payload);
+    const nested = recordObject(payload.context);
+    return cleanContextText(record.speaker) || cleanContextText(typeof payload.speaker === "string" ? payload.speaker : typeof nested.speaker === "string" ? nested.speaker : undefined);
 }
 
 function payloadContextText(payload: Record<string, unknown>, key: "episodeId" | "shotId") {
@@ -1432,6 +1498,18 @@ export function hasStoredGenerationTaskContextConflict(value: unknown) {
     return Boolean(value && typeof value === "object" && (value as Record<string, unknown>)[STORED_TASK_CONTEXT_CONFLICT] === true);
 }
 
+/**
+ * Mark raw task records as conflicted too. Typed task reads already carry this
+ * marker, but recovery callers often read the scheduler record for upstream
+ * metadata; they must receive the same fail-closed signal.
+ */
+function markStoredTaskContextConflict<T extends object>(record: T): T {
+    if (hasDramaTaskContextConflict(record as StoredGenerationTaskRecord)) {
+        Object.defineProperty(record, STORED_TASK_CONTEXT_CONFLICT, { value: true, enumerable: false, configurable: false });
+    }
+    return record;
+}
+
 type TaskContextHydrationSource = {
     userId?: unknown;
     surface?: unknown;
@@ -1439,6 +1517,8 @@ type TaskContextHydrationSource = {
     episodeId?: unknown;
     shotId?: unknown;
     frameType?: unknown;
+    audioKind?: unknown;
+    speaker?: unknown;
 };
 
 /**
@@ -1461,6 +1541,17 @@ function hydrateTaskPayload<T>(payload: T, durable: TaskContextHydrationSource) 
             if (fallback) hydrated[key] = fallback;
         }
     }
+    const audioKindValues = [source.audioKind, nested.audioKind, durable.audioKind];
+    if (hasAudioKindValuesConflict(audioKindValues)) conflict = true;
+    const audioKinds = audioKindValues.map(normalizeAudioKind).filter((value): value is NonNullable<GenerationTaskContext["audioKind"]> => Boolean(value));
+    if (new Set(audioKinds).size > 1) conflict = true;
+    if (audioKinds[0]) hydrated.audioKind = audioKinds[0];
+    else if (Object.prototype.hasOwnProperty.call(hydrated, "audioKind")) delete hydrated.audioKind;
+    const speakerValues = [source.speaker, nested.speaker, durable.speaker];
+    if (hasSpeakerValuesConflict(speakerValues)) conflict = true;
+    const speaker = speakerValues.map(normalizeHydrationText).find(Boolean);
+    if (speaker) hydrated.speaker = speaker;
+    else if (Object.prototype.hasOwnProperty.call(hydrated, "speaker")) delete hydrated.speaker;
     return { payload: hydrated as T, conflict };
 }
 

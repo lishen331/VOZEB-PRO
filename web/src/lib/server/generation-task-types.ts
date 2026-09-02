@@ -32,6 +32,9 @@ export type GenerationTaskContext = {
     billingContext?: SchoolComputeBillingContext;
     /** Optional short-lived, non-secret input snapshot for domain recovery/audit. */
     frameSnapshot?: Record<string, unknown>;
+    /** Short-drama audio track context; kept on the shared task for recovery. */
+    audioKind?: "dialogue" | "narration";
+    speaker?: string;
 };
 
 export type StoredGenerationTaskRecord = {

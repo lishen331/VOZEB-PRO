@@ -6,6 +6,9 @@ const mocks = vi.hoisted(() => ({
     transitionAudioTask: vi.fn(),
     refundAudioTask: vi.fn(),
     recover: vi.fn(),
+    getStoredGenerationTaskRecord: vi.fn(),
+    scheduleGenerationTask: vi.fn(),
+    recoverGenerationTaskFromUpstream: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -18,9 +21,12 @@ vi.mock("@/lib/server/audio-task-refund", () => ({ refundAudioTask: mocks.refund
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: vi.fn(), resolveInternalOrigin: vi.fn(() => "http://localhost") }));
 vi.mock("@/lib/server/generation-channel", () => ({ generationModelId: vi.fn(() => "voice") }));
 vi.mock("@/lib/server/generation-task-recovery-service", () => ({ runGenerationTaskRecoveryBatch: mocks.recover }));
+vi.mock("@/lib/server/generation-task-store", () => ({ getStoredGenerationTaskRecord: mocks.getStoredGenerationTaskRecord }));
+vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: mocks.scheduleGenerationTask }));
+vi.mock("@/lib/server/generation-task-user-recovery", () => ({ recoverGenerationTaskFromUpstream: mocks.recoverGenerationTaskFromUpstream }));
 
 import { after } from "next/server";
-import { GET, PATCH } from "./route";
+import { GET, PATCH, POST } from "./route";
 
 const task = {
     id: "audio-one",
@@ -37,6 +43,9 @@ describe("audio task cancellation refund", () => {
         mocks.getAudioTask.mockResolvedValue(task);
         mocks.transitionAudioTask.mockImplementation(async (_task, _statuses, patch) => ({ ...task, ...patch }));
         mocks.refundAudioTask.mockImplementation(async (value) => ({ ...value, billing: { ...value.billing, refunded: true } }));
+        mocks.getStoredGenerationTaskRecord.mockResolvedValue(undefined);
+        mocks.scheduleGenerationTask.mockResolvedValue({ id: task.id });
+        mocks.recoverGenerationTaskFromUpstream.mockResolvedValue(true);
     });
 
     it("schedules recovery for a running task", async () => {
@@ -67,5 +76,35 @@ describe("audio task cancellation refund", () => {
         );
         expect(mocks.refundAudioTask).not.toHaveBeenCalled();
         expect((await response.json()).task.billing.refunded).toBe(false);
+    });
+
+    it("wakes a pending task through its existing scheduler row without resubmitting", async () => {
+        const pending = { ...task, status: "pending" as const, executionPhase: "created" as const };
+        mocks.getAudioTask.mockResolvedValueOnce(pending).mockResolvedValueOnce({ ...pending, status: "running" as const });
+        mocks.getStoredGenerationTaskRecord.mockResolvedValue({ executionPhase: "created", nextPollAt: 1 });
+
+        const response = await POST(
+            new Request("http://localhost/api/audio-tasks/audio-one", { method: "POST", body: JSON.stringify({ action: "recover" }) }),
+            { params: Promise.resolve({ id: "audio-one" }) },
+        );
+
+        expect(response.status).toBe(200);
+        expect(mocks.scheduleGenerationTask).toHaveBeenCalledWith("audio", "audio-one", expect.objectContaining({ nextPollAt: expect.any(Number), lastUpstreamStatus: "user_recovery_requested" }));
+        expect(mocks.recover).toHaveBeenCalledWith(expect.objectContaining({ taskIds: ["audio-one"], userRequested: true }));
+        expect(mocks.recoverGenerationTaskFromUpstream).not.toHaveBeenCalled();
+    });
+
+    it("does not resubmit an audio task interrupted during submission", async () => {
+        mocks.getAudioTask.mockResolvedValue({ ...task, executionPhase: "submitting" as const });
+        mocks.getStoredGenerationTaskRecord.mockResolvedValue({ executionPhase: "submitting" });
+
+        const response = await POST(
+            new Request("http://localhost/api/audio-tasks/audio-one", { method: "POST", body: JSON.stringify({ action: "recover" }) }),
+            { params: Promise.resolve({ id: "audio-one" }) },
+        );
+
+        expect(response.status).toBe(409);
+        expect(mocks.scheduleGenerationTask).not.toHaveBeenCalled();
+        expect(mocks.recoverGenerationTaskFromUpstream).not.toHaveBeenCalled();
     });
 });

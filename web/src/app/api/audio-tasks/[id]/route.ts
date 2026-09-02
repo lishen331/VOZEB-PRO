@@ -9,6 +9,7 @@ import { generationModelId } from "@/lib/server/generation-channel";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { cancellationExecutionPatch, type GenerationCancellationTarget } from "@/lib/server/generation-task-cancellation-service";
 import { getStoredGenerationTaskRecord } from "@/lib/server/generation-task-store";
+import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { recoverGenerationTaskFromUpstream } from "@/lib/server/generation-task-user-recovery";
 
 export const runtime = "nodejs";
@@ -38,23 +39,48 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!parsed.ok) return NextResponse.json({ error: parsed.message }, { status: parsed.status });
     if (parsed.data.action !== "recover") return NextResponse.json({ error: "不支持的音频任务操作" }, { status: 400 });
     if (task.status === "success") return NextResponse.json({ task: publicTask(task) }, { headers: pointsResponseHeaders(user) });
-    if (task.status !== "running") return NextResponse.json({ error: "当前音频任务无法继续检查" }, { status: 409 });
-
     const schedule = await getStoredGenerationTaskRecord("audio", task.id);
+    const executionPhase = schedule?.executionPhase || task.executionPhase || settledExecutionPhase(task.status);
+    if (executionPhase === "needs_review") {
+        return NextResponse.json({ error: task.reviewReason || "当前音频任务需要人工检查" }, { status: 409 });
+    }
+    if (task.status !== "pending" && task.status !== "running") return NextResponse.json({ error: "当前音频任务无法继续检查" }, { status: 409 });
+
     const upstreamTaskId = task.upstream?.id || schedule?.upstreamTaskId;
-    if (!upstreamTaskId) return NextResponse.json({ error: "原任务没有保存上游任务 ID，无法安全追回结果" }, { status: 409 });
-    const recovered = await recoverGenerationTaskFromUpstream({
-        type: "audio",
-        id: task.id,
-        upstreamTaskId,
-        channelId: task.config.channelId,
-        provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
-        queryPath: schedule?.queryPath || task.config.advancedConfig?.queryPath,
-        submittedAt: schedule?.submittedAt || task.createdAt,
-        origin: resolveInternalOrigin(new URL(request.url).origin),
-        cookie: request.headers.get("cookie") || "",
-    });
-    if (!recovered) return NextResponse.json({ error: "音频任务状态已变化，请刷新后重试" }, { status: 409 });
+    const origin = resolveInternalOrigin(new URL(request.url).origin);
+    const publicOrigin = new URL(request.url).origin;
+    const cookie = request.headers.get("cookie") || "";
+    if (executionPhase === "submitting" && !upstreamTaskId) {
+        // The provider may have accepted the request while the response was
+        // lost. Retrying would risk a duplicate charge/task.
+        return NextResponse.json({ error: "音频任务提交阶段中断，未取得上游任务 ID，请等待人工复核" }, { status: 409 });
+    }
+
+    if (executionPhase === "result_ready" || executionPhase === "persisting" || (!upstreamTaskId && executionPhase === "created")) {
+        // Re-arm the existing scheduler row. This wakes pending tasks and
+        // lets result persistence continue without submitting a new request.
+        const rearmed = await scheduleGenerationTask("audio", task.id, {
+            nextPollAt: Date.now(),
+            lastUpstreamStatus: "user_recovery_requested",
+        });
+        if (!rearmed) return NextResponse.json({ error: "音频任务状态已变化，请刷新后重试" }, { status: 409 });
+        await runGenerationTaskRecoveryBatch({ origin, publicOrigin, cookie, limit: 1, taskIds: [task.id], userRequested: true });
+    } else {
+        if (!upstreamTaskId) return NextResponse.json({ error: "原任务没有保存上游任务 ID，无法安全追回结果" }, { status: 409 });
+        const recovered = await recoverGenerationTaskFromUpstream({
+            type: "audio",
+            id: task.id,
+            upstreamTaskId,
+            channelId: task.config.channelId,
+            provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
+            queryPath: schedule?.queryPath || task.config.advancedConfig?.queryPath,
+            submittedAt: schedule?.submittedAt || task.createdAt,
+            origin,
+            publicOrigin,
+            cookie,
+        });
+        if (!recovered) return NextResponse.json({ error: "音频任务状态已变化，请刷新后重试" }, { status: 409 });
+    }
     const latest = await getAudioTask(task.id);
     const latestSchedule = await getStoredGenerationTaskRecord("audio", task.id);
     if (!latest) return NextResponse.json({ error: "任务不存在或已过期" }, { status: 404 });
@@ -100,4 +126,8 @@ function publicTask(task: NonNullable<Awaited<ReturnType<typeof getAudioTask>>>)
         error: task.error,
         billing: task.billing ? { pointsCost: task.billing.pointsCost, refunded: task.billing.refunded } : undefined,
     };
+}
+
+function settledExecutionPhase(status: string) {
+    return status === "pending" || status === "running" ? "created" : "completed";
 }

@@ -31,11 +31,14 @@ import {
     LockKeyhole,
     Upload,
     PanelsTopLeft,
+    Volume2,
+    Scissors,
+    RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Asset } from "@/lib/library-asset-contract";
-import type { DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
+import type { DramaShotAudioMode, DramaShotAudioState, DramaShotVideoFrameSnapshot, DramaUtterance } from "@/lib/drama-project-contract";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { recoverVideoGenerationTask } from "@/services/api/video-core";
 import { cn } from "@/lib/utils";
@@ -167,6 +170,10 @@ export interface Shot {
     shotBoundary?: string;
     dialogue?: string;
     narration?: string;
+    subtitle?: string;
+    audioMode?: DramaShotAudioMode;
+    /** Persisted utterances are used by the server-side TTS and split contracts. */
+    utterances?: DramaUtterance[];
     imagePrompt?: string;
     videoPrompt?: string;
     cameraMotion?: string;
@@ -221,6 +228,15 @@ export interface Shot {
     generationNeedsReview?: boolean;
     generationError?: string;
     videoHistory?: DramaLabGenerationHistory[];
+    dialogueAudio?: DramaShotAudioState;
+    narrationAudio?: DramaShotAudioState;
+    audioStatus?: DramaLabTaskStatus;
+    audioAttempt?: number;
+    audioTaskId?: string;
+    audioError?: string;
+    audioUrl?: string;
+    audioSplitSourceShotId?: string;
+    audioSplitSegmentIndex?: number;
     status?: string;
     frames?: Partial<
         Record<"first" | "key" | "last", { prompt: string; description?: string; status?: DramaLabTaskStatus; taskId?: string; attempt?: number; url?: string; storageKey?: string; width?: number; height?: number; error?: string; history?: DramaLabGenerationHistory[]; source?: "generated" | "uploaded" | "video_tail" | "restored"; sourceVideoTaskId?: string; sourceShotId?: string; sourceVideoHistoryId?: string; locked?: boolean }>
@@ -231,6 +247,29 @@ export interface Shot {
 
 type DramaLabTaskStatus = "idle" | "queued" | "pending" | "running" | "success" | "error" | "cancelled";
 type DramaLabGenerationHistory = { id: string; taskId: string; url: string; prompt: string; createdAt: string; width?: number; height?: number };
+
+type DramaLabAudioSplitSegment = {
+    index: number;
+    kind: "dialogue" | "narration";
+    speaker?: string;
+    text: string;
+    duration: number;
+    durationMs: number;
+    startMs: number;
+    endMs: number;
+    durationSource: "audio" | "rhythm" | "estimated";
+    utterances: DramaUtterance[];
+    candidateId: string;
+};
+
+type DramaLabAudioSplitPlan = {
+    sourceShotId: string;
+    sourceShotTitle: string;
+    sourceFingerprint: string;
+    segments: DramaLabAudioSplitSegment[];
+    totalDurationMs: number;
+    options?: Record<string, unknown>;
+};
 
 export interface Project {
     id: string;
@@ -308,6 +347,52 @@ function normalizeScenes(value: unknown): Scene[] {
     });
 }
 
+function normalizeAudioState(value: unknown): DramaShotAudioState | undefined {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    const input = value as Record<string, unknown>;
+    const status = typeof input.status === "string" && ["idle", "queued", "pending", "running", "success", "error", "cancelled"].includes(input.status)
+        ? (input.status as DramaLabTaskStatus)
+        : undefined;
+    const url = typeof input.url === "string" && input.url.trim() ? input.url.trim() : undefined;
+    const taskId = typeof input.taskId === "string" && input.taskId.trim() ? input.taskId.trim() : undefined;
+    if (!status && !url && !taskId) return undefined;
+    const number = (key: string) => {
+        const value = Number(input[key]);
+        return Number.isFinite(value) ? value : undefined;
+    };
+    return {
+        status: status || (url ? "success" : "idle"),
+        taskId,
+        attempt: number("attempt"),
+        error: typeof input.error === "string" ? input.error : undefined,
+        url,
+        mimeType: typeof input.mimeType === "string" ? input.mimeType : undefined,
+        speaker: typeof input.speaker === "string" ? input.speaker : undefined,
+        voice: typeof input.voice === "string" ? input.voice : undefined,
+        speed: number("speed"),
+        instructions: typeof input.instructions === "string" ? input.instructions : undefined,
+        durationMs: number("durationMs"),
+    };
+}
+
+function normalizeUtterances(value: unknown): DramaUtterance[] {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((item, index) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+        const input = item as Record<string, unknown>;
+        const text = typeof input.text === "string" ? input.text.trim() : "";
+        if (!text) return [];
+        const type = input.type === "voiceover" ? "voiceover" : "dialogue";
+        return [{
+            id: typeof input.id === "string" && input.id.trim() ? input.id : `utterance-${index + 1}`,
+            order: Number.isFinite(Number(input.order)) ? Number(input.order) : index + 1,
+            type,
+            speaker: typeof input.speaker === "string" ? input.speaker.trim() : "",
+            text,
+        }];
+    });
+}
+
 function normalizeShot(value: unknown, episodeId: string, index: number): Shot | undefined {
     if (!value || typeof value !== "object") return undefined;
     const shot = value as Record<string, unknown>;
@@ -345,6 +430,9 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
         shotBoundary: typeof shot.shotBoundary === "string" ? shot.shotBoundary : "",
         dialogue: typeof shot.dialogue === "string" ? shot.dialogue : "",
         narration: typeof shot.narration === "string" ? shot.narration : "",
+        subtitle: typeof shot.subtitle === "string" ? shot.subtitle : undefined,
+        audioMode: shot.audioMode === "voiceover" || shot.audioMode === "mute" || shot.audioMode === "source" ? shot.audioMode : undefined,
+        utterances: normalizeUtterances(shot.utterances),
         imagePrompt: typeof shot.imagePrompt === "string" ? shot.imagePrompt : undefined,
         videoPrompt: typeof shot.videoPrompt === "string" ? shot.videoPrompt : undefined,
         cameraMotion: typeof shot.cameraMotion === "string" ? shot.cameraMotion : undefined,
@@ -400,6 +488,15 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
         generationNeedsReview: shot.generationNeedsReview === true ? true : undefined,
         generationError: typeof shot.generationError === "string" ? shot.generationError : undefined,
         videoHistory: normalizeGenerationHistory(shot.videoHistory),
+        dialogueAudio: normalizeAudioState(shot.dialogueAudio),
+        narrationAudio: normalizeAudioState(shot.narrationAudio),
+        audioStatus: taskStatus(shot.audioStatus) || (typeof shot.audioUrl === "string" && shot.audioUrl.trim() ? "success" : undefined),
+        audioAttempt: typeof shot.audioAttempt === "number" ? shot.audioAttempt : undefined,
+        audioTaskId: typeof shot.audioTaskId === "string" ? shot.audioTaskId : undefined,
+        audioError: typeof shot.audioError === "string" ? shot.audioError : undefined,
+        audioUrl: typeof shot.audioUrl === "string" ? shot.audioUrl : undefined,
+        audioSplitSourceShotId: typeof shot.audioSplitSourceShotId === "string" ? shot.audioSplitSourceShotId : undefined,
+        audioSplitSegmentIndex: typeof shot.audioSplitSegmentIndex === "number" ? shot.audioSplitSegmentIndex : undefined,
         frames:
             shot.frames && typeof shot.frames === "object"
                 ? (Object.fromEntries(
@@ -519,6 +616,13 @@ function mergeSynchronizedShot(current: Shot, raw: unknown, episodeId: string): 
         "videoUrl",
         "videoHistory",
         "videoFrameSnapshot",
+        "dialogueAudio",
+        "narrationAudio",
+        "audioStatus",
+        "audioAttempt",
+        "audioTaskId",
+        "audioError",
+        "audioUrl",
     ];
     for (const field of taskFields) {
         if (Object.prototype.hasOwnProperty.call(source, field)) {
@@ -637,6 +741,100 @@ function dramaLabGenerationSyncKey(shot: Shot) {
 
 function isDramaLabTaskActive(status: DramaLabTaskStatus | undefined) {
     return status === "queued" || status === "pending" || status === "running";
+}
+
+function hasNonEmptyAudioText(value: string | undefined) {
+    return Boolean(value?.trim());
+}
+
+function hasUtteranceType(shot: Shot, type: DramaUtterance["type"]) {
+    return Boolean(shot.utterances?.some((utterance) => utterance.type === type && hasNonEmptyAudioText(utterance.text)));
+}
+
+/**
+ * Legacy shots stored one audio state on the root object. Infer its owner
+ * once, rather than exposing the same state in both independent track cards.
+ */
+function legacyAudioKind(shot: Shot): "dialogue" | "narration" {
+    const hasDialogue = hasNonEmptyAudioText(shot.dialogue) || hasNonEmptyAudioText(shot.subtitle) || hasUtteranceType(shot, "dialogue");
+    const hasNarration = hasNonEmptyAudioText(shot.narration) || hasUtteranceType(shot, "voiceover");
+    // The legacy voiceover mode means "generated audio" and does not
+    // identify narration. Infer the track from persisted text instead.
+    if (hasDialogue) return "dialogue";
+    if (hasNarration) return "narration";
+    return "dialogue";
+}
+
+function audioStateForKind(shot: Shot, kind: "dialogue" | "narration") {
+    // New projects persist each track independently. Preserve an explicitly
+    // present state, including an idle/error state, without legacy fallback.
+    const state = kind === "narration" ? shot.narrationAudio : shot.dialogueAudio;
+    if (state) return state;
+
+    const hasLegacyState = Boolean(shot.audioTaskId || shot.audioUrl || shot.audioStatus || shot.audioError || shot.audioAttempt !== undefined);
+    if (!hasLegacyState) return undefined;
+
+    const legacyTaskId = shot.audioTaskId?.trim();
+    const opposite = kind === "narration" ? shot.dialogueAudio : shot.narrationAudio;
+    // Root fields are projected from the latest requested track. If the root
+    // id is the opposite dedicated track's id, it must not appear as a
+    // recoverable state on the missing card.
+    if (legacyTaskId && opposite?.taskId?.trim() === legacyTaskId) return undefined;
+    // A partially migrated shot may still have a root task for its missing
+    // track. With an opposite dedicated state, require unambiguous text
+    // ownership; without one, preserve the legacy dialogue-first rule.
+    if (ambiguousLegacyAudioText(shot)) return undefined;
+    if ((shot.dialogueAudio || shot.narrationAudio) ? strictLegacyAudioKind(shot) !== kind : legacyAudioKind(shot) !== kind) return undefined;
+
+    return {
+        status: shot.audioStatus || (shot.audioUrl ? "success" : "idle"),
+        taskId: shot.audioTaskId,
+        attempt: shot.audioAttempt,
+        error: shot.audioError,
+        url: shot.audioUrl,
+    } satisfies DramaShotAudioState;
+}
+
+function audioTextForKind(shot: Shot, kind: "dialogue" | "narration") {
+    const utteranceType = kind === "narration" ? "voiceover" : "dialogue";
+    const utteranceText = (shot.utterances || [])
+        .filter((utterance) => utterance.type === utteranceType)
+        .map((utterance) => utterance.text.trim())
+        .filter(Boolean)
+        .join("\n");
+    if (utteranceText) return utteranceText;
+    return (kind === "narration" ? shot.narration || "" : shot.dialogue || shot.subtitle || "").trim();
+}
+
+function strictLegacyAudioKind(shot: Shot): "dialogue" | "narration" | undefined {
+    const hasDialogue = hasNonEmptyAudioText(shot.dialogue) || hasNonEmptyAudioText(shot.subtitle) || hasUtteranceType(shot, "dialogue");
+    const hasNarration = hasNonEmptyAudioText(shot.narration) || hasUtteranceType(shot, "voiceover");
+    if (hasDialogue && !hasNarration) return "dialogue";
+    if (hasNarration && !hasDialogue) return "narration";
+    return undefined;
+}
+
+function ambiguousLegacyAudioReviewReason(shot: Shot) {
+    const legacyUrl = stableAudioSourceUrl(shot.audioUrl);
+    if (!legacyUrl) return undefined;
+    if (!ambiguousLegacyAudioText(shot)) return undefined;
+    const dedicatedUrls = [shot.dialogueAudio?.url, shot.narrationAudio?.url]
+        .map((url) => stableAudioSourceUrl(url))
+        .filter(Boolean);
+    if (dedicatedUrls.includes(legacyUrl)) return undefined;
+    return "旧版 audioUrl 同时对应对白和旁白文本，系统不会猜测归属；请先确认后再用于成片。";
+}
+
+function ambiguousLegacyAudioText(shot: Shot) {
+    const hasDialogue = hasNonEmptyAudioText(shot.dialogue) || hasNonEmptyAudioText(shot.subtitle) || hasUtteranceType(shot, "dialogue");
+    const hasNarration = hasNonEmptyAudioText(shot.narration) || hasUtteranceType(shot, "voiceover");
+    return hasDialogue && hasNarration;
+}
+
+function stableAudioSourceUrl(value: unknown) {
+    if (typeof value !== "string") return "";
+    const url = value.trim();
+    return url && !url.startsWith("data:") && !url.startsWith("blob:") ? url : "";
 }
 
 function isDramaLabExecutionActive(phase: DramaLabVideoBatchExecutionPhase | undefined) {
@@ -2809,6 +3007,7 @@ function StoryboardPanel({
     const batchRunningRef = useRef<"image" | "video" | "">("");
     const batchAbortRef = useRef<AbortController | null>(null);
     const operationAbortRef = useRef(new Map<string, AbortController>());
+    const [audioSplitPlans, setAudioSplitPlans] = useState<Record<string, DramaLabAudioSplitPlan>>({});
     const disposedRef = useRef(false);
     const latestProjectRef = useRef(project);
     latestProjectRef.current = project;
@@ -2820,8 +3019,38 @@ function StoryboardPanel({
     const activeTaskShotsRef = useRef(activeTaskShots);
     activeTaskShotsRef.current = activeTaskShots;
     const activeTaskSignature = activeTaskShots.map(dramaLabGenerationSyncKey).join("|");
+    const activeAudioTaskShots = episodeShots.filter((shot) => isDramaLabTaskActive(audioStateForKind(shot, "dialogue")?.status) || isDramaLabTaskActive(audioStateForKind(shot, "narration")?.status));
+    const activeAudioTaskShotsRef = useRef(activeAudioTaskShots);
+    activeAudioTaskShotsRef.current = activeAudioTaskShots;
+    const activeAudioTaskSignature = activeAudioTaskShots
+        .map((shot) => `${shot.id}:dialogue:${audioStateForKind(shot, "dialogue")?.taskId || ""}:${audioStateForKind(shot, "dialogue")?.status || ""}:narration:${audioStateForKind(shot, "narration")?.taskId || ""}:${audioStateForKind(shot, "narration")?.status || ""}`)
+        .join("|");
+    // Keep refresh recovery keyed to durable task identity/state instead of
+    // the freshly allocated episodeShots array from each render.
+    const audioRecoverySignature = episodeShots
+        .map((shot) => {
+            const dialogue = audioStateForKind(shot, "dialogue");
+            const narration = audioStateForKind(shot, "narration");
+            return [
+                shot.id,
+                shot.episodeId,
+                "d",
+                dialogue?.taskId || "",
+                dialogue?.status || "",
+                dialogue?.attempt ?? "",
+                "n",
+                narration?.taskId || "",
+                narration?.status || "",
+                narration?.attempt ?? "",
+            ].join(":");
+        })
+        .join("|");
     const automaticSyncPausedRef = useRef(new Set<string>());
+    const automaticAudioSyncPausedRef = useRef(new Set<string>());
     const syncInFlightRef = useRef(new Map<string, { promise: Promise<Shot | undefined>; controller: AbortController }>());
+    const audioSyncInFlightRef = useRef(new Map<string, { promise: Promise<Shot | undefined>; controller: AbortController }>());
+    const audioRecoveryAttemptedRef = useRef(new Set<string>());
+    const [automaticAudioSyncRevision, setAutomaticAudioSyncRevision] = useState(0);
     const currentEpisodeIdRef = useRef(episodeId);
     currentEpisodeIdRef.current = episodeId;
     const [automaticSyncRevision, setAutomaticSyncRevision] = useState(0);
@@ -2882,6 +3111,99 @@ function StoryboardPanel({
         [episodeId, messageApi, onShotSynced, project.id],
     );
 
+    const syncAudio = useCallback(
+        async (shotId: string, kind: "dialogue" | "narration", silent = true, signal?: AbortSignal, requestedTaskId?: string): Promise<Shot | undefined> => {
+            if (!episodeId) return;
+            const sourceShot = latestProjectRef.current.shots.find((shot) => shot.id === shotId && shot.episodeId === episodeId);
+            const taskId = requestedTaskId || (sourceShot ? audioStateForKind(sourceShot, kind)?.taskId : undefined);
+            if (!taskId) return;
+            const syncKey = `${project.id}:${episodeId}:${shotId}:${kind}:${taskId}`;
+            const existing = audioSyncInFlightRef.current.get(syncKey);
+            if (existing) return raceWithAbort(existing.promise, signal);
+            const controller = new AbortController();
+            const pending = Promise.resolve().then(async () => {
+                const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+                const abortFromCaller = () => controller.abort();
+                if (signal?.aborted) controller.abort();
+                signal?.addEventListener("abort", abortFromCaller, { once: true });
+                try {
+                    const query = new URLSearchParams({ episodeId, taskId, kind });
+                    const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shotId)}/sync-audio?${query.toString()}`, {
+                        method: "POST",
+                        signal: controller.signal,
+                    });
+                    await assertJsonApiResponse(response);
+                    const data = await response.json();
+                    if (!response.ok || data.code !== 0) throw new Error(data.msg || "audio sync failed");
+                    if (!data.data?.shot) throw new Error("audio sync response missing shot");
+                    if (controller.signal.aborted || disposedRef.current || currentEpisodeIdRef.current !== episodeId) return undefined;
+                    onShotSynced(episodeId, shotId, data.data.shot);
+                    if (!silent) messageApi.success("闊抽鐘舵€佸凡鍚屾");
+                    return data.data.shot as Shot;
+                } catch (error) {
+                    if (error instanceof DOMException && error.name === "AbortError" && (controller.signal.aborted || signal?.aborted || disposedRef.current)) throw error;
+                    if (error instanceof DOMException && error.name === "AbortError") throw new Error("audio sync timed out; retry");
+                    throw error;
+                } finally {
+                    signal?.removeEventListener("abort", abortFromCaller);
+                    window.clearTimeout(timeoutId);
+                    if (audioSyncInFlightRef.current.get(syncKey)?.promise === pending) audioSyncInFlightRef.current.delete(syncKey);
+                }
+            });
+            audioSyncInFlightRef.current.set(syncKey, { promise: pending, controller });
+            return pending;
+        },
+        [episodeId, messageApi, onShotSynced, project.id],
+    );
+
+    const recoverAudio = useCallback(
+        async (shot: Shot, kind: "dialogue" | "narration", silent = false, signal?: AbortSignal): Promise<boolean> => {
+            if (!episodeId) return false;
+            const state = audioStateForKind(shot, kind);
+            const taskId = state?.taskId;
+            if (!taskId) {
+                if (!silent) messageApi.info(`${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}鏆傛棤鍙仮澶嶇殑闊抽浠诲姟`);
+                return false;
+            }
+            const actionKey = `audio-recover:${kind}:${shot.id}`;
+            if (startingKeysRef.current.has(actionKey)) return false;
+            const controller = signal ? undefined : new AbortController();
+            const requestSignal = signal || controller?.signal;
+            if (controller) operationAbortRef.current.set(actionKey, controller);
+            try {
+                setActionBusy(actionKey, true);
+                if (!silent) messageApi.loading({ content: `姝ｅ湪鎭㈠${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}闊抽浠诲姟...`, key: actionKey, duration: 0 });
+                const query = new URLSearchParams({ episodeId, taskId, kind });
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/recover-audio?${query.toString()}`, {
+                    method: "POST",
+                    signal: requestSignal,
+                });
+                await assertJsonApiResponse(response);
+                const data = await response.json();
+                if (!response.ok || data.code !== 0) throw new Error(data.msg || "闊抽浠诲姟鎭㈠澶辫触");
+                if (requestSignal?.aborted || disposedRef.current || currentEpisodeIdRef.current !== episodeId) return false;
+                if (data.data?.project) {
+                    await onReload();
+                } else if (data.data?.shot) {
+                    onShotSynced(episodeId, shot.id, data.data.shot);
+                } else {
+                    await syncAudio(shot.id, kind, true, requestSignal, taskId);
+                }
+                if (!silent) messageApi.success({ content: `${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}闊抽浠诲姟宸叉仮澶嶅苟鍚屾`, key: actionKey, duration: 4 });
+                return true;
+            } catch (error) {
+                if (!silent && !requestSignal?.aborted && !disposedRef.current) messageApi.error({ content: error instanceof Error ? error.message : "闊抽浠诲姟鎭㈠澶辫触", key: actionKey, duration: 6 });
+                return false;
+            } finally {
+                if (controller && operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+                if (!disposedRef.current) setActionBusy(actionKey, false);
+                else startingKeysRef.current.delete(actionKey);
+                if (requestSignal?.aborted || disposedRef.current) messageApi.destroy(actionKey);
+            }
+        },
+        [episodeId, messageApi, onReload, onShotSynced, project.id, syncAudio],
+    );
+
     const setActionBusy = (key: string, busy: boolean) => {
         if (busy) startingKeysRef.current.add(key);
         else startingKeysRef.current.delete(key);
@@ -2900,6 +3222,8 @@ function StoryboardPanel({
         operationAbortRef.current.clear();
         for (const request of syncInFlightRef.current.values()) request.controller.abort();
         syncInFlightRef.current.clear();
+        for (const request of audioSyncInFlightRef.current.values()) request.controller.abort();
+        audioSyncInFlightRef.current.clear();
         for (const key of startingKeysRef.current) messageApi.destroy(key);
         messageApi.destroy("drama-video-batch");
         startingKeysRef.current.clear();
@@ -2999,6 +3323,90 @@ function StoryboardPanel({
             if (timer !== undefined) window.clearTimeout(timer);
         };
     }, [activeTaskSignature, automaticSyncRevision, episodeId, messageApi, syncShot]);
+
+    // Audio tracks use their own synchronization route and task identity. A
+    // video sync request must never overwrite one track with the other, so we
+    // poll each active dialogue/narration task independently.
+    useEffect(() => {
+        if (!episodeId || !activeAudioTaskSignature) return;
+        let disposed = false;
+        let timer: number | undefined;
+        const activeKeys = new Set(
+            activeAudioTaskShotsRef.current.flatMap((shot) =>
+                (["dialogue", "narration"] as const).flatMap((kind) => {
+                    const state = audioStateForKind(shot, kind);
+                    return state?.taskId && isDramaLabTaskActive(state.status) ? [`${shot.id}:${kind}:${state.taskId}`] : [];
+                }),
+            ),
+        );
+        for (const key of automaticAudioSyncPausedRef.current) if (!activeKeys.has(key)) automaticAudioSyncPausedRef.current.delete(key);
+        const sync = async () => {
+            for (const shot of activeAudioTaskShotsRef.current) {
+                for (const kind of ["dialogue", "narration"] as const) {
+                    if (disposed) return;
+                    const state = audioStateForKind(shot, kind);
+                    if (!state?.taskId || !isDramaLabTaskActive(state.status)) continue;
+                    const key = `${shot.id}:${kind}:${state.taskId}`;
+                    if (automaticAudioSyncPausedRef.current.has(key)) continue;
+                    try {
+                        await syncAudio(shot.id, kind);
+                    } catch (error) {
+                        if (disposed || (error instanceof DOMException && error.name === "AbortError")) return;
+                        automaticAudioSyncPausedRef.current.add(key);
+                        messageApi.warning({
+                            key: `drama-lab-audio-auto-sync-paused:${shot.id}:${kind}`,
+                            content: `${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}闊抽鑷姩鍚屾宸叉殏鍋滐紝璇峰湪闀滃ご鍗＄墖涓墜鍔ㄥ悓姝ユ垨鎭㈠銆俙`,
+                            duration: 6,
+                        });
+                    }
+                }
+            }
+            const pending = activeAudioTaskShotsRef.current.some((shot) =>
+                (["dialogue", "narration"] as const).some((kind) => {
+                    const state = audioStateForKind(shot, kind);
+                    return Boolean(state?.taskId && isDramaLabTaskActive(state.status) && !automaticAudioSyncPausedRef.current.has(`${shot.id}:${kind}:${state.taskId}`));
+                }),
+            );
+            if (!disposed && pending) timer = window.setTimeout(() => void sync(), 2500);
+        };
+        void sync();
+        return () => {
+            disposed = true;
+            if (timer !== undefined) window.clearTimeout(timer);
+        };
+    }, [activeAudioTaskSignature, automaticAudioSyncRevision, episodeId, messageApi, syncAudio]);
+
+    // Reattach to audio tasks after a refresh. The original task id is sent to
+    // the recovery route; no new task is submitted and no duplicate charge is
+    // possible. Each track is attempted once per task id in this mount.
+    useEffect(() => {
+        if (!episodeId) return;
+        let disposed = false;
+        for (const shot of episodeShots) {
+            for (const kind of ["dialogue", "narration"] as const) {
+                const state = audioStateForKind(shot, kind);
+                if (!state?.taskId || !isDramaLabTaskActive(state.status)) continue;
+                const key = `${project.id}:${episodeId}:${shot.id}:${kind}:${state.taskId}`;
+                if (audioRecoveryAttemptedRef.current.has(key)) continue;
+                audioRecoveryAttemptedRef.current.add(key);
+                void (async () => {
+                    try {
+                        const synced = await syncAudio(shot.id, kind, true);
+                        if (disposed) return;
+                        const observed = normalizeShot(synced || shot, episodeId, Math.max(0, shot.shotNumber - 1));
+                        const observedState = observed ? audioStateForKind(observed, kind) : state;
+                        if (observedState?.taskId === state.taskId && isDramaLabTaskActive(observedState?.status)) await recoverAudio(observed || shot, kind, true);
+                    } catch {
+                        // The card's explicit recovery button remains available
+                        // when a provider is temporarily unavailable on mount.
+                    }
+                })();
+            }
+        }
+        return () => {
+            disposed = true;
+        };
+    }, [audioRecoverySignature, episodeId, project.id, recoverAudio, syncAudio]);
 
     // Re-discover durable video tasks whenever an episode is opened. This is
     // intentionally scoped to the current project and episode; it repairs a
@@ -3252,6 +3660,166 @@ function StoryboardPanel({
             if (!disposedRef.current) setActionBusy(actionKey, false);
             else startingKeysRef.current.delete(actionKey);
             if (requestSignal?.aborted || isStale()) messageApi.destroy(actionKey);
+        }
+    };
+
+    const startAudioGeneration = async (shot: Shot, kind: "dialogue" | "narration") => {
+        if (!episode) return;
+        const text = audioTextForKind(shot, kind);
+        if (!text) {
+            Modal.warning({
+                title: `鏃犳硶鐢熸垚${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}闊抽`,
+                content: `褰撳墠闀滃ご娌℃湁${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}鏂囨湰锛岃鍏堣ˉ鍏呮枃鏈悗鍐嶇敓鎴愩€?`,
+                okText: "鐭ラ亾浜?",
+            });
+            return;
+        }
+        const actionKey = `audio:${kind}:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
+        const operationEpisodeId = episode.id;
+        const operationProjectId = project.id;
+        const controller = new AbortController();
+        const isStale = () => disposedRef.current || currentEpisodeIdRef.current !== operationEpisodeId || latestProjectRef.current.id !== operationProjectId;
+        operationAbortRef.current.set(actionKey, controller);
+        try {
+            setActionBusy(actionKey, true);
+            messageApi.loading({ content: `姝ｅ湪鍒涘缓${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}闊抽浠诲姟...`, key: actionKey, duration: 0 });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-audio?episodeId=${encodeURIComponent(episode.id)}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind }),
+                signal: controller.signal,
+            });
+            await assertJsonApiResponse(response);
+            const data = await response.json();
+            if (!response.ok || data.code !== 0) throw new Error(data.msg || "闊抽浠诲姟鍒涘缓澶辫触");
+            const taskId = typeof data.data?.task?.id === "string" ? data.data.task.id : "";
+            if (!taskId) throw new Error("闊抽浠诲姟鍒涘缓鍝嶅簲缂哄皯浠诲姟 ID");
+            if (controller.signal.aborted || isStale()) return;
+            const state: DramaShotAudioState = {
+                status: "running",
+                taskId,
+                attempt: typeof data.data?.task?.attemptNo === "number" ? data.data.task.attemptNo : undefined,
+                speaker: typeof data.data?.speaker === "string" ? data.data.speaker : undefined,
+            };
+            onShotSynced(episode.id, shot.id, {
+                id: shot.id,
+                ...(kind === "narration" ? { narrationAudio: state } : { dialogueAudio: state }),
+                audioStatus: "running",
+                audioTaskId: taskId,
+                audioError: undefined,
+            });
+            // Sync once immediately so an already-completed provider result is
+            // shown without waiting for the automatic polling tick.
+            await syncAudio(shot.id, kind, true, controller.signal, taskId).catch((error) => {
+                if (controller.signal.aborted || isStale()) throw error;
+                messageApi.warning({ content: error instanceof Error ? `${error.message}; task created, retry sync later` : "audio task created; retry sync later", key: `drama-lab-audio-initial-sync:${shot.id}:${kind}`, duration: 6 });
+            });
+            if (!controller.signal.aborted && !isStale()) messageApi.success({ content: `${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}闊抽浠诲姟宸叉彁浜�`, key: actionKey, duration: 4 });
+        } catch (error) {
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "闊抽浠诲姟鍒涘缓澶辫触", key: actionKey, duration: 6 });
+        } finally {
+            if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+            if (controller.signal.aborted || isStale()) messageApi.destroy(actionKey);
+        }
+    };
+
+    const syncAudioManually = async (shot: Shot, kind: "dialogue" | "narration") => {
+        const state = audioStateForKind(shot, kind);
+        if (!state?.taskId) {
+            messageApi.info(`${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}鏆傛棤闊抽浠诲姟`);
+            return;
+        }
+        const actionKey = `audio-sync:${kind}:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
+        setActionBusy(actionKey, true);
+        try {
+            await syncAudio(shot.id, kind, false, undefined, state.taskId);
+            automaticAudioSyncPausedRef.current.delete(`${shot.id}:${kind}:${state.taskId}`);
+            setAutomaticAudioSyncRevision((current) => current + 1);
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "audio sync failed");
+        } finally {
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+        }
+    };
+
+    const recoverAudioManually = async (shot: Shot, kind: "dialogue" | "narration") => {
+        const recovered = await recoverAudio(shot, kind, false);
+        if (recovered) {
+            const state = audioStateForKind(shot, kind);
+            if (state?.taskId) automaticAudioSyncPausedRef.current.delete(`${shot.id}:${kind}:${state.taskId}`);
+            setAutomaticAudioSyncRevision((current) => current + 1);
+        }
+    };
+
+    const previewAudioSplit = async (shot: Shot) => {
+        if (!episode || shot.audioSplitSourceShotId) return;
+        const actionKey = `audio-split-preview:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
+        const controller = new AbortController();
+        operationAbortRef.current.set(actionKey, controller);
+        try {
+            setActionBusy(actionKey, true);
+            messageApi.loading({ content: "正在按音频分析拆镜候选", key: actionKey, duration: 0 });
+            const query = `?episodeId=${encodeURIComponent(episode.id)}`;
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/split-by-audio${query}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "preview" }),
+                signal: controller.signal,
+            });
+            await assertJsonApiResponse(response);
+            const data = await response.json();
+            if (!response.ok || data.code !== 0 || !data.data?.plan) throw new Error(data.msg || "闊抽鎷嗛暅棰勮澶辫触");
+            setAudioSplitPlans((current) => ({ ...current, [shot.id]: data.data.plan as DramaLabAudioSplitPlan }));
+            messageApi.success({ content: "闊抽鎷嗛暅棰勮宸茬敓鎴愶紝璇锋鏌ュ悗纭", key: actionKey, duration: 4 });
+        } catch (error) {
+            if (!controller.signal.aborted) messageApi.error({ content: error instanceof Error ? error.message : "闊抽鎷嗛暅棰勮澶辫触", key: actionKey, duration: 6 });
+        } finally {
+            if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+        }
+    };
+
+    const applyAudioSplit = async (shot: Shot) => {
+        if (!episode) return;
+        const plan = audioSplitPlans[shot.id];
+        if (!plan) return;
+        const actionKey = `audio-split-apply:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
+        const controller = new AbortController();
+        operationAbortRef.current.set(actionKey, controller);
+        try {
+            setActionBusy(actionKey, true);
+            messageApi.loading({ content: "正在保存音频拆镜候选", key: actionKey, duration: 0 });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/split-by-audio?episodeId=${encodeURIComponent(episode.id)}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "apply", plan }),
+                signal: controller.signal,
+            });
+            await assertJsonApiResponse(response);
+            const data = await response.json();
+            if (!response.ok || data.code !== 0) throw new Error(data.msg || "闊抽鎷嗛暅淇濆瓨澶辫触");
+            if (controller.signal.aborted || disposedRef.current) return;
+            setAudioSplitPlans((current) => {
+                const next = { ...current };
+                delete next[shot.id];
+                return next;
+            });
+            await onReload();
+            messageApi.success({ content: data.msg || "闊抽鎷嗛暅鍊欓€夊凡淇濆瓨", key: actionKey, duration: 5 });
+        } catch (error) {
+            if (!controller.signal.aborted) messageApi.error({ content: error instanceof Error ? error.message : "闊抽鎷嗛暅淇濆瓨澶辫触", key: actionKey, duration: 6 });
+        } finally {
+            if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
         }
     };
 
@@ -3678,6 +4246,12 @@ function StoryboardPanel({
                         onKeepFirstFrameCandidate={() => messageApi.info("候选首帧已保留，未覆盖当前首帧")}
                         onToggleFrameLock={toggleFrameLock}
                         onUploadFrame={uploadFrame}
+                        onStartAudio={startAudioGeneration}
+                        onSyncAudio={syncAudioManually}
+                        onRecoverAudio={recoverAudioManually}
+                        onPreviewAudioSplit={previewAudioSplit}
+                        onApplyAudioSplit={applyAudioSplit}
+                        audioSplitPlan={audioSplitPlans[shot.id]}
                         onSync={() => void syncShotManually(shot).catch((error) => messageApi.error(error instanceof Error ? error.message : "任务状态同步失败"))}
                         onUpdate={(patch) => void updateShot(shot.id, patch).catch((error) => messageApi.error(error instanceof Error ? error.message : "保存分镜失败"))}
                         onEdit={() => handleEdit(shot)}
@@ -3776,6 +4350,12 @@ function StoryboardWorkbenchCard({
     project,
     busyKeys,
     onStartGeneration,
+    onStartAudio,
+    onSyncAudio,
+    onRecoverAudio,
+    onPreviewAudioSplit,
+    onApplyAudioSplit,
+    audioSplitPlan,
     onCheckVideoStatus,
     onSync,
     onUpdate,
@@ -3792,6 +4372,12 @@ function StoryboardWorkbenchCard({
     project: Project;
     busyKeys: ReadonlySet<string>;
     onStartGeneration: (shot: Shot, kind: "image" | "video") => Promise<string | undefined>;
+    onStartAudio: (shot: Shot, kind: "dialogue" | "narration") => Promise<void>;
+    onSyncAudio: (shot: Shot, kind: "dialogue" | "narration") => Promise<void>;
+    onRecoverAudio: (shot: Shot, kind: "dialogue" | "narration") => Promise<void>;
+    onPreviewAudioSplit: (shot: Shot) => Promise<void>;
+    onApplyAudioSplit: (shot: Shot) => Promise<void>;
+    audioSplitPlan?: DramaLabAudioSplitPlan;
     onCheckVideoStatus: (shot: Shot) => Promise<void>;
     onStartFrame: (shot: Shot, frameType: "first" | "key" | "last") => Promise<void>;
     onExtractTailFrame: (shot: Shot) => Promise<void>;
@@ -3808,6 +4394,14 @@ function StoryboardWorkbenchCard({
     const videoBusy = busyKeys.has(`video:${shot.id}`) || isDramaLabTaskActive(shot.generationStatus) || isDramaLabExecutionActive(shot.generationExecutionPhase);
     const checkingVideoStatus = busyKeys.has(`video-status:${shot.id}`);
     const videoNeedsCheck = requiresDramaLabVideoTaskCheck(shot);
+    const dialogueAudio = audioStateForKind(shot, "dialogue");
+    const narrationAudio = audioStateForKind(shot, "narration");
+    const dialogueAudioBusy = busyKeys.has(`audio:dialogue:${shot.id}`) || isDramaLabTaskActive(dialogueAudio?.status);
+    const narrationAudioBusy = busyKeys.has(`audio:narration:${shot.id}`) || isDramaLabTaskActive(narrationAudio?.status);
+    const splitPreviewBusy = busyKeys.has(`audio-split-preview:${shot.id}`);
+    const splitApplyBusy = busyKeys.has(`audio-split-apply:${shot.id}`);
+    const splitEligible = Boolean(audioTextForKind(shot, "dialogue") || audioTextForKind(shot, "narration"));
+    const legacyAudioReviewReason = ambiguousLegacyAudioReviewReason(shot);
     const uploadInputRefs = useRef<Partial<Record<"first" | "key" | "last", HTMLInputElement | null>>>({});
     const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
     return (
@@ -3924,6 +4518,114 @@ function StoryboardWorkbenchCard({
                     )}
                 </section>
                 <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 视频`}>
+                    <section className="space-y-3 border-b border-border pb-3" aria-label={`分镜 ${shot.shotNumber} 音频`}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 text-sm font-medium">
+                                <Volume2 className="size-4" />
+                                <span>对白 / 旁白音频</span>
+                            </div>
+                            {splitEligible && !shot.audioSplitSourceShotId ? (
+                                <Button
+                                    size="small"
+                                    icon={<Scissors className="size-3.5" />}
+                                    loading={splitPreviewBusy}
+                                    onClick={() => void onPreviewAudioSplit(shot)}
+                                >
+                                    按音频拆镜
+                                </Button>
+                            ) : null}
+                        </div>
+                        {legacyAudioReviewReason ? (
+                            <Alert
+                                type="warning"
+                                showIcon
+                                message="旧音频待复核"
+                                description={legacyAudioReviewReason}
+                            />
+                        ) : null}
+                        {legacyAudioReviewReason && stableAudioSourceUrl(shot.audioUrl) ? (
+                            <div className="space-y-1 border border-amber-200 bg-amber-50/50 p-2">
+                                <div className="text-xs font-medium text-amber-900">旧音频（未自动归属）</div>
+                                <audio src={stableAudioSourceUrl(shot.audioUrl)} controls preload="metadata" className="h-9 w-full" />
+                            </div>
+                        ) : null}
+                        {(["dialogue", "narration"] as const).map((kind) => {
+                            const state = kind === "dialogue" ? dialogueAudio : narrationAudio;
+                            const label = kind === "dialogue" ? "对白" : "旁白";
+                            const text = audioTextForKind(shot, kind);
+                            const busy = kind === "dialogue" ? dialogueAudioBusy : narrationAudioBusy;
+                            const syncBusy = busyKeys.has(`audio-sync:${kind}:${shot.id}`);
+                            const recoverBusy = busyKeys.has(`audio-recover:${kind}:${shot.id}`);
+                            return (
+                                <div key={kind} className="space-y-2 border border-border p-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex min-w-0 items-center gap-2">
+                                            <span className="text-sm font-medium">{label}</span>
+                                            <StoryboardTaskTag status={state?.status} label="音频" />
+                                            {state?.speaker ? <span className="max-w-32 truncate text-xs text-muted-foreground">{state.speaker}</span> : null}
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-1">
+                                            <Button
+                                                size="small"
+                                                icon={<Sparkles className="size-3.5" />}
+                                                loading={busyKeys.has(`audio:${kind}:${shot.id}`)}
+                                                disabled={!text || busy}
+                                                onClick={() => void onStartAudio(shot, kind)}
+                                            >
+                                                {state?.url ? `重新生成${label}` : `生成${label}`}
+                                            </Button>
+                                            {state?.taskId ? (
+                                                <Button
+                                                    size="small"
+                                                    title={`同步${label}任务`}
+                                                    aria-label={`同步${label}任务`}
+                                                    loading={syncBusy}
+                                                    icon={<RefreshCw className="size-3.5" />}
+                                                    onClick={() => void onSyncAudio(shot, kind)}
+                                                />
+                                            ) : null}
+                                            {state?.taskId && isDramaLabTaskActive(state.status) ? (
+                                                <Button
+                                                    size="small"
+                                                    title={`恢复${label}任务`}
+                                                    aria-label={`恢复${label}任务`}
+                                                    loading={recoverBusy}
+                                                    icon={<LoaderCircle className="size-3.5" />}
+                                                    onClick={() => void onRecoverAudio(shot, kind)}
+                                                />
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                    {text ? <p className="line-clamp-2 text-xs text-muted-foreground">{text}</p> : <p className="text-xs text-muted-foreground">暂无{label}文本</p>}
+                                    {state?.error ? <Alert type="error" showIcon message={state.error} /> : null}
+                                    {state?.url ? <audio src={state.url} controls preload="metadata" className="h-9 w-full" /> : null}
+                                </div>
+                            );
+                        })}
+                        {audioSplitPlan ? (
+                            <div className="space-y-2 border border-sky-300 bg-sky-50/60 p-2" role="region" aria-label="音频拆镜预览">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="text-xs font-medium text-sky-900">
+                                        拆镜预览：{audioSplitPlan.segments.length} 段 · {Math.max(1, Math.round(audioSplitPlan.totalDurationMs / 1000))} 秒
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <Button size="small" loading={splitApplyBusy} onClick={() => void onApplyAudioSplit(shot)}>确认添加</Button>
+                                        <Button size="small" loading={splitPreviewBusy} onClick={() => void onPreviewAudioSplit(shot)}>重新预览</Button>
+                                    </div>
+                                </div>
+                                <div className="max-h-40 space-y-1 overflow-y-auto text-xs">
+                                    {audioSplitPlan.segments.map((segment) => (
+                                        <div key={`${segment.candidateId}-${segment.index}`} className="flex gap-2 border-b border-sky-200 pb-1 last:border-0">
+                                            <span className="w-8 shrink-0 text-sky-800">#{segment.index + 1}</span>
+                                            <span className="w-12 shrink-0 text-sky-800">{segment.kind === "dialogue" ? "对白" : "旁白"}</span>
+                                            <span className="min-w-0 flex-1 truncate">{segment.speaker ? `${segment.speaker}：` : ""}{segment.text}</span>
+                                            <span className="shrink-0 text-muted-foreground">{segment.duration}s</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
+                    </section>
                     <TextArea defaultValue={shot.videoPrompt} autoSize={{ minRows: 3, maxRows: 7 }} placeholder="镜头动作与动态补充（可选）" aria-label="视频提示词" onBlur={(event) => onUpdate({ videoPrompt: event.target.value.trim() })} />
                     {videoNeedsCheck ? <Alert type="warning" showIcon message="视频结果待检查" description={dramaLabVideoTaskReviewDescription(shot)} /> : null}
                     {shot.generationError && !videoNeedsCheck ? <Alert type="error" showIcon message={shot.generationError} /> : null}
