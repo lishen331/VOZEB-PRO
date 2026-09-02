@@ -40,7 +40,13 @@ const channel = (id: string, purpose: SystemModelChannel["purpose"], modelId = i
 
 describe("practice workflow model options", () => {
     it("keeps shared/open-source models and excludes production-only models", () => {
-        expect(resolvePracticeWorkflowModelOptions([model("practice-a", "shared"), model("practice-b", "practice"), model("production", "production")], [channel("shared", "shared", "practice-a"), channel("practice", "open-source-practice", "practice-b"), channel("production", "production", "production")], "image")).toEqual([
+        expect(
+            resolvePracticeWorkflowModelOptions(
+                [model("practice-a", "shared"), model("practice-b", "practice"), model("production", "production")],
+                [channel("shared", "shared", "practice-a"), channel("practice", "open-source-practice", "practice-b"), channel("production", "production", "production")],
+                "image",
+            ),
+        ).toEqual([
             { label: "practice-a", value: "practice-a" },
             { label: "practice-b", value: "practice-b" },
         ]);

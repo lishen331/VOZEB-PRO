@@ -45,10 +45,16 @@ export function removeChannelFromWorkspace(settings: ChannelWorkspaceSettings, c
         logicalModels,
         defaultModels: Object.fromEntries(Object.entries(settings.defaultModels).map(([key, value]) => [key, liveIds.has(value) ? value : ""])) as SystemDefaultModels,
         practiceDefaultModels: Object.fromEntries(Object.entries(settings.practiceDefaultModels).map(([key, value]) => [key, liveIds.has(value) ? value : ""])) as SystemDefaultModels,
-        ...(settings.practiceWorkflowModels ? { practiceWorkflowModels: Object.fromEntries(Object.entries(settings.practiceWorkflowModels).flatMap(([key, values]) => {
-            const next = (Array.isArray(values) ? values : [values]).filter((value) => liveIds.has(value));
-            return next.length ? [[key, next]] : [];
-        })) as PracticeWorkflowModelBindings } : {}),
+        ...(settings.practiceWorkflowModels
+            ? {
+                  practiceWorkflowModels: Object.fromEntries(
+                      Object.entries(settings.practiceWorkflowModels).flatMap(([key, values]) => {
+                          const next = (Array.isArray(values) ? values : [values]).filter((value) => liveIds.has(value));
+                          return next.length ? [[key, next]] : [];
+                      }),
+                  ) as PracticeWorkflowModelBindings,
+              }
+            : {}),
     };
 }
 

@@ -13,7 +13,23 @@ export class PracticeRepository {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'open-source-practice', $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, $15)
              ON CONFLICT (user_id, client_request_id) DO UPDATE SET updated_at = practice_sessions.updated_at
              RETURNING *`,
-            [input.id, input.userId, input.projectId || null, input.projectKind, input.module, input.mode || "workflow", input.title || "练习会话", input.clientRequestId || input.id, jsonParam(input.prompt), jsonParam(input.input), jsonParam(input.taskRefs), input.selectedLogicalModelId || null, input.errorCode || null, input.errorMessage || null, input.status],
+            [
+                input.id,
+                input.userId,
+                input.projectId || null,
+                input.projectKind,
+                input.module,
+                input.mode || "workflow",
+                input.title || "练习会话",
+                input.clientRequestId || input.id,
+                jsonParam(input.prompt),
+                jsonParam(input.input),
+                jsonParam(input.taskRefs),
+                input.selectedLogicalModelId || null,
+                input.errorCode || null,
+                input.errorMessage || null,
+                input.status,
+            ],
         );
         return mapPracticeSession(result.rows[0]);
     }
@@ -53,7 +69,18 @@ export class PracticeRepository {
              SET status = COALESCE($3, status), task_refs = COALESCE($4::jsonb, task_refs), prompt_json = COALESCE($5::jsonb, prompt_json), input_json = COALESCE($6::jsonb, input_json), title = COALESCE($7, title), selected_logical_model_id = COALESCE($8, selected_logical_model_id), error_code = COALESCE($9, error_code), error_message = COALESCE($10, error_message)
              WHERE user_id = $1 AND id = $2
              RETURNING *`,
-            [userId, id, patch.status || null, patch.taskRefs === undefined ? null : jsonParam(patch.taskRefs), patch.prompt === undefined ? null : jsonParam(patch.prompt), patch.input === undefined ? null : jsonParam(patch.input), patch.title || null, patch.selectedLogicalModelId || null, patch.errorCode || null, patch.errorMessage || null],
+            [
+                userId,
+                id,
+                patch.status || null,
+                patch.taskRefs === undefined ? null : jsonParam(patch.taskRefs),
+                patch.prompt === undefined ? null : jsonParam(patch.prompt),
+                patch.input === undefined ? null : jsonParam(patch.input),
+                patch.title || null,
+                patch.selectedLogicalModelId || null,
+                patch.errorCode || null,
+                patch.errorMessage || null,
+            ],
         );
         return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
     }

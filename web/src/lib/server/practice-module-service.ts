@@ -10,9 +10,23 @@ const MODULES = ["script", "storyboard-image", "storyboard-video", "dubbing", "m
 const WORKFLOW_MODULES = MODULES.filter((module): module is Exclude<PracticeModuleKind, "script"> => module !== "script");
 
 const BASE_MODULES: Record<PracticeModuleKind, Omit<PracticeModuleCapability, "module" | "available" | "unavailableReason" | "models">> = {
-    script: { mode: "manual", outputType: "text", inputSchema: [{ key: "title", label: "剧本标题", type: "text", required: true }, { key: "content", label: "剧本正文", type: "textarea", required: true }] },
+    script: {
+        mode: "manual",
+        outputType: "text",
+        inputSchema: [
+            { key: "title", label: "剧本标题", type: "text", required: true },
+            { key: "content", label: "剧本正文", type: "textarea", required: true },
+        ],
+    },
     "storyboard-image": { mode: "workflow", outputType: "image", inputSchema: [{ key: "prompt", label: "分镜图提示词", type: "textarea", required: true }] },
-    "storyboard-video": { mode: "workflow", outputType: "video", inputSchema: [{ key: "referenceImage", label: "参考图片", type: "image", required: true }, { key: "prompt", label: "分镜视频提示词", type: "textarea", required: true }] },
+    "storyboard-video": {
+        mode: "workflow",
+        outputType: "video",
+        inputSchema: [
+            { key: "referenceImage", label: "参考图片", type: "image", required: true },
+            { key: "prompt", label: "分镜视频提示词", type: "textarea", required: true },
+        ],
+    },
     dubbing: { mode: "workflow", outputType: "audio", inputSchema: [{ key: "text", label: "配音文本", type: "textarea", required: true }] },
     music: { mode: "workflow", outputType: "audio", inputSchema: [{ key: "prompt", label: "音乐需求", type: "textarea", required: true }] },
 };

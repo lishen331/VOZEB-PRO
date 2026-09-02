@@ -52,11 +52,37 @@ describe("PracticeRepository", () => {
     });
 
     it("stores practice sessions with mode, model and public error fields", async () => {
-        const row = { id: "session-one", user_id: "user-one", module: "storyboard-image", mode: "workflow", selected_logical_model_id: "practice-image", error_code: "PRACTICE_DISPATCH_FAILED", error_message: "任务提交失败", status: "failed", prompt_json: {}, input_json: {}, task_refs: [] };
+        const row = {
+            id: "session-one",
+            user_id: "user-one",
+            module: "storyboard-image",
+            mode: "workflow",
+            selected_logical_model_id: "practice-image",
+            error_code: "PRACTICE_DISPATCH_FAILED",
+            error_message: "任务提交失败",
+            status: "failed",
+            prompt_json: {},
+            input_json: {},
+            task_refs: [],
+        };
         const { executor, query } = mockExecutor([[row], [row]]);
         const repository = new PracticeRepository(executor);
 
-        await repository.createPracticeSession({ id: "session-one", userId: "user-one", projectId: "project-one", projectKind: "canvas", module: "storyboard-image", mode: "workflow", selectedLogicalModelId: "practice-image", errorCode: "PRACTICE_DISPATCH_FAILED", errorMessage: "任务提交失败", prompt: {}, input: {}, taskRefs: [], status: "failed" });
+        await repository.createPracticeSession({
+            id: "session-one",
+            userId: "user-one",
+            projectId: "project-one",
+            projectKind: "canvas",
+            module: "storyboard-image",
+            mode: "workflow",
+            selectedLogicalModelId: "practice-image",
+            errorCode: "PRACTICE_DISPATCH_FAILED",
+            errorMessage: "任务提交失败",
+            prompt: {},
+            input: {},
+            taskRefs: [],
+            status: "failed",
+        });
         expect(String(query.mock.calls[0]?.[0])).toContain("INSERT INTO practice_sessions");
         expect(String(query.mock.calls[0]?.[0])).toContain("'open-source-practice'");
         expect(String(query.mock.calls[0]?.[0])).toContain("selected_logical_model_id");

@@ -88,7 +88,10 @@ export async function createPracticeSessionForUser(
     const resolveModel = deps.resolveModel || defaultResolveModel;
     const model = mode === "workflow" ? await resolveModel(moduleKind, input.logicalModelId) : undefined;
     const normalizedWorkflow = mode === "workflow" ? normalizePracticeModuleInput(moduleKind, sourcePayload, references, model?.workflow) : undefined;
-    const payload = mode === "manual" ? { title: text(sourcePayload.title), content: text(sourcePayload.content), ...(references.length ? { references } : {}) } : { ...(normalizedWorkflow?.input || baseNormalized?.input || {}), ...(references.length ? { references } : {}) };
+    const payload =
+        mode === "manual"
+            ? { title: text(sourcePayload.title), content: text(sourcePayload.content), ...(references.length ? { references } : {}) }
+            : { ...(normalizedWorkflow?.input || baseNormalized?.input || {}), ...(references.length ? { references } : {}) };
     const created = await store.create({
         id: `practice-session-${nanoid()}`,
         userId: actor.id,
@@ -311,11 +314,12 @@ export function normalizePracticeModuleInput(module: PracticeModuleKind, input: 
     }
     const base = module === "dubbing" ? { text: value } : { prompt: value };
     const accepted = new Set(["prompt", "text"]);
-    const optional = workflow?.inputSchema.flatMap((field) => {
-        if (field.required || accepted.has(field.key) || input[field.key] === undefined || !matchesWorkflowField(field, input[field.key])) return [];
-        accepted.add(field.key);
-        return [[field.key, input[field.key]] as const];
-    }) || [];
+    const optional =
+        workflow?.inputSchema.flatMap((field) => {
+            if (field.required || accepted.has(field.key) || input[field.key] === undefined || !matchesWorkflowField(field, input[field.key])) return [];
+            accepted.add(field.key);
+            return [[field.key, input[field.key]] as const];
+        }) || [];
     return { input: Object.fromEntries([...Object.entries(base), ...optional]), references: normalizedReferences };
 }
 
@@ -403,7 +407,10 @@ function fileSessionStore(): PracticeSessionStore & { list(userId: string, input
             return updated;
         },
         async list(userId, input) {
-            const all = (await read()).sessions.map(normalizeFileSession).filter((item) => item.userId === userId && (!input.module || item.module === input.module)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
+            const all = (await read()).sessions
+                .map(normalizeFileSession)
+                .filter((item) => item.userId === userId && (!input.module || item.module === input.module))
+                .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
             return { items: all.slice((input.page - 1) * input.pageSize, input.page * input.pageSize), total: all.length };
         },
     };

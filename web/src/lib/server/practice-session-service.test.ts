@@ -8,7 +8,16 @@ vi.mock("@/lib/server/ip-library-reference-service", () => ({
     recordIpReferenceUsage: mocks.recordIpReferenceUsage,
 }));
 
-import { createPracticeSessionForUser, getPracticeSessionForUser, normalizePracticeModuleInput, publicPracticeSession, resolvePracticeModelFromSettings, retryPracticeSessionForUser, type PracticeSessionStore, type PracticeTaskDispatchResult } from "./practice-session-service";
+import {
+    createPracticeSessionForUser,
+    getPracticeSessionForUser,
+    normalizePracticeModuleInput,
+    publicPracticeSession,
+    resolvePracticeModelFromSettings,
+    retryPracticeSessionForUser,
+    type PracticeSessionStore,
+    type PracticeTaskDispatchResult,
+} from "./practice-session-service";
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { PracticeSessionRecord } from "./database/repository-types";
 
@@ -76,7 +85,9 @@ describe("practice sessions", () => {
         const resolveModel = vi.fn(async () => {
             throw Object.assign(new Error("当前练习模块没有可用的开源模型"), { status: 503 });
         });
-        await expect(createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "storyboard-image", title: "镜头", input: { prompt: "雨夜" }, clientRequestId: "preflight-fail" }, { store, dispatch: vi.fn(), resolveModel })).rejects.toMatchObject({ status: 503 });
+        await expect(
+            createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "storyboard-image", title: "镜头", input: { prompt: "雨夜" }, clientRequestId: "preflight-fail" }, { store, dispatch: vi.fn(), resolveModel }),
+        ).rejects.toMatchObject({ status: 503 });
         expect(store.create).not.toHaveBeenCalled();
     });
 

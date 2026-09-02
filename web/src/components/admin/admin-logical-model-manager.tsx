@@ -42,9 +42,7 @@ const practiceWorkflowFields: Array<{ code: RunningHubWorkflowBusinessCode; labe
 ];
 
 export function resolvePracticeWorkflowModelOptions(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability) {
-    return logicalModels
-        .filter((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, "open-source-practice"))
-        .map((model) => ({ label: model.name, value: model.id }));
+    return logicalModels.filter((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, "open-source-practice")).map((model) => ({ label: model.name, value: model.id }));
 }
 
 export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, practiceDefaultModels, practiceWorkflowModels = {}, onChange }: Props) {
