@@ -8,7 +8,7 @@ export type { RunningHubWorkflowConfig } from "@/lib/auth/store";
 export type RunningHubWorkflowRuntimeInput = {
     config: RunningHubWorkflowConfig;
     businessInput: Record<string, unknown>;
-    references: Array<{ type: string; url?: string; assetId?: string }>;
+    references: Array<{ type: string; inputKey?: string; url?: string; assetId?: string }>;
 };
 
 export function buildRunningHubWorkflowPayload(input: RunningHubWorkflowRuntimeInput): Record<string, unknown> {
@@ -97,6 +97,7 @@ export function workflowConfigForTask(task: {
     taskOrigin?: string;
     workflowKey?: string;
     workflowVersion?: number;
+    workflowConfigFingerprint?: string;
     businessCode?: string;
     config: { channelId?: string; advancedConfig?: import("@/lib/auth/store").SystemChannelAdvancedConfig };
 }): RunningHubWorkflowConfig | undefined {
@@ -110,6 +111,7 @@ export function workflowConfigForTask(task: {
         normalized.businessCode === task.businessCode &&
         normalized.enabled &&
         (!task.config.channelId || normalized.channelId === task.config.channelId) &&
+        (!task.workflowConfigFingerprint || task.workflowConfigFingerprint === runningHubWorkflowConfigFingerprint(normalized)) &&
         !workflowRequiresRetest(normalized)
         ? normalized
         : undefined;
@@ -148,7 +150,7 @@ function mappedValue(mapping: RunningHubNodeMapping, fields: RunningHubWorkflowI
 
 function resolvedInput(field: RunningHubWorkflowInputField, input: Record<string, unknown>, references: RunningHubWorkflowRuntimeInput["references"]) {
     if (input[field.key] !== undefined) return input[field.key];
-    if (field.type === "image" || field.type === "video" || field.type === "audio") return references.find((reference) => reference.type === field.type)?.url;
+    if (field.type === "image" || field.type === "video" || field.type === "audio") return references.find((reference) => reference.type === field.type && (!reference.inputKey || reference.inputKey === field.key))?.url;
     if (field.type === "images")
         return references
             .filter((reference) => reference.type === "image")

@@ -32,6 +32,7 @@ export type GenerationTaskContext = {
     workflowKey?: string;
     workflowVersion?: number;
     upstreamWorkflowId?: string;
+    workflowConfigFingerprint?: string;
     businessCode?: RunningHubWorkflowBusinessCode;
     taskOrigin?: "user" | "admin-workflow-test";
 };

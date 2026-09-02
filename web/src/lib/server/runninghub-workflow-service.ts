@@ -95,7 +95,19 @@ export async function createWorkflow(input: unknown) {
     const workflowId = parseWorkflowId(raw.workflowId);
     if (!workflowId) throw new RunningHubWorkflowError("Workflow ID 必须是数字或包含数字 ID 的完整链接");
     const workflowKey = `workflow-${randomUUID()}`;
-    const candidate = normalizeRunningHubWorkflowConfig({ ...raw, workflowId, workflowKey, providerType: "runninghub", version: 1, enabled: false, lastTestAt: undefined, lastTestResult: undefined, lastTestError: undefined });
+    const candidate = normalizeRunningHubWorkflowConfig({
+        ...raw,
+        workflowId,
+        workflowKey,
+        providerType: "runninghub",
+        version: 1,
+        enabled: false,
+        testRequired: true,
+        lastTestAt: undefined,
+        lastTestResult: undefined,
+        lastTestError: undefined,
+        lastTestConfigFingerprint: undefined,
+    });
     assertValid(
         candidate,
         workflowEntries(settings).map((entry) => entry.config),
@@ -121,9 +133,11 @@ export async function updateWorkflow(workflowKey: string, input: unknown) {
         providerType: "runninghub",
         channelId: found.channel.id,
         enabled: false,
+        testRequired: true,
         lastTestAt: found.config.lastTestAt,
         lastTestResult: found.config.lastTestResult,
         lastTestError: found.config.lastTestError,
+        lastTestConfigFingerprint: undefined,
     });
     if (!candidate.workflowId) throw new RunningHubWorkflowError("Workflow ID 必须是数字或包含数字 ID 的完整链接");
     assertValid(
@@ -142,6 +156,7 @@ export async function copyWorkflowVersion(workflowKey: string, input: { config?:
     const settings = await getFreshAuthSettings();
     const found = findWorkflow(settings, workflowKey);
     if (!found) throw new RunningHubWorkflowError("工作流不存在", 404);
+    if (input.activateVersion === true) throw new RunningHubWorkflowError("复制的新版本必须先提交样例测试后才能启用", 409);
     const rawOverrides = asRecord(input.config);
     const version = nextWorkflowVersion(
         workflowEntries(settings).map((entry) => entry.config),
@@ -154,7 +169,7 @@ export async function copyWorkflowVersion(workflowKey: string, input: { config?:
         ...rawOverrides,
         workflowKey: nextKey,
         version,
-        enabled: input.activateVersion === true,
+        enabled: false,
         providerType: "runninghub",
         channelId: found.channel.id,
         businessCode: found.config.businessCode,
@@ -162,7 +177,10 @@ export async function copyWorkflowVersion(workflowKey: string, input: { config?:
         lastTestAt: undefined,
         lastTestResult: undefined,
         lastTestError: undefined,
+        lastTestConfigFingerprint: undefined,
+        testRequired: true,
     });
+    if (candidate.enabled) ensureEnableEvidence(candidate);
     const all = workflowEntries(settings).map((entry) => entry.config);
     if (candidate.enabled) for (const sibling of all) if (sibling.channelId === candidate.channelId && sibling.businessCode === candidate.businessCode) sibling.enabled = false;
     assertValid(
@@ -187,6 +205,7 @@ export async function setWorkflowEnabled(workflowKey: string, enabled: boolean) 
     if (!found) throw new RunningHubWorkflowError("工作流不存在", 404);
     const configs = workflowConfigs(found.channel).map((config) => ({ ...config, enabled: config.workflowKey === workflowKey ? enabled : enabled && config.businessCode === found.config.businessCode ? false : config.enabled }));
     const candidate = configs.find((config) => config.workflowKey === workflowKey) || found.config;
+    if (enabled) ensureEnableEvidence(candidate, found.config.enabled);
     assertValid(
         candidate,
         configs.filter((config) => config.workflowKey !== workflowKey),
@@ -253,6 +272,11 @@ function assertValid(candidate: RunningHubWorkflowConfig, siblings: readonly Run
         throw new RunningHubWorkflowError("同一渠道和业务 code 只能启用一个工作流版本", 409);
 }
 
+function ensureEnableEvidence(candidate: RunningHubWorkflowConfig, legacyEnabled = false) {
+    if (legacyEnabled && !candidate.testRequired && !candidate.workflowJsonFingerprint && !candidate.lastTestConfigFingerprint) return;
+    if (candidate.testRequired || workflowRequiresRetest(candidate) || (!candidate.workflowJsonFingerprint && !candidate.lastTestConfigFingerprint)) throw new RunningHubWorkflowError("启用前请先提交当前配置的成功样例测试", 409);
+}
+
 function publicWorkflow(config: RunningHubWorkflowConfig, channel: SystemModelChannel): PublicRunningHubWorkflow {
     const { requestTemplate, ...safe } = config;
     return { ...safe, requestTemplate: requestTemplate ? undefined : "", requestTemplateConfigured: Boolean(requestTemplate), channelName: channel.name, requiresRetest: workflowRequiresRetest(config) };
@@ -284,8 +308,16 @@ export function parseWorkflowId(value: unknown) {
     if (/^\d+$/.test(raw)) return raw;
     try {
         const url = new URL(raw);
-        const parts = `${url.pathname} ${url.search} ${url.hash}`.match(/\d{6,}/g) || [];
-        return parts.sort((left, right) => right.length - left.length)[0] || "";
+        for (const key of ["workflowId", "workflow_id", "workflow", "id"]) {
+            const candidate = url.searchParams.get(key)?.trim() || "";
+            if (/^\d+$/.test(candidate)) return candidate;
+        }
+        const pathSegments = url.pathname.split("/").filter(Boolean);
+        for (let index = 0; index < pathSegments.length - 1; index += 1) {
+            if (/^workflows?$/i.test(pathSegments[index]) && /^\d+$/.test(pathSegments[index + 1])) return pathSegments[index + 1];
+        }
+        const parts = `${url.pathname} ${url.hash}`.match(/\d{6,}/g) || [];
+        return parts.length === 1 ? parts[0] : "";
     } catch {
         return "";
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, App, Button, Checkbox, Collapse, Drawer, Input, InputNumber, Select, Space, Tabs } from "antd";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";
 import type { PublicRunningHubWorkflow } from "@/lib/server/runninghub-workflow-service";
@@ -21,6 +21,7 @@ type Props = {
     open: boolean;
     channelId: string;
     workflow?: PublicRunningHubWorkflow;
+    autoDiscover?: boolean;
     onClose: () => void;
     onSaved: () => Promise<void>;
 };
@@ -34,7 +35,7 @@ const jsonDefaults = {
     runOptions: "{}",
 };
 
-export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, onSaved }: Props) {
+export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscover = false, onClose, onSaved }: Props) {
     const { message } = App.useApp();
     const [draft, setDraft] = useState<Draft>(() => makeDraft(channelId, workflow));
     const [jsonText, setJsonText] = useState(jsonDefaults);
@@ -44,6 +45,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
     const [discovery, setDiscovery] = useState<RunningHubWorkflowDiscovery | null>(null);
     const [activeTab, setActiveTab] = useState("basic");
     const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+    const autoDiscoverStarted = useRef(false);
     const business = businessOptions.find((item) => item.value === draft.businessCode);
 
     useEffect(() => {
@@ -59,6 +61,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
         setDiscovery(null);
         setActiveTab("basic");
         setSelectedCandidates([]);
+        autoDiscoverStarted.current = false;
     }, [channelId, open, workflow]);
 
     const update = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -127,38 +130,49 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
         }
     };
 
-    const discover = async () => {
-        const workflowIdOrUrl = String(draft.workflowId || "").trim();
-        if (!workflowIdOrUrl) {
-            setErrors((current) => ({ ...current, workflowId: "请填写 Workflow ID 或完整链接" }));
-            return;
+    const discover = useCallback(
+        async (override?: { workflowIdOrUrl?: string; capability?: RunningHubWorkflowConfig["capability"] }) => {
+            const workflowIdOrUrl = String(override?.workflowIdOrUrl || draft.workflowId || "").trim();
+            const capability = override?.capability || draft.capability;
+            if (!workflowIdOrUrl) {
+                setErrors((current) => ({ ...current, workflowId: "请填写 Workflow ID 或完整链接" }));
+                return;
+            }
+            setDiscovering(true);
+            setErrors((current) => ({ ...current, workflowId: "" }));
+            try {
+                const response = await fetch("/api/admin/runninghub/workflows/discover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channelId, workflowIdOrUrl, capability }) });
+                const result = (await response.json()) as { data?: RunningHubWorkflowDiscovery; msg?: string };
+                if (!response.ok || !result.data) throw new Error(result.msg || "读取工作流失败");
+                setDiscovery(result.data);
+                setActiveTab("discovery");
+                setSelectedCandidates(
+                    result.data.candidates
+                        .filter((candidate) => candidate.role === "output" || result.data?.suggestedNodeMappings.some((mapping) => mapping.nodeId === candidate.nodeId && mapping.fieldName === candidate.fieldName))
+                        .map((candidate) => `${candidate.nodeId}.${candidate.fieldName}`),
+                );
+                setDraft((current) => ({ ...current, workflowId: result.data?.workflowId, inputSchema: result.data?.suggestedInputs, nodeMappings: result.data?.suggestedNodeMappings, outputMappings: result.data?.suggestedOutputs }));
+                setJsonText({
+                    inputSchema: JSON.stringify(result.data.suggestedInputs, null, 2),
+                    nodeMappings: JSON.stringify(result.data.suggestedNodeMappings, null, 2),
+                    outputMappings: JSON.stringify(result.data.suggestedOutputs, null, 2),
+                    runOptions: jsonText.runOptions,
+                });
+            } catch (error) {
+                message.error(error instanceof Error ? error.message : "读取工作流失败");
+            } finally {
+                setDiscovering(false);
+            }
+        },
+        [channelId, draft.capability, draft.workflowId, jsonText.runOptions, message],
+    );
+
+    useEffect(() => {
+        if (open && autoDiscover && workflow?.workflowId && !autoDiscoverStarted.current) {
+            autoDiscoverStarted.current = true;
+            void discover({ workflowIdOrUrl: workflow.workflowId, capability: workflow.capability });
         }
-        setDiscovering(true);
-        setErrors((current) => ({ ...current, workflowId: "" }));
-        try {
-            const response = await fetch("/api/admin/runninghub/workflows/discover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channelId, workflowIdOrUrl, capability: draft.capability }) });
-            const result = (await response.json()) as { data?: RunningHubWorkflowDiscovery; msg?: string };
-            if (!response.ok || !result.data) throw new Error(result.msg || "读取工作流失败");
-            setDiscovery(result.data);
-            setActiveTab("discovery");
-            setSelectedCandidates(
-                result.data.candidates
-                    .filter((candidate) => candidate.role === "output" || result.data?.suggestedNodeMappings.some((mapping) => mapping.nodeId === candidate.nodeId && mapping.fieldName === candidate.fieldName))
-                    .map((candidate) => `${candidate.nodeId}.${candidate.fieldName}`),
-            );
-            setDraft((current) => ({ ...current, workflowId: result.data?.workflowId, inputSchema: result.data?.suggestedInputs, nodeMappings: result.data?.suggestedNodeMappings, outputMappings: result.data?.suggestedOutputs }));
-            setJsonText({
-                inputSchema: JSON.stringify(result.data.suggestedInputs, null, 2),
-                nodeMappings: JSON.stringify(result.data.suggestedNodeMappings, null, 2),
-                outputMappings: JSON.stringify(result.data.suggestedOutputs, null, 2),
-                runOptions: jsonText.runOptions,
-            });
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "读取工作流失败");
-        } finally {
-            setDiscovering(false);
-        }
-    };
+    }, [autoDiscover, discover, open, workflow?.capability, workflow?.workflowId]);
 
     const jsonField = (key: keyof typeof jsonText, label: string, expected: "array" | "object") => (
         <div>

@@ -4,16 +4,17 @@ import { getFreshAuthSettings, setAuthSettings } from "@/lib/auth/store";
 import type { GenerationTaskType } from "@/lib/server/generation-task-types";
 import { buildRunningHubWorkflowPayload } from "@/lib/server/runninghub-workflow-runtime";
 import { queryRunningHubTask, submitRunningHubTask, uploadRunningHubMedia } from "@/lib/server/runninghub-provider";
-import { getWorkflowChannel, getWorkflowExecution } from "@/lib/server/runninghub-workflow-service";
+import { getWorkflowChannel, getWorkflowExecution, RunningHubWorkflowError } from "@/lib/server/runninghub-workflow-service";
 import { runningHubWorkflowConfigFingerprint } from "@/lib/server/runninghub-workflow-domain";
 
 import { createAdminWorkflowTest, getAdminWorkflowTest, updateAdminWorkflowTest, type AdminWorkflowTestRecord } from "./admin-workflow-test-store";
 
-export type WorkflowTestReference = { type: string; url?: string; assetId?: string; file?: Blob; fileName?: string };
+export type WorkflowTestReference = { type: string; inputKey?: string; url?: string; assetId?: string; file?: Blob; fileName?: string };
 export type StartWorkflowTestInput = { workflowKey: string; adminId: string; input: Record<string, unknown>; references?: WorkflowTestReference[] };
 
 export async function startRunningHubWorkflowTest(input: StartWorkflowTestInput) {
     const { config, channel } = await getWorkflowExecution(input.workflowKey);
+    if (!config.inputSchema.length || !config.nodeMappings.length || !config.outputMappings.length) throw new RunningHubWorkflowError("提交测试前必须确认输入、节点和输出映射", 400);
     const references = await prepareReferences(channel.baseUrl, channel.apiKey || "", input.references || []);
     const payload = buildRunningHubWorkflowPayload({ config, businessInput: input.input, references });
     const configFingerprint = runningHubWorkflowConfigFingerprint(config);
@@ -37,7 +38,7 @@ export async function startRunningHubWorkflowTest(input: StartWorkflowTestInput)
         return { runId: running.id, status: running.status, taskId: running.taskId, workflowKey: running.workflowKey, workflowVersion: running.workflowVersion };
     } catch (error) {
         const failed = await updateAdminWorkflowTest({ ...record, status: "error", error: safeError(error) });
-        await saveWorkflowTestSummary(config.workflowKey, "failed", failed.error);
+        await saveWorkflowTestSummary(config.workflowKey, "failed", failed.error, configFingerprint, config.channelId, config.version);
         throw Object.assign(new Error(failed.error), { runId: failed.id });
     }
 }
@@ -68,11 +69,11 @@ export async function inspectRunningHubWorkflowTest(input: { workflowKey: string
             durationMs: Date.now() - record.createdAt,
         };
         const saved = await updateAdminWorkflowTest(next);
-        if (saved.status === "success" || saved.status === "error") await saveWorkflowTestSummary(config.workflowKey, saved.status === "success" ? "success" : "failed", saved.error, saved.configFingerprint);
+        if (saved.status === "success" || saved.status === "error") await saveWorkflowTestSummary(config.workflowKey, saved.status === "success" ? "success" : "failed", saved.error, saved.configFingerprint, config.channelId, config.version);
         return publicTest(saved);
     } catch (error) {
         const saved = await updateAdminWorkflowTest({ ...record, status: "error", error: safeError(error), durationMs: Date.now() - record.createdAt });
-        await saveWorkflowTestSummary(config.workflowKey, "failed", saved.error);
+        await saveWorkflowTestSummary(config.workflowKey, "failed", saved.error, record.configFingerprint, config.channelId, config.version);
         return publicTest(saved);
     }
 }
@@ -84,9 +85,9 @@ function taskType(capability: "text" | "image" | "video" | "audio"): GenerationT
 async function prepareReferences(baseUrl: string, apiKey: string, references: WorkflowTestReference[]) {
     return Promise.all(
         references.map(async (reference) => {
-            if (!reference.file) return { type: reference.type, url: reference.url, assetId: reference.assetId };
+            if (!reference.file) return { type: reference.type, inputKey: reference.inputKey, url: reference.url, assetId: reference.assetId };
             const url = await uploadRunningHubMedia({ baseUrl, apiKey, file: reference.file, fileName: reference.fileName || "workflow-test-media" });
-            return { type: reference.type, url };
+            return { type: reference.type, inputKey: reference.inputKey, url };
         }),
     );
 }
@@ -117,11 +118,13 @@ function publicTest(record: AdminWorkflowTestRecord) {
     };
 }
 
-async function saveWorkflowTestSummary(workflowKey: string, result: "success" | "failed", error?: string, configFingerprint?: string) {
+async function saveWorkflowTestSummary(workflowKey: string, result: "success" | "failed", error?: string, configFingerprint?: string, channelId?: string, version?: number) {
     const settings = await getFreshAuthSettings();
     const systemChannels = settings.systemChannels.map((channel) => {
         const workflows = channel.advancedConfig?.workflowConfigs;
         const current = workflows?.[workflowKey];
+        if (channelId && channel.id !== channelId) return channel;
+        if (version && current && Number((current as { version?: unknown }).version) !== version) return channel;
         if (!current) return channel;
         return {
             ...channel,
