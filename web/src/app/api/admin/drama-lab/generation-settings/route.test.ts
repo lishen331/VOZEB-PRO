@@ -13,7 +13,7 @@ vi.mock("@/lib/admin-permissions", () => ({ hasAnyAdminPermission: mocks.hasAnyA
 vi.mock("@/lib/auth/store", () => ({ getFreshAuthSettings: mocks.getFreshAuthSettings }));
 vi.mock("@/lib/server/database", () => ({ ensurePostgresSchema: mocks.ensurePostgresSchema, getDatabaseProvider: mocks.getDatabaseProvider }));
 
-import { DELETE, GET, PUT } from "./route";
+import { DELETE, GET, POST, PUT } from "./route";
 
 const settings = () => ({
     generationConcurrency: { agent: 2, image: 7, video: 4, audio: 2, text: 4, render: 1 },
@@ -56,7 +56,7 @@ describe("Drama Lab generation settings compatibility API", () => {
     });
 
     it("rejects all compatibility mutations with 410 after authorization", async () => {
-        const handlers = [PUT, DELETE];
+        const handlers = [PUT, POST, DELETE];
         for (const handler of handlers) {
             const response = requireResponse(await handler());
             expect(response.status).toBe(410);
