@@ -43,6 +43,7 @@ export type SystemChannelStreamingConfig = {
 };
 
 export type RunningHubWorkflowBusinessCode = "script" | "storyboard-image" | "storyboard-video" | "dubbing" | "music" | "canvas" | "drama";
+export type PracticeWorkflowModelBindings = Partial<Record<RunningHubWorkflowBusinessCode, string[]>>;
 export type RunningHubWorkflowInputField = {
     key: string;
     label: string;
@@ -87,6 +88,10 @@ export type RunningHubWorkflowConfig = {
     inputSchema: RunningHubWorkflowInputField[];
     nodeMappings: RunningHubNodeMapping[];
     outputMappings: RunningHubOutputMapping[];
+    /** New or edited configs must pass a successful sample test before enable. */
+    testRequired?: boolean;
+    workflowJsonFingerprint?: string;
+    lastTestConfigFingerprint?: string;
     timeoutSeconds?: number;
     runOptions?: Record<string, string | number | boolean | null>;
     lastTestAt?: string;
@@ -540,7 +545,7 @@ export type AuthSettings = {
     logicalModels: LogicalModel[];
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
-    practiceWorkflowModels: Partial<Record<RunningHubWorkflowBusinessCode, string>>;
+    practiceWorkflowModels: PracticeWorkflowModelBindings;
     agentSkills: AgentSkill[];
 };
 

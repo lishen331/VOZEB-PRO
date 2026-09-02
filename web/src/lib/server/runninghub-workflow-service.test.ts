@@ -12,7 +12,7 @@ vi.mock("@/lib/auth/store", () => ({
 
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store-types";
-import { RunningHubWorkflowError, copyWorkflowVersion, createWorkflow, getWorkflow, listWorkflows, setWorkflowEnabled, updateWorkflow } from "./runninghub-workflow-service";
+import { RunningHubWorkflowError, copyWorkflowVersion, createWorkflow, getWorkflow, listWorkflows, parseWorkflowId, setWorkflowEnabled, updateWorkflow } from "./runninghub-workflow-service";
 
 const workflow = {
     workflowKey: "storyboard-image-v1",
@@ -21,7 +21,7 @@ const workflow = {
     capability: "image",
     providerType: "runninghub",
     channelId: "rh-practice",
-    workflowId: "workflow-001",
+    workflowId: "2087498214948823042",
     version: 1,
     enabled: true,
     createPath: "/task/create",
@@ -29,7 +29,7 @@ const workflow = {
     taskIdField: "data.taskId",
     statusField: "data.status",
     resultField: "data.result",
-    requestTemplate: '{"workflowId":"workflow-001","secret":"do-not-return"}',
+    requestTemplate: '{"workflowId":"2087498214948823042","secret":"do-not-return"}',
     inputSchema: [{ key: "prompt", label: "提示词", type: "textarea", required: true }],
     nodeMappings: [{ paramKey: "prompt", nodeId: "87", fieldName: "text", valueType: "STRING", source: "INPUT", inputKey: "prompt" }],
     outputMappings: [{ key: "image", label: "图片", nodeId: "90", assetType: "IMAGE", required: true, primary: true }],
@@ -76,6 +76,12 @@ describe("runninghub workflow service", () => {
         mocks.setAuthSettings.mockImplementation(async (patch: Partial<AuthSettings>) => ({ ...saved, ...patch }));
     });
 
+    it("extracts workflow ids from explicit URL segments without guessing project ids", () => {
+        expect(parseWorkflowId("https://runninghub.example/workflow/2090436199843454978")).toBe("2090436199843454978");
+        expect(parseWorkflowId("https://runninghub.example/project/999999999999/workflow/2090436199843454978")).toBe("2090436199843454978");
+        expect(parseWorkflowId("https://runninghub.example/project/999999999999/asset/888888888888")).toBe("");
+    });
+
     it("creates version one disabled and never returns API secrets or the full request template", async () => {
         const result = await createWorkflow({
             ...workflow,
@@ -103,14 +109,9 @@ describe("runninghub workflow service", () => {
         expect(result.items[0].requestTemplate).toBeUndefined();
     });
 
-    it("copies a version with an incremented disabled version and can activate it atomically", async () => {
-        const result = await copyWorkflowVersion(workflow.workflowKey, { activateVersion: true });
-        const savedChannels = mocks.setAuthSettings.mock.calls[0][0].systemChannels as SystemModelChannel[];
-        const savedConfigs = savedChannels[0].advancedConfig?.workflowConfigs || {};
-
-        expect(result).toMatchObject({ version: 2, enabled: true, workflowId: workflow.workflowId });
-        expect(savedConfigs[workflow.workflowKey]).toMatchObject({ enabled: false, lastTestResult: "success" });
-        expect(savedConfigs[result.workflowKey]).toMatchObject({ version: 2, enabled: true });
+    it("does not activate a copied version before it has fresh test evidence", async () => {
+        await expect(copyWorkflowVersion(workflow.workflowKey, { activateVersion: true })).rejects.toMatchObject({ status: 409 });
+        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
     });
 
     it("rejects edits to an enabled version and only changes activation through version operations", async () => {

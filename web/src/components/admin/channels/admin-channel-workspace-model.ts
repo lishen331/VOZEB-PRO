@@ -1,5 +1,5 @@
 import type { LogicalModelCapability, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
-import type { RunningHubWorkflowBusinessCode } from "@/lib/auth/store-types";
+import type { PracticeWorkflowModelBindings } from "@/lib/auth/store-types";
 import { channelDetectedCapabilities, normalizeDefaultModelsConfig } from "@/lib/model-routing-config";
 import { channelProtocolDefinition } from "@/lib/channel-protocol-registry";
 
@@ -8,7 +8,7 @@ export type ChannelWorkspaceSettings = {
     logicalModels: import("@/lib/auth/store").LogicalModel[];
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
-    practiceWorkflowModels?: Partial<Record<RunningHubWorkflowBusinessCode, string>>;
+    practiceWorkflowModels?: PracticeWorkflowModelBindings;
 };
 
 export type ChannelWorkspaceStatus = "enabled" | "draft" | "disabled";
@@ -45,7 +45,16 @@ export function removeChannelFromWorkspace(settings: ChannelWorkspaceSettings, c
         logicalModels,
         defaultModels: Object.fromEntries(Object.entries(settings.defaultModels).map(([key, value]) => [key, liveIds.has(value) ? value : ""])) as SystemDefaultModels,
         practiceDefaultModels: Object.fromEntries(Object.entries(settings.practiceDefaultModels).map(([key, value]) => [key, liveIds.has(value) ? value : ""])) as SystemDefaultModels,
-        ...(settings.practiceWorkflowModels ? { practiceWorkflowModels: Object.fromEntries(Object.entries(settings.practiceWorkflowModels).filter(([, value]) => liveIds.has(value))) as Partial<Record<RunningHubWorkflowBusinessCode, string>> } : {}),
+        ...(settings.practiceWorkflowModels
+            ? {
+                  practiceWorkflowModels: Object.fromEntries(
+                      Object.entries(settings.practiceWorkflowModels).flatMap(([key, values]) => {
+                          const next = (Array.isArray(values) ? values : [values]).filter((value) => liveIds.has(value));
+                          return next.length ? [[key, next]] : [];
+                      }),
+                  ) as PracticeWorkflowModelBindings,
+              }
+            : {}),
     };
 }
 

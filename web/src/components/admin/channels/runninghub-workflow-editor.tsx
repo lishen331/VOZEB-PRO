@@ -1,10 +1,11 @@
 "use client";
 
-import { App, Button, Drawer, Input, InputNumber, Select, Space, Tabs } from "antd";
-import { useEffect, useState } from "react";
+import { Alert, App, Button, Checkbox, Collapse, Drawer, Input, InputNumber, Select, Space, Tabs } from "antd";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";
 import type { PublicRunningHubWorkflow } from "@/lib/server/runninghub-workflow-service";
+import type { RunningHubWorkflowDiscovery } from "@/lib/server/runninghub-workflow-discovery";
 
 const businessOptions: Array<{ value: RunningHubWorkflowBusinessCode; label: string; capability: RunningHubWorkflowConfig["capability"] }> = [
     { value: "script", label: "脚本", capability: "text" },
@@ -20,6 +21,7 @@ type Props = {
     open: boolean;
     channelId: string;
     workflow?: PublicRunningHubWorkflow;
+    autoDiscover?: boolean;
     onClose: () => void;
     onSaved: () => Promise<void>;
 };
@@ -33,12 +35,17 @@ const jsonDefaults = {
     runOptions: "{}",
 };
 
-export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, onSaved }: Props) {
+export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscover = false, onClose, onSaved }: Props) {
     const { message } = App.useApp();
     const [draft, setDraft] = useState<Draft>(() => makeDraft(channelId, workflow));
     const [jsonText, setJsonText] = useState(jsonDefaults);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
+    const [discovering, setDiscovering] = useState(false);
+    const [discovery, setDiscovery] = useState<RunningHubWorkflowDiscovery | null>(null);
+    const [activeTab, setActiveTab] = useState("basic");
+    const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+    const autoDiscoverStarted = useRef(false);
     const business = businessOptions.find((item) => item.value === draft.businessCode);
 
     useEffect(() => {
@@ -51,6 +58,10 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
             runOptions: JSON.stringify(workflow?.runOptions || {}, null, 2),
         });
         setErrors({});
+        setDiscovery(null);
+        setActiveTab("basic");
+        setSelectedCandidates([]);
+        autoDiscoverStarted.current = false;
     }, [channelId, open, workflow]);
 
     const update = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -70,11 +81,6 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
         const nextErrors: Record<string, string> = {};
         if (!String(draft.workflowName || "").trim()) nextErrors.workflowName = "请填写工作流名称";
         if (!String(draft.workflowId || "").trim()) nextErrors.workflowId = "请填写 Workflow ID";
-        if (!String(draft.createPath || "").trim()) nextErrors.createPath = "请填写创建路径";
-        if (!String(draft.queryPath || "").trim()) nextErrors.queryPath = "请填写查询路径";
-        if (!String(draft.taskIdField || "").trim()) nextErrors.taskIdField = "请填写任务 ID 字段";
-        if (!String(draft.statusField || "").trim()) nextErrors.statusField = "请填写状态字段";
-        if (!String(draft.resultField || "").trim()) nextErrors.resultField = "请填写结果字段";
         setErrors(nextErrors);
         if (Object.keys(nextErrors).length) return;
         const inputSchema = parseJson("inputSchema", "array");
@@ -82,6 +88,10 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
         const outputMappings = parseJson("outputMappings", "array");
         const runOptions = parseJson("runOptions", "object");
         if ([inputSchema, nodeMappings, outputMappings, runOptions].some((value) => value === undefined)) return;
+        const confirmedNodeMappings =
+            discovery && selectedCandidates.length ? (nodeMappings as Array<Record<string, unknown>>).filter((mapping) => selectedCandidates.includes(`${String(mapping.nodeId || "")}.${String(mapping.fieldName || "")}`)) : nodeMappings;
+        const confirmedOutputMappings =
+            discovery && selectedCandidates.length ? (outputMappings as Array<Record<string, unknown>>).filter((mapping) => selectedCandidates.some((candidate) => candidate.startsWith(`${String(mapping.nodeId || "")}.`))) : outputMappings;
         setSaving(true);
         try {
             const payload: Record<string, unknown> = {
@@ -96,10 +106,11 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
                 statusField: String(draft.statusField || "").trim(),
                 resultField: String(draft.resultField || "").trim(),
                 inputSchema,
-                nodeMappings,
-                outputMappings,
+                nodeMappings: confirmedNodeMappings,
+                outputMappings: confirmedOutputMappings,
                 runOptions,
                 timeoutSeconds: draft.timeoutSeconds,
+                workflowJsonFingerprint: discovery?.workflowJsonFingerprint || workflow?.workflowJsonFingerprint,
             };
             if (!workflow || !workflow.requestTemplateConfigured) payload.requestTemplate = String(draft.requestTemplate || "");
             const response = await fetch(workflow ? `/api/admin/runninghub/workflows/${encodeURIComponent(workflow.workflowKey)}` : "/api/admin/runninghub/workflows", {
@@ -118,6 +129,50 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
             setSaving(false);
         }
     };
+
+    const discover = useCallback(
+        async (override?: { workflowIdOrUrl?: string; capability?: RunningHubWorkflowConfig["capability"] }) => {
+            const workflowIdOrUrl = String(override?.workflowIdOrUrl || draft.workflowId || "").trim();
+            const capability = override?.capability || draft.capability;
+            if (!workflowIdOrUrl) {
+                setErrors((current) => ({ ...current, workflowId: "请填写 Workflow ID 或完整链接" }));
+                return;
+            }
+            setDiscovering(true);
+            setErrors((current) => ({ ...current, workflowId: "" }));
+            try {
+                const response = await fetch("/api/admin/runninghub/workflows/discover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channelId, workflowIdOrUrl, capability }) });
+                const result = (await response.json()) as { data?: RunningHubWorkflowDiscovery; msg?: string };
+                if (!response.ok || !result.data) throw new Error(result.msg || "读取工作流失败");
+                setDiscovery(result.data);
+                setActiveTab("discovery");
+                setSelectedCandidates(
+                    result.data.candidates
+                        .filter((candidate) => candidate.role === "output" || result.data?.suggestedNodeMappings.some((mapping) => mapping.nodeId === candidate.nodeId && mapping.fieldName === candidate.fieldName))
+                        .map((candidate) => `${candidate.nodeId}.${candidate.fieldName}`),
+                );
+                setDraft((current) => ({ ...current, workflowId: result.data?.workflowId, inputSchema: result.data?.suggestedInputs, nodeMappings: result.data?.suggestedNodeMappings, outputMappings: result.data?.suggestedOutputs }));
+                setJsonText({
+                    inputSchema: JSON.stringify(result.data.suggestedInputs, null, 2),
+                    nodeMappings: JSON.stringify(result.data.suggestedNodeMappings, null, 2),
+                    outputMappings: JSON.stringify(result.data.suggestedOutputs, null, 2),
+                    runOptions: jsonText.runOptions,
+                });
+            } catch (error) {
+                message.error(error instanceof Error ? error.message : "读取工作流失败");
+            } finally {
+                setDiscovering(false);
+            }
+        },
+        [channelId, draft.capability, draft.workflowId, jsonText.runOptions, message],
+    );
+
+    useEffect(() => {
+        if (open && autoDiscover && workflow?.workflowId && !autoDiscoverStarted.current) {
+            autoDiscoverStarted.current = true;
+            void discover({ workflowIdOrUrl: workflow.workflowId, capability: workflow.capability });
+        }
+    }, [autoDiscover, discover, open, workflow?.capability, workflow?.workflowId]);
 
     const jsonField = (key: keyof typeof jsonText, label: string, expected: "array" | "object") => (
         <div>
@@ -154,6 +209,8 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
             }
         >
             <Tabs
+                activeKey={activeTab}
+                onChange={setActiveTab}
                 items={[
                     {
                         key: "basic",
@@ -187,6 +244,11 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
                                 <Field label="Workflow ID" error={errors.workflowId}>
                                     <Input value={String(draft.workflowId || "")} onChange={(event) => update({ workflowId: event.target.value })} />
                                 </Field>
+                                <div className="flex items-end">
+                                    <Button className="w-full" loading={discovering} onClick={() => void discover()}>
+                                        读取工作流
+                                    </Button>
+                                </div>
                                 <Field label="超时（秒）">
                                     <InputNumber className="w-full" min={1} value={draft.timeoutSeconds} onChange={(value) => update({ timeoutSeconds: value == null ? undefined : Number(value) })} />
                                 </Field>
@@ -194,8 +256,54 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
                         ),
                     },
                     {
+                        key: "discovery",
+                        label: "识别结果",
+                        children: discovery ? (
+                            <div className="space-y-3">
+                                {discovery.warnings.length ? (
+                                    <Alert
+                                        type="warning"
+                                        showIcon
+                                        message="需要确认的工作流风险"
+                                        description={
+                                            <ul className="list-disc pl-5">
+                                                {discovery.warnings.map((warning) => (
+                                                    <li key={warning}>{warning}</li>
+                                                ))}
+                                            </ul>
+                                        }
+                                    />
+                                ) : null}
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    {discovery.candidates.map((candidate) => (
+                                        <label key={`${candidate.nodeId}.${candidate.fieldName}`} className="flex items-start gap-2 rounded-md border border-stone-200 p-2 text-sm dark:border-stone-800">
+                                            <Checkbox
+                                                checked={selectedCandidates.includes(`${candidate.nodeId}.${candidate.fieldName}`)}
+                                                disabled={candidate.role === "unknown"}
+                                                onChange={(event) =>
+                                                    setSelectedCandidates((current) => (event.target.checked ? [...current, `${candidate.nodeId}.${candidate.fieldName}`] : current.filter((item) => item !== `${candidate.nodeId}.${candidate.fieldName}`)))
+                                                }
+                                            />
+                                            <span>
+                                                <span className="font-medium">{candidate.label}</span>
+                                                <span className="ml-2 text-xs text-stone-500">
+                                                    {candidate.nodeId}.{candidate.fieldName} · {candidate.confidence}
+                                                </span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <div className="text-xs text-stone-500">
+                                    已生成 {discovery.suggestedInputs.length} 个输入、{discovery.suggestedOutputs.length} 个输出建议，请确认后保存。
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-sm text-stone-500">先点击“读取工作流”获取输入、输出候选和默认文件风险。</div>
+                        ),
+                    },
+                    {
                         key: "upstream",
-                        label: "平台对接",
+                        label: "高级配置",
                         children: (
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <Field label="创建路径" error={errors.createPath}>
@@ -226,9 +334,19 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, onClose, o
                             </div>
                         ),
                     },
-                    { key: "input", label: "参数契约", children: jsonField("inputSchema", "inputSchema JSON（字段路径错误会在这里提示）", "array") },
-                    { key: "nodes", label: "节点映射", children: jsonField("nodeMappings", "nodeMappings JSON", "array") },
-                    { key: "outputs", label: "出参映射", children: jsonField("outputMappings", "outputMappings JSON", "array") },
+                    {
+                        key: "advanced-json",
+                        label: "节点与出参高级信息",
+                        children: (
+                            <Collapse
+                                items={[
+                                    { key: "input", label: "输入契约", children: jsonField("inputSchema", "inputSchema JSON", "array") },
+                                    { key: "nodes", label: "节点映射", children: jsonField("nodeMappings", "nodeMappings JSON", "array") },
+                                    { key: "outputs", label: "输出映射", children: jsonField("outputMappings", "outputMappings JSON", "array") },
+                                ]}
+                            />
+                        ),
+                    },
                     {
                         key: "test",
                         label: "测试运行",

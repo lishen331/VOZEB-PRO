@@ -10,6 +10,7 @@ export type AdminWorkflowTestRecord = {
     workflowKey: string;
     workflowVersion: number;
     upstreamWorkflowId: string;
+    configFingerprint?: string;
     businessCode: string;
     type: GenerationTaskType;
     status: GenerationTaskStatus;

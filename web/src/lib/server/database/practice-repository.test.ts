@@ -51,14 +51,43 @@ describe("PracticeRepository", () => {
         expect(String(query.mock.calls[0]?.[0])).toContain("ON CONFLICT (user_id, client_request_id)");
     });
 
-    it("stores practice sessions with explicit module and status", async () => {
-        const { executor, query } = mockExecutor([[{ id: "session-one", user_id: "user-one", module: "script", status: "queued", prompt_json: {}, input_json: {}, task_refs: [] }]]);
+    it("stores practice sessions with mode, model and public error fields", async () => {
+        const row = {
+            id: "session-one",
+            user_id: "user-one",
+            module: "storyboard-image",
+            mode: "workflow",
+            selected_logical_model_id: "practice-image",
+            error_code: "PRACTICE_DISPATCH_FAILED",
+            error_message: "任务提交失败",
+            status: "failed",
+            prompt_json: {},
+            input_json: {},
+            task_refs: [],
+        };
+        const { executor, query } = mockExecutor([[row], [row]]);
         const repository = new PracticeRepository(executor);
 
-        await repository.createPracticeSession({ id: "session-one", userId: "user-one", projectId: "project-one", projectKind: "canvas", module: "script", prompt: {}, input: {}, taskRefs: [], status: "queued" });
+        await repository.createPracticeSession({
+            id: "session-one",
+            userId: "user-one",
+            projectId: "project-one",
+            projectKind: "canvas",
+            module: "storyboard-image",
+            mode: "workflow",
+            selectedLogicalModelId: "practice-image",
+            errorCode: "PRACTICE_DISPATCH_FAILED",
+            errorMessage: "任务提交失败",
+            prompt: {},
+            input: {},
+            taskRefs: [],
+            status: "failed",
+        });
         expect(String(query.mock.calls[0]?.[0])).toContain("INSERT INTO practice_sessions");
         expect(String(query.mock.calls[0]?.[0])).toContain("'open-source-practice'");
-        expect(query.mock.calls[0]?.[1]).toEqual(expect.arrayContaining(["script", "queued"]));
+        expect(String(query.mock.calls[0]?.[0])).toContain("selected_logical_model_id");
+        expect(query.mock.calls[0]?.[1]).toEqual(expect.arrayContaining(["storyboard-image", "workflow", "practice-image", "PRACTICE_DISPATCH_FAILED", "failed"]));
+        await expect(repository.getPracticeSessionForUser("user-one", "session-one")).resolves.toMatchObject({ mode: "workflow", selectedLogicalModelId: "practice-image", errorCode: "PRACTICE_DISPATCH_FAILED", errorMessage: "任务提交失败" });
     });
 
     it("claims a queued session with one conditional provider update", async () => {
@@ -72,15 +101,35 @@ describe("PracticeRepository", () => {
         expect(query).toHaveBeenCalledOnce();
     });
 
+    it("maps a legacy session without mode as workflow", async () => {
+        const { executor } = mockExecutor([[{ id: "legacy", user_id: "user-one", module: "script", status: "success", prompt_json: {}, input_json: {}, task_refs: [{ taskId: "text-one" }] }]]);
+        await expect(new PracticeRepository(executor).getPracticeSessionForUser("user-one", "legacy")).resolves.toMatchObject({ mode: "workflow", status: "success" });
+    });
+
     it("resets a failed or cancelled session with one conditional provider update", async () => {
         const { executor, query } = mockExecutor([[{ id: "session-one", user_id: "user-one", module: "script", status: "queued", prompt_json: {}, input_json: {}, task_refs: [] }]]);
         const repository = new PracticeRepository(executor);
 
         await expect(repository.resetPracticeSessionForRetry("user-one", "session-one")).resolves.toMatchObject({ id: "session-one", status: "queued" });
 
-        expect(String(query.mock.calls[0]?.[0])).toContain("status IN ('failed', 'cancelled')");
+        expect(String(query.mock.calls[0]?.[0])).toContain("status IN ('failed', 'cancelled') OR");
         expect(String(query.mock.calls[0]?.[0])).toContain("task_refs = '[]'::jsonb");
+        expect(String(query.mock.calls[0]?.[0])).toContain("error_code = NULL");
         expect(query).toHaveBeenCalledOnce();
+    });
+
+    it("clears nullable error fields when a successful patch supplies undefined", async () => {
+        const { executor, query } = mockExecutor([
+            [{ id: "session-one", user_id: "user-one", module: "script", status: "success", prompt_json: {}, input_json: {}, task_refs: [], error_code: null, error_message: null }],
+            [{ id: "session-one", user_id: "user-one", module: "script", status: "success", prompt_json: {}, input_json: {}, task_refs: [], error_code: null, error_message: null }],
+        ]);
+        const repository = new PracticeRepository(executor);
+
+        await repository.updatePracticeSession("user-one", "session-one", { status: "success", errorCode: undefined, errorMessage: undefined });
+
+        expect(String(query.mock.calls[1]?.[0])).not.toContain("COALESCE");
+        const values = query.mock.calls[1]?.[1] as unknown[] | undefined;
+        expect(values?.slice(-2)).toEqual([null, null]);
     });
 
     it("creates a copy inside the caller transaction with the practice execution profile", async () => {

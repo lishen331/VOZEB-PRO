@@ -10,20 +10,49 @@ type FetchImplementation = (input: RequestInfo | URL, init?: RequestInit) => Pro
 export type RunningHubOutput = RunningHubOutputMapping & { values: unknown[] };
 export type RunningHubTaskQueryResult = { status: string; resultUrl?: string; resultUrls?: string[]; resultText?: string; outputs?: RunningHubOutput[]; raw: unknown };
 
+export async function fetchRunningHubWorkflowJson(input: { baseUrl: string; apiKey: string; workflowId: string; fetchImpl?: FetchImplementation }): Promise<unknown> {
+    const workflowId = input.workflowId.trim();
+    if (!workflowId) throw new Error("RunningHub Workflow ID 未配置");
+    return requestJson(input.baseUrl, "/api/openapi/getJsonApiFormat", input.apiKey, input.fetchImpl, {
+        method: "POST",
+        body: JSON.stringify({ workflowId, apiKey: input.apiKey }),
+        headers: { "content-type": "application/json" },
+    });
+}
+
 export async function submitRunningHubTask(input: { baseUrl: string; apiKey: string; config: RunningHubConfig; payload: Record<string, unknown>; fetchImpl?: FetchImplementation }) {
     const createPath = requiredConfig(input.config.createPath, "createPath");
     const taskIdField = requiredConfig(input.config.taskIdField, "taskIdField");
-    const raw = await requestJson(input.baseUrl, createPath, input.apiKey, input.fetchImpl, { method: "POST", body: JSON.stringify(input.payload), headers: { "content-type": "application/json" } }, input.config.timeoutSeconds);
+    const payload = isOfficialWorkflowCreatePath(createPath) ? { ...input.payload, apiKey: input.apiKey } : input.payload;
+    const raw = await requestJson(input.baseUrl, createPath, input.apiKey, input.fetchImpl, { method: "POST", body: JSON.stringify(payload), headers: { "content-type": "application/json" } }, input.config.timeoutSeconds);
     const taskId = readProviderString(raw, taskIdField, []);
     if (!taskId) throw new Error("RunningHub 提交响应缺少配置的任务 ID 字段");
     return { taskId, raw };
 }
 
+function isOfficialWorkflowCreatePath(path: string) {
+    return path.replace(/\/+$/, "").toLowerCase() === "/task/openapi/create";
+}
+
+function isOfficialWorkflowQueryPath(path: string) {
+    const normalized = path.replace(/\/+$/, "").toLowerCase();
+    return normalized === "/openapi/v2/query" || normalized === "/task/openapi/status";
+}
+
 export async function queryRunningHubTask(input: { baseUrl: string; apiKey: string; config: RunningHubConfig; taskId: string; fetchImpl?: FetchImplementation }): Promise<RunningHubTaskQueryResult> {
-    const queryPath = providerTaskPath(requiredConfig(input.config.queryPath, "queryPath"), input.taskId);
+    const configuredQueryPath = requiredConfig(input.config.queryPath, "queryPath");
+    const officialQuery = isOfficialWorkflowQueryPath(configuredQueryPath);
+    const queryPath = officialQuery ? configuredQueryPath : providerTaskPath(configuredQueryPath, input.taskId);
     const statusField = requiredConfig(input.config.statusField, "statusField");
     const resultField = requiredConfig(input.config.resultField, "resultField");
-    const raw = await requestJson(input.baseUrl, queryPath, input.apiKey, input.fetchImpl, { method: "GET" }, input.config.timeoutSeconds);
+    const raw = await requestJson(
+        input.baseUrl,
+        queryPath,
+        input.apiKey,
+        input.fetchImpl,
+        officialQuery ? { method: "POST", body: JSON.stringify({ taskId: input.taskId }), headers: { "content-type": "application/json" } } : { method: "GET" },
+        input.config.timeoutSeconds,
+    );
     const status = readProviderString(raw, statusField, []);
     const result = readProviderValue(raw, resultField);
     const outputs = resolveOutputs(result, raw, input.config.outputMappings || []);
@@ -58,7 +87,11 @@ async function requestJson(baseUrl: string, path: string, apiKey: string, fetchI
     const timeout = typeof timeoutSeconds === "number" && Number.isFinite(timeoutSeconds) && timeoutSeconds > 0 ? AbortSignal.timeout(timeoutSeconds * 1000) : undefined;
     const response = await request(providerUrl(baseUrl, path), { ...init, ...(timeout ? { signal: timeout } : {}), headers, cache: "no-store" });
     const raw = (await response.json().catch(() => null)) as unknown;
-    if (!response.ok || !raw || isProviderBusinessError(raw)) throw new Error(readProviderError(raw) || `RunningHub 请求失败（${response.status}）`);
+    if (!response.ok || !raw || isProviderBusinessError(raw)) {
+        const rawMessage = readProviderError(raw);
+        const message = rawMessage && apiKey.trim() ? rawMessage.replaceAll(apiKey.trim(), "[redacted]") : rawMessage;
+        throw new Error(message || `RunningHub 请求失败（${response.status}）`);
+    }
     return raw;
 }
 

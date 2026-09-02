@@ -1001,6 +1001,7 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         workflowKey: cleanContextText(context.workflowKey),
         workflowVersion: Number.isSafeInteger(workflowVersion) && workflowVersion > 0 ? workflowVersion : undefined,
         upstreamWorkflowId: cleanContextText(context.upstreamWorkflowId),
+        workflowConfigFingerprint: cleanContextText(context.workflowConfigFingerprint),
         businessCode,
         taskOrigin: context.taskOrigin === "admin-workflow-test" ? "admin-workflow-test" : "user",
     };
@@ -1025,6 +1026,7 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         workflowKey: next.workflowKey || previous?.workflowKey,
         workflowVersion: next.workflowVersion ?? previous?.workflowVersion,
         upstreamWorkflowId: next.upstreamWorkflowId || previous?.upstreamWorkflowId,
+        workflowConfigFingerprint: next.workflowConfigFingerprint || previous?.workflowConfigFingerprint,
         businessCode: next.businessCode || previous?.businessCode,
         taskOrigin: next.taskOrigin || previous?.taskOrigin || "user",
         executionProfile: previous?.executionProfile || next.executionProfile || "production",
@@ -1124,6 +1126,7 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         workflowKey: cleanContextText(String(row.workflow_key || payload.workflowKey || "")),
         workflowVersion: positiveWorkflowVersion(row.workflow_version ?? payload.workflowVersion),
         upstreamWorkflowId: cleanContextText(String(row.upstream_workflow_id || payload.upstreamWorkflowId || "")),
+        workflowConfigFingerprint: cleanContextText(String(payload.workflowConfigFingerprint || "")),
         businessCode: isRunningHubWorkflowBusinessCode(workflowBusinessCode) ? workflowBusinessCode : undefined,
         taskOrigin: row.task_origin === "admin-workflow-test" || payload.taskOrigin === "admin-workflow-test" ? "admin-workflow-test" : "user",
         executionPhase: isExecutionPhase(row.execution_phase) ? row.execution_phase : undefined,

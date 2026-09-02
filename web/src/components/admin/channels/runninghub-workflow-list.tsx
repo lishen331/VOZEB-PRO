@@ -2,7 +2,7 @@
 
 import { App, Button, Empty, Input, Popconfirm, Select, Space, Table, Tag } from "antd";
 import type { TableColumnsType } from "antd";
-import { Copy, Plus, RefreshCw, Settings2, TestTube, ToggleLeft } from "lucide-react";
+import { Plus, RefreshCw, Settings2, TestTube, ToggleLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { SystemModelChannel } from "@/lib/auth/store";
@@ -22,13 +22,28 @@ const labels: Record<RunningHubWorkflowBusinessCode, string> = {
     drama: "短剧练习",
 };
 
+type WorkflowActionColumnRenderer = NonNullable<TableColumnsType<PublicRunningHubWorkflow>[number]["render"]>;
+
+export function getRunningHubWorkflowActionColumn(render: WorkflowActionColumnRenderer): TableColumnsType<PublicRunningHubWorkflow>[number] {
+    return {
+        title: "操作",
+        key: "actions",
+        fixed: "right",
+        width: 320,
+        className: "runninghub-workflow-actions",
+        onHeaderCell: () => ({ className: "runninghub-workflow-actions" }),
+        onCell: () => ({ className: "runninghub-workflow-actions" }),
+        render,
+    };
+}
+
 export function RunningHubWorkflowList({ channel }: { channel: SystemModelChannel }) {
     const { message } = App.useApp();
     const [items, setItems] = useState<PublicRunningHubWorkflow[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState<"all" | "enabled" | "disabled">("all");
-    const [editor, setEditor] = useState<PublicRunningHubWorkflow | null | undefined>();
+    const [editor, setEditor] = useState<{ workflow?: PublicRunningHubWorkflow; autoDiscover?: boolean } | null | undefined>();
     const [testWorkflow, setTestWorkflow] = useState<PublicRunningHubWorkflow | null>(null);
 
     const load = useCallback(async () => {
@@ -52,17 +67,17 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
         void load();
     }, [load]);
 
-    const mutate = async (workflow: PublicRunningHubWorkflow, action: "enable" | "disable" | "copy") => {
+    const mutate = async (workflow: PublicRunningHubWorkflow, action: "enable" | "disable") => {
         try {
-            const endpoint = action === "copy" ? `/api/admin/runninghub/workflows/${encodeURIComponent(workflow.workflowKey)}/versions` : `/api/admin/runninghub/workflows/${encodeURIComponent(workflow.workflowKey)}`;
+            const endpoint = `/api/admin/runninghub/workflows/${encodeURIComponent(workflow.workflowKey)}`;
             const response = await fetch(endpoint, {
-                method: action === "copy" ? "POST" : "PUT",
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(action === "copy" ? { activateVersion: false } : { enabled: action === "enable" }),
+                body: JSON.stringify({ enabled: action === "enable" }),
             });
             const result = (await response.json()) as { msg?: string };
             if (!response.ok) throw new Error(result.msg || "操作失败");
-            message.success(action === "copy" ? "新版本已复制并停用" : action === "enable" ? "工作流已启用" : "工作流已停用");
+            message.success(action === "enable" ? "工作流已启用" : "工作流已停用");
             await load();
         } catch (error) {
             message.error(error instanceof Error ? error.message : "操作失败");
@@ -100,36 +115,31 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                 width: 150,
                 render: (_, item) =>
                     item.lastTestAt ? (
-                        <span className={item.lastTestResult === "success" ? "text-emerald-600" : "text-red-600"}>
-                            {item.lastTestResult === "success" ? "成功" : "失败"} · {new Date(item.lastTestAt).toLocaleString()}
+                        <span className={item.requiresRetest ? "text-amber-600" : item.lastTestResult === "success" ? "text-emerald-600" : "text-red-600"}>
+                            {item.requiresRetest ? "配置已修改，请重新测试" : item.lastTestResult === "success" ? "成功" : "失败"} · {new Date(item.lastTestAt).toLocaleString()}
                         </span>
                     ) : (
                         <span className="text-stone-500">未测试</span>
                     ),
             },
-            {
-                title: "操作",
-                key: "actions",
-                width: 250,
-                render: (_, item) => (
-                    <Space size={4} wrap>
-                        <Button size="small" icon={<Settings2 className="size-3.5" />} onClick={() => setEditor(item)}>
-                            编辑
+            getRunningHubWorkflowActionColumn((_, item) => (
+                <Space size={4} wrap>
+                    <Button size="small" icon={<Settings2 className="size-3.5" />} onClick={() => setEditor({ workflow: item })}>
+                        编辑
+                    </Button>
+                    <Button size="small" icon={<RefreshCw className="size-3.5" />} onClick={() => setEditor({ workflow: item, autoDiscover: true })}>
+                        读取工作流
+                    </Button>
+                    <Button size="small" icon={<TestTube className="size-3.5" />} onClick={() => setTestWorkflow(item)}>
+                        测试
+                    </Button>
+                    <Popconfirm title={item.enabled ? "停用这个版本？" : "启用这个版本？"} onConfirm={() => void mutate(item, item.enabled ? "disable" : "enable")}>
+                        <Button size="small" icon={<ToggleLeft className="size-3.5" />}>
+                            {item.enabled ? "停用" : "启用"}
                         </Button>
-                        <Button size="small" icon={<Copy className="size-3.5" />} onClick={() => void mutate(item, "copy")}>
-                            复制版本
-                        </Button>
-                        <Button size="small" icon={<TestTube className="size-3.5" />} onClick={() => setTestWorkflow(item)}>
-                            测试
-                        </Button>
-                        <Popconfirm title={item.enabled ? "停用这个版本？" : "启用这个版本？"} onConfirm={() => void mutate(item, item.enabled ? "disable" : "enable")}>
-                            <Button size="small" icon={<ToggleLeft className="size-3.5" />}>
-                                {item.enabled ? "停用" : "启用"}
-                            </Button>
-                        </Popconfirm>
-                    </Space>
-                ),
-            },
+                    </Popconfirm>
+                </Space>
+            )),
         ],
         [load, message],
     );
@@ -190,11 +200,11 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                             <Tag color={item.enabled ? "success" : "default"}>{item.enabled ? "启用" : "停用"}</Tag>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
-                            <Button size="small" onClick={() => setEditor(item)}>
+                            <Button size="small" onClick={() => setEditor({ workflow: item })}>
                                 编辑
                             </Button>
-                            <Button size="small" onClick={() => void mutate(item, "copy")}>
-                                复制版本
+                            <Button size="small" onClick={() => setEditor({ workflow: item, autoDiscover: true })}>
+                                读取工作流
                             </Button>
                             <Button size="small" onClick={() => setTestWorkflow(item)}>
                                 测试
@@ -207,7 +217,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                 ))}
                 {!items.length && !loading ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有工作流" /> : null}
             </div>
-            {editor !== undefined ? <RunningHubWorkflowEditor open channelId={channel.id} workflow={editor || undefined} onClose={() => setEditor(undefined)} onSaved={load} /> : null}
+            {editor !== undefined ? <RunningHubWorkflowEditor open channelId={channel.id} workflow={editor?.workflow} autoDiscover={editor?.autoDiscover} onClose={() => setEditor(undefined)} onSaved={load} /> : null}
             {testWorkflow ? <RunningHubWorkflowTestPanel open workflow={testWorkflow} onClose={() => setTestWorkflow(null)} /> : null}
         </section>
     );

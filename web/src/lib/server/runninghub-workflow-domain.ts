@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { LogicalModelCapability, RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig, RunningHubWorkflowInputField, RunningHubNodeMapping, RunningHubOutputMapping, SystemChannelAdvancedConfig } from "@/lib/auth/store-types";
 
 export type { RunningHubNodeMapping, RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig, RunningHubWorkflowInputField, RunningHubOutputMapping } from "@/lib/auth/store-types";
@@ -42,15 +43,18 @@ export function normalizeRunningHubWorkflowConfig(value: unknown): RunningHubWor
         workflowId: text(input.workflowId, 240),
         version: positiveInteger(input.version, 1),
         enabled: input.enabled === true,
-        createPath: path(input.createPath),
-        queryPath: path(input.queryPath),
-        taskIdField: text(input.taskIdField, 500),
-        statusField: text(input.statusField, 500),
-        resultField: text(input.resultField, 500),
-        requestTemplate: text(input.requestTemplate, 12_000),
+        createPath: path(input.createPath) || "/task/openapi/create",
+        queryPath: path(input.queryPath) || "/openapi/v2/query",
+        taskIdField: text(input.taskIdField, 500) || "data.taskId",
+        statusField: text(input.statusField, 500) || "data.status",
+        resultField: text(input.resultField, 500) || "data.result",
+        requestTemplate: text(input.requestTemplate, 12_000) || "{}",
         inputSchema: normalizeInputSchema(input.inputSchema),
         nodeMappings: normalizeNodeMappings(input.nodeMappings),
         outputMappings: normalizeOutputMappings(input.outputMappings),
+        ...(input.testRequired === true ? { testRequired: true } : {}),
+        ...(text(input.workflowJsonFingerprint, 128) ? { workflowJsonFingerprint: text(input.workflowJsonFingerprint, 128) } : {}),
+        ...(text(input.lastTestConfigFingerprint, 128) ? { lastTestConfigFingerprint: text(input.lastTestConfigFingerprint, 128) } : {}),
         ...(positiveInteger(input.timeoutSeconds, 0) ? { timeoutSeconds: positiveInteger(input.timeoutSeconds, 0) } : {}),
         ...(normalizeRunOptions(input.runOptions) ? { runOptions: normalizeRunOptions(input.runOptions) } : {}),
         ...(text(input.lastTestAt, 80) ? { lastTestAt: text(input.lastTestAt, 80) } : {}),
@@ -61,15 +65,16 @@ export function normalizeRunningHubWorkflowConfig(value: unknown): RunningHubWor
 
 export function validateRunningHubWorkflowConfig(value: unknown, siblings: readonly unknown[] = []): string[] {
     const input = asRecord(value);
+    const normalized = normalizeRunningHubWorkflowConfig(value);
     const errors: string[] = [];
     if (!isRunningHubWorkflowBusinessCode(input.businessCode)) errors.push("businessCode 必须是受支持的无限练习业务 code");
     if (!isCapability(input.capability)) errors.push("capability 必须是 text、image、video 或 audio");
     else if (isRunningHubWorkflowBusinessCode(input.businessCode) && input.capability !== CAPABILITY_BY_BUSINESS_CODE[input.businessCode]) errors.push(`capability 与 businessCode 不匹配，应为 ${CAPABILITY_BY_BUSINESS_CODE[input.businessCode]}`);
     if (input.providerType !== "runninghub") errors.push("providerType 必须为 runninghub");
     for (const field of ["workflowKey", "workflowName", "channelId", "workflowId", "createPath", "queryPath", "taskIdField", "statusField", "resultField", "requestTemplate"] as const) {
-        if (!text(input[field], field === "requestTemplate" ? 12_000 : 500)) errors.push(`${field} 不能为空`);
+        if (!text(normalized[field], field === "requestTemplate" ? 12_000 : 500)) errors.push(`${field} 不能为空`);
     }
-    if (typeof input.version !== "number" || !Number.isSafeInteger(input.version) || input.version <= 0) errors.push("version 必须为正整数");
+    if (input.version !== undefined && (typeof input.version !== "number" || !Number.isSafeInteger(input.version) || input.version <= 0)) errors.push("version 必须为正整数");
     if (!Array.isArray(input.inputSchema)) errors.push("inputSchema 必须是数组");
     if (!Array.isArray(input.nodeMappings)) errors.push("nodeMappings 必须是数组");
     if (!Array.isArray(input.outputMappings)) errors.push("outputMappings 必须是数组");
@@ -118,7 +123,11 @@ export function validateRunningHubWorkflowConfig(value: unknown, siblings: reado
         if (mapping.nodeId !== undefined && !text(mapping.nodeId, 200)) errors.push(`${path}.nodeId 不能为空`);
     }
 
-    const normalized = normalizeRunningHubWorkflowConfig(value);
+    const evidenceRequired = input.testRequired === true || Boolean(text(input.workflowJsonFingerprint, 128) || text(input.lastTestConfigFingerprint, 128));
+    if (input.enabled && evidenceRequired) {
+        if (!normalized.inputSchema.length || !normalized.nodeMappings.length || !normalized.outputMappings.length) errors.push("启用前必须确认至少一个输入映射、节点映射和输出映射");
+        if (input.lastTestResult !== "success" || text(input.lastTestConfigFingerprint, 128) !== runningHubWorkflowConfigFingerprint(input)) errors.push("启用前必须存在当前配置对应的成功测试证据");
+    }
     const duplicateEnabled = siblings.filter((sibling) => {
         const candidate = normalizeRunningHubWorkflowConfig(sibling);
         return candidate.enabled && normalized.enabled && candidate.channelId === normalized.channelId && candidate.businessCode === normalized.businessCode;
@@ -140,8 +149,37 @@ export function nextWorkflowVersion(configs: readonly unknown[], channelId: stri
 export function resolveEnabledWorkflow(configs: readonly unknown[], channelId: string, businessCode: RunningHubWorkflowBusinessCode) {
     return configs
         .map(normalizeRunningHubWorkflowConfig)
-        .filter((config) => config.enabled && config.channelId === channelId && config.businessCode === businessCode)
+        .filter((config) => config.enabled && config.channelId === channelId && config.businessCode === businessCode && !workflowRequiresRetest(config))
         .sort((left, right) => right.version - left.version)[0];
+}
+
+export function runningHubWorkflowConfigFingerprint(value: unknown): string {
+    const input = asRecord(value);
+    const payload = {
+        workflowId: text(input.workflowId, 240),
+        businessCode: text(input.businessCode, 160),
+        capability: text(input.capability, 40),
+        workflowJsonFingerprint: text(input.workflowJsonFingerprint, 128),
+        createPath: path(input.createPath) || "/task/openapi/create",
+        queryPath: path(input.queryPath) || "/openapi/v2/query",
+        taskIdField: text(input.taskIdField, 500) || "data.taskId",
+        statusField: text(input.statusField, 500) || "data.status",
+        resultField: text(input.resultField, 500) || "data.result",
+        requestTemplate: text(input.requestTemplate, 12_000) || "{}",
+        runOptions: normalizeRunOptions(input.runOptions) || null,
+        timeoutSeconds: positiveInteger(input.timeoutSeconds, 0) || null,
+        inputSchema: sortByKey(normalizeInputSchema(input.inputSchema), "key"),
+        nodeMappings: sortByKey(normalizeNodeMappings(input.nodeMappings), "paramKey"),
+        outputMappings: sortByKey(normalizeOutputMappings(input.outputMappings), "key"),
+    };
+    return createHash("sha256").update(stableStringify(payload)).digest("hex");
+}
+
+export function workflowRequiresRetest(value: unknown): boolean {
+    const input = asRecord(value);
+    const recorded = text(input.lastTestConfigFingerprint, 128);
+    if (input.testRequired !== true && !recorded && !text(input.workflowJsonFingerprint, 128)) return false;
+    return input.lastTestResult !== "success" || recorded !== runningHubWorkflowConfigFingerprint(value);
 }
 
 function normalizeInputSchema(value: unknown): RunningHubWorkflowInputField[] {
@@ -210,4 +248,19 @@ function isCapability(value: unknown): value is LogicalModelCapability {
 
 function isJsonPrimitive(value: unknown): value is string | number | boolean | null {
     return value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+}
+
+function sortByKey<T extends Record<string, unknown>>(items: T[], key: string): T[] {
+    return [...items].sort((left, right) => String(left[key] || "").localeCompare(String(right[key] || "")));
+}
+
+function stableStringify(value: unknown): string {
+    if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+    if (value && typeof value === "object") {
+        return `{${Object.entries(value as Record<string, unknown>)
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
+            .join(",")}}`;
+    }
+    return JSON.stringify(value);
 }
