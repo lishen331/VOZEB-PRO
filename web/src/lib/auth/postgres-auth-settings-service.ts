@@ -11,7 +11,13 @@ export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>) {
     return withPostgresTransaction(async (client) => {
         const settingsRepository = createPostgresRepositories(client).settings;
         await settingsRepository.lock();
-        const settings = normalizeSettings({ ...(await readPostgresAuthSettings(client)), ...patch });
+        const current = await readPostgresAuthSettings(client);
+        const settings = normalizeSettings({
+            ...current,
+            ...patch,
+            generationConcurrency: patch.generationConcurrency ? { ...current.generationConcurrency, ...patch.generationConcurrency } : current.generationConcurrency,
+            generationDefaults: patch.generationDefaults ? { ...current.generationDefaults, ...patch.generationDefaults } : current.generationDefaults,
+        });
         const encrypted = encryptAuthSettingsSecrets(settings);
 
         if (patch.entitlements !== undefined) {

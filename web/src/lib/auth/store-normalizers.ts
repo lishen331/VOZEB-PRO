@@ -343,7 +343,7 @@ export function normalizeAgentSkills(skills: AgentSkill[] | undefined) {
 }
 
 export function normalizeGenerationDefaults(settings: Partial<GenerationDefaultSettings> | undefined): GenerationDefaultSettings {
-    return {
+    const normalized: GenerationDefaultSettings = {
         canvasImageCount: normalizePositiveSafeInteger(settings?.canvasImageCount, DEFAULT_SETTINGS.generationDefaults.canvasImageCount),
         imageSize: allowedText(settings?.imageSize, ["auto", "1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16"], DEFAULT_SETTINGS.generationDefaults.imageSize),
         imageQuality: allowedText(settings?.imageQuality, ["auto", "low", "medium", "high"], DEFAULT_SETTINGS.generationDefaults.imageQuality),
@@ -353,6 +353,13 @@ export function normalizeGenerationDefaults(settings: Partial<GenerationDefaultS
         audioVoice: normalizeText(settings?.audioVoice, DEFAULT_SETTINGS.generationDefaults.audioVoice, 80),
         audioFormat: allowedText(settings?.audioFormat, ["mp3", "wav", "opus", "aac", "flac"], DEFAULT_SETTINGS.generationDefaults.audioFormat),
     };
+    const dramaMaxBatchSize = boundedPositiveInteger(settings?.dramaMaxBatchSize, 1, 100);
+    const dramaImageTimeoutSeconds = boundedPositiveInteger(settings?.dramaImageTimeoutSeconds, 10, 3600);
+    const dramaVideoTimeoutSeconds = boundedPositiveInteger(settings?.dramaVideoTimeoutSeconds, 30, 7200);
+    if (dramaMaxBatchSize !== undefined) normalized.dramaMaxBatchSize = dramaMaxBatchSize;
+    if (dramaImageTimeoutSeconds !== undefined) normalized.dramaImageTimeoutSeconds = dramaImageTimeoutSeconds;
+    if (dramaVideoTimeoutSeconds !== undefined) normalized.dramaVideoTimeoutSeconds = dramaVideoTimeoutSeconds;
+    return normalized;
 }
 
 function normalizeDefaultVideoSeconds(value: unknown) {
@@ -364,6 +371,11 @@ function normalizeDefaultVideoSeconds(value: unknown) {
 function normalizePositiveSafeInteger(value: unknown, fallback: number) {
     const number = Number(value);
     return Number.isSafeInteger(number) && number > 0 ? number : fallback;
+}
+
+function boundedPositiveInteger(value: unknown, minimum: number, maximum: number) {
+    const number = Number(value);
+    return Number.isSafeInteger(number) && number >= minimum && number <= maximum ? number : undefined;
 }
 
 export function allowedText(value: unknown, allowed: string[], fallback: string) {

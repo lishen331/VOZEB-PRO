@@ -211,11 +211,11 @@ export const adminSections: AdminSection[] = [
     { key: "works", label: "作品管理", description: "审核用户发布版本，处理驳回、公开预览和作品下架。", shortDescription: "审核与下架", icon: <GalleryVerticalEnd className="size-4" /> },
     { key: "prompts", label: "提示词运营", description: "维护用户端提示词库展示的公共提示词。", shortDescription: "公共资产", icon: <KeyRound className="size-4" /> },
     { key: "dramaProjects", label: "短剧管理", description: "管理用户短剧项目、分集、角色、场景和生成任务。", shortDescription: "项目与资产", icon: <Clapperboard className="size-4" /> },
-    { key: "dramaLabConfig", label: "AI 配置", description: "管理短剧实验室的 AI 模型配置、提供商和默认模型。", shortDescription: "模型与提供商", icon: <Sparkles className="size-4" /> },
+    { key: "dramaLabConfig", label: "兼容 AI 配置", description: "查看历史短剧 AI 配置；运行时模型请在平台模型渠道中维护。", shortDescription: "历史兼容", icon: <Sparkles className="size-4" /> },
     { key: "dramaLabPrompts", label: "提示词模板", description: "管理角色、场景、分镜和视频生成使用的提示词模板。", shortDescription: "生成模板", icon: <KeyRound className="size-4" /> },
-    { key: "dramaLabScenarios", label: "业务场景", description: "配置横屏、竖屏、宣传片和教学视频的默认参数。", shortDescription: "场景参数", icon: <SlidersHorizontal className="size-4" /> },
-    { key: "dramaLabGeneration", label: "生成设置", description: "配置短剧实验室的并发数、批量大小和超时策略。", shortDescription: "并发与超时", icon: <Activity className="size-4" /> },
-    { key: "dramaLabSd2", label: "SD2 资产", description: "上传、启停、下载和删除 Stable Diffusion 2 模型资产。", shortDescription: "模型文件", icon: <HardDrive className="size-4" /> },
+    { key: "dramaLabScenarios", label: "兼容业务场景", description: "查看历史业务场景参数；当前短剧运行时使用项目和平台全局配置。", shortDescription: "历史兼容", icon: <SlidersHorizontal className="size-4" /> },
+    { key: "dramaLabGeneration", label: "兼容生成设置", description: "查看历史并发和超时设置；当前任务使用平台全局生成策略。", shortDescription: "历史兼容", icon: <Activity className="size-4" /> },
+    { key: "dramaLabSd2", label: "兼容 SD2 资产", description: "查看历史 SD2 资产元数据；当前短剧运行链路不会加载这些文件。", shortDescription: "历史兼容", icon: <HardDrive className="size-4" /> },
     { key: "adminHelp", label: "使用文档", description: "查看后台配置顺序、运营操作、检查项和风险提示。", shortDescription: "配置与运营", icon: <BookOpen className="size-4" /> },
 ];
 

@@ -80,7 +80,7 @@ export const ADMIN_SECTION_PERMISSIONS: Record<AdminSectionKey, readonly AdminPe
     dramaLabConfig: ["content.manage"],
     dramaLabPrompts: ["content.manage"],
     dramaLabScenarios: ["content.manage"],
-    dramaLabGeneration: ["content.manage"],
+    dramaLabGeneration: ["upstream.manage"],
     dramaLabSd2: ["content.manage"],
 };
 

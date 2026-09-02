@@ -3,7 +3,7 @@ import { extname, isAbsolute, relative, resolve } from "node:path";
 
 import { NextResponse } from "next/server";
 
-import { hasAnyAdminPermission } from "@/lib/admin-permissions";
+import { hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";
 import type { DramaLabPromptCategory } from "@/lib/drama-lab-prompt-templates";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ensurePostgresSchema, getDatabaseProvider } from "@/lib/server/database";
@@ -18,9 +18,9 @@ export type Sd2AssetType = (typeof SD2_ASSET_TYPES)[number];
 
 type DramaLabAdmin = Awaited<ReturnType<typeof getCurrentUser>>;
 
-export async function authorizeDramaLabAdmin() {
+export async function authorizeDramaLabAdmin(permissions: readonly AdminPermission[] = ["content.manage"]) {
     const user = await getCurrentUser();
-    if (!user || !hasAnyAdminPermission(user, ["content.manage"])) {
+    if (!user || !hasAnyAdminPermission(user, permissions)) {
         return { response: NextResponse.json({ code: 401, msg: "Unauthorized" }, { status: 401 }) };
     }
     if (getDatabaseProvider() !== "postgres") {
@@ -45,6 +45,10 @@ export function serverError(msg = "Internal Server Error") {
 
 export function notFound(msg = "Resource not found") {
     return NextResponse.json({ code: 404, msg }, { status: 404 });
+}
+
+export function legacyReadOnly(msg = "该短剧兼容配置仅支持查看，当前运行链路不读取此配置") {
+    return NextResponse.json({ code: 410, msg, data: null }, { status: 410 });
 }
 
 export function textValue(value: unknown, maxLength: number, required = false) {

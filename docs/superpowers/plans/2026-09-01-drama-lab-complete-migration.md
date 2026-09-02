@@ -184,6 +184,13 @@ Phase 3 拆为四条独立主线。团队协作审批的业务范围以
 - 补齐 Playwright 真实点击、API 契约、任务恢复、媒体权限和部署冒烟测试。
 - 每个阶段独立提交、独立回滚点，阶段完成后更新 `pending-test.mdx` 和变更记录。
 
+**Phase 4 执行记录（2026-09-03）**
+
+- 已完成短剧运行配置盘点：九套提示词使用全局 `template_key`，模型/渠道使用平台 `getAuthSettings()`，任务使用 `generation_tasks`；旧兼容表未发现运行时读取点，未删除数据表。
+- 提示词保存接口改为全局键原子 UPSERT；后台历史 AI/业务场景/SD2 Tab 改为只读，生成 Tab 只读显示平台全局并发别名；对应旧写入/上传/删除和测试入口已统一改为明确 `410`。
+- 已补普通 Canvas 与短剧 Canvas 隔离、按集 handoff、任务坐标、媒体权限、商单计费/个人积分签名的跨模块契约测试，以及只读部署健康冒烟命令。
+- 定向自动化检查已通过；新增 `web/e2e/drama-lab-phase4.spec.ts` 覆盖指定剧集入口、分镜定位、侧栏收起/展开、按集 Canvas handoff、返回时保留定位、Canvas 剧集切换和 390px/430px 无横向溢出。生产构建（跳过并行协作者的 TypeScript 检查）及 Chromium、mobile-390、mobile-430 登录态回归均通过；真实模型、生产等价 PostgreSQL、Worker 和浏览器人工矩阵仍按统一验收安排待执行。证据见 `docs/superpowers/reports/2026-09-02-drama-lab-phase-4-config-convergence.md` 与 `docs/superpowers/reports/2026-09-02-drama-lab-phase-4-cross-module-regression.md`。
+
 ## 4. 当前协作拆分
 
 | 责任人 | 当前工作 | 允许修改的边界 | 不应修改 |

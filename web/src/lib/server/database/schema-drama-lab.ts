@@ -14,7 +14,8 @@ BEGIN
     FOREACH table_suffix IN ARRAY ARRAY[
         'ai_configs', 'character_library', 'scene_library', 'prop_library',
         'async_tasks', 'image_generations', 'video_generations', 'video_merges',
-        'assets', 'image_proxy_cache', 'ai_model_map', 'global_settings'
+        'assets', 'image_proxy_cache', 'ai_model_map', 'global_settings',
+        'generation_settings'
     ]
     LOOP
         IF to_regclass('public.' || 'drama_lab_' || table_suffix) IS NOT NULL
@@ -394,7 +395,10 @@ CREATE INDEX IF NOT EXISTS drama_projects_scenes_gin_idx ON drama_projects USING
 -- 后台配置：提示词模板
 CREATE TABLE IF NOT EXISTS drama_lab_prompt_templates (
     id text PRIMARY KEY,
-    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    -- Prompt overrides are global to the Short Drama Lab. Keep the last
+    -- editor only as nullable audit metadata so deleting that account cannot
+    -- remove the active system template.
+    user_id text REFERENCES users(id) ON DELETE SET NULL,
     template_key varchar(80),
     name varchar(200) NOT NULL,
     category varchar(32) NOT NULL,
@@ -407,6 +411,16 @@ CREATE TABLE IF NOT EXISTS drama_lab_prompt_templates (
 );
 
 ALTER TABLE drama_lab_prompt_templates ADD COLUMN IF NOT EXISTS template_key varchar(80);
+ALTER TABLE drama_lab_prompt_templates ALTER COLUMN user_id DROP NOT NULL;
+ALTER TABLE drama_lab_prompt_templates DROP CONSTRAINT IF EXISTS drama_lab_prompt_templates_user_id_fkey;
+-- The table-prefix migration can leave either the legacy constraint name or
+-- PostgreSQL's prefixed auto-generated name. Drop both before adding the
+-- non-cascading audit foreign key, otherwise the old CASCADE FK would remain
+-- active alongside the replacement.
+ALTER TABLE drama_lab_prompt_templates DROP CONSTRAINT IF EXISTS vozeb_pro_drama_lab_prompt_templates_user_id_fkey;
+ALTER TABLE drama_lab_prompt_templates
+    ADD CONSTRAINT drama_lab_prompt_templates_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE drama_lab_prompt_templates DROP CONSTRAINT IF EXISTS drama_lab_prompt_templates_category;
 ALTER TABLE drama_lab_prompt_templates
     ADD CONSTRAINT drama_lab_prompt_templates_category
@@ -473,6 +487,55 @@ CREATE TABLE IF NOT EXISTS drama_lab_generation_settings (
     CONSTRAINT drama_lab_generation_settings_image_timeout CHECK (image_timeout BETWEEN 10 AND 3600),
     CONSTRAINT drama_lab_generation_settings_video_timeout CHECK (video_timeout BETWEEN 30 AND 7200)
 );
+
+-- 兼容迁移：旧短剧配置表只作为历史数据源，首次发现时将最新一行补入平台全局设置。
+-- 每个 JSON key 仅在全局值缺失时写入，重复初始化 Schema 不会覆盖管理员已经配置的值。
+WITH legacy AS (
+    SELECT image_concurrency, video_concurrency, max_batch_size, image_timeout, video_timeout
+    FROM drama_lab_generation_settings
+    ORDER BY updated_at DESC, id DESC
+    LIMIT 1
+)
+UPDATE app_settings AS settings
+SET
+    generation_concurrency =
+        (CASE WHEN jsonb_typeof(settings.generation_concurrency) = 'object' THEN settings.generation_concurrency ELSE '{}'::jsonb END)
+        || CASE
+            WHEN (CASE WHEN jsonb_typeof(settings.generation_concurrency) = 'object' THEN settings.generation_concurrency ELSE '{}'::jsonb END) ? 'image'
+                THEN '{}'::jsonb
+            ELSE jsonb_build_object('image', legacy.image_concurrency)
+        END
+        || CASE
+            WHEN (CASE WHEN jsonb_typeof(settings.generation_concurrency) = 'object' THEN settings.generation_concurrency ELSE '{}'::jsonb END) ? 'video'
+                THEN '{}'::jsonb
+            ELSE jsonb_build_object('video', legacy.video_concurrency)
+        END,
+    generation_defaults =
+        (CASE WHEN jsonb_typeof(settings.generation_defaults) = 'object' THEN settings.generation_defaults ELSE '{}'::jsonb END)
+        || CASE
+            WHEN (CASE WHEN jsonb_typeof(settings.generation_defaults) = 'object' THEN settings.generation_defaults ELSE '{}'::jsonb END) ? 'dramaMaxBatchSize'
+                THEN '{}'::jsonb
+            ELSE jsonb_build_object('dramaMaxBatchSize', legacy.max_batch_size)
+        END
+        || CASE
+            WHEN (CASE WHEN jsonb_typeof(settings.generation_defaults) = 'object' THEN settings.generation_defaults ELSE '{}'::jsonb END) ? 'dramaImageTimeoutSeconds'
+                THEN '{}'::jsonb
+            ELSE jsonb_build_object('dramaImageTimeoutSeconds', legacy.image_timeout)
+        END
+        || CASE
+            WHEN (CASE WHEN jsonb_typeof(settings.generation_defaults) = 'object' THEN settings.generation_defaults ELSE '{}'::jsonb END) ? 'dramaVideoTimeoutSeconds'
+                THEN '{}'::jsonb
+            ELSE jsonb_build_object('dramaVideoTimeoutSeconds', legacy.video_timeout)
+        END
+FROM legacy
+WHERE settings.id = 'default'
+  AND (
+      NOT ((CASE WHEN jsonb_typeof(settings.generation_concurrency) = 'object' THEN settings.generation_concurrency ELSE '{}'::jsonb END) ? 'image')
+      OR NOT ((CASE WHEN jsonb_typeof(settings.generation_concurrency) = 'object' THEN settings.generation_concurrency ELSE '{}'::jsonb END) ? 'video')
+      OR NOT ((CASE WHEN jsonb_typeof(settings.generation_defaults) = 'object' THEN settings.generation_defaults ELSE '{}'::jsonb END) ? 'dramaMaxBatchSize')
+      OR NOT ((CASE WHEN jsonb_typeof(settings.generation_defaults) = 'object' THEN settings.generation_defaults ELSE '{}'::jsonb END) ? 'dramaImageTimeoutSeconds')
+      OR NOT ((CASE WHEN jsonb_typeof(settings.generation_defaults) = 'object' THEN settings.generation_defaults ELSE '{}'::jsonb END) ? 'dramaVideoTimeoutSeconds')
+  );
 
 -- 后台配置：Stable Diffusion 2 资产元数据。实际文件存放在 VOZEB_PRO_DATA_DIR 下。
 CREATE TABLE IF NOT EXISTS drama_lab_sd2_assets (

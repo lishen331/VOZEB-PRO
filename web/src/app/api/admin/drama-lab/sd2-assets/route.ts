@@ -1,10 +1,7 @@
-import { randomUUID } from "node:crypto";
-
 import { NextRequest, NextResponse } from "next/server";
 
 import { postgresQuery } from "@/lib/server/database";
-import { readJsonBody } from "@/lib/auth/request";
-import { authorizeDramaLabAdmin, badRequest, sd2AssetType, serverError, textValue } from "../_lib";
+import { authorizeDramaLabAdmin, badRequest, legacyReadOnly, sd2AssetType, serverError, textValue } from "../_lib";
 
 function serializeAsset(row: Record<string, unknown>) {
     const id = String(row.id);
@@ -55,36 +52,9 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
     const auth = await authorizeDramaLabAdmin();
     if ("response" in auth) return auth.response;
 
-    try {
-        const body = await readJsonBody<Record<string, unknown>>(request, 64 * 1024);
-        const name = textValue(body.name, 255, true);
-        const type = sd2AssetType(body.type);
-        const downloadUrl = textValue(body.downloadUrl, 2_000);
-        const fileSize = body.fileSize === undefined ? 0 : Number(body.fileSize);
-        if (!name || !type || !Number.isSafeInteger(fileSize) || fileSize < 0 || fileSize > Number.MAX_SAFE_INTEGER) return badRequest("Invalid SD2 asset");
-        if (downloadUrl) {
-            try {
-                const parsed = new URL(downloadUrl);
-                if (!/^https?:$/.test(parsed.protocol)) return badRequest("Download URL must use HTTP or HTTPS");
-            } catch {
-                return badRequest("Invalid download URL");
-            }
-        }
-
-        const id = `sd2_${randomUUID()}`;
-        const result = await postgresQuery(
-            `INSERT INTO drama_lab_sd2_assets (id, user_id, name, type, file_size, download_url, enabled)
-             VALUES ($1, $2, $3, $4, $5, $6, true)
-             RETURNING id, name, type, file_size, file_path, download_url, mime_type, enabled, created_at, updated_at`,
-            [id, auth.user.id, name, type, fileSize, downloadUrl || null],
-        );
-        return NextResponse.json({ code: 0, data: serializeAsset(result.rows[0] as Record<string, unknown>) }, { status: 201 });
-    } catch (error) {
-        console.error("Failed to create drama lab SD2 asset", error);
-        return serverError();
-    }
+    return legacyReadOnly();
 }

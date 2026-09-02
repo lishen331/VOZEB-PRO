@@ -44,11 +44,20 @@ export async function setAuthSettings(patch: Partial<AuthSettings>) {
     const settings = isPostgresDatabaseEnabled()
         ? await updatePostgresAuthSettings(patch)
         : await mutateAuthDb((db) => {
-              db.settings = normalizeSettings({ ...db.settings, ...patch });
+              db.settings = normalizeSettings(mergeNestedSettings(db.settings, patch));
               return db.settings;
           });
     updatePostgresCache(settings);
     return settings;
+}
+
+function mergeNestedSettings(current: AuthSettings, patch: Partial<AuthSettings>): AuthSettings {
+    return {
+        ...current,
+        ...patch,
+        generationConcurrency: patch.generationConcurrency ? { ...current.generationConcurrency, ...patch.generationConcurrency } : current.generationConcurrency,
+        generationDefaults: patch.generationDefaults ? { ...current.generationDefaults, ...patch.generationDefaults } : current.generationDefaults,
+    };
 }
 
 function updatePostgresCache(settings: AuthSettings) {

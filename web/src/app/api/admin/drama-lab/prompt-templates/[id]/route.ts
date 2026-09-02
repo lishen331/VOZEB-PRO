@@ -21,26 +21,16 @@ export async function PUT(request: NextRequest, { params }: Params) {
             const templateKey = canonicalDramaLabPromptKey(id);
             const template = textValue(body.template, 100_000, true);
             if (!template) return badRequest("Prompt template cannot be empty");
-            const current = await postgresQuery<{ id: string }>(
-                `SELECT id FROM drama_lab_prompt_templates
-                 WHERE template_key = $1 AND deleted_at IS NULL
-                 LIMIT 1`,
-                [templateKey],
+            // The global partial unique index makes this UPSERT safe when two
+            // administrators customize a built-in prompt concurrently.
+            const result = await postgresQuery(
+                `INSERT INTO drama_lab_prompt_templates (id, user_id, template_key, name, category, template, variables)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+                 ON CONFLICT (template_key) WHERE deleted_at IS NULL AND template_key IS NOT NULL
+                 DO UPDATE SET template = EXCLUDED.template, updated_at = NOW()
+                 RETURNING id, template_key, name, category, template, variables, created_at, updated_at`,
+                [`tpl_${randomUUID()}`, auth.user.id, templateKey, definition.name, definition.category, template, JSON.stringify(definition.variables)],
             );
-            const result = current.rows[0]
-                ? await postgresQuery(
-                      `UPDATE drama_lab_prompt_templates
-                       SET template = $1, updated_at = NOW()
-                       WHERE id = $2
-                       RETURNING id, template_key, name, category, template, variables, created_at, updated_at`,
-                      [template, current.rows[0].id],
-                  )
-                : await postgresQuery(
-                      `INSERT INTO drama_lab_prompt_templates (id, user_id, template_key, name, category, template, variables)
-                       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
-                       RETURNING id, template_key, name, category, template, variables, created_at, updated_at`,
-                      [`tpl_${randomUUID()}`, auth.user.id, templateKey, definition.name, definition.category, template, JSON.stringify(definition.variables)],
-                  );
             return NextResponse.json({ code: 0, data: { ...result.rows[0], id, is_builtin: true, is_customized: true } });
         }
         return badRequest("Short Drama Lab only supports its nine bound system templates");

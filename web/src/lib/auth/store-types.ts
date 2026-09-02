@@ -194,6 +194,14 @@ export type GenerationDefaultSettings = {
     videoSeconds: number;
     audioVoice: string;
     audioFormat: string;
+    /**
+     * Legacy Short Drama Lab controls retained in the global settings JSON
+     * during migration. Generic image/video task routes intentionally ignore
+     * these fields; the compatibility admin API still exposes their old names.
+     */
+    dramaMaxBatchSize?: number;
+    dramaImageTimeoutSeconds?: number;
+    dramaVideoTimeoutSeconds?: number;
 };
 
 export type GenerationPointMultipliers = {
