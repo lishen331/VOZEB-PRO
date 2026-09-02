@@ -180,7 +180,6 @@ export async function copyWorkflowVersion(workflowKey: string, input: { config?:
         lastTestConfigFingerprint: undefined,
         testRequired: true,
     });
-    if (candidate.enabled) ensureEnableEvidence(candidate);
     const all = workflowEntries(settings).map((entry) => entry.config);
     if (candidate.enabled) for (const sibling of all) if (sibling.channelId === candidate.channelId && sibling.businessCode === candidate.businessCode) sibling.enabled = false;
     assertValid(
