@@ -52,7 +52,7 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
               }
             : {}),
     };
-    const prompt = typeof input.input.prompt === "string" ? input.input.prompt : "练习任务";
+    const prompt = typeof input.input.prompt === "string" ? input.input.prompt : typeof input.input.text === "string" ? input.input.text : "练习任务";
     const body =
         input.capability === "text"
             ? { config: { model: input.logicalModelId }, messages: [{ role: "user", content: prompt }], context }

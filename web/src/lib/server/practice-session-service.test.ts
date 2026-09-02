@@ -8,7 +8,7 @@ vi.mock("@/lib/server/ip-library-reference-service", () => ({
     recordIpReferenceUsage: mocks.recordIpReferenceUsage,
 }));
 
-import { createPracticeSessionForUser, getPracticeSessionForUser, publicPracticeSession, resolvePracticeModelFromSettings, retryPracticeSessionForUser, type PracticeSessionStore, type PracticeTaskDispatchResult } from "./practice-session-service";
+import { createPracticeSessionForUser, getPracticeSessionForUser, normalizePracticeModuleInput, publicPracticeSession, resolvePracticeModelFromSettings, retryPracticeSessionForUser, type PracticeSessionStore, type PracticeTaskDispatchResult } from "./practice-session-service";
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { PracticeSessionRecord } from "./database/repository-types";
 
@@ -60,6 +60,14 @@ describe("practice sessions", () => {
         vi.clearAllMocks();
         mocks.validateIpReferences.mockResolvedValue([]);
         mocks.recordIpReferenceUsage.mockResolvedValue(undefined);
+    });
+
+    it("validates module-specific workflow inputs", () => {
+        const workflow = { inputSchema: [{ key: "prompt", label: "提示词", type: "textarea", required: true }] } as never;
+        expect(normalizePracticeModuleInput("storyboard-image", { prompt: "雨夜远景" }, [], workflow)).toMatchObject({ input: { prompt: "雨夜远景" } });
+        expect(() => normalizePracticeModuleInput("storyboard-video", { prompt: "镜头推进" }, [], workflow)).toThrow("请选择一张参考图片");
+        expect(normalizePracticeModuleInput("dubbing", { text: "我们出发。" }, [], workflow)).toMatchObject({ input: { text: "我们出发。" } });
+        expect(normalizePracticeModuleInput("music", { prompt: "紧张但克制" }, [], workflow)).toMatchObject({ input: { prompt: "紧张但克制" } });
     });
 
     it("does not create a workflow session when model preflight fails", async () => {
@@ -159,6 +167,11 @@ describe("practice sessions", () => {
             },
         ];
         expect(resolvePracticeModelFromSettings(settings, "storyboard-image")).toMatchObject({ logicalModelId: "practice-image", capability: "image", workflow: { workflowKey: "workflow", version: 1, businessCode: "storyboard-image" } });
+        const second = structuredClone(settings);
+        second.practiceWorkflowModels = { "storyboard-image": ["practice-image", "practice-image-b"] };
+        second.logicalModels.push({ id: "practice-image-b", name: "练习图片 B", capability: "image", enabled: true, bindings: [{ id: "binding-b", channelId: "rh", upstreamModel: "rh-image", enabled: true, priority: 1 }] });
+        expect(resolvePracticeModelFromSettings(second, "storyboard-image", "practice-image-b")).toMatchObject({ logicalModelId: "practice-image-b", capability: "image" });
+        expect(() => resolvePracticeModelFromSettings(second, "storyboard-image", "production-image")).toThrow("所选练习模型不可用");
     });
 
     it("dispatches once for an idempotent client request and keeps provider details private", async () => {

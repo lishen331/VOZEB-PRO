@@ -14,6 +14,7 @@ import { getAudioTask } from "@/lib/server/audio-task-store";
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "./ip-library-reference-service";
 import type { RunningHubWorkflowConfig } from "@/lib/auth/store-types";
+import type { RunningHubWorkflowInputField } from "@/lib/auth/store-types";
 import { resolveEnabledWorkflow } from "./runninghub-workflow-domain";
 
 export type PracticeSessionCreateInput = {
@@ -59,7 +60,7 @@ export type PracticePublicErrorCode = "PRACTICE_MODEL_UNAVAILABLE" | "PRACTICE_W
 export async function createPracticeSessionForUser(
     actor: PracticeActor,
     input: PracticeSessionCreateInput,
-    deps: { store?: PracticeSessionStore; dispatch?: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>; resolveModel?: (module: PracticeModuleKind) => Promise<PracticeModelResolution> } = {},
+    deps: { store?: PracticeSessionStore; dispatch?: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>; resolveModel?: (module: PracticeModuleKind, requestedLogicalModelId?: string) => Promise<PracticeModelResolution> } = {},
 ) {
     await requirePracticeAccess(actor);
     const store = deps.store || defaultPracticeSessionStore();
@@ -83,9 +84,11 @@ export async function createPracticeSessionForUser(
     const references = normalizeReferences(input.references);
     const ipReferences = references.filter((reference): reference is IpReference => reference.type === "ip");
     await validateIpReferences(actor.id, ipReferences);
-    const payload = mode === "manual" ? { title: text(sourcePayload.title), content: text(sourcePayload.content), ...(references.length ? { references } : {}) } : { prompt: text(sourcePayload.prompt), ...(references.length ? { references } : {}) };
+    const baseNormalized = mode === "workflow" ? normalizePracticeModuleInput(moduleKind, sourcePayload, references) : undefined;
     const resolveModel = deps.resolveModel || defaultResolveModel;
-    const model = mode === "workflow" ? await resolveModel(moduleKind) : undefined;
+    const model = mode === "workflow" ? await resolveModel(moduleKind, input.logicalModelId) : undefined;
+    const normalizedWorkflow = mode === "workflow" ? normalizePracticeModuleInput(moduleKind, sourcePayload, references, model?.workflow) : undefined;
+    const payload = mode === "manual" ? { title: text(sourcePayload.title), content: text(sourcePayload.content), ...(references.length ? { references } : {}) } : { ...(normalizedWorkflow?.input || baseNormalized?.input || {}), ...(references.length ? { references } : {}) };
     const created = await store.create({
         id: `practice-session-${nanoid()}`,
         userId: actor.id,
@@ -120,7 +123,7 @@ async function dispatchQueuedSession(
     clientRequestId: string,
     store: PracticeSessionStore,
     dispatch: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>,
-    resolveModel: (module: PracticeModuleKind) => Promise<PracticeModelResolution>,
+    resolveModel: (module: PracticeModuleKind, requestedLogicalModelId?: string) => Promise<PracticeModelResolution>,
     preflightModel?: PracticeModelResolution,
 ) {
     const claimed = await store.claimDispatch(userId, session.id);
@@ -143,7 +146,7 @@ async function dispatchQueuedSession(
             sessionId: claimed.id,
             userId,
             module: claimed.module,
-            input: { prompt: text(storedInput.prompt) },
+            input: Object.fromEntries(Object.entries(storedInput).filter(([key]) => key !== "references")),
             references,
             executionProfile: "open-source-practice",
             capability: model.capability,
@@ -178,7 +181,7 @@ export async function listPracticeSessionsForUser(actor: PracticeActor, input: {
 export async function retryPracticeSessionForUser(
     actor: PracticeActor,
     id: string,
-    deps: { store?: PracticeSessionStore; dispatch?: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>; resolveModel?: (module: PracticeModuleKind) => Promise<PracticeModelResolution> } = {},
+    deps: { store?: PracticeSessionStore; dispatch?: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>; resolveModel?: (module: PracticeModuleKind, requestedLogicalModelId?: string) => Promise<PracticeModelResolution> } = {},
 ) {
     await requirePracticeAccess(actor);
     const store = deps.store || defaultPracticeSessionStore();
@@ -199,7 +202,7 @@ export async function retryPracticeSessionForUser(
     }
     const dispatch = deps.dispatch;
     if (!dispatch) {
-        await (deps.resolveModel || defaultResolveModel)(current.module);
+        await (deps.resolveModel || defaultResolveModel)(current.module, current.selectedLogicalModelId);
         return publicSession(reset);
     }
     return dispatchQueuedSession(actor.id, reset, current.clientRequestId, store, dispatch, deps.resolveModel || defaultResolveModel);
@@ -264,23 +267,63 @@ async function publicTaskResult(session: PracticeSessionRecord) {
     return { status: "success" as const, media: typeof result.url === "string" ? { kind: "audio" as const, url: result.url } : undefined };
 }
 
-async function defaultResolveModel(module: PracticeModuleKind): Promise<PracticeModelResolution> {
+async function defaultResolveModel(module: PracticeModuleKind, requestedLogicalModelId?: string): Promise<PracticeModelResolution> {
     const settings = await getAuthSettings();
-    return resolvePracticeModelFromSettings(settings, module);
+    return resolvePracticeModelFromSettings(settings, module, requestedLogicalModelId);
 }
 
-export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<typeof getAuthSettings>>, module: PracticeModuleKind): PracticeModelResolution {
+export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<typeof getAuthSettings>>, module: PracticeModuleKind, requestedLogicalModelId?: string): PracticeModelResolution {
     const capability = module === "script" ? "text" : module === "storyboard-image" ? "image" : module === "storyboard-video" ? "video" : "audio";
     const key = `${capability}Model` as "textModel" | "imageModel" | "videoModel" | "audioModel";
-    const boundModels = settings.practiceWorkflowModels[module] || [];
-    const requestedModel = (Array.isArray(boundModels) ? boundModels[0] : boundModels) || settings.practiceDefaultModels[key];
+    const rawBindings: unknown = settings.practiceWorkflowModels[module];
+    const boundModels = Array.isArray(rawBindings) ? rawBindings.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : typeof rawBindings === "string" && rawBindings.trim().length > 0 ? [rawBindings] : [];
+    if (module !== "script" && boundModels.length) {
+        const requested = requestedLogicalModelId?.trim();
+        if (requested && !boundModels.some((id) => id.toLowerCase() === requested.toLowerCase())) throw new PracticeServiceError("所选练习模型不可用", 400, "PRACTICE_MODEL_UNAVAILABLE");
+        const candidates = requested ? [requested] : boundModels;
+        let hadModel = false;
+        for (const candidate of candidates) {
+            const model = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, candidate, "", "open-source-practice");
+            if (!model) continue;
+            hadModel = true;
+            const workflow = resolveEnabledWorkflow(Object.values(model.channel.advancedConfig?.workflowConfigs || {}), model.channel.id, module);
+            if (workflow) return { logicalModelId: model.logicalModelId, capability, workflow };
+        }
+        throw new PracticeServiceError(hadModel ? "当前练习模块没有可用工作流" : "当前练习模块没有可用的开源模型", 503, hadModel ? "PRACTICE_WORKFLOW_UNAVAILABLE" : "PRACTICE_MODEL_UNAVAILABLE");
+    }
+    const requestedModel = requestedLogicalModelId?.trim() || boundModels[0] || settings.practiceDefaultModels[key];
     const model = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, requestedModel, "", "open-source-practice");
-    if (!model || !model.channel || !["open-source-practice", "shared"].includes(model.channel.purpose || "shared")) throw new PracticeServiceError("当前练习模块没有可用的开源模型", 503);
-    const workflowModelBinding = settings.practiceWorkflowModels[module];
-    if (!workflowModelBinding || (Array.isArray(workflowModelBinding) && workflowModelBinding.length === 0)) return { logicalModelId: model.logicalModelId, capability };
+    if (!model || !model.channel || !["open-source-practice", "shared"].includes(model.channel.purpose || "shared")) throw new PracticeServiceError("当前练习模块没有可用的开源模型", 503, "PRACTICE_MODEL_UNAVAILABLE");
+    if (module === "script") return { logicalModelId: model.logicalModelId, capability };
     const workflow = resolveEnabledWorkflow(Object.values(model.channel.advancedConfig?.workflowConfigs || {}), model.channel.id, module);
-    if (!workflow) throw new PracticeServiceError("当前练习模块没有可用的 RunningHub 工作流", 503);
+    if (!workflow) throw new PracticeServiceError("当前练习模块没有可用工作流", 503, "PRACTICE_WORKFLOW_UNAVAILABLE");
     return { logicalModelId: model.logicalModelId, capability, workflow };
+}
+
+export function normalizePracticeModuleInput(module: PracticeModuleKind, input: Record<string, unknown>, references: unknown[], workflow?: RunningHubWorkflowConfig) {
+    const normalizedReferences = normalizeReferences(references);
+    const prompt = text(input.prompt);
+    const value = module === "dubbing" ? text(input.text) : prompt;
+    if (!["script"].includes(module) && !value) throw new PracticeServiceError("练习内容不能为空", 400, "PRACTICE_INPUT_INVALID");
+    if (module === "storyboard-video") {
+        const imageReferences = normalizedReferences.filter((reference) => reference.type === "asset");
+        if (imageReferences.length !== 1) throw new PracticeServiceError("请选择一张参考图片", 400, "PRACTICE_REFERENCE_INVALID");
+    }
+    const base = module === "dubbing" ? { text: value } : { prompt: value };
+    const accepted = new Set(["prompt", "text"]);
+    const optional = workflow?.inputSchema.flatMap((field) => {
+        if (field.required || accepted.has(field.key) || input[field.key] === undefined || !matchesWorkflowField(field, input[field.key])) return [];
+        accepted.add(field.key);
+        return [[field.key, input[field.key]] as const];
+    }) || [];
+    return { input: Object.fromEntries([...Object.entries(base), ...optional]), references: normalizedReferences };
+}
+
+function matchesWorkflowField(field: RunningHubWorkflowInputField, value: unknown) {
+    if (field.type === "number") return typeof value === "number" && Number.isFinite(value);
+    if (field.type === "boolean") return typeof value === "boolean";
+    if (field.type === "enum") return typeof value === "string" && (!field.options?.length || field.options.includes(value));
+    return false;
 }
 
 function defaultPracticeSessionStore(): PracticeSessionStore & { list(userId: string, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
