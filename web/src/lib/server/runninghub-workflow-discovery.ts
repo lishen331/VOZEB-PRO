@@ -43,20 +43,21 @@ export function analyzeRunningHubWorkflowJson(input: { workflowId: string; raw: 
     const suggestedNodeMappings: RunningHubNodeMapping[] = [];
     for (const role of ["prompt", "image", "video", "audio", "duration", "enum", "boolean", "number"] as const) {
         const roleCandidates = candidates.filter((item) => item.role === role);
-        if (roleCandidates.length !== 1) continue;
-        const candidate = roleCandidates[0];
-        const key = inputKeyFor(candidate, role);
-        const inputType = candidate.inputType || inputTypeForRole(role);
-        if (!inputType) continue;
-        suggestedInputs.push({ key, label: candidate.label, type: inputType, required: candidate.hasExternalFileDependency || role === "prompt" });
-        suggestedNodeMappings.push({
-            paramKey: key,
-            nodeId: candidate.nodeId,
-            fieldName: candidate.fieldName,
-            valueType: valueTypeForInput(inputType),
-            source: candidate.hasExternalFileDependency ? "INPUT" : "INPUT_OR_DEFAULT",
-            inputKey: key,
-            ...(candidate.defaultValue !== undefined ? { defaultValue: candidate.defaultValue } : {}),
+        if (!roleCandidates.length || (role === "prompt" && roleCandidates.length !== 1)) continue;
+        roleCandidates.forEach((candidate, index) => {
+            const key = inputKeyFor(candidate, role, index);
+            const inputType = candidate.inputType || inputTypeForRole(role);
+            if (!inputType) return;
+            suggestedInputs.push({ key, label: roleCandidates.length > 1 && role === "image" ? `参考图 ${index + 1}` : candidate.label, type: inputType, required: candidate.hasExternalFileDependency || role === "prompt" });
+            suggestedNodeMappings.push({
+                paramKey: key,
+                nodeId: candidate.nodeId,
+                fieldName: candidate.fieldName,
+                valueType: valueTypeForInput(inputType),
+                source: candidate.hasExternalFileDependency ? "INPUT" : "INPUT_OR_DEFAULT",
+                inputKey: key,
+                ...(safeDefaultValue(candidate.fieldName, candidate.defaultValue) !== undefined ? { defaultValue: safeDefaultValue(candidate.fieldName, candidate.defaultValue) } : {}),
+            });
         });
     }
     const outputCandidates = candidates.filter((item) => item.role === "output");
@@ -115,7 +116,7 @@ function analyzeNode(node: Node, capability: LogicalModelCapability): RunningHub
                 role,
                 label: candidateLabel(role, fieldName, node.id),
                 ...(inputType ? { inputType } : {}),
-                ...(isJsonPrimitive(value) ? { defaultValue: value } : {}),
+                ...(safeDefaultValue(fieldName, value) !== undefined ? { defaultValue: safeDefaultValue(fieldName, value) } : {}),
                 hasExternalFileDependency: isExternalFileDependency(value, role),
                 confidence: confidenceFor(node, fieldName, role),
             },
@@ -129,7 +130,7 @@ function classifyRole(node: Node, fieldName: string, value: unknown): RunningHub
     const type = node.type.toLowerCase();
     if (/(duration|seconds|时长)/i.test(field) && typeof value === "number") return "duration";
     if (typeof value === "boolean") return "boolean";
-    if (Array.isArray(value) && value.length && value.every((item) => isJsonPrimitive(item))) return "enum";
+    if (Array.isArray(value) && value.length && value.every((item) => isJsonPrimitive(item)) && !isNodeLink(value)) return "enum";
     if (typeof value === "number") return "number";
     if (isFileLike(value, "image") || /(loadimage|image|参考图|图片)/i.test(`${type} ${field}`)) return "image";
     if (isFileLike(value, "video") || /(loadvideo|video|视频)/i.test(`${type} ${field}`)) return "video";
@@ -175,8 +176,8 @@ function outputLabel(node: Node, capability: LogicalModelCapability) {
     return type === "IMAGE" ? "输出图片" : type === "VIDEO" ? "输出视频" : type === "AUDIO" ? "输出音频" : "输出文本";
 }
 
-function inputKeyFor(candidate: RunningHubNodeCandidate, role: RunningHubNodeCandidate["role"]) {
-    if (role === "image") return `referenceImage${candidate.nodeId}`;
+function inputKeyFor(candidate: RunningHubNodeCandidate, role: RunningHubNodeCandidate["role"], index = 0) {
+    if (role === "image") return `referenceImage${index + 1}`;
     return role === "duration" ? "duration" : role;
 }
 
@@ -217,7 +218,17 @@ function isFileLike(value: unknown, role: string) {
 }
 
 function isNodeLink(value: unknown) {
-    return Array.isArray(value) && value.length >= 1 && typeof value[0] === "string" && value.length <= 2;
+    return Array.isArray(value) && value.length === 2 && typeof value[0] === "string" && (typeof value[1] === "number" || (value[1] && typeof value[1] === "object"));
+}
+
+function safeDefaultValue(fieldName: string, value: unknown) {
+    if (!isJsonPrimitive(value) || isSensitiveField(fieldName)) return undefined;
+    if (typeof value === "string" && (/^(?:https?:\/\/|file:\/\/|[A-Za-z]:\\|\/)/.test(value.trim()) || /(?:token|secret|password|api[_-]?key|authorization|private)/i.test(value))) return undefined;
+    return value;
+}
+
+function isSensitiveField(value: string) {
+    return /(?:token|secret|password|api[_-]?key|authorization|private[_-]?key|credential)/i.test(value);
 }
 
 function parseJsonValue(value: unknown): unknown {
@@ -237,7 +248,7 @@ function walk(value: unknown, key: string, visitor: (value: unknown, key: string
 }
 
 function stableStringify(value: unknown): string {
-    if (Array.isArray(value)) return `[${value.map(stableStringify).sort().join(",")}]`;
+    if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
     if (value && typeof value === "object")
         return `{${Object.entries(value as Record<string, unknown>)
             .sort(([a], [b]) => a.localeCompare(b))

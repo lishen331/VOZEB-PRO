@@ -395,8 +395,8 @@
 | GET | `/api/practice/modules` | 混合 | [route.ts](web/src/app/api/practice/modules/route.ts) | [practice-module-service](web/src/lib/server/practice-module-service.ts) | PostgreSQL | practice / modules：查询 |
 | GET, POST | `/api/practice/projects` | 混合 | [route.ts](web/src/app/api/practice/projects/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts) | PostgreSQL | practice / 项目：查询、提交/执行 |
 | GET | `/api/practice/projects/[id]` | 混合 | [route.ts](web/src/app/api/practice/projects/[id]/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts) | PostgreSQL | practice / 项目 / 单项：查询 |
-| GET, POST | `/api/practice/sessions` | 混合 | [route.ts](web/src/app/api/practice/sessions/route.ts) | [practice-session-service](web/src/lib/server/practice-session-service.ts)<br>[generation-execution-policy](web/src/lib/server/generation-execution-policy.ts) | PostgreSQL | practice / sessions：查询、提交/执行 |
-| GET, POST | `/api/practice/sessions/[id]` | 混合 | [route.ts](web/src/app/api/practice/sessions/[id]/route.ts) | [practice-session-service](web/src/lib/server/practice-session-service.ts)<br>[generation-execution-policy](web/src/lib/server/generation-execution-policy.ts) | PostgreSQL | practice / sessions / 单项：查询、提交/执行 |
+| GET, POST | `/api/practice/sessions` | 混合 | [route.ts](web/src/app/api/practice/sessions/route.ts) | [practice-session-service](web/src/lib/server/practice-session-service.ts)<br>[generation-execution-policy](web/src/lib/server/generation-execution-policy.ts)<br>[runninghub-workflow-runtime](web/src/lib/server/runninghub-workflow-runtime.ts) | PostgreSQL | practice / sessions：查询、提交/执行 |
+| GET, POST | `/api/practice/sessions/[id]` | 混合 | [route.ts](web/src/app/api/practice/sessions/[id]/route.ts) | [practice-session-service](web/src/lib/server/practice-session-service.ts)<br>[generation-execution-policy](web/src/lib/server/generation-execution-policy.ts)<br>[runninghub-workflow-runtime](web/src/lib/server/runninghub-workflow-runtime.ts) | PostgreSQL | practice / sessions / 单项：查询、提交/执行 |
 
 ### `prompts`（1）
 

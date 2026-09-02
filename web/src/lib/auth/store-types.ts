@@ -88,6 +88,8 @@ export type RunningHubWorkflowConfig = {
     inputSchema: RunningHubWorkflowInputField[];
     nodeMappings: RunningHubNodeMapping[];
     outputMappings: RunningHubOutputMapping[];
+    /** New or edited configs must pass a successful sample test before enable. */
+    testRequired?: boolean;
     workflowJsonFingerprint?: string;
     lastTestConfigFingerprint?: string;
     timeoutSeconds?: number;

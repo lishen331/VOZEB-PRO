@@ -88,7 +88,8 @@ async function requestJson(baseUrl: string, path: string, apiKey: string, fetchI
     const response = await request(providerUrl(baseUrl, path), { ...init, ...(timeout ? { signal: timeout } : {}), headers, cache: "no-store" });
     const raw = (await response.json().catch(() => null)) as unknown;
     if (!response.ok || !raw || isProviderBusinessError(raw)) {
-        const message = readProviderError(raw)?.replaceAll(apiKey, "[redacted]");
+        const rawMessage = readProviderError(raw);
+        const message = rawMessage && apiKey.trim() ? rawMessage.replaceAll(apiKey.trim(), "[redacted]") : rawMessage;
         throw new Error(message || `RunningHub 请求失败（${response.status}）`);
     }
     return raw;
