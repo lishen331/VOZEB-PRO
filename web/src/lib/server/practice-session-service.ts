@@ -55,7 +55,16 @@ export interface PracticeSessionStore {
     update(userId: string, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title" | "mode" | "selectedLogicalModelId" | "errorCode" | "errorMessage">>): Promise<PracticeSessionRecord | null>;
 }
 
-export type PracticePublicErrorCode = "PRACTICE_MODEL_UNAVAILABLE" | "PRACTICE_WORKFLOW_UNAVAILABLE" | "PRACTICE_INPUT_INVALID" | "PRACTICE_REFERENCE_INVALID" | "PRACTICE_DISPATCH_FAILED" | "PRACTICE_DISPATCH_NOT_STARTED";
+export type PracticePublicErrorCode =
+    | "PRACTICE_MODEL_UNAVAILABLE"
+    | "PRACTICE_WORKFLOW_UNAVAILABLE"
+    | "PRACTICE_INPUT_INVALID"
+    | "PRACTICE_REFERENCE_INVALID"
+    | "PRACTICE_DISPATCH_FAILED"
+    | "PRACTICE_DISPATCH_NOT_STARTED"
+    | "PRACTICE_TASK_FAILED"
+    | "PRACTICE_TASK_CANCELLED"
+    | "PRACTICE_SUBMISSION_UNKNOWN";
 
 export async function createPracticeSessionForUser(
     actor: PracticeActor,
@@ -68,8 +77,14 @@ export async function createPracticeSessionForUser(
     if (!clientRequestId) throw new PracticeServiceError("缺少练习请求标识", 400);
     const existing = await store.getByRequest(actor.id, clientRequestId);
     if (existing) {
-        if (existing.status !== "queued" || (Array.isArray(existing.taskRefs) && existing.taskRefs.length) || !deps.dispatch) return publicSession(existing);
-        return dispatchQueuedSession(actor.id, existing, clientRequestId, store, deps.dispatch, deps.resolveModel || defaultResolveModel);
+        if (!deps.dispatch || (Array.isArray(existing.taskRefs) && existing.taskRefs.length)) return publicSession(await synchronizePracticeSessionLifecycle(store, existing));
+        if (existing.status === "queued") return dispatchQueuedSession(actor.id, existing, clientRequestId, store, deps.dispatch, deps.resolveModel || defaultResolveModel);
+        if (existing.errorCode !== "PRACTICE_SUBMISSION_UNKNOWN" && (existing.status === "failed" || existing.status === "cancelled" || (existing.status === "running" && !hasTaskReference(existing)))) {
+            const reset = await store.resetForRetry(actor.id, existing.id);
+            if (!reset) return publicSession(await synchronizePracticeSessionLifecycle(store, existing));
+            return dispatchQueuedSession(actor.id, reset, clientRequestId, store, deps.dispatch, deps.resolveModel || defaultResolveModel);
+        }
+        return publicSession(await synchronizePracticeSessionLifecycle(store, existing));
     }
     const moduleKind = normalizeModule(input.module);
     const title = clean(input.title, 120) || "练习会话";
@@ -78,7 +93,7 @@ export async function createPracticeSessionForUser(
     const mode: PracticeSessionMode = moduleKind === "script" && requestedMode === "manual" ? "manual" : "workflow";
     if (mode === "manual") {
         if (!text(sourcePayload.title) || !text(sourcePayload.content)) throw new PracticeServiceError("剧本标题和正文不能为空", 400, "PRACTICE_INPUT_INVALID");
-    } else if (!text(sourcePayload.prompt)) {
+    } else if (!(moduleKind === "dubbing" ? text(sourcePayload.text) : text(sourcePayload.prompt))) {
         throw new PracticeServiceError("练习内容不能为空", 400, "PRACTICE_INPUT_INVALID");
     }
     const references = normalizeReferences(input.references);
@@ -90,7 +105,12 @@ export async function createPracticeSessionForUser(
     const normalizedWorkflow = mode === "workflow" ? normalizePracticeModuleInput(moduleKind, sourcePayload, references, model?.workflow) : undefined;
     const payload =
         mode === "manual"
-            ? { title: text(sourcePayload.title), content: text(sourcePayload.content), ...(references.length ? { references } : {}) }
+            ? {
+                  title: text(sourcePayload.title),
+                  content: text(sourcePayload.content),
+                  ...(text(sourcePayload.notes) ? { notes: text(sourcePayload.notes) } : {}),
+                  ...(references.length ? { references } : {}),
+              }
             : { ...(normalizedWorkflow?.input || baseNormalized?.input || {}), ...(references.length ? { references } : {}) };
     const created = await store.create({
         id: `practice-session-${nanoid()}`,
@@ -138,14 +158,14 @@ async function dispatchQueuedSession(
     try {
         await validateIpReferences(userId, ipReferences);
         if (ipReferences.length) await recordIpReferenceUsage(userId, { targetType: "practice", targetId: claimed.id, references: ipReferences });
-        model = preflightModel || (await resolveModel(claimed.module));
+        model = preflightModel || (await resolveModel(claimed.module, claimed.selectedLogicalModelId));
     } catch (error) {
-        if (shouldPersistFailed(error)) await store.update(userId, claimed.id, { status: "failed", errorCode: publicErrorCode(error, "PRACTICE_MODEL_UNAVAILABLE"), errorMessage: publicErrorMessage(error, "PRACTICE_MODEL_UNAVAILABLE") });
-        else await store.update(userId, claimed.id, { status: "queued" });
+        await store.update(userId, claimed.id, { status: "failed", errorCode: publicErrorCode(error, "PRACTICE_MODEL_UNAVAILABLE"), errorMessage: publicErrorMessage(error, "PRACTICE_MODEL_UNAVAILABLE") });
         throw error;
     }
+    let task: PracticeTaskDispatchResult;
     try {
-        const task = await dispatch({
+        task = await dispatch({
             sessionId: claimed.id,
             userId,
             module: claimed.module,
@@ -158,17 +178,24 @@ async function dispatchQueuedSession(
             projectKind: claimed.projectKind,
             ...(model.workflow ? { workflow: model.workflow } : {}),
         });
-        const running = await store.update(userId, claimed.id, { taskRefs: [{ taskId: task.taskId, taskType: task.taskType }] as unknown as JsonValue });
-        return publicSession(running || claimed);
     } catch (error) {
         await store.update(userId, claimed.id, { status: "failed", errorCode: "PRACTICE_DISPATCH_FAILED", errorMessage: publicErrorMessage(error, "PRACTICE_DISPATCH_FAILED") });
         throw error;
+    }
+    try {
+        const running = await store.update(userId, claimed.id, { taskRefs: [{ taskId: task.taskId, taskType: task.taskType }] as unknown as JsonValue });
+        return publicSession(running || claimed);
+    } catch (error) {
+        await store.update(userId, claimed.id, { status: "running", errorCode: "PRACTICE_SUBMISSION_UNKNOWN", errorMessage: publicErrorMessage(error, "PRACTICE_SUBMISSION_UNKNOWN") }).catch(() => undefined);
+        throw new PracticeServiceError("练习任务已提交，结果待确认", 503, "PRACTICE_SUBMISSION_UNKNOWN");
     }
 }
 
 export async function getPracticeSessionForUser(actor: PracticeActor, id: string, deps: { store?: PracticeSessionStore } = {}) {
     await requirePracticeAccess(actor);
-    const session = await (deps.store || defaultPracticeSessionStore()).get(actor.id, clean(id, 160));
+    const store = deps.store || defaultPracticeSessionStore();
+    const loaded = await store.get(actor.id, clean(id, 160));
+    const session = loaded ? await synchronizePracticeSessionLifecycle(store, loaded) : null;
     if (!session) throw new PracticeServiceError("练习会话不存在", 404);
     return publicSession(session);
 }
@@ -177,8 +204,9 @@ export async function listPracticeSessionsForUser(actor: PracticeActor, input: {
     await requirePracticeAccess(actor);
     const page = positive(input.page, 1);
     const pageSize = Math.min(100, positive(input.pageSize, 12));
-    const records = await ((deps.store as PracticeSessionListStore | undefined) || defaultPracticeSessionStore()).list(actor.id, { page, pageSize, module: input.module });
-    return { sessions: await Promise.all(records.items.map(publicSession)), total: records.total, page, pageSize };
+    const store = (deps.store as PracticeSessionListStore | undefined) || defaultPracticeSessionStore();
+    const records = await store.list(actor.id, { page, pageSize, module: input.module });
+    return { sessions: await Promise.all(records.items.map(async (item) => publicSession(await synchronizePracticeSessionLifecycle(store, item)))), total: records.total, page, pageSize };
 }
 
 export async function retryPracticeSessionForUser(
@@ -188,9 +216,11 @@ export async function retryPracticeSessionForUser(
 ) {
     await requirePracticeAccess(actor);
     const store = deps.store || defaultPracticeSessionStore();
-    const current = await store.get(actor.id, clean(id, 160));
+    const loaded = await store.get(actor.id, clean(id, 160));
+    const current = loaded ? await synchronizePracticeSessionLifecycle(store, loaded) : null;
     if (!current) throw new PracticeServiceError("练习会话不存在", 404);
-    if (current.status !== "failed" && current.status !== "cancelled") throw new PracticeServiceError("当前练习无需重试", 409);
+    const dispatchNotStarted = (current.status === "queued" || current.status === "running") && !hasTaskReference(current) && current.errorCode !== "PRACTICE_SUBMISSION_UNKNOWN";
+    if (current.status !== "failed" && current.status !== "cancelled" && !dispatchNotStarted) throw new PracticeServiceError("当前练习无需重试", 409);
     const storedInput = object(current.input);
     const references = normalizeReferences(storedInput.references);
     await validateIpReferences(
@@ -225,7 +255,7 @@ type PracticeSessionListStore = PracticeSessionStore & { list(userId: string, in
 
 export async function publicPracticeSession(session: PracticeSessionRecord) {
     const task = await publicTaskResult(session);
-    const dispatchNeverStarted = session.mode === "workflow" && session.status === "queued" && (!Array.isArray(session.taskRefs) || !session.taskRefs.length);
+    const dispatchNeverStarted = session.mode === "workflow" && (session.status === "queued" || session.status === "running") && !hasTaskReference(session) && session.errorCode !== "PRACTICE_SUBMISSION_UNKNOWN";
     return {
         id: session.id,
         title: session.title,
@@ -268,6 +298,21 @@ async function publicTaskResult(session: PracticeSessionRecord) {
         return { status: "success" as const, media: url ? { kind: "video" as const, url, durationMs: typeof result.durationMs === "number" ? result.durationMs : undefined } : undefined };
     }
     return { status: "success" as const, media: typeof result.url === "string" ? { kind: "audio" as const, url: result.url } : undefined };
+}
+
+async function synchronizePracticeSessionLifecycle(store: PracticeSessionStore, session: PracticeSessionRecord) {
+    if (session.mode !== "workflow" || !Array.isArray(session.taskRefs) || !session.taskRefs.length) return session;
+    const task = await publicTaskResult(session);
+    if (!task || (task.status !== "success" && task.status !== "error" && task.status !== "cancelled")) return session;
+    const status = task.status === "success" ? "success" : task.status === "cancelled" ? "cancelled" : "failed";
+    if (session.status === status && (status !== "failed" || session.errorMessage === task.error)) return session;
+    const updated = await store.update(session.userId, session.id, {
+        status,
+        ...(status === "failed" || status === "cancelled"
+            ? { errorCode: status === "cancelled" ? "PRACTICE_TASK_CANCELLED" : "PRACTICE_TASK_FAILED", errorMessage: task.error || (status === "cancelled" ? "练习任务已取消" : "练习失败") }
+            : { errorCode: undefined, errorMessage: undefined }),
+    });
+    return updated || session;
 }
 
 async function defaultResolveModel(module: PracticeModuleKind, requestedLogicalModelId?: string): Promise<PracticeModelResolution> {
@@ -389,7 +434,7 @@ function fileSessionStore(): PracticeSessionStore & { list(userId: string, input
             await withJsonDataFileLock(FILE_NAME, async () => {
                 const db = await read();
                 const sessions = db.sessions.map((item) => {
-                    if (item.userId !== userId || item.id !== id || (item.status !== "failed" && item.status !== "cancelled")) return item;
+                    if (item.userId !== userId || item.id !== id || (item.status !== "failed" && item.status !== "cancelled" && !(item.status === "running" && (!Array.isArray(item.taskRefs) || !item.taskRefs.length)))) return item;
                     reset = { ...item, status: "queued", taskRefs: [], errorCode: undefined, errorMessage: undefined, updatedAt: new Date().toISOString() };
                     return reset;
                 });
@@ -448,6 +493,12 @@ function normalizeReferences(value: unknown) {
     return [...assets, ...ipReferences];
 }
 
+function hasTaskReference(session: Pick<PracticeSessionRecord, "taskRefs">) {
+    const reference = Array.isArray(session.taskRefs) ? session.taskRefs[0] : undefined;
+    if (!reference || typeof reference !== "object" || Array.isArray(reference)) return false;
+    return typeof reference.taskId === "string" && reference.taskId.trim().length > 0 && ["text", "image", "video", "audio"].includes(String(reference.taskType));
+}
+
 function clean(value: unknown, max: number) {
     return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
@@ -472,9 +523,8 @@ function publicErrorMessage(_error: unknown, code: PracticePublicErrorCode) {
     if (code === "PRACTICE_INPUT_INVALID") return "练习输入不完整";
     if (code === "PRACTICE_REFERENCE_INVALID") return "练习引用素材不可用";
     if (code === "PRACTICE_DISPATCH_NOT_STARTED") return "练习任务尚未提交，请重试";
+    if (code === "PRACTICE_TASK_CANCELLED") return "练习任务已取消";
+    if (code === "PRACTICE_TASK_FAILED") return "练习任务执行失败，请重试";
+    if (code === "PRACTICE_SUBMISSION_UNKNOWN") return "练习任务已提交，结果待确认";
     return "练习任务提交失败，请重试";
-}
-
-function shouldPersistFailed(error: unknown) {
-    return error instanceof PracticeServiceError || (typeof error === "object" && error !== null && "status" in error && Number((error as { status?: unknown }).status) >= 500);
 }

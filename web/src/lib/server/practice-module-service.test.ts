@@ -111,4 +111,11 @@ describe("practice module capabilities", () => {
     it("resolves model options without exposing production-only bindings", () => {
         expect(resolvePracticeModuleModelOptions(settings(), "storyboard-image")).toEqual([{ id: "practice-image-a", label: "分镜图模型 A" }]);
     });
+
+    it("falls back to the configured practice default when no module binding exists", () => {
+        const current = settings();
+        current.practiceWorkflowModels = {};
+        current.practiceDefaultModels = { ...current.practiceDefaultModels, imageModel: "practice-image-a" };
+        expect(resolvePracticeModuleModelOptions(current, "storyboard-image")).toEqual([{ id: "practice-image-a", label: "分镜图模型 A" }]);
+    });
 });

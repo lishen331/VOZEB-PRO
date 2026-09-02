@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ requirePracticeAccess: vi.fn(), validateIpReferences: vi.fn(), recordIpReferenceUsage: vi.fn() }));
+const mocks = vi.hoisted(() => ({ requirePracticeAccess: vi.fn(), validateIpReferences: vi.fn(), recordIpReferenceUsage: vi.fn(), getTextTask: vi.fn(), getImageTask: vi.fn(), getVideoTask: vi.fn(), getAudioTask: vi.fn() }));
 vi.mock("@/lib/server/practice-access-service", () => ({ requirePracticeAccess: mocks.requirePracticeAccess }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({
     normalizeIpReferences: (value: unknown) => (Array.isArray(value) ? value : []),
     validateIpReferences: mocks.validateIpReferences,
     recordIpReferenceUsage: mocks.recordIpReferenceUsage,
 }));
+vi.mock("@/lib/server/text-task-store", () => ({ getTextTask: mocks.getTextTask }));
+vi.mock("@/lib/server/image-task-store", () => ({ getImageTask: mocks.getImageTask }));
+vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask }));
+vi.mock("@/lib/server/audio-task-store", () => ({ getAudioTask: mocks.getAudioTask }));
+vi.mock("@/lib/server/database", () => ({ getDatabaseProvider: () => "file", createPostgresRepositories: vi.fn() }));
 
 import {
     createPracticeSessionForUser,
@@ -49,7 +54,7 @@ function memoryStore(): PracticeSessionStore {
         }),
         resetForRetry: vi.fn(async (userId, id) => {
             const record = records.get(id);
-            if (!record || record.userId !== userId || (record.status !== "failed" && record.status !== "cancelled")) return null;
+            if (!record || record.userId !== userId || (record.status !== "failed" && record.status !== "cancelled" && !(record.status === "running" && (!Array.isArray(record.taskRefs) || !record.taskRefs.length)))) return null;
             const reset = { ...record, status: "queued" as const, taskRefs: [] };
             records.set(id, reset);
             return reset;
@@ -69,6 +74,10 @@ describe("practice sessions", () => {
         vi.clearAllMocks();
         mocks.validateIpReferences.mockResolvedValue([]);
         mocks.recordIpReferenceUsage.mockResolvedValue(undefined);
+        mocks.getTextTask.mockResolvedValue(undefined);
+        mocks.getImageTask.mockResolvedValue(undefined);
+        mocks.getVideoTask.mockResolvedValue(undefined);
+        mocks.getAudioTask.mockResolvedValue(undefined);
     });
 
     it("validates module-specific workflow inputs", () => {
@@ -96,10 +105,53 @@ describe("practice sessions", () => {
         const store = memoryStore();
         const resolveModel = vi.fn();
         const dispatch = vi.fn();
-        const result = await createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "人工剧本", input: { title: "第一幕", content: "夜幕降临" }, clientRequestId: "manual-script" }, { store, dispatch, resolveModel });
+        const result = await createPracticeSessionForUser(
+            { id: "student-one", role: "user" },
+            { module: "script", title: "人工剧本", input: { title: "第一幕", content: "夜幕降临", notes: "人物从车站入口进入" }, clientRequestId: "manual-script" },
+            { store, dispatch, resolveModel },
+        );
         expect(result).toMatchObject({ mode: "manual", status: "draft" });
+        expect(result).toMatchObject({ input: { title: "第一幕", content: "夜幕降临", notes: "人物从车站入口进入" } });
         expect(resolveModel).not.toHaveBeenCalled();
         expect(dispatch).not.toHaveBeenCalled();
+    });
+
+    it("accepts dubbing text as the workflow input", async () => {
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const store = memoryStore();
+        const dispatch = vi.fn(async () => ({ taskId: "audio-task", taskType: "audio" as const }));
+        const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-dubbing", capability: "audio" as const }));
+
+        const result = await createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "dubbing", title: "配音练习", input: { text: "我们出发。" }, clientRequestId: "dubbing-text" }, { store, dispatch, resolveModel });
+
+        expect(result).toMatchObject({ module: "dubbing", status: "running", input: { text: "我们出发。" } });
+        expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ capability: "audio", input: { text: "我们出发。" } }));
+    });
+
+    it("persists terminal task failure before exposing a retryable session", async () => {
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const store = memoryStore();
+        const created = await store.create({
+            id: "failed-task-session",
+            userId: "student-one",
+            projectKind: "canvas",
+            module: "storyboard-image",
+            mode: "workflow",
+            title: "失败镜头",
+            clientRequestId: "failed-task-request",
+            executionProfile: "open-source-practice",
+            prompt: { prompt: "雨夜" },
+            input: { prompt: "雨夜" },
+            taskRefs: [{ taskId: "image-task", taskType: "image" }] as never,
+            selectedLogicalModelId: "practice-image-b",
+            status: "running",
+        });
+        mocks.getImageTask.mockResolvedValueOnce({ id: "image-task", userId: "student-one", status: "error", error: "上游失败" }).mockResolvedValue(undefined);
+        await expect(getPracticeSessionForUser({ id: "student-one", role: "user" }, created.id, { store })).resolves.toMatchObject({ status: "failed", errorCode: "PRACTICE_TASK_FAILED" });
+        const retryDispatch = vi.fn(async () => ({ taskId: "image-task-retry", taskType: "image" as const }));
+        const resolveModel = vi.fn(async (_module, requested) => ({ logicalModelId: requested || "practice-image-a", capability: "image" as const }));
+        await expect(retryPracticeSessionForUser({ id: "student-one", role: "user" }, created.id, { store, dispatch: retryDispatch, resolveModel })).resolves.toMatchObject({ status: "running" });
+        expect(resolveModel).toHaveBeenCalledWith("storyboard-image", "practice-image-b");
     });
 
     it("maps a legacy queued session without task refs to a visible dispatch failure", async () => {
@@ -269,7 +321,7 @@ describe("practice sessions", () => {
         expect(retryDispatch).toHaveBeenCalledWith(expect.objectContaining({ input: { prompt: "雨夜车站" }, references: [{ type: "asset", id: "asset-one" }], clientRequestId: "request-three" }));
     });
 
-    it("reuses the stable child request after its task reference failed to persist", async () => {
+    it("marks the submission outcome unknown when its task reference cannot persist", async () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
         const baseStore = memoryStore();
         const update = baseStore.update;
@@ -294,16 +346,17 @@ describe("practice sessions", () => {
         });
         const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-text", capability: "text" as const }));
 
-        await expect(createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "写回恢复", input: { prompt: "续写" }, clientRequestId: "request-write-back" }, { store, dispatch, resolveModel })).rejects.toThrow(
-            "write-back failed",
-        );
+        await expect(createPracticeSessionForUser({ id: "student-one", role: "user" }, { module: "script", title: "写回恢复", input: { prompt: "续写" }, clientRequestId: "request-write-back" }, { store, dispatch, resolveModel })).rejects.toMatchObject({
+            status: 503,
+            code: "PRACTICE_SUBMISSION_UNKNOWN",
+        });
         const session = await store.getByRequest("student-one", "request-write-back");
         if (!session) throw new Error("练习会话未创建");
 
-        await expect(retryPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store, dispatch, resolveModel })).resolves.toMatchObject({ status: "running" });
+        await expect(retryPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store, dispatch, resolveModel })).rejects.toMatchObject({ status: 409 });
 
-        expect(dispatch).toHaveBeenCalledTimes(2);
-        expect(dispatch.mock.calls.map(([input]) => input.clientRequestId)).toEqual(["request-write-back", "request-write-back"]);
+        expect(dispatch).toHaveBeenCalledTimes(1);
+        expect(dispatch.mock.calls.map(([input]) => input.clientRequestId)).toEqual(["request-write-back"]);
         expect(acceptedRequests).toHaveLength(1);
     });
 

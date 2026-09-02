@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import type { IpReference } from "@/lib/ip-library-domain";
-import { PRACTICE_MODULES, buildPracticeSessionInput, editablePracticeTextReducer, publicPracticeResult } from "./practice-module-workbench";
+import { PRACTICE_MODULES, buildPracticeSessionInput, editablePracticeTextReducer, practiceSessionPath, publicPracticeResult } from "./practice-module-workbench";
 
 describe("practice module workbench contract", () => {
     it("sends only user content, public references and a fresh request id", () => {
@@ -33,6 +33,10 @@ describe("practice module workbench contract", () => {
 
     it("keeps all five modules in the same workbench contract", () => {
         expect(PRACTICE_MODULES).toHaveLength(5);
+    });
+
+    it("preserves reference context while attaching a created session to the URL", () => {
+        expect(practiceSessionPath("storyboard-image", new URLSearchParams("ipId=ip-one&versionId=v-one"), "session-one")).toBe("/practice/storyboard-image?ipId=ip-one&versionId=v-one&sessionId=session-one");
     });
 
     it("keeps generated script text editable until another result is selected", () => {

@@ -40,7 +40,10 @@ export async function listPracticeModuleCapabilities(actor: PracticeActor, deps:
 export function resolvePracticeModuleModelOptions(settings: AuthSettings, module: Exclude<PracticeModuleKind, "script">): PracticeModuleModelOption[] {
     const capability = capabilityForModule(module);
     const bindings = settings.practiceWorkflowModels[module];
-    const ids = Array.isArray(bindings) ? bindings : typeof bindings === "string" ? [bindings] : [];
+    const boundIds = Array.isArray(bindings) ? bindings : typeof bindings === "string" ? [bindings] : [];
+    const key = `${capability}Model` as "imageModel" | "videoModel" | "audioModel";
+    const defaultModel = settings.practiceDefaultModels?.[key];
+    const ids = boundIds.length ? boundIds : defaultModel ? [defaultModel] : [];
     const options: PracticeModuleModelOption[] = [];
     const seen = new Set<string>();
     for (const id of ids) {

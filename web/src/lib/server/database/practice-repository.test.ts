@@ -112,7 +112,7 @@ describe("PracticeRepository", () => {
 
         await expect(repository.resetPracticeSessionForRetry("user-one", "session-one")).resolves.toMatchObject({ id: "session-one", status: "queued" });
 
-        expect(String(query.mock.calls[0]?.[0])).toContain("status IN ('failed', 'cancelled')");
+        expect(String(query.mock.calls[0]?.[0])).toContain("status IN ('failed', 'cancelled') OR");
         expect(String(query.mock.calls[0]?.[0])).toContain("task_refs = '[]'::jsonb");
         expect(String(query.mock.calls[0]?.[0])).toContain("error_code = NULL");
         expect(query).toHaveBeenCalledOnce();

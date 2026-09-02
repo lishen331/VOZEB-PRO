@@ -54,7 +54,7 @@ export class PracticeRepository {
         const result = await this.db.query(
             `UPDATE practice_sessions
              SET status = 'queued', task_refs = '[]'::jsonb, error_code = NULL, error_message = NULL
-             WHERE user_id = $1 AND id = $2 AND status IN ('failed', 'cancelled')
+             WHERE user_id = $1 AND id = $2 AND (status IN ('failed', 'cancelled') OR (status = 'running' AND task_refs = '[]'::jsonb))
              RETURNING *`,
             [userId, id],
         );

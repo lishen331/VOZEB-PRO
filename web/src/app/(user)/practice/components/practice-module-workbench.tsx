@@ -29,6 +29,12 @@ export function buildPracticeSessionInput(module: PracticeModuleKind, prompt: st
     };
 }
 
+export function practiceSessionPath(module: PracticeModuleKind, searchParams: URLSearchParams, sessionId: string) {
+    const query = new URLSearchParams(searchParams.toString());
+    query.set("sessionId", sessionId);
+    return `/practice/${module}?${query.toString()}`;
+}
+
 export function publicPracticeResult(value: unknown): PracticeSessionResult | undefined {
     if (!value || typeof value !== "object") return undefined;
     const source = value as Record<string, unknown>;
@@ -100,6 +106,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
     const onCreated = (session: PracticeSession) => {
         setCurrent(session);
         setSessions((items) => [session, ...items.filter((item) => item.id !== session.id)]);
+        router.replace(practiceSessionPath(module, searchParams, session.id));
         message.success(session.mode === "manual" ? "剧本草稿已保存" : "练习已提交");
     };
     const refresh = async () => {
