@@ -48,12 +48,13 @@ export function workflowTaskContextForChannel(channel: { advancedConfig?: import
 }
 
 export function resolvePracticeLogicalModel(
-    settings: { practiceWorkflowModels?: Record<string, string | undefined>; practiceDefaultModels?: Record<string, string | undefined> },
+    settings: { practiceWorkflowModels?: Record<string, string | string[] | undefined>; practiceDefaultModels?: Record<string, string | undefined> },
     capability: "text" | "image" | "video" | "audio",
     businessCode: string,
     requestedModel?: string,
 ) {
-    const bound = settings.practiceWorkflowModels?.[businessCode];
+    const rawBound = settings.practiceWorkflowModels?.[businessCode];
+    const bound = Array.isArray(rawBound) ? rawBound[0] : rawBound;
     if (bound) return bound;
     const key = `${capability}Model`;
     return settings.practiceDefaultModels?.[key] || requestedModel || "";
@@ -67,7 +68,8 @@ export function attachPracticeWorkflowToChannel<T extends { channelId?: string; 
     if (context.executionProfile !== "open-source-practice" || !context.businessCode) return channel;
     if (!isRunningHubWorkflowBusinessCode(context.businessCode)) throw new Error("练习工作流业务 code 无效");
     const logicalModelId = channel.logicalModel || "";
-    const boundModelId = settings.practiceWorkflowModels[context.businessCode];
+    const rawBoundModelId = settings.practiceWorkflowModels[context.businessCode];
+    const boundModelId = Array.isArray(rawBoundModelId) ? rawBoundModelId[0] : rawBoundModelId;
     if (boundModelId && boundModelId !== logicalModelId) throw new Error("练习工作流与逻辑模型绑定不匹配");
     const sourceChannel = settings.systemChannels.find((item) => item.id === channel.channelId);
     if (!sourceChannel || sourceChannel.advancedConfig?.protocol !== "runninghub") throw new Error("练习工作流渠道不可用");

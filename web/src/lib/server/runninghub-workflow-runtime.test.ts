@@ -107,7 +107,7 @@ describe("RunningHub workflow runtime", () => {
         const attached = attachPracticeWorkflowToChannel(
             channel,
             {
-                practiceWorkflowModels: { "storyboard-image": "practice-image" },
+                practiceWorkflowModels: { "storyboard-image": ["practice-image"] },
                 systemChannels: [
                     {
                         id: "rh-practice",
@@ -200,7 +200,7 @@ describe("RunningHub workflow runtime", () => {
     });
 
     it("always chooses the server practice model binding for a practice task", () => {
-        expect(resolvePracticeLogicalModel({ practiceWorkflowModels: { script: "practice-script" }, practiceDefaultModels: { textModel: "practice-default" } } as never, "text", "script", "production-model")).toBe("practice-script");
+        expect(resolvePracticeLogicalModel({ practiceWorkflowModels: { script: ["practice-script"] }, practiceDefaultModels: { textModel: "practice-default" } } as never, "text", "script", "production-model")).toBe("practice-script");
         expect(resolvePracticeLogicalModel({ practiceWorkflowModels: {}, practiceDefaultModels: { textModel: "practice-default" } } as never, "text", "script", "production-model")).toBe("practice-default");
     });
 });

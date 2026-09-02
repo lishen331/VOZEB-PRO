@@ -43,6 +43,7 @@ export type SystemChannelStreamingConfig = {
 };
 
 export type RunningHubWorkflowBusinessCode = "script" | "storyboard-image" | "storyboard-video" | "dubbing" | "music" | "canvas" | "drama";
+export type PracticeWorkflowModelBindings = Partial<Record<RunningHubWorkflowBusinessCode, string[]>>;
 export type RunningHubWorkflowInputField = {
     key: string;
     label: string;
@@ -540,7 +541,7 @@ export type AuthSettings = {
     logicalModels: LogicalModel[];
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
-    practiceWorkflowModels: Partial<Record<RunningHubWorkflowBusinessCode, string>>;
+    practiceWorkflowModels: PracticeWorkflowModelBindings;
     agentSkills: AgentSkill[];
 };
 

@@ -65,7 +65,7 @@ describe("practice sessions", () => {
     it("resolves the enabled workflow for a bound practice business code", () => {
         const settings = structuredClone(DEFAULT_SETTINGS);
         settings.practiceDefaultModels.imageModel = "practice-image";
-        settings.practiceWorkflowModels = { "storyboard-image": "practice-image" };
+        settings.practiceWorkflowModels = { "storyboard-image": ["practice-image"] };
         settings.logicalModels = [{ id: "practice-image", name: "练习图片", capability: "image", enabled: true, bindings: [{ id: "binding", channelId: "rh", upstreamModel: "rh-image", enabled: true, priority: 1 }] }];
         settings.systemChannels = [
             {

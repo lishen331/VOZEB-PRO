@@ -247,11 +247,12 @@ async function defaultResolveModel(module: PracticeModuleKind): Promise<Practice
 export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<typeof getAuthSettings>>, module: PracticeModuleKind): PracticeModelResolution {
     const capability = module === "script" ? "text" : module === "storyboard-image" ? "image" : module === "storyboard-video" ? "video" : "audio";
     const key = `${capability}Model` as "textModel" | "imageModel" | "videoModel" | "audioModel";
-    const requestedModel = settings.practiceWorkflowModels[module] || settings.practiceDefaultModels[key];
+    const boundModels = settings.practiceWorkflowModels[module] || [];
+    const requestedModel = (Array.isArray(boundModels) ? boundModels[0] : boundModels) || settings.practiceDefaultModels[key];
     const model = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, requestedModel, "", "open-source-practice");
     if (!model || !model.channel || !["open-source-practice", "shared"].includes(model.channel.purpose || "shared")) throw new PracticeServiceError("当前练习模块没有可用的开源模型", 503);
     const workflowModelBinding = settings.practiceWorkflowModels[module];
-    if (!workflowModelBinding) return { logicalModelId: model.logicalModelId, capability };
+    if (!workflowModelBinding || (Array.isArray(workflowModelBinding) && workflowModelBinding.length === 0)) return { logicalModelId: model.logicalModelId, capability };
     const workflow = resolveEnabledWorkflow(Object.values(model.channel.advancedConfig?.workflowConfigs || {}), model.channel.id, module);
     if (!workflow) throw new PracticeServiceError("当前练习模块没有可用的 RunningHub 工作流", 503);
     return { logicalModelId: model.logicalModelId, capability, workflow };
