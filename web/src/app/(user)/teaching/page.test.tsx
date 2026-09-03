@@ -28,6 +28,8 @@ describe("teaching center", () => {
         expect(source).toContain("offering.courseTitle");
         expect(source).toContain("offering.className");
         expect(source).toContain("submission.student.displayName");
+        expect(source).toContain("SubmissionReferenceList");
+        expect(source).toContain("resolvedContentReferences");
         expect(source).not.toContain("courseByAssignment");
         expect(source).not.toContain("shortId(");
         expect(source).toContain("new AbortController()");

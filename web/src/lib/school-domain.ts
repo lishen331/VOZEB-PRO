@@ -9,6 +9,7 @@ export type PlatformCourseStatus = "draft" | "published" | "disabled";
 export type TeachingAssignmentKind = "lesson" | "homework" | "commercial_practice";
 export type TeachingAssignmentStatus = "draft" | "published" | "closed";
 export type TeachingSubmissionStatus = "submitted" | "revision_required" | "reviewed";
+export type TeachingSubmissionReferenceAvailability = "available" | "unavailable";
 export type CommercialOrderStatus = "draft" | "assigned" | "in_progress" | "submitted" | "revision_required" | "accepted" | "cancelled";
 
 export const SCHOOL_MEMBER_ROLES = ["teacher", "student"] as const satisfies readonly SchoolMemberRole[];
@@ -187,6 +188,7 @@ export type TeachingSubmission = {
     studentMembershipId: string;
     note: string;
     contentReferences: SchoolContentReference[];
+    resolvedContentReferences?: TeachingSubmissionReferencePreview[];
     status: TeachingSubmissionStatus;
     feedback: string;
     student: SchoolPublicIdentity;
@@ -194,6 +196,15 @@ export type TeachingSubmission = {
     reviewedAt?: string;
     createdAt: string;
     updatedAt: string;
+};
+export type TeachingSubmissionReferencePreview = {
+    reference: SchoolContentReference;
+    title: string;
+    kind?: SchoolContentReference["type"];
+    mediaType: "image" | "video" | "audio" | "text" | "file" | "unknown";
+    previewUrl?: string;
+    availability: TeachingSubmissionReferenceAvailability;
+    unavailableReason?: string;
 };
 export type CommercialOrderInput = {
     title: string;
@@ -265,6 +276,7 @@ export type CommercialOrderDelivery = {
     submittedByMembershipId: string;
     submittedBy: SchoolPublicIdentity;
     contentReferences: SchoolContentReference[];
+    resolvedContentReferences?: TeachingSubmissionReferencePreview[];
     note: string;
     status: "submitted" | "revision_required" | "accepted";
     platformFeedback: string;

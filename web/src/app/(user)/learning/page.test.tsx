@@ -27,6 +27,12 @@ describe("learning center", () => {
         expect(source).toContain("实训");
         expect(source).toContain("反馈");
         expect(source).toContain("contentReferences");
+        expect(source).toContain("SubmissionReferenceList");
+        expect(source).toContain("resolvedContentReferences");
+        expect(source).toContain('aria-label="刷新学习中心"');
+        expect(source).not.toContain("setCourses([])");
+        expect(source).not.toContain("setAssignments([])");
+        expect(source).not.toContain("setSubmissions({})");
         expect(source).toContain("new AbortController()");
         expect(source).toContain('size="min(720px, 100vw)"');
         expect(source).toContain("afterOpenChange");

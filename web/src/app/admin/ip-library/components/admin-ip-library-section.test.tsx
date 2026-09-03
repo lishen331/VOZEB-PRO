@@ -22,6 +22,9 @@ describe("admin IP library section", () => {
         expect(source).toContain("adminEducationApi.listSchools");
         expect(source).toContain('width="min(760px, 100vw)"');
         expect(source).toContain("destroyOnHidden");
+        expect(source).toContain("versionBlockReason");
+        expect(source).toContain("暂无可授权 IP");
+        expect(source).toContain("slugSuggestion");
     });
 
     it("keeps authorization mode on each school grant instead of the IP profile form", async () => {

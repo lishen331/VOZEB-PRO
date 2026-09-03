@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
-import { getPracticeSessionForUser, retryPracticeSessionForUser } from "@/lib/server/practice-session-service";
+import { getPracticeSessionForUser, retryPracticeSessionForUser, deletePracticeSession } from "@/lib/server/practice-session-service";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { trustedPracticeTaskHeaders } from "@/lib/server/generation-execution-policy";
 import { recordWorkflowTaskContext } from "@/lib/server/runninghub-workflow-runtime";
@@ -33,6 +33,19 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     } catch (error) {
         const status = typeof error === "object" && error && "status" in error && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "练习重试失败" }, { status });
+    }
+}
+
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+    const user = await getCurrentUser(request);
+    if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
+    try {
+        const sessionId = (await context.params).id;
+        await deletePracticeSession(user.id, sessionId);
+        return NextResponse.json({ code: 0, data: { success: true }, msg: "OK" });
+    } catch (error) {
+        const status = typeof error === "object" && error && "status" in error && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 500;
+        return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "删除练习记录失败" }, { status });
     }
 }
 

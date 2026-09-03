@@ -170,6 +170,23 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
             setRefreshing(false);
         }
     };
+    const deleteSession = async (target: PracticeSession) => {
+        if (refreshing) return;
+        setRefreshing(true);
+        try {
+            await practiceApi.deleteSession(target.id);
+            setSessions((items) => items.filter((item) => item.id !== target.id));
+            if (current?.id === target.id) {
+                setCurrent(undefined);
+                router.replace(`/practice/${module}`);
+            }
+            message.success("练习记录已删除");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "删除失败");
+        } finally {
+            setRefreshing(false);
+        }
+    };
     let panel = null;
     if (capability) {
         const props = { capability, ipReferences, onIpReferencesChange: setIpReferences, onCreated };
@@ -238,6 +255,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                                 router.replace(`/practice/${module}?sessionId=${encodeURIComponent(session.id)}`);
                             }}
                             onRetry={(session) => void retry(session)}
+                            onDelete={(session) => void deleteSession(session)}
                         />
                     ) : (
                         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="提交第一次练习后，结果会显示在这里" className="!my-5" />

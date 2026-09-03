@@ -122,6 +122,9 @@ test("two schools complete teaching and commercial-order workflows without cross
 
         await createPublishAndAssignCourseInBrowser(page.context(), names.course, schoolA.name);
         const { assignment: courseAssignment, offering } = await createCourseOfferingInBrowser(managerAContext, names.course, schoolClass.name, teacher.displayName, hasTouch);
+        const duplicateOffering = await managerAContext.request.post(`/api/school/courses/${courseAssignment.id}/offerings`, { data: { classId: schoolClass.id, teacherMembershipId: teacher.id } });
+        expect(duplicateOffering.status()).toBe(409);
+        await expect(duplicateOffering.json()).resolves.toMatchObject({ msg: "该课程已为此班级和老师创建教学安排" });
 
         const teacherContext = await createAuthenticatedE2EContext(browser, BASE_URL, { username: names.teacherA, password: PASSWORD }, contextOptions);
         const studentContext = await createAuthenticatedE2EContext(browser, BASE_URL, { username: names.studentA, password: PASSWORD }, contextOptions);
@@ -130,7 +133,19 @@ test("two schools complete teaching and commercial-order workflows without cross
 
         const studentCanvasTitle = `学生短片画布 ${suffix}`;
         await createCanvas(studentContext.request, studentCanvasTitle);
+        const learningPage = await studentContext.newPage();
+        await learningPage.goto("/learning", { waitUntil: "domcontentloaded" });
+        await selectTab(learningPage, /^待交作业/, hasTouch);
+        await expect(learningPage.getByText(names.assignment, { exact: true })).toHaveCount(0);
         const teachingAssignment = await createAndPublishAssignmentInBrowser(teacherContext, names.assignment, offering.id, `${names.course} · 影视一班 ${suffix}`, hasTouch);
+        let refreshNavigations = 0;
+        const onRefreshNavigation = () => (refreshNavigations += 1);
+        learningPage.on("framenavigated", onRefreshNavigation);
+        await learningPage.getByRole("button", { name: "刷新学习中心", exact: true }).click();
+        await expect(learningPage.getByText(names.assignment, { exact: true })).toBeVisible();
+        learningPage.off("framenavigated", onRefreshNavigation);
+        expect(refreshNavigations).toBe(0);
+        await learningPage.close();
         const teachingSubmission = await submitAssignmentInBrowser(studentContext, names.assignment, studentCanvasTitle, "学生提交真实画布", hasTouch);
         await reviewAssignmentInBrowser(teacherContext, names.assignment, `A 校学生 ${suffix}`, "结构完整，批改通过", hasTouch);
         const reviewedAssignment = await findTeachingAssignment(teacherContext.request, names.assignment);
@@ -440,7 +455,8 @@ async function createAndAssignCommercialOrderInBrowser(context: BrowserContext, 
         await fillField(editor.getByLabel("需求说明"), "完成 30 秒品牌短片");
         await fillField(editor.getByLabel("验收标准"), "画面、声音和品牌信息完整");
         await fillField(editor.getByLabel("内部金额（元）"), "8800");
-        await fillField(editor.getByLabel("截止时间"), "2026-09-30T18:00");
+        await fillField(editor.getByLabel("截止日期"), "2026-09-30");
+        await fillField(editor.getByLabel("截止时间（可选）"), "18:00");
         await editor.getByRole("button", { name: /保\s*存/ }).click();
         await expect(editor).toBeHidden();
         const row = businessRow(page, title);
