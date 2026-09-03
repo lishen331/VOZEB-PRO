@@ -22,7 +22,7 @@ import type {
 } from "@/lib/server/database/repository-types";
 import type { IpAssetKind, IpItemCategory } from "@/lib/ip-library-domain";
 import { SCHOOL_DOMAIN_DATA_FILE } from "./school-domain-file-repository";
-import type { AdminIpListInput, IpGrantListInput, IpUsageListInput, VisibleIpDetailInput, VisibleIpListInput } from "./database/ip-library-repository";
+import type { AdminIpListInput, IpGrantConflictInput, IpGrantListInput, IpUsageListInput, VisibleIpDetailInput, VisibleIpListInput } from "./database/ip-library-repository";
 
 export const IP_LIBRARY_DATA_FILE = "ip-library.json";
 
@@ -48,6 +48,11 @@ export function createFileIpLibraryRepository() {
 export class FileIpLibraryRepository {
     async getIpPackage(ipId: string): Promise<IpPackageRecord | null> {
         return detached((await readFile()).packages.find((item) => item.id === ipId));
+    }
+
+    async getIpPackageBySlug(slug: string, excludeIpId?: string): Promise<IpPackageRecord | null> {
+        const normalized = slug.toLowerCase();
+        return detached((await readFile()).packages.find((item) => item.id !== excludeIpId && item.slug.toLowerCase() === normalized));
     }
 
     createIpPackage(input: IpPackageCreateInput): Promise<IpPackageRecord> {
@@ -277,6 +282,21 @@ export class FileIpLibraryRepository {
             state.grants.push(record);
             return structuredClone(record);
         });
+    }
+
+    async findConflictingSchoolGrant(input: IpGrantConflictInput): Promise<IpSchoolGrantRecord | null> {
+        const state = await readFile();
+        const startsAt = Date.parse(input.startsAt);
+        const endsAt = input.endsAt ? Date.parse(input.endsAt) : Number.POSITIVE_INFINITY;
+        return detached(
+            state.grants.find((grant) => {
+                if (grant.ipId !== input.ipId || grant.status !== "active" || grant.id === input.excludeGrantId) return false;
+                if (!(grant.schoolId === input.schoolId || grant.mode === "exclusive" || input.mode === "exclusive")) return false;
+                const existingStart = Date.parse(grant.startsAt);
+                const existingEnd = grant.endsAt ? Date.parse(grant.endsAt) : Number.POSITIVE_INFINITY;
+                return existingStart < endsAt && startsAt < existingEnd;
+            }),
+        );
     }
 
     updateSchoolGrant(ipId: string, grantId: string, patch: IpSchoolGrantUpdateInput): Promise<IpSchoolGrantRecord | null> {

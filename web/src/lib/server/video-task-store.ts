@@ -7,7 +7,7 @@ import type { GenerationAttempt } from "@/lib/server/generation-attempt";
 import { GENERATION_TASK_RETENTION_MS } from "@/lib/server/generation-task-retention";
 import type { StoredTaskBilling } from "@/lib/server/generation-task-types";
 
-export type VideoTaskStatus = "running" | "success" | "error" | "cancelled";
+export type VideoTaskStatus = "running" | "success" | "error" | "cancelled" | "needs_review";
 
 export type VideoTask = GenerationTaskContext & {
     id: string;

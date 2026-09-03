@@ -74,6 +74,7 @@ import {
     configureCommercialOrder,
     configureCommercialOrderParticipants,
     createCommercialOrder,
+    updateCommercialOrder,
     getPlatformCommercialOrderDetails,
     listCommercialOrderSubmissions,
     listCommercialOrderParticipantCandidates,
@@ -99,6 +100,7 @@ describe("commercial order service", () => {
         mocks.requireTeacher.mockResolvedValue(context("teacher-a", "teacher"));
         mocks.requireStudent.mockResolvedValue(context("student-a", "student"));
         mocks.requireActiveSchoolContext.mockResolvedValue(context("teacher-a", "teacher"));
+        mocks.validateReferences.mockResolvedValue([]);
     });
 
     it("validates internal amounts as nonnegative safe integers", async () => {
@@ -106,6 +108,22 @@ describe("commercial order service", () => {
         await expect(createCommercialOrder("admin-a", { title: "商单", internalAmountCents: -1 })).rejects.toMatchObject({ status: 400 });
         await expect(createCommercialOrder("admin-a", { title: "商单", internalAmountCents: Number.MAX_SAFE_INTEGER + 1 })).rejects.toMatchObject({ status: 400 });
         await expect(createCommercialOrder("admin-a", { title: "商单", internalAmountCents: 1250 })).resolves.toMatchObject({ internalAmountCents: 1250, status: "draft" });
+    });
+
+    it("accepts a date-only deadline and normalizes it to the business-day end", async () => {
+        mocks.repository.insertCommercialOrder.mockImplementation(async (record) => record);
+
+        await expect(createCommercialOrder("admin-a", { title: "日期商单", internalAmountCents: 100, deadlineAt: "2026-09-04" })).resolves.toMatchObject({ deadlineAt: "2026-09-04T15:59:59.999Z" });
+    });
+
+    it("rejects an invalid deadline with a Chinese field error", async () => {
+        await expect(createCommercialOrder("admin-a", { title: "日期商单", internalAmountCents: 100, deadlineAt: "2026-99-99" })).rejects.toMatchObject({ status: 400, message: "截止日期格式无效，请重新选择日期" });
+    });
+
+    it("clears an existing deadline when the update explicitly sends an empty value", async () => {
+        mocks.repository.updateCommercialOrderDraft.mockResolvedValue({ ...order("draft"), deadlineAt: undefined });
+        await expect(updateCommercialOrder("admin-a", "order-a", { deadlineAt: "" })).resolves.toMatchObject({ id: "order-a" });
+        expect(mocks.repository.updateCommercialOrderDraft).toHaveBeenCalledWith("order-a", expect.objectContaining({ deadlineAt: "" }));
     });
 
     it("returns platform order details with tenant-targeted formal delivery history", async () => {
@@ -131,10 +149,14 @@ describe("commercial order service", () => {
             pageSize: 20,
         });
         mocks.repository.getMembership.mockResolvedValue({ id: "teacher-a", schoolId: "school-a", userId: "teacher-user", role: "teacher", status: "active" });
+        mocks.validateReferences.mockResolvedValue([{ reference: { type: "work", id: "work-a" }, title: "终稿", previewUrl: "https://cdn.test/final.mp4" }]);
 
         await expect(getPlatformCommercialOrderDetails("admin-a", "order-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({
             order: { id: "order-a", internalAmountCents: 1250 },
-            deliveries: { total: 1, items: [{ id: "delivery-a", contentReferences: [{ type: "work", id: "work-a" }] }] },
+            deliveries: {
+                total: 1,
+                items: [{ id: "delivery-a", contentReferences: [{ type: "work", id: "work-a" }], resolvedContentReferences: [{ title: "终稿", mediaType: "video", availability: "available", previewUrl: "https://cdn.test/final.mp4" }] }],
+            },
         });
         expect(mocks.repository.listCommercialOrderDeliveries).toHaveBeenCalledWith("school-a", "order-a", { page: 1, pageSize: 20 });
     });

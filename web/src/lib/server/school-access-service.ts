@@ -7,6 +7,7 @@ export class SchoolServiceError extends Error {
     constructor(
         public readonly status: number,
         message: string,
+        public readonly data?: unknown,
     ) {
         super(message);
     }

@@ -21,11 +21,12 @@ const server = http.createServer(async (req, res) => {
         const body = await readBody(req);
         const parsed = body ? JSON.parse(body) : {};
         if (!/^\d+$/.test(String(parsed.workflowId || ""))) return json(res, 400, { code: 400, message: "workflow id required" });
+        const workflowNodes = { 138: { class_type: "TextInput", inputs: { value: "{{prompt}}" } }, 147: { class_type: "LoadImage", inputs: { image: "default.png" } }, 92: { class_type: "SaveVideo", inputs: { video: ["77", 0] } } };
         return json(res, 200, {
             code: 0,
             data: {
                 workflowType: "MiniMaxH3ReferenceToVideo",
-                nodes: { 138: { class_type: "TextInput", inputs: { value: "{{prompt}}" } }, 147: { class_type: "LoadImage", inputs: { image: "default.png" } }, 92: { class_type: "SaveVideo", inputs: { video: ["77", 0] } } },
+                prompt: JSON.stringify(workflowNodes),
             },
         });
     }

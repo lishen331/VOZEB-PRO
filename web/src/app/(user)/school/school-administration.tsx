@@ -904,6 +904,7 @@ function CoursesPanel() {
                 okText="创建"
                 cancelText="取消"
                 confirmLoading={saving}
+                okButtonProps={{ disabled: loading || !classes.length || !teachers.length }}
                 afterOpenChange={(open) => {
                     if (!open) form.resetFields();
                 }}
@@ -913,10 +914,10 @@ function CoursesPanel() {
                 <Form form={form} layout="vertical" requiredMark={false} preserve={false} onFinish={(values) => void createOffering(values)}>
                     <div className="grid gap-x-3 sm:grid-cols-2">
                         <Form.Item label="班级" name="classId" rules={[{ required: true, message: "请选择班级" }]}>
-                            <Select optionFilterProp="label" showSearch filterOption={false} options={classes.map((item) => ({ value: item.id, label: item.name }))} onSearch={(value) => void searchClasses(value)} />
+                            <Select disabled={loading || saving} optionFilterProp="label" showSearch filterOption={false} options={classes.map((item) => ({ value: item.id, label: item.name }))} onSearch={(value) => void searchClasses(value)} />
                         </Form.Item>
                         <Form.Item label="负责老师" name="teacherMembershipId" rules={[{ required: true, message: "请选择负责老师" }]}>
-                            <Select optionFilterProp="label" showSearch filterOption={false} options={teachers.map(memberOption)} onSearch={(value) => void searchTeachers(value)} />
+                            <Select disabled={loading || saving} optionFilterProp="label" showSearch filterOption={false} options={teachers.map(memberOption)} onSearch={(value) => void searchTeachers(value)} />
                         </Form.Item>
                     </div>
                 </Form>

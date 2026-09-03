@@ -1,12 +1,24 @@
 "use client";
 
 import { Button } from "antd";
-import { AudioLines, FileText, Film, Image as ImageIcon, RotateCcw } from "lucide-react";
+import { AudioLines, FileText, Film, Image as ImageIcon, RotateCcw, Trash2 } from "lucide-react";
 
 import type { PracticeSession } from "@/services/api/practice";
 import { practiceSessionCanRetry, practiceSessionPreview, practiceSessionStatusLabel } from "./practice-session-status";
 
-export default function PracticeSessionHistory({ sessions, currentId, onOpen, onRetry }: { sessions: PracticeSession[]; currentId?: string; onOpen: (session: PracticeSession) => void; onRetry?: (session: PracticeSession) => void }) {
+export default function PracticeSessionHistory({
+    sessions,
+    currentId,
+    onOpen,
+    onRetry,
+    onDelete,
+}: {
+    sessions: PracticeSession[];
+    currentId?: string;
+    onOpen: (session: PracticeSession) => void;
+    onRetry?: (session: PracticeSession) => void;
+    onDelete?: (session: PracticeSession) => void;
+}) {
     if (!sessions.length) return null;
     return (
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -23,6 +35,11 @@ export default function PracticeSessionHistory({ sessions, currentId, onOpen, on
                     {practiceSessionCanRetry(session) && onRetry ? (
                         <Button type="text" size="small" icon={<RotateCcw className="size-3.5" />} onClick={() => onRetry(session)} className="!mt-2">
                             重试
+                        </Button>
+                    ) : null}
+                    {onDelete ? (
+                        <Button type="text" size="small" icon={<Trash2 className="size-3.5" />} onClick={() => onDelete(session)} className="!mt-2 !ml-2" danger>
+                            删除
                         </Button>
                     ) : null}
                 </article>

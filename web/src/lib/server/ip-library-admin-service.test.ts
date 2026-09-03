@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
     getPublicUsersByIds: vi.fn(),
     listIpPackages: vi.fn(),
     getIpPackage: vi.fn(),
+    getIpPackageBySlug: vi.fn(),
     createIpPackage: vi.fn(),
     updateIpPackage: vi.fn(),
     createIpDraftVersion: vi.fn(),
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
     publishIpVersion: vi.fn(),
     listIpVersions: vi.fn(),
     createSchoolGrant: vi.fn(),
+    findConflictingSchoolGrant: vi.fn(),
     updateSchoolGrant: vi.fn(),
     listSchoolGrants: vi.fn(),
     listIpDownloads: vi.fn(),
@@ -30,6 +32,7 @@ vi.mock("./ip-library-access-service", () => ({
     createIpLibraryRepository: () => ({
         listIpPackages: mocks.listIpPackages,
         getIpPackage: mocks.getIpPackage,
+        getIpPackageBySlug: mocks.getIpPackageBySlug,
         createIpPackage: mocks.createIpPackage,
         updateIpPackage: mocks.updateIpPackage,
         createIpDraftVersion: mocks.createIpDraftVersion,
@@ -38,6 +41,7 @@ vi.mock("./ip-library-access-service", () => ({
         publishIpVersion: mocks.publishIpVersion,
         listIpVersions: mocks.listIpVersions,
         createSchoolGrant: mocks.createSchoolGrant,
+        findConflictingSchoolGrant: mocks.findConflictingSchoolGrant,
         updateSchoolGrant: mocks.updateSchoolGrant,
         listSchoolGrants: mocks.listSchoolGrants,
         listIpDownloads: mocks.listIpDownloads,
@@ -90,13 +94,15 @@ describe("IP library administration service", () => {
             ids.map((id) => ({ id, role: "admin", status: "active", adminPermissions: id === "content-admin" ? ["content.manage"] : id === "education-admin" ? ["education.manage"] : ["content.manage", "education.manage"] })),
         );
         mocks.getIpPackage.mockResolvedValue(packageRecord);
+        mocks.getIpPackageBySlug.mockResolvedValue(null);
         mocks.createIpPackage.mockImplementation(async (input) => ({ ...input, createdAt: "2026-08-19T00:00:00.000Z", updatedAt: "2026-08-19T00:00:00.000Z" }));
         mocks.updateIpPackage.mockImplementation(async (_id, patch) => ({ ...packageRecord, ...patch }));
         mocks.createIpDraftVersion.mockImplementation(async (_id, input) => ({ ...input, ipId: "ip-one", versionNumber: 2, status: "draft", manifest: {}, createdAt: "2026-08-19T00:00:00.000Z" }));
         mocks.updateIpDraftVersion.mockImplementation(async (_ipId, _versionId, input) => ({ ...input, ipId: "ip-one", versionNumber: 2, status: "draft", manifest: {}, createdAt: "2026-08-19T00:00:00.000Z" }));
-        mocks.getIpVersion.mockResolvedValue({ id: "version-two", ipId: "ip-one", status: "draft", items: [{ id: "text-one" }] });
+        mocks.getIpVersion.mockResolvedValue({ id: "version-two", ipId: "ip-one", status: "draft", items: [{ id: "text-one", fileId: "text-one" }] });
         mocks.publishIpVersion.mockResolvedValue({ id: "version-two", ipId: "ip-one", status: "published", items: [{ id: "text-one" }] });
         mocks.createSchoolGrant.mockImplementation(async (input) => ({ ...input, createdAt: "2026-08-19T00:00:00.000Z", updatedAt: "2026-08-19T00:00:00.000Z" }));
+        mocks.findConflictingSchoolGrant.mockResolvedValue(null);
         mocks.getIpContentFile.mockImplementation(async (_ipId: string, fileId: string) => ({ id: fileId, ipId: "ip-one", kind: fileId === "text-one" ? "text" : "image", status: "ready" }));
         mocks.listIpContentFiles.mockResolvedValue([]);
         mocks.writeIpContentFile.mockResolvedValue({ id: "file-new", ipId: "ip-one", kind: "text", status: "ready", storageProvider: "local", storageKey: "ip-one/file-new/original.txt" });
@@ -117,6 +123,35 @@ describe("IP library administration service", () => {
         const created = await createAdminIp("content-admin", { title: " 星海计划 ", slug: " Star-Sea ", summary: " 简介 ", visibility: "school", authorizationMode: "exclusive" });
         expect(created).toMatchObject({ title: "星海计划", slug: "star-sea", createdByUserId: "content-admin", status: "draft" });
         expect(mocks.createIpPackage).toHaveBeenCalledWith(expect.objectContaining({ id: expect.any(String), createdByUserId: "content-admin" }));
+    });
+
+    it("rejects a duplicate slug before attempting to create the package", async () => {
+        mocks.getIpPackageBySlug.mockResolvedValue({ ...packageRecord, id: "ip-existing", slug: "star-sea" });
+        await expect(createAdminIp("content-admin", { title: "另一个 IP", slug: "star-sea", visibility: "public" })).rejects.toMatchObject({ status: 409, message: "IP 标识已存在，请更换 slug" });
+        expect(mocks.createIpPackage).not.toHaveBeenCalled();
+    });
+
+    it("maps grant conflicts to a stable Chinese business error", async () => {
+        mocks.createSchoolGrant.mockRejectedValue({ code: "23505", message: "Conflicting IP school grant" });
+        await expect(createAdminIpGrant("education-admin", "ip-one", { schoolId: "school-a", mode: "multi_school", startsAt: "2026-08-19T00:00:00.000Z", note: "" })).rejects.toMatchObject({
+            status: 409,
+            message: "授权创建失败：当前学校或授权模式存在重叠时间窗",
+        });
+    });
+
+    it("preflights a grant window before the database trigger", async () => {
+        mocks.findConflictingSchoolGrant.mockResolvedValue({ id: "grant-existing" });
+        await expect(createAdminIpGrant("education-admin", "ip-one", { schoolId: "school-a", mode: "multi_school", startsAt: "2026-08-19T00:00:00.000Z", note: "" })).rejects.toMatchObject({
+            status: 409,
+            message: "授权创建失败：当前学校或授权模式存在重叠时间窗",
+        });
+        expect(mocks.createSchoolGrant).not.toHaveBeenCalled();
+    });
+
+    it("reports distinct publish readiness failures", async () => {
+        mocks.getIpVersion.mockResolvedValue({ id: "version-processing", ipId: "ip-one", status: "draft", items: [{ id: "item", fileId: "file-processing" }] });
+        mocks.getIpContentFile.mockResolvedValue({ id: "file-processing", ipId: "ip-one", kind: "image", status: "processing" });
+        await expect(publishAdminIpVersion("content-admin", "ip-one", "version-processing")).rejects.toMatchObject({ status: 409, message: "仍有内容文件处理中，请稍后再发布" });
     });
 
     it("distinguishes clearing a cover from leaving it unchanged", async () => {
