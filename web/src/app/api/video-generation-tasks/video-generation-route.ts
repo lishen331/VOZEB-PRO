@@ -16,7 +16,7 @@ import { parseImageDimensions } from "@/lib/image-size";
 import { signGenerationAssetInputUrl, signReferenceAssetInputUrl } from "@/lib/server/reference-asset-access";
 import { requireManagedMediaInputOwner } from "@/lib/server/managed-media-input-access";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
-import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
+import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { mediaTaskSource } from "@/lib/media-management-contract";
@@ -40,6 +40,17 @@ import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
+import {
+    attachPracticeWorkflowToChannel,
+    buildRunningHubWorkflowPayload,
+    generationBusinessCode,
+    resolvePracticeLogicalModel,
+    type RunningHubWorkflowConfig,
+    workflowConfigForTask,
+    workflowTaskContextForChannel,
+    workflowTimeoutMs,
+} from "@/lib/server/runninghub-workflow-runtime";
+import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
 type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext };
@@ -63,7 +74,6 @@ export async function POST(request: Request) {
         throw error;
     }
     const trustedPractice = isTrustedPracticeTaskRequest(request, user.id, body.context);
-    if (hasUntrustedExecutionProfile(body) && !trustedPractice) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
     if (!headerRequestId && body.context?.clientRequestId) {
         const existing = await getStoredGenerationTaskByRequest<VideoTask>("video", user.id, body.context.clientRequestId, body.context.attemptNo);
         if (existing) return NextResponse.json({ task: publicTask(existing) });
@@ -77,6 +87,9 @@ export async function POST(request: Request) {
         if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
+    const projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+    const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
+    if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
     const response = await withGenerationConcurrencyLimit(
         user.id,
@@ -84,21 +97,26 @@ export async function POST(request: Request) {
         30 * 60_000,
         settings.generationConcurrency.video,
         async () => {
-            const executionProfile: PracticeExecutionProfile = trustedPractice ? "open-source-practice" : "production";
+            const executionProfile: PracticeExecutionProfile = practiceRequest ? "open-source-practice" : "production";
             let trustedContext: GenerationTaskContext;
             try {
-                const clientContext = { ...(body.context || {}) };
-                delete clientContext.billingContext;
+                const clientContext = sanitizeGenerationContext(body.context, trustedPractice);
+                if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "video");
                 const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
                 trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
             } catch (error) {
                 if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
                 throw error;
             }
-            const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : trustedPractice ? settings.practiceDefaultModels.videoModel : settings.defaultModels.videoModel;
-            const channels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile).map((channel) => ({ ...toSystemGenerationChannel(channel), executionProfile }));
+            const requestedModel = practiceRequest
+                ? resolvePracticeLogicalModel(settings, "video", trustedContext.businessCode || "storyboard-video", typeof body.config?.model === "string" ? body.config.model : undefined)
+                : typeof body.config?.model === "string" && body.config.model.trim()
+                  ? body.config.model
+                  : settings.defaultModels.videoModel;
+            const channels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile).map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }));
             const prompt = String(body.prompt || "").trim();
             if (!channels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
+            if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(channels[0], trustedContext.businessCode) };
             const publicOrigin = requestPublicOrigin(request);
             let references: VideoGenerationReference[];
             try {
@@ -213,7 +231,21 @@ export async function POST(request: Request) {
                     lastUpstreamStatus: "submitting",
                 });
                 try {
-                    const upstream = await createUpstream(user.id, origin, cookie, channel, providerPrompt, parameters, references, settings.generationPointMultipliers, billingRequestId, trustedContext.billingContext, trustedContext.executionProfile);
+                    const workflow = workflowConfigForTask({ ...trustedContext, config: channel });
+                    const upstream = await createUpstream(
+                        user.id,
+                        origin,
+                        cookie,
+                        channel,
+                        providerPrompt,
+                        parameters,
+                        references,
+                        settings.generationPointMultipliers,
+                        billingRequestId,
+                        trustedContext.billingContext,
+                        trustedContext.executionProfile,
+                        workflow,
+                    );
                     await updateVideoTask(localTask.id, { config: channel, upstream, requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds, attempts });
                     const task = { ...localTask, config: channel, upstream, requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds, attempts };
                     const submittedAt = Date.now();
@@ -291,6 +323,7 @@ export async function createUpstream(
     billingRequestId: string,
     billingContext?: SchoolComputeBillingContext,
     executionProfile: PracticeExecutionProfile = "production",
+    workflow?: RunningHubWorkflowConfig,
 ) {
     let lastError = "";
     const regularReferences = regularVideoReferences(references);
@@ -358,64 +391,66 @@ export async function createUpstream(
     };
     const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
     const multipart = channel.advancedConfig?.requestTemplate?.trim().toLowerCase().startsWith("multipart/form-data") === true;
-    const payload = multipart
-        ? undefined
-        : channel.advancedConfig?.protocol === "vozeb-recommended"
-          ? buildVozebRecommendedVideoRequest({
-                model: channel.model,
-                prompt,
-                duration: values.duration as number,
-                aspectRatio: values.aspect_ratio as string,
-                resolution: values.resolution as string,
-                generateAudio,
-                images,
-                videos,
-                audios,
-            })
-          : channel.advancedConfig?.protocol === "seedance-special"
-            ? buildSeedanceSpecialRequest({
+    const payload = workflow
+        ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: { ...values, ...raw }, references: references.map((reference) => ({ type: reference.type, url: reference.url })) })
+        : multipart
+          ? undefined
+          : channel.advancedConfig?.protocol === "vozeb-recommended"
+            ? buildVozebRecommendedVideoRequest({
                   model: channel.model,
                   prompt,
-                  duration: values.duration === -1 ? 5 : (values.duration as number),
-                  ratio: (values.ratio as string | undefined) || "adaptive",
+                  duration: values.duration as number,
+                  aspectRatio: values.aspect_ratio as string,
+                  resolution: values.resolution as string,
                   generateAudio,
-                  references,
+                  images,
+                  videos,
+                  audios,
               })
-            : channel.advancedConfig?.protocol === "yumeng"
-              ? buildYumengVideoRequest({
+            : channel.advancedConfig?.protocol === "seedance-special"
+              ? buildSeedanceSpecialRequest({
                     model: channel.model,
                     prompt,
-                    duration: values.duration as number,
-                    aspectRatio: values.aspect_ratio as string,
-                    resolution: values.resolution as string,
+                    duration: values.duration === -1 ? 5 : (values.duration as number),
+                    ratio: (values.ratio as string | undefined) || "adaptive",
                     generateAudio,
-                    watermark: booleanValue(raw.videoWatermark),
-                    images: requestImages,
-                    videos,
-                    audios,
-                    firstFrame: firstFrameUrl || undefined,
-                    lastFrame: lastFrameUrl || undefined,
+                    references,
                 })
-              : globalPreset
-                ? buildGlobalAiOpcVideoRequest(globalPreset, {
+              : channel.advancedConfig?.protocol === "yumeng"
+                ? buildYumengVideoRequest({
                       model: channel.model,
                       prompt,
                       duration: values.duration as number,
-                      ratio: values.ratio as string,
+                      aspectRatio: values.aspect_ratio as string,
                       resolution: values.resolution as string,
-                      images: requestImages.length ? requestImages : requestImage ? [requestImage] : [],
+                      generateAudio,
+                      watermark: booleanValue(raw.videoWatermark),
+                      images: requestImages,
                       videos,
                       audios,
-                      generateAudio,
                       firstFrame: firstFrameUrl || undefined,
                       lastFrame: lastFrameUrl || undefined,
                   })
-                : buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, defaults, values);
+                : globalPreset
+                  ? buildGlobalAiOpcVideoRequest(globalPreset, {
+                        model: channel.model,
+                        prompt,
+                        duration: values.duration as number,
+                        ratio: values.ratio as string,
+                        resolution: values.resolution as string,
+                        images: requestImages.length ? requestImages : requestImage ? [requestImage] : [],
+                        videos,
+                        audios,
+                        generateAudio,
+                        firstFrame: firstFrameUrl || undefined,
+                        lastFrame: lastFrameUrl || undefined,
+                    })
+                  : buildVideoProviderRequest(channel.advancedConfig?.requestTemplate, defaults, values);
     const requestBody = multipart
         ? await buildOpenAiVideoFormData({ model: channel.model, prompt, seconds: values.seconds as number, width: dimensions.width, height: dimensions.height, imageUrls: firstFrameUrl ? [firstFrameUrl] : images, origin, cookie })
         : JSON.stringify(payload);
     const imageToVideoPath = images.length || firstFrameUrl ? channel.advancedConfig?.imageToVideoPath?.trim() : "";
-    const createPaths = globalPreset ? [globalPreset.createPath] : imageToVideoPath ? [imageToVideoPath] : resolvedProviderCreatePaths(channel.advancedConfig, "video", CREATE_PATHS);
+    const createPaths = workflow ? [workflow.createPath] : globalPreset ? [globalPreset.createPath] : imageToVideoPath ? [imageToVideoPath] : resolvedProviderCreatePaths(channel.advancedConfig, "video", CREATE_PATHS);
     for (const path of createPaths) {
         const response = await proxyFetch(origin, channel.baseUrl, path, cookie, {
             method: "POST",
@@ -426,7 +461,7 @@ export async function createUpstream(
                 ...systemAiBillingHeaders(generationModelId(channel), `video-request:${billingRequestId}`, channel.model, executionProfile, billingContext),
             },
             body: requestBody,
-            signal: AbortSignal.timeout(resolveModelRequestTimeoutMs(channel, "video")),
+            signal: AbortSignal.timeout(workflowTimeoutMs(workflow, resolveModelRequestTimeoutMs(channel, "video"))),
         });
         const text = await response.text();
         if (!response.ok) {

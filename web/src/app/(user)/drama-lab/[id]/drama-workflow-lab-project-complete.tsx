@@ -153,7 +153,19 @@ type DramaLabCollaborationOverview = {
         profile?: { displayName?: string; username?: string; avatarUrl?: string };
     }>;
     invites: Array<{ id: string; projectId: string; expiresAt: string; revokedAt?: string; createdBy: string; createdAt: string; token?: string; inviteUrl?: string }>;
-    joinRequests: Array<{ id: string; projectId: string; applicantUserId: string; inviteId?: string; status: string; reviewedBy?: string; reviewedAt?: string; note?: string; createdAt: string; updatedAt: string; applicant?: { id?: string; displayName?: string; username?: string; avatarUrl?: string } }>;
+    joinRequests: Array<{
+        id: string;
+        projectId: string;
+        applicantUserId: string;
+        inviteId?: string;
+        status: string;
+        reviewedBy?: string;
+        reviewedAt?: string;
+        note?: string;
+        createdAt: string;
+        updatedAt: string;
+        applicant?: { id?: string; displayName?: string; username?: string; avatarUrl?: string };
+    }>;
     approvalConfigs: Array<{ stage: string; enabled: boolean; reviewerScope: "owner" | "admins"; reviewerUserIds: string[]; strictMode: boolean; updatedAt: string; updatedBy: string }>;
 };
 
@@ -168,7 +180,6 @@ function dramaLabApprovalMatchesEpisode(approval: DramaLabCollaborationApprovalR
     if (!episodeScoped) return true;
     return Boolean(episodeId && approval.episodeId === episodeId);
 }
-
 
 export interface Episode {
     id: string;
@@ -318,9 +329,42 @@ export interface Shot {
     audioSplitSegmentIndex?: number;
     status?: string;
     frames?: Partial<
-        Record<"first" | "key" | "last", { prompt: string; description?: string; status?: DramaLabTaskStatus; taskId?: string; attempt?: number; url?: string; storageKey?: string; width?: number; height?: number; error?: string; history?: DramaLabGenerationHistory[]; source?: "generated" | "uploaded" | "video_tail" | "restored"; sourceVideoTaskId?: string; sourceShotId?: string; sourceVideoHistoryId?: string; locked?: boolean }>
+        Record<
+            "first" | "key" | "last",
+            {
+                prompt: string;
+                description?: string;
+                status?: DramaLabTaskStatus;
+                taskId?: string;
+                attempt?: number;
+                url?: string;
+                storageKey?: string;
+                width?: number;
+                height?: number;
+                error?: string;
+                history?: DramaLabGenerationHistory[];
+                source?: "generated" | "uploaded" | "video_tail" | "restored";
+                sourceVideoTaskId?: string;
+                sourceShotId?: string;
+                sourceVideoHistoryId?: string;
+                locked?: boolean;
+            }
+        >
     >;
-    firstFrameCandidate?: { id: string; frameType: "first"; url: string; storageKey?: string; width?: number; height?: number; source: "video_tail"; sourceVideoTaskId: string; sourceShotId: string; sourceVideoHistoryId: string; createdAt: string; projectUpdatedAt: string };
+    firstFrameCandidate?: {
+        id: string;
+        frameType: "first";
+        url: string;
+        storageKey?: string;
+        width?: number;
+        height?: number;
+        source: "video_tail";
+        sourceVideoTaskId: string;
+        sourceShotId: string;
+        sourceVideoHistoryId: string;
+        createdAt: string;
+        projectUpdatedAt: string;
+    };
     videoFrameSnapshot?: DramaShotVideoFrameSnapshot;
 }
 
@@ -429,9 +473,7 @@ function normalizeScenes(value: unknown): Scene[] {
 function normalizeAudioState(value: unknown): DramaShotAudioState | undefined {
     if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
     const input = value as Record<string, unknown>;
-    const status = typeof input.status === "string" && ["idle", "queued", "pending", "running", "success", "error", "cancelled"].includes(input.status)
-        ? (input.status as DramaLabTaskStatus)
-        : undefined;
+    const status = typeof input.status === "string" && ["idle", "queued", "pending", "running", "success", "error", "cancelled"].includes(input.status) ? (input.status as DramaLabTaskStatus) : undefined;
     const url = typeof input.url === "string" && input.url.trim() ? input.url.trim() : undefined;
     const taskId = typeof input.taskId === "string" && input.taskId.trim() ? input.taskId.trim() : undefined;
     if (!status && !url && !taskId) return undefined;
@@ -462,13 +504,15 @@ function normalizeUtterances(value: unknown): DramaUtterance[] {
         const text = typeof input.text === "string" ? input.text.trim() : "";
         if (!text) return [];
         const type = input.type === "voiceover" ? "voiceover" : "dialogue";
-        return [{
-            id: typeof input.id === "string" && input.id.trim() ? input.id : `utterance-${index + 1}`,
-            order: Number.isFinite(Number(input.order)) ? Number(input.order) : index + 1,
-            type,
-            speaker: typeof input.speaker === "string" ? input.speaker.trim() : "",
-            text,
-        }];
+        return [
+            {
+                id: typeof input.id === "string" && input.id.trim() ? input.id : `utterance-${index + 1}`,
+                order: Number.isFinite(Number(input.order)) ? Number(input.order) : index + 1,
+                type,
+                speaker: typeof input.speaker === "string" ? input.speaker.trim() : "",
+                text,
+            },
+        ];
     });
 }
 
@@ -645,17 +689,22 @@ function normalizeVideoFrameSnapshot(value: unknown): DramaShotVideoFrameSnapsho
         const role = reference.role === "first_frame" || reference.role === "last_frame" || reference.role === "reference" ? (reference.role as DramaShotVideoFrameSnapshot["references"][number]["role"]) : undefined;
         const url = typeof reference.url === "string" ? reference.url.trim() : "";
         if (!role || !url) return [];
-        return [{
-            role,
-            frameType: reference.frameType === "first" || reference.frameType === "key" || reference.frameType === "last" ? (reference.frameType as "first" | "key" | "last") : undefined,
-            url,
-            storageKey: typeof reference.storageKey === "string" ? reference.storageKey : undefined,
-            taskId: typeof reference.taskId === "string" ? reference.taskId : undefined,
-            source: reference.source === "generated" || reference.source === "uploaded" || reference.source === "video_tail" || reference.source === "restored" ? (reference.source as NonNullable<DramaShotVideoFrameSnapshot["references"][number]["source"]>) : undefined,
-            sourceVideoTaskId: typeof reference.sourceVideoTaskId === "string" ? reference.sourceVideoTaskId : undefined,
-            sourceShotId: typeof reference.sourceShotId === "string" ? reference.sourceShotId : undefined,
-            sourceVideoHistoryId: typeof reference.sourceVideoHistoryId === "string" ? reference.sourceVideoHistoryId : undefined,
-        }];
+        return [
+            {
+                role,
+                frameType: reference.frameType === "first" || reference.frameType === "key" || reference.frameType === "last" ? (reference.frameType as "first" | "key" | "last") : undefined,
+                url,
+                storageKey: typeof reference.storageKey === "string" ? reference.storageKey : undefined,
+                taskId: typeof reference.taskId === "string" ? reference.taskId : undefined,
+                source:
+                    reference.source === "generated" || reference.source === "uploaded" || reference.source === "video_tail" || reference.source === "restored"
+                        ? (reference.source as NonNullable<DramaShotVideoFrameSnapshot["references"][number]["source"]>)
+                        : undefined,
+                sourceVideoTaskId: typeof reference.sourceVideoTaskId === "string" ? reference.sourceVideoTaskId : undefined,
+                sourceShotId: typeof reference.sourceShotId === "string" ? reference.sourceShotId : undefined,
+                sourceVideoHistoryId: typeof reference.sourceVideoHistoryId === "string" ? reference.sourceVideoHistoryId : undefined,
+            },
+        ];
     });
     if (!references.length) return undefined;
     return {
@@ -863,7 +912,7 @@ function audioStateForKind(shot: Shot, kind: "dialogue" | "narration") {
     // track. With an opposite dedicated state, require unambiguous text
     // ownership; without one, preserve the legacy dialogue-first rule.
     if (ambiguousLegacyAudioText(shot)) return undefined;
-    if ((shot.dialogueAudio || shot.narrationAudio) ? strictLegacyAudioKind(shot) !== kind : legacyAudioKind(shot) !== kind) return undefined;
+    if (shot.dialogueAudio || shot.narrationAudio ? strictLegacyAudioKind(shot) !== kind : legacyAudioKind(shot) !== kind) return undefined;
 
     return {
         status: shot.audioStatus || (shot.audioUrl ? "success" : "idle"),
@@ -897,9 +946,7 @@ function ambiguousLegacyAudioReviewReason(shot: Shot) {
     const legacyUrl = stableAudioSourceUrl(shot.audioUrl);
     if (!legacyUrl) return undefined;
     if (!ambiguousLegacyAudioText(shot)) return undefined;
-    const dedicatedUrls = [shot.dialogueAudio?.url, shot.narrationAudio?.url]
-        .map((url) => stableAudioSourceUrl(url))
-        .filter(Boolean);
+    const dedicatedUrls = [shot.dialogueAudio?.url, shot.narrationAudio?.url].map((url) => stableAudioSourceUrl(url)).filter(Boolean);
     if (dedicatedUrls.includes(legacyUrl)) return undefined;
     return "旧版 audioUrl 同时对应对白和旁白文本，系统不会猜测归属；请先确认后再用于成片。";
 }
@@ -995,25 +1042,25 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         projectRef.current = project;
     }, [project]);
 
-    const collaborationApi = useCallback(async (path: string, init?: RequestInit) => {
-        const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/collaboration${path}`, {
-            ...init,
-            headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-            cache: "no-store",
-        });
-        const payload = (await response.json().catch(() => ({}))) as { code?: unknown; msg?: unknown; data?: unknown };
-        if (!response.ok || (payload.code !== undefined && Number(payload.code) !== 0)) throw new Error(String(payload.msg || `协作请求失败（${response.status}）`));
-        return payload.data;
-    }, [projectId]);
+    const collaborationApi = useCallback(
+        async (path: string, init?: RequestInit) => {
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/collaboration${path}`, {
+                ...init,
+                headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+                cache: "no-store",
+            });
+            const payload = (await response.json().catch(() => ({}))) as { code?: unknown; msg?: unknown; data?: unknown };
+            if (!response.ok || (payload.code !== undefined && Number(payload.code) !== 0)) throw new Error(String(payload.msg || `协作请求失败（${response.status}）`));
+            return payload.data;
+        },
+        [projectId],
+    );
 
     const loadCollaboration = useCallback(async () => {
         setCollaborationLoading(true);
         setCollaborationError(undefined);
         try {
-            const [overviewData, approvalsData] = await Promise.all([
-                collaborationApi(""),
-                collaborationApi("/approvals?page=1&pageSize=20"),
-            ]);
+            const [overviewData, approvalsData] = await Promise.all([collaborationApi(""), collaborationApi("/approvals?page=1&pageSize=20")]);
             const overview = overviewData as DramaLabCollaborationOverview;
             const approvalPage = (approvalsData as { items?: DramaLabCollaborationApprovalRecord[]; total?: number; page?: number } | undefined) || {};
             const approvals = approvalPage.items || [];
@@ -1041,9 +1088,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                 const next = { ...current };
                 for (const stage of COLLABORATION_STAGES) {
                     const apiStage = DRAMA_LAB_UI_TO_API_STAGE[stage.key];
-                    const latest = approvals
-                        .filter((item) => item.stage === apiStage && dramaLabApprovalMatchesEpisode(item, stage.key, activeEpisodeId))
-                        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+                    const latest = approvals.filter((item) => item.stage === apiStage && dramaLabApprovalMatchesEpisode(item, stage.key, activeEpisodeId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
                     next[stage.key] = latest?.status === "pending" ? "submitted" : latest?.status === "approved" ? "approved" : latest?.status === "rejected" ? "returned" : "draft";
                 }
                 return next;
@@ -1321,11 +1366,12 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         if (!project) return;
         const apiStage = DRAMA_LAB_UI_TO_API_STAGE[stageKey];
         const shot = activeEpisode ? project.shots.find((item) => item.episodeId === activeEpisode.id) : undefined;
-        const resource = (stageKey === "script" || stageKey === "storyboard") && activeEpisode
-            ? { resourceType: "episode", resourceId: activeEpisode.id, episodeId: activeEpisode.id }
-            : (stageKey === "visual_images" || stageKey === "storyboard_video") && shot
-              ? { resourceType: "shot", resourceId: shot.id, episodeId: shot.episodeId }
-              : { resourceType: "project", resourceId: project.id };
+        const resource =
+            (stageKey === "script" || stageKey === "storyboard") && activeEpisode
+                ? { resourceType: "episode", resourceId: activeEpisode.id, episodeId: activeEpisode.id }
+                : (stageKey === "visual_images" || stageKey === "storyboard_video") && shot
+                  ? { resourceType: "shot", resourceId: shot.id, episodeId: shot.episodeId }
+                  : { resourceType: "project", resourceId: project.id };
         setCollaborationActionBusy(true);
         void collaborationApi("/approvals", {
             method: "POST",
@@ -1338,9 +1384,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     };
     const findPendingApproval = (stageKey: CollaborationStageKey) => {
         const apiStage = DRAMA_LAB_UI_TO_API_STAGE[stageKey];
-        return collaborationApprovals
-            .filter((item) => item.status === "pending" && item.stage === apiStage && dramaLabApprovalMatchesEpisode(item, stageKey, activeEpisodeId))
-            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+        return collaborationApprovals.filter((item) => item.status === "pending" && item.stage === apiStage && dramaLabApprovalMatchesEpisode(item, stageKey, activeEpisodeId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     };
     const approveStage = (stageKey: CollaborationStageKey) => {
         const approval = findPendingApproval(stageKey);
@@ -1544,12 +1588,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     <p className="truncate text-xs text-muted-foreground">{activeEpisode?.title || `第 ${activeEpisode?.number || 1} 集`}</p>
                 </div>
                 {activeEpisode ? (
-                    <Button
-                        href={dramaLabEpisodeCanvasHref(projectId, activeEpisode.id)}
-                        icon={<PanelsTopLeft className="size-4" />}
-                        aria-label="打开本集画布"
-                        title="打开本集画布"
-                    >
+                    <Button href={dramaLabEpisodeCanvasHref(projectId, activeEpisode.id)} icon={<PanelsTopLeft className="size-4" />} aria-label="打开本集画布" title="打开本集画布">
                         <span className="hidden xl:inline">打开本集画布</span>
                     </Button>
                 ) : null}
@@ -2291,12 +2330,12 @@ function CollaborationPanel({
     };
 
     const memberLabel = (member: DramaLabCollaborationOverview["members"][number]) => member.profile?.displayName || member.profile?.username || member.userId;
-    const roleLabel = (role: DramaLabCollaborationOverview["members"][number]["role"]) => role === "owner" ? "项目管理员" : role === "admin" ? "副管理员" : "成员";
+    const roleLabel = (role: DramaLabCollaborationOverview["members"][number]["role"]) => (role === "owner" ? "项目管理员" : role === "admin" ? "副管理员" : "成员");
     const approvalLabel = (approval: DramaLabCollaborationApprovalRecord) => {
         const uiStage = DRAMA_LAB_API_TO_UI_STAGE[approval.stage];
         return uiStage ? COLLABORATION_STAGES.find((stage) => stage.key === uiStage)?.label || approval.stage : approval.stage;
     };
-    const approvalStatusLabel = (status: DramaLabCollaborationApprovalRecord["status"]) => status === "pending" ? "审核中" : status === "approved" ? "已通过" : status === "rejected" ? "已驳回" : "已取消";
+    const approvalStatusLabel = (status: DramaLabCollaborationApprovalRecord["status"]) => (status === "pending" ? "审核中" : status === "approved" ? "已通过" : status === "rejected" ? "已驳回" : "已取消");
     const handleJoinRequest = async (requestId: string, decision: "approve" | "reject") => {
         setRequestBusyId(requestId);
         setRequestError(undefined);
@@ -2378,10 +2417,27 @@ function CollaborationPanel({
                         </div>
                         <p className="mt-1 text-xs leading-5 text-muted-foreground">项目组长和副管理员可配置审批节点，成员权限由服务端校验。</p>
                         {activeStage ? <p className="mt-1 text-xs text-primary">当前制作阶段：{activeStage.label}</p> : null}
-                        {overview ? <p className="mt-1 text-xs text-muted-foreground">当前成员 {overview.members.length} 人 · 待处理申请 {overview.joinRequests.filter((item) => item.status === "pending").length} 条</p> : null}
+                        {overview ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                当前成员 {overview.members.length} 人 · 待处理申请 {overview.joinRequests.filter((item) => item.status === "pending").length} 条
+                            </p>
+                        ) : null}
                     </div>
                 </div>
-                {error ? <Alert className="mt-3" type="error" showIcon title="协作数据加载失败" description={error} action={<Button size="small" onClick={onRefresh}>重试</Button>} /> : null}
+                {error ? (
+                    <Alert
+                        className="mt-3"
+                        type="error"
+                        showIcon
+                        title="协作数据加载失败"
+                        description={error}
+                        action={
+                            <Button size="small" onClick={onRefresh}>
+                                重试
+                            </Button>
+                        }
+                    />
+                ) : null}
                 {collaborationEnabled ? (
                     <div className="mt-3 grid grid-cols-2 gap-2">
                         <button
@@ -2427,17 +2483,52 @@ function CollaborationPanel({
                             <div className="min-w-0 flex-1">
                                 <p className="break-all text-xs leading-5">{displayedInviteUrl}</p>
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                    <Button size="small" icon={<Copy className="size-3.5" />} onClick={() => void copyInvite()}>复制链接</Button>
-                                    {canManageMembers && activeInvite ? <Button size="small" danger icon={<Trash2 className="size-3.5" />} onClick={() => Modal.confirm({ title: "撤销邀请链接？", content: "撤销后，已经分享的链接将不能再提交加入申请。", okText: "确认撤销", cancelText: "取消", onOk: async () => { setInviteBusy(true); try { await onRevokeInvite(activeInvite.id); setInviteUrl(undefined); } catch (revokeError) { setMemberError(revokeError instanceof Error ? revokeError.message : "邀请链接撤销失败"); } finally { setInviteBusy(false); } } })}>撤销</Button> : null}
+                                    <Button size="small" icon={<Copy className="size-3.5" />} onClick={() => void copyInvite()}>
+                                        复制链接
+                                    </Button>
+                                    {canManageMembers && activeInvite ? (
+                                        <Button
+                                            size="small"
+                                            danger
+                                            icon={<Trash2 className="size-3.5" />}
+                                            onClick={() =>
+                                                Modal.confirm({
+                                                    title: "撤销邀请链接？",
+                                                    content: "撤销后，已经分享的链接将不能再提交加入申请。",
+                                                    okText: "确认撤销",
+                                                    cancelText: "取消",
+                                                    onOk: async () => {
+                                                        setInviteBusy(true);
+                                                        try {
+                                                            await onRevokeInvite(activeInvite.id);
+                                                            setInviteUrl(undefined);
+                                                        } catch (revokeError) {
+                                                            setMemberError(revokeError instanceof Error ? revokeError.message : "邀请链接撤销失败");
+                                                        } finally {
+                                                            setInviteBusy(false);
+                                                        }
+                                                    },
+                                                })
+                                            }
+                                        >
+                                            撤销
+                                        </Button>
+                                    ) : null}
                                 </div>
                             </div>
                         </div>
                     ) : activeInvite ? (
                         <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                             <span>已有有效邀请（{new Date(activeInvite.expiresAt).toLocaleDateString("zh-CN")} 到期）</span>
-                            {canManageMembers ? <Button type="link" size="small" onClick={() => void handleCreateInvite()}>重新生成并复制</Button> : null}
+                            {canManageMembers ? (
+                                <Button type="link" size="small" onClick={() => void handleCreateInvite()}>
+                                    重新生成并复制
+                                </Button>
+                            ) : null}
                         </div>
-                    ) : <p className="text-xs text-muted-foreground">暂无有效邀请链接。</p>}
+                    ) : (
+                        <p className="text-xs text-muted-foreground">暂无有效邀请链接。</p>
+                    )}
                 </section>
             ) : null}
 
@@ -2506,54 +2597,77 @@ function CollaborationPanel({
                         </div>
                         {overview?.members.length ? <Input.Search className="mb-2" size="small" value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} allowClear placeholder="搜索项目内成员" /> : null}
                         <div className="space-y-2 border border-border p-3 text-xs">
-                            {filteredMembers.length ? filteredMembers.map((member) => {
-                                const isViewer = member.userId === overview?.viewerUserId;
-                                // Managers may remove members; only the owner
-                                // may change roles or transfer ownership.
-                                const canEdit = canManageMembers && member.role !== "owner" && !isViewer;
-                                return (
-                                    <div key={member.userId} className="flex items-center gap-2">
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate font-medium" title={member.userId}>{memberLabel(member)}{isViewer ? "（我）" : ""}</p>
-                                            <p className="text-muted-foreground">{roleLabel(member.role)}</p>
+                            {filteredMembers.length ? (
+                                filteredMembers.map((member) => {
+                                    const isViewer = member.userId === overview?.viewerUserId;
+                                    // Managers may remove members; only the owner
+                                    // may change roles or transfer ownership.
+                                    const canEdit = canManageMembers && member.role !== "owner" && !isViewer;
+                                    return (
+                                        <div key={member.userId} className="flex items-center gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate font-medium" title={member.userId}>
+                                                    {memberLabel(member)}
+                                                    {isViewer ? "（我）" : ""}
+                                                </p>
+                                                <p className="text-muted-foreground">{roleLabel(member.role)}</p>
+                                            </div>
+                                            {isOwner && canEdit ? (
+                                                <Button
+                                                    type="text"
+                                                    size="small"
+                                                    loading={memberBusyId === member.userId}
+                                                    icon={<UserCog className="size-3.5" />}
+                                                    aria-label={member.role === "admin" ? "取消副管理员" : "设为副管理员"}
+                                                    title={member.role === "admin" ? "取消副管理员" : "设为副管理员"}
+                                                    onClick={() => void handleMemberAction(member.userId, () => onChangeMemberRole(member.userId, member.role === "admin" ? "member" : "admin"))}
+                                                />
+                                            ) : null}
+                                            {isOwner && canEdit ? (
+                                                <Button
+                                                    type="text"
+                                                    size="small"
+                                                    loading={memberBusyId === member.userId}
+                                                    icon={<ShieldCheck className="size-3.5" />}
+                                                    aria-label="转交项目管理权"
+                                                    title="转交项目管理权"
+                                                    onClick={() =>
+                                                        Modal.confirm({
+                                                            title: "转交项目管理权？",
+                                                            content: "转交后你将保留副管理员权限，新的管理员负责审批和成员管理。",
+                                                            okText: "确认转交",
+                                                            cancelText: "取消",
+                                                            onOk: () => handleMemberAction(member.userId, () => onTransferOwnership(member.userId)),
+                                                        })
+                                                    }
+                                                />
+                                            ) : null}
+                                            {canEdit ? (
+                                                <Button
+                                                    type="text"
+                                                    danger
+                                                    size="small"
+                                                    loading={memberBusyId === member.userId}
+                                                    icon={<UserMinus className="size-3.5" />}
+                                                    aria-label="移除成员"
+                                                    title="移除成员"
+                                                    onClick={() =>
+                                                        Modal.confirm({
+                                                            title: "移除项目成员？",
+                                                            content: "移除后，该成员将无法继续访问此短剧项目。",
+                                                            okText: "确认移除",
+                                                            cancelText: "取消",
+                                                            onOk: () => handleMemberAction(member.userId, () => onRemoveMember(member.userId)),
+                                                        })
+                                                    }
+                                                />
+                                            ) : null}
                                         </div>
-                                        {isOwner && canEdit ? (
-                                            <Button
-                                                type="text"
-                                                size="small"
-                                                loading={memberBusyId === member.userId}
-                                                icon={<UserCog className="size-3.5" />}
-                                                aria-label={member.role === "admin" ? "取消副管理员" : "设为副管理员"}
-                                                title={member.role === "admin" ? "取消副管理员" : "设为副管理员"}
-                                                onClick={() => void handleMemberAction(member.userId, () => onChangeMemberRole(member.userId, member.role === "admin" ? "member" : "admin"))}
-                                            />
-                                        ) : null}
-                                        {isOwner && canEdit ? (
-                                            <Button
-                                                type="text"
-                                                size="small"
-                                                loading={memberBusyId === member.userId}
-                                                icon={<ShieldCheck className="size-3.5" />}
-                                                aria-label="转交项目管理权"
-                                                title="转交项目管理权"
-                                                onClick={() => Modal.confirm({ title: "转交项目管理权？", content: "转交后你将保留副管理员权限，新的管理员负责审批和成员管理。", okText: "确认转交", cancelText: "取消", onOk: () => handleMemberAction(member.userId, () => onTransferOwnership(member.userId)) })}
-                                            />
-                                        ) : null}
-                                        {canEdit ? (
-                                            <Button
-                                                type="text"
-                                                danger
-                                                size="small"
-                                                loading={memberBusyId === member.userId}
-                                                icon={<UserMinus className="size-3.5" />}
-                                                aria-label="移除成员"
-                                                title="移除成员"
-                                                onClick={() => Modal.confirm({ title: "移除项目成员？", content: "移除后，该成员将无法继续访问此短剧项目。", okText: "确认移除", cancelText: "取消", onOk: () => handleMemberAction(member.userId, () => onRemoveMember(member.userId)) })}
-                                            />
-                                        ) : null}
-                                    </div>
-                                );
-                            }) : <span className="text-muted-foreground">没有匹配的项目成员</span>}
+                                    );
+                                })
+                            ) : (
+                                <span className="text-muted-foreground">没有匹配的项目成员</span>
+                            )}
                         </div>
                         {viewer && viewer.role !== "owner" ? (
                             <Button className="mt-2" size="small" danger icon={<LogOut className="size-3.5" />} onClick={() => void handleMemberAction(viewer.userId, onLeaveProject)} loading={memberBusyId === viewer.userId}>
@@ -2570,13 +2684,21 @@ function CollaborationPanel({
                                 <span className="text-xs text-muted-foreground">管理员确认后生效</span>
                             </div>
                             <div className="space-y-2 border border-border p-3 text-xs">
-                                {overview.joinRequests.filter((item) => item.status === "pending").map((request) => (
-                                    <div key={request.id} className="flex items-center gap-2">
-                                        <span className="min-w-0 flex-1 truncate" title={request.applicantUserId}>{request.applicant?.displayName || request.applicant?.username || request.applicantUserId}</span>
-                                        <Button size="small" type="primary" loading={requestBusyId === request.id} onClick={() => void handleJoinRequest(request.id, "approve")}>通过</Button>
-                                        <Button size="small" loading={requestBusyId === request.id} onClick={() => void handleJoinRequest(request.id, "reject")}>拒绝</Button>
-                                    </div>
-                                ))}
+                                {overview.joinRequests
+                                    .filter((item) => item.status === "pending")
+                                    .map((request) => (
+                                        <div key={request.id} className="flex items-center gap-2">
+                                            <span className="min-w-0 flex-1 truncate" title={request.applicantUserId}>
+                                                {request.applicant?.displayName || request.applicant?.username || request.applicantUserId}
+                                            </span>
+                                            <Button size="small" type="primary" loading={requestBusyId === request.id} onClick={() => void handleJoinRequest(request.id, "approve")}>
+                                                通过
+                                            </Button>
+                                            <Button size="small" loading={requestBusyId === request.id} onClick={() => void handleJoinRequest(request.id, "reject")}>
+                                                拒绝
+                                            </Button>
+                                        </div>
+                                    ))}
                             </div>
                         </section>
                     ) : null}
@@ -2595,17 +2717,20 @@ function CollaborationPanel({
                                             <p className="font-medium">{approvalLabel(approval)}</p>
                                             <span className="text-muted-foreground">{approvalStatusLabel(approval.status)}</span>
                                         </div>
-                                        <p className="mt-1 text-muted-foreground">资源：{approval.resourceType}/{approval.resourceId}</p>
+                                        <p className="mt-1 text-muted-foreground">
+                                            资源：{approval.resourceType}/{approval.resourceId}
+                                        </p>
                                         {approval.reviewComment ? <p className="mt-1 leading-4 text-rose-700">意见：{approval.reviewComment}</p> : null}
                                         <p className="mt-1 text-[11px] text-muted-foreground">{new Date(approval.createdAt).toLocaleString("zh-CN")}</p>
                                     </button>
                                 ))}
-                                {!approvals.length && feedback.slice(0, 3).map((item) => (
-                                    <div key={item.id} className="border-l-2 border-rose-400 pl-2 text-xs">
-                                        <p className="font-medium">{COLLABORATION_STAGES.find((stage) => stage.key === item.stage)?.label}</p>
-                                        <p className="mt-1 leading-4 text-muted-foreground">{item.content}</p>
-                                    </div>
-                                ))}
+                                {!approvals.length &&
+                                    feedback.slice(0, 3).map((item) => (
+                                        <div key={item.id} className="border-l-2 border-rose-400 pl-2 text-xs">
+                                            <p className="font-medium">{COLLABORATION_STAGES.find((stage) => stage.key === item.stage)?.label}</p>
+                                            <p className="mt-1 leading-4 text-muted-foreground">{item.content}</p>
+                                        </div>
+                                    ))}
                             </div>
                             {approvals.length < approvalTotal ? (
                                 <Button className="mt-2 w-full" size="small" loading={approvalLoadingMore} onClick={() => void onLoadMoreApprovals()}>
@@ -2742,13 +2867,16 @@ function WorkflowRunModal({
               ]),
     ];
 
-    const fetchWorkflow = useCallback(async (taskId?: string, signal?: AbortSignal) => {
-        const query = taskId ? `?taskId=${encodeURIComponent(taskId)}` : "";
-        const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/workflow${query}`, { cache: "no-store", signal });
-        const payload = (await response.json().catch(() => ({}))) as { code?: unknown; msg?: unknown; data?: WorkflowTaskView | null };
-        if (!response.ok || (payload.code !== undefined && Number(payload.code) !== 0)) throw new Error(String(payload.msg || `工作流请求失败（${response.status}）`));
-        return payload.data || null;
-    }, [projectId]);
+    const fetchWorkflow = useCallback(
+        async (taskId?: string, signal?: AbortSignal) => {
+            const query = taskId ? `?taskId=${encodeURIComponent(taskId)}` : "";
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/workflow${query}`, { cache: "no-store", signal });
+            const payload = (await response.json().catch(() => ({}))) as { code?: unknown; msg?: unknown; data?: WorkflowTaskView | null };
+            if (!response.ok || (payload.code !== undefined && Number(payload.code) !== 0)) throw new Error(String(payload.msg || `工作流请求失败（${response.status}）`));
+            return payload.data || null;
+        },
+        [projectId],
+    );
 
     // Recover an active server task whenever the modal opens. This also makes
     // a browser refresh safe: the task state remains the source of truth.
@@ -2962,7 +3090,15 @@ function WorkflowRunModal({
                                 {episodeLabel} · {selectedMode.label}
                             </p>
                         </div>
-                        {taskStatusLabel ? <span className={cn("text-sm font-medium", workflowTask?.status === "success" ? "text-emerald-700" : workflowTask?.status === "error" ? "text-rose-700" : workflowTask?.status === "cancelled" ? "text-amber-700" : "text-primary")}>{taskStatusLabel}</span> : workflowLoading ? <span className="text-sm text-muted-foreground">正在读取任务状态…</span> : null}
+                        {taskStatusLabel ? (
+                            <span
+                                className={cn("text-sm font-medium", workflowTask?.status === "success" ? "text-emerald-700" : workflowTask?.status === "error" ? "text-rose-700" : workflowTask?.status === "cancelled" ? "text-amber-700" : "text-primary")}
+                            >
+                                {taskStatusLabel}
+                            </span>
+                        ) : workflowLoading ? (
+                            <span className="text-sm text-muted-foreground">正在读取任务状态…</span>
+                        ) : null}
                     </div>
                     <ol className="divide-y divide-border">
                         {displayedSteps.map((step, index) => {
@@ -2974,7 +3110,15 @@ function WorkflowRunModal({
                                         <span
                                             className={cn(
                                                 "grid size-6 shrink-0 place-items-center rounded-full border text-xs",
-                                                status === "已完成" ? "border-emerald-500 bg-emerald-500 text-white" : status === "执行中" ? "border-primary bg-primary text-primary-foreground" : status === "失败" ? "border-rose-500 text-rose-700" : status === "已取消" ? "border-amber-500 text-amber-700" : "border-border text-muted-foreground",
+                                                status === "已完成"
+                                                    ? "border-emerald-500 bg-emerald-500 text-white"
+                                                    : status === "执行中"
+                                                      ? "border-primary bg-primary text-primary-foreground"
+                                                      : status === "失败"
+                                                        ? "border-rose-500 text-rose-700"
+                                                        : status === "已取消"
+                                                          ? "border-amber-500 text-amber-700"
+                                                          : "border-border text-muted-foreground",
                                             )}
                                         >
                                             {status === "已完成" ? <CheckCircle2 className="size-3.5" /> : status === "执行中" ? <LoaderCircle className="size-3.5 animate-spin" /> : status === "失败" ? <AlertCircle className="size-3.5" /> : index + 1}
@@ -2993,8 +3137,18 @@ function WorkflowRunModal({
                                                 const childDetail = child.error || [child.episodeId && `剧集 ${child.episodeId}`, child.shotId && `镜头 ${child.shotId}`].filter(Boolean).join(" · ") || child.type;
                                                 return (
                                                     <div key={child.id} className="flex items-center gap-2 text-xs">
-                                                        {child.status === "running" ? <LoaderCircle className="size-3 shrink-0 animate-spin text-primary" /> : child.status === "success" ? <CheckCircle2 className="size-3 shrink-0 text-emerald-600" /> : child.status === "error" ? <AlertCircle className="size-3 shrink-0 text-rose-600" /> : <span className="size-3 shrink-0 rounded-full border border-border" />}
-                                                        <span className="min-w-0 flex-1 truncate" title={child.key}>{childDetail}</span>
+                                                        {child.status === "running" ? (
+                                                            <LoaderCircle className="size-3 shrink-0 animate-spin text-primary" />
+                                                        ) : child.status === "success" ? (
+                                                            <CheckCircle2 className="size-3 shrink-0 text-emerald-600" />
+                                                        ) : child.status === "error" ? (
+                                                            <AlertCircle className="size-3 shrink-0 text-rose-600" />
+                                                        ) : (
+                                                            <span className="size-3 shrink-0 rounded-full border border-border" />
+                                                        )}
+                                                        <span className="min-w-0 flex-1 truncate" title={child.key}>
+                                                            {childDetail}
+                                                        </span>
                                                         <span className={cn("shrink-0", child.status === "error" ? "text-rose-700" : "text-muted-foreground")}>{childStatus}</span>
                                                     </div>
                                                 );
@@ -3014,7 +3168,10 @@ function WorkflowRunModal({
                             <span className="font-medium">{Math.max(0, Math.min(100, workflowTask.progress))}%</span>
                         </div>
                         <div className="mt-2 h-2 overflow-hidden rounded-full bg-border" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={workflowTask.progress} aria-label="工作流进度">
-                            <div className={cn("h-full transition-[width]", workflowTask.status === "error" ? "bg-rose-500" : workflowTask.status === "cancelled" ? "bg-amber-500" : workflowTask.status === "success" ? "bg-emerald-500" : "bg-primary")} style={{ width: `${Math.max(0, Math.min(100, workflowTask.progress))}%` }} />
+                            <div
+                                className={cn("h-full transition-[width]", workflowTask.status === "error" ? "bg-rose-500" : workflowTask.status === "cancelled" ? "bg-amber-500" : workflowTask.status === "success" ? "bg-emerald-500" : "bg-primary")}
+                                style={{ width: `${Math.max(0, Math.min(100, workflowTask.progress))}%` }}
+                            />
                         </div>
                     </div>
                 ) : null}
@@ -3024,9 +3181,21 @@ function WorkflowRunModal({
 
                 <div className="flex flex-wrap justify-end gap-3">
                     <Button onClick={onClose}>关闭</Button>
-                    {isActive ? <Button danger loading={workflowActionBusy} disabled={workflowLoading} onClick={() => void changeRun("cancel")}>取消任务</Button> : null}
-                    {workflowTask?.status === "error" || workflowTask?.status === "cancelled" ? <Button loading={workflowActionBusy} disabled={workflowLoading} onClick={() => void changeRun("resume")}>恢复任务</Button> : null}
-                    {!isActive ? <Button type="primary" icon={<Sparkles className="size-4" />} loading={workflowActionBusy} disabled={Boolean(strictApprovalBlock) || workflowLoading} onClick={() => void startRun()}>{workflowTask?.status === "success" ? "再次执行" : "开始执行"}</Button> : null}
+                    {isActive ? (
+                        <Button danger loading={workflowActionBusy} disabled={workflowLoading} onClick={() => void changeRun("cancel")}>
+                            取消任务
+                        </Button>
+                    ) : null}
+                    {workflowTask?.status === "error" || workflowTask?.status === "cancelled" ? (
+                        <Button loading={workflowActionBusy} disabled={workflowLoading} onClick={() => void changeRun("resume")}>
+                            恢复任务
+                        </Button>
+                    ) : null}
+                    {!isActive ? (
+                        <Button type="primary" icon={<Sparkles className="size-4" />} loading={workflowActionBusy} disabled={Boolean(strictApprovalBlock) || workflowLoading} onClick={() => void startRun()}>
+                            {workflowTask?.status === "success" ? "再次执行" : "开始执行"}
+                        </Button>
+                    ) : null}
                 </div>
             </div>
         </Modal>
@@ -3094,30 +3263,157 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
     const blockingIssueCount = issues.filter((issue) => issue.severity === "high").length;
     const conclusion = !review ? "尚未执行审核" : review.status === "passed" ? "可以进入成片导出" : review.status === "needs_revision" ? "建议修改后再导出" : "审核服务暂不可用";
     const statusLabel = !review ? "待执行" : review.status === "passed" ? "已通过" : review.status === "needs_revision" ? "需修改" : "暂不可用";
-    const statusClass = !review ? "border-border bg-muted text-muted-foreground" : review.status === "passed" ? "border-emerald-300 bg-emerald-50 text-emerald-800" : review.status === "needs_revision" ? "border-amber-300 bg-amber-50 text-amber-800" : "border-rose-300 bg-rose-50 text-rose-800";
-    const severityLabel = (severity: "low" | "medium" | "high") => severity === "high" ? "高" : severity === "medium" ? "中" : "低";
-    const issueTarget = (taskId?: string): StepKey => taskId?.startsWith("assets") ? "assets" : "storyboard";
+    const statusClass = !review
+        ? "border-border bg-muted text-muted-foreground"
+        : review.status === "passed"
+          ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+          : review.status === "needs_revision"
+            ? "border-amber-300 bg-amber-50 text-amber-800"
+            : "border-rose-300 bg-rose-50 text-rose-800";
+    const severityLabel = (severity: "low" | "medium" | "high") => (severity === "high" ? "高" : severity === "medium" ? "中" : "低");
+    const issueTarget = (taskId?: string): StepKey => (taskId?.startsWith("assets") ? "assets" : "storyboard");
 
     return (
         <div className="mx-auto max-w-6xl space-y-6">
             <section className="flex flex-wrap items-start justify-between gap-4 border border-border bg-card px-5 py-5 sm:px-6">
                 <div className="flex min-w-0 items-start gap-3">
-                    <span className="grid size-10 shrink-0 place-items-center border border-primary/30 bg-primary/10 text-primary"><Sparkles className="size-5" /></span>
+                    <span className="grid size-10 shrink-0 place-items-center border border-primary/30 bg-primary/10 text-primary">
+                        <Sparkles className="size-5" />
+                    </span>
                     <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2"><h2 className="text-lg font-semibold">AI 内容审核</h2><span className={cn("border px-2 py-0.5 text-xs", statusClass)}>{statusLabel}</span></div>
-                        <p className="mt-1 text-sm text-muted-foreground">第 {episode?.number || 1} 集 · {episode?.title || "未命名剧集"}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="text-lg font-semibold">AI 内容审核</h2>
+                            <span className={cn("border px-2 py-0.5 text-xs", statusClass)}>{statusLabel}</span>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            第 {episode?.number || 1} 集 · {episode?.title || "未命名剧集"}
+                        </p>
                     </div>
                 </div>
-                <Button type="primary" icon={reviewStatus === "running" ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />} loading={reviewStatus === "running"} disabled={!episode} onClick={() => void runReview()}>{review ? "重新审核" : "开始审核"}</Button>
+                <Button type="primary" icon={reviewStatus === "running" ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />} loading={reviewStatus === "running"} disabled={!episode} onClick={() => void runReview()}>
+                    {review ? "重新审核" : "开始审核"}
+                </Button>
             </section>
             {reviewError ? <Alert type="error" showIcon message="审核请求失败" description={reviewError} /> : null}
             <section className="grid border border-border bg-card lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
-                <div className="border-b border-border p-6 lg:border-b-0 lg:border-r"><p className="text-sm text-muted-foreground">审核结论</p><div className="mt-2 flex flex-wrap items-center gap-3"><h3 className="text-2xl font-semibold">{conclusion}</h3><span className={cn("border px-2 py-1 text-xs font-medium", statusClass)}>{review ? (blockingIssueCount ? `${blockingIssueCount} 个高优先级问题` : review.status === "passed" ? "未发现阻塞项" : "请查看审核意见") : "点击开始审核"}</span></div><p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">审核请求由服务端组合项目方向、资产关系和当前剧集产物后提交，结果会随任务状态持久化。</p><div className="mt-5 flex flex-wrap gap-x-7 gap-y-3 text-sm"><span><strong className="font-semibold">{issues.length}</strong> 个问题</span><span><strong className="font-semibold">{episodeShots.length}</strong> 个分镜</span><span><strong className="font-semibold">{videoCount}</strong> 个视频结果</span></div></div>
-                <div className="flex items-center gap-5 p-6"><div className="grid size-24 shrink-0 place-items-center rounded-full border-8 border-primary/15 text-center"><span><strong className="block text-2xl leading-none">{review?.score ?? "--"}</strong><small className="mt-1 block text-xs text-muted-foreground">综合评分</small></span></div><div><p className="font-medium">{review ? "服务端审核结果" : "等待审核"}</p><p className="mt-1 text-sm text-muted-foreground">{review?.summary || "尚未生成审核报告"}</p></div></div>
+                <div className="border-b border-border p-6 lg:border-b-0 lg:border-r">
+                    <p className="text-sm text-muted-foreground">审核结论</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <h3 className="text-2xl font-semibold">{conclusion}</h3>
+                        <span className={cn("border px-2 py-1 text-xs font-medium", statusClass)}>
+                            {review ? (blockingIssueCount ? `${blockingIssueCount} 个高优先级问题` : review.status === "passed" ? "未发现阻塞项" : "请查看审核意见") : "点击开始审核"}
+                        </span>
+                    </div>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">审核请求由服务端组合项目方向、资产关系和当前剧集产物后提交，结果会随任务状态持久化。</p>
+                    <div className="mt-5 flex flex-wrap gap-x-7 gap-y-3 text-sm">
+                        <span>
+                            <strong className="font-semibold">{issues.length}</strong> 个问题
+                        </span>
+                        <span>
+                            <strong className="font-semibold">{episodeShots.length}</strong> 个分镜
+                        </span>
+                        <span>
+                            <strong className="font-semibold">{videoCount}</strong> 个视频结果
+                        </span>
+                    </div>
+                </div>
+                <div className="flex items-center gap-5 p-6">
+                    <div className="grid size-24 shrink-0 place-items-center rounded-full border-8 border-primary/15 text-center">
+                        <span>
+                            <strong className="block text-2xl leading-none">{review?.score ?? "--"}</strong>
+                            <small className="mt-1 block text-xs text-muted-foreground">综合评分</small>
+                        </span>
+                    </div>
+                    <div>
+                        <p className="font-medium">{review ? "服务端审核结果" : "等待审核"}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{review?.summary || "尚未生成审核报告"}</p>
+                    </div>
+                </div>
             </section>
-            <section className="border border-border bg-card"><div className="border-b border-border px-5 py-4 sm:px-6"><h3 className="font-semibold">审核覆盖范围</h3></div><div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">{[{ label: "剧本内容", value: `${episode?.script.length || 0} 字`, detail: "剧情、人物、对白" }, { label: "创作资产", value: `${assetCount} 项`, detail: "角色、场景、道具" }, { label: "分镜图", value: `${storyboardImageCount}/${episodeShots.length}`, detail: "构图、风格、连续性" }, { label: "镜头视频", value: `${videoCount}/${episodeShots.length}`, detail: "动态、节奏、可用性" }].map((item) => <div key={item.label} className="px-5 py-4 sm:px-6"><p className="text-sm text-muted-foreground">{item.label}</p><p className="mt-1 text-xl font-semibold">{item.value}</p><p className="mt-1 text-xs text-muted-foreground">{item.detail}</p></div>)}</div></section>
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"><section className="border border-border bg-card"><div className="border-b border-border px-5 py-4 sm:px-6"><h3 className="font-semibold">审核评分</h3></div><div className="p-5 sm:p-6">{review?.score !== undefined ? <div><div className="flex items-center justify-between gap-4 text-sm"><span>综合评分</span><strong className="font-semibold">{review.score}</strong></div><div className="mt-2 h-2 overflow-hidden bg-muted" role="progressbar" aria-label="综合评分" aria-valuemin={0} aria-valuemax={100} aria-valuenow={review.score}><div className={cn("h-full", review.score >= 85 ? "bg-emerald-500" : review.score >= 70 ? "bg-amber-500" : "bg-rose-500")} style={{ width: `${review.score}%` }} /></div></div> : <p className="text-sm text-muted-foreground">执行审核后显示模型返回的评分，不使用前端估算值。</p>}</div></section>
-                <section className="border border-border bg-card"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6"><h3 className="font-semibold">待处理问题</h3><span className="text-sm text-muted-foreground">{issues.length} 项</span></div><div className="divide-y divide-border">{issues.length ? issues.map((issue, index) => { const label = severityLabel(issue.severity); const target = issueTarget(issue.taskId); return <div key={`${issue.taskId || "issue"}-${index}`} className="flex flex-wrap items-start gap-3 p-5 sm:px-6"><span className={cn("mt-0.5 grid size-7 shrink-0 place-items-center rounded-full", issue.severity === "high" ? "bg-rose-100 text-rose-700" : issue.severity === "medium" ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700")}>{issue.severity === "high" ? <AlertCircle className="size-4" /> : <CheckCircle2 className="size-4" />}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-xs text-muted-foreground">{issue.category}</span><span className={cn("px-1.5 py-0.5 text-xs", issue.severity === "high" ? "bg-rose-100 text-rose-700" : issue.severity === "medium" ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700")}>{label}优先级</span></div><h4 className="mt-1 font-medium">{issue.message}</h4>{issue.correction ? <p className="mt-1 text-sm leading-6 text-muted-foreground">修改建议：{issue.correction}</p> : null}</div>{issue.taskId ? <Button size="small" onClick={() => onStepChange(target)}>{target === "assets" ? "查看资产" : "前往分镜"}</Button> : null}</div>; }) : <p className="p-6 text-sm text-muted-foreground">{review ? "服务端未返回需要处理的问题。" : "执行审核后显示服务端问题清单。"}</p>}</div></section></div>
+            <section className="border border-border bg-card">
+                <div className="border-b border-border px-5 py-4 sm:px-6">
+                    <h3 className="font-semibold">审核覆盖范围</h3>
+                </div>
+                <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+                    {[
+                        { label: "剧本内容", value: `${episode?.script.length || 0} 字`, detail: "剧情、人物、对白" },
+                        { label: "创作资产", value: `${assetCount} 项`, detail: "角色、场景、道具" },
+                        { label: "分镜图", value: `${storyboardImageCount}/${episodeShots.length}`, detail: "构图、风格、连续性" },
+                        { label: "镜头视频", value: `${videoCount}/${episodeShots.length}`, detail: "动态、节奏、可用性" },
+                    ].map((item) => (
+                        <div key={item.label} className="px-5 py-4 sm:px-6">
+                            <p className="text-sm text-muted-foreground">{item.label}</p>
+                            <p className="mt-1 text-xl font-semibold">{item.value}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                        </div>
+                    ))}
+                </div>
+            </section>
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                <section className="border border-border bg-card">
+                    <div className="border-b border-border px-5 py-4 sm:px-6">
+                        <h3 className="font-semibold">审核评分</h3>
+                    </div>
+                    <div className="p-5 sm:p-6">
+                        {review?.score !== undefined ? (
+                            <div>
+                                <div className="flex items-center justify-between gap-4 text-sm">
+                                    <span>综合评分</span>
+                                    <strong className="font-semibold">{review.score}</strong>
+                                </div>
+                                <div className="mt-2 h-2 overflow-hidden bg-muted" role="progressbar" aria-label="综合评分" aria-valuemin={0} aria-valuemax={100} aria-valuenow={review.score}>
+                                    <div className={cn("h-full", review.score >= 85 ? "bg-emerald-500" : review.score >= 70 ? "bg-amber-500" : "bg-rose-500")} style={{ width: `${review.score}%` }} />
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">执行审核后显示模型返回的评分，不使用前端估算值。</p>
+                        )}
+                    </div>
+                </section>
+                <section className="border border-border bg-card">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
+                        <h3 className="font-semibold">待处理问题</h3>
+                        <span className="text-sm text-muted-foreground">{issues.length} 项</span>
+                    </div>
+                    <div className="divide-y divide-border">
+                        {issues.length ? (
+                            issues.map((issue, index) => {
+                                const label = severityLabel(issue.severity);
+                                const target = issueTarget(issue.taskId);
+                                return (
+                                    <div key={`${issue.taskId || "issue"}-${index}`} className="flex flex-wrap items-start gap-3 p-5 sm:px-6">
+                                        <span
+                                            className={cn(
+                                                "mt-0.5 grid size-7 shrink-0 place-items-center rounded-full",
+                                                issue.severity === "high" ? "bg-rose-100 text-rose-700" : issue.severity === "medium" ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700",
+                                            )}
+                                        >
+                                            {issue.severity === "high" ? <AlertCircle className="size-4" /> : <CheckCircle2 className="size-4" />}
+                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="text-xs text-muted-foreground">{issue.category}</span>
+                                                <span className={cn("px-1.5 py-0.5 text-xs", issue.severity === "high" ? "bg-rose-100 text-rose-700" : issue.severity === "medium" ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700")}>
+                                                    {label}优先级
+                                                </span>
+                                            </div>
+                                            <h4 className="mt-1 font-medium">{issue.message}</h4>
+                                            {issue.correction ? <p className="mt-1 text-sm leading-6 text-muted-foreground">修改建议：{issue.correction}</p> : null}
+                                        </div>
+                                        {issue.taskId ? (
+                                            <Button size="small" onClick={() => onStepChange(target)}>
+                                                {target === "assets" ? "查看资产" : "前往分镜"}
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <p className="p-6 text-sm text-muted-foreground">{review ? "服务端未返回需要处理的问题。" : "执行审核后显示服务端问题清单。"}</p>
+                        )}
+                    </div>
+                </section>
+            </div>
         </div>
     );
 }
@@ -3645,7 +3941,10 @@ function StoryboardPanel({
     const episodeId = episode?.id;
 
     const episodeShots = episode ? project.shots.filter((s) => s.episodeId === episode.id).sort((a, b) => a.shotNumber - b.shotNumber) : [];
-    const activeTaskShots = episodeShots.filter((shot) => isDramaLabTaskActive(shot.storyboardStatus) || isDramaLabTaskActive(shot.generationStatus) || isDramaLabExecutionActive(shot.generationExecutionPhase) || Object.values(shot.frames || {}).some((frame) => isDramaLabTaskActive(frame?.status)));
+    const activeTaskShots = episodeShots.filter(
+        (shot) =>
+            isDramaLabTaskActive(shot.storyboardStatus) || isDramaLabTaskActive(shot.generationStatus) || isDramaLabExecutionActive(shot.generationExecutionPhase) || Object.values(shot.frames || {}).some((frame) => isDramaLabTaskActive(frame?.status)),
+    );
     const activeTaskShotsRef = useRef(activeTaskShots);
     activeTaskShotsRef.current = activeTaskShots;
     const activeTaskSignature = activeTaskShots.map(dramaLabGenerationSyncKey).join("|");
@@ -3653,7 +3952,10 @@ function StoryboardPanel({
     const activeAudioTaskShotsRef = useRef(activeAudioTaskShots);
     activeAudioTaskShotsRef.current = activeAudioTaskShots;
     const activeAudioTaskSignature = activeAudioTaskShots
-        .map((shot) => `${shot.id}:dialogue:${audioStateForKind(shot, "dialogue")?.taskId || ""}:${audioStateForKind(shot, "dialogue")?.status || ""}:narration:${audioStateForKind(shot, "narration")?.taskId || ""}:${audioStateForKind(shot, "narration")?.status || ""}`)
+        .map(
+            (shot) =>
+                `${shot.id}:dialogue:${audioStateForKind(shot, "dialogue")?.taskId || ""}:${audioStateForKind(shot, "dialogue")?.status || ""}:narration:${audioStateForKind(shot, "narration")?.taskId || ""}:${audioStateForKind(shot, "narration")?.status || ""}`,
+        )
         .join("|");
     // Keep refresh recovery keyed to durable task identity/state instead of
     // the freshly allocated episodeShots array from each render.
@@ -3661,18 +3963,7 @@ function StoryboardPanel({
         .map((shot) => {
             const dialogue = audioStateForKind(shot, "dialogue");
             const narration = audioStateForKind(shot, "narration");
-            return [
-                shot.id,
-                shot.episodeId,
-                "d",
-                dialogue?.taskId || "",
-                dialogue?.status || "",
-                dialogue?.attempt ?? "",
-                "n",
-                narration?.taskId || "",
-                narration?.status || "",
-                narration?.attempt ?? "",
-            ].join(":");
+            return [shot.id, shot.episodeId, "d", dialogue?.taskId || "", dialogue?.status || "", dialogue?.attempt ?? "", "n", narration?.taskId || "", narration?.status || "", narration?.attempt ?? ""].join(":");
         })
         .join("|");
     const automaticSyncPausedRef = useRef(new Set<string>());
@@ -3865,16 +4156,13 @@ function StoryboardPanel({
         }
     }, [messageApi]);
 
-    useEffect(
-        () => {
-            disposedRef.current = false;
-            return () => {
-                disposedRef.current = true;
-                abortTrackedOperations();
-            };
-        },
-        [abortTrackedOperations],
-    );
+    useEffect(() => {
+        disposedRef.current = false;
+        return () => {
+            disposedRef.current = true;
+            abortTrackedOperations();
+        };
+    }, [abortTrackedOperations]);
 
     // Register the scope cleanup before the polling effects below. React runs
     // dependency cleanups before the next effect setup; keeping this effect
@@ -4609,7 +4897,9 @@ function StoryboardPanel({
                         const observed = latestReplacedTask ? latestShot : syncedShot || latestShot;
                         const observedShotId = syncedScopeMismatch ? "" : observed?.id || target.shotId;
                         const observedTaskId = observed ? observed.generationTaskId || "" : target.taskId;
-                        const executionPhase = observed?.generationExecutionPhase || (observed?.generationNeedsReview ? "needs_review" : observed?.generationStatus === "success" || observed?.generationStatus === "error" || observed?.generationStatus === "cancelled" ? "completed" : "polling");
+                        const executionPhase =
+                            observed?.generationExecutionPhase ||
+                            (observed?.generationNeedsReview ? "needs_review" : observed?.generationStatus === "success" || observed?.generationStatus === "error" || observed?.generationStatus === "cancelled" ? "completed" : "polling");
                         return {
                             shotId: observedShotId,
                             taskId: observedTaskId,
@@ -4665,7 +4955,10 @@ function StoryboardPanel({
         try {
             setActionBusy(actionKey, true);
             messageApi.loading({ content: `正在规划并创建${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务...`, key: actionKey, duration: 0 });
-            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-frame?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, { method: "POST", signal: controller.signal });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-frame?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, {
+                method: "POST",
+                signal: controller.signal,
+            });
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0) throw new Error(data.msg || "帧任务创建失败");
@@ -4817,7 +5110,11 @@ function StoryboardPanel({
             setActionBusy(actionKey, true);
             const formData = new FormData();
             formData.set("file", file);
-            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/frames/upload?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, { method: "POST", body: formData, signal: controller.signal });
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/frames/upload?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, {
+                method: "POST",
+                body: formData,
+                signal: controller.signal,
+            });
             await assertJsonApiResponse(response);
             const data = await response.json();
             if (!response.ok || data.code !== 0 || !data.data?.frame) throw new Error(data.msg || "帧图片上传失败");
@@ -5051,14 +5348,7 @@ function StoryboardWorkbenchCard({
                     </p>
                 </div>
                 <div className="flex items-center gap-1">
-                    <Button
-                        type="text"
-                        size="small"
-                        title="在画布中打开此分镜"
-                        aria-label="在画布中打开此分镜"
-                        href={dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)}
-                        icon={<PanelsTopLeft className="size-4" />}
-                    />
+                    <Button type="text" size="small" title="在画布中打开此分镜" aria-label="在画布中打开此分镜" href={dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)} icon={<PanelsTopLeft className="size-4" />} />
                     <Button type="text" size="small" title="同步任务状态" aria-label="同步任务状态" icon={<LoaderCircle className="size-4" />} onClick={onSync} />
                     <Button type="text" size="small" title="编辑分镜" aria-label="编辑分镜" icon={<Edit2 className="size-4" />} onClick={onEdit} />
                     <Button type="text" danger size="small" title="删除分镜" aria-label="删除分镜" icon={<Trash2 className="size-4" />} onClick={onDelete} />
@@ -5096,13 +5386,45 @@ function StoryboardWorkbenchCard({
                             const frame = shot.frames?.[frameType];
                             return (
                                 <span key={`frame-tools-${frameType}`} className="contents">
-                                    <input ref={(node) => { uploadInputRefs.current[frameType] = node; }} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void onUploadFrame(shot, frameType, file); }} />
-                                    <Button size="small" title={`上传${frameLabel[frameType]}`} aria-label={`上传${frameLabel[frameType]}`} loading={busyKeys.has(`frame-upload:${frameType}:${shot.id}`)} icon={<Upload className="size-3.5" />} onClick={() => uploadInputRefs.current[frameType]?.click()} />
-                                    {frame?.url ? <Button size="small" title={frame.locked ? `解锁${frameLabel[frameType]}` : `锁定${frameLabel[frameType]}`} aria-label={frame.locked ? `解锁${frameLabel[frameType]}` : `锁定${frameLabel[frameType]}`} loading={busyKeys.has(`frame-lock:${frameType}:${shot.id}`)} icon={<LockKeyhole className={cn("size-3.5", frame.locked && "text-emerald-600")} />} onClick={() => void onToggleFrameLock(shot, frameType)} /> : null}
+                                    <input
+                                        ref={(node) => {
+                                            uploadInputRefs.current[frameType] = node;
+                                        }}
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp,image/gif"
+                                        className="hidden"
+                                        onChange={(event) => {
+                                            const file = event.target.files?.[0];
+                                            event.target.value = "";
+                                            if (file) void onUploadFrame(shot, frameType, file);
+                                        }}
+                                    />
+                                    <Button
+                                        size="small"
+                                        title={`上传${frameLabel[frameType]}`}
+                                        aria-label={`上传${frameLabel[frameType]}`}
+                                        loading={busyKeys.has(`frame-upload:${frameType}:${shot.id}`)}
+                                        icon={<Upload className="size-3.5" />}
+                                        onClick={() => uploadInputRefs.current[frameType]?.click()}
+                                    />
+                                    {frame?.url ? (
+                                        <Button
+                                            size="small"
+                                            title={frame.locked ? `解锁${frameLabel[frameType]}` : `锁定${frameLabel[frameType]}`}
+                                            aria-label={frame.locked ? `解锁${frameLabel[frameType]}` : `锁定${frameLabel[frameType]}`}
+                                            loading={busyKeys.has(`frame-lock:${frameType}:${shot.id}`)}
+                                            icon={<LockKeyhole className={cn("size-3.5", frame.locked && "text-emerald-600")} />}
+                                            onClick={() => void onToggleFrameLock(shot, frameType)}
+                                        />
+                                    ) : null}
                                 </span>
                             );
                         })}
-                        {shot.generationTaskId && shot.generationStatus === "success" ? <Button size="small" loading={busyKeys.has(`tail-frame:${shot.id}`)} icon={<Film className="size-3.5" />} onClick={() => void onExtractTailFrame(shot)}>从视频提取尾帧</Button> : null}
+                        {shot.generationTaskId && shot.generationStatus === "success" ? (
+                            <Button size="small" loading={busyKeys.has(`tail-frame:${shot.id}`)} icon={<Film className="size-3.5" />} onClick={() => void onExtractTailFrame(shot)}>
+                                从视频提取尾帧
+                            </Button>
+                        ) : null}
                         <Button type="primary" loading={imageBusy} icon={<Sparkles className="size-4" />} onClick={() => void onStartGeneration(shot, "image")}>
                             {shot.storyboardImageUrl ? "重新生成分镜图" : "生成分镜图"}
                         </Button>
@@ -5136,8 +5458,12 @@ function StoryboardWorkbenchCard({
                             </div>
                             <img src={shot.firstFrameCandidate.url} alt="候选首帧预览" className="aspect-video w-full rounded border border-amber-300 object-cover" />
                             <div className="flex flex-wrap gap-2">
-                                <Button size="small" type="primary" loading={busyKeys.has(`candidate-accept:${shot.id}`)} onClick={() => void onAcceptFirstFrameCandidate(shot)}>应用为首帧</Button>
-                                <Button size="small" onClick={() => onKeepFirstFrameCandidate(shot)}>保留候选</Button>
+                                <Button size="small" type="primary" loading={busyKeys.has(`candidate-accept:${shot.id}`)} onClick={() => void onAcceptFirstFrameCandidate(shot)}>
+                                    应用为首帧
+                                </Button>
+                                <Button size="small" onClick={() => onKeepFirstFrameCandidate(shot)}>
+                                    保留候选
+                                </Button>
                             </div>
                         </div>
                     ) : null}
@@ -5155,24 +5481,12 @@ function StoryboardWorkbenchCard({
                                 <span>对白 / 旁白音频</span>
                             </div>
                             {splitEligible && !shot.audioSplitSourceShotId ? (
-                                <Button
-                                    size="small"
-                                    icon={<Scissors className="size-3.5" />}
-                                    loading={splitPreviewBusy}
-                                    onClick={() => void onPreviewAudioSplit(shot)}
-                                >
+                                <Button size="small" icon={<Scissors className="size-3.5" />} loading={splitPreviewBusy} onClick={() => void onPreviewAudioSplit(shot)}>
                                     按音频拆镜
                                 </Button>
                             ) : null}
                         </div>
-                        {legacyAudioReviewReason ? (
-                            <Alert
-                                type="warning"
-                                showIcon
-                                message="旧音频待复核"
-                                description={legacyAudioReviewReason}
-                            />
-                        ) : null}
+                        {legacyAudioReviewReason ? <Alert type="warning" showIcon message="旧音频待复核" description={legacyAudioReviewReason} /> : null}
                         {legacyAudioReviewReason && stableAudioSourceUrl(shot.audioUrl) ? (
                             <div className="space-y-1 border border-amber-200 bg-amber-50/50 p-2">
                                 <div className="text-xs font-medium text-amber-900">旧音频（未自动归属）</div>
@@ -5195,34 +5509,14 @@ function StoryboardWorkbenchCard({
                                             {state?.speaker ? <span className="max-w-32 truncate text-xs text-muted-foreground">{state.speaker}</span> : null}
                                         </div>
                                         <div className="flex flex-wrap items-center gap-1">
-                                            <Button
-                                                size="small"
-                                                icon={<Sparkles className="size-3.5" />}
-                                                loading={busyKeys.has(`audio:${kind}:${shot.id}`)}
-                                                disabled={!text || busy}
-                                                onClick={() => void onStartAudio(shot, kind)}
-                                            >
+                                            <Button size="small" icon={<Sparkles className="size-3.5" />} loading={busyKeys.has(`audio:${kind}:${shot.id}`)} disabled={!text || busy} onClick={() => void onStartAudio(shot, kind)}>
                                                 {state?.url ? `重新生成${label}` : `生成${label}`}
                                             </Button>
                                             {state?.taskId ? (
-                                                <Button
-                                                    size="small"
-                                                    title={`同步${label}任务`}
-                                                    aria-label={`同步${label}任务`}
-                                                    loading={syncBusy}
-                                                    icon={<RefreshCw className="size-3.5" />}
-                                                    onClick={() => void onSyncAudio(shot, kind)}
-                                                />
+                                                <Button size="small" title={`同步${label}任务`} aria-label={`同步${label}任务`} loading={syncBusy} icon={<RefreshCw className="size-3.5" />} onClick={() => void onSyncAudio(shot, kind)} />
                                             ) : null}
                                             {state?.taskId && isDramaLabTaskActive(state.status) ? (
-                                                <Button
-                                                    size="small"
-                                                    title={`恢复${label}任务`}
-                                                    aria-label={`恢复${label}任务`}
-                                                    loading={recoverBusy}
-                                                    icon={<LoaderCircle className="size-3.5" />}
-                                                    onClick={() => void onRecoverAudio(shot, kind)}
-                                                />
+                                                <Button size="small" title={`恢复${label}任务`} aria-label={`恢复${label}任务`} loading={recoverBusy} icon={<LoaderCircle className="size-3.5" />} onClick={() => void onRecoverAudio(shot, kind)} />
                                             ) : null}
                                         </div>
                                     </div>
@@ -5239,8 +5533,12 @@ function StoryboardWorkbenchCard({
                                         拆镜预览：{audioSplitPlan.segments.length} 段 · {Math.max(1, Math.round(audioSplitPlan.totalDurationMs / 1000))} 秒
                                     </div>
                                     <div className="flex gap-1">
-                                        <Button size="small" loading={splitApplyBusy} onClick={() => void onApplyAudioSplit(shot)}>确认添加</Button>
-                                        <Button size="small" loading={splitPreviewBusy} onClick={() => void onPreviewAudioSplit(shot)}>重新预览</Button>
+                                        <Button size="small" loading={splitApplyBusy} onClick={() => void onApplyAudioSplit(shot)}>
+                                            确认添加
+                                        </Button>
+                                        <Button size="small" loading={splitPreviewBusy} onClick={() => void onPreviewAudioSplit(shot)}>
+                                            重新预览
+                                        </Button>
                                     </div>
                                 </div>
                                 <div className="max-h-40 space-y-1 overflow-y-auto text-xs">
@@ -5248,7 +5546,10 @@ function StoryboardWorkbenchCard({
                                         <div key={`${segment.candidateId}-${segment.index}`} className="flex gap-2 border-b border-sky-200 pb-1 last:border-0">
                                             <span className="w-8 shrink-0 text-sky-800">#{segment.index + 1}</span>
                                             <span className="w-12 shrink-0 text-sky-800">{segment.kind === "dialogue" ? "对白" : "旁白"}</span>
-                                            <span className="min-w-0 flex-1 truncate">{segment.speaker ? `${segment.speaker}：` : ""}{segment.text}</span>
+                                            <span className="min-w-0 flex-1 truncate">
+                                                {segment.speaker ? `${segment.speaker}：` : ""}
+                                                {segment.text}
+                                            </span>
                                             <span className="shrink-0 text-muted-foreground">{segment.duration}s</span>
                                         </div>
                                     ))}
@@ -5342,10 +5643,22 @@ function StoryboardTaskTag({ status, executionPhase, label, needsReview = false 
         completed: "已结束",
         needs_review: "待检查",
     };
-    const phaseIsActive = executionPhase === "created" || executionPhase === "submitting" || executionPhase === "submitted" || executionPhase === "polling" || executionPhase === "result_ready" || executionPhase === "persisting" || executionPhase === "cancel_requested" || executionPhase === "cancel_polling";
+    const phaseIsActive =
+        executionPhase === "created" ||
+        executionPhase === "submitting" ||
+        executionPhase === "submitted" ||
+        executionPhase === "polling" ||
+        executionPhase === "result_ready" ||
+        executionPhase === "persisting" ||
+        executionPhase === "cancel_requested" ||
+        executionPhase === "cancel_polling";
     const phaseClass = executionPhase === "result_ready" || executionPhase === "persisting" || executionPhase === "needs_review" ? "border-amber-300 bg-amber-50 text-amber-800" : phaseIsActive ? "border-sky-300 bg-sky-50 text-sky-800" : undefined;
     const phaseLabel = executionPhase && value !== "success" && value !== "error" && value !== "cancelled" ? phaseLabelMap[executionPhase] : undefined;
-    return <span className={cn("border px-1.5 py-0.5 text-xs", needsReview ? "border-amber-300 bg-amber-50 text-amber-800" : phaseClass || classMap[value])}>{label} {needsReview ? "待检查" : phaseLabel || labelMap[value]}</span>;
+    return (
+        <span className={cn("border px-1.5 py-0.5 text-xs", needsReview ? "border-amber-300 bg-amber-50 text-amber-800" : phaseClass || classMap[value])}>
+            {label} {needsReview ? "待检查" : phaseLabel || labelMap[value]}
+        </span>
+    );
 }
 
 function GenerationHistory({ history = [], activeUrl, type, onRestore }: { history?: DramaLabGenerationHistory[]; activeUrl?: string; type: "image" | "video"; onRestore: (url: string) => void }) {

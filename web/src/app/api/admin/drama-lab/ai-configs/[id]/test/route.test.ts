@@ -34,4 +34,11 @@ describe("POST /api/admin/drama-lab/ai-configs/[id]/test", () => {
 
         expect(response.status).toBe(401);
     });
+
+    it("keeps the compatibility endpoint retired even when the legacy id is empty", async () => {
+        const response = await POST(new NextRequest("http://localhost/api/admin/drama-lab/ai-configs//test", { method: "POST" }), context(""));
+
+        expect(response.status).toBe(410);
+        expect(await response.json()).toMatchObject({ code: 410, data: null });
+    });
 });

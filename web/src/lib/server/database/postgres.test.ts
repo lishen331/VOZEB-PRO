@@ -118,6 +118,8 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(ddl).toContain("ALTER TABLE vozeb_pro_users ADD CONSTRAINT users_admin_permissions_array");
         expect(ddl).toContain("conname = 'vozeb_pro_local_media_assets_storage_provider_check'");
         expect(ddl).toContain("ADD CONSTRAINT vozeb_pro_local_media_assets_storage_provider_check CHECK");
+        expect(ddl).toContain("conname = 'vozeb_pro_platform_courses_deleted_by_user_id_fkey'");
+        expect(ddl).toContain("ADD CONSTRAINT vozeb_pro_platform_courses_deleted_by_user_id_fkey");
         expect(ddl).toContain("CREATE UNIQUE INDEX IF NOT EXISTS vozeb_pro_users_account_id_idx ON vozeb_pro_users (account_id)");
         expect(ddl).toContain("CREATE INDEX IF NOT EXISTS vozeb_pro_billing_orders_provider_payment_idx ON vozeb_pro_billing_orders (provider, provider_payment_id)");
         expect(ddl).toContain("webhook_secret_ciphertext text NOT NULL DEFAULT ''");
@@ -126,6 +128,19 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(ddl).toContain("conflict_count integer NOT NULL DEFAULT 0");
         expect(ddl).toContain("user_id text NOT NULL REFERENCES vozeb_pro_users(id) ON DELETE CASCADE");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_account_deletion_requests");
+        expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_content_files");
+        expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_download_records");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_ip_versions ADD COLUMN IF NOT EXISTS cover_file_id text");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_ip_items ADD COLUMN IF NOT EXISTS file_id text");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_ip_school_grants ADD COLUMN IF NOT EXISTS member_access_enabled boolean NOT NULL DEFAULT false");
+        expect(ddl).toContain("ADD CONSTRAINT vozeb_pro_ip_versions_cover_file_fk FOREIGN KEY (cover_file_id) REFERENCES vozeb_pro_ip_content_files(id)");
+        expect(ddl).toContain("ADD CONSTRAINT vozeb_pro_ip_items_file_fk FOREIGN KEY (file_id) REFERENCES vozeb_pro_ip_content_files(id)");
+        expect(ddl).toContain("ADD CONSTRAINT vozeb_pro_ip_school_grants_member_access_user_fk FOREIGN KEY (member_access_updated_by_user_id) REFERENCES vozeb_pro_users(id)");
+        expect(ddl).toContain("DROP INDEX IF EXISTS vozeb_pro_ip_school_grants_exclusive_active_idx");
+        expect(ddl).not.toContain("CREATE UNIQUE INDEX IF NOT EXISTS vozeb_pro_ip_school_grants_exclusive_active_idx");
+        expect(ddl.indexOf("ALTER TABLE vozeb_pro_ip_items ADD COLUMN IF NOT EXISTS file_id text")).toBeLessThan(ddl.indexOf("CREATE INDEX IF NOT EXISTS vozeb_pro_ip_items_file_idx"));
+        expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_usage_records");
+        expect(ddl).toContain("'reference', 'download_item', 'download_package'");
         expect(ddl).toContain("'review_pending', 'reviewing', 'review_unavailable'");
         expect(ddl).toContain("task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing')");
 
@@ -141,6 +156,9 @@ describe("PostgreSQL schema lifecycle", () => {
                 "vozeb_pro_school_classes",
                 "vozeb_pro_school_class_members",
                 "vozeb_pro_platform_courses",
+                "vozeb_pro_platform_course_chapters",
+                "vozeb_pro_platform_course_lessons",
+                "vozeb_pro_course_materials",
                 "vozeb_pro_school_course_assignments",
                 "vozeb_pro_school_course_offerings",
                 "vozeb_pro_teaching_assignments",
@@ -161,9 +179,11 @@ describe("PostgreSQL schema lifecycle", () => {
                 "vozeb_pro_practice_copy_requests",
                 "vozeb_pro_ip_packages",
                 "vozeb_pro_ip_versions",
+                "vozeb_pro_ip_content_files",
                 "vozeb_pro_ip_items",
                 "vozeb_pro_ip_school_grants",
                 "vozeb_pro_ip_usage_records",
+                "vozeb_pro_ip_download_records",
             ]),
         );
         expect(ddl).toContain("production_group_id text");

@@ -1,4 +1,4 @@
-import type { PracticeModuleKind, PracticeProjectKind, PracticeSource } from "@/lib/practice-domain";
+import type { PracticeModuleCapability, PracticeModuleKind, PracticeProjectKind, PracticeSessionMode, PracticeSource } from "@/lib/practice-domain";
 import type { IpReference } from "@/lib/ip-library-domain";
 
 export type PracticeProjectSummary = { id: string; title: string; createdAt: string; updatedAt: string; executionProfile: "open-source-practice"; practiceSource: PracticeSource; [key: string]: unknown };
@@ -8,10 +8,14 @@ export type PracticeSession = {
     id: string;
     title: string;
     module: PracticeModuleKind;
+    mode: PracticeSessionMode;
     projectId?: string;
     projectKind?: PracticeProjectKind;
     input: Record<string, unknown>;
-    status: "queued" | "running" | "success" | "failed" | "cancelled";
+    status: "draft" | "queued" | "running" | "success" | "failed" | "cancelled";
+    selectedLogicalModelId?: string;
+    errorCode?: string;
+    errorMessage?: string;
     result?: PracticeSessionResult;
     createdAt: string;
     updatedAt: string;
@@ -19,15 +23,20 @@ export type PracticeSession = {
 export type PracticeProjectInput = { kind: PracticeProjectKind; title: string; source?: PracticeSource; references?: IpReference[] };
 export type PracticeSessionInput = {
     module: PracticeModuleKind;
+    mode?: PracticeSessionMode;
     title: string;
     input: Record<string, unknown>;
     references?: Array<{ type: "asset"; id: string } | IpReference>;
+    logicalModelId?: string;
     clientRequestId: string;
     projectId?: string;
     projectKind?: PracticeProjectKind;
 };
 
 export const practiceApi = {
+    listModules() {
+        return request<{ modules: PracticeModuleCapability[] }>("/api/practice/modules");
+    },
     listProjects(input: { kind: PracticeProjectKind; page?: number; pageSize?: number }) {
         const query = new URLSearchParams({ kind: input.kind, page: String(input.page || 1), pageSize: String(input.pageSize || 12) });
         return request<{ kind: PracticeProjectKind; projects: PracticeProjectSummary[]; total: number; page: number; pageSize: number }>(`/api/practice/projects?${query}`);
@@ -47,6 +56,9 @@ export const practiceApi = {
     },
     retrySession(id: string) {
         return request<{ session: PracticeSession }>(`/api/practice/sessions/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ action: "retry" }) });
+    },
+    deleteSession(id: string) {
+        return request<{ success: boolean }>(`/api/practice/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
     getProject(id: string, kind: PracticeProjectKind) {
         return request<{ kind: PracticeProjectKind; project: PracticeProject }>(`/api/practice/projects/${encodeURIComponent(id)}?kind=${kind}`);

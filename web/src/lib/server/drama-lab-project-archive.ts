@@ -422,6 +422,13 @@ async function collectProjectMedia(project: DramaProject, userId: string, input:
     try {
         let index = 0;
         for (const [sourceKey, registration] of registrations) {
+            // Project archives currently carry playable media only. Attachments
+            // belong to the platform/IP-library flows and cannot be restored as
+            // drama image, video, or audio references.
+            if (registration.type === "attachment") {
+                warnings.push(`媒体类型不支持归档：${sourceKey}`);
+                continue;
+            }
             index += 1;
             const id = `media-${index}-${nanoid(8)}`;
             const zipPath = `media/${id}${extensionFromMime(registration.mimeType, registration.type)}`;

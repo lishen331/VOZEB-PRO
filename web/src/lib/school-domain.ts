@@ -1,4 +1,5 @@
 import { normalizeIpReference, type IpReference } from "./ip-library-domain";
+import type { UserStatus } from "./auth/store-types";
 
 export type SchoolStatus = "active" | "disabled";
 export type SchoolMemberRole = "teacher" | "student";
@@ -8,6 +9,7 @@ export type PlatformCourseStatus = "draft" | "published" | "disabled";
 export type TeachingAssignmentKind = "lesson" | "homework" | "commercial_practice";
 export type TeachingAssignmentStatus = "draft" | "published" | "closed";
 export type TeachingSubmissionStatus = "submitted" | "revision_required" | "reviewed";
+export type TeachingSubmissionReferenceAvailability = "available" | "unavailable";
 export type CommercialOrderStatus = "draft" | "assigned" | "in_progress" | "submitted" | "revision_required" | "accepted" | "cancelled";
 
 export const SCHOOL_MEMBER_ROLES = ["teacher", "student"] as const satisfies readonly SchoolMemberRole[];
@@ -46,6 +48,20 @@ export type SchoolMember = {
     createdAt: string;
     updatedAt: string;
 };
+export type AdminSchoolMemberQuery = { page?: number; pageSize?: number; keyword?: string; role?: SchoolMemberRole; status?: SchoolMembershipStatus };
+export type AdminSchoolMemberPoints = SchoolMember & {
+    userId: string;
+    accountStatus: UserStatus;
+    permanentPoints: number;
+    dailyPoints: number;
+    totalPoints: number;
+    dailyPointsExpiresAt: string;
+};
+export type AdminSchoolMemberPointsAdjustmentInput = { operation: "credit" | "debit"; amount: number; reason: string; idempotencyKey: string };
+export type AdminSchoolMemberPointsAdjustmentResult = {
+    member: AdminSchoolMemberPoints;
+    adjustment: { recordId: string; operation: "credit" | "debit"; amount: number; balanceBefore: number; balanceAfter: number; reason: string; createdAt: string };
+};
 export type SchoolClass = {
     id: string;
     schoolId: string;
@@ -61,21 +77,77 @@ export type SchoolMemberPatch = { role?: SchoolMemberRole; permissions?: SchoolP
 export type SchoolClassInput = { name: string; description?: string };
 export type CreateSchoolInput = { name: string; profile?: Record<string, unknown>; administrator: Omit<SchoolMemberCreateInput, "role"> };
 export type UpdateSchoolInput = { name?: string; profile?: Record<string, unknown>; status?: SchoolStatus };
-export type PlatformCourse = {
+export type CourseAttachment = {
+    title: string;
+    url: string;
+    storageKey: string;
+    fileName: string;
+    mimeType: string;
+    bytes: number;
+};
+export type CourseMaterialSourceScope = "platform" | "school";
+export type CourseMaterialStatus = "active" | "disabled";
+export type CourseMaterial = {
+    id: string;
+    courseId: string;
+    chapterId?: string;
+    lessonId?: string;
+    sourceScope: CourseMaterialSourceScope;
+    schoolCourseAssignmentId?: string;
+    title: string;
+    fileName: string;
+    mimeType: string;
+    bytes: number;
+    storageKey: string;
+    url: string;
+    sortOrder: number;
+    status: CourseMaterialStatus;
+    createdByUserId?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+export type CourseLesson = {
+    id: string;
+    courseId: string;
+    chapterId: string;
+    title: string;
+    description: string;
+    sortOrder: number;
+    materials: CourseMaterial[];
+    createdAt: string;
+    updatedAt: string;
+};
+export type CourseChapter = {
+    id: string;
+    courseId: string;
+    title: string;
+    description: string;
+    sortOrder: number;
+    materials: CourseMaterial[];
+    lessons: CourseLesson[];
+    createdAt: string;
+    updatedAt: string;
+};
+export type PlatformCourseSummary = {
     id: string;
     title: string;
     summary: string;
     content: Record<string, unknown>;
-    chapters: unknown[];
-    attachments: unknown[];
+    chapterCount: number;
+    lessonCount: number;
+    materialCount: number;
     status: PlatformCourseStatus;
+    deletedAt?: string;
+    deletedByUserId?: string;
     createdAt: string;
     updatedAt: string;
 };
-export type PlatformCourseInput = Pick<PlatformCourse, "title" | "summary" | "content" | "chapters" | "attachments">;
+export type PlatformCourseDetail = PlatformCourseSummary & { chapters: CourseChapter[] };
+export type PlatformCourse = PlatformCourseSummary;
+export type PlatformCourseInput = Pick<PlatformCourse, "title" | "summary" | "content">;
 export type PlatformCoursePatch = Partial<PlatformCourseInput> & { status?: PlatformCourseStatus };
 export type SchoolCourseAssignment = { id: string; courseId: string; schoolId: string; status: SchoolStatus; createdAt: string; updatedAt: string; course: PlatformCourse };
-export type CourseOfferingInput = { classId: string; teacherMembershipId: string; supplementalResources?: unknown[]; status?: SchoolStatus };
+export type CourseOfferingInput = { classId: string; teacherMembershipId: string; status?: SchoolStatus };
 export type SchoolPublicIdentity = { accountId: string; username: string; displayName: string };
 export type SchoolCourseOffering = {
     id: string;
@@ -83,7 +155,6 @@ export type SchoolCourseOffering = {
     assignmentId: string;
     classId: string;
     teacherMembershipId: string;
-    supplementalResources: unknown[];
     status: SchoolStatus;
     courseTitle: string;
     className: string;
@@ -95,6 +166,8 @@ export type TeachingAssignment = {
     id: string;
     schoolId: string;
     offeringId: string;
+    chapterId?: string;
+    lessonId?: string;
     teacherMembershipId: string;
     kind: TeachingAssignmentKind;
     title: string;
@@ -107,7 +180,7 @@ export type TeachingAssignment = {
     createdAt: string;
     updatedAt: string;
 };
-export type TeachingAssignmentInput = { kind: TeachingAssignmentKind; title: string; instructions?: string; resources?: unknown[]; dueAt?: string; status?: TeachingAssignmentStatus };
+export type TeachingAssignmentInput = { kind: TeachingAssignmentKind; title: string; instructions?: string; resources?: unknown[]; dueAt?: string; status?: TeachingAssignmentStatus; chapterId?: string; lessonId?: string };
 export type TeachingSubmission = {
     id: string;
     schoolId: string;
@@ -115,6 +188,7 @@ export type TeachingSubmission = {
     studentMembershipId: string;
     note: string;
     contentReferences: SchoolContentReference[];
+    resolvedContentReferences?: TeachingSubmissionReferencePreview[];
     status: TeachingSubmissionStatus;
     feedback: string;
     student: SchoolPublicIdentity;
@@ -122,6 +196,15 @@ export type TeachingSubmission = {
     reviewedAt?: string;
     createdAt: string;
     updatedAt: string;
+};
+export type TeachingSubmissionReferencePreview = {
+    reference: SchoolContentReference;
+    title: string;
+    kind?: SchoolContentReference["type"];
+    mediaType: "image" | "video" | "audio" | "text" | "file" | "unknown";
+    previewUrl?: string;
+    availability: TeachingSubmissionReferenceAvailability;
+    unavailableReason?: string;
 };
 export type CommercialOrderInput = {
     title: string;
@@ -193,6 +276,7 @@ export type CommercialOrderDelivery = {
     submittedByMembershipId: string;
     submittedBy: SchoolPublicIdentity;
     contentReferences: SchoolContentReference[];
+    resolvedContentReferences?: TeachingSubmissionReferencePreview[];
     note: string;
     status: "submitted" | "revision_required" | "accepted";
     platformFeedback: string;

@@ -8,7 +8,6 @@ import type {
     CommercialOrderDelivery,
     CommercialOrderParticipantCandidate,
     CommercialOrderParticipantSubmission,
-    PlatformCourse,
     SchoolCommercialOrder,
     SchoolContentReference,
     SchoolCourseAssignment,
@@ -26,8 +25,10 @@ import { listLibraryAssetPage } from "@/services/api/library-assets";
 import { listWorkPublications } from "@/services/api/work-publications";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { ProductionGroupMemberPanel } from "@/components/school/production-group-member-panel";
+import { SchoolCourseTree } from "@/components/school/school-course-tree";
+import { SubmissionReferenceList } from "@/components/school/submission-reference-list";
 
-type AssignmentForm = { offeringId: string; kind: TeachingAssignmentKind; title: string; instructions?: string; dueAt?: string; resourceUrls?: string[] };
+type AssignmentForm = { offeringId: string; chapterId?: string; lessonId?: string; kind: TeachingAssignmentKind; title: string; instructions?: string; dueAt?: string; resourceUrls?: string[] };
 type ReviewForm = { feedback: string };
 type CommercialDeliveryForm = { note?: string };
 type ReferenceCandidate = { reference: SchoolContentReference; title: string; detail: string };
@@ -47,7 +48,9 @@ export default function TeachingPage() {
     const [saving, setSaving] = useState(false);
     const [assignmentOpen, setAssignmentOpen] = useState(false);
     const [viewingOffering, setViewingOffering] = useState<SchoolCourseOffering | null>(null);
-    const [viewingCourse, setViewingCourse] = useState<PlatformCourse | null>(null);
+    const [viewingCourse, setViewingCourse] = useState<SchoolCourseAssignment | null>(null);
+    const [courseTrees, setCourseTrees] = useState<Record<string, Awaited<ReturnType<typeof coursesApi.getSchoolCourseTree>>>>({});
+    const [creatingForOfferingId, setCreatingForOfferingId] = useState("");
     const [submissionsOpen, setSubmissionsOpen] = useState(false);
     const [reviewing, setReviewing] = useState<{ submission: TeachingSubmission; status: "reviewed" | "revision_required" } | null>(null);
     const [offeringPage, setOfferingPage] = useState(1);
@@ -110,6 +113,16 @@ export default function TeachingPage() {
             setOfferings(offeringResult.items);
             setOfferingTotal(offeringResult.total);
             setCourses(courseResult.items);
+            const treeEntries = await Promise.all(
+                courseResult.items.map(async (item) => {
+                    try {
+                        return [item.id, await coursesApi.getSchoolCourseTree(item.id)] as const;
+                    } catch {
+                        return null;
+                    }
+                }),
+            );
+            setCourseTrees(Object.fromEntries(treeEntries.filter((entry): entry is readonly [string, Awaited<ReturnType<typeof coursesApi.getSchoolCourseTree>>] => Boolean(entry))));
             setCourseTotal(courseResult.total);
             setAssignments(assignmentResult.items);
             setAssignmentTotal(assignmentResult.total);
@@ -134,7 +147,9 @@ export default function TeachingPage() {
 
     const openCreate = (offeringId?: string) => {
         assignmentForm.resetFields();
-        assignmentForm.setFieldsValue({ offeringId: offeringId || offerings[0]?.id || "", kind: "homework", resourceUrls: [] });
+        const targetOfferingId = offeringId || offerings[0]?.id || "";
+        assignmentForm.setFieldsValue({ offeringId: targetOfferingId, chapterId: undefined, lessonId: undefined, kind: "homework", resourceUrls: [] });
+        setCreatingForOfferingId(targetOfferingId);
         setAssignmentOpen(true);
     };
 
@@ -143,6 +158,8 @@ export default function TeachingPage() {
         try {
             await coursesApi.createTeachingAssignment({
                 offeringId: values.offeringId,
+                chapterId: values.chapterId,
+                lessonId: values.lessonId,
                 kind: values.kind,
                 title: values.title.trim(),
                 instructions: values.instructions?.trim() || "",
@@ -235,8 +252,10 @@ export default function TeachingPage() {
                             <h2 className="truncate text-sm font-medium">{item.course.title}</h2>
                             <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-zinc-500">{item.course.summary || "暂无摘要"}</p>
                             <div className="mt-3 flex items-center justify-between gap-2">
-                                <span className="text-xs text-zinc-500">{item.course.chapters.length} 个章节/课时</span>
-                                <Button size="small" icon={<BookOpen className="size-3.5" />} onClick={() => setViewingCourse(item.course)}>
+                                <span className="text-xs text-zinc-500">
+                                    {item.course.chapterCount} 章 · {item.course.lessonCount} 个课时
+                                </span>
+                                <Button size="small" icon={<BookOpen className="size-3.5" />} onClick={() => setViewingCourse(item)}>
                                     阅读
                                 </Button>
                             </div>
@@ -359,7 +378,29 @@ export default function TeachingPage() {
                 <Form form={assignmentForm} layout="vertical" requiredMark={false} preserve={false} onFinish={(values) => void createAssignment(values)}>
                     <div className="grid gap-x-3 sm:grid-cols-2">
                         <Form.Item label="课程安排" name="offeringId" className="sm:col-span-2" rules={[{ required: true, message: "请选择课程安排" }]}>
-                            <Select optionFilterProp="label" options={offerings.filter((item) => item.status === "active").map((item) => ({ value: item.id, label: `${item.courseTitle} · ${item.className}` }))} />
+                            <Select
+                                optionFilterProp="label"
+                                options={offerings.filter((item) => item.status === "active").map((item) => ({ value: item.id, label: `${item.courseTitle} · ${item.className}` }))}
+                                onChange={(value) => setCreatingForOfferingId(value)}
+                            />
+                        </Form.Item>
+                        <Form.Item label="关联章节" name="chapterId">
+                            <Select
+                                allowClear
+                                placeholder="不限定章节"
+                                options={(courseTrees[offerings.find((item) => item.id === creatingForOfferingId)?.assignmentId || ""]?.chapters || []).map((chapter) => ({ value: chapter.id, label: chapter.title }))}
+                                onChange={() => assignmentForm.setFieldValue("lessonId", undefined)}
+                            />
+                        </Form.Item>
+                        <Form.Item label="关联课时" name="lessonId">
+                            <Select
+                                allowClear
+                                placeholder="不限定课时"
+                                options={(courseTrees[offerings.find((item) => item.id === creatingForOfferingId)?.assignmentId || ""]?.chapters || []).flatMap((chapter) =>
+                                    chapter.lessons.map((lesson) => ({ value: lesson.id, label: `${chapter.title} · ${lesson.title}` })),
+                                )}
+                                onChange={() => assignmentForm.setFieldValue("chapterId", undefined)}
+                            />
                         </Form.Item>
                         <Form.Item label="类型" name="kind" rules={[{ required: true, message: "请选择类型" }]}>
                             <Select options={[...assignmentKindOptions]} />
@@ -385,10 +426,7 @@ export default function TeachingPage() {
                     <div className="space-y-5 text-sm">
                         <DetailLine label="课程" value={viewingOffering.courseTitle} />
                         <DetailLine label="班级" value={viewingOffering.className} />
-                        <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-                            <h2 className="font-medium">补充资料</h2>
-                            <ResourceList values={viewingOffering.supplementalResources} />
-                        </section>
+                        <SchoolCourseTree assignmentId={viewingOffering.assignmentId} canManage />
                         <Button type="primary" icon={<Plus className="size-4" />} disabled={viewingOffering.status !== "active"} onClick={() => openCreate(viewingOffering.id)}>
                             创建作业
                         </Button>
@@ -396,8 +434,8 @@ export default function TeachingPage() {
                 ) : null}
             </Drawer>
 
-            <Drawer title={viewingCourse?.title || "课程详情"} open={Boolean(viewingCourse)} destroyOnHidden size="min(720px, 100vw)" onClose={() => setViewingCourse(null)}>
-                {viewingCourse ? <CourseDetail course={viewingCourse} /> : null}
+            <Drawer title={viewingCourse?.course.title || "课程详情"} open={Boolean(viewingCourse)} destroyOnHidden size="min(720px, 100vw)" onClose={() => setViewingCourse(null)}>
+                {viewingCourse ? <CourseDetail assignment={viewingCourse} /> : null}
             </Drawer>
 
             <Drawer title="学生提交" open={submissionsOpen} destroyOnHidden size="min(720px, 100vw)" onClose={() => setSubmissionsOpen(false)}>
@@ -822,6 +860,7 @@ function SubmissionList({ submissions, canReview, onReview }: { submissions: Tea
                     </div>
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{submission.note || "未填写说明"}</p>
                     <div className="mt-2 text-xs text-zinc-500">成果引用 {submission.contentReferences.length} 项</div>
+                    <SubmissionReferenceList references={submission.resolvedContentReferences} />
                     {submission.feedback ? <p className="mt-2 rounded-md bg-zinc-50 px-3 py-2 text-sm dark:bg-zinc-900">{submission.feedback}</p> : null}
                     {canReview && submission.status === "submitted" ? (
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -911,26 +950,13 @@ function ResponsiveGrid({ children, empty, emptyText }: { children: React.ReactN
     return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{children}</div>;
 }
 
-function CourseDetail({ course }: { course: PlatformCourse }) {
-    const body = typeof course.content.body === "string" ? course.content.body : "";
+function CourseDetail({ assignment }: { assignment: SchoolCourseAssignment }) {
+    // 课程附件统一作为课程资料展示，平台与本校来源在课程树中区分。
+    const body = typeof assignment.course.content.body === "string" ? assignment.course.content.body : "";
     return (
         <div className="space-y-5">
-            <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{body || course.summary || "暂无正文"}</p>
-            <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-                <h2 className="text-sm font-medium">章节与课时</h2>
-                <div className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {course.chapters.map((item, index) => (
-                        <div key={`${index}-${itemTitle(item)}`} className="py-2 text-sm">
-                            {itemTitle(item) || `课时 ${index + 1}`}
-                        </div>
-                    ))}
-                    {!course.chapters.length ? <p className="py-3 text-sm text-zinc-500">暂无章节或课时</p> : null}
-                </div>
-            </section>
-            <section className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
-                <h2 className="text-sm font-medium">课程附件</h2>
-                <ResourceList values={course.attachments} emptyText="暂无课程附件" />
-            </section>
+            <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{body || assignment.course.summary || "暂无正文"}</p>
+            <SchoolCourseTree assignmentId={assignment.id} canManage />
         </div>
     );
 }
@@ -994,10 +1020,6 @@ function OfferingStatus({ status }: Pick<SchoolCourseOffering, "status">) {
 
 function EmptyText({ text }: { text: string }) {
     return <div className="py-10 text-center text-sm text-zinc-500">{text}</div>;
-}
-
-function itemTitle(value: unknown) {
-    return value && typeof value === "object" && typeof (value as Record<string, unknown>).title === "string" ? String((value as Record<string, unknown>).title) : "";
 }
 
 async function loadReferenceCandidates(page: number): Promise<{ items: ReferenceCandidate[]; hasMore: boolean }> {

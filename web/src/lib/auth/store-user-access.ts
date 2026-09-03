@@ -239,27 +239,30 @@ export async function createOrdinaryUsersForSchool(schoolId: string, rows: Schoo
             authMayHaveChanged = true;
             await writeAuthDb(db);
             schoolMayHaveChanged = true;
-            const memberships = await mutateFileSchoolDomainInsideLock(async (schoolRepository) => {
-                if (options.school) await schoolRepository.insertSchool(options.school);
-                else if (!(await schoolRepository.getSchool(schoolId))) throw new AuthInputError("学校不存在", 404);
-                const created = [];
-                for (const [index, user] of users.entries()) {
-                    created.push(
-                        await schoolRepository.insertMembership({
-                            id: randomUUID(),
-                            schoolId,
-                            userId: user.id,
-                            role: inputs[index].role,
-                            permissions: options.firstManager && index === 0 ? ["school.manage"] : [],
-                            status: "active",
-                            joinSource: options.joinSource || "admin",
-                            createdAt: now,
-                            updatedAt: now,
-                        }),
-                    );
-                }
-                return created;
-            });
+            const memberships = await mutateFileSchoolDomainInsideLock(
+                async (schoolRepository) => {
+                    if (options.school) await schoolRepository.insertSchool(options.school);
+                    else if (!(await schoolRepository.getSchool(schoolId))) throw new AuthInputError("学校不存在", 404);
+                    const created = [];
+                    for (const [index, user] of users.entries()) {
+                        created.push(
+                            await schoolRepository.insertMembership({
+                                id: randomUUID(),
+                                schoolId,
+                                userId: user.id,
+                                role: inputs[index].role,
+                                permissions: options.firstManager && index === 0 ? ["school.manage"] : [],
+                                status: "active",
+                                joinSource: options.joinSource || "admin",
+                                createdAt: now,
+                                updatedAt: now,
+                            }),
+                        );
+                    }
+                    return created;
+                },
+                { lockAlreadyHeld: true },
+            );
             return memberships.map((membership, index) => schoolMemberFromRecords(membership, toPublicUser(users[index], db)));
         } catch (error) {
             if (authMayHaveChanged) await writeJsonDataFile(AUTH_DATA_FILE, authSnapshot).catch(() => undefined);

@@ -1,4 +1,4 @@
-import { hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";
+import { hasAnyAdminPermission, isActivePlatformAdmin, type AdminPermission } from "@/lib/admin-permissions";
 
 export const ADMIN_SECTION_KEYS = [
     "overview",
@@ -99,6 +99,7 @@ export function adminSectionHref(section: AdminSectionKey, currentHref = "/admin
 }
 
 export function canAccessAdminSection(user: { role?: unknown; status?: unknown; adminPermissions?: unknown }, section: AdminSectionKey) {
+    if (section === "schools") return isActivePlatformAdmin(user);
     const permissions = ADMIN_SECTION_PERMISSIONS[section];
     return hasAnyAdminPermission(user, permissions.length ? permissions : undefined);
 }

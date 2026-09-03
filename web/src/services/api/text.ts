@@ -4,7 +4,10 @@ import { GenerationTaskNeedsReviewError, GenerationTaskTerminalError, type Gener
 import { refreshUserPointsIfSystem, syncUserPointsFromHeaders } from "@/services/api/points";
 import { throwIfClientSessionExpired } from "@/services/api/session-expiration";
 
-type RequestOptions = { signal?: AbortSignal };
+type RequestOptions = {
+    signal?: AbortSignal;
+    context?: { surface?: "chat" | "canvas" | "drama"; projectId?: string; conversationId?: string; episodeId?: string; shotId?: string; clientRequestId?: string; attemptNo?: number };
+};
 
 export type TextGenerationTask = {
     id: string;
@@ -29,7 +32,7 @@ export async function createTextGenerationTask(config: AiConfig, messages: AiTex
     const response = await fetch("/api/text-tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: { model: requestConfig.model }, messages }),
+        body: JSON.stringify({ config: { model: requestConfig.model }, messages, ...(options?.context ? { context: options.context } : {}) }),
         signal: options?.signal,
     });
     throwIfClientSessionExpired(response);

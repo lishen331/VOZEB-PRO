@@ -494,6 +494,42 @@ describe("mutateStoredGenerationTask", () => {
         vi.mocked(getDatabaseProvider).mockReturnValue("file");
     });
 
+    it("persists workflow identity and origin without allowing an invalid origin", async () => {
+        mocks.records = [];
+        const now = Date.now();
+        await createStoredGenerationTask(
+            "image",
+            {
+                id: "workflow-image",
+                userId: "user",
+                status: "pending",
+                workflowKey: "storyboard-image-v2",
+                workflowVersion: 2,
+                upstreamWorkflowId: "wf-remote-2",
+                businessCode: "storyboard-image",
+                taskOrigin: "admin-workflow-test",
+                createdAt: now,
+                updatedAt: now,
+            },
+            60_000,
+        );
+
+        await expect(getStoredGenerationTaskRecord("image", "workflow-image")).resolves.toMatchObject({
+            workflowKey: "storyboard-image-v2",
+            workflowVersion: 2,
+            upstreamWorkflowId: "wf-remote-2",
+            businessCode: "storyboard-image",
+            taskOrigin: "admin-workflow-test",
+            payload: {
+                workflowKey: "storyboard-image-v2",
+                workflowVersion: 2,
+                upstreamWorkflowId: "wf-remote-2",
+                businessCode: "storyboard-image",
+                taskOrigin: "admin-workflow-test",
+            },
+        });
+    });
+
     it("finds only the current user's exact channel task identity", async () => {
         const now = Date.now();
         mocks.records = [

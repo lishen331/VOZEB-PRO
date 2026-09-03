@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     requireStudent: vi.fn(),
     requireActiveSchoolContext: vi.fn(),
     validateReferences: vi.fn(),
+    getLocalMediaRegistrations: vi.fn(),
     repository: {
         getPlatformCourse: vi.fn(),
         getSchool: vi.fn(),
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => ({
         isClassMember: vi.fn(),
         assignCourseToSchools: vi.fn(),
         insertCourseOffering: vi.fn(),
+        insertPlatformCourse: vi.fn(),
         insertTeachingAssignment: vi.fn(),
         insertTeachingSubmission: vi.fn(),
         updateTeachingSubmission: vi.fn(),
@@ -52,9 +54,11 @@ vi.mock("./school-access-service", () => ({
 }));
 vi.mock("./school-content-reference-service", () => ({ validateSchoolContentReferences: mocks.validateReferences }));
 vi.mock("./school-domain-repository", () => ({ createSchoolDomainRepository: () => mocks.repository }));
+vi.mock("@/lib/server/local-media-registry", () => ({ getLocalMediaRegistrations: mocks.getLocalMediaRegistrations }));
 
 import {
     assignCourseToSchools,
+    createPlatformCourse,
     createCourseOffering,
     createTeachingAssignment,
     getTeachingAssignment,
@@ -100,8 +104,15 @@ describe("school course service", () => {
         mocks.repository.getMembership.mockResolvedValue({ id: "teacher-a", schoolId: "school-a", role: "teacher", status: "active" });
         mocks.repository.insertCourseOffering.mockImplementation(async (record) => record);
 
-        await expect(createCourseOffering("manager-user", "assignment-a", { classId: "class-a", teacherMembershipId: "teacher-a", supplementalResources: [] })).resolves.toMatchObject({ schoolId: "school-a", assignmentId: "assignment-a" });
+        await expect(createCourseOffering("manager-user", "assignment-a", { classId: "class-a", teacherMembershipId: "teacher-a" })).resolves.toMatchObject({ schoolId: "school-a", assignmentId: "assignment-a" });
         expect(mocks.repository.insertCourseOffering).toHaveBeenCalledTimes(1);
+
+        await expect(createCourseOffering("manager-user", "assignment-a", { classId: " ", teacherMembershipId: "teacher-a" })).rejects.toMatchObject({ status: 400, message: "请选择班级" });
+        mocks.repository.getMembership.mockResolvedValueOnce(null);
+        await expect(createCourseOffering("manager-user", "assignment-a", { classId: "class-a", teacherMembershipId: "missing-teacher" })).rejects.toMatchObject({ status: 404, message: "负责老师不存在" });
+
+        mocks.repository.insertCourseOffering.mockRejectedValueOnce(new Error("课程安排已存在"));
+        await expect(createCourseOffering("manager-user", "assignment-a", { classId: "class-a", teacherMembershipId: "teacher-a" })).rejects.toMatchObject({ status: 409, message: "该课程已为此班级和老师创建教学安排" });
 
         mocks.repository.getClass.mockResolvedValue(null);
         await expect(createCourseOffering("manager-user", "assignment-a", { classId: "foreign", teacherMembershipId: "teacher-a" })).rejects.toMatchObject({ status: 404 });
@@ -164,9 +175,35 @@ describe("school course service", () => {
     });
 
     it("lists the student's submissions with one tenant-scoped repository query", async () => {
-        mocks.repository.listTeachingSubmissionsForStudent.mockResolvedValue({ items: [{ id: "submission-a", studentMembershipId: "student-a" }], total: 1, page: 1, pageSize: 20 });
+        mocks.repository.listTeachingSubmissionsForStudent.mockResolvedValue({
+            items: [
+                {
+                    id: "submission-a",
+                    schoolId: "school-a",
+                    studentMembershipId: "student-a",
+                    contentReferences: [
+                        { type: "canvas", id: "canvas-a" },
+                        { type: "work", id: "work-a" },
+                    ],
+                },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 20,
+        });
+        mocks.repository.getMembership.mockResolvedValue({ id: "student-a", schoolId: "school-a", userId: "student-user", role: "student", status: "active" });
+        mocks.validateReferences.mockImplementation(async ({ references }: { references: Array<{ type: string; id: string }> }) => [{ reference: references[0], title: references[0].type === "canvas" ? "学生画布" : "学生文本" }]);
 
-        await expect(listOwnTeachingSubmissions("student-user", { page: 1, pageSize: 20, assignmentIds: ["task-a", "task-a"] })).resolves.toMatchObject({ total: 1, items: [{ id: "submission-a" }] });
+        await expect(listOwnTeachingSubmissions("student-user", { page: 1, pageSize: 20, assignmentIds: ["task-a", "task-a"] })).resolves.toMatchObject({
+            total: 1,
+            items: [
+                {
+                    id: "submission-a",
+                    contentReferences: expect.arrayContaining([{ type: "canvas", id: "canvas-a" }]),
+                    resolvedContentReferences: [expect.objectContaining({ title: "学生画布", availability: "available" }), expect.objectContaining({ title: "学生文本", mediaType: "text" })],
+                },
+            ],
+        });
         expect(mocks.repository.listTeachingSubmissionsForStudent).toHaveBeenCalledWith("school-a", "student-a", { page: 1, pageSize: 20, assignmentIds: ["task-a"] });
         expect(mocks.repository.listTeachingSubmissions).not.toHaveBeenCalled();
     });
@@ -291,7 +328,6 @@ describe("school course service", () => {
                     assignmentId: "assignment-a",
                     classId: "class-a",
                     teacherMembershipId: "teacher-a",
-                    supplementalResources: [],
                     status: "active",
                     createdAt: "2026-08-17T00:00:00.000Z",
                     updatedAt: "2026-08-17T00:00:00.000Z",
@@ -353,7 +389,7 @@ function context(membershipId: string, role: "teacher" | "student", permissions:
 }
 
 function course(status: "draft" | "published" | "disabled") {
-    return { id: "course-a", title: "课程", summary: "", content: {}, chapters: [], attachments: [], status, createdByUserId: "admin-internal-uuid", createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" };
+    return { id: "course-a", title: "课程", summary: "", content: {}, status, createdByUserId: "admin-internal-uuid", createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z" };
 }
 
 function assignment(schoolId: string) {

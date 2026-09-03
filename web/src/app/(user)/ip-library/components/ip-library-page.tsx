@@ -21,6 +21,10 @@ export function availableIpLibraryScopes(hasSchool: boolean) {
         : [{ label: "公共 IP", value: "public" as const }];
 }
 
+export function shouldShowExclusiveBadge(visibility: IpSummary["visibility"], isExclusive: boolean) {
+    return visibility === "school" && isExclusive;
+}
+
 export default function IpLibraryPage() {
     const { message } = App.useApp();
     const context = useSchoolContextStore((state) => state.context);
@@ -121,7 +125,7 @@ function IpLibraryCard({ item }: { item: IpSummary }) {
             <div className="min-w-0 p-3">
                 <div className="flex min-w-0 items-start justify-between gap-2">
                     <h2 className="line-clamp-2 min-w-0 text-sm font-semibold leading-5">{item.title}</h2>
-                    {item.isExclusive ? (
+                    {shouldShowExclusiveBadge(item.visibility, item.isExclusive) ? (
                         <Tag color="gold" className="!m-0 shrink-0">
                             独家授权
                         </Tag>

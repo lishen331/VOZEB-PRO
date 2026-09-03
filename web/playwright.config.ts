@@ -6,6 +6,7 @@ const port = Number(process.env.VOZEB_PRO_E2E_PORT || 3100);
 const baseURL = `http://127.0.0.1:${port}`;
 const protocolFixturePort = Number(process.env.VOZEB_PRO_PROTOCOL_FIXTURE_PORT || 4010);
 const paymentFixturePort = Number(process.env.VOZEB_PRO_PAYMENT_FIXTURE_PORT || 4020);
+const runningHubFixturePort = Number(process.env.VOZEB_PRO_RUNNINGHUB_FIXTURE_PORT || 4030);
 const databaseUrl = process.env.VOZEB_PRO_E2E_DATABASE_URL?.trim() || "";
 const storageState = path.join(process.cwd(), ".e2e-data", "admin-state.json");
 
@@ -28,19 +29,21 @@ export default defineConfig({
         { name: "setup", testMatch: /installation\.spec\.ts/ },
         {
             name: "chromium",
-            testMatch: [/(?:all-pages|canvas|commerce|core|creative-video-result|drama-lab-phase4|home|infinite-practice|ip-library|responsive|school-compute|school-education)\.spec\.ts/],
+            testMatch: [
+                /(?:admin-runninghub-workflow(?:-test|-discovery)?|admin-school-member-points|all-pages|canvas|commerce|core|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-module-workbenches|infinite-practice-runninghub-workflow|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
+            ],
             dependencies: ["setup"],
             use: { ...devices["Desktop Chrome"], storageState },
         },
         {
             name: "mobile-390",
-            testMatch: /(?:all-pages|commerce|creative-video-result|drama-lab-phase4|home|infinite-practice|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
+            testMatch: /(?:admin-school-member-points|all-pages|commerce|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-module-workbenches|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
             dependencies: ["setup"],
             use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 390, height: 844 }, storageState },
         },
         {
             name: "mobile-430",
-            testMatch: /(?:all-pages|commerce|creative-video-result|drama-lab-phase4|home|infinite-practice|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
+            testMatch: /(?:admin-school-member-points|all-pages|commerce|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-module-workbenches|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
             dependencies: ["setup"],
             use: { ...devices["iPhone 14 Pro Max"], browserName: "chromium", viewport: { width: 430, height: 932 }, storageState },
         },
@@ -59,6 +62,13 @@ export default defineConfig({
             timeout: 30_000,
             reuseExistingServer: false,
             env: { ...process.env, VOZEB_PRO_PAYMENT_FIXTURE_PORT: String(paymentFixturePort) },
+        },
+        {
+            command: "node scripts/runninghub-workflow-fixture.mjs",
+            url: `http://127.0.0.1:${runningHubFixturePort}/health`,
+            timeout: 30_000,
+            reuseExistingServer: false,
+            env: { ...process.env, VOZEB_PRO_RUNNINGHUB_FIXTURE_PORT: String(runningHubFixturePort) },
         },
         {
             command: "corepack pnpm run start",

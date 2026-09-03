@@ -20,6 +20,8 @@ describe("Drama generation production workspace", () => {
         expect(source).not.toContain("sm:grid-cols-4");
         expect(source).toContain("costRefreshKey");
         expect(source).not.toContain("window.setInterval(load, 5000)");
+        expect(source).toContain("dialogueAudio: shot.dialogueAudio");
+        expect(source).toContain("narrationAudio: shot.narrationAudio");
     });
 
     it("keeps shot task rows mobile-safe and exposes exact failure labels", async () => {

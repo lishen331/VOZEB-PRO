@@ -19,4 +19,10 @@ describe("Next response headers", () => {
 
         expect(packageJson.scripts?.["start:standalone"]).toContain("--env-file-if-exists=.env.local");
     });
+
+    it("keeps the request proxy large enough for the supplied course package", () => {
+        const config = createNextConfig("phase-production-build");
+
+        expect(config.experimental?.proxyClientMaxBodySize).toBe("3gb");
+    });
 });

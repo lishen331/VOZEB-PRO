@@ -16,6 +16,8 @@ type StoredReferenceAsset = {
     storage?: "local" | "object";
 };
 
+export type PersistentAttachmentWriteContext = Omit<ReferenceMediaWriteContext, "maxBytes">;
+
 export type ReferenceMediaWriteContext = {
     ownerUserId: string;
     source: string;
@@ -37,6 +39,36 @@ export async function writeReferenceMediaDataUrl(dataUrl: string, expectedType: 
 
 export async function writePersistentMediaDataUrl(dataUrl: string, expectedType: "image" | "video" | "audio", context: ReferenceMediaWriteContext): Promise<StoredReferenceAsset> {
     return writeMediaDataUrl(dataUrl, expectedType, true, context);
+}
+
+export async function writePersistentAttachmentFile(sourcePath: string, fileName: string, mimeType: string, context: PersistentAttachmentWriteContext): Promise<StoredReferenceAsset> {
+    const sourceStat = await stat(sourcePath);
+    if (!sourceStat.isFile() || sourceStat.size <= 0) throw new Error("课程附件为空");
+    const token = createDatedMediaPath("permanent", "attachment", extensionFromFileName(fileName));
+    const registration = {
+        storageKey: token,
+        scope: "reference" as const,
+        storageClass: "permanent" as const,
+        type: "attachment" as const,
+        ownerUserId: context.ownerUserId,
+        originalName: fileName,
+        source: context.source,
+        mimeType,
+        bytes: sourceStat.size,
+        createdAt: new Date().toISOString(),
+    };
+    const external = await persistExternalMediaIfEnabled({ registration, filePath: sourcePath });
+    if (external) return { token, bytes: sourceStat.size, mimeType, storage: "object" };
+    const filePath = resolve(REFERENCE_MEDIA_ROOT, token);
+    await mkdir(dirname(filePath), { recursive: true });
+    await copyFile(sourcePath, filePath);
+    try {
+        await registerLocalMediaAsset(registration);
+    } catch (error) {
+        await unlink(filePath).catch(() => undefined);
+        throw error;
+    }
+    return { token, bytes: sourceStat.size, mimeType, storage: "local" };
 }
 
 async function writeMediaDataUrl(dataUrl: string, expectedType: "image" | "video" | "audio", persistent: boolean, context: ReferenceMediaWriteContext): Promise<StoredReferenceAsset> {
@@ -163,9 +195,18 @@ function mimeTypeFromToken(token: string) {
     if (lower.endsWith(".aac")) return "audio/aac";
     if (lower.endsWith(".flac")) return "audio/flac";
     if (lower.endsWith(".mp3")) return "audio/mpeg";
-    return "image/png";
+    if (lower.endsWith(".zip")) return "application/zip";
+    if (lower.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    if (lower.endsWith(".pptx")) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    if (lower.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    return "application/octet-stream";
 }
 
 export function isReferenceAssetPath(value: string) {
-    return /^(?:temporary|permanent)\/\d{4}\/\d{2}\/\d{2}\/(?:images|videos|audio)\/\d{8}-\d{6}-[0-9a-f-]{36}\.(?:png|jpg|jpeg|webp|gif|mp4|webm|mov|mp3|wav|ogg|aac|flac)$/i.test(value);
+    return /^(?:temporary|permanent)\/\d{4}\/\d{2}\/\d{2}\/(?:images|videos|audio|attachments)\/\d{8}-\d{6}-[0-9a-f-]{36}\.(?:png|jpg|jpeg|webp|gif|mp4|webm|mov|mp3|wav|ogg|aac|flac|docx|pptx|xlsx|zip)$/i.test(value);
+}
+
+function extensionFromFileName(fileName: string) {
+    const extension = fileName.toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
+    return extension && /^(?:\.docx|\.pptx|\.xlsx|\.png|\.jpe?g|\.webp|\.mp4|\.mov|\.zip)$/.test(extension) ? extension : ".bin";
 }

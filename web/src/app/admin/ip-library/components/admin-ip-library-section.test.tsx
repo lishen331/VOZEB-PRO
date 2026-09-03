@@ -13,9 +13,24 @@ describe("admin IP library section", () => {
         expect(source).toContain("adminIpLibraryApi.listVersions");
         expect(source).toContain("adminIpLibraryApi.listGrants");
         expect(source).toContain("adminIpLibraryApi.listUsage");
-        expect(source).toContain("listLibraryAssetPage");
+        expect(source).toContain("adminIpLibraryApi.listFiles");
+        expect(source).toContain("IpContentUpload");
+        expect(source).toContain("IpContentPreview");
+        expect(source).toContain("adminIpLibraryApi.updateVersion");
+        expect(source).not.toContain("listLibraryAssetPage");
+        expect(source).not.toContain("AssetSelect");
         expect(source).toContain("adminEducationApi.listSchools");
         expect(source).toContain('width="min(760px, 100vw)"');
         expect(source).toContain("destroyOnHidden");
+        expect(source).toContain("versionBlockReason");
+        expect(source).toContain("暂无可授权 IP");
+        expect(source).toContain("slugSuggestion");
+    });
+
+    it("keeps authorization mode on each school grant instead of the IP profile form", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/admin/ip-library/components/admin-ip-library-section.tsx"), "utf8");
+        expect(source).toContain('name="mode" label="授权方式"');
+        expect(source).not.toContain('name="authorizationMode"');
+        expect(source).not.toContain('name="coverAssetId"');
     });
 });

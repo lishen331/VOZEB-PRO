@@ -24,13 +24,32 @@ describe("admin schools route", () => {
         await expect(response.json()).resolves.toEqual({ code: 0, data: { items: [{ id: "school-a", name: "甲学校" }], total: 1, page: 2, pageSize: 10 }, msg: "ok" });
     });
 
-    it("requires login and the education duty", async () => {
+    it("requires login for reads and keeps school creation on the education duty", async () => {
         mocks.getCurrentUser.mockResolvedValueOnce(null);
         expect((await GET(new Request("http://localhost/api/admin/schools"))).status).toBe(401);
 
         mocks.getCurrentUser.mockResolvedValueOnce({ id: "admin-b", role: "admin", status: "active", adminPermissions: ["users.manage"] });
+        expect((await GET(new Request("http://localhost/api/admin/schools"))).status).toBe(200);
+        expect(mocks.listSchoolsByAdmin).toHaveBeenCalledWith("admin-b", { page: 1, pageSize: 20, keyword: "", status: undefined });
+
+        mocks.getCurrentUser.mockResolvedValueOnce({ id: "admin-c", role: "admin", status: "active", adminPermissions: [] });
+        expect((await GET(new Request("http://localhost/api/admin/schools"))).status).toBe(200);
+
+        mocks.getCurrentUser.mockResolvedValueOnce({ id: "admin-d", role: "admin", status: "disabled", adminPermissions: ["education.manage"] });
         expect((await GET(new Request("http://localhost/api/admin/schools"))).status).toBe(403);
-        expect(mocks.listSchoolsByAdmin).not.toHaveBeenCalled();
+
+        mocks.getCurrentUser.mockResolvedValueOnce({ id: "admin-b", role: "admin", status: "active", adminPermissions: ["users.manage"] });
+        expect(
+            (
+                await POST(
+                    new Request("http://localhost/api/admin/schools", {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify({ name: "乙学校", administrator: { username: "teacher_b", password: "secret-password" } }),
+                    }),
+                )
+            ).status,
+        ).toBe(403);
     });
 
     it("creates a school and records a redacted audit event", async () => {

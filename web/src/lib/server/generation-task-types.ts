@@ -2,6 +2,7 @@ import type { GenerationTaskExecutionPhase } from "@/lib/server/generation-task-
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import type { IpReference } from "@/lib/ip-library-domain";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
+import type { RunningHubWorkflowBusinessCode } from "@/lib/auth/store-types";
 
 export type GenerationTaskType = "text" | "image" | "video" | "audio" | "agent" | "render";
 export type GenerationTaskStatus = "pending" | "running" | "success" | "error" | "paused" | "cancelled";
@@ -35,6 +36,12 @@ export type GenerationTaskContext = {
     /** Short-drama audio track context; kept on the shared task for recovery. */
     audioKind?: "dialogue" | "narration";
     speaker?: string;
+    workflowKey?: string;
+    workflowVersion?: number;
+    upstreamWorkflowId?: string;
+    workflowConfigFingerprint?: string;
+    businessCode?: RunningHubWorkflowBusinessCode;
+    taskOrigin?: "user" | "admin-workflow-test";
 };
 
 export type StoredGenerationTaskRecord = {

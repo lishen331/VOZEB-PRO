@@ -20,10 +20,10 @@ describe("admin IP versions route", () => {
 
     it("lists versions for either duty and creates drafts for content duty", async () => {
         expect((await GET(new Request("http://localhost/api/admin/ip-library/ip-a/versions"), context)).status).toBe(200);
-        const response = await POST(jsonRequest({ action: "create", title: "第二版", items: [{ kind: "text", category: "script", title: "剧本", textContent: "正文不进审计" }] }), context);
+        const response = await POST(jsonRequest({ action: "create", title: "第二版", items: [{ kind: "text", category: "script", title: "剧本", fileId: "file-a" }] }), context);
         expect(response.status).toBe(200);
         expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ action: "admin.ip.version.create", target: { type: "ip_version", id: "version-a" }, metadata: { ipId: "ip-a", versionNumber: 2, status: "draft" } }));
-        expect(JSON.stringify(mocks.audit.mock.calls)).not.toContain("正文不进审计");
+        expect(JSON.stringify(mocks.audit.mock.calls)).not.toContain("file-a");
     });
 
     it("publishes by explicit action and rejects malformed bodies", async () => {

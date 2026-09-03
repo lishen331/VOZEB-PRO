@@ -28,6 +28,13 @@ export async function POST(request: Request, context: RouteContext) {
             response.headers.set("Cache-Control", "private, no-store, max-age=0");
             return response;
         }
+        if (result.kind === "response") {
+            const headers = new Headers(result.response.headers);
+            headers.set("Cache-Control", "private, no-store, max-age=0");
+            headers.set("X-IP-Download-Id", result.downloadId);
+            headers.set("X-Content-Type-Options", "nosniff");
+            return new Response(result.response.body, { status: result.response.status, headers });
+        }
         return new Response(new Uint8Array(result.bytes), {
             headers: {
                 "Content-Type": result.mimeType,

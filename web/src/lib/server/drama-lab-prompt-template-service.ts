@@ -2,6 +2,7 @@ import { canonicalDramaLabPromptKey, dramaLabPromptDefinition, type DramaLabProm
 import { getDatabaseProvider, postgresQuery } from "@/lib/server/database";
 
 type PromptTemplateRow = {
+    id: string;
     template_key: string;
     template: string;
 };
@@ -20,7 +21,7 @@ export async function resolveDramaLabPrompt(key: DramaLabPromptKey): Promise<Dra
         `SELECT template_key, template
          FROM drama_lab_prompt_templates
          WHERE template_key = $1 AND deleted_at IS NULL
-         ORDER BY updated_at DESC
+         ORDER BY updated_at DESC, id DESC
          LIMIT 1`,
         [canonicalKey],
     );

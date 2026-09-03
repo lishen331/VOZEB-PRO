@@ -23,7 +23,9 @@ import { verifyCanvasImageLayerGrant } from "@/lib/server/canvas-image-layer-gra
 import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runtime-service";
 import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib/server/reference-asset-access";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
-import { hasUntrustedExecutionProfile, isTrustedPracticeTaskRequest } from "@/lib/server/generation-execution-policy";
+import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
+import { generationBusinessCode, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
+import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
@@ -152,7 +154,6 @@ export async function POST(request: Request) {
         throw error;
     }
     const trustedPractice = isTrustedPracticeTaskRequest(request, currentUser.id, resolvedBody.context);
-    if (hasUntrustedExecutionProfile(resolvedBody) && !trustedPractice) return NextResponse.json({ error: "练习执行档案只能由受信任的练习服务创建" }, { status: 400 });
     const requestId = headerRequestId || resolvedBody.context?.clientRequestId?.trim();
     if (!headerRequestId && requestId) {
         const existing = await getStoredGenerationTaskByRequest<ImageTask>("image", currentUser.id, requestId, resolvedBody.context?.attemptNo);
@@ -173,20 +174,23 @@ export async function POST(request: Request) {
         if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
+    const projectProfile = await resolveProjectExecutionProfile(currentUser.id, resolvedBody.context || {});
+    const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
+    if ((hasUntrustedExecutionProfile(resolvedBody) || hasUntrustedWorkflowContext(resolvedBody)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
     const createTask = async () => {
-        const executionProfile = trustedPractice ? "open-source-practice" : "production";
+        const executionProfile = practiceRequest ? "open-source-practice" : "production";
         let trustedContext: GenerationTaskContext;
         try {
-            const clientContext = { ...(resolvedBody.context || {}) };
-            delete clientContext.billingContext;
+            const clientContext = sanitizeGenerationContext(resolvedBody.context, trustedPractice);
+            if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "image");
             const billingContext = await resolveSchoolComputeBillingContext(currentUser.id, { ...clientContext, executionProfile });
             trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
         } catch (error) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
-        const configs = sanitizeConfigs(resolvedBody.config, settings, executionProfile);
+        const configs = sanitizeConfigs(resolvedBody.config, settings, executionProfile, trustedContext);
         const prompt = (resolvedBody.prompt || "").trim();
         const kind = resolvedBody.kind === "edit" ? "edit" : "generation";
         if (!configs.length || !prompt) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
@@ -214,6 +218,7 @@ export async function POST(request: Request) {
         });
         if (!compatibleConfigs.length) return NextResponse.json({ error: "当前模型能力不满足参考素材、比例或分辨率参数" }, { status: 400 });
         const config = compatibleConfigs[0];
+        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(config, trustedContext.businessCode) };
         if (config.outputMode === "layers" && (kind !== "edit" || references.length !== 1)) {
             return NextResponse.json({ error: "电商分层需要且只能使用一张源图" }, { status: 400 });
         }

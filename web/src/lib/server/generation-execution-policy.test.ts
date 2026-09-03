@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveGenerationExecutionPolicy } from "./generation-execution-policy";
+import { hasUntrustedWorkflowContext, resolveGenerationExecutionPolicy } from "./generation-execution-policy";
 
 describe("generation execution policy", () => {
     it("keeps production as the default billed profile", () => {
@@ -24,5 +24,10 @@ describe("generation execution policy", () => {
 
     it("rejects a practice task routed to a production-only channel", () => {
         expect(() => resolveGenerationExecutionPolicy({ executionProfile: "open-source-practice", trustedPracticeContext: true, channelPurpose: "production" })).toThrow("渠道用途");
+    });
+
+    it("marks all client workflow selectors as untrusted context", () => {
+        expect(hasUntrustedWorkflowContext({ context: { workflowKey: "wf", workflowVersion: 1, businessCode: "script", taskOrigin: "user" } })).toBe(true);
+        expect(hasUntrustedWorkflowContext({ context: { surface: "canvas", projectId: "canvas-1" } })).toBe(false);
     });
 });

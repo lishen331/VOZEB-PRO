@@ -86,7 +86,7 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
         const logicalModels = synchronizeLogicalModelsWithChannels(current.logicalModels, systemChannels);
         const defaultModels = normalizeDefaultModelsConfig(current.defaultModels, logicalModels, systemChannels);
         const practiceDefaultModels = normalizeDefaultModelsConfig(current.practiceDefaultModels, logicalModels, systemChannels, "open-source-practice", { allowFallback: false });
-        return saveSettings({ systemChannels, logicalModels, defaultModels, practiceDefaultModels }, "渠道已删除");
+        return saveSettings({ systemChannels, logicalModels, defaultModels, practiceDefaultModels, practiceWorkflowModels: current.practiceWorkflowModels }, "渠道已删除");
     };
 
     const updateFreeDailyPoints = (value: number | null) => {

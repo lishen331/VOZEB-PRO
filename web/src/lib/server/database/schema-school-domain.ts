@@ -74,15 +74,60 @@ CREATE TABLE IF NOT EXISTS platform_courses (
     title text NOT NULL,
     summary text NOT NULL DEFAULT '',
     content jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(content) = 'object'),
-    chapters jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(chapters) = 'array'),
-    attachments jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(attachments) = 'array'),
     status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'disabled')),
     created_by_user_id text REFERENCES users(id) ON DELETE SET NULL,
+    deleted_at timestamptz,
+    deleted_by_user_id text REFERENCES users(id) ON DELETE SET NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE platform_courses ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE platform_courses ADD COLUMN IF NOT EXISTS deleted_by_user_id text;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'platform_courses'::regclass
+          AND conname = 'platform_courses_deleted_by_user_id_fkey'
+    ) THEN
+        ALTER TABLE platform_courses
+            ADD CONSTRAINT platform_courses_deleted_by_user_id_fkey
+            FOREIGN KEY (deleted_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END
+$$;
+
 CREATE INDEX IF NOT EXISTS platform_courses_status_updated_idx ON platform_courses (status, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS platform_course_chapters (
+    id text PRIMARY KEY,
+    course_id text NOT NULL REFERENCES platform_courses(id) ON DELETE CASCADE,
+    title text NOT NULL,
+    description text NOT NULL DEFAULT '',
+    sort_order integer NOT NULL DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (course_id, id)
+);
+
+CREATE INDEX IF NOT EXISTS platform_course_chapters_course_sort_idx ON platform_course_chapters (course_id, sort_order, id);
+
+CREATE TABLE IF NOT EXISTS platform_course_lessons (
+    id text PRIMARY KEY,
+    course_id text NOT NULL REFERENCES platform_courses(id) ON DELETE CASCADE,
+    chapter_id text NOT NULL,
+    title text NOT NULL,
+    description text NOT NULL DEFAULT '',
+    sort_order integer NOT NULL DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (course_id, id),
+    FOREIGN KEY (course_id, chapter_id) REFERENCES platform_course_chapters(course_id, id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS platform_course_lessons_course_chapter_sort_idx ON platform_course_lessons (course_id, chapter_id, sort_order, id);
 
 CREATE TABLE IF NOT EXISTS school_course_assignments (
     id text PRIMARY KEY,
@@ -95,8 +140,37 @@ CREATE TABLE IF NOT EXISTS school_course_assignments (
     UNIQUE (school_id, id)
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS school_course_assignments_course_id_id_idx ON school_course_assignments (course_id, id);
 CREATE INDEX IF NOT EXISTS school_course_assignments_school_status_updated_idx ON school_course_assignments (school_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS school_course_assignments_course_updated_idx ON school_course_assignments (course_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS course_materials (
+    id text PRIMARY KEY,
+    course_id text NOT NULL REFERENCES platform_courses(id) ON DELETE CASCADE,
+    chapter_id text,
+    lesson_id text,
+    source_scope text NOT NULL CHECK (source_scope IN ('platform', 'school')),
+    school_course_assignment_id text,
+    title text NOT NULL,
+    file_name text NOT NULL,
+    mime_type text NOT NULL,
+    bytes bigint NOT NULL CHECK (bytes >= 0),
+    storage_key text NOT NULL,
+    url text NOT NULL,
+    sort_order integer NOT NULL DEFAULT 0,
+    status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+    created_by_user_id text REFERENCES users(id) ON DELETE SET NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CHECK ((CASE WHEN chapter_id IS NOT NULL THEN 1 ELSE 0 END + CASE WHEN lesson_id IS NOT NULL THEN 1 ELSE 0 END) = 1),
+    CHECK ((source_scope = 'platform' AND school_course_assignment_id IS NULL) OR (source_scope = 'school' AND school_course_assignment_id IS NOT NULL)),
+    FOREIGN KEY (course_id, chapter_id) REFERENCES platform_course_chapters(course_id, id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id, lesson_id) REFERENCES platform_course_lessons(course_id, id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id, school_course_assignment_id) REFERENCES school_course_assignments(course_id, id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS course_materials_course_target_sort_idx ON course_materials (course_id, chapter_id, lesson_id, sort_order, id);
+CREATE INDEX IF NOT EXISTS course_materials_assignment_status_updated_idx ON course_materials (school_course_assignment_id, status, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS school_course_offerings (
     id text PRIMARY KEY,
@@ -104,7 +178,6 @@ CREATE TABLE IF NOT EXISTS school_course_offerings (
     assignment_id text NOT NULL,
     class_id text NOT NULL,
     teacher_membership_id text NOT NULL,
-    supplemental_resources jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(supplemental_resources) = 'array'),
     status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -123,6 +196,8 @@ CREATE TABLE IF NOT EXISTS teaching_assignments (
     school_id text NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     offering_id text NOT NULL,
     teacher_membership_id text NOT NULL,
+    chapter_id text,
+    lesson_id text,
     kind text NOT NULL CHECK (kind IN ('lesson', 'homework', 'commercial_practice')),
     title text NOT NULL,
     instructions text NOT NULL DEFAULT '',
@@ -133,11 +208,31 @@ CREATE TABLE IF NOT EXISTS teaching_assignments (
     updated_at timestamptz NOT NULL DEFAULT now(),
     UNIQUE (school_id, id),
     FOREIGN KEY (school_id, offering_id) REFERENCES school_course_offerings(school_id, id) ON DELETE CASCADE,
-    FOREIGN KEY (school_id, teacher_membership_id) REFERENCES school_memberships(school_id, id)
+    FOREIGN KEY (school_id, teacher_membership_id) REFERENCES school_memberships(school_id, id),
+    CONSTRAINT teaching_assignments_course_target CHECK (chapter_id IS NULL OR lesson_id IS NULL)
 );
+
+ALTER TABLE teaching_assignments ADD COLUMN IF NOT EXISTS chapter_id text;
+ALTER TABLE teaching_assignments ADD COLUMN IF NOT EXISTS lesson_id text;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'teaching_assignments'::regclass
+          AND conname = 'teaching_assignments_course_target'
+    ) THEN
+        ALTER TABLE teaching_assignments
+            ADD CONSTRAINT teaching_assignments_course_target
+            CHECK (chapter_id IS NULL OR lesson_id IS NULL);
+    END IF;
+END
+$$;
 
 CREATE INDEX IF NOT EXISTS teaching_assignments_school_status_updated_idx ON teaching_assignments (school_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS teaching_assignments_school_offering_updated_idx ON teaching_assignments (school_id, offering_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS teaching_assignments_school_chapter_idx ON teaching_assignments (school_id, chapter_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS teaching_assignments_school_lesson_idx ON teaching_assignments (school_id, lesson_id, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS teaching_submissions (
     id text PRIMARY KEY,

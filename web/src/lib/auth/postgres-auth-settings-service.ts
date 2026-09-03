@@ -83,6 +83,7 @@ function postgresSettingsPatch(patch: Partial<AuthSettings>, settings: AuthSetti
     if (patch.logicalModels !== undefined) result.logicalModels = asJson(settings.logicalModels);
     if (patch.defaultModels !== undefined) result.defaultModels = asJson(settings.defaultModels);
     if (patch.practiceDefaultModels !== undefined) result.practiceDefaultModels = asJson(settings.practiceDefaultModels);
+    if (patch.practiceWorkflowModels !== undefined) result.practiceWorkflowModels = asJson(settings.practiceWorkflowModels);
     if (patch.agentSkills !== undefined) result.agentSkills = asJson(settings.agentSkills);
     return result;
 }

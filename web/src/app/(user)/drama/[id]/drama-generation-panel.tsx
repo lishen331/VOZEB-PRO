@@ -151,7 +151,15 @@ export function DramaGenerationPanel({ project, episode, onStageChange, onOpenAs
                     conversationId: project.creativeConversationId,
                     title: project.title,
                     ratio: project.ratio,
-                    shots: episode.shots.map((shot) => ({ videoUrl: shot.videoUrl, audioMode: shot.audioMode || "source", audioUrl: shot.audioUrl, subtitle: shot.subtitle || shot.dialogue, duration: shot.duration })),
+                    shots: episode.shots.map((shot) => ({
+                        videoUrl: shot.videoUrl,
+                        audioMode: shot.audioMode || "source",
+                        audioUrl: shot.audioUrl,
+                        dialogueAudio: shot.dialogueAudio,
+                        narrationAudio: shot.narrationAudio,
+                        subtitle: shot.subtitle || shot.dialogue,
+                        duration: shot.duration,
+                    })),
                 }),
             });
             const payload = (await response.json().catch(() => ({}))) as { data?: DramaRenderTask; msg?: string };

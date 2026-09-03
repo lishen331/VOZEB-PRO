@@ -344,7 +344,7 @@ function normalizeVisualReview(value: unknown): DramaEpisode["visualReview"] {
     });
     return {
         mode,
-        status,
+        status: status || "idle",
         score: Number.isFinite(scoreValue) ? Math.max(0, Math.min(100, Math.round(scoreValue))) : undefined,
         summary,
         issues,

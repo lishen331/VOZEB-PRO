@@ -207,6 +207,7 @@ class SettingsRepository {
         if (input.logicalModels !== undefined) add("logical_models", jsonParam(input.logicalModels));
         if (input.defaultModels !== undefined) add("default_models", jsonParam(input.defaultModels));
         if (input.practiceDefaultModels !== undefined) add("practice_default_models", jsonParam(input.practiceDefaultModels));
+        if (input.practiceWorkflowModels !== undefined) add("practice_workflow_models", jsonParam(input.practiceWorkflowModels));
         if (input.agentSkills !== undefined) add("agent_skills", jsonParam(input.agentSkills));
         if (input.freeDailyPoints !== undefined) add("free_daily_points", input.freeDailyPoints);
         if (!assignments.length) throw new Error("Settings update requires at least one field");
@@ -323,6 +324,7 @@ function mapSettings(row: Record<string, unknown>): AppSettingsRecord {
         logicalModels: jsonValue(row.logical_models),
         defaultModels: jsonValue(row.default_models),
         practiceDefaultModels: jsonValue(row.practice_default_models),
+        practiceWorkflowModels: jsonValue(row.practice_workflow_models),
         agentSkills: jsonValue(row.agent_skills),
         createdAt: isoValue(row.created_at),
         updatedAt: isoValue(row.updated_at),

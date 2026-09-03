@@ -25,6 +25,7 @@ describe("readiness route", () => {
         const response = await GET();
 
         expect(response.status).toBe(200);
+        expect(mocks.getInstallStatus).toHaveBeenCalledWith({ verifySchema: true });
         await expect(response.json()).resolves.toMatchObject({ code: 0, data: { ready: true, database: { healthy: true, schemaReady: true } } });
     });
 

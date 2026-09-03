@@ -174,6 +174,38 @@ describe("admin channel config", () => {
         expect(runningHubChannelValidationErrors({ ...base, purpose: undefined }).join(" ")).toContain("渠道用途");
         expect(runningHubChannelValidationErrors({ ...base, apiKey: "" }).join(" ")).toContain("API Key");
         expect(runningHubChannelValidationErrors({ ...base, advancedConfig: { ...base.advancedConfig, modelConfigs: {} } }).join(" ")).toContain("workflow-image");
+
+        const workflowValidationErrors = runningHubChannelValidationErrors({
+            ...base,
+            purpose: "open-source-practice",
+            advancedConfig: {
+                ...base.advancedConfig,
+                workflowConfigs: {
+                    broken: {
+                        workflowKey: "broken",
+                        workflowName: "错误工作流",
+                        businessCode: "dubbing",
+                        capability: "image",
+                        providerType: "runninghub",
+                        channelId: "runninghub",
+                        workflowId: "workflow-broken",
+                        version: 1,
+                        enabled: true,
+                        createPath: "/task/create",
+                        queryPath: "/task/query",
+                        taskIdField: "data.taskId",
+                        statusField: "data.status",
+                        resultField: "data.result",
+                        requestTemplate: "{}",
+                        inputSchema: [],
+                        nodeMappings: [],
+                        outputMappings: [],
+                    },
+                },
+            },
+        });
+        expect(workflowValidationErrors.join(" ")).toContain("broken");
+        expect(workflowValidationErrors.join(" ")).toContain("capability");
     });
 
     it("validates the practice Canvas vision default separately from ordinary text", () => {

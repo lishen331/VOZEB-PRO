@@ -1,13 +1,13 @@
 import { readJsonDataFile, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery, type QueryExecutor } from "@/lib/server/database";
-import type { LocalMediaClass, LocalMediaType } from "@/lib/local-media-storage-contract";
+import type { LocalMediaClass, ManagedMediaType } from "@/lib/local-media-storage-contract";
 import { isManagedMediaType, isMediaSourceGroup } from "@/lib/media-management-contract";
 
 export type LocalMediaRegistration = {
     storageKey: string;
     scope: "generation" | "reference";
     storageClass: LocalMediaClass;
-    type: LocalMediaType;
+    type: ManagedMediaType;
     ownerUserId: string;
     originalName?: string;
     source: string;
@@ -330,7 +330,7 @@ function mapRegistration(row: Record<string, unknown>): LocalMediaRegistration {
         storageKey: String(row.storage_key || ""),
         scope: row.scope === "generation" ? "generation" : "reference",
         storageClass: row.storage_class === "temporary" ? "temporary" : "permanent",
-        type: row.type === "video" || row.type === "audio" ? row.type : "image",
+        type: row.type === "video" || row.type === "audio" || row.type === "attachment" ? row.type : "image",
         ownerUserId: String(row.owner_user_id || ""),
         originalName: optionalText(row.original_name, 260),
         source: String(row.source || ""),
@@ -453,7 +453,7 @@ function sourceGroup(source: string) {
     if (["video-workbench", "video-task"].includes(value)) return "video-workbench";
     if (value === "canvas") return "canvas";
     if (["drama", "drama-render"].includes(value)) return "drama";
-    if (["user-upload", "creative-upload"].includes(value)) return "upload";
+    if (["user-upload", "creative-upload", "course-attachment"].includes(value)) return "upload";
     return "other";
 }
 

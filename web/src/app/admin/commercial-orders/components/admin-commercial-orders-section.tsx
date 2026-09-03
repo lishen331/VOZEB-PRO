@@ -2,15 +2,22 @@
 
 import type { TableColumnsType } from "antd";
 import { App, Button, Drawer, Form, Input, InputNumber, Modal, Pagination, Select, Table, Tag } from "antd";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import { CheckCircle2, Eye, Pencil, Plus, RefreshCw, RotateCcw, School, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AdminCommercialOrder, AdminCommercialOrderDetails, CommercialOrderInput, CommercialOrderStatus, SchoolSummary } from "@/lib/school-domain";
+import { SubmissionReferenceList } from "@/components/school/submission-reference-list";
 import { adminEducationApi } from "@/services/api/admin-education";
 import { commercialOrdersApi } from "@/services/api/commercial-orders";
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 const PAGE_SIZE = 12;
-type OrderForm = Omit<CommercialOrderInput, "internalAmountCents" | "referenceMaterials"> & { internalAmountYuan: number; referenceUrls?: string[] };
+type OrderForm = Omit<CommercialOrderInput, "internalAmountCents" | "referenceMaterials" | "deadlineAt"> & { internalAmountYuan: number; referenceUrls?: string[]; deadlineAt?: string; deadlineTime?: string };
 type ReviewForm = { feedback?: string };
 
 export function AdminCommercialOrdersSection() {
@@ -63,7 +70,7 @@ export function AdminCommercialOrdersSection() {
                       requirements: order.requirements,
                       acceptanceCriteria: order.acceptanceCriteria,
                       internalAmountYuan: order.internalAmountCents / 100,
-                      deadlineAt: toLocalDateTime(order.deadlineAt),
+                      ...toDeadlineFields(order.deadlineAt),
                       referenceUrls: referenceUrls(order.referenceMaterials),
                   }
                 : { internalAmountYuan: 0, referenceUrls: [] },
@@ -80,7 +87,7 @@ export function AdminCommercialOrdersSection() {
                 requirements: values.requirements?.trim() || "",
                 acceptanceCriteria: values.acceptanceCriteria?.trim() || "",
                 internalAmountCents: Math.round(Number(values.internalAmountYuan) * 100),
-                deadlineAt: values.deadlineAt ? new Date(values.deadlineAt).toISOString() : undefined,
+                deadlineAt: values.deadlineAt ? (values.deadlineTime ? dayjs.tz(`${values.deadlineAt} ${values.deadlineTime}`, "Asia/Shanghai").toISOString() : values.deadlineAt) : editing ? "" : undefined,
                 referenceMaterials: (values.referenceUrls || []).map((url) => ({ url })),
             };
             if (editing) await commercialOrdersApi.updateCommercialOrder(editing.id, input);
@@ -318,8 +325,11 @@ export function AdminCommercialOrdersSection() {
                         <Form.Item label="内部金额（元）" name="internalAmountYuan" rules={[{ required: true, message: "请填写内部金额" }]}>
                             <InputNumber className="w-full" min={0} precision={2} />
                         </Form.Item>
-                        <Form.Item label="截止时间" name="deadlineAt">
-                            <Input type="datetime-local" />
+                        <Form.Item label="截止日期" name="deadlineAt" extra="只选择日期时按平台业务时区当天 23:59:59 截止">
+                            <Input type="date" />
+                        </Form.Item>
+                        <Form.Item label="截止时间（可选）" name="deadlineTime">
+                            <Input type="time" />
                         </Form.Item>
                     </div>
                     <Form.Item label="参考资料 URL" name="referenceUrls">
@@ -423,6 +433,7 @@ function OrderDetails({
                             </div>
                             <p className="mt-1 whitespace-pre-wrap text-zinc-600 dark:text-zinc-300">{delivery.note || "未填写说明"}</p>
                             <div className="mt-1 text-xs text-zinc-500">{formatTime(delivery.submittedAt)}</div>
+                            <SubmissionReferenceList references={delivery.resolvedContentReferences} />
                             {delivery.platformFeedback ? <p className="mt-2 rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">{delivery.platformFeedback}</p> : null}
                         </article>
                     ))}
@@ -462,18 +473,18 @@ function canCancel(status: CommercialOrderStatus) {
 function referenceUrls(values: unknown[]) {
     return values.flatMap((value) => (value && typeof value === "object" && typeof (value as Record<string, unknown>).url === "string" ? [String((value as Record<string, unknown>).url)] : []));
 }
-function toLocalDateTime(value?: string) {
-    if (!value) return undefined;
-    const date = new Date(value);
-    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-    return local.toISOString().slice(0, 16);
+function toDeadlineFields(value?: string) {
+    if (!value) return { deadlineAt: undefined, deadlineTime: undefined };
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(value));
+    const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
+    return { deadlineAt: `${get("year")}-${get("month")}-${get("day")}`, deadlineTime: `${get("hour")}:${get("minute")}` };
 }
 function formatAmount(cents: number) {
     return new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY" }).format(cents / 100);
 }
 function formatTime(value: string) {
     const time = Date.parse(value);
-    return Number.isNaN(time) ? "-" : new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(time);
+    return Number.isNaN(time) ? "-" : new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", dateStyle: "medium", timeStyle: "short" }).format(time);
 }
 function errorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback;

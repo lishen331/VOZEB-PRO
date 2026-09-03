@@ -19,6 +19,8 @@ import { DELETE as deleteBusinessScenario, PUT as putBusinessScenario } from "./
 import { POST as postSd2Asset } from "./sd2-assets/route";
 import { DELETE as deleteSd2Asset, PUT as putSd2Asset } from "./sd2-assets/[id]/route";
 import { POST as uploadSd2Asset } from "./sd2-assets/upload/route";
+import { POST as postPromptTemplate } from "./prompt-templates/route";
+import { NextRequest } from "next/server";
 
 describe("Drama Lab legacy configuration mutations", () => {
     beforeEach(() => {
@@ -30,7 +32,19 @@ describe("Drama Lab legacy configuration mutations", () => {
     });
 
     it("rejects writes to compatibility tables instead of returning a false success", async () => {
-        const handlers = [postAiConfig, putAiConfig, deleteAiConfig, postBusinessScenario, putBusinessScenario, deleteBusinessScenario, postSd2Asset, putSd2Asset, deleteSd2Asset, uploadSd2Asset];
+        const handlers: Array<() => Promise<Response | undefined>> = [
+            postAiConfig,
+            putAiConfig,
+            deleteAiConfig,
+            postBusinessScenario,
+            putBusinessScenario,
+            deleteBusinessScenario,
+            postSd2Asset,
+            putSd2Asset,
+            deleteSd2Asset,
+            uploadSd2Asset,
+            () => postPromptTemplate(new NextRequest("http://localhost/api/admin/drama-lab/prompt-templates", { method: "POST" })),
+        ];
 
         for (const handler of handlers) {
             const response = requireResponse(await handler());

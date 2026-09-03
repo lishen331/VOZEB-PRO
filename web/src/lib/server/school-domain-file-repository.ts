@@ -11,6 +11,14 @@ import type {
     CommercialOrderDraftUpdate,
     CommercialOrderConfigurationUpdate,
     ClassPageQuery,
+    CourseChapterRecord,
+    CourseChapterUpdate,
+    CourseDeletionImpact,
+    CourseLessonRecord,
+    CourseLessonUpdate,
+    CourseMaterialQuery,
+    CourseMaterialRecord,
+    CourseMaterialUpdate,
     MemberPageQuery,
     OrderPageQuery,
     Page,
@@ -49,6 +57,9 @@ type SchoolDomainFile = {
     classes: SchoolClassRecord[];
     classMembers: SchoolClassMemberRecord[];
     courses: PlatformCourseRecord[];
+    courseChapters: CourseChapterRecord[];
+    courseLessons: CourseLessonRecord[];
+    courseMaterials: CourseMaterialRecord[];
     courseAssignments: SchoolCourseAssignmentRecord[];
     courseOfferings: SchoolCourseOfferingRecord[];
     teachingAssignments: TeachingAssignmentRecord[];
@@ -66,6 +77,9 @@ const EMPTY_SCHOOL_DOMAIN_FILE: SchoolDomainFile = {
     classes: [],
     classMembers: [],
     courses: [],
+    courseChapters: [],
+    courseLessons: [],
+    courseMaterials: [],
     courseAssignments: [],
     courseOfferings: [],
     teachingAssignments: [],
@@ -81,11 +95,14 @@ export function createFileSchoolDomainRepository(): SchoolDomainRepository {
     return new FileSchoolDomainRepository();
 }
 
-export async function mutateFileSchoolDomainInsideLock<T>(operation: (repository: SchoolDomainRepository) => Promise<T>): Promise<T> {
-    const state = normalizeFile(await readJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, EMPTY_SCHOOL_DOMAIN_FILE));
-    const result = await operation(new FileSchoolDomainRepository(state));
-    await writeJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, state);
-    return result;
+export async function mutateFileSchoolDomainInsideLock<T>(operation: (repository: SchoolDomainRepository) => Promise<T>, options: { lockAlreadyHeld?: boolean } = {}): Promise<T> {
+    const mutate = async () => {
+        const state = normalizeFile(await readJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, EMPTY_SCHOOL_DOMAIN_FILE));
+        const result = await operation(new FileSchoolDomainRepository(state));
+        await writeJsonDataFile(SCHOOL_DOMAIN_DATA_FILE, state);
+        return result;
+    };
+    return options.lockAlreadyHeld ? mutate() : withJsonDataFileLock(SCHOOL_DOMAIN_DATA_FILE, mutate);
 }
 
 class FileSchoolDomainRepository implements SchoolDomainRepository {
@@ -287,8 +304,10 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
     }
 
     async listAssignedCourses(schoolId: string, input: PageQuery) {
+        const state = await this.read();
+        const publishedCourseIds = new Set(state.courses.filter((course) => course.status === "published").map((course) => course.id));
         return paginate(
-            (await this.read()).courseAssignments.filter((item) => item.schoolId === schoolId),
+            state.courseAssignments.filter((item) => item.schoolId === schoolId && item.status === "active" && publishedCourseIds.has(item.courseId)),
             input,
         );
     }
@@ -296,24 +315,42 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
     async listVisibleCourses(schoolId: string, membershipId: string, role: SchoolMemberRole, input: PageQuery) {
         const state = await this.read();
         const classIds = role === "student" ? new Set(state.classMembers.filter((item) => item.schoolId === schoolId && item.membershipId === membershipId).map((item) => item.classId)) : null;
-        const assignmentIds = new Set(state.courseOfferings.filter((item) => item.schoolId === schoolId && (role === "teacher" ? item.teacherMembershipId === membershipId : classIds?.has(item.classId))).map((item) => item.assignmentId));
+        const publishedCourseIds = new Set(state.courses.filter((course) => course.status === "published").map((course) => course.id));
+        const assignmentIds = new Set(
+            state.courseOfferings.filter((item) => item.schoolId === schoolId && item.status === "active" && (role === "teacher" ? item.teacherMembershipId === membershipId : classIds?.has(item.classId))).map((item) => item.assignmentId),
+        );
         return paginate(
-            state.courseAssignments.filter((item) => item.schoolId === schoolId && assignmentIds.has(item.id)),
+            state.courseAssignments.filter((item) => item.schoolId === schoolId && item.status === "active" && publishedCourseIds.has(item.courseId) && assignmentIds.has(item.id)),
             input,
         );
     }
 
     async listPlatformCourses(input: PlatformCoursePageQuery) {
         const keyword = input.keyword?.trim().toLowerCase() || "";
-        const courses = (await this.read()).courses
+        const state = await this.read();
+        const courses = state.courses
             .filter((item) => !input.status || item.status === input.status)
             .filter((item) => !keyword || `${item.id} ${item.title} ${item.summary}`.toLowerCase().includes(keyword))
+            .map((course) => ({
+                ...course,
+                chapterCount: state.courseChapters.filter((item) => item.courseId === course.id).length,
+                lessonCount: state.courseLessons.filter((item) => item.courseId === course.id).length,
+                materialCount: state.courseMaterials.filter((item) => item.courseId === course.id && item.status === "active").length,
+            }))
             .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
         return paginate(courses, input);
     }
 
     async getPlatformCourse(courseId: string) {
-        return detached((await this.read()).courses.find((item) => item.id === courseId));
+        const state = await this.read();
+        const course = state.courses.find((item) => item.id === courseId);
+        if (!course) return null;
+        return detached({
+            ...course,
+            chapterCount: state.courseChapters.filter((item) => item.courseId === courseId).length,
+            lessonCount: state.courseLessons.filter((item) => item.courseId === courseId).length,
+            materialCount: state.courseMaterials.filter((item) => item.courseId === courseId && item.status === "active").length,
+        });
     }
 
     updatePlatformCourse(courseId: string, patch: PlatformCourseUpdate) {
@@ -325,15 +362,253 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         });
     }
 
+    async getPlatformCourseTree(courseId: string, options: { schoolCourseAssignmentId?: string } = {}) {
+        const state = await this.read();
+        const course = state.courses.find((item) => item.id === courseId);
+        if (!course) return null;
+        const materials = state.courseMaterials.filter(
+            (item) => item.courseId === courseId && item.status === "active" && (item.sourceScope === "platform" || (options.schoolCourseAssignmentId && item.schoolCourseAssignmentId === options.schoolCourseAssignmentId)),
+        );
+        const chapters = state.courseChapters
+            .filter((item) => item.courseId === courseId)
+            .sort(sortByOrder)
+            .map((chapter) => ({
+                ...structuredClone(chapter),
+                materials: structuredClone(materials.filter((item) => item.chapterId === chapter.id).sort(sortByOrder)),
+                lessons: state.courseLessons
+                    .filter((item) => item.courseId === courseId && item.chapterId === chapter.id)
+                    .sort(sortByOrder)
+                    .map((lesson) => ({ ...structuredClone(lesson), materials: structuredClone(materials.filter((item) => item.lessonId === lesson.id).sort(sortByOrder)) })),
+            }));
+        return {
+            id: course.id,
+            title: course.title,
+            summary: course.summary,
+            content: (course.content && typeof course.content === "object" && !Array.isArray(course.content) ? structuredClone(course.content) : {}) as Record<string, unknown>,
+            chapterCount: state.courseChapters.filter((item) => item.courseId === courseId).length,
+            lessonCount: state.courseLessons.filter((item) => item.courseId === courseId).length,
+            materialCount: materials.length,
+            status: course.status,
+            ...(course.deletedAt ? { deletedAt: course.deletedAt } : {}),
+            ...(course.deletedByUserId ? { deletedByUserId: course.deletedByUserId } : {}),
+            createdAt: course.createdAt,
+            updatedAt: course.updatedAt,
+            chapters,
+        };
+    }
+
+    async listCourseChapters(courseId: string) {
+        return (await this.read()).courseChapters
+            .filter((item) => item.courseId === courseId)
+            .sort(sortByOrder)
+            .map((item) => structuredClone(item));
+    }
+
+    async getCourseChapter(chapterId: string) {
+        return detached((await this.read()).courseChapters.find((item) => item.id === chapterId));
+    }
+
+    insertCourseChapter(record: CourseChapterRecord) {
+        return this.mutate((state) => {
+            if (!state.courses.some((item) => item.id === record.courseId)) throw new Error("课程不存在");
+            assertUniqueId(state.courseChapters, record.id);
+            state.courseChapters.push(structuredClone(record));
+            return structuredClone(record);
+        });
+    }
+
+    updateCourseChapter(courseId: string, chapterId: string, patch: CourseChapterUpdate) {
+        return this.mutate((state) => {
+            const chapter = state.courseChapters.find((item) => item.courseId === courseId && item.id === chapterId);
+            if (!chapter) return null;
+            Object.assign(chapter, patch);
+            return structuredClone(chapter);
+        });
+    }
+
+    deleteCourseChapter(courseId: string, chapterId: string) {
+        return this.mutate((state) => {
+            const index = state.courseChapters.findIndex((item) => item.courseId === courseId && item.id === chapterId);
+            if (index < 0) return false;
+            const lessonIds = new Set(state.courseLessons.filter((item) => item.courseId === courseId && item.chapterId === chapterId).map((item) => item.id));
+            state.courseMaterials = state.courseMaterials.filter((item) => item.courseId !== courseId || (item.chapterId !== chapterId && (!item.lessonId || !lessonIds.has(item.lessonId))));
+            state.courseLessons = state.courseLessons.filter((item) => item.courseId !== courseId || item.chapterId !== chapterId);
+            state.courseChapters.splice(index, 1);
+            return true;
+        });
+    }
+
+    insertCourseLesson(record: CourseLessonRecord) {
+        return this.mutate((state) => {
+            if (!state.courses.some((item) => item.id === record.courseId)) throw new Error("课程不存在");
+            if (!state.courseChapters.some((item) => item.courseId === record.courseId && item.id === record.chapterId)) throw new Error("章节不属于课程");
+            assertUniqueId(state.courseLessons, record.id);
+            state.courseLessons.push(structuredClone(record));
+            return structuredClone(record);
+        });
+    }
+
+    async getCourseLesson(lessonId: string) {
+        return detached((await this.read()).courseLessons.find((item) => item.id === lessonId));
+    }
+
+    updateCourseLesson(courseId: string, lessonId: string, patch: CourseLessonUpdate) {
+        return this.mutate((state) => {
+            const lesson = state.courseLessons.find((item) => item.courseId === courseId && item.id === lessonId);
+            if (!lesson) return null;
+            Object.assign(lesson, patch);
+            return structuredClone(lesson);
+        });
+    }
+
+    deleteCourseLesson(courseId: string, lessonId: string) {
+        return this.mutate((state) => {
+            const index = state.courseLessons.findIndex((item) => item.courseId === courseId && item.id === lessonId);
+            if (index < 0) return false;
+            state.courseMaterials = state.courseMaterials.filter((item) => item.courseId !== courseId || item.lessonId !== lessonId);
+            state.courseLessons.splice(index, 1);
+            return true;
+        });
+    }
+
+    async listCourseMaterials(input: CourseMaterialQuery) {
+        const state = await this.read();
+        const records = state.courseMaterials.filter(
+            (item) =>
+                item.courseId === input.courseId &&
+                (item.sourceScope === "platform" || (input.schoolCourseAssignmentId && item.schoolCourseAssignmentId === input.schoolCourseAssignmentId)) &&
+                (!input.sourceScope || item.sourceScope === input.sourceScope) &&
+                (!input.chapterId || item.chapterId === input.chapterId) &&
+                (!input.lessonId || item.lessonId === input.lessonId),
+        );
+        const page = normalizePositiveInteger(input.page, 1);
+        const pageSize = Math.min(100, normalizePositiveInteger(input.pageSize, 20));
+        const sorted = records.sort(sortByOrder);
+        return { items: structuredClone(sorted.slice((page - 1) * pageSize, page * pageSize)), total: sorted.length, page, pageSize };
+    }
+
+    async getCourseMaterial(materialId: string, schoolId?: string) {
+        const state = await this.read();
+        const record = state.courseMaterials.find((item) => item.id === materialId);
+        if (!record) return null;
+        if (record.sourceScope === "platform") return detached(record);
+        if (!schoolId) return null;
+        const assignment = state.courseAssignments.find((item) => item.id === record.schoolCourseAssignmentId && item.schoolId === schoolId);
+        return assignment ? detached(record) : null;
+    }
+
+    insertCourseMaterial(record: CourseMaterialRecord) {
+        return this.mutate((state) => {
+            validateCourseMaterial(state, record);
+            assertUniqueId(state.courseMaterials, record.id);
+            state.courseMaterials.push(structuredClone(record));
+            return structuredClone(record);
+        });
+    }
+
+    updateCourseMaterial(materialId: string, patch: CourseMaterialUpdate) {
+        return this.mutate((state) => {
+            const record = state.courseMaterials.find((item) => item.id === materialId);
+            if (!record) return null;
+            Object.assign(record, patch);
+            record.updatedAt = patch.updatedAt;
+            return structuredClone(record);
+        });
+    }
+
+    deleteCourseMaterial(materialId: string) {
+        return this.mutate((state) => {
+            const index = state.courseMaterials.findIndex((item) => item.id === materialId);
+            if (index < 0) return false;
+            state.courseMaterials.splice(index, 1);
+            return true;
+        });
+    }
+
+    async getPlatformCourseDeletionImpact(courseId: string): Promise<CourseDeletionImpact> {
+        const state = await this.read();
+        const assignmentIds = new Set(state.courseAssignments.filter((item) => item.courseId === courseId).map((item) => item.id));
+        const offeringIds = new Set(state.courseOfferings.filter((item) => assignmentIds.has(item.assignmentId)).map((item) => item.id));
+        const teachingIds = new Set(state.teachingAssignments.filter((item) => offeringIds.has(item.offeringId)).map((item) => item.id));
+        return {
+            courseId,
+            chapterCount: state.courseChapters.filter((item) => item.courseId === courseId).length,
+            lessonCount: state.courseLessons.filter((item) => item.courseId === courseId).length,
+            materialCount: state.courseMaterials.filter((item) => item.courseId === courseId).length,
+            schoolCount: assignmentIds.size,
+            offeringCount: offeringIds.size,
+            teachingAssignmentCount: teachingIds.size,
+            submissionCount: state.teachingSubmissions.filter((item) => teachingIds.has(item.assignmentId)).length,
+            storageKeys: [...new Set(state.courseMaterials.filter((item) => item.courseId === courseId).map((item) => item.storageKey))],
+        };
+    }
+
+    disablePlatformCourse(courseId: string, patch: { deletedAt: string; deletedByUserId: string; updatedAt: string }) {
+        return this.mutate((state) => {
+            const course = state.courses.find((item) => item.id === courseId);
+            if (!course) return null;
+            course.status = "disabled";
+            course.deletedAt = patch.deletedAt;
+            course.deletedByUserId = patch.deletedByUserId;
+            course.updatedAt = patch.updatedAt;
+            return structuredClone(course);
+        });
+    }
+
+    restorePlatformCourse(courseId: string, patch: { updatedAt: string }) {
+        return this.mutate((state) => {
+            const course = state.courses.find((item) => item.id === courseId && item.status === "disabled");
+            if (!course) return null;
+            course.status = "published";
+            delete course.deletedAt;
+            delete course.deletedByUserId;
+            course.updatedAt = patch.updatedAt;
+            return structuredClone(course);
+        });
+    }
+
+    permanentlyDeletePlatformCourse(courseId: string) {
+        return this.mutate((state) => {
+            const storageKeys = [...new Set(state.courseMaterials.filter((item) => item.courseId === courseId).map((item) => item.storageKey))];
+            if (!state.courses.some((item) => item.id === courseId)) return { storageKeys: [] };
+            const assignmentIds = new Set(state.courseAssignments.filter((item) => item.courseId === courseId).map((item) => item.id));
+            const offeringIds = new Set(state.courseOfferings.filter((item) => assignmentIds.has(item.assignmentId)).map((item) => item.id));
+            const teachingIds = new Set(state.teachingAssignments.filter((item) => offeringIds.has(item.offeringId)).map((item) => item.id));
+            state.teachingSubmissions = state.teachingSubmissions.filter((item) => !teachingIds.has(item.assignmentId));
+            state.teachingAssignments = state.teachingAssignments.filter((item) => !offeringIds.has(item.offeringId));
+            state.courseOfferings = state.courseOfferings.filter((item) => !assignmentIds.has(item.assignmentId));
+            state.courseAssignments = state.courseAssignments.filter((item) => !assignmentIds.has(item.id));
+            state.courseMaterials = state.courseMaterials.filter((item) => item.courseId !== courseId);
+            state.courseLessons = state.courseLessons.filter((item) => item.courseId !== courseId);
+            state.courseChapters = state.courseChapters.filter((item) => item.courseId !== courseId);
+            state.courses = state.courses.filter((item) => item.id !== courseId);
+            return { storageKeys };
+        });
+    }
+
     async getSchoolCourseAssignment(schoolId: string, assignmentId: string) {
         return detached((await this.read()).courseAssignments.find((item) => item.schoolId === schoolId && item.id === assignmentId));
     }
 
+    async hasVisibleCourseAssignment(schoolId: string, membershipId: string, role: SchoolMemberRole, assignmentId: string) {
+        const state = await this.read();
+        const assignment = state.courseAssignments.find((item) => item.schoolId === schoolId && item.id === assignmentId && item.status === "active");
+        if (!assignment || !state.courses.some((course) => course.id === assignment.courseId && course.status === "published")) return false;
+        const offerings = state.courseOfferings.filter((item) => item.schoolId === schoolId && item.assignmentId === assignmentId && item.status === "active");
+        if (role === "teacher") return offerings.some((item) => item.teacherMembershipId === membershipId);
+        const classIds = new Set(state.classMembers.filter((item) => item.schoolId === schoolId && item.membershipId === membershipId).map((item) => item.classId));
+        return offerings.some((item) => classIds.has(item.classId));
+    }
+
+    async hasActiveOfferingForTeacher(schoolId: string, membershipId: string, assignmentId: string) {
+        return this.hasVisibleCourseAssignment(schoolId, membershipId, "teacher", assignmentId);
+    }
+
     async listOfferingsForAssignment(schoolId: string, assignmentId: string, input: PageQuery) {
-        return paginate(
-            (await this.read()).courseOfferings.filter((item) => item.schoolId === schoolId && item.assignmentId === assignmentId),
-            input,
-        );
+        const state = await this.read();
+        const assignment = state.courseAssignments.find((item) => item.schoolId === schoolId && item.id === assignmentId && item.status === "active");
+        const published = assignment && state.courses.some((course) => course.id === assignment.courseId && course.status === "published");
+        return paginate(published ? state.courseOfferings.filter((item) => item.schoolId === schoolId && item.assignmentId === assignmentId && item.status === "active") : [], input);
     }
 
     async getCourseOffering(schoolId: string, offeringId: string) {
@@ -341,8 +616,12 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
     }
 
     async listOfferingsForTeacher(schoolId: string, membershipId: string, input: PageQuery) {
+        const state = await this.read();
+        const activeAssignmentIds = new Set(
+            state.courseAssignments.filter((item) => item.schoolId === schoolId && item.status === "active" && state.courses.some((course) => course.id === item.courseId && course.status === "published")).map((item) => item.id),
+        );
         return paginate(
-            (await this.read()).courseOfferings.filter((item) => item.schoolId === schoolId && item.teacherMembershipId === membershipId),
+            state.courseOfferings.filter((item) => item.schoolId === schoolId && item.teacherMembershipId === membershipId && item.status === "active" && activeAssignmentIds.has(item.assignmentId)),
             input,
         );
     }
@@ -350,7 +629,10 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
     async listAssignmentsForStudent(schoolId: string, membershipId: string, input: PageQuery) {
         const state = await this.read();
         const classIds = new Set(state.classMembers.filter((item) => item.schoolId === schoolId && item.membershipId === membershipId).map((item) => item.classId));
-        const offeringIds = new Set(state.courseOfferings.filter((item) => item.schoolId === schoolId && classIds.has(item.classId)).map((item) => item.id));
+        const activeAssignmentIds = new Set(
+            state.courseAssignments.filter((item) => item.schoolId === schoolId && item.status === "active" && state.courses.some((course) => course.id === item.courseId && course.status === "published")).map((item) => item.id),
+        );
+        const offeringIds = new Set(state.courseOfferings.filter((item) => item.schoolId === schoolId && item.status === "active" && classIds.has(item.classId) && activeAssignmentIds.has(item.assignmentId)).map((item) => item.id));
         return paginate(
             state.teachingAssignments.filter((item) => item.schoolId === schoolId && (item.status === "published" || item.status === "closed") && offeringIds.has(item.offeringId)),
             input,
@@ -358,8 +640,13 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
     }
 
     async listAssignmentsForTeacher(schoolId: string, membershipId: string, input: PageQuery) {
+        const state = await this.read();
+        const activeAssignmentIds = new Set(
+            state.courseAssignments.filter((item) => item.schoolId === schoolId && item.status === "active" && state.courses.some((course) => course.id === item.courseId && course.status === "published")).map((item) => item.id),
+        );
+        const offeringIds = new Set(state.courseOfferings.filter((item) => item.schoolId === schoolId && item.status === "active" && activeAssignmentIds.has(item.assignmentId) && item.teacherMembershipId === membershipId).map((item) => item.id));
         return paginate(
-            (await this.read()).teachingAssignments.filter((item) => item.schoolId === schoolId && item.teacherMembershipId === membershipId),
+            state.teachingAssignments.filter((item) => item.schoolId === schoolId && item.teacherMembershipId === membershipId && offeringIds.has(item.offeringId)),
             input,
         );
     }
@@ -372,7 +659,16 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         return this.mutate((state) => {
             const assignment = state.teachingAssignments.find((item) => item.schoolId === schoolId && item.id === assignmentId);
             if (!assignment) return null;
-            Object.assign(assignment, patch);
+            const next = structuredClone(assignment);
+            Object.assign(next, patch);
+            if (patch.chapterId === "") delete next.chapterId;
+            if (patch.lessonId === "") delete next.lessonId;
+            if (next.chapterId && next.lessonId) throw new Error("教学任务只能绑定章节或课时");
+            if (next.chapterId || next.lessonId) validateTeachingAssignmentTarget(state, next);
+            if (patch.dueAt === "") delete next.dueAt;
+            Object.assign(assignment, next);
+            if (patch.chapterId === "") delete assignment.chapterId;
+            if (patch.lessonId === "") delete assignment.lessonId;
             if (patch.dueAt === "") delete assignment.dueAt;
             return structuredClone(assignment);
         });
@@ -389,7 +685,10 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         const assignmentIds = new Set(input.assignmentIds || []);
         const state = await this.read();
         const classIds = new Set(state.classMembers.filter((item) => item.schoolId === schoolId && item.membershipId === studentMembershipId).map((item) => item.classId));
-        const offeringIds = new Set(state.courseOfferings.filter((item) => item.schoolId === schoolId && classIds.has(item.classId)).map((item) => item.id));
+        const activeAssignmentIds = new Set(
+            state.courseAssignments.filter((item) => item.schoolId === schoolId && item.status === "active" && state.courses.some((course) => course.id === item.courseId && course.status === "published")).map((item) => item.id),
+        );
+        const offeringIds = new Set(state.courseOfferings.filter((item) => item.schoolId === schoolId && item.status === "active" && classIds.has(item.classId) && activeAssignmentIds.has(item.assignmentId)).map((item) => item.id));
         const visibleAssignmentIds = new Set(state.teachingAssignments.filter((item) => item.schoolId === schoolId && offeringIds.has(item.offeringId) && (item.status === "published" || item.status === "closed")).map((item) => item.id));
         return paginate(
             state.teachingSubmissions.filter((item) => item.schoolId === schoolId && item.studentMembershipId === studentMembershipId && visibleAssignmentIds.has(item.assignmentId) && (!assignmentIds.size || assignmentIds.has(item.assignmentId))),
@@ -664,6 +963,8 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
             assertSchoolRelation(state.courseOfferings, record.schoolId, record.offeringId, "课程安排");
             assertSchoolRelation(state.memberships, record.schoolId, record.teacherMembershipId, "学校成员");
             assertUniqueId(state.teachingAssignments, record.id);
+            if (record.chapterId && record.lessonId) throw new Error("教学任务只能绑定章节或课时");
+            validateTeachingAssignmentTarget(state, record);
             state.teachingAssignments.push(structuredClone(record));
             return record;
         });
@@ -788,6 +1089,9 @@ function normalizeFile(value: Partial<SchoolDomainFile>): SchoolDomainFile {
         classes: arrayValue(source.classes),
         classMembers: arrayValue(source.classMembers),
         courses: arrayValue(source.courses),
+        courseChapters: arrayValue(source.courseChapters),
+        courseLessons: arrayValue(source.courseLessons),
+        courseMaterials: arrayValue(source.courseMaterials),
         courseAssignments: arrayValue(source.courseAssignments),
         courseOfferings: arrayValue(source.courseOfferings),
         teachingAssignments: arrayValue(source.teachingAssignments),
@@ -832,4 +1136,32 @@ function assertSchoolRelation(records: Array<{ id: string; schoolId: string }>, 
 
 function assertCommercialOrderRelation(state: SchoolDomainFile, schoolId: string, orderId: string) {
     if (!state.commercialOrders.some((item) => item.assignedSchoolId === schoolId && item.id === orderId)) throw new Error("商单不属于当前学校");
+}
+
+function sortByOrder(left: { sortOrder: number; id: string }, right: { sortOrder: number; id: string }) {
+    return left.sortOrder - right.sortOrder || left.id.localeCompare(right.id);
+}
+
+function validateCourseMaterial(state: SchoolDomainFile, record: CourseMaterialRecord) {
+    if (!state.courses.some((item) => item.id === record.courseId)) throw new Error("课程不存在");
+    if (Boolean(record.chapterId) === Boolean(record.lessonId)) throw new Error("资料必须绑定一个章节或课时");
+    if (record.chapterId && !state.courseChapters.some((item) => item.courseId === record.courseId && item.id === record.chapterId)) throw new Error("章节不属于课程");
+    if (record.lessonId && !state.courseLessons.some((item) => item.courseId === record.courseId && item.id === record.lessonId)) throw new Error("课时不属于课程");
+    if (record.sourceScope === "platform" && record.schoolCourseAssignmentId) throw new Error("平台资料不能绑定学校课程");
+    if (record.sourceScope === "school") {
+        const assignment = state.courseAssignments.find((item) => item.id === record.schoolCourseAssignmentId);
+        if (!assignment || assignment.courseId !== record.courseId) throw new Error("学校课程分配与课程不匹配");
+    }
+}
+
+function validateTeachingAssignmentTarget(state: SchoolDomainFile, record: Pick<TeachingAssignmentRecord, "schoolId" | "offeringId" | "chapterId" | "lessonId">) {
+    if (!record.chapterId && !record.lessonId) return;
+    const offering = state.courseOfferings.find((item) => item.schoolId === record.schoolId && item.id === record.offeringId);
+    const assignment = offering && state.courseAssignments.find((item) => item.schoolId === record.schoolId && item.id === offering.assignmentId);
+    if (
+        !assignment ||
+        (record.chapterId && !state.courseChapters.some((item) => item.courseId === assignment.courseId && item.id === record.chapterId)) ||
+        (record.lessonId && !state.courseLessons.some((item) => item.courseId === assignment.courseId && item.id === record.lessonId))
+    )
+        throw new Error("教学任务节点不属于课程");
 }

@@ -55,6 +55,8 @@ import {
     type StoredEmailCode,
     type AuthSettings,
     type AuthDatabase,
+    type RunningHubWorkflowBusinessCode,
+    type PracticeWorkflowModelBindings,
 } from "./store-types";
 import {
     AuthInputError,
@@ -258,8 +260,25 @@ export function normalizeSettings(settings: AuthSettings): AuthSettings {
         logicalModels,
         defaultModels: normalizeDefaultModelsConfig(settings.defaultModels, logicalModels, systemChannels),
         practiceDefaultModels: normalizeDefaultModelsConfig(settings.practiceDefaultModels, logicalModels, systemChannels, "open-source-practice", { allowFallback: false }),
+        practiceWorkflowModels: normalizePracticeWorkflowModels(settings.practiceWorkflowModels),
         agentSkills: normalizeAgentSkills(settings.agentSkills),
     };
+}
+
+export function normalizePracticeWorkflowModels(value: unknown): PracticeWorkflowModelBindings {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const allowed = new Set<RunningHubWorkflowBusinessCode>(["script", "storyboard-image", "storyboard-video", "dubbing", "music", "canvas", "drama"]);
+    return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).flatMap(([key, raw]) => {
+            if (!allowed.has(key as RunningHubWorkflowBusinessCode)) return [];
+            const ids = (Array.isArray(raw) ? raw : [raw])
+                .filter((item): item is string => typeof item === "string")
+                .map((item) => item.trim().slice(0, 160))
+                .filter(Boolean);
+            const unique = [...new Set(ids)];
+            return unique.length ? [[key, unique] as const] : [];
+        }),
+    ) as PracticeWorkflowModelBindings;
 }
 
 export function normalizeLogicalModels(models: LogicalModel[] | undefined, channels: SystemModelChannel[]): LogicalModel[] {
@@ -646,10 +665,12 @@ export function normalizePoints(value: unknown, fallback: number) {
     return normalizePointAmount(value, fallback);
 }
 
+export const MAX_POINT_AMOUNT = 1_000_000;
+
 export function normalizePointAmount(value: unknown, fallback: number) {
     const numberValue = Number(value);
     if (!Number.isFinite(numberValue)) return fallback;
-    return Math.min(Number(numberValue.toFixed(2)), 1_000_000);
+    return Math.min(Number(numberValue.toFixed(2)), MAX_POINT_AMOUNT);
 }
 
 export function normalizePointMultiplier(value: unknown, fallback = 1) {

@@ -40,4 +40,30 @@ describe("courses api", () => {
         expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/teaching/assignments/task-a/submissions?page=1", expect.objectContaining({ signal: controller.signal }));
         expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/teaching/submissions?page=1", expect.objectContaining({ signal: controller.signal }));
     });
+
+    it("uploads a local course attachment as the raw file body", async () => {
+        const attachment = { title: "课程案例.zip", fileName: "课程案例.zip", url: "/api/reference-assets/permanent/file.zip", storageKey: "permanent/file.zip", mimeType: "application/zip", bytes: 4 };
+        const fetchMock = vi.fn(async () => Response.json({ code: 0, data: attachment, msg: "ok" }));
+        vi.stubGlobal("fetch", fetchMock);
+        const file = new File(["file"], "课程案例.zip", { type: "application/zip" });
+
+        await expect(coursesApi.uploadPlatformCourseAttachment(file)).resolves.toEqual(attachment);
+        expect(fetchMock).toHaveBeenCalledWith("/api/admin/course-attachments", expect.objectContaining({ method: "PUT", body: file, headers: { "Content-Type": "application/zip", "X-File-Name": encodeURIComponent(file.name) } }));
+    });
+
+    it("uses normalized tree and material routes with exact delete confirmation", async () => {
+        const fetchMock = vi.fn(async () => Response.json({ code: 0, data: { id: "course-a", items: [] }, msg: "ok" }));
+        vi.stubGlobal("fetch", fetchMock);
+
+        await coursesApi.getPlatformCourseTree("course-a");
+        await coursesApi.createPlatformCourseChapter("course-a", { title: "第一章" });
+        await coursesApi.createSchoolCourseMaterial("assignment-a", { lessonId: "lesson-a", title: "资料", storageKey: "permanent/a.docx" });
+        await coursesApi.permanentlyDeletePlatformCourse("course-a", "课程 A");
+
+        const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+        expect(calls.map(([url]) => url)).toEqual(["/api/admin/courses/course-a/tree", "/api/admin/courses/course-a/chapters", "/api/school/courses/assignment-a/materials", "/api/admin/courses/course-a"]);
+        expect(JSON.parse(String(calls[1]?.[1]?.body))).toEqual({ title: "第一章" });
+        expect(JSON.parse(String(calls[2]?.[1]?.body))).toEqual({ lessonId: "lesson-a", title: "资料", storageKey: "permanent/a.docx" });
+        expect(JSON.parse(String(calls[3]?.[1]?.body))).toEqual({ confirmationTitle: "课程 A" });
+    });
 });

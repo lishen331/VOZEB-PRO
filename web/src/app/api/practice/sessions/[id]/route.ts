@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
-import { getPracticeSessionForUser, retryPracticeSessionForUser } from "@/lib/server/practice-session-service";
+import { getPracticeSessionForUser, retryPracticeSessionForUser, deletePracticeSession } from "@/lib/server/practice-session-service";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { trustedPracticeTaskHeaders } from "@/lib/server/generation-execution-policy";
+import { recordWorkflowTaskContext } from "@/lib/server/runninghub-workflow-runtime";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser(request);
@@ -35,16 +36,47 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
 }
 
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+    const user = await getCurrentUser(request);
+    if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
+    try {
+        const sessionId = (await context.params).id;
+        await deletePracticeSession(user.id, sessionId);
+        return NextResponse.json({ code: 0, data: { success: true }, msg: "OK" });
+    } catch (error) {
+        const status = typeof error === "object" && error && "status" in error && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 500;
+        return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "删除练习记录失败" }, { status });
+    }
+}
+
 async function dispatchPracticeTask(request: Request, input: import("@/lib/server/practice-session-service").PracticeTaskDispatchInput) {
     const endpoint = input.capability === "text" ? "/api/text-tasks" : input.capability === "image" ? "/api/image-tasks" : input.capability === "video" ? "/api/video-generation-tasks" : "/api/audio-tasks";
-    const context = { surface: input.projectKind === "drama" ? "drama" : "canvas", executionProfile: "open-source-practice", projectId: input.sessionId, clientRequestId: input.clientRequestId };
-    const prompt = typeof input.input.prompt === "string" ? input.input.prompt : "练习任务";
+    const context = {
+        surface: input.projectKind === "drama" ? "drama" : "canvas",
+        executionProfile: "open-source-practice" as const,
+        projectId: input.sessionId,
+        clientRequestId: input.clientRequestId,
+        ...(input.workflow
+            ? {
+                  ...recordWorkflowTaskContext(input.workflow),
+                  taskOrigin: "user" as const,
+              }
+            : {}),
+    };
+    const prompt = typeof input.input.prompt === "string" ? input.input.prompt : typeof input.input.text === "string" ? input.input.text : "练习任务";
+    const workflowInput = Object.fromEntries(Object.entries(input.input).filter(([key]) => key !== "prompt" && key !== "text" && key !== "references"));
+    const references = input.references.flatMap((reference) => {
+        if (!reference || typeof reference !== "object" || Array.isArray(reference)) return [];
+        const source = reference as { type?: unknown; id?: unknown };
+        if (source.type !== "asset" || typeof source.id !== "string" || !source.id.trim()) return [];
+        return [{ type: "image" as const, url: practiceReferenceUrl(source.id) }];
+    });
     const body =
         input.capability === "text"
-            ? { config: { model: input.logicalModelId }, messages: [{ role: "user", content: prompt }], context }
+            ? { ...workflowInput, config: { model: input.logicalModelId }, messages: [{ role: "user", content: prompt }], context }
             : input.capability === "audio"
-              ? { config: { model: input.logicalModelId }, prompt, context, source: "practice" }
-              : { config: { model: input.logicalModelId }, prompt, references: input.references, context, source: "practice" };
+              ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" }
+              : { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" };
     const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(input.userId, input.clientRequestId) });
     const cookie = request.headers.get("cookie");
     if (cookie) headers.set("cookie", cookie);
@@ -52,4 +84,10 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
     const payload = (await response.json().catch(() => ({}))) as { task?: { id?: string }; error?: string };
     if (!response.ok || !payload.task?.id) throw new Error(payload.error || "练习重试调度失败");
     return { taskId: payload.task.id, taskType: input.capability };
+}
+
+function practiceReferenceUrl(storageKey: string) {
+    const value = storageKey.trim();
+    if (!/^(?:temporary|permanent)\//.test(value)) throw new Error("练习参考素材无效");
+    return `/api/reference-assets/${value.split("/").map(encodeURIComponent).join("/")}`;
 }

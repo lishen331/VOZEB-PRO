@@ -493,6 +493,7 @@ CREATE TABLE IF NOT EXISTS drama_lab_generation_settings (
 WITH legacy AS (
     SELECT image_concurrency, video_concurrency, max_batch_size, image_timeout, video_timeout
     FROM drama_lab_generation_settings
+    WHERE deleted_at IS NULL
     ORDER BY updated_at DESC, id DESC
     LIMIT 1
 )

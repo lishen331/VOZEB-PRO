@@ -1,4 +1,4 @@
-import { hasAdminPermission } from "@/lib/admin-permissions";
+import { hasAdminPermission, isActivePlatformAdmin } from "@/lib/admin-permissions";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { CreateSchoolInput } from "@/lib/school-domain";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
     const user = await getCurrentUser();
     if (!user) return schoolApiError(401, "请先登录");
-    if (!hasAdminPermission(user, "education.manage")) return schoolApiError(403, "当前管理员没有产教运营职责权限");
+    if (!isActivePlatformAdmin(user)) return schoolApiError(403, "当前账号没有平台管理员权限");
     const params = new URL(request.url).searchParams;
     const status = params.get("status");
     if (status && status !== "active" && status !== "disabled") return schoolApiError(400, "学校状态筛选无效");

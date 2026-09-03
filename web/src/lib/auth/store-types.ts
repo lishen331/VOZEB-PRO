@@ -42,6 +42,63 @@ export type SystemChannelStreamingConfig = {
     format?: "sse" | "ndjson";
 };
 
+export type RunningHubWorkflowBusinessCode = "script" | "storyboard-image" | "storyboard-video" | "dubbing" | "music" | "canvas" | "drama";
+export type PracticeWorkflowModelBindings = Partial<Record<RunningHubWorkflowBusinessCode, string[]>>;
+export type RunningHubWorkflowInputField = {
+    key: string;
+    label: string;
+    type: "text" | "textarea" | "image" | "images" | "video" | "audio" | "number" | "enum" | "boolean";
+    required: boolean;
+    options?: string[];
+    defaultValue?: string | number | boolean | null;
+};
+export type RunningHubNodeMapping = {
+    paramKey: string;
+    nodeId: string;
+    fieldName: string;
+    valueType: "STRING" | "NUMBER" | "BOOLEAN" | "JSON";
+    source: "INPUT" | "INPUT_OR_DEFAULT";
+    inputKey: string;
+    defaultValue?: string | number | boolean | null;
+};
+export type RunningHubOutputMapping = {
+    key: string;
+    label: string;
+    nodeId?: string;
+    assetType: "IMAGE" | "VIDEO" | "AUDIO" | "TEXT";
+    required: boolean;
+    primary?: boolean;
+};
+export type RunningHubWorkflowConfig = {
+    workflowKey: string;
+    workflowName: string;
+    businessCode: RunningHubWorkflowBusinessCode;
+    capability: LogicalModelCapability;
+    providerType: "runninghub";
+    channelId: string;
+    workflowId: string;
+    version: number;
+    enabled: boolean;
+    createPath: string;
+    queryPath: string;
+    taskIdField: string;
+    statusField: string;
+    resultField: string;
+    requestTemplate: string;
+    inputSchema: RunningHubWorkflowInputField[];
+    nodeMappings: RunningHubNodeMapping[];
+    outputMappings: RunningHubOutputMapping[];
+    /** New or edited configs must pass a successful sample test before enable. */
+    testRequired?: boolean;
+    workflowJsonFingerprint?: string;
+    lastTestConfigFingerprint?: string;
+    timeoutSeconds?: number;
+    runOptions?: Record<string, string | number | boolean | null>;
+    lastTestAt?: string;
+    lastTestResult?: "success" | "failed";
+    lastTestError?: string;
+};
+
 export type SystemChannelAdvancedConfig = {
     protocol: SystemChannelProtocol;
     authMode?: SystemChannelAuthMode;
@@ -72,6 +129,7 @@ export type SystemChannelAdvancedConfig = {
     modelCapabilities?: Record<string, LogicalModelCapability>;
     modelConfigs?: Record<string, SystemChannelModelConfig>;
     operationConfigs?: Partial<Record<LogicalModelCapability, SystemChannelModelConfig>>;
+    workflowConfigs?: Record<string, RunningHubWorkflowConfig>;
     streaming?: SystemChannelStreamingConfig;
     contextWindowTokens?: number;
 };
@@ -495,6 +553,7 @@ export type AuthSettings = {
     logicalModels: LogicalModel[];
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
+    practiceWorkflowModels: PracticeWorkflowModelBindings;
     agentSkills: AgentSkill[];
 };
 
