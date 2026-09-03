@@ -43,7 +43,7 @@ export function analyzeRunningHubWorkflowJson(input: { workflowId: string; raw: 
     const suggestedInputs: RunningHubWorkflowInputField[] = [];
     const suggestedNodeMappings: RunningHubNodeMapping[] = [];
     for (const role of ["prompt", "image", "video", "audio", "duration", "enum", "boolean", "number"] as const) {
-        const roleCandidates = candidates.filter((item) => item.role === role);
+        const roleCandidates = candidates.filter((item) => item.role === role && (isInternalKnobRole(role) ? isBusinessSelector(item.fieldName) : true));
         if (!roleCandidates.length || (role === "prompt" && roleCandidates.length !== 1)) continue;
         roleCandidates.forEach((candidate, index) => {
             const key = inputKeyFor(role, index);
@@ -136,13 +136,16 @@ function analyzeNode(node: Node, capability: LogicalModelCapability): RunningHub
 function classifyRole(node: Node, fieldName: string, value: unknown): RunningHubNodeCandidate["role"] | undefined {
     const field = fieldName.toLowerCase();
     const type = node.type.toLowerCase();
+    // 名称里带 image/video/audio 的尺寸类字段（ref_image_size、image_width…）是内部旋钮，
+    // 不能因为含有素材关键词就当成参考文件入参，否则会把素材 URL 塞进尺寸字段导致上游失败。
+    const nameHint = (keyword: RegExp) => keyword.test(`${type} ${field}`) && !FILE_DIMENSION_GUARD.test(field);
     if (/(duration|seconds|时长)/i.test(field) && typeof value === "number") return "duration";
     if (typeof value === "boolean") return "boolean";
     if (Array.isArray(value) && value.length && value.every((item) => isJsonPrimitive(item)) && !isNodeLink(value)) return "enum";
     if (typeof value === "number") return "number";
-    if (isFileLike(value, "image") || /(loadimage|image|参考图|图片)/i.test(`${type} ${field}`)) return "image";
-    if (isFileLike(value, "video") || /(loadvideo|video|视频)/i.test(`${type} ${field}`)) return "video";
-    if (isFileLike(value, "audio") || /(loadaudio|audio|音频|声音)/i.test(`${type} ${field}`)) return "audio";
+    if (isFileLike(value, "image") || nameHint(/(loadimage|image|参考图|图片)/i)) return "image";
+    if (isFileLike(value, "video") || nameHint(/(loadvideo|video|视频)/i)) return "video";
+    if (isFileLike(value, "audio") || nameHint(/(loadaudio|audio|音频|声音)/i)) return "audio";
     if (typeof value === "string" && /(prompt|text|value|内容|提示词|文本)/i.test(field)) return "prompt";
     return undefined;
 }
@@ -278,6 +281,22 @@ function isJsonPrimitive(value: unknown): value is string | number | boolean | n
 
 function enumOptions(value: unknown): string[] {
     return Array.isArray(value) ? value.map((item) => (isJsonPrimitive(item) ? String(item) : "")).filter(Boolean) : [];
+}
+
+// RunningHub 工作流在上游已完整配置，下游业务只应覆盖语义入口（提示词/参考素材/时长）
+// 以及少量真业务选择项（宽高比/分辨率/画质等）。采样步数、种子、降噪等内部旋钮已调好，
+// 不应作为入参暴露，否则既是表单噪点，留空又会被强转成 0 发给上游导致失败。
+const BUSINESS_SELECTOR_FIELD = /(aspect|ratio|比例|resolution|分辨率|orientation|方向|dimension|画幅|width|宽度|宽高|height|高度|size|尺寸|quality|画质|清晰|duration|时长|seconds?|秒)/i;
+const INTERNAL_KNOB_FIELD = /(steps?|seed|denoise|cfg|sampler|scheduler|bit_?depth|strength|noise|megapixel|guidance|clip_?skip|batch|latent|eta|sigma|subseed|refiner|karras|采样|步数|降噪|种子|模型强度)/i;
+// image/video/audio 关键词若出现在尺寸/比例/分辨率字段里，是内部旋钮而非参考素材入口
+const FILE_DIMENSION_GUARD = /(size|尺寸|width|宽|height|高|ratio|比例|resolution|分辨率|dimension|画幅|megapixel|scale|缩放)/i;
+
+function isInternalKnobRole(role: RunningHubNodeCandidate["role"]) {
+    return role === "enum" || role === "number" || role === "boolean";
+}
+
+function isBusinessSelector(fieldName: string) {
+    return BUSINESS_SELECTOR_FIELD.test(fieldName) && !INTERNAL_KNOB_FIELD.test(fieldName);
 }
 
 function text(value: unknown) {
