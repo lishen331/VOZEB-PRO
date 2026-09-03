@@ -21,8 +21,7 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
         return (
             <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                 <Spin size="small" />
-                {session.status === "queued" ? "已排队，等待生成" : "正在生成，请刷新查看结果"}
-                <Button type="text" size="small" icon={<RefreshCw className="size-3.5" />} onClick={onRefresh} aria-label="刷新练习状态" />
+                {session.status === "queued" ? "已排队，等待生成" : "正在生成中，结果将自动显示..."}
             </p>
         );
     if (session.status === "failed" || session.result?.status === "error")

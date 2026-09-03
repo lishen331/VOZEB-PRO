@@ -104,6 +104,42 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
             window.removeEventListener("focus", loadSession);
         };
     }, [message, sessionId]);
+    useEffect(() => {
+        if (!current) return;
+        const isPolling = current.status === "queued" || current.status === "running" || current.result?.status === "pending" || current.result?.status === "running";
+        if (!isPolling) return;
+        let active = true;
+        let pollCount = 0;
+        const poll = () => {
+            if (!active) return;
+            void practiceApi
+                .getSession(current.id)
+                .then(({ session }) => {
+                    if (!active) return;
+                    setCurrent(session);
+                    setSessions((items) => items.map((item) => (item.id === session.id ? session : item)));
+                    const stillPolling = session.status === "queued" || session.status === "running" || session.result?.status === "pending" || session.result?.status === "running";
+                    if (stillPolling && active) {
+                        pollCount += 1;
+                        const delay = Math.min(2000 + pollCount * 1000, 8000);
+                        setTimeout(poll, delay);
+                    }
+                })
+                .catch(() => {
+                    if (active) {
+                        pollCount += 1;
+                        const delay = Math.min(2000 + pollCount * 1000, 8000);
+                        setTimeout(poll, delay);
+                    }
+                });
+        };
+        const initialDelay = 2000;
+        const timer = setTimeout(poll, initialDelay);
+        return () => {
+            active = false;
+            clearTimeout(timer);
+        };
+    }, [current, message]);
     const onCreated = (session: PracticeSession) => {
         setCurrent(session);
         setSessions((items) => [session, ...items.filter((item) => item.id !== session.id)]);
