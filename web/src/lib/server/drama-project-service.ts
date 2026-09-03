@@ -1,6 +1,21 @@
 import { nanoid } from "nanoid";
 
-import type { CreateDramaProjectInput, DramaAssetProfile, DramaAssetReference, DramaEpisode, DramaNamedAsset, DramaProject, DramaShot, DramaShotContinuity, DramaUtterance, DramaVideoMode, DramaShotFrameCandidate, DramaShotFrameSource, DramaShotFrameType, DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
+import type {
+    CreateDramaProjectInput,
+    DramaAssetProfile,
+    DramaAssetReference,
+    DramaEpisode,
+    DramaNamedAsset,
+    DramaProject,
+    DramaShot,
+    DramaShotContinuity,
+    DramaUtterance,
+    DramaVideoMode,
+    DramaShotFrameCandidate,
+    DramaShotFrameSource,
+    DramaShotFrameType,
+    DramaShotVideoFrameSnapshot,
+} from "@/lib/drama-project-contract";
 import { parseDramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract";
 import { dramaRichContentToPlainText, normalizeDramaScriptRichContent } from "@/lib/drama-script-rich-content";
 import { normalizeDramaImageSize } from "@/lib/drama-image-size";
@@ -606,32 +621,35 @@ function normalizeGenerationHistory(value: unknown) {
 
 function normalizeFrameStates(value: unknown) {
     const input = object(value);
-    const frames = (['first', 'key', 'last'] as const).reduce((result, type) => {
-        const frame = object(input[type]);
-        if (!frame) return result;
-        const status = taskStatus(frame.status);
-        const prompt = cleanText(frame.prompt);
-        if (!prompt && !stableUrl(frame.url) && status === 'idle') return result;
-        result[type] = {
-            prompt,
-            description: optionalText(frame.description),
-            status,
-            taskId: optionalText(frame.taskId),
-            attempt: optionalPositiveInteger(frame.attempt),
-            url: stableUrl(frame.url),
-            width: optionalPositiveInteger(frame.width),
-            height: optionalPositiveInteger(frame.height),
-            error: optionalText(frame.error),
-            history: normalizeGenerationHistory(frame.history),
-            storageKey: optionalText(frame.storageKey),
-            source: frameSource(frame.source),
-            sourceVideoTaskId: optionalText(frame.sourceVideoTaskId),
-            sourceShotId: optionalText(frame.sourceShotId),
-            sourceVideoHistoryId: optionalText(frame.sourceVideoHistoryId),
-            locked: typeof frame.locked === "boolean" ? frame.locked : undefined,
-        };
-        return result;
-    }, {} as Record<string, unknown>);
+    const frames = (["first", "key", "last"] as const).reduce(
+        (result, type) => {
+            const frame = object(input[type]);
+            if (!frame) return result;
+            const status = taskStatus(frame.status);
+            const prompt = cleanText(frame.prompt);
+            if (!prompt && !stableUrl(frame.url) && status === "idle") return result;
+            result[type] = {
+                prompt,
+                description: optionalText(frame.description),
+                status,
+                taskId: optionalText(frame.taskId),
+                attempt: optionalPositiveInteger(frame.attempt),
+                url: stableUrl(frame.url),
+                width: optionalPositiveInteger(frame.width),
+                height: optionalPositiveInteger(frame.height),
+                error: optionalText(frame.error),
+                history: normalizeGenerationHistory(frame.history),
+                storageKey: optionalText(frame.storageKey),
+                source: frameSource(frame.source),
+                sourceVideoTaskId: optionalText(frame.sourceVideoTaskId),
+                sourceShotId: optionalText(frame.sourceShotId),
+                sourceVideoHistoryId: optionalText(frame.sourceVideoHistoryId),
+                locked: typeof frame.locked === "boolean" ? frame.locked : undefined,
+            };
+            return result;
+        },
+        {} as Record<string, unknown>,
+    );
     return Object.keys(frames).length ? frames : undefined;
 }
 

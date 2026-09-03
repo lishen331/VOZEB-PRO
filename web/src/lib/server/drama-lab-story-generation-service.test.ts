@@ -11,7 +11,15 @@ describe("Drama Lab story task helpers", () => {
     });
 
     it("accepts direct arrays and object-wrapped episode results", () => {
-        expect(parseStoryEpisodes(JSON.stringify([{ episode: 1, title: "一", content: "内容一" }, { episode: 2, title: "二", script: "内容二" }]), 2)).toEqual([
+        expect(
+            parseStoryEpisodes(
+                JSON.stringify([
+                    { episode: 1, title: "一", content: "内容一" },
+                    { episode: 2, title: "二", script: "内容二" },
+                ]),
+                2,
+            ),
+        ).toEqual([
             { episode: 1, title: "一", content: "内容一" },
             { episode: 2, title: "二", content: "内容二" },
         ]);
@@ -27,9 +35,35 @@ describe("Drama Lab story task helpers", () => {
 
     it("rejects incomplete or non-contiguous multi-episode results explicitly", () => {
         expect(storyEpisodeSequenceError([{ episode: 1, content: "第一集" }], 3)).toBe("文本模型返回了 1 集，但请求生成 3 集");
-        expect(storyEpisodeSequenceError([{ episode: 1, content: "第一集" }, { episode: 3, content: "第三集" }], 2)).toBe("文本模型返回的分集编号不连续，应为第 2 集，实际为第 3 集");
-        expect(storyEpisodeSequenceError([{ episode: 1, content: "第一集" }, { episode: 3, content: "第三集" }, { episode: 2, content: "第二集" }], 3)).toBe("文本模型返回的分集编号不连续，应为第 2 集，实际为第 3 集");
-        expect(storyEpisodeSequenceError([{ episode: 1, content: "第一集" }, { episode: 2, content: "第二集" }, { episode: 3, content: "第三集" }], 3)).toBeUndefined();
+        expect(
+            storyEpisodeSequenceError(
+                [
+                    { episode: 1, content: "第一集" },
+                    { episode: 3, content: "第三集" },
+                ],
+                2,
+            ),
+        ).toBe("文本模型返回的分集编号不连续，应为第 2 集，实际为第 3 集");
+        expect(
+            storyEpisodeSequenceError(
+                [
+                    { episode: 1, content: "第一集" },
+                    { episode: 3, content: "第三集" },
+                    { episode: 2, content: "第二集" },
+                ],
+                3,
+            ),
+        ).toBe("文本模型返回的分集编号不连续，应为第 2 集，实际为第 3 集");
+        expect(
+            storyEpisodeSequenceError(
+                [
+                    { episode: 1, content: "第一集" },
+                    { episode: 2, content: "第二集" },
+                    { episode: 3, content: "第三集" },
+                ],
+                3,
+            ),
+        ).toBeUndefined();
     });
 
     it("reports durable batch progress instead of exposing task internals", () => {

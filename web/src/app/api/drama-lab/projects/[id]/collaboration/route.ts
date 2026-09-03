@@ -2,12 +2,7 @@ import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import {
-    DramaLabCollaborationError,
-    getDramaLabCollaborationForUser,
-    saveDramaLabApprovalConfigs,
-    type DramaLabCollaborationOverview,
-} from "@/lib/server/drama-lab-collaboration-service";
+import { DramaLabCollaborationError, getDramaLabCollaborationForUser, saveDramaLabApprovalConfigs, type DramaLabCollaborationOverview } from "@/lib/server/drama-lab-collaboration-service";
 
 export const dynamic = "force-dynamic";
 

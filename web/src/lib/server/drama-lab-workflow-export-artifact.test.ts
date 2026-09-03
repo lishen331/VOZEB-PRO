@@ -10,8 +10,8 @@ vi.mock("@/lib/server/data-dir", () => ({
 }));
 
 let dataRoot = "";
-let writeDramaLabWorkflowExportArtifact: typeof import("./drama-lab-workflow-export-artifact")["writeDramaLabWorkflowExportArtifact"];
-let readDramaLabWorkflowExportArtifact: typeof import("./drama-lab-workflow-export-artifact")["readDramaLabWorkflowExportArtifact"];
+let writeDramaLabWorkflowExportArtifact: (typeof import("./drama-lab-workflow-export-artifact"))["writeDramaLabWorkflowExportArtifact"];
+let readDramaLabWorkflowExportArtifact: (typeof import("./drama-lab-workflow-export-artifact"))["readDramaLabWorkflowExportArtifact"];
 
 describe("drama lab workflow export artifact store", () => {
     beforeAll(async () => {

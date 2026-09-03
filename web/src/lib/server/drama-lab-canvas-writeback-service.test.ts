@@ -14,8 +14,22 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/server/canvas-project-service", () => ({ getDramaLabCanvasProjectWithOwnerForUser: mocks.getCanvasWithOwner }));
-vi.mock("@/lib/server/drama-project-store", () => ({ getDramaProject: mocks.getProject, updateDramaProject: mocks.updateProject, DramaProjectStoreError: class DramaProjectStoreError extends Error { constructor(message: string, readonly status: number) { super(message); } } }));
-vi.mock("@/lib/server/local-media-registry", () => ({ getLocalMediaRegistration: mocks.getMedia, isLocalMediaRegistrationExpired: (value: { storageClass?: string; expiresAt?: string }) => value.storageClass === "temporary" && Boolean(value.expiresAt && Date.parse(value.expiresAt) <= Date.now()) }));
+vi.mock("@/lib/server/drama-project-store", () => ({
+    getDramaProject: mocks.getProject,
+    updateDramaProject: mocks.updateProject,
+    DramaProjectStoreError: class DramaProjectStoreError extends Error {
+        constructor(
+            message: string,
+            readonly status: number,
+        ) {
+            super(message);
+        }
+    },
+}));
+vi.mock("@/lib/server/local-media-registry", () => ({
+    getLocalMediaRegistration: mocks.getMedia,
+    isLocalMediaRegistrationExpired: (value: { storageClass?: string; expiresAt?: string }) => value.storageClass === "temporary" && Boolean(value.expiresAt && Date.parse(value.expiresAt) <= Date.now()),
+}));
 vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({ resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest }));
 
 import { DramaCanvasWritebackError, writebackDramaCanvasForUser } from "./drama-lab-canvas-writeback-service";
@@ -102,7 +116,9 @@ describe("drama lab canvas writeback service", () => {
         await expect(writebackDramaCanvasForUser("user-one", "canvas-one", request("shot-text", { kind: "shot-field", shotId: "shot-one", field: "description" }))).rejects.toMatchObject({ status: 409 });
 
         mocks.getCanvasWithOwner.mockResolvedValue({ project: canvasFixture(), ownerUserId: "user-one" });
-        await expect(writebackDramaCanvasForUser("user-one", "canvas-one", { ...request("shot-text", { kind: "shot-field", shotId: "shot-one", field: "description" }), expectedProjectUpdatedAt: "2026-09-02T00:00:01.000Z" })).rejects.toMatchObject({ status: 409 });
+        await expect(writebackDramaCanvasForUser("user-one", "canvas-one", { ...request("shot-text", { kind: "shot-field", shotId: "shot-one", field: "description" }), expectedProjectUpdatedAt: "2026-09-02T00:00:01.000Z" })).rejects.toMatchObject({
+            status: 409,
+        });
         expect(mocks.updateProject).not.toHaveBeenCalled();
     });
 
@@ -118,34 +134,19 @@ describe("drama lab canvas writeback service", () => {
         await expect(writebackDramaCanvasForUser("user-one", "canvas-one", request("shot-image", { kind: "shot-video", shotId: "shot-one" }))).rejects.toMatchObject({ status: 422 });
     });
 
-    it.each([
-        "https://attacker.example/image.png",
-        "//attacker.example/image.png",
-        "ftp://attacker.example/image.png",
-        "https:\\\\attacker.example\\image.png",
-    ])("rejects an external media URL without an owned storage registration: %s", async (url) => {
+    it.each(["https://attacker.example/image.png", "//attacker.example/image.png", "ftp://attacker.example/image.png", "https:\\\\attacker.example\\image.png"])("rejects an external media URL without an owned storage registration: %s", async (url) => {
         const canvas = canvasFixture();
-        canvas.nodes = canvas.nodes.map((node) =>
-            node.id === "shot-image"
-                ? { ...node, metadata: { ...node.metadata, content: url, storageKey: "" } }
-                : node,
-        );
+        canvas.nodes = canvas.nodes.map((node) => (node.id === "shot-image" ? { ...node, metadata: { ...node.metadata, content: url, storageKey: "" } } : node));
         mocks.getCanvasWithOwner.mockResolvedValue({ project: canvas, ownerUserId: "user-one" });
 
-        await expect(
-            writebackDramaCanvasForUser("user-one", "canvas-one", request("shot-image", { kind: "shot-frame", shotId: "shot-one", frameType: "key" })),
-        ).rejects.toMatchObject({ status: 403 });
+        await expect(writebackDramaCanvasForUser("user-one", "canvas-one", request("shot-image", { kind: "shot-frame", shotId: "shot-one", frameType: "key" }))).rejects.toMatchObject({ status: 403 });
         expect(mocks.getMedia).not.toHaveBeenCalled();
         expect(mocks.updateProject).not.toHaveBeenCalled();
     });
 
     it("keeps local relative media URLs valid without a storage key", async () => {
         const canvas = canvasFixture();
-        canvas.nodes = canvas.nodes.map((node) =>
-            node.id === "shot-image"
-                ? { ...node, metadata: { ...node.metadata, content: "/media/local-key.png", storageKey: "" } }
-                : node,
-        );
+        canvas.nodes = canvas.nodes.map((node) => (node.id === "shot-image" ? { ...node, metadata: { ...node.metadata, content: "/media/local-key.png", storageKey: "" } } : node));
         mocks.getCanvasWithOwner.mockResolvedValue({ project: canvas, ownerUserId: "user-one" });
 
         const result = await writebackDramaCanvasForUser("user-one", "canvas-one", request("shot-image", { kind: "shot-frame", shotId: "shot-one", frameType: "key" }));
@@ -156,11 +157,7 @@ describe("drama lab canvas writeback service", () => {
 
     it("keeps registered external media URLs valid", async () => {
         const canvas = canvasFixture();
-        canvas.nodes = canvas.nodes.map((node) =>
-            node.id === "shot-image"
-                ? { ...node, metadata: { ...node.metadata, content: "https://cdn.example/image.png", storageKey: "permanent/key.png" } }
-                : node,
-        );
+        canvas.nodes = canvas.nodes.map((node) => (node.id === "shot-image" ? { ...node, metadata: { ...node.metadata, content: "https://cdn.example/image.png", storageKey: "permanent/key.png" } } : node));
         mocks.getCanvasWithOwner.mockResolvedValue({ project: canvas, ownerUserId: "user-one" });
 
         const result = await writebackDramaCanvasForUser("user-one", "canvas-one", request("shot-image", { kind: "shot-frame", shotId: "shot-one", frameType: "key" }));
@@ -180,8 +177,24 @@ function canvasFixture(): { id: string; sourceHandoffId: string; updatedAt: stri
         sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one",
         updatedAt: "2026-09-02T00:00:00.000Z",
         nodes: [
-            { id: "character-image", type: CanvasNodeType.Image, title: "角色参考", position: { x: 0, y: 0 }, width: 100, height: 100, metadata: { dramaProjectId: "drama-one", episodeId: "episode-one", assetId: "character-one", assetType: "character", content: "/media/character.png", storageKey: "permanent/character.png", naturalWidth: 512, naturalHeight: 512 } },
-            { id: "shot-image", type: CanvasNodeType.Image, title: "关键帧", position: { x: 0, y: 0 }, width: 100, height: 100, metadata: { dramaProjectId: "drama-one", episodeId: "episode-one", shotId: "shot-one", content: "/media/key.png", storageKey: "permanent/key.png", naturalWidth: 720, naturalHeight: 1280 } },
+            {
+                id: "character-image",
+                type: CanvasNodeType.Image,
+                title: "角色参考",
+                position: { x: 0, y: 0 },
+                width: 100,
+                height: 100,
+                metadata: { dramaProjectId: "drama-one", episodeId: "episode-one", assetId: "character-one", assetType: "character", content: "/media/character.png", storageKey: "permanent/character.png", naturalWidth: 512, naturalHeight: 512 },
+            },
+            {
+                id: "shot-image",
+                type: CanvasNodeType.Image,
+                title: "关键帧",
+                position: { x: 0, y: 0 },
+                width: 100,
+                height: 100,
+                metadata: { dramaProjectId: "drama-one", episodeId: "episode-one", shotId: "shot-one", content: "/media/key.png", storageKey: "permanent/key.png", naturalWidth: 720, naturalHeight: 1280 },
+            },
             { id: "shot-text", type: CanvasNodeType.Text, title: "提示词", position: { x: 0, y: 0 }, width: 100, height: 100, metadata: { dramaProjectId: "drama-one", episodeId: "episode-one", shotId: "shot-one", content: "推镜头" } },
         ],
     };
@@ -200,7 +213,39 @@ function fixture(): DramaProject {
         props: [],
         clues: [],
         defaultVideoMode: "storyboard",
-        episodes: [{ id: "episode-one", title: "第一集", script: "", outline: "", hook: "", nextPreview: "", sourceRange: "", reviewStatus: "draft", shots: [{ id: "shot-one", order: 1, title: "镜头", description: "旧描述", sourceText: "", shotBoundary: "", dialogue: "", narration: "", utterances: [], imagePrompt: "", videoPrompt: "", cameraMotion: "", duration: 4, characterIds: [], propIds: [], clueIds: [], frames: {} }] }],
+        episodes: [
+            {
+                id: "episode-one",
+                title: "第一集",
+                script: "",
+                outline: "",
+                hook: "",
+                nextPreview: "",
+                sourceRange: "",
+                reviewStatus: "draft",
+                shots: [
+                    {
+                        id: "shot-one",
+                        order: 1,
+                        title: "镜头",
+                        description: "旧描述",
+                        sourceText: "",
+                        shotBoundary: "",
+                        dialogue: "",
+                        narration: "",
+                        utterances: [],
+                        imagePrompt: "",
+                        videoPrompt: "",
+                        cameraMotion: "",
+                        duration: 4,
+                        characterIds: [],
+                        propIds: [],
+                        clueIds: [],
+                        frames: {},
+                    },
+                ],
+            },
+        ],
         createdAt: "2026-09-01T00:00:00.000Z",
         updatedAt: "2026-09-02T00:00:00.000Z",
     };

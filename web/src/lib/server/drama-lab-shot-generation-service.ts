@@ -112,7 +112,17 @@ export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId:
         supportsLastFrame,
         maxReferenceImages,
         fallbackReason: fallbackReasons.length ? fallbackReasons.join("；") : undefined,
-        references: references.map(({ role, frameType, url, storageKey, taskId, source, sourceVideoTaskId, sourceShotId, sourceVideoHistoryId }) => ({ role, frameType, url, storageKey, taskId, source, sourceVideoTaskId, sourceShotId, sourceVideoHistoryId })),
+        references: references.map(({ role, frameType, url, storageKey, taskId, source, sourceVideoTaskId, sourceShotId, sourceVideoHistoryId }) => ({
+            role,
+            frameType,
+            url,
+            storageKey,
+            taskId,
+            source,
+            sourceVideoTaskId,
+            sourceShotId,
+            sourceVideoHistoryId,
+        })),
     };
     return {
         prompt: [

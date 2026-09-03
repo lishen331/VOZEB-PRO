@@ -30,7 +30,12 @@ vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
     resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
     updateDramaLabProjectForUser: mocks.updateDramaProjectForUser,
     DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
-        constructor(message: string, readonly status: number) { super(message); }
+        constructor(
+            message: string,
+            readonly status: number,
+        ) {
+            super(message);
+        }
     },
 }));
 

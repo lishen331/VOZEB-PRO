@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
     resolveInternalOrigin: vi.fn(),
     assertDramaLabStageAllowed: vi.fn(),
     requestRuntimeCredential: vi.fn((request: Request) => request.headers.get("x-runtime-credential") || request.headers.get("cookie") || ""),
-    maintenanceWorkerContextHeaders: vi.fn((credential: string) => credential.startsWith("worker-context") ? { authorization: "Bearer worker-token", "x-vozeb-pro-worker-user-id": "user-one" } : null),
+    maintenanceWorkerContextHeaders: vi.fn((credential: string) => (credential.startsWith("worker-context") ? { authorization: "Bearer worker-token", "x-vozeb-pro-worker-user-id": "user-one" } : null)),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -115,10 +115,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-video", () => 
                 frameSnapshot: expect.objectContaining({
                     model: "video-logical",
                     supportsLastFrame: true,
-                    references: expect.arrayContaining([
-                        expect.objectContaining({ role: "first_frame", taskId: "first-task" }),
-                        expect.objectContaining({ role: "last_frame", taskId: "last-task" }),
-                    ]),
+                    references: expect.arrayContaining([expect.objectContaining({ role: "first_frame", taskId: "first-task" }), expect.objectContaining({ role: "last_frame", taskId: "last-task" })]),
                 }),
             },
         });

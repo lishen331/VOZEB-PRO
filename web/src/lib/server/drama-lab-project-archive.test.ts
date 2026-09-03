@@ -87,11 +87,7 @@ describe("drama lab project archive", () => {
         const exported = await exportDramaLabProjectForUser({ userId: "user-one", projectId: "project-one", origin: "http://localhost" });
         const result = await importDramaLabProjectForUser({ userId: "user-two", archive: exported.data, origin: "http://localhost" });
 
-        expect(mocks.createDramaProjectForUser).toHaveBeenCalledWith(
-            "user-two",
-            expect.objectContaining({ title: "测试项目", initialScript: "第一集剧本" }),
-            expect.objectContaining({ executionProfile: undefined }),
-        );
+        expect(mocks.createDramaProjectForUser).toHaveBeenCalledWith("user-two", expect.objectContaining({ title: "测试项目", initialScript: "第一集剧本" }), expect.objectContaining({ executionProfile: undefined }));
         expect(mocks.writeReferenceMediaFile).toHaveBeenCalledWith(expect.any(String), "image", "image/png", true, expect.objectContaining({ ownerUserId: "user-two", projectId: "drama-new" }));
         expect(result.mediaCount).toBe(1);
         expect(result.project.id).toBe("drama-new");
@@ -114,11 +110,7 @@ describe("drama lab project archive", () => {
         const exported = await exportDramaLabProjectForUser({ userId: "user-one", projectId: "project-one", origin: "http://localhost" });
         const result = await importDramaLabProjectForUser({ userId: "user-two", archive: exported.data, origin: "http://localhost" });
 
-        expect(mocks.createDramaProjectForUser).toHaveBeenCalledWith(
-            "user-two",
-            expect.objectContaining({ title: "测试项目", initialScript: "" }),
-            expect.objectContaining({ executionProfile: undefined }),
-        );
+        expect(mocks.createDramaProjectForUser).toHaveBeenCalledWith("user-two", expect.objectContaining({ title: "测试项目", initialScript: "" }), expect.objectContaining({ executionProfile: undefined }));
         expect(result.project.episodes).toEqual([]);
         expect(result.project.activeEpisodeId).toBeUndefined();
         expect(mocks.ensureDramaLabProjectGroup).toHaveBeenCalledWith("drama-new", "user-two");

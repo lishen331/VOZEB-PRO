@@ -14,7 +14,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         const approval = await getDramaLabApproval(user.id, id, approvalId);
         if (!approval) return fail(404, "审批记录不存在");
         return NextResponse.json({ code: 0, data: { approval }, msg: "OK" });
-    } catch (error) { return handle(error); }
+    } catch (error) {
+        return handle(error);
+    }
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; approvalId: string }> }) {
@@ -31,8 +33,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const comment = typeof body.comment === "string" ? body.comment : typeof body.note === "string" ? body.note : "";
         const approval = await reviewDramaLabApproval(user.id, id, approvalId, decision, comment);
         return NextResponse.json({ code: 0, data: { approval }, msg: decision === "approve" ? "审批已通过" : "审批已驳回" });
-    } catch (error) { return handle(error); }
+    } catch (error) {
+        return handle(error);
+    }
 }
 
-function fail(status: number, msg: string) { return NextResponse.json({ code: status, data: null, msg }, { status }); }
-function handle(error: unknown) { return error instanceof DramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "审批处理失败"); }
+function fail(status: number, msg: string) {
+    return NextResponse.json({ code: status, data: null, msg }, { status });
+}
+function handle(error: unknown) {
+    return error instanceof DramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "审批处理失败");
+}

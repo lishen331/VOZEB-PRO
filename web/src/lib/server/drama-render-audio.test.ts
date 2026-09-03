@@ -23,9 +23,7 @@ describe("drama render audio", () => {
     });
 
     it("builds a fixed-format filter for one or multiple generated tracks", () => {
-        expect(buildDramaRenderAudioFilter(1, 5)).toBe(
-            "[1:a]aformat=sample_rates=44100:channel_layouts=stereo[audio0];[audio0]apad,atrim=0:5,aformat=sample_rates=44100:channel_layouts=stereo[a]",
-        );
+        expect(buildDramaRenderAudioFilter(1, 5)).toBe("[1:a]aformat=sample_rates=44100:channel_layouts=stereo[audio0];[audio0]apad,atrim=0:5,aformat=sample_rates=44100:channel_layouts=stereo[a]");
         expect(buildDramaRenderAudioFilter(2, 7)).toContain("[1:a]aformat=sample_rates=44100:channel_layouts=stereo[audio0];[2:a]aformat=sample_rates=44100:channel_layouts=stereo[audio1];[audio0][audio1]amix=inputs=2");
         expect(() => buildDramaRenderAudioFilter(0, 5)).toThrow();
         expect(() => buildDramaRenderAudioFilter(1, 0)).toThrow();

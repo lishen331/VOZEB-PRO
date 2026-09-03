@@ -74,11 +74,7 @@ describe("Drama Lab Phase 4 cross-module contracts", () => {
             createdAt: "2026-09-02T00:00:00.000Z",
             updatedAt: "2026-09-02T00:00:00.000Z",
             nodes: [...projection.nodes, staleNode, freeNode, foreignEpisodeNode],
-            connections: [
-                ...projection.connections,
-                { id: `${prefix}:edge:stale`, fromNodeId: staleNode.id, toNodeId: `${prefix}:script` },
-                { id: "user-edge", fromNodeId: "user-note", toNodeId: `${prefix}:script` },
-            ],
+            connections: [...projection.connections, { id: `${prefix}:edge:stale`, fromNodeId: staleNode.id, toNodeId: `${prefix}:script` }, { id: "user-edge", fromNodeId: "user-note", toNodeId: `${prefix}:script` }],
             chatSessions: [],
             activeChatId: null,
             backgroundMode: "lines",

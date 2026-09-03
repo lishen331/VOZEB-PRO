@@ -22,7 +22,13 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("@/lib/server/drama-project-store", () => ({ getDramaProject: mocks.getDramaProject, getDramaProjectWithOwner: mocks.getDramaProjectWithOwner }));
-vi.mock("@/lib/server/database", () => ({ getDatabaseProvider: mocks.getDatabaseProvider, isPostgresDatabaseEnabled: mocks.isPostgresDatabaseEnabled, ensurePostgresSchema: mocks.ensurePostgresSchema, postgresQuery: mocks.postgresQuery, withPostgresTransaction: mocks.withPostgresTransaction }));
+vi.mock("@/lib/server/database", () => ({
+    getDatabaseProvider: mocks.getDatabaseProvider,
+    isPostgresDatabaseEnabled: mocks.isPostgresDatabaseEnabled,
+    ensurePostgresSchema: mocks.ensurePostgresSchema,
+    postgresQuery: mocks.postgresQuery,
+    withPostgresTransaction: mocks.withPostgresTransaction,
+}));
 vi.mock("@/lib/auth/store-actions", () => ({ getPublicUsersByIds: mocks.getPublicUsersByIds }));
 vi.mock("@/lib/server/data-adapter", () => ({ readJsonDataFile: mocks.readJsonDataFile, writeJsonDataFile: mocks.writeJsonDataFile, withJsonDataFileLock: mocks.withJsonDataFileLock, withJsonDataFileLocks: mocks.withJsonDataFileLocks }));
 vi.mock("@/lib/server/drama-project-service", () => ({ updateDramaProjectForUser: mocks.updateDramaProjectForUser, deleteDramaProjectForUser: mocks.deleteDramaProjectForUser }));
@@ -65,7 +71,7 @@ describe("drama lab collaboration service", () => {
         // The project store has a stable storage owner. Collaboration role
         // transfer must not rewrite this record.
         mocks.files.set("drama-projects.json", { version: 1, projects: [{ userId: "owner", project }] });
-        mocks.getDramaProject.mockImplementation(async (_projectId: string, userId: string) => userId === "owner" ? project : null);
+        mocks.getDramaProject.mockImplementation(async (_projectId: string, userId: string) => (userId === "owner" ? project : null));
         mocks.getDramaProjectWithOwner.mockResolvedValue({ project, ownerUserId: "owner" });
         mocks.deleteDramaProjectForUser.mockResolvedValue(undefined);
     });
@@ -235,14 +241,8 @@ describe("drama lab collaboration service", () => {
         await ensureDramaLabProjectGroup("project-one", "owner");
         await saveDramaLabApprovalConfigs("owner", "project-one", [{ stage: "storyboard_image", enabled: true, strictMode: false }]);
 
-        await expect(
-            submitDramaLabApproval("owner", "project-one", { stage: "storyboard_image", resourceType: "shot", resourceId: "shot-two", episodeId: "episode-one" }),
-        ).rejects.toMatchObject({ status: 400, message: "审批分镜与集数不匹配" });
-        await expect(
-            submitDramaLabApproval("owner", "project-one", { stage: "storyboard_image", resourceType: "shot", resourceId: "shot-one" }),
-        ).rejects.toMatchObject({ status: 400, message: "审批分镜与集数不匹配" });
-        await expect(
-            submitDramaLabApproval("owner", "project-one", { stage: "storyboard_image", resourceType: "shot", resourceId: "shot-two", episodeId: "episode-two" }),
-        ).resolves.toMatchObject({ episodeId: "episode-two", resourceId: "shot-two" });
+        await expect(submitDramaLabApproval("owner", "project-one", { stage: "storyboard_image", resourceType: "shot", resourceId: "shot-two", episodeId: "episode-one" })).rejects.toMatchObject({ status: 400, message: "审批分镜与集数不匹配" });
+        await expect(submitDramaLabApproval("owner", "project-one", { stage: "storyboard_image", resourceType: "shot", resourceId: "shot-one" })).rejects.toMatchObject({ status: 400, message: "审批分镜与集数不匹配" });
+        await expect(submitDramaLabApproval("owner", "project-one", { stage: "storyboard_image", resourceType: "shot", resourceId: "shot-two", episodeId: "episode-two" })).resolves.toMatchObject({ episodeId: "episode-two", resourceId: "shot-two" });
     });
 });

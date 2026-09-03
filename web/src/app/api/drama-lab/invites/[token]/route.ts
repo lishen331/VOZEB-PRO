@@ -9,7 +9,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     try {
         const { token } = await params;
         return NextResponse.json({ code: 0, data: await getDramaLabInviteByToken(token), msg: "OK" });
-    } catch (error) { return handle(error); }
+    } catch (error) {
+        return handle(error);
+    }
 }
 
 export async function POST(_request: Request, { params }: { params: Promise<{ token: string }> }) {
@@ -18,8 +20,14 @@ export async function POST(_request: Request, { params }: { params: Promise<{ to
     try {
         const { token } = await params;
         return NextResponse.json({ code: 0, data: await requestDramaLabJoin(user.id, token), msg: "加入申请已提交，等待项目管理员确认" });
-    } catch (error) { return handle(error); }
+    } catch (error) {
+        return handle(error);
+    }
 }
 
-function fail(status: number, msg: string) { return NextResponse.json({ code: status, data: null, msg }, { status }); }
-function handle(error: unknown) { return error instanceof DramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "邀请请求失败"); }
+function fail(status: number, msg: string) {
+    return NextResponse.json({ code: status, data: null, msg }, { status });
+}
+function handle(error: unknown) {
+    return error instanceof DramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "邀请请求失败");
+}

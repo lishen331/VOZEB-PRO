@@ -44,12 +44,14 @@ describe("normalizeDramaRenderShots", () => {
 
     it("can preserve legacy /drama audioMode when shared TTS fields are present", () => {
         const result = normalizeDramaRenderShots(
-            [{
-                videoUrl: "/shot.mp4",
-                audioMode: "source",
-                dialogueAudio: { status: "success", url: "/dialogue.mp3" },
-                narrationAudio: { status: "success", url: "/narration.mp3" },
-            }],
+            [
+                {
+                    videoUrl: "/shot.mp4",
+                    audioMode: "source",
+                    dialogueAudio: { status: "success", url: "/dialogue.mp3" },
+                    narrationAudio: { status: "success", url: "/narration.mp3" },
+                },
+            ],
             { preferDedicatedAudio: false },
         )[0];
 

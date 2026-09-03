@@ -27,8 +27,8 @@ describe("drama script workbench", () => {
     it("keeps a partially migrated legacy root audio state on only its proven track", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/drama-workflow-lab-project-complete.tsx"), "utf8");
         expect(source).toContain('const opposite = kind === "narration" ? shot.dialogueAudio : shot.narrationAudio;');
-        expect(source).toContain('opposite?.taskId?.trim() === legacyTaskId');
-        expect(source).toContain('strictLegacyAudioKind(shot) !== kind');
+        expect(source).toContain("opposite?.taskId?.trim() === legacyTaskId");
+        expect(source).toContain("strictLegacyAudioKind(shot) !== kind");
         expect(source).not.toContain("never mirror the old root state into the missing card");
     });
 });

@@ -458,16 +458,18 @@ describe("mutateStoredGenerationTask", () => {
     it("marks conflicting audio metadata in PostgreSQL task records", async () => {
         vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
         vi.mocked(postgresQuery).mockResolvedValueOnce({
-            rows: [{
-                id: "postgres-conflicting-audio",
-                user_id: "user",
-                task_type: "audio",
-                status: "running",
-                payload: { id: "postgres-conflicting-audio", audioKind: "dialogue", speaker: "林夏", context: { audioKind: "narration", speaker: "旁白" } },
-                created_at: new Date(),
-                updated_at: new Date(),
-                expires_at: new Date(Date.now() + 60_000),
-            }],
+            rows: [
+                {
+                    id: "postgres-conflicting-audio",
+                    user_id: "user",
+                    task_type: "audio",
+                    status: "running",
+                    payload: { id: "postgres-conflicting-audio", audioKind: "dialogue", speaker: "林夏", context: { audioKind: "narration", speaker: "旁白" } },
+                    created_at: new Date(),
+                    updated_at: new Date(),
+                    expires_at: new Date(Date.now() + 60_000),
+                },
+            ],
         } as never);
 
         const raw = await getStoredGenerationTaskRecord("audio", "postgres-conflicting-audio");
@@ -478,16 +480,18 @@ describe("mutateStoredGenerationTask", () => {
     it("maps audio context from a PostgreSQL payload", async () => {
         vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
         vi.mocked(postgresQuery).mockResolvedValueOnce({
-            rows: [{
-                id: "postgres-audio",
-                user_id: "user",
-                task_type: "audio",
-                status: "running",
-                payload: { id: "postgres-audio", audioKind: "narration", speaker: "旁白" },
-                created_at: new Date(),
-                updated_at: new Date(),
-                expires_at: new Date(Date.now() + 60_000),
-            }],
+            rows: [
+                {
+                    id: "postgres-audio",
+                    user_id: "user",
+                    task_type: "audio",
+                    status: "running",
+                    payload: { id: "postgres-audio", audioKind: "narration", speaker: "旁白" },
+                    created_at: new Date(),
+                    updated_at: new Date(),
+                    expires_at: new Date(Date.now() + 60_000),
+                },
+            ],
         } as never);
 
         await expect(getStoredGenerationTaskRecord("audio", "postgres-audio")).resolves.toMatchObject({ audioKind: "narration", speaker: "旁白" });

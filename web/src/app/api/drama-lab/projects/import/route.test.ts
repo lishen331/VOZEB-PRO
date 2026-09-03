@@ -8,7 +8,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/server/drama-lab-project-archive", () => ({
     DramaLabProjectArchiveError: class DramaLabProjectArchiveError extends Error {
-        constructor(message: string, readonly status = 422) {
+        constructor(
+            message: string,
+            readonly status = 422,
+        ) {
             super(message);
         }
     },

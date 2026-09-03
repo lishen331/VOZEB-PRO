@@ -83,10 +83,7 @@ describe("audio task cancellation refund", () => {
         mocks.getAudioTask.mockResolvedValueOnce(pending).mockResolvedValueOnce({ ...pending, status: "running" as const });
         mocks.getStoredGenerationTaskRecord.mockResolvedValue({ executionPhase: "created", nextPollAt: 1 });
 
-        const response = await POST(
-            new Request("http://localhost/api/audio-tasks/audio-one", { method: "POST", body: JSON.stringify({ action: "recover" }) }),
-            { params: Promise.resolve({ id: "audio-one" }) },
-        );
+        const response = await POST(new Request("http://localhost/api/audio-tasks/audio-one", { method: "POST", body: JSON.stringify({ action: "recover" }) }), { params: Promise.resolve({ id: "audio-one" }) });
 
         expect(response.status).toBe(200);
         expect(mocks.scheduleGenerationTask).toHaveBeenCalledWith("audio", "audio-one", expect.objectContaining({ nextPollAt: expect.any(Number), lastUpstreamStatus: "user_recovery_requested" }));
@@ -98,10 +95,7 @@ describe("audio task cancellation refund", () => {
         mocks.getAudioTask.mockResolvedValue({ ...task, executionPhase: "submitting" as const });
         mocks.getStoredGenerationTaskRecord.mockResolvedValue({ executionPhase: "submitting" });
 
-        const response = await POST(
-            new Request("http://localhost/api/audio-tasks/audio-one", { method: "POST", body: JSON.stringify({ action: "recover" }) }),
-            { params: Promise.resolve({ id: "audio-one" }) },
-        );
+        const response = await POST(new Request("http://localhost/api/audio-tasks/audio-one", { method: "POST", body: JSON.stringify({ action: "recover" }) }), { params: Promise.resolve({ id: "audio-one" }) });
 
         expect(response.status).toBe(409);
         expect(mocks.scheduleGenerationTask).not.toHaveBeenCalled();

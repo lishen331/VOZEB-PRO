@@ -36,7 +36,10 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/frames/upload", () => {
         mocks.resolveDramaLabProjectForRequest.mockImplementation(async (_userId: string, _projectId: string) => ({ project: await mocks.getDramaProject(), ownerUserId: "user-one" }));
         mocks.assertDramaLabStageAllowed.mockResolvedValue(undefined);
         mocks.writePersistentMediaDataUrl.mockResolvedValue({ token: "permanent/frame.png", url: "/api/reference-assets/permanent/frame.png", mimeType: "image/png", bytes: 4 });
-        mocks.persistDramaLabShotUpdate.mockResolvedValue({ ...project, episodes: [{ ...project.episodes[0], shots: [{ ...project.episodes[0].shots[0], frames: { first: { status: "success", source: "uploaded", url: "/api/reference-assets/permanent/frame.png" } } }] }] });
+        mocks.persistDramaLabShotUpdate.mockResolvedValue({
+            ...project,
+            episodes: [{ ...project.episodes[0], shots: [{ ...project.episodes[0].shots[0], frames: { first: { status: "success", source: "uploaded", url: "/api/reference-assets/permanent/frame.png" } } }] }],
+        });
     });
 
     it("persists an uploaded image as a first, key, or last frame with its metadata", async () => {
@@ -45,7 +48,9 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/frames/upload", () => {
         expect(response.status).toBe(200);
         expect(await response.json()).toMatchObject({ code: 0, data: { frame: { source: "uploaded", status: "success", url: "/api/reference-assets/permanent/frame.png" } } });
         expect(mocks.writePersistentMediaDataUrl).toHaveBeenCalledWith(expect.stringMatching(/^data:image\/png;base64,/), "image", expect.objectContaining({ ownerUserId: "user-one", projectId: "project-one" }));
-        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(expect.objectContaining({ episodeId: "episode-one", shotId: "shot-one", patch: expect.objectContaining({ frames: expect.objectContaining({ first: expect.objectContaining({ source: "uploaded" }) }) }) }));
+        expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({ episodeId: "episode-one", shotId: "shot-one", patch: expect.objectContaining({ frames: expect.objectContaining({ first: expect.objectContaining({ source: "uploaded" }) }) }) }),
+        );
     });
 
     it("keeps collaborator uploads under the project's stable storage owner", async () => {

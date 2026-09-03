@@ -121,21 +121,16 @@ async function applyDramaRuntimeAdapters() {
                     }}`,
         "drama workbench navigation",
     );
-    if (!client.includes("const focusShotId = searchParams.get(\"shotId\")")) {
+    if (!client.includes('const focusShotId = searchParams.get("shotId")')) {
+        client = replaceRequired(client, 'import { useEffect, useMemo, useRef, useState } from "react";\n', 'import { useEffect, useMemo, useRef, useState } from "react";\nimport { useSearchParams } from "next/navigation";\n', "shot focus imports");
         client = replaceRequired(
             client,
-            'import { useEffect, useMemo, useRef, useState } from "react";\n',
-            'import { useEffect, useMemo, useRef, useState } from "react";\nimport { useSearchParams } from "next/navigation";\n',
-            "shot focus imports",
-        );
-        client = replaceRequired(
-            client,
-            '    const controller = useCanvasPageController();\n',
+            "    const controller = useCanvasPageController();\n",
             '    const controller = useCanvasPageController();\n    const searchParams = useSearchParams();\n    const focusShotId = searchParams.get("shotId") || "";\n    const focusedShotRef = useRef("");\n',
             "shot focus state",
         );
         client = replaceRequired(client, "        setSize,\n", "        size,\n        setSize,\n", "shot focus viewport size");
-        const marker = '    } = controller;\n';
+        const marker = "    } = controller;\n";
         const focusEffect = `    useEffect(() => {\n        if (!projectLoaded || !focusShotId || focusedShotRef.current === \`\${projectId}:\${focusShotId}\`) return;\n        const target = nodes.find((node) => node.id.endsWith(\`:shot:\${focusShotId}\`));\n        if (!target) return;\n        const k = Math.min(1, Math.max(0.45, viewport.k || 0.72));\n        setSelectedNodeIds(new Set([target.id]));\n        setViewport({ x: size.width / 2 - (target.position.x + target.width / 2) * k, y: size.height / 2 - (target.position.y + target.height / 2) * k, k });\n        focusedShotRef.current = \`\${projectId}:\${focusShotId}\`;\n    }, [focusShotId, nodes, projectId, projectLoaded, setSelectedNodeIds, setViewport, size.height, size.width, viewport.k]);\n`;
         if (!client.includes(marker)) throw new Error("Drama Canvas adapter marker missing: controller destructure");
         client = replaceRequired(client, marker, `${marker}${focusEffect}`, "shot focus effect insertion");

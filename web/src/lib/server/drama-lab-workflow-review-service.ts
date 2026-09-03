@@ -75,31 +75,40 @@ export function buildDramaLabWorkflowReviewInput(project: DramaProject, episodeI
 }
 
 function shotReviewTask(episodeTitle: string, shot: DramaShot): CreativeReviewTaskInput {
-    const imageUrls = uniqueMediaUrls([
-        shot.storyboardImageUrl,
-        shot.storyboardEndImageUrl,
-        shot.frames?.first?.url,
-        shot.frames?.key?.url,
-        shot.frames?.last?.url,
-    ]);
+    const imageUrls = uniqueMediaUrls([shot.storyboardImageUrl, shot.storyboardEndImageUrl, shot.frames?.first?.url, shot.frames?.key?.url, shot.frames?.last?.url]);
     const videoUrl = typeof shot.videoUrl === "string" ? shot.videoUrl.trim() : "";
     const compiledPrompt = (shot as DramaShot & { compiledPrompt?: string }).compiledPrompt;
-    const prompt = [compiledPrompt, shot.imagePrompt, shot.videoPrompt, shot.description, shot.dialogue, shot.narration].filter((value): value is string => typeof value === "string" && Boolean(value.trim())).join("\n").slice(0, 8_000);
+    const prompt = [compiledPrompt, shot.imagePrompt, shot.videoPrompt, shot.description, shot.dialogue, shot.narration]
+        .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+        .join("\n")
+        .slice(0, 8_000);
     return {
         id: `shot:${shot.id}`,
         title: `${episodeTitle} · ${shot.title || `镜头${shot.order || ""}`}`,
         type: videoUrl ? "video" : "image",
         prompt,
-        resultSummary: [imageUrls.length ? `图片结果 ${imageUrls.length} 张` : "尚无图片结果", videoUrl ? "已有视频结果" : "尚无视频结果", shot.sceneId ? `场景 ${shot.sceneId}` : "未绑定场景", ...(shot.characterIds || []).map((id) => `角色 ${id}`), ...(shot.propIds || []).map((id) => `道具 ${id}`)].join("；").slice(0, 4_000),
+        resultSummary: [
+            imageUrls.length ? `图片结果 ${imageUrls.length} 张` : "尚无图片结果",
+            videoUrl ? "已有视频结果" : "尚无视频结果",
+            shot.sceneId ? `场景 ${shot.sceneId}` : "未绑定场景",
+            ...(shot.characterIds || []).map((id) => `角色 ${id}`),
+            ...(shot.propIds || []).map((id) => `道具 ${id}`),
+        ]
+            .join("；")
+            .slice(0, 4_000),
         ...(imageUrls.length ? { imageUrls } : {}),
         ...(videoUrl ? { videoUrls: [videoUrl] } : {}),
     };
 }
 
 function uniqueMediaUrls(values: unknown[]) {
-    return Array.from(new Set(values.flatMap((value) => {
-        if (typeof value !== "string") return [];
-        const url = value.trim();
-        return url.startsWith("/api/") || /^https:\/\//i.test(url) || /^data:(?:image|video)\//i.test(url) ? [url] : [];
-    })));
+    return Array.from(
+        new Set(
+            values.flatMap((value) => {
+                if (typeof value !== "string") return [];
+                const url = value.trim();
+                return url.startsWith("/api/") || /^https:\/\//i.test(url) || /^data:(?:image|video)\//i.test(url) ? [url] : [];
+            }),
+        ),
+    );
 }

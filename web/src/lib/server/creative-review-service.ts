@@ -45,11 +45,7 @@ export async function reviewCreativeOutputs(input: { origin: string; cookie: str
         { role: "system", content: system },
         {
             role: "user",
-            content: [
-                { type: "input_text", text: reviewContext },
-                ...imageInputs.map((item) => ({ type: "input_image", image_url: item.url })),
-                ...videoInputs.map((item) => ({ type: "input_video", video_url: item.url })),
-            ],
+            content: [{ type: "input_text", text: reviewContext }, ...imageInputs.map((item) => ({ type: "input_image", image_url: item.url })), ...videoInputs.map((item) => ({ type: "input_video", video_url: item.url }))],
         },
     ];
     const chatMessages = [

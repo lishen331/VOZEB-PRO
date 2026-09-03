@@ -16,8 +16,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const decision = parsed.data.decision === "approve" || parsed.data.action === "approve" ? "approve" : parsed.data.decision === "reject" || parsed.data.action === "reject" ? "reject" : "";
         if (!decision) return fail(400, "处理动作无效");
         return NextResponse.json({ code: 0, data: { request: await reviewDramaLabJoinRequest(user.id, id, requestId, decision, typeof parsed.data.note === "string" ? parsed.data.note : "") }, msg: decision === "approve" ? "申请已通过" : "申请已拒绝" });
-    } catch (error) { return handle(error); }
+    } catch (error) {
+        return handle(error);
+    }
 }
 
-function fail(status: number, msg: string) { return NextResponse.json({ code: status, data: null, msg }, { status }); }
-function handle(error: unknown) { return error instanceof DramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "申请处理失败"); }
+function fail(status: number, msg: string) {
+    return NextResponse.json({ code: status, data: null, msg }, { status });
+}
+function handle(error: unknown) {
+    return error instanceof DramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "申请处理失败");
+}

@@ -27,7 +27,12 @@ vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
     resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
     DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
-        constructor(message: string, readonly status = 403) { super(message); }
+        constructor(
+            message: string,
+            readonly status = 403,
+        ) {
+            super(message);
+        }
     },
 }));
 vi.mock("@/lib/server/drama-project-store", () => ({

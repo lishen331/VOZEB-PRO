@@ -11,7 +11,14 @@ vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/auth/request", () => ({ readJsonBodyResult: mocks.readJsonBodyResult }));
 vi.mock("@/lib/server/drama-lab-canvas-writeback-service", () => ({
     writebackDramaCanvasForUser: mocks.writeback,
-    DramaCanvasWritebackError: class DramaCanvasWritebackError extends Error { constructor(message: string, readonly status: number) { super(message); } },
+    DramaCanvasWritebackError: class DramaCanvasWritebackError extends Error {
+        constructor(
+            message: string,
+            readonly status: number,
+        ) {
+            super(message);
+        }
+    },
 }));
 vi.mock("@/lib/server/canvas-project-service", () => ({ canvasProjectError: mocks.canvasProjectError }));
 
@@ -47,7 +54,7 @@ describe("drama canvas writeback route", () => {
 
     it("maps a service error to its status", async () => {
         mocks.writeback.mockRejectedValue(Object.assign(new Error("conflict"), { status: 409 }));
-        mocks.canvasProjectError.mockImplementation((error: unknown) => (error as { status?: number }).status === 409 ? error : null);
+        mocks.canvasProjectError.mockImplementation((error: unknown) => ((error as { status?: number }).status === 409 ? error : null));
         const response = await POST(new Request("http://localhost", { method: "POST" }), { params: Promise.resolve({ id: "canvas-one" }) });
         expect(response.status).toBe(409);
     });

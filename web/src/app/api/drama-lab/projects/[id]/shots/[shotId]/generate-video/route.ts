@@ -33,9 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!project) throw new DramaLabShotGenerationError("短剧项目不存在", 404);
         const settings = await getAuthSettings();
         if (!settings.defaultModels.videoModel) throw new DramaLabShotGenerationError("后台尚未配置可用的默认视频模型", 503);
-        const candidates = Array.isArray(settings.logicalModels) && Array.isArray(settings.systemChannels)
-            ? resolveLogicalModelCandidates(settings, "video", settings.defaultModels.videoModel)
-            : [];
+        const candidates = Array.isArray(settings.logicalModels) && Array.isArray(settings.systemChannels) ? resolveLogicalModelCandidates(settings, "video", settings.defaultModels.videoModel) : [];
         // A logical model can fail over across channels. Keep the tail frame
         // only when every viable candidate explicitly supports it; otherwise
         // the provider route would reject the whole request after fallback.
@@ -147,10 +145,9 @@ function candidateVideoReferenceRoles(candidate: VideoCandidate): VideoReference
 }
 
 function minimumReferenceLimit(candidates: VideoCandidate[]) {
-    const limits = candidates
-        .flatMap((candidate) => {
-            const value = candidate.capabilityProfile?.maxReferenceImages;
-            return typeof value === "number" && Number.isFinite(value) && value > 0 ? [Math.floor(value)] : [];
-        });
+    const limits = candidates.flatMap((candidate) => {
+        const value = candidate.capabilityProfile?.maxReferenceImages;
+        return typeof value === "number" && Number.isFinite(value) && value > 0 ? [Math.floor(value)] : [];
+    });
     return limits.length ? Math.min(...limits) : undefined;
 }

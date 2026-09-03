@@ -3,7 +3,10 @@ import { DramaProjectStoreError, updateDramaProject } from "@/lib/server/drama-p
 
 /** Domain validation error for the preview/apply split-by-audio contract. */
 export class DramaLabAudioSplitError extends Error {
-    constructor(message: string, readonly status = 400) {
+    constructor(
+        message: string,
+        readonly status = 400,
+    ) {
         super(message);
     }
 }
@@ -136,23 +139,9 @@ export function audioSplitCandidateId(sourceShotId: string, segmentIndex: number
  * silently apply an old preview.
  */
 export function dramaAudioSplitSourceFingerprint(shot: DramaShot) {
-    const utterances = (Array.isArray(shot.utterances) ? shot.utterances : [])
-        .map((item, index) => `${index}:${item.id}:${item.order}:${item.type}:${item.speaker}:${item.text}`)
-        .join("\u001f");
-    const audioState = (value: DramaShot["dialogueAudio"] | DramaShot["narrationAudio"] | undefined) =>
-        value ? [value.url, value.durationMs, value.mimeType].join("\u001f") : "";
-    const payload = [
-        shot.id,
-        shot.title,
-        shot.dialogue,
-        shot.narration,
-        utterances,
-        shot.subtitle ?? "",
-        shot.audioMode ?? "",
-        audioState(shot.dialogueAudio),
-        audioState(shot.narrationAudio),
-        shot.audioUrl ?? "",
-    ].join("\u001e");
+    const utterances = (Array.isArray(shot.utterances) ? shot.utterances : []).map((item, index) => `${index}:${item.id}:${item.order}:${item.type}:${item.speaker}:${item.text}`).join("\u001f");
+    const audioState = (value: DramaShot["dialogueAudio"] | DramaShot["narrationAudio"] | undefined) => (value ? [value.url, value.durationMs, value.mimeType].join("\u001f") : "");
+    const payload = [shot.id, shot.title, shot.dialogue, shot.narration, utterances, shot.subtitle ?? "", shot.audioMode ?? "", audioState(shot.dialogueAudio), audioState(shot.narrationAudio), shot.audioUrl ?? ""].join("\u001e");
     let hash = 2_166_136_261;
     for (const character of payload) {
         hash ^= character.codePointAt(0) || 0;
@@ -198,15 +187,7 @@ export function validateDramaAudioSplitPlan(shot: DramaShot, value: unknown, inp
 }
 
 /** Backwards-compatible convenience wrapper returning only the saved project. */
-export async function applyDramaAudioSplit(input: {
-    userId: string;
-    projectOwnerUserId?: string;
-    project: DramaProject;
-    episodeId: string;
-    shotId: string;
-    plan: DramaAudioSplitPlan;
-    expectedUpdatedAt?: string;
-}) {
+export async function applyDramaAudioSplit(input: { userId: string; projectOwnerUserId?: string; project: DramaProject; episodeId: string; shotId: string; plan: DramaAudioSplitPlan; expectedUpdatedAt?: string }) {
     return (await applyDramaAudioSplitDetailed(input)).project;
 }
 
@@ -216,15 +197,7 @@ export async function applyDramaAudioSplit(input: {
  * shot, and changing its order or fields would be data loss. Existing split
  * candidates (including ones manually edited after creation) are retained.
  */
-export async function applyDramaAudioSplitDetailed(input: {
-    userId: string;
-    projectOwnerUserId?: string;
-    project: DramaProject;
-    episodeId: string;
-    shotId: string;
-    plan: DramaAudioSplitPlan;
-    expectedUpdatedAt?: string;
-}) {
+export async function applyDramaAudioSplitDetailed(input: { userId: string; projectOwnerUserId?: string; project: DramaProject; episodeId: string; shotId: string; plan: DramaAudioSplitPlan; expectedUpdatedAt?: string }) {
     const episode = findEpisode(input.project, input.episodeId);
     const sourceIndex = episode.shots.findIndex((shot) => shot.id === input.shotId);
     if (sourceIndex < 0) throw new DramaLabAudioSplitError("短剧镜头不存在", 404);
@@ -336,12 +309,24 @@ function sourceEntries(shot: DramaShot): SourceEntry[] {
     if (useParsedDialogue) {
         parsedDialogue.forEach((item, index) => entries.push({ kind: "dialogue", speaker: item.speaker, text: item.text, utterances: [fallbackUtterance(shot.id, "dialogue", index, item.speaker, item.text)], order: index + 1, sourceIndex: index }));
     } else {
-        dialogueUtterances.forEach(({ item, index }) => entries.push({ kind: "dialogue", speaker: cleanText(item.speaker), text: cleanText(item.text), utterances: [{ ...item, speaker: cleanText(item.speaker), text: cleanText(item.text) }], order: Number(item.order) || index + 1, sourceIndex: index }));
-        if (!dialogueUtterances.length && parsedDialogue.length) parsedDialogue.forEach((item, index) => entries.push({ kind: "dialogue", speaker: item.speaker, text: item.text, utterances: [fallbackUtterance(shot.id, "dialogue", index, item.speaker, item.text)], order: index + 1, sourceIndex: index }));
+        dialogueUtterances.forEach(({ item, index }) =>
+            entries.push({
+                kind: "dialogue",
+                speaker: cleanText(item.speaker),
+                text: cleanText(item.text),
+                utterances: [{ ...item, speaker: cleanText(item.speaker), text: cleanText(item.text) }],
+                order: Number(item.order) || index + 1,
+                sourceIndex: index,
+            }),
+        );
+        if (!dialogueUtterances.length && parsedDialogue.length)
+            parsedDialogue.forEach((item, index) => entries.push({ kind: "dialogue", speaker: item.speaker, text: item.text, utterances: [fallbackUtterance(shot.id, "dialogue", index, item.speaker, item.text)], order: index + 1, sourceIndex: index }));
     }
 
     if (narrationUtterances.length) {
-        narrationUtterances.forEach(({ item, index }) => entries.push({ kind: "narration", speaker: "", text: cleanText(item.text), utterances: [{ ...item, type: "voiceover", speaker: "", text: cleanText(item.text) }], order: Number(item.order) || entries.length + index + 1, sourceIndex: index }));
+        narrationUtterances.forEach(({ item, index }) =>
+            entries.push({ kind: "narration", speaker: "", text: cleanText(item.text), utterances: [{ ...item, type: "voiceover", speaker: "", text: cleanText(item.text) }], order: Number(item.order) || entries.length + index + 1, sourceIndex: index }),
+        );
     } else if (cleanText(shot.narration)) {
         entries.push({ kind: "narration", speaker: "", text: cleanText(shot.narration), utterances: [fallbackUtterance(shot.id, "narration", 0, "", cleanText(shot.narration))], order: entries.length + 1, sourceIndex: 0 });
     }
@@ -352,7 +337,10 @@ function sourceEntries(shot: DramaShot): SourceEntry[] {
 }
 
 function parseDialogueLines(value: string) {
-    const lines = cleanText(value).split(/\r?\n+/u).map((line) => line.trim()).filter(Boolean);
+    const lines = cleanText(value)
+        .split(/\r?\n+/u)
+        .map((line) => line.trim())
+        .filter(Boolean);
     const result: Array<{ speaker: string; text: string }> = [];
     for (const line of lines) {
         const match = line.match(/^([^：:\n]{1,80})\s*[：:]\s*(.+)$/u);
@@ -446,7 +434,14 @@ function cueDurationMs(cue: DramaAudioSplitCue | undefined) {
 }
 
 function sourceDialogueSpeakers(shot: DramaShot) {
-    return [...new Set(sourceEntries(shot).filter((entry) => entry.kind === "dialogue").map((entry) => entry.speaker.trim()).filter(Boolean))];
+    return [
+        ...new Set(
+            sourceEntries(shot)
+                .filter((entry) => entry.kind === "dialogue")
+                .map((entry) => entry.speaker.trim())
+                .filter(Boolean),
+        ),
+    ];
 }
 
 function splitSegmentVisualConstraint(segment: DramaAudioSplitSegment, allSpeakers: string[], source: DramaShot) {
@@ -470,7 +465,15 @@ function splitSegmentVisualConstraint(segment: DramaAudioSplitSegment, allSpeake
     return {
         action,
         result,
-        videoPrompt: [source.location ? `场景：${source.location}` : "", source.time ? `时间：${source.time}` : "", action, `对白：${speaker}：${segment.text}`, result, source.cameraMotion ? `运镜：${source.cameraMotion}` : "", `时长：${segment.duration}秒`]
+        videoPrompt: [
+            source.location ? `场景：${source.location}` : "",
+            source.time ? `时间：${source.time}` : "",
+            action,
+            `对白：${speaker}：${segment.text}`,
+            result,
+            source.cameraMotion ? `运镜：${source.cameraMotion}` : "",
+            `时长：${segment.duration}秒`,
+        ]
             .filter(Boolean)
             .join("；"),
     };
@@ -480,9 +483,7 @@ function assertAudioSplitSourceEligible(shot: DramaShot) {
     const value = shot as DramaShot & Record<string, unknown>;
     if (value.audioSplitSourceShotId) throw new DramaLabAudioSplitError("不能继续拆分已由音频候选生成的镜头", 409);
     if (value.userEdited === true || value.manuallyEdited === true) throw new DramaLabAudioSplitError("手工编辑的镜头不能按音频自动拆分", 409);
-    const marker = [value.origin, value.creationSource, value.sourceType]
-        .map((item) => cleanText(item).toLocaleLowerCase())
-        .find(Boolean);
+    const marker = [value.origin, value.creationSource, value.sourceType].map((item) => cleanText(item).toLocaleLowerCase()).find(Boolean);
     if (marker && ["manual", "user", "user_created", "user-created", "manual_edit", "manual-edited"].includes(marker)) {
         throw new DramaLabAudioSplitError("手工创建的镜头不能按音频自动拆分", 409);
     }
@@ -494,7 +495,11 @@ function normalizeSubmittedSegment(value: unknown, index: number, expected: Dram
     if (Number(segment.index) !== index || segment.kind !== expected.kind) throw new DramaLabAudioSplitError(`第 ${index + 1} 个拆镜候选顺序或类型不一致`, 409);
     if (cleanText(segment.text) !== expected.text || cleanText(segment.speaker) !== (expected.speaker || "")) throw new DramaLabAudioSplitError(`第 ${index + 1} 个拆镜候选文本已变化，请重新预览`, 409);
     const submittedUtterances = Array.isArray(segment.utterances) ? segment.utterances : [];
-    if (submittedUtterances.length !== expected.utterances.length || submittedUtterances.some((item, utteranceIndex) => asRecord(item)?.id !== expected.utterances[utteranceIndex].id || cleanText(asRecord(item)?.text) !== expected.utterances[utteranceIndex].text)) throw new DramaLabAudioSplitError(`第 ${index + 1} 个拆镜候选台词不一致`, 409);
+    if (
+        submittedUtterances.length !== expected.utterances.length ||
+        submittedUtterances.some((item, utteranceIndex) => asRecord(item)?.id !== expected.utterances[utteranceIndex].id || cleanText(asRecord(item)?.text) !== expected.utterances[utteranceIndex].text)
+    )
+        throw new DramaLabAudioSplitError(`第 ${index + 1} 个拆镜候选台词不一致`, 409);
     const durationMs = positiveNumber(segment.durationMs) || expected.durationMs;
     const min = options.minSegmentDurationMs || DEFAULT_MIN_SEGMENT_MS;
     const max = Math.max(min, options.maxSegmentDurationMs || DEFAULT_MAX_SEGMENT_MS);

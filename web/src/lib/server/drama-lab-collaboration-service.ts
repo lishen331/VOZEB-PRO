@@ -139,7 +139,12 @@ export async function ensureDramaLabProjectGroup(projectId: string, ownerUserId:
             const now = new Date().toISOString();
             const groupId = `drama-group-${randomUUID()}`;
             await client.query("INSERT INTO drama_lab_project_groups (id, project_id, owner_user_id, created_at, updated_at) VALUES ($1,$2,$3,$4,$4)", [groupId, projectId, ownerUserId, new Date(now)]);
-            await client.query("INSERT INTO drama_lab_project_members (group_id, user_id, role, status, permissions, joined_at, updated_at) VALUES ($1,$2,'owner','active',$3::jsonb,$4,$4)", [groupId, ownerUserId, JSON.stringify({ manageMembers: true, approve: true }), new Date(now)]);
+            await client.query("INSERT INTO drama_lab_project_members (group_id, user_id, role, status, permissions, joined_at, updated_at) VALUES ($1,$2,'owner','active',$3::jsonb,$4,$4)", [
+                groupId,
+                ownerUserId,
+                JSON.stringify({ manageMembers: true, approve: true }),
+                new Date(now),
+            ]);
             return { id: groupId, projectId, ownerUserId, createdAt: now, updatedAt: now };
         });
     }
@@ -202,7 +207,14 @@ export async function listDramaLabProjectIdsForUser(userId: string) {
             "SELECT DISTINCT project.id AS project_id FROM drama_projects project LEFT JOIN drama_lab_project_groups group_row ON group_row.project_id = project.id LEFT JOIN drama_lab_project_members member ON member.group_id = group_row.id AND member.user_id = $1 AND member.status = 'active' WHERE member.user_id IS NOT NULL OR (project.user_id = $1 AND group_row.id IS NULL) ORDER BY project.id ASC",
             [cleanUserId],
         );
-        return Array.from(new Set(result.rows.map((row) => row.project_id).filter((id): id is string => typeof id === "string" && Boolean(id.trim())).map((id) => id.trim())));
+        return Array.from(
+            new Set(
+                result.rows
+                    .map((row) => row.project_id)
+                    .filter((id): id is string => typeof id === "string" && Boolean(id.trim()))
+                    .map((id) => id.trim()),
+            ),
+        );
     }
     const state = await readState();
     const groups = new Map(state.groups.map((group) => [group.id, group.projectId]));
@@ -246,7 +258,7 @@ export async function resolveDramaLabProjectForRequest(userId: string, projectId
     // group membership check. Otherwise a former storage owner could keep
     // accessing a project after being removed from the group.
     if (directProject && !group) return { project: directProject, ownerUserId: userId };
-    if (directProject && group && await getMembershipByGroup(group.id, userId)) return { project: directProject, ownerUserId: userId };
+    if (directProject && group && (await getMembershipByGroup(group.id, userId))) return { project: directProject, ownerUserId: userId };
     return getDramaLabProjectForUser(userId, projectId);
 }
 
@@ -256,8 +268,30 @@ export async function listDramaLabProjectsForUser(userId: string, input: { page?
     const pageSize = Math.min(100, Math.max(1, Math.floor(Number(input.pageSize) || 20)));
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<{ project_json: import("@/lib/drama-project-contract").DramaProject; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string; member_role: DramaLabProjectRole; total_count?: number }>("SELECT project.project_json, project.execution_profile, project.practice_source_work_id, project.practice_source_version_id, member.role AS member_role, COUNT(*) OVER() AS total_count FROM drama_projects project JOIN drama_lab_project_groups group_row ON group_row.project_id = project.id JOIN drama_lab_project_members member ON member.group_id = group_row.id AND member.user_id = $1 AND member.status = 'active' WHERE project.execution_profile = 'production' ORDER BY project.updated_at DESC LIMIT $2 OFFSET $3", [userId, pageSize, (page - 1) * pageSize]);
-        return { items: result.rows.map((row) => ({ ...summarizeDramaProject({ ...row.project_json, executionProfile: row.execution_profile === "open-source-practice" ? "open-source-practice" : "production", practiceSource: row.practice_source_work_id && row.practice_source_version_id ? { type: "published-work", workId: row.practice_source_work_id, versionId: row.practice_source_version_id } : { type: "blank" } }), role: row.member_role })), total: Number(result.rows[0]?.total_count) || 0, page, pageSize };
+        const result = await postgresQuery<{
+            project_json: import("@/lib/drama-project-contract").DramaProject;
+            execution_profile?: string;
+            practice_source_work_id?: string;
+            practice_source_version_id?: string;
+            member_role: DramaLabProjectRole;
+            total_count?: number;
+        }>(
+            "SELECT project.project_json, project.execution_profile, project.practice_source_work_id, project.practice_source_version_id, member.role AS member_role, COUNT(*) OVER() AS total_count FROM drama_projects project JOIN drama_lab_project_groups group_row ON group_row.project_id = project.id JOIN drama_lab_project_members member ON member.group_id = group_row.id AND member.user_id = $1 AND member.status = 'active' WHERE project.execution_profile = 'production' ORDER BY project.updated_at DESC LIMIT $2 OFFSET $3",
+            [userId, pageSize, (page - 1) * pageSize],
+        );
+        return {
+            items: result.rows.map((row) => ({
+                ...summarizeDramaProject({
+                    ...row.project_json,
+                    executionProfile: row.execution_profile === "open-source-practice" ? "open-source-practice" : "production",
+                    practiceSource: row.practice_source_work_id && row.practice_source_version_id ? { type: "published-work", workId: row.practice_source_work_id, versionId: row.practice_source_version_id } : { type: "blank" },
+                }),
+                role: row.member_role,
+            })),
+            total: Number(result.rows[0]?.total_count) || 0,
+            page,
+            pageSize,
+        };
     }
     const state = await readState();
     const groups = new Map(state.groups.map((group) => [group.id, group]));
@@ -265,11 +299,13 @@ export async function listDramaLabProjectsForUser(userId: string, input: { page?
         .filter((member) => member.userId === userId && member.status === "active")
         .map((member) => ({ group: groups.get(member.groupId), role: member.role }))
         .filter((item): item is { group: DramaLabProjectGroup; role: DramaLabProjectRole } => Boolean(item.group));
-    const records = await Promise.all(memberships.map(async ({ group, role }) => {
-        const direct = await getDramaProject(group.projectId, group.ownerUserId);
-        const resolved = direct ? { project: direct } : await getDramaProjectWithOwner(group.projectId);
-        return resolved ? { project: resolved.project, role } : null;
-    }));
+    const records = await Promise.all(
+        memberships.map(async ({ group, role }) => {
+            const direct = await getDramaProject(group.projectId, group.ownerUserId);
+            const resolved = direct ? { project: direct } : await getDramaProjectWithOwner(group.projectId);
+            return resolved ? { project: resolved.project, role } : null;
+        }),
+    );
     const items = records
         .filter((record): record is NonNullable<typeof record> => Boolean(record))
         .sort((a, b) => b.project.updatedAt.localeCompare(a.project.updatedAt))
@@ -356,7 +392,15 @@ export async function createDramaLabInvite(userId: string, projectId: string, in
     const tokenHash = hashInviteToken(token);
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        await postgresQuery("INSERT INTO drama_lab_project_invites (id, group_id, project_id, token_hash, expires_at, created_by, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)", [invite.id, group.id, projectId, tokenHash, new Date(expiresAt), userId, new Date(now)]);
+        await postgresQuery("INSERT INTO drama_lab_project_invites (id, group_id, project_id, token_hash, expires_at, created_by, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)", [
+            invite.id,
+            group.id,
+            projectId,
+            tokenHash,
+            new Date(expiresAt),
+            userId,
+            new Date(now),
+        ]);
     } else {
         await withJsonDataFileLock(FILE_NAME, async () => {
             const state = await readState();
@@ -376,7 +420,9 @@ export async function rotateDramaLabInvite(userId: string, projectId: string, in
         await ensurePostgresSchema();
         await postgresQuery("UPDATE drama_lab_project_invites SET revoked_at=$2, updated_at=$2 WHERE group_id=$1 AND revoked_at IS NULL", [group.id, new Date(now)]);
     } else {
-        await mutateFile((state) => { for (const invite of state.invites) if (invite.groupId === group.id && !invite.revokedAt) invite.revokedAt = now; });
+        await mutateFile((state) => {
+            for (const invite of state.invites) if (invite.groupId === group.id && !invite.revokedAt) invite.revokedAt = now;
+        });
     }
     return createDramaLabInvite(userId, projectId, input);
 }
@@ -422,7 +468,14 @@ export async function requestDramaLabJoin(userId: string, token: string) {
             if (pending.rows[0]) return { requestId: pending.rows[0].id, projectId: invite.project_id, status: "pending" as const };
             const now = new Date().toISOString();
             const id = `drama-join-${randomUUID()}`;
-            await client.query("INSERT INTO drama_lab_join_requests (id, group_id, project_id, invite_id, applicant_user_id, status, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,'pending',$6,$6)", [id, invite.group_id, invite.project_id, invite.id, userId, new Date(now)]);
+            await client.query("INSERT INTO drama_lab_join_requests (id, group_id, project_id, invite_id, applicant_user_id, status, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,'pending',$6,$6)", [
+                id,
+                invite.group_id,
+                invite.project_id,
+                invite.id,
+                userId,
+                new Date(now),
+            ]);
             return { requestId: id, projectId: invite.project_id, status: "pending" as const };
         });
     }
@@ -449,7 +502,10 @@ export async function getDramaLabInviteByToken(token: string) {
     const tokenHash = hashInviteToken(cleanToken);
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<DbInvite & { title?: string }>("SELECT invite.*, project.title FROM drama_lab_project_invites invite JOIN drama_projects project ON project.id = invite.project_id WHERE invite.token_hash = $1 AND invite.revoked_at IS NULL AND invite.expires_at > now()", [tokenHash]);
+        const result = await postgresQuery<DbInvite & { title?: string }>(
+            "SELECT invite.*, project.title FROM drama_lab_project_invites invite JOIN drama_projects project ON project.id = invite.project_id WHERE invite.token_hash = $1 AND invite.revoked_at IS NULL AND invite.expires_at > now()",
+            [tokenHash],
+        );
         const row = result.rows[0];
         if (!row) throw new DramaLabCollaborationError("邀请凭证无效或已过期", 404);
         return { projectId: row.project_id, projectTitle: row.title || "", expiresAt: iso(row.expires_at)! };
@@ -489,9 +545,20 @@ export async function reviewDramaLabJoinRequest(userId: string, projectId: strin
             if (!request) throw new DramaLabCollaborationError("加入申请不存在", 404);
             if (request.status !== "pending") throw new DramaLabCollaborationError("加入申请已处理", 409);
             const status = decision === "approve" ? "approved" : "rejected";
-            const updated = await client.query<DbJoinRequest>("UPDATE drama_lab_join_requests SET status = $3, reviewed_by = $4, reviewed_at = $5, note = $6, updated_at = $5 WHERE id = $1 AND group_id = $2 AND status = 'pending' RETURNING *", [requestId, group.id, status, userId, new Date(now), note.slice(0, 2000)]);
+            const updated = await client.query<DbJoinRequest>("UPDATE drama_lab_join_requests SET status = $3, reviewed_by = $4, reviewed_at = $5, note = $6, updated_at = $5 WHERE id = $1 AND group_id = $2 AND status = 'pending' RETURNING *", [
+                requestId,
+                group.id,
+                status,
+                userId,
+                new Date(now),
+                note.slice(0, 2000),
+            ]);
             if (!updated.rows[0]) throw new DramaLabCollaborationError("加入申请已被其他管理员处理", 409);
-            if (decision === "approve") await client.query("INSERT INTO drama_lab_project_members (group_id,user_id,role,status,permissions,joined_at,updated_at) VALUES ($1,$2,'member','active',$3::jsonb,$4,$4) ON CONFLICT (group_id,user_id) DO UPDATE SET status='active', updated_at=EXCLUDED.updated_at", [group.id, request.applicant_user_id, JSON.stringify({ manageMembers: false, approve: false }), new Date(now)]);
+            if (decision === "approve")
+                await client.query(
+                    "INSERT INTO drama_lab_project_members (group_id,user_id,role,status,permissions,joined_at,updated_at) VALUES ($1,$2,'member','active',$3::jsonb,$4,$4) ON CONFLICT (group_id,user_id) DO UPDATE SET status='active', updated_at=EXCLUDED.updated_at",
+                    [group.id, request.applicant_user_id, JSON.stringify({ manageMembers: false, approve: false }), new Date(now)],
+                );
             return mapJoinRequest(updated.rows[0]);
         });
     }
@@ -545,7 +612,12 @@ export async function setDramaLabMemberRole(userId: string, projectId: string, t
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         await postgresQuery("UPDATE drama_lab_project_members SET role = $3, permissions = $4::jsonb, updated_at = now() WHERE group_id = $1 AND user_id = $2 AND status = 'active'", [group.id, targetUserId, role, JSON.stringify(permissions)]);
-    } else await mutateFile((state) => { const row = state.members.find((item) => item.groupId === group.id && item.userId === targetUserId && item.status === "active"); if (!row) throw new DramaLabCollaborationError("目标成员不存在", 404); Object.assign(row, { role, permissions, updatedAt: new Date().toISOString() }); });
+    } else
+        await mutateFile((state) => {
+            const row = state.members.find((item) => item.groupId === group.id && item.userId === targetUserId && item.status === "active");
+            if (!row) throw new DramaLabCollaborationError("目标成员不存在", 404);
+            Object.assign(row, { role, permissions, updatedAt: new Date().toISOString() });
+        });
     return { userId: targetUserId, role, permissions };
 }
 
@@ -585,7 +657,10 @@ export async function transferDramaLabOwnership(userId: string, projectId: strin
         if (!target) throw new DramaLabCollaborationError("目标成员不存在", 404);
         const actor = state.members.find((item) => item.groupId === group.id && item.userId === userId && item.status === "active");
         if (!actor) throw new DramaLabCollaborationError("项目管理员不在成员列表中", 409);
-        stored.ownerUserId = targetUserId; stored.lastTransferBy = userId; stored.lastTransferAt = now; stored.updatedAt = now;
+        stored.ownerUserId = targetUserId;
+        stored.lastTransferBy = userId;
+        stored.lastTransferAt = now;
+        stored.updatedAt = now;
         for (const row of state.members.filter((item) => item.groupId === group.id && item.status === "active")) {
             if (row.userId === userId) row.role = "admin";
             if (row.userId === targetUserId) row.role = "owner";
@@ -614,7 +689,11 @@ export async function saveDramaLabApprovalConfigs(userId: string, projectId: str
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         return withPostgresTransaction(async (client) => {
-            for (const config of configs) await client.query("INSERT INTO drama_lab_approval_configs (id,group_id,project_id,stage,enabled,reviewer_scope,reviewer_user_ids,strict_mode,updated_by,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$10) ON CONFLICT (group_id,stage) DO UPDATE SET enabled=EXCLUDED.enabled,reviewer_scope=EXCLUDED.reviewer_scope,reviewer_user_ids=EXCLUDED.reviewer_user_ids,strict_mode=EXCLUDED.strict_mode,updated_by=EXCLUDED.updated_by,updated_at=EXCLUDED.updated_at", [`drama-approval-config-${randomUUID()}`, group.id, projectId, config.stage, config.enabled, config.reviewerScope, JSON.stringify(config.reviewerUserIds), config.strictMode, userId, new Date(config.updatedAt)]);
+            for (const config of configs)
+                await client.query(
+                    "INSERT INTO drama_lab_approval_configs (id,group_id,project_id,stage,enabled,reviewer_scope,reviewer_user_ids,strict_mode,updated_by,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$10) ON CONFLICT (group_id,stage) DO UPDATE SET enabled=EXCLUDED.enabled,reviewer_scope=EXCLUDED.reviewer_scope,reviewer_user_ids=EXCLUDED.reviewer_user_ids,strict_mode=EXCLUDED.strict_mode,updated_by=EXCLUDED.updated_by,updated_at=EXCLUDED.updated_at",
+                    [`drama-approval-config-${randomUUID()}`, group.id, projectId, config.stage, config.enabled, config.reviewerScope, JSON.stringify(config.reviewerUserIds), config.strictMode, userId, new Date(config.updatedAt)],
+                );
             return configs;
         });
     }
@@ -641,10 +720,29 @@ export async function submitDramaLabApproval(userId: string, projectId: string, 
     if (config.strictMode) await assertStrictPredecessorsApproved(group.id, stage, input.episodeId, resourceType, resourceId);
     if (input.snapshot !== undefined && Buffer.byteLength(JSON.stringify(input.snapshot)) > MAX_SNAPSHOT_BYTES) throw new DramaLabCollaborationError("审批快照过大", 413);
     const now = new Date().toISOString();
-    const base = { id: `drama-approval-${randomUUID()}`, projectId, episodeId: optionalText(input.episodeId), stage, resourceType, resourceId, versionId: optionalText(input.versionId), versionNumber: Number.isFinite(input.versionNumber) ? Number(input.versionNumber) : undefined, submittedBy: userId, submittedAt: now, snapshot: input.snapshot, status: "pending" as const, createdAt: now, updatedAt: now, location: { projectId, episodeId: optionalText(input.episodeId), stage, resourceType, resourceId } };
+    const base = {
+        id: `drama-approval-${randomUUID()}`,
+        projectId,
+        episodeId: optionalText(input.episodeId),
+        stage,
+        resourceType,
+        resourceId,
+        versionId: optionalText(input.versionId),
+        versionNumber: Number.isFinite(input.versionNumber) ? Number(input.versionNumber) : undefined,
+        submittedBy: userId,
+        submittedAt: now,
+        snapshot: input.snapshot,
+        status: "pending" as const,
+        createdAt: now,
+        updatedAt: now,
+        location: { projectId, episodeId: optionalText(input.episodeId), stage, resourceType, resourceId },
+    };
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<DbApproval>("INSERT INTO drama_lab_approvals (id,group_id,project_id,episode_id,stage,resource_type,resource_id,version_id,version_number,submitted_by,submitted_at,snapshot,status,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,'pending',$11,$11) RETURNING *", [base.id, group.id, projectId, base.episodeId || null, stage, resourceType, resourceId, base.versionId || null, base.versionNumber ?? null, userId, new Date(now), JSON.stringify(base.snapshot ?? {})]);
+        const result = await postgresQuery<DbApproval>(
+            "INSERT INTO drama_lab_approvals (id,group_id,project_id,episode_id,stage,resource_type,resource_id,version_id,version_number,submitted_by,submitted_at,snapshot,status,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,'pending',$11,$11) RETURNING *",
+            [base.id, group.id, projectId, base.episodeId || null, stage, resourceType, resourceId, base.versionId || null, base.versionNumber ?? null, userId, new Date(now), JSON.stringify(base.snapshot ?? {})],
+        );
         return mapApproval(result.rows[0]);
     }
     await mutateFile((state) => state.approvals.unshift({ ...base, groupId: group.id }));
@@ -659,11 +757,18 @@ export async function listDramaLabApprovals(userId: string, projectId: string, i
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const values: unknown[] = [group.id, input.status || null, membership.role === "member" ? userId : null, pageSize, (page - 1) * pageSize];
-        const result = await postgresQuery<DbApproval>("SELECT *, COUNT(*) OVER() AS total_count FROM drama_lab_approvals WHERE group_id=$1 AND ($2::text IS NULL OR status=$2) AND ($3::text IS NULL OR submitted_by=$3) ORDER BY created_at DESC LIMIT $4 OFFSET $5", values);
+        const result = await postgresQuery<DbApproval>(
+            "SELECT *, COUNT(*) OVER() AS total_count FROM drama_lab_approvals WHERE group_id=$1 AND ($2::text IS NULL OR status=$2) AND ($3::text IS NULL OR submitted_by=$3) ORDER BY created_at DESC LIMIT $4 OFFSET $5",
+            values,
+        );
         return { items: result.rows.map(mapApproval), total: Number(result.rows[0]?.total_count) || 0, page, pageSize };
     }
-    let items = (await readState()).approvals.filter((item) => item.groupId === group.id && (!input.status || item.status === input.status) && (membership.role !== "member" || item.submittedBy === userId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(stripGroupIdApproval);
-    const total = items.length; items = items.slice((page - 1) * pageSize, page * pageSize);
+    let items = (await readState()).approvals
+        .filter((item) => item.groupId === group.id && (!input.status || item.status === input.status) && (membership.role !== "member" || item.submittedBy === userId))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map(stripGroupIdApproval);
+    const total = items.length;
+    items = items.slice((page - 1) * pageSize, page * pageSize);
     return { items, total, page, pageSize };
 }
 
@@ -674,7 +779,14 @@ export async function reviewDramaLabApproval(userId: string, projectId: string, 
     const status = decision === "approve" ? "approved" : "rejected";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<DbApproval>("UPDATE drama_lab_approvals SET status=$3, reviewer_id=$4, review_comment=$5, reviewed_at=$6, updated_at=$6 WHERE id=$1 AND group_id=$2 AND status='pending' RETURNING *", [approvalId, group.id, status, userId, comment.slice(0, 4000), new Date(now)]);
+        const result = await postgresQuery<DbApproval>("UPDATE drama_lab_approvals SET status=$3, reviewer_id=$4, review_comment=$5, reviewed_at=$6, updated_at=$6 WHERE id=$1 AND group_id=$2 AND status='pending' RETURNING *", [
+            approvalId,
+            group.id,
+            status,
+            userId,
+            comment.slice(0, 4000),
+            new Date(now),
+        ]);
         if (!result.rows[0]) throw new DramaLabCollaborationError("审批不存在或已处理", 409);
         return mapApproval(result.rows[0]);
     }
@@ -683,7 +795,11 @@ export async function reviewDramaLabApproval(userId: string, projectId: string, 
         const approval = state.approvals.find((item) => item.id === approvalId && item.groupId === group.id);
         if (!approval) throw new DramaLabCollaborationError("审批不存在", 404);
         if (approval.status !== "pending") throw new DramaLabCollaborationError("审批已处理", 409);
-        approval.status = status; approval.reviewerId = userId; approval.reviewComment = comment.slice(0, 4000); approval.reviewedAt = now; approval.updatedAt = now;
+        approval.status = status;
+        approval.reviewerId = userId;
+        approval.reviewComment = comment.slice(0, 4000);
+        approval.reviewedAt = now;
+        approval.updatedAt = now;
         await writeState(state);
         return stripGroupIdApproval(approval);
     });
@@ -743,7 +859,7 @@ async function assertStrictPredecessorsApproved(groupId: string, stage: DramaLab
 }
 
 async function validateApprovalLocation(group: DramaLabProjectGroup, episodeId: unknown, resourceType: string, resourceId: string) {
-    const resolved = await getDramaProject(group.projectId, group.ownerUserId) || (await getDramaProjectWithOwner(group.projectId))?.project;
+    const resolved = (await getDramaProject(group.projectId, group.ownerUserId)) || (await getDramaProjectWithOwner(group.projectId))?.project;
     if (!resolved) throw new DramaLabCollaborationError("短剧项目不存在", 404);
     const project = resolved;
     const episode = optionalText(episodeId);
@@ -756,9 +872,18 @@ async function validateApprovalLocation(group: DramaLabProjectGroup, episodeId: 
         if (!episode || !project.episodes.some((item) => item.id === episode && (normalizedType === "episode" || item.id === resourceId))) throw new DramaLabCollaborationError("审批资源与集数不匹配", 400);
         return;
     }
-    if (["character", "characters"].includes(normalizedType)) { if (!project.characters.some((item) => item.id === resourceId)) throw new DramaLabCollaborationError("审批角色不存在", 400); return; }
-    if (["scene", "scenes"].includes(normalizedType)) { if (!project.scenes.some((item) => item.id === resourceId)) throw new DramaLabCollaborationError("审批场景不存在", 400); return; }
-    if (["prop", "props"].includes(normalizedType)) { if (!project.props.some((item) => item.id === resourceId)) throw new DramaLabCollaborationError("审批道具不存在", 400); return; }
+    if (["character", "characters"].includes(normalizedType)) {
+        if (!project.characters.some((item) => item.id === resourceId)) throw new DramaLabCollaborationError("审批角色不存在", 400);
+        return;
+    }
+    if (["scene", "scenes"].includes(normalizedType)) {
+        if (!project.scenes.some((item) => item.id === resourceId)) throw new DramaLabCollaborationError("审批场景不存在", 400);
+        return;
+    }
+    if (["prop", "props"].includes(normalizedType)) {
+        if (!project.props.some((item) => item.id === resourceId)) throw new DramaLabCollaborationError("审批道具不存在", 400);
+        return;
+    }
     if (["shot", "storyboard", "storyboard_image", "storyboard_video"].includes(normalizedType)) {
         const foundEpisode = project.episodes.find((item) => item.shots.some((shot) => shot.id === resourceId));
         if (!foundEpisode) throw new DramaLabCollaborationError("审批分镜不存在", 400);
@@ -770,7 +895,9 @@ async function validateApprovalLocation(group: DramaLabProjectGroup, episodeId: 
         return;
     }
     if (["asset", "assets"].includes(normalizedType)) {
-        const found = [...(project.sourceAssets || []), ...project.characters.flatMap((item) => item.references || []), ...project.scenes.flatMap((item) => item.references || []), ...project.props.flatMap((item) => item.references || [])].some((item) => item.id === resourceId);
+        const found = [...(project.sourceAssets || []), ...project.characters.flatMap((item) => item.references || []), ...project.scenes.flatMap((item) => item.references || []), ...project.props.flatMap((item) => item.references || [])].some(
+            (item) => item.id === resourceId,
+        );
         if (!found) throw new DramaLabCollaborationError("审批素材不存在", 400);
         return;
     }
@@ -791,7 +918,7 @@ async function requireActiveMember(groupId: string, userId: string) {
 
 async function requireManager(groupId: string, userId: string) {
     const member = await requireActiveMember(groupId, userId);
-    if (member.role !== "owner" && member.role !== "admin" || !member.permissions.manageMembers) throw new DramaLabCollaborationError("没有项目管理权限", 403);
+    if ((member.role !== "owner" && member.role !== "admin") || !member.permissions.manageMembers) throw new DramaLabCollaborationError("没有项目管理权限", 403);
     return member;
 }
 
@@ -815,7 +942,12 @@ async function setMemberStatus(groupId: string, userId: string, status: DramaLab
         if (!result.rows[0]) throw new DramaLabCollaborationError("项目成员不存在", 404);
         return;
     }
-    await mutateFile((state) => { const member = state.members.find((item) => item.groupId === groupId && item.userId === userId && item.status === "active"); if (!member) throw new DramaLabCollaborationError("项目成员不存在", 404); member.status = status; member.updatedAt = new Date().toISOString(); });
+    await mutateFile((state) => {
+        const member = state.members.find((item) => item.groupId === groupId && item.userId === userId && item.status === "active");
+        if (!member) throw new DramaLabCollaborationError("项目成员不存在", 404);
+        member.status = status;
+        member.updatedAt = new Date().toISOString();
+    });
 }
 
 async function getMembershipByGroup(groupId: string, userId: string) {
@@ -829,33 +961,61 @@ async function getMembershipByGroup(groupId: string, userId: string) {
 }
 
 async function listMembersByGroup(groupId: string) {
-    if (getDatabaseProvider() === "postgres") { await ensurePostgresSchema(); const result = await postgresQuery<DbMember>("SELECT * FROM drama_lab_project_members WHERE group_id=$1 AND status='active' ORDER BY joined_at", [groupId]); return result.rows.map(mapMember); }
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<DbMember>("SELECT * FROM drama_lab_project_members WHERE group_id=$1 AND status='active' ORDER BY joined_at", [groupId]);
+        return result.rows.map(mapMember);
+    }
     return (await readState()).members.filter((item) => item.groupId === groupId && item.status === "active").map(stripGroupId);
 }
 
 async function listInvitesByGroup(groupId: string) {
-    if (getDatabaseProvider() === "postgres") { await ensurePostgresSchema(); const result = await postgresQuery<DbInvite>("SELECT * FROM drama_lab_project_invites WHERE group_id=$1 ORDER BY created_at DESC", [groupId]); return result.rows.map(mapInvite); }
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<DbInvite>("SELECT * FROM drama_lab_project_invites WHERE group_id=$1 ORDER BY created_at DESC", [groupId]);
+        return result.rows.map(mapInvite);
+    }
     return (await readState()).invites.filter((item) => item.groupId === groupId).map(stripInviteToken);
 }
 
 async function listJoinRequestsByGroup(groupId: string, _keyword?: string) {
-    if (getDatabaseProvider() === "postgres") { await ensurePostgresSchema(); const result = await postgresQuery<DbJoinRequest>("SELECT * FROM drama_lab_join_requests WHERE group_id=$1 ORDER BY created_at DESC", [groupId]); return result.rows.map(mapJoinRequest); }
-    return (await readState()).joinRequests.filter((item) => item.groupId === groupId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(stripGroupId);
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<DbJoinRequest>("SELECT * FROM drama_lab_join_requests WHERE group_id=$1 ORDER BY created_at DESC", [groupId]);
+        return result.rows.map(mapJoinRequest);
+    }
+    return (await readState()).joinRequests
+        .filter((item) => item.groupId === groupId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map(stripGroupId);
 }
 
 async function listConfigsByGroup(groupId: string) {
-    if (getDatabaseProvider() === "postgres") { await ensurePostgresSchema(); const result = await postgresQuery<DbConfig>("SELECT * FROM drama_lab_approval_configs WHERE group_id=$1 ORDER BY created_at", [groupId]); return result.rows.map(mapConfig); }
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<DbConfig>("SELECT * FROM drama_lab_approval_configs WHERE group_id=$1 ORDER BY created_at", [groupId]);
+        return result.rows.map(mapConfig);
+    }
     return (await readState()).approvalConfigs.filter((item) => item.groupId === groupId).map(stripGroupIdConfig);
 }
 
 async function listApprovalsRaw(groupId: string) {
-    if (getDatabaseProvider() === "postgres") { await ensurePostgresSchema(); const result = await postgresQuery<DbApproval>("SELECT * FROM drama_lab_approvals WHERE group_id=$1", [groupId]); return result.rows.map(mapApproval); }
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<DbApproval>("SELECT * FROM drama_lab_approvals WHERE group_id=$1", [groupId]);
+        return result.rows.map(mapApproval);
+    }
     return (await readState()).approvals.filter((item) => item.groupId === groupId).map(stripGroupIdApproval);
 }
 
 async function getApprovalRaw(groupId: string, approvalId: string) {
-    if (getDatabaseProvider() === "postgres") { await ensurePostgresSchema(); const result = await postgresQuery<DbApproval>("SELECT * FROM drama_lab_approvals WHERE group_id=$1 AND id=$2", [groupId, approvalId]); return result.rows[0] ? mapApproval(result.rows[0]) : null; }
-    const row = (await readState()).approvals.find((item) => item.groupId === groupId && item.id === approvalId); return row ? stripGroupIdApproval(row) : null;
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<DbApproval>("SELECT * FROM drama_lab_approvals WHERE group_id=$1 AND id=$2", [groupId, approvalId]);
+        return result.rows[0] ? mapApproval(result.rows[0]) : null;
+    }
+    const row = (await readState()).approvals.find((item) => item.groupId === groupId && item.id === approvalId);
+    return row ? stripGroupIdApproval(row) : null;
 }
 
 function normalizeConfigs(value: unknown, updatedBy: string): Array<DramaLabApprovalConfig & { updatedAt: string }> {
@@ -882,29 +1042,142 @@ function normalizeExpiry(value?: string) {
     return new Date(timestamp).toISOString();
 }
 
-function hashInviteToken(token: string) { return createHash("sha256").update(token).digest("hex"); }
-function text(value: unknown, max: number) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
-function optionalText(value: unknown) { const result = text(value, 200); return result || undefined; }
+function hashInviteToken(token: string) {
+    return createHash("sha256").update(token).digest("hex");
+}
+function text(value: unknown, max: number) {
+    return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+function optionalText(value: unknown) {
+    const result = text(value, 200);
+    return result || undefined;
+}
 
-async function readState() { return readJsonDataFile<StoredState>(FILE_NAME, { version: 1, groups: [], members: [], invites: [], joinRequests: [], approvalConfigs: [], approvals: [] }); }
-async function writeState(state: StoredState) { return writeJsonDataFile(FILE_NAME, state); }
-async function mutateFile(mutator: (state: StoredState) => void) { return withJsonDataFileLock(FILE_NAME, async () => { const state = await readState(); mutator(state); await writeState(state); }); }
+async function readState() {
+    return readJsonDataFile<StoredState>(FILE_NAME, { version: 1, groups: [], members: [], invites: [], joinRequests: [], approvalConfigs: [], approvals: [] });
+}
+async function writeState(state: StoredState) {
+    return writeJsonDataFile(FILE_NAME, state);
+}
+async function mutateFile(mutator: (state: StoredState) => void) {
+    return withJsonDataFileLock(FILE_NAME, async () => {
+        const state = await readState();
+        mutator(state);
+        await writeState(state);
+    });
+}
 
-function stripGroupId<T extends { groupId: string }>(value: T) { const { groupId: _groupId, ...result } = value; return result; }
-function stripGroupIdConfig(value: DramaLabApprovalConfig & { groupId: string }) { return stripGroupId(value); }
-function stripGroupIdApproval(value: DramaLabApprovalRecord & { groupId: string }) { return stripGroupId(value); }
-function stripInviteToken(value: DramaLabInvite & { groupId: string; tokenHash: string }) { const { groupId: _groupId, tokenHash: _tokenHash, token: _token, ...result } = value; return result; }
+function stripGroupId<T extends { groupId: string }>(value: T) {
+    const { groupId: _groupId, ...result } = value;
+    return result;
+}
+function stripGroupIdConfig(value: DramaLabApprovalConfig & { groupId: string }) {
+    return stripGroupId(value);
+}
+function stripGroupIdApproval(value: DramaLabApprovalRecord & { groupId: string }) {
+    return stripGroupId(value);
+}
+function stripInviteToken(value: DramaLabInvite & { groupId: string; tokenHash: string }) {
+    const { groupId: _groupId, tokenHash: _tokenHash, token: _token, ...result } = value;
+    return result;
+}
 
 type DbGroup = { id: string; project_id: string; owner_user_id: string; created_at: Date | string; updated_at: Date | string; last_transfer_by?: string; last_transfer_at?: Date | string };
 type DbMember = { group_id: string; user_id: string; role: DramaLabProjectRole; status: DramaLabMemberStatus; permissions: Record<string, boolean>; joined_at: Date | string; updated_at: Date | string };
 type DbInvite = { id: string; group_id: string; project_id: string; token_hash: string; expires_at: Date | string; revoked_at?: Date | string; created_by: string; created_at: Date | string };
-type DbJoinRequest = { id: string; group_id: string; project_id: string; invite_id?: string; applicant_user_id: string; status: DramaLabJoinRequestStatus; reviewed_by?: string; reviewed_at?: Date | string; note?: string; created_at: Date | string; updated_at: Date | string };
+type DbJoinRequest = {
+    id: string;
+    group_id: string;
+    project_id: string;
+    invite_id?: string;
+    applicant_user_id: string;
+    status: DramaLabJoinRequestStatus;
+    reviewed_by?: string;
+    reviewed_at?: Date | string;
+    note?: string;
+    created_at: Date | string;
+    updated_at: Date | string;
+};
 type DbConfig = { stage: DramaLabApprovalStage; enabled: boolean; reviewer_scope: DramaLabReviewerScope; reviewer_user_ids: string[] | Record<string, unknown>; strict_mode: boolean; updated_at: Date | string; updated_by: string };
-type DbApproval = { id: string; project_id: string; group_id: string; episode_id?: string; stage: DramaLabApprovalStage; resource_type: string; resource_id: string; version_id?: string; version_number?: number; submitted_by: string; submitted_at: Date | string; snapshot: unknown; status: DramaLabApprovalStatus; reviewer_id?: string; review_comment?: string; reviewed_at?: Date | string; created_at: Date | string; updated_at: Date | string; total_count?: number };
-function iso(value: Date | string | undefined) { return value instanceof Date ? value.toISOString() : value || undefined; }
-function mapGroup(row: DbGroup): DramaLabProjectGroup { return { id: row.id, projectId: row.project_id, ownerUserId: row.owner_user_id, createdAt: iso(row.created_at)!, updatedAt: iso(row.updated_at)!, ...(row.last_transfer_by ? { lastTransferBy: row.last_transfer_by } : {}), ...(iso(row.last_transfer_at) ? { lastTransferAt: iso(row.last_transfer_at) } : {}) }; }
-function mapMember(row: DbMember): DramaLabProjectMember { return { userId: row.user_id, role: row.role, status: row.status, permissions: { manageMembers: Boolean(row.permissions?.manageMembers), approve: Boolean(row.permissions?.approve) }, joinedAt: iso(row.joined_at)!, updatedAt: iso(row.updated_at)! }; }
-function mapInvite(row: DbInvite): DramaLabInvite { return { id: row.id, projectId: row.project_id, expiresAt: iso(row.expires_at)!, ...(iso(row.revoked_at) ? { revokedAt: iso(row.revoked_at) } : {}), createdBy: row.created_by, createdAt: iso(row.created_at)! }; }
-function mapJoinRequest(row: DbJoinRequest): DramaLabJoinRequest { return { id: row.id, projectId: row.project_id, applicantUserId: row.applicant_user_id, ...(row.invite_id ? { inviteId: row.invite_id } : {}), status: row.status, ...(row.reviewed_by ? { reviewedBy: row.reviewed_by } : {}), ...(iso(row.reviewed_at) ? { reviewedAt: iso(row.reviewed_at) } : {}), ...(row.note ? { note: row.note } : {}), createdAt: iso(row.created_at)!, updatedAt: iso(row.updated_at)! }; }
-function mapConfig(row: DbConfig): DramaLabApprovalConfig { const ids = Array.isArray(row.reviewer_user_ids) ? row.reviewer_user_ids : []; return { stage: row.stage, enabled: row.enabled, reviewerScope: row.reviewer_scope, reviewerUserIds: ids.filter((id): id is string => typeof id === "string"), strictMode: row.strict_mode, updatedAt: iso(row.updated_at)!, updatedBy: row.updated_by }; }
-function mapApproval(row: DbApproval): DramaLabApprovalRecord { const episodeId = row.episode_id || undefined; return { id: row.id, projectId: row.project_id, ...(episodeId ? { episodeId } : {}), stage: row.stage, resourceType: row.resource_type, resourceId: row.resource_id, ...(row.version_id ? { versionId: row.version_id } : {}), ...(row.version_number === undefined || row.version_number === null ? {} : { versionNumber: Number(row.version_number) }), submittedBy: row.submitted_by, submittedAt: iso(row.submitted_at)!, snapshot: row.snapshot, status: row.status, ...(row.reviewer_id ? { reviewerId: row.reviewer_id } : {}), ...(row.review_comment ? { reviewComment: row.review_comment } : {}), ...(iso(row.reviewed_at) ? { reviewedAt: iso(row.reviewed_at) } : {}), createdAt: iso(row.created_at)!, updatedAt: iso(row.updated_at)!, location: { projectId: row.project_id, ...(episodeId ? { episodeId } : {}), stage: row.stage, resourceType: row.resource_type, resourceId: row.resource_id } }; }
+type DbApproval = {
+    id: string;
+    project_id: string;
+    group_id: string;
+    episode_id?: string;
+    stage: DramaLabApprovalStage;
+    resource_type: string;
+    resource_id: string;
+    version_id?: string;
+    version_number?: number;
+    submitted_by: string;
+    submitted_at: Date | string;
+    snapshot: unknown;
+    status: DramaLabApprovalStatus;
+    reviewer_id?: string;
+    review_comment?: string;
+    reviewed_at?: Date | string;
+    created_at: Date | string;
+    updated_at: Date | string;
+    total_count?: number;
+};
+function iso(value: Date | string | undefined) {
+    return value instanceof Date ? value.toISOString() : value || undefined;
+}
+function mapGroup(row: DbGroup): DramaLabProjectGroup {
+    return {
+        id: row.id,
+        projectId: row.project_id,
+        ownerUserId: row.owner_user_id,
+        createdAt: iso(row.created_at)!,
+        updatedAt: iso(row.updated_at)!,
+        ...(row.last_transfer_by ? { lastTransferBy: row.last_transfer_by } : {}),
+        ...(iso(row.last_transfer_at) ? { lastTransferAt: iso(row.last_transfer_at) } : {}),
+    };
+}
+function mapMember(row: DbMember): DramaLabProjectMember {
+    return { userId: row.user_id, role: row.role, status: row.status, permissions: { manageMembers: Boolean(row.permissions?.manageMembers), approve: Boolean(row.permissions?.approve) }, joinedAt: iso(row.joined_at)!, updatedAt: iso(row.updated_at)! };
+}
+function mapInvite(row: DbInvite): DramaLabInvite {
+    return { id: row.id, projectId: row.project_id, expiresAt: iso(row.expires_at)!, ...(iso(row.revoked_at) ? { revokedAt: iso(row.revoked_at) } : {}), createdBy: row.created_by, createdAt: iso(row.created_at)! };
+}
+function mapJoinRequest(row: DbJoinRequest): DramaLabJoinRequest {
+    return {
+        id: row.id,
+        projectId: row.project_id,
+        applicantUserId: row.applicant_user_id,
+        ...(row.invite_id ? { inviteId: row.invite_id } : {}),
+        status: row.status,
+        ...(row.reviewed_by ? { reviewedBy: row.reviewed_by } : {}),
+        ...(iso(row.reviewed_at) ? { reviewedAt: iso(row.reviewed_at) } : {}),
+        ...(row.note ? { note: row.note } : {}),
+        createdAt: iso(row.created_at)!,
+        updatedAt: iso(row.updated_at)!,
+    };
+}
+function mapConfig(row: DbConfig): DramaLabApprovalConfig {
+    const ids = Array.isArray(row.reviewer_user_ids) ? row.reviewer_user_ids : [];
+    return { stage: row.stage, enabled: row.enabled, reviewerScope: row.reviewer_scope, reviewerUserIds: ids.filter((id): id is string => typeof id === "string"), strictMode: row.strict_mode, updatedAt: iso(row.updated_at)!, updatedBy: row.updated_by };
+}
+function mapApproval(row: DbApproval): DramaLabApprovalRecord {
+    const episodeId = row.episode_id || undefined;
+    return {
+        id: row.id,
+        projectId: row.project_id,
+        ...(episodeId ? { episodeId } : {}),
+        stage: row.stage,
+        resourceType: row.resource_type,
+        resourceId: row.resource_id,
+        ...(row.version_id ? { versionId: row.version_id } : {}),
+        ...(row.version_number === undefined || row.version_number === null ? {} : { versionNumber: Number(row.version_number) }),
+        submittedBy: row.submitted_by,
+        submittedAt: iso(row.submitted_at)!,
+        snapshot: row.snapshot,
+        status: row.status,
+        ...(row.reviewer_id ? { reviewerId: row.reviewer_id } : {}),
+        ...(row.review_comment ? { reviewComment: row.review_comment } : {}),
+        ...(iso(row.reviewed_at) ? { reviewedAt: iso(row.reviewed_at) } : {}),
+        createdAt: iso(row.created_at)!,
+        updatedAt: iso(row.updated_at)!,
+        location: { projectId: row.project_id, ...(episodeId ? { episodeId } : {}), stage: row.stage, resourceType: row.resource_type, resourceId: row.resource_id },
+    };
+}

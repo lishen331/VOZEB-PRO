@@ -68,7 +68,9 @@ describe("Jianying draft export", () => {
             origin: "http://127.0.0.1:3000",
         });
         const files = unzipSync(result.data);
-        const assetNames = Object.keys(files).filter((entry) => entry.includes("/assets/")).join("\n");
+        const assetNames = Object.keys(files)
+            .filter((entry) => entry.includes("/assets/"))
+            .join("\n");
         expect(assetNames).toContain("dialogue_audio_001.mp3");
         expect(assetNames).toContain("narration_audio_001.mp3");
         const contentEntry = Object.keys(files).find((entry) => entry.endsWith("draft_content.json"));
@@ -100,7 +102,9 @@ describe("Jianying draft export", () => {
             origin: "http://127.0.0.1:3000",
         });
         const mutedFiles = unzipSync(muted.data);
-        const mutedNames = Object.keys(mutedFiles).filter((entry) => entry.includes("/assets/")).join("\n");
+        const mutedNames = Object.keys(mutedFiles)
+            .filter((entry) => entry.includes("/assets/"))
+            .join("\n");
         expect(mutedNames).not.toContain("audio_");
         const mutedContentEntry = Object.keys(mutedFiles).find((entry) => entry.endsWith("draft_content.json"));
         expect(mutedContentEntry).toBeDefined();

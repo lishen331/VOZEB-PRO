@@ -20,15 +20,7 @@ export type DramaLabWorkflowExportArtifact = {
 
 /** Persist a workflow export outside the task JSON while retaining a stable
  * task-scoped reference. The task itself remains the authorization source. */
-export async function writeDramaLabWorkflowExportArtifact(input: {
-    taskId: string;
-    projectId: string;
-    ownerUserId: string;
-    fileName: string;
-    data: Uint8Array;
-    mediaCount?: number;
-    omittedMediaCount?: number;
-}) {
+export async function writeDramaLabWorkflowExportArtifact(input: { taskId: string; projectId: string; ownerUserId: string; fileName: string; data: Uint8Array; mediaCount?: number; omittedMediaCount?: number }) {
     const taskId = cleanId(input.taskId);
     const projectId = cleanId(input.projectId);
     const ownerUserId = cleanId(input.ownerUserId);
@@ -91,5 +83,11 @@ function nonNegative(value: unknown) {
 }
 
 function safeFileName(value: unknown) {
-    return typeof value === "string" ? value.replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, "_").replace(/\.{2,}/g, "_").replace(/[. ]+$/g, "").slice(0, 180) : "";
+    return typeof value === "string"
+        ? value
+              .replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, "_")
+              .replace(/\.{2,}/g, "_")
+              .replace(/[. ]+$/g, "")
+              .slice(0, 180)
+        : "";
 }

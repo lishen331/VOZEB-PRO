@@ -63,7 +63,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
         return NextResponse.json({
             code: 0,
-            data: { shots: result.shots.map((shot) => toDramaLabShot(shot, episodeId)), templateKeys: result.templateKeys, meta: { truncated: result.truncated, recoveredCount: result.recoveredCount, duplicateCount: result.duplicateCount, continuationAttempts: result.continuationAttempts } },
+            data: {
+                shots: result.shots.map((shot) => toDramaLabShot(shot, episodeId)),
+                templateKeys: result.templateKeys,
+                meta: { truncated: result.truncated, recoveredCount: result.recoveredCount, duplicateCount: result.duplicateCount, continuationAttempts: result.continuationAttempts },
+            },
             msg: "分镜提取完成",
         });
     } catch (error) {

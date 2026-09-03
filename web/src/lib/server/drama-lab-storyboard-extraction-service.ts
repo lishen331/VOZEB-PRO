@@ -123,9 +123,7 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
 
     let latestError: unknown;
     const resumeShots = (input.resumeShots || []).filter((shot) => shot && Number.isFinite(shot.order) && shot.order > 0);
-    const initialPrompt = resumeShots.length
-        ? buildContinuationPrompt(userPrompt, resumeShots, Math.max(...resumeShots.map((shot) => shot.order)), 0)
-        : userPrompt;
+    const initialPrompt = resumeShots.length ? buildContinuationPrompt(userPrompt, resumeShots, Math.max(...resumeShots.map((shot) => shot.order)), 0) : userPrompt;
     for (const candidate of rankTextPlanningCandidates(candidates)) {
         const idempotencyKey = systemAiIdempotencyKey("drama-lab-extract-storyboards", input.userId, input.project.id, input.episodeId, input.requestId, candidate.channelId, candidate.upstreamModel);
         try {
@@ -327,9 +325,7 @@ function mergeStoryboardShots(existing: DramaShot[], incoming: DramaShot[]) {
 }
 
 function buildContinuationPrompt(originalUserPrompt: string, alreadySaved: DramaShot[], lastShot: number, attempt: number) {
-    const summary = alreadySaved
-        .map((shot) => ({ order: shot.order, title: shot.title, sourceText: shot.sourceText }))
-        .slice(-40);
+    const summary = alreadySaved.map((shot) => ({ order: shot.order, title: shot.title, sourceText: shot.sourceText })).slice(-40);
     return [
         `Continue storyboard extraction (attempt ${attempt}). The previous response was truncated after shot ${lastShot}.`,
         `Return only a JSON object with a shots array. Start at shotNumber ${lastShot + 1}; never repeat an existing shot.`,

@@ -36,7 +36,14 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/frames/:frameType/lock"
     });
 
     it("locks a selected frame and persists the lock state", async () => {
-        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/first/lock?episodeId=episode-one", { method: "POST", body: JSON.stringify({ locked: true }), headers: { "content-type": "application/json", cookie: "session=test" } }), params);
+        const response = await POST(
+            new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/first/lock?episodeId=episode-one", {
+                method: "POST",
+                body: JSON.stringify({ locked: true }),
+                headers: { "content-type": "application/json", cookie: "session=test" },
+            }),
+            params,
+        );
 
         expect(response.status).toBe(200);
         expect(await response.json()).toMatchObject({ code: 0, data: { frame: { locked: true } } });
@@ -44,12 +51,18 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/frames/:frameType/lock"
     });
 
     it("rejects an invalid frame type or malformed lock body", async () => {
-        const invalidType = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/middle/lock?episodeId=episode-one", { method: "POST", body: JSON.stringify({ locked: true }), headers: { "content-type": "application/json" } }), {
-            params: Promise.resolve({ id: "project-one", shotId: "shot-one", frameType: "middle" }),
-        });
+        const invalidType = await POST(
+            new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/middle/lock?episodeId=episode-one", { method: "POST", body: JSON.stringify({ locked: true }), headers: { "content-type": "application/json" } }),
+            {
+                params: Promise.resolve({ id: "project-one", shotId: "shot-one", frameType: "middle" }),
+            },
+        );
         expect(invalidType.status).toBe(400);
 
-        const invalidBody = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/first/lock?episodeId=episode-one", { method: "POST", body: JSON.stringify({ locked: "yes" }), headers: { "content-type": "application/json" } }), params);
+        const invalidBody = await POST(
+            new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/first/lock?episodeId=episode-one", { method: "POST", body: JSON.stringify({ locked: "yes" }), headers: { "content-type": "application/json" } }),
+            params,
+        );
         expect(invalidBody.status).toBe(400);
         expect(mocks.persistDramaLabShotUpdate).not.toHaveBeenCalled();
     });
@@ -57,36 +70,53 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/frames/:frameType/lock"
     it("rejects locking a frame that is still running or has no persistent URL", async () => {
         mocks.getDramaProject.mockResolvedValue({
             ...project,
-            episodes: [{
-                ...project.episodes[0],
-                shots: [{
-                    ...project.episodes[0].shots[0],
-                    frames: { first: { status: "running", taskId: "frame-task" } },
-                }],
-            }],
+            episodes: [
+                {
+                    ...project.episodes[0],
+                    shots: [
+                        {
+                            ...project.episodes[0].shots[0],
+                            frames: { first: { status: "running", taskId: "frame-task" } },
+                        },
+                    ],
+                },
+            ],
         });
-        const running = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/first/lock?episodeId=episode-one", { method: "POST", body: JSON.stringify({ locked: true }), headers: { "content-type": "application/json" } }), params);
+        const running = await POST(
+            new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/first/lock?episodeId=episode-one", { method: "POST", body: JSON.stringify({ locked: true }), headers: { "content-type": "application/json" } }),
+            params,
+        );
         expect(running.status).toBe(409);
         expect(await running.json()).toMatchObject({ code: 409, msg: expect.stringContaining("尚未生成") });
 
         mocks.getDramaProject.mockResolvedValue({
             ...project,
-            episodes: [{
-                ...project.episodes[0],
-                shots: [{
-                    ...project.episodes[0].shots[0],
-                    frames: { first: { status: "success", url: "blob:temporary" } },
-                }],
-            }],
+            episodes: [
+                {
+                    ...project.episodes[0],
+                    shots: [
+                        {
+                            ...project.episodes[0].shots[0],
+                            frames: { first: { status: "success", url: "blob:temporary" } },
+                        },
+                    ],
+                },
+            ],
         });
-        const transient = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/first/lock?episodeId=episode-one", { method: "POST", body: JSON.stringify({ locked: true }), headers: { "content-type": "application/json" } }), params);
+        const transient = await POST(
+            new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/first/lock?episodeId=episode-one", { method: "POST", body: JSON.stringify({ locked: true }), headers: { "content-type": "application/json" } }),
+            params,
+        );
         expect(transient.status).toBe(409);
         expect(mocks.persistDramaLabShotUpdate).not.toHaveBeenCalled();
     });
 
     it("returns a conflict without changing the frame when the project was edited concurrently", async () => {
         mocks.persistDramaLabShotUpdate.mockRejectedValue(Object.assign(new Error("短剧项目已在其他页面更新，请刷新后重试"), { status: 409 }));
-        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/first/lock?episodeId=episode-one", { method: "POST", body: JSON.stringify({ locked: true }), headers: { "content-type": "application/json" } }), params);
+        const response = await POST(
+            new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/frames/first/lock?episodeId=episode-one", { method: "POST", body: JSON.stringify({ locked: true }), headers: { "content-type": "application/json" } }),
+            params,
+        );
         expect(response.status).toBe(409);
         expect(await response.json()).toMatchObject({ code: 409 });
     });

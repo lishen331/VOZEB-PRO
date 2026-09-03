@@ -65,6 +65,11 @@ describe("countLocalMediaReferences", () => {
 
         const result = await countLocalMediaReferences(["permanent/shared.png", "permanent/unreferenced.png"]);
 
-        expect(result).toEqual(new Map([["permanent/shared.png", 2], ["permanent/unreferenced.png", 0]]));
+        expect(result).toEqual(
+            new Map([
+                ["permanent/shared.png", 2],
+                ["permanent/unreferenced.png", 0],
+            ]),
+        );
     });
 });

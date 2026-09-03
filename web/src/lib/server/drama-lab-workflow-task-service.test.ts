@@ -64,14 +64,7 @@ vi.mock("@/lib/server/drama-lab-workflow-export-artifact", () => ({
     readDramaLabWorkflowExportArtifact: mocks.readDramaLabWorkflowExportArtifact,
 }));
 
-import {
-    advanceDramaLabWorkflow,
-    cancelDramaLabWorkflow,
-    findActiveDramaLabWorkflow,
-    getDramaLabWorkflowTask,
-    resumeDramaLabWorkflow,
-    startDramaLabWorkflow,
-} from "./drama-lab-workflow-task-service";
+import { advanceDramaLabWorkflow, cancelDramaLabWorkflow, findActiveDramaLabWorkflow, getDramaLabWorkflowTask, resumeDramaLabWorkflow, startDramaLabWorkflow } from "./drama-lab-workflow-task-service";
 import type { StartDramaLabWorkflowInput } from "./drama-lab-workflow-task-service";
 
 let project: AnyTask;
@@ -121,10 +114,7 @@ describe("drama lab workflow task service", () => {
                 .map(([, value]) => value)
                 .filter(
                     (value) =>
-                        value.userId === options.userId &&
-                        (!options.projectId || value.projectId === options.projectId) &&
-                        (!options.surface || value.surface === options.surface) &&
-                        (!options.statuses?.length || options.statuses.includes(value.status)),
+                        value.userId === options.userId && (!options.projectId || value.projectId === options.projectId) && (!options.surface || value.surface === options.surface) && (!options.statuses?.length || options.statuses.includes(value.status)),
                 )
                 .map((value) => structuredClone(value));
         });
@@ -147,7 +137,10 @@ describe("drama lab workflow task service", () => {
 
         mocks.getImageTask.mockResolvedValue(null);
         mocks.getVideoTask.mockResolvedValue(null);
-        vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ code: 0 }), { status: 200, headers: { "Content-Type": "application/json" } })));
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => new Response(JSON.stringify({ code: 0 }), { status: 200, headers: { "Content-Type": "application/json" } })),
+        );
     });
 
     afterAll(() => vi.unstubAllGlobals());
@@ -244,11 +237,7 @@ describe("drama lab workflow task service", () => {
                 projectId: project.id,
                 currentStepIndex: 1,
                 steps: [step("script", "success"), step("assets", "running"), step("storyboard", "pending")],
-                children: [
-                    child("image-task-one", "image", "running"),
-                    child("video-task-one", "video", "pending"),
-                    child("render-task-one", "render", "running"),
-                ],
+                children: [child("image-task-one", "image", "running"), child("video-task-one", "video", "pending"), child("render-task-one", "render", "running")],
             }),
         });
         mocks.tasks.set(`render:${task.id}`, task);
@@ -263,9 +252,7 @@ describe("drama lab workflow task service", () => {
                 [expect.any(URL), expect.objectContaining({ method: "PATCH", body: JSON.stringify({ action: "cancel" }), headers: expect.objectContaining({ cookie: "sid=one" }) })],
             ]),
         );
-        expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual(
-            expect.arrayContaining(["http://workflow.test/api/image-tasks/image-task-one", "http://workflow.test/api/video-tasks/video-task-one"]),
-        );
+        expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual(expect.arrayContaining(["http://workflow.test/api/image-tasks/image-task-one", "http://workflow.test/api/video-tasks/video-task-one"]));
 
         const cancelledStored = mocks.tasks.get(`render:${task.id}`)!;
         expect(cancelledStored.workflow.steps.every((item: AnyTask) => item.status === "cancelled" || item.status === "success")).toBe(true);
@@ -393,9 +380,7 @@ describe("drama lab workflow task service", () => {
         expect(mocks.reviewDramaLabWorkflowOutputs).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-one", episodeIds: ["episode-one"], project }));
         const stored = mocks.tasks.get(`render:${task.id}`)!;
         expect(stored.workflow.steps[0]).toMatchObject({ key: "review", status: "success" });
-        expect(stored.workflow.children).toEqual(expect.arrayContaining([
-            expect.objectContaining({ key: "review", status: "success", output: expect.objectContaining({ review, taskIds: ["review-run-1"] }) }),
-        ]));
+        expect(stored.workflow.children).toEqual(expect.arrayContaining([expect.objectContaining({ key: "review", status: "success", output: expect.objectContaining({ review, taskIds: ["review-run-1"] }) })]));
         expect(stored.workflow.outputRefs).toEqual(expect.arrayContaining([expect.objectContaining({ review })]));
     });
 
@@ -407,17 +392,13 @@ describe("drama lab workflow task service", () => {
         mocks.tasks.set(`render:${task.id}`, task);
         const needsRevision = reviewFixture({ status: "needs_revision", summary: "请补充镜头连续性" });
         const passed = reviewFixture({ status: "passed", summary: "复审通过", score: 100 });
-        mocks.reviewDramaLabWorkflowOutputs
-            .mockResolvedValueOnce({ review: needsRevision, taskIds: ["review-run-1"] })
-            .mockResolvedValueOnce({ review: passed, taskIds: ["review-run-2"] });
+        mocks.reviewDramaLabWorkflowOutputs.mockResolvedValueOnce({ review: needsRevision, taskIds: ["review-run-1"] }).mockResolvedValueOnce({ review: passed, taskIds: ["review-run-2"] });
 
         const failed = await advanceDramaLabWorkflow({ userId: "user-one", taskId: task.id });
         expect(failed).toMatchObject({ status: "error" });
         expect(failed?.error).toContain(needsRevision.summary);
         expect(failed?.workflow.steps[0]).toMatchObject({ status: "error" });
-        expect(failed?.workflow.children).toEqual(expect.arrayContaining([
-            expect.objectContaining({ key: "review", status: "error", error: needsRevision.summary, output: expect.objectContaining({ review: needsRevision }) }),
-        ]));
+        expect(failed?.workflow.children).toEqual(expect.arrayContaining([expect.objectContaining({ key: "review", status: "error", error: needsRevision.summary, output: expect.objectContaining({ review: needsRevision }) })]));
 
         const resumed = await resumeDramaLabWorkflow(failed as never, "user-one");
         expect(resumed).toMatchObject({ status: "pending" });
@@ -425,9 +406,7 @@ describe("drama lab workflow task service", () => {
         expect(completed).toMatchObject({ status: "success" });
         expect(mocks.reviewDramaLabWorkflowOutputs).toHaveBeenCalledTimes(2);
         const stored = mocks.tasks.get(`render:${task.id}`)!;
-        expect(stored.workflow.children).toEqual(expect.arrayContaining([
-            expect.objectContaining({ key: "review", status: "success", output: expect.objectContaining({ review: passed, taskIds: ["review-run-2"] }) }),
-        ]));
+        expect(stored.workflow.children).toEqual(expect.arrayContaining([expect.objectContaining({ key: "review", status: "success", output: expect.objectContaining({ review: passed, taskIds: ["review-run-2"] }) })]));
     });
 
     it("fails closed when the review service is unavailable", async () => {
@@ -443,9 +422,7 @@ describe("drama lab workflow task service", () => {
 
         expect(result).toMatchObject({ status: "error", error: unavailable.summary });
         expect(result?.workflow.steps[0]).toMatchObject({ status: "error", error: unavailable.summary });
-        expect(result?.workflow.children).toEqual(expect.arrayContaining([
-            expect.objectContaining({ key: "review", status: "error", error: unavailable.summary }),
-        ]));
+        expect(result?.workflow.children).toEqual(expect.arrayContaining([expect.objectContaining({ key: "review", status: "error", error: unavailable.summary })]));
         expect(result?.status).not.toBe("success");
     });
 

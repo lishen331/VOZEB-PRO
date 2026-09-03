@@ -113,17 +113,21 @@ export async function importDramaLabProjectForUser(input: { userId: string; arch
     validateProjectMediaReferences(sourceProject, parsed.media);
 
     const remapped = remapProject(sourceProject);
-    const base = await createDramaProjectForUser(input.userId, {
-        title: remapped.title,
-        summary: remapped.summary,
-        style: remapped.style,
-        ratio: remapped.ratio,
-        defaultVideoMode: remapped.defaultVideoMode,
-        initialScript: remapped.episodes[0]?.script || "",
-    }, {
-        executionProfile: sourceProject.executionProfile,
-        practiceSource: sourceProject.practiceSource,
-    });
+    const base = await createDramaProjectForUser(
+        input.userId,
+        {
+            title: remapped.title,
+            summary: remapped.summary,
+            style: remapped.style,
+            ratio: remapped.ratio,
+            defaultVideoMode: remapped.defaultVideoMode,
+            initialScript: remapped.episodes[0]?.script || "",
+        },
+        {
+            executionProfile: sourceProject.executionProfile,
+            practiceSource: sourceProject.practiceSource,
+        },
+    );
     const writtenKeys: string[] = [];
     try {
         const restoredMedia = await restoreArchiveMedia({
@@ -373,7 +377,9 @@ function remapShot(shot: DramaShot, shotMap: Map<string, string>, characterMap: 
         utterances: Array.isArray(shot.utterances) ? shot.utterances.map((item) => ({ ...item, id: newEntityId("utterance") })) : [],
         frames: remapFrameStates(shot.frames),
         firstFrameCandidate: shot.firstFrameCandidate ? { ...shot.firstFrameCandidate, id: newEntityId("candidate"), sourceShotId: shotMap.get(shot.firstFrameCandidate.sourceShotId) || shot.firstFrameCandidate.sourceShotId } : undefined,
-        videoFrameSnapshot: shot.videoFrameSnapshot ? { ...shot.videoFrameSnapshot, references: shot.videoFrameSnapshot.references.map((item) => ({ ...item, sourceShotId: item.sourceShotId ? shotMap.get(item.sourceShotId) || item.sourceShotId : undefined })) } : undefined,
+        videoFrameSnapshot: shot.videoFrameSnapshot
+            ? { ...shot.videoFrameSnapshot, references: shot.videoFrameSnapshot.references.map((item) => ({ ...item, sourceShotId: item.sourceShotId ? shotMap.get(item.sourceShotId) || item.sourceShotId : undefined })) }
+            : undefined,
         storyboardHistory: shot.storyboardHistory?.map((item) => ({ ...item, id: newEntityId("history") })),
         videoHistory: shot.videoHistory?.map((item) => ({ ...item, id: newEntityId("history") })),
     };
@@ -382,7 +388,12 @@ function remapShot(shot: DramaShot, shotMap: Map<string, string>, characterMap: 
 
 function remapFrameStates(frames: DramaShot["frames"]) {
     if (!frames) return undefined;
-    return Object.fromEntries(Object.entries(frames).map(([type, frame]) => [type, frame ? { ...frame, status: resetTaskStatus(frame.status), taskId: resetTaskId(frame.status, frame.taskId), history: frame.history?.map((item) => ({ ...item, id: newEntityId("history") })) } : frame])) as DramaShot["frames"];
+    return Object.fromEntries(
+        Object.entries(frames).map(([type, frame]) => [
+            type,
+            frame ? { ...frame, status: resetTaskStatus(frame.status), taskId: resetTaskId(frame.status, frame.taskId), history: frame.history?.map((item) => ({ ...item, id: newEntityId("history") })) } : frame,
+        ]),
+    ) as DramaShot["frames"];
 }
 
 function resetTaskStatus(status: DramaTaskStatus | undefined): DramaTaskStatus | undefined {
@@ -440,7 +451,16 @@ async function collectProjectMedia(project: DramaProject, userId: string, input:
                 if (mediaBytes.byteLength > MAX_MEDIA_BYTES) throw new DramaLabProjectArchiveError("单个媒体文件超过 200MB", 413);
                 files.push({ zipPath, bytes: mediaBytes });
             }
-            const item: ArchiveMediaManifest = { id, zipPath: input.includeMedia ? zipPath : undefined, scope: registration.scope, type: registration.type, mimeType: registration.mimeType, bytes: input.includeMedia ? mediaBytes?.byteLength || registration.bytes : registration.bytes, included: input.includeMedia, ...(registration.originalName ? { originalName: registration.originalName } : {}) };
+            const item: ArchiveMediaManifest = {
+                id,
+                zipPath: input.includeMedia ? zipPath : undefined,
+                scope: registration.scope,
+                type: registration.type,
+                mimeType: registration.mimeType,
+                bytes: input.includeMedia ? mediaBytes?.byteLength || registration.bytes : registration.bytes,
+                included: input.includeMedia,
+                ...(registration.originalName ? { originalName: registration.originalName } : {}),
+            };
             manifest.push(item);
             bySourceKey.set(sourceKey, { id, manifest: item });
         }
@@ -505,7 +525,11 @@ function transformPortableValue(value: unknown, path: string, transform: (value:
     if (typeof value === "string") return transform(value, path);
     if (Array.isArray(value)) return value.map((item, index) => transformPortableValue(item, `${path}[${index}]`, transform)).filter((item) => item !== undefined);
     if (!value || typeof value !== "object") return value;
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, transformPortableValue(item, `${path}.${key}`, transform)]).filter(([, item]) => item !== undefined));
+    return Object.fromEntries(
+        Object.entries(value)
+            .map(([key, item]) => [key, transformPortableValue(item, `${path}.${key}`, transform)])
+            .filter(([, item]) => item !== undefined),
+    );
 }
 
 async function restoreArchiveMedia(input: { archive: ParsedDramaLabProjectArchive; userId: string; projectId: string; origin: string; cookie?: string }) {
@@ -631,5 +655,10 @@ function cleanId(value: unknown) {
 }
 
 function safeFileName(value: string) {
-    return value.trim().replace(/[\\/:*?"<>|]/g, "_").replace(/\.{2,}/g, "_").replace(/[. ]+$/g, "").slice(0, 100);
+    return value
+        .trim()
+        .replace(/[\\/:*?"<>|]/g, "_")
+        .replace(/\.{2,}/g, "_")
+        .replace(/[. ]+$/g, "")
+        .slice(0, 100);
 }

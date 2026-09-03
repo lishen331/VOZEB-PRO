@@ -209,11 +209,25 @@ describe("drama lab tail frame extraction", () => {
 
         expect(mocks.downloadMediaToFile).toHaveBeenCalledWith("/api/reference-assets/permanent/video.mp4", expect.stringContaining("source-video"), expect.objectContaining({ origin: "http://localhost:3000", cookie: "session=one" }));
         expect(mocks.runFfmpeg).toHaveBeenCalledWith(expect.arrayContaining(["-sseof", "-1", "-frames:v", "1"]), expect.objectContaining({ cwd: "C:/temp/tail-frame" }));
-        expect(mocks.writeReferenceMediaFile).toHaveBeenCalledWith(expect.stringContaining("tail-frame.jpg"), "image", "image/jpeg", true, expect.objectContaining({ ownerUserId: "user-one", source: "drama-lab-tail-frame", taskId: "video-task-one", projectId: "project-one" }));
+        expect(mocks.writeReferenceMediaFile).toHaveBeenCalledWith(
+            expect.stringContaining("tail-frame.jpg"),
+            "image",
+            "image/jpeg",
+            true,
+            expect.objectContaining({ ownerUserId: "user-one", source: "drama-lab-tail-frame", taskId: "video-task-one", projectId: "project-one" }),
+        );
         expect(mocks.persistDramaLabShotUpdate).toHaveBeenCalledTimes(2);
         expect(mocks.persistDramaLabShotUpdate.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ retryOnConflict: false }));
         expect(mocks.persistDramaLabShotUpdate.mock.calls[1]?.[0]).toEqual(expect.objectContaining({ retryOnConflict: false }));
-        expect(result.frame).toMatchObject({ url: "/api/reference-assets/permanent/2026/09/01/images/tail.jpg", source: "video_tail", sourceVideoTaskId: "video-task-one", sourceShotId: "shot-one", sourceVideoHistoryId: "history-one", width: 720, height: 1280 });
+        expect(result.frame).toMatchObject({
+            url: "/api/reference-assets/permanent/2026/09/01/images/tail.jpg",
+            source: "video_tail",
+            sourceVideoTaskId: "video-task-one",
+            sourceShotId: "shot-one",
+            sourceVideoHistoryId: "history-one",
+            width: 720,
+            height: 1280,
+        });
         expect(result.nextShot).toMatchObject({ id: "shot-two", candidate: { sourceVideoTaskId: "video-task-one", sourceShotId: "shot-one", sourceVideoHistoryId: "history-one", url: "/api/reference-assets/permanent/2026/09/01/images/tail.jpg" } });
     });
 
@@ -277,7 +291,10 @@ describe("drama lab tail frame extraction", () => {
             ...project,
             episodes: [{ ...project.episodes[0], shots: [{ ...project.episodes[0].shots[0], frames: { last: persistedTail } }, project.episodes[0].shots[1]] }],
         };
-        await expect(extractDramaLabTailFrame({ userId: "user-one", origin: "http://localhost:3000", cookie: "", project: inputProject, episodeId: "episode-one", shotId: "shot-one" })).rejects.toMatchObject({ status: 409, message: expect.stringContaining("尾帧已锁定") });
+        await expect(extractDramaLabTailFrame({ userId: "user-one", origin: "http://localhost:3000", cookie: "", project: inputProject, episodeId: "episode-one", shotId: "shot-one" })).rejects.toMatchObject({
+            status: 409,
+            message: expect.stringContaining("尾帧已锁定"),
+        });
         expect(mocks.downloadMediaToFile).not.toHaveBeenCalled();
 
         resetSuccessMocks();
@@ -363,9 +380,7 @@ describe("drama lab tail frame extraction", () => {
             ],
         };
 
-        await expect(
-            acceptDramaLabFirstFrameCandidate({ userId: "user-one", project: candidateProject, episodeId: "episode-one", shotId: "shot-two", candidateId: "candidate-one" }),
-        ).rejects.toMatchObject({ status: 404 });
+        await expect(acceptDramaLabFirstFrameCandidate({ userId: "user-one", project: candidateProject, episodeId: "episode-one", shotId: "shot-two", candidateId: "candidate-one" })).rejects.toMatchObject({ status: 404 });
     });
 
     it("does not allow replacing a locked first frame even when replacement is requested", async () => {
@@ -398,9 +413,7 @@ describe("drama lab tail frame extraction", () => {
             ],
         };
 
-        await expect(
-            acceptDramaLabFirstFrameCandidate({ userId: "user-one", project: candidateProject, episodeId: "episode-one", shotId: "shot-two", candidateId: "candidate-one", replaceExisting: true }),
-        ).rejects.toMatchObject({ status: 409 });
+        await expect(acceptDramaLabFirstFrameCandidate({ userId: "user-one", project: candidateProject, episodeId: "episode-one", shotId: "shot-two", candidateId: "candidate-one", replaceExisting: true })).rejects.toMatchObject({ status: 409 });
         expect(mocks.persistDramaLabShotUpdate).not.toHaveBeenCalled();
     });
 
@@ -487,14 +500,36 @@ describe("drama lab tail frame extraction", () => {
             ],
         };
 
-        await expect(extractDramaLabTailFrame({ userId: "user-one", origin: "http://localhost:3000", cookie: "", project: lockedTailProject, episodeId: "episode-one", shotId: "shot-one" })).rejects.toMatchObject({ status: 409, message: expect.stringContaining("尾帧已锁定") });
+        await expect(extractDramaLabTailFrame({ userId: "user-one", origin: "http://localhost:3000", cookie: "", project: lockedTailProject, episodeId: "episode-one", shotId: "shot-one" })).rejects.toMatchObject({
+            status: 409,
+            message: expect.stringContaining("尾帧已锁定"),
+        });
         expect(mocks.downloadMediaToFile).not.toHaveBeenCalled();
         expect(mocks.writeReferenceMediaFile).not.toHaveBeenCalled();
         expect(mocks.persistDramaLabShotUpdate).not.toHaveBeenCalled();
 
         const lockedSameTask = {
             ...lockedTailProject,
-            episodes: [{ ...lockedTailProject.episodes[0], shots: [{ ...lockedTailProject.episodes[0].shots[0], frames: { last: { ...lockedTailProject.episodes[0].shots[0].frames!.last, prompt: lockedTailProject.episodes[0].shots[0].frames!.last?.prompt || "", status: "success" as const, sourceVideoTaskId: "video-task-one", storageKey: undefined } } }, lockedTailProject.episodes[0].shots[1]] }],
+            episodes: [
+                {
+                    ...lockedTailProject.episodes[0],
+                    shots: [
+                        {
+                            ...lockedTailProject.episodes[0].shots[0],
+                            frames: {
+                                last: {
+                                    ...lockedTailProject.episodes[0].shots[0].frames!.last,
+                                    prompt: lockedTailProject.episodes[0].shots[0].frames!.last?.prompt || "",
+                                    status: "success" as const,
+                                    sourceVideoTaskId: "video-task-one",
+                                    storageKey: undefined,
+                                },
+                            },
+                        },
+                        lockedTailProject.episodes[0].shots[1],
+                    ],
+                },
+            ],
         };
         await expect(extractDramaLabTailFrame({ userId: "user-one", origin: "http://localhost:3000", cookie: "", project: lockedSameTask, episodeId: "episode-one", shotId: "shot-one" })).rejects.toMatchObject({ status: 409 });
         expect(mocks.downloadMediaToFile).not.toHaveBeenCalled();

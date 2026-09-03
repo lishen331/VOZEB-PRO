@@ -4,7 +4,16 @@ import { nanoid } from "nanoid";
 
 import type { CanvasProject, CanvasProjectMutation, CanvasProjectSaveAck, CreateCanvasProjectInput } from "@/lib/canvas-project-contract";
 import { DRAMA_LAB_CANVAS_HANDOFF_PREFIX, dramaLabEpisodeCanvasHandoffId, isDramaLabCanvasProject, parseDramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract";
-import { createCanvasProject, CanvasProjectStoreError, getCanvasProject, getCanvasProjectWithOwner, listCanvasProjectSummaries, listDramaLabCanvasProjectSummariesForProjects, updateCanvasProject, updateCanvasProjectMutationPatch } from "@/lib/server/canvas-project-store";
+import {
+    createCanvasProject,
+    CanvasProjectStoreError,
+    getCanvasProject,
+    getCanvasProjectWithOwner,
+    listCanvasProjectSummaries,
+    listDramaLabCanvasProjectSummariesForProjects,
+    updateCanvasProject,
+    updateCanvasProjectMutationPatch,
+} from "@/lib/server/canvas-project-store";
 import { getDramaLabMembership, getDramaLabProjectGroup, listDramaLabProjectIdsForUser } from "@/lib/server/drama-lab-collaboration-service";
 import { deleteUserMediaAssetsCascade } from "@/lib/server/user-media-deletion-service";
 import { createCreativeConversation, updateCreativeConversation } from "@/lib/server/creative-runtime-store";
@@ -209,10 +218,7 @@ async function deleteScopedCanvasAssistantConversationsForUser(userId: string, p
     if (!ids.length) return { deleted: 0, chatSessions: project.chatSessions, activeChatId: project.activeChatId };
     let result: Awaited<ReturnType<typeof deleteCanvasAssistantConversationAggregates>>;
     try {
-        result =
-            scope === "drama-lab"
-                ? await deleteCanvasAssistantConversationAggregates(storageOwnerUserId, projectId, ids, { includeDramaLab: true })
-                : await deleteCanvasAssistantConversationAggregates(storageOwnerUserId, projectId, ids);
+        result = scope === "drama-lab" ? await deleteCanvasAssistantConversationAggregates(storageOwnerUserId, projectId, ids, { includeDramaLab: true }) : await deleteCanvasAssistantConversationAggregates(storageOwnerUserId, projectId, ids);
     } catch (error) {
         if (error instanceof CreativeEntityDeletionConflict) throw new CanvasProjectServiceError(error.message, 409);
         throw error;

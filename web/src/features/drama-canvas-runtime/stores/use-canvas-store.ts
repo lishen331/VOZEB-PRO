@@ -6,7 +6,14 @@ import type { CanvasProject, CanvasProjectSummary } from "@/lib/canvas-project-c
 import type { IpReference } from "@/lib/ip-library-domain";
 import { applyCanvasProjectMutation, createCanvasProjectMutation, hasCanvasProjectMutationChanges } from "@/lib/canvas-project-mutation";
 import { summarizeCanvasProjectRecord } from "@/lib/canvas-project-summary";
-import { CanvasProjectRequestError, createCanvasProject, deleteCanvasProjects as deleteCanvasProjectsRequest, getDramaLabCanvasProject as getCanvasProject, listCanvasProjectSummaries, saveDramaLabCanvasProjectMutation as saveCanvasProjectMutation } from "@/services/api/drama-lab-canvas-projects";
+import {
+    CanvasProjectRequestError,
+    createCanvasProject,
+    deleteCanvasProjects as deleteCanvasProjectsRequest,
+    getDramaLabCanvasProject as getCanvasProject,
+    listCanvasProjectSummaries,
+    saveDramaLabCanvasProjectMutation as saveCanvasProjectMutation,
+} from "@/services/api/drama-lab-canvas-projects";
 import { useUserStore } from "@/stores/use-user-store";
 
 export type { CanvasProject, CanvasProjectSummary } from "@/lib/canvas-project-contract";

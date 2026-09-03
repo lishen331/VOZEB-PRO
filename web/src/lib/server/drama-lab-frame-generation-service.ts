@@ -142,9 +142,7 @@ export function buildDramaLabFrameReferences(project: DramaProject, shot: DramaS
 }
 
 export function previousDramaLabShot(shots: DramaShot[], shot: DramaShot) {
-    return shots
-        .filter((candidate) => candidate.id !== shot.id && candidate.order < shot.order)
-        .sort((left, right) => right.order - left.order)[0];
+    return shots.filter((candidate) => candidate.id !== shot.id && candidate.order < shot.order).sort((left, right) => right.order - left.order)[0];
 }
 
 function assertBindings(project: DramaProject, shot: DramaShot) {

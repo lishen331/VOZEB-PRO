@@ -22,10 +22,19 @@ vi.mock("@/lib/auth/request", () => ({ readJsonBody: vi.fn(async (request: Reque
 vi.mock("@/lib/server/drama-project-store", () => ({ getDramaProject: mocks.getDramaProject }));
 vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
     resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
-    DramaLabCollaborationError: class DramaLabCollaborationError extends Error { constructor(message: string, readonly status = 403) { super(message); } },
+    DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
+        constructor(
+            message: string,
+            readonly status = 403,
+        ) {
+            super(message);
+        }
+    },
 }));
 vi.mock("@/lib/server/drama-lab-workflow-task-service", () => ({
-    DramaLabWorkflowError: class DramaLabWorkflowError extends Error { status = 400; },
+    DramaLabWorkflowError: class DramaLabWorkflowError extends Error {
+        status = 400;
+    },
     startDramaLabWorkflow: mocks.startDramaLabWorkflow,
     getDramaLabWorkflowTask: mocks.getDramaLabWorkflowTask,
     findActiveDramaLabWorkflow: mocks.findActiveDramaLabWorkflow,
@@ -57,7 +66,9 @@ describe("Drama Lab workflow route", () => {
     });
 
     it("creates a durable parent task and returns 202", async () => {
-        const response = await POST(new Request("http://localhost/api/drama-lab/projects/project-one/workflow", { method: "POST", body: JSON.stringify({ episodeId: "episode-one", mode: "video", scope: "current", requestId: "request-one" }) }), { params: Promise.resolve({ id: "project-one" }) });
+        const response = await POST(new Request("http://localhost/api/drama-lab/projects/project-one/workflow", { method: "POST", body: JSON.stringify({ episodeId: "episode-one", mode: "video", scope: "current", requestId: "request-one" }) }), {
+            params: Promise.resolve({ id: "project-one" }),
+        });
         expect(response.status).toBe(202);
         expect(await response.json()).toMatchObject({ code: 0, data: { id: "workflow-one", status: "pending" } });
         expect(mocks.startDramaLabWorkflow).toHaveBeenCalledWith(expect.objectContaining({ projectId: "project-one", sourceEpisodeId: "episode-one", requestId: "request-one", options: expect.objectContaining({ mode: "video" }) }));
@@ -93,11 +104,15 @@ describe("Drama Lab workflow route", () => {
     });
 
     it("cancels and resumes a project workflow through the caller's membership", async () => {
-        const cancelResponse = await PATCH(new Request("http://localhost/api/drama-lab/projects/project-one/workflow", { method: "PATCH", body: JSON.stringify({ taskId: "workflow-one", action: "cancel" }) }), { params: Promise.resolve({ id: "project-one" }) });
+        const cancelResponse = await PATCH(new Request("http://localhost/api/drama-lab/projects/project-one/workflow", { method: "PATCH", body: JSON.stringify({ taskId: "workflow-one", action: "cancel" }) }), {
+            params: Promise.resolve({ id: "project-one" }),
+        });
         expect(cancelResponse.status).toBe(200);
         expect(mocks.cancelDramaLabWorkflow).toHaveBeenCalledWith(task, "user-one", "http://localhost", "");
 
-        const resumeResponse = await PATCH(new Request("http://localhost/api/drama-lab/projects/project-one/workflow", { method: "PATCH", body: JSON.stringify({ taskId: "workflow-one", action: "resume" }) }), { params: Promise.resolve({ id: "project-one" }) });
+        const resumeResponse = await PATCH(new Request("http://localhost/api/drama-lab/projects/project-one/workflow", { method: "PATCH", body: JSON.stringify({ taskId: "workflow-one", action: "resume" }) }), {
+            params: Promise.resolve({ id: "project-one" }),
+        });
         expect(resumeResponse.status).toBe(200);
         expect(mocks.resumeDramaLabWorkflow).toHaveBeenCalledWith(task, "user-one");
     });
@@ -106,8 +121,12 @@ describe("Drama Lab workflow route", () => {
         mocks.getCurrentUser.mockResolvedValue({ id: "member-two" });
         mocks.getDramaLabWorkflowTask.mockResolvedValue({ ...task, userId: "user-one" });
 
-        const cancelResponse = await PATCH(new Request("http://localhost/api/drama-lab/projects/project-one/workflow", { method: "PATCH", body: JSON.stringify({ taskId: "workflow-one", action: "cancel" }) }), { params: Promise.resolve({ id: "project-one" }) });
-        const resumeResponse = await PATCH(new Request("http://localhost/api/drama-lab/projects/project-one/workflow", { method: "PATCH", body: JSON.stringify({ taskId: "workflow-one", action: "resume" }) }), { params: Promise.resolve({ id: "project-one" }) });
+        const cancelResponse = await PATCH(new Request("http://localhost/api/drama-lab/projects/project-one/workflow", { method: "PATCH", body: JSON.stringify({ taskId: "workflow-one", action: "cancel" }) }), {
+            params: Promise.resolve({ id: "project-one" }),
+        });
+        const resumeResponse = await PATCH(new Request("http://localhost/api/drama-lab/projects/project-one/workflow", { method: "PATCH", body: JSON.stringify({ taskId: "workflow-one", action: "resume" }) }), {
+            params: Promise.resolve({ id: "project-one" }),
+        });
 
         expect(cancelResponse.status).toBe(200);
         expect(resumeResponse.status).toBe(200);

@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
     resolveInternalOrigin: vi.fn(),
     assertDramaLabStageAllowed: vi.fn(),
     requestRuntimeCredential: vi.fn((request: Request) => request.headers.get("x-runtime-credential") || request.headers.get("cookie") || ""),
-    maintenanceWorkerContextHeaders: vi.fn((credential: string) => credential.startsWith("worker-context") ? { authorization: "Bearer worker-token", "x-vozeb-pro-worker-user-id": "user-one" } : null),
+    maintenanceWorkerContextHeaders: vi.fn((credential: string) => (credential.startsWith("worker-context") ? { authorization: "Bearer worker-token", "x-vozeb-pro-worker-user-id": "user-one" } : null)),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));

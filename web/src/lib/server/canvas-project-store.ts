@@ -63,11 +63,7 @@ export async function listCanvasProjectPage(userId: string, input: { page: numbe
 export async function listCanvasProjectSummaries(userId: string, input: { page: number; pageSize: number; executionProfile?: PracticeExecutionProfile; includeDramaLab?: boolean; dramaLabOnly?: boolean }): Promise<CanvasProjectSummaryPage> {
     const offset = (input.page - 1) * input.pageSize;
     const profileClause = input.executionProfile ? " AND execution_profile = $4" : "";
-    const dramaLabClause = input.dramaLabOnly
-        ? " AND COALESCE(project_json->>'sourceHandoffId', '') LIKE 'drama-lab-canvas:%'"
-        : input.includeDramaLab
-          ? ""
-          : " AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'";
+    const dramaLabClause = input.dramaLabOnly ? " AND COALESCE(project_json->>'sourceHandoffId', '') LIKE 'drama-lab-canvas:%'" : input.includeDramaLab ? "" : " AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<Record<string, unknown>>(

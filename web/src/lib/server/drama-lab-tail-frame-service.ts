@@ -62,7 +62,7 @@ export async function extractDramaLabTailFrame(input: DramaLabTailFrameExtractio
     if (!task || !isProjectActor(task.userId, input)) throw new DramaLabShotGenerationError("当前分镜的视频任务不存在或不属于当前项目成员", 409);
     if (task.status !== "success") throw new DramaLabShotGenerationError("当前分镜的视频任务尚未成功完成", 409);
 
-    const taskResult = task.result as (Record<string, unknown> | undefined);
+    const taskResult = task.result as Record<string, unknown> | undefined;
     const sourceUrl = [task.result?.url, taskResult?.serverUrl, task.result?.remoteUrl, taskResult?.dataUrl].find((value): value is string => typeof value === "string" && value.trim().length > 0)?.trim() || "";
     if (!isPersistentMediaUrl(sourceUrl)) throw new DramaLabShotGenerationError("当前分镜的视频结果地址不可用，请先同步视频结果", 409);
 
@@ -167,9 +167,7 @@ export async function acceptDramaLabFirstFrameCandidate(input: DramaLabFirstFram
     const { shot } = findShot(input.project, input.episodeId, input.shotId);
     const candidate = shot.firstFrameCandidate;
     if (!candidate || candidate.id !== input.candidateId) throw new DramaLabShotGenerationError("候选首帧不存在或不属于当前项目", 404);
-    const source = input.project.episodes
-        .find((episode) => episode.id === input.episodeId)
-        ?.shots.find((sourceShot) => sourceShot.id === candidate.sourceShotId);
+    const source = input.project.episodes.find((episode) => episode.id === input.episodeId)?.shots.find((sourceShot) => sourceShot.id === candidate.sourceShotId);
     if (!source || source.generationTaskId !== candidate.sourceVideoTaskId) throw new DramaLabShotGenerationError("候选首帧的来源分镜无效", 404);
     const sourceEpisode = input.project.episodes.find((episode) => episode.id === input.episodeId);
     const expectedTarget = sourceEpisode ? nextDramaLabShot(sourceEpisode.shots, source) : undefined;
@@ -181,7 +179,16 @@ export async function acceptDramaLabFirstFrameCandidate(input: DramaLabFirstFram
     if (!sourceTask || !isProjectActor(sourceTask.userId, input) || sourceTask.status !== "success") throw new DramaLabShotGenerationError("候选首帧的来源视频任务无效", 404);
     if (!candidate.storageKey) throw new DramaLabShotGenerationError("候选首帧媒体未完成登记", 404);
     const registration = await getLocalMediaRegistration(candidate.storageKey);
-    if (!registration || !isProjectActor(registration.ownerUserId, input) || registration.projectId !== input.project.id || registration.taskId !== candidate.sourceVideoTaskId || registration.type !== "image" || registration.source !== "drama-lab-tail-frame" || registration.storageClass !== "permanent" || Boolean(registration.expiresAt && Date.parse(registration.expiresAt) <= Date.now())) {
+    if (
+        !registration ||
+        !isProjectActor(registration.ownerUserId, input) ||
+        registration.projectId !== input.project.id ||
+        registration.taskId !== candidate.sourceVideoTaskId ||
+        registration.type !== "image" ||
+        registration.source !== "drama-lab-tail-frame" ||
+        registration.storageClass !== "permanent" ||
+        Boolean(registration.expiresAt && Date.parse(registration.expiresAt) <= Date.now())
+    ) {
         throw new DramaLabShotGenerationError("候选首帧媒体不存在或不属于当前项目", 404);
     }
     if (canonicalReferenceStorageKey(candidate.url) !== normalizeStorageKey(candidate.storageKey)) throw new DramaLabShotGenerationError("candidate media URL does not match its storage key", 404);
@@ -192,17 +199,18 @@ export async function acceptDramaLabFirstFrameCandidate(input: DramaLabFirstFram
     if (hasExistingFirst && currentFirst?.locked) throw new DramaLabShotGenerationError("current first frame is locked", 409);
     if (hasExistingFirst && !input.replaceExisting) throw new DramaLabShotGenerationError("当前镜头已有首帧，请确认是否替换", 409);
 
-    const history = hasExistingFirst && currentFirst
-        ? appendDramaLabGenerationHistory(currentFirst.history, {
-              id: `frame:first:${currentFirst.taskId || currentFirst.url}`,
-              taskId: currentFirst.taskId || `frame:first:${currentFirst.url}`,
-              url: currentFirst.url!,
-              prompt: currentFirst.prompt || "",
-              createdAt: new Date().toISOString(),
-              width: currentFirst.width,
-              height: currentFirst.height,
-          })
-        : currentFirst?.history;
+    const history =
+        hasExistingFirst && currentFirst
+            ? appendDramaLabGenerationHistory(currentFirst.history, {
+                  id: `frame:first:${currentFirst.taskId || currentFirst.url}`,
+                  taskId: currentFirst.taskId || `frame:first:${currentFirst.url}`,
+                  url: currentFirst.url!,
+                  prompt: currentFirst.prompt || "",
+                  createdAt: new Date().toISOString(),
+                  width: currentFirst.width,
+                  height: currentFirst.height,
+              })
+            : currentFirst?.history;
     const first: DramaShotFrameState = {
         ...(currentFirst || { prompt: "" }),
         prompt: currentFirst?.prompt || "",
@@ -237,9 +245,7 @@ export async function acceptDramaLabFirstFrameCandidate(input: DramaLabFirstFram
 function nextDramaLabShot(shots: DramaShot[], current: DramaShot | string) {
     const currentOrder = typeof current === "string" ? shots.find((shot) => shot.id === current)?.order : current.order;
     if (currentOrder === undefined) return undefined;
-    return shots
-        .filter((candidate) => candidate.id !== (typeof current === "string" ? current : current.id) && candidate.order > currentOrder)
-        .sort((left, right) => left.order - right.order || left.id.localeCompare(right.id))[0];
+    return shots.filter((candidate) => candidate.id !== (typeof current === "string" ? current : current.id) && candidate.order > currentOrder).sort((left, right) => left.order - right.order || left.id.localeCompare(right.id))[0];
 }
 
 function candidateAsFrame(candidate: DramaShotFrameCandidate): DramaShotFrameState {

@@ -134,7 +134,9 @@ export async function writebackDramaCanvasForUser(userIdValue: string, canvasIdV
     };
 }
 
-function normalizeRequest(value: unknown): Required<Pick<DramaCanvasWritebackRequest, "projectId" | "episodeId" | "nodeId" | "kind" | "expectedProjectUpdatedAt">> & Omit<DramaCanvasWritebackRequest, "projectId" | "episodeId" | "nodeId" | "kind" | "expectedProjectUpdatedAt"> {
+function normalizeRequest(
+    value: unknown,
+): Required<Pick<DramaCanvasWritebackRequest, "projectId" | "episodeId" | "nodeId" | "kind" | "expectedProjectUpdatedAt">> & Omit<DramaCanvasWritebackRequest, "projectId" | "episodeId" | "nodeId" | "kind" | "expectedProjectUpdatedAt"> {
     const input = object(value);
     const target = object(input.target);
     const kind = normalizeKind(input.kind ?? input.targetType ?? target.kind ?? target.type);
@@ -202,9 +204,21 @@ function applyShotWriteback(shot: DramaShot, input: ReturnType<typeof normalizeR
         const current = shot.frames?.[input.frameType!];
         if (current?.locked) throw new DramaCanvasWritebackError("This frame is locked; unlock it before applying another image", 409);
         const taskId = node.metadata?.imageTask?.id || node.metadata?.agentTaskId;
-        const history = current?.url && current.url !== media.url
-            ? [...(current.history || []), { id: `frame:${input.frameType}:${current.taskId || current.url}`, taskId: current.taskId || `frame:${input.frameType}:${current.url}`, url: current.url, prompt: current.prompt || "", createdAt: new Date().toISOString(), width: current.width, height: current.height }].slice(-20)
-            : current?.history;
+        const history =
+            current?.url && current.url !== media.url
+                ? [
+                      ...(current.history || []),
+                      {
+                          id: `frame:${input.frameType}:${current.taskId || current.url}`,
+                          taskId: current.taskId || `frame:${input.frameType}:${current.url}`,
+                          url: current.url,
+                          prompt: current.prompt || "",
+                          createdAt: new Date().toISOString(),
+                          width: current.width,
+                          height: current.height,
+                      },
+                  ].slice(-20)
+                : current?.history;
         return {
             ...shot,
             frames: {
@@ -232,9 +246,13 @@ function applyShotWriteback(shot: DramaShot, input: ReturnType<typeof normalizeR
     if (input.kind === "shot-video") {
         if (!media) throw new DramaCanvasWritebackError("A stable video is required for a shot video", 422);
         const taskId = node.metadata?.videoTask?.id || node.metadata?.agentTaskId;
-        const history = shot.videoUrl && shot.videoUrl !== media.url
-            ? [...(shot.videoHistory || []), { id: `video:${shot.generationTaskId || shot.videoUrl}`, taskId: shot.generationTaskId || `video:${shot.videoUrl}`, url: shot.videoUrl, prompt: shot.videoPrompt || "", createdAt: new Date().toISOString() }].slice(-20)
-            : shot.videoHistory;
+        const history =
+            shot.videoUrl && shot.videoUrl !== media.url
+                ? [
+                      ...(shot.videoHistory || []),
+                      { id: `video:${shot.generationTaskId || shot.videoUrl}`, taskId: shot.generationTaskId || `video:${shot.videoUrl}`, url: shot.videoUrl, prompt: shot.videoPrompt || "", createdAt: new Date().toISOString() },
+                  ].slice(-20)
+                : shot.videoHistory;
         return { ...shot, generationStatus: "success", generationTaskId: taskId, generationNeedsReview: undefined, generationError: undefined, videoUrl: media.url, videoHistory: history };
     }
     const content = text(node.metadata?.content || node.metadata?.composerContent || node.metadata?.prompt || node.metadata?.sourcePrompt, MAX_TEXT_LENGTH);
@@ -266,7 +284,13 @@ async function resolveNodeMedia(userId: string, projectId: string, canvasId: str
     }
     if (storageKey) {
         const registration = await getLocalMediaRegistration(storageKey);
-        if (!registration || registration.ownerUserId !== userId || registration.projectId && registration.projectId !== projectId && registration.projectId !== canvasId || registration.type !== expectedType || isLocalMediaRegistrationExpired(registration)) {
+        if (
+            !registration ||
+            registration.ownerUserId !== userId ||
+            (registration.projectId && registration.projectId !== projectId && registration.projectId !== canvasId) ||
+            registration.type !== expectedType ||
+            isLocalMediaRegistrationExpired(registration)
+        ) {
             throw new DramaCanvasWritebackError("Canvas media is not owned by the current user or is no longer available", 403);
         }
     }

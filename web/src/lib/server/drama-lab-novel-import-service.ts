@@ -94,7 +94,12 @@ function toEpisode(draft: DramaSourceEpisodeDraft, index: number): DramaEpisode 
 }
 
 function normalizeSourceText(value: unknown) {
-    return typeof value === "string" ? value.replace(/^\uFEFF/u, "").replace(/\r\n?/gu, "\n").trim() : "";
+    return typeof value === "string"
+        ? value
+              .replace(/^\uFEFF/u, "")
+              .replace(/\r\n?/gu, "\n")
+              .trim()
+        : "";
 }
 
 function normalizeFileName(value: unknown) {

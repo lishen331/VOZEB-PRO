@@ -30,7 +30,14 @@ vi.mock("@/lib/server/drama-project-store", () => {
 vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
     resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
     assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed,
-    DramaLabCollaborationError: class DramaLabCollaborationError extends Error { constructor(message: string, readonly status = 403) { super(message); } },
+    DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
+        constructor(
+            message: string,
+            readonly status = 403,
+        ) {
+            super(message);
+        }
+    },
 }));
 vi.mock("@/lib/server/drama-lab-shot-generation-service", () => {
     class DramaLabShotGenerationError extends Error {
@@ -121,10 +128,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-frame", () => 
                             taskId: "new-frame-task",
                             status: "running",
                             url: undefined,
-                            history: expect.arrayContaining([
-                                expect.objectContaining({ taskId: "older-task", url: "/older.png" }),
-                                expect.objectContaining({ taskId: "old-task", url: "/old.png" }),
-                            ]),
+                            history: expect.arrayContaining([expect.objectContaining({ taskId: "older-task", url: "/older.png" }), expect.objectContaining({ taskId: "old-task", url: "/old.png" })]),
                         }),
                     },
                 },

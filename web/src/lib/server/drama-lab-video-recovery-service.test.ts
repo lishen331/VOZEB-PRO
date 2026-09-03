@@ -52,7 +52,10 @@ describe("recoverDramaLabVideoTasks", () => {
                 retryOnConflict: false,
             }),
         );
-        expect(mocks.fetchInternalApi).toHaveBeenCalledWith("http://internal.example/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", expect.objectContaining({ method: "POST", headers: { cookie: "session=one" } }));
+        expect(mocks.fetchInternalApi).toHaveBeenCalledWith(
+            "http://internal.example/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one",
+            expect.objectContaining({ method: "POST", headers: { cookie: "session=one" } }),
+        );
         expect(result).toMatchObject({ episodeId: "episode-one", activeTaskIds: ["video-one"], syncedShotIds: ["shot-one"], syncErrors: [], tasks: [{ shotId: "shot-one", taskId: "video-one", binding: "discovered" }] });
         expect(result.tasks[0]).not.toHaveProperty("payload");
         expect(result.tasks[0]).not.toHaveProperty("config");

@@ -36,10 +36,7 @@ export function DramaCanvasContextBar() {
         };
     }, [dramaProjectId]);
 
-    const episodes = useMemo(
-        () => [...(project?.episodes || [])].sort((left, right) => (left.episodeNumber ?? 0) - (right.episodeNumber ?? 0)),
-        [project?.episodes],
-    );
+    const episodes = useMemo(() => [...(project?.episodes || [])].sort((left, right) => (left.episodeNumber ?? 0) - (right.episodeNumber ?? 0)), [project?.episodes]);
 
     const openEpisodeCanvas = useCallback(
         async (nextEpisodeId: string, preserveShot = false) => {
@@ -91,14 +88,7 @@ export function DramaCanvasContextBar() {
                     onChange={(value) => void openEpisodeCanvas(value)}
                 />
                 <Tooltip title={error || "从短剧实验室同步当前集"}>
-                    <Button
-                        type="text"
-                        danger={Boolean(error)}
-                        loading={loading}
-                        icon={<RefreshCw className="size-4" />}
-                        aria-label="同步当前集"
-                        onClick={() => void openEpisodeCanvas(episodeId, true)}
-                    />
+                    <Button type="text" danger={Boolean(error)} loading={loading} icon={<RefreshCw className="size-4" />} aria-label="同步当前集" onClick={() => void openEpisodeCanvas(episodeId, true)} />
                 </Tooltip>
                 <span className="hidden text-[11px] text-neutral-400 md:inline">画布 {params.id.slice(-8)}</span>
             </div>

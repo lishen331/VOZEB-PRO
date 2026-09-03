@@ -281,10 +281,12 @@ describe("drama project service updates", () => {
         const normalized = normalizeProject(
             {
                 ...current,
-                episodes: [{
-                    ...current.episodes[0],
-                    shots: [{ ...current.episodes[0].shots[0], dialogueAudio: { url: "/dialogue.mp3" } }],
-                }],
+                episodes: [
+                    {
+                        ...current.episodes[0],
+                        shots: [{ ...current.episodes[0].shots[0], dialogueAudio: { url: "/dialogue.mp3" } }],
+                    },
+                ],
             },
             current,
         );

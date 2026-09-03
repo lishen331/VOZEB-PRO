@@ -21,7 +21,9 @@ vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/auth/request", () => ({ readJsonBody: vi.fn(async (request: Request) => request.json()) }));
 vi.mock("@/lib/server/drama-project-store", () => ({ getDramaProject: mocks.getDramaProject }));
 vi.mock("@/lib/server/drama-lab-story-generation-service", () => ({
-    DramaLabStoryGenerationError: class DramaLabStoryGenerationError extends Error { status = 400; },
+    DramaLabStoryGenerationError: class DramaLabStoryGenerationError extends Error {
+        status = 400;
+    },
     startDramaLabStoryGeneration: mocks.startDramaLabStoryGeneration,
     storyTaskView: mocks.storyTaskView,
     findActiveDramaLabStoryTask: mocks.findActiveDramaLabStoryTask,
@@ -70,7 +72,7 @@ describe("Drama Lab story generation route", () => {
 
     it("passes a collaborator identity through when reading the owner's task", async () => {
         mocks.getCurrentUser.mockResolvedValue({ id: "member-two" });
-        mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project: { ...await mocks.getDramaProject("project-one", "user-one"), id: "project-one" }, ownerUserId: "user-one" });
+        mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project: { ...(await mocks.getDramaProject("project-one", "user-one")), id: "project-one" }, ownerUserId: "user-one" });
         mocks.getTextTask.mockResolvedValue({ id: "task-one", userId: "user-one", storyBatch: { projectId: "project-one" } });
         mocks.getDramaLabStoryTaskView.mockResolvedValue({ id: "task-one", status: "running", phase: "persisting", progress: 50, episodeCount: 2, persistedEpisodeCount: 1 });
 

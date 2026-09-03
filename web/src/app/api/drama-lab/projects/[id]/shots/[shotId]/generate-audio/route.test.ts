@@ -21,14 +21,39 @@ vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
     resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
     assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed,
     DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
-        constructor(message: string, readonly status = 403) {
+        constructor(
+            message: string,
+            readonly status = 403,
+        ) {
             super(message);
         }
     },
 }));
-vi.mock("@/lib/server/drama-project-store", () => ({ getDramaProject: mocks.getDramaProject, DramaProjectStoreError: class DramaProjectStoreError extends Error { constructor(message: string, readonly status: number) { super(message); } } }));
+vi.mock("@/lib/server/drama-project-store", () => ({
+    getDramaProject: mocks.getDramaProject,
+    DramaProjectStoreError: class DramaProjectStoreError extends Error {
+        constructor(
+            message: string,
+            readonly status: number,
+        ) {
+            super(message);
+        }
+    },
+}));
 vi.mock("@/lib/server/audio-task-store", () => ({ getAudioTask: mocks.getAudioTask }));
-vi.mock("@/lib/server/drama-lab-audio-service", () => ({ legacyDramaAudioTaskId: vi.fn((shot: { audioTaskId?: string }) => shot.audioTaskId), DramaLabAudioError: class DramaLabAudioError extends Error { constructor(message: string, readonly status = 400) { super(message); } }, prepareDramaLabAudio: mocks.prepareDramaLabAudio, syncDramaLabAudioTask: vi.fn() }));
+vi.mock("@/lib/server/drama-lab-audio-service", () => ({
+    legacyDramaAudioTaskId: vi.fn((shot: { audioTaskId?: string }) => shot.audioTaskId),
+    DramaLabAudioError: class DramaLabAudioError extends Error {
+        constructor(
+            message: string,
+            readonly status = 400,
+        ) {
+            super(message);
+        }
+    },
+    prepareDramaLabAudio: mocks.prepareDramaLabAudio,
+    syncDramaLabAudioTask: vi.fn(),
+}));
 vi.mock("@/lib/server/drama-lab-shot-generation-service", () => ({ persistDramaLabShotUpdate: mocks.persistDramaLabShotUpdate }));
 
 import { POST } from "./route";
@@ -50,7 +75,9 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-audio", () => 
     });
 
     it("dispatches a scoped audio task and persists its binding", async () => {
-        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/generate-audio?episodeId=episode-one", { method: "POST", body: JSON.stringify({ kind: "dialogue" }) }), { params: Promise.resolve({ id: "project-one", shotId: "shot-one" }) });
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/generate-audio?episodeId=episode-one", { method: "POST", body: JSON.stringify({ kind: "dialogue" }) }), {
+            params: Promise.resolve({ id: "project-one", shotId: "shot-one" }),
+        });
         expect(response.status).toBe(200);
         expect(mocks.assertDramaLabStageAllowed).toHaveBeenCalledWith("user-one", "project-one", "storyboard_video", {
             episodeId: "episode-one",

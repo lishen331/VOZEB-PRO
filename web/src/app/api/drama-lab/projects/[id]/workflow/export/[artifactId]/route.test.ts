@@ -6,12 +6,18 @@ const mocks = vi.hoisted(() => ({
     resolveDramaLabProjectForRequest: vi.fn(),
     readDramaLabWorkflowExportArtifact: vi.fn(),
     DramaLabWorkflowError: class DramaLabWorkflowError extends Error {
-        constructor(message: string, readonly status = 502) {
+        constructor(
+            message: string,
+            readonly status = 502,
+        ) {
             super(message);
         }
     },
     DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
-        constructor(message: string, readonly status = 403) {
+        constructor(
+            message: string,
+            readonly status = 403,
+        ) {
             super(message);
         }
     },

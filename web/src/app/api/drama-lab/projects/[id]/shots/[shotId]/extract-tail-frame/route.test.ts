@@ -59,9 +59,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/extract-tail-frame", ()
                 candidate: { sourceVideoTaskId: "video-task-one" },
             },
         });
-        expect(mocks.extractDramaLabTailFrame).toHaveBeenCalledWith(
-            expect.objectContaining({ userId: "user-one", project, episodeId: "episode-one", shotId: "shot-one" }),
-        );
+        expect(mocks.extractDramaLabTailFrame).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-one", project, episodeId: "episode-one", shotId: "shot-one" }));
     });
 
     it("is idempotent for a repeated extraction request and does not create another candidate", async () => {
@@ -82,10 +80,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/extract-tail-frame", ()
         expect(mocks.getDramaProject).not.toHaveBeenCalled();
 
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
-        const missingEpisode = await POST(
-            new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/extract-tail-frame", { method: "POST" }),
-            params,
-        );
+        const missingEpisode = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/extract-tail-frame", { method: "POST" }), params);
         expect(missingEpisode.status).toBe(400);
         expect(mocks.extractDramaLabTailFrame).not.toHaveBeenCalled();
     });

@@ -115,7 +115,10 @@ function normalizeImageMimeType(value: string) {
     return mime === "image/jpg" ? "image/jpeg" : ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(mime) ? mime : "";
 }
 
-function appendHistory(history: Array<{ id: string; taskId: string; url: string; prompt: string; createdAt: string; width?: number; height?: number }> | undefined, entry: { id: string; taskId: string; url: string; prompt: string; createdAt: string; width?: number; height?: number }) {
+function appendHistory(
+    history: Array<{ id: string; taskId: string; url: string; prompt: string; createdAt: string; width?: number; height?: number }> | undefined,
+    entry: { id: string; taskId: string; url: string; prompt: string; createdAt: string; width?: number; height?: number },
+) {
     return [...(history || []).filter((item) => item.taskId !== entry.taskId), entry].slice(-20);
 }
 

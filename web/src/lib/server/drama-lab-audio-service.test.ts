@@ -7,7 +7,17 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/server/audio-task-store", () => ({ getAudioTask: mocks.getAudioTask }));
-vi.mock("@/lib/server/drama-project-store", () => ({ updateDramaProject: mocks.updateDramaProject, DramaProjectStoreError: class DramaProjectStoreError extends Error { constructor(message: string, readonly status: number) { super(message); } } }));
+vi.mock("@/lib/server/drama-project-store", () => ({
+    updateDramaProject: mocks.updateDramaProject,
+    DramaProjectStoreError: class DramaProjectStoreError extends Error {
+        constructor(
+            message: string,
+            readonly status: number,
+        ) {
+            super(message);
+        }
+    },
+}));
 
 import { DramaLabAudioError, assertAudioTaskBinding, assertAudioTaskContext, legacyDramaAudioKind, legacyDramaAudioTaskId, prepareDramaLabAudio, syncDramaLabAudioTask } from "./drama-lab-audio-service";
 
@@ -20,26 +30,67 @@ const project = {
     status: "active",
     defaultVideoMode: "storyboard",
     characters: [{ id: "character-one", name: "林夏", description: "", voiceProfile: { voice: "nova", speed: 1.2, instructions: "温柔" } }],
-    scenes: [], props: [], clues: [],
-    episodes: [{ id: "episode-one", title: "第一集", script: "", outline: "", hook: "", nextPreview: "", sourceRange: "", reviewStatus: "draft", shots: [{ id: "shot-one", order: 1, title: "门口", description: "", sourceText: "", shotBoundary: "", dialogue: "", narration: "风吹过。", utterances: [{ id: "u1", order: 1, type: "dialogue" as const, speaker: "林夏", text: "你好" }], imagePrompt: "", videoPrompt: "", cameraMotion: "", duration: 5, characterIds: ["character-one"], propIds: [], clueIds: [], audioMode: "voiceover", audioStatus: "running", audioTaskId: "task-one" }] }],
-    createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+    scenes: [],
+    props: [],
+    clues: [],
+    episodes: [
+        {
+            id: "episode-one",
+            title: "第一集",
+            script: "",
+            outline: "",
+            hook: "",
+            nextPreview: "",
+            sourceRange: "",
+            reviewStatus: "draft",
+            shots: [
+                {
+                    id: "shot-one",
+                    order: 1,
+                    title: "门口",
+                    description: "",
+                    sourceText: "",
+                    shotBoundary: "",
+                    dialogue: "",
+                    narration: "风吹过。",
+                    utterances: [{ id: "u1", order: 1, type: "dialogue" as const, speaker: "林夏", text: "你好" }],
+                    imagePrompt: "",
+                    videoPrompt: "",
+                    cameraMotion: "",
+                    duration: 5,
+                    characterIds: ["character-one"],
+                    propIds: [],
+                    clueIds: [],
+                    audioMode: "voiceover",
+                    audioStatus: "running",
+                    audioTaskId: "task-one",
+                },
+            ],
+        },
+    ],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
 } as unknown as DramaProject;
 
 describe("drama lab audio service", () => {
     it("infers legacy track ownership from text rather than the voiceover mode", () => {
         expect(legacyDramaAudioKind(project.episodes[0].shots[0])).toBe("dialogue");
-        expect(legacyDramaAudioKind({
-            ...project.episodes[0].shots[0],
-            dialogue: "",
-            narration: "夜色降临。",
-            utterances: [],
-            audioMode: "voiceover",
-        })).toBe("narration");
-        expect(legacyDramaAudioKind({
-            ...project.episodes[0].shots[0],
-            dialogue: "对白优先",
-            narration: "同时存在的旁白",
-        })).toBe("dialogue");
+        expect(
+            legacyDramaAudioKind({
+                ...project.episodes[0].shots[0],
+                dialogue: "",
+                narration: "夜色降临。",
+                utterances: [],
+                audioMode: "voiceover",
+            }),
+        ).toBe("narration");
+        expect(
+            legacyDramaAudioKind({
+                ...project.episodes[0].shots[0],
+                dialogue: "对白优先",
+                narration: "同时存在的旁白",
+            }),
+        ).toBe("dialogue");
         expect(legacyDramaAudioTaskId(project.episodes[0].shots[0], "dialogue")).toBe("task-one");
         expect(legacyDramaAudioTaskId(project.episodes[0].shots[0], "narration")).toBeUndefined();
     });
@@ -57,10 +108,12 @@ describe("drama lab audio service", () => {
         expect(prepareDramaLabAudio(project, "episode-one", "shot-one", "narration").prompt).toBe("风吹过。");
         const utteranceOnly = {
             ...project,
-            episodes: [{
-                ...project.episodes[0],
-                shots: [{ ...project.episodes[0].shots[0], narration: "", utterances: [{ id: "voice-1", order: 1, type: "voiceover" as const, speaker: "", text: "夜色降临。" }] }],
-            }],
+            episodes: [
+                {
+                    ...project.episodes[0],
+                    shots: [{ ...project.episodes[0].shots[0], narration: "", utterances: [{ id: "voice-1", order: 1, type: "voiceover" as const, speaker: "", text: "夜色降临。" }] }],
+                },
+            ],
         };
         expect(prepareDramaLabAudio(utteranceOnly, "episode-one", "shot-one", "narration").prompt).toBe("夜色降临。");
         const empty = { ...project, episodes: [{ ...project.episodes[0], shots: [{ ...project.episodes[0].shots[0], narration: "", dialogue: "", subtitle: "", utterances: [] }] }] };
@@ -113,10 +166,12 @@ describe("drama lab audio service", () => {
             audioUrl: "/narration.mp3",
         };
         expect(() => assertAudioTaskBinding(partiallyMigrated, "narration", "legacy-narration-task")).not.toThrow();
-        expect(() => assertAudioTaskContext(
-            { userId: "user-one", surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" },
-            { userId: "user-one", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", audioKind: "narration", shot: partiallyMigrated },
-        )).not.toThrow();
+        expect(() =>
+            assertAudioTaskContext(
+                { userId: "user-one", surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" },
+                { userId: "user-one", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", audioKind: "narration", shot: partiallyMigrated },
+            ),
+        ).not.toThrow();
         expect(() => assertAudioTaskBinding(partiallyMigrated, "dialogue", "legacy-narration-task")).toThrow("音频任务未绑定");
         // Context alone cannot identify a task id when the requested track is
         // already dedicated; the binding assertion above is the authority.
@@ -155,10 +210,12 @@ describe("drama lab audio service", () => {
             narrationAudio: undefined,
             audioTaskId: "legacy-narration-task",
         };
-        expect(() => assertAudioTaskContext(
-            { userId: "user-one", surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", audioKind: "dialogue" },
-            { userId: "user-one", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", audioKind: "narration", shot: partiallyMigrated },
-        )).toThrow("does not match");
+        expect(() =>
+            assertAudioTaskContext(
+                { userId: "user-one", surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", audioKind: "dialogue" },
+                { userId: "user-one", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", audioKind: "narration", shot: partiallyMigrated },
+            ),
+        ).toThrow("does not match");
     });
 
     it("rejects an untyped root task for the opposite track during partial migration", () => {
@@ -172,16 +229,20 @@ describe("drama lab audio service", () => {
             narrationAudio: { status: "success" as const, taskId: "narration-task", url: "/narration.mp3" },
             audioTaskId: "legacy-narration-task",
         };
-        expect(() => assertAudioTaskContext(
-            { userId: "user-one", surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" },
-            { userId: "user-one", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", audioKind: "dialogue", shot },
-        )).toThrow("旧版音频任务与请求的音频轨道不匹配");
+        expect(() =>
+            assertAudioTaskContext(
+                { userId: "user-one", surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" },
+                { userId: "user-one", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", audioKind: "dialogue", shot },
+            ),
+        ).toThrow("旧版音频任务与请求的音频轨道不匹配");
 
         const ambiguous = { ...shot, dialogue: "对白内容", narration: "旁白内容" };
-        expect(() => assertAudioTaskContext(
-            { userId: "user-one", surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" },
-            { userId: "user-one", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", audioKind: "dialogue", shot: ambiguous },
-        )).toThrow("旧版音频任务与请求的音频轨道不匹配");
+        expect(() =>
+            assertAudioTaskContext(
+                { userId: "user-one", surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" },
+                { userId: "user-one", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", audioKind: "dialogue", shot: ambiguous },
+            ),
+        ).toThrow("旧版音频任务与请求的音频轨道不匹配");
     });
 
     it("never reuses a root projection that is the opposite track's task", () => {

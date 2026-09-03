@@ -135,7 +135,11 @@ export async function recoverDramaLabVideoTasks(input: RecoverDramaLabVideoTasks
     // cleanup, or a data-file repair).  Let the existing single-shot sync route
     // detach that owned stale ID and expose a terminal error.  Foreign IDs are
     // intentionally excluded above and are never probed or rewritten.
-    const discoveredShotIds = new Set(Array.from(selected.entries()).filter(([shotId, candidate]) => candidate.binding === "discovered" && bindingKinds.has(shotId)).map(([shotId]) => shotId));
+    const discoveredShotIds = new Set(
+        Array.from(selected.entries())
+            .filter(([shotId, candidate]) => candidate.binding === "discovered" && bindingKinds.has(shotId))
+            .map(([shotId]) => shotId),
+    );
     const orphanedShotIds = Array.from(persisted.entries())
         .filter(([shotId, binding]) => Boolean(normalizeId(binding.shot.generationTaskId)) && (binding.state === "missing" || binding.state === "mismatch") && !discoveredShotIds.has(shotId))
         .map(([shotId]) => shotId);
@@ -179,11 +183,7 @@ export async function recoverDramaLabVideoTasks(input: RecoverDramaLabVideoTasks
             return summarizeTask(shotId, record, candidate.binding);
         })
         .filter((task): task is DramaLabVideoTaskSummary => Boolean(task));
-    const activeTaskIds = unique(
-        tasks
-            .filter((task) => isActiveSummary(task))
-            .map((task) => task.taskId),
-    );
+    const activeTaskIds = unique(tasks.filter((task) => isActiveSummary(task)).map((task) => task.taskId));
 
     return {
         episodeId,

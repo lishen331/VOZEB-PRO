@@ -14,14 +14,27 @@ import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { reviewDramaLabWorkflowOutputs } from "@/lib/server/drama-lab-workflow-review-service";
 import { exportDramaLabProjectForUser } from "@/lib/server/drama-lab-project-archive";
 import { readDramaLabWorkflowExportArtifact, writeDramaLabWorkflowExportArtifact } from "@/lib/server/drama-lab-workflow-export-artifact";
-import type { DramaLabWorkflowChild, DramaLabWorkflowMode, DramaLabWorkflowOptions, DramaLabWorkflowState, DramaLabWorkflowStep, DramaLabWorkflowStepKey, DramaLabWorkflowStatus, DramaLabWorkflowTask, DramaLabWorkflowTaskView } from "@/lib/server/drama-lab-workflow-task-types";
+import type {
+    DramaLabWorkflowChild,
+    DramaLabWorkflowMode,
+    DramaLabWorkflowOptions,
+    DramaLabWorkflowState,
+    DramaLabWorkflowStep,
+    DramaLabWorkflowStepKey,
+    DramaLabWorkflowStatus,
+    DramaLabWorkflowTask,
+    DramaLabWorkflowTaskView,
+} from "@/lib/server/drama-lab-workflow-task-types";
 
 const WORKFLOW_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_ADVANCE_ITERATIONS = 16;
 const workflowLocks = new Map<string, Promise<void>>();
 
 export class DramaLabWorkflowError extends Error {
-    constructor(message: string, readonly status = 502) {
+    constructor(
+        message: string,
+        readonly status = 502,
+    ) {
         super(message);
         this.name = "DramaLabWorkflowError";
     }
@@ -135,11 +148,12 @@ export async function advanceDramaLabWorkflow(input: AdvanceDramaLabWorkflowInpu
             if (!step) return markWorkflowSuccess(task);
 
             if (step.status === "pending") {
-                task = (await patchWorkflow(task, (workflow) => {
-                    const next = cloneWorkflow(workflow);
-                    next.steps[next.currentStepIndex] = { ...next.steps[next.currentStepIndex], status: "running", attempts: next.steps[next.currentStepIndex].attempts + 1, startedAt: Date.now() };
-                    return { status: "running", workflow: next, error: undefined };
-                })) || task;
+                task =
+                    (await patchWorkflow(task, (workflow) => {
+                        const next = cloneWorkflow(workflow);
+                        next.steps[next.currentStepIndex] = { ...next.steps[next.currentStepIndex], status: "running", attempts: next.steps[next.currentStepIndex].attempts + 1, startedAt: Date.now() };
+                        return { status: "running", workflow: next, error: undefined };
+                    })) || task;
                 continue;
             }
             if (step.status === "error" || step.status === "cancelled") return task;
@@ -310,7 +324,10 @@ async function executeStoryboardStep(task: DramaLabWorkflowTask, step: DramaLabW
             },
         });
         latest = await persistEpisodeShots(ownerUserId, latest, episodeId, result.shots);
-        await updateChild(task.id, child.id, { status: "success", output: { episodeId, shotCount: result.shots.length, truncated: result.truncated, recoveredCount: result.recoveredCount, duplicateCount: result.duplicateCount, continuationAttempts: result.continuationAttempts } });
+        await updateChild(task.id, child.id, {
+            status: "success",
+            output: { episodeId, shotCount: result.shots.length, truncated: result.truncated, recoveredCount: result.recoveredCount, duplicateCount: result.duplicateCount, continuationAttempts: result.continuationAttempts },
+        });
         await patchStep(task.id, step.key, (current) => ({ inputSnapshot: { ...current.inputSnapshot, cursor: cursor + 1 }, outputRefs: [...current.outputRefs, { episodeId, shotCount: result.shots.length }] }));
         return cursor + 1 < task.workflow.episodeIds.length ? "pending" : "pending";
     }
@@ -338,7 +355,7 @@ async function executeVideoStep(task: DramaLabWorkflowTask, step: DramaLabWorkfl
     if (!item) return "success";
     const result = await ensureVideoTask(task, step, input, project, ownerUserId, item.episodeId, item.shot);
     if (result === "pending") return "pending";
-    await patchStep(task.id, step.key, (current) => ({ inputSnapshot: { ...current.inputSnapshot, cursor: cursor + 1 }, outputRefs: [...current.outputRefs, { episodeId: item.episodeId, shotId: item.shot.id, videoTaskId: result.taskId } ] }));
+    await patchStep(task.id, step.key, (current) => ({ inputSnapshot: { ...current.inputSnapshot, cursor: cursor + 1 }, outputRefs: [...current.outputRefs, { episodeId: item.episodeId, shotId: item.shot.id, videoTaskId: result.taskId }] }));
     return cursor + 1 < shots.length ? "pending" : "success";
 }
 
@@ -381,7 +398,9 @@ async function executeExportStep(task: DramaLabWorkflowTask, step: DramaLabWorkf
     if (child.status === "success" && previousArtifactId) {
         const existing = await readDramaLabWorkflowExportArtifact(previousArtifactId);
         if (existing?.metadata.projectId === task.workflow.projectId && existing.metadata.taskId === task.id) {
-            await patchStep(task.id, step.key, (current) => ({ outputRefs: [{ ...existing.metadata, downloadUrl: workflowExportDownloadPath(task.workflow.projectId, existing.metadata.artifactId) }, ...current.outputRefs.filter((item) => !item.artifactId)] }));
+            await patchStep(task.id, step.key, (current) => ({
+                outputRefs: [{ ...existing.metadata, downloadUrl: workflowExportDownloadPath(task.workflow.projectId, existing.metadata.artifactId) }, ...current.outputRefs.filter((item) => !item.artifactId)],
+            }));
             return "success" as const;
         }
     }
@@ -410,7 +429,17 @@ async function ensureImageTask(task: DramaLabWorkflowTask, step: DramaLabWorkflo
         taskId = stringValue(response?.data?.task?.id || response?.task?.id);
         if (!taskId) throw new DramaLabWorkflowError("Image task was not created", 502);
         await linkStoredGenerationTask("image", taskId, { surface: "drama", projectId: task.workflow.projectId, episodeId, shotId: shot.id, parentTaskId: task.id, runId: task.id });
-        await addChild(task.id, { id: taskId, type: "image", key: `image:${episodeId}:${shot.id}`, episodeId, shotId: shot.id, status: "running", inputSnapshot: { ratio: task.workflow.options.ratio, duration: task.workflow.options.duration }, createdAt: Date.now(), updatedAt: Date.now() });
+        await addChild(task.id, {
+            id: taskId,
+            type: "image",
+            key: `image:${episodeId}:${shot.id}`,
+            episodeId,
+            shotId: shot.id,
+            status: "running",
+            inputSnapshot: { ratio: task.workflow.options.ratio, duration: task.workflow.options.duration },
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        });
         return "pending";
     }
     const imageTask = await getImageTask(taskId);
@@ -444,7 +473,17 @@ async function ensureVideoTask(task: DramaLabWorkflowTask, step: DramaLabWorkflo
         taskId = stringValue(response?.data?.task?.id || response?.task?.id);
         if (!taskId) throw new DramaLabWorkflowError("Video task was not created", 502);
         await linkStoredGenerationTask("video", taskId, { surface: "drama", projectId: task.workflow.projectId, episodeId, shotId: shot.id, parentTaskId: task.id, runId: task.id });
-        await addChild(task.id, { id: taskId, type: "video", key: `video:${episodeId}:${shot.id}`, episodeId, shotId: shot.id, status: "running", inputSnapshot: { ratio: task.workflow.options.ratio, duration: task.workflow.options.duration }, createdAt: Date.now(), updatedAt: Date.now() });
+        await addChild(task.id, {
+            id: taskId,
+            type: "video",
+            key: `video:${episodeId}:${shot.id}`,
+            episodeId,
+            shotId: shot.id,
+            status: "running",
+            inputSnapshot: { ratio: task.workflow.options.ratio, duration: task.workflow.options.duration },
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        });
         return "pending";
     }
     const videoTask = await getVideoTask(taskId);
@@ -487,7 +526,8 @@ async function internalJson(input: AdvanceDramaLabWorkflowInput, path: string, m
     const workerHeaders = input.cookie ? maintenanceWorkerContextHeaders(input.cookie) : null;
     const response = await fetch(new URL(path, input.origin), { method, headers: { "Content-Type": "application/json", cookie: input.cookie || "", ...(workerHeaders || {}) }, body: body ? JSON.stringify(body) : undefined, cache: "no-store" });
     const payload = (await response.json().catch(() => ({}))) as { code?: unknown; msg?: unknown; error?: unknown; data?: { task?: { id?: unknown } }; task?: { id?: unknown } };
-    if (!response.ok || (payload.code !== undefined && payload.code !== 0)) throw new DramaLabWorkflowError(String(payload.msg || payload.error || `Workflow child request failed (${response.status})`), response.status >= 400 && response.status < 600 ? response.status : 502);
+    if (!response.ok || (payload.code !== undefined && payload.code !== 0))
+        throw new DramaLabWorkflowError(String(payload.msg || payload.error || `Workflow child request failed (${response.status})`), response.status >= 400 && response.status < 600 ? response.status : 502);
     return payload;
 }
 
@@ -510,7 +550,11 @@ async function appendAssets(userId: string, project: DramaProject, assetType: Dr
         if (!latest) throw new DramaLabWorkflowError("Drama project not found", 404);
         const latestCurrent = latest[key] as Array<DramaCharacter | DramaScene | DramaProp>;
         const latestNames = new Set(latestCurrent.map((item) => item.name.trim().toLocaleLowerCase()));
-        return updateDramaProject(userId, { ...latest, [key]: [...latestCurrent, ...assets.filter((item) => item?.id && item.name?.trim() && !latestNames.has(item.name.trim().toLocaleLowerCase()))], updatedAt: new Date().toISOString() } as DramaProject, latest.updatedAt);
+        return updateDramaProject(
+            userId,
+            { ...latest, [key]: [...latestCurrent, ...assets.filter((item) => item?.id && item.name?.trim() && !latestNames.has(item.name.trim().toLocaleLowerCase()))], updatedAt: new Date().toISOString() } as DramaProject,
+            latest.updatedAt,
+        );
     }
 }
 
@@ -569,7 +613,24 @@ async function ensureSyntheticChild(task: DramaLabWorkflowTask, step: DramaLabWo
 
     const now = Date.now();
     const child: DramaLabWorkflowChild = { id: randomUUID(), type: "render", key, status: "pending", inputSnapshot, createdAt: now, updatedAt: now };
-    await createStoredGenerationTask("render", { id: child.id, userId: task.userId, status: "pending", createdAt: now, updatedAt: now, surface: "drama", projectId: task.workflow.projectId, episodeId: typeof inputSnapshot.episodeId === "string" ? inputSnapshot.episodeId : undefined, parentTaskId: task.id, runId: task.id, title: key, workflowChild: child }, WORKFLOW_TTL_MS);
+    await createStoredGenerationTask(
+        "render",
+        {
+            id: child.id,
+            userId: task.userId,
+            status: "pending",
+            createdAt: now,
+            updatedAt: now,
+            surface: "drama",
+            projectId: task.workflow.projectId,
+            episodeId: typeof inputSnapshot.episodeId === "string" ? inputSnapshot.episodeId : undefined,
+            parentTaskId: task.id,
+            runId: task.id,
+            title: key,
+            workflowChild: child,
+        },
+        WORKFLOW_TTL_MS,
+    );
     await addChild(task.id, child);
     return child;
 }
@@ -684,7 +745,10 @@ async function markWorkflowSuccess(task: DramaLabWorkflowTask) {
 }
 
 function createSteps(mode: DramaLabWorkflowMode, autoExport: boolean): DramaLabWorkflowStep[] {
-    const steps: Array<[DramaLabWorkflowStepKey, string, DramaLabWorkflowStep["target"]]> = [["script", "Script validation", "script"], ["assets", "Asset extraction", "assets"]];
+    const steps: Array<[DramaLabWorkflowStepKey, string, DramaLabWorkflowStep["target"]]> = [
+        ["script", "Script validation", "script"],
+        ["assets", "Asset extraction", "assets"],
+    ];
     if (mode !== "assets") steps.push(["storyboard", "Storyboard extraction and images", "storyboard"]);
     if (mode === "video") {
         steps.push(["video", "Shot videos", "storyboard"], ["review", "Content review", "review"]);
@@ -696,11 +760,27 @@ function createSteps(mode: DramaLabWorkflowMode, autoExport: boolean): DramaLabW
 function normalizeOptions(value: Partial<DramaLabWorkflowOptions>, project: DramaProject): DramaLabWorkflowOptions {
     const mode = value.mode === "assets" || value.mode === "storyboard" || value.mode === "video" ? value.mode : "video";
     const scope = value.scope === "all" ? "all" : "current";
-    return { mode, scope, ratio: text(value.ratio, project.ratio || "9:16"), duration: text(value.duration, "5"), language: text(value.language, "中文"), visualStyle: text(value.visualStyle, project.style || ""), autoExport: mode === "video" && value.autoExport === true };
+    return {
+        mode,
+        scope,
+        ratio: text(value.ratio, project.ratio || "9:16"),
+        duration: text(value.duration, "5"),
+        language: text(value.language, "中文"),
+        visualStyle: text(value.visualStyle, project.style || ""),
+        autoExport: mode === "video" && value.autoExport === true,
+    };
 }
 
 function projectSnapshot(project: DramaProject, episodeIds: string[]) {
-    return { projectId: project.id, title: project.title, ratio: project.ratio, style: project.style, episodeIds, episodes: project.episodes.filter((episode) => episodeIds.includes(episode.id)).map((episode) => ({ id: episode.id, title: episode.title, script: episode.script.slice(0, 12_000) })), assetCounts: { characters: project.characters.length, scenes: project.scenes.length, props: project.props.length } };
+    return {
+        projectId: project.id,
+        title: project.title,
+        ratio: project.ratio,
+        style: project.style,
+        episodeIds,
+        episodes: project.episodes.filter((episode) => episodeIds.includes(episode.id)).map((episode) => ({ id: episode.id, title: episode.title, script: episode.script.slice(0, 12_000) })),
+        assetCounts: { characters: project.characters.length, scenes: project.scenes.length, props: project.props.length },
+    };
 }
 
 function cloneWorkflow(workflow: DramaLabWorkflowState): DramaLabWorkflowState {

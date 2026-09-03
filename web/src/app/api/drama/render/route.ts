@@ -133,7 +133,31 @@ async function renderDrama(task: DramaRenderTask, shots: NormalizedDramaRenderSh
                     "1:a",
                 );
             }
-            baseArgs.push("-t", String(current.duration), "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", String(DRAMA_RENDER_AUDIO_SAMPLE_RATE), "-ac", "2", "-b:a", "160k", "-movflags", "+faststart", clipPath);
+            baseArgs.push(
+                "-t",
+                String(current.duration),
+                "-r",
+                "30",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "22",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-ar",
+                String(DRAMA_RENDER_AUDIO_SAMPLE_RATE),
+                "-ac",
+                "2",
+                "-b:a",
+                "160k",
+                "-movflags",
+                "+faststart",
+                clipPath,
+            );
             await runFfmpeg(baseArgs, { cwd: workdir, signal: abortController.signal });
             clipPaths.push(clipPath);
         }

@@ -19,11 +19,7 @@ describe("drama lab canvas project api", () => {
         await saveDramaLabCanvasProjectMutation("canvas-one", { mutationId: "mutation-one", baseUpdatedAt: "2026-08-25T00:00:00.000Z" });
         await deleteDramaLabCanvasAssistantConversations("canvas-one", ["conversation-one"]);
 
-        expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-            "/api/drama-lab/canvas-projects/canvas-one",
-            "/api/drama-lab/canvas-projects/canvas-one",
-            "/api/drama-lab/canvas-projects/canvas-one/assistant-conversations",
-        ]);
+        expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(["/api/drama-lab/canvas-projects/canvas-one", "/api/drama-lab/canvas-projects/canvas-one", "/api/drama-lab/canvas-projects/canvas-one/assistant-conversations"]);
         expect(fetchMock.mock.calls.every(([url]) => !String(url).startsWith("/api/canvas/projects"))).toBe(true);
     });
 

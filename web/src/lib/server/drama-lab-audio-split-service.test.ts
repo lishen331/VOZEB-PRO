@@ -6,7 +6,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/server/drama-project-store", async () => {
     class DramaProjectStoreError extends Error {
-        constructor(message: string, readonly status: number) {
+        constructor(
+            message: string,
+            readonly status: number,
+        ) {
             super(message);
         }
     }
@@ -82,11 +85,7 @@ describe("drama lab audio split service", () => {
         ]);
         expect(result.segments.map((segment) => segment.durationMs)).toEqual([1_800, 2_400, 3_100]);
         expect(result.segments.map((segment) => segment.durationSource)).toEqual(["audio", "audio", "rhythm"]);
-        expect(result.segments.map((segment) => segment.candidateId)).toEqual([
-            audioSplitCandidateId("shot-source", 0),
-            audioSplitCandidateId("shot-source", 1),
-            audioSplitCandidateId("shot-source", 2),
-        ]);
+        expect(result.segments.map((segment) => segment.candidateId)).toEqual([audioSplitCandidateId("shot-source", 0), audioSplitCandidateId("shot-source", 1), audioSplitCandidateId("shot-source", 2)]);
     });
 
     it("derives duration from rhythm boundaries when a cue has no explicit duration", () => {
@@ -112,23 +111,30 @@ describe("drama lab audio split service", () => {
         expect(result.segments.map((segment) => segment.text)).toEqual(["第一句台词。", "第二句台词。", "画外音说明。"]);
         expect(result.segments.map((segment) => segment.speaker)).toEqual(["甲", "乙", undefined]);
         expect(result.segments.every((segment) => segment.duration >= 1 && segment.duration <= 120)).toBe(true);
-        expect(result.segments.map((segment) => segment.utterances[0].id)).toEqual([
-            "utterance-shot-source-dialogue-1",
-            "utterance-shot-source-dialogue-2",
-            "utterance-shot-source-narration-1",
-        ]);
+        expect(result.segments.map((segment) => segment.utterances[0].id)).toEqual(["utterance-shot-source-dialogue-1", "utterance-shot-source-dialogue-2", "utterance-shot-source-narration-1"]);
     });
 
     it("rejects no-op and narration-only splits", () => {
         expect(() => planDramaAudioSplit(shot({ utterances: [{ id: "u1", order: 1, type: "dialogue", speaker: "甲", text: "一句话" }] }))).toThrowError(new DramaLabAudioSplitError("当前镜头只有一段对白或旁白，无需按音频拆镜", 409));
-        expect(() => planDramaAudioSplit(shot({ utterances: [{ id: "v1", order: 1, type: "voiceover", speaker: "", text: "第一段" }, { id: "v2", order: 2, type: "voiceover", speaker: "", text: "第二段" }], dialogue: "", narration: "" }))).toThrowError("仅有旁白时无法按对白拆镜");
+        expect(() =>
+            planDramaAudioSplit(
+                shot({
+                    utterances: [
+                        { id: "v1", order: 1, type: "voiceover", speaker: "", text: "第一段" },
+                        { id: "v2", order: 2, type: "voiceover", speaker: "", text: "第二段" },
+                    ],
+                    dialogue: "",
+                    narration: "",
+                }),
+            ),
+        ).toThrowError("仅有旁白时无法按对白拆镜");
     });
 
     it("rejects a stale or tampered preview before persistence", () => {
         const source = shot();
         const preview = planDramaAudioSplit(source);
         expect(() => validateDramaAudioSplitPlan({ ...source, dialogue: "已被编辑" }, preview)).toThrowError("当前镜头内容已变化");
-        const tampered = { ...preview, segments: preview.segments.map((segment, index) => index === 0 ? { ...segment, text: "伪造台词" } : segment) };
+        const tampered = { ...preview, segments: preview.segments.map((segment, index) => (index === 0 ? { ...segment, text: "伪造台词" } : segment)) };
         expect(() => validateDramaAudioSplitPlan(source, tampered)).toThrowError("文本已变化");
         expect(dramaAudioSplitSourceFingerprint(source)).toBe(preview.sourceFingerprint);
     });

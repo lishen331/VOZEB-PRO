@@ -112,12 +112,7 @@ describe("generation task recovery service", () => {
         const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
 
         expect(mocks.advanceDramaLabWorkflow).toHaveBeenCalledWith({ userId: "user-one", taskId: "workflow-one", origin: "http://internal", cookie: "worker-context:user-one" });
-        expect(mocks.release).toHaveBeenCalledWith(
-            "render",
-            "workflow-one",
-            "worker-one",
-            expect.objectContaining({ executionPhase: "polling", lastUpstreamStatus: "workflow_running", nextPollAt: expect.any(Number) }),
-        );
+        expect(mocks.release).toHaveBeenCalledWith("render", "workflow-one", "worker-one", expect.objectContaining({ executionPhase: "polling", lastUpstreamStatus: "workflow_running", nextPollAt: expect.any(Number) }));
         expect(result).toMatchObject({ claimed: 1, pending: 1, failed: 0, needsReview: 0 });
     });
 
@@ -654,12 +649,7 @@ describe("generation task recovery service", () => {
         });
         expect(mocks.queryAudioTaskUpstreamStep).not.toHaveBeenCalled();
         expect(mocks.createAudioTaskUpstreamStep).not.toHaveBeenCalled();
-        expect(mocks.release).toHaveBeenCalledWith(
-            "audio",
-            task.id,
-            "worker-one",
-            expect.objectContaining({ executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "upstream_identity_restore_failed" }),
-        );
+        expect(mocks.release).toHaveBeenCalledWith("audio", task.id, "worker-one", expect.objectContaining({ executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "upstream_identity_restore_failed" }));
         expect(result).toMatchObject({ claimed: 1, pending: 0, needsReview: 1 });
     });
 

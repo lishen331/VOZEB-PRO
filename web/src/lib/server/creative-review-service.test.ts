@@ -87,14 +87,12 @@ describe("creative review service", () => {
     });
 
     it("resolves private project video media before sending it upstream", async () => {
-        fetchInternalApi
-            .mockResolvedValueOnce(new Response(new Uint8Array([0, 1, 2]), { status: 200, headers: { "Content-Type": "video/mp4", "Content-Length": "3" } }))
-            .mockResolvedValueOnce(
-                new Response(JSON.stringify({ output: [{ type: "function_call", name: "review_creative_outputs", arguments: JSON.stringify({ mode: "visual", status: "passed", summary: "private video checked", issues: [], retryTaskIds: [] }) }] }), {
-                    status: 200,
-                    headers: { "Content-Type": "application/json" },
-                }),
-            );
+        fetchInternalApi.mockResolvedValueOnce(new Response(new Uint8Array([0, 1, 2]), { status: 200, headers: { "Content-Type": "video/mp4", "Content-Length": "3" } })).mockResolvedValueOnce(
+            new Response(JSON.stringify({ output: [{ type: "function_call", name: "review_creative_outputs", arguments: JSON.stringify({ mode: "visual", status: "passed", summary: "private video checked", issues: [], retryTaskIds: [] }) }] }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+            }),
+        );
 
         await expect(
             reviewCreativeOutputs({
@@ -111,14 +109,15 @@ describe("creative review service", () => {
     });
 
     it("falls back to Chat while preserving the video_url content part", async () => {
-        fetchInternalApi
-            .mockResolvedValueOnce(new Response("responses unsupported", { status: 404 }))
-            .mockResolvedValueOnce(
-                new Response(JSON.stringify({ choices: [{ message: { tool_calls: [{ function: { name: "review_creative_outputs", arguments: JSON.stringify({ mode: "visual", status: "passed", summary: "chat checked", issues: [], retryTaskIds: [] }) } }] } }] }), {
+        fetchInternalApi.mockResolvedValueOnce(new Response("responses unsupported", { status: 404 })).mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({ choices: [{ message: { tool_calls: [{ function: { name: "review_creative_outputs", arguments: JSON.stringify({ mode: "visual", status: "passed", summary: "chat checked", issues: [], retryTaskIds: [] }) } }] } }] }),
+                {
                     status: 200,
                     headers: { "Content-Type": "application/json" },
-                }),
-            );
+                },
+            ),
+        );
 
         await expect(
             reviewCreativeOutputs({

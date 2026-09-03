@@ -18,7 +18,10 @@ vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
     resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
     assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed,
     DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
-        constructor(message: string, readonly status = 403) {
+        constructor(
+            message: string,
+            readonly status = 403,
+        ) {
             super(message);
         }
     },
@@ -26,14 +29,20 @@ vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
 vi.mock("@/lib/server/drama-project-store", () => ({
     getDramaProject: mocks.getDramaProject,
     DramaProjectStoreError: class DramaProjectStoreError extends Error {
-        constructor(message: string, readonly status: number) {
+        constructor(
+            message: string,
+            readonly status: number,
+        ) {
             super(message);
         }
     },
 }));
 vi.mock("@/lib/server/drama-lab-audio-split-service", () => ({
     DramaLabAudioSplitError: class DramaLabAudioSplitError extends Error {
-        constructor(message: string, readonly status = 400) {
+        constructor(
+            message: string,
+            readonly status = 400,
+        ) {
             super(message);
         }
     },
@@ -47,7 +56,16 @@ import { POST } from "./route";
 
 const sourceShot = { id: "shot-one", title: "源镜头" };
 const project = { id: "project-one", updatedAt: "2026-09-01T00:00:00.000Z", episodes: [{ id: "episode-one", shots: [sourceShot] }] };
-const previewPlan = { sourceShotId: "shot-one", sourceShotTitle: "源镜头", sourceFingerprint: "fingerprint", segments: [{ index: 0, kind: "dialogue", text: "你好", duration: 5, durationMs: 5_000, startMs: 0, endMs: 5_000, durationSource: "estimated", utterances: [], candidateId: "shot-shot-one-audio-split-1" }, { index: 1, kind: "dialogue", text: "再见", duration: 5, durationMs: 5_000, startMs: 5_000, endMs: 10_000, durationSource: "estimated", utterances: [], candidateId: "shot-shot-one-audio-split-2" }], totalDurationMs: 10_000 };
+const previewPlan = {
+    sourceShotId: "shot-one",
+    sourceShotTitle: "源镜头",
+    sourceFingerprint: "fingerprint",
+    segments: [
+        { index: 0, kind: "dialogue", text: "你好", duration: 5, durationMs: 5_000, startMs: 0, endMs: 5_000, durationSource: "estimated", utterances: [], candidateId: "shot-shot-one-audio-split-1" },
+        { index: 1, kind: "dialogue", text: "再见", duration: 5, durationMs: 5_000, startMs: 5_000, endMs: 10_000, durationSource: "estimated", utterances: [], candidateId: "shot-shot-one-audio-split-2" },
+    ],
+    totalDurationMs: 10_000,
+};
 const context = { params: Promise.resolve({ id: "project-one", shotId: "shot-one" }) };
 
 describe("POST /api/drama-lab/projects/:id/shots/:shotId/split-by-audio", () => {

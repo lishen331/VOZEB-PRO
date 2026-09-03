@@ -20,7 +20,15 @@ import { POST } from "./route";
 const project = {
     id: "project-one",
     updatedAt: "2026-09-01T00:00:00.000Z",
-    episodes: [{ id: "episode-one", shots: [{ id: "shot-one", order: 1, frames: {} }, { id: "shot-two", order: 2, firstFrameCandidate: { id: "candidate-one" }, frames: {} }] }],
+    episodes: [
+        {
+            id: "episode-one",
+            shots: [
+                { id: "shot-one", order: 1, frames: {} },
+                { id: "shot-two", order: 2, firstFrameCandidate: { id: "candidate-one" }, frames: {} },
+            ],
+        },
+    ],
 };
 const params = { params: Promise.resolve({ id: "project-one", shotId: "shot-two" }) };
 const url = (replaceExisting = false) => `http://app.example.com/api/drama-lab/projects/project-one/shots/shot-two/accept-first-frame-candidate?episodeId=episode-one&candidateId=candidate-one&replaceExisting=${replaceExisting}`;
@@ -43,9 +51,7 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/accept-first-frame-cand
 
         expect(response.status).toBe(200);
         expect(await response.json()).toMatchObject({ code: 0, data: { shot: { frames: { first: { source: "video_tail", locked: true } } }, candidate: null } });
-        expect(mocks.acceptDramaLabFirstFrameCandidate).toHaveBeenCalledWith(
-            expect.objectContaining({ userId: "user-one", project, episodeId: "episode-one", shotId: "shot-two", candidateId: "candidate-one", replaceExisting: false }),
-        );
+        expect(mocks.acceptDramaLabFirstFrameCandidate).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-one", project, episodeId: "episode-one", shotId: "shot-two", candidateId: "candidate-one", replaceExisting: false }));
     });
 
     it("does not overwrite an existing first frame unless replacement is explicit", async () => {

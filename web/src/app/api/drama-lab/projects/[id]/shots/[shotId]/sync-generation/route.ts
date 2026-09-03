@@ -53,9 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                 // a newer user decision), in which case there is nothing to
                 // persist. Otherwise apply the freshly computed task-only patch
                 // against that snapshot, still without replaying stale data.
-                updated = Object.keys(patch).length
-                    ? await persistDramaLabShotUpdate({ userId: user.id, projectOwnerUserId: ownerUserId, project: latest, episodeId, shotId, patch, retryOnConflict: false })
-                    : latest;
+                updated = Object.keys(patch).length ? await persistDramaLabShotUpdate({ userId: user.id, projectOwnerUserId: ownerUserId, project: latest, episodeId, shotId, patch, retryOnConflict: false }) : latest;
             }
         }
 
@@ -121,7 +119,7 @@ async function readTaskState(shot: ReturnType<typeof findShot>["shot"], userId: 
         videoTaskMissing: Boolean(shot.generationTaskId && (videoMatch === "missing" || videoMatch === "mismatch")),
         imageTaskContextMismatch: imageMatch === "mismatch",
         videoTaskContextMismatch: videoMatch === "mismatch",
-    userId,
+        userId,
     };
 }
 
@@ -137,7 +135,10 @@ function classifyTaskContext(
     return taskMatchesDramaShot(task, scope) ? "valid" : "mismatch";
 }
 
-function taskMatchesDramaShot(task: { surface?: string; projectId?: string; episodeId?: string; shotId?: string; frameType?: string; context?: unknown } | null | undefined, scope: { projectId: string; episodeId: string; shotId: string; frameType?: string }) {
+function taskMatchesDramaShot(
+    task: { surface?: string; projectId?: string; episodeId?: string; shotId?: string; frameType?: string; context?: unknown } | null | undefined,
+    scope: { projectId: string; episodeId: string; shotId: string; frameType?: string },
+) {
     if (!task) return false;
     if (hasStoredGenerationTaskContextConflict(task)) return false;
     const nested = task.context && typeof task.context === "object" && !Array.isArray(task.context) ? (task.context as Record<string, unknown>) : {};
@@ -206,9 +207,7 @@ function generationPatch(
             // later poll cannot accidentally reconcile a task from another
             // project, episode, shot, or frame slot.
             if (frame.taskId) {
-                frames[frameType] = frame.url
-                    ? { ...frame, taskId: undefined }
-                    : { ...frame, status: "error", taskId: undefined, error: "帧任务上下文与当前分镜不匹配，请重新生成" };
+                frames[frameType] = frame.url ? { ...frame, taskId: undefined } : { ...frame, status: "error", taskId: undefined, error: "帧任务上下文与当前分镜不匹配，请重新生成" };
             }
             continue;
         }
@@ -406,10 +405,7 @@ function generationPatch(
     return patch;
 }
 
-function appendGenerationHistoryIdempotently(
-    history: Parameters<typeof appendDramaLabGenerationHistory>[0],
-    entry: Parameters<typeof appendDramaLabGenerationHistory>[1],
-) {
+function appendGenerationHistoryIdempotently(history: Parameters<typeof appendDramaLabGenerationHistory>[0], entry: Parameters<typeof appendDramaLabGenerationHistory>[1]) {
     const existing = history || [];
     const sameTask = existing.filter((item) => item.taskId === entry.taskId);
     const matches = hasStableGenerationHistory(existing, entry);
@@ -423,10 +419,7 @@ function appendGenerationHistoryIdempotently(
     return appendDramaLabGenerationHistory(existing, entry);
 }
 
-function hasStableGenerationHistory(
-    history: Parameters<typeof appendDramaLabGenerationHistory>[0],
-    entry: Parameters<typeof appendDramaLabGenerationHistory>[1],
-) {
+function hasStableGenerationHistory(history: Parameters<typeof appendDramaLabGenerationHistory>[0], entry: Parameters<typeof appendDramaLabGenerationHistory>[1]) {
     const sameTask = (history || []).filter((item) => item.taskId === entry.taskId);
     return sameTask.some((item) => item.url === entry.url && item.prompt === entry.prompt && item.width === entry.width && item.height === entry.height);
 }

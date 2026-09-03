@@ -101,8 +101,24 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
     it("accepts a completed task created by another active project collaborator", async () => {
         mocks.getCurrentUser.mockResolvedValue({ id: "member-three" });
         mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project, ownerUserId: "user-one" });
-        mocks.getDramaLabCollaborationForUser.mockResolvedValue({ members: [{ userId: "user-one", status: "active" }, { userId: "member-two", status: "active" }, { userId: "member-three", status: "active" }] });
-        mocks.getImageTask.mockResolvedValue({ id: "image-task-one", userId: "member-two", surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one", status: "success", prompt: "collaborator-image", result: { serverUrl: "/api/generation-log-assets/collaborator.png" } });
+        mocks.getDramaLabCollaborationForUser.mockResolvedValue({
+            members: [
+                { userId: "user-one", status: "active" },
+                { userId: "member-two", status: "active" },
+                { userId: "member-three", status: "active" },
+            ],
+        });
+        mocks.getImageTask.mockResolvedValue({
+            id: "image-task-one",
+            userId: "member-two",
+            surface: "drama",
+            projectId: "project-one",
+            episodeId: "episode-one",
+            shotId: "shot-one",
+            status: "success",
+            prompt: "collaborator-image",
+            result: { serverUrl: "/api/generation-log-assets/collaborator.png" },
+        });
         mocks.getVideoTask.mockResolvedValue(null);
 
         const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/sync-generation?episodeId=episode-one", { method: "POST" }), context);
@@ -206,7 +222,15 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/sync-generation", () =>
     });
 
     it("does not keep rewriting a legacy history that already has duplicate identical entries", async () => {
-        const duplicateEntry = { id: "key-frame:/api/reference-assets/permanent/key.png", taskId: "key-frame:/api/reference-assets/permanent/key.png", url: "/api/reference-assets/permanent/key.png", prompt: "uploaded key frame", createdAt: "2026-08-22T00:00:00.000Z", width: 720, height: 1280 };
+        const duplicateEntry = {
+            id: "key-frame:/api/reference-assets/permanent/key.png",
+            taskId: "key-frame:/api/reference-assets/permanent/key.png",
+            url: "/api/reference-assets/permanent/key.png",
+            prompt: "uploaded key frame",
+            createdAt: "2026-08-22T00:00:00.000Z",
+            width: 720,
+            height: 1280,
+        };
         const frameShot = {
             ...shot,
             storyboardTaskId: undefined,

@@ -69,12 +69,18 @@ export default function InviteRequestClient({ token }: { token: string }) {
                     <ArrowLeft className="size-4" /> 返回短剧项目
                 </Link>
                 <Card className="mt-6" bordered>
-                    {loading ? <div className="grid min-h-48 place-items-center"><Spin /></div> : error ? (
+                    {loading ? (
+                        <div className="grid min-h-48 place-items-center">
+                            <Spin />
+                        </div>
+                    ) : error ? (
                         <Alert type="error" showIcon message="邀请链接不可用" description={error} action={<Button onClick={() => window.location.reload()}>重试</Button>} />
                     ) : preview ? (
                         <div className="space-y-5">
                             <div className="flex items-start gap-3">
-                                <span className="grid size-10 shrink-0 place-items-center border border-primary/30 bg-primary/10 text-primary"><Users className="size-5" /></span>
+                                <span className="grid size-10 shrink-0 place-items-center border border-primary/30 bg-primary/10 text-primary">
+                                    <Users className="size-5" />
+                                </span>
                                 <div className="min-w-0">
                                     <h1 className="text-lg font-semibold">加入短剧项目</h1>
                                     <p className="mt-1 truncate text-sm text-muted-foreground">{preview.projectTitle || preview.projectId}</p>
@@ -86,7 +92,9 @@ export default function InviteRequestClient({ token }: { token: string }) {
                             {submitted ? (
                                 <Alert type="success" showIcon icon={<CheckCircle2 className="size-4" />} message="申请已提交" description="等待项目管理员确认后即可进入项目。" />
                             ) : (
-                                <Button type="primary" block size="large" icon={<LogIn className="size-4" />} loading={joining} onClick={() => void requestJoin()}>申请加入项目</Button>
+                                <Button type="primary" block size="large" icon={<LogIn className="size-4" />} loading={joining} onClick={() => void requestJoin()}>
+                                    申请加入项目
+                                </Button>
                             )}
                             {error ? <Alert type="error" showIcon message={error} /> : null}
                         </div>

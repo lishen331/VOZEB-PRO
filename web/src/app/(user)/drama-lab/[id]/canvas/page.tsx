@@ -43,6 +43,15 @@ export default function DramaEpisodeCanvasPage() {
         };
     }, [episodeId, projectId, router, shotId]);
 
-    if (error) return <main className="grid h-full place-items-center p-6"><Alert type="error" showIcon message={error} /></main>;
-    return <main className="grid h-full place-items-center"><Spin description="正在打开本集画布" /> </main>;
+    if (error)
+        return (
+            <main className="grid h-full place-items-center p-6">
+                <Alert type="error" showIcon message={error} />
+            </main>
+        );
+    return (
+        <main className="grid h-full place-items-center">
+            <Spin description="正在打开本集画布" />{" "}
+        </main>
+    );
 }

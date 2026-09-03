@@ -4,7 +4,10 @@ import { DramaProjectStoreError, updateDramaProject } from "@/lib/server/drama-p
 import { hasStoredGenerationTaskContextConflict } from "@/lib/server/generation-task-store";
 
 export class DramaLabAudioError extends Error {
-    constructor(message: string, readonly status = 400) {
+    constructor(
+        message: string,
+        readonly status = 400,
+    ) {
         super(message);
     }
 }
@@ -114,11 +117,9 @@ export function assertAudioTaskContext(
     // task id to be attached to the wrong card.
     if (!taskKind && input.audioKind && input.shot) {
         const requestedDedicated = input.audioKind === "narration" ? input.shot.narrationAudio : input.shot.dialogueAudio;
-        const inferredKind = input.shot.dialogueAudio || input.shot.narrationAudio
-            ? strictLegacyDramaAudioKind(input.shot)
-            : legacyDramaAudioKind(input.shot);
+        const inferredKind = input.shot.dialogueAudio || input.shot.narrationAudio ? strictLegacyDramaAudioKind(input.shot) : legacyDramaAudioKind(input.shot);
         if (!requestedDedicated && inferredKind !== input.audioKind) {
-        throw new DramaLabAudioError("旧版音频任务与请求的音频轨道不匹配", 409);
+            throw new DramaLabAudioError("旧版音频任务与请求的音频轨道不匹配", 409);
         }
     }
 }

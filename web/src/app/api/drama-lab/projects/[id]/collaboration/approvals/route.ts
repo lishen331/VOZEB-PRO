@@ -15,7 +15,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         const status = ["pending", "approved", "rejected", "cancelled"].includes(query.get("status") || "") ? (query.get("status") as DramaLabApprovalStatus) : undefined;
         const result = await listDramaLabApprovals(user.id, id, { status, page: Number(query.get("page")) || 1, pageSize: Number(query.get("pageSize")) || 20 });
         return NextResponse.json({ code: 0, data: result, msg: "OK" });
-    } catch (error) { return handle(error); }
+    } catch (error) {
+        return handle(error);
+    }
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -30,10 +32,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const resourceType = typeof body.resourceType === "string" ? body.resourceType : typeof body.targetType === "string" ? body.targetType : "";
         const resourceId = typeof body.resourceId === "string" ? body.resourceId : typeof body.targetId === "string" ? body.targetId : "";
         if (!stage || !resourceType || !resourceId) return fail(400, "审批阶段和资源定位不能为空");
-        const record = await submitDramaLabApproval(user.id, id, { episodeId: typeof body.episodeId === "string" ? body.episodeId : undefined, stage, resourceType, resourceId, versionId: typeof body.versionId === "string" ? body.versionId : undefined, versionNumber: typeof body.versionNumber === "number" ? body.versionNumber : undefined, snapshot: body.snapshot });
+        const record = await submitDramaLabApproval(user.id, id, {
+            episodeId: typeof body.episodeId === "string" ? body.episodeId : undefined,
+            stage,
+            resourceType,
+            resourceId,
+            versionId: typeof body.versionId === "string" ? body.versionId : undefined,
+            versionNumber: typeof body.versionNumber === "number" ? body.versionNumber : undefined,
+            snapshot: body.snapshot,
+        });
         return NextResponse.json({ code: 0, data: { approval: record }, msg: "已提交审批" });
-    } catch (error) { return handle(error); }
+    } catch (error) {
+        return handle(error);
+    }
 }
 
-function fail(status: number, msg: string) { return NextResponse.json({ code: status, data: null, msg }, { status }); }
-function handle(error: unknown) { return error instanceof DramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "审批请求失败"); }
+function fail(status: number, msg: string) {
+    return NextResponse.json({ code: status, data: null, msg }, { status });
+}
+function handle(error: unknown) {
+    return error instanceof DramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "审批请求失败");
+}

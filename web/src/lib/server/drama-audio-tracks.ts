@@ -52,34 +52,46 @@ export function resolveDramaAudioTracks(value: unknown): ResolvedDramaAudioTrack
     // hiding the media from render/export.
     const dedicatedTrackMatchesLegacy = tracks.some((track) => track.kind !== "legacy" && track.url === legacyUrl);
     const ambiguousLegacyOwner = Boolean(legacyUrl && !legacyKind && hasBothAudioTextKinds(item) && !dedicatedTrackMatchesLegacy);
-    return ambiguousLegacyOwner
-        ? { tracks, dialogueUrl, narrationUrl, legacyUrl, needsReview: true, reviewReason: "旧音频同时存在对白和旁白文本，无法确定归属" }
-        : { tracks, dialogueUrl, narrationUrl, legacyUrl };
+    return ambiguousLegacyOwner ? { tracks, dialogueUrl, narrationUrl, legacyUrl, needsReview: true, reviewReason: "旧音频同时存在对白和旁白文本，无法确定归属" } : { tracks, dialogueUrl, narrationUrl, legacyUrl };
 }
 
 function hasBothAudioTextKinds(item: Record<string, unknown>) {
     const utterances = Array.isArray(item.utterances) ? item.utterances : [];
-    const hasDialogue = Boolean(text(item.dialogue) || text(item.subtitle) || utterances.some((entry) => {
-        const value = object(entry);
-        return value.type === "dialogue" && text(value.text);
-    }));
-    const hasNarration = Boolean(text(item.narration) || utterances.some((entry) => {
-        const value = object(entry);
-        return value.type === "voiceover" && text(value.text);
-    }));
+    const hasDialogue = Boolean(
+        text(item.dialogue) ||
+        text(item.subtitle) ||
+        utterances.some((entry) => {
+            const value = object(entry);
+            return value.type === "dialogue" && text(value.text);
+        }),
+    );
+    const hasNarration = Boolean(
+        text(item.narration) ||
+        utterances.some((entry) => {
+            const value = object(entry);
+            return value.type === "voiceover" && text(value.text);
+        }),
+    );
     return hasDialogue && hasNarration;
 }
 
 function inferLegacyAudioKind(item: Record<string, unknown>): "dialogue" | "narration" | undefined {
     const utterances = Array.isArray(item.utterances) ? item.utterances : [];
-    const hasDialogue = Boolean(text(item.dialogue) || text(item.subtitle) || utterances.some((entry) => {
-        const value = object(entry);
-        return value.type === "dialogue" && text(value.text);
-    }));
-    const hasNarration = Boolean(text(item.narration) || utterances.some((entry) => {
-        const value = object(entry);
-        return value.type === "voiceover" && text(value.text);
-    }));
+    const hasDialogue = Boolean(
+        text(item.dialogue) ||
+        text(item.subtitle) ||
+        utterances.some((entry) => {
+            const value = object(entry);
+            return value.type === "dialogue" && text(value.text);
+        }),
+    );
+    const hasNarration = Boolean(
+        text(item.narration) ||
+        utterances.some((entry) => {
+            const value = object(entry);
+            return value.type === "voiceover" && text(value.text);
+        }),
+    );
     if (hasDialogue && !hasNarration) return "dialogue";
     if (hasNarration && !hasDialogue) return "narration";
     return undefined;

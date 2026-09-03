@@ -109,18 +109,9 @@ describe("drama lab storyboard extraction", () => {
             videoPrompt: { type: "string" },
             continuity: expect.objectContaining({ type: "object" }),
         });
-        expect(tool.parameters.properties.shots.items.properties.continuity.required).toEqual(expect.arrayContaining([
-            "shotSize",
-            "cameraAngle",
-            "composition",
-            "characterBlocking",
-            "gazeDirection",
-            "actionStart",
-            "actionEnd",
-            "screenDirection",
-            "axisRule",
-            "continuityNotes",
-        ]));
+        expect(tool.parameters.properties.shots.items.properties.continuity.required).toEqual(
+            expect.arrayContaining(["shotSize", "cameraAngle", "composition", "characterBlocking", "gazeDirection", "actionStart", "actionEnd", "screenDirection", "axisRule", "continuityNotes"]),
+        );
     });
 
     it("rejects invalid asset IDs instead of mapping them by name", () => {
@@ -185,8 +176,18 @@ describe("drama lab storyboard extraction", () => {
     });
 
     it("persists a recoverable prefix and continues after truncated JSON without replacing duplicate orders", async () => {
-        const first = JSON.stringify({ shots: [{ ...validShot, shotNumber: 1, title: "第一镜" }, { ...validShot, shotNumber: 2, title: "第二镜" }] }).slice(0, -2);
-        const continuation = JSON.stringify({ shots: [{ ...validShot, shotNumber: 2, title: "重复第二镜" }, { ...validShot, shotNumber: 3, title: "第三镜" }] });
+        const first = JSON.stringify({
+            shots: [
+                { ...validShot, shotNumber: 1, title: "第一镜" },
+                { ...validShot, shotNumber: 2, title: "第二镜" },
+            ],
+        }).slice(0, -2);
+        const continuation = JSON.stringify({
+            shots: [
+                { ...validShot, shotNumber: 2, title: "重复第二镜" },
+                { ...validShot, shotNumber: 3, title: "第三镜" },
+            ],
+        });
         mocks.requestStructuredText.mockReset();
         mocks.requestStructuredText.mockResolvedValueOnce({ arguments: first, headers: new Headers(), elapsedMs: 12 }).mockResolvedValueOnce({ arguments: continuation, headers: new Headers(), elapsedMs: 12 });
         const checkpoints: Array<{ orders: number[]; truncated: boolean }> = [];
