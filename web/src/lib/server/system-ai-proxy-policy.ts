@@ -52,7 +52,7 @@ export function authorizeSystemAiProxyRequest(input: ProxyPolicyInput): SystemAi
     }
 
     const queryPaths = [...(input.paths?.query || []), ...defaultQueryPaths(logical.capability, input.paths?.create || [], input.apiFormat)];
-    const queryMatch = method === "GET" || method === "HEAD" ? firstPathMatch(candidates, queryPaths, upstreamModel) : null;
+    const queryMatch = method === "GET" || method === "HEAD" || method === "POST" ? firstPathMatch(candidates, queryPaths, upstreamModel) : null;
     if (queryMatch) {
         return allowedTaskOperation(logical, "query", taskIdForAccess(queryMatch.taskId, input.upstreamTaskIdHint));
     }
@@ -85,7 +85,7 @@ function defaultQueryPaths(capability: LogicalModelCapability, createPaths: Arra
     const fromCreate = createPaths.filter(Boolean).map((path) => `${String(path).replace(/\/+$/, "")}/:task_id`);
     if (capability === "video") {
         const geminiOperation = apiFormat === "gemini" || createPaths.some((path) => /\/models\/:model:predictLongRunning$/i.test(String(path || ""))) ? ["/models/:model/operations/:task_id"] : [];
-        return [...geminiOperation, ...fromCreate, "/videos/:task_id", "/video/generations/:task_id", "/videos/generations/:task_id", "/result?id=:task_id", "/agnesapi?video_id=:task_id", "/v1/videos/:task_id/content", "/videos/:task_id/content"];
+        return [...geminiOperation, ...fromCreate, "/videos/:task_id", "/video/generations/:task_id", "/videos/generations/:task_id", "/result?id=:task_id", "/agnesapi?video_id=:task_id", "/v1/videos/:task_id/content", "/videos/:task_id/content", "/openapi/v2/query", "/task/openapi/status"];
     }
     if (capability === "audio") return [...fromCreate, "/audio/speech/:task_id"];
     return fromCreate;
