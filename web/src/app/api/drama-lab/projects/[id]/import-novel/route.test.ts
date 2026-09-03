@@ -14,7 +14,10 @@ vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
 }));
 vi.mock("@/lib/server/drama-lab-novel-import-service", () => ({
     DramaLabNovelImportError: class DramaLabNovelImportError extends Error {
-        constructor(message: string, readonly status = 400) {
+        constructor(
+            message: string,
+            readonly status = 400,
+        ) {
             super(message);
         }
     },
@@ -56,14 +59,32 @@ describe("POST /api/drama-lab/projects/:id/import-novel", () => {
         form.append("targetCharacters", "120");
         form.append("commit", "true");
 
-        const response = await POST(
-            new Request("http://localhost/api/drama-lab/projects/project-one/import-novel", { method: "POST", body: form }),
-            context("project-one"),
-        );
+        const response = await POST(new Request("http://localhost/api/drama-lab/projects/project-one/import-novel", { method: "POST", body: form }), context("project-one"));
 
         expect(response.status).toBe(200);
         expect(mocks.importDramaLabNovelForUser).toHaveBeenCalledWith({ userId: "user-one", projectId: "project-one", sourceText: "第一章\n正文", fileName: "故事.md", targetCharacters: 120, commit: true });
         await expect(response.json()).resolves.toMatchObject({ code: 0, data: { committed: false } });
+    });
+
+    it("decodes a legacy GB18030 multipart file before parsing", async () => {
+        const form = new FormData();
+        form.append("file", new Blob([Uint8Array.from([0xd6, 0xd0, 0xce, 0xc4])], { type: "text/plain" }), "故事.txt");
+
+        const response = await POST(new Request("http://localhost/api/drama-lab/projects/project-one/import-novel", { method: "POST", body: form }), context("project-one"));
+
+        expect(response.status).toBe(200);
+        expect(mocks.importDramaLabNovelForUser).toHaveBeenCalledWith({ userId: "user-one", projectId: "project-one", sourceText: "中文", fileName: "故事.txt", targetCharacters: 0, commit: false });
+    });
+
+    it("returns a client error for an undecodable multipart file", async () => {
+        const form = new FormData();
+        form.append("file", new Blob([Uint8Array.from([0x81])], { type: "text/plain" }), "故事.txt");
+
+        const response = await POST(new Request("http://localhost/api/drama-lab/projects/project-one/import-novel", { method: "POST", body: form }), context("project-one"));
+
+        expect(response.status).toBe(415);
+        expect(mocks.importDramaLabNovelForUser).not.toHaveBeenCalled();
+        await expect(response.json()).resolves.toMatchObject({ code: 415 });
     });
 
     it("returns domain errors with their status", async () => {

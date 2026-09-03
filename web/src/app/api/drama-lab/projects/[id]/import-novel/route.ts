@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
+import { decodeDramaNovelBytes } from "@/lib/drama-novel-text-decoder";
 import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabNovelImportError, importDramaLabNovelForUser } from "@/lib/server/drama-lab-novel-import-service";
 import { readRequestBodyBytes, RequestBodyTooLargeError } from "@/lib/server/request-body-limit";
@@ -67,7 +68,14 @@ async function readNovelImportRequest(request: Request) {
     const fileValue = form.get("file") || form.get("novel") || form.get("sourceFile");
     const file = fileValue instanceof File ? fileValue : undefined;
     const sourceTextValue = form.get("sourceText") || form.get("content");
-    const sourceText = file ? await file.text() : typeof sourceTextValue === "string" ? sourceTextValue : "";
+    let sourceText = typeof sourceTextValue === "string" ? sourceTextValue : "";
+    if (file) {
+        try {
+            sourceText = decodeDramaNovelBytes(await file.arrayBuffer()).text;
+        } catch (error) {
+            return { ok: false as const, status: 415, message: error instanceof Error ? error.message : "无法识别小说文件编码" };
+        }
+    }
     const fileNameValue = file?.name || form.get("fileName");
     const fileName = typeof fileNameValue === "string" ? fileNameValue : undefined;
     const targetCharactersValue = Number(form.get("targetCharacters"));

@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type DragEvent } from "react";
 import { Button, Input, Modal, Pagination } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
 import { BookOpenText, FileText, Search } from "lucide-react";
+
+import { decodeDramaNovelBytes } from "@/lib/drama-novel-text-decoder";
 
 const IMPORT_PAGE_SIZE = 20;
 const MAX_NOVEL_BYTES = 2 * 1024 * 1024;
@@ -20,6 +22,8 @@ type NovelImportPreview = {
 
 export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi, onImported }: { projectId: string; currentEpisodeCount: number; messageApi: MessageInstance; onImported: (episodeId?: string) => Promise<void> | void }) {
     const inputRef = useRef<HTMLInputElement>(null);
+    const readingRef = useRef(false);
+    const importingRef = useRef(false);
     const [sourceText, setSourceText] = useState("");
     const [fileName, setFileName] = useState("");
     const [preview, setPreview] = useState<NovelImportPreview>();
@@ -27,6 +31,8 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
     const [page, setPage] = useState(1);
     const [reading, setReading] = useState(false);
     const [importing, setImporting] = useState(false);
+    const [dragging, setDragging] = useState(false);
+    const dragDepthRef = useRef(0);
     const filtered = useMemo(() => {
         const keyword = query.trim().toLocaleLowerCase("zh-CN");
         const drafts = preview?.drafts || [];
@@ -45,13 +51,15 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
     };
 
     const readSource = async (file?: File) => {
-        if (!file) return;
+        if (!file || readingRef.current || importingRef.current) return;
+        readingRef.current = true;
         setReading(true);
         try {
             if (!/\.(?:txt|md)$/iu.test(file.name)) throw new Error("仅支持 TXT 或 MD 小说文件");
             if (!file.size) throw new Error("导入文件没有可识别的文本内容");
             if (file.size > MAX_NOVEL_BYTES) throw new Error("小说文件超过 2MB 限制，请拆分后再导入");
-            const content = await file.text();
+            const decoded = decodeDramaNovelBytes(await file.arrayBuffer());
+            const content = decoded.text;
             const result = await requestNovelImport(projectId, { sourceText: content, fileName: file.name, commit: false });
             setSourceText(content);
             setFileName(file.name);
@@ -61,13 +69,15 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "小说解析失败");
         } finally {
+            readingRef.current = false;
             setReading(false);
             if (inputRef.current) inputRef.current.value = "";
         }
     };
 
     const confirmImport = async () => {
-        if (!preview || !sourceText) return;
+        if (!preview || !sourceText || importingRef.current || readingRef.current) return;
+        importingRef.current = true;
         setImporting(true);
         try {
             const result = await requestNovelImport(projectId, { sourceText, fileName, commit: true });
@@ -78,6 +88,7 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "小说导入失败");
         } finally {
+            importingRef.current = false;
             setImporting(false);
         }
     };
@@ -90,11 +101,70 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
         setPage(1);
     };
 
+    const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        if (!isFileDrag(event)) return;
+        event.stopPropagation();
+        dragDepthRef.current += 1;
+        setDragging(true);
+    };
+
+    const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        if (!isFileDrag(event)) {
+            event.dataTransfer.dropEffect = "none";
+            return;
+        }
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = "copy";
+        setDragging(true);
+    };
+
+    const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        if (dragDepthRef.current === 0) return;
+        event.stopPropagation();
+        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+        if (dragDepthRef.current === 0) setDragging(false);
+    };
+
+    const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dragDepthRef.current = 0;
+        setDragging(false);
+        const file = event.dataTransfer.files?.[0];
+        if (!file) {
+            messageApi.error("请拖入 TXT 或 MD 小说文件");
+            return;
+        }
+        void readSource(file);
+    };
+
+    const handleDragEnd = () => {
+        dragDepthRef.current = 0;
+        setDragging(false);
+    };
+
     return (
         <>
-            <Button icon={<BookOpenText className="size-4" />} loading={reading} onClick={() => inputRef.current?.click()}>
-                导入小说
-            </Button>
+            <div
+                className={`inline-flex items-center gap-2 rounded-lg border border-dashed px-1 py-1 transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border"}`}
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onDragEnd={handleDragEnd}
+                aria-label="小说文件导入区域"
+                aria-busy={reading || importing}
+                data-dragging={dragging || undefined}
+                data-drama-lab-novel-dropzone
+            >
+                <Button icon={<BookOpenText className="size-4" />} loading={reading} disabled={importing} onClick={() => inputRef.current?.click()}>
+                    导入小说
+                </Button>
+                <span className="hidden pr-2 text-xs text-muted-foreground sm:inline">或拖拽 TXT/MD 文件到这里</span>
+            </div>
             <input ref={inputRef} type="file" accept=".txt,.md,text/plain,text/markdown" className="hidden" onChange={(event) => void readSource(event.target.files?.[0])} />
             <Modal
                 title="导入小说并生成分集草稿"
@@ -164,6 +234,10 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
             </Modal>
         </>
     );
+}
+
+function isFileDrag(event: DragEvent<HTMLDivElement>) {
+    return Array.from(event.dataTransfer.types || []).includes("Files");
 }
 
 async function requestNovelImport(projectId: string, input: { sourceText: string; fileName: string; commit: boolean }) {

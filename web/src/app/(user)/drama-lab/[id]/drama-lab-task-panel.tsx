@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, Button, Progress, Tag, message } from "antd";
-import { CheckCircle2, ChevronDown, ChevronUp, CircleAlert, LoaderCircle, PauseCircle, RefreshCw, Square, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronUp, CircleAlert, LoaderCircle, PauseCircle, RefreshCw, Square, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
