@@ -57,6 +57,9 @@ export const practiceApi = {
     retrySession(id: string) {
         return request<{ session: PracticeSession }>(`/api/practice/sessions/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ action: "retry" }) });
     },
+    deleteSession(id: string) {
+        return request<{ success: boolean }>(`/api/practice/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
     getProject(id: string, kind: PracticeProjectKind) {
         return request<{ kind: PracticeProjectKind; project: PracticeProject }>(`/api/practice/projects/${encodeURIComponent(id)}?kind=${kind}`);
     },

@@ -83,7 +83,7 @@ export async function discoverWorkflow(input: { channelId: string; workflowIdOrU
     const workflowId = parseWorkflowId(input.workflowIdOrUrl);
     if (!workflowId) throw new RunningHubWorkflowError("Workflow ID 必须是数字或包含数字 ID 的完整链接", 400);
     const raw = await fetchRunningHubWorkflowJson({ baseUrl: channel.baseUrl, apiKey: channel.apiKey || "", workflowId });
-    return analyzeRunningHubWorkflowJson({ workflowId, raw, capability: input.capability });
+    return analyzeRunningHubWorkflowJson({ workflowId, raw: unwrapWorkflowJson(raw), capability: input.capability });
 }
 
 export async function createWorkflow(input: unknown) {
@@ -291,6 +291,19 @@ function uniqueWorkflowKey(settings: AuthSettings, base: string) {
 
 function asRecord(value: unknown): Record<string, unknown> {
     return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function unwrapWorkflowJson(raw: unknown) {
+    const data = asRecord(asRecord(raw).data);
+    if (typeof data.prompt !== "string") return raw;
+    try {
+        const parsed = JSON.parse(data.prompt) as unknown;
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return raw;
+        const workflowType = text(data.workflowType) || text(data.workflow_type);
+        return workflowType ? { workflowType, ...(parsed as Record<string, unknown>) } : parsed;
+    } catch {
+        return raw;
+    }
 }
 
 function text(value: unknown) {

@@ -36,6 +36,7 @@ import type {
 import type { JsonValue } from "@/lib/server/database/repository-types";
 import { createSchoolDomainRepository } from "@/lib/server/school-domain-repository";
 import { validateSchoolContentReferences } from "./school-content-reference-service";
+import { resolveTeachingSubmissionReferences } from "./school-submission-reference-service";
 import { requireActiveSchoolContext, requireSchoolManager, requireStudent, requireTeacher, SchoolServiceError } from "./school-access-service";
 import { getLocalMediaRegistrations } from "@/lib/server/local-media-registry";
 import { cleanupDeletedCourseMaterials } from "./course-attachment-service";
@@ -337,25 +338,33 @@ export async function createCourseOffering(managerId: string, assignmentId: stri
     const context = await requireSchoolManager(managerId);
     if (input.status !== undefined && !isSchoolStatus(input.status)) throw new SchoolServiceError(400, "课程安排状态无效");
     const repository = createSchoolDomainRepository();
-    const offering = await repository.transact(async (transaction) => {
-        await requireActiveCourseAssignment(transaction, context.school.id, assignmentId);
-        const schoolClass = await transaction.getClass(context.school.id, requiredText(input.classId, "班级", 160), true);
-        if (!schoolClass) throw new SchoolServiceError(404, "班级不存在");
-        if (schoolClass.status !== "active") throw new SchoolServiceError(409, "班级已停用，不能创建新的教学安排");
-        const teacher = await transaction.getMembership(context.school.id, requiredText(input.teacherMembershipId, "负责老师", 160), true);
-        if (!teacher || teacher.role !== "teacher" || teacher.status !== "active") throw new SchoolServiceError(400, "负责老师必须是本校可用老师");
-        const now = new Date().toISOString();
-        return transaction.insertCourseOffering({
-            id: randomUUID(),
-            schoolId: context.school.id,
-            assignmentId,
-            classId: schoolClass.id,
-            teacherMembershipId: teacher.id,
-            status: input.status === "disabled" ? "disabled" : "active",
-            createdAt: now,
-            updatedAt: now,
+    let offering: SchoolCourseOfferingRecord;
+    try {
+        offering = await repository.transact(async (transaction) => {
+            await requireActiveCourseAssignment(transaction, context.school.id, assignmentId);
+            const schoolClass = await transaction.getClass(context.school.id, requiredSelection(input.classId, "班级"), true);
+            if (!schoolClass) throw new SchoolServiceError(404, "班级不存在");
+            if (schoolClass.status !== "active") throw new SchoolServiceError(409, "班级已停用，不能创建新的教学安排");
+            const teacher = await transaction.getMembership(context.school.id, requiredSelection(input.teacherMembershipId, "负责老师"), true);
+            if (!teacher) throw new SchoolServiceError(404, "负责老师不存在");
+            if (teacher.status !== "active") throw new SchoolServiceError(409, "负责老师已停用，不能创建新的教学安排");
+            if (teacher.role !== "teacher") throw new SchoolServiceError(400, "负责老师必须是本校老师");
+            const now = new Date().toISOString();
+            return transaction.insertCourseOffering({
+                id: randomUUID(),
+                schoolId: context.school.id,
+                assignmentId,
+                classId: schoolClass.id,
+                teacherMembershipId: teacher.id,
+                status: input.status === "disabled" ? "disabled" : "active",
+                createdAt: now,
+                updatedAt: now,
+            });
         });
-    });
+    } catch (error) {
+        if (isDuplicateCourseOfferingError(error)) throw new SchoolServiceError(409, "该课程已为此班级和老师创建教学安排");
+        throw error;
+    }
     return toCourseOffering(repository, offering);
 }
 
@@ -627,7 +636,11 @@ async function toTeachingAssignment(repository: SchoolDomainRepository, record: 
 
 async function toTeachingSubmission(repository: SchoolDomainRepository, record: TeachingSubmissionRecord): Promise<TeachingSubmission> {
     const membership = await repository.getMembership(record.schoolId, record.studentMembershipId);
-    return { ...record, contentReferences: Array.isArray(record.contentReferences) ? record.contentReferences : [], student: await toPublicIdentity(membership) };
+    const contentReferences = Array.isArray(record.contentReferences) ? record.contentReferences : [];
+    const resolvedContentReferences = membership?.userId
+        ? await resolveTeachingSubmissionReferences({ ownerUserId: membership.userId, schoolId: record.schoolId, references: contentReferences })
+        : contentReferences.map((reference) => ({ reference, title: "成果不可用", mediaType: "unknown" as const, availability: "unavailable" as const }));
+    return { ...record, contentReferences, resolvedContentReferences, student: await toPublicIdentity(membership) };
 }
 
 async function toPublicIdentity(membership: SchoolMembershipRecord | null): Promise<SchoolPublicIdentity> {
@@ -650,6 +663,19 @@ function requiredText(value: unknown, label: string, max: number) {
     const textValue = text(value, max);
     if (!textValue) throw new SchoolServiceError(400, `请填写${label}`);
     return textValue;
+}
+
+function requiredSelection(value: unknown, label: string) {
+    const selected = text(value, 160);
+    if (!selected) throw new SchoolServiceError(400, `请选择${label}`);
+    return selected;
+}
+
+function isDuplicateCourseOfferingError(error: unknown) {
+    if (error instanceof Error && error.message === "课程安排已存在") return true;
+    if (!error || typeof error !== "object") return false;
+    const candidate = error as { code?: unknown };
+    return candidate.code === "23505";
 }
 
 function toPlatformCourse(record: PlatformCourseRecord): PlatformCourse {

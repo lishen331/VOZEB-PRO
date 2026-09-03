@@ -11,7 +11,9 @@ export function schoolApiError(status: number, msg: string) {
 export function schoolApiFailure(error: unknown, fallback: string) {
     const status = schoolApiErrorStatus(error);
     if (status === 500) console.error(fallback, { errorType: error instanceof Error ? error.name : typeof error });
-    return schoolApiError(status, status === 500 ? fallback : error instanceof Error ? error.message : fallback);
+    if (status === 500) return schoolApiError(status, fallback);
+    const value = error && typeof error === "object" ? (error as { message?: unknown; data?: unknown }) : {};
+    return NextResponse.json({ code: status, data: value.data ?? null, msg: typeof value.message === "string" ? value.message : fallback }, { status });
 }
 
 export function schoolApiErrorStatus(error: unknown) {

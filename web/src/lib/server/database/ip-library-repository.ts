@@ -38,12 +38,18 @@ export type IpUsageListInput = PageInput & { ipId?: string; versionId?: string; 
 export type IpDownloadListInput = PageInput & { ipId?: string; versionId?: string; schoolId?: string; userId?: string; downloadType?: string; result?: string };
 export type AdminIpListInput = PageInput & { keyword?: string; status?: string; visibility?: string };
 export type IpGrantListInput = PageInput & { ipId?: string; grantId?: string; schoolId?: string; status?: string };
+export type IpGrantConflictInput = { ipId: string; schoolId: string; mode: string; startsAt: string; endsAt?: string; excludeGrantId?: string };
 
 export class IpLibraryRepository {
     constructor(private readonly db: QueryExecutor) {}
 
     async getIpPackage(ipId: string): Promise<IpPackageRecord | null> {
         const result = await this.db.query("SELECT * FROM ip_packages WHERE id = $1", [ipId]);
+        return result.rows[0] ? mapPackage(result.rows[0]) : null;
+    }
+
+    async getIpPackageBySlug(slug: string, excludeIpId?: string): Promise<IpPackageRecord | null> {
+        const result = await this.db.query("SELECT * FROM ip_packages WHERE lower(slug) = lower($1) AND ($2::text IS NULL OR id <> $2) LIMIT 1", [slug, excludeIpId || null]);
         return result.rows[0] ? mapPackage(result.rows[0]) : null;
     }
 
@@ -408,6 +414,19 @@ export class IpLibraryRepository {
             ],
         );
         return mapGrant(result.rows[0]);
+    }
+
+    async findConflictingSchoolGrant(input: IpGrantConflictInput): Promise<IpSchoolGrantRecord | null> {
+        const result = await this.db.query(
+            `SELECT * FROM ip_school_grants
+             WHERE ip_id = $1 AND status = 'active' AND ($6::text IS NULL OR id <> $6)
+               AND (school_id = $2 OR mode = 'exclusive' OR $3::text = 'exclusive')
+               AND tstzrange(starts_at, COALESCE(ends_at, 'infinity'::timestamptz), '[)')
+                   && tstzrange($4::timestamptz, COALESCE($5::timestamptz, 'infinity'::timestamptz), '[)')
+             ORDER BY starts_at, id LIMIT 1`,
+            [input.ipId, input.schoolId, input.mode, input.startsAt, input.endsAt || null, input.excludeGrantId || null],
+        );
+        return result.rows[0] ? mapGrant(result.rows[0]) : null;
     }
 
     async updateSchoolGrant(ipId: string, grantId: string, patch: IpSchoolGrantUpdateInput): Promise<IpSchoolGrantRecord | null> {

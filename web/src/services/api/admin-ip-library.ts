@@ -62,6 +62,7 @@ export class AdminIpLibraryRequestError extends Error {
     constructor(
         message: string,
         readonly outcome: "confirmed_failure" | "unknown",
+        readonly data?: unknown,
     ) {
         super(message);
     }
@@ -100,7 +101,7 @@ async function request<T>(url: string, init?: RequestInit) {
     const payload = (await response.json().catch(() => null)) as { code?: number; data?: T; msg?: string } | null;
     if (!response.ok || !payload || payload.code !== 0 || payload.data === undefined) {
         const outcome = payload && payload.code !== undefined && payload.code !== 0 ? "confirmed_failure" : "unknown";
-        throw new AdminIpLibraryRequestError(payload?.msg || "IP 库请求失败", outcome);
+        throw new AdminIpLibraryRequestError(payload?.msg || "IP 库请求失败", outcome, payload?.data);
     }
     return payload.data;
 }

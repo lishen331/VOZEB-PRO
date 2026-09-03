@@ -54,6 +54,7 @@ export interface PracticeSessionStore {
     claimDispatch(userId: string, id: string): Promise<PracticeSessionRecord | null>;
     resetForRetry(userId: string, id: string): Promise<PracticeSessionRecord | null>;
     update(userId: string, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title" | "mode" | "selectedLogicalModelId" | "errorCode" | "errorMessage">>): Promise<PracticeSessionRecord | null>;
+    delete(userId: string, id: string): Promise<void>;
 }
 
 export type PracticePublicErrorCode =
@@ -250,6 +251,13 @@ export async function retryPracticeSessionForUser(
     return dispatchQueuedSession(actor.id, reset, current.clientRequestId, store, dispatch, deps.resolveModel || defaultResolveModel);
 }
 
+export async function deletePracticeSession(userId: string, sessionId: string, deps: { store?: PracticeSessionStore } = {}) {
+    const store = deps.store || defaultPracticeSessionStore();
+    const session = await store.get(userId, clean(sessionId, 160));
+    if (!session) throw new PracticeServiceError("练习会话不存在", 404);
+    await store.delete(userId, sessionId);
+}
+
 export class PracticeServiceError extends Error {
     constructor(
         readonly message: string,
@@ -295,6 +303,7 @@ async function publicTaskResult(session: PracticeSessionRecord) {
     const task = taskType === "text" ? await getTextTask(taskId) : taskType === "image" ? await getImageTask(taskId) : taskType === "video" ? await getVideoTask(taskId) : await getAudioTask(taskId);
     if (!task || task.userId !== session.userId) return undefined;
     if (task.status === "pending" || task.status === "running") return { status: task.status } as const;
+    if (task.status === "needs_review") return { status: "error" as const, error: (task as { error?: string }).error || "视频任务已超过自动查询时间，请联系管理员检查上游状态" };
     if (task.status === "error") return { status: "error" as const, error: task.error || "练习失败" };
     if (task.status === "cancelled") return { status: "cancelled" as const, error: task.error };
     const result = task && typeof task === "object" && task.result && typeof task.result === "object" ? (task.result as Record<string, unknown>) : {};
@@ -416,6 +425,7 @@ function postgresSessionStore(): PracticeSessionStore & { list(userId: string, i
         claimDispatch: (userId, id) => repository.claimPracticeSessionDispatch(userId, id),
         resetForRetry: (userId, id) => repository.resetPracticeSessionForRetry(userId, id),
         update: (userId, id, patch) => repository.updatePracticeSession(userId, id, patch),
+        delete: (userId, id) => repository.deletePracticeSession(userId, id),
         async list(userId, input) {
             return repository.listPracticeSessionsForUser(userId, input);
         },
@@ -477,6 +487,13 @@ function fileSessionStore(): PracticeSessionStore & { list(userId: string, input
                 await writeJsonDataFile(FILE_NAME, { ...db, sessions });
             });
             return updated;
+        },
+        async delete(userId, id) {
+            await withJsonDataFileLock(FILE_NAME, async () => {
+                const db = await read();
+                const sessions = db.sessions.filter((item) => !(item.userId === userId && item.id === id));
+                await writeJsonDataFile(FILE_NAME, { ...db, sessions });
+            });
         },
         async list(userId, input) {
             const all = (await read()).sessions

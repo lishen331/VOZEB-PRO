@@ -104,6 +104,42 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
             window.removeEventListener("focus", loadSession);
         };
     }, [message, sessionId]);
+    useEffect(() => {
+        if (!current) return;
+        const isPolling = current.status === "queued" || current.status === "running" || current.result?.status === "pending" || current.result?.status === "running";
+        if (!isPolling) return;
+        let active = true;
+        let pollCount = 0;
+        const poll = () => {
+            if (!active) return;
+            void practiceApi
+                .getSession(current.id)
+                .then(({ session }) => {
+                    if (!active) return;
+                    setCurrent(session);
+                    setSessions((items) => items.map((item) => (item.id === session.id ? session : item)));
+                    const stillPolling = session.status === "queued" || session.status === "running" || session.result?.status === "pending" || session.result?.status === "running";
+                    if (stillPolling && active) {
+                        pollCount += 1;
+                        const delay = Math.min(2000 + pollCount * 1000, 8000);
+                        setTimeout(poll, delay);
+                    }
+                })
+                .catch(() => {
+                    if (active) {
+                        pollCount += 1;
+                        const delay = Math.min(2000 + pollCount * 1000, 8000);
+                        setTimeout(poll, delay);
+                    }
+                });
+        };
+        const initialDelay = 2000;
+        const timer = setTimeout(poll, initialDelay);
+        return () => {
+            active = false;
+            clearTimeout(timer);
+        };
+    }, [current, message]);
     const onCreated = (session: PracticeSession) => {
         setCurrent(session);
         setSessions((items) => [session, ...items.filter((item) => item.id !== session.id)]);
@@ -130,6 +166,23 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
             onCreated((await practiceApi.retrySession(target.id)).session);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "练习重试失败");
+        } finally {
+            setRefreshing(false);
+        }
+    };
+    const deleteSession = async (target: PracticeSession) => {
+        if (refreshing) return;
+        setRefreshing(true);
+        try {
+            await practiceApi.deleteSession(target.id);
+            setSessions((items) => items.filter((item) => item.id !== target.id));
+            if (current?.id === target.id) {
+                setCurrent(undefined);
+                router.replace(`/practice/${module}`);
+            }
+            message.success("练习记录已删除");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "删除失败");
         } finally {
             setRefreshing(false);
         }
@@ -202,6 +255,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                                 router.replace(`/practice/${module}?sessionId=${encodeURIComponent(session.id)}`);
                             }}
                             onRetry={(session) => void retry(session)}
+                            onDelete={(session) => void deleteSession(session)}
                         />
                     ) : (
                         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="提交第一次练习后，结果会显示在这里" className="!my-5" />

@@ -51,6 +51,7 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
     const [versionIp, setVersionIp] = useState<AdminIp>();
     const [grantIp, setGrantIp] = useState<AdminIp>();
     const requestId = useRef(0);
+    const slugEditedRef = useRef(false);
 
     const load = useCallback(async () => {
         const id = ++requestId.current;
@@ -70,6 +71,7 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
 
     const openEditor = (ip?: AdminIp) => {
         setEditing(ip);
+        slugEditedRef.current = Boolean(ip);
         form.resetFields();
         form.setFieldsValue(ip ? { title: ip.title, slug: ip.slug, summary: ip.summary, visibility: ip.visibility } : { visibility: "public" });
         setEditorOpen(true);
@@ -83,7 +85,10 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
             setEditorOpen(false);
             await load();
         } catch (error) {
-            message.error(errorMessage(error, "IP 保存失败"));
+            const text = errorMessage(error, "IP 保存失败");
+            const data = error && typeof error === "object" ? (error as { data?: { field?: string } }).data : undefined;
+            if (data?.field === "slug") form.setFields([{ name: "slug", errors: [text] }]);
+            message.error(text);
             throw error;
         } finally {
             setSaving(false);
@@ -228,7 +233,12 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
                 <Form form={form} layout="vertical" onFinish={save} className="pt-2">
                     <div className="grid gap-x-3 sm:grid-cols-2">
                         <Form.Item name="title" label="IP 名称" rules={[{ required: true, message: "请填写 IP 名称" }]}>
-                            <Input maxLength={120} />
+                            <Input
+                                maxLength={120}
+                                onChange={(event) => {
+                                    if (!slugEditedRef.current && !editing) form.setFieldValue("slug", slugSuggestion(event.target.value));
+                                }}
+                            />
                         </Form.Item>
                         <Form.Item
                             name="slug"
@@ -238,7 +248,11 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
                                 { pattern: /^[a-z0-9]+(?:-[a-z0-9]+)*$/, message: "使用小写字母、数字和连字符" },
                             ]}
                         >
-                            <Input />
+                            <Input
+                                onChange={() => {
+                                    slugEditedRef.current = true;
+                                }}
+                            />
                         </Form.Item>
                     </div>
                     <Form.Item name="summary" label="简介">
@@ -247,6 +261,7 @@ function IpContentPanel({ canManageContent, canManageEducation }: { canManageCon
                     <Form.Item name="visibility" label="前端范围" rules={[{ required: true }]}>
                         <Select options={visibilityOptions} />
                     </Form.Item>
+                    <p className="-mt-2 text-xs text-zinc-500">公共 IP 可公开查看，不能绑定学校授权；学校授权仅适用于已发布的本校 IP。</p>
                 </Form>
             </Modal>
             <VersionDrawer ip={versionIp} canManage={canManageContent} onClose={() => setVersionIp(undefined)} onChanged={load} />
@@ -369,6 +384,7 @@ function VersionDrawer({ ip, canManage, onClose, onChanged }: { ip?: AdminIp; ca
                                 ) : null}
                             </Space>
                         </div>
+                        {canManage && version.status === "draft" && !versionReady(version, files) ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{versionBlockReason(version, files)}</p> : null}
                         {version.summary ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{version.summary}</p> : null}
                         {version.tags.length ? (
                             <div className="mt-2 flex flex-wrap gap-1">
@@ -534,6 +550,18 @@ function versionReady(version: IpVersionRecord, files: IpContentFileRecord[]) {
     return (!version.coverFileId || readyIds.has(version.coverFileId)) && version.items.every((item) => readyIds.has(item.fileId));
 }
 
+function versionBlockReason(version: IpVersionRecord, files: IpContentFileRecord[]) {
+    if (!version.items.length) return "IP 版本至少需要一个内容项";
+    const byId = new Map(files.map((file) => [file.id, file]));
+    const itemFiles = version.items.map((item) => byId.get(item.fileId));
+    const coverFile = version.coverFileId ? byId.get(version.coverFileId) : undefined;
+    if (itemFiles.some((file) => file?.status === "processing") || coverFile?.status === "processing") return "仍有内容文件处理中，请稍后再发布";
+    if (itemFiles.some((file) => !file || file.status === "failed") || coverFile?.status === "failed") return "有内容文件处理失败，请重新上传";
+    if (version.coverFileId && coverFile?.status !== "ready") return "IP 封面尚未准备完成";
+    if (itemFiles.some((file) => file?.status !== "ready")) return "有内容文件尚未准备完成";
+    return "当前版本暂不可发布";
+}
+
 function GrantPanel() {
     const { message } = App.useApp();
     const [items, setItems] = useState<AdminIp[]>([]);
@@ -583,6 +611,7 @@ function GrantPanel() {
                         </Button>
                     </article>
                 ))}
+                {!items.length ? <EmptyText text="暂无可授权 IP。授权入口只展示已发布的本校 IP，公共 IP、草稿和已停用 IP 不在此列表。" /> : null}
             </div>
             <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
             <GrantDrawer ip={selected} onClose={() => setSelected(undefined)} />
@@ -700,9 +729,19 @@ function GrantDrawer({ ip, onClose }: { ip?: AdminIp; onClose: () => void }) {
                         </div>
                     </article>
                 ))}
+                {!items.length ? <EmptyText text="暂无学校授权记录。只有已发布的本校 IP 才能创建授权。" /> : null}
             </div>
             <Pagination className="mt-3" current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
             <Modal title="新增学校授权" open={creating} destroyOnHidden width="min(560px, 100vw)" okText="创建授权" cancelText="取消" confirmLoading={loading} onCancel={() => setCreating(false)} onOk={() => form.submit()}>
+                {items.filter((item) => item.status === "active").length ? (
+                    <p className="mb-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+                        当前有效授权：
+                        {items
+                            .filter((item) => item.status === "active")
+                            .map((item) => `${item.school?.name || "学校"}（${ipAuthorizationLabel(item.mode)}，${formatTime(item.startsAt)} 至 ${item.endsAt ? formatTime(item.endsAt) : "长期"}）`)
+                            .join("；")}
+                    </p>
+                ) : null}
                 <Form form={form} layout="vertical" onFinish={create} className="pt-2">
                     <div className="grid gap-x-3 sm:grid-cols-2">
                         <Form.Item name="schoolId" label="学校" rules={[{ required: true, message: "请选择学校" }]}>
@@ -826,6 +865,17 @@ function formatTime(value: string) {
 }
 function errorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback;
+}
+function EmptyText({ text }: { text: string }) {
+    return <div className="col-span-full py-8 text-center text-sm text-zinc-500">{text}</div>;
+}
+function slugSuggestion(value: string) {
+    const slug = value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    return slug || "new-ip";
 }
 function localToIso(value: string) {
     const date = new Date(value);

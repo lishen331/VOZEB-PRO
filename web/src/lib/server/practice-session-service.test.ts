@@ -76,6 +76,11 @@ function memoryStore(): PracticeSessionStore {
             records.set(id, updated);
             return updated;
         }),
+        delete: vi.fn(async (userId, id) => {
+            const record = records.get(id);
+            if (!record || record.userId !== userId) return;
+            records.delete(id);
+        }),
     };
 }
 

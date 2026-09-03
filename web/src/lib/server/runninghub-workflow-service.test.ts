@@ -3,16 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
     getFreshAuthSettings: vi.fn(),
     setAuthSettings: vi.fn(),
+    fetchRunningHubWorkflowJson: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/store", () => ({
     getFreshAuthSettings: mocks.getFreshAuthSettings,
     setAuthSettings: mocks.setAuthSettings,
 }));
+vi.mock("./runninghub-provider", () => ({ fetchRunningHubWorkflowJson: mocks.fetchRunningHubWorkflowJson }));
 
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store-types";
-import { RunningHubWorkflowError, copyWorkflowVersion, createWorkflow, getWorkflow, listWorkflows, parseWorkflowId, setWorkflowEnabled, updateWorkflow } from "./runninghub-workflow-service";
+import { RunningHubWorkflowError, copyWorkflowVersion, createWorkflow, discoverWorkflow, getWorkflow, listWorkflows, parseWorkflowId, setWorkflowEnabled, updateWorkflow } from "./runninghub-workflow-service";
 
 const workflow = {
     workflowKey: "storyboard-image-v1",
@@ -80,6 +82,22 @@ describe("runninghub workflow service", () => {
         expect(parseWorkflowId("https://runninghub.example/workflow/2090436199843454978")).toBe("2090436199843454978");
         expect(parseWorkflowId("https://runninghub.example/project/999999999999/workflow/2090436199843454978")).toBe("2090436199843454978");
         expect(parseWorkflowId("https://runninghub.example/project/999999999999/asset/888888888888")).toBe("");
+    });
+
+    it("unwraps RunningHub data.prompt JSON before analyzing workflow nodes", async () => {
+        const nodes = {
+            "35": { class_type: "TextInput", inputs: { text: "{{prompt}}" } },
+            "13": { class_type: "LoadImage", inputs: { image: "reference.png" } },
+            "67": { class_type: "SaveImage", inputs: { images: ["13", 0] } },
+        };
+        mocks.fetchRunningHubWorkflowJson.mockResolvedValue({ code: 0, msg: "SUCCESS", data: { workflowType: "MiniMaxH3ReferenceToImage", prompt: JSON.stringify(nodes) } });
+
+        const result = await discoverWorkflow({ channelId: "rh-practice", workflowIdOrUrl: "2090436220538150914", capability: "image" });
+
+        expect(result).toMatchObject({ workflowId: "2090436220538150914", workflowType: "MiniMaxH3ReferenceToImage", nodeCount: 3 });
+        expect(result.candidates).toEqual(
+            expect.arrayContaining([expect.objectContaining({ nodeId: "35", fieldName: "text", role: "prompt" }), expect.objectContaining({ nodeId: "13", fieldName: "image", role: "image" }), expect.objectContaining({ nodeId: "67", role: "output" })]),
+        );
     });
 
     it("creates version one disabled and never returns API secrets or the full request template", async () => {

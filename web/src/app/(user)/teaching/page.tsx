@@ -26,6 +26,7 @@ import { listWorkPublications } from "@/services/api/work-publications";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { ProductionGroupMemberPanel } from "@/components/school/production-group-member-panel";
 import { SchoolCourseTree } from "@/components/school/school-course-tree";
+import { SubmissionReferenceList } from "@/components/school/submission-reference-list";
 
 type AssignmentForm = { offeringId: string; chapterId?: string; lessonId?: string; kind: TeachingAssignmentKind; title: string; instructions?: string; dueAt?: string; resourceUrls?: string[] };
 type ReviewForm = { feedback: string };
@@ -859,6 +860,7 @@ function SubmissionList({ submissions, canReview, onReview }: { submissions: Tea
                     </div>
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">{submission.note || "未填写说明"}</p>
                     <div className="mt-2 text-xs text-zinc-500">成果引用 {submission.contentReferences.length} 项</div>
+                    <SubmissionReferenceList references={submission.resolvedContentReferences} />
                     {submission.feedback ? <p className="mt-2 rounded-md bg-zinc-50 px-3 py-2 text-sm dark:bg-zinc-900">{submission.feedback}</p> : null}
                     {canReview && submission.status === "submitted" ? (
                         <div className="mt-3 flex flex-wrap gap-2">

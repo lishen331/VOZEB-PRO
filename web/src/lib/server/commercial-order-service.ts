@@ -1,4 +1,8 @@
 import { randomUUID } from "node:crypto";
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 
 import { hasAdminPermission } from "@/lib/admin-permissions";
 import { getPublicUsersByIds } from "@/lib/auth/store";
@@ -31,6 +35,11 @@ import { mutateFileSchoolDomainInsideLock, SCHOOL_DOMAIN_DATA_FILE } from "./sch
 import { openCommercialOrderSettlement, openCommercialOrderSettlementInsideTransaction } from "./school-compute-settlement-service";
 import { requireActiveSchoolContext, requireSchoolManager, requireStudent, requireTeacher, SchoolServiceError } from "./school-access-service";
 import { validateSchoolContentReferences } from "./school-content-reference-service";
+import { resolveSchoolContentReferences } from "./school-submission-reference-service";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(customParseFormat);
 
 type PageInput = { page?: number; pageSize?: number };
 type ConfigurationInput = { teacherMembershipId: string; classId?: string; participantMembershipIds: string[] };
@@ -425,12 +434,14 @@ async function toParticipant(repository: SchoolDomainRepository, record: Commerc
 
 async function toDelivery(repository: SchoolDomainRepository, record: CommercialOrderDeliveryRecord): Promise<CommercialOrderDelivery> {
     const membership = await repository.getMembership(record.schoolId, record.submittedByMembershipId);
+    const contentReferences = referenceArray(record.contentReferences);
     return {
         id: record.id,
         orderId: record.orderId,
         submittedByMembershipId: record.submittedByMembershipId,
         submittedBy: await toPublicIdentity(membership),
-        contentReferences: referenceArray(record.contentReferences),
+        contentReferences,
+        resolvedContentReferences: membership?.userId ? await resolveSchoolContentReferences({ ownerUserId: membership.userId, schoolId: record.schoolId, references: contentReferences }) : [],
         note: record.note,
         status: record.status,
         platformFeedback: record.platformFeedback,
@@ -493,8 +504,27 @@ function amountValue(value: unknown) {
 }
 
 function dueAtValue(value: unknown) {
-    if (typeof value !== "string" || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value.trim()) || Number.isNaN(Date.parse(value))) throw new SchoolServiceError(400, "截止时间必须包含明确时区");
-    return new Date(value).toISOString();
+    if (typeof value !== "string") throw new SchoolServiceError(400, "截止日期格式无效，请重新选择日期");
+    const text = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+        const date = dayjs(text, "YYYY-MM-DD", true);
+        if (!date.isValid()) throw new SchoolServiceError(400, "截止日期格式无效，请重新选择日期");
+        const parsed = dayjs.tz(`${text} 23:59:59.999`, businessTimeZone());
+        if (!parsed.isValid()) throw new SchoolServiceError(400, "截止日期格式无效，请重新选择日期");
+        return parsed.toISOString();
+    }
+    if (!/(?:Z|[+-]\d{2}:\d{2})$/i.test(text) || Number.isNaN(Date.parse(text))) throw new SchoolServiceError(400, "截止时间格式无效，请重新选择时间");
+    return new Date(text).toISOString();
+}
+
+function businessTimeZone() {
+    const candidate = process.env.VOZEB_PRO_TIME_ZONE?.trim() || "Asia/Shanghai";
+    try {
+        new Intl.DateTimeFormat("en", { timeZone: candidate }).format();
+        return candidate;
+    } catch {
+        return "Asia/Shanghai";
+    }
 }
 
 function positiveInteger(value: number | undefined, fallback: number) {

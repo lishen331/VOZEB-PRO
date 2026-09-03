@@ -121,6 +121,10 @@ export class PracticeRepository {
         };
     }
 
+    async deletePracticeSession(userId: string, id: string): Promise<void> {
+        await this.db.query("DELETE FROM practice_sessions WHERE user_id = $1 AND id = $2", [userId, id]);
+    }
+
     async claimCopyRequest(input: PracticeCopyRequestInput) {
         const result = await this.db.query(
             `INSERT INTO practice_copy_requests (user_id, client_request_id, source_work_id, source_version_id, project_kind, project_id)

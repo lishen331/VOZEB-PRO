@@ -14,6 +14,7 @@ import { listWorkPublications } from "@/services/api/work-publications";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { ProductionGroupMemberPanel } from "@/components/school/production-group-member-panel";
 import { SchoolCourseTree } from "@/components/school/school-course-tree";
+import { SubmissionReferenceList } from "@/components/school/submission-reference-list";
 
 type ReferenceCandidate = { reference: SchoolContentReference; title: string; detail: string };
 type SubmissionForm = { note?: string };
@@ -59,44 +60,57 @@ export default function LearningPage() {
     const commercialDetailAbortController = useRef<AbortController | null>(null);
     const candidateRequestSequence = useRef(0);
 
-    const load = useCallback(async () => {
+    const loadEducationData = useCallback(async () => {
         const requestId = ++loadRequestSequence.current;
         loadAbortController.current?.abort();
         const controller = new AbortController();
         loadAbortController.current = controller;
         setLoading(true);
         try {
-            const [courseResult, assignmentResult] = await Promise.all([
+            const [courseResult, assignmentResult] = await Promise.allSettled([
                 coursesApi.listTeachingCourses({ page: coursePage, pageSize: PAGE_SIZE }, { signal: controller.signal }),
                 coursesApi.listTeachingAssignments({ page: assignmentPage, pageSize: PAGE_SIZE }, { signal: controller.signal }),
             ]);
-            const submissionPage = assignmentResult.items.length
-                ? await coursesApi.listOwnSubmissions({ page: 1, pageSize: PAGE_SIZE, assignmentIds: assignmentResult.items.map((assignment) => assignment.id) }, { signal: controller.signal })
-                : { items: [] as TeachingSubmission[] };
             if (requestId !== loadRequestSequence.current) return;
-            setCourses(courseResult.items);
-            const treeEntries = await Promise.all(
-                courseResult.items.map(async (item) => {
-                    try {
-                        return [item.id, await coursesApi.getSchoolCourseTree(item.id, { signal: controller.signal })] as const;
-                    } catch {
-                        return null;
-                    }
-                }),
-            );
-            if (requestId !== loadRequestSequence.current) return;
-            setCourseTrees(Object.fromEntries(treeEntries.filter((entry): entry is readonly [string, Awaited<ReturnType<typeof coursesApi.getSchoolCourseTree>>] => Boolean(entry))));
-            setCourseTotal(courseResult.total);
-            setAssignments(assignmentResult.items);
-            setAssignmentTotal(assignmentResult.total);
-            setSubmissions(Object.fromEntries(submissionPage.items.map((submission) => [submission.assignmentId, submission])));
-        } catch (error) {
-            if (controller.signal.aborted || requestId !== loadRequestSequence.current) return;
-            setCourses([]);
-            setCourseTrees({});
-            setAssignments([]);
-            setSubmissions({});
-            message.error(errorMessage(error, "学习中心加载失败"));
+            const treeEntriesPromise =
+                courseResult.status === "fulfilled"
+                    ? Promise.all(
+                          courseResult.value.items.map(async (item) => {
+                              try {
+                                  return [item.id, await coursesApi.getSchoolCourseTree(item.id, { signal: controller.signal })] as const;
+                              } catch {
+                                  return null;
+                              }
+                          }),
+                      )
+                    : null;
+            if (courseResult.status === "fulfilled") {
+                setCourses(courseResult.value.items);
+                setCourseTotal(courseResult.value.total);
+            } else if (!controller.signal.aborted) {
+                message.error(errorMessage(courseResult.reason, "课程加载失败"));
+            }
+            if (assignmentResult.status === "fulfilled") {
+                setAssignments(assignmentResult.value.items);
+                setAssignmentTotal(assignmentResult.value.total);
+                try {
+                    const submissionPage = assignmentResult.value.items.length
+                        ? await coursesApi.listOwnSubmissions({ page: 1, pageSize: PAGE_SIZE, assignmentIds: assignmentResult.value.items.map((assignment) => assignment.id) }, { signal: controller.signal })
+                        : { items: [] as TeachingSubmission[] };
+                    if (requestId !== loadRequestSequence.current) return;
+                    setSubmissions(Object.fromEntries(submissionPage.items.map((submission) => [submission.assignmentId, submission])));
+                } catch (error) {
+                    if (!controller.signal.aborted && requestId === loadRequestSequence.current) message.error(errorMessage(error, "提交记录加载失败"));
+                }
+            } else if (!controller.signal.aborted) {
+                message.error(errorMessage(assignmentResult.reason, "作业加载失败"));
+            }
+            if (treeEntriesPromise) {
+                const treeEntries = await treeEntriesPromise;
+                if (requestId !== loadRequestSequence.current) return;
+                const resolvedTrees = Object.fromEntries(treeEntries.filter((entry): entry is readonly [string, Awaited<ReturnType<typeof coursesApi.getSchoolCourseTree>>] => Boolean(entry)));
+                setCourseTrees((current) => ({ ...current, ...resolvedTrees }));
+            }
         } finally {
             if (requestId === loadRequestSequence.current) setLoading(false);
         }
@@ -115,15 +129,18 @@ export default function LearningPage() {
             setCommercialTotal(result.total);
         } catch (error) {
             if (controller.signal.aborted || requestId !== commercialRequestSequence.current) return;
-            setCommercialOrders([]);
-            setCommercialTotal(0);
             message.error(errorMessage(error, "商单实训加载失败"));
         } finally {
             if (requestId === commercialRequestSequence.current) setCommercialLoading(false);
         }
     }, [commercialPage, message]);
 
-    useEffect(() => void load(), [load]);
+    const refresh = useCallback(async () => {
+        await Promise.all([loadEducationData(), loadCommercialOrders()]);
+        message.success("学习中心已刷新");
+    }, [loadCommercialOrders, loadEducationData, message]);
+
+    useEffect(() => void loadEducationData(), [loadEducationData]);
     useEffect(() => void loadCommercialOrders(), [loadCommercialOrders]);
     useEffect(
         () => () => {
@@ -395,7 +412,7 @@ export default function LearningPage() {
                         <h1 className="truncate text-lg font-semibold text-zinc-950 sm:text-xl dark:text-zinc-100">学习中心</h1>
                         <p className="mt-1 text-xs text-zinc-500 sm:text-sm">{context?.school.name || "班级课程与作业"}</p>
                     </div>
-                    <Button icon={<RefreshCw className="size-4" />} aria-label="刷新学习中心" loading={loading || commercialLoading} onClick={() => void Promise.all([load(), loadCommercialOrders()])} />
+                    <Button icon={<RefreshCw className="size-4" />} aria-label="刷新学习中心" loading={loading || commercialLoading} onClick={() => void refresh()} />
                 </header>
                 <ProductionGroupMemberPanel />
                 {loading && !courses.length && !assignments.length ? (
@@ -513,6 +530,7 @@ export default function LearningPage() {
                                 <p className="mt-2 text-xs text-zinc-500">
                                     {formatTime(submissions[submitting.id]!.submittedAt)} · {submissions[submitting.id]!.contentReferences.length} 项成果
                                 </p>
+                                <SubmissionReferenceList references={submissions[submitting.id]!.resolvedContentReferences} />
                             </section>
                         ) : null}
                     </div>
