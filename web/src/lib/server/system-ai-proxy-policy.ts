@@ -105,6 +105,7 @@ function defaultQueryPaths(capability: LogicalModelCapability, createPaths: Arra
             "/v1/videos/:task_id/content",
             "/videos/:task_id/content",
             "/openapi/v2/query",
+            "/openapi/v2/query/:task_id",
             "/task/openapi/status",
         ];
     }

@@ -287,7 +287,7 @@ function uniquePaths(paths: string[]) {
 }
 
 const EMPTY_REFERENCE = Symbol("empty-reference");
-const PROVIDER_FAILURE_KEYS = new Set(["fail_reason", "failReason", "failure_reason", "failureReason"]);
+const PROVIDER_FAILURE_KEYS = new Set(["fail_reason", "failReason", "failure_reason", "failureReason", "failedReason"]);
 const PROVIDER_ERROR_KEYS = new Set(["error_message", "errorMessage", "error", "msg", "message", "detail"]);
 const REFERENCE_FIELD_KEYS = new Set([
     "image",

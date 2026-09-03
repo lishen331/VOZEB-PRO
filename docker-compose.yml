@@ -2,6 +2,8 @@ services:
   postgres:
     image: postgres:16.6-alpine
     container_name: vozeb-pro-postgres
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-vozeb_pro}
       POSTGRES_USER: ${POSTGRES_USER:-vozeb_pro}
@@ -20,7 +22,7 @@ services:
     restart: unless-stopped
 
   app:
-    image: ${VOZEB_PRO_IMAGE:-ghcr.io/csyqlz/vozeb-pro:v0.0.7}
+    image: ghcr.io/csyqlz/vozeb-pro:v0.0.7
     container_name: vozeb-pro
     env_file:
       - .env
@@ -28,6 +30,8 @@ services:
       - "127.0.0.1:3000:3000"
     volumes:
       - vozeb-pro-data:/app/web/.data
+      - ./web/src/lib/server/system-ai-proxy-policy.ts:/app/web/.next/standalone/web/src/lib/server/system-ai-proxy-policy.ts:ro
+      - ./web/src/lib/server/provider-task-config.ts:/app/web/.next/standalone/web/src/lib/server/provider-task-config.ts:ro
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
       VOZEB_PRO_DATA_DIR: /app/web/.data
