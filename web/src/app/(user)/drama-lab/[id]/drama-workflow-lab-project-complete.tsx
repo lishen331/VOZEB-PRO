@@ -50,6 +50,7 @@ import { recoverVideoGenerationTask } from "@/services/api/video-core";
 import { cn } from "@/lib/utils";
 import { DramaLabVisualAssetsPanel } from "./drama-lab-visual-assets-panel";
 import { DramaLabNovelImport } from "./drama-lab-novel-import";
+import { DramaLabTaskPanel } from "./drama-lab-task-panel";
 import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } from "./drama-lab-video-task-recovery";
 import { DramaLabVideoBatchWaitError, waitForDramaLabVideoBatch, type DramaLabVideoBatchExecutionPhase } from "@/lib/drama-lab-video-batch";
 
@@ -1682,6 +1683,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                             {!sidebarCollapsed ? "新增一集" : null}
                         </Button>
                     </div>
+                    <DramaLabTaskPanel projectId={projectId} compact={sidebarCollapsed} episodes={project.episodes.map((episode) => ({ id: episode.id, title: episode.title, number: episode.number }))} />
                 </aside>
 
                 {/* 主编辑区域 */}

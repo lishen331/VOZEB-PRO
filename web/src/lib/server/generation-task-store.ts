@@ -206,14 +206,7 @@ export async function queryStoredGenerationTasks<T>(type: GenerationTaskType, op
  * payload for PostgreSQL records, while the file provider may have them both
  * on the record and in the payload.
  */
-export async function listStoredDramaTaskRecords(input: {
-    userId: string;
-    projectId: string;
-    episodeId: string;
-    shotIds?: string[];
-    type?: "video";
-    limit?: number;
-}): Promise<StoredGenerationTaskRecord[]> {
+export async function listStoredDramaTaskRecords(input: { userId: string; projectId: string; episodeId: string; shotIds?: string[]; type?: "video"; limit?: number }): Promise<StoredGenerationTaskRecord[]> {
     const userId = cleanContextText(input.userId);
     const projectId = cleanContextText(input.projectId);
     const episodeId = cleanContextText(input.episodeId);
@@ -271,6 +264,62 @@ export async function listStoredDramaTaskRecords(input: {
 
 // Kept as a descriptive alias for callers that prefer the longer store name.
 export const listStoredGenerationTaskRecordsByDramaContext = listStoredDramaTaskRecords;
+
+/**
+ * List every generation task belonging to a Drama Lab project.
+ *
+ * This is intentionally separate from `listStoredDramaTaskRecords`, which is
+ * the strict shot/video recovery query.  The project task panel also needs to
+ * discover text, image, audio and render tasks, including legacy PostgreSQL
+ * rows that only stored their Drama context inside `payload` or
+ * `payload.context`.
+ */
+export async function listStoredDramaProjectTaskRecords(input: { userId: string; projectId: string; types?: Array<Exclude<GenerationTaskType, "agent">>; limit?: number }): Promise<StoredGenerationTaskRecord[]> {
+    const userId = cleanContextText(input.userId);
+    const projectId = cleanContextText(input.projectId);
+    const types = Array.from(new Set(input.types || ["text", "image", "video", "audio", "render"]));
+    const limit = Math.max(1, Math.min(1_000, Math.floor(Number(input.limit) || 500)));
+    if (!userId || !projectId || !types.length) return [];
+
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<Record<string, unknown>>(
+            `SELECT *
+             FROM generation_tasks
+             WHERE user_id = $1
+               AND task_type = ANY($2::text[])
+               AND expires_at > now()
+               AND COALESCE(
+                   ${sqlNormalizedContextSource("surface")},
+                   ${sqlNormalizedContextSource("payload->>'surface'")},
+                   ${sqlNormalizedContextSource("payload#>>'{context,surface}'")}
+               ) = 'drama'
+               AND COALESCE(
+                   ${sqlNormalizedContextSource("project_id")},
+                   ${sqlNormalizedContextSource("payload->>'projectId'")},
+                   ${sqlNormalizedContextSource("payload#>>'{context,projectId}'")},
+                   ${sqlNormalizedContextSource("payload#>>'{workflow,projectId}'")},
+                   ${sqlNormalizedContextSource("payload#>>'{storyBatch,projectId}'")}
+               ) = $3
+               AND ${sqlDramaTaskContextAgreement()}
+             ORDER BY updated_at DESC, id DESC
+             LIMIT $4`,
+            [userId, types, projectId, limit],
+        );
+        return result.rows
+            .map(mapStoredTaskRecord)
+            .map(withPayloadTaskContext)
+            .filter((record) => isCompleteDramaProjectTaskRecord(record, { userId, projectId }));
+    }
+
+    const now = Date.now();
+    return (await readFileTasks())
+        .filter((record) => record.expiresAt > now && record.type !== "agent" && types.includes(record.type))
+        .map(withPayloadTaskContext)
+        .filter((record) => isCompleteDramaProjectTaskRecord(record, { userId, projectId }))
+        .sort((left, right) => right.updatedAt - left.updatedAt || right.id.localeCompare(left.id))
+        .slice(0, limit);
+}
 
 export async function listStoredGenerationTaskRecords(options: GenerationTaskRecordListOptions = {}) {
     let records: StoredGenerationTaskRecord[];
@@ -1209,6 +1258,8 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
 function withPayloadTaskContext(record: StoredGenerationTaskRecord): StoredGenerationTaskRecord {
     const payload = recordObject(record.payload);
     const nested = recordObject(payload.context);
+    const workflow = recordObject(payload.workflow);
+    const storyBatch = recordObject(payload.storyBatch);
     const payloadSurface = taskContextText(payload, "surface");
     const nestedSurface = taskContextText(nested, "surface");
     const surface = [taskContextText(record, "surface"), payloadSurface, nestedSurface].find(isTaskSurface);
@@ -1216,8 +1267,8 @@ function withPayloadTaskContext(record: StoredGenerationTaskRecord): StoredGener
         ...record,
         userId: cleanContextText(record.userId) || taskContextText(payload, "userId") || taskContextText(nested, "userId") || "",
         surface,
-        projectId: taskContextText(record, "projectId") || taskContextText(payload, "projectId") || taskContextText(nested, "projectId"),
-        episodeId: taskContextText(record, "episodeId") || payloadContextText(payload, "episodeId"),
+        projectId: taskContextText(record, "projectId") || taskContextText(payload, "projectId") || taskContextText(nested, "projectId") || taskContextText(workflow, "projectId") || taskContextText(storyBatch, "projectId"),
+        episodeId: taskContextText(record, "episodeId") || payloadContextText(payload, "episodeId") || taskContextText(storyBatch, "sourceEpisodeId"),
         shotId: taskContextText(record, "shotId") || payloadContextText(payload, "shotId"),
         frameType: record.frameType || (isGenerationFrameType(payload.frameType) ? payload.frameType : undefined),
         attemptNo: record.attemptNo ?? normalizedAttemptNoValue(payload.attemptNo ?? nested.attemptNo),
@@ -1240,13 +1291,23 @@ function isCompleteDramaTaskRecord(record: StoredGenerationTaskRecord, scope: { 
     return hydrated.userId === scope.userId && surface === "drama" && projectId === scope.projectId && episodeId === scope.episodeId && (scope.shotIds === undefined || scope.shotIds.includes(shotId));
 }
 
+function isCompleteDramaProjectTaskRecord(record: StoredGenerationTaskRecord, scope: { userId: string; projectId: string }) {
+    // Project discovery has no shot requirement, but keeps the same fail
+    // closed context agreement as the strict shot recovery query.
+    if (hasDramaTaskContextConflict(record)) return false;
+    const hydrated = withPayloadTaskContext(record);
+    return hydrated.userId === scope.userId && hydrated.surface === "drama" && hydrated.projectId === scope.projectId;
+}
+
 function hasDramaTaskContextConflict(record: StoredGenerationTaskRecord) {
     const payload = recordObject(record.payload);
     const nested = recordObject(payload.context);
+    const workflow = recordObject(payload.workflow);
+    const storyBatch = recordObject(payload.storyBatch);
     const coordinateConflict = [
         [record.userId, payload.userId, nested.userId],
         [record.surface, payload.surface, nested.surface],
-        [record.projectId, payload.projectId, nested.projectId],
+        [record.projectId, payload.projectId, nested.projectId, workflow.projectId, storyBatch.projectId],
         [record.episodeId, payload.episodeId, nested.episodeId],
         [record.shotId, payload.shotId, nested.shotId],
     ].some((values) => {
@@ -1326,7 +1387,7 @@ function sqlDramaTaskContextAgreement() {
     return [
         ["user_id", "payload->>'userId'", "payload#>>'{context,userId}'"],
         ["surface", "payload->>'surface'", "payload#>>'{context,surface}'"],
-        ["project_id", "payload->>'projectId'", "payload#>>'{context,projectId}'"],
+        ["project_id", "payload->>'projectId'", "payload#>>'{context,projectId}'", "payload#>>'{workflow,projectId}'", "payload#>>'{storyBatch,projectId}'"],
         ["payload->>'episodeId'", "payload#>>'{context,episodeId}'"],
         ["payload->>'shotId'", "payload#>>'{context,shotId}'"],
     ]
@@ -1364,10 +1425,13 @@ function storedSpeaker(record: StoredGenerationTaskRecord | undefined) {
 }
 
 function payloadContextText(payload: Record<string, unknown>, key: "episodeId" | "shotId") {
-    return taskContextText(payload, key) || (() => {
-        const nested = recordObject(payload.context);
-        return taskContextText(nested, key);
-    })();
+    return (
+        taskContextText(payload, key) ||
+        (() => {
+            const nested = recordObject(payload.context);
+            return taskContextText(nested, key);
+        })()
+    );
 }
 
 function taskContextText(value: Record<string, unknown>, key: string) {

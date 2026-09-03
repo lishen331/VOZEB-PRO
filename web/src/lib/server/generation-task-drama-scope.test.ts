@@ -18,7 +18,7 @@ vi.mock("@/lib/server/data-adapter", () => ({
     writeJsonDataFile: vi.fn(),
 }));
 
-import { listStoredDramaTaskRecords } from "./generation-task-store";
+import { listStoredDramaProjectTaskRecords, listStoredDramaTaskRecords } from "./generation-task-store";
 
 describe("listStoredDramaTaskRecords", () => {
     beforeEach(() => {
@@ -93,16 +93,8 @@ describe("listStoredDramaTaskRecords", () => {
         mocks.provider = "postgres";
         mocks.postgresQuery.mockResolvedValueOnce({
             rows: [
-                postgresRecord(
-                    "surface-conflict",
-                    { context: { surface: "canvas", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" } },
-                    { surface: "drama", projectId: "project-one" },
-                ),
-                postgresRecord(
-                    "project-conflict",
-                    { context: { surface: "drama", projectId: "project-two", episodeId: "episode-one", shotId: "shot-two" } },
-                    { surface: "drama", projectId: "project-one" },
-                ),
+                postgresRecord("surface-conflict", { context: { surface: "canvas", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" } }, { surface: "drama", projectId: "project-one" }),
+                postgresRecord("project-conflict", { context: { surface: "drama", projectId: "project-two", episodeId: "episode-one", shotId: "shot-two" } }, { surface: "drama", projectId: "project-one" }),
             ],
         });
 
@@ -118,14 +110,7 @@ describe("listStoredDramaTaskRecords", () => {
 
     it("normalizes padded context consistently for the file provider", async () => {
         const now = Date.now();
-        mocks.records = [
-            record(
-                "padded",
-                { surface: " drama ", projectId: " project-one ", episodeId: " episode-one ", shotId: " shot-one " },
-                now + 100,
-                { userId: " user-one " },
-            ),
-        ];
+        mocks.records = [record("padded", { surface: " drama ", projectId: " project-one ", episodeId: " episode-one ", shotId: " shot-one " }, now + 100, { userId: " user-one " })];
 
         await expect(listStoredDramaTaskRecords({ userId: "user-one", projectId: "project-one", episodeId: "episode-one", shotIds: ["shot-one"] })).resolves.toMatchObject([
             { id: "padded", userId: "user-one", surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" },
@@ -134,14 +119,7 @@ describe("listStoredDramaTaskRecords", () => {
 
     it("rejects an invalid top-level surface even when payload fallback looks valid", async () => {
         const now = Date.now();
-        mocks.records = [
-            record(
-                "invalid-surface",
-                { surface: "canvas-layer", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" },
-                now + 100,
-                { surface: "drama" },
-            ),
-        ];
+        mocks.records = [record("invalid-surface", { surface: "canvas-layer", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" }, now + 100, { surface: "drama" })];
 
         await expect(listStoredDramaTaskRecords({ userId: "user-one", projectId: "project-one", episodeId: "episode-one", shotIds: ["shot-one"] })).resolves.toEqual([]);
     });
@@ -159,6 +137,62 @@ describe("listStoredDramaTaskRecords", () => {
         expect(limitIndex).toBeGreaterThan(agreementIndex);
         expect(statement).toContain("payload#>>'{context,projectId}'");
         expect(statement).toContain("payload#>>'{context,shotId}'");
+    });
+});
+
+describe("listStoredDramaProjectTaskRecords", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.provider = "file";
+        mocks.records = [];
+    });
+
+    it("discovers legacy project tasks whose context only exists in the payload", async () => {
+        const expiresAt = Date.now() + 60_000;
+        mocks.records = [
+            {
+                id: "legacy-story",
+                userId: "user-one",
+                type: "text",
+                status: "success",
+                payload: {
+                    id: "legacy-story",
+                    userId: "user-one",
+                    status: "success",
+                    surface: "drama",
+                    storyBatch: { projectId: "project-one", sourceEpisodeId: "episode-one", status: "persisting" },
+                },
+                createdAt: expiresAt - 2_000,
+                updatedAt: expiresAt - 1_000,
+                expiresAt,
+            },
+            {
+                id: "other-project",
+                userId: "user-one",
+                type: "text",
+                status: "success",
+                payload: { surface: "drama", storyBatch: { projectId: "project-two", status: "persisting" } },
+                createdAt: expiresAt - 2_000,
+                updatedAt: expiresAt - 1_000,
+                expiresAt,
+            },
+        ];
+
+        await expect(listStoredDramaProjectTaskRecords({ userId: "user-one", projectId: "project-one", types: ["text"] })).resolves.toMatchObject([{ id: "legacy-story", surface: "drama", projectId: "project-one", episodeId: "episode-one" }]);
+    });
+
+    it("uses payload fallbacks and project context agreement in PostgreSQL", async () => {
+        mocks.provider = "postgres";
+        mocks.postgresQuery.mockResolvedValueOnce({ rows: [] });
+
+        await listStoredDramaProjectTaskRecords({ userId: "user-one", projectId: "project-one", types: ["text", "video"], limit: 11 });
+
+        const [statement, params] = mocks.postgresQuery.mock.calls[0] || [];
+        expect(String(statement)).toContain("task_type = ANY($2::text[])");
+        expect(String(statement)).toContain("payload#>>'{storyBatch,projectId}'");
+        expect(String(statement)).toContain("payload#>>'{workflow,projectId}'");
+        expect(String(statement)).toContain("expires_at > now()");
+        expect(params).toEqual(["user-one", ["text", "video"], "project-one", 11]);
     });
 });
 

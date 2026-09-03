@@ -6,10 +6,11 @@ import { toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
 import { updateDramaProjectForUser } from "@/lib/server/drama-project-service";
-import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, queryStoredGenerationTasks, withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
+import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, mutateStoredGenerationTask, queryStoredGenerationTasks, withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { createTextTask, getTextTask, transitionTextTask, updateTextTask, type TextTask } from "@/lib/server/text-task-store";
 import type { DramaStoryBatch } from "@/lib/server/drama-lab-story-task-types";
+import { GENERATION_TASK_RETENTION_MS } from "@/lib/server/generation-task-retention";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { cancellationExecutionPatch, type GenerationCancellationTarget } from "@/lib/server/generation-task-cancellation-service";
@@ -205,21 +206,25 @@ export async function materializeDramaLabStoryTask(task: TextTask) {
         if (!currentBatch || current.status !== "success" || ["completed", "error", "cancelled"].includes(currentBatch.status)) return current;
         const episodes = parseStoryEpisodes(current.result?.content || "", currentBatch.episodeCount);
         if (!episodes.length) {
-            return (await updateTextTask(current.id, { storyBatch: { ...currentBatch, status: "error", error: "文本模型没有返回有效的分集剧本" } })) || current;
+            return (await updateStoryBatchWhileActive(current.id, (batch) => ({ ...batch, status: "error", error: "文本模型没有返回有效的分集剧本" }))) || current;
         }
         const sequenceError = storyEpisodeSequenceError(episodes, currentBatch.episodeCount);
         if (sequenceError) {
-            return (await updateTextTask(current.id, { storyBatch: { ...currentBatch, status: "error", error: sequenceError } })) || current;
+            return (await updateStoryBatchWhileActive(current.id, (batch) => ({ ...batch, status: "error", error: sequenceError }))) || current;
         }
-        current = (await updateTextTask(current.id, { storyBatch: { ...currentBatch, status: "persisting" } })) || current;
-        let latestBatch = current.storyBatch!;
+        current = (await updateStoryBatchWhileActive(current.id, (batch) => ({ ...batch, status: "persisting" }))) || current;
+        if (current.status !== "success" || !current.storyBatch || current.storyBatch.status !== "persisting") return current;
+        let latestBatch = current.storyBatch;
         for (let index = 0; index < latestBatch.episodeCount; index += 1) {
+            const observed = await getTextTask(current.id);
+            if (!observed || observed.status !== "success" || !observed.storyBatch || observed.storyBatch.status !== "persisting") return observed || current;
+            current = observed;
+            latestBatch = observed.storyBatch;
             if (latestBatch.persistedEpisodeIndexes.includes(index)) continue;
             const episode = episodes[index];
             if (!episode?.content) {
                 latestBatch = { ...latestBatch, status: "error", error: `第 ${index + 1} 集没有有效剧本内容` };
-                current = (await updateTextTask(current.id, { storyBatch: latestBatch })) || current;
-                return current;
+                return (await updateStoryBatchWhileActive(current.id, () => latestBatch)) || current;
             }
             await persistStoryEpisode(current.userId, latestBatch, index, episode);
             latestBatch = {
@@ -227,16 +232,23 @@ export async function materializeDramaLabStoryTask(task: TextTask) {
                 persistedEpisodeIndexes: Array.from(new Set([...latestBatch.persistedEpisodeIndexes, index])).sort((a, b) => a - b),
                 activeEpisodeIndex: undefined,
             };
-            current = (await updateTextTask(current.id, { storyBatch: latestBatch })) || current;
-            latestBatch = current.storyBatch || latestBatch;
+            const updated = await updateStoryBatchWhileActive(current.id, () => latestBatch);
+            if (!updated) return current;
+            current = updated;
+            if (current.status !== "success" || !current.storyBatch || current.storyBatch.status !== "persisting") return current;
+            latestBatch = current.storyBatch;
         }
         const completedBatch: DramaStoryBatch = { ...latestBatch, status: "completed", completedAt: Date.now(), activeEpisodeIndex: undefined };
-        return (await updateTextTask(current.id, { storyBatch: completedBatch })) || current;
+        return (await updateStoryBatchWhileActive(current.id, () => completedBatch)) || current;
     });
 }
 
 export async function cancelDramaLabStoryTask(task: TextTask, origin: string, cookie: string, userId = task.userId, projectId = task.storyBatch?.projectId || "") {
-    if (!task.storyBatch || !["pending", "running"].includes(task.status)) return null;
+    const storyBatchActive = task.storyBatch && ["pending", "persisting"].includes(task.storyBatch.status);
+    // The upstream text task is marked success before the server materializes
+    // each episode. That durable success must remain cancellable while the
+    // story batch is pending/persisting.
+    if (!task.storyBatch || !storyBatchActive || !["pending", "running", "success"].includes(task.status)) return null;
     if (!projectId || task.storyBatch.projectId !== projectId || !(await resolveStoryTaskAccess(userId, projectId))) return null;
     const target: GenerationCancellationTarget = {
         type: "text",
@@ -251,7 +263,7 @@ export async function cancelDramaLabStoryTask(task: TextTask, origin: string, co
     };
     const cancelled = await transitionTextTask(
         task,
-        ["pending", "running"],
+        ["pending", "running", "success"],
         { status: "cancelled", error: "任务已取消", messages: [], storyBatch: { ...task.storyBatch, status: "cancelled", error: "任务已取消" } },
         cancellationExecutionPatch(target),
     );
@@ -263,11 +275,39 @@ export async function cancelDramaLabStoryTask(task: TextTask, origin: string, co
     return cancelled;
 }
 
+/**
+ * Persist materialization progress only while the text task is still in the
+ * success/persisting window. The row lock in mutateStoredGenerationTask makes
+ * this a compare-and-set update, so a concurrent cancellation always wins and
+ * cannot be overwritten by a stale materializer.
+ */
+async function updateStoryBatchWhileActive(taskId: string, update: (batch: DramaStoryBatch) => DramaStoryBatch) {
+    const updated = await mutateStoredGenerationTask<TextTask>("text", taskId, GENERATION_TASK_RETENTION_MS, (current) => {
+        const batch = current.storyBatch;
+        if (current.status !== "success" || !batch || !["pending", "persisting"].includes(batch.status)) return null;
+        return { ...current, storyBatch: update(batch) };
+    });
+    return updated || (await getTextTask(taskId));
+}
+
 export function storyTaskView(task: TextTask): DramaStoryTaskView {
     const batch = task.storyBatch;
     if (!batch) throw new DramaLabStoryGenerationError("不是短剧故事任务", 400);
     const persistedEpisodeCount = batch.persistedEpisodeIndexes.length;
-    const status = batch.status === "completed" ? "success" : batch.status === "error" ? "error" : batch.status === "cancelled" ? "cancelled" : task.status === "error" ? "error" : task.status === "cancelled" ? "cancelled" : task.status === "success" ? "running" : task.status;
+    const status =
+        batch.status === "completed"
+            ? "success"
+            : batch.status === "error"
+              ? "error"
+              : batch.status === "cancelled"
+                ? "cancelled"
+                : task.status === "error"
+                  ? "error"
+                  : task.status === "cancelled"
+                    ? "cancelled"
+                    : task.status === "success"
+                      ? "running"
+                      : task.status;
     return {
         id: task.id,
         status,
@@ -430,7 +470,10 @@ function findEpisodeArray(value: Record<string, unknown>) {
 }
 
 function stripJsonFence(value: string) {
-    return value.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    return value
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
 }
 
 async function withMaterializationLock<T>(id: string, fn: () => Promise<T>) {
