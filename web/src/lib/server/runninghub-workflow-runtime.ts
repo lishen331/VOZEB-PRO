@@ -137,10 +137,7 @@ function validateRuntimeInput(config: RunningHubWorkflowConfig, input: Record<st
             if (field.required) {
                 // 生成友好的错误提示
                 const fieldLabel = field.label || field.key;
-                const fieldTypeHint = field.type === "image" ? "（需要上传图片）" :
-                                     field.type === "video" ? "（需要上传视频）" :
-                                     field.type === "audio" ? "（需要上传音频）" :
-                                     field.type === "textarea" || field.type === "text" ? "（需要填写文本）" : "";
+                const fieldTypeHint = field.type === "image" ? "（需要上传图片）" : field.type === "video" ? "（需要上传视频）" : field.type === "audio" ? "（需要上传音频）" : field.type === "textarea" || field.type === "text" ? "（需要填写文本）" : "";
                 errors.push(`缺少必填参数：${fieldLabel}${fieldTypeHint}`);
             }
             continue;
