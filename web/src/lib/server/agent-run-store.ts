@@ -32,6 +32,8 @@ export type AgentRunChildTask = {
     attempt: number;
     result?: unknown;
     error?: string;
+    idempotencyKey?: string;
+    upstreamId?: string;
 };
 export type AgentRunTask = {
     id: string;

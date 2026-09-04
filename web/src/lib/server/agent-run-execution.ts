@@ -775,19 +775,34 @@ export async function dispatchTask(task: AgentRunTask, origin: string, cookie: s
         let child = initialChildren[index];
         let taskId = child?.id;
         if (!taskId) {
+            const idempotencyKey = `${run.clientRequestId}:${task.id}:${attempt}:${index + 1}`;
             const bodyForCopy = {
                 ...body,
-                context: { ...context, clientRequestId: `${run.clientRequestId}:${task.id}:${attempt}:${index + 1}` },
+                context: { ...context, clientRequestId: idempotencyKey },
             };
+            // Step 1: Persist idempotency key BEFORE submitting to upstream
+            // This ensures we can recover even if the response is lost
+            const pendingChild = { id: `pending-${idempotencyKey}`, status: "pending" as const, attempt, idempotencyKey };
+            if (!(await patchTask(run.id, task.id, { childTasks: [pendingChild] }, "task.submitting", executionId))) throw new Error("Agent Run 已由新执行器接管");
+
+            // Step 2: Submit to upstream
             const response = await fetchInternalApi(`${origin}${path}`, { method: "POST", headers: runtimeRequestHeaders(cookie, { "Content-Type": "application/json" }), body: JSON.stringify(bodyForCopy), cache: "no-store" });
             if (!response.ok) throw new Error((await response.text()) || "生成任务创建失败");
-            const payload = (await response.json()) as { task?: { id?: string } };
+            const payload = (await response.json()) as { task?: { id?: string; upstream?: { id?: string } } };
             const createdTaskId = payload.task?.id;
             if (!createdTaskId) throw new Error("生成任务未返回任务 ID");
             taskId = createdTaskId;
+
+            // Step 3: Immediately persist taskId and upstreamId atomically
             await linkAgentChildTask(run, task, taskId, attempt);
-            child = { id: taskId, status: "pending", attempt };
+            const upstreamId = payload.task?.upstream?.id;
+            child = { id: taskId, status: "pending", attempt, ...(upstreamId ? { upstreamId } : {}) };
             if (!(await patchTask(run.id, task.id, { taskId, taskIds: [taskId], childTasks: [child] }, "task.created", executionId))) throw new Error("Agent Run 已由新执行器接管");
+
+            // Step 4: If upstream ID is available, persist it to generation task record for recovery
+            if (upstreamId) {
+                await scheduleGenerationTask(task.type, taskId, { upstreamTaskId: upstreamId });
+            }
         }
         try {
             if (child?.status === "completed") {
