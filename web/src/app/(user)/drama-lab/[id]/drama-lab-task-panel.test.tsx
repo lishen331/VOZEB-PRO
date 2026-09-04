@@ -49,6 +49,14 @@ describe("DramaLabTaskPanel", () => {
         expect(markup).not.toContain("已取消任务");
     });
 
+    it("renders review-pending tasks without an active spinner", () => {
+        const markup = renderToStaticMarkup(<DramaLabTaskPanel projectId="project-one" initialTasks={[{ ...base, status: "running", executionPhase: "needs_review", canCancel: false }]} />);
+        expect(markup).toContain("待检查");
+        expect(markup).toContain("不会继续轮询");
+        expect(markup).not.toContain('data-progress-indeterminate="true"');
+        expect(markup).not.toContain("animate-spin");
+    });
+
     it("keeps a collapsed badge available", () => {
         const markup = renderToStaticMarkup(<DramaLabTaskPanel projectId="project-one" initialTasks={[base]} />);
         expect(markup).toContain('aria-expanded="true"');
