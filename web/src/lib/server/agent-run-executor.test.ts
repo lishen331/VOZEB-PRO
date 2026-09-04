@@ -1209,7 +1209,7 @@ describe("partial success handling", () => {
                     completed: 1,
                     failed: 1,
                 }),
-            })
+            }),
         );
     });
 
@@ -1238,8 +1238,9 @@ describe("partial success handling", () => {
             failed: 3,
             assetIds: ["asset-1", "asset-2"],
         });
-        expect((partialEvent?.data as any)?.reply).toContain("已完成 2 个任务");
-        expect((partialEvent?.data as any)?.reply).toContain("3 个任务失败");
+        const partialReply = typeof partialEvent?.data === "object" && partialEvent.data !== null && "reply" in partialEvent.data && typeof partialEvent.data.reply === "string" ? partialEvent.data.reply : "";
+        expect(partialReply).toContain("已完成 2 个任务");
+        expect(partialReply).toContain("3 个任务失败");
     });
 
     it("should still mark as completed when all tasks succeed", async () => {
@@ -1261,7 +1262,7 @@ describe("partial success handling", () => {
         expect(mocks.events).toContainEqual(
             expect.objectContaining({
                 type: "run.completed",
-            })
+            }),
         );
     });
 
@@ -1284,7 +1285,7 @@ describe("partial success handling", () => {
         expect(mocks.events).toContainEqual(
             expect.objectContaining({
                 type: "run.failed",
-            })
+            }),
         );
     });
 });
