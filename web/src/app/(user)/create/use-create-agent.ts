@@ -59,6 +59,8 @@ export function useCreateAgent() {
     const submittingRef = useRef(false);
     const failedSubmissionsRef = useRef(new Map<string, PendingCreateSubmission>());
     const refreshRequestRef = useRef(0);
+    const isMountedRef = useRef(true);
+    const loadingConversationRef = useRef(false);
     const [conversations, setConversations] = useState<CreativeConversation[]>([]);
     const [messages, setMessages] = useState<CreativeMessage[]>([]);
     const [assets, setAssets] = useState<CreativeAsset[]>([]);
@@ -88,6 +90,14 @@ export function useCreateAgent() {
     const stopWatching = useCallback(() => {
         streamRef.current?.();
         streamRef.current = null;
+    }, []);
+
+    // 管理组件挂载状态
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
     }, []);
 
     const isCurrentConversation = useCallback((id: string | undefined, generation: number) => generation === conversationGenerationRef.current && activeConversationRef.current === id, []);
@@ -196,6 +206,12 @@ export function useCreateAgent() {
 
     const openConversation = useCallback(
         async (id: string) => {
+            // 防止并发调用
+            if (loadingConversationRef.current) {
+                console.warn('会话加载已在进行中，忽略重复调用');
+                return;
+            }
+
             stopWatching();
             clearDraftAttachments();
             const generation = ++conversationGenerationRef.current;
@@ -205,18 +221,50 @@ export function useCreateAgent() {
             refreshRequestRef.current += 1;
             resetConversationView(id);
             setConversationLoading(true);
+            loadingConversationRef.current = true;
+
+            // 设置超时控制
+            const CONVERSATION_LOAD_TIMEOUT = 10000; // 10秒超时
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+                console.error('会话加载超时');
+            }, CONVERSATION_LOAD_TIMEOUT);
+
             try {
                 const conversation = await getCreativeConversation(id);
+
+                // 组件已卸载则不更新状态
+                if (!isMountedRef.current) {
+                    console.warn('组件已卸载，取消状态更新');
+                    return;
+                }
+
                 if (conversation.surface !== "chat" || conversation.source !== "agent") throw new Error("该记录不属于创作 Agent 工作台");
                 await refreshConversation(id, generation);
+
+                if (!isMountedRef.current) return;
+
                 if (isCurrentConversation(id, generation)) {
                     setConversations((current) => [conversation, ...current.filter((item) => item.id !== conversation.id)].sort((a, b) => b.updatedAt - a.updatedAt));
                 }
             } catch (error) {
+                if (!isMountedRef.current) return;
+
+                if (error instanceof Error && error.name === 'AbortError') {
+                    console.error('会话加载超时，请重试');
+                    if (isCurrentConversation(id, generation)) newConversation();
+                    throw new Error('会话加载超时，请重试');
+                }
+
                 if (isCurrentConversation(id, generation)) newConversation();
                 throw error;
             } finally {
-                if (isCurrentConversation(id, generation)) setConversationLoading(false);
+                clearTimeout(timeoutId);
+                loadingConversationRef.current = false;
+                if (isMountedRef.current && isCurrentConversation(id, generation)) {
+                    setConversationLoading(false);
+                }
             }
         },
         [clearDraftAttachments, isCurrentConversation, newConversation, refreshConversation, resetConversationView, stopWatching],
