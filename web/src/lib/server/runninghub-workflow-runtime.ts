@@ -120,18 +120,45 @@ export function workflowConfigForTask(task: {
 function validateRuntimeInput(config: RunningHubWorkflowConfig, input: Record<string, unknown>, references: RunningHubWorkflowRuntimeInput["references"]) {
     const fields = new Map(config.inputSchema.map((field) => [field.key, field]));
     const errors: string[] = [];
+
+    // 验证 nodeMappings 配置
     for (const mapping of config.nodeMappings) {
-        if (!fields.has(mapping.inputKey)) errors.push(`nodeMappings.inputKey 未知：${mapping.inputKey}`);
+        if (!fields.has(mapping.inputKey)) {
+            errors.push(`配置错误：节点映射引用了不存在的参数 "${mapping.inputKey}"（请重新读取工作流）`);
+        }
     }
+
+    // 验证必填参数
     for (const field of config.inputSchema) {
         const value = resolvedInput(field, input, references);
-        if (value === undefined || value === null || (typeof value === "string" && !value.trim()) || (Array.isArray(value) && !value.length)) {
-            if (field.required) errors.push(`inputSchema.${field.key} 为必填项`);
+        const isEmpty = value === undefined || value === null || (typeof value === "string" && !value.trim()) || (Array.isArray(value) && !value.length);
+
+        if (isEmpty) {
+            if (field.required) {
+                // 生成友好的错误提示
+                const fieldLabel = field.label || field.key;
+                const fieldTypeHint = field.type === "image" ? "（需要上传图片）" :
+                                     field.type === "video" ? "（需要上传视频）" :
+                                     field.type === "audio" ? "（需要上传音频）" :
+                                     field.type === "textarea" || field.type === "text" ? "（需要填写文本）" : "";
+                errors.push(`缺少必填参数：${fieldLabel}${fieldTypeHint}`);
+            }
             continue;
         }
-        if (!matchesType(field, value)) errors.push(`inputSchema.${field.key} 类型无效`);
-        if (field.type === "enum" && field.options && !field.options.includes(String(value))) errors.push(`inputSchema.${field.key} 不在允许选项中`);
+
+        // 验证类型
+        if (!matchesType(field, value)) {
+            const fieldLabel = field.label || field.key;
+            errors.push(`参数类型错误：${fieldLabel}（期望类型：${field.type}）`);
+        }
+
+        // 验证枚举值
+        if (field.type === "enum" && field.options && !field.options.includes(String(value))) {
+            const fieldLabel = field.label || field.key;
+            errors.push(`参数值无效：${fieldLabel}（允许的选项：${field.options.join(", ")}）`);
+        }
     }
+
     return errors;
 }
 
