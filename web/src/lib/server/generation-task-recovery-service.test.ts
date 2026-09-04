@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
     queryImageTaskUpstreamStep: vi.fn(),
     prepareImageTaskAutomaticRetry: vi.fn(),
     persistImageTaskResult: vi.fn(),
+    persistVideoTaskResult: vi.fn(),
     queryCancelledTextTaskUpstreamStep: vi.fn(),
     getTextTask: vi.fn(),
     updateTextTask: vi.fn(),
@@ -51,7 +52,7 @@ vi.mock("@/lib/server/agent-run-executor", () => ({ executeAgentRun: mocks.execu
 vi.mock("@/lib/server/agent-run-execution", () => ({ processAgentRunReview: mocks.processAgentRunReview }));
 vi.mock("@/lib/server/agent-run-store", () => ({ getAgentRun: mocks.getAgentRun, updateAgentRunById: mocks.updateAgentRunById }));
 vi.mock("@/lib/server/maintenance-auth", () => ({ maintenanceWorkerContext: vi.fn((userId: string) => `worker-context:${userId}`) }));
-vi.mock("@/lib/server/video-task-runtime", () => ({ failVideoTaskFromWorker: mocks.failVideoTaskFromWorker, persistVideoTaskResult: vi.fn(), queryVideoTaskUpstream: mocks.queryVideoTaskUpstream }));
+vi.mock("@/lib/server/video-task-runtime", () => ({ failVideoTaskFromWorker: mocks.failVideoTaskFromWorker, persistVideoTaskResult: mocks.persistVideoTaskResult, queryVideoTaskUpstream: mocks.queryVideoTaskUpstream }));
 vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask }));
 vi.mock("@/lib/server/audio-task-runtime", () => ({
     createAudioTaskUpstreamStep: mocks.createAudioTaskUpstreamStep,
@@ -261,6 +262,50 @@ describe("generation task recovery service", () => {
         expect(mocks.failVideoTaskFromWorker).toHaveBeenCalledWith(task, "no active tokens available", true);
         expect(mocks.release).toHaveBeenCalledWith("video", task.id, "worker-one", expect.objectContaining({ executionPhase: "completed", lastUpstreamStatus: "failure" }));
         expect(result).toMatchObject({ claimed: 1, failed: 1 });
+    });
+
+    it("moves a video whose local persistence keeps failing to manual review", async () => {
+        const now = Date.now();
+        const task = {
+            id: "video-persist-timeout",
+            userId: "user-one",
+            status: "running",
+            upstream: { id: "upstream-video" },
+            config: { capabilityProfile: { timeoutMs: 30_000 } },
+            createdAt: now - 200_000,
+        };
+        mocks.claim.mockResolvedValue([
+            {
+                ...lease(),
+                id: task.id,
+                userId: task.userId,
+                type: "video",
+                status: "running",
+                executionPhase: "persisting",
+                resultPayload: { url: "https://cdn.example.com/result.mp4", persistenceStartedAt: now - 180_001 },
+            },
+        ]);
+        mocks.getVideoTask.mockResolvedValue(task);
+        mocks.persistVideoTaskResult.mockRejectedValue(new Error("media proxy returned 502"));
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.release).toHaveBeenCalledWith(
+            "video",
+            task.id,
+            "worker-one",
+            expect.objectContaining({
+                executionPhase: "needs_review",
+                nextPollAt: undefined,
+                lastUpstreamStatus: "persist_window_elapsed",
+                resultPayload: expect.objectContaining({
+                    url: "https://cdn.example.com/result.mp4",
+                    persistenceStartedAt: now - 180_001,
+                    reviewReason: expect.any(String),
+                }),
+            }),
+        );
+        expect(result).toMatchObject({ claimed: 1, needsReview: 1, deferred: 0 });
     });
 
     it("fails a queued Canvas image before upstream submission when its IP grant was revoked", async () => {

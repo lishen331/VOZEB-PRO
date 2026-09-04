@@ -607,7 +607,10 @@ function normalizeShot(value: unknown, episodeId: string, index: number): Shot |
         generationStatus: taskStatus(shot.generationStatus) || (videoUrl ? "success" : "idle"),
         generationAttempt: typeof shot.generationAttempt === "number" ? shot.generationAttempt : undefined,
         generationTaskId: typeof shot.generationTaskId === "string" ? shot.generationTaskId : undefined,
-        generationExecutionPhase: normalizeVideoExecutionPhase(shot.generationExecutionPhase ?? shot.executionPhase),
+        // `executionPhase` was used by the legacy generic task UI. It is not
+        // a video-generation phase and must never make a shot look busy after
+        // a refresh. Only the transient, video-specific field is trusted.
+        generationExecutionPhase: normalizeVideoExecutionPhase(shot.generationExecutionPhase),
         generationNeedsReview: shot.generationNeedsReview === true ? true : undefined,
         generationError: typeof shot.generationError === "string" ? shot.generationError : undefined,
         videoHistory: normalizeGenerationHistory(shot.videoHistory),
@@ -867,8 +870,17 @@ function dramaLabGenerationSyncKey(shot: Shot) {
         .join(",")}`;
 }
 
-function isDramaLabTaskActive(status: DramaLabTaskStatus | undefined) {
+function isDramaLabTaskActive(status: DramaLabTaskStatus | undefined, executionPhase?: DramaLabVideoBatchExecutionPhase, needsReview = false) {
+    if (needsReview || executionPhase === "needs_review") return false;
     return status === "queued" || status === "pending" || status === "running";
+}
+
+function isDramaLabVideoTaskActive(shot: Pick<Shot, "generationTaskId" | "generationStatus" | "generationExecutionPhase" | "generationNeedsReview">) {
+    if (!shot.generationTaskId?.trim() || shot.generationNeedsReview || shot.generationExecutionPhase === "needs_review") return false;
+    // A terminal project status wins over stale transient metadata left by a
+    // previous page instance or an interrupted sync.
+    if (shot.generationStatus === "success" || shot.generationStatus === "error" || shot.generationStatus === "cancelled") return false;
+    return isDramaLabTaskActive(shot.generationStatus, shot.generationExecutionPhase) || isDramaLabExecutionActive(shot.generationExecutionPhase, shot.generationTaskId);
 }
 
 function hasNonEmptyAudioText(value: string | undefined) {
@@ -963,8 +975,8 @@ function stableAudioSourceUrl(value: unknown) {
     return url && !url.startsWith("data:") && !url.startsWith("blob:") ? url : "";
 }
 
-function isDramaLabExecutionActive(phase: DramaLabVideoBatchExecutionPhase | undefined) {
-    return phase === "created" || phase === "submitting" || phase === "submitted" || phase === "polling" || phase === "result_ready" || phase === "persisting" || phase === "cancel_requested" || phase === "cancel_polling";
+function isDramaLabExecutionActive(phase: DramaLabVideoBatchExecutionPhase | undefined, taskId?: string) {
+    return Boolean(taskId?.trim()) && (phase === "created" || phase === "submitting" || phase === "submitted" || phase === "polling" || phase === "result_ready" || phase === "persisting" || phase === "cancel_requested" || phase === "cancel_polling");
 }
 
 function normalizeProjectShots(project: Record<string, unknown>, episodes: Episode[], legacy: Record<string, unknown>): Shot[] {
@@ -3950,7 +3962,7 @@ function StoryboardPanel({
     const episodeShots = episode ? project.shots.filter((s) => s.episodeId === episode.id).sort((a, b) => a.shotNumber - b.shotNumber) : [];
     const activeTaskShots = episodeShots.filter(
         (shot) =>
-            isDramaLabTaskActive(shot.storyboardStatus) || isDramaLabTaskActive(shot.generationStatus) || isDramaLabExecutionActive(shot.generationExecutionPhase) || Object.values(shot.frames || {}).some((frame) => isDramaLabTaskActive(frame?.status)),
+            isDramaLabTaskActive(shot.storyboardStatus) || isDramaLabVideoTaskActive(shot) || Object.values(shot.frames || {}).some((frame) => isDramaLabTaskActive(frame?.status)),
     );
     const activeTaskShotsRef = useRef(activeTaskShots);
     activeTaskShotsRef.current = activeTaskShots;
@@ -4018,7 +4030,10 @@ function StoryboardPanel({
                     const data = await response.json();
                     if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务状态同步失败");
                     if (!data.data?.shot) throw new Error("任务状态同步响应缺少分镜数据");
-                    const responsePhase = normalizeVideoExecutionPhase(data.data.shot.generationExecutionPhase ?? data.data.executionPhase);
+                    // The generic `executionPhase` response is scheduler
+                    // metadata for older clients. Video UI state must only
+                    // consume the explicit video field.
+                    const responsePhase = normalizeVideoExecutionPhase(data.data.shot.generationExecutionPhase);
                     const responseShot = responsePhase && typeof data.data.shot === "object" ? { ...data.data.shot, generationExecutionPhase: responsePhase } : data.data.shot;
                     if (!disposedRef.current && currentEpisodeIdRef.current === episodeId) onShotSynced(episodeId, shotId, responseShot);
                     if (!disposedRef.current && !silent) messageApi.success("任务状态已同步");
@@ -4837,8 +4852,7 @@ function StoryboardPanel({
                     : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) &&
                       !shot.videoUrl &&
                       !requiresDramaLabVideoTaskCheck(shot) &&
-                      (!isDramaLabTaskActive(shot.generationStatus) || Boolean(shot.generationTaskId)) &&
-                      !isDramaLabExecutionActive(shot.generationExecutionPhase),
+                      !isDramaLabVideoTaskActive(shot),
             );
             if (!candidates.length) {
                 if (!disposedRef.current) messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
@@ -4853,8 +4867,9 @@ function StoryboardPanel({
                     // Reconcile a task retained by the server before creating
                     // a new one after a stale page refresh.
                     observedShot = (await syncShot(shot.id, true, abortController.signal).catch(() => undefined)) || shot;
-                    if (observedShot.generationTaskId && (isDramaLabTaskActive(observedShot.generationStatus) || observedShot.generationNeedsReview)) {
-                        targets.push({ shotId: observedShot.id, taskId: observedShot.generationTaskId });
+                    const observedVideoTaskId = observedShot.generationTaskId?.trim();
+                    if (observedVideoTaskId && isDramaLabVideoTaskActive(observedShot)) {
+                        targets.push({ shotId: observedShot.id, taskId: observedVideoTaskId });
                         continue;
                     }
                 }
@@ -5325,7 +5340,7 @@ function StoryboardWorkbenchCard({
     onDelete: () => void;
 }) {
     const imageBusy = busyKeys.has(`image:${shot.id}`) || isDramaLabTaskActive(shot.storyboardStatus);
-    const videoBusy = busyKeys.has(`video:${shot.id}`) || isDramaLabTaskActive(shot.generationStatus) || isDramaLabExecutionActive(shot.generationExecutionPhase);
+    const videoBusy = busyKeys.has(`video:${shot.id}`) || isDramaLabVideoTaskActive(shot);
     const checkingVideoStatus = busyKeys.has(`video-status:${shot.id}`);
     const videoNeedsCheck = requiresDramaLabVideoTaskCheck(shot);
     const dialogueAudio = audioStateForKind(shot, "dialogue");

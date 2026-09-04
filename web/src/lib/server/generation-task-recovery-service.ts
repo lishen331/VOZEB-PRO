@@ -998,8 +998,12 @@ async function persistVideoLease(task: VideoTask, lease: GenerationTaskLease, wo
         await releaseGenerationTaskLease("video", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "invalid_result_url" });
         return "failed";
     }
-    await scheduleGenerationTask("video", task.id, { executionPhase: "persisting", nextPollAt: lease.nextPollAt });
     try {
+        // Keep the scheduler transition inside the same bounded recovery
+        // block as the media write. A scheduler/storage failure must release
+        // the claimed lease and either retry or move to manual review; it
+        // must never strand the task in `persisting` with an active lease.
+        await scheduleGenerationTask("video", task.id, { executionPhase: "persisting", nextPollAt: lease.nextPollAt });
         const completed = await persistVideoTaskResult(task, resultUrl, origin, cookie, cookie ? "" : task.userId);
         if (!completed || completed.status !== "success") throw new Error("视频结果保存后未进入成功状态");
         await releaseGenerationTaskLease("video", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: "persisted" });
