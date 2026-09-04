@@ -151,14 +151,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                             {item.enabled ? "停用" : "启用"}
                         </Button>
                     </Popconfirm>
-                    <Popconfirm
-                        title="确认删除此工作流？"
-                        description="删除后无法恢复，且只能删除已停用的工作流"
-                        onConfirm={() => void deleteWorkflow(item)}
-                        okText="删除"
-                        cancelText="取消"
-                        okButtonProps={{ danger: true }}
-                    >
+                    <Popconfirm title="确认删除此工作流？" description="删除后无法恢复，且只能删除已停用的工作流" onConfirm={() => void deleteWorkflow(item)} okText="删除" cancelText="取消" okButtonProps={{ danger: true }}>
                         <Button size="small" danger icon={<Trash2 className="size-3.5" />} disabled={item.enabled}>
                             删除
                         </Button>

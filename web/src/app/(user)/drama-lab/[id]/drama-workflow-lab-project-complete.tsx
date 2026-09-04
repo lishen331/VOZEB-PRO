@@ -3960,10 +3960,7 @@ function StoryboardPanel({
     const episodeId = episode?.id;
 
     const episodeShots = episode ? project.shots.filter((s) => s.episodeId === episode.id).sort((a, b) => a.shotNumber - b.shotNumber) : [];
-    const activeTaskShots = episodeShots.filter(
-        (shot) =>
-            isDramaLabTaskActive(shot.storyboardStatus) || isDramaLabVideoTaskActive(shot) || Object.values(shot.frames || {}).some((frame) => isDramaLabTaskActive(frame?.status)),
-    );
+    const activeTaskShots = episodeShots.filter((shot) => isDramaLabTaskActive(shot.storyboardStatus) || isDramaLabVideoTaskActive(shot) || Object.values(shot.frames || {}).some((frame) => isDramaLabTaskActive(frame?.status)));
     const activeTaskShotsRef = useRef(activeTaskShots);
     activeTaskShotsRef.current = activeTaskShots;
     const activeTaskSignature = activeTaskShots.map(dramaLabGenerationSyncKey).join("|");
@@ -4849,10 +4846,7 @@ function StoryboardPanel({
             const candidates = sourceShots.filter((shot) =>
                 kind === "image"
                     ? !shot.storyboardImageUrl && !isDramaLabTaskActive(shot.storyboardStatus)
-                    : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) &&
-                      !shot.videoUrl &&
-                      !requiresDramaLabVideoTaskCheck(shot) &&
-                      !isDramaLabVideoTaskActive(shot),
+                    : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) && !shot.videoUrl && !requiresDramaLabVideoTaskCheck(shot) && !isDramaLabVideoTaskActive(shot),
             );
             if (!candidates.length) {
                 if (!disposedRef.current) messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
