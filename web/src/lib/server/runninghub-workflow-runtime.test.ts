@@ -69,14 +69,14 @@ describe("RunningHub workflow runtime", () => {
     });
 
     it("rejects missing required input and mappings that reference unknown keys", () => {
-        expect(() => buildRunningHubWorkflowPayload({ config, businessInput: { steps: 12, draft: true }, references: [] })).toThrow("prompt");
+        expect(() => buildRunningHubWorkflowPayload({ config, businessInput: { steps: 12, draft: true }, references: [] })).toThrow("提示词");
         expect(() =>
             buildRunningHubWorkflowPayload({
                 config: { ...config, nodeMappings: [{ ...config.nodeMappings[0], inputKey: "missing" }] },
                 businessInput: { prompt: "x", steps: 1, draft: true },
                 references: [],
             }),
-        ).toThrow("inputKey");
+        ).toThrow("配置错误");
     });
 
     it("records the immutable workflow version and upstream id separately from business input", () => {
