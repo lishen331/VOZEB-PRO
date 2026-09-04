@@ -107,6 +107,12 @@ describe("provider task config", () => {
         expect(readProviderError({ failureReason: "queued by provider", message: "success" })).toBe("queued by provider");
     });
 
+    it("recognizes RunningHub failedReason responses", () => {
+        const payload = { code: 200, data: { status: "FAILED", failedReason: "workflow input rejected" } };
+        expect(isProviderBusinessError(payload)).toBe(true);
+        expect(readProviderError(payload)).toBe("workflow input rejected");
+    });
+
     it("rejects reference media disabled by the backend channel", () => {
         const config = { supportsReferenceImage: true, supportsReferenceVideo: false, supportsReferenceAudio: false } as never;
         expect(() => assertReferenceCapabilities(config, [{ type: "image" }])).not.toThrow();

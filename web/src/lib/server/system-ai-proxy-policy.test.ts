@@ -95,6 +95,21 @@ describe("system AI proxy policy", () => {
         expect(authorizeSystemAiProxyRequest({ ...base, method: "GET", path: ["jobs", "other", "task-one"], search: "" })).toMatchObject({ allowed: false, status: 404 });
     });
 
+    it("authorizes RunningHub task-id query paths", () => {
+        expect(
+            authorizeSystemAiProxyRequest({
+                method: "GET",
+                path: ["openapi", "v2", "query", "task-one"],
+                search: "",
+                channelId: "main",
+                upstreamModel: "vendor-video",
+                preferredLogicalModelId: "video-pro",
+                logicalModels,
+                apiFormat: "openai",
+            }),
+        ).toMatchObject({ allowed: true, operation: "query", upstreamTaskId: "task-one" });
+    });
+
     it("extracts task ids from query strings and rejects conflicting hints", () => {
         const base = {
             channelId: "main",
