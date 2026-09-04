@@ -1805,6 +1805,12 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
 
 // ========== 子组件 ==========
 
+function createDramaLabClientRequestId() {
+    const cryptoApi = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
+    if (cryptoApi && typeof cryptoApi.randomUUID === "function") return cryptoApi.randomUUID();
+    return `drama-lab-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 // 1. 剧本编辑器
 function ScriptEditor({
     project,
@@ -4414,7 +4420,7 @@ function StoryboardPanel({
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/extract-storyboards`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ episodeId: episode.id, requestId: crypto.randomUUID() }),
+                body: JSON.stringify({ episodeId: episode.id, requestId: createDramaLabClientRequestId() }),
             });
             await assertJsonApiResponse(response);
             const data = await response.json();

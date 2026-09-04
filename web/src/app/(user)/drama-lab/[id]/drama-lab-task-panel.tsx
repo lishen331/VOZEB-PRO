@@ -17,7 +17,7 @@ export type DramaLabTaskPanelProps = {
 
 /** A persistent project-scoped view over server-owned generation_tasks. */
 export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [], className, compact = false }: DramaLabTaskPanelProps) {
-    const [tasks, setTasks] = useState<DramaLabTaskView[]>(initialTasks);
+    const [tasks, setTasks] = useState<DramaLabTaskView[]>(() => initialTasks.filter(isVisibleTask));
     const [collapsed, setCollapsed] = useState(compact);
     const [loading, setLoading] = useState(initialTasks.length === 0);
     const [refreshing, setRefreshing] = useState(false);
@@ -35,7 +35,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
                 const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks?status=all`, { cache: "no-store" });
                 const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { tasks?: DramaLabTaskView[] } };
                 if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "Task status could not be loaded");
-                setTasks(Array.isArray(payload.data?.tasks) ? payload.data.tasks : []);
+                setTasks(Array.isArray(payload.data?.tasks) ? payload.data.tasks.filter(isVisibleTask) : []);
                 setError(undefined);
             } catch (reason) {
                 setError(reason instanceof Error ? reason.message : "Task status could not be loaded");
@@ -55,11 +55,12 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
         setCollapsed(compact);
     }, [compact]);
 
+    // Keep discovering tasks created by another panel/action. The previous
+    // activeCount-gated poll never noticed the first task until a refresh.
     useEffect(() => {
-        if (!activeCount) return;
-        const timer = window.setTimeout(() => void load(true), 2_000);
-        return () => window.clearTimeout(timer);
-    }, [activeCount, load, tasks]);
+        const timer = window.setInterval(() => void load(true), 2_000);
+        return () => window.clearInterval(timer);
+    }, [load]);
 
     const cancel = async (task: DramaLabTaskView) => {
         if (!task.canCancel || cancellingId) return;
@@ -68,7 +69,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(task.id)}/cancel`, { method: "POST", cache: "no-store" });
             const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: DramaLabTaskView };
             if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "Task cancellation failed");
-            if (payload.data) setTasks((current) => current.map((item) => (item.id === payload.data!.id ? payload.data! : item)));
+            setTasks((current) => current.filter((item) => item.id !== task.id && item.id !== payload.data?.id));
             messageApi.success({ content: "Cancellation request recorded", key: `drama-task-cancel-${task.id}`, duration: 2 });
         } catch (reason) {
             messageApi.error({ content: reason instanceof Error ? reason.message : "Task cancellation failed", key: `drama-task-cancel-${task.id}`, duration: 3 });
@@ -183,6 +184,10 @@ function episodeLabel(id: string | undefined, episodes: Array<{ id: string; titl
     const episode = episodes.find((item) => item.id === id);
     if (!episode) return `剧集 ${id}`;
     return `第${episode.number || ""}集${episode.title ? ` ${episode.title}` : ""}`;
+}
+
+function isVisibleTask(task: DramaLabTaskView) {
+    return task.status !== "success" && task.status !== "cancelled";
 }
 
 function StatusIcon({ status }: { status: DramaLabTaskView["status"] }) {

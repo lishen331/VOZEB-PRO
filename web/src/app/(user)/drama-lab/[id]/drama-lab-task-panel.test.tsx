@@ -28,11 +28,25 @@ describe("DramaLabTaskPanel", () => {
         expect(markup).toContain("取消分镜视频生成");
     });
 
-    it("renders terminal errors and retry affordance text", () => {
+    it("does not render terminal errors", () => {
         const markup = renderToStaticMarkup(<DramaLabTaskPanel projectId="project-one" initialTasks={[{ ...base, status: "error", canCancel: false, canRetry: true, progress: 35, error: "上游任务失败" }]} />);
         expect(markup).toContain("失败");
         expect(markup).toContain("上游任务失败");
         expect(markup).toContain("可重试");
+    });
+
+    it("does not keep completed or cancelled tasks in the panel", () => {
+        const markup = renderToStaticMarkup(
+            <DramaLabTaskPanel
+                projectId="project-one"
+                initialTasks={[
+                    { ...base, id: "done", status: "success", canCancel: false, title: "已完成任务" },
+                    { ...base, id: "cancelled", status: "cancelled", canCancel: false, title: "已取消任务" },
+                ]}
+            />,
+        );
+        expect(markup).not.toContain("已完成任务");
+        expect(markup).not.toContain("已取消任务");
     });
 
     it("keeps a collapsed badge available", () => {
