@@ -362,21 +362,11 @@ function defaultModel(settings: Awaited<ReturnType<typeof getAuthSettings>>, cap
 }
 
 function anyAvailableModel(settings: Awaited<ReturnType<typeof getAuthSettings>>, capability: LogicalModelCapability): string {
-    // 尝试找到第一个可用的逻辑模型
-    const logical = settings.logicalModels.find((model) => model.enabled && model.capability === capability && model.bindings.some((binding) => binding.enabled));
-    if (logical) return logical.id;
-
-    // 回退到系统渠道中的第一个可用模型
-    for (const channel of settings.systemChannels) {
-        if (!channel.enabled) continue;
-        const model = channel.models.find((m) => {
-            const cap = m.capabilities?.some((c) => c === capability);
-            return cap;
-        });
-        if (model) return model.id;
-    }
-
-    return "";
+    // A task must resolve through a logical model so that its channel binding,
+    // capability profile, and billing settings stay consistent. Raw channel
+    // model names cannot be returned here because dispatchTask resolves them
+    // through resolveLogicalModel before submission.
+    return settings.logicalModels.find((model) => model.enabled && model.capability === capability && model.bindings.some((binding) => binding.enabled))?.id || "";
 }
 
 function resolvePlannedModel(settings: Awaited<ReturnType<typeof getAuthSettings>>, capability: LogicalModelCapability, planned: unknown) {
