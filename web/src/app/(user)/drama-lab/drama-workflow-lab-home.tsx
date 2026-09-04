@@ -153,9 +153,6 @@ export function DramaWorkflowLabHome() {
                                 if (file) void importProject(file);
                             }}
                         />
-                        <Button icon={<Upload className="size-4" />} loading={importing} onClick={() => importInputRef.current?.click()}>
-                            导入项目
-                        </Button>
                         <Button icon={<UserRound className="size-4" />} onClick={() => setCharacterLibraryOpen(true)} className="hidden sm:inline-flex">
                             素材角色
                         </Button>
@@ -165,8 +162,8 @@ export function DramaWorkflowLabHome() {
                         <Button icon={<Box className="size-4" />} onClick={() => setPropLibraryOpen(true)} className="hidden sm:inline-flex">
                             素材道具
                         </Button>
-                        <Button icon={<RefreshCcw className="size-4" />} onClick={() => void loadProjects()} loading={loading}>
-                            刷新项目
+                        <Button icon={<Upload className="size-4" />} loading={importing} onClick={() => importInputRef.current?.click()}>
+                            导入项目
                         </Button>
                         <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setCreateOpen(true)}>
                             新建短剧
@@ -195,7 +192,9 @@ export function DramaWorkflowLabHome() {
                             </h2>
                             <p className="mt-1 text-sm text-muted-foreground">共 {total} 个项目</p>
                         </div>
-                        <Tag color="blue">LocalMiniDrama 适配分支</Tag>
+                        <Button icon={<RefreshCcw className="size-4" />} onClick={() => void loadProjects()} loading={loading}>
+                            刷新项目
+                        </Button>
                     </div>
 
                     {error ? (
