@@ -392,8 +392,8 @@ describe("executeAgentRun backend settings", () => {
             childTasks: [expect.objectContaining({ id: "child-1", status: "completed" }), expect.objectContaining({ id: "child-2", status: "failed", error: "第二张生成失败" })],
         });
         expect(mocks.run?.assetIds).toEqual(["asset-child-1"]);
-        expect(mocks.run?.status).toBe("completed");
-        expect(mocks.events.find((event) => event.type === "run.completed")?.data).toMatchObject({ partial: true, assetIds: ["asset-child-1"], reply: expect.stringContaining("成功 1 张，失败 1 张") });
+        expect(mocks.run?.status).toBe("partial_success");
+        expect(mocks.events.find((event) => event.type === "run.partial_success")?.data).toMatchObject({ completed: 0, failed: 1, assetIds: ["asset-child-1"] });
         expect(mocks.events.some((event) => event.type === "run.failed")).toBe(false);
     });
 
@@ -1176,5 +1176,115 @@ describe("executeAgentRun backend settings", () => {
 
         expect(mocks.refundGenerationCharge).toHaveBeenCalledWith({ userId: "user", receiptId: "school:agent-cancelled", model: "planner", usageKind: "text", units: 1, idempotencyKey: expect.any(String) });
         expect(mocks.run?.status).toBe("cancelled");
+    });
+});
+
+describe("partial success handling", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.events = [];
+        resetTextPlanningRuntime();
+    });
+
+    it("should set status to partial_success when some tasks succeed and some fail", async () => {
+        const tasks: AgentRunTask[] = [
+            { ...imageTask("task-1"), status: "completed" },
+            { ...imageTask("task-2"), status: "failed", error: "生成失败" },
+        ];
+        mocks.run = { ...runWithTasks(tasks), assetIds: ["asset-1"] };
+        mocks.getAuthSettings.mockResolvedValue(settings("image-default", "image-default-channel"));
+        mocks.updateAgentRunById.mockImplementation(async (_id, patch, event) => {
+            mocks.run = mocks.run ? { ...mocks.run, ...patch } : null;
+            if (event) mocks.events.push(event);
+            return mocks.run;
+        });
+
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        expect(mocks.run?.status).toBe("partial_success");
+        expect(mocks.events).toContainEqual(
+            expect.objectContaining({
+                type: "run.partial_success",
+                data: expect.objectContaining({
+                    completed: 1,
+                    failed: 1,
+                }),
+            })
+        );
+    });
+
+    it("should include success and failure counts in partial_success event", async () => {
+        const tasks: AgentRunTask[] = [
+            { ...imageTask("task-1"), status: "completed" },
+            { ...imageTask("task-2"), status: "completed" },
+            { ...imageTask("task-3"), status: "failed", error: "错误1" },
+            { ...imageTask("task-4"), status: "failed", error: "错误2" },
+            { ...imageTask("task-5"), status: "failed", error: "错误3" },
+        ];
+        mocks.run = { ...runWithTasks(tasks), assetIds: ["asset-1", "asset-2"] };
+        mocks.getAuthSettings.mockResolvedValue(settings("image-default", "image-default-channel"));
+        mocks.updateAgentRunById.mockImplementation(async (_id, patch, event) => {
+            mocks.run = mocks.run ? { ...mocks.run, ...patch } : null;
+            if (event) mocks.events.push(event);
+            return mocks.run;
+        });
+
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        expect(mocks.run?.status).toBe("partial_success");
+        const partialEvent = mocks.events.find((e) => e.type === "run.partial_success");
+        expect(partialEvent?.data).toMatchObject({
+            completed: 2,
+            failed: 3,
+            assetIds: ["asset-1", "asset-2"],
+        });
+        expect((partialEvent?.data as any)?.reply).toContain("已完成 2 个任务");
+        expect((partialEvent?.data as any)?.reply).toContain("3 个任务失败");
+    });
+
+    it("should still mark as completed when all tasks succeed", async () => {
+        const tasks: AgentRunTask[] = [
+            { ...imageTask("task-1"), status: "completed" },
+            { ...imageTask("task-2"), status: "completed" },
+        ];
+        mocks.run = { ...runWithTasks(tasks), assetIds: ["asset-1", "asset-2"] };
+        mocks.getAuthSettings.mockResolvedValue(settings("image-default", "image-default-channel"));
+        mocks.updateAgentRunById.mockImplementation(async (_id, patch, event) => {
+            mocks.run = mocks.run ? { ...mocks.run, ...patch } : null;
+            if (event) mocks.events.push(event);
+            return mocks.run;
+        });
+
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        expect(mocks.run?.status).toBe("completed");
+        expect(mocks.events).toContainEqual(
+            expect.objectContaining({
+                type: "run.completed",
+            })
+        );
+    });
+
+    it("should mark as failed when all tasks fail and no assets generated", async () => {
+        const tasks: AgentRunTask[] = [
+            { ...imageTask("task-1"), status: "failed", error: "错误1" },
+            { ...imageTask("task-2"), status: "failed", error: "错误2" },
+        ];
+        mocks.run = { ...runWithTasks(tasks), assetIds: [] };
+        mocks.getAuthSettings.mockResolvedValue(settings("image-default", "image-default-channel"));
+        mocks.updateAgentRunById.mockImplementation(async (_id, patch, event) => {
+            mocks.run = mocks.run ? { ...mocks.run, ...patch } : null;
+            if (event) mocks.events.push(event);
+            return mocks.run;
+        });
+
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        expect(mocks.run?.status).toBe("failed");
+        expect(mocks.events).toContainEqual(
+            expect.objectContaining({
+                type: "run.failed",
+            })
+        );
     });
 });

@@ -16,7 +16,7 @@ export type CreativeAgentRun = {
     conversationId: string;
     inputMessageId: string;
     assistantMessageId: string;
-    status: "planning" | "running" | "paused" | "completed" | "failed" | "cancelled";
+    status: "planning" | "running" | "paused" | "completed" | "partial_success" | "failed" | "cancelled";
     surface?: CreativeRunRequest["surface"];
     projectId?: string;
     prompt?: string;

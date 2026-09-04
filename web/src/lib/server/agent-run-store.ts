@@ -14,7 +14,7 @@ import { normalizeAgentRunCanvasSnapshot, selectedCanvasNodeIds } from "./agent-
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import { getDramaProject } from "./drama-project-store";
 
-export type AgentRunStatus = "planning" | "running" | "paused" | "completed" | "failed" | "cancelled";
+export type AgentRunStatus = "planning" | "running" | "paused" | "completed" | "partial_success" | "failed" | "cancelled";
 export type AgentRunReviewStatus = "review_pending" | "reviewing" | "review_completed" | "review_unavailable";
 export type AgentRunFailureStage = "planning" | "task_execution" | "refund";
 export type AgentRunCandidateFailure = { channelId: string; upstreamModel: string; error: string };

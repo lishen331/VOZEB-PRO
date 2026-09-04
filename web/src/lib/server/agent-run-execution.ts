@@ -469,15 +469,18 @@ export async function executeTasks(runId: string, origin: string, cookie: string
             const terminalTasks = blocked.length ? run.tasks.map((task) => (task.status === "ready" ? { ...task, status: "failed" as const, error: "前置任务未完成" } : task)) : run.tasks;
             const partialSuccess = Boolean(run.assetIds.length) && terminalTasks.some((task) => task.status === "failed") && terminalTasks.every((task) => task.status === "completed" || task.status === "failed");
             if (partialSuccess) {
+                const completedCount = terminalTasks.filter((task) => task.status === "completed").length;
+                const failedCount = terminalTasks.filter((task) => task.status === "failed").length;
+                const failureMessage = agentRunFailureMessage(terminalTasks);
                 await updateAgentRunById(
                     runId,
                     {
-                        status: "completed",
+                        status: "partial_success",
                         executionId: undefined,
                         tasks: terminalTasks,
                         timings: { ...(run.timings || { requestAcceptedAt: run.createdAt }), allResultsReadyAt: run.timings?.allResultsReadyAt || Date.now(), runCompletedAt: Date.now() },
                     },
-                    { type: "run.completed", data: { completed: terminalTasks.filter((task) => task.status === "completed").length, partial: true, assetIds: run.assetIds, reply: agentRunFailureMessage(terminalTasks) } },
+                    { type: "run.partial_success", data: { completed: completedCount, failed: failedCount, assetIds: run.assetIds, reply: `已完成 ${completedCount} 个任务，${failedCount} 个任务失败。${failureMessage}` } },
                     ["running"],
                     executionId,
                 );
