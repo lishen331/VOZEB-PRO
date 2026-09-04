@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 
-import { DeleteObjectsCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client, type ObjectIdentifier } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client, type ObjectIdentifier } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { assertObjectStorageConfigured, type ObjectStorageRuntimeConfig } from "@/lib/server/object-storage-config";
@@ -43,13 +43,13 @@ export async function testObjectStorageConnection(config: ObjectStorageRuntimeCo
             throw objectStorageOperationError("对象写入检查失败", error);
         }
         try {
-            await deleteObjectBatch(client, config.bucket, [probeKey]);
+            await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: probeKey }));
             uploaded = false;
         } catch (error) {
             throw objectStorageOperationError("对象删除检查失败", error);
         }
     } finally {
-        if (uploaded) await deleteObjectBatch(client, config.bucket, [probeKey]).catch(() => undefined);
+        if (uploaded) await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: probeKey })).catch(() => undefined);
         client.destroy();
     }
 }

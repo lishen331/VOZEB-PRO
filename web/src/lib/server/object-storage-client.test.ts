@@ -41,12 +41,12 @@ describe("object storage client", () => {
 
         await testObjectStorageConnection({ ...config, endpoint: `http://127.0.0.1:${address.port}` });
 
-        expect(requests.map((request) => request.method)).toEqual(["GET", "PUT", "POST"]);
+        expect(requests.map((request) => request.method)).toEqual(["GET", "PUT", "DELETE"]);
         expect(requests[1]?.url).toMatch(/^\/media\/vozeb-pro\/media\/\.vozeb-healthcheck\/[0-9a-f-]+\.txt\?x-id=PutObject$/);
         expect(requests[1]?.body).toBe("vozeb-pro-storage-check");
         expect(requests[1]?.headers["x-amz-sdk-checksum-algorithm"]).toBeUndefined();
-        expect(requests[2]?.url).toBe("/media/?delete=");
-        expect(requests[2]?.body).toContain("<Key>vozeb-pro/media/.vozeb-healthcheck/");
+        expect(requests[2]?.url).toMatch(/^\/media\/vozeb-pro\/media\/\.vozeb-healthcheck\/[0-9a-f-]+\.txt\?x-id=DeleteObject$/);
+        expect(requests[2]?.body).toBe("");
     });
 
     it("turns provider failures into actionable messages without exposing signed query values", () => {
@@ -62,9 +62,9 @@ function respondToS3Probe(request: IncomingMessage, response: ServerResponse) {
         response.end('<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>media</Name><Prefix>vozeb-pro/</Prefix><MaxKeys>1</MaxKeys><IsTruncated>false</IsTruncated></ListBucketResult>');
         return;
     }
-    if (request.method === "POST") {
+    if (request.method === "DELETE") {
         response.writeHead(200, { "Content-Type": "application/xml" });
-        response.end('<?xml version="1.0" encoding="UTF-8"?><DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"/>');
+        response.end();
         return;
     }
     response.writeHead(200, { "Content-Type": "application/xml" });
