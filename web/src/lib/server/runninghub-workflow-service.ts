@@ -214,6 +214,15 @@ export async function setWorkflowEnabled(workflowKey: string, enabled: boolean) 
     return publicWorkflow(persisted?.config || candidate, persisted?.channel || found.channel);
 }
 
+export async function deleteWorkflow(workflowKey: string) {
+    const settings = await getFreshAuthSettings();
+    const found = findWorkflow(settings, workflowKey);
+    if (!found) throw new RunningHubWorkflowError("工作流不存在", 404);
+    if (found.config.enabled) throw new RunningHubWorkflowError("无法删除已启用的工作流，请先停用", 409);
+    const configs = workflowConfigs(found.channel).filter((config) => config.workflowKey !== workflowKey);
+    await setAuthSettings({ systemChannels: replaceWorkflow(settings, found.channel.id, configs) });
+}
+
 function workflowEntries(settings: AuthSettings) {
     return settings.systemChannels.flatMap((channel) => workflowConfigs(channel).map((config) => ({ channel, config })));
 }

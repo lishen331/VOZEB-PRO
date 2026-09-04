@@ -2,7 +2,7 @@
 
 import { App, Button, Empty, Input, Popconfirm, Select, Space, Table, Tag } from "antd";
 import type { TableColumnsType } from "antd";
-import { Plus, RefreshCw, Settings2, TestTube, ToggleLeft } from "lucide-react";
+import { Plus, RefreshCw, Settings2, TestTube, ToggleLeft, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { SystemModelChannel } from "@/lib/auth/store";
@@ -84,6 +84,19 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
         }
     };
 
+    const deleteWorkflow = async (workflow: PublicRunningHubWorkflow) => {
+        try {
+            const endpoint = `/api/admin/runninghub/workflows/${encodeURIComponent(workflow.workflowKey)}`;
+            const response = await fetch(endpoint, { method: "DELETE" });
+            const result = (await response.json()) as { msg?: string };
+            if (!response.ok) throw new Error(result.msg || "删除失败");
+            message.success("工作流已删除");
+            await load();
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "删除失败");
+        }
+    };
+
     const columns: TableColumnsType<PublicRunningHubWorkflow> = useMemo(
         () => [
             {
@@ -136,6 +149,18 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                     <Popconfirm title={item.enabled ? "停用这个版本？" : "启用这个版本？"} onConfirm={() => void mutate(item, item.enabled ? "disable" : "enable")}>
                         <Button size="small" icon={<ToggleLeft className="size-3.5" />}>
                             {item.enabled ? "停用" : "启用"}
+                        </Button>
+                    </Popconfirm>
+                    <Popconfirm
+                        title="确认删除此工作流？"
+                        description="删除后无法恢复，且只能删除已停用的工作流"
+                        onConfirm={() => void deleteWorkflow(item)}
+                        okText="删除"
+                        cancelText="取消"
+                        okButtonProps={{ danger: true }}
+                    >
+                        <Button size="small" danger icon={<Trash2 className="size-3.5" />} disabled={item.enabled}>
+                            删除
                         </Button>
                     </Popconfirm>
                 </Space>

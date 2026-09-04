@@ -2,7 +2,7 @@ import { hasAdminPermission } from "@/lib/admin-permissions";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { auditActorFromRequest, safeRecordAuditLog } from "@/lib/server/audit-log-store";
-import { getWorkflow, RunningHubWorkflowError, setWorkflowEnabled, updateWorkflow } from "@/lib/server/runninghub-workflow-service";
+import { deleteWorkflow, getWorkflow, RunningHubWorkflowError, setWorkflowEnabled, updateWorkflow } from "@/lib/server/runninghub-workflow-service";
 import { schoolApiError, schoolApiFailure, schoolApiOk } from "@/lib/server/school-api-response";
 
 export const runtime = "nodejs";
@@ -39,6 +39,26 @@ export async function PUT(request: Request, context: Context) {
         return schoolApiOk(result);
     } catch (error) {
         return workflowFailure(error, "更新 RunningHub 工作流失败");
+    }
+}
+
+export async function DELETE(request: Request, context: Context) {
+    const user = await getCurrentUser();
+    if (!user) return schoolApiError(401, "请先登录");
+    if (!hasAdminPermission(user, "upstream.manage")) return schoolApiError(403, "当前管理员没有上游配置职责权限");
+    const workflowKey = (await context.params).workflowKey;
+    try {
+        const workflow = await getWorkflow(workflowKey);
+        await deleteWorkflow(workflowKey);
+        await safeRecordAuditLog({
+            action: "admin.runninghub.workflow.delete",
+            actor: auditActorFromRequest(request, user),
+            target: { type: "runninghub_workflow", id: workflowKey, label: workflow.workflowName },
+            metadata: { version: workflow.version, businessCode: workflow.businessCode },
+        });
+        return schoolApiOk({ success: true });
+    } catch (error) {
+        return workflowFailure(error, "删除 RunningHub 工作流失败");
     }
 }
 
