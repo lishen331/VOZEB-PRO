@@ -20,6 +20,7 @@ import { usePublicSessionStore } from "@/stores/use-public-session-store";
 import type { PublicGalleryItem } from "@/services/api/work-governance";
 import { createAgentDraftFromHash } from "@/lib/create-agent-prompt";
 import { resolveSiteTitle } from "@/lib/site-brand";
+import { generateClientUUID } from "@/lib/client-uuid";
 
 import { CreativeComposer } from "./components/creative-composer";
 import { CreativeAssetsPanel } from "./components/creative-assets-panel";
@@ -279,7 +280,7 @@ export default function CreatePage() {
         optimizingRef.current = true;
         setOptimizingPrompt(true);
         try {
-            const optimized = await optimizePrompt({ requestId: `prompt-${crypto.randomUUID()}`, prompt: source, mode: creationMode });
+            const optimized = await optimizePrompt({ requestId: `prompt-${generateClientUUID()}`, prompt: source, mode: creationMode });
             if (promptRevisionRef.current !== revision) {
                 message.info("输入内容已变化，未覆盖当前提示词");
                 return;
