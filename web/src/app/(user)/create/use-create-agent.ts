@@ -208,7 +208,7 @@ export function useCreateAgent() {
         async (id: string) => {
             // 防止并发调用
             if (loadingConversationRef.current) {
-                console.warn('会话加载已在进行中，忽略重复调用');
+                console.warn("会话加载已在进行中，忽略重复调用");
                 return;
             }
 
@@ -228,7 +228,7 @@ export function useCreateAgent() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => {
                 controller.abort();
-                console.error('会话加载超时');
+                console.error("会话加载超时");
             }, CONVERSATION_LOAD_TIMEOUT);
 
             try {
@@ -236,7 +236,7 @@ export function useCreateAgent() {
 
                 // 组件已卸载则不更新状态
                 if (!isMountedRef.current) {
-                    console.warn('组件已卸载，取消状态更新');
+                    console.warn("组件已卸载，取消状态更新");
                     return;
                 }
 
@@ -251,10 +251,10 @@ export function useCreateAgent() {
             } catch (error) {
                 if (!isMountedRef.current) return;
 
-                if (error instanceof Error && error.name === 'AbortError') {
-                    console.error('会话加载超时，请重试');
+                if (error instanceof Error && error.name === "AbortError") {
+                    console.error("会话加载超时，请重试");
                     if (isCurrentConversation(id, generation)) newConversation();
-                    throw new Error('会话加载超时，请重试');
+                    throw new Error("会话加载超时，请重试");
                 }
 
                 if (isCurrentConversation(id, generation)) newConversation();
