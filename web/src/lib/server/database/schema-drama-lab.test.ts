@@ -7,7 +7,8 @@ describe("Drama Lab schema compatibility migration", () => {
         expect(DRAMA_LAB_SCHEMA_SQL).toContain("'generation_settings'");
         expect(DRAMA_LAB_SCHEMA_SQL).toContain("ORDER BY updated_at DESC, id DESC");
         expect(DRAMA_LAB_SCHEMA_SQL).toContain("FROM drama_lab_generation_settings");
-        expect(DRAMA_LAB_SCHEMA_SQL).toMatch(/FROM drama_lab_generation_settings\s+WHERE deleted_at IS NULL\s+ORDER BY updated_at DESC, id DESC/);
+        expect(DRAMA_LAB_SCHEMA_SQL).toMatch(/FROM drama_lab_generation_settings\s+ORDER BY updated_at DESC, id DESC/);
+        expect(DRAMA_LAB_SCHEMA_SQL).not.toMatch(/FROM drama_lab_generation_settings\s+WHERE\s+deleted_at/);
         expect(DRAMA_LAB_SCHEMA_SQL).toContain("UPDATE app_settings AS settings");
         expect(DRAMA_LAB_SCHEMA_SQL).toContain("? 'image'");
         expect(DRAMA_LAB_SCHEMA_SQL).toContain("? 'video'");
