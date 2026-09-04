@@ -361,10 +361,32 @@ function defaultModel(settings: Awaited<ReturnType<typeof getAuthSettings>>, cap
     return model && resolveLogicalModel(settings, capability, model) ? model : "";
 }
 
+function anyAvailableModel(settings: Awaited<ReturnType<typeof getAuthSettings>>, capability: LogicalModelCapability): string {
+    // 尝试找到第一个可用的逻辑模型
+    const logical = settings.logicalModels.find((model) => model.enabled && model.capability === capability && model.bindings.some((binding) => binding.enabled));
+    if (logical) return logical.id;
+
+    // 回退到系统渠道中的第一个可用模型
+    for (const channel of settings.systemChannels) {
+        if (!channel.enabled) continue;
+        const model = channel.models.find((m) => {
+            const cap = m.capabilities?.some((c) => c === capability);
+            return cap;
+        });
+        if (model) return model.id;
+    }
+
+    return "";
+}
+
 function resolvePlannedModel(settings: Awaited<ReturnType<typeof getAuthSettings>>, capability: LogicalModelCapability, planned: unknown) {
     const model = typeof planned === "string" ? planned.trim() : "";
     if (model && resolveLogicalModel(settings, capability, model)) return model;
-    return defaultModel(settings, capability) || undefined;
+    const fallback = defaultModel(settings, capability);
+    if (fallback) return fallback;
+    // 对于音频任务，如果没有配置默认模型，尝试使用任意可用的音频模型
+    if (capability === "audio") return anyAvailableModel(settings, capability) || undefined;
+    return undefined;
 }
 
 export function agentPlanFallbackExample(models: ReturnType<typeof agentModelOptions>) {
@@ -619,6 +641,23 @@ export async function refundTextResponse(userId: string, model: string, headers:
     if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `agent-response-refund:${billing.billingReceiptId}` });
 }
 
+function recordErrorHistory(task: AgentRunTask, error: string, phase: "validation" | "submission" | "polling" | "retry"): Partial<AgentRunTask> {
+    const errorHistory = task.errorHistory || [];
+    const newEntry = {
+        error,
+        timestamp: Date.now(),
+        attempt: task.attempts,
+        phase,
+    };
+
+    return {
+        errorHistory: [...errorHistory, newEntry],
+        originalError: errorHistory.length === 0 ? error : task.originalError,
+        latestError: error,
+        error, // 保持当前的 error 字段用于向后兼容
+    };
+}
+
 export async function runTaskWithRetry(runId: string, task: AgentRunTask, origin: string, cookie: string, executionId: string, settings?: Awaited<ReturnType<typeof getAuthSettings>>) {
     const resumeExisting = task.childTasks?.some((child) => child.status === "pending" || child.status === "needs_review") || ((task.status === "running" || task.status === "needs_review") && task.taskId && !task.childTasks?.length);
     const attempt = resumeExisting ? Math.max(1, task.attempts) : task.attempts + 1;
@@ -659,19 +698,23 @@ export async function runTaskWithRetry(runId: string, task: AgentRunTask, origin
             const latestTask = latest?.tasks.find((item) => item.id === task.id);
             if (error.needsReview && latestTask && (await canContinue(runId, executionId))) {
                 const childTasks = latestTask.childTasks?.map((child) => (child.status === "pending" || child.status === "needs_review" ? { ...child, status: "needs_review" as const, error: error.message } : child));
-                await patchTask(runId, task.id, { status: "needs_review", error: error.message, ...(childTasks ? { childTasks } : {}) }, "task.needs_review", executionId);
+                const errorRecord = recordErrorHistory(latestTask, error.message, "retry");
+                await patchTask(runId, task.id, { status: "needs_review", ...errorRecord, ...(childTasks ? { childTasks } : {}) }, "task.needs_review", executionId);
                 return "needs_review" as const;
             }
             if (latestTask && latestTask.error !== error.message && (await canContinue(runId, executionId))) {
-                await patchTask(runId, task.id, { error: error.message }, "task.waiting", executionId);
+                const errorRecord = recordErrorHistory(latestTask, error.message, "retry");
+                await patchTask(runId, task.id, errorRecord, "task.waiting", executionId);
             }
             return "deferred" as const;
         }
         const message = toSafeGenerationErrorMessage(error, "生成任务失败");
         if (await canContinue(runId, executionId)) {
             const latest = await getAgentRun(runId);
-            const childTasks = latest?.tasks.find((item) => item.id === task.id)?.childTasks?.map((child) => (child.status === "pending" ? { ...child, status: "failed" as const, error: message } : child));
-            await patchTask(runId, task.id, { status: "failed", error: message, ...(childTasks ? { childTasks } : {}) }, "task.failed", executionId);
+            const latestTask = latest?.tasks.find((item) => item.id === task.id);
+            const childTasks = latestTask?.childTasks?.map((child) => (child.status === "pending" ? { ...child, status: "failed" as const, error: message } : child));
+            const errorRecord = latestTask ? recordErrorHistory(latestTask, message, "retry") : { error: message };
+            await patchTask(runId, task.id, { status: "failed", ...errorRecord, ...(childTasks ? { childTasks } : {}) }, "task.failed", executionId);
         }
         return "failed" as const;
     }
@@ -780,26 +823,26 @@ export async function dispatchTask(task: AgentRunTask, origin: string, cookie: s
                 ...body,
                 context: { ...context, clientRequestId: idempotencyKey },
             };
-            // Step 1: Persist idempotency key BEFORE submitting to upstream
-            // This ensures we can recover even if the response is lost
-            const pendingChild = { id: `pending-${idempotencyKey}`, status: "pending" as const, attempt, idempotencyKey };
-            if (!(await patchTask(run.id, task.id, { childTasks: [pendingChild] }, "task.submitting", executionId))) throw new Error("Agent Run 已由新执行器接管");
 
-            // Step 2: Submit to upstream
+            // Step 1: Submit to upstream
+            const submissionStartTime = Date.now();
+            console.log("Upstream submission started", { runId: run.id, taskId: task.id, taskType: task.type, model, attempt, index });
             const response = await fetchInternalApi(`${origin}${path}`, { method: "POST", headers: runtimeRequestHeaders(cookie, { "Content-Type": "application/json" }), body: JSON.stringify(bodyForCopy), cache: "no-store" });
             if (!response.ok) throw new Error((await response.text()) || "生成任务创建失败");
             const payload = (await response.json()) as { task?: { id?: string; upstream?: { id?: string } } };
             const createdTaskId = payload.task?.id;
             if (!createdTaskId) throw new Error("生成任务未返回任务 ID");
             taskId = createdTaskId;
+            const submissionElapsed = Date.now() - submissionStartTime;
+            console.log("Upstream response received", { runId: run.id, taskId: createdTaskId, upstreamTaskId: payload.task?.upstream?.id, elapsed: submissionElapsed });
 
-            // Step 3: Immediately persist taskId and upstreamId atomically
+            // Step 2: Immediately persist taskId and upstreamId atomically
             await linkAgentChildTask(run, task, taskId, attempt);
             const upstreamId = payload.task?.upstream?.id;
             child = { id: taskId, status: "pending", attempt, ...(upstreamId ? { upstreamId } : {}) };
             if (!(await patchTask(run.id, task.id, { taskId, taskIds: [taskId], childTasks: [child] }, "task.created", executionId))) throw new Error("Agent Run 已由新执行器接管");
 
-            // Step 4: If upstream ID is available, persist it to generation task record for recovery
+            // Step 3: If upstream ID is available, persist it to generation task record for recovery
             if (upstreamId) {
                 await scheduleGenerationTask(task.type, taskId, { upstreamTaskId: upstreamId });
             }
@@ -812,8 +855,12 @@ export async function dispatchTask(task: AgentRunTask, origin: string, cookie: s
                 return { index, result: child.result, taskId, assetIds };
             }
             const result = await pollTask(origin, task.type === "video" ? "/api/video-tasks" : path, taskId, cookie, run.id, task.type, executionId, child?.status === "needs_review");
+            const persistStartTime = Date.now();
+            console.log("Result persisting started", { runId: run.id, taskId });
             const registered = await registerAgentTaskAssets(run, { ...task, title: copies > 1 ? `${task.title} ${index + 1}` : task.title, count: 1, attempts: attempt, result }, result, [taskId]);
             const assetIds = registered.map((asset) => asset.id);
+            const persistElapsed = Date.now() - persistStartTime;
+            console.log("Result persisted", { runId: run.id, taskId, assetIds, elapsed: persistElapsed });
             const completedChild = { id: taskId, status: "completed" as const, attempt: child?.attempt || attempt, result };
             if (!(await patchTask(run.id, task.id, { taskId, taskIds: [taskId], childTasks: [completedChild], assetIds }, "task.child.completed", executionId))) throw new Error("Agent Run 已由新执行器接管");
             return { index, result, taskId, assetIds };
@@ -886,6 +933,8 @@ export function directCanvasTextContent(task: AgentRunTask) {
 export async function pollTask(origin: string, path: string, taskId: string, cookie: string, runId: string, type: AgentRunTask["type"], executionId: string, recoverNeedsReview = false) {
     void type;
     if (!(await canContinue(runId, executionId))) throw new Error("Agent Run 已暂停、取消或已由新执行器接管");
+    const pollStartTime = Date.now();
+    console.log("Upstream poll started", { runId, taskId, taskType: type, recover: recoverNeedsReview });
     let response: Response;
     try {
         response = await fetchInternalApi(`${origin}${path}/${encodeURIComponent(taskId)}`, {
@@ -893,9 +942,13 @@ export async function pollTask(origin: string, path: string, taskId: string, coo
             cache: "no-store",
         });
     } catch (error) {
+        const elapsed = Date.now() - pollStartTime;
+        console.error("Upstream poll request failed", { runId, taskId, error: error instanceof Error ? error.message : String(error), elapsed });
         throw new AgentChildTaskDeferredError(error instanceof Error ? error.message : "生成任务查询暂时不可用");
     }
     if (!response.ok) {
+        const elapsed = Date.now() - pollStartTime;
+        console.error("Upstream poll returned error", { runId, taskId, statusCode: response.status, elapsed });
         if ([408, 425, 429].includes(response.status) || response.status >= 500) throw new AgentChildTaskDeferredError("生成任务查询暂时不可用");
         throw new AgentChildTaskTerminalError((await response.text()) || "生成任务查询失败");
     }
@@ -903,8 +956,12 @@ export async function pollTask(origin: string, path: string, taskId: string, coo
     try {
         payload = (await response.json()) as typeof payload;
     } catch {
+        const elapsed = Date.now() - pollStartTime;
+        console.error("Upstream poll response parse failed", { runId, taskId, elapsed });
         throw new AgentChildTaskDeferredError("生成任务状态暂时无法解析");
     }
+    const pollElapsed = Date.now() - pollStartTime;
+    console.log("Upstream poll completed", { runId, taskId, status: payload.task?.status, elapsed: pollElapsed });
     if (payload.task?.needsReview) throw new AgentChildTaskDeferredError("上游创建状态待确认", true);
     const terminal = agentChildTaskTerminal(payload.task?.status);
     if (terminal === "success") return payload.task?.result;

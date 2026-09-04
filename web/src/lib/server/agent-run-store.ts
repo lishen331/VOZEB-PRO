@@ -32,7 +32,6 @@ export type AgentRunChildTask = {
     attempt: number;
     result?: unknown;
     error?: string;
-    idempotencyKey?: string;
     upstreamId?: string;
 };
 export type AgentRunTask = {
@@ -65,6 +64,14 @@ export type AgentRunTask = {
     assetIds?: string[];
     result?: unknown;
     error?: string;
+    errorHistory?: Array<{
+        error: string;
+        timestamp: number;
+        attempt: number;
+        phase: "validation" | "submission" | "polling" | "retry";
+    }>;
+    originalError?: string;
+    latestError?: string;
 };
 export type AgentRun = {
     id: string;
