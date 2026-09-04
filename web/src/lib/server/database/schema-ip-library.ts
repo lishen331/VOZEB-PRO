@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS ip_content_files (
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT ip_content_files_kind_check CHECK (kind IN ('text', 'image', 'audio', 'video')),
     CONSTRAINT ip_content_files_storage_provider_check CHECK (storage_provider IN ('local', 'object')),
-    CONSTRAINT ip_content_files_status_check CHECK (status IN ('processing', 'ready', 'failed')),
+    CONSTRAINT ip_content_files_status_check CHECK (status IN ('processing', 'ready', 'failed', 'deleting')),
     CONSTRAINT ip_content_files_byte_size_check CHECK (byte_size >= 0),
     CONSTRAINT ip_content_files_metadata_check CHECK (jsonb_typeof(metadata_json) = 'object'),
     CONSTRAINT ip_content_files_ip_id_unique UNIQUE (id, ip_id)
@@ -50,6 +50,21 @@ CREATE TABLE IF NOT EXISTS ip_content_files (
 
 CREATE INDEX IF NOT EXISTS ip_content_files_ip_status_created_idx ON ip_content_files (ip_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS ip_content_files_storage_idx ON ip_content_files (storage_provider, storage_key);
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'ip_content_files_status_check'
+          AND pg_get_constraintdef(oid) NOT LIKE '%deleting%'
+    ) THEN
+        ALTER TABLE ip_content_files DROP CONSTRAINT ip_content_files_status_check;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ip_content_files_status_check') THEN
+        ALTER TABLE ip_content_files ADD CONSTRAINT ip_content_files_status_check CHECK (status IN ('processing', 'ready', 'failed', 'deleting'));
+    END IF;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS ip_versions (
     id text PRIMARY KEY,

@@ -178,6 +178,43 @@ describe("IpLibraryRepository PostgreSQL", () => {
         await expect(repository.listIpDownloads({ ipId: created.id, page: 1, pageSize: 10 })).resolves.toMatchObject({ total: 1, items: [{ itemId: draft.items[0]!.id }] });
     });
 
+    postgresIt("claims a file before cleanup and prevents new draft references", async () => {
+        const repository = createPostgresRepositories().ipLibrary;
+        const created = await repository.createIpPackage(packageInput("deleting", "public"));
+        const fileId = `${created.id}-file`;
+        await repository.createIpContentFile({
+            id: fileId,
+            ipId: created.id,
+            kind: "text",
+            originalName: "deleting.txt",
+            extension: ".txt",
+            mimeType: "text/plain",
+            byteSize: 4,
+            sha256: `hash-${fileId}`,
+            storageProvider: "local",
+            storageKey: `${created.id}/${fileId}/original.txt`,
+            extractedText: "内容",
+            metadata: {},
+            status: "ready",
+            uploadedByUserId: ids.admin,
+        });
+
+        await expect(repository.claimIpContentFileDeletion(created.id, fileId)).resolves.toMatchObject({ id: fileId, status: "deleting" });
+        await expect(
+            repository.createIpDraftVersion(created.id, {
+                id: `${created.id}-version-deleting`,
+                title: "deleting version",
+                summary: "",
+                tags: [],
+                sourceNote: "",
+                changeNote: "",
+                createdByUserId: ids.admin,
+                items: [{ id: `${created.id}-item-deleting`, kind: "text", category: "story_summary", title: "内容", summary: "", fileId, sortOrder: 0 }],
+            }),
+        ).rejects.toThrow("内容文件未就绪");
+        await expect(repository.finalizeIpContentFileDeletion(created.id, fileId)).resolves.toBe(true);
+    });
+
     postgresIt("lists public IPs with matching item and version tag filters", async () => {
         const repository = createPostgresRepositories().ipLibrary;
         const created = await repository.createIpPackage(packageInput("public-list", "public"));

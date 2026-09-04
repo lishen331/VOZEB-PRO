@@ -129,6 +129,8 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(ddl).toContain("user_id text NOT NULL REFERENCES vozeb_pro_users(id) ON DELETE CASCADE");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_account_deletion_requests");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_content_files");
+        expect(ddl).toContain("'processing', 'ready', 'failed', 'deleting'");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_ip_content_files DROP CONSTRAINT vozeb_pro_ip_content_files_status_check");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_download_records");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_ip_versions ADD COLUMN IF NOT EXISTS cover_file_id text");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_ip_items ADD COLUMN IF NOT EXISTS file_id text");

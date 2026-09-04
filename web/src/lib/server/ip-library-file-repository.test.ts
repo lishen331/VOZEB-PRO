@@ -189,6 +189,27 @@ describe("file IP library repository", () => {
         await expect(repository.listVisibleIps({ userId: "user-a", scope: "public", tags: ["不存在"], at: now })).resolves.toMatchObject({ total: 0 });
     });
 
+    it("marks an unreferenced file as deleting before final cleanup and blocks new references", async () => {
+        const repository = createFileIpLibraryRepository();
+        await repository.createIpPackage(ipPackage("deleting-ip", "public"));
+        await createReadyTextFile(repository, "deleting-ip", "deleting-file");
+
+        await expect(repository.claimIpContentFileDeletion("deleting-ip", "deleting-file")).resolves.toMatchObject({ status: "deleting" });
+        await expect(repository.createIpDraftVersion("deleting-ip", draft("deleting-version", "deleting-file"))).rejects.toThrow("未就绪");
+        await expect(repository.finalizeIpContentFileDeletion("deleting-ip", "deleting-file")).resolves.toBe(true);
+        await expect(repository.getIpContentFile("deleting-ip", "deleting-file")).resolves.toBeNull();
+    });
+
+    it("does not claim a file that is already referenced by a version", async () => {
+        const repository = createFileIpLibraryRepository();
+        await repository.createIpPackage(ipPackage("referenced-ip", "public"));
+        await createReadyTextFile(repository, "referenced-ip", "referenced-file");
+        await repository.createIpDraftVersion("referenced-ip", draft("referenced-version", "referenced-file"));
+
+        await expect(repository.claimIpContentFileDeletion("referenced-ip", "referenced-file")).resolves.toBeNull();
+        await expect(repository.getIpContentFile("referenced-ip", "referenced-file")).resolves.toMatchObject({ status: "ready" });
+    });
+
     it("rejects overlapping exclusive or multi-school grants and stops access after revocation", async () => {
         const repository = createFileIpLibraryRepository();
         await repository.createIpPackage(ipPackage("exclusive-ip", "school"));

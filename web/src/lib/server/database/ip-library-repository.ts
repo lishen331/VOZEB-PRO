@@ -40,9 +40,13 @@ export type IpDownloadListInput = PageInput & { ipId?: string; versionId?: strin
 export type AdminIpListInput = PageInput & { keyword?: string; status?: string; visibility?: string };
 export type IpGrantListInput = PageInput & { ipId?: string; grantId?: string; schoolId?: string; status?: string };
 export type IpGrantConflictInput = { ipId: string; schoolId: string; mode: string; startsAt: string; endsAt?: string; excludeGrantId?: string };
+type TransactionRunner = <T>(operation: (db: QueryExecutor) => Promise<T>) => Promise<T>;
 
 export class IpLibraryRepository {
-    constructor(private readonly db: QueryExecutor) {}
+    constructor(
+        private readonly db: QueryExecutor,
+        private readonly transaction: TransactionRunner = (operation) => operation(db),
+    ) {}
 
     async getIpPackage(ipId: string): Promise<IpPackageRecord | null> {
         const result = await this.db.query("SELECT * FROM ip_packages WHERE id = $1", [ipId]);
@@ -145,7 +149,7 @@ export class IpLibraryRepository {
                 error_message = CASE WHEN $5 THEN $6 ELSE error_message END,
                 metadata_json = CASE WHEN $7 THEN $8::jsonb ELSE metadata_json END,
                 extracted_text = CASE WHEN $9 THEN $10 ELSE extracted_text END
-             WHERE ip_id = $1 AND id = $2
+             WHERE ip_id = $1 AND id = $2 AND status <> 'deleting'
              RETURNING *`,
             [
                 ipId,
@@ -163,28 +167,40 @@ export class IpLibraryRepository {
         return result.rows[0] ? mapContentFile(result.rows[0]) : null;
     }
 
-    async deleteIpContentFile(ipId: string, fileId: string): Promise<boolean> {
-        const result = await this.db.query(
-            `DELETE FROM ip_content_files AS file
-             WHERE file.ip_id = $1 AND file.id = $2
-               AND NOT EXISTS (SELECT 1 FROM ip_versions AS version WHERE version.cover_file_id = file.id)
-               AND NOT EXISTS (SELECT 1 FROM ip_items AS item WHERE item.file_id = file.id)
-             RETURNING file.id`,
-            [ipId, fileId],
-        );
-        return Boolean(result.rows[0]);
+    async claimIpContentFileDeletion(ipId: string, fileId: string): Promise<IpContentFileRecord | null> {
+        return this.withIpPackageLock(ipId, async (db) => {
+            const file = await db.query("SELECT * FROM ip_content_files WHERE ip_id = $1 AND id = $2 FOR UPDATE", [ipId, fileId]);
+            if (!file.rows[0]) return null;
+            const referenced = await db.query(
+                `SELECT EXISTS (SELECT 1 FROM ip_versions AS version WHERE version.cover_file_id = $1)
+                        OR EXISTS (SELECT 1 FROM ip_items AS item WHERE item.file_id = $1) AS referenced`,
+                [fileId],
+            );
+            if (referenced.rows[0]?.referenced === true) return null;
+            if (file.rows[0].status === "deleting") return mapContentFile(file.rows[0]);
+            const marked = await db.query(
+                `UPDATE ip_content_files
+                 SET status = 'deleting', error_message = NULL
+                 WHERE ip_id = $1 AND id = $2 AND status <> 'deleting'
+                 RETURNING *`,
+                [ipId, fileId],
+            );
+            return marked.rows[0] ? mapContentFile(marked.rows[0]) : null;
+        });
     }
 
-    async canDeleteIpContentFile(ipId: string, fileId: string): Promise<boolean> {
-        const result = await this.db.query(
-            `SELECT file.id FROM ip_content_files AS file
-             WHERE file.ip_id = $1 AND file.id = $2
-               AND NOT EXISTS (SELECT 1 FROM ip_versions AS version WHERE version.cover_file_id = file.id)
-               AND NOT EXISTS (SELECT 1 FROM ip_items AS item WHERE item.file_id = file.id)
-             LIMIT 1`,
-            [ipId, fileId],
-        );
-        return Boolean(result.rows[0]);
+    async finalizeIpContentFileDeletion(ipId: string, fileId: string): Promise<boolean> {
+        return this.withIpPackageLock(ipId, async (db) => {
+            const result = await db.query(
+                `DELETE FROM ip_content_files AS file
+                 WHERE file.ip_id = $1 AND file.id = $2 AND file.status = 'deleting'
+                   AND NOT EXISTS (SELECT 1 FROM ip_versions AS version WHERE version.cover_file_id = file.id)
+                   AND NOT EXISTS (SELECT 1 FROM ip_items AS item WHERE item.file_id = file.id)
+                 RETURNING file.id`,
+                [ipId, fileId],
+            );
+            return Boolean(result.rows[0]);
+        });
     }
 
     async createIpDraftVersion(ipId: string, input: IpDraftVersionInput): Promise<IpVersionRecord> {
@@ -197,8 +213,9 @@ export class IpLibraryRepository {
             file_id: item.fileId || null,
             sort_order: item.sortOrder,
         }));
-        const result = await this.db.query(
-            `WITH requested_items AS (
+        return this.withIpPackageLock(ipId, async (db) => {
+            const result = await db.query(
+                `WITH requested_items AS (
                 SELECT * FROM jsonb_to_recordset($10::jsonb)
                     AS item(id text, kind text, category text, title text, summary text, file_id text, sort_order integer)
              ), locked AS (
@@ -226,10 +243,11 @@ export class IpLibraryRepository {
              )
              SELECT version.*, COALESCE((SELECT jsonb_agg(to_jsonb(item) ORDER BY item.sort_order, item.created_at) FROM inserted_items AS item), '[]'::jsonb) AS items
              FROM inserted_version AS version`,
-            [ipId, input.id, input.title, input.summary, input.coverFileId || null, jsonParam(input.tags || []), input.sourceNote || "", input.changeNote || "", input.createdByUserId || null, jsonParam(items)],
-        );
-        if (!result.rows[0]) throw new Error("IP 不存在，或内容文件未就绪");
-        return mapVersion(result.rows[0]);
+                [ipId, input.id, input.title, input.summary, input.coverFileId || null, jsonParam(input.tags || []), input.sourceNote || "", input.changeNote || "", input.createdByUserId || null, jsonParam(items)],
+            );
+            if (!result.rows[0]) throw new Error("IP 不存在，或内容文件未就绪");
+            return mapVersion(result.rows[0]);
+        });
     }
 
     async updateIpDraftVersion(ipId: string, versionId: string, input: IpDraftVersionInput): Promise<IpVersionRecord> {
@@ -242,8 +260,9 @@ export class IpLibraryRepository {
             file_id: item.fileId,
             sort_order: item.sortOrder,
         }));
-        const result = await this.db.query(
-            `WITH requested_items AS (
+        return this.withIpPackageLock(ipId, async (db) => {
+            const result = await db.query(
+                `WITH requested_items AS (
                 SELECT * FROM jsonb_to_recordset($9::jsonb)
                     AS item(id text, kind text, category text, title text, summary text, file_id text, sort_order integer)
              ), target AS (
@@ -275,10 +294,11 @@ export class IpLibraryRepository {
              )
              SELECT version.*, COALESCE((SELECT jsonb_agg(to_jsonb(item) ORDER BY item.sort_order, item.created_at) FROM inserted_items AS item), '[]'::jsonb) AS items
              FROM updated_version AS version`,
-            [ipId, versionId, input.title, input.summary, input.coverFileId || null, jsonParam(input.tags), input.sourceNote, input.changeNote, jsonParam(items)],
-        );
-        if (!result.rows[0]) throw new Error("IP 草稿版本不存在，或内容文件未就绪");
-        return mapVersion(result.rows[0]);
+                [ipId, versionId, input.title, input.summary, input.coverFileId || null, jsonParam(input.tags), input.sourceNote, input.changeNote, jsonParam(items)],
+            );
+            if (!result.rows[0]) throw new Error("IP 草稿版本不存在，或内容文件未就绪");
+            return mapVersion(result.rows[0]);
+        });
     }
 
     async publishIpVersion(ipId: string, versionId: string): Promise<IpVersionRecord> {
@@ -579,6 +599,13 @@ export class IpLibraryRepository {
         const result = await this.db.query("SELECT * FROM ip_items WHERE version_id = $1 ORDER BY sort_order, created_at, id", [versionId]);
         return result.rows.map(mapItem);
     }
+
+    private async withIpPackageLock<T>(ipId: string, operation: (db: QueryExecutor) => Promise<T>): Promise<T> {
+        return this.transaction(async (db) => {
+            await db.query("SELECT id FROM ip_packages WHERE id = $1 FOR UPDATE", [ipId]);
+            return operation(db);
+        });
+    }
 }
 
 function visibleWhere() {
@@ -707,7 +734,7 @@ function mapContentFile(row: Record<string, unknown>): IpContentFileRecord {
         externalObjectKey: optionalString(row.external_object_key),
         extractedText: optionalString(row.extracted_text),
         metadata,
-        status: row.status === "ready" || row.status === "failed" ? row.status : "processing",
+        status: row.status === "ready" || row.status === "failed" || row.status === "deleting" ? row.status : "processing",
         errorMessage: optionalString(row.error_message),
         uploadedByUserId: optionalString(row.uploaded_by_user_id),
         createdAt: isoValue(row.created_at),

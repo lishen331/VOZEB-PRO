@@ -21,8 +21,8 @@ const mocks = vi.hoisted(() => ({
     getIpContentFile: vi.fn(),
     listIpContentFiles: vi.fn(),
     createIpContentFile: vi.fn(),
-    deleteIpContentFile: vi.fn(),
-    canDeleteIpContentFile: vi.fn(),
+    claimIpContentFileDeletion: vi.fn(),
+    finalizeIpContentFileDeletion: vi.fn(),
     writeIpContentFile: vi.fn(),
     readIpContentFile: vi.fn(),
     deleteStoredIpContentFile: vi.fn(),
@@ -49,8 +49,8 @@ vi.mock("./ip-library-access-service", () => ({
         getIpContentFile: mocks.getIpContentFile,
         listIpContentFiles: mocks.listIpContentFiles,
         createIpContentFile: mocks.createIpContentFile,
-        deleteIpContentFile: mocks.deleteIpContentFile,
-        canDeleteIpContentFile: mocks.canDeleteIpContentFile,
+        claimIpContentFileDeletion: mocks.claimIpContentFileDeletion,
+        finalizeIpContentFileDeletion: mocks.finalizeIpContentFileDeletion,
     }),
 }));
 vi.mock("@/lib/server/school-domain-repository", () => ({ createSchoolDomainRepository: () => ({ listSchoolsByIds: mocks.listSchoolsByIds }) }));
@@ -109,8 +109,8 @@ describe("IP library administration service", () => {
         mocks.listIpContentFiles.mockResolvedValue([]);
         mocks.writeIpContentFile.mockResolvedValue({ id: "file-new", ipId: "ip-one", kind: "text", status: "ready", storageProvider: "local", storageKey: "ip-one/file-new/original.txt" });
         mocks.createIpContentFile.mockImplementation(async (input) => ({ ...input, createdAt: "2026-08-19T00:00:00.000Z", updatedAt: "2026-08-19T00:00:00.000Z" }));
-        mocks.deleteIpContentFile.mockResolvedValue(true);
-        mocks.canDeleteIpContentFile.mockResolvedValue(true);
+        mocks.claimIpContentFileDeletion.mockImplementation(async (_ipId: string, fileId: string) => ({ id: fileId, ipId: "ip-one", kind: "image", status: "deleting" }));
+        mocks.finalizeIpContentFileDeletion.mockResolvedValue(true);
         mocks.readIpContentFile.mockResolvedValue(new Response("正文"));
         mocks.listSchoolsByIds.mockResolvedValue([{ id: "school-a", name: "甲学校" }]);
     });
@@ -274,26 +274,37 @@ describe("IP library administration service", () => {
     });
 
     it("does not remove stored bytes when a file is still referenced", async () => {
-        mocks.canDeleteIpContentFile.mockResolvedValue(false);
+        mocks.claimIpContentFileDeletion.mockResolvedValue(null);
         await expect(deleteAdminIpFile("content-admin", "ip-one", "image-one")).rejects.toMatchObject({ status: 409 });
         expect(mocks.deleteStoredIpContentFile).not.toHaveBeenCalled();
+        expect(mocks.finalizeIpContentFileDeletion).not.toHaveBeenCalled();
     });
 
     it("keeps the database record when stored file deletion fails", async () => {
         mocks.deleteStoredIpContentFile.mockRejectedValue(new Error("对象存储暂时不可用"));
         await expect(deleteAdminIpFile("content-admin", "ip-one", "image-one")).rejects.toThrow("对象存储暂时不可用");
-        expect(mocks.deleteIpContentFile).not.toHaveBeenCalled();
+        expect(mocks.finalizeIpContentFileDeletion).not.toHaveBeenCalled();
     });
 
-    it("deletes stored bytes before removing the database record", async () => {
+    it("claims the record before cleanup and finalizes it after storage deletion", async () => {
         const order: string[] = [];
+        mocks.claimIpContentFileDeletion.mockImplementation(async () => {
+            order.push("claim");
+            return { id: "image-one", ipId: "ip-one", kind: "image", status: "deleting" };
+        });
         mocks.deleteStoredIpContentFile.mockImplementation(async () => order.push("storage"));
-        mocks.deleteIpContentFile.mockImplementation(async () => {
-            order.push("database");
+        mocks.finalizeIpContentFileDeletion.mockImplementation(async () => {
+            order.push("finalize");
             return true;
         });
         await deleteAdminIpFile("content-admin", "ip-one", "image-one");
-        expect(order).toEqual(["storage", "database"]);
+        expect(order).toEqual(["claim", "storage", "finalize"]);
+    });
+
+    it("treats an already finalized concurrent retry as a successful deletion", async () => {
+        mocks.finalizeIpContentFileDeletion.mockResolvedValue(false);
+        mocks.getIpContentFile.mockResolvedValueOnce({ id: "image-one", ipId: "ip-one", kind: "image", status: "ready" }).mockResolvedValueOnce(null);
+        await expect(deleteAdminIpFile("content-admin", "ip-one", "image-one")).resolves.toBeUndefined();
     });
 
     it("projects independent download records to public user identities and school names", async () => {

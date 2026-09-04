@@ -20,7 +20,7 @@ export type PageResult<T> = {
 
 export type IpSchoolGrantStatus = "active" | "suspended" | "revoked" | "expired";
 export type IpUsageTargetType = "canvas" | "drama" | "practice" | "download";
-export type IpContentFileStatus = "processing" | "ready" | "failed";
+export type IpContentFileStatus = "processing" | "ready" | "failed" | "deleting";
 export type IpStorageProvider = "local" | "object";
 export type IpDownloadType = "item" | "package";
 export type IpDownloadResult = "succeeded" | "failed";
