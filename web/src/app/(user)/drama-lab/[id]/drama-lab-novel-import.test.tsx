@@ -19,6 +19,19 @@ describe("DramaLabNovelImport", () => {
         expect(markup).toContain("或拖拽 TXT/MD 文件到这里");
     });
 
+    it("can host the script editor inside the drop zone", () => {
+        const markup = renderToStaticMarkup(
+            <DramaLabNovelImport projectId="project-one" currentEpisodeCount={1} messageApi={messageApi} onImported={vi.fn()}>
+                <textarea aria-label="script-editor" />
+            </DramaLabNovelImport>,
+        );
+
+        const dropZoneIndex = markup.indexOf('data-drama-lab-novel-dropzone="true"');
+        expect(dropZoneIndex).toBeGreaterThanOrEqual(0);
+        expect(dropZoneIndex).toBeLessThan(markup.indexOf('aria-label="script-editor"'));
+        expect(markup).toContain('class="flex w-full flex-col gap-2 rounded-lg border border-dashed p-3');
+    });
+
     it("keeps the shared preview request and byte decoder on the component path", async () => {
         const source = await import("node:fs/promises").then(({ readFile }) => readFile(new URL("./drama-lab-novel-import.tsx", import.meta.url), "utf8"));
 

@@ -11,6 +11,12 @@ describe("resolvePublicRequestOrigin", () => {
         expect(resolvePublicRequestOrigin(new Request("http://192.168.1.20:3000/api/referrals"))).toBe("http://192.168.1.20:3000");
     });
 
+    it("does not expose an unspecified bind address as a public origin", () => {
+        vi.stubEnv("NEXT_PUBLIC_SITE_URL", "http://0.0.0.0:3000");
+
+        expect(resolvePublicRequestOrigin(new Request("http://0.0.0.0:3000/api/referrals"))).toBe("http://localhost:3000");
+    });
+
     it("keeps a configured public domain as the canonical origin", () => {
         vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://create.example.com");
 

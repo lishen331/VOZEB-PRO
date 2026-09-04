@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createDramaLabInvite, DramaLabCollaborationError, listDramaLabInvites, revokeDramaLabInvite, rotateDramaLabInvite } from "@/lib/server/drama-lab-collaboration-service";
+import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                 ? await rotateDramaLabInvite(user.id, id, { expiresAt: typeof parsed.data.expiresAt === "string" ? parsed.data.expiresAt : undefined })
                 : await createDramaLabInvite(user.id, id, { expiresAt: typeof parsed.data.expiresAt === "string" ? parsed.data.expiresAt : undefined });
         const token = invite.token || "";
-        const inviteUrl = `${new URL(request.url).origin}/drama-lab/invite/${encodeURIComponent(token)}`;
+        const inviteUrl = `${resolvePublicRequestOrigin(request)}/drama-lab/invite/${encodeURIComponent(token)}`;
         return NextResponse.json({ code: 0, data: { invite: { ...invite, inviteUrl } }, msg: "邀请链接已生成" });
     } catch (error) {
         return handle(error);

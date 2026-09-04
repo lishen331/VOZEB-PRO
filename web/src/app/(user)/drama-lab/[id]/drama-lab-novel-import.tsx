@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type DragEvent } from "react";
+import { useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Button, Input, Modal, Pagination } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
 import { BookOpenText, FileText, Search } from "lucide-react";
@@ -20,7 +20,15 @@ type NovelImportPreview = {
     project?: { episodes?: Array<{ id?: string }> };
 };
 
-export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi, onImported }: { projectId: string; currentEpisodeCount: number; messageApi: MessageInstance; onImported: (episodeId?: string) => Promise<void> | void }) {
+type DramaLabNovelImportProps = {
+    projectId: string;
+    currentEpisodeCount: number;
+    messageApi: MessageInstance;
+    onImported: (episodeId?: string) => Promise<void> | void;
+    children?: ReactNode;
+};
+
+export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi, onImported, children }: DramaLabNovelImportProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const readingRef = useRef(false);
     const importingRef = useRef(false);
@@ -149,7 +157,7 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
     return (
         <>
             <div
-                className={`inline-flex items-center gap-2 rounded-lg border border-dashed px-1 py-1 transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border"}`}
+                className={`${children ? "flex w-full flex-col gap-2 rounded-lg border border-dashed p-3" : "inline-flex items-center gap-2 rounded-lg border border-dashed px-1 py-1"} transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border"}`}
                 onDragEnter={handleDragEnter}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -163,6 +171,7 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
                 <Button icon={<BookOpenText className="size-4" />} loading={reading} disabled={importing} onClick={() => inputRef.current?.click()}>
                     导入小说
                 </Button>
+                {children}
                 <span className="hidden pr-2 text-xs text-muted-foreground sm:inline">或拖拽 TXT/MD 文件到这里</span>
             </div>
             <input ref={inputRef} type="file" accept=".txt,.md,text/plain,text/markdown" className="hidden" onChange={(event) => void readSource(event.target.files?.[0])} />

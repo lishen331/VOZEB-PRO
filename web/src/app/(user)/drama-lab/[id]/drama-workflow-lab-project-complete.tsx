@@ -2074,15 +2074,25 @@ function ScriptEditor({
                                         </Form>
 
                                         <Form className="order-5" form={scriptForm} onValuesChange={scheduleSave}>
-                                            <Form.Item name="script">
-                                                <TextArea
-                                                    rows={15}
-                                                    placeholder="将描代文学家柳宗元创作的传记文学作品《童区寄传》进行改编。一个发生在唐朝年间的悬疑故事。主人公就是十一岁，名字就叫区寄。可以模仿白夜追凶、催眠大师的套路的心里悬疑片，严格按照 10 节拍表重新整理成一个详细的故事大纲。
+                                            <DramaLabNovelImport
+                                                projectId={project.id}
+                                                currentEpisodeCount={project.episodes.length}
+                                                messageApi={messageApi}
+                                                onImported={async (episodeId) => {
+                                                    await onReload();
+                                                    if (episodeId) onActiveEpisodeChange(episodeId);
+                                                }}
+                                            >
+                                                <Form.Item name="script">
+                                                    <TextArea
+                                                        rows={15}
+                                                        placeholder="将描代文学家柳宗元创作的传记文学作品《童区寄传》进行改编。一个发生在唐朝年间的悬疑故事。主人公就是十一岁，名字就叫区寄。可以模仿白夜追凶、催眠大师的套路的心里悬疑片，严格按照 10 节拍表重新整理成一个详细的故事大纲。
 
 暴雨后的山路上，十一岁的区寄独自赶着一头水牛回家。他突然发现林中有两个区寄独自赶往一夜回到。区寄害怕极了，那两人的买卖跟区寄追问：少女饼伤到二十七下后，他终于转变逃走。少女穷极挣扎，让这大师对爹，他们意识，都村民都沾血过往边的刀剑。..."
-                                                    className="font-mono text-sm"
-                                                />
-                                            </Form.Item>
+                                                        className="font-mono text-sm"
+                                                    />
+                                                </Form.Item>
+                                            </DramaLabNovelImport>
                                         </Form>
 
                                         <div className="order-3 flex flex-wrap items-center gap-4">
@@ -2104,15 +2114,6 @@ function ScriptEditor({
                                                 {generating ? "生成中..." : "生成剧本"}
                                             </Button>
 
-                                            <DramaLabNovelImport
-                                                projectId={project.id}
-                                                currentEpisodeCount={project.episodes.length}
-                                                messageApi={messageApi}
-                                                onImported={async (episodeId) => {
-                                                    await onReload();
-                                                    if (episodeId) onActiveEpisodeChange(episodeId);
-                                                }}
-                                            />
                                             <div className="ml-auto flex min-h-5 items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
                                                 {saveStatus === "pending" ? (
                                                     <>
