@@ -1,15 +1,14 @@
 import { randomUUID } from "node:crypto";
 
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
-import type { DramaProject, DramaShot } from "@/lib/drama-project-contract";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
-import { DramaLabStoryboardExtractionError, extractDramaLabStoryboards } from "@/lib/server/drama-lab-storyboard-extraction-service";
-import { DramaProjectStoreError, updateDramaProject } from "@/lib/server/drama-project-store";
+import { DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { DramaLabWorkflowError, advanceDramaLabWorkflow, dramaLabWorkflowTaskView, startDramaLabWorkflow } from "@/lib/server/drama-lab-workflow-task-service";
 
 export const runtime = "nodejs";
+export const maxDuration = 2400;
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser();
@@ -22,72 +21,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const requestId = typeof body.requestId === "string" && body.requestId.trim() ? body.requestId.trim().slice(0, 160) : randomUUID();
         if (!episodeId) return NextResponse.json({ code: 400, data: null, msg: "当前剧集不能为空" }, { status: 400 });
 
-        const { project, ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
-        await assertDramaLabStageAllowed(user.id, id, "storyboard");
+        const { project } = await resolveDramaLabProjectForRequest(user.id, id);
         if (!project) return NextResponse.json({ code: 404, data: null, msg: "短剧项目不存在" }, { status: 404 });
 
-        // Checkpoints persist the domain project payload; the store's public
-        // identity view is intentionally not copied into project_json.
-        let latestProject: DramaProject = project;
-        const resume = body.resume === true;
-        const result = await extractDramaLabStoryboards({
+        const task = await startDramaLabWorkflow({
             userId: user.id,
+            projectId: id,
+            sourceEpisodeId: episodeId,
+            requestId,
+            options: { mode: "storyboard_extract", scope: "current" },
             origin: new URL(request.url).origin,
             cookie: request.headers.get("cookie") || "",
-            requestId,
-            project,
-            episodeId,
-            resumeShots: resume ? project.episodes.find((episode) => episode.id === episodeId)?.shots || [] : undefined,
-            onPartial: async (shots) => {
-                if (!shots.length) return;
-                const next = {
-                    ...latestProject,
-                    episodes: latestProject.episodes.map((episode) => (episode.id === episodeId ? { ...episode, shots } : episode)),
-                    updatedAt: new Date().toISOString(),
-                };
-                try {
-                    latestProject = (await updateDramaProject(ownerUserId, next, latestProject.updatedAt)) || next;
-                } catch (error) {
-                    // The completed extraction is still returned. A later
-                    // explicit resume request can persist the recovered prefix.
-                    console.warn("Drama storyboard checkpoint deferred", { projectId: id, episodeId, error: error instanceof Error ? error.message : String(error) });
-                }
-            },
         });
-        const updated = {
-            ...latestProject,
-            episodes: latestProject.episodes.map((episode) => (episode.id === episodeId ? { ...episode, shots: result.shots } : episode)),
-            updatedAt: new Date().toISOString(),
-        };
-        await updateDramaProject(ownerUserId, updated, latestProject.updatedAt);
-
-        return NextResponse.json({
-            code: 0,
-            data: {
-                shots: result.shots.map((shot) => toDramaLabShot(shot, episodeId)),
-                templateKeys: result.templateKeys,
-                meta: { truncated: result.truncated, recoveredCount: result.recoveredCount, duplicateCount: result.duplicateCount, continuationAttempts: result.continuationAttempts },
-            },
-            msg: "分镜提取完成",
-        });
+        after(() => advanceDramaLabWorkflow({ userId: user.id, taskId: task.id, origin: new URL(request.url).origin, cookie: request.headers.get("cookie") || "" }).catch((error) => console.warn("Drama storyboard extraction advance deferred", error)));
+        return NextResponse.json({ code: 0, data: { taskId: task.id, task: dramaLabWorkflowTaskView(task) }, msg: "分镜提取任务已创建" }, { status: 202 });
     } catch (error) {
-        const status = error instanceof DramaLabStoryboardExtractionError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabWorkflowError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜提取失败" }, { status });
     }
-}
-
-function toDramaLabShot(shot: DramaShot, episodeId: string) {
-    return {
-        id: shot.id,
-        episodeId,
-        shotNumber: shot.order,
-        sceneId: shot.sceneId,
-        characterIds: shot.characterIds,
-        propIds: shot.propIds,
-        script: shot.description,
-        imagePrompt: shot.imagePrompt || undefined,
-        duration: shot.duration,
-        cameraAngle: shot.continuity?.cameraAngle || undefined,
-        status: "draft" as const,
-    };
 }
