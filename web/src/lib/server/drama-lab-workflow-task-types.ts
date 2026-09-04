@@ -1,7 +1,7 @@
 import type { DramaProject } from "@/lib/drama-project-contract";
 import type { GenerationTaskContext } from "@/lib/server/generation-task-store";
 
-export type DramaLabWorkflowMode = "assets" | "storyboard" | "video";
+export type DramaLabWorkflowMode = "assets" | "storyboard_extract" | "storyboard" | "video";
 export type DramaLabWorkflowScope = "current" | "all";
 export type DramaLabWorkflowStatus = "pending" | "running" | "success" | "error" | "cancelled";
 export type DramaLabWorkflowStepStatus = "pending" | "running" | "success" | "error" | "skipped" | "cancelled";

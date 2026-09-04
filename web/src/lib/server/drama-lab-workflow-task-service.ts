@@ -73,11 +73,14 @@ export async function startDramaLabWorkflow(input: StartDramaLabWorkflowInput) {
     if (existing?.workflow?.projectId === projectId) return existing;
     if (existing) throw new DramaLabWorkflowError("Request id is already used by another workflow", 409);
 
+    const options = normalizeOptions(input.options, project);
     const active = await queryWorkflowTasksForProject(input.userId, projectId, ownerUserId);
     const activeTask = active.find((task) => task.workflow?.projectId === projectId && ["pending", "running"].includes(task.status));
-    if (activeTask) return activeTask;
-
-    const options = normalizeOptions(input.options, project);
+    if (activeTask) {
+        const sameRequestShape = activeTask.workflow.options.mode === options.mode && activeTask.workflow.sourceEpisodeId === sourceEpisodeId && activeTask.workflow.options.scope === options.scope;
+        if (sameRequestShape) return activeTask;
+        throw new DramaLabWorkflowError("当前项目已有其他任务正在执行，请等待完成或取消后再试", 409);
+    }
     const episodeIds = options.scope === "all" ? project.episodes.map((episode) => episode.id) : [sourceEpisodeId];
     const steps = createSteps(options.mode, options.autoExport);
     const now = Date.now();
@@ -100,7 +103,7 @@ export async function startDramaLabWorkflow(input: StartDramaLabWorkflowInput) {
         status: "pending",
         createdAt: now,
         updatedAt: now,
-        title: `${project.title} workflow`,
+        title: options.mode === "storyboard_extract" ? "从剧本提取分镜" : `${project.title} workflow`,
         surface: "drama",
         projectId,
         episodeId: sourceEpisodeId,
@@ -294,11 +297,13 @@ async function executeAssetsStep(task: DramaLabWorkflowTask, step: DramaLabWorkf
 
 async function executeStoryboardStep(task: DramaLabWorkflowTask, step: DramaLabWorkflowStep, input: AdvanceDramaLabWorkflowInput): Promise<"pending" | "success"> {
     const phase = step.inputSnapshot?.phase === "images" ? "images" : "extract";
+    const extractionOnly = task.workflow.options.mode === "storyboard_extract";
     if (phase === "extract") {
         await assertDramaLabStageAllowed(input.userId, task.workflow.projectId, "storyboard");
         const cursor = numberValue(step.inputSnapshot?.cursor);
         const episodeId = task.workflow.episodeIds[cursor];
         if (!episodeId) {
+            if (extractionOnly) return "success";
             await patchStep(task.id, step.key, (current) => ({ inputSnapshot: { ...current.inputSnapshot, phase: "images", cursor: 0 } }));
             return "pending";
         }
@@ -307,7 +312,7 @@ async function executeStoryboardStep(task: DramaLabWorkflowTask, step: DramaLabW
         const child = await ensureSyntheticChild(task, step, `storyboard:${episodeId}`, { episodeId, existingShotCount: project.episodes.find((item) => item.id === episodeId)?.shots.length || 0 });
         if (child.status === "success") {
             await patchStep(task.id, step.key, (current) => ({ inputSnapshot: { ...current.inputSnapshot, cursor: cursor + 1 } }));
-            return cursor + 1 < task.workflow.episodeIds.length ? "pending" : "pending";
+            return cursor + 1 < task.workflow.episodeIds.length ? "pending" : extractionOnly ? "success" : "pending";
         }
         await updateChild(task.id, child.id, { status: "running" });
         let latest: DramaProject = project as DramaProject;
@@ -329,7 +334,7 @@ async function executeStoryboardStep(task: DramaLabWorkflowTask, step: DramaLabW
             output: { episodeId, shotCount: result.shots.length, truncated: result.truncated, recoveredCount: result.recoveredCount, duplicateCount: result.duplicateCount, continuationAttempts: result.continuationAttempts },
         });
         await patchStep(task.id, step.key, (current) => ({ inputSnapshot: { ...current.inputSnapshot, cursor: cursor + 1 }, outputRefs: [...current.outputRefs, { episodeId, shotCount: result.shots.length }] }));
-        return cursor + 1 < task.workflow.episodeIds.length ? "pending" : "pending";
+        return cursor + 1 < task.workflow.episodeIds.length ? "pending" : extractionOnly ? "success" : "pending";
     }
 
     await assertDramaLabStageAllowed(input.userId, task.workflow.projectId, "storyboard_image");
@@ -745,11 +750,14 @@ async function markWorkflowSuccess(task: DramaLabWorkflowTask) {
 }
 
 function createSteps(mode: DramaLabWorkflowMode, autoExport: boolean): DramaLabWorkflowStep[] {
-    const steps: Array<[DramaLabWorkflowStepKey, string, DramaLabWorkflowStep["target"]]> = [
-        ["script", "Script validation", "script"],
-        ["assets", "Asset extraction", "assets"],
-    ];
-    if (mode !== "assets") steps.push(["storyboard", "Storyboard extraction and images", "storyboard"]);
+    const steps: Array<[DramaLabWorkflowStepKey, string, DramaLabWorkflowStep["target"]]> =
+        mode === "storyboard_extract"
+            ? []
+            : [
+                  ["script", "Script validation", "script"],
+                  ["assets", "Asset extraction", "assets"],
+              ];
+    if (mode !== "assets") steps.push(["storyboard", mode === "storyboard_extract" ? "Storyboard extraction" : "Storyboard extraction and images", "storyboard"]);
     if (mode === "video") {
         steps.push(["video", "Shot videos", "storyboard"], ["review", "Content review", "review"]);
         if (autoExport) steps.push(["export", "Final export", "export"]);
@@ -758,7 +766,7 @@ function createSteps(mode: DramaLabWorkflowMode, autoExport: boolean): DramaLabW
 }
 
 function normalizeOptions(value: Partial<DramaLabWorkflowOptions>, project: DramaProject): DramaLabWorkflowOptions {
-    const mode = value.mode === "assets" || value.mode === "storyboard" || value.mode === "video" ? value.mode : "video";
+    const mode = value.mode === "assets" || value.mode === "storyboard_extract" || value.mode === "storyboard" || value.mode === "video" ? value.mode : "video";
     const scope = value.scope === "all" ? "all" : "current";
     return {
         mode,

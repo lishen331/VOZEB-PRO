@@ -120,6 +120,28 @@ describe("drama lab task service", () => {
         expect(task).toMatchObject({ status: "running", progress: 33, canCancel: true });
     });
 
+    it("does not expose synthetic workflow children as project tasks", async () => {
+        const parent = record({ type: "render", id: "workflow-parent", payload: { surface: "drama", projectId: "project-one", title: "workflow" } });
+        const child = record({
+            type: "render",
+            id: "workflow-child",
+            parentTaskId: "workflow-parent",
+            payload: { surface: "drama", projectId: "project-one", parentTaskId: "workflow-parent", workflowChild: { id: "workflow-child", key: "assets:episode:prop", status: "running" } },
+        });
+        mocks.listRecords.mockImplementation(async ({ userId, type }: { userId: string; type: string }) => ({ items: userId === "owner-one" && type === "render" ? [parent, child] : [] }));
+        const result = await listDramaLabTasksForProject({ userId: "member-one", projectId: "project-one", status: "all" });
+        expect(result.tasks.map((task) => task.id)).toEqual(["workflow-parent"]);
+    });
+
+    it("does not treat a task awaiting review as active or cancellable", async () => {
+        const review = record({ status: "running", executionPhase: "needs_review" });
+        expect(normalizeDramaLabTask(review)).toMatchObject({ status: "running", canCancel: false });
+        mocks.listRecords.mockImplementation(async ({ userId, type }: { userId: string; type: string }) => ({ items: userId === "owner-one" && type === "video" ? [review] : [] }));
+        const result = await listDramaLabTasksForProject({ userId: "member-one", projectId: "project-one", status: "active" });
+        expect(result.tasks).toHaveLength(0);
+        expect(result.activeCount).toBe(0);
+    });
+
     it("discovers legacy payload-only project tasks", async () => {
         mocks.listProjectRecords.mockResolvedValue([
             record({
