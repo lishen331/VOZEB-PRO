@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { availableIpLibraryScopes, shouldShowExclusiveBadge } from "./ip-library-page";
+import { availableIpLibraryScopes, IP_LIBRARY_KIND_OPTIONS, shouldShowExclusiveBadge } from "./ip-library-page";
 
 describe("IP library page contract", () => {
     it("shows only public IPs to an ordinary user", () => {
@@ -15,5 +15,9 @@ describe("IP library page contract", () => {
         expect(shouldShowExclusiveBadge("public", true)).toBe(false);
         expect(shouldShowExclusiveBadge("school", true)).toBe(true);
         expect(shouldShowExclusiveBadge("school", false)).toBe(false);
+    });
+
+    it("offers every supported content type as a list filter", () => {
+        expect(IP_LIBRARY_KIND_OPTIONS.map((option) => option.value)).toEqual(["text", "image", "audio", "video"]);
     });
 });

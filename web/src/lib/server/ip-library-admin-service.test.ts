@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
     listIpContentFiles: vi.fn(),
     createIpContentFile: vi.fn(),
     deleteIpContentFile: vi.fn(),
+    canDeleteIpContentFile: vi.fn(),
     writeIpContentFile: vi.fn(),
     readIpContentFile: vi.fn(),
     deleteStoredIpContentFile: vi.fn(),
@@ -49,6 +50,7 @@ vi.mock("./ip-library-access-service", () => ({
         listIpContentFiles: mocks.listIpContentFiles,
         createIpContentFile: mocks.createIpContentFile,
         deleteIpContentFile: mocks.deleteIpContentFile,
+        canDeleteIpContentFile: mocks.canDeleteIpContentFile,
     }),
 }));
 vi.mock("@/lib/server/school-domain-repository", () => ({ createSchoolDomainRepository: () => ({ listSchoolsByIds: mocks.listSchoolsByIds }) }));
@@ -108,6 +110,7 @@ describe("IP library administration service", () => {
         mocks.writeIpContentFile.mockResolvedValue({ id: "file-new", ipId: "ip-one", kind: "text", status: "ready", storageProvider: "local", storageKey: "ip-one/file-new/original.txt" });
         mocks.createIpContentFile.mockImplementation(async (input) => ({ ...input, createdAt: "2026-08-19T00:00:00.000Z", updatedAt: "2026-08-19T00:00:00.000Z" }));
         mocks.deleteIpContentFile.mockResolvedValue(true);
+        mocks.canDeleteIpContentFile.mockResolvedValue(true);
         mocks.readIpContentFile.mockResolvedValue(new Response("正文"));
         mocks.listSchoolsByIds.mockResolvedValue([{ id: "school-a", name: "甲学校" }]);
     });
@@ -271,9 +274,26 @@ describe("IP library administration service", () => {
     });
 
     it("does not remove stored bytes when a file is still referenced", async () => {
-        mocks.deleteIpContentFile.mockRejectedValue(new Error("IP 内容文件已被引用"));
+        mocks.canDeleteIpContentFile.mockResolvedValue(false);
         await expect(deleteAdminIpFile("content-admin", "ip-one", "image-one")).rejects.toMatchObject({ status: 409 });
         expect(mocks.deleteStoredIpContentFile).not.toHaveBeenCalled();
+    });
+
+    it("keeps the database record when stored file deletion fails", async () => {
+        mocks.deleteStoredIpContentFile.mockRejectedValue(new Error("对象存储暂时不可用"));
+        await expect(deleteAdminIpFile("content-admin", "ip-one", "image-one")).rejects.toThrow("对象存储暂时不可用");
+        expect(mocks.deleteIpContentFile).not.toHaveBeenCalled();
+    });
+
+    it("deletes stored bytes before removing the database record", async () => {
+        const order: string[] = [];
+        mocks.deleteStoredIpContentFile.mockImplementation(async () => order.push("storage"));
+        mocks.deleteIpContentFile.mockImplementation(async () => {
+            order.push("database");
+            return true;
+        });
+        await deleteAdminIpFile("content-admin", "ip-one", "image-one");
+        expect(order).toEqual(["storage", "database"]);
     });
 
     it("projects independent download records to public user identities and school names", async () => {

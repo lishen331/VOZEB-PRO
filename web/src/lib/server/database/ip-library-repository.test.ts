@@ -178,14 +178,19 @@ describe("IpLibraryRepository PostgreSQL", () => {
         await expect(repository.listIpDownloads({ ipId: created.id, page: 1, pageSize: 10 })).resolves.toMatchObject({ total: 1, items: [{ itemId: draft.items[0]!.id }] });
     });
 
-    postgresIt("lists public IPs when optional school and content filters are empty", async () => {
+    postgresIt("lists public IPs with matching item and version tag filters", async () => {
         const repository = createPostgresRepositories().ipLibrary;
         const created = await repository.createIpPackage(packageInput("public-list", "public"));
-        const draft = await createDraft(repository, created.id, "v1");
+        const tag = `tag-${suffix}`;
+        const draft = await createDraft(repository, created.id, tag);
         await repository.publishIpVersion(created.id, draft.id);
 
         await expect(repository.listVisibleIps({ userId: ids.user, scope: "public", page: 1, pageSize: 20 })).resolves.toMatchObject({
             items: expect.arrayContaining([expect.objectContaining({ id: created.id, versionNumber: 1, itemCount: 2 })]),
+        });
+        await expect(repository.listVisibleIps({ userId: ids.user, scope: "public", kind: "image", category: "story_summary", page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0 });
+        await expect(repository.listVisibleIps({ userId: ids.user, scope: "public", kind: "image", category: "character", tags: [tag.toUpperCase()], page: 1, pageSize: 20 })).resolves.toMatchObject({
+            items: expect.arrayContaining([expect.objectContaining({ id: created.id })]),
         });
     });
 

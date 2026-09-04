@@ -164,6 +164,31 @@ describe("file IP library repository", () => {
         await expect(repository.listIpUsage({ schoolId: "school-a", page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 1, items: [{ id: "usage-a" }] });
     });
 
+    it("requires kind and category filters to match the same item and supports version tags", async () => {
+        const repository = createFileIpLibraryRepository();
+        await repository.createIpPackage(ipPackage("filtered-ip", "public"));
+        await createReadyTextFile(repository, "filtered-ip", "story-file");
+        await createReadyTextFile(repository, "filtered-ip", "character-file");
+        await repository.createIpDraftVersion("filtered-ip", {
+            id: "filtered-version",
+            title: "筛选版本",
+            summary: "",
+            tags: ["教学", "科幻"],
+            sourceNote: "",
+            changeNote: "",
+            createdByUserId: "admin-a",
+            items: [
+                { id: "filtered-story", kind: "text", category: "story_summary", title: "梗概", summary: "", fileId: "story-file", sortOrder: 0 },
+                { id: "filtered-character", kind: "image", category: "character", title: "角色", summary: "", fileId: "character-file", sortOrder: 1 },
+            ],
+        });
+        await repository.publishIpVersion("filtered-ip", "filtered-version");
+
+        await expect(repository.listVisibleIps({ userId: "user-a", scope: "public", kind: "image", category: "story_summary", at: now })).resolves.toMatchObject({ total: 0 });
+        await expect(repository.listVisibleIps({ userId: "user-a", scope: "public", kind: "image", category: "character", tags: ["教学"], at: now })).resolves.toMatchObject({ total: 1, items: [{ id: "filtered-ip" }] });
+        await expect(repository.listVisibleIps({ userId: "user-a", scope: "public", tags: ["不存在"], at: now })).resolves.toMatchObject({ total: 0 });
+    });
+
     it("rejects overlapping exclusive or multi-school grants and stops access after revocation", async () => {
         const repository = createFileIpLibraryRepository();
         await repository.createIpPackage(ipPackage("exclusive-ip", "school"));

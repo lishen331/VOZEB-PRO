@@ -5,7 +5,7 @@ import type { IpDetailRecord, IpItemRecord, IpSummaryRecord, IpUsageRecord, IpUs
 import { createIpLibraryRepository, requireActiveIpLibraryUser, requireVisibleIp } from "./ip-library-access-service";
 import { getSchoolContextForUser, requireActiveSchoolContext, SchoolServiceError } from "./school-access-service";
 
-export type IpListInput = { scope: "public" | "school"; page?: number; pageSize?: number; keyword?: string; kind?: IpAssetKind; category?: IpItemCategory };
+export type IpListInput = { scope: "public" | "school"; page?: number; pageSize?: number; keyword?: string; kind?: IpAssetKind; category?: IpItemCategory; tags?: string[] };
 export type IpSummary = Omit<IpSummaryRecord, "authorizationMode" | "grantMode" | "createdByUserId" | "coverAssetId" | "coverFileId"> & { isExclusive: boolean; coverPreviewUrl?: string };
 export type IpPublicItem = Omit<IpItemRecord, "assetId" | "fileId" | "textContent"> & { textContent?: string; previewUrl?: string };
 export type IpDetail = Omit<IpDetailRecord, "authorizationMode" | "grantMode" | "createdByUserId" | "coverAssetId" | "version"> & {

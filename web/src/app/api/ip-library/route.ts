@@ -16,6 +16,7 @@ export async function GET(request: Request) {
     const scope = params.get("scope") || "public";
     const kind = params.get("kind") || undefined;
     const category = params.get("category") || undefined;
+    const tags = [...new Set([...params.getAll("tag"), ...params.getAll("tags")].map((tag) => tag.trim()).filter(Boolean))];
     if (kind && !KINDS.has(kind)) return schoolApiError(400, "IP 内容类型无效");
     if (category && !CATEGORIES.has(category)) return schoolApiError(400, "IP 内容分类无效");
     try {
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
                 keyword: params.get("keyword") || undefined,
                 kind: kind as IpAssetKind | undefined,
                 category: category as IpItemCategory | undefined,
+                ...(tags.length ? { tags } : {}),
             }),
         );
     } catch (error) {

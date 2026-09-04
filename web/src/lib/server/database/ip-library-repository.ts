@@ -30,6 +30,7 @@ export type VisibleIpListInput = PageInput & {
     keyword?: string;
     kind?: string;
     category?: string;
+    tags?: string[];
     at?: string;
 };
 
@@ -169,6 +170,18 @@ export class IpLibraryRepository {
                AND NOT EXISTS (SELECT 1 FROM ip_versions AS version WHERE version.cover_file_id = file.id)
                AND NOT EXISTS (SELECT 1 FROM ip_items AS item WHERE item.file_id = file.id)
              RETURNING file.id`,
+            [ipId, fileId],
+        );
+        return Boolean(result.rows[0]);
+    }
+
+    async canDeleteIpContentFile(ipId: string, fileId: string): Promise<boolean> {
+        const result = await this.db.query(
+            `SELECT file.id FROM ip_content_files AS file
+             WHERE file.ip_id = $1 AND file.id = $2
+               AND NOT EXISTS (SELECT 1 FROM ip_versions AS version WHERE version.cover_file_id = file.id)
+               AND NOT EXISTS (SELECT 1 FROM ip_items AS item WHERE item.file_id = file.id)
+             LIMIT 1`,
             [ipId, fileId],
         );
         return Boolean(result.rows[0]);
@@ -325,7 +338,8 @@ export class IpLibraryRepository {
         const pageSize = normalizePageSize(input.pageSize);
         if (input.scope === "school" && !input.schoolId) return pageResult([], 0, page, pageSize);
         const at = input.at || new Date().toISOString();
-        const values: unknown[] = [input.userId, input.scope, input.schoolId || null, at, input.keyword?.trim() || null, input.kind || null, input.category || null];
+        const tags = input.tags?.map((tag) => tag.trim().toLowerCase()).filter(Boolean) || [];
+        const values: unknown[] = [input.userId, input.scope, input.schoolId || null, at, input.keyword?.trim() || null, input.kind || null, input.category || null, tags.length ? tags : null];
         const where = visibleWhere();
         const count = await this.db.query<{ count: string }>(
             `SELECT COUNT(*)::text AS count FROM ip_packages AS package JOIN users AS account ON account.id = $1 AND account.status = 'active' JOIN ip_versions AS version ON version.id = package.current_version_id AND version.status = 'published' WHERE ${where}`,
@@ -343,7 +357,7 @@ export class IpLibraryRepository {
              JOIN ip_versions AS version ON version.id = package.current_version_id AND version.status = 'published'
              WHERE ${where}
              ORDER BY package.updated_at DESC, package.id
-             LIMIT $8 OFFSET $9`,
+             LIMIT $9 OFFSET $10`,
             values,
         );
         return pageResult(result.rows.map(mapSummary), numberValue(count.rows[0]?.count), page, pageSize);
@@ -573,8 +587,8 @@ function visibleWhere() {
             AND EXISTS (SELECT 1 FROM schools AS school JOIN school_memberships AS membership ON membership.school_id = school.id WHERE school.id = $3::text AND school.status = 'active' AND membership.user_id = $1 AND membership.status = 'active')
             AND EXISTS (SELECT 1 FROM ip_school_grants AS school_grant WHERE school_grant.ip_id = package.id AND school_grant.school_id = $3::text AND school_grant.status = 'active' AND school_grant.member_access_enabled AND school_grant.starts_at <= $4::timestamptz AND (school_grant.ends_at IS NULL OR school_grant.ends_at > $4::timestamptz))))
         AND ($5::text IS NULL OR package.title ILIKE '%' || $5::text || '%' OR package.summary ILIKE '%' || $5::text || '%')
-        AND ($6::text IS NULL OR EXISTS (SELECT 1 FROM ip_items AS item WHERE item.version_id = version.id AND item.kind = $6::text))
-        AND ($7::text IS NULL OR EXISTS (SELECT 1 FROM ip_items AS item WHERE item.version_id = version.id AND item.category = $7::text))`;
+        AND (($6::text IS NULL AND $7::text IS NULL) OR EXISTS (SELECT 1 FROM ip_items AS item WHERE item.version_id = version.id AND ($6::text IS NULL OR item.kind = $6::text) AND ($7::text IS NULL OR item.category = $7::text)))
+        AND ($8::text[] IS NULL OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(version.tags_json) AS tag(value) WHERE lower(tag.value) = ANY($8::text[])))`;
 }
 
 function addFilter(filters: string[], values: unknown[], column: string, value: string | undefined) {

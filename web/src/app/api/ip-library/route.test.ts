@@ -22,9 +22,9 @@ describe("GET /api/ip-library", () => {
     });
 
     it("passes only allowlisted filters and the server-owned scope", async () => {
-        const response = await GET(new Request("http://localhost/api/ip-library?scope=school&page=2&pageSize=12&keyword=%E6%98%9F&kind=image&category=character"));
+        const response = await GET(new Request("http://localhost/api/ip-library?scope=school&page=2&pageSize=12&keyword=%E6%98%9F&kind=image&category=character&tag=%E6%95%99%E5%AD%A6&tag=%E7%A7%91%E5%B9%BB"));
         expect(response.status).toBe(200);
-        expect(mocks.listIpLibraryForUser).toHaveBeenCalledWith("user-one", { scope: "school", page: 2, pageSize: 12, keyword: "星", kind: "image", category: "character" });
+        expect(mocks.listIpLibraryForUser).toHaveBeenCalledWith("user-one", { scope: "school", page: 2, pageSize: 12, keyword: "星", kind: "image", category: "character", tags: ["教学", "科幻"] });
     });
 
     it("maps service access failures to the shared response shape", async () => {
