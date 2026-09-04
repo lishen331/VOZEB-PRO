@@ -20,4 +20,10 @@ describe("drama create workspace navigation", () => {
         expect(source.indexOf('{ key: "review", label: "内容审核", icon: FileText }')).toBeGreaterThan(source.indexOf('{ key: "storyboard", label: "分镜工作台", icon: Film }'));
         expect(source.indexOf('{ key: "export", label: "成片导出", icon: Download }')).toBeGreaterThan(source.indexOf('{ key: "review", label: "内容审核", icon: FileText }'));
     });
+
+    it("keeps the project outline scrollable inside the fullscreen workspace", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/outline/page.tsx"), "utf8");
+
+        expect(source).toContain('<div className="h-full min-h-0 overflow-x-hidden overflow-y-auto bg-background">');
+    });
 });

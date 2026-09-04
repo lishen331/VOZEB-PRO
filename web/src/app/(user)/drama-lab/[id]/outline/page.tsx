@@ -338,7 +338,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     }
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="h-full min-h-0 overflow-x-hidden overflow-y-auto bg-background">
             {/* 顶部导航 */}
             <header className="sticky top-0 z-10 border-b border-border bg-card">
                 <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
