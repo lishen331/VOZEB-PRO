@@ -13,6 +13,7 @@ import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
+import { hasHealthyRuntimeCandidate } from "@/lib/server/channel-runtime-health";
 import { assertReferenceCapabilities } from "@/lib/server/provider-task-config";
 import { createImageTask, getImageTask, touchImageTask, transitionImageTask, type ImageTask, type ImageTaskConfig, type ImageTaskReference, updateImageTask } from "@/lib/server/image-task-store";
 import { isGenerationSource, recordGenerationLog } from "@/lib/server/generation-log-store";
@@ -24,7 +25,7 @@ import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runti
 import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib/server/reference-asset-access";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
-import { generationBusinessCode, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
+import { generationBusinessCode, workflowTaskContextForChannel, resolvePracticeLogicalModel } from "@/lib/server/runninghub-workflow-runtime";
 import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
@@ -194,6 +195,16 @@ export async function POST(request: Request) {
         const prompt = (resolvedBody.prompt || "").trim();
         const kind = resolvedBody.kind === "edit" ? "edit" : "generation";
         if (!configs.length || !prompt) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
+
+        // 检查是否有健康的模型候选
+        const requestedModel = executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "image", trustedContext?.businessCode || "canvas", resolvedBody.config?.model) : resolvedBody.config?.model || settings.defaultModels.imageModel;
+        const allCandidates = resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile);
+        const hasHealthyModel = hasHealthyRuntimeCandidate(allCandidates, "image");
+
+        if (!hasHealthyModel && allCandidates.length > 0) {
+            return NextResponse.json({ error: "当前模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
+        }
+
         const references = Array.isArray(resolvedBody.references) ? resolvedBody.references.filter((item) => Boolean(item?.dataUrl || item?.url || item?.remoteUrl || item?.serverUrl)) : [];
         const constrainedConfigs = configs.filter((config) => {
             try {
