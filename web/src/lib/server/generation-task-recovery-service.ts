@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { generationTaskNextPollAt, claimDueGenerationTasks, releaseGenerationTaskLease, renewGenerationTaskLeases, scheduleGenerationTask, type GenerationTaskLease } from "@/lib/server/generation-task-scheduler";
-import { failVideoTaskFromWorker, persistVideoTaskResult, queryVideoTaskUpstream } from "@/lib/server/video-task-runtime";
+import { failVideoTaskFromWorker, persistVideoTaskResult, queryVideoTaskUpstream, VideoQueryAuthError } from "@/lib/server/video-task-runtime";
 import { isVideoProviderMediaUrl } from "@/lib/server/video-provider-response";
 import { getVideoTask, type VideoTask } from "@/lib/server/video-task-store";
 import { createAudioTaskUpstreamStep, markAudioTaskFailed, persistAudioTaskResult, queryAudioTaskUpstreamStep } from "@/lib/server/audio-task-runtime";
@@ -963,6 +963,54 @@ async function processVideoLease(lease: GenerationTaskLease, workerId: string, o
         });
         return "pending";
     } catch (error) {
+        // 如果是鉴权错误且没有提供 cookie，使用 workerUserId 重试一次
+        if (error instanceof Error && error.name === "VideoQueryAuthError" && !cookie) {
+            try {
+                const step = await queryVideoTaskUpstream(task, origin, "", task.userId);
+                const now = Date.now();
+                if (step.state === "failed") {
+                    await failVideoTaskFromWorker(task, step.error, true);
+                    await releaseGenerationTaskLease("video", task.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: now, lastUpstreamStatus: step.status });
+                    return "failed";
+                }
+                if (step.state === "result_ready") {
+                    await releaseGenerationTaskLease("video", task.id, workerId, {
+                        executionPhase: "result_ready",
+                        nextPollAt: now,
+                        lastPollAt: now,
+                        lastUpstreamStatus: step.status,
+                        queryPath: task.upstream.queryPath || task.config?.advancedConfig?.queryPath,
+                        resultPayload: { url: step.resultUrl },
+                    });
+                    return "result_ready";
+                }
+                if (automaticQueryWindowExpired(lease, task.config, "video", now, userRequested)) {
+                    await releaseGenerationTaskLease("video", task.id, workerId, {
+                        executionPhase: "needs_review",
+                        upstreamTaskId: task.upstream.id || lease.upstreamTaskId,
+                        queryPath: task.upstream.queryPath || task.config?.advancedConfig?.queryPath,
+                        nextPollAt: undefined,
+                        lastPollAt: now,
+                        lastUpstreamStatus: `query_window_elapsed:${step.status}`,
+                        resultPayload: reviewPayload(lease, queryWindowReviewReason("视频")),
+                    });
+                    return "needs_review";
+                }
+                await releaseGenerationTaskLease("video", task.id, workerId, {
+                    executionPhase: "polling",
+                    upstreamTaskId: task.upstream.id || lease.upstreamTaskId,
+                    queryPath: task.upstream.queryPath || task.config?.advancedConfig?.queryPath,
+                    nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt, now }),
+                    lastPollAt: now,
+                    lastUpstreamStatus: step.status,
+                });
+                return "pending";
+            } catch (retryError) {
+                // 重试也失败，继续走原有的错误处理逻辑
+                error = retryError instanceof Error ? retryError : error;
+            }
+        }
+
         const count = errorCount(lease.lastUpstreamStatus) + 1;
         const now = Date.now();
         if (automaticQueryWindowExpired(lease, task.config, "video", now, userRequested)) {

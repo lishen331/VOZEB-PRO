@@ -1,0 +1,230 @@
+- generic [ref=e1]:
+  - main [ref=e25]:
+    - generic [ref=e26]:
+      - generic:
+        - generic [ref=e27]:
+          - button "打开画布菜单" [ref=e28]:
+            - img [ref=e29]
+          - button "VOZEB PRO 画布 1" [ref=e31]
+          - button "打开资产面板" [ref=e33]:
+            - img [ref=e34]
+            - generic [ref=e37]: 资产
+        - generic [ref=e39]:
+          - button "99,968" [ref=e40]:
+            - img [ref=e42]
+            - text: 99,968
+          - button "通知中心" [ref=e45]:
+            - img [ref=e46]
+          - button "切换到深色主题" [ref=e49]:
+            - img [ref=e50]
+            - generic [ref=e52]: 切换到深色主题
+          - button "账户菜单" [ref=e53]:
+            - generic [ref=e54]: AD
+          - button "快捷键" [ref=e55]:
+            - img [ref=e56]
+      - generic [ref=e58]:
+        - generic:
+          - generic:
+            - img
+            - generic [ref=e61]:
+              - generic [ref=e62]:
+                - generic [ref=e63]:
+                  - generic [ref=e66]:
+                    - img "生成一张城市概念图，科技、科幻、空灵、巨物、无限放大"
+                  - generic: 图片1
+                - generic "输入连接点" [ref=e306]
+                - generic "输出连接点" [ref=e308]
+                - generic [ref=e311]:
+                  - generic [ref=e312]:
+                    - textbox "节点提示词" [ref=e314]:
+                      - /placeholder: 请输入你想要把这张图修改成什么
+                    - button "放大提示词输入" [ref=e315]:
+                      - img [ref=e316]
+                  - generic [ref=e321]:
+                    - generic [ref=e322]:
+                      - button "提示词库" [ref=e323] [cursor=pointer]:
+                        - img [ref=e325]
+                      - combobox "gpt-image-2-all" [ref=e327]
+                      - button "图片设置：16:9 · 智能画质" [ref=e328] [cursor=pointer]:
+                        - img [ref=e330]
+                        - generic [ref=e331]: 16:9 · 智能
+                        - img [ref=e332]
+                      - button "镜头关闭" [ref=e335] [cursor=pointer]:
+                        - img [ref=e337]
+                        - generic [ref=e340]: 镜头关闭
+                    - button "生成" [disabled] [ref=e341]:
+                      - generic:
+                        - generic: 生成
+                        - generic:
+                          - generic:
+                            - img
+                          - text: "1"
+              - generic [ref=e71]:
+                - generic [ref=e72]:
+                  - generic [ref=e75]:
+                    - img "在这张图上扩图"
+                  - generic: 图片2
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e80]:
+                - generic [ref=e81]:
+                  - generic [ref=e83]:
+                    - img "360全景图 [全景输出约束] 参考素材只用于保留主体、材质、" [ref=e84]
+                    - button "沉浸查看全景" [ref=e85]:
+                      - img [ref=e86]
+                      - text: 沉浸查看
+                  - generic: 图片3
+                - generic "输入连接点"
+                - generic "输出连接点"
+              - generic [ref=e95]:
+                - generic [ref=e96]:
+                  - generic [ref=e99]:
+                    - img "在这张图上扩图 Copy"
+                  - generic: 图片4
+                - generic "输入连接点"
+                - generic "输出连接点"
+      - generic [ref=e342]:
+        - button "查看节点信息" [ref=e343]:
+          - img [ref=e345]
+        - button "移除节点" [ref=e347]:
+          - img [ref=e349]
+        - button "加入我的素材" [ref=e352]:
+          - img [ref=e354]
+        - button "下载图片" [ref=e356]:
+          - img [ref=e358]
+        - button "编辑" [ref=e361]:
+          - img [ref=e363]
+        - button "复制生成该图片的提示词" [ref=e365]:
+          - img [ref=e367]
+        - button "创建反推提示词的文本和配置节点" [ref=e370]:
+          - img [ref=e372]
+        - button "替换图片" [ref=e375]:
+          - img [ref=e377]
+        - button "添加蒙版遮罩后局部修改" [ref=e380]:
+          - img [ref=e382]
+        - button "裁剪并生成新节点" [ref=e386]:
+          - img [ref=e388]
+        - button "按行列切分图片" [ref=e394]:
+          - img [ref=e396]
+        - button "智能分层" [active] [ref=e398]:
+          - img [ref=e400]
+        - button "消除背景" [ref=e404]:
+          - img [ref=e406]
+        - button "识别人脸并调节表情参考" [ref=e409]:
+          - img [ref=e411]
+        - button "放大图片分辨率" [ref=e417]:
+          - img [ref=e419]
+        - button "查看图片详情" [ref=e422]:
+          - img [ref=e424]
+        - button "配置快捷工具" [ref=e429]:
+          - img [ref=e431]
+      - generic [ref=e104]:
+        - button "切换到框选模式" [ref=e105] [cursor=pointer]:
+          - img [ref=e107]
+        - button "撤销" [disabled] [ref=e112]:
+          - generic:
+            - img
+        - button "重做" [disabled] [ref=e113]:
+          - generic:
+            - img
+        - button "文本" [ref=e115] [cursor=pointer]:
+          - img [ref=e117]
+        - button "图片" [ref=e119] [cursor=pointer]:
+          - img [ref=e121]
+        - button "全景图" [ref=e125] [cursor=pointer]:
+          - img [ref=e127]
+        - button "视频" [ref=e132] [cursor=pointer]:
+          - img [ref=e134]
+        - button "音频" [ref=e137] [cursor=pointer]:
+          - img [ref=e139]
+        - button "生成配置" [ref=e142] [cursor=pointer]:
+          - img [ref=e144]
+        - button "上传素材" [ref=e147] [cursor=pointer]:
+          - img [ref=e149]
+        - button "资产" [ref=e153] [cursor=pointer]:
+          - img [ref=e155]
+        - button "一键整理画布" [ref=e157] [cursor=pointer]:
+          - img [ref=e159]
+        - button "画布外观" [ref=e163] [cursor=pointer]:
+          - img [ref=e165]
+        - button "删除选中" [ref=e436] [cursor=pointer]:
+          - img [ref=e438]
+        - button "清空画布" [ref=e172] [cursor=pointer]:
+          - img [ref=e174]
+      - generic [ref=e177]:
+        - button "打开小地图" [ref=e178] [cursor=pointer]:
+          - img [ref=e180]
+        - button "重置视图" [ref=e183] [cursor=pointer]:
+          - img [ref=e185]
+        - slider "放大/缩小画布" [ref=e191]: "117"
+        - generic [ref=e192]: 117%
+        - button "快捷键" [ref=e193] [cursor=pointer]:
+          - img [ref=e195]
+    - complementary "Canvas Agent 对话面板" [ref=e199]:
+      - button "调整右侧面板宽度" [ref=e200]
+      - generic [ref=e201]:
+        - generic [ref=e202]:
+          - img [ref=e204]
+          - generic [ref=e207]:
+            - generic [ref=e208]: Agent
+            - generic [ref=e209]: 画布助手 · 让创意落地更简单
+        - button "收起 Agent 面板" [ref=e211] [cursor=pointer]:
+          - img [ref=e213]
+      - generic [ref=e217]:
+        - tablist "Agent 面板" [ref=e218]:
+          - tab "对话" [selected] [ref=e219]
+          - tab "历史 1" [ref=e220]:
+            - img [ref=e221]
+            - text: 历史 1
+        - button "新建对话" [ref=e226] [cursor=pointer]:
+          - img [ref=e228]
+          - generic [ref=e229]: 新建对话
+      - generic [ref=e231]:
+        - generic [ref=e234]:
+          - generic [ref=e235]:
+            - generic [ref=e236]: 你能做什么
+            - generic [ref=e237]:
+              - button "复制消息" [ref=e238]:
+                - img [ref=e239]
+              - button "编辑消息" [ref=e242]:
+                - img [ref=e243]
+          - img "admin" [ref=e247]:
+            - generic [ref=e248]: AD
+        - generic [ref=e250]:
+          - img "BLUEGAMMA Agent" [ref=e251]
+          - generic [ref=e252]:
+            - paragraph [ref=e455]: 我是 BLUEGAMMA 画布创作 Agent。我可以帮你：1）在画布上创建、修改或删除图文、视频、音频等节点；2）基于已有素材进行扩图、生成全景图或延续主体创作；3）为内容规划统一视觉方向和风格。当前画布已有一张城市概念图、一张扩图结果和一张 360 全景图，你可以继续在这些节点上做修改或延伸，也可以提出新的创作需求。
+            - button "复制消息" [ref=e257]:
+              - img [ref=e258]
+      - generic [ref=e262]:
+        - generic [ref=e263]:
+          - generic "本轮参考素材" [ref=e264]:
+            - generic "生成一张城市概念图，科技、科幻、空灵、巨物、无限放大" [ref=e442]:
+              - img "生成一张城市概念图，科技、科幻、空灵、巨物、无限放大" [ref=e444]
+              - generic [ref=e445]: 图片1
+              - button "移除参考素材：生成一张城市概念图，科技、科幻、空灵、巨物、无限放大" [ref=e446]:
+                - img [ref=e448]
+            - button "继续添加参考素材" [ref=e451] [cursor=pointer]:
+              - img [ref=e267]
+          - textbox "描述你想让 Agent 如何操作画布" [ref=e269]
+        - generic [ref=e270]:
+          - generic [ref=e272]:
+            - button "选择创作 Skill" [ref=e273] [cursor=pointer]:
+              - img [ref=e275]
+            - button "智能规划已开启，点击关闭" [pressed] [ref=e285] [cursor=pointer]:
+              - img [ref=e287]
+            - button "选择生成模型" [ref=e289] [cursor=pointer]:
+              - img [ref=e291]
+            - button "生成参数：智能参数" [ref=e298] [cursor=pointer]:
+              - img [ref=e300]
+              - generic [ref=e301]: 智能 · 1张
+              - img [ref=e302]
+          - button "发送" [ref=e304] [cursor=pointer]:
+            - img [ref=e453]
+  - alert [ref=e305]
+  - alert [ref=e456]:
+    - generic [ref=e457]:
+      - img "close-circle" [ref=e459]:
+        - img [ref=e460]
+      - generic [ref=e462]: "No available channel for model qwen3-vl-plus under group default (distributor) (request id: 20260824173035273600297H1W7q34368TyMdd9)"
+  - tooltip "智能分层" [ref=e464]
