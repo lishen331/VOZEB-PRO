@@ -78,7 +78,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
     };
 
     const submit = async () => {
-        const nextErrors: Record<string, string> = ;
+        const nextErrors: Record<string, string> = {};
         if (!String(draft.workflowName || "").trim()) nextErrors.workflowName = "请填写工作流名称";
         if (!String(draft.workflowId || "").trim()) nextErrors.workflowId = "请填写 Workflow ID";
         setErrors(nextErrors);
