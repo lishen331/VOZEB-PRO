@@ -25,7 +25,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
     const [error, setError] = useState<string>();
     const [messageApi, contextHolder] = message.useMessage();
 
-    const activeCount = useMemo(() => tasks.filter((task) => task.status === "pending" || task.status === "running").length, [tasks]);
+    const activeCount = useMemo(() => tasks.filter(isTaskActive).length, [tasks]);
 
     const load = useCallback(
         async (silent = false) => {
@@ -140,25 +140,28 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
 }
 
 function TaskRow({ task, episodes, cancelling, onCancel }: { task: DramaLabTaskView; episodes: Array<{ id: string; title?: string; number?: number }>; cancelling: boolean; onCancel: () => void }) {
-    const active = task.status === "pending" || task.status === "running";
+    const active = isTaskActive(task);
+    const needsReview = isTaskNeedsReview(task);
     const failed = task.status === "error";
     const cancelled = task.status === "cancelled";
     const statusLabel = failed ? "失败" : cancelled ? "已取消" : task.status === "success" ? "完成" : task.status === "paused" ? "已暂停" : active ? "进行中" : task.status;
     return (
         <article className="border border-border/80 px-2 py-2" data-testid={`drama-task-${task.id}`}>
             <div className="flex items-start gap-2">
-                <StatusIcon status={task.status} />
+                <StatusIcon status={task.status} executionPhase={task.executionPhase} />
                 <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                         <p className="truncate text-xs font-medium" title={task.title}>
                             {task.title}
                         </p>
-                        <Tag className="m-0 shrink-0 text-[10px] leading-4" color={failed ? "error" : cancelled ? "default" : active ? "processing" : task.status === "success" ? "success" : "warning"}>
-                            {statusLabel}
+                        <Tag className="m-0 shrink-0 text-[10px] leading-4" color={needsReview ? "warning" : failed ? "error" : cancelled ? "default" : active ? "processing" : task.status === "success" ? "success" : "warning"}>
+                            {needsReview ? "待检查" : statusLabel}
                         </Tag>
                     </div>
                     <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{[episodeLabel(task.episodeId, episodes), task.shotId ? `分镜 ${task.shotId}` : "", task.currentStep || ""].filter(Boolean).join(" · ") || "短剧实验室"}</p>
-                    {task.progress === null ? (
+                    {needsReview ? (
+                        <div className="mt-1.5 text-[11px] text-amber-700">待检查，不会继续轮询</div>
+                    ) : task.progress === null ? (
                         <div className="mt-1.5 h-1 overflow-hidden bg-muted" data-progress-indeterminate="true">
                             <div className="h-full w-2/5 animate-pulse bg-primary/70" />
                         </div>
@@ -190,10 +193,19 @@ function isVisibleTask(task: DramaLabTaskView) {
     return task.status !== "success" && task.status !== "cancelled";
 }
 
-function StatusIcon({ status }: { status: DramaLabTaskView["status"] }) {
+function isTaskNeedsReview(task: Pick<DramaLabTaskView, "executionPhase">) {
+    return task.executionPhase === "needs_review" || task.executionPhase === "review_pending" || task.executionPhase === "reviewing" || task.executionPhase === "review_unavailable";
+}
+
+function isTaskActive(task: Pick<DramaLabTaskView, "status" | "executionPhase">) {
+    return (task.status === "pending" || task.status === "running") && !isTaskNeedsReview(task);
+}
+
+function StatusIcon({ status, executionPhase }: { status: DramaLabTaskView["status"]; executionPhase?: DramaLabTaskView["executionPhase"] }) {
     if (status === "success") return <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />;
     if (status === "error") return <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />;
     if (status === "cancelled") return <Square className="mt-0.5 size-4 shrink-0 text-muted-foreground" />;
     if (status === "paused") return <PauseCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />;
+    if (isTaskNeedsReview({ executionPhase })) return <PauseCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />;
     return <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />;
 }

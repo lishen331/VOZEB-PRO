@@ -1,0 +1,15 @@
+{
+  "cookies": [
+    {
+      "name": "vozeb_pro_session",
+      "value": "61f1d66a-3da5-4d0f-a960-a7bce4d5054a.2cJjdGUBdh_XPTqMzr6s-Wfc8QkL6bTgJhLW_kM-jZU",
+      "domain": "8.163.37.148",
+      "path": "/",
+      "expires": 1790130773.926624,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}

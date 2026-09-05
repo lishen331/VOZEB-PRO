@@ -1,4 +1,5 @@
 import { hasAdminPermission } from "@/lib/admin-permissions";
+import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { fetchRunningHubWorkflowJson } from "@/lib/server/runninghub-provider";
 import { getWorkflowChannel } from "@/lib/server/runninghub-workflow-service";
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
     if (!hasAdminPermission(user, "upstream.manage")) return schoolApiError(403, "当前管理员没有上游配置职责权限");
 
     try {
-        const body = (await request.json()) as { channelId?: string; workflowId?: string };
+        const body = await readJsonBody<{ channelId?: string; workflowId?: string }>(request);
         if (!body.channelId || !body.workflowId) return schoolApiError(400, "缺少必要参数");
 
         const channel = await getWorkflowChannel(body.channelId);

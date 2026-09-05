@@ -57,7 +57,14 @@ export async function createExternalMediaReadUrl(request: Request, registration:
     const config = await getObjectStorageRuntimeConfig();
     assertRegistrationConfig(config, registration);
     const variant = requestedImageVariant(request, registration.mimeType);
-    if (variant) return createObjectImagePreviewReadUrl(config, registration.externalObjectKey, variant.width, registration.storageKey);
+    if (variant) {
+        try {
+            return await createObjectImagePreviewReadUrl(config, registration.externalObjectKey, variant.width, registration.storageKey);
+        } catch (error) {
+            console.error("Failed to create image preview URL, falling back to original", { storageKey: registration.storageKey, error: objectStorageErrorMessage(error) });
+            // 如果预览图 URL 生成失败，降级到原图
+        }
+    }
     const download = new URL(request.url).searchParams.get("download") === "original";
     return signObjectRead(config, {
         key: registration.externalObjectKey,
@@ -137,18 +144,30 @@ export async function listExternalStorageFiles(input: { prefix?: string; cursor?
 
 async function createObjectImagePreviewReadUrl(config: ObjectStorageRuntimeConfig, objectKey: string, width: number, fileName: string) {
     const key = `${objectKey}${PREVIEW_MARKER}/webp-${width}.webp`;
-    await runImageVariantTaskOnce(`object:${config.id}:${key}`, async () => {
-        if (await objectExists(config, key)) return;
-        const source = await getObjectBytes(config, objectKey);
-        const bytes = await sharp(source, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "error" }).rotate().resize({ width, withoutEnlargement: true, fit: "inside" }).webp({ quality: 82, effort: 4 }).toBuffer();
-        await putObjectBytes(config, { key, bytes, contentType: "image/webp" });
-    });
-    return signObjectRead(config, {
-        key,
-        contentType: "image/webp",
-        contentDisposition: mediaContentDisposition("inline", `${basename(fileName).replace(/\.[^.]+$/, "")}.webp`),
-        expiresIn: IMAGE_PREVIEW_READ_URL_TTL_SECONDS,
-    });
+    try {
+        await runImageVariantTaskOnce(`object:${config.id}:${key}`, async () => {
+            if (await objectExists(config, key)) return;
+            const source = await getObjectBytes(config, objectKey);
+            const bytes = await sharp(source, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "error" }).rotate().resize({ width, withoutEnlargement: true, fit: "inside" }).webp({ quality: 82, effort: 4 }).toBuffer();
+            await putObjectBytes(config, { key, bytes, contentType: "image/webp" });
+        });
+        return signObjectRead(config, {
+            key,
+            contentType: "image/webp",
+            contentDisposition: mediaContentDisposition("inline", `${basename(fileName).replace(/\.[^.]+$/, "")}.webp`),
+            expiresIn: IMAGE_PREVIEW_READ_URL_TTL_SECONDS,
+        });
+    } catch (error) {
+        console.error("Image preview generation failed, falling back to original", { objectKey, width, error: objectStorageErrorMessage(error) });
+        // 降级：如果预览图生成失败，返回原图的签名 URL
+        const originalMimeType = mimeType(objectKey);
+        return signObjectRead(config, {
+            key: objectKey,
+            contentType: originalMimeType || undefined,
+            contentDisposition: mediaContentDisposition("inline", basename(fileName), originalMimeType),
+            expiresIn: IMAGE_ORIGINAL_READ_URL_TTL_SECONDS,
+        });
+    }
 }
 
 function adminObjectImagePreviewUrl(key: string) {

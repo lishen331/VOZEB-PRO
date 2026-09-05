@@ -38,7 +38,7 @@ export async function POST(request: Request, { params }: RouteContext) {
             sourceEpisodeId,
             requestId,
             options: {
-                mode: body.mode === "assets" || body.mode === "storyboard" || body.mode === "video" ? body.mode : undefined,
+                mode: body.mode === "assets" || body.mode === "storyboard_extract" || body.mode === "storyboard" || body.mode === "video" ? body.mode : undefined,
                 scope: body.scope === "all" ? "all" : "current",
                 ratio: typeof body.ratio === "string" ? body.ratio : undefined,
                 duration: typeof body.duration === "string" || typeof body.duration === "number" ? String(body.duration) : undefined,

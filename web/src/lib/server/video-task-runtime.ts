@@ -28,6 +28,13 @@ import { workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghu
 
 export type VideoUpstreamStep = { state: "pending"; status: string } | { state: "result_ready"; status: string; resultUrl: string } | { state: "failed"; status: string; error: string };
 
+export class VideoQueryAuthError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "VideoQueryAuthError";
+    }
+}
+
 export async function refreshVideoTaskFromUpstream(task: VideoTask, origin: string, cookie: string) {
     const polling = taskPollingPolicy(task);
     const claimed = await claimVideoTaskPoll(task.id, polling.intervalMs);
@@ -193,6 +200,7 @@ async function queryVideoUpstream(task: VideoTask, origin: string, cookie: strin
               `/result?id=${encodeURIComponent(task.upstream.id)}`,
           ]);
     let lastError = "";
+    let authErrorDetected = false;
     for (const path of paths) {
         const response = await fetchInternalApi(`${origin}${task.config.baseUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`, {
             headers: videoProxyHeaders(task, cookie, workerUserId),
@@ -206,6 +214,10 @@ async function queryVideoUpstream(task: VideoTask, origin: string, cookie: strin
         const text = await response.text();
         if (!response.ok) {
             lastError = readVideoProviderHttpError(text, response.status);
+            // 检测鉴权错误
+            if (response.status === 401 || /请先登录|未登录|unauthorized|authentication/i.test(lastError)) {
+                authErrorDetected = true;
+            }
             continue;
         }
         try {
@@ -217,6 +229,10 @@ async function queryVideoUpstream(task: VideoTask, origin: string, cookie: strin
     }
     const contentPath = seedanceSpecial ? await readyVideoContentPath(task, origin, cookie, workerUserId) : "";
     if (contentPath) return { status: "completed", video_url: contentPath };
+    // 如果是鉴权错误，抛出特定的错误类型
+    if (authErrorDetected && !cookie && !workerUserId) {
+        throw new VideoQueryAuthError(lastError || "视频任务查询需要鉴权");
+    }
     throw new Error(lastError || "视频任务查询失败");
 }
 

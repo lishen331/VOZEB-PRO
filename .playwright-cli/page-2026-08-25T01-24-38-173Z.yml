@@ -1,0 +1,1077 @@
+- generic [ref=e1]:
+  - main [ref=e4]:
+    - generic [ref=e13]:
+      - link "返回项目大纲" [ref=e14] [cursor=pointer]:
+        - /url: /drama-lab/drama-03tgsyBr88SYFPAWX_Iz7/outline
+        - img [ref=e15]
+      - generic [ref=e17]:
+        - heading "xxx" [level=1] [ref=e18]
+        - paragraph [ref=e19]: 第 1 集
+      - button "一键全流程" [ref=e20] [cursor=pointer]:
+        - img [ref=e22]
+        - generic [ref=e25]: 一键全流程
+      - button "打开团队协作与审批" [ref=e26] [cursor=pointer]:
+        - img [ref=e28]
+      - button "保存草稿" [ref=e31] [cursor=pointer]:
+        - img [ref=e33]
+        - generic [ref=e37]: 保存草稿
+    - navigation [ref=e38]:
+      - button "1 剧本" [ref=e39]:
+        - generic [ref=e40]: "1"
+        - generic [ref=e41]: 剧本
+      - button "2 资产准备" [ref=e42]:
+        - generic [ref=e43]: "2"
+        - generic [ref=e44]: 资产准备
+      - button "3 分镜工作台" [active] [ref=e45]:
+        - generic [ref=e46]: "3"
+        - generic [ref=e47]: 分镜工作台
+      - button "4 内容审核" [ref=e48]:
+        - generic [ref=e49]: "4"
+        - generic [ref=e50]: 内容审核
+      - button "5 成片导出" [ref=e51]:
+        - generic [ref=e52]: "5"
+        - generic [ref=e53]: 成片导出
+    - generic [ref=e54]:
+      - complementary [ref=e55]:
+        - generic [ref=e56]:
+          - generic [ref=e57]: 剧集 13
+          - button "收起剧集侧栏" [ref=e58] [cursor=pointer]:
+            - img [ref=e60]
+        - generic [ref=e63]:
+          - generic [ref=e64]:
+            - generic [ref=e65]:
+              - button "收起第 1 集分镜" [expanded] [ref=e66] [cursor=pointer]:
+                - img [ref=e68]
+              - button "第 1 集 3906 字 • 7 个分镜" [ref=e70]:
+                - generic [ref=e71]: 第 1 集
+                - generic [ref=e72]: 3906 字 • 7 个分镜
+            - generic [ref=e73]:
+              - 'button "镜头 1: 林澈在图书馆书库中整理古籍，表情紧张，回" [ref=e74]'
+              - 'button "镜头 2: 苏晚在医院走廊中行走，身着白色医生袍，听" [ref=e75]'
+              - 'button "镜头 3: 林澈低头在皮质笔记本上书写，钢笔快速记录" [ref=e76]'
+              - 'button "镜头 4: 苏晚靠近林澈，神情担忧而严肃，目光注视林" [ref=e77]'
+              - 'button "镜头 5: 陈锋站立于战术装备前，表情冷酷，眼神锐利" [ref=e78]'
+              - 'button "镜头 6: 陈锋低头看向手中狗腿刀，嘴角一丝冷笑，随" [ref=e79]'
+              - 'button "镜头 7: 林澈放下钢笔，透过眼镜看向远处，目光沉稳" [ref=e80]'
+          - button "第 2 集 3991 字" [ref=e84]:
+            - generic [ref=e85]: 第 2 集
+            - generic [ref=e86]: 3991 字
+          - button "第 3 集 432 字" [ref=e90]:
+            - generic [ref=e91]: 第 3 集
+            - generic [ref=e92]: 432 字
+          - button "第 4 集 · 第1集：「血色降临」 1285 字" [ref=e96]:
+            - generic [ref=e97]: 第 4 集 · 第1集：「血色降临」
+            - generic [ref=e98]: 1285 字
+          - button "第 5 集 · 第2集：「背叛与推入」 1299 字" [ref=e102]:
+            - generic [ref=e103]: 第 5 集 · 第2集：「背叛与推入」
+            - generic [ref=e104]: 1299 字
+          - button "第 6 集 · 第3集：「规则反杀」 1378 字" [ref=e108]:
+            - generic [ref=e109]: 第 6 集 · 第3集：「规则反杀」
+            - generic [ref=e110]: 1378 字
+          - button "第 7 集 · 第4集：「白衣医生」 1267 字" [ref=e114]:
+            - generic [ref=e115]: 第 7 集 · 第4集：「白衣医生」
+            - generic [ref=e116]: 1267 字
+          - button "第 8 集 · 第5集：「病号服女孩」 1258 字" [ref=e120]:
+            - generic [ref=e121]: 第 8 集 · 第5集：「病号服女孩」
+            - generic [ref=e122]: 1258 字
+          - button "第 9 集 · 第6集：「收藏家的注视」 1028 字" [ref=e126]:
+            - generic [ref=e127]: 第 9 集 · 第6集：「收藏家的注视」
+            - generic [ref=e128]: 1028 字
+          - button "第 10 集 · 第7集：「活着的规则」 1210 字" [ref=e132]:
+            - generic [ref=e133]: 第 10 集 · 第7集：「活着的规则」
+            - generic [ref=e134]: 1210 字
+          - button "第 11 集 · 第8集：「无声的牺牲」 1077 字" [ref=e138]:
+            - generic [ref=e139]: 第 11 集 · 第8集：「无声的牺牲」
+            - generic [ref=e140]: 1077 字
+          - button "第 12 集 · 第9集：「污名与情报」 1247 字" [ref=e144]:
+            - generic [ref=e145]: 第 12 集 · 第9集：「污名与情报」
+            - generic [ref=e146]: 1247 字
+          - button "第 13 集 · 第10集：「黑市中间商」 1468 字" [ref=e150]:
+            - generic [ref=e151]: 第 13 集 · 第10集：「黑市中间商」
+            - generic [ref=e152]: 1468 字
+          - button "新增剧集" [ref=e153] [cursor=pointer]:
+            - img [ref=e155]
+            - generic [ref=e156]: 新增一集
+      - generic [ref=e157]:
+        - alert [ref=e158]:
+          - img [ref=e160]
+          - generic [ref=e164]:
+            - generic [ref=e165]: 视觉图片审核 · 待提交
+            - generic [ref=e166]: 剧本审核尚未通过，严格审批模式下不能继续提交。
+          - button "提交审核" [disabled] [ref=e168]:
+            - generic:
+              - img
+            - generic: 提交审核
+        - generic [ref=e169]:
+          - generic [ref=e170]:
+            - generic [ref=e171]:
+              - heading "分镜工作台" [level=2] [ref=e172]
+              - paragraph [ref=e173]: 当前集 7 个分镜，资产勾选会作为本镜生图和视频生成的参考依据。
+            - generic [ref=e174]:
+              - button "批量生成分镜图" [ref=e175] [cursor=pointer]:
+                - img [ref=e177]
+                - generic [ref=e180]: 批量生成分镜图
+              - button "批量生成分镜视频" [ref=e181] [cursor=pointer]:
+                - img [ref=e183]
+                - generic [ref=e185]: 批量生成分镜视频
+              - button "从剧本提取分镜" [ref=e186] [cursor=pointer]:
+                - img [ref=e188]
+                - generic [ref=e191]: 从剧本提取分镜
+              - button "添加分镜" [ref=e192] [cursor=pointer]:
+                - img [ref=e194]
+                - generic [ref=e195]: 添加分镜
+          - generic [ref=e196]:
+            - article [ref=e197]:
+              - generic [ref=e198]:
+                - generic [ref=e199]:
+                  - generic [ref=e200]:
+                    - heading "分镜 1 · 林澈图书馆独处" [level=3] [ref=e201]
+                    - generic [ref=e202]: 分镜图 已完成
+                    - generic [ref=e203]: 视频 失败
+                  - paragraph [ref=e204]: 4s · 平视微俯，略带压迫感 · 缓慢推近，从全景缓推至中近景，最终停在面部特写，营造压迫与孤独感。
+                - generic [ref=e205]:
+                  - button "同步任务状态" [ref=e206] [cursor=pointer]:
+                    - img [ref=e208]
+                  - button "编辑分镜" [ref=e210] [cursor=pointer]:
+                    - img [ref=e212]
+                  - button "删除分镜" [ref=e214] [cursor=pointer]:
+                    - img [ref=e216]
+              - generic [ref=e219]:
+                - region "分镜 1 资产关联" [ref=e220]:
+                  - generic [ref=e221]:
+                    - generic [ref=e222]: 场景
+                    - generic [ref=e223]:
+                      - generic [ref=e224] [cursor=pointer]:
+                        - radio "图书馆" [ref=e225]
+                        - generic [ref=e226]: 图书馆
+                      - generic [ref=e227] [cursor=pointer]:
+                        - radio "午夜医院" [ref=e228]
+                        - img [ref=e230]
+                        - generic [ref=e234]: 午夜医院
+                  - generic [ref=e235]:
+                    - generic [ref=e236]: 角色
+                    - generic [ref=e237]:
+                      - generic [ref=e238] [cursor=pointer]:
+                        - checkbox "林澈" [checked] [ref=e239]
+                        - generic [ref=e240]: 林澈
+                      - generic [ref=e241] [cursor=pointer]:
+                        - checkbox "苏晚" [ref=e242]
+                        - img [ref=e244]
+                        - generic [ref=e248]: 苏晚
+                      - generic [ref=e249] [cursor=pointer]:
+                        - checkbox "陈锋" [ref=e250]
+                        - img [ref=e252]
+                        - generic [ref=e256]: 陈锋
+                      - generic [ref=e257] [cursor=pointer]:
+                        - checkbox "沈墨" [ref=e258]
+                        - img [ref=e260]
+                        - generic [ref=e264]: 沈墨
+                      - generic [ref=e265] [cursor=pointer]:
+                        - checkbox "小雅" [ref=e266]
+                        - img [ref=e268]
+                        - generic [ref=e272]: 小雅
+                      - generic [ref=e273] [cursor=pointer]:
+                        - checkbox "罗振海" [ref=e274]
+                        - img [ref=e276]
+                        - generic [ref=e280]: 罗振海
+                      - generic [ref=e281] [cursor=pointer]:
+                        - checkbox "“收藏家”" [ref=e282]
+                        - img [ref=e284]
+                        - generic [ref=e288]: “收藏家”
+                  - generic [ref=e289]:
+                    - generic [ref=e290]: 道具
+                    - generic [ref=e291]:
+                      - generic [ref=e292] [cursor=pointer]:
+                        - checkbox "停走的银色机械表" [checked] [ref=e293]
+                        - generic [ref=e294]: 停走的银色机械表
+                      - generic [ref=e295] [cursor=pointer]:
+                        - checkbox "皮质笔记本" [checked] [ref=e296]
+                        - generic [ref=e297]: 皮质笔记本
+                      - generic [ref=e298] [cursor=pointer]:
+                        - checkbox "钢笔" [checked] [ref=e299]
+                        - generic [ref=e300]: 钢笔
+                      - generic [ref=e301] [cursor=pointer]:
+                        - checkbox "老式听诊器" [ref=e302]
+                        - img [ref=e304]
+                        - generic [ref=e308]: 老式听诊器
+                      - generic [ref=e309] [cursor=pointer]:
+                        - checkbox "银色医疗箱" [ref=e310]
+                        - img [ref=e312]
+                        - generic [ref=e316]: 银色医疗箱
+                      - generic [ref=e317] [cursor=pointer]:
+                        - checkbox "狗腿刀" [ref=e318]
+                        - img [ref=e320]
+                        - generic [ref=e324]: 狗腿刀
+                - region "分镜 1 画面" [ref=e325]:
+                  - textbox "分镜描述" [ref=e326]: 林澈在图书馆书库中整理古籍，表情紧张，回避视线，左手腕的银色机械表停走。
+                  - textbox "画面补充" [ref=e327]:
+                    - /placeholder: 画面补充（可选）
+                    - text: 电影感国漫风格，图书馆书库内景，陈旧木质书架与古籍堆叠，暖黄灯光洒落尘埃。林澈，26岁东亚男性，清瘦白皙，细黑框眼镜，深灰色连帽卫衣内搭白T恤，黑色工装裤，帆布鞋，左手腕银色停走机械表。他低头整理古籍，表情紧张，眼神回避镜头，额前碎发遮眼。皮质笔记本和钢笔放在手边。环境氛围孤寂、压抑，光影层次丰富。
+                  - generic [ref=e328]:
+                    - button "生成首帧" [ref=e329] [cursor=pointer]:
+                      - img [ref=e331]
+                      - generic [ref=e334]: 生成首帧
+                    - button "生成关键帧" [ref=e335] [cursor=pointer]:
+                      - img [ref=e337]
+                      - generic [ref=e340]: 生成关键帧
+                    - button "生成尾帧" [ref=e341] [cursor=pointer]:
+                      - img [ref=e343]
+                      - generic [ref=e346]: 生成尾帧
+                    - button "重新生成分镜图" [ref=e347] [cursor=pointer]:
+                      - img [ref=e349]
+                      - generic [ref=e352]: 重新生成分镜图
+                  - generic [ref=e353]:
+                    - generic [ref=e354]:
+                      - generic [ref=e355]: 首帧
+                      - generic [ref=e356]: 待生成
+                    - generic [ref=e357]:
+                      - generic [ref=e358]: 关键帧
+                      - generic [ref=e359]: 待生成
+                    - generic [ref=e360]:
+                      - generic [ref=e361]: 尾帧
+                      - generic [ref=e362]: 待生成
+                  - img "分镜 1 图像"
+                - region "分镜 1 视频" [ref=e363]:
+                  - textbox "视频提示词" [ref=e364]:
+                    - /placeholder: 镜头动作与动态补充（可选）
+                    - text: 镜头缓慢推近林澈，他手指轻抚古籍书脊，微微颤抖，目光躲闪，远处书架阴影中隐约有红色光晕浮动，风吹动书页，机械表纹丝不动，整体氛围窒息而隐秘。
+                  - alert [ref=e365]:
+                    - img "close-circle" [ref=e367]:
+                      - img [ref=e368]
+                    - generic [ref=e371]: 视频结果已返回，但在当前模型处理时限内未能完成本地保存，请使用“检查状态”继续保存原结果
+                  - button "生成分镜视频" [ref=e373] [cursor=pointer]:
+                    - img [ref=e375]
+                    - generic [ref=e377]: 生成分镜视频
+                  - generic [ref=e378]: 生成关键帧或分镜图后可生成视频
+            - article [ref=e379]:
+              - generic [ref=e380]:
+                - generic [ref=e381]:
+                  - generic [ref=e382]:
+                    - heading "分镜 2 · 苏晚医院值守" [level=3] [ref=e383]
+                    - generic [ref=e384]: 分镜图 失败
+                    - generic [ref=e385]: 视频 已取消
+                  - paragraph [ref=e386]: 3s · 平视，轻微仰角凸显孤寂 · 缓慢横移跟拍，从侧面中景跟随苏晚步伐，随后镜头转向她的侧脸特写。
+                - generic [ref=e387]:
+                  - button "同步任务状态" [ref=e388] [cursor=pointer]:
+                    - img [ref=e390]
+                  - button "编辑分镜" [ref=e392] [cursor=pointer]:
+                    - img [ref=e394]
+                  - button "删除分镜" [ref=e396] [cursor=pointer]:
+                    - img [ref=e398]
+              - generic [ref=e401]:
+                - region "分镜 2 资产关联" [ref=e402]:
+                  - generic [ref=e403]:
+                    - generic [ref=e404]: 场景
+                    - generic [ref=e405]:
+                      - generic [ref=e406] [cursor=pointer]:
+                        - radio "图书馆" [ref=e407]
+                        - generic [ref=e408]: 图书馆
+                      - generic [ref=e409] [cursor=pointer]:
+                        - radio "午夜医院" [ref=e410]
+                        - img [ref=e412]
+                        - generic [ref=e416]: 午夜医院
+                  - generic [ref=e417]:
+                    - generic [ref=e418]: 角色
+                    - generic [ref=e419]:
+                      - generic [ref=e420] [cursor=pointer]:
+                        - checkbox "林澈" [ref=e421]
+                        - generic [ref=e422]: 林澈
+                      - generic [ref=e423] [cursor=pointer]:
+                        - checkbox "苏晚" [checked] [ref=e424]
+                        - img [ref=e426]
+                        - generic [ref=e430]: 苏晚
+                      - generic [ref=e431] [cursor=pointer]:
+                        - checkbox "陈锋" [ref=e432]
+                        - img [ref=e434]
+                        - generic [ref=e438]: 陈锋
+                      - generic [ref=e439] [cursor=pointer]:
+                        - checkbox "沈墨" [ref=e440]
+                        - img [ref=e442]
+                        - generic [ref=e446]: 沈墨
+                      - generic [ref=e447] [cursor=pointer]:
+                        - checkbox "小雅" [ref=e448]
+                        - img [ref=e450]
+                        - generic [ref=e454]: 小雅
+                      - generic [ref=e455] [cursor=pointer]:
+                        - checkbox "罗振海" [ref=e456]
+                        - img [ref=e458]
+                        - generic [ref=e462]: 罗振海
+                      - generic [ref=e463] [cursor=pointer]:
+                        - checkbox "“收藏家”" [ref=e464]
+                        - img [ref=e466]
+                        - generic [ref=e470]: “收藏家”
+                  - generic [ref=e471]:
+                    - generic [ref=e472]: 道具
+                    - generic [ref=e473]:
+                      - generic [ref=e474] [cursor=pointer]:
+                        - checkbox "停走的银色机械表" [ref=e475]
+                        - generic [ref=e476]: 停走的银色机械表
+                      - generic [ref=e477] [cursor=pointer]:
+                        - checkbox "皮质笔记本" [ref=e478]
+                        - generic [ref=e479]: 皮质笔记本
+                      - generic [ref=e480] [cursor=pointer]:
+                        - checkbox "钢笔" [ref=e481]
+                        - generic [ref=e482]: 钢笔
+                      - generic [ref=e483] [cursor=pointer]:
+                        - checkbox "老式听诊器" [checked] [ref=e484]
+                        - img [ref=e486]
+                        - generic [ref=e490]: 老式听诊器
+                      - generic [ref=e491] [cursor=pointer]:
+                        - checkbox "银色医疗箱" [checked] [ref=e492]
+                        - img [ref=e494]
+                        - generic [ref=e498]: 银色医疗箱
+                      - generic [ref=e499] [cursor=pointer]:
+                        - checkbox "狗腿刀" [ref=e500]
+                        - img [ref=e502]
+                        - generic [ref=e506]: 狗腿刀
+                - region "分镜 2 画面" [ref=e507]:
+                  - textbox "分镜描述" [ref=e508]: 苏晚在医院走廊中行走，身着白色医生袍，听诊器挂于颈上，脸色苍白，目光冷静，看向窗外。
+                  - textbox "画面补充" [ref=e509]:
+                    - /placeholder: 画面补充（可选）
+                    - text: 电影感国漫风格，午夜医院走廊内景，白色日光灯冷白惨淡，绿色地面反光，陈旧医疗设备。苏晚，28岁东亚女性，鹅蛋脸苍白，眉眼温柔而疲惫，深棕色长发低扎发髻，碎发垂落，白色医生袍略旧但整洁，内搭浅蓝衬衫，黑色长裤，平底软靴，胸前挂老式听诊器，手提银色医疗箱。她独自走在走廊中，转头望向窗外，目光冷静而疏离。
+                  - alert [ref=e510]:
+                    - img "close-circle" [ref=e512]:
+                      - img [ref=e513]
+                    - generic:
+                      - generic: 任务已取消
+                  - generic [ref=e515]:
+                    - button "生成首帧" [ref=e516] [cursor=pointer]:
+                      - img [ref=e518]
+                      - generic [ref=e521]: 生成首帧
+                    - button "生成关键帧" [ref=e522] [cursor=pointer]:
+                      - img [ref=e524]
+                      - generic [ref=e527]: 生成关键帧
+                    - button "生成尾帧" [ref=e528] [cursor=pointer]:
+                      - img [ref=e530]
+                      - generic [ref=e533]: 生成尾帧
+                    - button "生成分镜图" [ref=e534] [cursor=pointer]:
+                      - img [ref=e536]
+                      - generic [ref=e539]: 生成分镜图
+                  - generic [ref=e540]:
+                    - generic [ref=e541]:
+                      - generic [ref=e542]: 首帧
+                      - generic [ref=e543]: 待生成
+                    - generic [ref=e544]:
+                      - generic [ref=e545]: 关键帧
+                      - generic [ref=e546]: 待生成
+                    - generic [ref=e547]:
+                      - generic [ref=e548]: 尾帧
+                      - generic [ref=e549]: 待生成
+                  - generic [ref=e550]: 尚未生成分镜图
+                - region "分镜 2 视频" [ref=e551]:
+                  - textbox "视频提示词" [ref=e552]:
+                    - /placeholder: 镜头动作与动态补充（可选）
+                    - text: 跟随苏晚行走，她从走廊深处走向镜头，脚步平稳，听诊器随之轻晃，窗外是模糊的夜城市剪影，阴影在墙上移动，她停顿片刻，目光透过玻璃望向远方，表情隐忍。
+                  - button "生成分镜视频" [ref=e554] [cursor=pointer]:
+                    - img [ref=e556]
+                    - generic [ref=e558]: 生成分镜视频
+                  - generic [ref=e559]: 生成关键帧或分镜图后可生成视频
+            - article [ref=e560]:
+              - generic [ref=e561]:
+                - generic [ref=e562]:
+                  - generic [ref=e563]:
+                    - heading "分镜 3 · 林澈解析规则" [level=3] [ref=e564]
+                    - generic [ref=e565]: 分镜图 待生成
+                    - generic [ref=e566]: 视频 待生成
+                  - paragraph [ref=e567]: 3s · 俯拍起始，后转为平视微仰 · 从桌上笔记本特写拉升至林澈面部，再微微环绕强调眼神变化，节奏紧凑。
+                - generic [ref=e568]:
+                  - button "同步任务状态" [ref=e569] [cursor=pointer]:
+                    - img [ref=e571]
+                  - button "编辑分镜" [ref=e573] [cursor=pointer]:
+                    - img [ref=e575]
+                  - button "删除分镜" [ref=e577] [cursor=pointer]:
+                    - img [ref=e579]
+              - generic [ref=e582]:
+                - region "分镜 3 资产关联" [ref=e583]:
+                  - generic [ref=e584]:
+                    - generic [ref=e585]: 场景
+                    - generic [ref=e586]:
+                      - generic [ref=e587] [cursor=pointer]:
+                        - radio "图书馆" [ref=e588]
+                        - generic [ref=e589]: 图书馆
+                      - generic [ref=e590] [cursor=pointer]:
+                        - radio "午夜医院" [ref=e591]
+                        - img [ref=e593]
+                        - generic [ref=e597]: 午夜医院
+                  - generic [ref=e598]:
+                    - generic [ref=e599]: 角色
+                    - generic [ref=e600]:
+                      - generic [ref=e601] [cursor=pointer]:
+                        - checkbox "林澈" [checked] [ref=e602]
+                        - generic [ref=e603]: 林澈
+                      - generic [ref=e604] [cursor=pointer]:
+                        - checkbox "苏晚" [ref=e605]
+                        - img [ref=e607]
+                        - generic [ref=e611]: 苏晚
+                      - generic [ref=e612] [cursor=pointer]:
+                        - checkbox "陈锋" [ref=e613]
+                        - img [ref=e615]
+                        - generic [ref=e619]: 陈锋
+                      - generic [ref=e620] [cursor=pointer]:
+                        - checkbox "沈墨" [ref=e621]
+                        - img [ref=e623]
+                        - generic [ref=e627]: 沈墨
+                      - generic [ref=e628] [cursor=pointer]:
+                        - checkbox "小雅" [ref=e629]
+                        - img [ref=e631]
+                        - generic [ref=e635]: 小雅
+                      - generic [ref=e636] [cursor=pointer]:
+                        - checkbox "罗振海" [ref=e637]
+                        - img [ref=e639]
+                        - generic [ref=e643]: 罗振海
+                      - generic [ref=e644] [cursor=pointer]:
+                        - checkbox "“收藏家”" [ref=e645]
+                        - img [ref=e647]
+                        - generic [ref=e651]: “收藏家”
+                  - generic [ref=e652]:
+                    - generic [ref=e653]: 道具
+                    - generic [ref=e654]:
+                      - generic [ref=e655] [cursor=pointer]:
+                        - checkbox "停走的银色机械表" [ref=e656]
+                        - generic [ref=e657]: 停走的银色机械表
+                      - generic [ref=e658] [cursor=pointer]:
+                        - checkbox "皮质笔记本" [checked] [ref=e659]
+                        - generic [ref=e660]: 皮质笔记本
+                      - generic [ref=e661] [cursor=pointer]:
+                        - checkbox "钢笔" [checked] [ref=e662]
+                        - generic [ref=e663]: 钢笔
+                      - generic [ref=e664] [cursor=pointer]:
+                        - checkbox "老式听诊器" [ref=e665]
+                        - img [ref=e667]
+                        - generic [ref=e671]: 老式听诊器
+                      - generic [ref=e672] [cursor=pointer]:
+                        - checkbox "银色医疗箱" [ref=e673]
+                        - img [ref=e675]
+                        - generic [ref=e679]: 银色医疗箱
+                      - generic [ref=e680] [cursor=pointer]:
+                        - checkbox "狗腿刀" [ref=e681]
+                        - img [ref=e683]
+                        - generic [ref=e687]: 狗腿刀
+                - region "分镜 3 画面" [ref=e688]:
+                  - textbox "分镜描述" [ref=e689]: 林澈低头在皮质笔记本上书写，钢笔快速记录，眉头紧锁，眼神锐利如刀。
+                  - textbox "画面补充" [ref=e690]:
+                    - /placeholder: 画面补充（可选）
+                    - text: 电影感国漫风格，图书馆书库角落，林澈坐在旧木桌前，低头书写，黑色钢笔在皮质笔记本上快速划过，纸上密密麻麻的符号与文字。他眉头紧锁，眼镜反射光，眼神锐利如刀，专注忘我。深灰色卫衣袖子微微卷起，露出左腕银色停走机械表。桌面散落旧书、纸张和几支笔，光线从侧面打亮面部，背景书架模糊。
+                  - generic [ref=e691]:
+                    - button "生成首帧" [ref=e692] [cursor=pointer]:
+                      - img [ref=e694]
+                      - generic [ref=e697]: 生成首帧
+                    - button "生成关键帧" [ref=e698] [cursor=pointer]:
+                      - img [ref=e700]
+                      - generic [ref=e703]: 生成关键帧
+                    - button "生成尾帧" [ref=e704] [cursor=pointer]:
+                      - img [ref=e706]
+                      - generic [ref=e709]: 生成尾帧
+                    - button "生成分镜图" [ref=e710] [cursor=pointer]:
+                      - img [ref=e712]
+                      - generic [ref=e715]: 生成分镜图
+                  - generic [ref=e716]:
+                    - generic [ref=e717]:
+                      - generic [ref=e718]: 首帧
+                      - generic [ref=e719]: 待生成
+                    - generic [ref=e720]:
+                      - generic [ref=e721]: 关键帧
+                      - generic [ref=e722]: 待生成
+                    - generic [ref=e723]:
+                      - generic [ref=e724]: 尾帧
+                      - generic [ref=e725]: 待生成
+                  - generic [ref=e726]: 尚未生成分镜图
+                - region "分镜 3 视频" [ref=e727]:
+                  - textbox "视频提示词" [ref=e728]:
+                    - /placeholder: 镜头动作与动态补充（可选）
+                    - text: 推近镜头，从笔记本上方越过林澈的肩拍摄，钢笔笔尖在纸面摩擦滑动，他手指顿住，猛然抬头，眼镜反光，眼神从专注变为锐利，桌面的纸张被气流轻轻掀起。
+                  - button "生成分镜视频" [ref=e730] [cursor=pointer]:
+                    - img [ref=e732]
+                    - generic [ref=e734]: 生成分镜视频
+                  - generic [ref=e735]: 生成关键帧或分镜图后可生成视频
+            - article [ref=e736]:
+              - generic [ref=e737]:
+                - generic [ref=e738]:
+                  - generic [ref=e739]:
+                    - heading "分镜 4 · 苏晚警示林澈" [level=3] [ref=e740]
+                    - generic [ref=e741]: 分镜图 待生成
+                    - generic [ref=e742]: 视频 待生成
+                  - paragraph [ref=e743]: 3s · 平视，略带仰角强调苏晚的主导 · 跟拍苏晚的移动，然后切换为正反打，紧张节奏，镜头推近二人面部。
+                - generic [ref=e744]:
+                  - button "同步任务状态" [ref=e745] [cursor=pointer]:
+                    - img [ref=e747]
+                  - button "编辑分镜" [ref=e749] [cursor=pointer]:
+                    - img [ref=e751]
+                  - button "删除分镜" [ref=e753] [cursor=pointer]:
+                    - img [ref=e755]
+              - generic [ref=e758]:
+                - region "分镜 4 资产关联" [ref=e759]:
+                  - generic [ref=e760]:
+                    - generic [ref=e761]: 场景
+                    - generic [ref=e762]:
+                      - generic [ref=e763] [cursor=pointer]:
+                        - radio "图书馆" [ref=e764]
+                        - generic [ref=e765]: 图书馆
+                      - generic [ref=e766] [cursor=pointer]:
+                        - radio "午夜医院" [ref=e767]
+                        - img [ref=e769]
+                        - generic [ref=e773]: 午夜医院
+                  - generic [ref=e774]:
+                    - generic [ref=e775]: 角色
+                    - generic [ref=e776]:
+                      - generic [ref=e777] [cursor=pointer]:
+                        - checkbox "林澈" [checked] [ref=e778]
+                        - generic [ref=e779]: 林澈
+                      - generic [ref=e780] [cursor=pointer]:
+                        - checkbox "苏晚" [checked] [ref=e781]
+                        - img [ref=e783]
+                        - generic [ref=e787]: 苏晚
+                      - generic [ref=e788] [cursor=pointer]:
+                        - checkbox "陈锋" [ref=e789]
+                        - img [ref=e791]
+                        - generic [ref=e795]: 陈锋
+                      - generic [ref=e796] [cursor=pointer]:
+                        - checkbox "沈墨" [ref=e797]
+                        - img [ref=e799]
+                        - generic [ref=e803]: 沈墨
+                      - generic [ref=e804] [cursor=pointer]:
+                        - checkbox "小雅" [ref=e805]
+                        - img [ref=e807]
+                        - generic [ref=e811]: 小雅
+                      - generic [ref=e812] [cursor=pointer]:
+                        - checkbox "罗振海" [ref=e813]
+                        - img [ref=e815]
+                        - generic [ref=e819]: 罗振海
+                      - generic [ref=e820] [cursor=pointer]:
+                        - checkbox "“收藏家”" [ref=e821]
+                        - img [ref=e823]
+                        - generic [ref=e827]: “收藏家”
+                  - generic [ref=e828]:
+                    - generic [ref=e829]: 道具
+                    - generic [ref=e830]:
+                      - generic [ref=e831] [cursor=pointer]:
+                        - checkbox "停走的银色机械表" [ref=e832]
+                        - generic [ref=e833]: 停走的银色机械表
+                      - generic [ref=e834] [cursor=pointer]:
+                        - checkbox "皮质笔记本" [ref=e835]
+                        - generic [ref=e836]: 皮质笔记本
+                      - generic [ref=e837] [cursor=pointer]:
+                        - checkbox "钢笔" [ref=e838]
+                        - generic [ref=e839]: 钢笔
+                      - generic [ref=e840] [cursor=pointer]:
+                        - checkbox "老式听诊器" [checked] [ref=e841]
+                        - img [ref=e843]
+                        - generic [ref=e847]: 老式听诊器
+                      - generic [ref=e848] [cursor=pointer]:
+                        - checkbox "银色医疗箱" [ref=e849]
+                        - img [ref=e851]
+                        - generic [ref=e855]: 银色医疗箱
+                      - generic [ref=e856] [cursor=pointer]:
+                        - checkbox "狗腿刀" [ref=e857]
+                        - img [ref=e859]
+                        - generic [ref=e863]: 狗腿刀
+                - region "分镜 4 画面" [ref=e864]:
+                  - textbox "分镜描述" [ref=e865]: 苏晚靠近林澈，神情担忧而严肃，目光注视林澈，嘴唇紧抿，听诊器微微晃荡。
+                  - textbox "画面补充" [ref=e866]:
+                    - /placeholder: 画面补充（可选）
+                    - text: 电影感国漫风格，医院走廊转角，苏晚快步靠近林澈，神情严肃而担忧，眉间微蹙，嘴唇紧抿，白色医生袍下摆随步伐摆动，老式听诊器垂在胸前晃动。林澈背靠墙面，略显慌乱，眼镜反光，深灰色卫衣领口微皱。苏晚伸手，手指几乎触及林澈的衣领，背景走廊冷光，气氛紧张。
+                  - generic [ref=e867]:
+                    - button "生成首帧" [ref=e868] [cursor=pointer]:
+                      - img [ref=e870]
+                      - generic [ref=e873]: 生成首帧
+                    - button "生成关键帧" [ref=e874] [cursor=pointer]:
+                      - img [ref=e876]
+                      - generic [ref=e879]: 生成关键帧
+                    - button "生成尾帧" [ref=e880] [cursor=pointer]:
+                      - img [ref=e882]
+                      - generic [ref=e885]: 生成尾帧
+                    - button "生成分镜图" [ref=e886] [cursor=pointer]:
+                      - img [ref=e888]
+                      - generic [ref=e891]: 生成分镜图
+                  - generic [ref=e892]:
+                    - generic [ref=e893]:
+                      - generic [ref=e894]: 首帧
+                      - generic [ref=e895]: 待生成
+                    - generic [ref=e896]:
+                      - generic [ref=e897]: 关键帧
+                      - generic [ref=e898]: 待生成
+                    - generic [ref=e899]:
+                      - generic [ref=e900]: 尾帧
+                      - generic [ref=e901]: 待生成
+                  - generic [ref=e902]: 尚未生成分镜图
+                - region "分镜 4 视频" [ref=e903]:
+                  - textbox "视频提示词" [ref=e904]:
+                    - /placeholder: 镜头动作与动态补充（可选）
+                    - text: 苏晚从画面右侧入画，快步走向左侧的林澈，步伐急促但稳定，伸手探向他的肩颈，林澈下意识后缩但被她眼神镇住，听诊器晃动，冷光下两人面庞半明半暗，时间仿佛暂停。
+                  - button "生成分镜视频" [ref=e906] [cursor=pointer]:
+                    - img [ref=e908]
+                    - generic [ref=e910]: 生成分镜视频
+                  - generic [ref=e911]: 生成关键帧或分镜图后可生成视频
+            - article [ref=e912]:
+              - generic [ref=e913]:
+                - generic [ref=e914]:
+                  - generic [ref=e915]:
+                    - heading "分镜 5 · 陈锋宣言" [level=3] [ref=e916]
+                    - generic [ref=e917]: 分镜图 待生成
+                    - generic [ref=e918]: 视频 待生成
+                  - paragraph [ref=e919]: 3s · 低角度仰拍，强化权威 · 低角度缓慢上摇，从下至上呈现人物全貌，强调压迫感。
+                - generic [ref=e920]:
+                  - button "同步任务状态" [ref=e921] [cursor=pointer]:
+                    - img [ref=e923]
+                  - button "编辑分镜" [ref=e925] [cursor=pointer]:
+                    - img [ref=e927]
+                  - button "删除分镜" [ref=e929] [cursor=pointer]:
+                    - img [ref=e931]
+              - generic [ref=e934]:
+                - region "分镜 5 资产关联" [ref=e935]:
+                  - generic [ref=e936]:
+                    - generic [ref=e937]: 场景
+                    - generic [ref=e938]:
+                      - generic [ref=e939] [cursor=pointer]:
+                        - radio "图书馆" [ref=e940]
+                        - generic [ref=e941]: 图书馆
+                      - generic [ref=e942] [cursor=pointer]:
+                        - radio "午夜医院" [ref=e943]
+                        - img [ref=e945]
+                        - generic [ref=e949]: 午夜医院
+                  - generic [ref=e950]:
+                    - generic [ref=e951]: 角色
+                    - generic [ref=e952]:
+                      - generic [ref=e953] [cursor=pointer]:
+                        - checkbox "林澈" [ref=e954]
+                        - generic [ref=e955]: 林澈
+                      - generic [ref=e956] [cursor=pointer]:
+                        - checkbox "苏晚" [ref=e957]
+                        - img [ref=e959]
+                        - generic [ref=e963]: 苏晚
+                      - generic [ref=e964] [cursor=pointer]:
+                        - checkbox "陈锋" [checked] [ref=e965]
+                        - img [ref=e967]
+                        - generic [ref=e971]: 陈锋
+                      - generic [ref=e972] [cursor=pointer]:
+                        - checkbox "沈墨" [ref=e973]
+                        - img [ref=e975]
+                        - generic [ref=e979]: 沈墨
+                      - generic [ref=e980] [cursor=pointer]:
+                        - checkbox "小雅" [ref=e981]
+                        - img [ref=e983]
+                        - generic [ref=e987]: 小雅
+                      - generic [ref=e988] [cursor=pointer]:
+                        - checkbox "罗振海" [ref=e989]
+                        - img [ref=e991]
+                        - generic [ref=e995]: 罗振海
+                      - generic [ref=e996] [cursor=pointer]:
+                        - checkbox "“收藏家”" [ref=e997]
+                        - img [ref=e999]
+                        - generic [ref=e1003]: “收藏家”
+                  - generic [ref=e1004]:
+                    - generic [ref=e1005]: 道具
+                    - generic [ref=e1006]:
+                      - generic [ref=e1007] [cursor=pointer]:
+                        - checkbox "停走的银色机械表" [ref=e1008]
+                        - generic [ref=e1009]: 停走的银色机械表
+                      - generic [ref=e1010] [cursor=pointer]:
+                        - checkbox "皮质笔记本" [ref=e1011]
+                        - generic [ref=e1012]: 皮质笔记本
+                      - generic [ref=e1013] [cursor=pointer]:
+                        - checkbox "钢笔" [ref=e1014]
+                        - generic [ref=e1015]: 钢笔
+                      - generic [ref=e1016] [cursor=pointer]:
+                        - checkbox "老式听诊器" [ref=e1017]
+                        - img [ref=e1019]
+                        - generic [ref=e1023]: 老式听诊器
+                      - generic [ref=e1024] [cursor=pointer]:
+                        - checkbox "银色医疗箱" [ref=e1025]
+                        - img [ref=e1027]
+                        - generic [ref=e1031]: 银色医疗箱
+                      - generic [ref=e1032] [cursor=pointer]:
+                        - checkbox "狗腿刀" [checked] [ref=e1033]
+                        - img [ref=e1035]
+                        - generic [ref=e1039]: 狗腿刀
+                - region "分镜 5 画面" [ref=e1040]:
+                  - textbox "分镜描述" [ref=e1041]: 陈锋站立于战术装备前，表情冷酷，眼神锐利，狗腿刀挂于腰间。
+                  - textbox "画面补充" [ref=e1042]:
+                    - /placeholder: 画面补充（可选）
+                    - text: 电影感国漫风格，图书馆地下仓库改造的战术据点，陈锋站立于战术装备前，32岁东亚男性，健壮，方脸硬朗，板寸头，左眉骨旧伤疤，黑色战术背心，迷彩长裤，高帮军靴，脖子上挂着子弹项链，露指战术手套，腰间斜挎狗腿刀，刀身暗红血槽。他双臂交叉抱胸，表情冷酷，眼神锐利且充满算计，背后墙面挂着武器与地图。
+                  - generic [ref=e1043]:
+                    - button "生成首帧" [ref=e1044] [cursor=pointer]:
+                      - img [ref=e1046]
+                      - generic [ref=e1049]: 生成首帧
+                    - button "生成关键帧" [ref=e1050] [cursor=pointer]:
+                      - img [ref=e1052]
+                      - generic [ref=e1055]: 生成关键帧
+                    - button "生成尾帧" [ref=e1056] [cursor=pointer]:
+                      - img [ref=e1058]
+                      - generic [ref=e1061]: 生成尾帧
+                    - button "生成分镜图" [ref=e1062] [cursor=pointer]:
+                      - img [ref=e1064]
+                      - generic [ref=e1067]: 生成分镜图
+                  - generic [ref=e1068]:
+                    - generic [ref=e1069]:
+                      - generic [ref=e1070]: 首帧
+                      - generic [ref=e1071]: 待生成
+                    - generic [ref=e1072]:
+                      - generic [ref=e1073]: 关键帧
+                      - generic [ref=e1074]: 待生成
+                    - generic [ref=e1075]:
+                      - generic [ref=e1076]: 尾帧
+                      - generic [ref=e1077]: 待生成
+                  - generic [ref=e1078]: 尚未生成分镜图
+                - region "分镜 5 视频" [ref=e1079]:
+                  - textbox "视频提示词" [ref=e1080]:
+                    - /placeholder: 镜头动作与动态补充（可选）
+                    - text: 低机位缓慢仰拍陈锋，从军靴扫过迷彩裤、战术背心，最后停留在面部，他微微偏头，眼神扫过镜头前方，嘴角肌肉轻微抽动，狗腿刀刀柄上的红缨在灯光下微晃。
+                  - button "生成分镜视频" [ref=e1082] [cursor=pointer]:
+                    - img [ref=e1084]
+                    - generic [ref=e1086]: 生成分镜视频
+                  - generic [ref=e1087]: 生成关键帧或分镜图后可生成视频
+            - article [ref=e1088]:
+              - generic [ref=e1089]:
+                - generic [ref=e1090]:
+                  - generic [ref=e1091]:
+                    - heading "分镜 6 · 陈锋探讨规则" [level=3] [ref=e1092]
+                    - generic [ref=e1093]: 分镜图 待生成
+                    - generic [ref=e1094]: 视频 待生成
+                  - paragraph [ref=e1095]: 2s · 平视微俯，从刀身过渡到面部 · 特写至近景的上摇，再轻微拉远，保持稳定手部细节。
+                - generic [ref=e1096]:
+                  - button "同步任务状态" [ref=e1097] [cursor=pointer]:
+                    - img [ref=e1099]
+                  - button "编辑分镜" [ref=e1101] [cursor=pointer]:
+                    - img [ref=e1103]
+                  - button "删除分镜" [ref=e1105] [cursor=pointer]:
+                    - img [ref=e1107]
+              - generic [ref=e1110]:
+                - region "分镜 6 资产关联" [ref=e1111]:
+                  - generic [ref=e1112]:
+                    - generic [ref=e1113]: 场景
+                    - generic [ref=e1114]:
+                      - generic [ref=e1115] [cursor=pointer]:
+                        - radio "图书馆" [ref=e1116]
+                        - generic [ref=e1117]: 图书馆
+                      - generic [ref=e1118] [cursor=pointer]:
+                        - radio "午夜医院" [ref=e1119]
+                        - img [ref=e1121]
+                        - generic [ref=e1125]: 午夜医院
+                  - generic [ref=e1126]:
+                    - generic [ref=e1127]: 角色
+                    - generic [ref=e1128]:
+                      - generic [ref=e1129] [cursor=pointer]:
+                        - checkbox "林澈" [ref=e1130]
+                        - generic [ref=e1131]: 林澈
+                      - generic [ref=e1132] [cursor=pointer]:
+                        - checkbox "苏晚" [ref=e1133]
+                        - img [ref=e1135]
+                        - generic [ref=e1139]: 苏晚
+                      - generic [ref=e1140] [cursor=pointer]:
+                        - checkbox "陈锋" [checked] [ref=e1141]
+                        - img [ref=e1143]
+                        - generic [ref=e1147]: 陈锋
+                      - generic [ref=e1148] [cursor=pointer]:
+                        - checkbox "沈墨" [ref=e1149]
+                        - img [ref=e1151]
+                        - generic [ref=e1155]: 沈墨
+                      - generic [ref=e1156] [cursor=pointer]:
+                        - checkbox "小雅" [ref=e1157]
+                        - img [ref=e1159]
+                        - generic [ref=e1163]: 小雅
+                      - generic [ref=e1164] [cursor=pointer]:
+                        - checkbox "罗振海" [ref=e1165]
+                        - img [ref=e1167]
+                        - generic [ref=e1171]: 罗振海
+                      - generic [ref=e1172] [cursor=pointer]:
+                        - checkbox "“收藏家”" [ref=e1173]
+                        - img [ref=e1175]
+                        - generic [ref=e1179]: “收藏家”
+                  - generic [ref=e1180]:
+                    - generic [ref=e1181]: 道具
+                    - generic [ref=e1182]:
+                      - generic [ref=e1183] [cursor=pointer]:
+                        - checkbox "停走的银色机械表" [ref=e1184]
+                        - generic [ref=e1185]: 停走的银色机械表
+                      - generic [ref=e1186] [cursor=pointer]:
+                        - checkbox "皮质笔记本" [ref=e1187]
+                        - generic [ref=e1188]: 皮质笔记本
+                      - generic [ref=e1189] [cursor=pointer]:
+                        - checkbox "钢笔" [ref=e1190]
+                        - generic [ref=e1191]: 钢笔
+                      - generic [ref=e1192] [cursor=pointer]:
+                        - checkbox "老式听诊器" [ref=e1193]
+                        - img [ref=e1195]
+                        - generic [ref=e1199]: 老式听诊器
+                      - generic [ref=e1200] [cursor=pointer]:
+                        - checkbox "银色医疗箱" [ref=e1201]
+                        - img [ref=e1203]
+                        - generic [ref=e1207]: 银色医疗箱
+                      - generic [ref=e1208] [cursor=pointer]:
+                        - checkbox "狗腿刀" [checked] [ref=e1209]
+                        - img [ref=e1211]
+                        - generic [ref=e1215]: 狗腿刀
+                - region "分镜 6 画面" [ref=e1216]:
+                  - textbox "分镜描述" [ref=e1217]: 陈锋低头看向手中狗腿刀，嘴角一丝冷笑，随即抬头表情坚定。
+                  - textbox "画面补充" [ref=e1218]:
+                    - /placeholder: 画面补充（可选）
+                    - text: 电影感国漫风格，延续战术据点，陈锋低头注视手中狗腿刀，刀身暗红色血槽纹路清晰，刀锋反射冷光，他的眼神从锐利转为一丝阴鸷，嘴角挂着冷笑，随即抬头，表情坚定冷酷。背景中队友的身影模糊可见，但焦点在陈锋面部与刀锋上。
+                  - generic [ref=e1219]:
+                    - button "生成首帧" [ref=e1220] [cursor=pointer]:
+                      - img [ref=e1222]
+                      - generic [ref=e1225]: 生成首帧
+                    - button "生成关键帧" [ref=e1226] [cursor=pointer]:
+                      - img [ref=e1228]
+                      - generic [ref=e1231]: 生成关键帧
+                    - button "生成尾帧" [ref=e1232] [cursor=pointer]:
+                      - img [ref=e1234]
+                      - generic [ref=e1237]: 生成尾帧
+                    - button "生成分镜图" [ref=e1238] [cursor=pointer]:
+                      - img [ref=e1240]
+                      - generic [ref=e1243]: 生成分镜图
+                  - generic [ref=e1244]:
+                    - generic [ref=e1245]:
+                      - generic [ref=e1246]: 首帧
+                      - generic [ref=e1247]: 待生成
+                    - generic [ref=e1248]:
+                      - generic [ref=e1249]: 关键帧
+                      - generic [ref=e1250]: 待生成
+                    - generic [ref=e1251]:
+                      - generic [ref=e1252]: 尾帧
+                      - generic [ref=e1253]: 待生成
+                  - generic [ref=e1254]: 尚未生成分镜图
+                - region "分镜 6 视频" [ref=e1255]:
+                  - textbox "视频提示词" [ref=e1256]:
+                    - /placeholder: 镜头动作与动态补充（可选）
+                    - text: 特写陈锋的狗腿刀，然后缓慢上摇至他的脸，他眼中闪过寒光，随即拇指顶开刀柄锁扣，刀身轻震，金属声；他抬头直视镜头，嘴角抽动，随即收刀入鞘，动作干脆利落。
+                  - button "生成分镜视频" [ref=e1258] [cursor=pointer]:
+                    - img [ref=e1260]
+                    - generic [ref=e1262]: 生成分镜视频
+                  - generic [ref=e1263]: 生成关键帧或分镜图后可生成视频
+            - article [ref=e1264]:
+              - generic [ref=e1265]:
+                - generic [ref=e1266]:
+                  - generic [ref=e1267]:
+                    - heading "分镜 7 · 林澈自然法则语录" [level=3] [ref=e1268]
+                    - generic [ref=e1269]: 分镜图 待生成
+                    - generic [ref=e1270]: 视频 待生成
+                  - paragraph [ref=e1271]: 2s · 平视，略微仰角展现人物思考后的沉稳 · 缓慢上摇，从桌面静物升至人物面部，然后稳步拉远至中景。
+                - generic [ref=e1272]:
+                  - button "同步任务状态" [ref=e1273] [cursor=pointer]:
+                    - img [ref=e1275]
+                  - button "编辑分镜" [ref=e1277] [cursor=pointer]:
+                    - img [ref=e1279]
+                  - button "删除分镜" [ref=e1281] [cursor=pointer]:
+                    - img [ref=e1283]
+              - generic [ref=e1286]:
+                - region "分镜 7 资产关联" [ref=e1287]:
+                  - generic [ref=e1288]:
+                    - generic [ref=e1289]: 场景
+                    - generic [ref=e1290]:
+                      - generic [ref=e1291] [cursor=pointer]:
+                        - radio "图书馆" [checked] [ref=e1292]
+                        - generic [ref=e1293]: 图书馆
+                      - generic [ref=e1294] [cursor=pointer]:
+                        - radio "午夜医院" [ref=e1295]
+                        - img [ref=e1297]
+                        - generic [ref=e1301]: 午夜医院
+                  - generic [ref=e1302]:
+                    - generic [ref=e1303]: 角色
+                    - generic [ref=e1304]:
+                      - generic [ref=e1305] [cursor=pointer]:
+                        - checkbox "林澈" [checked] [ref=e1306]
+                        - generic [ref=e1307]: 林澈
+                      - generic [ref=e1308] [cursor=pointer]:
+                        - checkbox "苏晚" [ref=e1309]
+                        - img [ref=e1311]
+                        - generic [ref=e1315]: 苏晚
+                      - generic [ref=e1316] [cursor=pointer]:
+                        - checkbox "陈锋" [ref=e1317]
+                        - img [ref=e1319]
+                        - generic [ref=e1323]: 陈锋
+                      - generic [ref=e1324] [cursor=pointer]:
+                        - checkbox "沈墨" [ref=e1325]
+                        - img [ref=e1327]
+                        - generic [ref=e1331]: 沈墨
+                      - generic [ref=e1332] [cursor=pointer]:
+                        - checkbox "小雅" [ref=e1333]
+                        - img [ref=e1335]
+                        - generic [ref=e1339]: 小雅
+                      - generic [ref=e1340] [cursor=pointer]:
+                        - checkbox "罗振海" [ref=e1341]
+                        - img [ref=e1343]
+                        - generic [ref=e1347]: 罗振海
+                      - generic [ref=e1348] [cursor=pointer]:
+                        - checkbox "“收藏家”" [ref=e1349]
+                        - img [ref=e1351]
+                        - generic [ref=e1355]: “收藏家”
+                  - generic [ref=e1356]:
+                    - generic [ref=e1357]: 道具
+                    - generic [ref=e1358]:
+                      - generic [ref=e1359] [cursor=pointer]:
+                        - checkbox "停走的银色机械表" [ref=e1360]
+                        - generic [ref=e1361]: 停走的银色机械表
+                      - generic [ref=e1362] [cursor=pointer]:
+                        - checkbox "皮质笔记本" [ref=e1363]
+                        - generic [ref=e1364]: 皮质笔记本
+                      - generic [ref=e1365] [cursor=pointer]:
+                        - checkbox "钢笔" [checked] [ref=e1366]
+                        - generic [ref=e1367]: 钢笔
+                      - generic [ref=e1368] [cursor=pointer]:
+                        - checkbox "老式听诊器" [ref=e1369]
+                        - img [ref=e1371]
+                        - generic [ref=e1375]: 老式听诊器
+                      - generic [ref=e1376] [cursor=pointer]:
+                        - checkbox "银色医疗箱" [ref=e1377]
+                        - img [ref=e1379]
+                        - generic [ref=e1383]: 银色医疗箱
+                      - generic [ref=e1384] [cursor=pointer]:
+                        - checkbox "狗腿刀" [ref=e1385]
+                        - img [ref=e1387]
+                        - generic [ref=e1391]: 狗腿刀
+                - region "分镜 7 画面" [ref=e1392]:
+                  - textbox "分镜描述" [ref=e1393]: 林澈放下钢笔，透过眼镜看向远处，目光沉稳。
+                  - textbox "画面补充" [ref=e1394]:
+                    - /placeholder: 画面补充（可选）
+                    - text: 电影感国漫风格，回到图书馆书库，林澈坐在木桌前，放下钢笔，钢笔搁在皮质笔记本上，他身体后仰，透过黑框眼镜望向远处书架上层，目光沉稳而专注，下颌放松。窗外一缕斜阳透过高窗落在他的脸上，眼镜反射柔和光斑，深灰色卫衣在光下显现磨损痕迹，左手腕银色机械表仍停走。
+                  - generic [ref=e1395]:
+                    - button "生成首帧" [ref=e1396] [cursor=pointer]:
+                      - img [ref=e1398]
+                      - generic [ref=e1401]: 生成首帧
+                    - button "生成关键帧" [ref=e1402] [cursor=pointer]:
+                      - img [ref=e1404]
+                      - generic [ref=e1407]: 生成关键帧
+                    - button "生成尾帧" [ref=e1408] [cursor=pointer]:
+                      - img [ref=e1410]
+                      - generic [ref=e1413]: 生成尾帧
+                    - button "生成分镜图" [ref=e1414] [cursor=pointer]:
+                      - img [ref=e1416]
+                      - generic [ref=e1419]: 生成分镜图
+                  - generic [ref=e1420]:
+                    - generic [ref=e1421]:
+                      - generic [ref=e1422]: 首帧
+                      - generic [ref=e1423]: 待生成
+                    - generic [ref=e1424]:
+                      - generic [ref=e1425]: 关键帧
+                      - generic [ref=e1426]: 待生成
+                    - generic [ref=e1427]:
+                      - generic [ref=e1428]: 尾帧
+                      - generic [ref=e1429]: 待生成
+                  - generic [ref=e1430]: 尚未生成分镜图
+                - region "分镜 7 视频" [ref=e1431]:
+                  - textbox "视频提示词" [ref=e1432]:
+                    - /placeholder: 镜头动作与动态补充（可选）
+                    - text: 镜头从笔记本和钢笔缓缓上摇到林澈的脸，他凝望远处，眼神由内省转向坚定，手指无意识轻敲桌面，阳光中的尘埃浮动，他微微呼出一口气，像是做出决定。
+                  - button "生成分镜视频" [ref=e1434] [cursor=pointer]:
+                    - img [ref=e1436]
+                    - generic [ref=e1438]: 生成分镜视频
+                  - generic [ref=e1439]: 生成关键帧或分镜图后可生成视频
+      - complementary [ref=e1440]:
+        - generic [ref=e1441]:
+          - generic [ref=e1442]: 团队协作与审批
+          - button "收起团队协作与审批" [ref=e1443] [cursor=pointer]:
+            - img [ref=e1445]
+        - generic [ref=e1449]:
+          - generic [ref=e1450]:
+            - generic [ref=e1451]:
+              - img [ref=e1453]
+              - generic [ref=e1458]:
+                - generic [ref=e1459]:
+                  - heading "星河短剧项目组" [level=2] [ref=e1460]
+                  - switch "启用团队协作" [checked] [ref=e1461] [cursor=pointer]
+                - paragraph [ref=e1464]: 项目组长可决定审批节点；成员、职责和权限均为本页演示数据。
+                - paragraph [ref=e1465]: 当前制作阶段：视觉图片审核
+            - generic [ref=e1466]:
+              - button "严格 上游通过后再继续" [ref=e1467]:
+                - generic [ref=e1468]:
+                  - img [ref=e1469]
+                  - text: 严格
+                - generic [ref=e1473]: 上游通过后再继续
+              - button "并行 继续制作，版本待确认" [ref=e1474]:
+                - generic [ref=e1475]:
+                  - img [ref=e1476]
+                  - text: 并行
+                - generic [ref=e1480]: 继续制作，版本待确认
+          - generic [ref=e1481]:
+            - generic [ref=e1482]:
+              - heading "审批配置" [level=3] [ref=e1483]
+              - generic [ref=e1484]: 组长决定
+            - generic [ref=e1485]:
+              - generic [ref=e1486]:
+                - generic [ref=e1487]:
+                  - switch "启用剧本审核" [checked] [ref=e1488] [cursor=pointer]
+                  - generic [ref=e1491]:
+                    - generic [ref=e1492]:
+                      - generic [ref=e1493]: 剧本审核
+                      - generic [ref=e1494]: 待提交
+                    - paragraph [ref=e1495]: 故事梗概、分集剧本与人物情节表达
+                - button "提交" [ref=e1497] [cursor=pointer]:
+                  - img [ref=e1499]
+                  - generic [ref=e1502]: 提交
+              - generic [ref=e1503]:
+                - generic [ref=e1504]:
+                  - switch "启用资产提示词审核" [checked] [ref=e1505] [cursor=pointer]
+                  - generic [ref=e1508]:
+                    - generic [ref=e1509]:
+                      - generic [ref=e1510]: 资产提示词审核
+                      - generic [ref=e1511]: 待提交
+                    - paragraph [ref=e1512]: 角色、场景、道具及分镜提示词
+                - button "提交" [ref=e1514] [cursor=pointer]:
+                  - img [ref=e1516]
+                  - generic [ref=e1519]: 提交
+              - generic [ref=e1520]:
+                - generic [ref=e1521]:
+                  - switch "启用视觉图片审核" [checked] [ref=e1522] [cursor=pointer]
+                  - generic [ref=e1525]:
+                    - generic [ref=e1526]:
+                      - generic [ref=e1527]: 视觉图片审核
+                      - generic [ref=e1528]: 待提交
+                    - paragraph [ref=e1529]: 资产图片与分镜图片的一致性
+                - button "提交" [ref=e1531] [cursor=pointer]:
+                  - img [ref=e1533]
+                  - generic [ref=e1536]: 提交
+              - generic [ref=e1537]:
+                - generic [ref=e1538]:
+                  - switch "启用分镜视频审核" [checked] [ref=e1539] [cursor=pointer]
+                  - generic [ref=e1542]:
+                    - generic [ref=e1543]:
+                      - generic [ref=e1544]: 分镜视频审核
+                      - generic [ref=e1545]: 待提交
+                    - paragraph [ref=e1546]: 镜头视频、节奏与动作衔接
+                - button "提交" [ref=e1548] [cursor=pointer]:
+                  - img [ref=e1550]
+                  - generic [ref=e1553]: 提交
+              - generic [ref=e1554]:
+                - generic [ref=e1555]:
+                  - switch "启用成片审核" [checked] [ref=e1556] [cursor=pointer]
+                  - generic [ref=e1559]:
+                    - generic [ref=e1560]:
+                      - generic [ref=e1561]: 成片审核
+                      - generic [ref=e1562]: 待提交
+                    - paragraph [ref=e1563]: 导出前的最终成片版本
+                - button "提交" [ref=e1565] [cursor=pointer]:
+                  - img [ref=e1567]
+                  - generic [ref=e1570]: 提交
+          - generic [ref=e1571]:
+            - heading "反馈与提醒" [level=3] [ref=e1572]
+            - generic [ref=e1573]:
+              - generic [ref=e1574]:
+                - generic [ref=e1575]: 打回时必须填写反馈
+                - switch "打回时必须填写反馈" [checked] [ref=e1576] [cursor=pointer]
+              - generic [ref=e1579]:
+                - generic [ref=e1580]: 打回后提醒负责人
+                - switch "打回后提醒负责人" [checked] [ref=e1581] [cursor=pointer]
+              - generic [ref=e1584]:
+                - generic [ref=e1585]: 允许反馈附件
+                - switch "允许反馈附件" [ref=e1586] [cursor=pointer]
+            - textbox "填写后可用于模拟打回反馈" [ref=e1589]
+          - generic [ref=e1590]:
+            - generic [ref=e1591]:
+              - heading "项目成员" [level=3] [ref=e1592]
+              - generic [ref=e1593]: 演示
+            - generic [ref=e1594]:
+              - generic [ref=e1595]:
+                - generic [ref=e1596]: 林组长
+                - generic [ref=e1597]: 统筹、审批
+              - generic [ref=e1598]:
+                - generic [ref=e1599]: 陈编剧
+                - generic [ref=e1600]: 剧本、资产提示词
+              - generic [ref=e1601]:
+                - generic [ref=e1602]: 周制作
+                - generic [ref=e1603]: 视觉图片、分镜视频
+          - alert [ref=e1604]:
+            - img [ref=e1606]
+            - generic [ref=e1608]:
+              - generic [ref=e1609]: 当前为本地协作演示
+              - generic [ref=e1610]: 不创建项目组、不发送通知、不上传附件，刷新页面后演示状态会重置。
+  - alert [ref=e12]

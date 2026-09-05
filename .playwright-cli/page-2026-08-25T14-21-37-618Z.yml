@@ -1,0 +1,102 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - complementary [ref=e23]:
+      - link "VOZEB PRO" [ref=e24] [cursor=pointer]:
+        - /url: /create
+        - generic [ref=e26]: VOZEB PRO
+      - navigation "工作空间导航" [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]: 创作
+          - link "Agent" [ref=e31] [cursor=pointer]:
+            - /url: /create
+            - img [ref=e32]
+            - generic [ref=e35]: Agent
+        - generic [ref=e36]:
+          - generic [ref=e37]: 项目
+          - generic [ref=e38]:
+            - link "画布" [ref=e39] [cursor=pointer]:
+              - /url: /canvas
+              - img [ref=e40]
+              - generic [ref=e45]: 画布
+            - link "短剧" [ref=e46] [cursor=pointer]:
+              - /url: /drama
+              - img [ref=e47]
+              - generic [ref=e52]: 短剧
+            - link "短剧实验室" [ref=e53] [cursor=pointer]:
+              - /url: /drama-lab
+              - img [ref=e54]
+              - generic [ref=e56]: 短剧实验室
+        - generic [ref=e57]:
+          - generic [ref=e58]: 资产
+          - generic [ref=e59]:
+            - link "作品" [ref=e60] [cursor=pointer]:
+              - /url: /works
+              - img [ref=e61]
+              - generic [ref=e63]: 作品
+            - link "素材" [ref=e64] [cursor=pointer]:
+              - /url: /assets
+              - img [ref=e65]
+              - generic [ref=e70]: 素材
+            - link "提示词" [ref=e71] [cursor=pointer]:
+              - /url: /my-prompts
+              - img [ref=e72]
+              - generic [ref=e75]: 提示词
+            - link "词库" [ref=e76] [cursor=pointer]:
+              - /url: /prompts
+              - img [ref=e77]
+              - generic [ref=e80]: 词库
+        - generic [ref=e81]:
+          - generic [ref=e82]: 社区
+          - generic [ref=e83]:
+            - link "广场" [ref=e84] [cursor=pointer]:
+              - /url: /community
+              - img [ref=e85]
+              - generic [ref=e88]: 广场
+            - link "IP库" [ref=e89] [cursor=pointer]:
+              - /url: /ip-library
+              - img [ref=e90]
+              - generic [ref=e92]: IP库
+            - link "主页" [ref=e93] [cursor=pointer]:
+              - /url: /me
+              - img [ref=e94]
+              - generic [ref=e97]: 主页
+      - link "帮助" [ref=e99] [cursor=pointer]:
+        - /url: /help
+        - img [ref=e100]
+        - generic [ref=e104]: 帮助
+        - img [ref=e105]
+    - generic [ref=e107]:
+      - banner [ref=e108]:
+        - generic [ref=e109]:
+          - button "收起侧边栏" [pressed] [ref=e110]:
+            - img [ref=e111]
+          - generic [ref=e115]: 工作空间
+        - generic [ref=e117]:
+          - button "81" [ref=e118]:
+            - img [ref=e120]
+            - text: "81"
+          - button "通知中心" [ref=e123]:
+            - img [ref=e124]
+          - button "切换到深色主题" [ref=e127]:
+            - img [ref=e128]
+            - generic [ref=e130]: 切换到深色主题
+          - button "账户菜单" [ref=e131]:
+            - generic [ref=e132]: AD
+      - main [ref=e793]:
+        - main [ref=e794]
+        - generic [ref=e815]:
+          - button "返回短剧分镜工作台" [ref=e816] [cursor=pointer]:
+            - img [ref=e818]
+          - generic "drama-lab-1787246544197-33qcu5b" [ref=e820]: 短剧实验室
+          - generic [ref=e821] [cursor=pointer]:
+            - generic "ep_1787278645327" [ref=e822]:
+              - text: ep_1787278645327
+              - combobox "切换剧集" [ref=e823]
+            - img "loading" [ref=e825]:
+              - img [ref=e826]
+          - button "同步当前集" [ref=e828] [cursor=pointer]:
+            - img [ref=e830]
+          - generic [ref=e835]: 画布 77d2e40d
+  - button "Open Next.js Dev Tools" [ref=e18] [cursor=pointer]:
+    - img [ref=e19]
+  - alert [ref=e22]

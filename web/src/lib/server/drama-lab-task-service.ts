@@ -64,11 +64,15 @@ export async function listDramaLabTasksForProject(input: { userId: string; proje
     const status = normalizeListStatus(input.status);
     const records = await readProjectTaskRecords(ownerIds, projectId);
     const tasks = records
-        .filter((record) => matchesStatus(effectiveDramaTaskStatus(record), status))
+        // Workflow bookkeeping children are persisted in the shared task
+        // store so workers can recover them, but they are not user tasks.
+        // Returning them here makes a failed parent appear to keep running.
+        .filter((record) => !isSyntheticWorkflowChild(record))
+        .filter((record) => matchesStatus(effectiveDramaTaskStatus(record), status, record.executionPhase))
         .filter((record) => isProjectTask(record, projectId, ownerIds))
         .map(normalizeDramaLabTask)
         .sort((left, right) => right.updatedAt - left.updatedAt || right.id.localeCompare(left.id));
-    return { tasks, activeCount: tasks.filter((task) => isActiveStatus(task.status)).length, total: tasks.length };
+    return { tasks, activeCount: tasks.filter((task) => isActiveTaskView(task)).length, total: tasks.length };
 }
 
 /**
@@ -87,7 +91,7 @@ export async function cancelDramaLabTask(input: { userId: string; projectId: str
     if (!located) throw new DramaLabTaskError("Task not found", 404);
 
     if (located.status === "cancelled" && isCancellationPhase(located.executionPhase)) return normalizeDramaLabTask(located);
-    if (!isActiveStatus(effectiveDramaTaskStatus(located))) throw new DramaLabTaskError("The current task cannot be cancelled", 409);
+    if (!isActiveStatus(effectiveDramaTaskStatus(located), located.executionPhase)) throw new DramaLabTaskError("The current task cannot be cancelled", 409);
 
     const origin = input.origin || "";
     const cookie = input.cookie || "";
@@ -162,7 +166,7 @@ export function normalizeDramaLabTask(record: StoredGenerationTaskRecord): Drama
         progress,
         currentStep: firstText(payload.currentStep, workflow.steps && currentWorkflowStep(workflow), storyBatch.status, record.executionPhase),
         error,
-        canCancel: isActiveStatus(status),
+        canCancel: isActiveStatus(status, record.executionPhase),
         canRetry: (status === "error" || status === "cancelled") && (payload.retryable === true || record.type === "render"),
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,
@@ -184,7 +188,7 @@ async function readProjectTaskRecords(ownerIds: string[], projectId: string) {
 async function findTaskRecord(taskId: string, ownerIds: string[], projectId: string) {
     for (const type of TASK_TYPES) {
         const record = await getStoredGenerationTaskRecord(type, taskId);
-        if (!record || !ownerIds.includes(record.userId) || !isProjectTask(record, projectId, ownerIds)) continue;
+        if (!record || isSyntheticWorkflowChild(record) || !ownerIds.includes(record.userId) || !isProjectTask(record, projectId, ownerIds)) continue;
         return record;
     }
     return null;
@@ -284,15 +288,32 @@ function normalizeListStatus(value: string | undefined): TaskListStatus {
     return "active";
 }
 
-function matchesStatus(status: DramaTaskStatus, filter: TaskListStatus) {
-    if (filter === "active") return isActiveStatus(status);
-    if (filter === "terminal") return !isActiveStatus(status);
+function matchesStatus(status: DramaTaskStatus, filter: TaskListStatus, executionPhase?: StoredGenerationTaskRecord["executionPhase"]) {
+    if (filter === "active") return isActiveStatus(status, executionPhase);
+    if (filter === "terminal") return !isActiveStatus(status, executionPhase);
     if (filter === "all") return true;
+    if (filter === "pending" || filter === "running") return status === filter && isActiveStatus(status, executionPhase);
     return status === filter;
 }
 
-function isActiveStatus(status: string): status is "pending" | "running" {
-    return status === "pending" || status === "running";
+function isActiveStatus(status: string, executionPhase?: StoredGenerationTaskRecord["executionPhase"]): status is "pending" | "running" {
+    return (status === "pending" || status === "running") && !isReviewExecutionPhase(executionPhase);
+}
+
+function isActiveTaskView(task: DramaLabTaskView) {
+    return isActiveStatus(task.status, task.executionPhase);
+}
+
+function isReviewExecutionPhase(value: StoredGenerationTaskRecord["executionPhase"] | undefined) {
+    return value === "needs_review" || value === "review_pending" || value === "reviewing" || value === "review_unavailable";
+}
+
+function isSyntheticWorkflowChild(record: StoredGenerationTaskRecord) {
+    if (record.type !== "render") return false;
+    const payload = object(record.payload);
+    const parentTaskId = firstText(record.parentTaskId, payload.parentTaskId);
+    const child = object(payload.workflowChild);
+    return Boolean(parentTaskId && (typeof child.id === "string" || typeof child.key === "string"));
 }
 
 function effectiveDramaTaskStatus(record: StoredGenerationTaskRecord): DramaTaskStatus {

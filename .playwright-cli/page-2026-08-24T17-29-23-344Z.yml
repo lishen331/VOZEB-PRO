@@ -1,0 +1,173 @@
+- main [ref=e3]:
+  - generic [ref=e5]:
+    - link "BLUEGAMMA 首页" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e7]: BLUEGAMMA
+    - navigation "官网主导航" [ref=e8]:
+      - button "创作 Agent" [ref=e9] [cursor=pointer]
+      - button "短剧制作" [ref=e10] [cursor=pointer]
+      - link "作品广场" [ref=e11] [cursor=pointer]:
+        - /url: /gallery
+      - button "价格方案" [ref=e12] [cursor=pointer]
+    - generic [ref=e13]:
+      - button "切换到深色主题" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+        - generic [ref=e17]: 切换到深色主题
+      - button "立即体验" [ref=e18] [cursor=pointer]
+  - region "一个入口 完成所有 AI 创作" [ref=e19]:
+    - generic:
+      - generic:
+        - img
+    - generic:
+      - generic:
+        - img
+    - generic:
+      - generic:
+        - img
+    - generic:
+      - generic:
+        - img
+    - generic [ref=e20]:
+      - heading "一个入口 完成所有 AI 创作" [level=1] [ref=e21]
+      - paragraph [ref=e22]: 从图片、视频、音频到 Agent 编排，让每个想法直接进入完整创作流程
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e26]: 描述你想创作的内容
+          - textbox "描述你想创作的内容" [ref=e27]:
+            - /placeholder: 描述你想创作的内容，比如：
+        - generic "示例提示词" [ref=e28]:
+          - button "生成一张科幻城市概念图" [ref=e29] [cursor=pointer]
+          - button "制作一段产品宣传视频" [ref=e30] [cursor=pointer]
+          - button "为电商产品生成详情页" [ref=e31] [cursor=pointer]
+          - button "创作一个短剧分镜脚本" [ref=e32] [cursor=pointer]
+        - generic [ref=e33]:
+          - group "创作模式" [ref=e34]:
+            - button "智能模式" [pressed] [ref=e35] [cursor=pointer]:
+              - img [ref=e37]
+              - generic [ref=e39]: 智能模式
+            - button "AI 绘图" [ref=e40] [cursor=pointer]:
+              - img [ref=e42]
+              - generic [ref=e46]: AI 绘图
+            - button "AI 视频" [ref=e47] [cursor=pointer]:
+              - img [ref=e49]
+              - generic [ref=e52]: AI 视频
+            - button "AI 音频" [ref=e53] [cursor=pointer]:
+              - img [ref=e55]
+              - generic [ref=e56]: AI 音频
+          - generic [ref=e57]:
+            - button "进入创作页添加参考素材" [ref=e58] [cursor=pointer]:
+              - img [ref=e59]
+            - button "开始创作" [ref=e61] [cursor=pointer]:
+              - img [ref=e62]
+  - generic [ref=e65]:
+    - region "简单四步，创意即刻落地" [ref=e66]:
+      - generic [ref=e67]:
+        - heading "简单四步，创意即刻落地" [level=2] [ref=e68]
+        - paragraph [ref=e69]: AI 赋能每一步，只需四个简单步骤
+      - generic [ref=e70]:
+        - article [ref=e71]:
+          - generic [ref=e72]: "01"
+          - generic [ref=e73]:
+            - heading "选择场景" [level=3] [ref=e74]
+            - paragraph [ref=e75]: 选择合适的创作场景，明确创作类型
+          - img [ref=e76]
+        - article [ref=e78]:
+          - generic [ref=e79]: "02"
+          - generic [ref=e80]:
+            - heading "输入需求" [level=3] [ref=e81]
+            - paragraph [ref=e82]: 描述你的想法，上传必要的参考素材
+          - img [ref=e83]
+        - article [ref=e86]:
+          - generic [ref=e87]: "03"
+          - generic [ref=e88]:
+            - heading "生成内容" [level=3] [ref=e89]
+            - paragraph [ref=e90]: AI 多模态生成高质量创作内容
+          - img [ref=e91]
+        - article [ref=e96]:
+          - generic [ref=e97]: "04"
+          - generic [ref=e98]:
+            - heading "发布与分享" [level=3] [ref=e99]
+            - paragraph [ref=e100]: 一键发布并分享创作成果
+          - img [ref=e101]
+    - region "灵感作品展示" [ref=e107]:
+      - generic [ref=e108]:
+        - heading "灵感作品展示" [level=2] [ref=e109]
+        - paragraph [ref=e110]: 探索创作者的优秀作品，激发你的创作灵感
+      - tablist "作品分类" [ref=e111]:
+        - tab "全部" [selected] [ref=e112] [cursor=pointer]
+        - tab "视觉设计" [ref=e113] [cursor=pointer]
+        - tab "插画" [ref=e114] [cursor=pointer]
+        - tab "摄影" [ref=e115] [cursor=pointer]
+        - tab "品牌内容" [ref=e116] [cursor=pointer]
+        - tab "视频" [ref=e117] [cursor=pointer]
+        - tab "短剧" [ref=e118] [cursor=pointer]
+        - tab "其他" [ref=e119] [cursor=pointer]
+      - tabpanel [ref=e120]:
+        - generic "正在加载公开作品" [ref=e121]
+      - link "查看更多作品" [ref=e155] [cursor=pointer]:
+        - /url: /gallery
+        - text: 查看更多作品
+        - img [ref=e156]
+    - region "平台优势" [ref=e158]:
+      - article [ref=e159]:
+        - img [ref=e161]
+        - generic [ref=e165]:
+          - heading "100+ 创作模板" [level=3] [ref=e166]
+          - paragraph [ref=e167]: 覆盖多行业与多场景
+      - article [ref=e168]:
+        - img [ref=e170]
+        - generic [ref=e175]:
+          - heading "多模型协同" [level=3] [ref=e176]
+          - paragraph [ref=e177]: 按任务智能匹配能力
+      - article [ref=e178]:
+        - img [ref=e180]
+        - generic [ref=e184]:
+          - heading "长任务不中断" [level=3] [ref=e185]
+          - paragraph [ref=e186]: 稳定续取创作进度
+      - article [ref=e187]:
+        - img [ref=e189]
+        - generic [ref=e191]:
+          - heading "企业级存储" [level=3] [ref=e192]
+          - paragraph [ref=e193]: 可靠保存创作资产
+    - region "开启你的 AI 创作工作流" [ref=e194]:
+      - generic [ref=e197]:
+        - heading "开启你的 AI 创作工作流" [level=2] [ref=e198]
+        - paragraph [ref=e199]: 加入 BLUEGAMMA，释放你的创作潜力，让 AI 成为你最强的创作伙伴。
+      - button "免费开始" [ref=e200] [cursor=pointer]:
+        - text: 免费开始
+        - img [ref=e201]
+    - generic [ref=e203]:
+      - generic [ref=e204]:
+        - generic [ref=e205]:
+          - link "BLUEGAMMA" [ref=e206] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e207]: BLUEGAMMA
+          - paragraph [ref=e208]: 面向 Agent、图片、视频、画布与短剧生产的一体化 AI 创作工作台
+          - link "邮箱联系" [ref=e210] [cursor=pointer]:
+            - /url: mailto:csyqlz@gmail.com
+            - img [ref=e211]
+        - generic [ref=e214]:
+          - navigation "产品" [ref=e215]:
+            - heading "产品" [level=2] [ref=e216]
+            - button "创作 Agent" [ref=e217] [cursor=pointer]
+            - button "短剧制作" [ref=e218] [cursor=pointer]
+            - link "作品广场" [ref=e219] [cursor=pointer]:
+              - /url: /gallery
+            - button "价格方案" [ref=e220] [cursor=pointer]
+          - navigation "平台" [ref=e221]:
+            - heading "平台" [level=2] [ref=e222]
+            - link "公告中心" [ref=e223] [cursor=pointer]:
+              - /url: /announcements
+          - navigation "友情链接" [ref=e224]:
+            - heading "友情链接" [level=2] [ref=e225]
+            - link "VOZEB 开源交流 QQ 群" [ref=e226] [cursor=pointer]:
+              - /url: https://qm.qq.com/q/9MVLTxuRd6
+            - link "Linux.do" [ref=e227] [cursor=pointer]:
+              - /url: https://linux.do/
+      - generic [ref=e228]:
+        - generic [ref=e229]: © 2026 BLUEGAMMA. All rights reserved.
+        - generic [ref=e230]:
+          - link "隐私政策" [ref=e231] [cursor=pointer]:
+            - /url: /privacy
+          - link "服务条款" [ref=e232] [cursor=pointer]:
+            - /url: /terms

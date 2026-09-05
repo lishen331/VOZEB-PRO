@@ -3952,6 +3952,7 @@ function StoryboardPanel({
     const batchRunningRef = useRef<"image" | "video" | "">("");
     const batchAbortRef = useRef<AbortController | null>(null);
     const operationAbortRef = useRef(new Map<string, AbortController>());
+    const extractionAbortRef = useRef<AbortController | null>(null);
     const [audioSplitPlans, setAudioSplitPlans] = useState<Record<string, DramaLabAudioSplitPlan>>({});
     const disposedRef = useRef(false);
     const latestProjectRef = useRef(project);
@@ -4157,6 +4158,8 @@ function StoryboardPanel({
 
     const abortTrackedOperations = useCallback(() => {
         batchAbortRef.current?.abort();
+        extractionAbortRef.current?.abort();
+        extractionAbortRef.current = null;
         recoveryAbortRef.current?.abort();
         for (const controller of operationAbortRef.current.values()) controller.abort();
         operationAbortRef.current.clear();
@@ -4425,7 +4428,10 @@ function StoryboardPanel({
     };
 
     const extractFromScript = async () => {
-        if (!episode) return;
+        if (!episode || extracting) return;
+        const controller = new AbortController();
+        extractionAbortRef.current?.abort();
+        extractionAbortRef.current = controller;
         try {
             setExtracting(true);
             messageApi.loading({ content: "正在从剧本提取分镜...", key: "extract-storyboards", duration: 0 });
@@ -4433,16 +4439,30 @@ function StoryboardPanel({
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ episodeId: episode.id, requestId: createDramaLabClientRequestId() }),
+                signal: controller.signal,
             });
             await assertJsonApiResponse(response);
             const data = await response.json();
-            if (!response.ok || data.code !== 0 || !Array.isArray(data.data?.shots)) throw new Error(data.msg || "分镜提取失败");
+            if (!response.ok || data.code !== 0 || typeof data.data?.taskId !== "string") throw new Error(data.msg || "分镜提取任务创建失败");
+            const taskId = data.data.taskId as string;
+            for (;;) {
+                if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
+                const statusResponse = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/workflow?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store", signal: controller.signal });
+                await assertJsonApiResponse(statusResponse);
+                const statusData = await statusResponse.json();
+                if (!statusResponse.ok || statusData.code !== 0 || !statusData.data) throw new Error(statusData.msg || "分镜提取任务状态读取失败");
+                const status = statusData.data.status as string;
+                if (status === "success") break;
+                if (status === "error" || status === "cancelled") throw new Error(statusData.data.error || (status === "cancelled" ? "分镜提取任务已取消" : "分镜提取失败"));
+                await new Promise<void>((resolve) => window.setTimeout(resolve, 1_000));
+            }
             await onReload();
-            messageApi.success({ content: `已提取 ${data.data.shots.length} 个分镜`, key: "extract-storyboards", duration: 3 });
+            messageApi.success({ content: "分镜提取完成", key: "extract-storyboards", duration: 3 });
         } catch (error) {
-            messageApi.error({ content: error instanceof Error ? error.message : "分镜提取失败", key: "extract-storyboards", duration: 3 });
+            if (!(error instanceof DOMException && error.name === "AbortError")) messageApi.error({ content: error instanceof Error ? error.message : "分镜提取失败", key: "extract-storyboards", duration: 3 });
         } finally {
-            setExtracting(false);
+            if (extractionAbortRef.current === controller) extractionAbortRef.current = null;
+            if (!disposedRef.current) setExtracting(false);
         }
     };
 

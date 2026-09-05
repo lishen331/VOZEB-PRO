@@ -6,6 +6,7 @@ import { generationModelId, toSystemGenerationChannel } from "@/lib/server/gener
 import { finishGenerationAttempt, startGenerationAttempt, type GenerationAttempt } from "@/lib/server/generation-attempt";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
+import { hasHealthyRuntimeCandidate } from "@/lib/server/channel-runtime-health";
 import { assertReferenceCapabilities, assertReferenceUrls, assertVideoReferenceRoles, buildVideoProviderRequest, isProviderBusinessError, readProviderError, readProviderString, resolvedProviderCreatePaths } from "@/lib/server/provider-task-config";
 import { buildGlobalAiOpcVideoRequest, resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { createVideoTask, transitionVideoTask, updateVideoTask, type VideoTask } from "@/lib/server/video-task-store";
@@ -113,9 +114,12 @@ export async function POST(request: Request) {
                 : typeof body.config?.model === "string" && body.config.model.trim()
                   ? body.config.model
                   : settings.defaultModels.videoModel;
-            const channels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile).map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }));
+            const allChannels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile).map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }));
             const prompt = String(body.prompt || "").trim();
-            if (!channels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
+            if (!allChannels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
+            const hasHealthy = await hasHealthyRuntimeCandidate(allChannels, "video");
+            if (!hasHealthy) return NextResponse.json({ error: "当前视频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
+            const channels = allChannels;
             if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(channels[0], trustedContext.businessCode) };
             const publicOrigin = requestPublicOrigin(request);
             let references: VideoGenerationReference[];

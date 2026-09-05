@@ -45,11 +45,11 @@ export function analyzeRunningHubWorkflowJson(input: { workflowId: string; raw: 
     for (const role of ["prompt", "image", "video", "audio", "duration", "enum", "boolean", "number"] as const) {
         const roleCandidates = candidates.filter((item) => item.role === role && (isInternalKnobRole(role) ? isBusinessSelector(item.fieldName) : true));
         if (!roleCandidates.length) continue;
-        // 提示词：多个时取第一个，不跳过
+        // 提示词：多个时跳过自动映射（歧义），由用户手动配置
         if (role === "prompt" && roleCandidates.length > 1) {
-            warnings.push(`发现 ${roleCandidates.length} 个提示词候选，已自动选择第一个：${roleCandidates[0].nodeId}.${roleCandidates[0].fieldName}`);
+            continue;
         }
-        const effectiveCandidates = role === "prompt" && roleCandidates.length > 1 ? [roleCandidates[0]] : roleCandidates;
+        const effectiveCandidates = roleCandidates;
         effectiveCandidates.forEach((candidate, index) => {
             const key = inputKeyFor(role, index);
             const inputType = candidate.inputType || inputTypeForRole(role);

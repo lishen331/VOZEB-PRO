@@ -51,6 +51,10 @@ export function filterHealthyRuntimeCandidates<T extends RuntimeCandidate>(candi
     return healthy.length || !candidates.length ? healthy : candidates.slice(0, 1);
 }
 
+export function hasHealthyRuntimeCandidate<T extends RuntimeCandidate>(candidates: T[], capability: LogicalModelCapability, now = Date.now()): boolean {
+    return candidates.some((candidate) => !isChannelRuntimeCooling(candidate.channelId, capability, now));
+}
+
 export function resetChannelRuntimeHealth() {
     states.clear();
 }
