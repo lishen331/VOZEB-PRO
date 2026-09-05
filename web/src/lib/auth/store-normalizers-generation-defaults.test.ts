@@ -16,4 +16,17 @@ describe("generation default normalization", () => {
     it("preserves administrator-defined positive concurrency without platform ceilings", () => {
         expect(normalizeGenerationConcurrency({ agent: 11, image: 12, video: 6, audio: 13, text: 21, render: 7 })).toEqual({ agent: 11, image: 12, video: 6, audio: 13, text: 21, render: 7 });
     });
+
+    it("preserves bounded Drama Lab compatibility defaults", () => {
+        expect(normalizeGenerationDefaults({ dramaMaxBatchSize: 20, dramaImageTimeoutSeconds: 240, dramaVideoTimeoutSeconds: 2400 })).toMatchObject({
+            dramaMaxBatchSize: 20,
+            dramaImageTimeoutSeconds: 240,
+            dramaVideoTimeoutSeconds: 2400,
+        });
+        expect(normalizeGenerationDefaults({ dramaMaxBatchSize: 0, dramaImageTimeoutSeconds: 9, dramaVideoTimeoutSeconds: 7201 })).not.toMatchObject({
+            dramaMaxBatchSize: expect.anything(),
+            dramaImageTimeoutSeconds: expect.anything(),
+            dramaVideoTimeoutSeconds: expect.anything(),
+        });
+    });
 });

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readdir, stat, unlink } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 
-import type { LocalMediaAsset, LocalMediaClass, LocalMediaType } from "@/lib/local-media-storage-contract";
+import type { LocalMediaAsset, LocalMediaClass, ManagedMediaType } from "@/lib/local-media-storage-contract";
 import { classifyManagedMediaType, isManagedMediaType, isMediaSourceGroup, mediaSourceGroup } from "@/lib/media-management-contract";
 import { resolveServerDataPath } from "@/lib/server/data-dir";
 import { getDatabaseProvider } from "@/lib/server/database";
@@ -23,14 +23,14 @@ export const GENERATION_MEDIA_ROOT = resolveServerDataPath("generation-assets");
 export const REFERENCE_MEDIA_ROOT = resolveServerDataPath("reference-assets");
 export const TEMPORARY_MEDIA_TTL_MS = 24 * 60 * 60 * 1000;
 
-export function createDatedMediaPath(storageClass: LocalMediaClass, type: LocalMediaType, extension: string, now = new Date()) {
+export function createDatedMediaPath(storageClass: LocalMediaClass, type: ManagedMediaType, extension: string, now = new Date()) {
     const year = String(now.getFullYear());
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
     const hours = String(now.getHours()).padStart(2, "0");
     const minutes = String(now.getMinutes()).padStart(2, "0");
     const seconds = String(now.getSeconds()).padStart(2, "0");
-    const folder = type === "image" ? "images" : type === "video" ? "videos" : "audio";
+    const folder = type === "image" ? "images" : type === "video" ? "videos" : type === "audio" ? "audio" : "attachments";
     const suffix = extension.startsWith(".") ? extension : `.${extension}`;
     return `${storageClass}/${year}/${month}/${day}/${folder}/${year}${month}${day}-${hours}${minutes}${seconds}-${randomUUID()}${suffix.toLowerCase()}`;
 }

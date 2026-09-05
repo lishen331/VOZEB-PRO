@@ -185,7 +185,7 @@ describe("active protocols through persisted admin settings and the system proxy
 
 function protocolCases(capability: LogicalModelCapability) {
     const strict = registeredChannelProtocolDefinitions.filter((definition) => definition.strict && definition.operations[capability]);
-    const advanced = channelProtocolDefinitions.filter((definition) => !definition.strict && definition.capabilities.includes(capability));
+    const advanced = channelProtocolDefinitions.filter((definition) => definition.id !== "runninghub" && !definition.strict && definition.capabilities.includes(capability));
     return [...strict, ...advanced];
 }
 
@@ -262,7 +262,7 @@ async function configureProxyChannel(definition: ChannelProtocolDefinition, capa
     const channelId = `proxy-${definition.id}-${capability}`;
     const logicalModelId = `${definition.id}-${capability}`;
     const upstreamBaseUrl = fixtureBaseUrl(definition.id, advancedConfig.protocol === "gemini" ? "gemini" : definition.apiFormat);
-    const savedChannel = { id: channelId, name: channelId, enabled: true, baseUrl: upstreamBaseUrl, apiKey: "fixture-key", apiFormat: definition.apiFormat, models: [model], advancedConfig } satisfies SystemModelChannel;
+    const savedChannel = { id: channelId, name: channelId, enabled: true, purpose: "shared", baseUrl: upstreamBaseUrl, apiKey: "fixture-key", apiFormat: definition.apiFormat, models: [model], advancedConfig } satisfies SystemModelChannel;
     const logicalModels = [{ id: logicalModelId, name: logicalModelId, capability, enabled: true, bindings: [{ id: `${logicalModelId}-binding`, channelId, upstreamModel: model, enabled: true, priority: 1 }] }];
     const defaultModels: SystemDefaultModels = { textModel: "", imageModel: "", videoModel: "", audioModel: "", [`${capability}Model`]: logicalModelId };
     const response = await saveAdminSettings(
@@ -343,7 +343,7 @@ function imageTask(channel: ProxyChannel, edit: boolean): ImageTask {
 async function runImage(task: ImageTask, protocol: SystemChannelProtocol) {
     const declarative = protocol === "custom" || protocol === "stable-diffusion" || protocol === "yumeng";
     const submitted = declarative ? await runCustomImageTask(task, INTERNAL_ORIGIN, fixtureOrigin, "", true) : await runOpenAiImageTask(task, INTERNAL_ORIGIN, fixtureOrigin, "", true);
-    return submitted.pending ? pollCustomImageTask(task, submitted.pending.id, submitted.pending.pollBaseUrl, "", true) : submitted;
+    return submitted.pending ? pollCustomImageTask(task, submitted.pending.id, submitted.pending.mediaBaseUrl, submitted.pending.pollBaseUrl, "", true) : submitted;
 }
 
 function videoParameters() {

@@ -1,4 +1,5 @@
 import { createSign, generateKeyPairSync } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -163,7 +164,7 @@ describe("payment refunds", () => {
             "https://alipay.test/gateway.do",
             expect.objectContaining({
                 method: "POST",
-                headers: expect.objectContaining({ "content-type": "application/x-www-form-urlencoded" }),
+                headers: expect.objectContaining({ "content-type": "application/x-www-form-urlencoded; charset=utf-8" }),
             }),
         );
         const params = fetchMock.mock.calls[0]?.[1]?.body as URLSearchParams;
@@ -177,6 +178,29 @@ describe("payment refunds", () => {
             refund_amount: "12.99",
             refund_reason: "重复支付",
         });
+    });
+
+    it("requires a signed response when Alipay certificate mode is enabled", async () => {
+        const certificate = readFileSync(new URL("./fixtures/alipay-test-certificate.pem", import.meta.url), "utf8");
+        mocks.runtimeConfig.valuesByEnvName = {
+            VOZEB_PRO_ALIPAY_SIGNATURE_MODE: "certificate",
+            VOZEB_PRO_ALIPAY_APP_ID: "2026000000000000",
+            VOZEB_PRO_ALIPAY_PRIVATE_KEY: readFileSync(new URL("./fixtures/alipay-test-private-key.pem", import.meta.url), "utf8"),
+            VOZEB_PRO_ALIPAY_APP_CERT: certificate,
+            VOZEB_PRO_ALIPAY_ALIPAY_CERT: certificate,
+            VOZEB_PRO_ALIPAY_ROOT_CERT: certificate,
+            VOZEB_PRO_ALIPAY_GATEWAY_URL: "https://alipay.test/gateway.do",
+        };
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () =>
+                Response.json({
+                    alipay_trade_refund_response: { code: "10000", msg: "Success", out_request_no: "refund-request" },
+                }),
+            ),
+        );
+
+        await expect(refundPaymentTransaction({ ...order, provider: "alipay", currency: "CNY" }, { ...payment, provider: "alipay" })).rejects.toThrow("支付宝退款响应验签失败");
     });
 
     it("creates a WeChat Pay v3 refund with signed JSON payload", async () => {

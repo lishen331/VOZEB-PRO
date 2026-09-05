@@ -368,6 +368,8 @@ export async function getPublicWorkPublication(slugValue: unknown) {
         category: work.publishedVersion.category,
         tags: work.publishedVersion.tags,
         visibility: work.publishedVersion.visibility,
+        hasProcess: work.sourceType !== "media" && work.publishedVersion.pullFilmEnabled === true,
+        processVersionId: work.sourceType !== "media" && work.publishedVersion.pullFilmEnabled === true ? work.publishedVersion.id : undefined,
         authorName: work.publishedVersion.authorDisplay === "hidden" ? undefined : work.publishedVersion.authorName,
         authorUsername: work.publishedVersion.authorDisplay === "profile" ? work.ownerUsername : undefined,
         authorAvatarUrl: work.publishedVersion.authorDisplay === "profile" && work.ownerUsername && work.ownerAvatarStorageKey ? userAvatarUrl(work.ownerUsername, work.ownerAvatarUpdatedAt) : undefined,
@@ -412,7 +414,7 @@ async function resolveSource(repos: WorkPublicationRepositories, userId: string,
     const sourceKeySet = new Set(storageKeys);
     const candidates = registrations
         .filter((item) => sourceKeySet.has(item.storageKey) && item.ownerUserId === userId && item.storageClass === "permanent")
-        .filter((item) => item.type === "image" || item.type === "video")
+        .filter((item): item is LocalMediaRegistration & { type: "image" | "video" } => item.type === "image" || item.type === "video")
         .map(mediaCandidate)
         .sort((left, right) => storageKeys.indexOf(left.storageKey) - storageKeys.indexOf(right.storageKey));
     if (!candidates.length) throw new WorkPublicationServiceError("该来源没有可公开的永久媒体", 409);
@@ -561,7 +563,7 @@ async function loadWorkDetail(repos: WorkPublicationRepositories, work: Publishe
     return { ...work, currentAssets, publishedAssets: publishedAssets.length ? publishedAssets : currentAssets };
 }
 
-function mediaCandidate(registration: LocalMediaRegistration): WorkPublicationMediaCandidate {
+function mediaCandidate(registration: LocalMediaRegistration & { type: "image" | "video" }): WorkPublicationMediaCandidate {
     return {
         storageKey: registration.storageKey,
         mediaType: registration.type,

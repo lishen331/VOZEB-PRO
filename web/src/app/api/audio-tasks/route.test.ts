@@ -1,7 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     createAudioTask: vi.fn(),
+    getStoredGenerationTaskByRequest: vi.fn(),
+    validateGenerationContextIpReferences: vi.fn(),
+    resolveSchoolComputeBillingContext: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -26,7 +29,13 @@ vi.mock("@/lib/auth/store", () => {
         refundUserPoints: vi.fn(),
     };
 });
-vi.mock("@/lib/server/generation-task-store", () => ({ withGenerationConcurrencyLimit: vi.fn(async (_userId, _type, _staleMs, _limit, handler) => handler()), linkStoredGenerationTask: vi.fn() }));
+vi.mock("@/lib/server/generation-task-store", () => ({
+    withGenerationConcurrencyLimit: vi.fn(async (_userId, _type, _staleMs, _limit, handler) => handler()),
+    getStoredGenerationTaskByRequest: mocks.getStoredGenerationTaskByRequest,
+    linkStoredGenerationTask: vi.fn(),
+}));
+vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
+vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 vi.mock("@/lib/server/security", () => ({
     checkGenerationRateLimit: vi.fn(async () => ({ allowed: true, remaining: 19, resetAt: Date.now() + 60_000 })),
     rateLimitHeaders: vi.fn(() => ({})),
@@ -39,8 +48,13 @@ vi.mock("@/lib/server/audio-task-store", () => ({
 }));
 
 import { POST } from "./route";
+import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 describe("audio task model routing", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
+    });
     it("rejects a forged client model when the backend has no audio default", async () => {
         const response = await POST(
             new Request("http://localhost/api/audio-tasks", {
@@ -52,6 +66,31 @@ describe("audio task model routing", () => {
 
         expect(response.status).toBe(400);
         expect((await response.json()).error).toBe("音频任务参数不完整或渠道不支持");
+        expect(mocks.createAudioTask).not.toHaveBeenCalled();
+    });
+
+    it("rejects a new Drama audio task after its IP authorization is revoked", async () => {
+        mocks.validateGenerationContextIpReferences.mockRejectedValueOnce(new SchoolServiceError(403, "IP 授权已失效"));
+
+        const response = await POST(
+            new Request("http://localhost/api/audio-tasks", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ prompt: "Generate narration", context: { surface: "drama", projectId: "drama-one" } }),
+            }),
+        );
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toEqual({ error: "IP 授权已失效" });
+        expect(mocks.createAudioTask).not.toHaveBeenCalled();
+    });
+
+    it("blocks a stale linked project before creating a personal task", async () => {
+        mocks.resolveSchoolComputeBillingContext.mockRejectedValueOnce(new SchoolServiceError(409, "项目关联已失效"));
+        const response = await POST(
+            new Request("http://localhost/api/audio-tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt: "narration", context: { surface: "drama", projectId: "drama-one" } }) }),
+        );
+        expect(response.status).toBe(409);
         expect(mocks.createAudioTask).not.toHaveBeenCalled();
     });
 });

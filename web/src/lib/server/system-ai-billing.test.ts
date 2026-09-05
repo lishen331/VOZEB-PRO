@@ -1,12 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { hasSystemAiCharge, readSystemAiBilling, readVerifiedSystemAiBusinessRequestId, systemAiBillingHeaders, systemAiIdempotencyKey, systemAiPointsIdempotencyKey, systemAiRequestFingerprint } from "./system-ai-billing";
+import {
+    hasSystemAiCharge,
+    readSystemAiBilling,
+    readVerifiedSystemAiBusinessRequest,
+    readVerifiedSystemAiBusinessRequestId,
+    systemAiBillingHeaders,
+    systemAiIdempotencyKey,
+    systemAiPointsIdempotencyKey,
+    systemAiRequestFingerprint,
+} from "./system-ai-billing";
 
 describe("system AI billing helpers", () => {
     it("preserves a zero-cost consumption record so its quota can be refunded", () => {
-        const billing = readSystemAiBilling(new Headers({ "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-points-record-id": "points-free-text" }));
+        const billing = readSystemAiBilling(new Headers({ "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-billing-receipt-id": "school:free-text" }));
 
-        expect(billing).toEqual({ pointsCost: 0, pointsRecordId: "points-free-text" });
+        expect(billing).toEqual({ pointsCost: 0, billingReceiptId: "school:free-text" });
         expect(hasSystemAiCharge(billing)).toBe(true);
     });
 
@@ -24,6 +33,23 @@ describe("system AI billing helpers", () => {
 
         headers.set("x-vozeb-pro-points-idempotency-key", `${first}:forged`);
         expect(readVerifiedSystemAiBusinessRequestId(headers, "planner", "vendor-text")).toBeUndefined();
+    });
+
+    it("binds the execution profile to the signed internal request", () => {
+        const headers = new Headers(systemAiBillingHeaders("writer", "practice-one", "vendor-text", "open-source-practice"));
+        expect(readVerifiedSystemAiBusinessRequestId(headers, "writer", "vendor-text", "open-source-practice")).toBe("practice-one");
+        expect(readVerifiedSystemAiBusinessRequestId(headers, "writer", "vendor-text", "production")).toBeUndefined();
+        const forged = new Headers(systemAiBillingHeaders("writer", "practice-one", "vendor-text"));
+        forged.set("x-vozeb-pro-execution-profile", "open-source-practice");
+        expect(readVerifiedSystemAiBusinessRequestId(forged, "writer", "vendor-text")).toBeUndefined();
+    });
+
+    it("binds the school billing context to the internal signature", () => {
+        const context = { schoolId: "school-a", groupId: "group-a", orderId: "order-a", projectType: "canvas" as const, projectId: "canvas-a" };
+        const headers = new Headers(systemAiBillingHeaders("writer", "school-one", "vendor-text", "production", context));
+        expect(readVerifiedSystemAiBusinessRequest(headers, "writer", "vendor-text")).toEqual({ businessRequestId: "school-one", billingContext: context });
+        headers.set("x-vozeb-pro-billing-context", JSON.stringify({ ...context, schoolId: "school-b" }));
+        expect(readVerifiedSystemAiBusinessRequest(headers, "writer", "vendor-text")).toBeUndefined();
     });
 
     it("binds the local billing key and request fingerprint to separate identities", () => {

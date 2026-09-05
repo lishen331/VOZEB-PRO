@@ -1,11 +1,16 @@
-import { hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";
+import { hasAnyAdminPermission, isActivePlatformAdmin, type AdminPermission } from "@/lib/admin-permissions";
 
 export const ADMIN_SECTION_KEYS = [
     "overview",
+    "schools",
+    "schoolCompute",
+    "courses",
+    "commercialOrders",
     "site",
     "channels",
     "skills",
     "settings",
+    "roleOverview",
     "accountDeletion",
     "mediaStorage",
     "externalStorage",
@@ -21,18 +26,29 @@ export const ADMIN_SECTION_KEYS = [
     "updates",
     "cdk",
     "announcements",
+    "ipLibrary",
     "works",
     "users",
     "logs",
     "generationOperations",
     "prompts",
     "adminHelp",
+    "dramaProjects",
+    "dramaLabConfig",
+    "dramaLabPrompts",
+    "dramaLabScenarios",
+    "dramaLabGeneration",
+    "dramaLabSd2",
 ] as const;
 
 export type AdminSectionKey = (typeof ADMIN_SECTION_KEYS)[number];
 
 export const ADMIN_SECTION_PERMISSIONS: Record<AdminSectionKey, readonly AdminPermission[]> = {
     overview: ["analytics.read"],
+    schools: ["education.manage"],
+    schoolCompute: ["education.manage", "billing.manage"],
+    courses: ["education.manage"],
+    commercialOrders: ["education.manage"],
     users: ["users.read"],
     logs: ["generation.read"],
     generationOperations: ["generation.manage"],
@@ -49,15 +65,23 @@ export const ADMIN_SECTION_PERMISSIONS: Record<AdminSectionKey, readonly AdminPe
     skills: ["upstream.manage"],
     site: ["system.manage"],
     settings: ["system.manage", "upstream.manage"],
+    roleOverview: ["system.manage"],
     accountDeletion: ["system.manage"],
     mediaStorage: ["system.manage"],
     externalStorage: ["system.manage"],
     backup: ["system.manage"],
     announcements: ["content.manage"],
+    ipLibrary: ["content.manage", "education.manage"],
     works: ["content.manage"],
     prompts: ["content.manage"],
     updates: [],
     adminHelp: [],
+    dramaProjects: ["content.manage"],
+    dramaLabConfig: ["content.manage"],
+    dramaLabPrompts: ["content.manage"],
+    dramaLabScenarios: ["content.manage"],
+    dramaLabGeneration: ["upstream.manage"],
+    dramaLabSd2: ["content.manage"],
 };
 
 const adminSectionKeys = new Set<AdminSectionKey>(ADMIN_SECTION_KEYS);
@@ -75,6 +99,7 @@ export function adminSectionHref(section: AdminSectionKey, currentHref = "/admin
 }
 
 export function canAccessAdminSection(user: { role?: unknown; status?: unknown; adminPermissions?: unknown }, section: AdminSectionKey) {
+    if (section === "schools") return isActivePlatformAdmin(user);
     const permissions = ADMIN_SECTION_PERMISSIONS[section];
     return hasAnyAdminPermission(user, permissions.length ? permissions : undefined);
 }

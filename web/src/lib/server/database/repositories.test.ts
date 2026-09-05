@@ -13,6 +13,13 @@ function queryArgs(query: ReturnType<typeof mockExecutor>["query"], index: numbe
 }
 
 describe("split Postgres repositories", () => {
+    it("exposes the school and IP library domain repositories", () => {
+        const { executor } = mockExecutor([]);
+
+        expect(createPostgresRepositories(executor).schoolDomain).toBeDefined();
+        expect(createPostgresRepositories(executor).ipLibrary).toBeDefined();
+    });
+
     it("starts independent settings queries in parallel for pool executors", async () => {
         const resolvers: Array<() => void> = [];
         const query = vi.fn(
@@ -443,6 +450,20 @@ describe("split Postgres repositories", () => {
         expect(sql).toContain("generation_cost_control = $1");
         expect(sql).not.toContain("site =");
         expect(params).toEqual([JSON.stringify(generationCostControl)]);
+    });
+
+    it("persists practice defaults independently from production defaults", async () => {
+        const timestamp = "2026-08-18T00:00:00.000Z";
+        const practiceDefaultModels = { textModel: "practice-text", imageModel: "", videoModel: "", audioModel: "" };
+        const { executor, query } = mockExecutor([[{ id: "default", practice_default_models: practiceDefaultModels, created_at: timestamp, updated_at: timestamp }]]);
+
+        const settings = await createPostgresRepositories(executor).settings.updateSettings({ practiceDefaultModels });
+        const [sql, params] = queryArgs(query, 0) as [string, unknown[]];
+
+        expect(settings.practiceDefaultModels).toEqual(practiceDefaultModels);
+        expect(sql).toContain("practice_default_models = $1");
+        expect(sql).not.toMatch(/(?:SET|,) default_models =/);
+        expect(params).toEqual([JSON.stringify(practiceDefaultModels)]);
     });
 
     it("persists bounded technical data lifecycle settings", async () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DramaEpisode, DramaProject, DramaShot } from "./drama-project-contract";
-import { compileDramaAssetReferencePrompt, compileDramaShotPrompts } from "./drama-prompt-compiler";
+import { compileDramaAssetReferencePrompt, compileDramaShotPrompts, dramaShotReferenceImages } from "./drama-prompt-compiler";
 
 describe("drama prompt compiler", () => {
     it("compiles project assets and continuity into both media prompts", () => {
@@ -22,6 +22,21 @@ describe("drama prompt compiler", () => {
         expect(prompt).toContain("角色设定图");
         expect(prompt).toContain("固定色彩：红黑");
         expect(prompt).toContain("不添加文字");
+    });
+
+    it("maps selected asset primary images into image-task references", () => {
+        const project = createProject();
+        project.characters[0].references = [
+            { id: "character-draft", url: "/api/reference-assets/character-draft.png", source: "upload", label: "草稿", createdAt: "2026-08-21T00:00:00.000Z" },
+            { id: "character-final", url: "/api/reference-assets/character-final.png", source: "generated", label: "定稿", createdAt: "2026-08-21T00:00:00.000Z" },
+        ];
+        project.characters[0].primaryReferenceId = "character-final";
+        project.scenes[0].references = [{ id: "scene-final", url: "/api/reference-assets/scene-final.png", source: "generated", label: "场景定稿", createdAt: "2026-08-21T00:00:00.000Z" }];
+
+        expect(dramaShotReferenceImages(project, project.episodes[0].shots[0])).toMatchObject([
+            { id: "scene-final", serverUrl: "/api/reference-assets/scene-final.png" },
+            { id: "character-final", serverUrl: "/api/reference-assets/character-final.png" },
+        ]);
     });
 
     it("preserves long execution prompts instead of truncating the final constraints", () => {

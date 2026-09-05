@@ -2,7 +2,7 @@ import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEna
 import { formatAccountId } from "@/lib/account-id";
 import { normalizeRegistrationPolicyConsent } from "@/lib/registration-consent";
 import { normalizeAdminPermissions } from "@/lib/admin-permissions";
-import { readJsonDataFile, writeJsonDataFile } from "@/lib/server/data-adapter";
+import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { decryptSecretValue, encryptSecretValue } from "@/lib/server/secret-crypto";
 import {
     type UserRole,
@@ -165,17 +165,19 @@ export async function readAuthDb(): Promise<AuthDatabase> {
 
 export async function mutateAuthDb<T>(mutator: (db: AuthDatabase) => T | Promise<T>) {
     if (isPostgresDatabaseEnabled()) throw new Error("PostgreSQL auth mutations must use entity repositories");
-    const run = mutationQueue.then(async () => {
-        const db = await readAuthDb();
-        try {
-            const result = await mutator(db);
-            await writeAuthDb(db);
-            return result;
-        } catch (error) {
-            if (error instanceof EmailCodeAttemptError) await writeAuthDb(db);
-            throw error;
-        }
-    });
+    const run = mutationQueue.then(() =>
+        withJsonDataFileLock(AUTH_DATA_FILE, async () => {
+            const db = await readAuthDb();
+            try {
+                const result = await mutator(db);
+                await writeAuthDb(db);
+                return result;
+            } catch (error) {
+                if (error instanceof EmailCodeAttemptError) await writeAuthDb(db);
+                throw error;
+            }
+        }),
+    );
     mutationQueue = run.then(
         () => undefined,
         () => undefined,
@@ -345,10 +347,13 @@ export function mapPostgresSettings(settingsRow: Record<string, unknown> | undef
             apiFormat: row.api_format === "gemini" ? "gemini" : "openai",
             models: dbJson(row.models, []),
             enabled: dbBool(row.enabled, true),
+            purpose: row.purpose === "production" || row.purpose === "open-source-practice" ? row.purpose : "shared",
             advancedConfig: dbJson(row.advanced_config, undefined),
         })),
         logicalModels: dbJson(settingsRow?.logical_models, fallback.logicalModels),
         defaultModels: dbJson(settingsRow?.default_models, fallback.defaultModels),
+        practiceDefaultModels: dbJson(settingsRow?.practice_default_models, fallback.practiceDefaultModels),
+        practiceWorkflowModels: dbJson(settingsRow?.practice_workflow_models, fallback.practiceWorkflowModels),
         agentSkills: dbJson(settingsRow?.agent_skills, fallback.agentSkills),
     });
 }
@@ -512,9 +517,9 @@ export async function upsertPostgresSettings(db: QueryExecutor, settings: AuthSe
         INSERT INTO app_settings (
             id, site, registration_enabled, email_registration_enabled, free_daily_points_enabled, mail, allow_user_api_config,
             model_point_costs, generation_point_multipliers, generation_cost_control, data_lifecycle, entitlements_enabled, default_plan_id, generation_concurrency, generation_defaults,
-            logical_models, default_models, agent_skills, free_daily_points
+            logical_models, default_models, practice_default_models, practice_workflow_models, agent_skills, free_daily_points
         )
-        VALUES ('default', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        VALUES ('default', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         ON CONFLICT (id) DO UPDATE SET
             site = EXCLUDED.site,
             registration_enabled = EXCLUDED.registration_enabled,
@@ -532,6 +537,8 @@ export async function upsertPostgresSettings(db: QueryExecutor, settings: AuthSe
             generation_defaults = EXCLUDED.generation_defaults,
             logical_models = EXCLUDED.logical_models,
             default_models = EXCLUDED.default_models,
+            practice_default_models = EXCLUDED.practice_default_models,
+            practice_workflow_models = EXCLUDED.practice_workflow_models,
             agent_skills = EXCLUDED.agent_skills,
             free_daily_points = EXCLUDED.free_daily_points
         `,
@@ -552,6 +559,8 @@ export async function upsertPostgresSettings(db: QueryExecutor, settings: AuthSe
             dbJsonParam(settings.generationDefaults),
             dbJsonParam(settings.logicalModels),
             dbJsonParam(settings.defaultModels),
+            dbJsonParam(settings.practiceDefaultModels),
+            dbJsonParam(settings.practiceWorkflowModels),
             dbJsonParam(settings.agentSkills),
             settings.freeDailyPoints,
         ],
@@ -562,8 +571,8 @@ export async function upsertPostgresSystemChannels(db: QueryExecutor, channels: 
     for (const [index, channel] of channels.entries()) {
         await db.query(
             `
-            INSERT INTO system_model_channels (id, name, base_url, api_key_ciphertext, webhook_secret_ciphertext, api_format, models, enabled, advanced_config, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            INSERT INTO system_model_channels (id, name, base_url, api_key_ciphertext, webhook_secret_ciphertext, api_format, models, enabled, advanced_config, sort_order, purpose)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name,
                 base_url = EXCLUDED.base_url,
@@ -572,11 +581,12 @@ export async function upsertPostgresSystemChannels(db: QueryExecutor, channels: 
                 api_format = EXCLUDED.api_format,
                 models = EXCLUDED.models,
                 enabled = EXCLUDED.enabled,
+                purpose = EXCLUDED.purpose,
                 advanced_config = EXCLUDED.advanced_config,
                 sort_order = EXCLUDED.sort_order,
                 updated_at = now()
             `,
-            [channel.id, channel.name, channel.baseUrl, channel.apiKey, channel.webhookSecret || "", channel.apiFormat, dbJsonParam(channel.models), channel.enabled, dbJsonParam(channel.advancedConfig), index],
+            [channel.id, channel.name, channel.baseUrl, channel.apiKey, channel.webhookSecret || "", channel.apiFormat, dbJsonParam(channel.models), channel.enabled, dbJsonParam(channel.advancedConfig), index, channel.purpose || "shared"],
         );
     }
 }

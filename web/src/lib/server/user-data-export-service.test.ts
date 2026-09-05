@@ -210,8 +210,8 @@ describe("buildUserDataExport", () => {
 
         const result = await buildUserDataExport("user-one");
 
-        expect(mocks.listCanvasProjectPage).toHaveBeenNthCalledWith(1, "user-one", { page: 1, pageSize: 100 });
-        expect(mocks.listCanvasProjectPage).toHaveBeenNthCalledWith(2, "user-one", { page: 2, pageSize: 100 });
+        expect(mocks.listCanvasProjectPage).toHaveBeenNthCalledWith(1, "user-one", { page: 1, pageSize: 100, includeDramaLab: true });
+        expect(mocks.listCanvasProjectPage).toHaveBeenNthCalledWith(2, "user-one", { page: 2, pageSize: 100, includeDramaLab: true });
         expect(mocks.listLibraryAssetPage).toHaveBeenNthCalledWith(2, "user-one", { page: 2, pageSize: 100 });
         expect(mocks.listLocalMediaRegistrationsForUserPage).toHaveBeenNthCalledWith(2, "user-one", { page: 2, pageSize: 100 });
         expect(result.canvasProjects).toEqual([{ id: "canvas-one" }, { id: "canvas-two" }]);

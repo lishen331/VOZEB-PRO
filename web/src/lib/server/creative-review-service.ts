@@ -1,4 +1,4 @@
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { normalizeCreativeReview, unavailableCreativeReview, type CreativeFoundation, type CreativeMediaType, type CreativeReview } from "@/lib/creative-agent-contract";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveLogicalModel } from "@/lib/server/logical-model-router";
@@ -6,6 +6,8 @@ import { fetchOptionalResponses } from "@/lib/server/responses-request";
 import { TEXT_MODEL_REQUEST_TIMEOUT_MS } from "@/lib/server/model-request-policy";
 import { strictJsonObjectText } from "@/lib/server/structured-model-output";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey, type SystemAiBilling } from "@/lib/server/system-ai-billing";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
+import { resolveSiteTitle } from "@/lib/site-brand";
 
 export type CreativeReviewTaskInput = {
     id: string;
@@ -14,6 +16,12 @@ export type CreativeReviewTaskInput = {
     prompt: string;
     resultSummary: string;
     imageUrls?: string[];
+    /**
+     * Video media is kept separate from image references so the upstream
+     * multimodal contract can preserve the media type instead of reducing a
+     * completed shot to a text-only status string.
+     */
+    videoUrls?: string[];
 };
 
 type ReviewCall = { arguments: string } & SystemAiBilling;
@@ -21,24 +29,35 @@ type ReviewCall = { arguments: string } & SystemAiBilling;
 export async function reviewCreativeOutputs(input: { origin: string; cookie: string; userId: string; billingId?: string; foundation: CreativeFoundation; tasks: CreativeReviewTaskInput[] }): Promise<CreativeReview> {
     const validTaskIds = new Set(input.tasks.map((task) => task.id));
     const imageInputs = await reviewImages(input.tasks, input.origin, input.cookie);
+    const videoInputs = await reviewVideos(input.tasks, input.origin, input.cookie);
     const hasTextResult = input.tasks.some((task) => task.type === "text" && task.resultSummary.trim());
-    if (!imageInputs.length && !hasTextResult) return unavailableCreativeReview("当前产物没有可供默认文本模型检查的图片或文本内容，生成结果已保留，但本轮未完成视觉复盘。");
+    if (!imageInputs.length && !videoInputs.length && !hasTextResult) return unavailableCreativeReview("当前产物没有可供默认文本模型检查的图片、视频或文本内容，生成结果已保留，但本轮未完成视觉复盘。");
 
     const settings = await getAuthSettings();
     const model = settings.defaultModels.textModel;
     const resolved = resolveLogicalModel(settings, "text", model);
     if (!model || !resolved?.channel) return unavailableCreativeReview("后台没有可用的默认文本模型，生成结果已保留，但本轮未执行自动复盘。");
 
-    const mode = imageInputs.length ? "visual" : "text";
-    const system = `你是 VOZEB PRO 创作质检 Agent。${mode === "visual" ? "你必须结合实际图片检查主体、构图、色彩、光线、文字可读性、参考一致性和整套视觉一致性。" : "当前只有文本结果，只能进行文本一致性检查，禁止声称看过图片或视频画面。"}只有存在明确影响使用的问题才返回 needs_revision；一般审美偏好不应触发自动重做。retryTaskIds 只能选择确实需要重做的任务。必须调用 review_creative_outputs，不得暴露隐藏思维链。`;
-    const reviewContext = JSON.stringify({ foundation: input.foundation, tasks: input.tasks.map(({ imageUrls: _imageUrls, ...task }) => task), mode });
+    const mode = imageInputs.length || videoInputs.length ? "visual" : "text";
+    const system = `你是 ${resolveSiteTitle(settings.site.title)} 创作质检 Agent。${mode === "visual" ? "你必须结合实际图片和视频媒体检查主体、构图、色彩、光线、文字可读性、参考一致性和整套视觉一致性；如果收到视频，必须检查实际视频内容，不得只依据状态摘要。" : "当前只有文本结果，只能进行文本一致性检查，禁止声称看过图片或视频画面。"}只有存在明确影响使用的问题才返回 needs_revision；一般审美偏好不应触发自动重做。retryTaskIds 只能选择确实需要重做的任务。必须调用 review_creative_outputs，不得暴露隐藏思维链。`;
+    const reviewContext = JSON.stringify({ foundation: input.foundation, tasks: input.tasks.map(({ imageUrls: _imageUrls, videoUrls: _videoUrls, ...task }) => task), mode });
     const responsesInput = [
         { role: "system", content: system },
-        { role: "user", content: [{ type: "input_text", text: reviewContext }, ...imageInputs.map((item) => ({ type: "input_image", image_url: item.url }))] },
+        {
+            role: "user",
+            content: [{ type: "input_text", text: reviewContext }, ...imageInputs.map((item) => ({ type: "input_image", image_url: item.url })), ...videoInputs.map((item) => ({ type: "input_video", video_url: item.url }))],
+        },
     ];
     const chatMessages = [
         { role: "system", content: system },
-        { role: "user", content: [{ type: "text", text: reviewContext }, ...imageInputs.map((item) => ({ type: "image_url", image_url: { url: item.url } }))] },
+        {
+            role: "user",
+            content: [
+                { type: "text", text: reviewContext },
+                ...imageInputs.map((item) => ({ type: "image_url", image_url: { url: item.url } })),
+                ...videoInputs.map((item) => ({ type: "video_url", role: "reference_video", video_url: { url: item.url } })),
+            ],
+        },
     ];
 
     try {
@@ -54,7 +73,7 @@ export async function reviewCreativeOutputs(input: { origin: string; cookie: str
             review = null;
         }
         if (review) return { ...review, mode };
-        if (hasSystemAiCharge(call)) await refundUserPoints(input.userId, model, call.pointsCost, "text", 1, undefined, call.pointsRecordId);
+        if (hasSystemAiCharge(call)) await refundGenerationCharge({ userId: input.userId, receiptId: call.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `creative-review-refund:${call.billingReceiptId}` });
         return unavailableCreativeReview("默认文本模型返回了无效复盘结构，相关积分已退款，生成结果已保留。");
     } catch {
         return unavailableCreativeReview("自动复盘服务暂时不可用，生成结果已保留，可稍后根据实际画面继续调整。");
@@ -104,6 +123,12 @@ async function reviewImages(tasks: CreativeReviewTaskInput[], origin: string, co
     return images.filter((item): item is { taskId: string; url: string } => Boolean(item.url));
 }
 
+async function reviewVideos(tasks: CreativeReviewTaskInput[], origin: string, cookie: string) {
+    const candidates = tasks.flatMap((task) => (task.videoUrls || []).map((url) => ({ taskId: task.id, url })));
+    const videos = await Promise.all(candidates.map(async (item) => ({ ...item, url: await normalizeReviewVideo(item.url, origin, cookie) })));
+    return videos.filter((item): item is { taskId: string; url: string } => Boolean(item.url));
+}
+
 async function normalizeReviewImage(value: string, origin: string, cookie: string) {
     const url = value.trim();
     if (/^data:image\//i.test(url)) return url.length <= 12_000_000 ? url : "";
@@ -122,6 +147,30 @@ async function normalizeReviewImage(value: string, origin: string, cookie: strin
     }
 }
 
+/**
+ * Resolve private project media before sending it to an upstream model. A
+ * browser-relative URL cannot be fetched by the provider, so the trusted
+ * server route is converted to a bounded data URL just like storyboard
+ * images. Public HTTPS media remains a URL to avoid needless base64 growth.
+ */
+async function normalizeReviewVideo(value: string, origin: string, cookie: string) {
+    const url = value.trim();
+    if (/^data:video\//i.test(url)) return url.length <= 32_000_000 ? url : "";
+    if (/^https:\/\//i.test(url)) return url;
+    if (!url.startsWith("/api/")) return "";
+    try {
+        const response = await fetchInternalApi(`${origin}${url}`, { headers: { cookie }, cache: "no-store", signal: AbortSignal.timeout(30_000) });
+        const contentType = response.headers.get("content-type")?.split(";")[0] || "";
+        const length = Number(response.headers.get("content-length") || 0);
+        if (!response.ok || !contentType.startsWith("video/") || length > 24_000_000) return "";
+        const bytes = Buffer.from(await response.arrayBuffer());
+        if (bytes.length > 24_000_000) return "";
+        return `data:${contentType};base64,${bytes.toString("base64")}`;
+    } catch {
+        return "";
+    }
+}
+
 function readCall(argumentsText: string, headers: Headers): ReviewCall {
     return {
         arguments: argumentsText,
@@ -131,7 +180,7 @@ function readCall(argumentsText: string, headers: Headers): ReviewCall {
 
 async function refundResponse(userId: string, model: string, headers: Headers) {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+    if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `creative-review-response-refund:${billing.billingReceiptId}` });
 }
 
 const reviewTool = {

@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { App, Button, Input, InputNumber, Modal, Segmented } from "antd";
 import { Clapperboard, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUserStore } from "@/stores/use-user-store";
 import { CompactEmptyState } from "@/components/compact-empty-state";
+import { IpReferencePicker, ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
+import { IP_REFERENCE_ENTRY_VISIBLE, type IpReference } from "@/lib/ip-library-domain";
 import { normalizeDramaImageSize } from "@/lib/drama-image-size";
 
 import { DramaProjectCard } from "./components/drama-project-card";
@@ -13,6 +15,7 @@ import { useDramaStore } from "./stores/use-drama-store";
 
 export default function DramaPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { message } = App.useApp();
     const hydrated = useDramaStore((state) => state.hydrated);
     const hydrate = useDramaStore((state) => state.hydrate);
@@ -31,21 +34,40 @@ export default function DramaPage() {
     const [customWidth, setCustomWidth] = useState(1080);
     const [customHeight, setCustomHeight] = useState(1920);
     const [creating, setCreating] = useState(false);
+    const [ipReferences, setIpReferences] = useState<IpReference[]>([]);
+    const handledIpReference = useRef("");
+    const ipId = searchParams.get("ipId")?.trim() || "";
+    const ipVersionId = searchParams.get("versionId")?.trim() || "";
     const episodeCount = projects.reduce((total, project) => total + project.episodeCount, 0);
     const pendingCount = projects.reduce((total, project) => total + project.pendingTaskCount, 0);
     useEffect(() => {
         void hydrate();
     }, [hydrate, userId]);
+    useEffect(() => {
+        const reference = ipId && ipVersionId ? ipReferenceFromQuery(new URLSearchParams({ ipId, versionId: ipVersionId })) : undefined;
+        if (!reference) return;
+        const key = `${reference.id}:${reference.versionId}`;
+        if (handledIpReference.current === key) return;
+        handledIpReference.current = key;
+        setIpReferences([reference]);
+        setTitle("IP 短剧");
+        setOpen(true);
+    }, [ipId, ipVersionId]);
+    const openCreate = () => {
+        setIpReferences([]);
+        setOpen(true);
+    };
     const create = async () => {
         if (!title.trim()) return message.warning("请输入项目名称");
         const normalizedSize = normalizeDramaImageSize(ratio);
         if (!normalizedSize) return message.warning("请输入有效的短剧尺寸");
         setCreating(true);
         try {
-            const id = await createProject({ title: title.trim(), summary: summary.trim(), style: style.trim(), ratio: normalizedSize });
+            const id = await createProject({ title: title.trim(), summary: summary.trim(), style: style.trim(), ratio: normalizedSize, ipReferences });
             setOpen(false);
             setTitle("");
             setSummary("");
+            setIpReferences([]);
             router.push(`/drama/${id}`);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "短剧项目创建失败");
@@ -67,7 +89,7 @@ export default function DramaPage() {
                             共 {projectTotal} 个项目 · 已加载 {projects.length} 个 / {episodeCount} 集 · {pendingCount} 个执行中任务
                         </p>
                     </div>
-                    <Button type="primary" className="!h-9 !shrink-0 !px-3 sm:!px-4" icon={<Plus className="size-4" />} disabled={!hydrated} onClick={() => setOpen(true)}>
+                    <Button type="primary" className="!h-9 !shrink-0 !px-3 sm:!px-4" icon={<Plus className="size-4" />} disabled={!hydrated} onClick={openCreate}>
                         新建短剧
                     </Button>
                 </header>
@@ -96,7 +118,7 @@ export default function DramaPage() {
                         icon={<Clapperboard className="size-4" />}
                         className="mt-3 min-h-24 sm:mt-6 sm:min-h-40"
                         action={
-                            <Button type="primary" onClick={() => setOpen(true)}>
+                            <Button type="primary" onClick={openCreate}>
                                 新建第一个项目
                             </Button>
                         }
@@ -180,6 +202,7 @@ export default function DramaPage() {
                             </div>
                         ) : null}
                     </div>
+                    {IP_REFERENCE_ENTRY_VISIBLE ? <IpReferencePicker value={ipReferences} onChange={setIpReferences} /> : null}
                 </div>
             </Modal>
         </main>

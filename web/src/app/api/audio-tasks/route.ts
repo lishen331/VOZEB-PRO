@@ -13,6 +13,12 @@ import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerat
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
+import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
+import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
+import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
+import { SchoolServiceError } from "@/lib/server/school-access-service";
+import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeLogicalModel, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
+import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,18 +38,50 @@ export async function POST(request: Request) {
             if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
-        const channels = resolveLogicalModelCandidates(settings, "audio", body.config?.model || settings.defaultModels.audioModel).map((resolved) => ({ ...toSystemGenerationChannel(resolved), channelId: resolved.channelId }));
-        const prompt = String(body.prompt || "").trim();
-        const supportedChannels = channels.filter((channel) => channel.apiFormat !== "gemini");
-        if (!supportedChannels.length || !prompt) return NextResponse.json({ error: "音频任务参数不完整或渠道不支持" }, { status: 400 });
-        const configs: AudioTaskConfig[] = supportedChannels.map((channel) => ({ ...channel, ...resolveAudioTaskOptions(body.config, settings.generationDefaults), instructions: clean(body.config?.instructions, 2_000) }));
+        const trustedPractice = isTrustedPracticeTaskRequest(request, user.id, body.context);
         const requestId = body.context?.clientRequestId?.trim();
         if (requestId) {
             const existing = await getStoredGenerationTaskByRequest<AudioTask>("audio", user.id, requestId, body.context?.attemptNo);
             if (existing) return NextResponse.json({ task: publicTask(existing) });
         }
-        const task = await createAudioTask({ ...(body.context || {}), userId: user.id, config: configs[0], candidateConfigs: configs.slice(1), prompt: prompt.slice(0, 20_000), source: mediaTaskSource(body.source, body.context, "audio-task") });
-        await linkStoredGenerationTask("audio", task.id, body.context || {});
+        try {
+            await validateGenerationContextIpReferences(user.id, body.context);
+        } catch (error) {
+            if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+            throw error;
+        }
+        const projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+        const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
+        if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
+        const executionProfile: "production" | "open-source-practice" = practiceRequest ? "open-source-practice" : "production";
+        let trustedContext: GenerationTaskContext;
+        try {
+            const clientContext = sanitizeGenerationContext(body.context, trustedPractice);
+            if (executionProfile === "open-source-practice" && !clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "audio");
+            const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
+            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
+        } catch (error) {
+            if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+            throw error;
+        }
+        const channels = resolveLogicalModelCandidates(
+            settings,
+            "audio",
+            practiceRequest ? resolvePracticeLogicalModel(settings, "audio", trustedContext.businessCode || "dubbing", body.config?.model) : body.config?.model || settings.defaultModels.audioModel,
+            "",
+            executionProfile,
+        ).map((resolved) => ({
+            ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, trustedContext),
+            channelId: resolved.channelId,
+            executionProfile,
+        }));
+        const prompt = String(body.prompt || "").trim();
+        const supportedChannels = channels.filter((channel) => channel.apiFormat !== "gemini");
+        if (!supportedChannels.length || !prompt) return NextResponse.json({ error: "音频任务参数不完整或渠道不支持" }, { status: 400 });
+        const configs: AudioTaskConfig[] = supportedChannels.map((channel) => ({ ...channel, ...resolveAudioTaskOptions(body.config, settings.generationDefaults), instructions: clean(body.config?.instructions, 2_000) }));
+        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(configs[0], trustedContext.businessCode) };
+        const task = await createAudioTask({ ...trustedContext, userId: user.id, config: configs[0], candidateConfigs: configs.slice(1), prompt: prompt.slice(0, 20_000), source: mediaTaskSource(body.source, trustedContext, "audio-task") });
+        await linkStoredGenerationTask("audio", task.id, trustedContext);
         const origin = resolveInternalOrigin(new URL(request.url).origin);
         const cookie = request.headers.get("cookie") || "";
         await scheduleGenerationTask("audio", task.id, { executionPhase: "created", channelId: task.config.channelId, provider: task.config.advancedConfig?.protocol || task.config.apiFormat, nextPollAt: Date.now(), lastUpstreamStatus: "created" });

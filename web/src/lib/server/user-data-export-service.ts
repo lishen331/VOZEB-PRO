@@ -134,7 +134,7 @@ async function readGenerationLogsExportData(userId: string) {
 }
 
 async function readCanvasProjectsExportData(userId: string) {
-    return collectPages((page) => listCanvasProjectPage(userId, { page, pageSize: PAGE_SIZE })).then(sanitizePortableData);
+    return collectPages((page) => listCanvasProjectPage(userId, { page, pageSize: PAGE_SIZE, includeDramaLab: true })).then(sanitizePortableData);
 }
 
 async function readLibraryAssetsExportData(userId: string) {

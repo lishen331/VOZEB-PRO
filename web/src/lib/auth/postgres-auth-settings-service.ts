@@ -11,7 +11,13 @@ export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>) {
     return withPostgresTransaction(async (client) => {
         const settingsRepository = createPostgresRepositories(client).settings;
         await settingsRepository.lock();
-        const settings = normalizeSettings({ ...(await readPostgresAuthSettings(client)), ...patch });
+        const current = await readPostgresAuthSettings(client);
+        const settings = normalizeSettings({
+            ...current,
+            ...patch,
+            generationConcurrency: patch.generationConcurrency ? { ...current.generationConcurrency, ...patch.generationConcurrency } : current.generationConcurrency,
+            generationDefaults: patch.generationDefaults ? { ...current.generationDefaults, ...patch.generationDefaults } : current.generationDefaults,
+        });
         const encrypted = encryptAuthSettingsSecrets(settings);
 
         if (patch.entitlements !== undefined) {
@@ -44,6 +50,7 @@ export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>) {
                     apiFormat: channel.apiFormat,
                     models: asJson(channel.models),
                     enabled: channel.enabled,
+                    purpose: channel.purpose || "shared",
                     advancedConfig: channel.advancedConfig ? asJson(channel.advancedConfig) : undefined,
                     sortOrder,
                 });
@@ -75,6 +82,8 @@ function postgresSettingsPatch(patch: Partial<AuthSettings>, settings: AuthSetti
     if (patch.generationDefaults !== undefined) result.generationDefaults = asJson(settings.generationDefaults);
     if (patch.logicalModels !== undefined) result.logicalModels = asJson(settings.logicalModels);
     if (patch.defaultModels !== undefined) result.defaultModels = asJson(settings.defaultModels);
+    if (patch.practiceDefaultModels !== undefined) result.practiceDefaultModels = asJson(settings.practiceDefaultModels);
+    if (patch.practiceWorkflowModels !== undefined) result.practiceWorkflowModels = asJson(settings.practiceWorkflowModels);
     if (patch.agentSkills !== undefined) result.agentSkills = asJson(settings.agentSkills);
     return result;
 }

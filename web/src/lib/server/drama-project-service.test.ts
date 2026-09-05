@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
         DramaProjectStoreError: MockDramaProjectStoreError,
         createCreativeConversation: vi.fn(),
         deleteDramaConversationAggregate: vi.fn(),
+        deleteDramaProjectCanvasAggregates: vi.fn(),
         getCreativeConversation: vi.fn(),
         listCreativeConversations: vi.fn(),
         listAgentRuns: vi.fn(),
@@ -28,7 +29,11 @@ const mocks = vi.hoisted(() => {
         createDramaProjectVersion: vi.fn(),
         getDramaProjectVersion: vi.fn(),
         listDramaProjectVersions: vi.fn(),
-        deleteUserLocalMediaAssets: vi.fn(),
+        deleteUserMediaAssetsCascade: vi.fn(),
+        deleteDramaLabEpisodeCanvasForUser: vi.fn(),
+        listDramaLabCanvasProjectsForUser: vi.fn(),
+        validateIpReferences: vi.fn(),
+        recordIpReferenceUsage: vi.fn(),
     };
 });
 
@@ -36,6 +41,7 @@ vi.mock("@/lib/server/agent-run-store", () => ({ listAgentRuns: mocks.listAgentR
 vi.mock("@/lib/server/creative-entity-deletion-store", () => ({
     CreativeEntityDeletionConflict: class CreativeEntityDeletionConflict extends Error {},
     deleteDramaConversationAggregate: mocks.deleteDramaConversationAggregate,
+    deleteDramaProjectCanvasAggregates: mocks.deleteDramaProjectCanvasAggregates,
 }));
 vi.mock("@/lib/server/creative-runtime-store", () => ({
     createCreativeConversation: mocks.createCreativeConversation,
@@ -57,9 +63,18 @@ vi.mock("@/lib/server/drama-project-version-store", () => ({
     getDramaProjectVersion: mocks.getDramaProjectVersion,
     listDramaProjectVersions: mocks.listDramaProjectVersions,
 }));
-vi.mock("@/lib/server/local-media-storage", () => ({ deleteUserLocalMediaAssets: mocks.deleteUserLocalMediaAssets }));
+vi.mock("@/lib/server/user-media-deletion-service", () => ({ deleteUserMediaAssetsCascade: mocks.deleteUserMediaAssetsCascade }));
+vi.mock("@/lib/server/canvas-project-service", () => ({
+    deleteDramaLabEpisodeCanvasForUser: mocks.deleteDramaLabEpisodeCanvasForUser,
+    listDramaLabCanvasProjectsForUser: mocks.listDramaLabCanvasProjectsForUser,
+}));
+vi.mock("@/lib/server/ip-library-reference-service", () => ({
+    normalizeIpReferences: (value: unknown) => (Array.isArray(value) ? value : []),
+    validateIpReferences: mocks.validateIpReferences,
+    recordIpReferenceUsage: mocks.recordIpReferenceUsage,
+}));
 
-import { createDramaProjectForUser, deleteDramaAgentConversationForUser, deleteDramaProjectForUser, DramaProjectServiceError, restoreDramaProjectVersionForUser, updateDramaProjectForUser } from "./drama-project-service";
+import { createDramaProjectForUser, createDramaProjectVersionForUser, deleteDramaAgentConversationForUser, deleteDramaProjectForUser, normalizeProject, restoreDramaProjectVersionForUser, updateDramaProjectForUser } from "./drama-project-service";
 import { DramaProjectStoreError } from "./drama-project-store";
 
 describe("drama project service updates", () => {
@@ -72,7 +87,13 @@ describe("drama project service updates", () => {
         mocks.listCreativeConversations.mockResolvedValue([{ id: "conversation-one" }, { id: "conversation-two" }]);
         mocks.listAgentRuns.mockResolvedValue([]);
         mocks.deleteDramaConversationAggregate.mockResolvedValue({ deletedConversations: 1, mediaStorageKeys: ["permanent/agent.png"], dramaProject: { ...project("2026-07-19T08:00:03.000Z", "项目"), creativeConversationId: "conversation-two" } });
+        mocks.deleteDramaProjectCanvasAggregates.mockResolvedValue({ deletedConversations: 1, deletedProjects: 2, deletedDramaProjects: 1, mediaStorageKeys: ["permanent/drama.png", "permanent/canvas.png"] });
         mocks.findDramaProjectBySourceHandoffId.mockResolvedValue(null);
+        mocks.deleteDramaProject.mockResolvedValue(false);
+        mocks.deleteDramaLabEpisodeCanvasForUser.mockResolvedValue(false);
+        mocks.listDramaLabCanvasProjectsForUser.mockResolvedValue({ projects: [], total: 0, page: 1, pageSize: 100 });
+        mocks.validateIpReferences.mockResolvedValue([]);
+        mocks.recordIpReferenceUsage.mockResolvedValue(undefined);
         mocks.listDramaProjectSummaries.mockResolvedValue([]);
         mocks.createDramaProjectVersion.mockResolvedValue({ id: "version-new", projectId: "drama-one", version: 2, reason: "恢复前自动快照", createdAt: new Date().toISOString() });
     });
@@ -98,6 +119,76 @@ describe("drama project service updates", () => {
         expect(mocks.updateDramaProject).toHaveBeenCalledWith("user-one", expect.objectContaining({ id: current.id, title: "新标题", updatedAt: "2026-07-19T08:00:02.000Z" }), current.updatedAt);
     });
 
+    it("cleans only the dedicated canvas of an episode removed by a project update", async () => {
+        const current = project("2026-07-19T08:00:01.000Z", "项目");
+        current.episodes = [...current.episodes, { ...current.episodes[0], id: "episode-two", episodeNumber: 2, title: "第二集", shots: [] }];
+        mocks.getDramaProject.mockResolvedValue(current);
+        const input = { ...current, episodes: [current.episodes[0]], updatedAt: "2026-07-19T08:00:02.000Z" };
+
+        await updateDramaProjectForUser("user-one", current.id, input);
+
+        expect(mocks.deleteDramaLabEpisodeCanvasForUser).toHaveBeenCalledTimes(1);
+        expect(mocks.deleteDramaLabEpisodeCanvasForUser).toHaveBeenCalledWith("user-one", current.id, "episode-two");
+    });
+
+    it("rediscovers an orphaned episode canvas when cleanup is retried after the project was saved", async () => {
+        const current = project("2026-07-19T08:00:01.000Z", "Project");
+        current.episodes = [...current.episodes, { ...current.episodes[0], id: "episode-two", episodeNumber: 2, title: "Episode two", shots: [] }];
+        const saved = { ...current, episodes: [current.episodes[0]], updatedAt: "2026-07-19T08:00:02.000Z" };
+        const input = { ...saved };
+        mocks.getDramaProject.mockResolvedValueOnce(current).mockResolvedValueOnce(saved);
+        mocks.listDramaLabCanvasProjectsForUser.mockResolvedValue(canvasPage(["drama-lab-canvas:drama-one:episode:episode-two"]));
+        mocks.deleteDramaLabEpisodeCanvasForUser.mockRejectedValueOnce(new Error("canvas cleanup failed")).mockResolvedValueOnce(true);
+
+        await expect(updateDramaProjectForUser("user-one", current.id, input)).rejects.toThrow("canvas cleanup failed");
+        await expect(updateDramaProjectForUser("user-one", current.id, input)).resolves.toEqual(expect.objectContaining({ episodes: [expect.objectContaining({ id: "episode-one" })] }));
+
+        expect(mocks.deleteDramaLabEpisodeCanvasForUser).toHaveBeenCalledTimes(2);
+        expect(mocks.deleteDramaLabEpisodeCanvasForUser).toHaveBeenLastCalledWith("user-one", current.id, "episode-two");
+    });
+
+    it("cleans persisted orphan canvases before returning an older client snapshot", async () => {
+        const current = project("2026-07-19T08:00:02.000Z", "Current project");
+        mocks.getDramaProject.mockResolvedValue(current);
+        mocks.listDramaLabCanvasProjectsForUser.mockResolvedValue(canvasPage(["drama-lab-canvas:drama-one:episode:episode-two"]));
+        mocks.deleteDramaLabEpisodeCanvasForUser.mockResolvedValue(true);
+
+        const saved = await updateDramaProjectForUser("user-one", current.id, project("2026-07-19T08:00:01.000Z", "Older project"));
+
+        expect(saved).toEqual(current);
+        expect(mocks.updateDramaProject).not.toHaveBeenCalled();
+        expect(mocks.deleteDramaLabEpisodeCanvasForUser).toHaveBeenCalledWith("user-one", current.id, "episode-two");
+    });
+
+    it("cleans episode canvases excluded by a restored project version", async () => {
+        const current = project("2026-07-19T08:00:02.000Z", "Current project");
+        current.episodes = [...current.episodes, { ...current.episodes[0], id: "episode-two", episodeNumber: 2, title: "Episode two", shots: [] }];
+        const snapshot = { ...current, episodes: [current.episodes[0]], updatedAt: "2026-07-18T08:00:00.000Z" };
+        mocks.getDramaProject.mockResolvedValue(current);
+        mocks.getDramaProjectVersion.mockResolvedValue({ id: "version-one", projectId: current.id, version: 1, reason: "Earlier version", createdAt: current.createdAt, snapshot });
+        mocks.listDramaLabCanvasProjectsForUser.mockResolvedValue(canvasPage(["drama-lab-canvas:drama-one:episode:episode-two"]));
+        mocks.deleteDramaLabEpisodeCanvasForUser.mockResolvedValue(true);
+
+        await restoreDramaProjectVersionForUser("user-one", current.id, "version-one");
+
+        expect(mocks.deleteDramaLabEpisodeCanvasForUser).toHaveBeenCalledTimes(1);
+        expect(mocks.deleteDramaLabEpisodeCanvasForUser).toHaveBeenCalledWith("user-one", current.id, "episode-two");
+    });
+
+    it("checks every canvas summary page when looking for orphaned episode canvases", async () => {
+        const current = project("2026-07-19T08:00:02.000Z", "Current project");
+        const firstPage = Array.from({ length: 100 }, (_, index) => `drama-lab-canvas:another-project-${index}:episode:episode-one`);
+        mocks.getDramaProject.mockResolvedValue(current);
+        mocks.listDramaLabCanvasProjectsForUser.mockImplementation(async (_userId: string, input: { page: number }) => (input.page === 1 ? canvasPage(firstPage, 101, 1) : canvasPage(["drama-lab-canvas:drama-one:episode:episode-two"], 101, 2)));
+        mocks.deleteDramaLabEpisodeCanvasForUser.mockResolvedValue(true);
+
+        await updateDramaProjectForUser("user-one", current.id, project("2026-07-19T08:00:01.000Z", "Older project"));
+
+        expect(mocks.listDramaLabCanvasProjectsForUser).toHaveBeenNthCalledWith(1, "user-one", { page: 1, pageSize: 100 });
+        expect(mocks.listDramaLabCanvasProjectsForUser).toHaveBeenNthCalledWith(2, "user-one", { page: 2, pageSize: 100 });
+        expect(mocks.deleteDramaLabEpisodeCanvasForUser).toHaveBeenCalledWith("user-one", current.id, "episode-two");
+    });
+
     it("preserves exact project dimensions and reference metadata", async () => {
         const current = project("2026-07-19T08:00:01.000Z", "旧标题");
         mocks.getDramaProject.mockResolvedValue(current);
@@ -117,6 +208,90 @@ describe("drama project service updates", () => {
         const saved = await updateDramaProjectForUser("user-one", current.id, input);
 
         expect(saved).toMatchObject({ ratio: "1080x1920", characters: [{ references: [{ width: 1080, height: 1920 }] }] });
+    });
+
+    it("persists frame provenance and the next-shot first-frame candidate", () => {
+        const current = project("2026-07-19T08:00:01.000Z", "Frame continuity");
+        const candidate = {
+            id: "tail-frame-video-task-shot-two",
+            frameType: "first" as const,
+            url: "/api/reference-assets/permanent/2026/09/01/images/tail.jpg",
+            storageKey: "permanent/2026/09/01/images/tail.jpg",
+            width: 720,
+            height: 1280,
+            source: "video_tail" as const,
+            sourceVideoTaskId: "video-task-one",
+            sourceShotId: "shot-one",
+            sourceVideoHistoryId: "video-history-one",
+            createdAt: "2026-09-01T00:00:00.000Z",
+            projectUpdatedAt: current.updatedAt,
+        };
+        const shot = {
+            id: "shot-two",
+            order: 2,
+            title: "Shot two",
+            description: "",
+            sourceText: "",
+            shotBoundary: "",
+            dialogue: "",
+            narration: "",
+            utterances: [],
+            imagePrompt: "",
+            videoPrompt: "",
+            cameraMotion: "",
+            duration: 5,
+            characterIds: [],
+            propIds: [],
+            clueIds: [],
+            frames: {
+                last: {
+                    prompt: "tail prompt",
+                    description: "tail description",
+                    status: "success" as const,
+                    taskId: "video-task-one",
+                    url: candidate.url,
+                    storageKey: candidate.storageKey,
+                    width: 720,
+                    height: 1280,
+                    source: "video_tail" as const,
+                    sourceVideoTaskId: candidate.sourceVideoTaskId,
+                    sourceShotId: candidate.sourceShotId,
+                    sourceVideoHistoryId: candidate.sourceVideoHistoryId,
+                    locked: true,
+                },
+            },
+            firstFrameCandidate: candidate,
+        };
+
+        const normalized = normalizeProject({ ...current, episodes: [{ ...current.episodes[0], shots: [shot] }] }, current);
+        const normalizedShot = normalized.episodes[0].shots[0];
+        expect(normalizedShot.frames?.last).toMatchObject({
+            source: "video_tail",
+            storageKey: candidate.storageKey,
+            sourceVideoTaskId: candidate.sourceVideoTaskId,
+            sourceShotId: candidate.sourceShotId,
+            sourceVideoHistoryId: candidate.sourceVideoHistoryId,
+            locked: true,
+        });
+        expect(normalizedShot.firstFrameCandidate).toEqual(candidate);
+    });
+
+    it("treats a legacy dedicated audio URL without status as ready", () => {
+        const current = project("2026-07-19T08:00:01.000Z", "Audio compatibility");
+        const normalized = normalizeProject(
+            {
+                ...current,
+                episodes: [
+                    {
+                        ...current.episodes[0],
+                        shots: [{ ...current.episodes[0].shots[0], dialogueAudio: { url: "/dialogue.mp3" } }],
+                    },
+                ],
+            },
+            current,
+        );
+
+        expect(normalized.episodes[0].shots[0].dialogueAudio).toMatchObject({ status: "success", url: "/dialogue.mp3" });
     });
 
     it("preserves exact project dimensions without a platform ceiling", async () => {
@@ -191,6 +366,59 @@ describe("drama project service updates", () => {
         await expect(createDramaProjectForUser("user-one", { title: "项目" })).rejects.toBe(error);
 
         expect(mocks.updateCreativeConversation).toHaveBeenCalledWith("conversation-new", "user-one", { status: "archived" });
+        expect(mocks.deleteDramaProject).not.toHaveBeenCalled();
+    });
+
+    it("does not persist a project when initial IP usage recording fails", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
+        mocks.recordIpReferenceUsage.mockRejectedValueOnce(new Error("usage failed"));
+
+        await expect(createDramaProjectForUser("user-one", { title: "IP 项目", ipReferences: [reference] })).rejects.toThrow("usage failed");
+
+        expect(mocks.createDramaProject).not.toHaveBeenCalled();
+        expect(mocks.deleteDramaProject).not.toHaveBeenCalled();
+        expect(mocks.updateCreativeConversation).toHaveBeenCalledWith("conversation-new", "user-one", { status: "archived" });
+    });
+
+    it("records newly referenced IP content when saving a version", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const current = { ...project("2026-07-19T08:00:02.000Z", "当前版本"), ipReferences: [] };
+        const snapshot = { ...current, title: "引用版本", ipReferences: [reference] };
+        mocks.getDramaProject.mockResolvedValue(current);
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+
+        await createDramaProjectVersionForUser("user-one", current.id, { snapshot, reason: "保存引用" });
+
+        expect(mocks.recordIpReferenceUsage).toHaveBeenCalledWith("user-one", { targetType: "drama", targetId: current.id, references: [reference] });
+        expect(mocks.createDramaProjectVersion).toHaveBeenCalled();
+    });
+
+    it("validates and records newly referenced IP content when restoring a version", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const current = { ...project("2026-07-19T08:00:02.000Z", "当前版本"), ipReferences: [] };
+        const snapshot = { ...current, title: "引用版本", ipReferences: [reference] };
+        mocks.getDramaProject.mockResolvedValue(current);
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.getDramaProjectVersion.mockResolvedValue({ id: "version-one", projectId: current.id, version: 1, reason: "引用版", createdAt: current.createdAt, snapshot });
+
+        await restoreDramaProjectVersionForUser("user-one", current.id, "version-one");
+
+        expect(mocks.validateIpReferences).toHaveBeenCalledWith("user-one", [reference]);
+        expect(mocks.recordIpReferenceUsage).toHaveBeenCalledWith("user-one", { targetType: "drama", targetId: current.id, references: [reference] });
+    });
+
+    it("records IP usage before persisting a project reference update", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const current = { ...project("2026-07-19T08:00:02.000Z", "当前版本"), ipReferences: [] };
+        mocks.getDramaProject.mockResolvedValue(current);
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.recordIpReferenceUsage.mockRejectedValueOnce(new Error("usage failed"));
+
+        await expect(updateDramaProjectForUser("user-one", current.id, { ...current, updatedAt: "2026-07-19T08:00:03.000Z", ipReferences: [reference] })).rejects.toThrow("usage failed");
+
+        expect(mocks.updateDramaProject).not.toHaveBeenCalled();
     });
 
     it("reuses a handoff project without listing every project snapshot", async () => {
@@ -200,18 +428,39 @@ describe("drama project service updates", () => {
         await expect(createDramaProjectForUser("user-one", { title: "重复创建", sourceHandoffId: "handoff-one" })).resolves.toEqual(existing);
 
         expect(mocks.findDramaProjectBySourceHandoffId).toHaveBeenCalledWith("user-one", "handoff-one");
+        expect(mocks.validateIpReferences).not.toHaveBeenCalled();
         expect(mocks.createCreativeConversation).not.toHaveBeenCalled();
         expect(mocks.createDramaProject).not.toHaveBeenCalled();
     });
 
-    it("archives the linked conversation after deleting a project", async () => {
-        mocks.getDramaProject.mockResolvedValue({ ...project("2026-07-19T08:00:02.000Z", "项目"), creativeConversationId: "conversation-one" });
-        mocks.deleteDramaProject.mockResolvedValue(true);
+    it("pins and records an authorized IP version when creating a short drama", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
 
+        const created = await createDramaProjectForUser("user-one", { title: "IP 短剧", ipReferences: [reference] });
+
+        expect(created).toMatchObject({ ipReferences: [reference] });
+        expect(mocks.recordIpReferenceUsage).toHaveBeenCalledWith("user-one", { targetType: "drama", targetId: created.id, references: [reference] });
+        expect(mocks.recordIpReferenceUsage.mock.invocationCallOrder[0]).toBeLessThan(mocks.createDramaProject.mock.invocationCallOrder[0]);
+    });
+
+    it("records a practice target when a short drama is created through the practice workspace", async () => {
+        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        mocks.validateIpReferences.mockResolvedValue([{ reference }]);
+        mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
+
+        const created = await createDramaProjectForUser("user-one", { title: "IP 练习短剧", ipReferences: [reference] }, { executionProfile: "open-source-practice" });
+
+        expect(mocks.recordIpReferenceUsage).toHaveBeenCalledWith("user-one", { targetType: "practice", targetId: created.id, references: [reference] });
+    });
+
+    it("deletes a project through the aggregate and cleans its collected media", async () => {
         await deleteDramaProjectForUser("user-one", "drama-one");
 
-        expect(mocks.updateCreativeConversation).toHaveBeenCalledWith("conversation-one", "user-one", { status: "archived" });
-        expect(mocks.deleteUserLocalMediaAssets).toHaveBeenCalled();
+        expect(mocks.deleteDramaProjectCanvasAggregates).toHaveBeenCalledWith("user-one", "drama-one");
+        expect(mocks.updateCreativeConversation).not.toHaveBeenCalled();
+        expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("user-one", ["permanent/drama.png", "permanent/canvas.png"]);
     });
 
     it("deletes a project-owned drama conversation and returns the replacement project", async () => {
@@ -221,7 +470,7 @@ describe("drama project service updates", () => {
 
         expect(mocks.listAgentRuns).toHaveBeenCalledWith({ userId: "user-one", conversationId: "conversation-one", surface: "drama", statuses: ["planning", "running", "paused"], limit: 1 });
         expect(mocks.deleteDramaConversationAggregate).toHaveBeenCalledWith("user-one", "drama-one", "conversation-one", "conversation-two");
-        expect(mocks.deleteUserLocalMediaAssets).toHaveBeenCalledWith("user-one", ["permanent/agent.png"]);
+        expect(mocks.deleteUserMediaAssetsCascade).toHaveBeenCalledWith("user-one", ["permanent/agent.png"]);
     });
 
     it("rejects deleting a running or unrelated drama conversation", async () => {
@@ -283,6 +532,15 @@ describe("drama project service updates", () => {
         expect(mocks.createDramaProjectVersion).not.toHaveBeenCalled();
     });
 });
+
+function canvasPage(sourceHandoffIds: string[], total = sourceHandoffIds.length, page = 1) {
+    return {
+        projects: sourceHandoffIds.map((sourceHandoffId, index) => ({ id: `canvas-${page}-${index}`, sourceHandoffId })),
+        total,
+        page,
+        pageSize: 100,
+    };
+}
 
 function project(updatedAt: string, title: string): DramaProject {
     return {

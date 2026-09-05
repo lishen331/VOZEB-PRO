@@ -1,12 +1,29 @@
+import { createHash } from "node:crypto";
+
 import { nanoid } from "nanoid";
 
 import type { CanvasProject, CanvasProjectMutation, CanvasProjectSaveAck, CreateCanvasProjectInput } from "@/lib/canvas-project-contract";
-import { createCanvasProject, CanvasProjectStoreError, getCanvasProject, listCanvasProjectSummaries, updateCanvasProject, updateCanvasProjectMutationPatch } from "@/lib/server/canvas-project-store";
-import { deleteUserLocalMediaAssets } from "@/lib/server/local-media-storage";
-import { createCreativeConversation } from "@/lib/server/creative-runtime-store";
+import { DRAMA_LAB_CANVAS_HANDOFF_PREFIX, dramaLabEpisodeCanvasHandoffId, isDramaLabCanvasProject, parseDramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract";
+import {
+    createCanvasProject,
+    CanvasProjectStoreError,
+    getCanvasProject,
+    getCanvasProjectWithOwner,
+    listCanvasProjectSummaries,
+    listDramaLabCanvasProjectSummariesForProjects,
+    updateCanvasProject,
+    updateCanvasProjectMutationPatch,
+} from "@/lib/server/canvas-project-store";
+import { getDramaLabMembership, getDramaLabProjectGroup, listDramaLabProjectIdsForUser } from "@/lib/server/drama-lab-collaboration-service";
+import { deleteUserMediaAssetsCascade } from "@/lib/server/user-media-deletion-service";
+import { createCreativeConversation, updateCreativeConversation } from "@/lib/server/creative-runtime-store";
 import { CreativeEntityDeletionConflict, deleteCanvasAssistantConversationAggregates, deleteCanvasProjectAggregates } from "@/lib/server/creative-entity-deletion-store";
+import type { CanvasProjectIdentityInput } from "@/lib/server/canvas-project-store";
+import type { IpReference } from "@/lib/ip-library-domain";
+import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "@/lib/server/ip-library-reference-service";
 
 const MAX_PROJECT_BYTES = 5 * 1024 * 1024;
+type CanvasProjectScope = "ordinary" | "drama-lab";
 
 export class CanvasProjectServiceError extends Error {
     constructor(
@@ -17,29 +34,55 @@ export class CanvasProjectServiceError extends Error {
     }
 }
 
-export function listCanvasProjectsForUser(userId: string, input: { page?: unknown; pageSize?: unknown } = {}) {
+export function listCanvasProjectsForUser(userId: string, input: { page?: unknown; pageSize?: unknown; executionProfile?: "production" | "open-source-practice" } = {}) {
     return listCanvasProjectSummaries(userId, {
         page: positiveInteger(input.page, 1, 1_000_000),
         pageSize: positiveInteger(input.pageSize, 12, 100),
+        executionProfile: input.executionProfile || "production",
     });
 }
 
-export async function getCanvasProjectForUser(userId: string, id: string) {
-    const project = await getCanvasProject(text(id, 160), userId);
-    if (!project) throw new CanvasProjectServiceError("画布项目不存在", 404);
-    return project;
+export async function listDramaLabCanvasProjectsForUser(userId: string, input: { page?: unknown; pageSize?: unknown } = {}) {
+    const page = positiveInteger(input.page, 1, 1_000_000);
+    const pageSize = positiveInteger(input.pageSize, 12, 100);
+    const projectIds = await listDramaLabProjectIdsForUser(userId);
+    return listDramaLabCanvasProjectSummariesForProjects(projectIds, { page, pageSize });
 }
 
-export async function createCanvasProjectForUser(userId: string, value: unknown) {
+export async function getCanvasProjectForUser(userId: string, id: string) {
+    return getScopedCanvasProjectForUser(userId, id, "ordinary");
+}
+
+export async function createCanvasProjectForUser(userId: string, value: unknown, identity: CanvasProjectIdentityInput = {}) {
+    return createScopedCanvasProjectForUser(userId, value, identity, "ordinary");
+}
+
+export async function getDramaLabCanvasProjectForUser(userId: string, id: string) {
+    return (await resolveDramaLabCanvasProjectForUser(userId, id)).project;
+}
+
+/** Resolve a drama Canvas after checking project-group membership. */
+export async function getDramaLabCanvasProjectWithOwnerForUser(userId: string, id: string) {
+    return resolveDramaLabCanvasProjectForUser(userId, id);
+}
+
+export async function createDramaLabCanvasProjectForUser(userId: string, value: unknown, identity: CanvasProjectIdentityInput = {}) {
+    return createScopedCanvasProjectForUser(userId, value, identity, "drama-lab");
+}
+
+async function createScopedCanvasProjectForUser(userId: string, value: unknown, identity: CanvasProjectIdentityInput, scope: CanvasProjectScope) {
     const input = object(value) as CreateCanvasProjectInput;
     const source = object(input.project);
-    const sourceHandoffId = text(input.sourceHandoffId || source.sourceHandoffId, 160);
-    const id = sourceHandoffId ? `canvas-${sourceHandoffId}` : `canvas-${nanoid()}`;
+    const sourceHandoffId = normalizeSourceHandoffId(input.sourceHandoffId || source.sourceHandoffId, scope);
+    assertCreateScope(sourceHandoffId, scope);
+    const id = sourceHandoffId ? canvasHandoffProjectId(userId, sourceHandoffId) : `canvas-${nanoid()}`;
     if (sourceHandoffId) {
         const existing = await getCanvasProject(id, userId);
-        if (existing) return existing;
+        if (existing) return assertCanvasProjectScope(existing, scope);
     }
     const title = text(input.title || source.title, 120) || "未命名画布";
+    const previews = await validateIpReferences(userId, input.ipReferences ?? source.ipReferences);
+    const ipReferences = previews.map((item) => item.reference);
     const now = new Date().toISOString();
     const conversation = await createCreativeConversation(userId, { surface: "canvas", projectId: id, title });
     const project = normalizeProject(source, {
@@ -56,55 +99,180 @@ export async function createCanvasProjectForUser(userId: string, value: unknown)
         backgroundMode: "lines",
         showImageInfo: false,
         viewport: { x: 0, y: 0, k: 1 },
+        ipReferences,
     });
     try {
-        return await createCanvasProject(userId, project);
+        if (ipReferences.length) await recordIpReferenceUsage(userId, { targetType: identity.executionProfile === "open-source-practice" ? "practice" : "canvas", targetId: project.id, references: ipReferences });
+        return await createCanvasProject(userId, project, identity);
     } catch (error) {
-        await deleteCanvasProjectAggregates(userId, [id]).catch(() => null);
+        await updateCreativeConversation(conversation.id, userId, { status: "archived" }).catch(() => null);
+        if (sourceHandoffId && error instanceof CanvasProjectStoreError && error.status === 409) {
+            const existing = await getCanvasProject(id, userId);
+            if (existing) return assertCanvasProjectScope(existing, scope);
+        }
         throw error;
     }
 }
 
 export async function updateCanvasProjectForUser(userId: string, id: string, value: unknown) {
-    const input = object(value);
-    const mutation = object(input.mutation);
-    if (Object.keys(mutation).length) return updateCanvasProjectMutationForUser(userId, id, mutation);
-    const expectedUpdatedAt = isoTimestamp(input.expectedUpdatedAt);
-    if (!expectedUpdatedAt) throw new CanvasProjectServiceError("缺少画布项目版本，请刷新后重试", 400);
-    const current = await getCanvasProject(text(id, 160), userId);
-    if (!current) throw new CanvasProjectServiceError("画布项目不存在", 404);
-    const project = normalizeProject(object(input.project), current);
-    return updateCanvasProject(userId, project, expectedUpdatedAt);
+    return updateScopedCanvasProjectForUser(userId, id, value, "ordinary");
 }
 
-async function updateCanvasProjectMutationForUser(userId: string, id: string, input: Record<string, unknown>): Promise<CanvasProjectSaveAck> {
+export async function updateDramaLabCanvasProjectForUser(userId: string, id: string, value: unknown) {
+    return updateScopedCanvasProjectForUser(userId, id, value, "drama-lab");
+}
+
+async function updateScopedCanvasProjectForUser(userId: string, id: string, value: unknown, scope: CanvasProjectScope) {
+    const input = object(value);
+    const mutation = object(input.mutation);
+    if (Object.keys(mutation).length) return updateCanvasProjectMutationForUser(userId, id, mutation, scope);
+    const expectedUpdatedAt = isoTimestamp(input.expectedUpdatedAt);
+    if (!expectedUpdatedAt) throw new CanvasProjectServiceError("缺少画布项目版本，请刷新后重试", 400);
+    const resolved = scope === "drama-lab" ? await resolveDramaLabCanvasProjectForUser(userId, id) : { project: await getScopedCanvasProjectForUser(userId, id, scope), ownerUserId: userId };
+    const current = resolved.project;
+    const storageOwnerUserId = resolved.ownerUserId;
+    const source = object(input.project);
+    const ipReferences = source.ipReferences === undefined ? current.ipReferences || [] : await validateIpReferenceUpdate(storageOwnerUserId, current.ipReferences, source.ipReferences);
+    const project = normalizeProject({ ...source, ipReferences }, current);
+    const added = addedIpReferences(current.ipReferences, ipReferences);
+    if (added.length) await recordIpReferenceUsage(storageOwnerUserId, { targetType: canvasUsageTarget(current), targetId: current.id, references: added });
+    return updateCanvasProject(storageOwnerUserId, project, expectedUpdatedAt);
+}
+
+async function updateCanvasProjectMutationForUser(userId: string, id: string, input: Record<string, unknown>, scope: CanvasProjectScope): Promise<CanvasProjectSaveAck> {
     const mutationId = text(input.mutationId, 160);
     const baseUpdatedAt = isoTimestamp(input.baseUpdatedAt);
     if (!mutationId || !baseUpdatedAt) throw new CanvasProjectServiceError("缺少画布项目版本或操作标识，请刷新后重试", 400);
+    const projectId = text(id, 160);
+    const resolved = scope === "drama-lab" ? await resolveDramaLabCanvasProjectForUser(userId, projectId) : { project: await getScopedCanvasProjectForUser(userId, projectId, scope), ownerUserId: userId };
+    const current = resolved.project;
+    const storageOwnerUserId = resolved.ownerUserId;
+    let added: IpReference[] = [];
+    if (input.ipReferences !== undefined) {
+        const ipReferences = await validateIpReferenceUpdate(storageOwnerUserId, current.ipReferences, input.ipReferences);
+        input = { ...input, ipReferences };
+        added = addedIpReferences(current.ipReferences, ipReferences);
+    }
     const mutation = normalizeMutation(input, mutationId, baseUpdatedAt);
-    return updateCanvasProjectMutationPatch(userId, text(id, 160), mutation);
+    if (added.length) await recordIpReferenceUsage(storageOwnerUserId, { targetType: canvasUsageTarget(current), targetId: projectId, references: added });
+    return updateCanvasProjectMutationPatch(storageOwnerUserId, projectId, mutation);
+}
+
+async function validateIpReferenceUpdate(userId: string, current: unknown, incoming: unknown) {
+    await validateIpReferences(userId, current);
+    return (await validateIpReferences(userId, incoming)).map((item) => item.reference);
+}
+
+function canvasUsageTarget(project: CanvasProject | null) {
+    return (project as (CanvasProject & { executionProfile?: string }) | null)?.executionProfile === "open-source-practice" ? ("practice" as const) : ("canvas" as const);
 }
 
 export async function deleteCanvasProjectsForUser(userId: string, value: unknown) {
-    const ids = Array.isArray(value) ? value.map((id) => text(id, 160)).filter(Boolean) : [];
+    const ids = Array.isArray(value) ? normalizeEntityDeletes(value) : [];
+    const projects = await Promise.all(ids.map((id) => getCanvasProject(id, userId)));
+    if (projects.some((project) => project && isDramaLabCanvasProject(project))) throw canvasProjectNotFound();
     const result = await deleteCanvasProjectAggregates(userId, ids);
-    await deleteUserLocalMediaAssets(userId, result.mediaStorageKeys);
+    await deleteUserMediaAssetsCascade(userId, result.mediaStorageKeys);
     return result.deletedProjects;
 }
 
+export async function deleteDramaLabEpisodeCanvasForUser(userId: string, dramaProjectId: string, episodeId: string) {
+    const projectId = dramaProjectId.trim();
+    const sourceHandoffId = dramaLabEpisodeCanvasHandoffId(projectId, episodeId.trim());
+    if (!projectId || !episodeId.trim()) return false;
+
+    // A collaboration Canvas is stored under the stable physical owner, not
+    // necessarily the current logical project manager.  Legacy projects with
+    // no group retain the previous caller-owned lookup for backwards
+    // compatibility.
+    const group = await getDramaLabProjectGroup(projectId);
+    let storageOwnerUserId = userId;
+    if (group) {
+        const membership = await getDramaLabMembership(userId, projectId);
+        if (!membership) return false;
+        const drama = await import("@/lib/server/drama-project-store").then(({ getDramaProjectWithOwner }) => getDramaProjectWithOwner(projectId));
+        if (!drama) return false;
+        storageOwnerUserId = drama.ownerUserId;
+    }
+    const id = canvasHandoffProjectId(storageOwnerUserId, sourceHandoffId);
+    const project = await getCanvasProject(id, storageOwnerUserId);
+    if (!project || project.sourceHandoffId !== sourceHandoffId || !isDramaLabCanvasProject(project)) return false;
+    const result = await deleteCanvasProjectAggregates(storageOwnerUserId, [id], { includeDramaLab: true });
+    await deleteUserMediaAssetsCascade(storageOwnerUserId, result.mediaStorageKeys);
+    return result.deletedProjects > 0;
+}
+
 export async function deleteCanvasAssistantConversationsForUser(userId: string, projectId: string, value: unknown) {
+    return deleteScopedCanvasAssistantConversationsForUser(userId, projectId, value, "ordinary");
+}
+
+export async function deleteDramaLabCanvasAssistantConversationsForUser(userId: string, projectId: string, value: unknown) {
+    return deleteScopedCanvasAssistantConversationsForUser(userId, projectId, value, "drama-lab");
+}
+
+async function deleteScopedCanvasAssistantConversationsForUser(userId: string, projectId: string, value: unknown, scope: CanvasProjectScope) {
     const ids = normalizeEntityDeletes(Array.isArray(value) ? value : []);
-    const project = await getCanvasProjectForUser(userId, projectId);
+    const resolved = scope === "drama-lab" ? await resolveDramaLabCanvasProjectForUser(userId, projectId) : { project: await getScopedCanvasProjectForUser(userId, projectId, scope), ownerUserId: userId };
+    const project = resolved.project;
+    const storageOwnerUserId = resolved.ownerUserId;
     if (!ids.length) return { deleted: 0, chatSessions: project.chatSessions, activeChatId: project.activeChatId };
     let result: Awaited<ReturnType<typeof deleteCanvasAssistantConversationAggregates>>;
     try {
-        result = await deleteCanvasAssistantConversationAggregates(userId, projectId, ids);
+        result = scope === "drama-lab" ? await deleteCanvasAssistantConversationAggregates(storageOwnerUserId, projectId, ids, { includeDramaLab: true }) : await deleteCanvasAssistantConversationAggregates(storageOwnerUserId, projectId, ids);
     } catch (error) {
         if (error instanceof CreativeEntityDeletionConflict) throw new CanvasProjectServiceError(error.message, 409);
         throw error;
     }
-    await deleteUserLocalMediaAssets(userId, result.mediaStorageKeys);
+    await deleteUserMediaAssetsCascade(storageOwnerUserId, result.mediaStorageKeys);
     return { deleted: result.deletedConversations, chatSessions: result.canvasAssistantState?.chatSessions || [], activeChatId: result.canvasAssistantState?.activeChatId || null };
+}
+
+async function getScopedCanvasProjectForUser(userId: string, id: string, scope: CanvasProjectScope) {
+    const project = await getCanvasProject(text(id, 160), userId);
+    if (!project) throw canvasProjectNotFound();
+    return assertCanvasProjectScope(project, scope);
+}
+
+function assertCanvasProjectScope(project: CanvasProject, scope: CanvasProjectScope) {
+    if (isDramaLabCanvasProject(project) !== (scope === "drama-lab")) throw canvasProjectNotFound();
+    return project;
+}
+
+function assertCreateScope(sourceHandoffId: string, scope: CanvasProjectScope) {
+    const isDramaLab = sourceHandoffId.startsWith(DRAMA_LAB_CANVAS_HANDOFF_PREFIX);
+    if (scope === "drama-lab" ? !isDramaLab : isDramaLab) throw new CanvasProjectServiceError("画布项目来源无效", 400);
+}
+
+async function resolveDramaLabCanvasProjectForUser(userId: string, id: string) {
+    const ownedByCaller = await getCanvasProject(id, userId);
+    const direct = ownedByCaller ? { project: ownedByCaller, ownerUserId: userId } : await getCanvasProjectWithOwner(id);
+    if (!direct || !isDramaLabCanvasProject(direct.project)) throw canvasProjectNotFound();
+    const binding = parseDramaLabEpisodeCanvasHandoffId(direct.project.sourceHandoffId);
+    if (!binding) throw canvasProjectNotFound();
+    const group = await getDramaLabProjectGroup(binding.projectId);
+    if (group) {
+        const membership = await getDramaLabMembership(userId, binding.projectId);
+        if (!membership) throw canvasProjectNotFound();
+    } else if (direct.ownerUserId !== userId) {
+        throw canvasProjectNotFound();
+    }
+    // A valid handoff is not enough on its own. Reject stale canvases whose
+    // source episode has been deleted (or belongs to another project).
+    const { getDramaProjectWithOwner } = await import("@/lib/server/drama-project-store");
+    const drama = await getDramaProjectWithOwner(binding.projectId);
+    if (!drama || !drama.project.episodes.some((episode) => episode.id === binding.episodeId)) throw canvasProjectNotFound();
+    return { project: assertCanvasProjectScope(direct.project, "drama-lab"), ownerUserId: direct.ownerUserId };
+}
+
+function normalizeSourceHandoffId(value: unknown, scope: CanvasProjectScope) {
+    const sourceHandoffId = typeof value === "string" ? value.trim() : "";
+    const maxLength = scope === "drama-lab" ? 512 : 160;
+    if (sourceHandoffId.length > maxLength) throw new CanvasProjectServiceError("画布项目来源标识过长", 400);
+    return sourceHandoffId;
+}
+
+function canvasProjectNotFound() {
+    return new CanvasProjectServiceError("画布项目不存在", 404);
 }
 
 function normalizeProject(value: Record<string, unknown>, current: CanvasProject): CanvasProject {
@@ -122,6 +290,7 @@ function normalizeProject(value: Record<string, unknown>, current: CanvasProject
         backgroundMode: sanitized.backgroundMode === "dots" || sanitized.backgroundMode === "blank" ? sanitized.backgroundMode : "lines",
         showImageInfo: sanitized.showImageInfo === true,
         viewport: normalizeViewport(sanitized.viewport, current.viewport),
+        ipReferences: sanitized.ipReferences === undefined ? current.ipReferences || [] : normalizeIpReferences(sanitized.ipReferences),
         createdAt: current.createdAt,
         updatedAt: nextProjectVersion(current.updatedAt),
         id: current.id,
@@ -142,6 +311,7 @@ function normalizeMutation(input: Record<string, unknown>, mutationId: string, b
     if (typeof sanitized.showImageInfo === "boolean") mutation.showImageInfo = sanitized.showImageInfo;
     const viewport = normalizeMutationViewport(sanitized.viewport);
     if (viewport) mutation.viewport = viewport;
+    if (sanitized.ipReferences !== undefined) mutation.ipReferences = normalizeIpReferences(sanitized.ipReferences);
     if (Array.isArray(sanitized.nodeUpserts)) mutation.nodeUpserts = normalizeEntityUpserts<CanvasProject["nodes"][number]>(sanitized.nodeUpserts);
     if (Array.isArray(sanitized.nodeDeletes)) mutation.nodeDeletes = normalizeEntityDeletes(sanitized.nodeDeletes);
     if (Array.isArray(sanitized.connectionUpserts)) mutation.connectionUpserts = normalizeEntityUpserts<CanvasProject["connections"][number]>(sanitized.connectionUpserts);
@@ -175,6 +345,19 @@ function normalizeMutationViewport(value: unknown) {
 
 function object(value: unknown) {
     return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function addedIpReferences(previous: IpReference[] | undefined, next: IpReference[]) {
+    const existing = new Set((previous || []).map(referenceKey));
+    return next.filter((reference) => !existing.has(referenceKey(reference)));
+}
+
+function referenceKey(reference: IpReference) {
+    return `${reference.id}:${reference.versionId}:${reference.itemIds.join(",")}`;
+}
+
+function canvasHandoffProjectId(userId: string, sourceHandoffId: string) {
+    return `canvas-handoff-${createHash("sha256").update(`${userId}\0${sourceHandoffId}`).digest("hex").slice(0, 32)}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

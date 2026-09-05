@@ -31,7 +31,12 @@ export async function DELETE(request: Request) {
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     const parsed = await readJsonBodyResult<{ ids?: unknown }>(request);
     if (!parsed.ok) return NextResponse.json({ code: parsed.status, data: null, msg: parsed.message }, { status: parsed.status });
-    const body = parsed.data;
-    const deleted = await deleteCanvasProjectsForUser(user.id, body.ids);
-    return NextResponse.json({ code: 0, data: { deleted }, msg: "画布项目已删除" });
+    try {
+        const deleted = await deleteCanvasProjectsForUser(user.id, parsed.data.ids);
+        return NextResponse.json({ code: 0, data: { deleted }, msg: "画布项目已删除" });
+    } catch (error) {
+        const known = canvasProjectError(error);
+        if (known) return NextResponse.json({ code: known.status, data: null, msg: known.message }, { status: known.status });
+        throw error;
+    }
 }

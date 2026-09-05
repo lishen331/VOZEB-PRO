@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { App, Button, Empty } from "antd";
 import { ArrowRight, History } from "lucide-react";
+import { nanoid } from "nanoid";
 import { useParams, useRouter } from "next/navigation";
 
 import { createImageGenerationTask, waitForImageGenerationTask } from "@/services/api/image";
@@ -24,6 +25,7 @@ import { DramaVersionModal } from "./drama-project-modals";
 import { dramaGenerationSize, estimateTaskPoints, referenceImage, shotReferenceImages, storyboardReferenceImages } from "./drama-shot-generation-utils";
 import { useGenerationCapacityRetry } from "./use-generation-capacity-retry";
 import { DramaEpisodeSidebar, DramaScriptPanel, DramaWorkspaceHeader, type DramaProjectStage } from "./drama-project-sections";
+import { SchoolProjectBillingBadge } from "@/components/school/school-project-billing-badge";
 
 export default function DramaProjectPage() {
     const router = useRouter();
@@ -106,7 +108,11 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
         if (!episode.script.trim()) return message.warning("请先填写剧本内容");
         setAnalyzing(true);
         try {
-            const response = await fetch("/api/drama/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phase: "content", script: episode.script, summary: project.summary, style: project.style }) });
+            const response = await fetch("/api/drama/analyze", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ requestId: `drama-content:${project.id}:${episode.id}:${nanoid()}`, phase: "content", script: episode.script, summary: project.summary, style: project.style, videoModel: config.videoModel || config.model }),
+            });
             syncUserPointsFromHeaders(response.headers, "system");
             const payload = (await response.json().catch(() => ({}))) as { data?: DramaContentAnalysis; msg?: string };
             if (!response.ok || !payload.data) throw new Error(payload.msg || "AI 剧本解析失败");
@@ -128,7 +134,25 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
             const response = await fetch("/api/drama/analyze", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ phase: "visual", summary: project.summary, style: project.style, episode, characters: project.characters, scenes: project.scenes, props: project.props, clues: project.clues, shots: episode.shots }),
+                body: JSON.stringify({
+                    requestId: `drama-visual:${project.id}:${episode.id}:${nanoid()}`,
+                    phase: "visual",
+                    summary: project.summary,
+                    style: project.style,
+                    episode: {
+                        id: episode.id,
+                        title: episode.title,
+                        outline: episode.outline,
+                        hook: episode.hook,
+                        nextPreview: episode.nextPreview,
+                        sourceRange: episode.sourceRange,
+                    },
+                    characters: project.characters,
+                    scenes: project.scenes,
+                    props: project.props,
+                    clues: project.clues,
+                    shots: episode.shots,
+                }),
             });
             syncUserPointsFromHeaders(response.headers, "system");
             const payload = (await response.json().catch(() => ({}))) as { data?: DramaVisualAnalysis; msg?: string };
@@ -373,6 +397,9 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
                 onToggleAgent={() => setAgentOpen((open) => !open)}
                 onOpenVersions={() => void openVersions()}
             />
+            <div className="flex shrink-0 items-center border-b border-border bg-card/80 px-3 py-1.5 sm:px-4">
+                <SchoolProjectBillingBadge surface="drama" projectId={project.id} executionProfile={project.executionProfile} />
+            </div>
             <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden" data-drama-workspace-body>
                 <DramaEpisodeSidebar project={project} episode={episode} open={episodeNavigatorOpen && !assetsOpen} onOpenChange={setEpisodeNavigatorOpen} onStageChange={changeStage} />
                 <div className="relative flex min-h-0 min-w-0 flex-1 flex-col" data-drama-production-surface>

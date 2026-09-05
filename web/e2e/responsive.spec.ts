@@ -3,84 +3,11 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { billingProductsFixture, expectDialogWithinViewport, expectNoHorizontalOverflow, masonryGalleryFixture, masonryLayoutIsReady, openCreativeHistory, readMasonryLayout } from "./responsive-helpers";
+import { billingProductsFixture, expectDialogWithinViewport, expectNoHorizontalOverflow, masonryGalleryFixture, masonryLayoutIsReady, mockCreativeImageUploads, openCreativeHistory, readMasonryLayout } from "./responsive-helpers";
 
 async function waitForCreativeComposerReady(page: Page) {
     await expect(page.locator(".creative-composer")).toHaveAttribute("data-ready", "true", { timeout: 45_000 });
     await expect(page.getByRole("button", { name: /当前创作类型：/ })).toBeVisible({ timeout: 45_000 });
-}
-
-async function mockCreativeImageUploads(page: Page, fileNames: string[], imageBuffer: Buffer) {
-    const conversationId = `e2e-upload-${randomUUID()}`;
-    const timestamp = Date.now();
-    const imageDataUrl = `data:image/webp;base64,${imageBuffer.toString("base64")}`;
-    let uploadIndex = 0;
-    let conversationCreates = 0;
-    let assetUploads = 0;
-    await page.route(/\/api\/creative\/conversations(?:\?.*)?$/, async (route) => {
-        if (route.request().method() === "GET") return route.fulfill({ json: { code: 0, data: { conversations: [], hasMore: false }, msg: "OK" } });
-        if (route.request().method() !== "POST") return route.fallback();
-        conversationCreates += 1;
-        return route.fulfill({
-            json: {
-                code: 0,
-                data: {
-                    conversation: {
-                        id: conversationId,
-                        userId: "e2e-user",
-                        surface: "chat",
-                        source: "agent",
-                        title: "新对话",
-                        status: "active",
-                        contextSummary: "",
-                        contextSummaryThroughSequence: 0,
-                        createdAt: timestamp,
-                        updatedAt: timestamp,
-                        lastMessageAt: timestamp,
-                    },
-                },
-                msg: "OK",
-            },
-        });
-    });
-    await page.route(/\/api\/creative\/assets(?:\?.*)?$/, async (route) => {
-        if (route.request().method() !== "POST") return route.fallback();
-        assetUploads += 1;
-        const title = fileNames[uploadIndex] || `reference-${uploadIndex + 1}.webp`;
-        uploadIndex += 1;
-        return route.fulfill({
-            json: {
-                code: 0,
-                data: {
-                    asset: {
-                        id: `asset-${uploadIndex}-${randomUUID()}`,
-                        userId: "e2e-user",
-                        conversationId,
-                        ordinal: uploadIndex - 1,
-                        type: "image",
-                        status: "ready",
-                        title,
-                        storageKind: "remote",
-                        remoteUrl: imageDataUrl,
-                        serverUrl: imageDataUrl,
-                        mimeType: "image/webp",
-                        width: 512,
-                        height: 512,
-                        bytes: imageBuffer.byteLength,
-                        metadata: {},
-                        createdAt: timestamp + uploadIndex,
-                        updatedAt: timestamp + uploadIndex,
-                    },
-                },
-                msg: "OK",
-            },
-        });
-    });
-    await page.route(/\/api\/agent\/runs\?surface=chat$/, (route) => route.fulfill({ json: { code: 0, data: { runs: [] }, msg: "OK" } }));
-    return {
-        conversationCreates: () => conversationCreates,
-        assetUploads: () => assetUploads,
-    };
 }
 
 async function mockExistingCreativeConversation(page: Page) {
@@ -699,19 +626,42 @@ test("creative conversation keeps successful media rounds copy-only", async ({ p
     await expect(composer).toHaveAttribute("data-compact", "false");
     const expandedComposerHeight = await composer.evaluate((element) => element.getBoundingClientRect().height);
     await expect.poll(() => scrollArea.evaluate((element) => element.scrollHeight - element.clientHeight > 200)).toBe(true);
-    await scrollArea.evaluate((element) => element.scrollTo({ top: 0 }));
+    const composerDock = page.getByTestId("creative-composer-dock");
+    await composerDock.evaluate((element) => {
+        element.dataset.compactTransitions = "";
+        new MutationObserver(() => {
+            const state = element.dataset.compact || "";
+            const composer = element.querySelector<HTMLElement>(".creative-composer");
+            const height = composer?.getBoundingClientRect().height || 0;
+            element.dataset.compactTransitions = [element.dataset.compactTransitions, `${state}:${height}`].filter(Boolean).join(",");
+        }).observe(element, { attributes: true, attributeFilter: ["data-compact"] });
+    });
+    await scrollArea.hover();
+    await page.mouse.wheel(0, -10_000);
     await expect(composer).toHaveAttribute("data-compact", "true");
     await expect(page.getByRole("button", { name: "回到底部" })).toBeVisible();
+    await expect.poll(() => composer.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(64);
     const compactAppearance = await composer.evaluate((element) => {
         const style = getComputedStyle(element);
         const shell = element.parentElement;
         const dock = shell?.parentElement;
+        const inputRow = element.querySelector<HTMLElement>("[data-testid='creative-composer-input-row']");
+        const actionButtons = Array.from(element.querySelectorAll<HTMLElement>("button[aria-label='引用当前对话资产'], button[aria-label='优化提示词'], button[aria-label='发送']"));
         return {
             backgroundColor: style.backgroundColor,
             borderWidth: `${style.borderTopWidth} ${style.borderRightWidth} ${style.borderBottomWidth} ${style.borderLeftWidth}`,
             boxShadow: style.boxShadow,
             composerHeight: element.getBoundingClientRect().height,
+            composerWidth: element.getBoundingClientRect().width,
+            inputRowHeight: inputRow?.getBoundingClientRect().height || 0,
+            actionButtonSizes: actionButtons
+                .map((button) => {
+                    const bounds = button.getBoundingClientRect();
+                    return { width: bounds.width, height: bounds.height };
+                })
+                .filter((bounds) => bounds.width > 0 && bounds.height > 0),
             shellHeight: shell?.getBoundingClientRect().height || 0,
+            shellWidth: shell?.getBoundingClientRect().width || 0,
             shellBackgroundColor: shell ? getComputedStyle(shell).backgroundColor : null,
             dockBackgroundColor: dock ? getComputedStyle(dock).backgroundColor : null,
             dockPosition: dock ? getComputedStyle(dock).position : null,
@@ -722,6 +672,23 @@ test("creative conversation keeps successful media rounds copy-only", async ({ p
     expect(compactAppearance.borderWidth).not.toBe("0px 0px 0px 0px");
     expect(compactAppearance.boxShadow).not.toBe("none");
     expect(compactAppearance).toMatchObject({ shellBackgroundColor: "rgba(0, 0, 0, 0)", dockBackgroundColor: "rgba(0, 0, 0, 0)", dockPosition: "absolute", dockPointerEvents: "none" });
+    expect(compactAppearance.composerHeight).toBeGreaterThanOrEqual(60);
+    expect(compactAppearance.composerHeight).toBeLessThanOrEqual(64);
+    expect(compactAppearance.inputRowHeight).toBeLessThanOrEqual(46);
+    expect(compactAppearance.shellHeight - compactAppearance.composerHeight).toBeGreaterThanOrEqual(12);
+    expect(compactAppearance.shellHeight - compactAppearance.composerHeight).toBeLessThanOrEqual(18);
+    expect(compactAppearance.composerWidth).toBeGreaterThanOrEqual(compactAppearance.shellWidth - 50);
+    expect(compactAppearance.actionButtonSizes).toEqual([
+        { width: 44, height: 44 },
+        { width: 44, height: 44 },
+        { width: 44, height: 44 },
+    ]);
+    await expect(composerDock).toHaveAttribute("data-compact-transitions", /^true:(?:6[0-4](?:\.\d+)?)$/);
+    const disabledSendAppearance = await composer.getByRole("button", { name: "发送" }).evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { disabled: (element as HTMLButtonElement).disabled, backgroundImage: style.backgroundImage, backgroundColor: style.backgroundColor };
+    });
+    expect(disabledSendAppearance).toEqual({ disabled: true, backgroundImage: "none", backgroundColor: "rgb(226, 229, 232)" });
     expect(compactAppearance.composerHeight).toBeLessThan(expandedComposerHeight);
     expect(compactAppearance.shellHeight).toBeLessThan(expandedComposerHeight);
     await page.getByRole("button", { name: "回到底部" }).click();
@@ -1153,6 +1120,7 @@ test("creative workspaces remain usable without horizontal overflow in light and
             await page.keyboard.press("Escape");
             await agentSurface.getByRole("button", { name: "收起项目 Agent" }).click();
             await expect(page.getByRole("button", { name: "打开项目 Agent", exact: true })).toBeVisible();
+            await expect(page.getByRole("dialog", { name: "项目 Agent", exact: true })).toBeHidden();
         }
         if (route === canvasRoute) {
             await expect(page.locator("[data-canvas-surface]")).toHaveCSS("background-color", "rgb(255, 255, 255)");
@@ -1202,6 +1170,10 @@ test("creative workspaces remain usable without horizontal overflow in light and
 test("admin user editor groups permission controls and keeps the footer visible", async ({ page }, testInfo) => {
     await page.goto("/admin?section=users", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "用户管理" })).toBeVisible();
+    await expect(page.locator("[data-hydrated='true']")).toHaveCount(1);
+    await expect(page.getByText(/共\s*\d+/).first()).toBeVisible();
+    const userSearchInput = page.getByRole("textbox", { name: "搜索用户" });
+    await userSearchInput.fill("e2e_admin");
 
     const adminRow = page.getByRole("row").filter({ hasText: "@e2e_admin" });
     await expect(adminRow).toBeVisible();

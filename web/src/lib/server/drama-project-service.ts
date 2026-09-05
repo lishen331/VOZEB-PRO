@@ -1,16 +1,35 @@
 import { nanoid } from "nanoid";
 
-import type { CreateDramaProjectInput, DramaAssetProfile, DramaAssetReference, DramaEpisode, DramaNamedAsset, DramaProject, DramaShot, DramaShotContinuity, DramaUtterance, DramaVideoMode } from "@/lib/drama-project-contract";
+import type {
+    CreateDramaProjectInput,
+    DramaAssetProfile,
+    DramaAssetReference,
+    DramaEpisode,
+    DramaNamedAsset,
+    DramaProject,
+    DramaShot,
+    DramaShotContinuity,
+    DramaUtterance,
+    DramaVideoMode,
+    DramaShotFrameCandidate,
+    DramaShotFrameSource,
+    DramaShotFrameType,
+    DramaShotVideoFrameSnapshot,
+} from "@/lib/drama-project-contract";
+import { parseDramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract";
 import { dramaRichContentToPlainText, normalizeDramaScriptRichContent } from "@/lib/drama-script-rich-content";
 import { normalizeDramaImageSize } from "@/lib/drama-image-size";
 import { resolveDramaShotDuration } from "@/lib/server/drama-shot-config";
 import { listAgentRuns } from "@/lib/server/agent-run-store";
-import { CreativeEntityDeletionConflict, deleteDramaConversationAggregate } from "@/lib/server/creative-entity-deletion-store";
+import { CreativeEntityDeletionConflict, deleteDramaConversationAggregate, deleteDramaProjectCanvasAggregates } from "@/lib/server/creative-entity-deletion-store";
 import { createCreativeConversation, getCreativeConversation, listCreativeConversations, updateCreativeConversation } from "@/lib/server/creative-runtime-store";
-import { createDramaProject, deleteDramaProject, DramaProjectStoreError, findDramaProjectBySourceHandoffId, getDramaProject, listDramaProjectSummaries, updateDramaProject } from "@/lib/server/drama-project-store";
+import { createDramaProject, DramaProjectStoreError, findDramaProjectBySourceHandoffId, getDramaProject, listDramaProjectSummaries, updateDramaProject } from "@/lib/server/drama-project-store";
 import { createDramaProjectVersion, getDramaProjectVersion, listDramaProjectVersions } from "@/lib/server/drama-project-version-store";
-import { collectLocalMediaStorageKeys } from "@/lib/server/local-media-references";
-import { deleteUserLocalMediaAssets } from "@/lib/server/local-media-storage";
+import { deleteUserMediaAssetsCascade } from "@/lib/server/user-media-deletion-service";
+import type { DramaProjectIdentityInput } from "@/lib/server/drama-project-store";
+import type { IpReference } from "@/lib/ip-library-domain";
+import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "@/lib/server/ip-library-reference-service";
+import { deleteDramaLabEpisodeCanvasForUser, listDramaLabCanvasProjectsForUser } from "@/lib/server/canvas-project-service";
 
 const MAX_PROJECT_BYTES = 2 * 1024 * 1024;
 
@@ -23,8 +42,8 @@ export class DramaProjectServiceError extends Error {
     }
 }
 
-export function listDramaProjectSummariesForUser(userId: string, input: { page?: number; pageSize?: number } = {}) {
-    return listDramaProjectSummaries(userId, input);
+export function listDramaProjectSummariesForUser(userId: string, input: { page?: number; pageSize?: number; executionProfile?: "production" | "open-source-practice" } = {}) {
+    return listDramaProjectSummaries(userId, { ...input, executionProfile: input.executionProfile || "production" });
 }
 
 export async function getDramaProjectForUser(userId: string, id: string) {
@@ -33,16 +52,18 @@ export async function getDramaProjectForUser(userId: string, id: string) {
     return project;
 }
 
-export async function createDramaProjectForUser(userId: string, value: unknown) {
+export async function createDramaProjectForUser(userId: string, value: unknown, identity: DramaProjectIdentityInput = {}) {
     const input = normalizeCreateInput(value);
     const now = new Date().toISOString();
     if (input.sourceHandoffId) {
         const existing = await findDramaProjectBySourceHandoffId(userId, input.sourceHandoffId);
         if (existing) return existing;
     }
+    const ipReferences = (await validateIpReferences(userId, input.ipReferences)).map((item) => item.reference);
     const projectId = input.sourceHandoffId ? `drama-${input.sourceHandoffId}` : `drama-${nanoid()}`;
     const episode: DramaEpisode = {
         id: `episode-${nanoid()}`,
+        episodeNumber: 1,
         title: "第 1 集",
         script: input.initialScript,
         outline: "",
@@ -70,11 +91,13 @@ export async function createDramaProjectForUser(userId: string, value: unknown) 
         defaultVideoMode: input.defaultVideoMode,
         episodes: [episode],
         sourceAssets: input.sourceAssets,
+        ipReferences,
         createdAt: now,
         updatedAt: now,
     };
     try {
-        return await createDramaProject(userId, project);
+        if (ipReferences.length) await recordIpReferenceUsage(userId, { targetType: identity.executionProfile === "open-source-practice" ? "practice" : "drama", targetId: project.id, references: ipReferences });
+        return await createDramaProject(userId, project, identity);
     } catch (error) {
         await updateCreativeConversation(conversation.id, userId, { status: "archived" }).catch(() => null);
         throw error;
@@ -86,11 +109,20 @@ export async function updateDramaProjectForUser(userId: string, id: string, valu
     const size = Buffer.byteLength(JSON.stringify(value || {}));
     if (size > MAX_PROJECT_BYTES) throw new DramaProjectServiceError("短剧项目数据过大", 413);
     const incomingUpdatedAt = parseTimestamp(object(value).updatedAt);
-    if (incomingUpdatedAt && incomingUpdatedAt < parseTimestamp(current.updatedAt)) return current;
-    const project = normalizeProject(value, current);
+    if (incomingUpdatedAt && incomingUpdatedAt < parseTimestamp(current.updatedAt)) {
+        await cleanupOrphanDramaEpisodeCanvases(userId, current.id, current.episodes);
+        return current;
+    }
+    const source = object(value);
+    const ipReferences = source.ipReferences === undefined ? current.ipReferences || [] : await validateIpReferenceUpdate(userId, current.ipReferences, source.ipReferences);
+    const project = normalizeProject({ ...source, ipReferences }, current);
     if (incomingUpdatedAt) project.updatedAt = new Date(incomingUpdatedAt).toISOString();
     try {
-        return await updateDramaProject(userId, project, current.updatedAt);
+        const added = addedIpReferences(current.ipReferences, ipReferences);
+        if (added.length) await recordIpReferenceUsage(userId, { targetType: dramaUsageTarget(current), targetId: current.id, references: added });
+        const saved = await updateDramaProject(userId, project, current.updatedAt);
+        await cleanupOrphanDramaEpisodeCanvases(userId, saved.id, saved.episodes, current.episodes);
+        return saved;
     } catch (error) {
         if (error instanceof DramaProjectStoreError) throw new DramaProjectServiceError(error.message, error.status);
         throw error;
@@ -106,8 +138,11 @@ export async function createDramaProjectVersionForUser(userId: string, id: strin
     const current = await getDramaProjectForUser(userId, cleanText(id));
     const input = object(value);
     const snapshot = normalizeProject(input.snapshot, current);
+    snapshot.ipReferences = (await validateIpReferences(userId, snapshot.ipReferences)).map((item) => item.reference);
     if (Buffer.byteLength(JSON.stringify(snapshot)) > MAX_PROJECT_BYTES) throw new DramaProjectServiceError("短剧版本数据过大", 413);
     const reason = cleanText(input.reason) || "手动保存版本";
+    const added = addedIpReferences(current.ipReferences, snapshot.ipReferences);
+    if (added.length) await recordIpReferenceUsage(userId, { targetType: dramaUsageTarget(current), targetId: current.id, references: added });
     return createDramaProjectVersion(userId, current.id, reason, snapshot);
 }
 
@@ -116,22 +151,58 @@ export async function restoreDramaProjectVersionForUser(userId: string, id: stri
     const current = await getDramaProjectForUser(userId, projectId);
     const version = await getDramaProjectVersion(userId, projectId, cleanText(versionId));
     if (!version) throw new DramaProjectServiceError("短剧版本不存在", 404);
-    await createDramaProjectVersion(userId, projectId, "恢复前自动快照", current);
+    const restored = normalizeProject(version.snapshot, current);
+    restored.ipReferences = await validateIpReferenceUpdate(userId, current.ipReferences, restored.ipReferences);
     try {
-        return await updateDramaProject(userId, normalizeProject(version.snapshot, current), current.updatedAt);
+        const added = addedIpReferences(current.ipReferences, restored.ipReferences);
+        if (added.length) await recordIpReferenceUsage(userId, { targetType: dramaUsageTarget(current), targetId: current.id, references: added });
+        await createDramaProjectVersion(userId, projectId, "恢复前自动快照", current);
+        const saved = await updateDramaProject(userId, restored, current.updatedAt);
+        await cleanupOrphanDramaEpisodeCanvases(userId, saved.id, saved.episodes, current.episodes);
+        return saved;
     } catch (error) {
         if (error instanceof DramaProjectStoreError) throw new DramaProjectServiceError(error.message, error.status);
         throw error;
     }
 }
 
+async function cleanupOrphanDramaEpisodeCanvases(userId: string, projectId: string, episodes: DramaEpisode[], previousEpisodes: DramaEpisode[] = []) {
+    const activeEpisodeIds = new Set(episodes.map((episode) => episode.id));
+    const orphanEpisodeIds = new Set(previousEpisodes.map((episode) => episode.id).filter((episodeId) => !activeEpisodeIds.has(episodeId)));
+    let listedCanvases = 0;
+    for (let page = 1; ; page += 1) {
+        const result = await listDramaLabCanvasProjectsForUser(userId, { page, pageSize: 100 });
+        for (const canvas of result.projects) {
+            const binding = parseDramaLabEpisodeCanvasHandoffId(canvas.sourceHandoffId);
+            if (binding?.projectId === projectId && !activeEpisodeIds.has(binding.episodeId)) orphanEpisodeIds.add(binding.episodeId);
+        }
+        listedCanvases += result.projects.length;
+        if (!result.projects.length || listedCanvases >= result.total) break;
+    }
+
+    for (const episodeId of orphanEpisodeIds) await deleteDramaLabEpisodeCanvasForUser(userId, projectId, episodeId);
+}
+
+async function validateIpReferenceUpdate(userId: string, current: unknown, incoming: unknown) {
+    await validateIpReferences(userId, current);
+    return (await validateIpReferences(userId, incoming)).map((item) => item.reference);
+}
+
+function dramaUsageTarget(project: DramaProject) {
+    return (project as DramaProject & { executionProfile?: string }).executionProfile === "open-source-practice" ? ("practice" as const) : ("drama" as const);
+}
+
 export async function deleteDramaProjectForUser(userId: string, id: string) {
     const projectId = cleanText(id);
-    const current = await getDramaProject(projectId, userId);
-    const deleted = await deleteDramaProject(userId, projectId);
-    if (!deleted) throw new DramaProjectServiceError("短剧项目不存在", 404);
-    if (current?.creativeConversationId) await updateCreativeConversation(current.creativeConversationId, userId, { status: "archived" });
-    if (current) await deleteUserLocalMediaAssets(userId, collectLocalMediaStorageKeys(current));
+    let result: Awaited<ReturnType<typeof deleteDramaProjectCanvasAggregates>>;
+    try {
+        result = await deleteDramaProjectCanvasAggregates(userId, projectId);
+    } catch (error) {
+        if (error instanceof CreativeEntityDeletionConflict) throw new DramaProjectServiceError(error.message, 404);
+        throw error;
+    }
+    if (!result.deletedDramaProjects) throw new DramaProjectServiceError("短剧项目不存在", 404);
+    await deleteUserMediaAssetsCascade(userId, result.mediaStorageKeys);
 }
 
 export async function deleteDramaAgentConversationForUser(userId: string, projectIdValue: string, conversationIdValue: unknown) {
@@ -164,7 +235,7 @@ export async function deleteDramaAgentConversationForUser(userId: string, projec
         if (error instanceof CreativeEntityDeletionConflict) throw new DramaProjectServiceError(error.message, 409);
         throw error;
     }
-    await deleteUserLocalMediaAssets(userId, result.mediaStorageKeys);
+    await deleteUserMediaAssetsCascade(userId, result.mediaStorageKeys);
     const updatedProject = result.dramaProject || project;
     return { deleted: result.deletedConversations > 0, activeConversationId: updatedProject.creativeConversationId || "", project: updatedProject };
 }
@@ -184,13 +255,14 @@ function normalizeCreateInput(value: unknown): Required<Omit<CreateDramaProjectI
         initialScript: cleanText(input.initialScript),
         sourceAssets: normalizeSourceAssets(input.sourceAssets),
         defaultVideoMode: videoMode(input.defaultVideoMode),
+        ipReferences: normalizeIpReferences(input.ipReferences),
     };
 }
 
 export function normalizeProject(value: unknown, current: DramaProject): DramaProject {
     const input = object(value);
     const episodes = array(input.episodes)
-        .map(normalizeEpisode)
+        .map((value, index) => normalizeEpisode(value, index))
         .filter((episode): episode is DramaEpisode => Boolean(episode));
     if (!episodes.length) throw new DramaProjectServiceError("短剧项目至少需要一集", 400);
     const activeEpisodeId = cleanText(input.activeEpisodeId);
@@ -213,12 +285,22 @@ export function normalizeProject(value: unknown, current: DramaProject): DramaPr
         defaultVideoMode: videoMode(input.defaultVideoMode),
         episodes,
         sourceAssets: normalizeSourceAssets(input.sourceAssets),
+        ipReferences: input.ipReferences === undefined ? current.ipReferences || [] : normalizeIpReferences(input.ipReferences),
         createdAt: current.createdAt,
         updatedAt: nextTimestamp(current.updatedAt),
     };
 }
 
-function normalizeEpisode(value: unknown): DramaEpisode | null {
+function addedIpReferences(previous: IpReference[] | undefined, next: IpReference[]) {
+    const existing = new Set((previous || []).map(referenceKey));
+    return next.filter((reference) => !existing.has(referenceKey(reference)));
+}
+
+function referenceKey(reference: IpReference) {
+    return `${reference.id}:${reference.versionId}:${reference.itemIds.join(",")}`;
+}
+
+function normalizeEpisode(value: unknown, index: number): DramaEpisode | null {
     const input = object(value);
     const id = cleanText(input.id);
     if (!id) return null;
@@ -237,6 +319,7 @@ function normalizeEpisode(value: unknown): DramaEpisode | null {
     const scriptRichContent = normalizeDramaScriptRichContent(input.scriptRichContent);
     return {
         id,
+        episodeNumber: optionalPositiveInteger(input.episodeNumber) || index + 1,
         title: cleanText(input.title) || "未命名剧集",
         script: scriptRichContent ? dramaRichContentToPlainText(scriptRichContent).trim() : script,
         scriptRichContent,
@@ -276,7 +359,7 @@ function normalizeVisualReview(value: unknown): DramaEpisode["visualReview"] {
     });
     return {
         mode,
-        status,
+        status: status || "idle",
         score: Number.isFinite(scoreValue) ? Math.max(0, Math.min(100, Math.round(scoreValue))) : undefined,
         summary,
         issues,
@@ -299,6 +382,29 @@ function normalizeShot(value: unknown, index: number): DramaShot {
         imagePrompt: cleanText(input.imagePrompt),
         videoPrompt: cleanText(input.videoPrompt),
         cameraMotion: cleanText(input.cameraMotion),
+        shotType: optionalText(input.shotType),
+        segmentIndex: optionalPositiveInteger(input.segmentIndex),
+        segmentTitle: optionalText(input.segmentTitle),
+        atmosphere: optionalText(input.atmosphere),
+        lightingStyle: optionalText(input.lightingStyle),
+        depthOfField: optionalText(input.depthOfField),
+        creationMode: input.creationMode === "universal" ? "universal" : "classic",
+        universalSegmentText: optionalText(input.universalSegmentText),
+        polishedPrompt: optionalText(input.polishedPrompt),
+        cameraAngle: optionalText(input.cameraAngle),
+        angleH: optionalText(input.angleH),
+        angleV: optionalText(input.angleV),
+        angleS: optionalText(input.angleS),
+        location: optionalText(input.location),
+        time: optionalText(input.time),
+        action: optionalText(input.action),
+        result: optionalText(input.result),
+        emotion: optionalText(input.emotion),
+        emotionIntensity: Number.isFinite(Number(input.emotionIntensity)) ? Math.max(-1, Math.min(3, Math.round(Number(input.emotionIntensity)))) : undefined,
+        layoutDescription: optionalText(input.layoutDescription),
+        frames: normalizeFrameStates(input.frames),
+        firstFrameCandidate: normalizeFrameCandidate(input.firstFrameCandidate),
+        videoFrameSnapshot: normalizeVideoFrameSnapshot(input.videoFrameSnapshot),
         startFramePrompt: optionalText(input.startFramePrompt),
         endFramePrompt: optionalText(input.endFramePrompt),
         negativePrompt: optionalText(input.negativePrompt),
@@ -319,6 +425,7 @@ function normalizeShot(value: unknown, index: number): DramaShot {
         storyboardImageUrl: stableUrl(input.storyboardImageUrl),
         storyboardImageWidth: optionalPositiveInteger(input.storyboardImageWidth),
         storyboardImageHeight: optionalPositiveInteger(input.storyboardImageHeight),
+        storyboardHistory: normalizeGenerationHistory(input.storyboardHistory),
         storyboardEndStatus: taskStatus(input.storyboardEndStatus),
         storyboardEndAttempt: optionalPositiveInteger(input.storyboardEndAttempt),
         storyboardEndTaskId: optionalText(input.storyboardEndTaskId),
@@ -329,8 +436,10 @@ function normalizeShot(value: unknown, index: number): DramaShot {
         generationStatus: taskStatus(input.generationStatus),
         generationAttempt: optionalPositiveInteger(input.generationAttempt),
         generationTaskId: optionalText(input.generationTaskId),
+        generationNeedsReview: input.generationNeedsReview === true ? true : undefined,
         generationError: optionalText(input.generationError),
         videoUrl: stableUrl(input.videoUrl),
+        videoHistory: normalizeGenerationHistory(input.videoHistory),
         subtitle: optionalText(input.subtitle),
         audioMode: input.audioMode === "voiceover" || input.audioMode === "mute" ? input.audioMode : "source",
         audioStatus: taskStatus(input.audioStatus),
@@ -338,6 +447,30 @@ function normalizeShot(value: unknown, index: number): DramaShot {
         audioTaskId: optionalText(input.audioTaskId),
         audioError: optionalText(input.audioError),
         audioUrl: stableUrl(input.audioUrl),
+        dialogueAudio: normalizeAudioState(input.dialogueAudio),
+        narrationAudio: normalizeAudioState(input.narrationAudio),
+        audioSplitSourceShotId: optionalText(input.audioSplitSourceShotId),
+        audioSplitSegmentIndex: optionalNonNegativeInteger(input.audioSplitSegmentIndex),
+    };
+}
+
+function normalizeAudioState(value: unknown) {
+    if (!value || typeof value !== "object") return undefined;
+    const input = value as Record<string, unknown>;
+    const url = stableUrl(input.url);
+    const status = taskStatus(input.status) || (url ? "success" : "idle");
+    return {
+        status,
+        attempt: optionalPositiveInteger(input.attempt),
+        taskId: optionalText(input.taskId),
+        error: optionalText(input.error),
+        url,
+        mimeType: optionalText(input.mimeType),
+        speaker: optionalText(input.speaker),
+        voice: optionalText(input.voice),
+        speed: Number.isFinite(Number(input.speed)) ? Math.max(0.25, Math.min(4, Number(input.speed))) : undefined,
+        instructions: optionalText(input.instructions),
+        durationMs: optionalPositiveInteger(input.durationMs),
     };
 }
 
@@ -463,6 +596,129 @@ function normalizeUtterances(value: unknown): DramaUtterance[] {
         .filter((item) => item.text);
 }
 
+function normalizeGenerationHistory(value: unknown) {
+    return array(value)
+        .flatMap((item) => {
+            const input = object(item);
+            const id = cleanText(input.id);
+            const taskId = cleanText(input.taskId);
+            const url = stableUrl(input.url);
+            if (!id || !taskId || !url) return [];
+            return [
+                {
+                    id,
+                    taskId,
+                    url,
+                    prompt: cleanText(input.prompt),
+                    createdAt: timestamp(input.createdAt) || new Date(0).toISOString(),
+                    width: optionalPositiveInteger(input.width),
+                    height: optionalPositiveInteger(input.height),
+                },
+            ];
+        })
+        .slice(-20);
+}
+
+function normalizeFrameStates(value: unknown) {
+    const input = object(value);
+    const frames = (["first", "key", "last"] as const).reduce(
+        (result, type) => {
+            const frame = object(input[type]);
+            if (!frame) return result;
+            const status = taskStatus(frame.status);
+            const prompt = cleanText(frame.prompt);
+            if (!prompt && !stableUrl(frame.url) && status === "idle") return result;
+            result[type] = {
+                prompt,
+                description: optionalText(frame.description),
+                status,
+                taskId: optionalText(frame.taskId),
+                attempt: optionalPositiveInteger(frame.attempt),
+                url: stableUrl(frame.url),
+                width: optionalPositiveInteger(frame.width),
+                height: optionalPositiveInteger(frame.height),
+                error: optionalText(frame.error),
+                history: normalizeGenerationHistory(frame.history),
+                storageKey: optionalText(frame.storageKey),
+                source: frameSource(frame.source),
+                sourceVideoTaskId: optionalText(frame.sourceVideoTaskId),
+                sourceShotId: optionalText(frame.sourceShotId),
+                sourceVideoHistoryId: optionalText(frame.sourceVideoHistoryId),
+                locked: typeof frame.locked === "boolean" ? frame.locked : undefined,
+            };
+            return result;
+        },
+        {} as Record<string, unknown>,
+    );
+    return Object.keys(frames).length ? frames : undefined;
+}
+
+function normalizeFrameCandidate(value: unknown): DramaShotFrameCandidate | undefined {
+    const input = object(value);
+    const id = cleanText(input.id);
+    const url = stableUrl(input.url);
+    const sourceVideoTaskId = cleanText(input.sourceVideoTaskId);
+    const sourceShotId = cleanText(input.sourceShotId);
+    const sourceVideoHistoryId = cleanText(input.sourceVideoHistoryId);
+    const createdAt = timestamp(input.createdAt);
+    const projectUpdatedAt = timestamp(input.projectUpdatedAt);
+    if (!id || !url || !sourceVideoTaskId || !sourceShotId || !sourceVideoHistoryId || !createdAt || !projectUpdatedAt) return undefined;
+    return {
+        id,
+        frameType: "first",
+        url,
+        storageKey: optionalText(input.storageKey),
+        width: optionalPositiveInteger(input.width),
+        height: optionalPositiveInteger(input.height),
+        source: "video_tail",
+        sourceVideoTaskId,
+        sourceShotId,
+        sourceVideoHistoryId,
+        createdAt,
+        projectUpdatedAt,
+    };
+}
+
+function frameSource(value: unknown): DramaShotFrameSource | undefined {
+    return value === "generated" || value === "uploaded" || value === "video_tail" || value === "restored" ? value : undefined;
+}
+
+function normalizeVideoFrameSnapshot(value: unknown): DramaShotVideoFrameSnapshot | undefined {
+    const input = object(value);
+    const capturedAt = timestamp(input.capturedAt);
+    if (!capturedAt || typeof input.supportsLastFrame !== "boolean") return undefined;
+    const references = array(input.references).flatMap((item) => {
+        const reference = object(item);
+        const role = reference.role === "first_frame" || reference.role === "last_frame" || reference.role === "reference" ? (reference.role as DramaShotVideoFrameSnapshot["references"][number]["role"]) : undefined;
+        const url = stableUrl(reference.url);
+        if (!role || !url) return [];
+        const frameType = reference.frameType === "first" || reference.frameType === "key" || reference.frameType === "last" ? (reference.frameType as DramaShotFrameType) : undefined;
+        return [
+            {
+                role,
+                frameType,
+                url,
+                storageKey: optionalText(reference.storageKey),
+                taskId: optionalText(reference.taskId),
+                source: frameSource(reference.source),
+                sourceVideoTaskId: optionalText(reference.sourceVideoTaskId),
+                sourceShotId: optionalText(reference.sourceShotId),
+                sourceVideoHistoryId: optionalText(reference.sourceVideoHistoryId),
+            },
+        ];
+    });
+    if (!references.length) return undefined;
+    return {
+        capturedAt,
+        model: optionalText(input.model),
+        supportsFirstFrame: typeof input.supportsFirstFrame === "boolean" ? input.supportsFirstFrame : undefined,
+        supportsLastFrame: input.supportsLastFrame,
+        maxReferenceImages: optionalPositiveInteger(input.maxReferenceImages),
+        fallbackReason: optionalText(input.fallbackReason),
+        references,
+    };
+}
+
 function ids(value: unknown) {
     return array(value)
         .map((id) => cleanText(id))
@@ -497,12 +753,17 @@ function normalizeSourceAssets(value: unknown) {
 }
 
 function taskStatus(value: unknown) {
-    return ["idle", "queued", "running", "success", "error", "cancelled"].includes(String(value)) ? (value as DramaShot["generationStatus"]) : undefined;
+    return ["idle", "queued", "pending", "running", "success", "error", "cancelled"].includes(String(value)) ? (value as DramaShot["generationStatus"]) : undefined;
 }
 
 function optionalPositiveInteger(value: unknown) {
     const number = Math.floor(Number(value));
     return Number.isFinite(number) && number > 0 ? number : undefined;
+}
+
+function optionalNonNegativeInteger(value: unknown) {
+    const number = Math.floor(Number(value));
+    return Number.isFinite(number) && number >= 0 ? number : undefined;
 }
 
 function stableUrl(value: unknown) {

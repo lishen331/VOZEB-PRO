@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     after: vi.fn(),
@@ -11,31 +11,39 @@ const mocks = vi.hoisted(() => ({
     getVideoTask: vi.fn(),
     linkStoredGenerationTask: vi.fn(),
     getStoredGenerationTaskByRequest: vi.fn(),
+    generationCapacityRetryAfterSeconds: vi.fn(),
     touchVideoTask: vi.fn(),
     transitionVideoTask: vi.fn(),
     updateVideoTask: vi.fn(),
     writeVideoGenerationLog: vi.fn(),
     scheduleGenerationTask: vi.fn(),
+    normalizeImageReferences: vi.fn(async (input: { references: unknown[] }) => input.references),
+    requireManagedMediaInputOwner: vi.fn(async () => "user"),
+    refundGenerationCharge: vi.fn(),
+    validateGenerationContextIpReferences: vi.fn(),
     withGenerationConcurrencyLimit: vi.fn(async (_userId, _type, _staleMs, _limit, handler) => handler()),
+    resolveSchoolComputeBillingContext: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
     const actual = await importOriginal<typeof import("next/server")>();
     return { ...actual, after: mocks.after };
 });
-vi.mock("@/lib/auth/session", () => ({ getCurrentUser: vi.fn(async () => ({ id: "user", pointsBalance: 100 })) }));
+vi.mock("@/lib/auth/session", () => ({ getCurrentUser: vi.fn(async () => ({ id: "user", role: "user", pointsBalance: 100 })) }));
 vi.mock("@/lib/auth/store", () => {
     class AuthInputError extends Error {
         status = 400;
     }
-    return { AuthInputError, getAuthSettings: mocks.getAuthSettings, isAuthInputError: (error: unknown) => error instanceof AuthInputError, refundUserPoints: vi.fn() };
+    return { AuthInputError, getAuthSettings: mocks.getAuthSettings, isAuthInputError: (error: unknown) => error instanceof AuthInputError };
 });
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi, resolveInternalOrigin: vi.fn(() => "http://localhost") }));
 vi.mock("@/lib/server/generation-task-store", () => ({
+    generationCapacityRetryAfterSeconds: mocks.generationCapacityRetryAfterSeconds,
     withGenerationConcurrencyLimit: mocks.withGenerationConcurrencyLimit,
     linkStoredGenerationTask: mocks.linkStoredGenerationTask,
     getStoredGenerationTaskByRequest: mocks.getStoredGenerationTaskByRequest,
 }));
+vi.mock("@/lib/server/managed-media-input-access", () => ({ requireManagedMediaInputOwner: mocks.requireManagedMediaInputOwner }));
 vi.mock("@/lib/server/security", () => ({
     checkGenerationRateLimit: vi.fn(async () => ({ allowed: true, remaining: 5, resetAt: Date.now() + 60_000 })),
     rateLimitHeaders: vi.fn(() => ({})),
@@ -43,6 +51,8 @@ vi.mock("@/lib/server/security", () => ({
 vi.mock("@/lib/server/generation-task-recovery-service", () => ({ runGenerationTaskRecoveryBatch: vi.fn() }));
 vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: mocks.scheduleGenerationTask }));
 vi.mock("@/lib/server/video-task-log", () => ({ writeVideoGenerationLog: mocks.writeVideoGenerationLog }));
+vi.mock("@/lib/server/video-reference-image", () => ({ normalizeVideoProviderImageReferences: mocks.normalizeImageReferences }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refundGenerationCharge }));
 vi.mock("@/lib/server/video-task-store", () => ({
     createVideoTask: mocks.createVideoTask,
     claimVideoTaskPoll: mocks.claimVideoTaskPoll,
@@ -53,9 +63,12 @@ vi.mock("@/lib/server/video-task-store", () => ({
     transitionVideoTask: mocks.transitionVideoTask,
     updateVideoTask: mocks.updateVideoTask,
 }));
+vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
+vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
 import { POST } from "./route";
 import { resetChannelRuntimeHealth } from "@/lib/server/channel-runtime-health";
+import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 const channels = [
     { id: "one", name: "主渠道", baseUrl: "https://one.example.com/v1", apiKey: "one-secret", apiFormat: "openai", models: ["video-one"], enabled: true, advancedConfig: { protocol: "openai" } },
@@ -77,6 +90,7 @@ const settings = {
         },
     ],
     defaultModels: { videoModel: "video" },
+    practiceDefaultModels: { videoModel: "video" },
     generationConcurrency: { video: 2 },
     generationDefaults: { imageSize: "16:9", videoQuality: "720", videoSeconds: 5 },
     generationPointMultipliers: { videoQuality: { "720": 1 }, videoSeconds: { "5": 1 } },
@@ -87,9 +101,11 @@ describe("video generation candidate failover", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
         mocks.fetchInternalApi.mockReset();
         resetChannelRuntimeHealth();
         mocks.getAuthSettings.mockResolvedValue(settings);
+        mocks.generationCapacityRetryAfterSeconds.mockResolvedValue(undefined);
         storedTask = undefined;
         mocks.createVideoTask.mockImplementation(async (input) => {
             storedTask = { ...input, id: "local-task", status: "running", createdAt: Date.now(), updatedAt: Date.now() };
@@ -98,7 +114,10 @@ describe("video generation candidate failover", () => {
         mocks.getVideoTask.mockImplementation(async () => storedTask);
         mocks.claimVideoTaskPoll.mockImplementation(async () => storedTask);
         mocks.after.mockImplementation(() => undefined);
+        mocks.validateGenerationContextIpReferences.mockResolvedValue(undefined);
     });
+
+    afterEach(() => vi.unstubAllEnvs());
 
     it("tries the next binding after explicit route failures", async () => {
         const startedAt = Date.now();
@@ -134,8 +153,19 @@ describe("video generation candidate failover", () => {
         expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
     });
 
+    it("rejects a new Drama video task when its pinned IP authorization was revoked", async () => {
+        mocks.validateGenerationContextIpReferences.mockRejectedValueOnce(new SchoolServiceError(403, "IP 授权已失效"));
+
+        const response = await POST(request({ model: "video" }, [], { surface: "drama", projectId: "drama-one" }));
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toEqual({ error: "IP 授权已失效" });
+        expect(mocks.createVideoTask).not.toHaveBeenCalled();
+        expect(mocks.getAuthSettings).not.toHaveBeenCalled();
+    });
+
     it("does not retry another binding after an ambiguous 2xx response", async () => {
-        mocks.fetchInternalApi.mockResolvedValue(new Response("not-json", { status: 200 }));
+        mocks.fetchInternalApi.mockResolvedValue(new Response("not-json", { status: 200, headers: { "x-vozeb-pro-points-cost": "2.5", "x-vozeb-pro-billing-receipt-id": "points:video-points-unknown" } }));
 
         const response = await POST(request());
 
@@ -143,9 +173,14 @@ describe("video generation candidate failover", () => {
         expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/ai/system/two/"))).toBe(false);
         expect(mocks.createVideoTask).toHaveBeenCalledOnce();
         expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "submission_outcome_unknown" }));
+        expect(mocks.refundGenerationCharge).not.toHaveBeenCalled();
+        expect(mocks.updateVideoTask).toHaveBeenCalledWith(
+            "local-task",
+            expect.objectContaining({ upstream: expect.objectContaining({ pointsCost: 2.5, pointsUnits: expect.any(Number), billingReceiptId: "points:video-points-unknown", refunded: false }) }),
+        );
     });
 
-    it("does not retry another path or binding after an ambiguous server failure", async () => {
+    it("keeps the task pending manual review after an ambiguous server rejection", async () => {
         mocks.fetchInternalApi.mockResolvedValue(json({ error: "gateway failed" }, 502));
 
         const response = await POST(request());
@@ -154,6 +189,7 @@ describe("video generation candidate failover", () => {
         expect(mocks.fetchInternalApi).toHaveBeenCalledTimes(1);
         expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/ai/system/two/"))).toBe(false);
         expect(mocks.createVideoTask).toHaveBeenCalledOnce();
+        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "needs_review", lastUpstreamStatus: "submission_outcome_unknown" }));
     });
 
     it("surfaces an explicit HTTP 200 business failure after safe candidate fallback", async () => {
@@ -216,6 +252,26 @@ describe("video generation candidate failover", () => {
         expect((await response.json()).task.durationSeconds).toBe(6);
     });
 
+    it.each([
+        ["invalid JSON", "not-json"],
+        ["missing operation ID", JSON.stringify({ done: false })],
+    ])("keeps Gemini billing for a 2xx %s response pending manual review", async (_name, body) => {
+        mocks.getAuthSettings.mockResolvedValue(geminiSettings());
+        mocks.fetchInternalApi.mockResolvedValue(
+            new Response(body, {
+                status: 200,
+                headers: { "content-type": "application/json", "x-vozeb-pro-points-cost": "3.5", "x-vozeb-pro-billing-receipt-id": "points:gemini-video-points-unknown" },
+            }),
+        );
+
+        const response = await POST(request({ model: "gemini-video", videoSeconds: 5, size: "16:9", vquality: "720" }));
+
+        expect(response.status).toBe(202);
+        expect(mocks.refundGenerationCharge).not.toHaveBeenCalled();
+        expect(mocks.updateVideoTask).toHaveBeenCalledWith("local-task", expect.objectContaining({ upstream: expect.objectContaining({ pointsCost: 3.5, billingReceiptId: "points:gemini-video-points-unknown", refunded: false }) }));
+        expect(mocks.scheduleGenerationTask).toHaveBeenLastCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "needs_review", lastUpstreamStatus: "submission_outcome_unknown" }));
+    });
+
     it("rejects Gemini reference video and audio before creating an operation", async () => {
         mocks.getAuthSettings.mockResolvedValue(geminiSettings());
 
@@ -250,7 +306,6 @@ describe("video generation candidate failover", () => {
         expect(headers.get("authorization")).toBe(`Bearer ${token}`);
         expect(headers.get("x-vozeb-pro-worker-user-id")).toBe("user");
         expect(headers.has("cookie")).toBe(false);
-        vi.unstubAllEnvs();
     });
 
     it("uses the SD2.0 model route without affecting OpenAI models on the same channel", async () => {
@@ -359,9 +414,18 @@ describe("video generation candidate failover", () => {
         expect(init.body).toBeInstanceOf(FormData);
         expect(new Headers(init.headers).has("content-type")).toBe(false);
         expect(body.get("model")).toBe("video-one");
-        expect(body.get("seconds")).toBe("5");
+        expect(body.get("seconds")).toBe("8");
         expect(body.get("size")).toBe("1280x720");
+        expect(body.get("watermark")).toBe("false");
+        expect(body.get("private")).toBe("false");
         expect(body.get("input_reference")).toBeInstanceOf(File);
+
+        mocks.fetchInternalApi.mockResolvedValue(json({ id: "upstream-openai-auto", status: "queued" }));
+        const intelligentResponse = await POST(request({ model: "video", videoSeconds: "5", size: "auto", vquality: "auto" }));
+        const intelligentBody = (mocks.fetchInternalApi.mock.calls[1] as [string, RequestInit])[1].body as FormData;
+
+        expect(intelligentResponse.status).toBe(200);
+        expect(intelligentBody.get("size")).toBeNull();
     });
 
     it("persists the Drama project, episode and shot task context", async () => {
@@ -372,7 +436,7 @@ describe("video generation candidate failover", () => {
 
         expect(response.status).toBe(200);
         expect(mocks.createVideoTask).toHaveBeenCalledWith(expect.objectContaining(context));
-        expect(mocks.linkStoredGenerationTask).toHaveBeenCalledWith("video", "local-task", context);
+        expect(mocks.linkStoredGenerationTask).toHaveBeenCalledWith("video", "local-task", { ...context, executionProfile: "production", billingContext: undefined });
     });
 
     it("rejects a raw upstream model when the logical catalog exists", async () => {
@@ -690,6 +754,48 @@ describe("video generation candidate failover", () => {
         expect(body).not.toHaveProperty("last_image");
     });
 
+    it("submits the normalized PNG reference instead of the source WebP", async () => {
+        mocks.getAuthSettings.mockResolvedValue(yumengSettings());
+        mocks.normalizeImageReferences.mockImplementationOnce(async (input: { references: unknown[] }) =>
+            (input.references as Array<{ type: string; url: string; role?: string }>).map((reference) =>
+                reference.type === "image" ? { ...reference, url: "https://site.example/api/reference-assets/temporary/reference.png?purpose=provider-read&expires=9999999999&signature=normalized" } : reference,
+            ),
+        );
+        mocks.fetchInternalApi.mockResolvedValue(json({ id: "yumeng-task", status: "queued" }));
+
+        const response = await POST(request({ model: "sd_2.0_fast_special", videoSeconds: "5", size: "16:9", vquality: "720" }, [{ type: "image", url: "https://cdn.example.com/reference.webp" }]));
+        expect(response.status, JSON.stringify(await response.clone().json())).toBe(200);
+        const [, init] = mocks.fetchInternalApi.mock.calls[0] as [string, RequestInit];
+        const body = JSON.parse(String(init.body));
+
+        expect(mocks.normalizeImageReferences).toHaveBeenCalledWith({
+            references: [{ type: "image", role: "reference", url: "https://cdn.example.com/reference.webp" }],
+            userId: "user",
+            internalOrigin: "http://localhost",
+            publicOrigin: "http://localhost",
+        });
+        expect(body.reference_images).toEqual(["https://site.example/api/reference-assets/temporary/reference.png?purpose=provider-read&expires=9999999999&signature=normalized"]);
+        expect(JSON.stringify(body)).not.toContain("reference.webp");
+    });
+
+    it("signs an owned generation asset without creating a reference copy", async () => {
+        vi.stubEnv("VOZEB_PRO_REFERENCE_ASSET_SIGNING_KEY", "test-signing-key");
+        mocks.getAuthSettings.mockResolvedValue(yumengSettings());
+        mocks.fetchInternalApi.mockResolvedValue(json({ id: "yumeng-task", status: "queued" }));
+        const source = "/api/generation-log-assets/permanent/2026/08/20/images/storyboard.png";
+
+        const response = await POST(request({ model: "sd_2.0_fast_special", videoSeconds: "5", size: "16:9", vquality: "720" }, [{ type: "image", url: source }], undefined, "https://drama.example/api/video-generation-tasks"));
+
+        expect(response.status, JSON.stringify(await response.clone().json())).toBe(200);
+        expect(mocks.requireManagedMediaInputOwner).toHaveBeenCalledWith(source, { id: "user", role: "user" }, "generation");
+        expect(mocks.normalizeImageReferences).toHaveBeenCalledWith(
+            expect.objectContaining({
+                references: [expect.objectContaining({ url: expect.stringMatching(/^https:\/\/drama\.example\/api\/generation-log-assets\/.+purpose=provider-read/) })],
+            }),
+        );
+        vi.unstubAllEnvs();
+    });
+
     it("rejects local reference URLs before creating a public-URL provider task", async () => {
         mocks.getAuthSettings.mockResolvedValue(publicUrlCompatibleSettings());
 
@@ -721,9 +827,9 @@ describe("video generation candidate failover", () => {
     });
 });
 
-function request(config: Record<string, unknown> = { model: "video" }, references: Array<{ type: string; url: string; role?: string }> = [], context?: Record<string, unknown>) {
+function request(config: Record<string, unknown> = { model: "video" }, references: Array<{ type: string; url: string; role?: string }> = [], context?: Record<string, unknown>, requestUrl = "http://localhost/api/video-generation-tasks") {
     const clientRequestId = typeof context?.clientRequestId === "string" ? context.clientRequestId : "";
-    return new Request("http://localhost/api/video-generation-tasks", {
+    return new Request(requestUrl, {
         method: "POST",
         headers: {
             "content-type": "application/json",

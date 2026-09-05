@@ -2,13 +2,19 @@ import type { LogicalModel, LogicalModelBinding, LogicalModelCapability, Logical
 import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { inferModelCapability, isCreativeGenerationModel, normalizeModelId } from "@/lib/model-capability";
 import { channelConnectionReady, protocolCatalogCapability, resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
+import { resolvePracticeModelAccess, type PracticeExecutionProfile } from "@/lib/practice-domain";
 
-const CAPABILITY_DEFAULT_KEYS = {
-    text: "textModel",
-    image: "imageModel",
-    video: "videoModel",
-    audio: "audioModel",
-} as const satisfies Record<LogicalModelCapability, keyof SystemDefaultModels>;
+const DEFAULT_MODEL_FIELDS: ReadonlyArray<{ capability: LogicalModelCapability; key: keyof SystemDefaultModels; allowFallback?: boolean }> = [
+    { capability: "text", key: "textModel" },
+    // Canvas uses a text-capability multimodal endpoint. The administrator
+    // may select any reachable text model; supportsImageInput remains an
+    // advisory/verified capability flag and must not hide otherwise usable
+    // models from the default selector.
+    { capability: "text", key: "visionModel", allowFallback: false },
+    { capability: "image", key: "imageModel" },
+    { capability: "video", key: "videoModel" },
+    { capability: "audio", key: "audioModel" },
+];
 
 export function normalizeLogicalModelsConfig(models: LogicalModel[] | undefined, channels: SystemModelChannel[]) {
     return synchronizeLogicalModelsWithChannels(Array.isArray(models) ? models : [], channels);
@@ -81,27 +87,74 @@ export function mergeChannelModelsIntoLogicalModels(logicalModels: LogicalModel[
     return synchronizeLogicalModelsWithChannels(logicalModels, channels);
 }
 
-export function normalizeDefaultModelsConfig(defaults: Partial<SystemDefaultModels> | undefined, logicalModels: LogicalModel[], channels: SystemModelChannel[]): SystemDefaultModels {
+export function normalizeDefaultModelsConfig(
+    defaults: Partial<SystemDefaultModels> | undefined,
+    logicalModels: LogicalModel[],
+    channels: SystemModelChannel[],
+    executionProfile: PracticeExecutionProfile = "production",
+    options?: { allowFallback?: boolean },
+): SystemDefaultModels {
+    const allowFallback = options?.allowFallback ?? executionProfile === "production";
+    const legacyDefaults = defaults as (Partial<SystemDefaultModels> & { imageUnderstandingModel?: unknown }) | undefined;
     return Object.fromEntries(
-        (Object.entries(CAPABILITY_DEFAULT_KEYS) as Array<[LogicalModelCapability, keyof SystemDefaultModels]>).map(([capability, key]) => {
-            const modelId = text(defaults?.[key], 120);
-            if (!modelId || isLogicalModelResolvable(logicalModels, channels, capability, modelId)) return [key, modelId];
-            const fallback = logicalModels.find((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id));
+        DEFAULT_MODEL_FIELDS.map(({ capability, key, allowFallback: allowFieldFallback }) => {
+            const modelId = key === "visionModel" ? text(defaults?.visionModel ?? legacyDefaults?.imageUnderstandingModel, 120) : text(defaults?.[key], 120);
+            if (!modelId) return [key, ""];
+            const isResolvable = isLogicalModelResolvable(logicalModels, channels, capability, modelId, executionProfile);
+            if (isResolvable) return [key, modelId];
+            if (!(allowFieldFallback ?? allowFallback)) return [key, ""];
+            const fallback = logicalModels.find((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, executionProfile));
             return [key, fallback?.id || ""];
         }),
     ) as SystemDefaultModels;
 }
 
-export function isLogicalModelResolvable(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string) {
-    return Boolean(resolveLogicalModelConfig(logicalModels, channels, capability, modelId));
+export function isLogicalModelResolvable(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string, executionProfile: PracticeExecutionProfile = "production") {
+    return Boolean(resolveLogicalModelConfig(logicalModels, channels, capability, modelId, executionProfile));
 }
 
-export function resolveLogicalModelConfig(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string) {
+export function logicalModelSupportsImageInput(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string, executionProfile: PracticeExecutionProfile = "production") {
+    if (capability !== "text") return false;
+    const logical = logicalModels.find((model) => model.enabled && model.capability === "text" && model.id.toLowerCase() === rawModelName(modelId).toLowerCase());
+    if (!logical) return false;
+    return logical.bindings
+        .filter((binding) => binding.enabled)
+        .some((binding) => {
+            const channel = channels.find(
+                (item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel),
+            );
+            return Boolean(channel && resolveLogicalModelCapabilityProfile(binding, "text", channel, binding.upstreamModel)?.supportsImageInput);
+        });
+}
+
+export function resolveVisionModelConfig(logicalModels: LogicalModel[], channels: SystemModelChannel[], modelId: string, executionProfile: PracticeExecutionProfile = "production") {
+    const capability = "text" as const;
+    const logical = logicalModels.find((model) => model.enabled && model.capability === capability && model.id.toLowerCase() === rawModelName(modelId).toLowerCase());
+    if (!logical) return null;
+    return (
+        logical.bindings
+            .filter((binding) => binding.enabled)
+            .sort((left, right) => left.priority - right.priority || left.id.localeCompare(right.id))
+            .map((binding) => {
+                const channel = channels.find(
+                    (item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel),
+                );
+                return channel ? { logicalModel: logical, binding, channel } : null;
+            })
+            .find(Boolean) || null
+    );
+}
+
+export function isVisionModelResolvable(logicalModels: LogicalModel[], channels: SystemModelChannel[], modelId: string, executionProfile: PracticeExecutionProfile = "production") {
+    return Boolean(resolveVisionModelConfig(logicalModels, channels, modelId, executionProfile));
+}
+
+export function resolveLogicalModelConfig(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability, modelId: string, executionProfile: PracticeExecutionProfile = "production") {
     const logical = logicalModels.find((model) => model.enabled && model.capability === capability && model.id.toLowerCase() === rawModelName(modelId).toLowerCase());
     if (!logical) return null;
     const bindings = [...logical.bindings].filter((binding) => binding.enabled).sort((left, right) => left.priority - right.priority || left.id.localeCompare(right.id));
     for (const binding of bindings) {
-        const channel = channels.find((item) => item.id === binding.channelId && item.enabled && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel));
+        const channel = channels.find((item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel));
         if (channel) return { logicalModel: logical, binding, channel };
     }
     return null;
@@ -126,9 +179,10 @@ export function modelRoutingValidationErrors(logicalModels: LogicalModel[], chan
             bindingKeys.add(bindingKey);
         }
     }
-    for (const [capability, key] of Object.entries(CAPABILITY_DEFAULT_KEYS) as Array<[LogicalModelCapability, keyof SystemDefaultModels]>) {
+    for (const { capability, key } of DEFAULT_MODEL_FIELDS) {
         const modelId = defaults[key];
-        if (modelId && !isLogicalModelResolvable(logicalModels, channels, capability, modelId)) errors.push(`默认${capabilityLabel(capability)}模型不可解析：${modelId}`);
+        const resolvable = isLogicalModelResolvable(logicalModels, channels, capability, modelId || "");
+        if (modelId && !resolvable) errors.push(key === "visionModel" ? `默认视觉理解模型不可解析：${modelId}` : `默认${capabilityLabel(capability)}模型不可解析：${modelId}`);
     }
     return Array.from(new Set(errors));
 }
@@ -165,11 +219,14 @@ export function resolveLogicalModelCapabilityProfile(binding: Pick<LogicalModelB
     const globalPreset = resolveGlobalAiOpcPreset(advanced, upstreamModel);
     const modelConfig = resolveChannelModelConfig(advanced, upstreamModel) || advanced?.operationConfigs?.[capability];
     return {
+        supportsImageInput: booleanValue(stored.supportsImageInput, modelConfig?.supportsImageInput),
         supportsReferenceImage: booleanValue(stored.supportsReferenceImage, globalPreset?.supportsReferenceImage ?? modelConfig?.supportsReferenceImage ?? advanced?.supportsReferenceImage),
         supportsReferenceVideo: booleanValue(stored.supportsReferenceVideo, globalPreset?.supportsReferenceVideo ?? modelConfig?.supportsReferenceVideo ?? advanced?.supportsReferenceVideo),
         supportsReferenceAudio: booleanValue(stored.supportsReferenceAudio, globalPreset?.supportsReferenceAudio ?? modelConfig?.supportsReferenceAudio ?? advanced?.supportsReferenceAudio),
         maxReferenceImages: positiveInteger(stored.maxReferenceImages),
         aspectRatios: normalizeAspectRatios(stored.aspectRatios),
+        resolutions: normalizeTextOptions(stored.resolutions, 20),
+        durationSeconds: normalizePositiveIntegers(stored.durationSeconds, 64),
         minDurationSeconds: positiveNumber(stored.minDurationSeconds),
         maxDurationSeconds: positiveNumber(stored.maxDurationSeconds),
         maxBatchSize: positiveInteger(stored.maxBatchSize),
@@ -209,11 +266,14 @@ function normalizeStoredCapabilityProfile(value: unknown): LogicalModelCapabilit
     if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
     const input = value as Record<string, unknown>;
     const profile: LogicalModelCapabilityProfile = {
+        supportsImageInput: optionalBoolean(input.supportsImageInput),
         supportsReferenceImage: optionalBoolean(input.supportsReferenceImage),
         supportsReferenceVideo: optionalBoolean(input.supportsReferenceVideo),
         supportsReferenceAudio: optionalBoolean(input.supportsReferenceAudio),
         maxReferenceImages: positiveInteger(input.maxReferenceImages),
         aspectRatios: normalizeAspectRatios(input.aspectRatios),
+        resolutions: normalizeTextOptions(input.resolutions, 20),
+        durationSeconds: normalizePositiveIntegers(input.durationSeconds, 64),
         minDurationSeconds: positiveNumber(input.minDurationSeconds),
         maxDurationSeconds: positiveNumber(input.maxDurationSeconds),
         maxBatchSize: positiveInteger(input.maxBatchSize),
@@ -262,6 +322,26 @@ function normalizeAspectRatios(value: unknown) {
         ),
     ).slice(0, 12);
     return ratios.length ? ratios : undefined;
+}
+
+function normalizeTextOptions(value: unknown, maxLength: number) {
+    if (!Array.isArray(value)) return undefined;
+    const options = new Map<string, string>();
+    for (const item of value) {
+        if (typeof item !== "string") continue;
+        const normalized = item.trim().slice(0, maxLength);
+        if (normalized) options.set(normalized.toLowerCase(), normalized);
+    }
+    const result = Array.from(options.values()).slice(0, 24);
+    return result.length ? result : undefined;
+}
+
+function normalizePositiveIntegers(value: unknown, limit: number) {
+    if (!Array.isArray(value)) return undefined;
+    const result = Array.from(new Set(value.map(positiveInteger).filter((item): item is number => item !== undefined)))
+        .sort((left, right) => left - right)
+        .slice(0, limit);
+    return result.length ? result : undefined;
 }
 
 function normalizeModelName(value: string) {

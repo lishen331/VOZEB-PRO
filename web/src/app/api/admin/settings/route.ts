@@ -5,10 +5,10 @@ import { normalizeSiteSocial } from "@/lib/auth/store-normalizers";
 import { modelRoutingValidationErrors, normalizeDefaultModelsConfig, synchronizeLogicalModelsWithChannels } from "@/lib/model-routing-config";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { mergeSystemChannelSecrets, serializeAdminSettingsForUser, systemChannelWebhookSecretValidationError } from "@/lib/server/admin-channel-config";
+import { mergeSystemChannelSecrets, practiceDefaultModelValidationErrors, runningHubChannelValidationErrors, serializeAdminSettingsForUser, systemChannelWebhookSecretValidationError } from "@/lib/server/admin-channel-config";
 import { auditActorFromRequest, safeRecordAuditLog } from "@/lib/server/audit-log-store";
 import { invalidatePublicSiteSettings } from "@/lib/server/site-metadata";
-import { channelProtocolValidationErrors } from "@/lib/channel-protocol-registry";
+import { channelProtocolValidationErrors, normalizeStrictChannelModelConfigs } from "@/lib/channel-protocol-registry";
 import { hasAllAdminPermissions, hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";
 
 export const runtime = "nodejs";
@@ -44,26 +44,33 @@ export async function PATCH(request: Request) {
         if (body.generationPointMultipliers && typeof body.generationPointMultipliers === "object") patch.generationPointMultipliers = body.generationPointMultipliers;
         if (body.generationCostControl && typeof body.generationCostControl === "object") patch.generationCostControl = body.generationCostControl;
         if (body.dataLifecycle && typeof body.dataLifecycle === "object") patch.dataLifecycle = body.dataLifecycle;
+        if (body.practiceWorkflowModels && typeof body.practiceWorkflowModels === "object" && !Array.isArray(body.practiceWorkflowModels)) patch.practiceWorkflowModels = body.practiceWorkflowModels;
         if (body.entitlements && typeof body.entitlements === "object") patch.entitlements = body.entitlements;
         if (body.generationConcurrency && typeof body.generationConcurrency === "object") patch.generationConcurrency = body.generationConcurrency;
         if (body.generationDefaults && typeof body.generationDefaults === "object") patch.generationDefaults = body.generationDefaults;
         if (Array.isArray(body.systemChannels)) {
-            patch.systemChannels = mergeSystemChannelSecrets(body.systemChannels, currentSettings.systemChannels);
+            patch.systemChannels = mergeSystemChannelSecrets(body.systemChannels, currentSettings.systemChannels).map(normalizeStrictChannelModelConfigs);
             const webhookSecretError = patch.systemChannels.map(systemChannelWebhookSecretValidationError).find(Boolean);
             if (webhookSecretError) throw new AuthInputError(webhookSecretError);
         }
-        if (Array.isArray(body.systemChannels) || Array.isArray(body.logicalModels) || body.defaultModels) {
+        if (Array.isArray(body.systemChannels) || Array.isArray(body.logicalModels) || body.defaultModels || body.practiceDefaultModels) {
             const channels = patch.systemChannels || currentSettings.systemChannels;
             const protocolErrors = channels.flatMap(channelProtocolValidationErrors);
             if (protocolErrors.length) throw new AuthInputError(protocolErrors[0]);
+            const runningHubErrors = channels.flatMap(runningHubChannelValidationErrors);
+            if (runningHubErrors.length) throw new AuthInputError(runningHubErrors[0]);
             const sourceLogicalModels = Array.isArray(body.logicalModels) ? body.logicalModels : currentSettings.logicalModels;
             const logicalModels = synchronizeLogicalModelsWithChannels(sourceLogicalModels, channels);
             const defaultModels = { ...currentSettings.defaultModels, ...body.defaultModels };
             const normalizedDefaults = normalizeDefaultModelsConfig(defaultModels, logicalModels, channels);
             const errors = modelRoutingValidationErrors(logicalModels, channels, normalizedDefaults);
             if (errors.length) throw new AuthInputError(errors[0]);
+            const practiceDefaults = { ...currentSettings.practiceDefaultModels, ...body.practiceDefaultModels };
+            const practiceErrors = practiceDefaultModelValidationErrors(practiceDefaults, logicalModels, channels);
+            if (practiceErrors.length) throw new AuthInputError(practiceErrors[0]);
             patch.logicalModels = logicalModels;
             patch.defaultModels = normalizedDefaults;
+            patch.practiceDefaultModels = normalizeDefaultModelsConfig(practiceDefaults, logicalModels, channels, "open-source-practice", { allowFallback: false });
         }
         if (Array.isArray(body.agentSkills)) patch.agentSkills = body.agentSkills;
         if (!Object.keys(patch).length) return NextResponse.json({ error: "没有可更新的设置" }, { status: 400 });
@@ -108,6 +115,8 @@ const SETTINGS_PERMISSION_BY_FIELD = {
     systemChannels: "upstream.manage",
     logicalModels: "upstream.manage",
     defaultModels: "upstream.manage",
+    practiceDefaultModels: "upstream.manage",
+    practiceWorkflowModels: "upstream.manage",
     agentSkills: "upstream.manage",
 } as const satisfies Partial<Record<keyof AuthSettings, AdminPermission>>;
 

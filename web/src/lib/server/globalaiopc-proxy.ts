@@ -140,6 +140,7 @@ function contentParts(value: unknown) {
     return content.map((item) => {
         const record = object(item) || {};
         if (record.type === "image_url") return { fileData: { fileUri: text(object(record.image_url)?.url) || text(record.image_url), mimeType: "image/png" } };
+        if (record.type === "video_url") return { fileData: { fileUri: text(object(record.video_url)?.url) || text(record.video_url), mimeType: "video/mp4" } };
         return { text: text(record.text) || contentText(record) };
     });
 }

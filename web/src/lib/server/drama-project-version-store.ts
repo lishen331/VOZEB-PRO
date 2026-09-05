@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 
 import type { DramaProject, DramaProjectVersion } from "@/lib/drama-project-contract";
-import { readJsonDataFile, writeJsonDataFile } from "@/lib/server/data-adapter";
+import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 
 type VersionRecord = DramaProjectVersion & { userId: string; snapshot: DramaProject };
@@ -45,11 +45,13 @@ export async function createDramaProjectVersion(userId: string, projectId: strin
             return { id, projectId, version, reason, createdAt } satisfies DramaProjectVersion;
         });
     }
-    return mutateDatabase((database) => {
-        const version = Math.max(0, ...database.items.filter((item) => item.userId === userId && item.projectId === projectId).map((item) => item.version)) + 1;
-        const item: VersionRecord = { id, projectId, userId, version, reason, snapshot, createdAt: new Date().toISOString() };
-        return { database: { ...database, items: [item, ...database.items] }, result: item };
-    });
+    return withJsonDataFileLock(FILE_NAME, () =>
+        mutateDatabase((database) => {
+            const version = Math.max(0, ...database.items.filter((item) => item.userId === userId && item.projectId === projectId).map((item) => item.version)) + 1;
+            const item: VersionRecord = { id, projectId, userId, version, reason, snapshot, createdAt: new Date().toISOString() };
+            return { database: { ...database, items: [item, ...database.items] }, result: item };
+        }),
+    );
 }
 
 export async function getDramaProjectVersion(userId: string, projectId: string, versionId: string) {

@@ -1,5 +1,7 @@
 import type { CanvasBackgroundMode } from "@/lib/canvas-theme";
 import type { CanvasAssistantSession, CanvasConnection, CanvasNodeData, ViewportTransform } from "@/app/(user)/canvas/types";
+import type { PracticeExecutionProfile, PracticeSource } from "@/lib/practice-domain";
+import type { IpReference } from "@/lib/ip-library-domain";
 
 export type CanvasProject = {
     id: string;
@@ -15,11 +17,16 @@ export type CanvasProject = {
     backgroundMode: CanvasBackgroundMode;
     showImageInfo: boolean;
     viewport: ViewportTransform;
+    executionProfile?: PracticeExecutionProfile;
+    practiceSource?: PracticeSource;
+    ipReferences?: IpReference[];
 };
 
 export type CanvasProjectSummary = Pick<CanvasProject, "id" | "sourceHandoffId" | "creativeConversationId" | "title" | "createdAt" | "updatedAt"> & {
     nodeCount: number;
     connectionCount: number;
+    executionProfile?: PracticeExecutionProfile;
+    practiceSource?: PracticeSource;
 };
 
 export type CanvasProjectSummaryPage = { projects: CanvasProjectSummary[]; total: number; page: number; pageSize: number };
@@ -33,6 +40,7 @@ export type CanvasProjectMutation = {
     backgroundMode?: CanvasBackgroundMode;
     showImageInfo?: boolean;
     viewport?: ViewportTransform;
+    ipReferences?: IpReference[];
     nodeUpserts?: CanvasNodeData[];
     nodeDeletes?: string[];
     connectionUpserts?: CanvasConnection[];
@@ -50,5 +58,6 @@ export type CanvasProjectSaveAck = {
 export type CreateCanvasProjectInput = {
     title?: string;
     sourceHandoffId?: string;
+    ipReferences?: IpReference[];
     project?: Partial<CanvasProject>;
 };

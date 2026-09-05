@@ -1,16 +1,18 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { App, Button, Modal, Tooltip } from "antd";
-import { CalendarDays, Copy, Eye, ImagePlus, LoaderCircle, Share2, Sparkles, X } from "lucide-react";
+import { App, Button, Modal, Segmented, Tooltip } from "antd";
+import { CalendarDays, Copy, CopyPlus, Eye, ImagePlus, LoaderCircle, Share2, Sparkles, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { getPublicWorkPublication, recordPublicWorkPublicationView, type PublicWorkPublication } from "@/services/api/work-publications";
+import { getPublicWorkPublication, publicWorkPublicationsApi, recordPublicWorkPublicationView, type PublicWorkPublication } from "@/services/api/work-publications";
 import { createAgentPromptHref } from "@/lib/create-agent-prompt";
 import { userAvatarFallback } from "@/lib/user-avatar";
 import { PublicWorkCommunityActions } from "./public-work-community-actions";
 import { PublicWorkMediaBrowser } from "./public-work-media-browser";
+import { PublicWorkProcessView } from "./public-work-process-view";
 import { PublicWorkReportButton } from "./public-work-report-button";
 
 export function PublicWorkPreviewModal({
@@ -29,8 +31,13 @@ export function PublicWorkPreviewModal({
     imageImporting?: boolean;
 }) {
     const { message } = App.useApp();
+    const router = useRouter();
     const queryClient = useQueryClient();
     const viewedSlugs = useRef(new Set<string>());
+    const copyInFlightRef = useRef(false);
+    const [viewMode, setViewMode] = useState<"media" | "process">("media");
+    const [copying, setCopying] = useState(false);
+    const [copyError, setCopyError] = useState("");
     const query = useQuery({
         queryKey: ["public-work", slug],
         queryFn: () => getPublicWorkPublication(slug!),
@@ -38,6 +45,20 @@ export function PublicWorkPreviewModal({
         staleTime: 30_000,
     });
     const work = query.data;
+    const hasProcess = Boolean(work?.hasProcess && work.processVersionId && (work.sourceType === "canvas" || work.sourceType === "drama"));
+    const processQuery = useQuery({
+        queryKey: ["public-work-process", slug, work?.processVersionId],
+        queryFn: () => publicWorkPublicationsApi.getProcess(slug!),
+        enabled: Boolean(slug && hasProcess && viewMode === "process"),
+        staleTime: 60_000,
+    });
+
+    useEffect(() => {
+        setViewMode("media");
+        setCopyError("");
+        copyInFlightRef.current = false;
+        setCopying(false);
+    }, [slug]);
 
     useEffect(() => {
         if (!slug || viewedSlugs.current.has(slug)) return;
@@ -65,6 +86,22 @@ export function PublicWorkPreviewModal({
             message.success("分享链接已复制");
         } catch {
             message.error("分享链接复制失败");
+        }
+    };
+
+    const copyToPractice = async () => {
+        if (!slug || !work || !hasProcess || (work.sourceType !== "canvas" && work.sourceType !== "drama") || copyInFlightRef.current) return;
+        copyInFlightRef.current = true;
+        setCopying(true);
+        setCopyError("");
+        try {
+            const result = await publicWorkPublicationsApi.copyToPractice(slug, { kind: work.sourceType, clientRequestId: crypto.randomUUID() });
+            router.push(`/practice?projectId=${encodeURIComponent(result.projectId)}`);
+        } catch (error) {
+            setCopyError(error instanceof Error ? error.message : "复制到练习失败");
+        } finally {
+            copyInFlightRef.current = false;
+            setCopying(false);
         }
     };
 
@@ -99,8 +136,45 @@ export function PublicWorkPreviewModal({
                     </div>
                 ) : (
                     <div className="grid min-w-0 lg:h-full lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px]">
-                        <div className="min-w-0 border-b border-border bg-muted/20 p-2.5 sm:p-3 lg:h-full lg:border-b-0 lg:border-r">
-                            <PublicWorkMediaBrowser assets={contentAssets} title={work.title} compact />
+                        <div className="flex min-w-0 flex-col overflow-hidden border-b border-border bg-muted/20 p-2.5 sm:p-3 lg:h-full lg:min-h-0 lg:border-b-0 lg:border-r">
+                            {hasProcess ? (
+                                <div className="mb-2.5 flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border pb-2.5">
+                                    <Segmented
+                                        size="small"
+                                        value={viewMode}
+                                        options={[
+                                            { value: "media", label: "成片" },
+                                            { value: "process", label: "制作流程" },
+                                        ]}
+                                        onChange={(value) => setViewMode(value as "media" | "process")}
+                                    />
+                                    <Button type="primary" size="small" icon={<CopyPlus className="size-3.5" />} loading={copying} disabled={copying} onClick={() => void copyToPractice()}>
+                                        复制到练习
+                                    </Button>
+                                    {copyError ? <p className="w-full break-words text-xs text-red-600 dark:text-red-300">{copyError}</p> : null}
+                                </div>
+                            ) : null}
+                            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                                {viewMode === "media" || !hasProcess ? (
+                                    <PublicWorkMediaBrowser assets={contentAssets} title={work.title} compact />
+                                ) : processQuery.isLoading ? (
+                                    <div className="flex min-h-64 items-center justify-center gap-2 text-sm text-muted-foreground">
+                                        <LoaderCircle className="size-4 animate-spin" /> 正在读取制作流程
+                                    </div>
+                                ) : processQuery.error || !processQuery.data ? (
+                                    <div className="grid min-h-64 place-items-center px-4 text-center">
+                                        <div>
+                                            <p className="text-sm font-medium">制作流程暂时无法读取</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">{processQuery.error instanceof Error ? processQuery.error.message : "请稍后重试"}</p>
+                                            <Button className="mt-3" size="small" onClick={() => void processQuery.refetch()}>
+                                                重新读取
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <PublicWorkProcessView process={processQuery.data} />
+                                )}
+                            </div>
                         </div>
                         <aside className="min-w-0 p-3.5 sm:p-4 lg:h-full lg:overflow-y-auto" aria-label="作品详情">
                             <header className="border-b border-border pb-3">

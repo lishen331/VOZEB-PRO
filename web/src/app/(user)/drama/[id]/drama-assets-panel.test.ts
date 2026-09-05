@@ -4,8 +4,13 @@ import { describe, expect, it } from "vitest";
 
 import { imageResultsToReferences } from "./drama-assets-panel";
 import { filterAndSortDramaAssets, type DramaAssetLibraryRow } from "./drama-asset-library-utils";
+import { stableTaskUrl } from "./drama-editor-elements";
 
 describe("drama asset image results", () => {
+    it("prefers the persisted platform file over the upstream result url", () => {
+        expect(stableTaskUrl("https://provider.example/result.png", "/api/generation-log-assets/permanent/result.png", "data:image/png;base64,result")).toBe("/api/generation-log-assets/permanent/result.png");
+    });
+
     it("keeps every generated image as a candidate reference", () => {
         const references = imageResultsToReferences({
             dataUrl: "data:image/png;base64,first",
@@ -32,6 +37,9 @@ describe("drama asset image results", () => {
         expect(panel).toContain("downloadDramaAssetBundle");
         expect(panel).toContain("未被引用");
         expect(panel).toContain("data-drama-source-assets");
+        expect(panel).toContain("IP_REFERENCE_ENTRY_VISIBLE ? (");
+        expect(panel).toContain("<IpReferencePicker");
+        expect(panel).toContain("ipReferences");
         expect(panel).toContain("<DramaAssetEditorDrawer");
         expect(editor).toContain("<Modal");
         expect(editor).toContain("width={640}");

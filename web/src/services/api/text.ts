@@ -1,10 +1,13 @@
 import { resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 import type { AiTextMessage } from "@/types/ai";
-import { GenerationTaskNeedsReviewError, type GenerationTaskExecutionState } from "@/services/api/generation-task-state";
+import { GenerationTaskNeedsReviewError, GenerationTaskTerminalError, type GenerationTaskExecutionState } from "@/services/api/generation-task-state";
 import { refreshUserPointsIfSystem, syncUserPointsFromHeaders } from "@/services/api/points";
 import { throwIfClientSessionExpired } from "@/services/api/session-expiration";
 
-type RequestOptions = { signal?: AbortSignal };
+type RequestOptions = {
+    signal?: AbortSignal;
+    context?: { surface?: "chat" | "canvas" | "drama"; projectId?: string; conversationId?: string; episodeId?: string; shotId?: string; clientRequestId?: string; attemptNo?: number };
+};
 
 export type TextGenerationTask = {
     id: string;
@@ -29,12 +32,29 @@ export async function createTextGenerationTask(config: AiConfig, messages: AiTex
     const response = await fetch("/api/text-tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: { model: requestConfig.model }, messages }),
+        body: JSON.stringify({ config: { model: requestConfig.model }, messages, ...(options?.context ? { context: options.context } : {}) }),
         signal: options?.signal,
     });
     throwIfClientSessionExpired(response);
+    syncUserPointsFromHeaders(response.headers, "system");
     const payload = (await response.json().catch(() => ({}))) as TextTaskPayload;
     if (!response.ok || !payload.task) throw new Error(payload.error || "创建文本任务失败");
+    return payload.task;
+}
+
+export async function recoverTextGenerationTask(taskId: string, options?: RequestOptions): Promise<TextGenerationTask> {
+    const response = await fetch(`/api/text-tasks/${encodeURIComponent(taskId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "recover" }),
+        signal: options?.signal,
+    });
+    throwIfClientSessionExpired(response);
+    syncUserPointsFromHeaders(response.headers, "system");
+    const payload = (await response.json().catch(() => ({}))) as TextTaskPayload;
+    if (!response.ok || !payload.task) throw new Error(payload.error || "重新检查文本任务失败");
+    if (payload.task.needsReview) throw new GenerationTaskNeedsReviewError(payload.task.reviewReason);
+    if (payload.task.status === "error") throw new GenerationTaskTerminalError(payload.task.error || "文本生成失败");
     return payload.task;
 }
 
@@ -54,7 +74,7 @@ export async function waitForTextGenerationTask(config: AiConfig, task: TextGene
         }
         if (payload.task.status === "error") {
             await refreshUserPointsIfSystem(resolveModelRequestConfig(config, task.model).apiSource);
-            throw new Error(payload.task.error || "文本生成失败");
+            throw new GenerationTaskTerminalError(payload.task.error || "文本生成失败");
         }
         await delay(TEXT_TASK_POLL_INTERVAL_MS, options?.signal);
     }

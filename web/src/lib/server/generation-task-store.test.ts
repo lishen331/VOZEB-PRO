@@ -16,13 +16,16 @@ vi.mock("@/lib/server/data-adapter", () => ({
     }),
 }));
 
-import { getDatabaseProvider, postgresQuery } from "@/lib/server/database";
+import { getDatabaseProvider, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import {
     cleanupExpiredStoredGenerationTasks,
     createStoredGenerationTask,
     getStoredGenerationTask,
+    getStoredGenerationTaskRecord,
     getStoredGenerationTaskByRequest,
     getStoredGenerationTaskByUpstream,
+    hasStoredGenerationTaskContextConflict,
+    generationCapacityRetryAfterSeconds,
     generationTaskPointsCost,
     listStoredGenerationTaskRecordsByRunIds,
     listStoredGenerationTaskRecords,
@@ -46,6 +49,7 @@ describe("mutateStoredGenerationTask", () => {
     beforeEach(() => {
         vi.mocked(getDatabaseProvider).mockReturnValue("file");
         vi.mocked(postgresQuery).mockReset();
+        vi.mocked(withPostgresTransaction).mockReset();
         const now = Date.now();
         mocks.records = [
             {
@@ -108,6 +112,77 @@ describe("mutateStoredGenerationTask", () => {
         expect(mocks.records).toHaveLength(1);
     });
 
+    it("releases the PostgreSQL transaction before running a reserved generation handler", async () => {
+        vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
+        const events: string[] = [];
+        const query = vi.fn(async (statement: string) => {
+            events.push(statement.startsWith("INSERT INTO") ? "reservation:insert" : "transaction:query");
+            if (statement.includes("SELECT 1 FROM generation_concurrency_reservations")) return { rows: [] };
+            if (statement.includes("AS total")) return { rows: [{ total: "0" }] };
+            return { rows: [] };
+        });
+        vi.mocked(withPostgresTransaction).mockImplementation(async (handler) => {
+            events.push("transaction:start");
+            const result = await handler({ query } as never);
+            events.push("transaction:end");
+            return result;
+        });
+        vi.mocked(postgresQuery).mockImplementation(async () => {
+            events.push("reservation:delete");
+            return { rows: [] } as never;
+        });
+
+        await expect(
+            withGenerationConcurrencyLimit(
+                "user",
+                "image",
+                60_000,
+                1,
+                async () => {
+                    events.push("handler");
+                    return "created";
+                },
+                undefined,
+                "request-one",
+            ),
+        ).resolves.toBe("created");
+
+        expect(events.indexOf("transaction:end")).toBeLessThan(events.indexOf("handler"));
+        expect(events.indexOf("reservation:insert")).toBeLessThan(events.indexOf("transaction:end"));
+        expect(events.at(-1)).toBe("reservation:delete");
+        const aggregate = query.mock.calls.find(([statement]) => String(statement).includes("AS total"))?.[0];
+        expect(aggregate).toContain("NOT EXISTS");
+        expect(aggregate).toContain("task.client_request_id = reservation.request_id");
+        expect(vi.mocked(postgresQuery)).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM generation_concurrency_reservations"), ["user", "image", "request-one"]);
+    });
+
+    it("releases a PostgreSQL concurrency reservation when generation creation fails", async () => {
+        vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
+        const query = vi.fn(async (statement: string) => {
+            if (statement.includes("SELECT 1 FROM generation_concurrency_reservations")) return { rows: [] };
+            if (statement.includes("AS total")) return { rows: [{ total: "0" }] };
+            return { rows: [] };
+        });
+        vi.mocked(withPostgresTransaction).mockImplementation(async (handler) => handler({ query } as never));
+        vi.mocked(postgresQuery).mockResolvedValue({ rows: [] } as never);
+
+        await expect(
+            withGenerationConcurrencyLimit(
+                "user",
+                "video",
+                60_000,
+                1,
+                async () => {
+                    throw new Error("upstream failed");
+                },
+                undefined,
+                "request-two",
+            ),
+        ).rejects.toThrow("upstream failed");
+
+        expect(vi.mocked(postgresQuery)).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM generation_concurrency_reservations"), ["user", "video", "request-two"]);
+    });
+
     it("does not let tasks awaiting manual review consume generation capacity", async () => {
         const now = Date.now();
         mocks.records = [
@@ -135,6 +210,38 @@ describe("mutateStoredGenerationTask", () => {
         await expect(withGenerationConcurrencyLimit("user", "agent", 60_000, 1, async () => "other-run")).resolves.toBeNull();
     });
 
+    it("derives capacity retry timing from the active task scheduler state", async () => {
+        const now = Date.now();
+        mocks.records = [
+            {
+                id: "image-running",
+                userId: "user",
+                type: "image",
+                status: "running",
+                executionPhase: "polling",
+                nextPollAt: now + 4_000,
+                payload: {},
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: now + 60_000,
+            },
+        ];
+
+        await expect(generationCapacityRetryAfterSeconds("user", "image", 60_000)).resolves.toBeGreaterThanOrEqual(3);
+        await expect(generationCapacityRetryAfterSeconds("other", "image", 60_000)).resolves.toBeUndefined();
+    });
+
+    it("uses one scoped PostgreSQL aggregate for capacity retry timing", async () => {
+        vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
+        vi.mocked(postgresQuery).mockResolvedValueOnce({ rows: [{ retry_after_seconds: 6 }], command: "SELECT", rowCount: 1, oid: 0, fields: [] });
+
+        await expect(generationCapacityRetryAfterSeconds("user", "video", 60_000)).resolves.toBe(6);
+        const [statement, params] = vi.mocked(postgresQuery).mock.calls[0];
+        expect(String(statement)).toContain("MIN(CASE");
+        expect(String(statement)).toContain("user_id = $1 AND task_type = $2");
+        expect(params).toEqual(["user", "video", expect.any(Date), expect.any(Array)]);
+    });
+
     it("restores a safe review reason for a legacy uncertain submission", async () => {
         const now = Date.now();
         mocks.records = [
@@ -155,6 +262,53 @@ describe("mutateStoredGenerationTask", () => {
         await expect(getStoredGenerationTask<TestTask>("image", "image-review")).resolves.toMatchObject({ reviewReason: expect.stringContaining("避免重复生成和扣费") });
     });
 
+    it("hydrates nested and durable Drama context for typed task reads and marks conflicts", async () => {
+        const now = Date.now();
+        mocks.records = [
+            {
+                id: "nested-task",
+                userId: "user",
+                type: "video",
+                status: "running",
+                payload: { id: "nested-task", userId: "user", status: "running", context: { surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" } },
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: now + 60_000,
+                executionPhase: "polling",
+            },
+            {
+                id: "conflict-task",
+                userId: "user",
+                type: "video",
+                status: "running",
+                surface: "drama",
+                projectId: "project-one",
+                payload: { id: "conflict-task", userId: "user", status: "running", surface: "canvas", projectId: "project-one" },
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: now + 60_000,
+                executionPhase: "polling",
+            },
+        ];
+
+        const nested = await getStoredGenerationTask<TestTask & { projectId?: string; episodeId?: string; shotId?: string }>("video", "nested-task");
+        expect(nested).toMatchObject({ surface: "drama", projectId: "project-one", episodeId: "episode-one", shotId: "shot-one" });
+        const conflict = await getStoredGenerationTask("video", "conflict-task");
+        expect(hasStoredGenerationTaskContextConflict(conflict)).toBe(true);
+        const conflictRecord = await getStoredGenerationTaskRecord("video", "conflict-task");
+        expect(hasStoredGenerationTaskContextConflict(conflictRecord)).toBe(true);
+    });
+
+    it("hydrates PostgreSQL durable owner, surface and project columns", async () => {
+        vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
+        vi.mocked(postgresQuery).mockResolvedValueOnce({
+            rows: [{ payload: { id: "postgres-task", status: "running" }, user_id: "user", surface: "drama", project_id: "project-one", execution_phase: "polling" }],
+        } as never);
+
+        await expect(getStoredGenerationTask("video", "postgres-task")).resolves.toMatchObject({ userId: "user", surface: "drama", projectId: "project-one", executionPhase: "polling" });
+        vi.mocked(getDatabaseProvider).mockReturnValue("file");
+    });
+
     it("deduplicates the same request attempt but allows a later retry attempt", async () => {
         mocks.records = [];
         const now = Date.now();
@@ -170,6 +324,214 @@ describe("mutateStoredGenerationTask", () => {
         await expect(getStoredGenerationTaskByRequest<{ id: string }>("video", "user", "request-one", 1)).resolves.toMatchObject({ id: "video-one" });
         await expect(getStoredGenerationTaskByRequest<{ id: string }>("video", "user", "request-one", 2)).resolves.toMatchObject({ id: "video-retry" });
         await expect(getStoredGenerationTaskByRequest<{ id: string }>("video", "user", "request-one", 3)).resolves.toBeNull();
+    });
+
+    it("persists the immutable execution profile and defaults legacy tasks to production", async () => {
+        mocks.records = [];
+        const now = Date.now();
+        await createStoredGenerationTask(
+            "image",
+            {
+                id: "practice-image",
+                userId: "user",
+                status: "pending",
+                surface: "canvas",
+                executionProfile: "open-source-practice",
+                ipReferences: [{ type: "ip", id: "ip-one", versionId: "version-one", itemIds: ["item-one"] }],
+                createdAt: now,
+                updatedAt: now,
+            },
+            60_000,
+        );
+        await createStoredGenerationTask("image", { id: "production-image", userId: "user", status: "pending", createdAt: now, updatedAt: now }, 60_000);
+
+        await expect(getStoredGenerationTaskRecord("image", "practice-image")).resolves.toMatchObject({
+            surface: "canvas",
+            executionProfile: "open-source-practice",
+            ipReferences: [{ type: "ip", id: "ip-one", versionId: "version-one", itemIds: ["item-one"] }],
+            payload: { ipReferences: [{ type: "ip", id: "ip-one", versionId: "version-one", itemIds: ["item-one"] }] },
+        });
+        await expect(getStoredGenerationTaskRecord("image", "production-image")).resolves.toMatchObject({ executionProfile: "production" });
+    });
+
+    it("persists the trusted school billing context in the task record and payload", async () => {
+        mocks.records = [];
+        const now = Date.now();
+        const billingContext = { schoolId: "school-a", groupId: "group-a", orderId: "order-a", projectType: "canvas" as const, projectId: "canvas-a" };
+        await createStoredGenerationTask("image", { id: "school-image", userId: "user", status: "pending", surface: "canvas", projectId: "canvas-a", billingContext, createdAt: now, updatedAt: now }, 60_000);
+
+        await expect(getStoredGenerationTaskRecord("image", "school-image")).resolves.toMatchObject({ billingContext, payload: { billingContext } });
+    });
+
+    it("persists a bounded drama frame snapshot for video recovery", async () => {
+        mocks.records = [];
+        const now = Date.now();
+        const frameSnapshot = {
+            capturedAt: "2026-09-01T00:00:00.000Z",
+            model: "video-model",
+            supportsLastFrame: true,
+            references: [{ role: "first_frame", frameType: "first", url: "/first.png", taskId: "first-task" }],
+        };
+        await createStoredGenerationTask("video", { id: "frame-video", userId: "user", status: "pending", surface: "drama", projectId: "project-one", frameSnapshot, createdAt: now, updatedAt: now }, 60_000);
+
+        await expect(getStoredGenerationTaskRecord("video", "frame-video")).resolves.toMatchObject({ frameSnapshot, payload: { frameSnapshot } });
+    });
+
+    it("normalizes and round-trips short-drama audio context", async () => {
+        mocks.records = [];
+        const now = Date.now();
+        await createStoredGenerationTask(
+            "audio",
+            {
+                id: "dialogue-audio",
+                userId: "user",
+                status: "pending",
+                surface: "drama",
+                projectId: "project-one",
+                episodeId: "episode-one",
+                shotId: "shot-one",
+                audioKind: "dialogue",
+                speaker: `  林夏${"x".repeat(200)}  `,
+                createdAt: now,
+                updatedAt: now,
+            },
+            60_000,
+        );
+
+        await expect(getStoredGenerationTaskRecord("audio", "dialogue-audio")).resolves.toMatchObject({
+            audioKind: "dialogue",
+            speaker: `林夏${"x".repeat(158)}`,
+            payload: { audioKind: "dialogue", speaker: `林夏${"x".repeat(158)}` },
+        });
+        await expect(getStoredGenerationTask<Record<string, unknown>>("audio", "dialogue-audio")).resolves.toMatchObject({ audioKind: "dialogue", speaker: `林夏${"x".repeat(158)}` });
+    });
+
+    it("hydrates audio context from a legacy nested payload", async () => {
+        const now = Date.now();
+        mocks.records = [
+            {
+                id: "nested-audio",
+                userId: "user",
+                type: "audio",
+                status: "running",
+                payload: { id: "nested-audio", userId: "user", status: "running", context: { audioKind: "narration", speaker: "旁白" } },
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: now + 60_000,
+            },
+        ];
+
+        await expect(getStoredGenerationTaskRecord("audio", "nested-audio")).resolves.toMatchObject({ audioKind: "narration", speaker: "旁白" });
+        await expect(getStoredGenerationTask<Record<string, unknown>>("audio", "nested-audio")).resolves.toMatchObject({ audioKind: "narration", speaker: "旁白" });
+    });
+
+    it("marks conflicting audio kind and speaker sources on typed and raw reads", async () => {
+        const now = Date.now();
+        mocks.records = [
+            {
+                id: "conflicting-audio",
+                userId: "user",
+                type: "audio",
+                status: "running",
+                audioKind: "dialogue",
+                speaker: "林夏",
+                payload: {
+                    id: "conflicting-audio",
+                    userId: "user",
+                    status: "running",
+                    audioKind: "dialogue",
+                    speaker: "林夏",
+                    context: { audioKind: "narration", speaker: "旁白" },
+                },
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: now + 60_000,
+            },
+        ];
+
+        const typed = await getStoredGenerationTask("audio", "conflicting-audio");
+        expect(hasStoredGenerationTaskContextConflict(typed)).toBe(true);
+        const raw = await getStoredGenerationTaskRecord("audio", "conflicting-audio");
+        expect(hasStoredGenerationTaskContextConflict(raw)).toBe(true);
+    });
+
+    it("marks conflicting audio metadata in PostgreSQL task records", async () => {
+        vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
+        vi.mocked(postgresQuery).mockResolvedValueOnce({
+            rows: [
+                {
+                    id: "postgres-conflicting-audio",
+                    user_id: "user",
+                    task_type: "audio",
+                    status: "running",
+                    payload: { id: "postgres-conflicting-audio", audioKind: "dialogue", speaker: "林夏", context: { audioKind: "narration", speaker: "旁白" } },
+                    created_at: new Date(),
+                    updated_at: new Date(),
+                    expires_at: new Date(Date.now() + 60_000),
+                },
+            ],
+        } as never);
+
+        const raw = await getStoredGenerationTaskRecord("audio", "postgres-conflicting-audio");
+        expect(hasStoredGenerationTaskContextConflict(raw)).toBe(true);
+        vi.mocked(getDatabaseProvider).mockReturnValue("file");
+    });
+
+    it("maps audio context from a PostgreSQL payload", async () => {
+        vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
+        vi.mocked(postgresQuery).mockResolvedValueOnce({
+            rows: [
+                {
+                    id: "postgres-audio",
+                    user_id: "user",
+                    task_type: "audio",
+                    status: "running",
+                    payload: { id: "postgres-audio", audioKind: "narration", speaker: "旁白" },
+                    created_at: new Date(),
+                    updated_at: new Date(),
+                    expires_at: new Date(Date.now() + 60_000),
+                },
+            ],
+        } as never);
+
+        await expect(getStoredGenerationTaskRecord("audio", "postgres-audio")).resolves.toMatchObject({ audioKind: "narration", speaker: "旁白" });
+        vi.mocked(getDatabaseProvider).mockReturnValue("file");
+    });
+
+    it("persists workflow identity and origin without allowing an invalid origin", async () => {
+        mocks.records = [];
+        const now = Date.now();
+        await createStoredGenerationTask(
+            "image",
+            {
+                id: "workflow-image",
+                userId: "user",
+                status: "pending",
+                workflowKey: "storyboard-image-v2",
+                workflowVersion: 2,
+                upstreamWorkflowId: "wf-remote-2",
+                businessCode: "storyboard-image",
+                taskOrigin: "admin-workflow-test",
+                createdAt: now,
+                updatedAt: now,
+            },
+            60_000,
+        );
+
+        await expect(getStoredGenerationTaskRecord("image", "workflow-image")).resolves.toMatchObject({
+            workflowKey: "storyboard-image-v2",
+            workflowVersion: 2,
+            upstreamWorkflowId: "wf-remote-2",
+            businessCode: "storyboard-image",
+            taskOrigin: "admin-workflow-test",
+            payload: {
+                workflowKey: "storyboard-image-v2",
+                workflowVersion: 2,
+                upstreamWorkflowId: "wf-remote-2",
+                businessCode: "storyboard-image",
+                taskOrigin: "admin-workflow-test",
+            },
+        });
     });
 
     it("finds only the current user's exact channel task identity", async () => {

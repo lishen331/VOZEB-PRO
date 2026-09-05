@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Checkbox, Popconfirm, Tag } from "antd";
-import { Eye, Film, Image as ImageIcon, Trash2 } from "lucide-react";
+import { Eye, Film, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
 
 import { browserReadableMediaUrl } from "@/lib/browser-media-url";
 import { AdminAccountId } from "@/components/admin/admin-user-identity";
@@ -14,7 +14,7 @@ export function GenerationLogAssetPreview({ log }: { log: StoredGenerationLog })
     if (!assetUrl) {
         return (
             <div className="flex size-12 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-400 dark:border-stone-800 dark:bg-stone-900">
-                {log.kind === "video" ? <Film className="size-4" /> : <ImageIcon className="size-4" />}
+                {log.kind === "video" ? <Film className="size-4" /> : log.kind === "text" ? <FileText className="size-4" /> : <ImageIcon className="size-4" />}
             </div>
         );
     }
@@ -31,7 +31,7 @@ export function GenerationLogMobileCard({ log, selected, onSelectedChange, onVie
                 <Checkbox checked={selected} onChange={(event) => onSelectedChange(event.target.checked)} />
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
-                        <Tag className="m-0" color={log.kind === "video" ? "purple" : "blue"}>
+                        <Tag className="m-0" color={log.kind === "video" ? "purple" : log.kind === "text" ? "green" : "blue"}>
                             {generationKindLabel(log.kind)}
                         </Tag>
                         <span className={generationStatusClass(log.status)}>{generationStatusLabel(log.status)}</span>
@@ -96,7 +96,7 @@ function GenerationLogResultSection({ log }: { log: StoredGenerationLog }) {
         return (
             <div className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900/70">
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-stone-950 dark:text-stone-100">
-                    {log.kind === "video" ? <Film className="size-4" /> : <ImageIcon className="size-4" />}
+                    {log.kind === "video" ? <Film className="size-4" /> : log.kind === "text" ? <FileText className="size-4" /> : <ImageIcon className="size-4" />}
                     生成结果
                 </div>
                 <div className="text-sm leading-6 text-stone-500 dark:text-stone-400">{log.status === "success" ? "这条日志没有可访问的媒体文件。" : "这条日志没有成功结果，暂无可预览的图片或视频。"}</div>
@@ -108,7 +108,7 @@ function GenerationLogResultSection({ log }: { log: StoredGenerationLog }) {
         <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
             <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">生成结果</div>
-                <Tag className="m-0" color={log.kind === "video" ? "purple" : "blue"}>
+                <Tag className="m-0" color={log.kind === "video" ? "purple" : log.kind === "text" ? "green" : "blue"}>
                     {assets.length} 个结果
                 </Tag>
             </div>
@@ -174,6 +174,7 @@ export function formatAdminLogDuration(value: number) {
 }
 
 export function generationKindLabel(value: string) {
+    if (value === "text") return "文本";
     return value === "video" ? "视频" : "图片";
 }
 

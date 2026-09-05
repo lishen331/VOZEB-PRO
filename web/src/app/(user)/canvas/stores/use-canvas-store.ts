@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 
 import { createClientSessionEpoch, type ClientSessionStamp } from "@/lib/client-session-epoch";
 import type { CanvasProject, CanvasProjectSummary } from "@/lib/canvas-project-contract";
+import type { IpReference } from "@/lib/ip-library-domain";
 import { applyCanvasProjectMutation, createCanvasProjectMutation, hasCanvasProjectMutationChanges } from "@/lib/canvas-project-mutation";
 import { summarizeCanvasProjectRecord } from "@/lib/canvas-project-summary";
 import { CanvasProjectRequestError, createCanvasProject, deleteCanvasProjects as deleteCanvasProjectsRequest, getCanvasProject, listCanvasProjectSummaries, saveCanvasProjectMutation } from "@/services/api/canvas-projects";
@@ -10,7 +11,7 @@ import { useUserStore } from "@/stores/use-user-store";
 
 export type { CanvasProject, CanvasProjectSummary } from "@/lib/canvas-project-contract";
 
-type CanvasProjectPatch = Partial<Pick<CanvasProject, "creativeConversationId" | "nodes" | "connections" | "chatSessions" | "activeChatId" | "backgroundMode" | "showImageInfo" | "viewport">>;
+type CanvasProjectPatch = Partial<Pick<CanvasProject, "creativeConversationId" | "nodes" | "connections" | "chatSessions" | "activeChatId" | "backgroundMode" | "showImageInfo" | "viewport" | "ipReferences">>;
 export type CanvasProjectSaveState = { status: "saving" | "saved" | "error" | "conflict"; message?: string };
 
 type CanvasStore = {
@@ -25,7 +26,7 @@ type CanvasStore = {
     saveStateByProject: Record<string, CanvasProjectSaveState>;
     hydrate: (force?: boolean, page?: number) => Promise<void>;
     loadProject: (id: string, force?: boolean) => Promise<CanvasProject>;
-    createProject: (title?: string) => Promise<string>;
+    createProject: (title?: string, ipReferences?: IpReference[], sourceHandoffId?: string) => Promise<string>;
     importProject: (project: Partial<CanvasProject>, sourceHandoffId?: string) => Promise<string>;
     renameProject: (id: string, title: string) => void;
     deleteProjects: (ids: string[]) => Promise<void>;
@@ -100,6 +101,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
         const request = getCanvasProject(id)
             .then((project) => {
                 assertCurrent(session);
+                if (projectRequests.get(key) !== request) return project;
                 latestProjectTimes.set(key, Date.parse(project.updatedAt) || Date.now());
                 persistedProjectSnapshots.set(key, project);
                 set((state) => ({
@@ -116,9 +118,9 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
         projectRequests.set(key, request);
         return request;
     },
-    createProject: async (title = "未命名画布") => {
+    createProject: async (title = "未命名画布", ipReferences, sourceHandoffId) => {
         const session = requireSession();
-        const project = await createCanvasProject({ title });
+        const project = await createCanvasProject({ title, ipReferences, sourceHandoffId });
         assertCurrent(session);
         set((state) => ({
             projects: [project, ...state.projects.filter((item) => item.id !== project.id)],

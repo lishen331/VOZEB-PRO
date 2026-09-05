@@ -66,6 +66,7 @@ function runStatusLabel(status: CreativeAgentRun["status"]) {
     if (status === "running") return "生成中";
     if (status === "paused") return "已暂停";
     if (status === "completed") return "已完成";
+    if (status === "partial_success") return "部分完成";
     if (status === "cancelled") return "已取消";
     return "失败";
 }

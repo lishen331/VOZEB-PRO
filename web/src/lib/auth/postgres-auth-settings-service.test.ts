@@ -80,8 +80,37 @@ describe("updatePostgresAuthSettings", () => {
 
         expect(mocks.updateSettings).not.toHaveBeenCalled();
         expect(mocks.upsertSystemModelChannel).toHaveBeenCalledTimes(1);
+        expect(mocks.upsertSystemModelChannel).toHaveBeenCalledWith(expect.objectContaining({ purpose: "shared" }));
         expect(mocks.deleteSystemModelChannelsNotIn).toHaveBeenCalledWith(["channel-one"]);
         expect(mocks.upsertEntitlementPlan).not.toHaveBeenCalled();
         expect(mocks.removeEntitlementPlansNotIn).not.toHaveBeenCalled();
+    });
+
+    it("updates only the independent practice default model pool", async () => {
+        const practiceDefaultModels = { textModel: "practice-text", visionModel: "", imageModel: "", videoModel: "", audioModel: "" };
+
+        await updatePostgresAuthSettings({ practiceDefaultModels });
+
+        expect(mocks.updateSettings).toHaveBeenCalledWith({ practiceDefaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" } });
+        expect(mocks.upsertSystemModelChannel).not.toHaveBeenCalled();
+    });
+
+    it("merges partial generation settings inside the transaction", async () => {
+        const current = structuredClone(DEFAULT_SETTINGS);
+        current.generationConcurrency = { agent: 9, image: 8, video: 7, audio: 6, text: 5, render: 4 };
+        current.generationDefaults = { ...current.generationDefaults, imageCount: 3, dramaMaxBatchSize: 11 };
+        mocks.readSettings.mockResolvedValue(current);
+
+        const settings = await updatePostgresAuthSettings({
+            generationConcurrency: { image: 2 } as typeof current.generationConcurrency,
+            generationDefaults: { dramaMaxBatchSize: 20 } as typeof current.generationDefaults,
+        });
+
+        expect(settings.generationConcurrency).toEqual({ agent: 9, image: 2, video: 7, audio: 6, text: 5, render: 4 });
+        expect(settings.generationDefaults).toMatchObject({ imageCount: 3, dramaMaxBatchSize: 20 });
+        expect(mocks.updateSettings).toHaveBeenCalledWith({
+            generationConcurrency: settings.generationConcurrency,
+            generationDefaults: settings.generationDefaults,
+        });
     });
 });

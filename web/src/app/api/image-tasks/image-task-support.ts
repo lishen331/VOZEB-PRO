@@ -2,7 +2,7 @@ import { rawReferenceRequestUrlCandidates } from "./image-task-reference-urls";
 import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
@@ -14,7 +14,7 @@ import { generationModelId, toSystemGenerationChannel } from "@/lib/server/gener
 import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
-import { assertReferenceCapabilities } from "@/lib/server/provider-task-config";
+import { assertReferenceCapabilities, readProviderString } from "@/lib/server/provider-task-config";
 import { countActiveImageTasksForUser, createImageTask, getImageTask, touchImageTask, transitionImageTask, type ImageTask, type ImageTaskConfig, type ImageTaskReference, updateImageTask } from "@/lib/server/image-task-store";
 import { isGenerationSource, recordGenerationLog } from "@/lib/server/generation-log-store";
 import { writeReferenceImageDataUrl } from "@/lib/server/reference-asset-store";
@@ -25,8 +25,12 @@ import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { resolveModelPollingAttempts, resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
+import { attachPracticeWorkflowToChannel, resolvePracticeLogicalModel } from "@/lib/server/runninghub-workflow-runtime";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
+import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
+import { resolveMediaMimeType } from "@/lib/server/media-content-type";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError, generationSubmissionResponseError, generationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
 
 import {
@@ -66,13 +70,14 @@ export function publicTask(task: ImageTask) {
     };
 }
 
-export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: Awaited<ReturnType<typeof getAuthSettings>>): ImageTaskConfig[] {
-    const requestedModel = config?.model || settings.defaultModels.imageModel;
-    return resolveLogicalModelCandidates(settings, "image", requestedModel).map((resolved) => {
-        const channel = toSystemGenerationChannel(resolved);
+export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: Awaited<ReturnType<typeof getAuthSettings>>, executionProfile: "production" | "open-source-practice" = "production", context?: GenerationTaskContext): ImageTaskConfig[] {
+    const requestedModel = executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "image", context?.businessCode || "canvas", config?.model) : config?.model || settings.defaultModels.imageModel;
+    return resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile).map((resolved) => {
+        const channel = attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {});
         return {
             ...channel,
             channelId: resolved.channelId,
+            executionProfile,
             ...resolveImageTaskOptions(config || {}, settings.generationDefaults),
             systemPrompt: "",
             advancedConfig: sanitizeAdvancedConfig(channel.advancedConfig),
@@ -100,6 +105,7 @@ export function sanitizeAdvancedConfig(config?: ImageTaskConfig["advancedConfig"
         supportsReferenceImage: Boolean(config.supportsReferenceImage),
         supportsReferenceVideo: Boolean(config.supportsReferenceVideo),
         supportsReferenceAudio: Boolean(config.supportsReferenceAudio),
+        ...(config.workflowConfigs ? { workflowConfigs: config.workflowConfigs } : {}),
     };
 }
 
@@ -108,7 +114,11 @@ export function textOrEmpty(value: unknown) {
 }
 
 export async function preferredImageResponseFormat(config: ImageTaskConfig): Promise<(typeof IMAGE_RESPONSE_FORMATS)[number]> {
-    return "url";
+    // New API image gateways commonly place URL results on a separate CDN that
+    // is not reachable from the application server. Prefer the inline response
+    // already declared by the protocol so result persistence does not depend on
+    // that CDN being available.
+    return config.advancedConfig?.protocol === "newapi" ? "b64_json" : "url";
 }
 
 export async function openAiImageTaskPath(config: ImageTaskConfig, kind: ImageTask["kind"]) {
@@ -236,13 +246,13 @@ export function isInternalSystemProxyBase(value: string) {
     }
 }
 
-export function taskHeaders(config: ImageTaskConfig, cookie: string, pointsIdempotencyKey?: string) {
+export function taskHeaders(config: ImageTaskConfig, cookie: string, pointsIdempotencyKey?: string, billingContext?: SchoolComputeBillingContext) {
     const headers = new Headers();
     const internal = config.baseUrl.startsWith("/");
     const workerHeaders = maintenanceWorkerContextHeaders(cookie);
     if (internal && workerHeaders) Object.entries(workerHeaders).forEach(([key, value]) => headers.set(key, value));
     else if (internal && cookie) headers.set("cookie", cookie);
-    if (internal) Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model)).forEach(([key, value]) => headers.set(key, value));
+    if (internal) Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model, config.executionProfile, billingContext)).forEach(([key, value]) => headers.set(key, value));
     if (pointsIdempotencyKey?.trim()) {
         headers.set("Idempotency-Key", pointsIdempotencyKey.trim());
         headers.set("X-Client-Request-Id", pointsIdempotencyKey.trim());
@@ -273,10 +283,11 @@ export function imageSubmissionResponseError(status: number, message: string) {
     return generationSubmissionResponseError(status, message);
 }
 
-export async function parseImageSubmissionJson<T>(response: Response): Promise<T> {
+export async function parseImageSubmissionJson<T>(task: ImageTask, response: Response): Promise<T> {
     try {
         return (await response.json()) as T;
     } catch {
+        await persistChargedImageResponse(task, response.headers);
         throw new GenerationSubmissionUncertainError("图片接口返回了无效 JSON，创建结果待确认");
     }
 }
@@ -292,14 +303,15 @@ export function imageTaskPollAttempts(config: ImageTaskConfig) {
 export class ImageUpstreamTerminalError extends Error {}
 export class ImageQueryContractError extends Error {}
 
-export function geminiHeaders(config: ImageTaskConfig, cookie: string, pointsIdempotencyKey?: string) {
-    const headers = taskHeaders(config, cookie, pointsIdempotencyKey);
+export function geminiHeaders(config: ImageTaskConfig, cookie: string, pointsIdempotencyKey?: string, billingContext?: SchoolComputeBillingContext) {
+    const headers = taskHeaders(config, cookie, pointsIdempotencyKey, billingContext);
     headers.set("content-type", "application/json");
     return headers;
 }
 
-export function imagePointsIdempotencyKey(task: Pick<ImageTask, "id" | "attemptNo">) {
-    return `image-task:${task.id}:attempt:${task.attemptNo || 1}`;
+export function imagePointsIdempotencyKey(task: Pick<ImageTask, "id" | "attemptNo">, variant = "primary") {
+    const suffix = variant.trim();
+    return `image-task:${task.id}:attempt:${task.attemptNo || 1}${suffix && suffix !== "primary" ? `:${suffix}` : ""}`;
 }
 
 export function geminiApiUrl(config: ImageTaskConfig, action: "generateContent", origin: string) {
@@ -312,13 +324,29 @@ export function withSystemPrompt(config: ImageTaskConfig, prompt: string) {
     return systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 }
 
-export async function parseImagePayloadOrPoll(config: ImageTaskConfig, payload: ImageApiResponse, mediaBaseUrl: string, cookie: string, pollBaseUrl = mediaBaseUrl, singleStep = false): Promise<ImageTaskResult> {
+export function withImageOutputInstructions(config: ImageTaskConfig, prompt: string) {
+    if (config.outputMode === "layers") {
+        return `${prompt}\n\n分层任务要求：一次请求返回完整的多图片结果数组。每个前景结果只包含一个独立元素，必须与源图同宽高、保留原始坐标、使用源图原始像素和真实透明 Alpha；另返回一张同宽高、已移除所有前景元素并只补全遮挡区域的干净背景。禁止拼图、裁片、缩放、重绘、改字、合并元素、改动元素外区域或把已分离元素补回背景。`;
+    }
+    if (config.outputBackground !== "transparent") return prompt;
+    return `${prompt}\n\n输出要求：只保留参考图中的目标元素，去除裁切范围外的背景，输出带真实透明 Alpha 的 PNG。不要补画背景、文字、装饰或其他元素，不要改变目标元素的颜色、结构、比例和边缘。`;
+}
+
+export async function parseImagePayloadOrPoll(
+    config: ImageTaskConfig,
+    payload: ImageApiResponse,
+    mediaBaseUrl: string,
+    cookie: string,
+    pollBaseUrl = mediaBaseUrl,
+    singleStep = false,
+    billingContext?: SchoolComputeBillingContext,
+): Promise<ImageTaskResult> {
     const payloadError = readImagePayloadError(payload);
-    if (payloadError) throw new GenerationSubmissionSafeFailure(payloadError);
+    if (payloadError) throw new ImageUpstreamTerminalError(payloadError);
     const images = findImageResults(payload, mediaBaseUrl, config);
     if (images.length) return imageTaskResultFromMedia(images);
 
-    const taskId = readImageTaskId(payload);
+    const taskId = readImageTaskId(payload, config.advancedConfig?.taskIdField);
     if (!taskId) throw new GenerationSubmissionUncertainError("图片接口没有返回图片或任务 ID，创建结果待确认");
     const explicitPollUrl = readImagePollUrl(config, payload, mediaBaseUrl, pollBaseUrl);
     const upstream = { id: taskId, mediaBaseUrl, pollBaseUrl, explicitPollUrl: explicitPollUrl || undefined };
@@ -326,16 +354,26 @@ export async function parseImagePayloadOrPoll(config: ImageTaskConfig, payload: 
         return { dataUrl: "", needsReview: { upstream, reason: "OpenAI 图片接口未返回图片，且渠道没有声明异步查询路径" } };
     }
     if (singleStep) return { dataUrl: "", pending: upstream };
-    return pollOpenAiImageTask(config, taskId, mediaBaseUrl, pollBaseUrl, cookie, explicitPollUrl);
+    return pollOpenAiImageTask(config, taskId, mediaBaseUrl, pollBaseUrl, cookie, explicitPollUrl, false, undefined, billingContext);
 }
 
-export async function pollOpenAiImageTask(config: ImageTaskConfig, taskId: string, mediaBaseUrl: string, pollBaseUrl: string, cookie: string, explicitPollUrl = "", singleStep = false): Promise<ImageTaskResult> {
+export async function pollOpenAiImageTask(
+    config: ImageTaskConfig,
+    taskId: string,
+    mediaBaseUrl: string,
+    pollBaseUrl: string,
+    cookie: string,
+    explicitPollUrl = "",
+    singleStep = false,
+    requestId?: string,
+    billingContext?: SchoolComputeBillingContext,
+): Promise<ImageTaskResult> {
     const pollUrls = imageTaskPollUrls(config, pollBaseUrl, taskId, explicitPollUrl);
     if (!pollUrls.length) throw new ImageQueryContractError("OpenAI 图片任务缺少明确的异步查询路径");
     let lastError = "";
     for (let attempt = 0; attempt < (singleStep ? 1 : imageTaskPollAttempts(config)); attempt += 1) {
         for (const pollUrl of pollUrls) {
-            const response = await taskFetch(config, pollUrl, { method: "GET", headers: taskHeaders(config, cookie), cache: "no-store", signal: AbortSignal.timeout(Math.min(imageTaskRequestTimeoutMs(config), 60_000)) });
+            const response = await taskFetch(config, pollUrl, { method: "GET", headers: taskHeaders(config, cookie, requestId, billingContext), cache: "no-store", signal: AbortSignal.timeout(Math.min(imageTaskRequestTimeoutMs(config), 60_000)) });
             if (!response.ok) {
                 const message = await readFetchError(response, "图片任务查询失败");
                 lastError = message;
@@ -372,7 +410,7 @@ export async function parseImageQueryJson(response: Response): Promise<ImageApiR
 
 export function parseImagePayloadCompat(payload: ImageApiResponse, baseUrl: string, config: ImageTaskConfig): ImageTaskResult | null {
     const error = readImagePayloadError(payload);
-    if (error) throw new Error(error);
+    if (error) throw new ImageUpstreamTerminalError(error);
     const images = findImageResults(payload, baseUrl, config);
     return images.length ? imageTaskResultFromMedia(images) : null;
 }
@@ -391,6 +429,11 @@ export function findImageResults(value: unknown, baseUrl: string, config: ImageT
 function collectImageResults(value: unknown, baseUrl: string, config: ImageTaskConfig, depth: number, images: ImageTaskMediaResult[]) {
     if (!value || depth > 6) return null;
     if (typeof value === "string") {
+        const inlineImage = rawImageBase64DataUrl(value);
+        if (inlineImage) {
+            images.push({ dataUrl: inlineImage });
+            return;
+        }
         const url = resolveImageUrlLike(value, baseUrl, config, false);
         if (url) images.push(url);
         const dataUrl = resolveImageBase64Like(value);
@@ -434,8 +477,16 @@ export function resolveImageBase64Like(value: string) {
     const base64 = value.trim();
     if (!base64) return "";
     if (/^data:image\//i.test(base64)) return base64;
+    const rawImage = rawImageBase64DataUrl(base64);
+    if (rawImage) return rawImage;
     if (base64.length < 64 || !/^[a-z0-9+/=_-]+$/i.test(base64.replace(/\s/g, ""))) return "";
     return `data:image/png;base64,${base64.replace(/\s/g, "")}`;
+}
+
+function rawImageBase64DataUrl(value: string) {
+    const base64 = value.trim().replace(/\s/g, "");
+    const mimeType = base64.startsWith("/9j/") ? "image/jpeg" : base64.startsWith("iVBORw0KGgo") ? "image/png" : base64.startsWith("R0lGOD") ? "image/gif" : base64.startsWith("UklGR") ? "image/webp" : "";
+    return mimeType && /^[a-z0-9+/=_-]+$/i.test(base64) ? `data:${mimeType};base64,${base64}` : "";
 }
 
 export function isLikelyImageUrl(value: string) {
@@ -450,8 +501,8 @@ export function readImagePayloadError(payload: ImageApiResponse) {
     return "";
 }
 
-export function readImageTaskId(payload: ImageApiResponse) {
-    return findStringByKeys(payload, IMAGE_TASK_ID_KEYS);
+export function readImageTaskId(payload: ImageApiResponse, configuredPath?: string) {
+    return configuredPath ? readProviderString(payload, configuredPath, []) : findStringByKeys(payload, IMAGE_TASK_ID_KEYS);
 }
 
 export function readImageTaskStatus(payload: ImageApiResponse) {
@@ -563,8 +614,8 @@ export async function inlineRemoteImageResult(value: string, origin: string, coo
         if (contentLength > MAX_INLINE_IMAGE_BYTES) return { dataUrl: url, remoteUrl: fallbackUrl };
         const bytes = Buffer.from(await response.arrayBuffer());
         if (bytes.length > MAX_INLINE_IMAGE_BYTES) return { dataUrl: url, remoteUrl: fallbackUrl };
-        const mimeType = response.headers.get("content-type")?.split(";", 1)[0] || "image/png";
-        if (!mimeType.startsWith("image/")) return { dataUrl: url, remoteUrl: fallbackUrl };
+        const mimeType = await resolveMediaMimeType(bytes, "image", response.headers.get("content-type"));
+        if (!mimeType) return { dataUrl: url, remoteUrl: fallbackUrl };
         return { dataUrl: `data:${mimeType};base64,${bytes.toString("base64")}`, remoteUrl: fallbackUrl };
     } catch {
         return { dataUrl: url, remoteUrl: fallbackUrl };
@@ -674,14 +725,15 @@ export function toGeminiImagePart(dataUrl: string, fallbackType?: string): Gemin
 export async function buildImageEditFormData(task: ImageTask, quality: string | undefined, requestSize: string | undefined, origin: string, cookie: string, responseFormat: (typeof IMAGE_RESPONSE_FORMATS)[number], includeCompatibilityFields = true) {
     const formData = new FormData();
     formData.set("model", task.config.model);
-    formData.set("prompt", withSystemPrompt(task.config, buildImageReferencePromptText(task.prompt, task.references)));
-    formData.set("n", "1");
+    formData.set("prompt", withSystemPrompt(task.config, withImageOutputInstructions(task.config, buildImageReferencePromptText(task.prompt, task.references))));
+    if (task.config.outputMode !== "layers") formData.set("n", "1");
     if (includeCompatibilityFields) {
         formData.set("response_format", responseFormat);
         formData.set("output_format", IMAGE_OUTPUT_FORMAT);
     }
     if (quality) formData.set("quality", quality);
     if (requestSize) formData.set("size", requestSize);
+    if (task.config.outputBackground === "transparent") formData.set("background", "transparent");
     const referenceFiles = await Promise.all(task.references.map((reference, index) => imageReferenceToFile(reference, reference.name || `reference-${index + 1}.png`, origin, cookie)));
     referenceFiles.forEach((file) => formData.append("image", file));
     if (task.mask) formData.set("mask", await imageReferenceToFile(task.mask, task.mask.name || "mask.png", origin, cookie));
@@ -690,7 +742,9 @@ export async function buildImageEditFormData(task: ImageTask, quality: string | 
 
 export async function imageReferenceToFile(reference: ImageTaskReference, name: string, origin: string, cookie: string) {
     let lastError: unknown;
-    for (const value of rawReferenceRequestUrlCandidates(reference)) {
+    for (const value of rawReferenceRequestUrlCandidates(reference)
+        .flatMap((candidate) => [candidate, alternateManagedMediaUrl(candidate)])
+        .filter(Boolean)) {
         try {
             if (/^data:image\//i.test(value)) return dataUrlToFile(value, name, reference.type);
             if (/^blob:/i.test(value)) throw new Error("参考图已失效，请重新上传");
@@ -708,14 +762,20 @@ export async function imageReferenceToFile(reference: ImageTaskReference, name: 
             const bytes = Buffer.from(await response.arrayBuffer());
             if (!bytes.length) throw new Error("参考图读取失败");
             if (bytes.length > MAX_INLINE_IMAGE_BYTES) throw new Error("参考图过大，请压缩后重试");
-            const mimeType = response.headers.get("content-type")?.split(";", 1)[0] || reference.type || "image/png";
-            if (!mimeType.startsWith("image/")) throw new Error("参考图不是有效图片");
+            const mimeType = await resolveMediaMimeType(bytes, "image", response.headers.get("content-type") || reference.type);
+            if (!mimeType) throw new Error("参考图不是有效图片");
             return new File([bytes], name, { type: mimeType });
         } catch (error) {
             lastError = error;
         }
     }
     throw lastError instanceof Error ? lastError : new Error("参考图读取失败");
+}
+
+export function alternateManagedMediaUrl(value: string) {
+    if (value.startsWith("/api/reference-assets/")) return value.replace("/api/reference-assets/", "/api/generation-log-assets/");
+    if (value.startsWith("/api/generation-log-assets/")) return value.replace("/api/generation-log-assets/", "/api/reference-assets/");
+    return "";
 }
 
 export async function imageReferenceToDataUrl(reference: ImageTaskReference, name: string, origin: string, cookie: string) {
@@ -763,7 +823,7 @@ export function readBilling(headers: Headers) {
     return {
         pointsRemaining: readPointsRemaining(headers),
         pointsCost: pointsCost !== undefined && Number.isFinite(pointsCost) && pointsCost >= 0 ? pointsCost : undefined,
-        pointsRecordId: headers.get("x-vozeb-pro-points-record-id") || undefined,
+        billingReceiptId: headers.get("x-vozeb-pro-billing-receipt-id") || undefined,
     };
 }
 
@@ -771,16 +831,30 @@ export async function parseChargedImageResponse(task: ImageTask, response: Respo
     try {
         return { ...(await parse()), ...readBilling(response.headers) };
     } catch (error) {
-        await refundChargedImageResponse(task, response.headers);
+        if (error instanceof GenerationSubmissionUncertainError) await persistChargedImageResponse(task, response.headers);
+        else await refundChargedImageResponse(task, response.headers);
         throw error;
     }
 }
 
+export async function persistChargedImageResponse(task: ImageTask, headers: Headers) {
+    const { pointsCost, billingReceiptId } = readBilling(headers);
+    if (pointsCost === undefined || !billingReceiptId) return;
+    await updateImageTask(task.id, { billing: { pointsCost, billingReceiptId, refunded: false } });
+}
+
 export async function refundChargedImageResponse(task: ImageTask, headers: Headers) {
-    const { pointsCost, pointsRecordId } = readBilling(headers);
-    if (pointsCost === undefined || !pointsRecordId) return;
+    const { pointsCost, billingReceiptId } = readBilling(headers);
+    if (pointsCost === undefined || !billingReceiptId) return;
     const settings = await getAuthSettings();
-    await refundUserPoints(task.userId, generationModelId(task.config), pointsCost, "image", imageUnits(task.config.quality, settings.generationPointMultipliers.imageQuality), undefined, pointsRecordId);
+    await refundGenerationCharge({
+        userId: task.userId,
+        receiptId: billingReceiptId,
+        model: generationModelId(task.config),
+        usageKind: "image",
+        units: imageUnits(task.config.quality, settings.generationPointMultipliers.imageQuality),
+        idempotencyKey: `${imagePointsIdempotencyKey(task)}:response-refund`,
+    });
 }
 
 export function imageUnits(quality: string | undefined, multipliers: Record<string, number>) {

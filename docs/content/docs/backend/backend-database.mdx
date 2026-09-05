@@ -35,12 +35,16 @@ VOZEB PRO 的 PostgreSQL 真实表名统一使用项目名前缀 `vozeb_pro_`。
 
 这样同一个 PostgreSQL 数据库里即使存在其他业务表，也能清楚区分 VOZEB PRO 的数据。Schema 中的显式索引和会生成索引的命名唯一约束也必须使用 `vozeb_pro_` 前缀，避免与同一 `public` Schema 的其他应用对象重名。无前缀表不会被自动删除；当前部署和后续读写只使用 `vozeb_pro_` 前缀表。
 
+## 旧库结构升级
+
+Schema 初始化在同一个事务中执行，并对已存在的业务表采用追加式升级。课程结构升级会保留 `platform_courses.chapters`、`platform_courses.attachments` 和 `school_course_offerings.supplemental_resources` 等旧 JSON 字段，同时为旧的 `platform_courses`、`teaching_assignments` 补齐新增列，再创建章节、课时、资料表及依赖索引；不会自动删除旧字段或重建数据库。部署验收的 `/api/health/ready` 会执行这套可重复升级，任一 DDL 失败都会报告数据库未就绪。
+
 ## 核心表
 
 - `vozeb_pro_schema_migrations`：已应用的数据库结构版本。
-- `vozeb_pro_app_settings`：站点、注册、邮箱、积分、生成、支付配置、逻辑模型目录、渠道绑定和默认模型等全局设置；`logical_models` JSONB 保存用户可见模型及其能力、上游模型、渠道、启用状态和优先级，`generation_cost_control` JSONB 保存管理员配置的单任务、单用户每日和全站每日积分成本上限，三个值为 `0` 时均表示不限制；`data_lifecycle` JSONB 保存四类技术到期清理开关和单类批次大小，不承载对话、支付、审计等长期业务数据的法律保留期限。
+- `vozeb_pro_app_settings`：站点、注册、邮箱、积分、生成、支付配置、逻辑模型目录、渠道绑定和默认模型等全局设置；`default_models` 只保存正式生产默认模型，`practice_default_models` 独立保存无限练习的文本、图片、视频和音频默认模型，`practice_workflow_models` 保存无限练习业务 code 到逻辑模型 ID 的绑定，未配置时不回退到生产模型；该字段通过 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS practice_workflow_models jsonb NOT NULL DEFAULT '{}'::jsonb` 幂等升级旧库。`logical_models` JSONB 保存用户可见模型及其能力、上游模型、渠道、启用状态和优先级，`generation_cost_control` JSONB 保存管理员配置的单任务、单用户每日和全站每日积分成本上限，三个值为 `0` 时均表示不限制；`data_lifecycle` JSONB 保存四类技术到期清理开关和单类批次大小，不承载对话、支付、审计等长期业务数据的法律保留期限。
 - `vozeb_pro_object_storage_settings`：S3 兼容外部存储单例配置，保存启用状态、Endpoint、Region、Bucket、对象前缀、path-style 模式及加密后的 Access Key/Secret Key；管理接口只返回密钥是否已配置，不回传明文。
-- `vozeb_pro_system_model_channels`：系统模型渠道、分别加密保存的 API Key 与渠道生成回调密钥、模型列表和高级配置；后台不保存渠道验证记录。
+- `vozeb_pro_system_model_channels`：系统模型渠道、分别加密保存的 API Key 与渠道生成回调密钥、模型列表和高级配置；`purpose` 明确区分 `production/open-source-practice/shared`，旧渠道按 `shared` 读取；RunningHub 使用管理员配置的官方异步任务、上传和查询路径，不猜测模型目录；后台不保存渠道验证记录。
 - `vozeb_pro_entitlement_plans`：商业套餐权益、每日额度、调用限制和功能标记；新用户不再通过套餐获得注册初始积分。
 - `vozeb_pro_users`：用户账号、角色、状态、头像存储键、最多 160 字的个人简介、当前套餐、积分余额和密码哈希；`admin_permissions` JSONB 保存管理员的显式职责列表，并由 CHECK 约束保证为数组，普通用户保持空数组。管理员 TOTP MFA 使用 `mfa_secret_ciphertext` 保存 AES-GCM 密文，`mfa_enabled_at` 表示已完成验证并启用，CHECK 约束禁止启用时间存在但密文缺失。公开注册还原子保存当时的服务条款版本/链接、隐私政策版本/链接和同意时间，五个留痕字段必须同时为空或同时存在。管理员代建账号不伪造用户同意记录。公开创作者接口只按用户名返回允许公开的资料字段，不暴露邮箱、内部用户 ID、职责、MFA 密文或协议留痕。
 - `vozeb_pro_sessions`：登录会话 token 哈希和过期时间。
@@ -69,20 +73,34 @@ VOZEB PRO 的 PostgreSQL 真实表名统一使用项目名前缀 `vozeb_pro_`。
 - `vozeb_pro_announcements`：站内公告。
 - `vozeb_pro_prompts` / `vozeb_pro_prompt_seed_sources`：公共提示词、用户提示词和种子来源。
 - `vozeb_pro_generation_logs` / `vozeb_pro_generation_log_assets`：图片/视频生成日志和结果资源地址；工作台日志通过 `conversation_id` 关联可恢复的 Agent 对话，`created_at` 独立索引用于后台近 7 日运营聚合，避免读取日志正文和媒体资产。
-- `vozeb_pro_generation_tasks`：文本、图片、视频、音频、Agent 和短剧整集合成（`render`）异步任务状态，用于跨请求、重启和多实例查询；数据库状态统一为 `pending/running/success/error/paused/cancelled`，各上游或 Agent 的 `planning/completed/failed` 等状态会在写入索引列时归一化，原始状态仍保留在 JSON payload 中。`execution_phase` 独立保存 `created/submitting/submitted/polling/result_ready/persisting/needs_review/review_pending/reviewing/review_unavailable/completed`，并通过 `upstream_task_id/channel_id/provider/query_path`、提交/轮询时间、上游状态、结果载荷、Worker 和租约字段恢复原任务。Agent 普通生成完成后以成功任务进入持久复盘阶段；复盘调用失败会直接记录为不可用，不使用未配置的固定次数重复计费，也不回滚已成功生成结果。表内同时保存 `conversation_id/run_id/surface/project_id/parent_task_id/attempt_no/client_request_id`，用于后台任务中心追踪会话、运行、项目、父任务、尝试次数和幂等请求；到期恢复索引只覆盖非终态且可自动推进的执行阶段。非空 `(channel_id, upstream_task_id)` 唯一，保证可信回调只能精确匹配一条本地任务。
+- `vozeb_pro_generation_tasks`：文本、图片、视频、音频、Agent 和短剧整集合成（`render`）异步任务状态，用于跨请求、重启和多实例查询；数据库状态统一为 `pending/running/success/error/paused/cancelled`，各上游或 Agent 的 `planning/completed/failed` 等状态会在写入索引列时归一化，原始状态仍保留在 JSON payload 中。`execution_phase` 独立保存 `created/submitting/submitted/polling/result_ready/persisting/needs_review/review_pending/reviewing/review_unavailable/completed`，并通过 `upstream_task_id/channel_id/provider/query_path`、提交/轮询时间、上游状态、结果载荷、Worker 和租约字段恢复原任务。工作流任务同时记录 `workflow_key/workflow_version/upstream_workflow_id/business_code`；后台验证任务使用 `task_origin = 'admin-workflow-test'`，不关联学校、项目、正式作品或积分 receipt，普通任务保持 `task_origin = 'user'`。这些列和约束通过 `ADD COLUMN IF NOT EXISTS` 幂等升级旧库。Agent 普通生成完成后以成功任务进入持久复盘阶段；复盘调用失败会直接记录为不可用，不使用未配置的固定次数重复计费，也不回滚已成功生成结果。表内同时保存 `conversation_id/run_id/surface/project_id/parent_task_id/attempt_no/client_request_id`，用于后台任务中心追踪会话、运行、项目、父任务、尝试次数和幂等请求；到期恢复索引只覆盖非终态且可自动推进的执行阶段。非空 `(channel_id, upstream_task_id)` 唯一，保证可信回调只能精确匹配一条本地任务。
+
+RunningHub 无限练习工作流配置保存在 `system_model_channels.advanced_config.workflow_configs` JSONB 中，每个版本包含业务 code、Workflow ID、输入契约、节点映射、出参映射和工作流 JSON/当前配置指纹。新建、编辑或复制的配置带 `testRequired` 标记，必须先完成输入/节点/输出映射确认并通过当前配置的成功样例测试才能启用；旧的无指纹且已经启用的配置保持兼容。官方协议路径由 provider 固定补齐，旧高级路径字段继续兼容读取。管理员 API 只返回脱敏配置；启用版本按 `channel_id + business_code` 保持唯一。测试运行沿用 `generation_tasks` 的受控 origin，不新建业务表；查询只对保存的上游 task ID 执行一次，并把最近测试摘要、配置指纹和结果摘要回写工作流版本，不改变启用状态。该 JSONB 追加字段采用幂等归一化，不通过建表语句升级旧配置。
+- `vozeb_pro_generation_concurrency_reservations`：PostgreSQL 多实例生成并发预约。事务只负责按用户和任务类型加 advisory lock、清理过期预约、计算活动任务与尚未物化的预约并写入稳定请求 ID；上游提交和任务创建在事务结束后执行，完成或异常时删除预约。已落库且 `client_request_id` 相同的活动任务不会和预约重复计数。
 - `vozeb_pro_generation_worker_heartbeats`：生成 Worker 的稳定 ID 与最近心跳时间；就绪检查按最近心跳和部署配置的失联窗口判断后台恢复是否可用。
 - `vozeb_pro_generation_webhook_events`：渠道级生成回调幂等与对账记录，以 `(channel_id, event_id)` 为主键，保存上游任务 ID、请求体哈希、签名时间、匹配到的站内任务、处理状态和收取/处理时间；相同事件 ID 的不同载荷会累计冲突次数并保存最近冲突哈希和时间，不保存回调密钥、渠道 API Key 或完整请求头。
 - `vozeb_pro_creative_conversations`：统一创作会话，保存用户、`chat/canvas/drama` Surface、`agent/image-workbench/video-workbench/canvas/drama` 来源、可选项目、标题、状态、最近消息时间、持久滚动摘要和摘要覆盖到的消息序号；Surface、来源与项目创建后不可变。`image-workbench` 与 `video-workbench` 仅保留为历史数据和媒体来源分类，新建图片、视频与音频创作统一写入 `/create` 的 `agent` 会话。列表按来源定向过滤并在数据库分页，禁止读取完整会话表后在 Node.js 中筛选。
 - `vozeb_pro_creative_messages`：会话消息，按会话内连续 `sequence` 排序，保存角色、运行状态、正文、Run 关联和结构化 metadata。工作台打开历史时默认读取最新 50 条，并以 `beforeSequence` 向前分页，禁止固定读取最早消息导致新消息被截断；Agent 上下文已保存滚动摘要后只读取 `contextSummaryThroughSequence` 之后的消息，避免长会话重复加载已压缩历史。
 - `vozeb_pro_creative_assets`：稳定创作资产，保存 `assetId`、来源 Run/任务/消息、父资产、顺序、文本内容或持久媒体位置及媒体信息；不保存 base64。
 - `vozeb_pro_creative_run_events`：Agent Run 持久事件，使用递增 `bigserial` ID 为 SSE 断线续传提供精确游标；PostgreSQL 事务写入事件后发送 `vozeb_pro_run_events` 通知唤醒其他实例，通知不承载业务数据，丢失时仍从本表恢复。
-- `vozeb_pro_canvas_projects`：Canvas 项目聚合快照，保存用户、标题、创作会话 ID、节点、连线、视口和项目助手会话；列表查询只投影标题、时间和节点/连线计数，进入单项目后才读取完整快照。交互保存按用户、项目、`updatedAt` 和 mutation ID 执行单次条件更新，PostgreSQL 在 JSONB 内按稳定实体 ID 原位合并并保持数组顺序，文件 Provider 在项目锁内应用同一 mutation；幂等标识仅为服务端内部字段，不进入公开项目响应。
+- `vozeb_pro_canvas_projects`：Canvas 项目聚合快照，保存用户、标题、创作会话 ID、节点、连线、视口和项目助手会话；`execution_profile` 在创建时固定为正式生产或开源练习，练习项目可保存来源作品和版本，数据库触发器禁止后续变更身份。列表查询只投影标题、时间和节点/连线计数，进入单项目后才读取完整快照。交互保存按用户、项目、`updatedAt` 和 mutation ID 执行单次条件更新，PostgreSQL 在 JSONB 内按稳定实体 ID 原位合并并保持数组顺序，文件 Provider 在项目锁内应用同一 mutation；幂等标识仅为服务端内部字段，不进入公开项目响应。
 - `vozeb_pro_library_assets`：用户素材库聚合记录，保存文本或服务器媒体引用、标签、来源和备注；不保存媒体 base64，素材页按用户、类型、关键词和页码在服务端裁剪。
-- `vozeb_pro_local_media_assets`：图片、视频和音频的统一媒体登记表，保存稳定站内 `storage_key`、本地/对象存储 Provider、对象存储配置与对象 Key、同步时间、临时/长期分类、用户归属、原文件名、来源、会话/Run/任务/项目关联、MIME、大小和过期时间；媒体读取与删除以该登记和业务引用检查为权限边界。
-- `vozeb_pro_drama_projects`：短剧项目聚合快照，保存用户、标题、状态和完整 `project_json`；项目内包含创作会话 ID、多集、角色/场景/道具/线索、内容审核状态、分镜及图片、视频、音频、整集合成任务状态，并按用户与更新时间建立列表索引。
+- `vozeb_pro_local_media_assets`：图片、视频、音频和课程附件的统一媒体登记表，保存稳定站内 `storage_key`、本地/对象存储 Provider、对象存储配置与对象 Key、同步时间、临时/长期分类、用户归属、原文件名、来源、会话/Run/任务/项目关联、MIME、大小和过期时间；`type` 允许 `image/video/audio/attachment`，课程附件使用 `source=course-attachment`、`scope=reference`、`storage_class=permanent`，媒体读取与删除以该登记和业务引用检查为权限边界。
+- `vozeb_pro_platform_courses`：平台课程正文、状态和软删除元数据；章节、课时和资料拆分到下列关系表，课程停用后不可进入学校教学，恢复会清除停用操作者和时间。
+- `vozeb_pro_platform_course_chapters`：课程章节，使用 `(course_id, sort_order, id)` 排序索引；删除课程时级联删除章节及其课时和资料。
+- `vozeb_pro_platform_course_lessons`：章节课时，使用 `(course_id, chapter_id, sort_order, id)` 排序索引和同课程复合外键，保证课时不会挂到其他课程章节。
+- `vozeb_pro_course_materials`：平台标准资料和学校补充资料，保存目标章节或课时、来源范围、学校课程分配、长期媒体登记、站内保护 URL、MIME、大小、排序和状态；CHECK 保证恰好一个目标，复合外键保证目标与学校分配属于同一课程。学校资料按课程分配对本校所有教学安排共享，平台资料不可被学校编辑或删除。
+- `vozeb_pro_drama_projects`：短剧项目聚合快照，保存用户、标题、状态和完整 `project_json`；`execution_profile` 与可选拉片来源在创建后不可变；项目内包含创作会话 ID、多集、角色/场景/道具/线索、内容审核状态、分镜及图片、视频、音频、整集合成任务状态，并按用户、执行 profile 与更新时间建立列表索引。
+- `vozeb_pro_drama_lab_*`（16 张表）：隔离的短剧工作流实验室数据域，包括 AI 配置、角色/场景/道具库、异步任务、图片/视频生成、视频合并、实验资产、图片代理缓存、模型映射、全局设置、提示词模板、业务场景、生成设置和 SD2 资产。所有用户数据按 `user_id` 定向查询，项目关联表按 `project_id` 建立索引；提示词模板使用稳定 `template_key`，生成并发、批量大小和超时由数据库 CHECK 约束。旧的无项目名前缀 `drama_lab_*` 表只在目标前缀表不存在时改名为 `vozeb_pro_drama_lab_*`，不会覆盖已存在的新表。
+- `vozeb_pro_practice_sessions`：剧本、分镜图、分镜视频、配音和音乐练习会话，按用户保存所属项目、公开输入、任务引用、模式（`manual`/`workflow`）、所选逻辑模型和脱敏错误状态；只允许 `open-source-practice` 执行 profile，并使用用户与项目定向分页索引。旧表通过幂等补列升级，缺失模式按 `workflow` 兼容读取，只有新建剧本练习才使用人工模式。
+- `vozeb_pro_practice_copy_requests`：作品复制到练习的幂等声明，以 `(user_id, client_request_id)` 为主键保存来源版本和结果项目；同一用户重试返回原项目，不同用户可复用同一客户端请求 ID。
 - `vozeb_pro_drama_project_versions`：短剧项目独立版本快照，按项目保存递增版本号、保存原因、完整快照和创建时间；项目或用户删除时级联删除，`(project_id, version)` 保持唯一。
+- `drama_lab_project_groups` / `drama_lab_project_members`：短剧项目协作组及成员关系。项目创建时建立一组并写入 owner；成员角色为 `owner/admin/member`，状态为 `active/removed/left`，权限 JSON 只控制项目成员管理和审批。管理权转交不改变 `drama_projects.user_id` 这一稳定存储所有者，所有成员读取仍按项目组关系授权。
+- `drama_lab_project_invites` / `drama_lab_join_requests`：短剧项目邀请和加入申请。数据库只保存邀请 token 哈希，不保存可直接使用的 token；邀请有过期、撤销和轮换状态，申请人必须通过有效邀请申请加入，项目 owner/admin 明确批准后才写入 active 成员。待处理申请按组和状态分页，重复待处理申请由部分唯一索引阻止。
+- `drama_lab_approval_configs` / `drama_lab_approvals`：短剧六个阶段（`script`、`assets`、`storyboard`、`storyboard_image`、`storyboard_video`、`final_export`）的审批配置和不可变提交记录。配置保存启用状态、严格门禁、审核人范围和更新时间；审批记录保存剧集、资源、版本、提交快照、审核意见、审核人和定位信息，驳回后通过新记录重提，不覆盖历史。
+- 短剧一键全流程父/子任务继续复用 `vozeb_pro_generation_tasks` 的 `task_type=render`，子任务通过 `parent_task_id`、`run_id` 和项目/剧集/镜头上下文关联；不会另建一套工作流任务表。工作流导出 ZIP 及元数据落在服务端 `drama-lab-workflow-exports` 文件存储，任务 JSON 仅保存 artifact 引用和下载边界，不把大媒体写入数据库。
 - `vozeb_pro_published_works`：作品稳定身份，保存所有者、公开 slug、素材/Canvas/短剧来源、当前编辑版本、当前公开版本、生命周期、访问量、精选状态和用户下架时间；slug 忽略大小写唯一，下架或公开版本变化会清除精选状态。
-- `vozeb_pro_published_work_versions`：不可变发布版本，保存标题、说明、用户确认公开的必填提示词 `public_prompt`、分类、标签、可见性、作者展示快照、内容审核 Provider/风险信号及 `draft/pending/approved/rejected/taken_down` 审核状态；同一作品的版本号唯一，审核通过时在事务内原子切换公开版本。自动信号不能直接批准公开，内部 Agent 规划与模型理由不得写入 `public_prompt`。
+- `vozeb_pro_published_work_versions`：不可变发布版本，保存标题、说明、用户确认公开的必填提示词 `public_prompt`、分类、标签、可见性、作者展示快照、内容审核 Provider/风险信号及 `draft/pending/approved/rejected/taken_down` 审核状态；拉片开关、启用人、启用时间和经 sanitizer 生成的公开制作流程快照绑定到具体版本，与作品精选状态独立，新版本默认关闭且不继承旧快照。同一作品的版本号唯一，审核通过时在事务内原子切换公开版本。自动信号不能直接批准公开，内部 Agent 规划与模型理由不得写入 `public_prompt`。
 - `vozeb_pro_published_work_assets`：版本媒体引用，只保存 `local_media_assets.storage_key`、媒体类型、封面/内容角色、顺序和公开展示元数据，不保存对象 Key、签名 URL、提示词或内部规划；外键与全局媒体引用计数共同阻止仍被作品版本使用的媒体被物理删除。用户或管理员先下架再永久删除作品时，会在事务中清空这些关联和全部发布快照，但不会删除源素材、源项目或媒体文件。
 - `vozeb_pro_published_work_cases`：统一保存作品举报与下架申诉，记录目标作品/版本、提交人、分类、说明、状态、处理结果、处理人和时间；部分唯一索引阻止同一提交人对同一版本产生重复未结案件。
 - `vozeb_pro_published_work_likes`：用户与公开作品的点赞关系，复合主键保证重复请求幂等；关系变化与作品计数在同一事务内更新，计数不得小于零。
@@ -92,6 +110,15 @@ VOZEB PRO 的 PostgreSQL 真实表名统一使用项目名前缀 `vozeb_pro_`。
 
 当前作品社区不提供收藏、评论或评论举报，新建 Schema 不创建对应关系表、内容表、举报表或作品计数字段。
 
+## 无限练习与拉片数据边界
+
+- Canvas 与短剧的 `execution_profile` 在项目创建时固定为 `production` 或 `open-source-practice`，数据库约束和更新 Repository 都不提供修改入口。普通项目列表只读 `production`，无限练习列表只读 `open-source-practice`，复制作品不会修改正式项目。
+- `vozeb_pro_practice_sessions.input_json` 只保存用户公开输入和规范化后的公开素材引用；模型、渠道、上游任务 ID 与资源成本不进入公开响应。内部 `task_refs` 仅用于恢复对应生成任务，并按会话所有者读取。
+- 无限练习模型只从 `practice_default_models` 解析，渠道 `purpose` 必须是 `open-source-practice` 或 `shared`。练习任务不写积分扣减流水，但仍进入现有生成队列、并发、成本上限、媒体归属和引用保护。
+- 拉片状态绑定 `published_work_versions` 的当前已审核公开版本。启用时在事务内锁定作品与版本、读取源项目并生成白名单快照；下架、撤回、切换公开版本或关闭拉片后，公开流程和复制接口均不可用。
+- 复制事务先以 `(user_id, client_request_id)` 认领 `practice_copy_requests`，再创建带来源作品/版本的练习项目。同一用户重复提交返回原项目；失败回滚不会留下空项目或已占用的幂等声明。
+- 拉片快照只包含公开标题、摘要、节点关系、角色/场景/镜头状态和已发布媒体 ID。内部提示词、私聊、API Key、storage key、签名 URL、内部任务 ID及未发布素材不写入快照。
+
 文本、图片、视频、音频和漫剧整集合成终态更新使用带 `user_id + task_type + allowed status` 条件的原子 `UPDATE`；任务尝试元数据通过存储层原子 mutate 合并，避免取消状态被旧快照覆盖。用户取消、后台成功、后台失败和过期检查同时发生时只有一个状态转换能成功，退款由成功抢占终态或检测到已取消结果的一方执行。
 
 生成恢复通过 `worker_id + lease_until` 原子领取到期任务；页面唤醒和常驻 Worker 复用同一恢复服务。上游创建成功后先保存任务 ID，再进入查询阶段；查询到结果先写 `result_ready`，下一批只完成媒体保存。`submitting` 结果不确定且无法对账时进入 `needs_review`，只有管理员明确提供上游任务 ID、结果或确认失败后才能继续。Webhook 事件先按渠道与事件 ID 幂等登记，再匹配已有媒体任务并清除租约；未匹配事件保留为 `unmatched`，不得创建新任务。
@@ -99,6 +126,40 @@ VOZEB PRO 的 PostgreSQL 真实表名统一使用项目名前缀 `vozeb_pro_`。
 Agent Run 的状态与任务数组继续保存在 `generation_tasks.payload`，每个多副本子任务同时保存子任务 ID、完成状态、尝试次数和结果，恢复时复用已完成结果并继续轮询未完成任务；事件独立写入 `creative_run_events`。状态更新、助手消息终态和事件追加在同一 PostgreSQL 事务内完成；暂停、恢复、取消、完成和失败竞争时，旧 Run 快照不能覆盖更新后的状态。文件 Provider 使用串行 mutation queue 保持相同的进程内语义。短剧成本概览按 `user_id + project_id + task_type + status` 在数据库聚合，并使用 `generation_tasks_user_project_idx`，不读取数千条完整任务 JSON 后再汇总。
 
 - `vozeb_pro_audit_logs`：登录、后台操作、CDK 兑换等安全审计记录。
+
+### 学校多租户与产教域（16 张表）
+
+- `vozeb_pro_schools`：学校租户根，主键为 `id`；`(status, updated_at DESC)` 支持平台按状态分页。成员、邀请码、班级和课程分配等租户子记录使用级联外键；已承接商单使用默认限制外键，不会随学校静默删除。
+- `vozeb_pro_school_memberships`：账号与学校的唯一成员关系，外键连接 `schools` 与 `users`；`UNIQUE (user_id)` 保证一个账号只能属于一所学校，`UNIQUE (school_id, id)` 为后续同租户复合外键提供目标。`(school_id, status, updated_at DESC)` 与 `(school_id, role, updated_at DESC)` 支持本校成员定向筛选。
+- `vozeb_pro_school_invite_codes`：老师/学生邀请码只保存摘要；`UNIQUE (school_id, role)` 保证每校每种身份只有一条当前记录，`UNIQUE (code_digest)` 防止跨校摘要冲突，学校状态时间索引用于定向读取和轮换。
+- `vozeb_pro_school_classes`：本校班级，`UNIQUE (school_id, id)` 支持同租户复合引用，`(school_id, status, updated_at DESC)` 支持学校后台分页。
+- `vozeb_pro_school_class_members`：班级与成员关联，`UNIQUE (class_id, membership_id)` 防止重复加入；`(school_id, class_id)`、`(school_id, membership_id)` 复合外键同时约束班级和成员属于同一学校，对应两个学校定向索引支持按班级或成员读取。
+- `vozeb_pro_platform_courses`：平台课程正文、状态和软删除元数据，创建人删除后保留课程；`(status, updated_at DESC)` 支持平台课程筛选。
+- `vozeb_pro_platform_course_chapters`、`vozeb_pro_platform_course_lessons`：规范化课程树节点，按课程和排序字段定向读取，课程删除级联清理。
+- `vozeb_pro_course_materials`：课程资料关系，平台资料与学校补充资料共用稳定媒体登记，按课程、目标和学校分配定向分页读取。
+- `vozeb_pro_school_course_assignments`：平台课程到学校的分配；`UNIQUE (course_id, school_id)` 保证同一课程对同一学校只有一条记录，`UNIQUE (school_id, id)` 支持本校安排复合引用，学校状态和课程时间索引分别支持学校列表与平台分配读取。
+- `vozeb_pro_school_course_offerings`：本校课程安排，使用 `(school_id, assignment_id)`、`(school_id, class_id)`、`(school_id, teacher_membership_id)` 复合外键保证课程分配、班级和老师同租户；`UNIQUE (assignment_id, class_id, teacher_membership_id)` 防止重复安排，并按学校状态、学校老师建立分页索引。
+- `vozeb_pro_teaching_assignments`：课时、作业和课程实训，使用同租户课程安排与老师复合外键，可选关联课程章节或课时且禁止同时关联；`UNIQUE (school_id, id)` 支持提交复合引用，并按学校状态、学校课程安排建立索引。
+- `vozeb_pro_teaching_submissions`：学生作业提交及批改结果，`UNIQUE (assignment_id, student_membership_id)` 保证每名学生每项任务一条提交；同租户任务和学生复合外键阻止跨校关联，学校状态与学校学生索引支持老师批改和学生记录分页。
+- `vozeb_pro_commercial_orders`：平台商单及唯一承接学校。`internal_amount_cents` 为非负 `bigint`，service 同时要求非负安全整数；该字段只映射到平台管理员 DTO，学校、老师和学生 DTO 从类型层完全省略金额。除 `draft/cancelled` 外状态必须已有承接学校，未分配时负责老师和班级必须为空；`(assigned_school_id, teacher_membership_id)`、`(assigned_school_id, class_id)` 复合外键保证配置同租户，状态、学校状态和学校老师索引支持三类定向列表。
+- `vozeb_pro_commercial_order_participants`：商单参与学生及候选成果引用，`UNIQUE (order_id, membership_id)` 防止重复参与；同租户商单和成员复合外键阻止跨校参与，学校状态、学校商单和学校成员索引支持候选、商单详情与学生任务查询。
+- `vozeb_pro_commercial_order_deliveries`：学校正式交付历史与平台反馈，同租户商单和提交人复合外键阻止跨校交付；`(school_id, status, updated_at DESC)` 与 `(school_id, order_id, created_at DESC)` 支持学校状态列表和商单交付分页。
+
+学校域通过 `createSchoolDomainRepository()` 选择 PostgreSQL 或文件 Provider，并向 service 暴露同一 `SchoolDomainRepository`。PostgreSQL 实现使用参数化 SQL，学校在线读取始终带 `school_id`（商单表使用等价的 `assigned_school_id`）、实体/成员关系和有界分页条件；跨校实体统一按不存在处理。成员、班级、课程安排、作业、提交、参与者替换和商单状态流转使用事务、必要的 `FOR UPDATE` 行锁及状态 CAS，避免并发覆盖。
+
+文件 Provider 将同一 13 类记录保存在 `school-domain.json`，在进程内 mutation queue 和数据文件锁内执行多实体写入，失败时不写回工作快照；唯一性、同校引用、状态流转和分页结果与 PostgreSQL 保持相同业务语义。文件 Provider 是单机回退实现，不替代 PostgreSQL 的数据库级跨进程锁与外键约束。
+
+### IP 库（7 张表）
+
+- `vozeb_pro_ip_packages`：IP 稳定身份，保存后台档案标题、slug、简介、`public/school` 范围、状态和当前发布版本 ID。slug 忽略大小写唯一，范围、状态和更新时间索引用于用户端与后台分页；旧封面素材和包级授权模式字段只为休眠引用链路保留，新发布内容不依赖它们。
+- `vozeb_pro_ip_content_files`：平台上传的独立 IP 原文件，保存文件类型、原始文件名、扩展名、真实 MIME、字节数、SHA-256、存储 Provider/key、提取文本、媒体元数据、处理状态和上传操作者。文件不属于个人用户，也不写入个人素材表；`(id, ip_id)` 约束阻止跨 IP 文件引用，已发布版本引用的文件由触发器禁止更新或删除。
+- `vozeb_pro_ip_versions`：IP 不可变发布快照，按 IP 保存递增版本号、用户展示标题/简介、封面文件、标签、来源、变更说明、状态、发布时间和服务端白名单生成的 `manifest_json`。`(ip_id, version_number)` 唯一；版本发布后，数据库触发器拒绝更新或删除，后续编辑必须创建新草稿版本。
+- `vozeb_pro_ip_items`：版本内容项，通过 `file_id` 关联独立原文件，只保存类型、分类、标题、说明和排序。类型与分类使用组合约束；发布版本下的内容项由数据库触发器禁止新增、修改和删除。旧正文与个人素材字段仅为休眠契约保留，当前发布流程不读写它们。
+- `vozeb_pro_ip_school_grants`：学校授权历史，按授权记录保存 IP、学校、`multi_school/exclusive` 模式、状态、有效期、备注和校内开放状态。新授权的 `member_access_enabled` 默认为关闭；部分唯一索引与按 IP 加锁的触发器共同拒绝重叠独家授权、独家与其他有效授权冲突及同校重复有效期。
+- `vozeb_pro_ip_usage_records`：保留的 Canvas、短剧和无限练习引用历史，固定保存 IP、版本、内容项 ID 数组、学校、用户、动作、目标和时间。本期隐藏所有可见引用入口，但不删除表、字段、引用 service 或已有记录。
+- `vozeb_pro_ip_download_records`：当前下载审计，分别记录单项原文件与完整资源包下载的 IP、版本、内容项、学校、用户、成功/失败结果和时间；不保存正文、存储 key、媒体源地址或短期签名 URL。
+
+IP 用户端读取同时限定 active 用户、IP/版本发布状态；本校 IP 还必须满足 active 学校、active 成员、有效授权、授权时间窗和学校管理员已开启整套校内访问。公共 IP 不需要学校授权；平台管理员身份不会自动获得本校 IP 用户侧访问。授权暂停、撤销、到期或校内关闭后，新的详情、媒体读取、下载和休眠引用 API 均被拒绝，历史引用/下载记录和已经下载到本地的文件不删除。
 
 ## Repository 边界
 
@@ -120,6 +181,9 @@ Agent Run 的状态与任务数组继续保存在 `generation_tasks.payload`，�
 - `workPublications`
 - `workGovernance`
 - `workCommunity`
+- `ipLibrary`
+
+学校域不挂入上述通用 Repository 聚合；`createSchoolDomainRepository()` 独立提供 `SchoolDomainRepository`，显式传入事务 `QueryExecutor` 时复用当前 PostgreSQL 事务，否则按 `VOZEB_PRO_DATABASE_PROVIDER` 选择 PostgreSQL 或文件实现。
 
 业务层后续应通过 Repository 读写数据库，不再直接依赖 `.data/*.json` 路径。图片、视频和音频二进制不混入业务主库表：外部存储关闭时写入服务器数据目录，开启时新媒体只写 S3 兼容对象存储。
 
@@ -213,6 +277,16 @@ PayPly 下单由服务端向 `VOZEB_PRO_PAYPLY_CHECKOUT_URL` 发起请求，密�
 支付回调入口为 `/api/billing/webhooks/{provider}`。`stripe` 校验 `Stripe-Signature`，支付宝校验异步通知 RSA2 签名，微信支付校验 `Wechatpay-*` 回调头后使用 API v3 key 解密资源；PayPly 使用 `VOZEB_PRO_PAYPLY_WEBHOOK_SECRET` 或通用 `VOZEB_PRO_PAYMENT_WEBHOOK_SECRET` 做 HMAC-SHA256 验签，并可通过 `VOZEB_PRO_PAYPLY_WEBHOOK_*_FIELD` 配置回调字段路径。通过校验且状态为支付成功的回调会进入订单开通服务。
 
 支付宝 `official` 与 `face_to_face` 共用 `/api/billing/webhooks/alipay`、支付宝公钥验签和 `alipay.trade.refund` 整单退款。切换模式只影响后续新建 Checkout；已经创建且尚未过期的订单继续使用订单元数据中的原支付表单或二维码。生产启用当面付前仍需使用真实支付宝沙箱/商户能力验证预下单、扫码、异步通知、迟到通知、退款和账单对账。
+
+## 学校算力池与制作小组
+
+学校算力域由九张 PostgreSQL 表组成：`school_compute_pools`、`school_compute_ledger_entries`、`school_production_groups`、`school_production_group_members`、`school_compute_allocation_requests`、`school_compute_group_projects`、`school_compute_personal_advances`、`school_compute_settlements` 和 `school_compute_consumptions`。`commercial_orders.production_group_id` 与 `assigned_school_id` 通过复合外键绑定同一学校的小组；小组成员、项目关联、垫付、结算和扣费明细也都保留 `school_id`，所有 Repository 读取同时按学校和实体 ID 定向过滤。
+
+算力点数使用 `numeric(18,2)`，池余额、学校分配、小组余额、个人垫付和扣费明细均有非负及消耗关系 CHECK；`school_compute_ledger_entries.idempotency_key` 全局唯一，未结算项目关联按 `project_type + project_id` 建立部分唯一索引。生成扣费明细保存稳定生成身份、请求指纹、来源类型和来源 ID，退款只按原明细恢复学校额度或个人垫付，不重新计算模型价格。
+
+PostgreSQL 下，池/小组/垫付/生成消费/结算确认使用同一个显式事务和必要的行锁；幂等操作使用事务级 advisory lock。平台验收 `accepted` 商单时，订单状态、交付状态、未使用个人垫付返还、已使用垫付待确认和结算记录在同一事务中完成；学校确认返还再次使用 settlement/advance 幂等键，重复确认不会重复增加永久积分。文件 Provider 同时锁定 `auth.json`、`school-domain.json` 和 `school-compute.json`，任一写入失败都会恢复三份原始快照。
+
+学校管理员接口只返回本校池、小组、商单和结算数据；老师/学生接口按当前 active membership 定向读取所属小组。用户身份在结算 DTO 中只返回公开 `accountId` 和 `displayName`，不把 membership 或内部用户 UUID 暴露给浏览器。Canvas 和短剧只有存在可信的小组/商单项目关联时才显示算力来源；无限练习不进入学校算力扣费链路。
 
 # Agent 任务
 

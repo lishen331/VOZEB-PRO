@@ -20,7 +20,7 @@ export async function POST(request: Request) {
         throw error;
     }
     const input = normalizeDramaVisualReviewInput(body);
-    if (!input.tasks.length) return NextResponse.json({ code: 400, data: null, msg: "请先生成至少一张可读取的分镜图" }, { status: 400 });
+    if (!input.tasks.length) return NextResponse.json({ code: 400, data: null, msg: "请先生成至少一张可读取的分镜图或视频" }, { status: 400 });
     const review = await reviewCreativeOutputs({
         origin: resolveInternalOrigin(new URL(request.url).origin),
         cookie: request.headers.get("cookie") || "",

@@ -1,5 +1,7 @@
 import type { RegistrationPolicyConsent } from "@/lib/registration-consent";
 import type { AdminPermission } from "@/lib/admin-permissions";
+import type { IpAssetKind, IpAuthorizationMode, IpItemCategory, IpStatus, IpUsageAction, IpVersionStatus, IpVisibility } from "@/lib/ip-library-domain";
+import type { PracticeExecutionProfile, PracticeModuleKind, PracticeProjectKind, PracticeSessionMode, SystemChannelPurpose } from "@/lib/practice-domain";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -16,11 +18,150 @@ export type PageResult<T> = {
     pageSize: number;
 };
 
+export type IpSchoolGrantStatus = "active" | "suspended" | "revoked" | "expired";
+export type IpUsageTargetType = "canvas" | "drama" | "practice" | "download";
+export type IpContentFileStatus = "processing" | "ready" | "failed";
+export type IpStorageProvider = "local" | "object";
+export type IpDownloadType = "item" | "package";
+export type IpDownloadResult = "succeeded" | "failed";
+
+export type IpPackageRecord = {
+    id: string;
+    title: string;
+    slug: string;
+    summary: string;
+    coverAssetId?: string;
+    visibility: IpVisibility;
+    authorizationMode: IpAuthorizationMode;
+    status: IpStatus;
+    currentVersionId?: string;
+    createdByUserId?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type IpItemRecord = {
+    id: string;
+    versionId: string;
+    kind: IpAssetKind;
+    category: IpItemCategory;
+    title: string;
+    summary: string;
+    fileId: string;
+    textContent?: string;
+    assetId?: string;
+    sortOrder: number;
+    createdAt: string;
+};
+
+export type IpVersionRecord = {
+    id: string;
+    ipId: string;
+    versionNumber: number;
+    title: string;
+    summary: string;
+    coverFileId?: string;
+    tags: string[];
+    sourceNote: string;
+    changeNote: string;
+    status: IpVersionStatus;
+    manifest: JsonValue;
+    publishedAt?: string;
+    createdByUserId?: string;
+    createdAt: string;
+    items: IpItemRecord[];
+};
+
+export type IpPackageCreateInput = Omit<IpPackageRecord, "currentVersionId" | "createdAt" | "updatedAt">;
+export type IpPackagePatch = Partial<Pick<IpPackageRecord, "title" | "slug" | "summary" | "visibility" | "authorizationMode" | "status">> & { coverAssetId?: string | null };
+export type IpDraftItemInput = Omit<IpItemRecord, "versionId" | "createdAt" | "textContent" | "assetId">;
+export type IpDraftVersionInput = Pick<IpVersionRecord, "id" | "title" | "summary" | "coverFileId" | "tags" | "sourceNote" | "changeNote"> & {
+    createdByUserId?: string;
+    items: IpDraftItemInput[];
+};
+export type IpSummaryRecord = IpPackageRecord & { versionNumber: number; itemCount: number; grantMode?: IpAuthorizationMode; coverFileId?: string; tags?: string[] };
+export type IpDetailRecord = IpPackageRecord & { version: IpVersionRecord; grantMode?: IpAuthorizationMode };
+
+export type IpSchoolGrantRecord = {
+    id: string;
+    ipId: string;
+    schoolId: string;
+    mode: IpAuthorizationMode;
+    status: IpSchoolGrantStatus;
+    startsAt: string;
+    endsAt?: string;
+    note: string;
+    memberAccessEnabled: boolean;
+    memberAccessUpdatedByUserId?: string;
+    memberAccessUpdatedAt?: string;
+    createdByUserId?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type IpSchoolGrantCreateInput = Omit<IpSchoolGrantRecord, "createdAt" | "updatedAt" | "memberAccessEnabled" | "memberAccessUpdatedByUserId" | "memberAccessUpdatedAt"> &
+    Partial<Pick<IpSchoolGrantRecord, "memberAccessEnabled" | "memberAccessUpdatedByUserId" | "memberAccessUpdatedAt">>;
+export type IpSchoolGrantUpdateInput = Partial<Pick<IpSchoolGrantRecord, "status" | "endsAt" | "note" | "memberAccessEnabled" | "memberAccessUpdatedByUserId" | "memberAccessUpdatedAt">> & { updatedAt: string };
+
+export type IpContentFileRecord = {
+    id: string;
+    ipId: string;
+    kind: IpAssetKind;
+    originalName: string;
+    extension: string;
+    mimeType: string;
+    byteSize: number;
+    sha256: string;
+    storageProvider: IpStorageProvider;
+    storageKey: string;
+    externalStorageId?: string;
+    externalObjectKey?: string;
+    extractedText?: string;
+    metadata: { width?: number; height?: number; durationSeconds?: number };
+    status: IpContentFileStatus;
+    errorMessage?: string;
+    uploadedByUserId?: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type IpContentFileCreateInput = Omit<IpContentFileRecord, "createdAt" | "updatedAt">;
+export type IpContentFilePatch = Partial<Pick<IpContentFileRecord, "status" | "errorMessage" | "metadata" | "extractedText">>;
+
+export type IpUsageRecord = {
+    id: string;
+    ipId: string;
+    versionId: string;
+    itemIds: string[];
+    schoolId?: string;
+    userId: string;
+    action: IpUsageAction;
+    targetType: IpUsageTargetType;
+    targetId: string;
+    createdAt: string;
+};
+
+export type IpUsageCreateInput = Omit<IpUsageRecord, "createdAt">;
+
+export type IpDownloadRecord = {
+    id: string;
+    ipId: string;
+    versionId: string;
+    itemId?: string;
+    schoolId?: string;
+    userId: string;
+    downloadType: IpDownloadType;
+    result: IpDownloadResult;
+    createdAt: string;
+};
+
+export type IpDownloadCreateInput = Omit<IpDownloadRecord, "createdAt">;
+
 export type UserRole = "admin" | "user";
 export type UserStatus = "active" | "disabled";
 export type PromptScope = "library" | "user";
 export type UsageKind = "api" | "image" | "video" | "audio" | "text";
-export type GenerationKind = "image" | "video";
+export type GenerationKind = "image" | "video" | "text";
 export type GenerationStatus = "pending" | "success" | "failed";
 export type AuditStatus = "success" | "failure";
 export type BillingOrderStatus = "pending" | "paid" | "closed" | "canceled" | "refunding" | "refunded";
@@ -133,6 +274,8 @@ export type AppSettingsRecord = {
     paymentConfig: JsonValue;
     logicalModels: JsonValue;
     defaultModels: JsonValue;
+    practiceDefaultModels: JsonValue;
+    practiceWorkflowModels: JsonValue;
     agentSkills: JsonValue;
     createdAt: string;
     updatedAt: string;
@@ -147,6 +290,7 @@ export type SystemModelChannelRecord = {
     apiFormat: "openai" | "gemini";
     models: JsonValue;
     enabled: boolean;
+    purpose?: SystemChannelPurpose;
     advancedConfig?: JsonValue;
     sortOrder: number;
     createdAt: string;
@@ -276,7 +420,7 @@ export type PromptRecord = {
 };
 
 export type GenerationLogAssetRecord = {
-    type: GenerationKind;
+    type: "image" | "video";
     url: string;
     remoteUrl?: string;
     serverUrl?: string;
@@ -730,8 +874,59 @@ export type PublishedWorkVersionRecord = {
     reviewedByUserId?: string;
     moderationProvider?: string;
     moderationSignal?: JsonValue;
+    pullFilmEnabled?: boolean;
+    pullFilmSnapshot?: JsonValue;
+    pullFilmEnabledAt?: string;
+    pullFilmEnabledByUserId?: string;
     createdAt: string;
     updatedAt: string;
+};
+
+export type PracticeSessionStatus = "draft" | "queued" | "running" | "success" | "failed" | "cancelled";
+
+export type PracticeSessionRecord = {
+    id: string;
+    userId: string;
+    projectId?: string;
+    projectKind: PracticeProjectKind;
+    module: PracticeModuleKind;
+    mode: PracticeSessionMode;
+    title: string;
+    clientRequestId: string;
+    executionProfile: PracticeExecutionProfile;
+    prompt: JsonValue;
+    input: JsonValue;
+    taskRefs: JsonValue;
+    selectedLogicalModelId?: string;
+    errorCode?: string;
+    errorMessage?: string;
+    status: PracticeSessionStatus;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type PracticeSessionCreateInput = Omit<PracticeSessionRecord, "createdAt" | "updatedAt" | "executionProfile" | "title" | "clientRequestId" | "mode"> & Partial<Pick<PracticeSessionRecord, "executionProfile" | "title" | "clientRequestId" | "mode">>;
+
+export type PracticeCopyRequestRecord = {
+    userId: string;
+    clientRequestId: string;
+    sourceWorkId: string;
+    sourceVersionId: string;
+    projectKind: PracticeProjectKind;
+    projectId: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type PracticeCopyRequestInput = Omit<PracticeCopyRequestRecord, "createdAt" | "updatedAt">;
+
+export type PullFilmVersionRecord = {
+    workId: string;
+    versionId: string;
+    enabled: boolean;
+    snapshot?: JsonValue;
+    enabledAt?: string;
+    enabledByUserId?: string;
 };
 
 export type PublishedWorkAssetRecord = {
@@ -761,6 +956,8 @@ export type PublishedGalleryItemRecord = {
     viewCount: number;
     likeCount: number;
     isFeatured: boolean;
+    hasProcess: boolean;
+    processVersionId?: string;
     featuredAt?: string;
     publishedAt: string;
     title: string;

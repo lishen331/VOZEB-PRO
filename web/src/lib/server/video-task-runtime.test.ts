@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
     writeLog: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/store", () => ({ refundUserPoints: mocks.refund }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refund }));
 vi.mock("@/lib/globalaiopc-catalog", () => ({ resolveGlobalAiOpcPreset: vi.fn(() => undefined) }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi }));
 vi.mock("@/lib/server/creative-runtime-service", () => ({ registerGenerationTaskAssetsForUser: mocks.register }));
@@ -30,9 +30,10 @@ vi.mock("@/lib/server/video-task-store", () => ({
 }));
 vi.mock("@/lib/server/generation-media-authorization", () => ({ generationMediaProxyHeaders: vi.fn(() => ({ "x-media-auth": "signed" })) }));
 
-import { queryVideoTaskUpstream, refreshVideoTaskFromUpstream } from "./video-task-runtime";
+import { persistVideoTaskResult, queryVideoTaskUpstream, refreshVideoTaskFromUpstream } from "./video-task-runtime";
 import type { VideoTask } from "./video-task-store";
 import { createProtocolFixtureServer } from "../../../scripts/protocol-fixture-server.mjs";
+import { readVerifiedSystemAiBusinessRequestId } from "./system-ai-billing";
 
 describe("video task upstream reconciliation", () => {
     beforeEach(() => {
@@ -60,6 +61,16 @@ describe("video task upstream reconciliation", () => {
         expect(headers.get("authorization")).toBe(`Bearer ${token}`);
         expect(headers.get("x-vozeb-pro-worker-user-id")).toBe(task.userId);
         expect(headers.has("cookie")).toBe(false);
+    });
+
+    it("signs trusted practice polling with a stable server-owned request identity", async () => {
+        const task = videoTask({ executionProfile: "open-source-practice", attemptNo: 2 });
+        mocks.fetchInternalApi.mockResolvedValue(json({ id: task.upstream.id, status: "processing" }));
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toMatchObject({ state: "pending" });
+
+        const headers = new Headers((mocks.fetchInternalApi.mock.calls[0]?.[1] as RequestInit).headers);
+        expect(readVerifiedSystemAiBusinessRequestId(headers, "sd_2.0_fast_special_720p", task.config.model, "open-source-practice")).toBe("video-task:local-video:attempt:2:poll");
     });
 
     it("recovers a locally timed-out task after the provider later returns a video", async () => {
@@ -98,7 +109,7 @@ describe("video task upstream reconciliation", () => {
                     model: "mock-video",
                     advancedConfig: { protocol: "seedance-special", queryPath: "/v1/result/:task_id", statusField: "status", resultField: "video_url" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
                 },
-                upstream: { id: created.task_id, provider: "generation", model: "mock-video", pollPath: "/v1/seedance-special/videos", pointsCost: 1, pointsUnits: 1, pointsRecordId: "points-fixture" },
+                upstream: { id: created.task_id, provider: "generation", model: "mock-video", pollPath: "/v1/seedance-special/videos", pointsCost: 1, pointsUnits: 1, billingReceiptId: "school:fixture" },
             });
             const completed = { ...task, status: "success" as const, result: { url: "/api/reference-assets/result.mp4", mimeType: "video/mp4", durationMs: 5_000 } };
             mocks.claim.mockResolvedValue(task);
@@ -144,7 +155,7 @@ describe("video task upstream reconciliation", () => {
                     queryPath: `/v1beta/models/veo-3.1-generate-preview/operations/${operationId}`,
                     pointsCost: 1,
                     pointsUnits: 1,
-                    pointsRecordId: "points-gemini",
+                    billingReceiptId: "school:gemini",
                 },
             });
             const completed = { ...task, status: "success" as const, result: { url: "/api/reference-assets/result.mp4", mimeType: "video/mp4", durationMs: 5_000 } };
@@ -172,7 +183,24 @@ describe("video task upstream reconciliation", () => {
 
         expect(result).toEqual(failed);
         expect(mocks.fail).toHaveBeenCalledWith(task.id, failed.error, true);
-        expect(mocks.refund).toHaveBeenCalledOnce();
+        expect(mocks.refund).toHaveBeenCalledWith({ userId: "user", receiptId: "school:batch-a", model: "sd_2.0_fast_special_720p", usageKind: "video", units: 1, idempotencyKey: "video-task:local-video:refund" });
+        expect(mocks.normalize).not.toHaveBeenCalled();
+    });
+
+    it("treats a New API failure result_url as an upstream failure instead of media", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                advancedConfig: { protocol: "newapi", createPath: "/video/generations", queryPath: "/video/generations/:task_id", resultField: "metadata.url", statusField: "status" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+        });
+        mocks.fetchInternalApi.mockResolvedValue(json({ code: "success", data: { task_id: task.upstream.id, status: "FAILURE", fail_reason: "no active tokens available", result_url: "no active tokens available" } }));
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toEqual({
+            state: "failed",
+            status: "failure",
+            error: "no active tokens available",
+        });
         expect(mocks.normalize).not.toHaveBeenCalled();
     });
 
@@ -190,6 +218,81 @@ describe("video task upstream reconciliation", () => {
         expect(mocks.refund).not.toHaveBeenCalled();
     });
 
+    it("uses the declared OpenAI content endpoint when a completed task has no inline URL", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                model: "seedance2.5",
+                advancedConfig: {
+                    protocol: "newapi",
+                    createPath: "/videos",
+                    imageToVideoPath: "/videos",
+                    queryPath: "/videos/:task_id",
+                    resultField: "/videos/:task_id/content",
+                    statusField: "status",
+                } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, model: "seedance2.5", pollPath: "/videos" },
+        });
+        mocks.fetchInternalApi.mockResolvedValue(json({ id: task.upstream.id, status: "completed" }));
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toEqual({
+            state: "result_ready",
+            status: "completed",
+            resultUrl: `/videos/${task.upstream.id}/content`,
+        });
+    });
+
+    it("passes the model identity when saving a relative system video content URL", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                model: "seedance2.5",
+                logicalModel: "short-drama-video",
+                advancedConfig: {
+                    protocol: "newapi",
+                    createPath: "/videos",
+                    queryPath: "/videos/:task_id",
+                    resultField: "/videos/:task_id/content",
+                    statusField: "status",
+                } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, model: "seedance2.5", pollPath: "/videos", resultUrl: `/videos/${videoTask().upstream.id}/content` },
+        });
+        const completed = { ...task, status: "success" as const, result: { url: "/api/reference-assets/result.mp4", mimeType: "video/mp4" } };
+        mocks.get.mockResolvedValue(task);
+        mocks.complete.mockResolvedValue(completed);
+
+        await expect(persistVideoTaskResult(task, task.upstream.resultUrl!, "http://localhost", "session=test")).resolves.toEqual(completed);
+        const normalized = mocks.normalize.mock.calls.at(-1)?.[0] as { internalHeaders?: HeadersInit };
+        const headers = new Headers(normalized.internalHeaders);
+        expect(headers.get("x-vozeb-pro-upstream-model")).toBe("seedance2.5");
+        expect(headers.get("x-vozeb-pro-logical-model")).toBe("short-drama-video");
+    });
+
+    it("does not invent media URLs for arbitrary custom result fields", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                advancedConfig: {
+                    protocol: "custom",
+                    createPath: "/jobs",
+                    queryPath: "/jobs/:task_id",
+                    resultField: "/jobs/:task_id/content",
+                    statusField: "status",
+                } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, pollPath: "/jobs" },
+        });
+        mocks.fetchInternalApi.mockResolvedValue(json({ id: task.upstream.id, status: "completed" }));
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toEqual({
+            state: "failed",
+            status: "completed",
+            error: "视频任务已完成但没有返回有效视频地址",
+        });
+    });
+
     it("recovers a completed New API video from the standard content endpoint when status queries are unavailable", async () => {
         const task = videoTask();
         mocks.fetchInternalApi.mockImplementation(async (url: string | URL | Request, init?: RequestInit) => {
@@ -205,6 +308,60 @@ describe("video task upstream reconciliation", () => {
             resultUrl: `/v1/videos/${task.upstream.id}/content`,
         });
         expect(mocks.fetchInternalApi).toHaveBeenCalledWith(`http://localhost${task.config.baseUrl}/v1/videos/${task.upstream.id}/content`, expect.objectContaining({ method: "HEAD" }));
+    });
+
+    it("prefers New API's nested signed video URL over its stale compatibility result_url", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                advancedConfig: { protocol: "newapi", createPath: "/video/generations", queryPath: "/video/generations/:task_id", resultField: "metadata.url", statusField: "status" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, pollPath: "/video/generations" },
+        });
+        const stale = `https://api.example.com/v1/videos/${task.upstream.id}/content`;
+        const signed = "https://cdn.example.com/video.mp4?signature=fixture";
+        mocks.fetchInternalApi.mockResolvedValue(
+            json({
+                status: "SUCCESS",
+                result_url: stale,
+                data: { data: { data: { content: { video_url: signed } } } },
+            }),
+        );
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toMatchObject({ state: "result_ready", resultUrl: signed });
+    });
+
+    it("uses a nested media URL when the configured result field contains an error string", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                advancedConfig: { protocol: "newapi", createPath: "/video/generations", queryPath: "/video/generations/:task_id", resultField: "metadata.url", statusField: "status" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, pollPath: "/video/generations" },
+        });
+        const signed = "https://cdn.example.com/video.mp4?signature=fixture";
+        mocks.fetchInternalApi.mockResolvedValue(json({ status: "SUCCESS", metadata: { url: "no active tokens available" }, data: { video_url: signed } }));
+
+        await expect(queryVideoTaskUpstream(task, "http://localhost", "session=test")).resolves.toMatchObject({ state: "result_ready", resultUrl: signed });
+    });
+
+    it("repairs an already persisted stale New API URL before downloading the video", async () => {
+        const task = videoTask({
+            config: {
+                ...videoTask().config,
+                advancedConfig: { protocol: "newapi", createPath: "/video/generations", queryPath: "/video/generations/:task_id", resultField: "metadata.url", statusField: "status" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
+            },
+            upstream: { ...videoTask().upstream, pollPath: "/video/generations" },
+        });
+        const stale = `https://api.example.com/v1/videos/${task.upstream.id}/content`;
+        const signed = "https://cdn.example.com/video.mp4?signature=fixture";
+        const completed = { ...task, status: "success" as const, result: { url: "/api/reference-assets/result.mp4", mimeType: "video/mp4" } };
+        mocks.get.mockResolvedValue(task);
+        mocks.fetchInternalApi.mockResolvedValue(json({ status: "SUCCESS", result_url: stale, data: { data: { data: { content: { video_url: signed } } } } }));
+        mocks.complete.mockResolvedValue(completed);
+
+        await expect(persistVideoTaskResult(task, stale, "http://localhost", "session=test")).resolves.toEqual(completed);
+        expect(mocks.normalize).toHaveBeenCalledWith(expect.objectContaining({ url: expect.stringContaining(encodeURIComponent(signed)) }));
     });
 
     it("ignores an HTML fallback page before probing the standard video content endpoint", async () => {
@@ -262,7 +419,7 @@ function videoTask(patch: Partial<VideoTask> = {}): VideoTask {
             model: "sd_2.0_fast_special_720p",
             advancedConfig: { protocol: "seedance-special", queryPath: "/v1/result/:task_id", statusField: "status", resultField: "video_url" } as NonNullable<VideoTask["config"]["advancedConfig"]>,
         },
-        upstream: { id: "videos_one", provider: "generation", model: "sd_2.0_fast_special_720p", pollPath: "/v1/seedance-special/videos", pointsCost: 1, pointsUnits: 1, pointsRecordId: "points-one" },
+        upstream: { id: "videos_one", provider: "generation", model: "sd_2.0_fast_special_720p", pollPath: "/v1/seedance-special/videos", pointsCost: 1, pointsUnits: 1, billingReceiptId: "school:batch-a" },
         requestedDurationSeconds: 5,
         source: "agent",
         prompt: "test",

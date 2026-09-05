@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { createProtocolFixtureServer } from "../../../../scripts/protocol-fixture-server.mjs";
 import { createUpstream } from "./video-generation-route";
+import { resolveModelAdvancedConfig } from "@/lib/server/generation-channel";
 import { queryVideoTaskUpstream } from "@/lib/server/video-task-runtime";
 import type { VideoTask } from "@/lib/server/video-task-store";
 import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
@@ -12,6 +13,68 @@ describe("video creation protocols over a live fixture", () => {
     afterEach(async () => {
         await close?.();
         close = undefined;
+    });
+
+    it("creates a New API Doubao Seedance task through the JSON task contract", async () => {
+        const fixture = createProtocolFixtureServer();
+        await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));
+        const address = fixture.server.address();
+        if (!address || typeof address === "string") throw new Error("Protocol fixture did not bind a TCP port");
+        const baseUrl = "http://127.0.0.1:" + address.port;
+        close = () => new Promise<void>((resolve, reject) => fixture.server.close((error?: Error) => (error ? reject(error) : resolve())));
+
+        const config = {
+            apiSource: "system" as const,
+            baseUrl,
+            apiKey: "system" as const,
+            apiFormat: "openai" as const,
+            model: "doubao-seedance-2-0",
+            logicalModel: "video",
+            channelId: "legacy-newapi-seedance",
+            advancedConfig: {
+                ...emptyAdvancedConfig(),
+                protocol: "newapi" as const,
+                modelCapabilities: { "doubao-seedance-2-0": "video" as const },
+                modelConfigs: {
+                    "doubao-seedance-2-0": {
+                        capability: "video" as const,
+                        protocol: "newapi" as const,
+                        apiFormat: "openai" as const,
+                        createPath: "/videos",
+                        imageToVideoPath: "/videos",
+                        queryPath: "/videos/:task_id",
+                        requestTemplate: "multipart/form-data: model、prompt、seconds、size、input_reference",
+                        resultField: "/videos/:task_id/content",
+                        statusField: "status",
+                        supportsReferenceImage: true,
+                    },
+                },
+            },
+        };
+
+        const resolvedConfig = { ...config, advancedConfig: resolveModelAdvancedConfig(config.advancedConfig, config.model) };
+        const upstream = await createUpstream(
+            "user-live",
+            "",
+            "",
+            resolvedConfig,
+            "animate a blue logo",
+            { videoSeconds: 6, size: "9:16", vquality: "720" },
+            [{ type: "image", url: "https://cdn.example.com/reference.png" }],
+            { imageQuality: {}, videoQuality: { "720": 1 }, videoSeconds: { "6": 1 } },
+            "legacy-seedance-request",
+        );
+
+        expect(upstream).toMatchObject({ model: config.model, pollPath: "/video/generations" });
+        expect(fixture.requests[0]).toMatchObject({ method: "POST", path: "/video/generations" });
+        expect(fixture.requests[0]?.contentType).toContain("application/json");
+        expect(JSON.parse(fixture.requests[0]?.body.toString("utf8") || "{}")).toMatchObject({
+            model: config.model,
+            prompt: "animate a blue logo",
+            seconds: "6",
+            images: ["https://cdn.example.com/reference.png"],
+            metadata: { ratio: "9:16", resolution: "720p" },
+        });
     });
 
     it("uses the selected preset endpoint once, preserves headers, and polls /result/:task_id", async () => {

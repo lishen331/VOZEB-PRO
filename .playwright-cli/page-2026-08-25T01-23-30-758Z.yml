@@ -1,0 +1,224 @@
+- generic [ref=e1]:
+  - main [ref=e4]:
+    - generic [ref=e13]:
+      - link "返回项目大纲" [ref=e14] [cursor=pointer]:
+        - /url: /drama-lab/drama-03tgsyBr88SYFPAWX_Iz7/outline
+        - img [ref=e15]
+      - generic [ref=e17]:
+        - heading "xxx" [level=1] [ref=e18]
+        - paragraph [ref=e19]: 第 1 集
+      - button "一键全流程" [ref=e20] [cursor=pointer]:
+        - img [ref=e22]
+        - generic [ref=e25]: 一键全流程
+      - button "打开团队协作与审批" [ref=e26] [cursor=pointer]:
+        - img [ref=e28]
+      - button "保存草稿" [ref=e31] [cursor=pointer]:
+        - img [ref=e33]
+        - generic [ref=e37]: 保存草稿
+    - navigation [ref=e38]:
+      - button "1 剧本" [ref=e39]:
+        - generic [ref=e40]: "1"
+        - generic [ref=e41]: 剧本
+      - button "2 资产准备" [ref=e42]:
+        - generic [ref=e43]: "2"
+        - generic [ref=e44]: 资产准备
+      - button "3 分镜工作台" [active] [ref=e45]:
+        - generic [ref=e46]: "3"
+        - generic [ref=e47]: 分镜工作台
+      - button "4 内容审核" [ref=e48]:
+        - generic [ref=e49]: "4"
+        - generic [ref=e50]: 内容审核
+      - button "5 成片导出" [ref=e51]:
+        - generic [ref=e52]: "5"
+        - generic [ref=e53]: 成片导出
+    - generic [ref=e54]:
+      - complementary [ref=e55]:
+        - generic [ref=e56]:
+          - generic [ref=e57]: 剧集 13
+          - button "收起剧集侧栏" [ref=e58] [cursor=pointer]:
+            - img [ref=e60]
+        - generic [ref=e63]:
+          - generic [ref=e64]:
+            - generic [ref=e65]:
+              - button "收起第 1 集分镜" [expanded] [ref=e66] [cursor=pointer]:
+                - img [ref=e68]
+              - button "第 1 集 3906 字 • 7 个分镜" [ref=e70]:
+                - generic [ref=e71]: 第 1 集
+                - generic [ref=e72]: 3906 字 • 7 个分镜
+            - generic [ref=e73]:
+              - 'button "镜头 1: 林澈在图书馆书库中整理古籍，表情紧张，回" [ref=e74]'
+              - 'button "镜头 2: 苏晚在医院走廊中行走，身着白色医生袍，听" [ref=e75]'
+              - 'button "镜头 3: 林澈低头在皮质笔记本上书写，钢笔快速记录" [ref=e76]'
+              - 'button "镜头 4: 苏晚靠近林澈，神情担忧而严肃，目光注视林" [ref=e77]'
+              - 'button "镜头 5: 陈锋站立于战术装备前，表情冷酷，眼神锐利" [ref=e78]'
+              - 'button "镜头 6: 陈锋低头看向手中狗腿刀，嘴角一丝冷笑，随" [ref=e79]'
+              - 'button "镜头 7: 林澈放下钢笔，透过眼镜看向远处，目光沉稳" [ref=e80]'
+          - button "第 2 集 3991 字" [ref=e84]:
+            - generic [ref=e85]: 第 2 集
+            - generic [ref=e86]: 3991 字
+          - button "第 3 集 432 字" [ref=e90]:
+            - generic [ref=e91]: 第 3 集
+            - generic [ref=e92]: 432 字
+          - button "第 4 集 · 第1集：「血色降临」 1285 字" [ref=e96]:
+            - generic [ref=e97]: 第 4 集 · 第1集：「血色降临」
+            - generic [ref=e98]: 1285 字
+          - button "第 5 集 · 第2集：「背叛与推入」 1299 字" [ref=e102]:
+            - generic [ref=e103]: 第 5 集 · 第2集：「背叛与推入」
+            - generic [ref=e104]: 1299 字
+          - button "第 6 集 · 第3集：「规则反杀」 1378 字" [ref=e108]:
+            - generic [ref=e109]: 第 6 集 · 第3集：「规则反杀」
+            - generic [ref=e110]: 1378 字
+          - button "第 7 集 · 第4集：「白衣医生」 1267 字" [ref=e114]:
+            - generic [ref=e115]: 第 7 集 · 第4集：「白衣医生」
+            - generic [ref=e116]: 1267 字
+          - button "第 8 集 · 第5集：「病号服女孩」 1258 字" [ref=e120]:
+            - generic [ref=e121]: 第 8 集 · 第5集：「病号服女孩」
+            - generic [ref=e122]: 1258 字
+          - button "第 9 集 · 第6集：「收藏家的注视」 1028 字" [ref=e126]:
+            - generic [ref=e127]: 第 9 集 · 第6集：「收藏家的注视」
+            - generic [ref=e128]: 1028 字
+          - button "第 10 集 · 第7集：「活着的规则」 1210 字" [ref=e132]:
+            - generic [ref=e133]: 第 10 集 · 第7集：「活着的规则」
+            - generic [ref=e134]: 1210 字
+          - button "第 11 集 · 第8集：「无声的牺牲」 1077 字" [ref=e138]:
+            - generic [ref=e139]: 第 11 集 · 第8集：「无声的牺牲」
+            - generic [ref=e140]: 1077 字
+          - button "第 12 集 · 第9集：「污名与情报」 1247 字" [ref=e144]:
+            - generic [ref=e145]: 第 12 集 · 第9集：「污名与情报」
+            - generic [ref=e146]: 1247 字
+          - button "第 13 集 · 第10集：「黑市中间商」 1468 字" [ref=e150]:
+            - generic [ref=e151]: 第 13 集 · 第10集：「黑市中间商」
+            - generic [ref=e152]: 1468 字
+          - button "新增剧集" [ref=e153] [cursor=pointer]:
+            - img [ref=e155]
+            - generic [ref=e156]: 新增一集
+      - generic [ref=e157]:
+        - alert [ref=e158]:
+          - img [ref=e345]
+          - generic [ref=e164]:
+            - generic [ref=e165]: 视觉图片审核 · 待提交
+            - generic [ref=e166]: 剧本审核尚未通过，严格审批模式下不能继续提交。
+          - button "提交审核" [disabled] [ref=e168]:
+            - generic:
+              - img
+            - generic: 提交审核
+        - generic [ref=e349]: 请先选择一个剧集
+      - complementary [ref=e174]:
+        - generic [ref=e175]:
+          - generic [ref=e176]: 团队协作与审批
+          - button "收起团队协作与审批" [ref=e177] [cursor=pointer]:
+            - img [ref=e179]
+        - generic [ref=e183]:
+          - generic [ref=e184]:
+            - generic [ref=e185]:
+              - img [ref=e187]
+              - generic [ref=e192]:
+                - generic [ref=e193]:
+                  - heading "星河短剧项目组" [level=2] [ref=e194]
+                  - switch "启用团队协作" [checked] [ref=e195] [cursor=pointer]
+                - paragraph [ref=e198]: 项目组长可决定审批节点；成员、职责和权限均为本页演示数据。
+                - paragraph [ref=e199]: 当前制作阶段：视觉图片审核
+            - generic [ref=e200]:
+              - button "严格 上游通过后再继续" [ref=e201]:
+                - generic [ref=e202]:
+                  - img [ref=e203]
+                  - text: 严格
+                - generic [ref=e207]: 上游通过后再继续
+              - button "并行 继续制作，版本待确认" [ref=e208]:
+                - generic [ref=e209]:
+                  - img [ref=e210]
+                  - text: 并行
+                - generic [ref=e214]: 继续制作，版本待确认
+          - generic [ref=e215]:
+            - generic [ref=e216]:
+              - heading "审批配置" [level=3] [ref=e217]
+              - generic [ref=e218]: 组长决定
+            - generic [ref=e219]:
+              - generic [ref=e220]:
+                - generic [ref=e221]:
+                  - switch "启用剧本审核" [checked] [ref=e222] [cursor=pointer]
+                  - generic [ref=e225]:
+                    - generic [ref=e226]:
+                      - generic [ref=e227]: 剧本审核
+                      - generic [ref=e228]: 待提交
+                    - paragraph [ref=e229]: 故事梗概、分集剧本与人物情节表达
+                - button "提交" [ref=e231] [cursor=pointer]:
+                  - img [ref=e233]
+                  - generic [ref=e236]: 提交
+              - generic [ref=e237]:
+                - generic [ref=e238]:
+                  - switch "启用资产提示词审核" [checked] [ref=e239] [cursor=pointer]
+                  - generic [ref=e242]:
+                    - generic [ref=e243]:
+                      - generic [ref=e244]: 资产提示词审核
+                      - generic [ref=e245]: 待提交
+                    - paragraph [ref=e246]: 角色、场景、道具及分镜提示词
+                - button "提交" [ref=e248] [cursor=pointer]:
+                  - img [ref=e250]
+                  - generic [ref=e253]: 提交
+              - generic [ref=e254]:
+                - generic [ref=e255]:
+                  - switch "启用视觉图片审核" [checked] [ref=e256] [cursor=pointer]
+                  - generic [ref=e259]:
+                    - generic [ref=e260]:
+                      - generic [ref=e261]: 视觉图片审核
+                      - generic [ref=e262]: 待提交
+                    - paragraph [ref=e263]: 资产图片与分镜图片的一致性
+                - button "提交" [ref=e265] [cursor=pointer]:
+                  - img [ref=e267]
+                  - generic [ref=e270]: 提交
+              - generic [ref=e271]:
+                - generic [ref=e272]:
+                  - switch "启用分镜视频审核" [checked] [ref=e273] [cursor=pointer]
+                  - generic [ref=e276]:
+                    - generic [ref=e277]:
+                      - generic [ref=e278]: 分镜视频审核
+                      - generic [ref=e279]: 待提交
+                    - paragraph [ref=e280]: 镜头视频、节奏与动作衔接
+                - button "提交" [ref=e282] [cursor=pointer]:
+                  - img [ref=e284]
+                  - generic [ref=e287]: 提交
+              - generic [ref=e288]:
+                - generic [ref=e289]:
+                  - switch "启用成片审核" [checked] [ref=e290] [cursor=pointer]
+                  - generic [ref=e293]:
+                    - generic [ref=e294]:
+                      - generic [ref=e295]: 成片审核
+                      - generic [ref=e296]: 待提交
+                    - paragraph [ref=e297]: 导出前的最终成片版本
+                - button "提交" [ref=e299] [cursor=pointer]:
+                  - img [ref=e301]
+                  - generic [ref=e304]: 提交
+          - generic [ref=e305]:
+            - heading "反馈与提醒" [level=3] [ref=e306]
+            - generic [ref=e307]:
+              - generic [ref=e308]:
+                - generic [ref=e309]: 打回时必须填写反馈
+                - switch "打回时必须填写反馈" [checked] [ref=e310] [cursor=pointer]
+              - generic [ref=e313]:
+                - generic [ref=e314]: 打回后提醒负责人
+                - switch "打回后提醒负责人" [checked] [ref=e315] [cursor=pointer]
+              - generic [ref=e318]:
+                - generic [ref=e319]: 允许反馈附件
+                - switch "允许反馈附件" [ref=e320] [cursor=pointer]
+            - textbox "填写后可用于模拟打回反馈" [ref=e323]
+          - generic [ref=e324]:
+            - generic [ref=e325]:
+              - heading "项目成员" [level=3] [ref=e326]
+              - generic [ref=e327]: 演示
+            - generic [ref=e328]:
+              - generic [ref=e329]:
+                - generic [ref=e330]: 林组长
+                - generic [ref=e331]: 统筹、审批
+              - generic [ref=e332]:
+                - generic [ref=e333]: 陈编剧
+                - generic [ref=e334]: 剧本、资产提示词
+              - generic [ref=e335]:
+                - generic [ref=e336]: 周制作
+                - generic [ref=e337]: 视觉图片、分镜视频
+          - alert [ref=e338]:
+            - img [ref=e340]
+            - generic [ref=e342]:
+              - generic [ref=e343]: 当前为本地协作演示
+              - generic [ref=e344]: 不创建项目组、不发送通知、不上传附件，刷新页面后演示状态会重置。
+  - alert [ref=e12]

@@ -23,7 +23,7 @@ export class WorkGovernanceRepository {
         const cursor = galleryCursorClause(input.sort);
         const result = await this.db.query(
             `SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.view_count, work.like_count, work.is_featured, work.featured_at,
-                    version.id AS version_id, coalesce(version.reviewed_at, version.updated_at) AS published_at,
+                    version.id AS version_id, version.pull_film_enabled, coalesce(version.reviewed_at, version.updated_at) AS published_at,
                     version.title, version.description, version.public_prompt, version.category, version.tags, version.author_display,
                     CASE WHEN version.author_display = 'hidden' THEN NULL ELSE version.author_name END AS author_name,
                     owner.username AS author_username,

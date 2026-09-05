@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { createPostgresRepositories, ensurePostgresSchema, postgresQuery } from "@/lib/server/database";
+import { createPostgresRepositories, ensurePostgresSchema, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 
 import { cleanupExpiredStoredGenerationTasks } from "./generation-task-store";
-import { consumePoints } from "./points-wallet-service";
+import { adjustPermanentPointsInPostgresTransaction, consumePoints } from "./points-wallet-service";
 
 const postgresIt = process.env.VOZEB_PRO_RUN_POSTGRES_INTEGRATION === "1" ? it : it.skip;
 
@@ -100,6 +100,54 @@ describe("PostgreSQL points wallet idempotency", () => {
             expect(replay.applied).toBe(false);
             expect(replay.record.id).toBe(first.record.id);
             expect(await repositories.points.getRecordByIdempotencyKey(idempotencyKey)).toMatchObject({ userId, requestFingerprint, amount: -5 });
+        } finally {
+            await repositories.users.delete(userId);
+        }
+    });
+
+    postgresIt("rejects duplicate or excessive disabled-user adjustments without a second ledger row", async () => {
+        await ensurePostgresSchema();
+        const repositories = createPostgresRepositories();
+        const settings = await repositories.settings.getSettings();
+        const planId = settings.settings?.defaultPlanId || settings.plans[0]?.id;
+        if (!planId) throw new Error("No entitlement plan is available for the PostgreSQL integration test");
+
+        const suffix = randomUUID();
+        const userId = `test-points-adjust-${suffix}`;
+        const idempotencyKey = `school-member-adjust:postgres:${suffix}`;
+        const requestFingerprint = "a".repeat(64);
+        const now = new Date("2098-12-31T00:00:00.000Z");
+        try {
+            await repositories.users.createWithNextAccountId({
+                id: userId,
+                username: `adjust_${suffix.replaceAll("-", "").slice(0, 16)}`,
+                displayName: "管理员调账测试用户",
+                bio: "",
+                role: "user",
+                adminPermissions: [],
+                status: "disabled",
+                planId,
+                pointsBalance: 20,
+                passwordHash: "integration-test-only",
+                createdAt: now.toISOString(),
+                updatedAt: now.toISOString(),
+            });
+
+            const input = { userId, amount: -12.5, description: "合同额度修正", idempotencyKey, requestFingerprint, minimumBalance: 0, requireActive: false, type: "admin-adjust" as const, now };
+            const first = await withPostgresTransaction((client) => adjustPermanentPointsInPostgresTransaction(client, input));
+            const replay = await withPostgresTransaction((client) => adjustPermanentPointsInPostgresTransaction(client, input));
+
+            await expect(withPostgresTransaction((client) => adjustPermanentPointsInPostgresTransaction(client, { ...input, requestFingerprint: "b".repeat(64) }))).rejects.toThrow("积分幂等键对应的调账参数不一致");
+            await expect(withPostgresTransaction((client) => adjustPermanentPointsInPostgresTransaction(client, { ...input, idempotencyKey: `${idempotencyKey}:excessive`, amount: -8, requestFingerprint: "c".repeat(64) }))).rejects.toThrow(
+                "个人永久积分不足",
+            );
+
+            expect(first).toMatchObject({ applied: true, snapshot: { permanentPoints: 7.5 }, record: { amount: -12.5, requestFingerprint } });
+            expect(replay).toMatchObject({ applied: false, record: { id: first?.record.id } });
+            const user = await repositories.users.getById(userId);
+            const records = await postgresQuery<{ count: string }>("SELECT count(*) FROM point_records WHERE user_id = $1", [userId]);
+            expect(user?.pointsBalance).toBe(7.5);
+            expect(Number(records.rows[0]?.count)).toBe(1);
         } finally {
             await repositories.users.delete(userId);
         }

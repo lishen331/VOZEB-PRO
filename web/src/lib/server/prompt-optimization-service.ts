@@ -1,10 +1,12 @@
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { CREATE_AGENT_PROMPT_MAX_LENGTH } from "@/lib/create-agent-prompt";
 import type { CreativeGenerationMode } from "@/lib/creative-runtime-contract";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
+import { resolveSiteTitle } from "@/lib/site-brand";
 
 type PromptOptimizationMode = "agent" | CreativeGenerationMode;
 
@@ -24,8 +26,11 @@ export async function optimizeCreativePrompt(input: { origin: string; cookie: st
     const candidates = resolveLogicalModelCandidates(settings, "text", model);
     if (!model || !candidates.length) throw new PromptOptimizationError("后台尚未配置可用的默认文本模型", 503);
 
+    const rankedCandidates = rankTextPlanningCandidates(candidates);
+    if (!rankedCandidates.length) throw new PromptOptimizationError("当前没有可用的文本模型渠道，请检查模型配置或稍后重试", 503);
+
     let latestError: unknown;
-    for (const candidate of rankTextPlanningCandidates(candidates)) {
+    for (const candidate of rankedCandidates) {
         const idempotencyKey = systemAiIdempotencyKey("prompt-optimize", input.userId, input.requestId, candidate.channelId, candidate.upstreamModel);
         try {
             const call = await requestStructuredText({
@@ -33,7 +38,7 @@ export async function optimizeCreativePrompt(input: { origin: string; cookie: st
                 cookie: input.cookie,
                 candidate,
                 messages: [
-                    { role: "system", content: promptOptimizationInstruction(input.mode) },
+                    { role: "system", content: promptOptimizationInstruction(input.mode, settings.site.title) },
                     { role: "user", content: input.prompt },
                 ],
                 tool: promptOptimizationTool,
@@ -58,9 +63,9 @@ export async function optimizeCreativePrompt(input: { origin: string; cookie: st
     throw new PromptOptimizationError(toSafeGenerationErrorMessage(latestError, "提示词优化失败，请稍后重试"));
 }
 
-function promptOptimizationInstruction(mode: PromptOptimizationMode) {
+function promptOptimizationInstruction(mode: PromptOptimizationMode, siteTitle: string) {
     const target = mode === "image" ? "图片" : mode === "video" ? "视频" : mode === "audio" ? "音频" : "创作";
-    return `你是 VOZEB PRO 提示词编辑器。把用户原文改写为清晰、紧凑、可直接发送的中文${target}提示词。保留主体、人名、品牌、数量、尺寸、比例、时长、文字内容、参考素材要求和否定要求；不得改变用户意图，不得虚构事实或添加用户没有要求的复杂设定。只返回优化后的公开提示词，不解释修改过程，不输出内部规划、模型选择理由或思维链。`;
+    return `你是 ${resolveSiteTitle(siteTitle)} 提示词编辑器。把用户原文改写为清晰、紧凑、可直接发送的中文${target}提示词。保留主体、人名、品牌、数量、尺寸、比例、时长、文字内容、参考素材要求和否定要求；不得改变用户意图，不得虚构事实或添加用户没有要求的复杂设定。只返回优化后的公开提示词，不解释修改过程，不输出内部规划、模型选择理由或思维链。`;
 }
 
 function parseOptimizedPrompt(value: string) {
@@ -75,7 +80,7 @@ function parseOptimizedPrompt(value: string) {
 
 async function refundInvalidResponse(userId: string, model: string, headers: Headers) {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+    if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `prompt-optimize-refund:${billing.billingReceiptId}` });
 }
 
 const promptOptimizationTool = {

@@ -21,11 +21,16 @@ test("public homepage is functional for signed-out visitors", async ({ browser }
     const page = await context.newPage();
     const browserErrors = collectBrowserErrors(page);
     let galleryRequest = "";
+    let billingProductRequests = 0;
+    await mockPublicWorkDetails(page);
     await page.route("**/api/public/gallery?**", async (route) => {
         galleryRequest = route.request().url();
         await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(galleryResponse) });
     });
-    await page.route("**/api/billing/products", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ products: [], paymentProviders: [] }) }));
+    await page.route("**/api/billing/products", (route) => {
+        billingProductRequests += 1;
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ products: [], paymentProviders: [] }) });
+    });
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { level: 1, name: "一个入口 完成所有 AI 创作" })).toBeVisible();
@@ -58,7 +63,7 @@ test("public homepage is functional for signed-out visitors", async ({ browser }
     await firstGalleryMedia.click();
     const galleryPreview = page.getByRole("dialog");
     await expect(galleryPreview.getByRole("img", { name: "首页公开作品 1" })).toBeVisible();
-    await galleryPreview.getByRole("button", { name: "Close" }).click();
+    await galleryPreview.getByRole("button", { name: "关闭作品详情" }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.locator("header").getByRole("button", { name: "登录", exact: true })).toHaveCount(0);
     await expect(page.getByText("登录后使用 AI 创作", { exact: true })).toHaveCount(0);
@@ -90,6 +95,7 @@ test("public homepage is functional for signed-out visitors", async ({ browser }
         const plansDialog = page.getByRole("dialog");
         await expect(plansDialog.getByText("升级创作套餐", { exact: true })).toBeVisible();
         await expect(plansDialog.getByText("暂无已上架套餐", { exact: true })).toBeVisible();
+        expect(billingProductRequests).toBe(1);
         await plansDialog.getByRole("button", { name: "关闭套餐选择" }).click();
         await expect(plansDialog).toBeHidden();
     } else {
@@ -186,8 +192,8 @@ test("public homepage is functional for signed-out visitors", async ({ browser }
         .getByRole("button", { name: /查看作品/ })
         .click();
     const videoPreview = page.getByRole("dialog");
-    await expect(videoPreview.locator("video")).toBeVisible();
-    await videoPreview.getByRole("button", { name: "Close" }).click();
+    await expect(videoPreview.getByLabel("首页公开作品 2", { exact: true })).toBeVisible();
+    await videoPreview.getByRole("button", { name: "关闭作品详情" }).click();
     await expect(page).toHaveURL(/\/$/);
     await page.getByRole("tab", { name: "短剧", exact: true }).click();
     await expect(page.getByTestId("home-public-gallery").locator("article")).toHaveCount(2);
@@ -389,6 +395,59 @@ function galleryItem(index: number, mediaType: "image" | "video", sourceType: "m
             url: mediaType === "video" ? "data:video/mp4;base64," : `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="640" height="480" fill="hsl(${index * 48} 58% 62%)"/></svg>`)}`,
         },
     };
+}
+
+async function mockPublicWorkDetails(page: Page) {
+    await page.route("**/api/public/works/**", async (route) => {
+        const url = new URL(route.request().url());
+        const segments = url.pathname.split("/").filter(Boolean);
+        const slug = segments[3] || "";
+        const suffix = segments[4];
+        const item = galleryResponse.data.items.find((candidate) => candidate.slug === slug);
+        if (!item) return route.fallback();
+        if (suffix === "view") {
+            return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ code: 0, msg: "OK", data: { viewCount: item.viewCount + 1 } }) });
+        }
+        if (suffix === "community") {
+            return route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    code: 0,
+                    msg: "OK",
+                    data: { workId: `home-work-${slug}`, versionId: `home-version-${slug}`, slug, ownerUserId: "home-owner", authorDisplay: "custom", likeCount: item.likeCount, followerCount: 0, liked: false, followingAuthor: false, canFollow: false },
+                }),
+            });
+        }
+        if (suffix) return route.fallback();
+        return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+                code: 0,
+                msg: "OK",
+                data: {
+                    work: {
+                        id: `home-work-${slug}`,
+                        slug,
+                        sourceType: item.sourceType,
+                        viewCount: item.viewCount,
+                        likeCount: item.likeCount,
+                        publishedAt: item.publishedAt,
+                        title: item.title,
+                        description: item.description,
+                        publicPrompt: item.publicPrompt,
+                        category: item.category,
+                        tags: item.tags,
+                        visibility: "public",
+                        hasProcess: false,
+                        authorName: item.authorName,
+                        assets: [{ id: item.preview.id, mediaType: item.preview.mediaType, mimeType: item.preview.mimeType, role: "content", sortOrder: 0, metadata: {}, url: item.preview.url }],
+                    },
+                },
+            }),
+        });
+    });
 }
 
 function collectBrowserErrors(page: Page) {

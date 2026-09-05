@@ -5,9 +5,10 @@ import type { AdminPermission } from "@/lib/admin-permissions";
 import type { GlobalAiOpcPresetId } from "@/lib/globalaiopc-catalog";
 import type { RegistrationPolicyConsent } from "@/lib/registration-consent";
 import { VOZEB_QQ_GROUP_URL } from "@/constant/community";
+import type { SystemChannelPurpose } from "@/lib/practice-domain";
 
 export type ApiCallFormat = "openai" | "gemini";
-export type SystemChannelProtocol = "auto" | "openai" | "yumeng" | "gemini" | "sub2api" | "newapi" | "vozeb-recommended" | "globalaiopc" | "seedance" | "stable-diffusion" | "volcengine-video" | "seedance-special" | "custom" | "compatible";
+export type SystemChannelProtocol = "auto" | "openai" | "yumeng" | "gemini" | "sub2api" | "newapi" | "vozeb-recommended" | "globalaiopc" | "seedance" | "stable-diffusion" | "volcengine-video" | "seedance-special" | "runninghub" | "custom" | "compatible";
 export type SystemChannelAuthMode = "none" | "bearer" | "x-api-key" | "custom-header";
 
 export type SystemChannelModelConfig = {
@@ -22,13 +23,80 @@ export type SystemChannelModelConfig = {
     cancelPath?: string;
     cancelMethod?: "POST" | "DELETE";
     requestTemplate?: string;
+    taskIdField?: string;
     resultField?: string;
     statusField?: string;
     durationRange?: string;
     referenceRule?: string;
+    /** Whether a text model accepts an image as part of its input content. */
+    supportsImageInput?: boolean;
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
+    streaming?: SystemChannelStreamingConfig;
+};
+
+export type SystemChannelStreamingConfig = {
+    enabled?: boolean;
+    path?: string;
+    format?: "sse" | "ndjson";
+};
+
+export type RunningHubWorkflowBusinessCode = "script" | "storyboard-image" | "storyboard-video" | "dubbing" | "music" | "canvas" | "drama";
+export type PracticeWorkflowModelBindings = Partial<Record<RunningHubWorkflowBusinessCode, string[]>>;
+export type RunningHubWorkflowInputField = {
+    key: string;
+    label: string;
+    type: "text" | "textarea" | "image" | "images" | "video" | "audio" | "number" | "enum" | "boolean";
+    required: boolean;
+    options?: string[];
+    defaultValue?: string | number | boolean | null;
+};
+export type RunningHubNodeMapping = {
+    paramKey: string;
+    nodeId: string;
+    fieldName: string;
+    valueType: "STRING" | "NUMBER" | "BOOLEAN" | "JSON";
+    source: "INPUT" | "INPUT_OR_DEFAULT";
+    inputKey: string;
+    defaultValue?: string | number | boolean | null;
+};
+export type RunningHubOutputMapping = {
+    key: string;
+    label: string;
+    nodeId?: string;
+    assetType: "IMAGE" | "VIDEO" | "AUDIO" | "TEXT";
+    required: boolean;
+    primary?: boolean;
+};
+export type RunningHubWorkflowConfig = {
+    workflowKey: string;
+    workflowName: string;
+    businessCode: RunningHubWorkflowBusinessCode;
+    capability: LogicalModelCapability;
+    providerType: "runninghub";
+    channelId: string;
+    workflowId: string;
+    version: number;
+    enabled: boolean;
+    createPath: string;
+    queryPath: string;
+    taskIdField: string;
+    statusField: string;
+    resultField: string;
+    requestTemplate: string;
+    inputSchema: RunningHubWorkflowInputField[];
+    nodeMappings: RunningHubNodeMapping[];
+    outputMappings: RunningHubOutputMapping[];
+    /** New or edited configs must pass a successful sample test before enable. */
+    testRequired?: boolean;
+    workflowJsonFingerprint?: string;
+    lastTestConfigFingerprint?: string;
+    timeoutSeconds?: number;
+    runOptions?: Record<string, string | number | boolean | null>;
+    lastTestAt?: string;
+    lastTestResult?: "success" | "failed";
+    lastTestError?: string;
 };
 
 export type SystemChannelAdvancedConfig = {
@@ -49,6 +117,7 @@ export type SystemChannelAdvancedConfig = {
     cancelPath?: string;
     cancelMethod?: "POST" | "DELETE";
     requestTemplate: string;
+    taskIdField?: string;
     resultField: string;
     statusField: string;
     durationRange: string;
@@ -60,6 +129,9 @@ export type SystemChannelAdvancedConfig = {
     modelCapabilities?: Record<string, LogicalModelCapability>;
     modelConfigs?: Record<string, SystemChannelModelConfig>;
     operationConfigs?: Partial<Record<LogicalModelCapability, SystemChannelModelConfig>>;
+    workflowConfigs?: Record<string, RunningHubWorkflowConfig>;
+    streaming?: SystemChannelStreamingConfig;
+    contextWindowTokens?: number;
 };
 
 export type LegacyUserQuota = {
@@ -81,6 +153,7 @@ export type SystemModelChannel = {
     apiFormat: ApiCallFormat;
     models: string[];
     enabled: boolean;
+    purpose?: SystemChannelPurpose;
     advancedConfig?: SystemChannelAdvancedConfig;
     hasApiKey?: boolean;
     clearApiKey?: boolean;
@@ -91,11 +164,14 @@ export type SystemModelChannel = {
 export type LogicalModelCapability = "text" | "image" | "video" | "audio";
 
 export type LogicalModelCapabilityProfile = {
+    supportsImageInput?: boolean;
     supportsReferenceImage?: boolean;
     supportsReferenceVideo?: boolean;
     supportsReferenceAudio?: boolean;
     maxReferenceImages?: number;
     aspectRatios?: string[];
+    resolutions?: string[];
+    durationSeconds?: number[];
     minDurationSeconds?: number;
     maxDurationSeconds?: number;
     maxBatchSize?: number;
@@ -130,6 +206,8 @@ export type SystemDefaultModels = {
     imageModel: string;
     videoModel: string;
     textModel: string;
+    /** Text-capability model that can accept an image input for Canvas analysis. */
+    visionModel?: string;
     audioModel: string;
 };
 
@@ -174,6 +252,14 @@ export type GenerationDefaultSettings = {
     videoSeconds: number;
     audioVoice: string;
     audioFormat: string;
+    /**
+     * Legacy Short Drama Lab controls retained in the global settings JSON
+     * during migration. Generic image/video task routes intentionally ignore
+     * these fields; the compatibility admin API still exposes their old names.
+     */
+    dramaMaxBatchSize?: number;
+    dramaImageTimeoutSeconds?: number;
+    dramaVideoTimeoutSeconds?: number;
 };
 
 export type GenerationPointMultipliers = {
@@ -466,6 +552,8 @@ export type AuthSettings = {
     systemChannels: SystemModelChannel[];
     logicalModels: LogicalModel[];
     defaultModels: SystemDefaultModels;
+    practiceDefaultModels: SystemDefaultModels;
+    practiceWorkflowModels: PracticeWorkflowModelBindings;
     agentSkills: AgentSkill[];
 };
 

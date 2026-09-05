@@ -34,3 +34,14 @@ VOZEB-PRO项目缺陷检查报告.md
 scripts/capture-readme-screenshots.mjs
 **/__pycache__/
 *.pyc
+过程文件/
+!过程文件/
+过程文件/*
+!过程文件/生成开发地图清单.ps1
+!过程文件/生成接口索引.ps1
+!过程文件/更新开发地图.ps1
+!过程文件/验证开发文档.ps1
+
+# Local debug/scratch artifacts
+/output/
+/test-*.mjs

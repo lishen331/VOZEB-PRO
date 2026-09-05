@@ -2,10 +2,14 @@ import type { CanvasProject, CanvasProjectMutation, CanvasProjectSaveAck, Canvas
 import { applyCanvasProjectMutation } from "@/lib/canvas-project-mutation";
 import { summarizeCanvasProjectRecord } from "@/lib/canvas-project-summary";
 import { summarizeCanvasProject, type CreateOverviewMedia, type CreateOverviewProject } from "@/lib/create-workbench-overview";
+import { dramaLabCanvasProjectHandoffPrefix, isDramaLabCanvasProject, parseDramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery } from "@/lib/server/database";
+import type { PracticeExecutionProfile, PracticeSource } from "@/lib/practice-domain";
 
-type CanvasProjectRecord = { userId: string; project: CanvasProject };
+export type CanvasProjectIdentityInput = { executionProfile?: PracticeExecutionProfile; practiceSource?: PracticeSource };
+export type CanvasProjectIdentityView = { executionProfile: PracticeExecutionProfile; practiceSource: PracticeSource };
+type CanvasProjectRecord = { userId: string; project: CanvasProject; executionProfile?: PracticeExecutionProfile; practiceSourceWorkId?: string; practiceSourceVersionId?: string };
 type CanvasProjectDatabase = { version: 1; projects: CanvasProjectRecord[] };
 type StoredCanvasProject = CanvasProject & { __canvasLastMutationId?: string };
 export type CanvasProjectPage = { items: CanvasProject[]; total: number; page: number; pageSize: number };
@@ -13,47 +17,53 @@ export type CanvasProjectPage = { items: CanvasProject[]; total: number; page: n
 const FILE_NAME = "canvas-projects.json";
 let mutationQueue = Promise.resolve();
 
-export async function listCanvasProjects(userId: string) {
+export type CanvasProjectListOptions = { includeDramaLab?: boolean };
+
+export async function listCanvasProjects(userId: string, options: CanvasProjectListOptions = {}) {
     if (getDatabaseProvider() === "postgres") throw new Error("PostgreSQL Canvas reads must use a paginated project query");
     return (await readDatabase()).projects
-        .filter((record) => record.userId === userId)
-        .map((record) => toPublicProject(record.project as StoredCanvasProject))
+        .filter((record) => record.userId === userId && (options.includeDramaLab || !isDramaLabCanvasProject(record.project)))
+        .map((record) => toPublicProject(record.project as StoredCanvasProject, record))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
 }
 
-export async function listCanvasProjectPage(userId: string, input: { page: number; pageSize: number }): Promise<CanvasProjectPage> {
+export async function listCanvasProjectPage(userId: string, input: { page: number; pageSize: number; includeDramaLab?: boolean }): Promise<CanvasProjectPage> {
     const offset = (input.page - 1) * input.pageSize;
+    const dramaLabClause = input.includeDramaLab ? "" : "\n                   AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<{ project_json?: StoredCanvasProject; total_count: unknown }>(
+        const result = await postgresQuery<{ project_json?: StoredCanvasProject; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string; total_count: unknown }>(
             `WITH filtered AS (
-                 SELECT id, updated_at, project_json
+                 SELECT id, updated_at, project_json, execution_profile, practice_source_work_id, practice_source_version_id
                  FROM canvas_projects
-                 WHERE user_id = $1
+                 WHERE user_id = $1${dramaLabClause}
              ), page_items AS (
-                 SELECT id, updated_at, project_json
+                 SELECT id, updated_at, project_json, execution_profile, practice_source_work_id, practice_source_version_id
                  FROM filtered
                  ORDER BY updated_at DESC, id ASC
                  LIMIT $2 OFFSET $3
              )
-             SELECT page_items.project_json, totals.total_count
+             SELECT page_items.project_json, page_items.execution_profile, page_items.practice_source_work_id, page_items.practice_source_version_id, totals.total_count
              FROM (SELECT count(*)::integer AS total_count FROM filtered) totals
              LEFT JOIN page_items ON TRUE
              ORDER BY page_items.updated_at DESC NULLS LAST, page_items.id ASC`,
             [userId, input.pageSize, offset],
         );
         return {
-            ...input,
-            items: result.rows.flatMap((row) => (row.project_json ? [toPublicProject(row.project_json)] : [])),
+            page: input.page,
+            pageSize: input.pageSize,
+            items: result.rows.flatMap((row) => (row.project_json ? [toPublicProject(row.project_json, row)] : [])),
             total: Math.max(0, Number(result.rows[0]?.total_count) || 0),
         };
     }
-    const projects = await listCanvasProjects(userId);
-    return { ...input, items: projects.slice(offset, offset + input.pageSize), total: projects.length };
+    const projects = await listCanvasProjects(userId, { includeDramaLab: input.includeDramaLab });
+    return { page: input.page, pageSize: input.pageSize, items: projects.slice(offset, offset + input.pageSize), total: projects.length };
 }
 
-export async function listCanvasProjectSummaries(userId: string, input: { page: number; pageSize: number }): Promise<CanvasProjectSummaryPage> {
+export async function listCanvasProjectSummaries(userId: string, input: { page: number; pageSize: number; executionProfile?: PracticeExecutionProfile; includeDramaLab?: boolean; dramaLabOnly?: boolean }): Promise<CanvasProjectSummaryPage> {
     const offset = (input.page - 1) * input.pageSize;
+    const profileClause = input.executionProfile ? " AND execution_profile = $4" : "";
+    const dramaLabClause = input.dramaLabOnly ? " AND COALESCE(project_json->>'sourceHandoffId', '') LIKE 'drama-lab-canvas:%'" : input.includeDramaLab ? "" : " AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<Record<string, unknown>>(
@@ -61,10 +71,11 @@ export async function listCanvasProjectSummaries(userId: string, input: { page: 
                  SELECT id, title, created_at, updated_at,
                         project_json->>'sourceHandoffId' AS source_handoff_id,
                         project_json->>'creativeConversationId' AS creative_conversation_id,
+                        execution_profile, practice_source_work_id, practice_source_version_id,
                         jsonb_array_length(CASE WHEN jsonb_typeof(project_json->'nodes') = 'array' THEN project_json->'nodes' ELSE '[]'::jsonb END) AS node_count,
                         jsonb_array_length(CASE WHEN jsonb_typeof(project_json->'connections') = 'array' THEN project_json->'connections' ELSE '[]'::jsonb END) AS connection_count
                  FROM canvas_projects
-                 WHERE user_id = $1
+                 WHERE user_id = $1${profileClause}${dramaLabClause}
              ), page_items AS (
                  SELECT * FROM filtered ORDER BY updated_at DESC, id ASC LIMIT $2 OFFSET $3
              )
@@ -72,12 +83,64 @@ export async function listCanvasProjectSummaries(userId: string, input: { page: 
              FROM (SELECT count(*)::integer AS total_count FROM filtered) totals
              LEFT JOIN page_items ON TRUE
              ORDER BY page_items.updated_at DESC NULLS LAST, page_items.id ASC`,
-            [userId, input.pageSize, offset],
+            input.executionProfile ? [userId, input.pageSize, offset, input.executionProfile] : [userId, input.pageSize, offset],
         );
-        return { projects: result.rows.filter((row) => row.id).map(mapProjectSummary), total: Math.max(0, Number(result.rows[0]?.total_count) || 0), ...input };
+        return { projects: result.rows.filter((row) => row.id).map(mapProjectSummary), total: Math.max(0, Number(result.rows[0]?.total_count) || 0), page: input.page, pageSize: input.pageSize };
     }
-    const projects = (await listCanvasProjects(userId)).map(summarizeCanvasProjectRecord);
-    return { projects: projects.slice(offset, offset + input.pageSize), total: projects.length, ...input };
+    const projects = (await listCanvasProjects(userId, { includeDramaLab: input.includeDramaLab || input.dramaLabOnly }))
+        .filter((project) => !input.dramaLabOnly || isDramaLabCanvasProject(project))
+        .filter((project) => !input.executionProfile || (project as CanvasProject & CanvasProjectIdentityView).executionProfile === input.executionProfile)
+        .map(summarizeCanvasProjectRecord);
+    return { projects: projects.slice(offset, offset + input.pageSize), total: projects.length, page: input.page, pageSize: input.pageSize };
+}
+
+/**
+ * List episode canvases for an already-authorized set of Drama Lab project
+ * IDs.  Drama canvases are stored under the physical Canvas owner, which may
+ * differ from the requesting collaborator after a project ownership
+ * transfer.  Filtering by the signed handoff prefix keeps the query scoped to
+ * those projects without exposing every Canvas belonging to that owner.
+ */
+export async function listDramaLabCanvasProjectSummariesForProjects(projectIds: string[], input: { page: number; pageSize: number }): Promise<CanvasProjectSummaryPage> {
+    const ids = Array.from(new Set(projectIds.map((id) => (typeof id === "string" ? id.trim() : "")).filter(Boolean)));
+    if (!ids.length) return { projects: [], total: 0, page: input.page, pageSize: input.pageSize };
+    const offset = (input.page - 1) * input.pageSize;
+    const prefixes = ids.map((id) => dramaLabCanvasProjectHandoffPrefix(id));
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<Record<string, unknown>>(
+            `WITH allowed_prefixes AS (
+                 SELECT DISTINCT unnest($1::text[]) AS prefix
+             ), filtered AS (
+                 SELECT project.id, project.title, project.created_at, project.updated_at,
+                        project.project_json->>'sourceHandoffId' AS source_handoff_id,
+                        project.project_json->>'creativeConversationId' AS creative_conversation_id,
+                        project.execution_profile, project.practice_source_work_id, project.practice_source_version_id,
+                        jsonb_array_length(CASE WHEN jsonb_typeof(project.project_json->'nodes') = 'array' THEN project.project_json->'nodes' ELSE '[]'::jsonb END) AS node_count,
+                        jsonb_array_length(CASE WHEN jsonb_typeof(project.project_json->'connections') = 'array' THEN project.project_json->'connections' ELSE '[]'::jsonb END) AS connection_count
+                 FROM canvas_projects project
+                 JOIN allowed_prefixes allowed ON left(COALESCE(project.project_json->>'sourceHandoffId', ''), length(allowed.prefix)) = allowed.prefix
+                 WHERE COALESCE(project.project_json->>'sourceHandoffId', '') LIKE 'drama-lab-canvas:%'
+             ), page_items AS (
+                 SELECT * FROM filtered ORDER BY updated_at DESC, id ASC LIMIT $2 OFFSET $3
+             )
+             SELECT page_items.*, totals.total_count
+             FROM (SELECT count(*)::integer AS total_count FROM filtered) totals
+             LEFT JOIN page_items ON TRUE
+             ORDER BY page_items.updated_at DESC NULLS LAST, page_items.id ASC`,
+            [prefixes, input.pageSize, offset],
+        );
+        return { projects: result.rows.filter((row) => row.id).map(mapProjectSummary), total: Math.max(0, Number(result.rows[0]?.total_count) || 0), page: input.page, pageSize: input.pageSize };
+    }
+    const allowed = new Set(ids);
+    const projects = (await readDatabase()).projects
+        .filter((record) => {
+            const binding = parseDramaLabEpisodeCanvasHandoffId(record.project.sourceHandoffId);
+            return Boolean(binding && allowed.has(binding.projectId));
+        })
+        .map((record) => summarizeCanvasProjectRecord(record.project))
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
+    return { projects: projects.slice(offset, offset + input.pageSize), total: projects.length, page: input.page, pageSize: input.pageSize };
 }
 
 export async function getLatestCanvasProjectOverview(userId: string): Promise<CreateOverviewProject | undefined> {
@@ -118,6 +181,7 @@ export async function getLatestCanvasProjectOverview(userId: string): Promise<Cr
                 ), '[]'::jsonb) AS previews
             FROM canvas_projects
             WHERE user_id = $1
+              AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'
             ORDER BY updated_at DESC
             LIMIT 1
             `,
@@ -132,38 +196,61 @@ export async function getLatestCanvasProjectOverview(userId: string): Promise<Cr
 export async function getCanvasProject(id: string, userId: string) {
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<{ project_json: CanvasProject }>("SELECT project_json FROM canvas_projects WHERE id = $1 AND user_id = $2", [id, userId]);
-        return result.rows[0] ? toPublicProject(result.rows[0].project_json as StoredCanvasProject) : null;
+        const result = await postgresQuery<{ project_json: CanvasProject; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }>(
+            "SELECT project_json, execution_profile, practice_source_work_id, practice_source_version_id FROM canvas_projects WHERE id = $1 AND user_id = $2",
+            [id, userId],
+        );
+        return result.rows[0] ? toPublicProject(result.rows[0].project_json as StoredCanvasProject, result.rows[0]) : null;
     }
     const record = (await readDatabase()).projects.find((item) => item.userId === userId && item.project.id === id);
-    return record ? toPublicProject(record.project as StoredCanvasProject) : null;
+    return record ? toPublicProject(record.project as StoredCanvasProject, record) : null;
 }
 
-export async function createCanvasProject(userId: string, project: CanvasProject) {
+/** Internal lookup used after a Drama Lab collaboration membership check. */
+export async function getCanvasProjectWithOwner(id: string) {
+    const projectId = typeof id === "string" ? id.trim() : "";
+    if (!projectId) return null;
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<{ project_json: StoredCanvasProject; user_id: string; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }>(
+            "SELECT project_json, user_id, execution_profile, practice_source_work_id, practice_source_version_id FROM canvas_projects WHERE id = $1",
+            [projectId],
+        );
+        const row = result.rows[0];
+        return row ? { project: toPublicProject(row.project_json, row), ownerUserId: row.user_id } : null;
+    }
+    const record = (await readDatabase()).projects.find((item) => item.project.id === projectId);
+    return record ? { project: toPublicProject(record.project as StoredCanvasProject, record), ownerUserId: record.userId } : null;
+}
+
+export async function createCanvasProject(userId: string, project: CanvasProject, identity: CanvasProjectIdentityInput = {}) {
+    const metadata = normalizeIdentity(identity);
+    const storedProject = stripProjectIdentity(project);
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         await postgresQuery(
-            `INSERT INTO canvas_projects (id, user_id, title, project_json, created_at, updated_at)
-             VALUES ($1, $2, $3, $4::jsonb, $5, $6)`,
-            [project.id, userId, project.title, JSON.stringify(project), new Date(project.createdAt), new Date(project.updatedAt)],
+            `INSERT INTO canvas_projects (id, user_id, title, project_json, execution_profile, practice_source_work_id, practice_source_version_id, created_at, updated_at)
+             VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9)`,
+            [project.id, userId, project.title, JSON.stringify(storedProject), metadata.executionProfile, metadata.practiceSourceWorkId, metadata.practiceSourceVersionId, new Date(project.createdAt), new Date(project.updatedAt)],
         );
-        return project;
+        return withIdentity(project, metadata);
     }
     await mutateDatabase((db) => {
         if (db.projects.some((record) => record.project.id === project.id)) throw new CanvasProjectStoreError("画布项目已存在", 409);
-        return { ...db, projects: [{ userId, project }, ...db.projects] };
+        return { ...db, projects: [{ userId, project: storedProject, ...metadata }, ...db.projects] };
     });
-    return project;
+    return withIdentity(project, metadata);
 }
 
 export async function updateCanvasProject(userId: string, project: CanvasProject, expectedUpdatedAt: string) {
+    const storedProject = stripProjectIdentity(project);
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery(
             `UPDATE canvas_projects SET title = $3, project_json = $4::jsonb, updated_at = $5
              WHERE id = $1 AND user_id = $2 AND project_json->>'updatedAt' = $6
              RETURNING id`,
-            [project.id, userId, project.title, JSON.stringify(project), new Date(project.updatedAt), expectedUpdatedAt],
+            [project.id, userId, project.title, JSON.stringify(storedProject), new Date(project.updatedAt), expectedUpdatedAt],
         );
         if (!result.rows[0]) {
             const existing = await getCanvasProject(project.id, userId);
@@ -178,7 +265,7 @@ export async function updateCanvasProject(userId: string, project: CanvasProject
             if (record.userId !== userId || record.project.id !== project.id) return record;
             found = true;
             if (record.project.updatedAt !== expectedUpdatedAt) throw new CanvasProjectStoreError("画布项目已在其他页面更新，请刷新后重试", 409);
-            return { ...record, project };
+            return { ...record, project: storedProject };
         }),
     }));
     if (!found) throw new CanvasProjectStoreError("画布项目不存在", 404);
@@ -284,6 +371,10 @@ async function updatePostgresProjectMutation(userId: string, projectId: string, 
         const index = values.push(JSON.stringify(mutation.viewport));
         projectExpression = `jsonb_set(${projectExpression}, '{viewport}', $${index}::jsonb, true)`;
     }
+    if (mutation.ipReferences !== undefined) {
+        const index = values.push(JSON.stringify(mutation.ipReferences));
+        projectExpression = `jsonb_set(${projectExpression}, '{ipReferences}', $${index}::jsonb, true)`;
+    }
     const mutationIndex = values.length + 1;
     values.push(mutation.mutationId);
     projectExpression = `jsonb_set(${projectExpression}, '{__canvasLastMutationId}', to_jsonb($${mutationIndex}::text), true)`;
@@ -343,13 +434,45 @@ function readDatabase() {
     return readJsonDataFile<CanvasProjectDatabase>(FILE_NAME, { version: 1, projects: [] });
 }
 
-function withMutationId(project: CanvasProject, mutationId: string): StoredCanvasProject {
-    return { ...project, __canvasLastMutationId: mutationId };
+type StoredProjectIdentity = { executionProfile: PracticeExecutionProfile; practiceSourceWorkId?: string; practiceSourceVersionId?: string };
+
+function normalizeIdentity(input: CanvasProjectIdentityInput): StoredProjectIdentity {
+    const executionProfile = input.executionProfile === "open-source-practice" ? "open-source-practice" : "production";
+    const source = input.practiceSource?.type === "published-work" ? input.practiceSource : undefined;
+    return {
+        executionProfile,
+        ...(source ? { practiceSourceWorkId: source.workId, practiceSourceVersionId: source.versionId } : {}),
+    };
 }
 
-function toPublicProject(project: StoredCanvasProject): CanvasProject {
+function withIdentity(project: CanvasProject, identity: StoredProjectIdentity): CanvasProject & CanvasProjectIdentityView {
+    return {
+        ...stripProjectIdentity(project),
+        executionProfile: identity.executionProfile,
+        practiceSource: identity.practiceSourceWorkId && identity.practiceSourceVersionId ? { type: "published-work", workId: identity.practiceSourceWorkId, versionId: identity.practiceSourceVersionId } : { type: "blank" },
+    };
+}
+
+function identityView(source: Partial<StoredProjectIdentity> & { execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }): CanvasProjectIdentityView {
+    const executionProfile = source.execution_profile === "open-source-practice" || source.executionProfile === "open-source-practice" ? "open-source-practice" : "production";
+    const workId = source.practice_source_work_id || source.practiceSourceWorkId;
+    const versionId = source.practice_source_version_id || source.practiceSourceVersionId;
+    return { executionProfile, practiceSource: workId && versionId ? { type: "published-work", workId, versionId } : { type: "blank" } };
+}
+
+function stripProjectIdentity(project: CanvasProject) {
+    const value = project as CanvasProject & Partial<CanvasProjectIdentityView>;
+    const { executionProfile: _executionProfile, practiceSource: _practiceSource, ...stored } = value;
+    return stored;
+}
+
+function withMutationId(project: CanvasProject, mutationId: string): StoredCanvasProject {
+    return { ...stripProjectIdentity(project), __canvasLastMutationId: mutationId };
+}
+
+function toPublicProject(project: StoredCanvasProject, identity?: Partial<StoredProjectIdentity> & { execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }): CanvasProject & CanvasProjectIdentityView {
     const { __canvasLastMutationId: _mutationId, ...publicProject } = project;
-    return publicProject;
+    return { ...publicProject, ...identityView(identity || {}) };
 }
 
 function mutateDatabase(mutator: (database: CanvasProjectDatabase) => CanvasProjectDatabase) {
@@ -380,7 +503,7 @@ function mapPostgresOverview(row: Record<string, unknown>): CreateOverviewProjec
     };
 }
 
-function mapProjectSummary(row: Record<string, unknown>): CanvasProjectSummary {
+function mapProjectSummary(row: Record<string, unknown>): CanvasProjectSummary & CanvasProjectIdentityView {
     const sourceHandoffId = String(row.source_handoff_id || "").trim();
     const creativeConversationId = String(row.creative_conversation_id || "").trim();
     return {
@@ -392,6 +515,7 @@ function mapProjectSummary(row: Record<string, unknown>): CanvasProjectSummary {
         connectionCount: Math.max(0, Number(row.connection_count) || 0),
         createdAt: isoDate(row.created_at),
         updatedAt: isoDate(row.updated_at),
+        ...identityView(row),
     };
 }
 

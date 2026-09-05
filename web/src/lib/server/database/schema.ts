@@ -1,6 +1,10 @@
 import { ALL_ADMIN_PERMISSIONS } from "@/lib/admin-permissions";
 import { POSTGRESQL_COMMERCIAL_FEATURES_SCHEMA_SQL } from "./schema-commercial-features";
+import { POSTGRESQL_IP_LIBRARY_SCHEMA_SQL } from "./schema-ip-library";
+import { POSTGRESQL_SCHOOL_COMPUTE_SCHEMA_SQL } from "./schema-school-compute";
+import { POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL } from "./schema-school-domain";
 import { POSTGRESQL_TRIGGER_SCHEMA_SQL } from "./schema-triggers";
+import { DRAMA_LAB_SCHEMA_SQL } from "./schema-drama-lab";
 
 const FULL_ADMIN_PERMISSIONS_JSON = JSON.stringify(ALL_ADMIN_PERMISSIONS);
 
@@ -85,6 +89,8 @@ CREATE TABLE IF NOT EXISTS app_settings (
     payment_config jsonb NOT NULL DEFAULT '{}'::jsonb,
     logical_models jsonb NOT NULL DEFAULT '[]'::jsonb,
     default_models jsonb NOT NULL DEFAULT '{}'::jsonb,
+    practice_default_models jsonb NOT NULL DEFAULT '{}'::jsonb,
+    practice_workflow_models jsonb NOT NULL DEFAULT '{}'::jsonb,
     agent_skills jsonb NOT NULL DEFAULT '[{"id":"ecommerce-image","name":"电商生图","description":"为商品主图、场景图和详情页视觉生成结构化方案。","instructions":"识别商品卖点、目标人群、平台与画幅。优先规划白底主图、核心卖点场景图、细节特写和详情页横幅；保持商品外观、材质、颜色、Logo 与包装一致。提示词必须写清主体、构图、光线、背景、镜头、商业质感、尺寸比例与禁止变形要求。","enabled":true,"keywords":["电商","商品","主图","详情页","淘宝","京东","亚马逊"]}]'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -100,6 +106,8 @@ ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS free_daily_points_enabled bool
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS free_daily_points numeric(18, 2) NOT NULL DEFAULT 0;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS generation_cost_control jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS data_lifecycle jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_default_models jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_workflow_models jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS system_model_channels (
     id text PRIMARY KEY,
@@ -110,6 +118,7 @@ CREATE TABLE IF NOT EXISTS system_model_channels (
     api_format text NOT NULL DEFAULT 'openai',
     models jsonb NOT NULL DEFAULT '[]'::jsonb,
     enabled boolean NOT NULL DEFAULT true,
+    purpose text NOT NULL DEFAULT 'shared',
     advanced_config jsonb,
     sort_order integer NOT NULL DEFAULT 0,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -117,6 +126,9 @@ CREATE TABLE IF NOT EXISTS system_model_channels (
     CONSTRAINT system_model_channels_api_format CHECK (api_format IN ('openai', 'gemini'))
 );
 ALTER TABLE system_model_channels ADD COLUMN IF NOT EXISTS webhook_secret_ciphertext text NOT NULL DEFAULT '';
+ALTER TABLE system_model_channels ADD COLUMN IF NOT EXISTS purpose text NOT NULL DEFAULT 'shared';
+ALTER TABLE system_model_channels DROP CONSTRAINT IF EXISTS system_model_channels_purpose;
+ALTER TABLE system_model_channels ADD CONSTRAINT system_model_channels_purpose CHECK (purpose IN ('production', 'open-source-practice', 'shared'));
 
 CREATE SEQUENCE IF NOT EXISTS user_account_id_seq START WITH 1;
 
@@ -284,6 +296,7 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     expires_at timestamptz NOT NULL,
+    execution_profile text NOT NULL DEFAULT 'production',
     CONSTRAINT generation_tasks_type CHECK (task_type IN ('text', 'image', 'video', 'audio', 'agent', 'render')),
     CONSTRAINT generation_tasks_status CHECK (status IN ('pending', 'running', 'success', 'error', 'paused', 'cancelled'))
 );
@@ -301,6 +314,7 @@ ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS project_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS parent_task_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS attempt_no integer;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS client_request_id text;
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS execution_profile text NOT NULL DEFAULT 'production';
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS execution_phase text NOT NULL DEFAULT 'created';
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS upstream_task_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS channel_id text;
@@ -314,17 +328,37 @@ ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS result_payload jsonb;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS worker_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS lease_until timestamptz;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS last_heartbeat_at timestamptz;
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS workflow_key text;
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS workflow_version integer;
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS upstream_workflow_id text;
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS business_code text;
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS task_origin text NOT NULL DEFAULT 'user';
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_execution_phase;
 ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_execution_phase CHECK (execution_phase IN ('created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting', 'cancel_requested', 'cancel_polling', 'needs_review', 'review_pending', 'reviewing', 'review_unavailable', 'completed'));
+ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_execution_profile;
+ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_execution_profile CHECK (execution_profile IN ('production', 'open-source-practice'));
+ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_task_origin;
+ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_task_origin CHECK (task_origin IN ('user', 'admin-workflow-test'));
 
 DROP INDEX IF EXISTS generation_tasks_user_client_request_idx;
 CREATE UNIQUE INDEX generation_tasks_user_client_request_idx ON generation_tasks (user_id, task_type, client_request_id, COALESCE(attempt_no, 0)) WHERE client_request_id IS NOT NULL AND client_request_id <> '';
 CREATE UNIQUE INDEX IF NOT EXISTS generation_tasks_channel_upstream_idx ON generation_tasks (channel_id, upstream_task_id) WHERE channel_id IS NOT NULL AND channel_id <> '' AND upstream_task_id IS NOT NULL AND upstream_task_id <> '';
 CREATE INDEX IF NOT EXISTS generation_tasks_conversation_idx ON generation_tasks (conversation_id, updated_at DESC) WHERE conversation_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS generation_tasks_run_idx ON generation_tasks (run_id, updated_at DESC) WHERE run_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS generation_tasks_workflow_idx ON generation_tasks (workflow_key, workflow_version, updated_at DESC) WHERE workflow_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS generation_tasks_user_project_idx ON generation_tasks (user_id, project_id, task_type, status) WHERE project_id IS NOT NULL;
 DROP INDEX IF EXISTS generation_tasks_recovery_due_idx;
 CREATE INDEX generation_tasks_recovery_due_idx ON generation_tasks (next_poll_at, lease_until, id) WHERE (status IN ('pending', 'running') AND execution_phase IN ('created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting')) OR (status = 'cancelled' AND execution_phase IN ('cancel_requested', 'cancel_polling')) OR (task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing'));
+
+CREATE TABLE IF NOT EXISTS generation_concurrency_reservations (
+    user_id text NOT NULL,
+    task_type text NOT NULL,
+    request_id text NOT NULL,
+    expires_at timestamptz NOT NULL,
+    PRIMARY KEY (user_id, task_type, request_id),
+    CONSTRAINT generation_concurrency_reservations_type CHECK (task_type IN ('text', 'image', 'video', 'audio', 'agent', 'render'))
+);
+CREATE INDEX IF NOT EXISTS generation_concurrency_reservations_expires_idx ON generation_concurrency_reservations (expires_at);
 
 CREATE TABLE IF NOT EXISTS generation_worker_heartbeats (
     worker_id text PRIMARY KEY,
@@ -457,7 +491,7 @@ CREATE TABLE IF NOT EXISTS local_media_assets (
     expires_at timestamptz,
     CONSTRAINT local_media_assets_scope CHECK (scope IN ('generation', 'reference')),
     CONSTRAINT local_media_assets_class CHECK (storage_class IN ('temporary', 'permanent')),
-    CONSTRAINT local_media_assets_type CHECK (type IN ('image', 'video', 'audio'))
+    CONSTRAINT local_media_assets_type CHECK (type IN ('image', 'video', 'audio', 'attachment'))
 );
 
 CREATE INDEX IF NOT EXISTS local_media_assets_owner_created_idx ON local_media_assets (owner_user_id, created_at DESC);
@@ -468,6 +502,15 @@ ALTER TABLE local_media_assets ADD COLUMN IF NOT EXISTS storage_provider text NO
 ALTER TABLE local_media_assets ADD COLUMN IF NOT EXISTS external_storage_id text;
 ALTER TABLE local_media_assets ADD COLUMN IF NOT EXISTS external_object_key text;
 ALTER TABLE local_media_assets ADD COLUMN IF NOT EXISTS external_synced_at timestamptz;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'local_media_assets_type') THEN
+        ALTER TABLE local_media_assets DROP CONSTRAINT local_media_assets_type;
+    END IF;
+    ALTER TABLE local_media_assets ADD CONSTRAINT local_media_assets_type CHECK (type IN ('image', 'video', 'audio', 'attachment'));
+END;
+$$;
 
 DO $$
 BEGIN
@@ -531,11 +574,20 @@ CREATE TABLE IF NOT EXISTS canvas_projects (
     user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title text NOT NULL,
     project_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+    execution_profile text NOT NULL DEFAULT 'production',
+    practice_source_work_id text,
+    practice_source_version_id text,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS canvas_projects_user_updated_idx ON canvas_projects (user_id, updated_at DESC);
+ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS execution_profile text NOT NULL DEFAULT 'production';
+ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS practice_source_work_id text;
+ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS practice_source_version_id text;
+ALTER TABLE canvas_projects DROP CONSTRAINT IF EXISTS canvas_projects_execution_profile;
+ALTER TABLE canvas_projects ADD CONSTRAINT canvas_projects_execution_profile CHECK (execution_profile IN ('production', 'open-source-practice'));
+CREATE INDEX IF NOT EXISTS canvas_projects_user_profile_updated_idx ON canvas_projects (user_id, execution_profile, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS library_assets (
     id text PRIMARY KEY,
@@ -558,12 +610,79 @@ CREATE TABLE IF NOT EXISTS drama_projects (
     title text NOT NULL,
     status text NOT NULL DEFAULT 'active',
     project_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+    execution_profile text NOT NULL DEFAULT 'production',
+    practice_source_work_id text,
+    practice_source_version_id text,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT drama_projects_status CHECK (status IN ('active', 'archived'))
 );
 
 CREATE INDEX IF NOT EXISTS drama_projects_user_updated_idx ON drama_projects (user_id, updated_at DESC);
+ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS execution_profile text NOT NULL DEFAULT 'production';
+ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS practice_source_work_id text;
+ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS practice_source_version_id text;
+ALTER TABLE drama_projects DROP CONSTRAINT IF EXISTS drama_projects_execution_profile;
+ALTER TABLE drama_projects ADD CONSTRAINT drama_projects_execution_profile CHECK (execution_profile IN ('production', 'open-source-practice'));
+CREATE INDEX IF NOT EXISTS drama_projects_user_profile_updated_idx ON drama_projects (user_id, execution_profile, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS practice_sessions (
+    id text PRIMARY KEY,
+    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id text,
+    project_kind text NOT NULL,
+    module text NOT NULL,
+    mode text NOT NULL DEFAULT 'workflow',
+    title text NOT NULL DEFAULT '',
+    client_request_id text NOT NULL,
+    execution_profile text NOT NULL DEFAULT 'open-source-practice',
+    prompt_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+    input_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+    task_refs jsonb NOT NULL DEFAULT '[]'::jsonb,
+    selected_logical_model_id text,
+    error_code text,
+    error_message text,
+    status text NOT NULL DEFAULT 'queued',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT practice_sessions_project_kind CHECK (project_kind IN ('canvas', 'drama')),
+    CONSTRAINT practice_sessions_module CHECK (module IN ('script', 'storyboard-image', 'storyboard-video', 'dubbing', 'music')),
+    CONSTRAINT practice_sessions_mode CHECK (mode IN ('manual', 'workflow')),
+    CONSTRAINT practice_sessions_profile CHECK (execution_profile = 'open-source-practice'),
+    CONSTRAINT practice_sessions_status CHECK (status IN ('draft', 'queued', 'running', 'success', 'failed', 'cancelled'))
+);
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS mode text;
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS selected_logical_model_id text;
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS error_code text;
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS error_message text;
+UPDATE practice_sessions SET mode = 'workflow' WHERE mode IS NULL;
+ALTER TABLE practice_sessions ALTER COLUMN mode SET DEFAULT 'workflow';
+ALTER TABLE practice_sessions ALTER COLUMN mode SET NOT NULL;
+ALTER TABLE practice_sessions DROP CONSTRAINT IF EXISTS practice_sessions_mode;
+ALTER TABLE practice_sessions ADD CONSTRAINT practice_sessions_mode CHECK (mode IN ('manual', 'workflow'));
+ALTER TABLE practice_sessions DROP CONSTRAINT IF EXISTS practice_sessions_status;
+ALTER TABLE practice_sessions ADD CONSTRAINT practice_sessions_status CHECK (status IN ('draft', 'queued', 'running', 'success', 'failed', 'cancelled'));
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS title text NOT NULL DEFAULT '';
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS client_request_id text;
+UPDATE practice_sessions SET client_request_id = id WHERE client_request_id IS NULL;
+ALTER TABLE practice_sessions ALTER COLUMN client_request_id SET NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS practice_sessions_user_request_idx ON practice_sessions (user_id, client_request_id);
+CREATE INDEX IF NOT EXISTS practice_sessions_user_updated_idx ON practice_sessions (user_id, updated_at DESC, id);
+CREATE INDEX IF NOT EXISTS practice_sessions_project_updated_idx ON practice_sessions (user_id, project_kind, project_id, updated_at DESC, id);
+
+CREATE TABLE IF NOT EXISTS practice_copy_requests (
+    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    client_request_id text NOT NULL,
+    source_work_id text NOT NULL,
+    source_version_id text NOT NULL,
+    project_kind text NOT NULL,
+    project_id text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, client_request_id),
+    CONSTRAINT practice_copy_requests_project_kind CHECK (project_kind IN ('canvas', 'drama'))
+);
+CREATE INDEX IF NOT EXISTS practice_copy_requests_project_idx ON practice_copy_requests (user_id, project_kind, project_id);
 
 CREATE TABLE IF NOT EXISTS drama_project_versions (
     id text PRIMARY KEY,
@@ -922,11 +1041,13 @@ CREATE TABLE IF NOT EXISTS generation_logs (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     completed_at timestamptz,
-    CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video')),
+    CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video', 'text')),
     CONSTRAINT generation_logs_status CHECK (status IN ('pending', 'success', 'failed'))
 );
 ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS conversation_id text REFERENCES creative_conversations(id) ON DELETE SET NULL;
 ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS request_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE generation_logs DROP CONSTRAINT IF EXISTS generation_logs_kind;
+ALTER TABLE generation_logs ADD CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video', 'text'));
 UPDATE creative_conversations AS conversation
 SET source = CASE WHEN log.source = 'video-workbench' THEN 'video-workbench' ELSE 'image-workbench' END
 FROM generation_logs AS log
@@ -980,9 +1101,17 @@ CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON audit_logs (action);
 CREATE INDEX IF NOT EXISTS audit_logs_actor_user_idx ON audit_logs (actor_user_id);
 CREATE INDEX IF NOT EXISTS audit_logs_target_idx ON audit_logs (target_type, target_id);
 
+${POSTGRESQL_SCHOOL_DOMAIN_SCHEMA_SQL}
+
+${POSTGRESQL_SCHOOL_COMPUTE_SCHEMA_SQL}
+
+${POSTGRESQL_IP_LIBRARY_SCHEMA_SQL}
+
 ${POSTGRESQL_TRIGGER_SCHEMA_SQL}
 
+${DRAMA_LAB_SCHEMA_SQL}
+
 INSERT INTO schema_migrations (version)
-VALUES ('20260709_postgresql_commercial_base'), ('20260709_billing_foundation'), ('20260709_billing_checkout'), ('20260709_commercial_seed_products'), ('20260709_vozeb_pro_table_prefix'), ('20260711_generation_tasks'), ('20260716_billing_reconciliation'), ('20260725_account_deletion_requests'), ('20260726_promotion_coupon_commerce'), ('20260727_referral_growth_rewards'), ('20260727_work_publications'), ('20260727_work_community'), ('20260728_user_blocks')
+VALUES ('20260709_postgresql_commercial_base'), ('20260709_billing_foundation'), ('20260709_billing_checkout'), ('20260709_commercial_seed_products'), ('20260709_vozeb_pro_table_prefix'), ('20260711_generation_tasks'), ('20260716_billing_reconciliation'), ('20260725_account_deletion_requests'), ('20260726_promotion_coupon_commerce'), ('20260727_referral_growth_rewards'), ('20260727_work_publications'), ('20260727_work_community'), ('20260728_user_blocks'), ('20260820_drama_lab_integration')
 ON CONFLICT (version) DO NOTHING;
 `;

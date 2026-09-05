@@ -1,4 +1,4 @@
-import { refundUserPoints } from "@/lib/auth/store";
+import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
@@ -16,6 +16,11 @@ import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError, generationSubmissionResponseError, generationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
 import { resolveTextProtocol, type ResolvedTextProtocol } from "@/lib/server/text-protocol-resolver";
 import { refundTextTask, textTaskRefundIdempotencyKey } from "@/lib/server/text-task-refund";
+import { recordTextTaskLog } from "@/lib/server/text-task-log";
+import { getPublicUsersByIds } from "@/lib/auth/store-actions";
+import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
+import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
+import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
 
 configureServerProxyDispatcher();
 
@@ -85,7 +90,7 @@ export async function runTextTaskStep(task: TextTask, origin: string, cookie: st
             const protocol = resolveTextProtocol({ model: config.model, apiFormat: config.apiFormat, advancedConfig: config.advancedConfig, throughSystemProxy: config.baseUrl.startsWith("/") });
             const result = await runResolvedTextTask(candidateTask, origin, cookie, protocol);
             if ("state" in result) {
-                const billing = hasSystemAiCharge(result) ? { pointsCost: result.pointsCost, pointsRecordId: result.pointsRecordId, refunded: false } : undefined;
+                const billing = hasSystemAiCharge(result) ? { pointsCost: result.pointsCost, billingReceiptId: result.billingReceiptId, refunded: false } : undefined;
                 await updateTextTask(task.id, { upstream: { id: result.upstreamTaskId, createPath: result.createPath }, billing });
                 return { state: "pending", status: result.status, upstreamTaskId: result.upstreamTaskId, createPath: result.createPath };
             }
@@ -114,7 +119,7 @@ function runResolvedTextTask(task: TextTask, origin: string, cookie: string, pro
 
 async function runOpenAiResponsesTask(task: TextTask, origin: string, cookie: string, protocol: ResolvedTextProtocol) {
     const config = task.config;
-    const headers = taskHeaders(config, cookie, pointsIdempotencyKey(task, protocol));
+    const headers = taskHeaders(config, cookie, pointsIdempotencyKey(task, protocol), task.executionProfile, task.billingContext);
     headers.set("content-type", "application/json");
     const response = await submissionFetch(config, taskUrl(config, protocol.path, origin), {
         method: "POST",
@@ -144,7 +149,8 @@ async function runOpenAiResponsesTask(task: TextTask, origin: string, cookie: st
 
 async function createCustomTextTaskStep(task: TextTask, origin: string, cookie: string, protocol: ResolvedTextProtocol) {
     const config = task.config;
-    const createPath = protocol.path;
+    const workflow = workflowConfigForTask(task);
+    const createPath = workflow?.createPath || protocol.path;
     const messages = toChatMessages(withSystemMessage(config, task.messages));
     const prompt = messages
         .filter((message) => message.role === "user")
@@ -154,13 +160,19 @@ async function createCustomTextTaskStep(task: TextTask, origin: string, cookie: 
     const values = { model: config.model, prompt, input: prompt, text: prompt, messages };
     let payload: Record<string, unknown>;
     try {
-        payload = buildProviderRequest(protocol.requestTemplate!, values, values);
+        payload = workflow ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: values, references: [] }) : buildProviderRequest(protocol.requestTemplate!, values, values);
     } catch (error) {
         throw new GenerationSubmissionSafeFailure(error instanceof Error ? error.message : "自定义文本请求模板无效");
     }
-    const headers = taskHeaders(config, cookie, pointsIdempotencyKey(task, protocol));
+    const headers = taskHeaders(config, cookie, pointsIdempotencyKey(task, protocol), task.executionProfile, task.billingContext);
     headers.set("content-type", "application/json");
-    const response = await submissionFetch(config, taskUrl(config, createPath, origin), { method: "POST", headers, body: JSON.stringify(payload), cache: "no-store" });
+    const response = await submissionFetch(config, taskUrl(config, createPath, origin), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        cache: "no-store",
+        signal: workflow ? AbortSignal.timeout(workflowTimeoutMs(workflow, resolveModelRequestTimeoutMs(config, "text"))) : undefined,
+    });
     if (!response.ok) {
         const message = await readFetchError(response, "自定义文本接口调用失败");
         const responseError = generationSubmissionResponseError(response.status, message);
@@ -185,7 +197,12 @@ async function queryCustomTextTaskStep(task: TextTask, origin: string, cookie: s
     if (!upstream?.id) return { state: "needs_review", error: "文本任务缺少上游任务 ID" };
     let lastError = "";
     for (const path of providerQueryPaths(config.advancedConfig, upstream.id, [])) {
-        const response = await taskFetch(config, taskUrl(config, path, origin), { headers: taskHeaders(config, cookie), cache: "no-store" });
+        const workflow = workflowConfigForTask(task);
+        const response = await taskFetch(config, taskUrl(config, path, origin), {
+            headers: taskHeaders(config, cookie, undefined, task.executionProfile, task.billingContext),
+            cache: "no-store",
+            signal: AbortSignal.timeout(workflowTimeoutMs(workflow, resolveModelRequestTimeoutMs(config, "text"))),
+        });
         if (!response.ok) {
             lastError = await readFetchError(response, "自定义文本任务查询失败");
             continue;
@@ -208,7 +225,7 @@ export async function queryCancelledTextTaskUpstreamStep(task: TextTask, origin:
     if (!upstream?.id) return { state: "terminal" as const, status: "missing_upstream_id" };
     let lastError = "";
     for (const path of providerQueryPaths(config.advancedConfig, upstream.id, [])) {
-        const response = await taskFetch(config, taskUrl(config, path, origin), { headers: taskHeaders(config, cookie), cache: "no-store" });
+        const response = await taskFetch(config, taskUrl(config, path, origin), { headers: taskHeaders(config, cookie, undefined, task.executionProfile, task.billingContext), cache: "no-store" });
         if (!response.ok) {
             lastError = await readFetchError(response, "自定义文本任务查询失败");
             continue;
@@ -231,7 +248,7 @@ function readMessageText(content: AiTextMessage["content"]) {
 
 async function runOpenAiChatCompletionTask(task: TextTask, origin: string, cookie: string, protocol: ResolvedTextProtocol) {
     const config = task.config;
-    const headers = taskHeaders(config, cookie, pointsIdempotencyKey(task, protocol));
+    const headers = taskHeaders(config, cookie, pointsIdempotencyKey(task, protocol), task.executionProfile, task.billingContext);
     headers.set("content-type", "application/json");
     const response = await submissionFetch(config, taskUrl(config, protocol.path, origin), {
         method: "POST",
@@ -262,7 +279,7 @@ async function runGeminiTextTask(task: TextTask, origin: string, cookie: string,
     const config = task.config;
     const response = await submissionFetch(config, taskUrl(config, protocol.path, origin, "gemini"), {
         method: "POST",
-        headers: geminiHeaders(config, cookie, pointsIdempotencyKey(task, protocol)),
+        headers: geminiHeaders(config, cookie, pointsIdempotencyKey(task, protocol), task.executionProfile, task.billingContext),
         body: JSON.stringify(toGeminiBody(config, task.messages)),
         cache: "no-store",
     });
@@ -292,7 +309,7 @@ async function runClaudeTextTask(task: TextTask, origin: string, cookie: string,
         .filter((message) => message.role === "system")
         .map((message) => readMessageText(message.content))
         .join("\n\n");
-    const headers = taskHeaders(config, cookie, pointsIdempotencyKey(task, protocol));
+    const headers = taskHeaders(config, cookie, pointsIdempotencyKey(task, protocol), task.executionProfile, task.billingContext);
     headers.set("content-type", "application/json");
     const response = await submissionFetch(config, taskUrl(config, protocol.path, origin), {
         method: "POST",
@@ -321,16 +338,17 @@ async function runClaudeTextTask(task: TextTask, origin: string, cookie: string,
     return { content, ...readBilling(response.headers) };
 }
 
-async function completeTextTask(task: TextTask, content: string, billing: { pointsRemaining?: number; pointsCost?: number; pointsRecordId?: string }, attempts: NonNullable<TextTask["attempts"]>): Promise<TextTaskStep> {
+async function completeTextTask(task: TextTask, content: string, billing: { pointsRemaining?: number; pointsCost?: number; billingReceiptId?: string }, attempts: NonNullable<TextTask["attempts"]>): Promise<TextTaskStep> {
     const succeeded = finishGenerationAttempt(attempts, task.attemptNo || attempts.at(-1)?.attemptNo || 1, {
         status: "succeeded",
         pointsCost: billing.pointsCost,
-        pointsRecordId: billing.pointsRecordId,
+        billingReceiptId: billing.billingReceiptId,
     });
     const current = await getTextTask(task.id);
     if (!current || current.status === "cancelled") {
-        if (current?.status === "cancelled" && current.billing?.pointsRecordId) await refundTextTask(current);
-        else if (hasSystemAiCharge(billing)) await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "text", 1, textTaskRefundIdempotencyKey(task), billing.pointsRecordId);
+        if (current?.status === "cancelled" && current.billing?.billingReceiptId) await refundTextTask(current);
+        else if (generationTaskShouldConsumePoints(task.executionProfile) && hasSystemAiCharge(billing))
+            await refundGenerationCharge({ userId: task.userId, receiptId: billing.billingReceiptId, model: generationModelId(task.config), usageKind: "text", units: 1, idempotencyKey: textTaskRefundIdempotencyKey(task) });
         return { state: "failed", error: current?.error || "文本任务已取消" };
     }
     const completed = await transitionTextTask(current, ["running"], {
@@ -339,19 +357,30 @@ async function completeTextTask(task: TextTask, content: string, billing: { poin
         pointsRemaining: billing.pointsRemaining,
         messages: [],
         config: clearSecret(current.config),
-        billing: hasSystemAiCharge(billing) ? { pointsCost: billing.pointsCost, pointsRecordId: billing.pointsRecordId, refunded: false } : current.billing,
+        billing: hasSystemAiCharge(billing) ? { pointsCost: billing.pointsCost, billingReceiptId: billing.billingReceiptId, refunded: false } : current.billing,
     });
+    // 获取用户信息并记录日志
+    const users = await getPublicUsersByIds([current.userId]).catch(() => []);
+    const user = users[0];
+    const userInfo = { username: user?.username || "", displayName: user?.displayName || "" };
+    await recordTextTaskLog({ ...current, status: "success" }, userInfo, "success").catch((error) => console.warn("Text generation success log update failed", { taskId: task.id, error }));
     await updateTextTask(task.id, { config: clearSecret(current.config), candidateConfigs: [], attempts: succeeded, attemptNo: task.attemptNo || succeeded.at(-1)?.attemptNo });
-    if (!completed && hasSystemAiCharge(billing)) await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "text", 1, textTaskRefundIdempotencyKey(task), billing.pointsRecordId);
+    if (!completed && generationTaskShouldConsumePoints(task.executionProfile) && hasSystemAiCharge(billing))
+        await refundGenerationCharge({ userId: task.userId, receiptId: billing.billingReceiptId, model: generationModelId(task.config), usageKind: "text", units: 1, idempotencyKey: textTaskRefundIdempotencyKey(task) });
     return completed ? { state: "completed" } : { state: "failed", error: "文本任务状态已变化" };
 }
 
 async function failTextTask(task: TextTask, error: string, attempts: NonNullable<TextTask["attempts"]>): Promise<TextTaskStep> {
     const current = (await getTextTask(task.id)) || task;
+    // 获取用户信息并记录日志
+    const users = await getPublicUsersByIds([current.userId]).catch(() => []);
+    const user = users[0];
+    const userInfo = { username: user?.username || "", displayName: user?.displayName || "" };
+    await recordTextTaskLog(current, userInfo, "failed", error).catch((logError) => console.warn("Text generation failure log update failed", { taskId: task.id, error: logError }));
     if (current.status === "success") return { state: "completed" };
     if (current.status === "cancelled") return { state: "failed", error: current.error || "文本任务已取消" };
-    if (current.billing?.pointsRecordId && !current.billing.refunded) {
-        await refundUserPoints(current.userId, generationModelId(current.config), current.billing.pointsCost, "text", 1, undefined, current.billing.pointsRecordId);
+    if (generationTaskShouldConsumePoints(current.executionProfile) && current.billing?.billingReceiptId && !current.billing.refunded) {
+        await refundGenerationCharge({ userId: current.userId, receiptId: current.billing.billingReceiptId, model: generationModelId(current.config), usageKind: "text", units: 1, idempotencyKey: textTaskRefundIdempotencyKey(current) });
         await updateTextTask(current.id, { billing: { ...current.billing, refunded: true } });
     }
     const message = toSafeGenerationErrorMessage(error, "文本生成失败");
@@ -359,10 +388,20 @@ async function failTextTask(task: TextTask, error: string, attempts: NonNullable
         status: "failed",
         error: message,
         pointsCost: current.billing?.pointsCost,
-        pointsRecordId: current.billing?.pointsRecordId,
+        billingReceiptId: current.billing?.billingReceiptId,
     });
-    await transitionTextTask(current, ["pending", "running"], { status: "error", error: message, messages: [], config: clearSecret(current.config), billing: current.billing ? { ...current.billing, refunded: true } : undefined });
+    const failed = await transitionTextTask(current, ["pending", "running"], { status: "error", error: message, messages: [], config: clearSecret(current.config), billing: current.billing });
+    if (!failed) {
+        const latest = await getTextTask(current.id);
+        if (latest?.status === "success") return { state: "completed" };
+        if (latest?.status === "error" || latest?.status === "cancelled") {
+            await refundTextTask(latest);
+            return { state: "failed", error: latest.error || message };
+        }
+        return { state: "failed", error: "文本任务状态已变化" };
+    }
     await updateTextTask(current.id, { config: clearSecret(current.config), candidateConfigs: [], attempts: failedAttempts, attemptNo: failedAttempts.at(-1)?.attemptNo });
+    await refundTextTask(failed);
     return { state: "failed", error: message };
 }
 
@@ -501,14 +540,14 @@ function isInternalSystemProxyBase(value: string) {
     }
 }
 
-export function taskHeaders(config: TextTaskConfig, cookie: string, pointsIdempotencyKey?: string) {
+export function taskHeaders(config: TextTaskConfig, cookie: string, pointsIdempotencyKey?: string, executionProfile = config.executionProfile, billingContext?: SchoolComputeBillingContext) {
     const headers = new Headers();
     const internal = config.baseUrl.startsWith("/");
     const workerHeaders = maintenanceWorkerContextHeaders(cookie);
     if (internal && workerHeaders) Object.entries(workerHeaders).forEach(([key, value]) => headers.set(key, value));
     else if (internal && cookie) headers.set("cookie", cookie);
     if (internal) {
-        Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model)).forEach(([key, value]) => headers.set(key, value));
+        Object.entries(systemAiBillingHeaders(generationModelId(config), pointsIdempotencyKey, config.model, executionProfile, billingContext)).forEach(([key, value]) => headers.set(key, value));
     }
     if (!internal && config.apiFormat === "gemini") headers.set("x-goog-api-key", config.apiKey);
     else if (!internal) headers.set("authorization", `Bearer ${config.apiKey}`);
@@ -548,11 +587,11 @@ async function parseTextSubmissionJson<T>(task: TextTask, response: Response): P
 
 async function persistTextResponseBilling(task: TextTask, headers: Headers) {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await updateTextTask(task.id, { billing: { pointsCost: billing.pointsCost, pointsRecordId: billing.pointsRecordId, refunded: false } });
+    if (hasSystemAiCharge(billing)) await updateTextTask(task.id, { billing: { pointsCost: billing.pointsCost, billingReceiptId: billing.billingReceiptId, refunded: false } });
 }
 
-function geminiHeaders(config: TextTaskConfig, cookie: string, pointsIdempotencyKey?: string) {
-    const headers = taskHeaders(config, cookie, pointsIdempotencyKey);
+function geminiHeaders(config: TextTaskConfig, cookie: string, pointsIdempotencyKey?: string, executionProfile = config.executionProfile, billingContext?: SchoolComputeBillingContext) {
+    const headers = taskHeaders(config, cookie, pointsIdempotencyKey, executionProfile, billingContext);
     headers.set("content-type", "application/json");
     return headers;
 }
@@ -575,5 +614,6 @@ function readBilling(headers: Headers) {
 
 async function refundChargedTextResponse(task: TextTask, headers: Headers) {
     const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+    if (generationTaskShouldConsumePoints(task.executionProfile) && hasSystemAiCharge(billing))
+        await refundGenerationCharge({ userId: task.userId, receiptId: billing.billingReceiptId, model: generationModelId(task.config), usageKind: "text", units: 1, idempotencyKey: `${textTaskRefundIdempotencyKey(task)}:response` });
 }

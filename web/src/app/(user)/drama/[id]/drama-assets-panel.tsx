@@ -8,6 +8,8 @@ import { AgentMediaPreview } from "@/components/agent/agent-media-preview";
 import type { DramaEpisode, DramaProject } from "@/lib/drama-project-contract";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { useDramaStore } from "../stores/use-drama-store";
+import { IpReferencePicker } from "@/components/ip-library/ip-reference-picker";
+import { IP_REFERENCE_ENTRY_VISIBLE } from "@/lib/ip-library-domain";
 import { type DramaAssetFilter, type DramaAssetLibraryRow, type DramaAssetSort, buildDramaAssetLibraryRows, filterAndSortDramaAssets } from "./drama-asset-library-utils";
 import { DRAMA_ASSET_DEFINITIONS, type DramaAssetKind } from "./drama-asset-definitions";
 import { DramaAssetEditorDrawer } from "./drama-asset-editor-drawer";
@@ -31,6 +33,7 @@ const sortLabels: Record<DramaAssetSort, string> = { default: "默认顺序", at
 export function DramaAssetsPanel({ project, episode }: { project: DramaProject; episode: DramaEpisode }) {
     const { message } = App.useApp();
     const removeAsset = useDramaStore((state) => state.removeAsset);
+    const updateProject = useDramaStore((state) => state.updateProject);
     const [activeKind, setActiveKind] = useState<DramaAssetKind>("characters");
     const [query, setQuery] = useState("");
     const [filter, setFilter] = useState<DramaAssetFilter>("all");
@@ -164,6 +167,12 @@ export function DramaAssetsPanel({ project, episode }: { project: DramaProject; 
             )}
 
             {project.sourceAssets?.length ? <DramaSourceAssetStrip project={project} /> : null}
+
+            {IP_REFERENCE_ENTRY_VISIBLE ? (
+                <div className="mt-4 border-t border-border pt-4">
+                    <IpReferencePicker value={project.ipReferences || []} onChange={(ipReferences) => updateProject(project.id, { ipReferences })} />
+                </div>
+            ) : null}
 
             <DramaAssetEditorDrawer project={project} kind={editor?.kind || activeKind} assetId={editor?.assetId} open={Boolean(editor)} onClose={() => setEditor(undefined)} />
         </div>

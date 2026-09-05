@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveLogicalBillingModel, resolveLogicalModel, resolveLogicalModelCandidates } from "./logical-model-router";
+import { resolveLogicalBillingModel, resolveLogicalModel, resolveLogicalModelCandidates, resolveVisionModelCandidates } from "./logical-model-router";
 
 const channel = (id: string, models: string[], enabled = true) => ({ id, name: id, baseUrl: `https://${id}.example.com`, apiKey: "secret", apiFormat: "openai" as const, models, enabled });
 
@@ -118,5 +118,14 @@ describe("resolveLogicalModel", () => {
 
         expect(resolveLogicalBillingModel(logicalModels, "text", "primary", "vendor/shared", "writer-pro")).toBe("writer-pro");
         expect(resolveLogicalBillingModel(logicalModels, "text", "primary", "vendor/shared", "forged-model")).toBe("writer-basic");
+    });
+
+    it("routes Canvas through a reachable text model even without an image-input flag", () => {
+        const settings = {
+            systemChannels: [channel("primary", ["gpt-5.6-sol"])],
+            logicalModels: [{ id: "gpt-5.6-sol", name: "GPT-5.6 Sol", capability: "text" as const, enabled: true, bindings: [{ id: "one", channelId: "primary", upstreamModel: "gpt-5.6-sol", enabled: true, priority: 1 }] }],
+        };
+
+        expect(resolveVisionModelCandidates(settings, "gpt-5.6-sol")).toMatchObject([{ logicalModelId: "gpt-5.6-sol", upstreamModel: "gpt-5.6-sol", channelId: "primary" }]);
     });
 });

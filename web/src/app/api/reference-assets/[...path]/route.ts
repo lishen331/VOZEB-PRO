@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
+import { getDramaLabMembership } from "@/lib/server/drama-lab-collaboration-service";
 import { acquireMediaConcurrency, withMediaConcurrency } from "@/lib/server/media-concurrency";
 import { verifyReferenceAssetSignature } from "@/lib/server/reference-asset-access";
 import { createLocalMediaResponse, createMediaHeadResponse, mediaContentDisposition } from "@/lib/server/local-media-response";
-import { getLocalMediaRegistration } from "@/lib/server/local-media-registry";
+import { getLocalMediaRegistration, isLocalMediaRegistrationExpired, type LocalMediaRegistration } from "@/lib/server/local-media-registry";
 import { createExternalMediaReadUrl } from "@/lib/server/object-storage-service";
 import { isReferenceAssetPath, readReferenceAsset } from "@/lib/server/reference-asset-store";
 import { checkLocalMediaRateLimit, rateLimitHeaders } from "@/lib/server/security";
@@ -30,20 +31,30 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
     if (!isReferenceAssetPath(storagePath)) return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
     const url = new URL(request.url);
     const signature = url.searchParams.get("signature") || "";
-    const signed = verifyReferenceAssetSignature(storagePath, url.searchParams.get("purpose"), url.searchParams.get("expires"), signature);
+    let registration: LocalMediaRegistration | null = null;
+    if (signature) registration = await getLocalMediaRegistration(storagePath);
+    if (signature && (!registration || isLocalMediaRegistrationExpired(registration))) return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
+    const signed = Boolean(registration && !isLocalMediaRegistrationExpired(registration) && verifyReferenceAssetSignature(storagePath, url.searchParams.get("purpose"), url.searchParams.get("expires"), signature, registration.ownerUserId));
     if (signed && url.searchParams.get("download") === "original") return NextResponse.json({ code: 403, data: null, msg: "上游读取签名不提供原件下载" }, { status: 403 });
     let rateIdentity = `signature:${signature}`;
     let currentUser: Awaited<ReturnType<typeof getCurrentUser>> = null;
     if (!signed) {
-        currentUser = await getCurrentUser();
+        currentUser = await getCurrentUser(request);
         if (!currentUser) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
         rateIdentity = `user:${currentUser.id}`;
     }
     const rate = await checkLocalMediaRateLimit(rateIdentity, request);
     if (!rate.allowed) return NextResponse.json({ code: 429, data: null, msg: "媒体访问过于频繁，请稍后重试" }, { status: 429, headers: rateLimitHeaders(rate) });
-    const registration = await getLocalMediaRegistration(storagePath);
+    registration ||= await getLocalMediaRegistration(storagePath);
     if (!registration) return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
-    if (currentUser && currentUser.role !== "admin" && registration.ownerUserId !== currentUser.id) return NextResponse.json({ code: 404, data: null, msg: "媒体文件不存在" }, { status: 404 });
+    if (isLocalMediaRegistrationExpired(registration)) return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
+    if (currentUser && currentUser.role !== "admin" && registration.ownerUserId !== currentUser.id) {
+        // Drama Lab project media is shared only with active members of that
+        // exact project. Do not broaden the global media endpoint to arbitrary
+        // users or expose owner media that has no project scope.
+        const member = registration.projectId ? await getDramaLabMembership(currentUser.id, registration.projectId) : null;
+        if (!member) return NextResponse.json({ code: 404, data: null, msg: "媒体文件不存在" }, { status: 404 });
+    }
     if (request.method === "HEAD" && registration.storageProvider === "object") {
         return createMediaHeadResponse(registration.mimeType, registration.bytes, {
             "Cache-Control": storagePath.startsWith("permanent/") ? "private, max-age=86400" : "private, max-age=300",
@@ -88,7 +99,7 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
             permit.release();
             return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
         }
-        return withMediaConcurrency(response, permit);
+        return withMediaConcurrency(response, permit, request.signal);
     } catch (error) {
         permit.release();
         throw error;

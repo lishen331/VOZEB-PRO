@@ -44,6 +44,17 @@ describe("canvas project file provider", () => {
         expect(await getCanvasProject("one", "user-one")).toMatchObject({ title: "已更新", nodes: [{ id: "node-one" }] });
     });
 
+    it("keeps drama episode canvases out of the ordinary Canvas project list", async () => {
+        await createCanvasProject("user-one", project("ordinary", "普通画布"));
+        await createCanvasProject("user-one", { ...project("episode", "短剧画布"), sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one" });
+
+        await expect(listCanvasProjects("user-one")).resolves.toMatchObject([{ id: "ordinary" }]);
+        await expect(listCanvasProjectSummaries("user-one", { page: 1, pageSize: 12 })).resolves.toMatchObject({ projects: [{ id: "ordinary" }], total: 1 });
+        await expect(listCanvasProjectSummaries("user-one", { page: 1, pageSize: 12, includeDramaLab: true, dramaLabOnly: true })).resolves.toMatchObject({ projects: [{ id: "episode" }], total: 1 });
+        await expect(listCanvasProjectPage("user-one", { page: 1, pageSize: 12, includeDramaLab: true })).resolves.toMatchObject({ items: [{ id: "episode" }, { id: "ordinary" }], total: 2 });
+        await expect(getCanvasProject("episode", "user-one")).resolves.toMatchObject({ id: "episode" });
+    });
+
     it("rejects a stale file-provider snapshot instead of overwriting a newer save", async () => {
         const initial = project("one", "初始项目");
         await createCanvasProject("user-one", initial);
@@ -195,6 +206,28 @@ describe("canvas project file provider", () => {
         expect(statement).toContain("ORDER BY updated_at DESC, id ASC");
         expect(statement).toContain("LIMIT $2 OFFSET $3");
         expect(params).toEqual(["user-one", 2, 2]);
+    });
+
+    it("includes drama episode canvases only when a PostgreSQL export explicitly requests them", async () => {
+        mocks.provider = "postgres";
+        mocks.postgresQuery.mockResolvedValue({ rows: [{ project_json: project("canvas-one", "画布一"), total_count: 1 }] });
+
+        await listCanvasProjectPage("user-one", { page: 1, pageSize: 100, includeDramaLab: true });
+
+        const [statement] = mocks.postgresQuery.mock.calls[0] as [string, unknown[]];
+        expect(statement).toContain("WHERE user_id = $1");
+        expect(statement).not.toContain("NOT LIKE 'drama-lab-canvas:%'");
+    });
+
+    it("lists only drama episode canvas summaries for the dedicated runtime", async () => {
+        mocks.provider = "postgres";
+        mocks.postgresQuery.mockResolvedValue({ rows: [] });
+
+        await listCanvasProjectSummaries("user-one", { page: 1, pageSize: 12, includeDramaLab: true, dramaLabOnly: true });
+
+        const [statement] = mocks.postgresQuery.mock.calls[0] as [string, unknown[]];
+        expect(statement).toContain("LIKE 'drama-lab-canvas:%'");
+        expect(statement).not.toContain("NOT LIKE 'drama-lab-canvas:%'");
     });
 
     it("prevents the unbounded Canvas reader from querying PostgreSQL", async () => {

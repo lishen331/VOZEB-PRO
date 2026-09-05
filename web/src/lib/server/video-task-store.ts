@@ -2,10 +2,12 @@ import { randomUUID } from "node:crypto";
 
 import { createStoredGenerationTask, getStoredGenerationTask, mutateStoredGenerationTask, touchStoredGenerationTask, transitionStoredGenerationTask, type GenerationTaskContext } from "@/lib/server/generation-task-store";
 import type { SystemGenerationChannelConfig } from "@/lib/server/generation-channel";
+import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import type { GenerationAttempt } from "@/lib/server/generation-attempt";
 import { GENERATION_TASK_RETENTION_MS } from "@/lib/server/generation-task-retention";
+import type { StoredTaskBilling } from "@/lib/server/generation-task-types";
 
-export type VideoTaskStatus = "running" | "success" | "error" | "cancelled";
+export type VideoTaskStatus = "running" | "success" | "error" | "cancelled" | "needs_review";
 
 export type VideoTask = GenerationTaskContext & {
     id: string;
@@ -16,8 +18,8 @@ export type VideoTask = GenerationTaskContext & {
     status: VideoTaskStatus;
     createdAt: number;
     updatedAt: number;
-    config: SystemGenerationChannelConfig;
-    upstream: { id: string; provider: "openai" | "seedance" | "generation"; model: string; pollPath?: string; queryPath?: string; resultUrl?: string; pointsCost?: number; pointsUnits?: number; pointsRecordId?: string; refunded?: boolean };
+    config: SystemGenerationChannelConfig & { executionProfile?: PracticeExecutionProfile };
+    upstream: { id: string; provider: "openai" | "seedance" | "generation"; model: string; pollPath?: string; queryPath?: string; resultUrl?: string; pointsUnits?: number } & Partial<StoredTaskBilling>;
     requestedDurationSeconds?: number;
     source?: string;
     prompt?: string;
@@ -30,7 +32,11 @@ export type VideoTask = GenerationTaskContext & {
 
 export async function createVideoTask(input: Omit<VideoTask, "id" | "status" | "createdAt" | "updatedAt">) {
     const now = Date.now();
-    return createStoredGenerationTask("video", { ...input, id: randomUUID(), status: "running" as const, createdAt: now, updatedAt: now }, GENERATION_TASK_RETENTION_MS);
+    return createStoredGenerationTask(
+        "video",
+        { ...input, config: { ...input.config, executionProfile: input.executionProfile || input.config.executionProfile }, id: randomUUID(), status: "running" as const, createdAt: now, updatedAt: now },
+        GENERATION_TASK_RETENTION_MS,
+    );
 }
 
 export async function getVideoTask(id: string) {

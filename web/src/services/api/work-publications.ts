@@ -1,3 +1,5 @@
+import type { PublicProcessSnapshot } from "@/lib/practice-domain";
+
 export type WorkPublicationSourceType = "media" | "canvas" | "drama";
 export type WorkPublicationLifecycleStatus = "active" | "revoked";
 export type WorkPublicationVisibility = "private" | "unlisted" | "public";
@@ -26,6 +28,10 @@ export type WorkPublicationVersion = {
     moderationSignal?: unknown;
     createdAt: string;
     updatedAt: string;
+    pullFilmEnabled?: boolean;
+    pullFilmSnapshot?: unknown;
+    pullFilmEnabledAt?: string;
+    pullFilmEnabledByUserId?: string;
 };
 
 export type WorkPublicationAsset = {
@@ -135,6 +141,8 @@ export type PublicWorkPublication = {
     category: string;
     tags: string[];
     visibility: WorkPublicationVisibility;
+    hasProcess: boolean;
+    processVersionId?: string;
     authorName?: string;
     authorUsername?: string;
     authorAvatarUrl?: string;
@@ -169,6 +177,16 @@ export function getWorkPublicationSource(sourceType: WorkPublicationSourceType, 
 export function getPublicWorkPublication(slug: string) {
     return requestWorkPublication<{ work: PublicWorkPublication }>(`/api/public/works/${encodeURIComponent(slug)}`).then((data) => data.work);
 }
+
+export function getPublicWorkProcess(slug: string) {
+    return requestWorkPublication<{ process: PublicProcessSnapshot }>(`/api/public/works/${encodeURIComponent(slug)}/process`).then((data) => data.process);
+}
+
+export function copyPublicWorkToPractice(slug: string, input: { kind: "canvas" | "drama"; clientRequestId: string }) {
+    return requestWorkPublication<{ kind: "canvas" | "drama"; projectId: string; clientRequestId: string }>(`/api/public/works/${encodeURIComponent(slug)}/copy-to-practice`, jsonRequest("POST", input));
+}
+
+export const publicWorkPublicationsApi = { getProcess: getPublicWorkProcess, copyToPractice: copyPublicWorkToPractice };
 
 export function recordPublicWorkPublicationView(slug: string) {
     return requestWorkPublication<{ viewCount: number }>(`/api/public/works/${encodeURIComponent(slug)}/view`, { method: "POST" }).then((data) => data.viewCount);

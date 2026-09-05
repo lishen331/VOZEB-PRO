@@ -1,6 +1,8 @@
 import { getDatabaseProvider, ensurePostgresSchema, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import { resolveGenerationReviewReason } from "@/lib/server/generation-task-review-reason";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
+import { normalizeIpReference } from "@/lib/ip-library-domain";
+import { isRunningHubWorkflowBusinessCode } from "@/lib/server/runninghub-workflow-domain";
 import type {
     GenerationTaskContext,
     GenerationTaskCostAggregate,
@@ -22,6 +24,8 @@ type GenerationTaskSummaryAccumulator = Omit<GenerationTaskRecordSummary, "avera
 
 const TASK_FILE = "generation-tasks.json";
 const ACTIVE_CONCURRENCY_PHASES = ["created", "submitting", "submitted", "polling", "result_ready", "persisting"] as const;
+const STORED_TASK_CONTEXT_CONFLICT = "__vozebStoredTaskContextConflict";
+const INVALID_AUDIO_METADATA = Symbol("invalid-audio-metadata");
 let fileMutationQueue = Promise.resolve();
 const concurrencyQueues = new Map<string, Promise<void>>();
 
@@ -64,25 +68,31 @@ export async function cleanupExpiredStoredGenerationTasks(input: { limit: number
 export async function getStoredGenerationTask<T>(type: GenerationTaskType, id: string): Promise<(T & GenerationTaskExecutionState) | null> {
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<{ payload: T; execution_phase?: unknown; last_upstream_status?: unknown; result_payload?: unknown }>(
-            "SELECT payload, execution_phase, last_upstream_status, result_payload FROM generation_tasks WHERE id = $1 AND task_type = $2 AND expires_at > now()",
+        const result = await postgresQuery<{ payload: T; user_id?: unknown; surface?: unknown; project_id?: unknown; execution_phase?: unknown; last_upstream_status?: unknown; result_payload?: unknown }>(
+            "SELECT payload, user_id, surface, project_id, execution_phase, last_upstream_status, result_payload FROM generation_tasks WHERE id = $1 AND task_type = $2 AND expires_at > now()",
             [id, type],
         );
         const row = result.rows[0];
-        return row?.payload ? withExecutionState(row.payload, row.execution_phase, row.last_upstream_status, row.result_payload) : null;
+        if (!row?.payload) return null;
+        const hydrated = hydrateTaskPayload(row.payload, { userId: row.user_id, surface: row.surface, projectId: row.project_id });
+        return withExecutionState(hydrated.payload, row.execution_phase, row.last_upstream_status, row.result_payload, hydrated.conflict);
     }
     const tasks = await readFileTasks();
     const record = tasks.find((task) => task.id === id && task.type === type && task.expiresAt > Date.now());
-    return record ? withExecutionState(record.payload as T, record.executionPhase, record.lastUpstreamStatus, record.resultPayload) : null;
+    if (!record) return null;
+    const hydrated = hydrateTaskPayload(record.payload as T, record);
+    return withExecutionState(hydrated.payload, record.executionPhase, record.lastUpstreamStatus, record.resultPayload, hydrated.conflict);
 }
 
 export async function getStoredGenerationTaskRecord(type: GenerationTaskType, id: string): Promise<StoredGenerationTaskRecord | null> {
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<Record<string, unknown>>("SELECT * FROM generation_tasks WHERE id = $1 AND task_type = $2 AND expires_at > now()", [id, type]);
-        return result.rows[0] ? mapStoredTaskRecord(result.rows[0]) : null;
+        const record = result.rows[0] ? mapStoredTaskRecord(result.rows[0]) : null;
+        return record ? markStoredTaskContextConflict(record) : null;
     }
-    return (await readFileTasks()).find((task) => task.id === id && task.type === type && task.expiresAt > Date.now()) || null;
+    const record = (await readFileTasks()).find((task) => task.id === id && task.type === type && task.expiresAt > Date.now());
+    return record ? markStoredTaskContextConflict(withPayloadTaskContext(record)) : null;
 }
 
 export async function listStoredGenerationTaskRecordsByRunIds(runIds: string[], userIds: string[] = []) {
@@ -186,6 +196,130 @@ export async function queryStoredGenerationTasks<T>(type: GenerationTaskType, op
         .sort((a, b) => b.updatedAt - a.updatedAt || b.id.localeCompare(a.id))
         .slice(0, limit)
         .map((task) => task.payload as T);
+}
+
+/**
+ * Read only video tasks that carry the complete Drama Lab coordinate tuple.
+ *
+ * This intentionally lives beside the general task store instead of widening
+ * the admin query API: recovery must never discover a task by a prompt, name,
+ * or an incomplete/legacy context.  `episodeId` and `shotId` are kept in the
+ * payload for PostgreSQL records, while the file provider may have them both
+ * on the record and in the payload.
+ */
+export async function listStoredDramaTaskRecords(input: { userId: string; projectId: string; episodeId: string; shotIds?: string[]; type?: "video"; limit?: number }): Promise<StoredGenerationTaskRecord[]> {
+    const userId = cleanContextText(input.userId);
+    const projectId = cleanContextText(input.projectId);
+    const episodeId = cleanContextText(input.episodeId);
+    const type = input.type || "video";
+    const shotIds = input.shotIds === undefined ? undefined : Array.from(new Set(input.shotIds.map(cleanContextText).filter((value): value is string => Boolean(value))));
+    const limit = Math.max(1, Math.min(1_000, Math.floor(Number(input.limit) || 500)));
+
+    // An empty allow-list means the caller has no shots in the current
+    // episode.  Returning early also avoids an unbounded query when a caller
+    // accidentally passes an empty array.
+    if (!userId || !projectId || !episodeId || type !== "video" || (shotIds !== undefined && !shotIds.length)) return [];
+
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<Record<string, unknown>>(
+            `SELECT *
+             FROM generation_tasks
+             WHERE user_id = $1
+               AND task_type = $2
+               -- Older PostgreSQL rows may not have denormalized context
+               -- columns. This is only a candidate prefilter; the mapper
+               -- below rejects any disagreement between stored sources.
+               AND COALESCE(${sqlNormalizedContextSource("surface")}, ${sqlNormalizedContextSource("payload->>'surface'")}, ${sqlNormalizedContextSource("payload#>>'{context,surface}'")}) = 'drama'
+               AND COALESCE(${sqlNormalizedContextSource("project_id")}, ${sqlNormalizedContextSource("payload->>'projectId'")}, ${sqlNormalizedContextSource("payload#>>'{context,projectId}'")}) = $3
+               AND COALESCE(${sqlNormalizedContextSource("payload->>'episodeId'")}, ${sqlNormalizedContextSource("payload#>>'{context,episodeId}'")}) = $4
+               AND expires_at > now()
+               AND ($5::text[] IS NULL OR COALESCE(${sqlNormalizedContextSource("payload->>'shotId'")}, ${sqlNormalizedContextSource("payload#>>'{context,shotId}'")}) = ANY($5::text[]))
+               -- Apply the same source-agreement rule in SQL before LIMIT.
+               -- Otherwise corrupt rows that are later rejected in JavaScript
+               -- could consume the page and hide a valid task behind them.
+               AND ${sqlDramaTaskContextAgreement()}
+             ORDER BY COALESCE(
+                 attempt_no,
+                 CASE WHEN ${sqlNormalizedContextSource("payload->>'attemptNo'")} ~ '^[0-9]+$' THEN ${sqlNormalizedContextSource("payload->>'attemptNo'")}::integer END,
+                 CASE WHEN ${sqlNormalizedContextSource("payload#>>'{context,attemptNo}'")} ~ '^[0-9]+$' THEN ${sqlNormalizedContextSource("payload#>>'{context,attemptNo}'")}::integer END,
+                 0
+             ) DESC, updated_at DESC, id DESC
+             LIMIT $6`,
+            [userId, type, projectId, episodeId, shotIds?.length ? shotIds : null, limit],
+        );
+        return result.rows
+            .map(mapStoredTaskRecord)
+            .filter((record) => isCompleteDramaTaskRecord(record, { userId, projectId, episodeId, shotIds }))
+            .map(withPayloadTaskContext);
+    }
+
+    const now = Date.now();
+    return (await readFileTasks())
+        .filter((record) => record.expiresAt > now && record.type === type)
+        .filter((record) => isCompleteDramaTaskRecord(record, { userId, projectId, episodeId, shotIds }))
+        .map(withPayloadTaskContext)
+        .sort((left, right) => taskAttempt(right) - taskAttempt(left) || right.updatedAt - left.updatedAt || right.id.localeCompare(left.id))
+        .slice(0, limit);
+}
+
+// Kept as a descriptive alias for callers that prefer the longer store name.
+export const listStoredGenerationTaskRecordsByDramaContext = listStoredDramaTaskRecords;
+
+/**
+ * List every generation task belonging to a Drama Lab project.
+ *
+ * This is intentionally separate from `listStoredDramaTaskRecords`, which is
+ * the strict shot/video recovery query.  The project task panel also needs to
+ * discover text, image, audio and render tasks, including legacy PostgreSQL
+ * rows that only stored their Drama context inside `payload` or
+ * `payload.context`.
+ */
+export async function listStoredDramaProjectTaskRecords(input: { userId: string; projectId: string; types?: Array<Exclude<GenerationTaskType, "agent">>; limit?: number }): Promise<StoredGenerationTaskRecord[]> {
+    const userId = cleanContextText(input.userId);
+    const projectId = cleanContextText(input.projectId);
+    const types = Array.from(new Set(input.types || ["text", "image", "video", "audio", "render"]));
+    const limit = Math.max(1, Math.min(1_000, Math.floor(Number(input.limit) || 500)));
+    if (!userId || !projectId || !types.length) return [];
+
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<Record<string, unknown>>(
+            `SELECT *
+             FROM generation_tasks
+             WHERE user_id = $1
+               AND task_type = ANY($2::text[])
+               AND expires_at > now()
+               AND COALESCE(
+                   ${sqlNormalizedContextSource("surface")},
+                   ${sqlNormalizedContextSource("payload->>'surface'")},
+                   ${sqlNormalizedContextSource("payload#>>'{context,surface}'")}
+               ) = 'drama'
+               AND COALESCE(
+                   ${sqlNormalizedContextSource("project_id")},
+                   ${sqlNormalizedContextSource("payload->>'projectId'")},
+                   ${sqlNormalizedContextSource("payload#>>'{context,projectId}'")},
+                   ${sqlNormalizedContextSource("payload#>>'{workflow,projectId}'")},
+                   ${sqlNormalizedContextSource("payload#>>'{storyBatch,projectId}'")}
+               ) = $3
+               AND ${sqlDramaTaskContextAgreement()}
+             ORDER BY updated_at DESC, id DESC
+             LIMIT $4`,
+            [userId, types, projectId, limit],
+        );
+        return result.rows
+            .map(mapStoredTaskRecord)
+            .map(withPayloadTaskContext)
+            .filter((record) => isCompleteDramaProjectTaskRecord(record, { userId, projectId }));
+    }
+
+    const now = Date.now();
+    return (await readFileTasks())
+        .filter((record) => record.expiresAt > now && record.type !== "agent" && types.includes(record.type))
+        .map(withPayloadTaskContext)
+        .filter((record) => isCompleteDramaProjectTaskRecord(record, { userId, projectId }))
+        .sort((left, right) => right.updatedAt - left.updatedAt || right.id.localeCompare(left.id))
+        .slice(0, limit);
 }
 
 export async function listStoredGenerationTaskRecords(options: GenerationTaskRecordListOptions = {}) {
@@ -657,13 +791,23 @@ export async function touchStoredGenerationTask(type: GenerationTaskType, id: st
 
 export async function linkStoredGenerationTask(type: GenerationTaskType, id: string, context: GenerationTaskContext) {
     const normalized = normalizeGenerationTaskContext(context);
+    const linkedContext = { ...normalized };
+    if (!context.executionProfile) delete linkedContext.executionProfile;
+    if (!context.workflowKey) delete linkedContext.workflowKey;
+    if (context.workflowVersion === undefined) delete linkedContext.workflowVersion;
+    if (!context.upstreamWorkflowId) delete linkedContext.upstreamWorkflowId;
+    if (!context.businessCode) delete linkedContext.businessCode;
+    if (!context.taskOrigin) delete linkedContext.taskOrigin;
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         await postgresQuery(
             `UPDATE generation_tasks
              SET conversation_id = COALESCE($3, conversation_id), run_id = COALESCE($4, run_id), surface = COALESCE($5, surface),
                  project_id = COALESCE($6, project_id), parent_task_id = COALESCE($7, parent_task_id), attempt_no = COALESCE($8, attempt_no),
-                 client_request_id = COALESCE($9, client_request_id), payload = payload || $10::jsonb
+                 client_request_id = COALESCE($9, client_request_id),
+                 workflow_key = COALESCE($11, workflow_key), workflow_version = COALESCE($12, workflow_version),
+                 upstream_workflow_id = COALESCE($13, upstream_workflow_id), business_code = COALESCE($14, business_code),
+                 task_origin = COALESCE($15, task_origin), payload = payload || $10::jsonb
              WHERE id = $1 AND task_type = $2`,
             [
                 id,
@@ -675,41 +819,115 @@ export async function linkStoredGenerationTask(type: GenerationTaskType, id: str
                 normalized.parentTaskId || null,
                 normalized.attemptNo ?? null,
                 normalized.clientRequestId || null,
-                JSON.stringify(normalized),
+                JSON.stringify(linkedContext),
+                normalized.workflowKey || null,
+                normalized.workflowVersion ?? null,
+                normalized.upstreamWorkflowId || null,
+                normalized.businessCode || null,
+                context.taskOrigin || null,
             ],
         );
         return;
     }
-    await mutateFileTasks((tasks) => tasks.map((task) => (task.id === id && task.type === type ? { ...task, ...normalized, payload: { ...task.payload, ...normalized } } : task)));
+    await mutateFileTasks((tasks) => tasks.map((task) => (task.id === id && task.type === type ? { ...task, ...linkedContext, payload: { ...task.payload, ...linkedContext } } : task)));
 }
 
 export async function countActiveStoredGenerationTasks(userId: string, type: GenerationTaskType, staleMs: number, excludeTaskId?: string) {
     const activeAfter = Date.now() - staleMs;
+    const concurrencyClassFilter = type === "image" ? " AND COALESCE(payload->>'concurrencyClass', '') <> 'canvas-layer'" : "";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<{ total: string | number }>(
-            `SELECT count(*) AS total FROM generation_tasks WHERE user_id = $1 AND task_type = $2 AND status IN ('pending', 'running') AND execution_phase = ANY($4::text[]) AND updated_at >= $3 AND expires_at > now()${excludeTaskId ? " AND id <> $5" : ""}`,
+            `SELECT count(*) AS total FROM generation_tasks WHERE user_id = $1 AND task_type = $2 AND status IN ('pending', 'running') AND execution_phase = ANY($4::text[]) AND updated_at >= $3 AND expires_at > now()${excludeTaskId ? " AND id <> $5" : ""}${concurrencyClassFilter}`,
             [userId, type, new Date(activeAfter), ACTIVE_CONCURRENCY_PHASES, ...(excludeTaskId ? [excludeTaskId] : [])],
         );
         return Number(result.rows[0]?.total || 0);
     }
     const tasks = await readFileTasks();
     return tasks.filter(
-        (task) => task.id !== excludeTaskId && task.userId === userId && task.type === type && ["pending", "running"].includes(task.status) && isActiveConcurrencyPhase(task.executionPhase) && task.updatedAt >= activeAfter && task.expiresAt > Date.now(),
+        (task) =>
+            task.id !== excludeTaskId &&
+            task.userId === userId &&
+            task.type === type &&
+            countsTowardGenerationConcurrency(task) &&
+            ["pending", "running"].includes(task.status) &&
+            isActiveConcurrencyPhase(task.executionPhase) &&
+            task.updatedAt >= activeAfter &&
+            task.expiresAt > Date.now(),
     ).length;
 }
 
-export async function withGenerationConcurrencyLimit<T>(userId: string, type: GenerationTaskType, staleMs: number, limit: number, handler: () => Promise<T>, excludeTaskId?: string): Promise<T | null> {
+export async function generationCapacityRetryAfterSeconds(userId: string, type: GenerationTaskType, staleMs: number, excludeTaskId?: string) {
+    const now = Date.now();
+    const activeAfter = now - staleMs;
+    const concurrencyClassFilter = type === "image" ? " AND COALESCE(payload->>'concurrencyClass', '') <> 'canvas-layer'" : "";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        return withPostgresTransaction(async (client) => {
+        const result = await postgresQuery<{ retry_after_seconds?: string | number }>(
+            `SELECT CASE WHEN count(*) = 0 THEN NULL ELSE GREATEST(1, CEIL(EXTRACT(EPOCH FROM (
+                 MIN(CASE
+                     WHEN lease_until > now() THEN lease_until
+                     WHEN next_poll_at > now() THEN next_poll_at
+                     ELSE now()
+                 END) - now()
+             ))))::integer END AS retry_after_seconds
+             FROM generation_tasks
+             WHERE user_id = $1 AND task_type = $2 AND status IN ('pending', 'running')
+               AND execution_phase = ANY($4::text[]) AND updated_at >= $3 AND expires_at > now()${excludeTaskId ? " AND id <> $5" : ""}${concurrencyClassFilter}`,
+            [userId, type, new Date(activeAfter), ACTIVE_CONCURRENCY_PHASES, ...(excludeTaskId ? [excludeTaskId] : [])],
+        );
+        const seconds = Number(result.rows[0]?.retry_after_seconds);
+        return Number.isSafeInteger(seconds) && seconds > 0 ? seconds : undefined;
+    }
+    const retryAt = (await readFileTasks())
+        .filter(
+            (task) =>
+                task.id !== excludeTaskId &&
+                task.userId === userId &&
+                task.type === type &&
+                countsTowardGenerationConcurrency(task) &&
+                ["pending", "running"].includes(task.status) &&
+                isActiveConcurrencyPhase(task.executionPhase) &&
+                task.updatedAt >= activeAfter &&
+                task.expiresAt > now,
+        )
+        .reduce((earliest, task) => Math.min(earliest, task.leaseUntil && task.leaseUntil > now ? task.leaseUntil : task.nextPollAt && task.nextPollAt > now ? task.nextPollAt : now), Number.POSITIVE_INFINITY);
+    return Number.isFinite(retryAt) ? Math.max(1, Math.ceil((retryAt - now) / 1000)) : undefined;
+}
+
+export async function withGenerationConcurrencyLimit<T>(userId: string, type: GenerationTaskType, staleMs: number, limit: number, handler: () => Promise<T>, excludeTaskId?: string, requestId?: string): Promise<T | null> {
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const reservationId = requestId?.trim() || `reservation:${crypto.randomUUID()}`;
+        const admitted = await withPostgresTransaction(async (client) => {
             await client.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [userId, type]);
+            await client.query("DELETE FROM generation_concurrency_reservations WHERE expires_at <= now()");
+            const duplicate = await client.query("SELECT 1 FROM generation_concurrency_reservations WHERE user_id = $1 AND task_type = $2 AND request_id = $3 AND expires_at > now()", [userId, type, reservationId]);
+            if (duplicate.rows.length) return false;
             const result = await client.query<{ total: string | number }>(
-                `SELECT count(*) AS total FROM generation_tasks WHERE user_id = $1 AND task_type = $2 AND status IN ('pending', 'running') AND execution_phase = ANY($4::text[]) AND updated_at >= $3 AND expires_at > now()${excludeTaskId ? " AND id <> $5" : ""}`,
+                `SELECT
+                    (SELECT count(*) FROM generation_tasks WHERE user_id = $1 AND task_type = $2 AND status IN ('pending', 'running') AND execution_phase = ANY($4::text[]) AND updated_at >= $3 AND expires_at > now()${excludeTaskId ? " AND id <> $5" : ""}${type === "image" ? " AND COALESCE(payload->>'concurrencyClass', '') <> 'canvas-layer'" : ""})
+                    +
+                    (SELECT count(*) FROM generation_concurrency_reservations AS reservation
+                     WHERE reservation.user_id = $1 AND reservation.task_type = $2 AND reservation.expires_at > now()
+                       AND NOT EXISTS (
+                           SELECT 1 FROM generation_tasks AS task
+                           WHERE task.user_id = reservation.user_id AND task.task_type = reservation.task_type
+                             AND task.client_request_id = reservation.request_id AND task.status IN ('pending', 'running')
+                             AND task.execution_phase = ANY($4::text[]) AND task.updated_at >= $3 AND task.expires_at > now()
+                       )) AS total`,
                 [userId, type, new Date(Date.now() - staleMs), ACTIVE_CONCURRENCY_PHASES, ...(excludeTaskId ? [excludeTaskId] : [])],
             );
-            return Number(result.rows[0]?.total || 0) >= limit ? null : handler();
+            if (Number(result.rows[0]?.total || 0) >= limit) return false;
+            await client.query("INSERT INTO generation_concurrency_reservations (user_id, task_type, request_id, expires_at) VALUES ($1, $2, $3, $4)", [userId, type, reservationId, new Date(Date.now() + staleMs)]);
+            return true;
         });
+        if (!admitted) return null;
+        try {
+            return await handler();
+        } finally {
+            await postgresQuery("DELETE FROM generation_concurrency_reservations WHERE user_id = $1 AND task_type = $2 AND request_id = $3", [userId, type, reservationId]);
+        }
     }
 
     const key = `${userId}:${type}`;
@@ -733,6 +951,10 @@ function isActiveConcurrencyPhase(phase: StoredGenerationTaskRecord["executionPh
     return !phase || ACTIVE_CONCURRENCY_PHASES.includes(phase as (typeof ACTIVE_CONCURRENCY_PHASES)[number]);
 }
 
+function countsTowardGenerationConcurrency(task: StoredGenerationTaskRecord) {
+    return (task as StoredGenerationTaskRecord & { concurrencyClass?: string }).concurrencyClass !== "canvas-layer";
+}
+
 async function upsertTask<T extends { id: string; userId: string; status: string; createdAt: number; updatedAt: number }>(type: GenerationTaskType, task: T, ttlMs: number) {
     const status = normalizeGenerationTaskStatus(task.status);
     const context = normalizeGenerationTaskContext(task as GenerationTaskContext);
@@ -741,21 +963,25 @@ async function upsertTask<T extends { id: string; userId: string; status: string
         await postgresQuery(
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
-                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id
+                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
+                workflow_key, workflow_version, upstream_workflow_id, business_code, task_origin
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
              ON CONFLICT (id) DO UPDATE SET
-                status = EXCLUDED.status, payload = EXCLUDED.payload, updated_at = EXCLUDED.updated_at, expires_at = EXCLUDED.expires_at,
+                status = EXCLUDED.status, payload = jsonb_set(EXCLUDED.payload, '{executionProfile}', to_jsonb(generation_tasks.execution_profile), true), updated_at = EXCLUDED.updated_at, expires_at = EXCLUDED.expires_at,
                 conversation_id = COALESCE(EXCLUDED.conversation_id, generation_tasks.conversation_id),
                 run_id = COALESCE(EXCLUDED.run_id, generation_tasks.run_id), surface = COALESCE(EXCLUDED.surface, generation_tasks.surface),
                 project_id = COALESCE(EXCLUDED.project_id, generation_tasks.project_id), parent_task_id = COALESCE(EXCLUDED.parent_task_id, generation_tasks.parent_task_id),
-                attempt_no = COALESCE(EXCLUDED.attempt_no, generation_tasks.attempt_no), client_request_id = COALESCE(EXCLUDED.client_request_id, generation_tasks.client_request_id)`,
+                attempt_no = COALESCE(EXCLUDED.attempt_no, generation_tasks.attempt_no), client_request_id = COALESCE(EXCLUDED.client_request_id, generation_tasks.client_request_id), execution_profile = generation_tasks.execution_profile,
+                workflow_key = COALESCE(EXCLUDED.workflow_key, generation_tasks.workflow_key), workflow_version = COALESCE(EXCLUDED.workflow_version, generation_tasks.workflow_version),
+                upstream_workflow_id = COALESCE(EXCLUDED.upstream_workflow_id, generation_tasks.upstream_workflow_id), business_code = COALESCE(EXCLUDED.business_code, generation_tasks.business_code),
+                task_origin = COALESCE(EXCLUDED.task_origin, generation_tasks.task_origin)`,
             [
                 task.id,
                 task.userId,
                 type,
                 status,
-                JSON.stringify(task),
+                JSON.stringify({ ...(task as unknown as Record<string, unknown>), ...context }),
                 new Date(task.createdAt),
                 new Date(task.updatedAt),
                 new Date(task.updatedAt + ttlMs),
@@ -766,6 +992,12 @@ async function upsertTask<T extends { id: string; userId: string; status: string
                 context.parentTaskId || null,
                 context.attemptNo ?? null,
                 context.clientRequestId || null,
+                context.executionProfile,
+                context.workflowKey || null,
+                context.workflowVersion ?? null,
+                context.upstreamWorkflowId || null,
+                context.businessCode || null,
+                context.taskOrigin,
             ],
         );
         return;
@@ -777,7 +1009,7 @@ async function upsertTask<T extends { id: string; userId: string; status: string
             userId: task.userId,
             type,
             status,
-            payload: task as unknown as Record<string, unknown>,
+            payload: { ...(task as unknown as Record<string, unknown>), ...preserveTaskContext(previous, context) },
             createdAt: task.createdAt,
             updatedAt: task.updatedAt,
             expiresAt: task.updatedAt + ttlMs,
@@ -797,9 +1029,10 @@ async function insertTask<T extends { id: string; userId: string; status: string
         const inserted = await postgresQuery<{ payload: T }>(
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
-                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id
+                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
+                workflow_key, workflow_version, upstream_workflow_id, business_code, task_origin
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
              ON CONFLICT DO NOTHING
              RETURNING payload`,
             values,
@@ -817,7 +1050,7 @@ async function insertTask<T extends { id: string; userId: string; status: string
             userId: task.userId,
             type,
             status,
-            payload: task as unknown as Record<string, unknown>,
+            payload: { ...(task as unknown as Record<string, unknown>), ...context },
             createdAt: task.createdAt,
             updatedAt: task.updatedAt,
             expiresAt: task.updatedAt + ttlMs,
@@ -834,7 +1067,7 @@ function taskValues<T extends { id: string; userId: string; createdAt: number; u
         task.userId,
         type,
         status,
-        JSON.stringify(task),
+        JSON.stringify({ ...(task as unknown as Record<string, unknown>), ...context }),
         new Date(task.createdAt),
         new Date(task.updatedAt),
         new Date(task.updatedAt + ttlMs),
@@ -845,6 +1078,12 @@ function taskValues<T extends { id: string; userId: string; createdAt: number; u
         context.parentTaskId || null,
         context.attemptNo ?? null,
         context.clientRequestId || null,
+        context.executionProfile,
+        context.workflowKey || null,
+        context.workflowVersion ?? null,
+        context.upstreamWorkflowId || null,
+        context.businessCode || null,
+        context.taskOrigin,
     ];
 }
 
@@ -873,19 +1112,34 @@ export function withGenerationTaskFileMutation<T>(mutator: (tasks: StoredGenerat
 
 function normalizeGenerationTaskContext(context: GenerationTaskContext): GenerationTaskContext {
     const attempt = Number(context.attemptNo);
+    const workflowVersion = Number(context.workflowVersion);
+    const businessCode = isRunningHubWorkflowBusinessCode(context.businessCode) ? context.businessCode : undefined;
     return {
         conversationId: cleanContextText(context.conversationId),
         runId: cleanContextText(context.runId),
         surface: context.surface === "chat" || context.surface === "canvas" || context.surface === "drama" ? context.surface : undefined,
+        executionProfile: context.executionProfile === "open-source-practice" ? "open-source-practice" : "production",
         projectId: cleanContextText(context.projectId),
         episodeId: cleanContextText(context.episodeId),
         shotId: cleanContextText(context.shotId),
+        frameType: isGenerationFrameType(context.frameType) ? context.frameType : undefined,
         estimatedPoints: positiveContextNumber(context.estimatedPoints),
         parentTaskId: cleanContextText(context.parentTaskId),
         attemptNo: Number.isFinite(attempt) && attempt >= 0 ? Math.floor(attempt) : undefined,
         clientRequestId: cleanContextText(context.clientRequestId),
         generationLogId: cleanContextText(context.generationLogId),
         generationSlotId: cleanContextText(context.generationSlotId),
+        ipReferences: normalizeContextIpReferences(context.ipReferences),
+        billingContext: normalizeBillingContext(context.billingContext),
+        frameSnapshot: normalizeFrameSnapshot(context.frameSnapshot),
+        audioKind: normalizeAudioKind(context.audioKind),
+        speaker: cleanContextText(context.speaker),
+        workflowKey: cleanContextText(context.workflowKey),
+        workflowVersion: Number.isSafeInteger(workflowVersion) && workflowVersion > 0 ? workflowVersion : undefined,
+        upstreamWorkflowId: cleanContextText(context.upstreamWorkflowId),
+        workflowConfigFingerprint: cleanContextText(context.workflowConfigFingerprint),
+        businessCode,
+        taskOrigin: context.taskOrigin === "admin-workflow-test" ? "admin-workflow-test" : "user",
     };
 }
 
@@ -903,7 +1157,40 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         clientRequestId: next.clientRequestId || previous?.clientRequestId,
         generationLogId: next.generationLogId || previous?.generationLogId,
         generationSlotId: next.generationSlotId || previous?.generationSlotId,
+        ipReferences: next.ipReferences?.length ? next.ipReferences : previous?.ipReferences,
+        billingContext: next.billingContext || previous?.billingContext,
+        frameSnapshot: next.frameSnapshot || (previous?.frameSnapshot as Record<string, unknown> | undefined),
+        audioKind: next.audioKind || storedAudioKind(previous),
+        speaker: next.speaker || storedSpeaker(previous),
+        workflowKey: next.workflowKey || previous?.workflowKey,
+        workflowVersion: next.workflowVersion ?? previous?.workflowVersion,
+        upstreamWorkflowId: next.upstreamWorkflowId || previous?.upstreamWorkflowId,
+        workflowConfigFingerprint: next.workflowConfigFingerprint || previous?.workflowConfigFingerprint,
+        businessCode: next.businessCode || previous?.businessCode,
+        taskOrigin: next.taskOrigin || previous?.taskOrigin || "user",
+        executionProfile: previous?.executionProfile || next.executionProfile || "production",
     };
+}
+
+function normalizeFrameSnapshot(value: unknown): Record<string, unknown> | undefined {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    try {
+        const serialized = JSON.stringify(value);
+        if (!serialized || serialized.length > 64 * 1024) return undefined;
+        return JSON.parse(serialized) as Record<string, unknown>;
+    } catch {
+        return undefined;
+    }
+}
+
+function normalizeBillingContext(value: GenerationTaskContext["billingContext"]): GenerationTaskContext["billingContext"] {
+    if (!value || (value.projectType !== "canvas" && value.projectType !== "drama")) return undefined;
+    const schoolId = cleanContextText(value.schoolId);
+    const groupId = cleanContextText(value.groupId);
+    const orderId = cleanContextText(value.orderId);
+    const projectId = cleanContextText(value.projectId);
+    if (!schoolId || !groupId || !orderId || !projectId) return undefined;
+    return { schoolId, groupId, orderId, projectType: value.projectType, projectId };
 }
 
 function preserveTaskExecution(previous?: StoredGenerationTaskRecord) {
@@ -923,6 +1210,10 @@ function preserveTaskExecution(previous?: StoredGenerationTaskRecord) {
         leaseUntil: previous.leaseUntil,
         lastHeartbeatAt: previous.lastHeartbeatAt,
     };
+}
+
+function isGenerationFrameType(value: unknown): value is "first" | "key" | "last" {
+    return value === "first" || value === "key" || value === "last";
 }
 
 function cleanContextText(value?: string) {
@@ -947,6 +1238,11 @@ function positiveContextNumber(value: unknown) {
     return Number.isFinite(number) && number >= 0 ? Number(number.toFixed(2)) : undefined;
 }
 
+function positiveWorkflowVersion(value: unknown) {
+    const number = Number(value);
+    return Number.isSafeInteger(number) && number > 0 ? number : undefined;
+}
+
 function normalizeGenerationTaskStatus(status: string): GenerationTaskStatus {
     const value = status.trim().toLowerCase();
     if (["planning", "queued", "created", "pending"].includes(value)) return "pending";
@@ -960,9 +1256,15 @@ function normalizeGenerationTaskStatus(status: string): GenerationTaskStatus {
 
 function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTaskRecord {
     const payload = row.payload && typeof row.payload === "object" ? (row.payload as Record<string, unknown>) : {};
+    const nested = recordObject(payload.context);
+    const resultPayload = recordObject(row.result_payload);
+    const executionPhase = isExecutionPhase(row.execution_phase) ? row.execution_phase : undefined;
+    const lastUpstreamStatus = cleanContextText(String(row.last_upstream_status || ""));
+    const durableSurface = cleanContextText(typeof row.surface === "string" ? row.surface : "");
+    const workflowBusinessCode = row.business_code || payload.businessCode;
     return {
         id: String(row.id || ""),
-        userId: String(row.user_id || ""),
+        userId: cleanContextText(String(row.user_id || "")) || "",
         type: isTaskType(row.task_type) ? row.task_type : "text",
         status: isTaskStatus(row.status) ? row.status : "error",
         payload,
@@ -971,15 +1273,23 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         expiresAt: databaseTime(row.expires_at),
         conversationId: cleanContextText(String(row.conversation_id || "")),
         runId: cleanContextText(String(row.run_id || "")),
-        surface: isTaskSurface(row.surface) ? row.surface : undefined,
+        surface: isTaskSurface(durableSurface) ? durableSurface : undefined,
+        executionProfile: row.execution_profile === "open-source-practice" ? "open-source-practice" : "production",
         projectId: cleanContextText(String(row.project_id || "")),
-        episodeId: cleanContextText(String(payload.episodeId || "")),
-        shotId: cleanContextText(String(payload.shotId || "")),
+        episodeId: payloadContextText(payload, "episodeId"),
+        shotId: payloadContextText(payload, "shotId"),
+        frameType: isGenerationFrameType(payload.frameType) ? payload.frameType : undefined,
         estimatedPoints: positiveContextNumber(payload.estimatedPoints),
         parentTaskId: cleanContextText(String(row.parent_task_id || "")),
         attemptNo: row.attempt_no === null || row.attempt_no === undefined ? undefined : Math.max(0, Math.floor(Number(row.attempt_no) || 0)),
         clientRequestId: cleanContextText(String(row.client_request_id || "")),
-        executionPhase: isExecutionPhase(row.execution_phase) ? row.execution_phase : undefined,
+        workflowKey: cleanContextText(String(row.workflow_key || payload.workflowKey || "")),
+        workflowVersion: positiveWorkflowVersion(row.workflow_version ?? payload.workflowVersion),
+        upstreamWorkflowId: cleanContextText(String(row.upstream_workflow_id || payload.upstreamWorkflowId || "")),
+        workflowConfigFingerprint: cleanContextText(String(payload.workflowConfigFingerprint || "")),
+        businessCode: isRunningHubWorkflowBusinessCode(workflowBusinessCode) ? workflowBusinessCode : undefined,
+        taskOrigin: row.task_origin === "admin-workflow-test" || payload.taskOrigin === "admin-workflow-test" ? "admin-workflow-test" : "user",
+        executionPhase,
         upstreamTaskId: cleanUpstreamTaskId(String(row.upstream_task_id || "")),
         channelId: cleanContextText(String(row.channel_id || "")),
         provider: cleanContextText(String(row.provider || "")),
@@ -987,12 +1297,211 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         submittedAt: optionalDatabaseTime(row.submitted_at),
         nextPollAt: optionalDatabaseTime(row.next_poll_at),
         lastPollAt: optionalDatabaseTime(row.last_poll_at),
-        lastUpstreamStatus: cleanContextText(String(row.last_upstream_status || "")),
-        resultPayload: recordObject(row.result_payload),
+        lastUpstreamStatus,
+        resultPayload,
+        reviewReason: resolveGenerationReviewReason({ executionPhase, lastUpstreamStatus, resultPayload }),
         workerId: cleanContextText(String(row.worker_id || "")),
         leaseUntil: optionalDatabaseTime(row.lease_until),
         lastHeartbeatAt: optionalDatabaseTime(row.last_heartbeat_at),
+        ipReferences: normalizeContextIpReferences(payload.ipReferences),
+        frameSnapshot: normalizeFrameSnapshot(payload.frameSnapshot),
+        audioKind: normalizeAudioKind(payload.audioKind) || normalizeAudioKind(nested.audioKind),
+        speaker: cleanContextText(typeof payload.speaker === "string" ? payload.speaker : typeof nested.speaker === "string" ? nested.speaker : undefined),
     };
+}
+
+function withPayloadTaskContext(record: StoredGenerationTaskRecord): StoredGenerationTaskRecord {
+    const payload = recordObject(record.payload);
+    const nested = recordObject(payload.context);
+    const workflow = recordObject(payload.workflow);
+    const storyBatch = recordObject(payload.storyBatch);
+    const payloadSurface = taskContextText(payload, "surface");
+    const nestedSurface = taskContextText(nested, "surface");
+    const surface = [taskContextText(record, "surface"), payloadSurface, nestedSurface].find(isTaskSurface);
+    return {
+        ...record,
+        userId: cleanContextText(record.userId) || taskContextText(payload, "userId") || taskContextText(nested, "userId") || "",
+        surface,
+        projectId: taskContextText(record, "projectId") || taskContextText(payload, "projectId") || taskContextText(nested, "projectId") || taskContextText(workflow, "projectId") || taskContextText(storyBatch, "projectId"),
+        episodeId: taskContextText(record, "episodeId") || payloadContextText(payload, "episodeId") || taskContextText(storyBatch, "sourceEpisodeId"),
+        shotId: taskContextText(record, "shotId") || payloadContextText(payload, "shotId"),
+        frameType: record.frameType || (isGenerationFrameType(payload.frameType) ? payload.frameType : undefined),
+        attemptNo: record.attemptNo ?? normalizedAttemptNoValue(payload.attemptNo ?? nested.attemptNo),
+        audioKind: normalizeAudioKind(record.audioKind) || normalizeAudioKind(payload.audioKind) || normalizeAudioKind(nested.audioKind),
+        speaker: cleanContextText(record.speaker) || cleanContextText(typeof payload.speaker === "string" ? payload.speaker : typeof nested.speaker === "string" ? nested.speaker : undefined),
+    };
+}
+
+function isCompleteDramaTaskRecord(record: StoredGenerationTaskRecord, scope: { userId: string; projectId: string; episodeId: string; shotIds?: string[] }) {
+    // A row can carry the same coordinate in more than one place.  Never let
+    // a matching durable column mask a conflicting payload value: otherwise a
+    // stale task could be attached to the wrong Drama Lab shot.
+    if (hasDramaTaskContextConflict(record)) return false;
+    const hydrated = withPayloadTaskContext(record);
+    const surface = hydrated.surface;
+    const projectId = hydrated.projectId;
+    const episodeId = hydrated.episodeId;
+    const shotId = hydrated.shotId;
+    if (!shotId) return false;
+    return hydrated.userId === scope.userId && surface === "drama" && projectId === scope.projectId && episodeId === scope.episodeId && (scope.shotIds === undefined || scope.shotIds.includes(shotId));
+}
+
+function isCompleteDramaProjectTaskRecord(record: StoredGenerationTaskRecord, scope: { userId: string; projectId: string }) {
+    // Project discovery has no shot requirement, but keeps the same fail
+    // closed context agreement as the strict shot recovery query.
+    if (hasDramaTaskContextConflict(record)) return false;
+    const hydrated = withPayloadTaskContext(record);
+    return hydrated.userId === scope.userId && hydrated.surface === "drama" && hydrated.projectId === scope.projectId;
+}
+
+function hasDramaTaskContextConflict(record: StoredGenerationTaskRecord) {
+    const payload = recordObject(record.payload);
+    const nested = recordObject(payload.context);
+    const workflow = recordObject(payload.workflow);
+    const storyBatch = recordObject(payload.storyBatch);
+    const coordinateConflict = [
+        [record.userId, payload.userId, nested.userId],
+        [record.surface, payload.surface, nested.surface],
+        [record.projectId, payload.projectId, nested.projectId, workflow.projectId, storyBatch.projectId],
+        [record.episodeId, payload.episodeId, nested.episodeId],
+        [record.shotId, payload.shotId, nested.shotId],
+    ].some((values) => {
+        const normalized = values.map(contextValueText).filter((value): value is string => Boolean(value));
+        return new Set(normalized).size > 1;
+    });
+    return coordinateConflict || hasAudioTaskMetadataConflict(record, payload, nested);
+}
+
+function contextValueText(value: unknown) {
+    return typeof value === "string" ? cleanContextText(value) : undefined;
+}
+
+/**
+ * Audio tasks duplicate their track metadata in the task payload and, for
+ * legacy rows, sometimes below payload.context or on the file record itself.
+ * A disagreement must be treated like any other task-context conflict so a
+ * stale track cannot be recovered into the wrong Drama shot.
+ */
+function hasAudioTaskMetadataConflict(record: StoredGenerationTaskRecord, payload: Record<string, unknown>, nested: Record<string, unknown>) {
+    const hasAudioMetadata = record.type === "audio" || [payload, nested].some((source) => Object.prototype.hasOwnProperty.call(source, "audioKind") || Object.prototype.hasOwnProperty.call(source, "speaker"));
+    if (!hasAudioMetadata) return false;
+    return hasAudioKindValuesConflict([record.audioKind, payload.audioKind, nested.audioKind]) || hasSpeakerValuesConflict([record.speaker, payload.speaker, nested.speaker]);
+}
+
+function hasAudioKindValuesConflict(values: unknown[]) {
+    const normalized = values.map(audioKindContextValue).filter((value): value is string | typeof INVALID_AUDIO_METADATA => value !== undefined);
+    return normalized.includes(INVALID_AUDIO_METADATA) || normalized.some((value) => value !== "dialogue" && value !== "narration") || new Set(normalized).size > 1;
+}
+
+function hasSpeakerValuesConflict(values: unknown[]) {
+    const normalized = values.map(speakerContextValue).filter((value): value is string | typeof INVALID_AUDIO_METADATA => value !== undefined);
+    return normalized.includes(INVALID_AUDIO_METADATA) || new Set(normalized).size > 1;
+}
+
+function audioKindContextValue(value: unknown) {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value !== "string") return INVALID_AUDIO_METADATA;
+    return value.trim() || undefined;
+}
+
+function speakerContextValue(value: unknown) {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value !== "string") return INVALID_AUDIO_METADATA;
+    return cleanContextText(value);
+}
+
+/**
+ * Normalize a context source in SQL exactly as the JavaScript mapper does.
+ * Legacy rows occasionally contain padded IDs; using BTRIM here keeps the
+ * PostgreSQL and file providers from disagreeing about the same task.
+ */
+function sqlNormalizedContextSource(expression: string) {
+    return `NULLIF(BTRIM(${expression}), '')`;
+}
+
+/**
+ * Return pairwise non-conflict predicates for a set of optional sources.
+ * Empty sources are ignored, while two populated sources must agree. Keeping
+ * this predicate in the database ensures invalid rows cannot consume LIMIT
+ * slots before the JavaScript safety check runs.
+ */
+function sqlContextSourceAgreement(expressions: string[]) {
+    const normalized = expressions.map(sqlNormalizedContextSource);
+    const predicates: string[] = [];
+    for (let index = 0; index < normalized.length; index += 1) {
+        for (let next = index + 1; next < normalized.length; next += 1) {
+            const left = normalized[index];
+            const right = normalized[next];
+            predicates.push(`(${left} IS NULL OR ${right} IS NULL OR ${left} = ${right})`);
+        }
+    }
+    return predicates.join(" AND ");
+}
+
+function sqlDramaTaskContextAgreement() {
+    return [
+        ["user_id", "payload->>'userId'", "payload#>>'{context,userId}'"],
+        ["surface", "payload->>'surface'", "payload#>>'{context,surface}'"],
+        ["project_id", "payload->>'projectId'", "payload#>>'{context,projectId}'", "payload#>>'{workflow,projectId}'", "payload#>>'{storyBatch,projectId}'"],
+        ["payload->>'episodeId'", "payload#>>'{context,episodeId}'"],
+        ["payload->>'shotId'", "payload#>>'{context,shotId}'"],
+    ]
+        .map(sqlContextSourceAgreement)
+        .filter(Boolean)
+        .join(" AND ");
+}
+
+function taskAttempt(record: StoredGenerationTaskRecord) {
+    return normalizedAttemptNoValue(record.attemptNo);
+}
+
+function normalizedAttemptNoValue(value: unknown) {
+    const attempt = Number(value);
+    return Number.isFinite(attempt) && attempt >= 0 ? Math.floor(attempt) : 0;
+}
+
+function normalizeAudioKind(value: unknown): GenerationTaskContext["audioKind"] {
+    const normalized = typeof value === "string" ? value.trim() : "";
+    return normalized === "dialogue" || normalized === "narration" ? normalized : undefined;
+}
+
+function storedAudioKind(record: StoredGenerationTaskRecord | undefined) {
+    if (!record) return undefined;
+    const payload = recordObject(record.payload);
+    const nested = recordObject(payload.context);
+    return normalizeAudioKind(record.audioKind) || normalizeAudioKind(payload.audioKind) || normalizeAudioKind(nested.audioKind);
+}
+
+function storedSpeaker(record: StoredGenerationTaskRecord | undefined) {
+    if (!record) return undefined;
+    const payload = recordObject(record.payload);
+    const nested = recordObject(payload.context);
+    return cleanContextText(record.speaker) || cleanContextText(typeof payload.speaker === "string" ? payload.speaker : typeof nested.speaker === "string" ? nested.speaker : undefined);
+}
+
+function payloadContextText(payload: Record<string, unknown>, key: "episodeId" | "shotId") {
+    return (
+        taskContextText(payload, key) ||
+        (() => {
+            const nested = recordObject(payload.context);
+            return taskContextText(nested, key);
+        })()
+    );
+}
+
+function taskContextText(value: Record<string, unknown>, key: string) {
+    const candidate = value[key];
+    return typeof candidate === "string" ? cleanContextText(candidate) : undefined;
+}
+
+function normalizeContextIpReferences(value: unknown) {
+    if (!Array.isArray(value)) return undefined;
+    const references = value.flatMap((item) => {
+        const reference = normalizeIpReference(item);
+        return reference ? [reference] : [];
+    });
+    const unique = [...new Map(references.map((reference) => [`${reference.id}\0${reference.versionId}\0${reference.itemIds.join("\0")}`, reference])).values()];
+    return unique.length ? unique : undefined;
 }
 
 function mapGenerationTaskCostAggregate(row: Record<string, unknown>): GenerationTaskCostAggregate[] {
@@ -1087,15 +1596,86 @@ function optionalDatabaseTime(value: unknown) {
     return value ? databaseTime(value) || undefined : undefined;
 }
 
-function withExecutionState<T>(payload: T, phase: unknown, status: unknown, resultPayload: unknown): T & GenerationTaskExecutionState {
+function withExecutionState<T>(payload: T, phase: unknown, status: unknown, resultPayload: unknown, contextConflict = false): T & GenerationTaskExecutionState {
     const executionPhase = isExecutionPhase(phase) ? phase : undefined;
     const lastUpstreamStatus = cleanContextText(typeof status === "string" ? status : "");
-    return {
+    const task = {
         ...payload,
         executionPhase,
         lastUpstreamStatus,
         reviewReason: resolveGenerationReviewReason({ executionPhase, lastUpstreamStatus, resultPayload }),
     };
+    if (contextConflict) {
+        // Keep the marker out of API JSON while allowing scoped consumers to
+        // reject a record whose durable and payload context disagree.
+        Object.defineProperty(task, STORED_TASK_CONTEXT_CONFLICT, { value: true, enumerable: false, configurable: false });
+    }
+    return task;
+}
+
+export function hasStoredGenerationTaskContextConflict(value: unknown) {
+    return Boolean(value && typeof value === "object" && (value as Record<string, unknown>)[STORED_TASK_CONTEXT_CONFLICT] === true);
+}
+
+/**
+ * Mark raw task records as conflicted too. Typed task reads already carry this
+ * marker, but recovery callers often read the scheduler record for upstream
+ * metadata; they must receive the same fail-closed signal.
+ */
+function markStoredTaskContextConflict<T extends object>(record: T): T {
+    if (hasDramaTaskContextConflict(record as StoredGenerationTaskRecord)) {
+        Object.defineProperty(record, STORED_TASK_CONTEXT_CONFLICT, { value: true, enumerable: false, configurable: false });
+    }
+    return record;
+}
+
+type TaskContextHydrationSource = {
+    userId?: unknown;
+    surface?: unknown;
+    projectId?: unknown;
+    episodeId?: unknown;
+    shotId?: unknown;
+    frameType?: unknown;
+    audioKind?: unknown;
+    speaker?: unknown;
+};
+
+/**
+ * Older task payloads may keep context below `payload.context`, while newer
+ * PostgreSQL rows also duplicate owner/surface/project in durable columns.
+ * Hydrate missing fields for task consumers, but retain a private conflict
+ * marker whenever two populated sources disagree.
+ */
+function hydrateTaskPayload<T>(payload: T, durable: TaskContextHydrationSource) {
+    const source = recordObject(payload);
+    const nested = recordObject(source.context);
+    const keys = ["userId", "surface", "projectId", "episodeId", "shotId", "frameType"] as const;
+    const hydrated = { ...source };
+    let conflict = false;
+    for (const key of keys) {
+        const values = [source[key], nested[key], durable[key]].map(normalizeHydrationText).filter((value): value is string => Boolean(value));
+        if (new Set(values).size > 1) conflict = true;
+        if (!normalizeHydrationText(hydrated[key])) {
+            const fallback = values[0];
+            if (fallback) hydrated[key] = fallback;
+        }
+    }
+    const audioKindValues = [source.audioKind, nested.audioKind, durable.audioKind];
+    if (hasAudioKindValuesConflict(audioKindValues)) conflict = true;
+    const audioKinds = audioKindValues.map(normalizeAudioKind).filter((value): value is NonNullable<GenerationTaskContext["audioKind"]> => Boolean(value));
+    if (new Set(audioKinds).size > 1) conflict = true;
+    if (audioKinds[0]) hydrated.audioKind = audioKinds[0];
+    else if (Object.prototype.hasOwnProperty.call(hydrated, "audioKind")) delete hydrated.audioKind;
+    const speakerValues = [source.speaker, nested.speaker, durable.speaker];
+    if (hasSpeakerValuesConflict(speakerValues)) conflict = true;
+    const speaker = speakerValues.map(normalizeHydrationText).find(Boolean);
+    if (speaker) hydrated.speaker = speaker;
+    else if (Object.prototype.hasOwnProperty.call(hydrated, "speaker")) delete hydrated.speaker;
+    return { payload: hydrated as T, conflict };
+}
+
+function normalizeHydrationText(value: unknown) {
+    return typeof value === "string" ? value.trim().slice(0, 160) || undefined : undefined;
 }
 
 function recordObject(value: unknown) {

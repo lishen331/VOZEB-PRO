@@ -1,6 +1,9 @@
 import {
     DEFAULT_ALIPAY_PAYMENT_MODE,
+    DEFAULT_ALIPAY_SIGNATURE_MODE,
     getAlipayPaymentModePresentation,
+    isAlipaySignatureMode,
+    isAlipayPaymentFieldVisible,
     PAYMENT_PROVIDER_DEFINITIONS,
     type PaymentConfigRequirement,
     type PaymentConfigSummary,
@@ -8,7 +11,17 @@ import {
     type PaymentProviderConfigField,
     type PaymentProviderDefinition,
 } from "@/lib/payment-config-types";
-import { fieldHasRuntimeValue, getFieldRuntimeValue, getPaymentRuntimeConfig, hasPaymentProductionSecret, isPaymentRuntimeProviderEnabled, type PaymentRuntimeConfig } from "@/lib/server/payment-config-store";
+import {
+    fieldHasRuntimeValue,
+    getFieldRuntimeValue,
+    getPaymentProviderCheckoutFieldKeys,
+    getPaymentProviderWebhookFieldKeys,
+    getPaymentRuntimeConfig,
+    getPaymentRuntimeEnv,
+    hasPaymentProductionSecret,
+    isPaymentRuntimeProviderEnabled,
+    type PaymentRuntimeConfig,
+} from "@/lib/server/payment-config-store";
 
 export async function getPaymentConfigSummary(origin = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"): Promise<PaymentConfigSummary> {
     const normalizedOrigin = normalizeOrigin(origin);
@@ -25,10 +38,12 @@ export async function getPaymentConfigSummary(origin = process.env.NEXT_PUBLIC_S
 export { hasPaymentProductionSecret };
 
 function buildProviderConfig(provider: PaymentProviderDefinition, runtimeConfig: PaymentRuntimeConfig, origin: string): PaymentProviderConfig {
-    const fields = provider.fields.map((field) => resolveField(field, runtimeConfig));
+    const configuredSignatureMode = getPaymentRuntimeEnv(runtimeConfig, "VOZEB_PRO_ALIPAY_SIGNATURE_MODE");
+    const signatureMode = provider.id === "alipay" && isAlipaySignatureMode(configuredSignatureMode) ? configuredSignatureMode : DEFAULT_ALIPAY_SIGNATURE_MODE;
+    const fields = provider.fields.map((field) => resolveField(field, runtimeConfig, provider.id === "alipay" ? isAlipayPaymentFieldVisible(field.key, signatureMode) : true));
     const presentation = providerPresentation(provider, fields);
-    const checkoutRequirements = provider.checkoutFieldKeys.map((key) => resolveRequirement(provider, key, runtimeConfig));
-    const webhookRequirements = provider.webhookFieldKeys.map((key) => resolveRequirement(provider, key, runtimeConfig));
+    const checkoutRequirements = getPaymentProviderCheckoutFieldKeys(runtimeConfig, provider.id).map((key) => resolveRequirement(provider, key, runtimeConfig));
+    const webhookRequirements = getPaymentProviderWebhookFieldKeys(runtimeConfig, provider.id).map((key) => resolveRequirement(provider, key, runtimeConfig));
     const enabled = isPaymentRuntimeProviderEnabled(runtimeConfig, provider.id);
     const checkoutReady = provider.id === "manual" || checkoutRequirements.every((item) => item.configured);
     const webhookReady = provider.webhookOptional ? webhookRequirements.every((item) => item.configured) : webhookRequirements.every((item) => item.configured);
@@ -54,11 +69,12 @@ function buildProviderConfig(provider: PaymentProviderDefinition, runtimeConfig:
     };
 }
 
-function resolveField(field: PaymentProviderConfigField, runtimeConfig: PaymentRuntimeConfig) {
+function resolveField(field: PaymentProviderConfigField, runtimeConfig: PaymentRuntimeConfig, visible = true) {
     const configured = fieldHasRuntimeValue(runtimeConfig, field);
     const runtimeValue = getFieldRuntimeValue(runtimeConfig, field);
     return {
         ...field,
+        visible,
         configured,
         value: field.secret ? undefined : runtimeValue,
         sourceLabel: sourceLabelForField(field, runtimeConfig),

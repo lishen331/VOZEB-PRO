@@ -11,10 +11,14 @@ import { ReferralRepository } from "./referral-repository";
 import { WorkPublicationRepository } from "./work-publication-repository";
 import { WorkGovernanceRepository } from "./work-governance-repository";
 import { WorkCommunityRepository } from "./work-community-repository";
+import { createPostgresSchoolDomainRepository } from "./school-domain-repository";
+import { createPostgresSchoolComputeRepository } from "./school-compute-repository";
 import { AnnouncementsRepository, GenerationLogsRepository, PromptsRepository } from "./content-repository";
 import { CdkRepository, EmailCodesRepository, PointsRepository, SessionsRepository, UsersRepository } from "./user-repository";
-import type { AppSettingsRecord, EntitlementPlanRecord, JsonValue, SystemModelChannelRecord } from "./repository-shared";
-import { isoValue, jsonParam, jsonValue, numberValue, optionalIso, optionalJson, optionalString, stringValue } from "./repository-shared";
+import { PracticeRepository } from "./practice-repository";
+import { IpLibraryRepository } from "./ip-library-repository";
+import type { AppSettingsRecord, EntitlementPlanRecord, SystemModelChannelRecord } from "./repository-shared";
+import { isoValue, jsonParam, jsonValue, numberValue, optionalJson, stringValue } from "./repository-shared";
 
 export type {
     AuthenticatedUserRecord,
@@ -69,26 +73,27 @@ export type {
     UserPlanAssignmentRecord,
 } from "./repository-shared";
 
-export function createPostgresRepositories(executor: QueryExecutor = { query: postgresQuery }) {
-    const billingProduct = new BillingProductRepository(executor);
-    const billingOrder = new BillingOrderRepository(executor);
-    const pointsWallet = new PointsWalletRepository(executor);
-    const billingPayment = new BillingPaymentRepository(executor);
-    const billingRefund = new BillingRefundRepository(executor);
-    const promotion = new PromotionRepository(executor);
-    const coupons = new CouponRepository(executor);
+export function createPostgresRepositories(executor?: QueryExecutor) {
+    const db = executor || { query: postgresQuery };
+    const billingProduct = new BillingProductRepository(db);
+    const billingOrder = new BillingOrderRepository(db);
+    const pointsWallet = new PointsWalletRepository(db);
+    const billingPayment = new BillingPaymentRepository(db);
+    const billingRefund = new BillingRefundRepository(db);
+    const promotion = new PromotionRepository(db);
+    const coupons = new CouponRepository(db);
 
     return {
-        settings: new SettingsRepository(executor),
-        users: new UsersRepository(executor),
-        sessions: new SessionsRepository(executor),
-        emailCodes: new EmailCodesRepository(executor),
-        points: new PointsRepository(executor),
+        settings: new SettingsRepository(db),
+        users: new UsersRepository(db),
+        sessions: new SessionsRepository(db),
+        emailCodes: new EmailCodesRepository(db),
+        points: new PointsRepository(db),
         pointsWallet,
-        cdk: new CdkRepository(executor),
-        announcements: new AnnouncementsRepository(executor),
-        prompts: new PromptsRepository(executor),
-        generationLogs: new GenerationLogsRepository(executor),
+        cdk: new CdkRepository(db),
+        announcements: new AnnouncementsRepository(db),
+        prompts: new PromptsRepository(db),
+        generationLogs: new GenerationLogsRepository(db),
         billing: {
             listProducts: billingProduct.listProducts.bind(billingProduct),
             getProductById: billingProduct.getProductById.bind(billingProduct),
@@ -136,11 +141,15 @@ export function createPostgresRepositories(executor: QueryExecutor = { query: po
         },
         promotions: promotion,
         coupons,
-        referrals: new ReferralRepository(executor),
-        workPublications: new WorkPublicationRepository(executor),
-        workGovernance: new WorkGovernanceRepository(executor),
-        workCommunity: new WorkCommunityRepository(executor),
-        auditLogs: new AuditLogsRepository(executor),
+        referrals: new ReferralRepository(db),
+        workPublications: new WorkPublicationRepository(db),
+        workGovernance: new WorkGovernanceRepository(db),
+        workCommunity: new WorkCommunityRepository(db),
+        auditLogs: new AuditLogsRepository(db),
+        schoolDomain: createPostgresSchoolDomainRepository(db),
+        schoolCompute: createPostgresSchoolComputeRepository(executor),
+        practice: new PracticeRepository(db),
+        ipLibrary: new IpLibraryRepository(db),
     };
 }
 
@@ -197,6 +206,8 @@ class SettingsRepository {
         if (input.paymentConfig !== undefined) add("payment_config", jsonParam(input.paymentConfig));
         if (input.logicalModels !== undefined) add("logical_models", jsonParam(input.logicalModels));
         if (input.defaultModels !== undefined) add("default_models", jsonParam(input.defaultModels));
+        if (input.practiceDefaultModels !== undefined) add("practice_default_models", jsonParam(input.practiceDefaultModels));
+        if (input.practiceWorkflowModels !== undefined) add("practice_workflow_models", jsonParam(input.practiceWorkflowModels));
         if (input.agentSkills !== undefined) add("agent_skills", jsonParam(input.agentSkills));
         if (input.freeDailyPoints !== undefined) add("free_daily_points", input.freeDailyPoints);
         if (!assignments.length) throw new Error("Settings update requires at least one field");
@@ -253,8 +264,8 @@ class SettingsRepository {
     async upsertSystemModelChannel(channel: Omit<SystemModelChannelRecord, "createdAt" | "updatedAt">) {
         const result = await this.db.query(
             `
-            INSERT INTO system_model_channels (id, name, base_url, api_key_ciphertext, webhook_secret_ciphertext, api_format, models, enabled, advanced_config, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            INSERT INTO system_model_channels (id, name, base_url, api_key_ciphertext, webhook_secret_ciphertext, api_format, models, enabled, advanced_config, sort_order, purpose)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name,
                 base_url = EXCLUDED.base_url,
@@ -263,11 +274,24 @@ class SettingsRepository {
                 api_format = EXCLUDED.api_format,
                 models = EXCLUDED.models,
                 enabled = EXCLUDED.enabled,
+                purpose = EXCLUDED.purpose,
                 advanced_config = EXCLUDED.advanced_config,
                 sort_order = EXCLUDED.sort_order
             RETURNING *
             `,
-            [channel.id, channel.name, channel.baseUrl, channel.apiKeyCiphertext, channel.webhookSecretCiphertext, channel.apiFormat, jsonParam(channel.models), channel.enabled, jsonParam(channel.advancedConfig), channel.sortOrder],
+            [
+                channel.id,
+                channel.name,
+                channel.baseUrl,
+                channel.apiKeyCiphertext,
+                channel.webhookSecretCiphertext,
+                channel.apiFormat,
+                jsonParam(channel.models),
+                channel.enabled,
+                jsonParam(channel.advancedConfig),
+                channel.sortOrder,
+                channel.purpose || "shared",
+            ],
         );
         return mapSystemModelChannel(result.rows[0]);
     }
@@ -299,6 +323,8 @@ function mapSettings(row: Record<string, unknown>): AppSettingsRecord {
         paymentConfig: jsonValue(row.payment_config),
         logicalModels: jsonValue(row.logical_models),
         defaultModels: jsonValue(row.default_models),
+        practiceDefaultModels: jsonValue(row.practice_default_models),
+        practiceWorkflowModels: jsonValue(row.practice_workflow_models),
         agentSkills: jsonValue(row.agent_skills),
         createdAt: isoValue(row.created_at),
         updatedAt: isoValue(row.updated_at),
@@ -329,6 +355,7 @@ function mapSystemModelChannel(row: Record<string, unknown>): SystemModelChannel
         apiFormat: row.api_format === "gemini" ? "gemini" : "openai",
         models: jsonValue(row.models),
         enabled: row.enabled !== false,
+        purpose: row.purpose === "production" || row.purpose === "open-source-practice" ? row.purpose : "shared",
         advancedConfig: optionalJson(row.advanced_config),
         sortOrder: numberValue(row.sort_order),
         createdAt: isoValue(row.created_at),

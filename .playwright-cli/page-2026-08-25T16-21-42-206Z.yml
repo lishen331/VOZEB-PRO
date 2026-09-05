@@ -1,0 +1,460 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - complementary [ref=e27]:
+      - link "VOZEB PRO" [ref=e28] [cursor=pointer]:
+        - /url: /create
+        - generic [ref=e30]: VOZEB PRO
+      - navigation "工作空间导航" [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]: 创作
+          - link "Agent" [ref=e35] [cursor=pointer]:
+            - /url: /create
+            - img [ref=e36]
+            - generic [ref=e39]: Agent
+        - generic [ref=e40]:
+          - generic [ref=e41]: 项目
+          - generic [ref=e42]:
+            - link "画布" [ref=e43] [cursor=pointer]:
+              - /url: /canvas
+              - img [ref=e44]
+              - generic [ref=e49]: 画布
+            - link "短剧" [ref=e50] [cursor=pointer]:
+              - /url: /drama
+              - img [ref=e51]
+              - generic [ref=e56]: 短剧
+            - link "短剧实验室" [ref=e57] [cursor=pointer]:
+              - /url: /drama-lab
+              - img [ref=e58]
+              - generic [ref=e60]: 短剧实验室
+        - generic [ref=e61]:
+          - generic [ref=e62]: 资产
+          - generic [ref=e63]:
+            - link "作品" [ref=e64] [cursor=pointer]:
+              - /url: /works
+              - img [ref=e65]
+              - generic [ref=e67]: 作品
+            - link "素材" [ref=e68] [cursor=pointer]:
+              - /url: /assets
+              - img [ref=e69]
+              - generic [ref=e74]: 素材
+            - link "提示词" [ref=e75] [cursor=pointer]:
+              - /url: /my-prompts
+              - img [ref=e76]
+              - generic [ref=e79]: 提示词
+            - link "词库" [ref=e80] [cursor=pointer]:
+              - /url: /prompts
+              - img [ref=e81]
+              - generic [ref=e84]: 词库
+        - generic [ref=e85]:
+          - generic [ref=e86]: 社区
+          - generic [ref=e87]:
+            - link "广场" [ref=e88] [cursor=pointer]:
+              - /url: /community
+              - img [ref=e89]
+              - generic [ref=e92]: 广场
+            - link "IP库" [ref=e93] [cursor=pointer]:
+              - /url: /ip-library
+              - img [ref=e94]
+              - generic [ref=e96]: IP库
+            - link "主页" [ref=e97] [cursor=pointer]:
+              - /url: /me
+              - img [ref=e98]
+              - generic [ref=e101]: 主页
+      - link "帮助" [ref=e103] [cursor=pointer]:
+        - /url: /help
+        - img [ref=e104]
+        - generic [ref=e108]: 帮助
+        - img [ref=e109]
+    - generic [ref=e111]:
+      - banner [ref=e112]:
+        - generic [ref=e113]:
+          - button "收起侧边栏" [pressed] [ref=e114]:
+            - img [ref=e115]
+          - generic [ref=e119]: 工作空间
+        - generic [ref=e121]:
+          - button "81" [ref=e122]:
+            - img [ref=e124]
+            - text: "81"
+          - button "通知中心" [ref=e127]:
+            - img [ref=e128]
+          - button "切换到深色主题" [ref=e131]:
+            - img [ref=e132]
+            - generic [ref=e134]: 切换到深色主题
+          - button "账户菜单" [ref=e135]:
+            - generic [ref=e136]: AD
+      - main [ref=e138]:
+        - main [ref=e189]:
+          - generic [ref=e190]:
+            - generic:
+              - generic [ref=e191]:
+                - button "打开画布菜单" [ref=e192]:
+                  - img [ref=e193]
+                - button "1 · 第 1 集" [ref=e195]
+                - button "打开资产面板" [ref=e197]:
+                  - img [ref=e198]
+                  - generic [ref=e201]: 资产
+              - generic [ref=e203]:
+                - button "81" [ref=e204]:
+                  - img [ref=e206]
+                  - text: "81"
+                - button "通知中心" [ref=e209]:
+                  - img [ref=e210]
+                - button "切换到深色主题" [ref=e213]:
+                  - img [ref=e214]
+                  - generic [ref=e216]: 切换到深色主题
+                - button "账户菜单" [ref=e217]:
+                  - generic [ref=e218]: AD
+                - button "快捷键" [ref=e219]:
+                  - img [ref=e220]
+            - generic [ref=e222]:
+              - generic:
+                - generic:
+                  - img
+                  - generic [ref=e264]:
+                    - generic [ref=e265]:
+                      - generic [ref=e266]:
+                        - generic [ref=e269]:
+                          - img "角色 · 老和尚"
+                        - generic: 图片1
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e274]:
+                      - generic [ref=e275]:
+                        - generic [ref=e278]:
+                          - img "场景 · 外景 · 山 / 黄昏"
+                        - generic: 图片2
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e283]:
+                      - generic [ref=e284]:
+                        - generic [ref=e287]:
+                          - img "道具 · 油灯"
+                        - generic: 图片3
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e292]:
+                      - generic [ref=e293]:
+                        - generic [ref=e295]:
+                          - button "用文本生图" [ref=e296]:
+                            - img [ref=e297]
+                            - text: 生图
+                          - generic [ref=e301]: 项目：1 剧集：第 1 集 风格：电影感国漫 画幅：9:16
+                        - generic: 文本1
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e306]:
+                      - generic [ref=e307]:
+                        - generic [ref=e309]:
+                          - button "用文本生图" [ref=e310]:
+                            - img [ref=e311]
+                            - text: 生图
+                          - generic [ref=e315]: "# 《从前有座山》第一集 · 传灯 **画面比例：9:16** **风格：电影感国漫 / 水墨写真结合三维** **建议时长：约90秒** **适配场景：横竖屏短视频平台** --- ## 人物表 - **老和尚**：白眉垂肩，僧袍素净，眼神温和如深山古井。 - **小和尚**：约十岁，圆头圆脑，眼睛亮得像新磨的墨。 - **娃娃僧**：约七八岁，是多年后的小小和尚。 --- ## 镜头1 · 外景 · 山 / 黄昏 **【画面】** 竖屏构图，一座孤峰从画面下方拔起，云海截断山腰。山顶古寺只露出一角飞檐，像墨迹落在宣纸上。风过，檐角铜铃轻晃。 **【动作指导】** 镜头从铜铃缓缓下移，穿过飞檐，向下落入寺中，模拟“入画”感。 **【声音】** 山风、鸟鸣、铜铃一声。 **【字幕】** 从前有座山 --- ## 镜头2 · 内景 · 寺中庭院 / 夜 **【画面】** 老松斜伸，石桌上一盏油灯。老和尚闭目端坐，小和尚趴在石桌边看一只蚂蚁爬过桌面。 **【动作指导】** 小和尚用指尖轻轻截住蚂蚁的去路，蚂蚁绕指而过。老和尚睁开眼，拿起茶壶斟茶，茶水声缓缓响起。 **【人物对话】** 小和尚：师父，山的那边是什么？ 老和尚：你听到了什么？ 小和尚：……风声，还有您倒茶的声音。 老和尚：那山那边，也是风声，和有人倒茶的声音。 小和尚：有人？谁呀？ 老和尚放下茶壶：我给你讲个故事，你就知道了。 --- ## 镜头3 · 内景 · 庭院 / 夜 **【画面】** 烛火被风吹低，墙上老和尚的影子和小和尚的影子靠得很近，像两片相依的墨。 **【动作指导】** 老和尚说一句，小和尚就抢一句。两个人像在打一场温柔的乒乓球。 **【人物对话】** 老和尚：从前有座山—— 小和尚：山里有座庙！ 老和尚：庙里有个老和尚—— 小和尚：在给小和尚讲故事！ 老和尚笑了：讲的是什么呢？ 小和尚忽然卡住了。 小和尚：讲的还是……从前有座山？ **【动作指导】** 老和尚用杯盖轻轻掠过杯沿，发出一声清脆长鸣。 老和尚：你听，这个故事像不像这杯茶？ 小和尚：滚来滚去，没个完。 老和尚：可每一片茶叶，都翻过了自己的山。 --- ## 镜头4 · 想象画面 / 茶中山 **【画面】** 小和尚低头看向茶杯，杯中月色落在水面，水底竟然倒映着一座山，山里有座庙，庙门口有两个影子。 **【动作指导】** 镜头微距穿过水面，涟漪荡漾。现实场景瞬间被水墨吞没，进入“粒子水墨”空间。茶水中世界层层叠叠：山中有庙，庙中有人，人中又映出山，形成一个循环的“回”字。 **【旁白】** 山在茶里，茶在手里，手在故事里。 --- ## 镜头5 · 现实 · 庭院 **【动作指导】** 小和尚猛然抬头，瞳孔里还残留着山水光影。 **【人物对话】** 小和尚：师父，我好像去山那边了。 老和尚：山那边怎么样？ 小和尚：有风，还有一杯茶，茶里又有一座山。 老和尚点点头。 老和尚：那就对了。讲故事不是为了让你走到山那边，是为了让你知道——你心里也有一座山。 **【动作指导】** 老和尚把茶杯轻轻推向小和尚。 老和尚：以后，你讲给别人听的时候，山顶就在你手心里了。 --- ## 镜头6 · 外景 · 山巅 / 清晨 / 多年后 **【画面】** 同一个小和尚长大了，身穿同一件样式但洗得发白的僧袍，坐在崖边。他面前是一个更小的娃娃僧。 **【动作指导】** 匹配剪辑：小和尚当年闭眼听风的侧脸，缓缓叠化到老僧闭眼讲故事的侧脸。 **【人物对话】** 娃娃僧：师父，山那边是什么？ 老僧（当年的小和尚）睁开眼，微微一笑。 老僧：我讲个故事吧。从前有座山—— 娃娃僧立刻接：山里有座庙！ 老僧：庙里有个—— （两人异口同声）：老和尚，在给小和尚讲故事。 --- ## 镜头7 · 外景 · 云海 / 日出 **【画面】** 镜头缓缓上升，拉远。群山如沉默的墨迹，古寺立在画面中央，一大一小两个身影坐在崖边。远山之外，还有更远的山。 **【动作指导】** 人物在画面中越来越小，最终与山融为一体。纯音乐起，铜铃余韵悠长。 **【字幕】** 从前有座山，山里有座庙。 **【声音】** 风铃一声，渐淡。 **【画面】** 全黑。 --- **第一集 · 完**"
+                        - generic: 文本2
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e320]:
+                      - generic [ref=e321]:
+                        - generic [ref=e324]:
+                          - img "竖屏构图，孤峰拔起，云海截断山腰，山顶古寺露出一角飞檐，檐角铜铃轻晃。镜头从铜铃缓缓下移，穿过飞檐向下落入寺中，模拟入画感。 · 分镜图"
+                        - generic: 图片4
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e329]:
+                      - generic [ref=e330]:
+                        - generic [ref=e332]:
+                          - button "用文本生图" [ref=e333]:
+                            - img [ref=e334]
+                            - text: 生图
+                          - generic [ref=e338]: 约十岁，圆头圆脑，眼睛亮如新磨的墨。天真好奇，追问山那边是什么，在师父故事中沉浸想象，最终承担起传灯之责，多年后成为老僧。
+                        - generic: 文本3
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e343]:
+                      - generic [ref=e344]:
+                        - generic [ref=e346]:
+                          - button "用文本生图" [ref=e347]:
+                            - img [ref=e348]
+                            - text: 生图
+                          - generic [ref=e352]: 庭院内一株老松斜伸，石桌居中，桌上置油灯、茶壶与茶杯，墙边烛火摇曳。半开放空间，以石桌为视觉中心，墙面因烛光形成斑驳树影与人影。整体光线暖黄黯淡，氛围安宁而带有故事感。
+                        - generic: 文本6
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e357]:
+                      - generic [ref=e358]:
+                        - generic [ref=e360]:
+                          - button "用文本生图" [ref=e361]:
+                            - img [ref=e362]
+                            - text: 生图
+                          - generic [ref=e366]: 老和尚使用的素色陶制茶壶，壶身温润，斟茶时茶水声缓缓响起，是老和尚讲故事的引子道具，随剧情多次出现。
+                        - generic: 文本8
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e371]:
+                      - generic [ref=e372]:
+                        - generic [ref=e374]:
+                          - button "用文本生图" [ref=e375]:
+                            - img [ref=e376]
+                            - text: 生图
+                          - generic [ref=e380]: 竖屏构图，孤峰拔起，云海截断山腰，山顶古寺露出一角飞檐，檐角铜铃轻晃。镜头从铜铃缓缓下移，穿过飞檐向下落入寺中，模拟入画感。 竖屏构图，孤峰拔起，云海截断山腰，山顶古寺露出一角飞檐，檐角铜铃轻晃。镜头从铜铃缓缓下移，穿过飞檐向下落入寺中，模拟入画感。 旁白：从前有座山 视频提示词：竖屏构图，孤峰拔起，云海截断山腰，山顶古寺露出一角飞檐，檐角铜铃轻晃。镜头从铜铃缓缓下移，穿过飞檐向下落入寺中，模拟入画感。；从铜铃下移穿飞檐；在 6 秒内完成自然连续的动作变化 运镜：从铜铃下移穿飞檐
+                        - generic: 文本13
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e385]:
+                      - generic [ref=e386]:
+                        - generic: 视频1
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e393]:
+                      - generic [ref=e394]:
+                        - generic [ref=e396]:
+                          - button "用文本生图" [ref=e397]:
+                            - img [ref=e398]
+                            - text: 生图
+                          - generic [ref=e402]: 约七八岁，多年后的小小和尚，坐在老僧身边，以同样的问题“山那边是什么”开启新一轮传灯，延续循环故事。
+                        - generic: 文本4
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e407]:
+                      - generic [ref=e408]:
+                        - generic [ref=e410]:
+                          - button "用文本生图" [ref=e411]:
+                            - img [ref=e412]
+                            - text: 生图
+                          - generic [ref=e416]: 当年的小和尚长大后的形象，身穿洗得发白的僧袍，在清晨山巅为娃娃僧讲述“从前有座山”，眼神温和，完成传承的一环。
+                        - generic: 文本5
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e421]:
+                      - generic [ref=e422]:
+                        - generic [ref=e424]:
+                          - button "用文本生图" [ref=e425]:
+                            - img [ref=e426]
+                            - text: 生图
+                          - generic [ref=e430]: 山巅崖边，近处崖石错落，中景古寺飞檐，远处云海与群山如墨迹。清晨时分，光线由冷蓝渐转暖金，日出将至，氛围悠远开阔，带有轮回与传承的意境。
+                        - generic: 文本7
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e435]:
+                      - generic [ref=e436]:
+                        - generic [ref=e438]:
+                          - button "用文本生图" [ref=e439]:
+                            - img [ref=e440]
+                            - text: 生图
+                          - generic [ref=e444]: 素色茶杯，杯中有茶水与月色，老和尚用杯盖掠过杯沿发出清脆长鸣，后轻轻推向小和尚，象征故事的传递与内心的山。
+                        - generic: 文本9
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e449]:
+                      - generic [ref=e450]:
+                        - generic [ref=e452]:
+                          - button "用文本生图" [ref=e453]:
+                            - img [ref=e454]
+                            - text: 生图
+                          - generic [ref=e458]: 石桌上爬行的一只小蚂蚁，小和尚用指尖截其去路，蚂蚁绕指而过，触发师徒对话，展现小和尚的童真与好奇。
+                        - generic: 文本10
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e463]:
+                      - generic [ref=e464]:
+                        - generic [ref=e466]:
+                          - button "用文本生图" [ref=e467]:
+                            - img [ref=e468]
+                            - text: 生图
+                          - generic [ref=e472]: 老松斜伸，石桌油灯，老和尚闭目端坐，小和尚趴桌看蚂蚁。小和尚指尖截蚂蚁去路，蚂蚁绕指而过。老和尚睁眼斟茶，茶水声响起。 老松斜伸，石桌油灯，老和尚闭目端坐，小和尚趴桌看蚂蚁。小和尚指尖截蚂蚁去路，蚂蚁绕指而过。老和尚睁眼斟茶，茶水声响起。 对白：小和尚：师父，山的那边是什么？老和尚：你听到了什么？小和尚：……风声，还有您倒茶的声音。老和尚：那山那边，也是风声，和有人倒茶的声音。小和尚：有人？谁呀？老和尚放下茶壶：我给你讲个故事，你就知道了。 运镜：固定机位，微推
+                        - generic: 文本14
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e477]:
+                      - generic [ref=e478]:
+                        - generic [ref=e481]:
+                          - img "老松斜伸，石桌油灯，老和尚闭目端坐，小和尚趴桌看蚂蚁。小和尚指尖截蚂蚁去路，蚂蚁绕指而过。老和尚睁眼斟茶，茶水声响起。 · 分镜图"
+                        - generic: 图片5
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e486]:
+                      - generic [ref=e487]:
+                        - generic [ref=e489]:
+                          - button "用文本生图" [ref=e490]:
+                            - img [ref=e491]
+                            - text: 生图
+                          - generic [ref=e495]: 挂在古寺檐角的铜铃，山风过时轻轻晃动，发出清脆声响，镜头从铜铃缓缓下移进入寺中，贯穿片头与片尾，营造禅意氛围。
+                        - generic: 文本11
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e500]:
+                      - generic [ref=e501]:
+                        - generic [ref=e503]:
+                          - button "用文本生图" [ref=e504]:
+                            - img [ref=e505]
+                            - text: 生图
+                          - generic [ref=e509]: 素净的僧袍，老和尚所穿，白眉垂肩，袍色淡雅；多年后小和尚长大穿的同一件样式但洗得发白的僧袍，体现时间流转与传承。
+                        - generic: 文本12
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e514]:
+                      - generic [ref=e515]:
+                        - generic [ref=e517]:
+                          - button "用文本生图" [ref=e518]:
+                            - img [ref=e519]
+                            - text: 生图
+                          - generic [ref=e523]: 烛火被风吹低，墙上老和尚与小和尚的影子靠得很近，像两片相依的墨。老和尚说一句，小和尚抢一句，节奏如乒乓球。 烛火被风吹低，墙上老和尚与小和尚的影子靠得很近，像两片相依的墨。老和尚说一句，小和尚抢一句，节奏如乒乓球。 对白：老和尚：从前有座山——小和尚：山里有座庙！老和尚：庙里有个老和尚——小和尚：在给小和尚讲故事！老和尚笑了：讲的是什么呢？小和尚忽然卡住了。小和尚：讲的还是……从前有座山？ 视频提示词：烛火被风吹低，墙上老和尚与小和尚的影子靠得很近，像两片相依的墨。老和尚说一句，小和尚抢一句，节奏如乒乓球。；缓慢横移；在 12 秒内完成自然连续的动作变化 运镜：缓慢横移
+                        - generic: 文本15
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+                    - generic [ref=e528]:
+                      - generic [ref=e529]:
+                        - generic [ref=e532]:
+                          - img "烛火被风吹低，墙上老和尚与小和尚的影子靠得很近，像两片相依的墨。老和尚说一句，小和尚抢一句，节奏如乒乓球。 · 分镜图"
+                        - generic: 图片6
+                      - generic "输入连接点"
+                      - generic "输出连接点"
+            - generic [ref=e537]:
+              - button "切换到框选模式" [ref=e538] [cursor=pointer]:
+                - img [ref=e540]
+              - button "撤销" [ref=e545] [cursor=pointer]:
+                - img [ref=e547]
+              - button "重做" [disabled] [ref=e550]:
+                - generic:
+                  - img
+              - button "文本" [ref=e552] [cursor=pointer]:
+                - img [ref=e554]
+              - button "图片" [ref=e556] [cursor=pointer]:
+                - img [ref=e558]
+              - button "全景图" [ref=e562] [cursor=pointer]:
+                - img [ref=e564]
+              - button "视频" [ref=e569] [cursor=pointer]:
+                - img [ref=e571]
+              - button "音频" [ref=e574] [cursor=pointer]:
+                - img [ref=e576]
+              - button "生成配置" [ref=e579] [cursor=pointer]:
+                - img [ref=e581]
+              - button "上传素材" [ref=e584] [cursor=pointer]:
+                - img [ref=e586]
+              - button "资产" [ref=e590] [cursor=pointer]:
+                - img [ref=e592]
+              - button "一键整理画布" [ref=e594] [cursor=pointer]:
+                - img [ref=e596]
+              - button "画布外观" [ref=e600] [cursor=pointer]:
+                - img [ref=e602]
+              - button "清空画布" [ref=e609] [cursor=pointer]:
+                - img [ref=e611]
+            - generic [ref=e614]:
+              - button "打开小地图" [ref=e615] [cursor=pointer]:
+                - img [ref=e617]
+              - button "重置视图" [ref=e620] [cursor=pointer]:
+                - img [ref=e622]
+              - slider "放大/缩小画布" [ref=e628]: "72"
+              - generic [ref=e629]: 72%
+              - button "快捷键" [ref=e630] [cursor=pointer]:
+                - img [ref=e632]
+          - complementary "Canvas Agent 对话面板" [ref=e636]:
+            - button "调整右侧面板宽度" [ref=e637]
+            - generic [ref=e638]:
+              - generic [ref=e639]:
+                - img [ref=e641]
+                - generic [ref=e644]:
+                  - generic [ref=e645]: Agent
+                  - generic [ref=e646]: 画布助手 · 让创意落地更简单
+              - button "收起 Agent 面板" [ref=e648] [cursor=pointer]:
+                - img [ref=e650]
+            - generic [ref=e654]:
+              - tablist "Agent 面板" [ref=e655]:
+                - tab "对话" [selected] [ref=e656]
+                - tab "历史" [ref=e657]:
+                  - img [ref=e658]
+                  - text: 历史
+              - button "新建对话" [ref=e663] [cursor=pointer]:
+                - img [ref=e665]
+                - generic [ref=e666]: 新建对话
+            - generic [ref=e669]:
+              - generic [ref=e670]:
+                - generic [ref=e671]:
+                  - heading "你好，我是你的画布助手" [level=2] [ref=e672]
+                  - paragraph [ref=e673]: 我可以帮你生成图像、优化布局、撰写文案、梳理思路、提取关键信息，让创意更高效实现。
+                  - button "了解 Agent 能做什么" [ref=e674]:
+                    - text: 了解 Agent 能做什么
+                    - img [ref=e675]
+                - generic:
+                  - img
+              - generic [ref=e677]:
+                - generic [ref=e678]:
+                  - heading "你可以试试" [level=3] [ref=e679]
+                  - img [ref=e681]
+                - generic [ref=e684]:
+                  - button "生成一套新品发布海报 营造促销氛围，突出产品亮点" [ref=e685]:
+                    - img [ref=e687]
+                    - generic [ref=e691]: 生成一套新品发布海报
+                    - generic [ref=e692]: 营造促销氛围，突出产品亮点
+                  - button "优化当前画布布局 提升对齐与信息效率" [ref=e693]:
+                    - img [ref=e695]
+                    - generic [ref=e699]: 优化当前画布布局
+                    - generic [ref=e700]: 提升对齐与信息效率
+                  - button "撰写一段产品宣传文案 突出卖点，吸引用户" [ref=e701]:
+                    - img [ref=e703]
+                    - generic [ref=e705]: 撰写一段产品宣传文案
+                    - generic [ref=e706]: 突出卖点，吸引用户
+                  - button "增强画面质感 提升细节与光影表现" [ref=e707]:
+                    - img [ref=e709]
+                    - generic [ref=e712]: 增强画面质感
+                    - generic [ref=e713]: 提升细节与光影表现
+                  - button "批量替换文案与图片 保持风格一致，批量应用" [ref=e714]:
+                    - img [ref=e716]
+                    - generic [ref=e720]: 批量替换文案与图片
+                    - generic [ref=e721]: 保持风格一致，批量应用
+                  - button "生成多套设计方案 提供多种风格供选择" [ref=e722]:
+                    - img [ref=e724]
+                    - generic [ref=e728]: 生成多套设计方案
+                    - generic [ref=e729]: 提供多种风格供选择
+            - generic [ref=e731]:
+              - generic [ref=e732]:
+                - generic "本轮参考素材" [ref=e733]:
+                  - button "添加参考素材" [ref=e734] [cursor=pointer]:
+                    - img [ref=e736]
+                - textbox "描述你想让 Agent 如何操作画布" [ref=e738]
+              - generic [ref=e739]:
+                - generic [ref=e741]:
+                  - button "选择创作 Skill" [ref=e742] [cursor=pointer]:
+                    - img [ref=e744]
+                  - button "智能规划已开启，点击关闭" [pressed] [ref=e754] [cursor=pointer]:
+                    - img [ref=e756]
+                  - button "选择生成模型" [ref=e758] [cursor=pointer]:
+                    - img [ref=e760]
+                  - button "生成参数：智能参数" [ref=e767] [cursor=pointer]:
+                    - img [ref=e769]
+                    - generic [ref=e770]: 智能 · 1张
+                    - img [ref=e771]
+                - button "发送" [disabled] [ref=e773]:
+                  - generic:
+                    - img
+        - generic [ref=e160]:
+          - button "返回短剧分镜工作台" [ref=e161] [cursor=pointer]:
+            - img [ref=e163]
+          - generic "1" [ref=e774]
+          - generic [ref=e166] [cursor=pointer]:
+            - generic "第 1 集" [ref=e775]:
+              - text: 第 1 集
+              - combobox "切换剧集" [expanded] [active] [ref=e168]:
+                - listbox:
+                  - option "第 1 集" [selected]: ep_1787248732030
+                  - option "第 2 集": ep_1787278645327
+            - img "down" [ref=e776]:
+              - img [ref=e777]
+          - button "同步当前集" [ref=e173] [cursor=pointer]:
+            - img [ref=e175]
+          - generic [ref=e180]: 画布 85b49b52
+  - button "Open Next.js Dev Tools" [ref=e779] [cursor=pointer]:
+    - img [ref=e780]
+  - alert [ref=e26]
+  - generic [ref=e788]:
+    - generic "第 1 集" [ref=e789] [cursor=pointer]:
+      - generic [ref=e790]: 第 1 集
+    - generic "第 2 集" [ref=e791] [cursor=pointer]:
+      - generic [ref=e792]: 第 2 集
+    - generic "第 3 集" [ref=e793] [cursor=pointer]:
+      - generic [ref=e794]: 第 3 集
+    - generic "第 4 集" [ref=e795] [cursor=pointer]:
+      - generic [ref=e796]: 第 4 集
+    - generic "第 5 集" [ref=e797] [cursor=pointer]:
+      - generic [ref=e798]: 第 5 集
+    - generic "第 6 集" [ref=e799] [cursor=pointer]:
+      - generic [ref=e800]: 第 6 集

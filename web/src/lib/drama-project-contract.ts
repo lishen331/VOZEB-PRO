@@ -1,8 +1,95 @@
-export type DramaTaskStatus = "idle" | "queued" | "running" | "success" | "error" | "cancelled";
+import type { PracticeExecutionProfile, PracticeSource } from "@/lib/practice-domain";
+import type { IpReference } from "@/lib/ip-library-domain";
+
+export type DramaTaskStatus = "idle" | "queued" | "pending" | "running" | "success" | "error" | "cancelled";
 export type DramaReviewStatus = "draft" | "content_review" | "approved" | "visual_ready";
 export type DramaVideoMode = "storyboard" | "direct" | "reference";
+export type DramaShotCreationMode = "classic" | "universal";
 export type DramaStoryboardFrameMode = "single" | "first_last";
 export type DramaShotAudioMode = "source" | "voiceover" | "mute";
+export type DramaShotAudioKind = "dialogue" | "narration";
+
+/** Persisted state for one independently generated dialogue/narration track. */
+export type DramaShotAudioState = {
+    status: DramaTaskStatus;
+    attempt?: number;
+    taskId?: string;
+    error?: string;
+    url?: string;
+    mimeType?: string;
+    speaker?: string;
+    voice?: string;
+    speed?: number;
+    instructions?: string;
+    durationMs?: number;
+};
+
+export type DramaShotGenerationHistory = {
+    id: string;
+    taskId: string;
+    url: string;
+    prompt: string;
+    createdAt: string;
+    width?: number;
+    height?: number;
+};
+
+export type DramaShotFrameType = "first" | "key" | "last";
+export type DramaShotFrameSource = "generated" | "uploaded" | "video_tail" | "restored";
+export type DramaShotFrameState = {
+    prompt: string;
+    description?: string;
+    status: DramaTaskStatus;
+    taskId?: string;
+    attempt?: number;
+    url?: string;
+    storageKey?: string;
+    width?: number;
+    height?: number;
+    error?: string;
+    history?: DramaShotGenerationHistory[];
+    source?: DramaShotFrameSource;
+    sourceVideoTaskId?: string;
+    sourceShotId?: string;
+    sourceVideoHistoryId?: string;
+    locked?: boolean;
+};
+
+export type DramaShotFrameCandidate = {
+    id: string;
+    frameType: "first";
+    url: string;
+    storageKey?: string;
+    width?: number;
+    height?: number;
+    source: "video_tail";
+    sourceVideoTaskId: string;
+    sourceShotId: string;
+    sourceVideoHistoryId: string;
+    createdAt: string;
+    projectUpdatedAt: string;
+};
+
+/** Immutable inputs captured when a storyboard video task is submitted. */
+export type DramaShotVideoFrameSnapshot = {
+    capturedAt: string;
+    model?: string;
+    supportsFirstFrame?: boolean;
+    supportsLastFrame: boolean;
+    maxReferenceImages?: number;
+    fallbackReason?: string;
+    references: Array<{
+        role: "first_frame" | "last_frame" | "reference";
+        frameType?: DramaShotFrameType;
+        url: string;
+        storageKey?: string;
+        taskId?: string;
+        source?: DramaShotFrameSource;
+        sourceVideoTaskId?: string;
+        sourceShotId?: string;
+        sourceVideoHistoryId?: string;
+    }>;
+};
 
 export type DramaAssetReference = {
     id: string;
@@ -78,6 +165,31 @@ export type DramaShot = {
     imagePrompt: string;
     videoPrompt: string;
     cameraMotion: string;
+    /** LocalMiniDrama storyboard context used by frame planning. */
+    shotType?: string;
+    /** LocalMiniDrama's optional segment and photography fields. */
+    segmentIndex?: number;
+    segmentTitle?: string;
+    atmosphere?: string;
+    lightingStyle?: string;
+    depthOfField?: string;
+    creationMode?: DramaShotCreationMode;
+    universalSegmentText?: string;
+    polishedPrompt?: string;
+    cameraAngle?: string;
+    angleH?: string;
+    angleV?: string;
+    angleS?: string;
+    location?: string;
+    time?: string;
+    action?: string;
+    result?: string;
+    emotion?: string;
+    emotionIntensity?: number;
+    layoutDescription?: string;
+    frames?: Partial<Record<DramaShotFrameType, DramaShotFrameState>>;
+    firstFrameCandidate?: DramaShotFrameCandidate;
+    videoFrameSnapshot?: DramaShotVideoFrameSnapshot;
     startFramePrompt?: string;
     endFramePrompt?: string;
     negativePrompt?: string;
@@ -96,6 +208,7 @@ export type DramaShot = {
     storyboardImageUrl?: string;
     storyboardImageWidth?: number;
     storyboardImageHeight?: number;
+    storyboardHistory?: DramaShotGenerationHistory[];
     storyboardEndStatus?: DramaTaskStatus;
     storyboardEndAttempt?: number;
     storyboardEndTaskId?: string;
@@ -106,15 +219,24 @@ export type DramaShot = {
     generationStatus?: DramaTaskStatus;
     generationAttempt?: number;
     generationTaskId?: string;
+    /** The original upstream task can be checked again without submitting a new video task. */
+    generationNeedsReview?: boolean;
     generationError?: string;
     videoUrl?: string;
+    videoHistory?: DramaShotGenerationHistory[];
     subtitle?: string;
     audioMode?: DramaShotAudioMode;
+    /** Per-kind tracks mirror LocalMiniDrama's dialogue/narration audio fields. */
+    dialogueAudio?: DramaShotAudioState;
+    narrationAudio?: DramaShotAudioState;
     audioStatus?: DramaTaskStatus;
     audioAttempt?: number;
     audioTaskId?: string;
     audioError?: string;
     audioUrl?: string;
+    /** Provenance for an explicit append-only split-by-audio operation. */
+    audioSplitSourceShotId?: string;
+    audioSplitSegmentIndex?: number;
 };
 
 export type DramaRenderTask = {
@@ -135,6 +257,7 @@ export type DramaVisualReview = {
 
 export type DramaEpisode = {
     id: string;
+    episodeNumber?: number;
     title: string;
     script: string;
     scriptRichContent?: import("@/lib/drama-script-rich-content").DramaScriptRichContent;
@@ -180,6 +303,9 @@ export type DramaProject = {
     sourceAssets?: DramaSourceAsset[];
     createdAt: string;
     updatedAt: string;
+    executionProfile?: PracticeExecutionProfile;
+    practiceSource?: PracticeSource;
+    ipReferences?: IpReference[];
 };
 
 export type DramaProjectSummary = Pick<DramaProject, "id" | "title" | "summary" | "style" | "ratio" | "status" | "createdAt" | "updatedAt"> & {
@@ -189,6 +315,8 @@ export type DramaProjectSummary = Pick<DramaProject, "id" | "title" | "summary" 
     shotCount: number;
     pendingTaskCount: number;
     failedTaskCount: number;
+    executionProfile?: PracticeExecutionProfile;
+    practiceSource?: PracticeSource;
 };
 
 export type DramaProjectSummaryPage = {
@@ -203,6 +331,7 @@ export type CreateDramaProjectInput = Pick<DramaProject, "title" | "summary" | "
     initialScript?: string;
     sourceAssets?: DramaSourceAsset[];
     defaultVideoMode?: DramaVideoMode;
+    ipReferences?: IpReference[];
 };
 
 export type DramaContentAnalysis = {

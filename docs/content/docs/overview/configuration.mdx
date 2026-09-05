@@ -65,17 +65,17 @@ POSTGRES_USER=vozeb_pro
 POSTGRES_PASSWORD=replace-with-a-strong-database-password
 ```
 
-安装页不会保存数据库密码或一次性安装令牌。GET 状态检查只执行连接与表存在性查询；只有提交与服务器 `VOZEB_PRO_INSTALL_TOKEN` 一致的令牌并点击“初始化表结构”才会创建 `vozeb_pro_` 前缀表。创建首个管理员必须再次提交同一令牌，普通公开注册永远只创建普通用户。安装完成后可从 App 环境变量移除该令牌，不影响站点继续运行。
+安装页不会保存数据库密码或一次性安装令牌。安装状态 GET 保持只读，只执行连接、表存在性和用户数量查询；只有提交与服务器 `VOZEB_PRO_INSTALL_TOKEN` 一致的令牌并点击“初始化表结构”才会为全新数据库创建 `vozeb_pro_` 前缀表。部署验收使用 `/api/health/ready`，在检测到已有用户表后会执行一次可重复的完整 Schema 验证/升级，旧课程表缺少新增列时会先补列再创建依赖索引；升级失败会返回未就绪，不会伪装成健康。创建首个管理员必须再次提交同一令牌，普通公开注册永远只创建普通用户。安装完成后可从 App 环境变量移除该令牌，不影响站点继续运行。
 
 使用宝塔宿主机 PostgreSQL 时，应用通过 `docker-compose.baota.yml` 的 host 网络连接 `127.0.0.1:5432`；不要同时启动默认 Compose 中的 PostgreSQL 服务。
 
-## 0.0.6 发布部署要求
+## 0.0.7 发布部署要求
 
-安装过 0.0.2 的用户必须停止旧服务并删除旧数据库或数据库卷，然后重新拉取 0.0.6 代码或镜像并重新安装项目。0.0.6 不支持沿用 0.0.2 数据库或原地升级；删除旧数据库会清除其中的数据。
+安装过 0.0.2 的用户必须停止旧服务并删除旧数据库或数据库卷，然后重新拉取 0.0.7 代码或镜像并重新安装项目。0.0.7 不支持沿用 0.0.2 数据库或原地升级；删除旧数据库会清除其中的数据。
 
-启动 0.0.6 后访问 `/install`，执行“初始化表结构”并创建首个管理员，再检查 `/api/health/ready` 返回 200 和 Worker 心跳。分别生成至少 32 个字符且互不相同的 `VOZEB_PRO_MAINTENANCE_TOKEN` 与 `VOZEB_PRO_WORKER_TOKEN`：App 持有两者，`generation-worker` 只持有 Worker 令牌；生产环境重新设置 `VOZEB_PRO_ENCRYPTION_KEY` 并妥善保存。
+启动 0.0.7 后访问 `/install`，执行“初始化表结构”并创建首个管理员，再检查 `/api/health/ready` 返回 200 和 Worker 心跳。分别生成至少 32 个字符且互不相同的 `VOZEB_PRO_MAINTENANCE_TOKEN` 与 `VOZEB_PRO_WORKER_TOKEN`：App 持有两者，`generation-worker` 只持有 Worker 令牌；生产环境重新设置 `VOZEB_PRO_ENCRYPTION_KEY` 并妥善保存。
 
-0.0.6 只按当前 Schema 初始化固定 `vozeb_pro_` 前缀表，不包含 0.0.2 数据迁移或旧任务修复逻辑。Render Blueprint 使用付费 Web/Worker 与持久数据库/磁盘，安装前请确认平台费用。
+0.0.7 只按当前 Schema 初始化固定 `vozeb_pro_` 前缀表，不包含 0.0.2 数据迁移或旧任务修复逻辑。Render Blueprint 使用付费 Web/Worker 与持久数据库/磁盘，安装前请确认平台费用。
 
 ## 作品内容审核信号
 

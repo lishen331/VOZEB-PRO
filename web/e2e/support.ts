@@ -1,4 +1,4 @@
-import type { APIRequestContext } from "@playwright/test";
+import { devices, type APIRequestContext, type Browser, type BrowserContextOptions } from "@playwright/test";
 
 export const E2E_ADMIN = {
     username: "e2e_admin",
@@ -6,9 +6,28 @@ export const E2E_ADMIN = {
     displayName: "E2E 管理员",
     installToken: "vozeb-pro-e2e-install-token-32chars",
 };
+export const E2E_PRACTICE_PASSWORD = "InfinitePracticeE2E!2026";
 
 export const E2E_PROTOCOL_ORIGIN = `http://127.0.0.1:${Number(process.env.VOZEB_PRO_PROTOCOL_FIXTURE_PORT || 4010)}`;
 export const E2E_PAYMENT_WEBHOOK_SECRET = "vozeb-pro-e2e-payply-webhook-secret";
+
+export function e2eProjectContextOptions(projectName: string): BrowserContextOptions {
+    if (projectName === "mobile-390") return { ...devices["iPhone 13"], viewport: { width: 390, height: 844 } };
+    if (projectName === "mobile-430") return { ...devices["iPhone 14 Pro Max"], viewport: { width: 430, height: 932 } };
+    return { ...devices["Desktop Chrome"] };
+}
+
+export async function createAuthenticatedE2EContext(browser: Browser, baseURL: string, credentials: { username: string; password: string }, options: BrowserContextOptions = {}) {
+    const userAgent = `${options.userAgent || devices["Desktop Chrome"].userAgent} VozebE2E/${credentials.username}`;
+    const context = await browser.newContext({ ...options, userAgent, baseURL, storageState: { cookies: [], origins: [] } });
+    const response = await context.request.post("/api/auth/login", { data: credentials });
+    if (!response.ok()) {
+        const body = await response.text();
+        await context.close();
+        throw new Error(`Unable to sign in ${credentials.username}: ${response.status()} ${body}`);
+    }
+    return context;
+}
 
 const models = ["e2e-text", "e2e-text-fallback", "e2e-text-fail", "e2e-image", "e2e-image-fallback", "e2e-video", "e2e-video-fallback", "e2e-video-slow", "e2e-audio", "e2e-audio-fallback"];
 

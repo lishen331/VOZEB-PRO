@@ -184,7 +184,8 @@ export class WorkPublicationRepository {
                 title = $2, description = $3, public_prompt = $4, category = $5, tags = $6::jsonb, visibility = $7,
                 author_display = $8, author_name = $9, moderation_status = 'draft', rejection_reason = NULL,
                 submitted_at = NULL, reviewed_at = NULL, reviewed_by_user_id = NULL,
-                moderation_provider = NULL, moderation_signal = NULL
+                moderation_provider = NULL, moderation_signal = NULL,
+                pull_film_enabled = false, pull_film_snapshot = NULL, pull_film_enabled_at = NULL, pull_film_enabled_by_user_id = NULL
              WHERE id = $1 AND moderation_status IN ('draft', 'rejected')
              RETURNING *`,
             [version.id, version.title, version.description, version.publicPrompt, version.category, JSON.stringify(version.tags), version.visibility, version.authorDisplay, version.authorName || null],
@@ -209,7 +210,11 @@ export class WorkPublicationRepository {
 
     async reviewVersion(id: string, input: { status: "approved" | "rejected" | "taken_down"; reason?: string; reviewedAt: string; reviewedByUserId: string }) {
         const result = await this.db.query(
-            `UPDATE published_work_versions SET moderation_status = $2, rejection_reason = $3, reviewed_at = $4, reviewed_by_user_id = $5
+            `UPDATE published_work_versions SET moderation_status = $2, rejection_reason = $3, reviewed_at = $4, reviewed_by_user_id = $5,
+                pull_film_enabled = CASE WHEN $2 = 'taken_down' THEN false ELSE pull_film_enabled END,
+                pull_film_snapshot = CASE WHEN $2 = 'taken_down' THEN NULL ELSE pull_film_snapshot END,
+                pull_film_enabled_at = CASE WHEN $2 = 'taken_down' THEN NULL ELSE pull_film_enabled_at END,
+                pull_film_enabled_by_user_id = CASE WHEN $2 = 'taken_down' THEN NULL ELSE pull_film_enabled_by_user_id END
              WHERE id = $1 AND moderation_status ${input.status === "taken_down" ? "= 'approved'" : "= 'pending'"}
              RETURNING *`,
             [id, input.status, input.reason || null, input.reviewedAt, input.reviewedByUserId],
@@ -277,7 +282,13 @@ export class WorkPublicationRepository {
 
     async revokeWork(workId: string, revokedAt: string) {
         const result = await this.db.query(
-            "UPDATE published_works SET lifecycle_status = 'revoked', published_version_id = NULL, is_featured = false, featured_at = NULL, featured_by_user_id = NULL, revoked_at = $2 WHERE id = $1 AND lifecycle_status = 'active' RETURNING *",
+            `WITH cleared_version AS (
+                UPDATE published_work_versions version
+                SET pull_film_enabled = false, pull_film_snapshot = NULL, pull_film_enabled_at = NULL, pull_film_enabled_by_user_id = NULL
+                WHERE version.id = (SELECT published_version_id FROM published_works WHERE id = $1)
+            )
+            UPDATE published_works SET lifecycle_status = 'revoked', published_version_id = NULL, is_featured = false, featured_at = NULL, featured_by_user_id = NULL, revoked_at = $2
+            WHERE id = $1 AND lifecycle_status = 'active' RETURNING *`,
             [workId, revokedAt],
         );
         return result.rows[0] ? mapPublishedWork(result.rows[0]) : null;
@@ -364,11 +375,11 @@ export class WorkPublicationRepository {
         const keyword = input.keyword?.trim().toLowerCase() || "";
         const table = input.sourceType === "media" ? "library_assets" : input.sourceType === "canvas" ? "canvas_projects" : "drama_projects";
         const kindProjection = input.sourceType === "media" ? "kind" : "NULL::text AS kind";
-        const mediaFilter = input.sourceType === "media" ? "AND kind IN ('image', 'video')" : "";
+        const sourceFilter = input.sourceType === "media" ? "AND kind IN ('image', 'video')" : input.sourceType === "canvas" ? "AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'" : "";
         const result = await this.db.query(
             `SELECT id, title, ${kindProjection}, updated_at, count(*) OVER() AS total_count
              FROM ${table}
-             WHERE user_id = $1 ${mediaFilter}
+             WHERE user_id = $1 ${sourceFilter}
                AND ($2 = '' OR position($2 in lower(title)) > 0)
              ORDER BY updated_at DESC, id DESC
              LIMIT $3 OFFSET $4`,
@@ -390,7 +401,8 @@ export class WorkPublicationRepository {
     async getSourceJson(userId: string, sourceType: PublishedWorkSourceType, sourceId: string): Promise<{ title: string; value: JsonValue } | null> {
         const table = sourceType === "media" ? "library_assets" : sourceType === "canvas" ? "canvas_projects" : "drama_projects";
         const jsonColumn = sourceType === "media" ? "asset_json" : "project_json";
-        const result = await this.db.query(`SELECT title, ${jsonColumn} AS source_json FROM ${table} WHERE id = $1 AND user_id = $2`, [sourceId, userId]);
+        const sourceFilter = sourceType === "canvas" ? " AND COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'" : "";
+        const result = await this.db.query(`SELECT title, ${jsonColumn} AS source_json FROM ${table} WHERE id = $1 AND user_id = $2${sourceFilter}`, [sourceId, userId]);
         return result.rows[0] ? { title: String(result.rows[0].title || ""), value: (result.rows[0].source_json || {}) as JsonValue } : null;
     }
 }
@@ -415,6 +427,10 @@ function versionProjection(alias: string, prefix: string) {
         "reviewed_by_user_id",
         "moderation_provider",
         "moderation_signal",
+        "pull_film_enabled",
+        "pull_film_snapshot",
+        "pull_film_enabled_at",
+        "pull_film_enabled_by_user_id",
         "created_at",
         "updated_at",
     ]

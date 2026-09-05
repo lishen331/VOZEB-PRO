@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
+import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import { createStoredGenerationTask, getStoredGenerationTask, mutateStoredGenerationTask, touchStoredGenerationTask, transitionStoredGenerationTask, type GenerationTaskContext } from "@/lib/server/generation-task-store";
 import type { LogicalModelCapabilityProfile, SystemChannelAdvancedConfig } from "@/lib/auth/store";
 import type { GenerationAttempt } from "@/lib/server/generation-attempt";
 import { GENERATION_TASK_RETENTION_MS } from "@/lib/server/generation-task-retention";
+import type { StoredTaskBilling } from "@/lib/server/generation-task-types";
 
 export type AudioTaskConfig = {
+    executionProfile?: PracticeExecutionProfile;
     apiSource?: "system" | "custom";
     baseUrl: string;
     apiKey: string;
@@ -30,7 +33,7 @@ export type AudioTask = GenerationTaskContext & {
     source?: string;
     upstream?: { id: string; createPath: string };
     result?: { url: string; mimeType: string };
-    billing?: { pointsCost: number; pointsRecordId?: string; refunded: boolean };
+    billing?: StoredTaskBilling;
     error?: string;
     candidateConfigs?: AudioTaskConfig[];
     attempts?: GenerationAttempt[];
@@ -39,7 +42,11 @@ export type AudioTask = GenerationTaskContext & {
 
 export function createAudioTask(input: Omit<AudioTask, "id" | "status" | "createdAt" | "updatedAt">) {
     const now = Date.now();
-    return createStoredGenerationTask("audio", { ...input, id: randomUUID(), status: "pending", createdAt: now, updatedAt: now } satisfies AudioTask, GENERATION_TASK_RETENTION_MS);
+    return createStoredGenerationTask(
+        "audio",
+        { ...input, config: { ...input.config, executionProfile: input.executionProfile || input.config.executionProfile }, id: randomUUID(), status: "pending", createdAt: now, updatedAt: now } satisfies AudioTask,
+        GENERATION_TASK_RETENTION_MS,
+    );
 }
 
 export async function getAudioTask(id: string) {

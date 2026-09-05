@@ -9,6 +9,8 @@ export function publicGalleryItem(item: PublishedGalleryItemRecord) {
         viewCount: item.viewCount,
         likeCount: item.likeCount,
         isFeatured: item.isFeatured,
+        hasProcess: item.hasProcess,
+        processVersionId: item.processVersionId,
         publishedAt: item.publishedAt,
         title: item.title,
         description: item.description,

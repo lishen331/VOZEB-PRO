@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AuthSettings, SystemModelChannel } from "@/lib/auth/store";
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
+import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
 import {
     isProviderTimeoutError,
     isUsableAdminChannelApiKey,
@@ -10,6 +11,8 @@ import {
     sanitizeProviderMessage,
     serializeAdminSettings,
     serializeAdminSettingsForUser,
+    runningHubChannelValidationErrors,
+    practiceDefaultModelValidationErrors,
     systemChannelWebhookSecretValidationError,
 } from "./admin-channel-config";
 
@@ -127,5 +130,96 @@ describe("admin channel config", () => {
         expect(isProviderTimeoutError(new DOMException("aborted", "AbortError"))).toBe(true);
         expect(isProviderTimeoutError(new DOMException("timed out", "TimeoutError"))).toBe(true);
         expect(isProviderTimeoutError(new Error("network failed"))).toBe(false);
+    });
+
+    it("requires explicit RunningHub purpose, credentials, and per-model task paths", () => {
+        const base = {
+            id: "runninghub",
+            name: "练习 RunningHub",
+            baseUrl: "https://runninghub.example",
+            apiKey: "rh-secret",
+            apiFormat: "openai" as const,
+            models: ["workflow-image"],
+            enabled: true,
+            advancedConfig: {
+                protocol: "runninghub" as const,
+                textModel: "",
+                imageModel: "",
+                videoModel: "",
+                createPath: "",
+                queryPath: "",
+                requestTemplate: "",
+                resultField: "",
+                statusField: "",
+                durationRange: "",
+                referenceRule: "",
+                supportsReferenceImage: false,
+                supportsReferenceVideo: false,
+                supportsReferenceAudio: false,
+                modelConfigs: {
+                    "workflow-image": {
+                        capability: "image" as const,
+                        protocol: "runninghub" as const,
+                        createPath: "/task/create",
+                        queryPath: "/task/query",
+                        requestTemplate: '{"workflow":"{{model}}"}',
+                        taskIdField: "data.taskId",
+                        resultField: "data.result",
+                        statusField: "data.status",
+                    },
+                },
+            },
+        };
+        expect(runningHubChannelValidationErrors({ ...base, purpose: "open-source-practice" })).toEqual([]);
+        expect(runningHubChannelValidationErrors({ ...base, purpose: undefined }).join(" ")).toContain("渠道用途");
+        expect(runningHubChannelValidationErrors({ ...base, apiKey: "" }).join(" ")).toContain("API Key");
+        expect(runningHubChannelValidationErrors({ ...base, advancedConfig: { ...base.advancedConfig, modelConfigs: {} } }).join(" ")).toContain("workflow-image");
+
+        const workflowValidationErrors = runningHubChannelValidationErrors({
+            ...base,
+            purpose: "open-source-practice",
+            advancedConfig: {
+                ...base.advancedConfig,
+                workflowConfigs: {
+                    broken: {
+                        workflowKey: "broken",
+                        workflowName: "错误工作流",
+                        businessCode: "dubbing",
+                        capability: "image",
+                        providerType: "runninghub",
+                        channelId: "runninghub",
+                        workflowId: "workflow-broken",
+                        version: 1,
+                        enabled: true,
+                        createPath: "/task/create",
+                        queryPath: "/task/query",
+                        taskIdField: "data.taskId",
+                        statusField: "data.status",
+                        resultField: "data.result",
+                        requestTemplate: "{}",
+                        inputSchema: [],
+                        nodeMappings: [],
+                        outputMappings: [],
+                    },
+                },
+            },
+        });
+        expect(workflowValidationErrors.join(" ")).toContain("broken");
+        expect(workflowValidationErrors.join(" ")).toContain("capability");
+    });
+
+    it("validates the practice Canvas vision default separately from ordinary text", () => {
+        const channel = {
+            ...savedChannel,
+            id: "vision-channel",
+            models: ["vision-model"],
+            purpose: "open-source-practice" as const,
+            advancedConfig: { ...emptyAdvancedConfig(), protocol: "openai" as const, modelConfigs: { "vision-model": { capability: "text" as const, supportsImageInput: true } } },
+        };
+        const logicalModels = [{ id: "vision-model", name: "Vision", capability: "text" as const, enabled: true, bindings: [{ id: "vision-binding", channelId: channel.id, upstreamModel: "vision-model", enabled: true, priority: 1 }] }];
+
+        expect(practiceDefaultModelValidationErrors({ visionModel: "vision-model" }, logicalModels, [channel])).toEqual([]);
+        expect(practiceDefaultModelValidationErrors({ visionModel: "vision-model" }, logicalModels, [{ ...channel, advancedConfig: { ...channel.advancedConfig, modelConfigs: { "vision-model": { capability: "text" as const } } } }])).toEqual([]);
+        expect(practiceDefaultModelValidationErrors({ visionModel: "missing-model" }, logicalModels, [channel])[0]).toContain("视觉");
     });
 });

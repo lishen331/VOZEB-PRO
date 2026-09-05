@@ -34,7 +34,7 @@ export function resolveTextProtocol(input: TextProtocolInput): ResolvedTextProto
 
     const modelProtocol = modelConfig?.protocol;
     const modelPath = modelConfig?.createPath?.trim() || "";
-    if (modelProtocol === "custom") return customProtocol(advanced, modelConfig, modelPath);
+    if (modelProtocol === "custom" || modelProtocol === "runninghub") return customProtocol(advanced, modelConfig, modelPath);
     if (isChatPreset(modelProtocol)) return resolved("chat", "/chat/completions");
     if (modelProtocol === "globalaiopc") return resolved("chat", "/chat/completions");
     if (isResponsesPath(modelPath)) return resolved("responses", modelPath);
@@ -46,7 +46,7 @@ export function resolveTextProtocol(input: TextProtocolInput): ResolvedTextProto
 
     const channelProtocol = advanced?.protocol || "auto";
     const channelPath = advanced?.createPath?.trim() || "";
-    if (channelProtocol === "custom") return customProtocol(advanced, modelConfig, modelPath || channelPath);
+    if (channelProtocol === "custom" || channelProtocol === "runninghub") return customProtocol(advanced, modelConfig, modelPath || channelPath);
     if (isChatPreset(channelProtocol)) return resolved("chat", "/chat/completions");
     if (channelProtocol === "globalaiopc") return resolved("chat", "/chat/completions");
     if (isResponsesPath(channelPath)) return resolved("responses", channelPath);

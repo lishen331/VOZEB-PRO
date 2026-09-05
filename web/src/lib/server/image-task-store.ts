@@ -1,15 +1,18 @@
 import { randomUUID } from "crypto";
 
 import type { LogicalModelCapabilityProfile, SystemChannelAdvancedConfig } from "@/lib/auth/store";
+import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import type { GenerationAttempt } from "@/lib/server/generation-attempt";
 import type { GenerationLogSource } from "@/lib/server/generation-log-store";
 import { countActiveStoredGenerationTasks, createStoredGenerationTask, getStoredGenerationTask, mutateStoredGenerationTask, touchStoredGenerationTask, transitionStoredGenerationTask, type GenerationTaskContext } from "@/lib/server/generation-task-store";
 import { GENERATION_TASK_RETENTION_MS } from "@/lib/server/generation-task-retention";
+import type { StoredTaskBilling } from "@/lib/server/generation-task-types";
 
 type ImageTaskKind = "generation" | "edit";
 type ImageTaskStatus = "pending" | "running" | "success" | "error" | "cancelled";
 
 export type ImageTaskConfig = {
+    executionProfile?: PracticeExecutionProfile;
     apiSource?: "system" | "custom";
     baseUrl: string;
     apiKey: string;
@@ -20,6 +23,8 @@ export type ImageTaskConfig = {
     capabilityProfile?: LogicalModelCapabilityProfile;
     quality?: string;
     size?: string;
+    outputBackground?: "opaque" | "transparent";
+    outputMode?: "layers";
     systemPrompt?: string;
     advancedConfig?: SystemChannelAdvancedConfig;
 };
@@ -61,7 +66,7 @@ export type ImageTask = GenerationTaskContext & {
     mask?: ImageTaskReference;
     result?: StoredImageTaskMediaResult & { results?: StoredImageTaskMediaResult[] };
     upstream?: { id: string; mediaBaseUrl: string; pollBaseUrl: string; explicitPollUrl?: string };
-    billing?: { pointsCost: number; pointsRecordId?: string; refunded: boolean };
+    billing?: StoredTaskBilling;
     error?: string;
     retryable?: boolean;
     pointsRemaining?: number;
@@ -75,6 +80,7 @@ export async function createImageTask(input: Omit<ImageTask, "id" | "status" | "
     const now = Date.now();
     const task: ImageTask = {
         ...input,
+        config: { ...input.config, executionProfile: input.executionProfile || input.config.executionProfile },
         id: randomUUID(),
         status: "pending",
         createdAt: now,

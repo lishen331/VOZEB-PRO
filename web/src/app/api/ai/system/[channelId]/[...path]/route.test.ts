@@ -2,8 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     checkMediaProxyRateLimit: vi.fn(),
+    chargeGeneration: vi.fn(async (input: { userId: string; amount: number; units: number; usageKind: string; model: string; idempotencyKey: string; requestFingerprint: string }) => {
+        const legacy = (await mocks.consumeUserPoints(input.userId, input.model, input.amount, input.usageKind, input.idempotencyKey, input.requestFingerprint)) || pointCharge();
+        return {
+            receiptId: `points:${legacy.recordId}`,
+            sources: ["personal_points"],
+            cost: legacy.cost ?? input.amount,
+            personalPointsRemaining: legacy.remaining,
+        };
+    }),
     consumeUserPoints: vi.fn(),
     getAuthSettings: vi.fn(),
+    refundGenerationCharge: vi.fn(async (input: { userId: string; receiptId: string; model: string; usageKind: string; units: number }) => {
+        const recordId = input.receiptId.replace(/^points:/, "");
+        const result = await mocks.refundUserPoints(input.userId, input.model, input.units, input.usageKind, input.units, undefined, recordId);
+        return { refunded: true, personalPointsRemaining: result?.pointsBalance };
+    }),
     refundUserPoints: vi.fn(),
     safeUrl: vi.fn(),
     acquire: vi.fn(),
@@ -22,6 +36,7 @@ vi.mock("@/lib/auth/store", () => ({
     refundUserPoints: mocks.refundUserPoints,
 }));
 vi.mock("@/lib/server/proxy-dispatcher", () => ({ configureServerProxyDispatcher: vi.fn() }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ chargeGeneration: mocks.chargeGeneration, refundGenerationCharge: mocks.refundGenerationCharge }));
 vi.mock("@/lib/server/media-concurrency", () => ({ acquireMediaConcurrency: mocks.acquire, withMediaConcurrency: mocks.wrap }));
 vi.mock("@/lib/server/safe-outbound-fetch", () => ({ fetchSafeOutbound: (url: string | URL, init?: RequestInit) => fetch(url, init) }));
 vi.mock("@/lib/server/generation-media-access", () => ({ authorizeGenerationMediaProxyRequest: mocks.mediaAccess }));
@@ -33,21 +48,32 @@ vi.mock("@/lib/server/security", () => ({
 }));
 
 import { GET, maxDuration, POST, PUT } from "./route";
+import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
 import { MEDIA_SNIFF_RANGE } from "@/lib/server/media-content-validation";
+import { SYSTEM_PROXY_JSON_BODY_MAX_BYTES } from "@/lib/server/system-proxy-request-limits";
 import { systemAiBillingHeaders, systemAiPointsIdempotencyKey } from "@/lib/server/system-ai-billing";
 
 const context = { params: Promise.resolve({ channelId: "channel-one", path: ["_media"] }) };
 
+beforeEach(() => {
+    mocks.chargeGeneration.mockClear();
+    mocks.refundGenerationCharge.mockClear();
+});
+
 describe("system generation proxy runtime", () => {
     it("keeps long image and video submissions alive beyond the framework default", () => {
         expect(maxDuration).toBeGreaterThanOrEqual(40 * 60);
+    });
+
+    it("accepts the JSON expansion of one maximum-size visual reference", () => {
+        expect(SYSTEM_PROXY_JSON_BODY_MAX_BYTES).toBeGreaterThan(Math.ceil((CREATIVE_UPLOAD_MAX_BYTES * 4) / 3));
     });
 });
 
 describe("system media proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.checkMediaProxyRateLimit.mockResolvedValue({ allowed: true, remaining: 119, resetAt: Date.now() + 60_000 });
         mocks.safeUrl.mockResolvedValue(true);
@@ -164,10 +190,41 @@ describe("system media proxy", () => {
     });
 });
 
-describe("GlobalAiOpc native text proxy", () => {
+describe("OpenAI Responses proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.refundUserPoints.mockReset();
+        mocks.safeUrl.mockResolvedValue(true);
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("writer", "text", "gpt-5")],
+            systemChannels: [{ id: "channel-one", enabled: true, baseUrl: "https://api.openai.com/v1", apiKey: "secret", apiFormat: "openai", models: ["gpt-5"], advancedConfig: { protocol: "compatible", createPath: "/v1/responses" } }],
+        });
+    });
+
+    it("forwards /v1/responses without duplicating the /v1 base path", async () => {
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "resp_1", output: [{ type: "message", content: [{ type: "output_text", text: "OK" }] }] }), { headers: { "content-type": "application/json" } }));
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/v1/responses", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ model: "gpt-5", input: [{ role: "user", content: "hello" }], stream: false }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["v1", "responses"] }) },
+        );
+
+        expect(response.status).toBe(200);
+        expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.openai.com/v1/responses");
+        const upstreamBody = fetchMock.mock.calls[0]?.[1]?.body;
+        expect(JSON.parse(new TextDecoder().decode(upstreamBody as ArrayBuffer))).toMatchObject({ model: "gpt-5", input: [{ role: "user", content: "hello" }] });
+    });
+});
+
+describe("GlobalAiOpc native text proxy", () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.taskAccess.mockReset().mockResolvedValue(true);
@@ -200,6 +257,16 @@ describe("GlobalAiOpc native text proxy", () => {
         expect(new Headers(init?.headers).get("x-goog-api-key")).toBeNull();
         expect(JSON.parse(String(init?.body))).toMatchObject({ contents: [{ role: "user", parts: [{ text: "hello" }] }] });
         expect(await response.json()).toMatchObject({ choices: [{ message: { role: "assistant", content: "OK" } }] });
+    });
+
+    it("refunds a charged GlobalAiOpc call when a 2xx response is not JSON", async () => {
+        mocks.consumeUserPoints.mockResolvedValue({ model: "gemini-text", cost: 1, units: 1, usageKind: "text", recordId: "points-invalid-json", remaining: 4, permanentRemaining: 4, dailyRemaining: 0, dailyExpiresAt: "" });
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("not-json", { status: 200, headers: { "content-type": "text/plain" } }));
+
+        const response = await POST(chatRequest({ model: "gemini-3.1-pro-preview", messages: [{ role: "user", content: "hello" }] }), textContext());
+
+        expect(response.status).toBe(502);
+        expect(mocks.refundUserPoints).toHaveBeenCalledWith("user-one", "gemini-text", 1, "text", 1, undefined, "points-invalid-json");
     });
 
     it("charges text calls with the logical model id instead of the upstream alias", async () => {
@@ -293,7 +360,7 @@ describe("GlobalAiOpc native text proxy", () => {
         mocks.consumeUserPoints.mockImplementation(async (_userId, _model, _amount, _usageKind, key: string, fingerprint: string) => {
             if (!firstIdentity) firstIdentity = { key, fingerprint };
             else if (firstIdentity.key === key && firstIdentity.fingerprint !== fingerprint) throw Object.assign(new Error("积分幂等键对应的消费参数不一致"), { status: 409 });
-            return undefined;
+            return pointCharge();
         });
         const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ choices: [{ message: { content: "OK" } }] }));
         const billingHeaders = systemAiBillingHeaders("writer", "task-one", "vendor-text");
@@ -399,7 +466,7 @@ describe("GlobalAiOpc native text proxy", () => {
 describe("Agnes video polling proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.taskAccess.mockReset().mockResolvedValue(true);
@@ -436,7 +503,7 @@ describe("Agnes video polling proxy", () => {
 describe("Stable Diffusion proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.getAuthSettings.mockResolvedValue({
@@ -483,12 +550,84 @@ describe("Stable Diffusion proxy", () => {
         expect(fetchMock.mock.calls[0][0]).toBe("https://sd.example.com/sdapi/v1/txt2img");
         expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get("authorization")).toBeNull();
     });
+
+    it("fully receives a non-streaming image JSON response before returning it internally", async () => {
+        const upstream = Response.json({ images: ["image-base64"] });
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream);
+
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/sdapi/v1/txt2img", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                    "x-vozeb-pro-logical-model": "image-local",
+                    "x-vozeb-pro-upstream-model": "sdxl",
+                },
+                body: JSON.stringify({ prompt: "slow image" }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["sdapi", "v1", "txt2img"] }) },
+        );
+
+        expect(upstream.bodyUsed).toBe(true);
+        await expect(response.json()).resolves.toEqual({ images: ["image-base64"] });
+    });
+
+    it("turns a broken image JSON body into an uncertain proxy failure and refunds local points", async () => {
+        mocks.consumeUserPoints.mockResolvedValue({ model: "image-local", cost: 1, units: 1, usageKind: "image", recordId: "points-broken-body", remaining: 4, permanentRemaining: 4, dailyRemaining: 0, dailyExpiresAt: "" });
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(
+            new Response(
+                new ReadableStream({
+                    start(controller) {
+                        controller.error(new Error("socket closed"));
+                    },
+                }),
+                { status: 200, headers: { "content-type": "application/json" } },
+            ),
+        );
+
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/sdapi/v1/txt2img", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                    "x-vozeb-pro-logical-model": "image-local",
+                    "x-vozeb-pro-upstream-model": "sdxl",
+                },
+                body: JSON.stringify({ prompt: "slow image" }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["sdapi", "v1", "txt2img"] }) },
+        );
+
+        expect(response.status).toBe(502);
+        expect(mocks.refundUserPoints).toHaveBeenCalledWith("user-one", "image-local", 1, "image", 1, undefined, "points-broken-body");
+    });
+
+    it("forwards a visual JSON body larger than the former four-megabyte ceiling", async () => {
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ images: ["image-base64"] }));
+        const body = JSON.stringify({ prompt: "layer this image", init_images: ["A".repeat(5 * 1024 * 1024)] });
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/sdapi/v1/txt2img", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                    "x-vozeb-pro-logical-model": "image-local",
+                    "x-vozeb-pro-upstream-model": "sdxl",
+                },
+                body,
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["sdapi", "v1", "txt2img"] }) },
+        );
+
+        expect(new TextEncoder().encode(body).byteLength).toBeGreaterThan(4 * 1024 * 1024);
+        expect(response.status).toBe(200);
+        expect(fetchMock).toHaveBeenCalledOnce();
+    });
 });
 
 describe("VOZEB recommended video proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.taskAccess.mockReset().mockResolvedValue(true);
@@ -594,7 +733,7 @@ describe("Gemini Veo native video proxy", () => {
 describe("Yumeng v2 model-center proxy", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.getAuthSettings.mockResolvedValue({
@@ -658,7 +797,7 @@ describe("Yumeng v2 model-center proxy", () => {
 describe("configured versioned protocol billing", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.getAuthSettings.mockResolvedValue({
@@ -708,7 +847,7 @@ describe("configured versioned protocol billing", () => {
 describe("custom protocol model routing", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(pointCharge());
         mocks.refundUserPoints.mockReset();
         mocks.safeUrl.mockResolvedValue(true);
         mocks.getAuthSettings.mockResolvedValue({
@@ -760,6 +899,60 @@ describe("custom protocol model routing", () => {
     });
 });
 
+describe("RunningHub official workflow proxy", () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        mocks.consumeUserPoints.mockReset().mockResolvedValue(undefined);
+        mocks.refundUserPoints.mockReset();
+        mocks.safeUrl.mockResolvedValue(true);
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("minimax-video", "video", "workflow-minimax-h3-base")],
+            systemChannels: [
+                {
+                    id: "channel-one",
+                    enabled: true,
+                    baseUrl: "https://www.runninghub.cn",
+                    apiKey: "shared-secret",
+                    apiFormat: "openai",
+                    models: ["workflow-minimax-h3-base"],
+                    advancedConfig: {
+                        protocol: "runninghub",
+                        modelConfigs: {
+                            "workflow-minimax-h3-base": {
+                                capability: "video",
+                                protocol: "runninghub",
+                                createPath: "/task/openapi/create",
+                                queryPath: "/openapi/v2/query",
+                                taskIdField: "data.taskId",
+                                statusField: "status",
+                                resultField: "results",
+                            },
+                        },
+                    },
+                },
+            ],
+        });
+    });
+
+    it("injects the channel key into the official workflow create body", async () => {
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ code: 0, data: { taskId: "task-one" } }));
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/task/openapi/create", {
+                method: "POST",
+                headers: { "content-type": "application/json", ...systemModelHeaders("minimax-video", "workflow-minimax-h3-base") },
+                body: JSON.stringify({ workflowId: "2090436199843454978", nodeInfoList: [], apiKey: "client-supplied-key" }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["task", "openapi", "create"] }) },
+        );
+
+        expect(response.status).toBe(200);
+        const rawBody = fetchMock.mock.calls[0]?.[1]?.body;
+        const upstreamBody = JSON.parse(typeof rawBody === "string" ? rawBody : new TextDecoder().decode(rawBody as ArrayBuffer));
+        expect(upstreamBody).toMatchObject({ workflowId: "2090436199843454978", apiKey: "shared-secret" });
+    });
+});
+
 describe("system proxy authorization", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
@@ -806,6 +999,38 @@ describe("system proxy authorization", () => {
         expect(fetchMock).not.toHaveBeenCalled();
         expect(mocks.consumeUserPoints).not.toHaveBeenCalled();
     });
+
+    it("accepts only a signed practice request and skips point consumption", async () => {
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("writer", "text", "vendor-text")],
+            systemChannels: [{ id: "channel-one", enabled: true, purpose: "open-source-practice", baseUrl: "https://api.example.com/v1", apiKey: "shared-secret", apiFormat: "openai", models: ["vendor-text"] }],
+        });
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ choices: [{ message: { content: "practice" } }] }));
+        const headers = { "content-type": "application/json", ...systemAiBillingHeaders("writer", "practice-one", "vendor-text", "open-source-practice") };
+
+        const response = await POST(new Request("http://localhost/api/ai/system/channel-one/chat/completions", { method: "POST", headers, body: JSON.stringify({ model: "vendor-text", messages: [] }) }), textContext());
+
+        expect(response.status).toBe(200);
+        expect(mocks.consumeUserPoints).not.toHaveBeenCalled();
+    });
+
+    it("rejects a client that changes a production signature to practice", async () => {
+        mocks.getAuthSettings.mockResolvedValue({
+            generationPointMultipliers: {},
+            logicalModels: [logicalModel("writer", "text", "vendor-text")],
+            systemChannels: [{ id: "channel-one", enabled: true, purpose: "open-source-practice", baseUrl: "https://api.example.com/v1", apiKey: "shared-secret", apiFormat: "openai", models: ["vendor-text"] }],
+        });
+        const fetchMock = vi.spyOn(globalThis, "fetch");
+        const headers = new Headers({ "content-type": "application/json", ...systemAiBillingHeaders("writer", "production-one", "vendor-text") });
+        headers.set("x-vozeb-pro-execution-profile", "open-source-practice");
+
+        const response = await POST(new Request("http://localhost/api/ai/system/channel-one/chat/completions", { method: "POST", headers, body: JSON.stringify({ model: "vendor-text", messages: [] }) }), textContext());
+
+        expect(response.status).toBe(403);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mocks.consumeUserPoints).not.toHaveBeenCalled();
+    });
 });
 
 function request(url = "https://cdn.example.com/media.png", headers?: HeadersInit) {
@@ -826,6 +1051,10 @@ function logicalModel(id: string, capability: "text" | "image" | "video" | "audi
 
 function systemModelHeaders(logicalModelId: string, upstreamModel: string) {
     return { "x-vozeb-pro-logical-model": logicalModelId, "x-vozeb-pro-upstream-model": upstreamModel };
+}
+
+function pointCharge() {
+    return { model: "test-model", cost: 1, units: 1, recordId: "point-record", permanentRemaining: 4, dailyRemaining: 0, remaining: 4, usageKind: "api" };
 }
 
 function pngBytes() {

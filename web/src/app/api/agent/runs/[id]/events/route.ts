@@ -1,8 +1,6 @@
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAgentRun } from "@/lib/server/agent-run-store";
 import { CREATIVE_RUN_EVENT_BATCH_SIZE, getLatestCreativeRunEventId, listCreativeRunEvents } from "@/lib/server/creative-runtime-store";
-import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
-import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { waitForCreativeRunEvent } from "@/lib/server/creative-run-event-signal";
 import { publicAgentRunEvent, publicAgentRunSnapshot } from "@/lib/server/agent-run-public";
 
@@ -17,26 +15,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const requestedEventId = request.headers.get("last-event-id") || new URL(request.url).searchParams.get("lastEventId") || "";
     const retryEventIds = requestedEventId ? [] : await Promise.all([getLatestCreativeRunEventId(run.id, "task.retry.requested"), getLatestCreativeRunEventId(run.id, "run.retry.requested")]);
     const lastEventId = requestedEventId || retryEventIds.reduce((latest, id) => (Number(id || 0) > Number(latest || 0) ? id : latest), "");
-    const origin = resolveInternalOrigin(new URL(request.url).origin);
-    const cookie = request.headers.get("cookie") || "";
     const body = new ReadableStream({
         start(controller) {
             let closed = false;
             let cursor = lastEventId;
-            let nextRecoveryAt = 0;
-            let recovery: Promise<unknown> | undefined;
             let lastSnapshotVersion = "";
             let lastHeartbeatAt = Date.now();
-            const wakeRecovery = () => {
-                const now = Date.now();
-                if (recovery || now < nextRecoveryAt) return;
-                nextRecoveryAt = now + 2_000;
-                recovery = runGenerationTaskRecoveryBatch({ origin, cookie, limit: 1, taskIds: [run.id] })
-                    .catch((error) => console.warn("Agent task recovery wakeup failed", { runId: run.id, error: error instanceof Error ? error.message : String(error) }))
-                    .finally(() => {
-                        recovery = undefined;
-                    });
-            };
             const close = () => {
                 if (closed) return;
                 closed = true;
@@ -48,40 +32,57 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             };
             request.signal.addEventListener("abort", close, { once: true });
             void (async () => {
-                const deadline = Date.now() + 60 * 60 * 1000;
-                let current: Awaited<ReturnType<typeof getAgentRun>> = run;
-                while (!closed && Date.now() < deadline) {
-                    if (closed) return;
-                    if (!current) {
-                        controller.enqueue(encoder.encode(`event: run.failed\ndata: ${JSON.stringify({ message: "Agent 任务不存在" })}\n\n`));
-                        close();
-                        return;
+                try {
+                    const deadline = Date.now() + 60 * 60 * 1000;
+                    let current: Awaited<ReturnType<typeof getAgentRun>> = run;
+                    while (!closed && Date.now() < deadline) {
+                        if (closed) return;
+                        if (!current) {
+                            controller.enqueue(encoder.encode(`event: run.failed\ndata: ${JSON.stringify({ message: "Agent 任务不存在" })}\n\n`));
+                            close();
+                            return;
+                        }
+                        try {
+                            const events = await listCreativeRunEvents(run.id, cursor);
+                            for (const event of events) {
+                                if (closed) return;
+                                controller.enqueue(encoder.encode(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(publicAgentRunEvent(event))}\n\n`));
+                                cursor = event.id;
+                            }
+                            if (events.length === CREATIVE_RUN_EVENT_BATCH_SIZE) continue;
+                            const snapshotVersion = `${current.status}:${current.updatedAt}`;
+                            if (snapshotVersion !== lastSnapshotVersion) {
+                                controller.enqueue(encoder.encode(`event: run.snapshot\ndata: ${JSON.stringify(publicAgentRunSnapshot(current))}\n\n`));
+                                lastSnapshotVersion = snapshotVersion;
+                            }
+                            if (["completed", "failed", "cancelled"].includes(current.status)) {
+                                close();
+                                return;
+                            }
+                        } catch (error) {
+                            // 查询事件失败，发送心跳并继续
+                            if (!closed) {
+                                controller.enqueue(encoder.encode(`: retry after error ${Date.now()}\n\n`));
+                                lastHeartbeatAt = Date.now();
+                            }
+                        }
+                        await waitForCreativeRunEvent(run.id, 2_500, request.signal).catch(() => {});
+                        current = await getAgentRun(run.id).catch(() => current);
+                        if (!closed && Date.now() - lastHeartbeatAt >= 15_000) {
+                            controller.enqueue(encoder.encode(`: heartbeat ${Date.now()}\n\n`));
+                            lastHeartbeatAt = Date.now();
+                        }
                     }
-                    const events = await listCreativeRunEvents(run.id, cursor);
-                    for (const event of events) {
-                        controller.enqueue(encoder.encode(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(publicAgentRunEvent(event))}\n\n`));
-                        cursor = event.id;
-                    }
-                    if (events.length === CREATIVE_RUN_EVENT_BATCH_SIZE) continue;
-                    const snapshotVersion = `${current.status}:${current.updatedAt}`;
-                    if (snapshotVersion !== lastSnapshotVersion) {
-                        controller.enqueue(encoder.encode(`event: run.snapshot\ndata: ${JSON.stringify(publicAgentRunSnapshot(current))}\n\n`));
-                        lastSnapshotVersion = snapshotVersion;
-                    }
-                    if (["completed", "failed", "cancelled"].includes(current.status)) {
-                        close();
-                        return;
-                    }
-                    if (current.status === "planning" || current.status === "running") wakeRecovery();
-                    await waitForCreativeRunEvent(run.id, 2_500, request.signal);
-                    current = await getAgentRun(run.id);
-                    if (!closed && Date.now() - lastHeartbeatAt >= 15_000) {
-                        controller.enqueue(encoder.encode(`: heartbeat ${Date.now()}\n\n`));
-                        lastHeartbeatAt = Date.now();
+                } catch (error) {
+                    // 顶层错误：发送错误事件后关闭
+                    if (!closed) {
+                        try {
+                            controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: "事件流异常" })}\n\n`));
+                        } catch {}
                     }
                 }
                 close();
-            })().catch(() => close());
+            })();
         },
     });
     return new Response(body, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no" } });

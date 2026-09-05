@@ -16,6 +16,8 @@ type StoredReferenceAsset = {
     storage?: "local" | "object";
 };
 
+export type PersistentAttachmentWriteContext = Omit<ReferenceMediaWriteContext, "maxBytes">;
+
 export type ReferenceMediaWriteContext = {
     ownerUserId: string;
     source: string;
@@ -39,6 +41,36 @@ export async function writePersistentMediaDataUrl(dataUrl: string, expectedType:
     return writeMediaDataUrl(dataUrl, expectedType, true, context);
 }
 
+export async function writePersistentAttachmentFile(sourcePath: string, fileName: string, mimeType: string, context: PersistentAttachmentWriteContext): Promise<StoredReferenceAsset> {
+    const sourceStat = await stat(sourcePath);
+    if (!sourceStat.isFile() || sourceStat.size <= 0) throw new Error("课程附件为空");
+    const token = createDatedMediaPath("permanent", "attachment", extensionFromFileName(fileName));
+    const registration = {
+        storageKey: token,
+        scope: "reference" as const,
+        storageClass: "permanent" as const,
+        type: "attachment" as const,
+        ownerUserId: context.ownerUserId,
+        originalName: fileName,
+        source: context.source,
+        mimeType,
+        bytes: sourceStat.size,
+        createdAt: new Date().toISOString(),
+    };
+    const external = await persistExternalMediaIfEnabled({ registration, filePath: sourcePath });
+    if (external) return { token, bytes: sourceStat.size, mimeType, storage: "object" };
+    const filePath = resolve(REFERENCE_MEDIA_ROOT, token);
+    await mkdir(dirname(filePath), { recursive: true });
+    await copyFile(sourcePath, filePath);
+    try {
+        await registerLocalMediaAsset(registration);
+    } catch (error) {
+        await unlink(filePath).catch(() => undefined);
+        throw error;
+    }
+    return { token, bytes: sourceStat.size, mimeType, storage: "local" };
+}
+
 async function writeMediaDataUrl(dataUrl: string, expectedType: "image" | "video" | "audio", persistent: boolean, context: ReferenceMediaWriteContext): Promise<StoredReferenceAsset> {
     const parsed = parseMediaDataUrl(dataUrl);
     if (!parsed || !parsed.mimeType.startsWith(`${expectedType}/`)) throw new Error("参考素材格式不正确");
@@ -60,7 +92,7 @@ async function writeMediaDataUrl(dataUrl: string, expectedType: "image" | "video
     return { token, bytes: parsed.bytes.length, mimeType: parsed.mimeType, storage: "local" };
 }
 
-export async function writeReferenceMediaFile(sourcePath: string, expectedType: "video" | "audio", mimeType: string, persistent: boolean, context: ReferenceMediaWriteContext): Promise<StoredReferenceAsset> {
+export async function writeReferenceMediaFile(sourcePath: string, expectedType: "image" | "video" | "audio", mimeType: string, persistent: boolean, context: ReferenceMediaWriteContext): Promise<StoredReferenceAsset> {
     if (!mimeType.startsWith(`${expectedType}/`)) throw new Error("媒体文件格式不正确");
     const sourceStat = await stat(sourcePath);
     if (!sourceStat.isFile() || sourceStat.size <= 0 || sourceStat.size > Math.min(context.maxBytes || MAX_REFERENCE_BYTES[expectedType], MAX_REFERENCE_BYTES[expectedType]))
@@ -120,11 +152,14 @@ function referenceRegistration(token: string, persistent: boolean, type: "image"
 }
 
 function parseMediaDataUrl(dataUrl: string) {
-    const match = dataUrl.match(/^data:((?:image\/(?:png|jpe?g|webp|gif))|(?:video\/(?:mp4|webm|quicktime))|(?:audio\/(?:mpeg|mp3|wav|x-wav|ogg|opus|aac|flac)));base64,([a-z0-9+/=\s]+)$/i);
-    if (!match) return null;
-    const mimeType = normalizeMimeType(match[1]);
-    const bytes = Buffer.from(match[2].replace(/\s/g, ""), "base64");
-    return bytes.length ? { mimeType, bytes } : null;
+    const separator = dataUrl.indexOf(",");
+    if (separator < 0) return null;
+    const header = dataUrl.slice(0, separator).match(/^data:((?:image\/(?:png|jpe?g|webp|gif))|(?:video\/(?:mp4|webm|quicktime))|(?:audio\/(?:mpeg|mp3|wav|x-wav|ogg|opus|aac|flac)));base64$/i);
+    const encoded = dataUrl.slice(separator + 1).replace(/\s/g, "");
+    if (!header || !encoded || encoded.length % 4 !== 0) return null;
+    const mimeType = normalizeMimeType(header[1]);
+    const bytes = Buffer.from(encoded, "base64");
+    return bytes.length && bytes.toString("base64") === encoded ? { mimeType, bytes } : null;
 }
 
 function normalizeMimeType(value: string) {
@@ -160,9 +195,18 @@ function mimeTypeFromToken(token: string) {
     if (lower.endsWith(".aac")) return "audio/aac";
     if (lower.endsWith(".flac")) return "audio/flac";
     if (lower.endsWith(".mp3")) return "audio/mpeg";
-    return "image/png";
+    if (lower.endsWith(".zip")) return "application/zip";
+    if (lower.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    if (lower.endsWith(".pptx")) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    if (lower.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    return "application/octet-stream";
 }
 
 export function isReferenceAssetPath(value: string) {
-    return /^(?:temporary|permanent)\/\d{4}\/\d{2}\/\d{2}\/(?:images|videos|audio)\/\d{8}-\d{6}-[0-9a-f-]{36}\.(?:png|jpg|jpeg|webp|gif|mp4|webm|mov|mp3|wav|ogg|aac|flac)$/i.test(value);
+    return /^(?:temporary|permanent)\/\d{4}\/\d{2}\/\d{2}\/(?:images|videos|audio|attachments)\/\d{8}-\d{6}-[0-9a-f-]{36}\.(?:png|jpg|jpeg|webp|gif|mp4|webm|mov|mp3|wav|ogg|aac|flac|docx|pptx|xlsx|zip)$/i.test(value);
+}
+
+function extensionFromFileName(fileName: string) {
+    const extension = fileName.toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
+    return extension && /^(?:\.docx|\.pptx|\.xlsx|\.png|\.jpe?g|\.webp|\.mp4|\.mov|\.zip)$/.test(extension) ? extension : ".bin";
 }

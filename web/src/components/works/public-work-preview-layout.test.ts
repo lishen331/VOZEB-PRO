@@ -20,6 +20,13 @@ describe("public work preview layout", () => {
         expect(preview).toContain("mt-3 inline-flex h-10 w-full");
         expect(preview).toContain('className="mt-4 flex min-w-0 flex-wrap gap-1"');
         expect(preview.indexOf('title="复制提示词"')).toBeLessThan(preview.indexOf("做同款"));
+        expect(preview).toContain('useState<"media" | "process">("media")');
+        expect(preview).toContain("PublicWorkProcessView");
+        expect(preview).toContain("publicWorkPublicationsApi.getProcess");
+        expect(preview).toContain("publicWorkPublicationsApi.copyToPractice");
+        expect(preview).toContain("copyInFlightRef");
+        expect(preview).toContain("复制到练习");
+        expect(preview).toContain("制作流程");
         expect(community).toContain("compactFollowIcon");
         expect(community).toContain('shape={compact && compactFollowIcon ? "circle" : "default"}');
     });

@@ -8,6 +8,7 @@ export function createCanvasProjectMutation(previous: CanvasProject, next: Canva
     if (previous.backgroundMode !== next.backgroundMode) mutation.backgroundMode = next.backgroundMode;
     if (previous.showImageInfo !== next.showImageInfo) mutation.showImageInfo = next.showImageInfo;
     if (!sameValue(previous.viewport, next.viewport)) mutation.viewport = next.viewport;
+    if (!sameValue(previous.ipReferences || [], next.ipReferences || [])) mutation.ipReferences = next.ipReferences || [];
 
     const nodeChanges = diffEntities(previous.nodes, next.nodes);
     if (nodeChanges.upserts.length) mutation.nodeUpserts = nodeChanges.upserts;
@@ -32,6 +33,7 @@ export function applyCanvasProjectMutation(previous: CanvasProject, mutation: Ca
         ...(mutation.backgroundMode === undefined ? {} : { backgroundMode: mutation.backgroundMode }),
         ...(mutation.showImageInfo === undefined ? {} : { showImageInfo: mutation.showImageInfo }),
         ...(mutation.viewport === undefined ? {} : { viewport: mutation.viewport }),
+        ...(mutation.ipReferences === undefined ? {} : { ipReferences: mutation.ipReferences }),
         nodes: applyEntityChanges(previous.nodes, mutation.nodeUpserts, mutation.nodeDeletes),
         connections: applyEntityChanges(previous.connections, mutation.connectionUpserts, mutation.connectionDeletes),
         chatSessions: applyEntityChanges(previous.chatSessions, mutation.chatSessionUpserts, mutation.chatSessionDeletes),

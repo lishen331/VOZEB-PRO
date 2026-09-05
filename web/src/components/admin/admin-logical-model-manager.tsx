@@ -1,18 +1,21 @@
 "use client";
 
-import { App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Select, Space, Switch, Tag } from "antd";
+import { Alert, App, Button, Checkbox, Drawer, Empty, Input, InputNumber, Segmented, Select, Space, Switch, Tag } from "antd";
 import { AlertTriangle, GitBranch, Pencil, RefreshCw, Route, Search } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
 import type { LogicalModel, LogicalModelBinding, LogicalModelCapability, LogicalModelCapabilityProfile, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
-import { capabilityLabel, isLogicalModelResolvable, normalizeDefaultModelsConfig, resolveLogicalModelConfig, synchronizeLogicalModelsWithChannels } from "@/lib/model-routing-config";
+import type { PracticeWorkflowModelBindings, RunningHubWorkflowBusinessCode } from "@/lib/auth/store-types";
+import { capabilityLabel, isLogicalModelResolvable, logicalModelSupportsImageInput, normalizeDefaultModelsConfig, resolveLogicalModelConfig, resolveVisionModelConfig, synchronizeLogicalModelsWithChannels } from "@/lib/model-routing-config";
 
 type Props = {
     channels: SystemModelChannel[];
     logicalModels: LogicalModel[];
     defaultModels: SystemDefaultModels;
-    onChange: (value: { logicalModels: LogicalModel[]; defaultModels: SystemDefaultModels }) => void;
+    practiceDefaultModels: SystemDefaultModels;
+    practiceWorkflowModels?: PracticeWorkflowModelBindings;
+    onChange: (value: { logicalModels: LogicalModel[]; defaultModels: SystemDefaultModels; practiceDefaultModels: SystemDefaultModels; practiceWorkflowModels?: PracticeWorkflowModelBindings }) => void;
 };
 
 const capabilityOptions: Array<{ label: string; value: LogicalModelCapability }> = [
@@ -24,18 +27,32 @@ const capabilityOptions: Array<{ label: string; value: LogicalModelCapability }>
 
 const defaultFields: Array<{ capability: LogicalModelCapability; key: keyof SystemDefaultModels; label: string }> = [
     { capability: "text", key: "textModel", label: "默认文本模型" },
+    { capability: "text", key: "visionModel", label: "Canvas 图片理解模型" },
     { capability: "image", key: "imageModel", label: "默认图片模型" },
     { capability: "video", key: "videoModel", label: "默认视频模型" },
     { capability: "audio", key: "audioModel", label: "默认音频模型" },
 ];
 
-export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, onChange }: Props) {
+const practiceWorkflowFields: Array<{ code: RunningHubWorkflowBusinessCode; label: string; capability: LogicalModelCapability }> = [
+    { code: "script", label: "脚本", capability: "text" },
+    { code: "storyboard-image", label: "分镜图片", capability: "image" },
+    { code: "storyboard-video", label: "分镜视频", capability: "video" },
+    { code: "dubbing", label: "配音", capability: "audio" },
+    { code: "music", label: "音乐", capability: "audio" },
+];
+
+export function resolvePracticeWorkflowModelOptions(logicalModels: LogicalModel[], channels: SystemModelChannel[], capability: LogicalModelCapability) {
+    return logicalModels.filter((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id, "open-source-practice")).map((model) => ({ label: model.name, value: model.id }));
+}
+
+export function AdminLogicalModelManager({ channels, logicalModels, defaultModels, practiceDefaultModels, practiceWorkflowModels = {}, onChange }: Props) {
     const { message } = App.useApp();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [editingId, setEditingId] = useState("");
     const [draft, setDraft] = useState<LogicalModel | null>(null);
     const [query, setQuery] = useState("");
     const [capabilityFilter, setCapabilityFilter] = useState<LogicalModelCapability | "all">("all");
+    const [defaultPool, setDefaultPool] = useState<"production" | "open-source-practice">("production");
     const deferredQuery = useDeferredValue(query.trim().toLowerCase());
     const visibleModels = useMemo(
         () =>
@@ -44,9 +61,20 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             ),
         [capabilityFilter, deferredQuery, logicalModels],
     );
-    const availableDefaultFields = defaultFields.filter(({ capability }) => logicalModels.some((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id)));
+    const activeDefaults = defaultPool === "production" ? defaultModels : practiceDefaultModels;
+    const activeExecutionProfile = defaultPool === "production" ? "production" : "open-source-practice";
+    const isEligibleDefaultModel = (field: (typeof defaultFields)[number], model: LogicalModel) =>
+        model.capability === field.capability &&
+        // Canvas can be pointed at any reachable text model. The image-input
+        // capability flag is advisory and does not hide otherwise usable routes.
+        isLogicalModelResolvable(logicalModels, channels, field.capability, model.id, activeExecutionProfile);
+    const availableDefaultFields = defaultFields.filter((field) => field.key === "visionModel" || logicalModels.some((model) => isEligibleDefaultModel(field, model)));
     const availableCapabilityOptions = capabilityOptions.filter(({ value }) => availableDefaultFields.some(({ capability }) => capability === value));
-    const readyCount = availableDefaultFields.filter(({ capability, key }) => isLogicalModelResolvable(logicalModels, channels, capability, defaultModels[key])).length;
+    const readyCount = availableDefaultFields.filter((field) => {
+        const selected = logicalModels.find((model) => model.id === activeDefaults[field.key]);
+        const routeReady = Boolean(selected && isEligibleDefaultModel(field, selected));
+        return field.key === "visionModel" ? routeReady && logicalModelSupportsImageInput(logicalModels, channels, "text", selected?.id || "", activeExecutionProfile) : routeReady;
+    }).length;
 
     const openEdit = (model: LogicalModel) => {
         setEditingId(model.id);
@@ -62,7 +90,12 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             return;
         }
         const nextModels = logicalModels.map((model) => (model.id === editingId ? cloneLogicalModel({ ...draft, name }) : model));
-        onChange({ logicalModels: nextModels, defaultModels: normalizeDefaultModelsConfig(defaultModels, nextModels, channels) });
+        onChange({
+            logicalModels: nextModels,
+            defaultModels: normalizeDefaultModelsConfig(defaultModels, nextModels, channels),
+            practiceDefaultModels: normalizeDefaultModelsConfig(practiceDefaultModels, nextModels, channels, "open-source-practice", { allowFallback: false }),
+            practiceWorkflowModels,
+        });
         setDrawerOpen(false);
         message.success("模型路由设置已更新，请保存渠道配置");
     };
@@ -73,11 +106,23 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
             message.info("逻辑模型已与渠道目录同步");
             return;
         }
-        onChange({ logicalModels: nextModels, defaultModels: normalizeDefaultModelsConfig(defaultModels, nextModels, channels) });
+        onChange({
+            logicalModels: nextModels,
+            defaultModels: normalizeDefaultModelsConfig(defaultModels, nextModels, channels),
+            practiceDefaultModels: normalizeDefaultModelsConfig(practiceDefaultModels, nextModels, channels, "open-source-practice", { allowFallback: false }),
+            practiceWorkflowModels,
+        });
         message.success(`已按上游模型名同步 ${nextModels.length} 个逻辑模型`);
     };
 
-    const updateDefault = (key: keyof SystemDefaultModels, modelId: string) => onChange({ logicalModels, defaultModels: { ...defaultModels, [key]: modelId } });
+    const updateDefault = (key: keyof SystemDefaultModels, modelId: string) => {
+        onChange({
+            logicalModels,
+            defaultModels: defaultPool === "production" ? { ...defaultModels, [key]: modelId } : defaultModels,
+            practiceDefaultModels: defaultPool === "production" ? practiceDefaultModels : { ...practiceDefaultModels, [key]: modelId },
+            practiceWorkflowModels,
+        });
+    };
 
     return (
         <section className="border-t border-stone-200 pt-5 dark:border-stone-800">
@@ -104,8 +149,8 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                     </div>
                     <div className="max-h-[680px] space-y-2 overflow-y-auto pr-1">
                         {visibleModels.map((model) => {
-                            const resolved = resolveLogicalModelConfig(logicalModels, channels, model.capability, model.id);
-                            const isDefault = Object.values(defaultModels).some((value) => value.toLowerCase() === model.id.toLowerCase());
+                            const resolved = resolveLogicalModelConfig(logicalModels, channels, model.capability, model.id, activeExecutionProfile);
+                            const isDefault = Object.values(activeDefaults).some((value) => typeof value === "string" && value.toLowerCase() === model.id.toLowerCase());
                             return (
                                 <div key={model.id} className="flex min-w-0 flex-col gap-3 rounded-lg border border-stone-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between dark:border-stone-800 dark:bg-stone-950">
                                     <div className="min-w-0">
@@ -138,12 +183,33 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                 </div>
 
                 <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
-                    <SectionTitle icon={<GitBranch className="size-4" />} title="默认模型" />
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <SectionTitle icon={<GitBranch className="size-4" />} title="默认模型" />
+                        <Segmented
+                            value={defaultPool}
+                            options={[
+                                { label: "正式生产", value: "production" },
+                                { label: "无限练习", value: "open-source-practice" },
+                            ]}
+                            onChange={(value) => setDefaultPool(value as typeof defaultPool)}
+                        />
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">练习默认模型只显示 shared 或 open-source-practice 渠道绑定；生产默认模型不会参与练习路由。</p>
                     <div className="mt-4 space-y-4">
                         {availableDefaultFields.map(({ capability, key, label }) => {
-                            const options = logicalModels.filter((model) => model.capability === capability && isLogicalModelResolvable(logicalModels, channels, capability, model.id)).map((model) => ({ label: model.name, value: model.id }));
-                            const selected = logicalModels.find((model) => model.id === defaultModels[key]);
-                            const resolved = selected ? resolveLogicalModelConfig(logicalModels, channels, capability, selected.id) : null;
+                            const options = logicalModels
+                                .filter((model) => isEligibleDefaultModel({ capability, key, label }, model))
+                                .map((model) => ({
+                                    label: key === "visionModel" && !logicalModelSupportsImageInput(logicalModels, channels, "text", model.id, activeExecutionProfile) ? `${model.name}（未声明视觉输入，按实际上游验证）` : model.name,
+                                    value: model.id,
+                                }));
+                            const selected = logicalModels.find((model) => model.id === activeDefaults[key]);
+                            const resolved =
+                                selected && isEligibleDefaultModel({ capability, key, label }, selected)
+                                    ? key === "visionModel"
+                                        ? resolveVisionModelConfig(logicalModels, channels, selected.id, activeExecutionProfile)
+                                        : resolveLogicalModelConfig(logicalModels, channels, capability, selected.id, activeExecutionProfile)
+                                    : null;
                             return (
                                 <LabeledControl key={key} label={label}>
                                     <Select
@@ -151,20 +217,64 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                                         allowClear
                                         showSearch
                                         optionFilterProp="label"
-                                        value={defaultModels[key] || undefined}
+                                        value={activeDefaults[key] || undefined}
                                         placeholder={`选择可用${capabilityLabel(capability)}模型`}
                                         options={options}
-                                        status={defaultModels[key] && !resolved ? "error" : undefined}
+                                        status={activeDefaults[key] && !resolved ? "error" : undefined}
                                         onChange={(value) => updateDefault(key, value || "")}
                                     />
                                     <div className={`mt-1 flex items-center gap-1 text-xs ${resolved ? "text-stone-500 dark:text-stone-400" : "text-amber-600 dark:text-amber-400"}`}>
                                         {!resolved ? <AlertTriangle className="size-3.5 shrink-0" /> : null}
-                                        <span>{resolved ? `实际路由：${resolved.channel.name} / ${resolved.binding.upstreamModel}` : defaultModels[key] ? "当前默认模型不可解析" : "尚未设置默认模型"}</span>
+                                        <span>
+                                            {resolved
+                                                ? `实际路由：${resolved.channel.name} / ${resolved.binding.upstreamModel}${key === "visionModel" && !logicalModelSupportsImageInput(logicalModels, channels, "text", selected?.id || "", activeExecutionProfile) ? "（视觉输入未声明，按实际上游验证）" : ""}`
+                                                : activeDefaults[key]
+                                                  ? "当前默认模型不可解析"
+                                                  : "尚未设置默认模型"}
+                                        </span>
                                     </div>
+                                    {key === "visionModel" ? (
+                                        <Alert
+                                            className="mt-2"
+                                            type="info"
+                                            showIcon
+                                            message={options.length ? "Canvas 可选择任意已连通的文本模型；能力档案中的图片输入标记仅作提示，最终以上游实际能力为准。" : "暂无可连通的文本模型，请先启用一个文本逻辑模型及其渠道绑定。"}
+                                        />
+                                    ) : null}
                                 </LabeledControl>
                             );
                         })}
                     </div>
+                </div>
+            </div>
+
+            <div className="mt-4 rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <SectionTitle icon={<GitBranch className="size-4" />} title="无限练习工作流绑定" />
+                    <Tag color="blue">仅业务 code</Tag>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-stone-500 dark:text-stone-400">绑定逻辑模型后，学校练习会解析该模型在 open-source-practice/shared 渠道上的当前启用工作流。这里不填写渠道、Workflow ID 或节点参数。</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {practiceWorkflowFields.map((field) => {
+                        const options = resolvePracticeWorkflowModelOptions(logicalModels, channels, field.capability);
+                        const selected = practiceWorkflowModels[field.code] || [];
+                        return (
+                            <LabeledControl key={field.code} label={`${field.label}（${field.code}）`}>
+                                <Select
+                                    className="w-full"
+                                    mode="multiple"
+                                    allowClear
+                                    showSearch
+                                    optionFilterProp="label"
+                                    value={selected}
+                                    options={options}
+                                    placeholder="不绑定，使用练习默认模型"
+                                    onChange={(value) => onChange({ logicalModels, defaultModels, practiceDefaultModels, practiceWorkflowModels: { ...practiceWorkflowModels, [field.code]: value as string[] } })}
+                                />
+                                {selected.some((value) => !options.some((option) => option.value === value)) ? <div className="mt-1 text-xs text-amber-600">当前绑定不可解析，请选择可用逻辑模型</div> : null}
+                            </LabeledControl>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -245,6 +355,20 @@ function BindingEditor({ binding, capability, channels, onChange }: { binding: L
                 .map((item) => item.trim())
                 .filter(Boolean),
         });
+    const updateResolutions = (value: string) =>
+        updateProfile({
+            resolutions: value
+                .split(",")
+                .map((item) => item.trim())
+                .filter(Boolean),
+        });
+    const updateDurations = (value: string) =>
+        updateProfile({
+            durationSeconds: value
+                .split(",")
+                .map((item) => Number(item.trim()))
+                .filter((item) => Number.isSafeInteger(item) && item > 0),
+        });
     return (
         <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/40">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_90px_90px_auto] sm:items-end">
@@ -274,8 +398,11 @@ function BindingEditor({ binding, capability, channels, onChange }: { binding: L
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="flex flex-wrap items-center gap-3 text-xs text-stone-600 dark:text-stone-300 sm:col-span-2 lg:col-span-4">
-                        <Checkbox checked={profile.supportsReferenceImage === true} onChange={(event) => updateProfile({ supportsReferenceImage: event.target.checked })}>
-                            参考图片
+                        <Checkbox
+                            checked={capability === "text" ? profile.supportsImageInput === true : profile.supportsReferenceImage === true}
+                            onChange={(event) => updateProfile(capability === "text" ? { supportsImageInput: event.target.checked } : { supportsReferenceImage: event.target.checked })}
+                        >
+                            {capability === "text" ? "支持视觉输入（Canvas）" : "参考图片"}
                         </Checkbox>
                         <Checkbox checked={profile.supportsReferenceVideo === true} onChange={(event) => updateProfile({ supportsReferenceVideo: event.target.checked })}>
                             参考视频
@@ -307,6 +434,12 @@ function BindingEditor({ binding, capability, channels, onChange }: { binding: L
                     </LabeledControl>
                     <LabeledControl label="支持比例（逗号分隔）">
                         <Input value={profile.aspectRatios?.join(", ") || ""} placeholder="1:1, 16:9, 9:16" onChange={(event) => updateList(event.target.value)} />
+                    </LabeledControl>
+                    <LabeledControl label="支持画质/清晰度">
+                        <Input value={profile.resolutions?.join(", ") || ""} placeholder={capability === "image" ? "high, 1K, 2K, 4K" : "480, 720, 1080"} onChange={(event) => updateResolutions(event.target.value)} />
+                    </LabeledControl>
+                    <LabeledControl label="支持时长（秒）">
+                        <Input value={profile.durationSeconds?.join(", ") || ""} placeholder="5, 8, 10" disabled={capability !== "video"} onChange={(event) => updateDurations(event.target.value)} />
                     </LabeledControl>
                     <LabeledControl label="请求超时（秒）">
                         <InputNumber

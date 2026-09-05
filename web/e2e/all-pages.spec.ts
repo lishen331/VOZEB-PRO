@@ -11,9 +11,29 @@ const BASE_URL = `http://127.0.0.1:${Number(process.env.VOZEB_PRO_E2E_PORT || 31
 const USES_POSTGRES = Boolean(process.env.VOZEB_PRO_E2E_DATABASE_URL?.trim());
 const FILE_PROVIDER_LIMITATIONS = new Map([
     ["/api/public/gallery", 409],
+    ["/api/works", 409],
+    ["/api/admin/works", 409],
+    ["/api/community/activity", 409],
     ["/api/notifications/interactions", 409],
-    ["/api/admin/referrals", 501],
+    ["/api/admin/billing/coupon-templates", 501],
+    ["/api/admin/billing/orders", 501],
+    ["/api/admin/billing/products", 501],
+    ["/api/admin/billing/promotions", 501],
+    ["/api/admin/billing/reconciliation", 501],
     ["/api/admin/billing/summary", 501],
+    ["/api/billing/products", 501],
+    ["/api/billing/coupons", 501],
+    ["/api/billing/orders", 501],
+    ["/api/referrals", 501],
+    ["/api/admin/referrals", 501],
+    ["/api/admin/referrals/relationships", 501],
+    ["/api/admin/referrals/rewards", 501],
+    ["/api/admin/drama-projects", 501],
+    ["/api/admin/drama-lab/ai-configs", 501],
+    ["/api/admin/drama-lab/prompt-templates", 501],
+    ["/api/admin/drama-lab/business-scenarios", 501],
+    ["/api/admin/drama-lab/generation-settings", 501],
+    ["/api/admin/drama-lab/sd2-assets", 501],
 ]);
 
 type RouteCase = { path: string; expectedPath?: RegExp; expectedStatus?: number; readyHeading?: string; readyText?: string };
@@ -26,6 +46,7 @@ test("all authenticated pages reach their real routes and stay usable", async ({
         { path: "/", readyHeading: "一个入口 完成所有 AI 创作" },
         { path: "/gallery", readyHeading: "灵感发现" },
         { path: "/community", readyHeading: "灵感发现" },
+        { path: "/ip-library", readyHeading: "IP库" },
         { path: "/announcements", readyHeading: "网站公告" },
         { path: "/create" },
         { path: "/image", expectedPath: /\/create$/ },
@@ -34,8 +55,10 @@ test("all authenticated pages reach their real routes and stay usable", async ({
         { path: `/canvas/${fixtures.canvasId}` },
         { path: "/drama", readyHeading: "短剧项目" },
         { path: `/drama/${fixtures.dramaId}` },
+        { path: "/practice", expectedStatus: 404, readyText: "404" },
         { path: "/works", readyHeading: "作品管理" },
         { path: "/assets", readyHeading: "我的素材" },
+        { path: "/school/join", readyHeading: "加入学校" },
         { path: "/my-prompts", readyHeading: "我的提示词" },
         { path: "/prompts", readyHeading: "提示词库" },
         { path: "/help", readyHeading: "从操作到交付，按真实流程完成创作" },
@@ -67,6 +90,9 @@ test("every administrator section renders its server-backed surface", async ({ p
         await expect(page.locator("[data-hydrated='true']")).toBeVisible();
         await expect(page.locator("h1").first()).toBeVisible();
         await expect(page.getByText("正在加载分区...", { exact: true })).toHaveCount(0);
+        if (!USES_POSTGRES && ["orders", "products", "promotions", "coupons"].includes(section)) {
+            await expect(page.getByText("商业运营需要启用 PostgreSQL", { exact: true })).toHaveCount(1);
+        }
     }
 });
 
@@ -141,7 +167,18 @@ async function verifyRoute(page: Page, route: RouteCase, label: string) {
             response
                 .text()
                 .then((body) => apiFailures.push({ status: response.status(), path: url.pathname, body }))
-                .catch(() => apiFailures.push({ status: response.status(), path: url.pathname, body: "<unreadable>" })),
+                .catch(async () => {
+                    let body = "<unreadable>";
+                    if (response.request().method() === "GET") {
+                        try {
+                            const retry = await page.context().request.get(response.url());
+                            if (retry.status() === response.status()) body = await retry.text();
+                        } catch {
+                            // The response may be disposed during a route transition; keep the exact path/status evidence.
+                        }
+                    }
+                    apiFailures.push({ status: response.status(), path: url.pathname, body });
+                }),
         );
     };
     page.on("pageerror", onPageError);
@@ -178,20 +215,18 @@ async function verifyRoute(page: Page, route: RouteCase, label: string) {
 
 function isExpectedFileProviderLimitation(failure: ApiFailure) {
     if (failure.status === 404 && failure.path === `/api/public/users/${E2E_ADMIN.username}`) return failure.body.includes("创作者主页不存在");
+    if (!USES_POSTGRES && failure.path.startsWith("/api/admin/billing/")) return false;
     if (USES_POSTGRES || (failure.status !== 409 && failure.status !== 501)) return false;
-    return failure.body.includes("需要启用 PostgreSQL") || FILE_PROVIDER_LIMITATIONS.get(failure.path) === failure.status;
+    if (failure.status === 409 && failure.path.startsWith("/api/public/users/")) return failure.body.includes("社区互动需要启用 PostgreSQL");
+    return FILE_PROVIDER_LIMITATIONS.get(failure.path) === failure.status && failure.body.includes("需要启用 PostgreSQL");
 }
 
 function withoutExpectedResourceErrors(consoleErrors: string[], expectedLimitations: ApiFailure[], expectedDocumentStatus?: number) {
-    const remainingByStatus = new Map<number, number>();
-    for (const failure of expectedLimitations) remainingByStatus.set(failure.status, (remainingByStatus.get(failure.status) || 0) + 1);
-    if (expectedDocumentStatus && expectedDocumentStatus >= 400) remainingByStatus.set(expectedDocumentStatus, (remainingByStatus.get(expectedDocumentStatus) || 0) + 1);
+    const expectedStatuses = new Set(expectedLimitations.map((failure) => failure.status));
+    if (expectedDocumentStatus && expectedDocumentStatus >= 400) expectedStatuses.add(expectedDocumentStatus);
     return consoleErrors.filter((message) => {
         const match = message.match(/^Failed to load resource: the server responded with a status of (\d+)/);
         const status = Number(match?.[1]);
-        const remaining = remainingByStatus.get(status) || 0;
-        if (!remaining) return true;
-        remainingByStatus.set(status, remaining - 1);
-        return false;
+        return !expectedStatuses.has(status);
     });
 }

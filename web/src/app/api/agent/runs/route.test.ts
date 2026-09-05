@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
     createAgentRun: vi.fn(),
     getAgentRunByClientRequestId: vi.fn(),
     listAgentRuns: vi.fn(),
+    validateCreativeProjectIpReferencesForRun: vi.fn(),
+    resolveSchoolComputeBillingContext: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal<typeof import("next/server")>()), after: mocks.after }));
@@ -21,8 +23,11 @@ vi.mock("@/lib/server/generation-task-store", () => ({ withGenerationConcurrency
 vi.mock("@/lib/server/generation-task-recovery-service", () => ({ runGenerationTaskRecoveryBatch: mocks.runGenerationTaskRecoveryBatch }));
 vi.mock("@/lib/server/agent-run-store", () => ({ createAgentRun: mocks.createAgentRun, getAgentRunByClientRequestId: mocks.getAgentRunByClientRequestId, listAgentRuns: mocks.listAgentRuns }));
 vi.mock("@/lib/server/internal-origin", () => ({ resolveInternalOrigin: vi.fn(() => "http://localhost") }));
+vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateCreativeProjectIpReferencesForRun: mocks.validateCreativeProjectIpReferencesForRun }));
+vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
 import { GET, maxDuration, POST } from "./route";
+import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 describe("POST /api/agent/runs", () => {
     beforeEach(() => {
@@ -33,6 +38,8 @@ describe("POST /api/agent/runs", () => {
         mocks.countActiveStoredGenerationTasks.mockResolvedValue(0);
         mocks.withGenerationConcurrencyLimit.mockImplementation(async (_userId, _type, _staleMs, _limit, handler) => handler());
         mocks.getAgentRunByClientRequestId.mockResolvedValue(null);
+        mocks.validateCreativeProjectIpReferencesForRun.mockResolvedValue(undefined);
+        mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
     });
 
     it("keeps Agent recovery alive while long media children are running", () => {
@@ -76,6 +83,35 @@ describe("POST /api/agent/runs", () => {
         });
         expect(mocks.after).toHaveBeenCalledWith(expect.any(Function));
     });
+
+    it("revalidates project IP grants before creating a new canvas run", async () => {
+        mocks.validateCreativeProjectIpReferencesForRun.mockRejectedValue(new SchoolServiceError(403, "IP 授权已失效"));
+
+        const response = await POST(request({ ...validInput(), surface: "canvas", projectId: "canvas-one", snapshot: { projectId: "canvas-one", nodes: [], connections: [] } }));
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toMatchObject({ code: 403, msg: "IP 授权已失效" });
+        expect(mocks.validateCreativeProjectIpReferencesForRun).toHaveBeenCalledWith("user", "canvas", "canvas-one");
+        expect(mocks.createAgentRun).not.toHaveBeenCalled();
+    });
+
+    it("replaces a client billing context with the trusted project association", async () => {
+        const billingContext = { schoolId: "school-a", groupId: "group-a", orderId: "order-a", projectType: "canvas" as const, projectId: "canvas-one" };
+        mocks.resolveSchoolComputeBillingContext.mockResolvedValue(billingContext);
+        mocks.createAgentRun.mockResolvedValue({ run: { id: "new-run", userId: "user" }, conversation: { id: "conversation" }, created: true });
+        await POST(
+            request({
+                ...validInput(),
+                surface: "canvas",
+                projectId: "canvas-one",
+                snapshot: { projectId: "canvas-one", nodes: [], connections: [] },
+                billingContext: { schoolId: "fake", groupId: "fake", orderId: "fake", projectType: "canvas", projectId: "canvas-one" },
+            }),
+        );
+
+        expect(mocks.resolveSchoolComputeBillingContext).toHaveBeenCalledWith("user", { surface: "canvas", projectId: "canvas-one", executionProfile: "production" });
+        expect(mocks.createAgentRun).toHaveBeenCalledWith("user", expect.objectContaining({ billingContext }));
+    });
 });
 
 describe("GET /api/agent/runs", () => {
@@ -93,10 +129,13 @@ describe("GET /api/agent/runs", () => {
     });
 
     it("queries the latest active run directly for workspace recovery", async () => {
+        mocks.listAgentRuns.mockResolvedValue([{ id: "active-run", userId: "user", status: "running" }]);
         const response = await GET(new Request("http://localhost/api/agent/runs?surface=chat&status=active&limit=1"));
 
         expect(response.status).toBe(200);
         expect(mocks.listAgentRuns).toHaveBeenCalledWith({ userId: "user", conversationId: "", projectId: "", surface: "chat", statuses: ["planning", "running", "paused"], limit: 1 });
+        expect(mocks.after).not.toHaveBeenCalled();
+        expect(mocks.runGenerationTaskRecoveryBatch).not.toHaveBeenCalled();
     });
 });
 

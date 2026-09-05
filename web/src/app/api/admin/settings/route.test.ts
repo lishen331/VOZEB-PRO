@@ -20,7 +20,8 @@ import { DEFAULT_SITE_SETTINGS } from "@/lib/auth/store";
 const savedSettings = {
     systemChannels: [{ id: "one", name: "主渠道", baseUrl: "https://api.example.com/v1", apiKey: "saved-secret", webhookSecret: "0123456789abcdef0123456789abcdef", apiFormat: "openai", models: ["vendor/writer"], enabled: true }],
     logicalModels: [{ id: "writer", name: "Writer", capability: "text", enabled: true, bindings: [{ id: "binding", channelId: "one", upstreamModel: "vendor/writer", enabled: true, priority: 1 }] }],
-    defaultModels: { textModel: "writer", imageModel: "", videoModel: "", audioModel: "" },
+    defaultModels: { textModel: "writer", visionModel: "", imageModel: "", videoModel: "", audioModel: "" },
+    practiceDefaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" },
 };
 
 describe("admin settings model routing", () => {
@@ -53,7 +54,27 @@ describe("admin settings model routing", () => {
     it("deletes a channel together with stale logical bindings and defaults", async () => {
         const response = await PATCH(request({ systemChannels: [], logicalModels: savedSettings.logicalModels, defaultModels: savedSettings.defaultModels }));
         expect(response.status).toBe(200);
-        expect(mocks.setAuthSettings).toHaveBeenCalledWith(expect.objectContaining({ systemChannels: [], logicalModels: [], defaultModels: { textModel: "", imageModel: "", videoModel: "", audioModel: "" } }));
+        expect(mocks.setAuthSettings).toHaveBeenCalledWith(expect.objectContaining({ systemChannels: [], logicalModels: [], defaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" } }));
+    });
+
+    it("keeps channel deletion and addition visible to an immediate fresh read", async () => {
+        let persisted = structuredClone(savedSettings);
+        mocks.getFreshAuthSettings.mockImplementation(async () => persisted);
+        mocks.setAuthSettings.mockImplementation(async (patch) => {
+            persisted = { ...persisted, ...patch };
+            return persisted;
+        });
+
+        const deleted = await PATCH(request({ systemChannels: [], logicalModels: [], defaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" } }));
+        expect(deleted.status).toBe(200);
+        const afterDelete = (await (await GET()).json()) as { settings: typeof savedSettings };
+        expect(afterDelete.settings.systemChannels).toEqual([]);
+
+        const addedChannel = { id: "two", name: "备用渠道", baseUrl: "https://backup.example.com/v1", apiKey: "new-secret", apiFormat: "openai", models: ["vendor/backup"], enabled: true };
+        const added = await PATCH(request({ systemChannels: [addedChannel], logicalModels: [], defaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" } }));
+        expect(added.status).toBe(200);
+        const afterAdd = (await (await GET()).json()) as { settings: typeof savedSettings };
+        expect(afterAdd.settings.systemChannels).toEqual([expect.objectContaining({ id: "two", name: "备用渠道" })]);
     });
 
     it("rebuilds an explicitly empty logical model catalog from channels", async () => {
@@ -113,6 +134,14 @@ describe("admin settings model routing", () => {
         expect(mocks.safeRecordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ metadata: { fields: ["dataLifecycle"] } }));
     });
 
+    it("persists practice workflow model bindings under the upstream duty", async () => {
+        const practiceWorkflowModels = { script: "practice-script", "storyboard-image": "practice-image" };
+        const response = await PATCH(request({ practiceWorkflowModels }));
+
+        expect(response.status).toBe(200);
+        expect(mocks.setAuthSettings).toHaveBeenCalledWith({ practiceWorkflowModels });
+    });
+
     it("accepts common social address formats without silently deleting them", async () => {
         const site = {
             ...DEFAULT_SITE_SETTINGS,
@@ -161,6 +190,78 @@ describe("admin settings model routing", () => {
 
         expect(response.status).toBe(200);
         expect(mocks.setAuthSettings).toHaveBeenCalledWith({ generationConcurrency });
+    });
+
+    it("saves RunningHub purpose and practice defaults, then returns masked credentials", async () => {
+        const runningHub = {
+            id: "rh",
+            name: "RunningHub 练习",
+            baseUrl: "https://runninghub.example",
+            apiKey: "rh-secret",
+            apiFormat: "openai" as const,
+            models: ["workflow-image"],
+            enabled: true,
+            purpose: "open-source-practice" as const,
+            advancedConfig: {
+                protocol: "runninghub" as const,
+                textModel: "",
+                imageModel: "",
+                videoModel: "",
+                createPath: "",
+                queryPath: "",
+                requestTemplate: "",
+                resultField: "",
+                statusField: "",
+                durationRange: "",
+                referenceRule: "",
+                supportsReferenceImage: false,
+                supportsReferenceVideo: false,
+                supportsReferenceAudio: false,
+                modelConfigs: {
+                    "workflow-image": {
+                        capability: "image" as const,
+                        protocol: "runninghub" as const,
+                        createPath: "/task/create",
+                        queryPath: "/task/query",
+                        requestTemplate: '{"workflow":"{{model}}"}',
+                        taskIdField: "data.taskId",
+                        resultField: "data.result",
+                        statusField: "data.status",
+                    },
+                },
+            },
+        };
+        const practiceDefaultModels = { textModel: "", visionModel: "", imageModel: "workflow-image", videoModel: "", audioModel: "" };
+        const response = await PATCH(request({ systemChannels: [runningHub], logicalModels: [], defaultModels: savedSettings.defaultModels, practiceDefaultModels }));
+        expect(response.status).toBe(200);
+        expect(mocks.setAuthSettings).toHaveBeenCalledWith(expect.objectContaining({ practiceDefaultModels, systemChannels: [expect.objectContaining({ purpose: "open-source-practice", apiKey: "rh-secret" })] }));
+        const returned = (await response.json()) as { settings: { systemChannels: Array<{ apiKey: string; hasApiKey: boolean; purpose?: string }>; practiceDefaultModels: typeof practiceDefaultModels } };
+        expect(returned.settings.systemChannels[0]).toMatchObject({ apiKey: "", hasApiKey: true, purpose: "open-source-practice" });
+        expect(returned.settings.practiceDefaultModels).toEqual(practiceDefaultModels);
+    });
+
+    it("rejects RunningHub configuration for a system-only administrator", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "system-admin", role: "admin", status: "active", adminPermissions: ["system.manage"] });
+        const response = await PATCH(request({ systemChannels: [] }));
+        expect(response.status).toBe(403);
+        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
+    });
+
+    it("rejects a production-only binding as the practice default", async () => {
+        mocks.getFreshAuthSettings.mockResolvedValue({
+            ...savedSettings,
+            systemChannels: [
+                {
+                    ...savedSettings.systemChannels[0],
+                    purpose: "production",
+                },
+            ],
+            practiceDefaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" },
+        });
+        const response = await PATCH(request({ practiceDefaultModels: savedSettings.defaultModels }));
+        expect(response.status).toBe(400);
+        expect(await response.json()).toEqual({ error: expect.stringContaining("练习默认文本模型不可解析") });
+        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
     });
 
     it("rejects a mixed settings patch when the administrator lacks one required duty", async () => {

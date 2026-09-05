@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 
 import { AuthUserHydrator } from "@/components/auth/auth-user-hydrator";
 import { AppWorkspaceShell } from "@/components/layout/app-workspace-shell";
+import { SchoolContextHydrator } from "@/components/school/school-context-hydrator";
+import { getSchoolContextForUser } from "@/lib/server/school-access-service";
 import { getAuthenticatedPageAccess } from "@/lib/server/page-access";
+import { DRAMA_WORKFLOW_LAB_ENV, isDramaWorkflowLabEnabled } from "@/lib/drama-workflow-lab";
 
 export const metadata: Metadata = {
     robots: { index: false, follow: false, noarchive: true, noimageindex: true, nosnippet: true },
@@ -17,6 +20,8 @@ export default async function UserLayout({ children }: { children: ReactNode }) 
         redirect("/login");
     }
     const user = access.user;
+    const schoolContext = await getSchoolContextForUser(user.id);
+    const dramaWorkflowLabEnabled = isDramaWorkflowLabEnabled(process.env[DRAMA_WORKFLOW_LAB_ENV]);
 
     return (
         <AuthUserHydrator
@@ -41,7 +46,9 @@ export default async function UserLayout({ children }: { children: ReactNode }) 
                 mfaEnabled: user.mfaEnabled,
             }}
         >
-            <AppWorkspaceShell>{children}</AppWorkspaceShell>
+            <SchoolContextHydrator context={schoolContext}>
+                <AppWorkspaceShell dramaWorkflowLabEnabled={dramaWorkflowLabEnabled}>{children}</AppWorkspaceShell>
+            </SchoolContextHydrator>
         </AuthUserHydrator>
     );
 }

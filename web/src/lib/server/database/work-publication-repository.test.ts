@@ -81,6 +81,30 @@ describe("WorkPublicationRepository", () => {
         expect(params).toEqual(["user-one", "海边", 25, 200]);
     });
 
+    it("keeps drama-lab episode canvases out of ordinary publication sources", async () => {
+        const query = vi.fn(async (..._args: unknown[]) => ({ rows: [] }));
+        const repository = new WorkPublicationRepository({ query } as unknown as QueryExecutor);
+
+        await repository.listSourceSummaries("user-one", { sourceType: "canvas", page: 1, pageSize: 20 });
+
+        const [sql, params] = query.mock.calls[0] || [];
+        expect(String(sql)).toContain("FROM canvas_projects");
+        expect(String(sql)).toContain("COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'");
+        expect(params).toEqual(["user-one", "", 20, 0]);
+    });
+
+    it("does not load a drama-lab episode canvas as a publishable source", async () => {
+        const query = vi.fn(async (..._args: unknown[]) => ({ rows: [] }));
+        const repository = new WorkPublicationRepository({ query } as unknown as QueryExecutor);
+
+        await expect(repository.getSourceJson("user-one", "canvas", "canvas-episode")).resolves.toBeNull();
+
+        const [sql, params] = query.mock.calls[0] || [];
+        expect(String(sql)).toContain("FROM canvas_projects");
+        expect(String(sql)).toContain("COALESCE(project_json->>'sourceHandoffId', '') NOT LIKE 'drama-lab-canvas:%'");
+        expect(params).toEqual(["canvas-episode", "user-one"]);
+    });
+
     it("restores only an approved public version owned by the same work", async () => {
         const query = vi.fn(async (..._args: unknown[]) => ({ rows: [] }));
         const repository = new WorkPublicationRepository({ query } as unknown as QueryExecutor);

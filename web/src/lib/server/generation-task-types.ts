@@ -1,21 +1,47 @@
 import type { GenerationTaskExecutionPhase } from "@/lib/server/generation-task-scheduler";
+import type { PracticeExecutionProfile } from "@/lib/practice-domain";
+import type { IpReference } from "@/lib/ip-library-domain";
+import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
+import type { RunningHubWorkflowBusinessCode } from "@/lib/auth/store-types";
 
 export type GenerationTaskType = "text" | "image" | "video" | "audio" | "agent" | "render";
 export type GenerationTaskStatus = "pending" | "running" | "success" | "error" | "paused" | "cancelled";
+
+export type StoredTaskBilling = {
+    pointsCost: number;
+    billingReceiptId: string;
+    refunded: boolean;
+};
 
 export type GenerationTaskContext = {
     conversationId?: string;
     runId?: string;
     surface?: "chat" | "canvas" | "drama";
+    executionProfile?: PracticeExecutionProfile;
     projectId?: string;
     episodeId?: string;
     shotId?: string;
+    /** Drama Lab frame slot associated with an image task. */
+    frameType?: "first" | "key" | "last";
     estimatedPoints?: number;
     parentTaskId?: string;
     attemptNo?: number;
     clientRequestId?: string;
     generationLogId?: string;
     generationSlotId?: string;
+    ipReferences?: IpReference[];
+    billingContext?: SchoolComputeBillingContext;
+    /** Optional short-lived, non-secret input snapshot for domain recovery/audit. */
+    frameSnapshot?: Record<string, unknown>;
+    /** Short-drama audio track context; kept on the shared task for recovery. */
+    audioKind?: "dialogue" | "narration";
+    speaker?: string;
+    workflowKey?: string;
+    workflowVersion?: number;
+    upstreamWorkflowId?: string;
+    workflowConfigFingerprint?: string;
+    businessCode?: RunningHubWorkflowBusinessCode;
+    taskOrigin?: "user" | "admin-workflow-test";
 };
 
 export type StoredGenerationTaskRecord = {

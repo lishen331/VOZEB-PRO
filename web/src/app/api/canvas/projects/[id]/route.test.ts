@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ getCurrentUser: vi.fn(), getProject: vi.fn(), updateProject: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getCurrentUser: vi.fn(), getProject: vi.fn(), updateProject: vi.fn(), canvasProjectError: vi.fn() }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/server/canvas-project-service", () => ({
-    canvasProjectError: vi.fn(),
+    canvasProjectError: mocks.canvasProjectError,
     getCanvasProjectForUser: mocks.getProject,
     updateCanvasProjectForUser: mocks.updateProject,
 }));
@@ -43,5 +43,17 @@ describe("canvas project detail route", () => {
 
         expect(mocks.updateProject).toHaveBeenCalledWith("user-one", "canvas-one", { mutation });
         expect(await response.json()).toEqual({ code: 0, data: { ack: { projectId: "canvas-one", updatedAt: "2026-08-01T00:00:00.001Z", mutationId: "mutation-one" } }, msg: "画布项目已保存" });
+    });
+
+    it("keeps drama-lab canvases outside the ordinary Canvas API boundary", async () => {
+        const notFound = Object.assign(new Error("canvas not found"), { status: 404 });
+        mocks.getProject.mockRejectedValue(notFound);
+        mocks.canvasProjectError.mockReturnValue(notFound);
+
+        const response = await GET(new Request("http://localhost/api/canvas/projects/drama-canvas"), { params: Promise.resolve({ id: "drama-canvas" }) });
+
+        expect(response.status).toBe(404);
+        expect(mocks.getProject).toHaveBeenCalledWith("user-one", "drama-canvas");
+        expect(mocks.updateProject).not.toHaveBeenCalled();
     });
 });

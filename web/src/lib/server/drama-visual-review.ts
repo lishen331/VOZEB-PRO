@@ -11,15 +11,17 @@ export function normalizeDramaVisualReviewInput(value: unknown): { foundation: C
         const shot = object(item);
         const id = text(shot.id);
         const imageUrls = [mediaUrl(shot.storyboardImageUrl), mediaUrl(shot.storyboardEndImageUrl)].filter(Boolean);
-        if (!id || !imageUrls.length) return [];
+        const videoUrls = [mediaUrl(shot.videoUrl, "video")].filter(Boolean);
+        if (!id || (!imageUrls.length && !videoUrls.length)) return [];
         return [
             {
                 id,
                 title: text(shot.title) || "未命名镜头",
-                type: "image" as const,
-                prompt: text(shot.compiledPrompt) || text(shot.imagePrompt) || text(shot.description),
-                resultSummary: imageUrls.length > 1 ? "已生成起始帧和结束帧" : "已生成分镜图",
-                imageUrls,
+                type: videoUrls.length ? ("video" as const) : ("image" as const),
+                prompt: text(shot.compiledPrompt) || text(shot.imagePrompt) || text(shot.videoPrompt) || text(shot.description),
+                resultSummary: [imageUrls.length > 1 ? "已生成起始帧和结束帧" : imageUrls.length ? "已生成分镜图" : "尚无分镜图", videoUrls.length ? "已生成分镜视频" : "尚无分镜视频"].join("；"),
+                ...(imageUrls.length ? { imageUrls } : {}),
+                ...(videoUrls.length ? { videoUrls } : {}),
             },
         ];
     });
@@ -43,9 +45,9 @@ export function normalizeDramaVisualReviewInput(value: unknown): { foundation: C
     };
 }
 
-function mediaUrl(value: unknown) {
+function mediaUrl(value: unknown, kind: "image" | "video" = "image") {
     const url = text(value);
-    return url.startsWith("/api/") || /^https:\/\//i.test(url) || /^data:image\//i.test(url) ? url : "";
+    return url.startsWith("/api/") || /^https:\/\//i.test(url) || new RegExp(`^data:${kind}\\/`, "i").test(url) ? url : "";
 }
 
 function object(value: unknown) {

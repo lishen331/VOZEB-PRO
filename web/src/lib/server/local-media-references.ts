@@ -24,6 +24,17 @@ export async function countLocalMediaReferences(storageKeys: string[]) {
                 UNION ALL
                 SELECT r.storage_key, count(*)::int
                 FROM requested r
+                JOIN creative_messages m ON position(r.storage_key in COALESCE(m.content, '')) > 0
+                    OR position(r.storage_key in COALESCE(m.metadata::text, '')) > 0
+                GROUP BY r.storage_key
+                UNION ALL
+                SELECT r.storage_key, count(*)::int
+                FROM requested r
+                JOIN creative_run_events e ON position(r.storage_key in COALESCE(e.data::text, '')) > 0
+                GROUP BY r.storage_key
+                UNION ALL
+                SELECT r.storage_key, count(*)::int
+                FROM requested r
                 JOIN canvas_projects p ON position(r.storage_key in COALESCE(p.project_json::text, '')) > 0
                 GROUP BY r.storage_key
                 UNION ALL
@@ -34,8 +45,18 @@ export async function countLocalMediaReferences(storageKeys: string[]) {
                 UNION ALL
                 SELECT r.storage_key, count(*)::int
                 FROM requested r
+                JOIN drama_project_versions v ON position(r.storage_key in COALESCE(v.snapshot::text, '')) > 0
+                GROUP BY r.storage_key
+                UNION ALL
+                SELECT r.storage_key, count(*)::int
+                FROM requested r
                 JOIN generation_log_assets a ON position(r.storage_key in COALESCE(a.server_url, '')) > 0
                     OR position(r.storage_key in COALESCE(a.url, '')) > 0
+                GROUP BY r.storage_key
+                UNION ALL
+                SELECT r.storage_key, count(*)::int
+                FROM requested r
+                JOIN generation_logs l ON position(r.storage_key in COALESCE(l.request_snapshot::text, '')) > 0
                 GROUP BY r.storage_key
                 UNION ALL
                 SELECT r.storage_key, count(*)::int
@@ -53,6 +74,11 @@ export async function countLocalMediaReferences(storageKeys: string[]) {
                 FROM requested r
                 JOIN users u ON u.avatar_storage_key = r.storage_key
                 GROUP BY r.storage_key
+                UNION ALL
+                SELECT r.storage_key, count(*)::int
+                FROM requested r
+                JOIN course_materials c ON c.storage_key = r.storage_key
+                GROUP BY r.storage_key
             )
             SELECT r.storage_key, COALESCE(sum(c.total), 0)::int AS total
             FROM requested r
@@ -68,9 +94,11 @@ export async function countLocalMediaReferences(storageKeys: string[]) {
         readJsonDataFile<unknown>("library-assets.json", {}),
         readJsonDataFile<unknown>("canvas-projects.json", {}),
         readJsonDataFile<unknown>("drama-projects.json", {}),
+        readJsonDataFile<unknown>("drama-project-versions.json", {}),
         readJsonDataFile<unknown>("generation-logs.json", {}),
         readJsonDataFile<unknown>("generation-tasks.json", []),
         readJsonDataFile<unknown>("auth.json", {}),
+        readJsonDataFile<unknown>("school-domain.json", {}),
     ]);
     for (const key of keys)
         counts.set(

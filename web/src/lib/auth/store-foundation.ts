@@ -172,7 +172,9 @@ export const DEFAULT_SETTINGS: AuthSettings = {
     },
     systemChannels: [],
     logicalModels: [],
-    defaultModels: { imageModel: "", videoModel: "", textModel: "", audioModel: "" },
+    defaultModels: { imageModel: "", videoModel: "", textModel: "", visionModel: "", audioModel: "" },
+    practiceDefaultModels: { imageModel: "", videoModel: "", textModel: "", visionModel: "", audioModel: "" },
+    practiceWorkflowModels: {},
     agentSkills: [
         { ...ECOMMERCE_IMAGE_SKILL, keywords: [...ECOMMERCE_IMAGE_SKILL.keywords], workspaces: [...ECOMMERCE_IMAGE_SKILL.workspaces] },
         { ...YANAI_BEAUTY_SKILL, keywords: [...YANAI_BEAUTY_SKILL.keywords], workspaces: [...YANAI_BEAUTY_SKILL.workspaces] },

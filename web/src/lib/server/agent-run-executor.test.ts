@@ -7,7 +7,7 @@ import { canvasPlan, canvasSettings, conversationPlan, creativeImageAsset, disab
 const mocks = vi.hoisted(() => ({
     fetchInternalApi: vi.fn(),
     getAuthSettings: vi.fn(),
-    refundUserPoints: vi.fn(async () => undefined),
+    refundGenerationCharge: vi.fn(async () => ({ refunded: true })),
     getCreativeAssetsByIds: vi.fn(async (_ids: string[] = []): Promise<Array<Record<string, unknown>>> => []),
     listRecentCreativeMediaAssets: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []),
     getCreativeConversationContext: vi.fn(async (): Promise<CreativeConversationContext> => ({ summary: "", summaryThroughSequence: 0, recentMessages: [] })),
@@ -23,8 +23,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/store", () => ({
     getAuthSettings: mocks.getAuthSettings,
-    refundUserPoints: mocks.refundUserPoints,
 }));
+vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refundGenerationCharge }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi }));
 vi.mock("@/lib/server/creative-runtime-store", () => ({
     getCreativeAssetsByIds: mocks.getCreativeAssetsByIds,
@@ -197,6 +197,11 @@ describe("executeAgentRun backend settings", () => {
 
     it("runs an explicitly selected generation model without a default text model", async () => {
         mocks.run = runFixture({ surface: "chat", projectId: undefined, prompt: "生成商品主图", requestedModelIds: ["image-model"] });
+        mocks.getCreativeConversationContext.mockResolvedValue({
+            summary: "同一商品使用红色包装",
+            summaryThroughSequence: 1,
+            recentMessages: [],
+        });
         const manualSettings = settings("image-model", "image-channel") as unknown as {
             defaultModels: { textModel: string };
             systemChannels: Array<{ id: string }>;
@@ -209,10 +214,12 @@ describe("executeAgentRun backend settings", () => {
 
         await executeAgentRun(mocks.run, "http://localhost", "session=test");
 
-        expect(mocks.getCreativeConversationContext).not.toHaveBeenCalled();
+        expect(mocks.getCreativeConversationContext).toHaveBeenCalledWith("conversation", "user", "agent-run");
         expect(mocks.listRecentCreativeMediaAssets).not.toHaveBeenCalled();
         expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).endsWith("/responses") || String(url).endsWith("/chat/completions"))).toBe(false);
         expect(mocks.fetchInternalApi.mock.calls.some(([url, init]) => init?.method === "POST" && String(url).endsWith("/api/image-tasks"))).toBe(true);
+        expect(mocks.run?.tasks[0]).toMatchObject({ optimizedPrompt: "生成商品主图" });
+        expect(mocks.run?.tasks[0]?.prompt).toContain("同一商品使用红色包装");
         expect(mocks.run?.status).toBe("completed");
     });
 
@@ -288,6 +295,46 @@ describe("executeAgentRun backend settings", () => {
         expect(mocks.run?.status).toBe("completed");
     });
 
+    it("keeps project authorization context on a later text task after an earlier child was submitted", async () => {
+        mocks.run = runWithTasks([
+            {
+                ...imageTask("image-completed"),
+                status: "completed",
+                attempts: 1,
+                taskId: "child-image",
+                taskIds: ["child-image"],
+                childTasks: [{ id: "child-image", status: "completed", attempt: 1, result: { url: "https://cdn.example.com/image.png" } }],
+                result: { url: "https://cdn.example.com/image.png" },
+            },
+            { id: "text-later", title: "文本续写", type: "text", prompt: "续写世界观设定", model: "planner", count: 1, dependencies: [], status: "ready", attempts: 0 },
+        ]);
+        const billingContext = { schoolId: "school-a", groupId: "group-a", orderId: "order-a", projectType: "canvas" as const, projectId: "project" };
+        mocks.run = { ...mocks.run, billingContext };
+        mocks.getAuthSettings.mockResolvedValue(settings("image-model", "image-channel"));
+        mocks.fetchInternalApi.mockImplementation(async (url: string, init?: RequestInit) => {
+            if (init?.method === "POST" && url.endsWith("/api/text-tasks")) return Response.json({ task: { id: "child-text" } });
+            if (url.endsWith("/api/text-tasks/child-text")) return Response.json({ task: { status: "success", result: { content: "完成" } } });
+            throw new Error(`unexpected request: ${url}`);
+        });
+
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        const createCall = mocks.fetchInternalApi.mock.calls.find(([url, init]) => init?.method === "POST" && String(url).endsWith("/api/text-tasks"));
+        expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({
+            context: {
+                conversationId: "conversation",
+                runId: "agent-run",
+                surface: "canvas",
+                projectId: "project",
+                billingContext,
+                parentTaskId: "text-later",
+                attemptNo: 1,
+                clientRequestId: "request:text-later:1:1",
+            },
+        });
+        expect(mocks.linkStoredGenerationTask).toHaveBeenCalledWith("text", "child-text", expect.objectContaining({ billingContext }));
+    });
+
     it("persists every child result for a multi-copy image task", async () => {
         mocks.run = runWithTasks([{ ...imageTask("image-one"), count: 2 }]);
         mocks.getAuthSettings.mockResolvedValue(settings("image-model", "image-channel"));
@@ -345,8 +392,8 @@ describe("executeAgentRun backend settings", () => {
             childTasks: [expect.objectContaining({ id: "child-1", status: "completed" }), expect.objectContaining({ id: "child-2", status: "failed", error: "第二张生成失败" })],
         });
         expect(mocks.run?.assetIds).toEqual(["asset-child-1"]);
-        expect(mocks.run?.status).toBe("completed");
-        expect(mocks.events.find((event) => event.type === "run.completed")?.data).toMatchObject({ partial: true, assetIds: ["asset-child-1"], reply: expect.stringContaining("成功 1 张，失败 1 张") });
+        expect(mocks.run?.status).toBe("partial_success");
+        expect(mocks.events.find((event) => event.type === "run.partial_success")?.data).toMatchObject({ completed: 0, failed: 1, assetIds: ["asset-child-1"] });
         expect(mocks.events.some((event) => event.type === "run.failed")).toBe(false);
     });
 
@@ -404,6 +451,38 @@ describe("executeAgentRun backend settings", () => {
         expect(mocks.run?.status).toBe("completed");
     });
 
+    it("pauses on needs_review and resumes the same child without another upstream creation", async () => {
+        mocks.run = runWithTasks([imageTask("image-one")]);
+        mocks.getAuthSettings.mockResolvedValue(settings("image-model", "image-channel"));
+        let polls = 0;
+        mocks.fetchInternalApi.mockImplementation(async (url: string, init?: RequestInit) => {
+            if (init?.method === "POST" && url.endsWith("/api/image-tasks")) return Response.json({ task: { id: "child-review" } });
+            if (url.endsWith("/api/image-tasks/child-review")) {
+                polls += 1;
+                return polls === 1 ? Response.json({ task: { status: "running", needsReview: true, reviewReason: "上游创建状态待确认" } }) : Response.json({ task: { status: "success", result: { url: "https://cdn.example.com/recovered.png" } } });
+            }
+            throw new Error(`unexpected request: ${url}`);
+        });
+
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        expect(mocks.fetchInternalApi.mock.calls.filter((call) => call[1]?.method === "POST")).toHaveLength(1);
+        expect(mocks.run).toMatchObject({
+            status: "paused",
+            tasks: [expect.objectContaining({ status: "needs_review", taskId: "child-review", childTasks: [expect.objectContaining({ id: "child-review", status: "needs_review" })] })],
+        });
+        expect(mocks.events.some((event) => event.type === "task.needs_review")).toBe(true);
+        expect(mocks.events.some((event) => event.type === "run.paused")).toBe(true);
+
+        mocks.run = { ...mocks.run!, status: "running" };
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        expect(mocks.fetchInternalApi.mock.calls.filter((call) => call[1]?.method === "POST" && String(call[0]).endsWith("/api/image-tasks"))).toHaveLength(1);
+        expect(mocks.fetchInternalApi.mock.calls.filter((call) => call[1]?.method === "POST" && String(call[0]).endsWith("/api/image-tasks/child-review"))).toHaveLength(1);
+        expect(polls).toBe(2);
+        expect(mocks.run?.status).toBe("completed");
+    });
+
     it("does not create another child after an upstream task reports an error", async () => {
         mocks.run = runWithTasks([imageTask("image-one")]);
         mocks.getAuthSettings.mockResolvedValue(settings("image-model", "image-channel"));
@@ -417,7 +496,7 @@ describe("executeAgentRun backend settings", () => {
 
         expect(mocks.fetchInternalApi.mock.calls.filter((call) => call[1]?.method === "POST")).toHaveLength(1);
         expect(mocks.run?.tasks[0]).toMatchObject({ status: "failed", attempts: 1, taskId: "child-error", childTasks: [{ id: "child-error", status: "failed", attempt: 1, error: "上游生成失败" }], error: "上游生成失败" });
-        expect(mocks.run?.status).toBe("failed");
+        expect(mocks.run).toMatchObject({ status: "failed", failureStage: "task_execution", failure: expect.stringContaining("上游生成失败") });
     });
 
     it("turns explicit canvas text-node content into a node result without calling the text task API", async () => {
@@ -491,7 +570,7 @@ describe("executeAgentRun backend settings", () => {
         const plan = canvasPlan("image-creative");
         mocks.fetchInternalApi.mockImplementation(async (url: string, init?: RequestInit) => {
             if (url.endsWith("/responses")) return new Response("unsupported endpoint", { status: 404 });
-            if (url.endsWith("/chat/completions")) return Response.json({ choices: [{ message: { content: JSON.stringify(plan) } }] }, { headers: { "x-vozeb-pro-points-cost": "1.25", "x-vozeb-pro-points-record-id": "points-plan" } });
+            if (url.endsWith("/chat/completions")) return Response.json({ choices: [{ message: { content: JSON.stringify(plan) } }] }, { headers: { "x-vozeb-pro-points-cost": "1.25", "x-vozeb-pro-billing-receipt-id": "school:plan" } });
             if (init?.method === "POST" && url.endsWith("/api/image-tasks")) return Response.json({ task: { id: "child-planned" } });
             if (url.endsWith("/api/image-tasks/child-planned")) return Response.json({ task: { status: "success", result: { url: "https://cdn.example.com/planned.png" } } });
             throw new Error(`unexpected request: ${url}`);
@@ -501,6 +580,7 @@ describe("executeAgentRun backend settings", () => {
 
         const planningCall = mocks.fetchInternalApi.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
         const planningBody = JSON.parse(String(planningCall?.[1]?.body)) as { messages: Array<{ content: string }> };
+        expect(planningBody.messages[0].content).toContain("你是 星河创作 画布创作 Agent");
         const planningInput = JSON.parse(planningBody.messages[1].content) as { availableModels: Array<{ id: string; capability: string }> };
         expect(planningInput.availableModels).toEqual(expect.arrayContaining([expect.objectContaining({ id: "image-default", capability: "image" }), expect.objectContaining({ id: "image-creative", capability: "image" })]));
         expect(mocks.run?.plannerContext).toMatchObject({
@@ -518,7 +598,7 @@ describe("executeAgentRun backend settings", () => {
             protocol: "chat",
             elapsedMs: expect.any(Number),
             pointsCost: 1.25,
-            pointsRecordId: "points-plan",
+            billingReceiptId: "school:plan",
             skills: [
                 {
                     id: "skill-one",
@@ -669,7 +749,7 @@ describe("executeAgentRun backend settings", () => {
 
         expect(mocks.run?.status).toBe("completed");
         expect(mocks.events.find((event) => event.type === "run.completed")?.data).toMatchObject({ completed: 0, reply: "在的，你可以直接告诉我想创作什么。" });
-        expect(mocks.refundUserPoints).not.toHaveBeenCalled();
+        expect(mocks.refundGenerationCharge).not.toHaveBeenCalled();
     });
 
     it("rejects an unstructured prose planner response instead of pretending generation completed", async () => {
@@ -1048,13 +1128,13 @@ describe("executeAgentRun backend settings", () => {
         mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
         mocks.fetchInternalApi.mockImplementation(async (url: string) => {
             if (url.endsWith("/responses")) return new Response("unsupported endpoint", { status: 404 });
-            if (url.endsWith("/chat/completions")) return Response.json({ choices: [{ message: { content: "我建议使用横版构图。" } }] }, { headers: { "x-vozeb-pro-points-cost": "2", "x-vozeb-pro-points-record-id": "points-agent-plan" } });
+            if (url.endsWith("/chat/completions")) return Response.json({ choices: [{ message: { content: "我建议使用横版构图。" } }] }, { headers: { "x-vozeb-pro-points-cost": "2", "x-vozeb-pro-billing-receipt-id": "school:agent-plan" } });
             throw new Error(`unexpected request: ${url}`);
         });
 
         await executeAgentRun(mocks.run, "http://localhost", "session=test");
 
-        expect(mocks.refundUserPoints).toHaveBeenCalledWith("user", "planner", 2, "text", 1, undefined, "points-agent-plan");
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledWith({ userId: "user", receiptId: "school:agent-plan", model: "planner", usageKind: "text", units: 1, idempotencyKey: expect.any(String) });
         expect(mocks.run?.status).toBe("failed");
     });
 
@@ -1064,7 +1144,7 @@ describe("executeAgentRun backend settings", () => {
         mocks.fetchInternalApi.mockResolvedValue(
             Response.json(
                 { output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify(conversationPlan("image-default", "在的。")) }] },
-                { headers: { "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-points-record-id": "points-agent-free" } },
+                { headers: { "x-vozeb-pro-points-cost": "0", "x-vozeb-pro-billing-receipt-id": "school:agent-free" } },
             ),
         );
         mocks.updateAgentRunById.mockImplementation(async (_id, patch, event, allowedStatuses, expectedExecutionId) => {
@@ -1077,7 +1157,7 @@ describe("executeAgentRun backend settings", () => {
 
         await executeAgentRun(mocks.run, "http://localhost", "session=test");
 
-        expect(mocks.refundUserPoints).toHaveBeenCalledWith("user", "planner", 0, "text", 1, undefined, "points-agent-free");
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledWith({ userId: "user", receiptId: "school:agent-free", model: "planner", usageKind: "text", units: 1, idempotencyKey: expect.any(String) });
         expect(mocks.run?.status).toBe("failed");
     });
 
@@ -1088,13 +1168,124 @@ describe("executeAgentRun backend settings", () => {
             mocks.run = mocks.run ? { ...mocks.run, status: "cancelled" } : null;
             return Response.json(
                 { output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify(conversationPlan("image-default", "在的。")) }] },
-                { headers: { "x-vozeb-pro-points-cost": "3", "x-vozeb-pro-points-record-id": "points-agent-cancelled" } },
+                { headers: { "x-vozeb-pro-points-cost": "3", "x-vozeb-pro-billing-receipt-id": "school:agent-cancelled" } },
             );
         });
 
         await executeAgentRun(mocks.run, "http://localhost", "session=test");
 
-        expect(mocks.refundUserPoints).toHaveBeenCalledWith("user", "planner", 3, "text", 1, undefined, "points-agent-cancelled");
+        expect(mocks.refundGenerationCharge).toHaveBeenCalledWith({ userId: "user", receiptId: "school:agent-cancelled", model: "planner", usageKind: "text", units: 1, idempotencyKey: expect.any(String) });
         expect(mocks.run?.status).toBe("cancelled");
+    });
+});
+
+describe("partial success handling", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.events = [];
+        resetTextPlanningRuntime();
+    });
+
+    it("should set status to partial_success when some tasks succeed and some fail", async () => {
+        const tasks: AgentRunTask[] = [
+            { ...imageTask("task-1"), status: "completed" },
+            { ...imageTask("task-2"), status: "failed", error: "生成失败" },
+        ];
+        mocks.run = { ...runWithTasks(tasks), assetIds: ["asset-1"] };
+        mocks.getAuthSettings.mockResolvedValue(settings("image-default", "image-default-channel"));
+        mocks.updateAgentRunById.mockImplementation(async (_id, patch, event) => {
+            mocks.run = mocks.run ? { ...mocks.run, ...patch } : null;
+            if (event) mocks.events.push(event);
+            return mocks.run;
+        });
+
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        expect(mocks.run?.status).toBe("partial_success");
+        expect(mocks.events).toContainEqual(
+            expect.objectContaining({
+                type: "run.partial_success",
+                data: expect.objectContaining({
+                    completed: 1,
+                    failed: 1,
+                }),
+            }),
+        );
+    });
+
+    it("should include success and failure counts in partial_success event", async () => {
+        const tasks: AgentRunTask[] = [
+            { ...imageTask("task-1"), status: "completed" },
+            { ...imageTask("task-2"), status: "completed" },
+            { ...imageTask("task-3"), status: "failed", error: "错误1" },
+            { ...imageTask("task-4"), status: "failed", error: "错误2" },
+            { ...imageTask("task-5"), status: "failed", error: "错误3" },
+        ];
+        mocks.run = { ...runWithTasks(tasks), assetIds: ["asset-1", "asset-2"] };
+        mocks.getAuthSettings.mockResolvedValue(settings("image-default", "image-default-channel"));
+        mocks.updateAgentRunById.mockImplementation(async (_id, patch, event) => {
+            mocks.run = mocks.run ? { ...mocks.run, ...patch } : null;
+            if (event) mocks.events.push(event);
+            return mocks.run;
+        });
+
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        expect(mocks.run?.status).toBe("partial_success");
+        const partialEvent = mocks.events.find((e) => e.type === "run.partial_success");
+        expect(partialEvent?.data).toMatchObject({
+            completed: 2,
+            failed: 3,
+            assetIds: ["asset-1", "asset-2"],
+        });
+        const partialReply = typeof partialEvent?.data === "object" && partialEvent.data !== null && "reply" in partialEvent.data && typeof partialEvent.data.reply === "string" ? partialEvent.data.reply : "";
+        expect(partialReply).toContain("已完成 2 个任务");
+        expect(partialReply).toContain("3 个任务失败");
+    });
+
+    it("should still mark as completed when all tasks succeed", async () => {
+        const tasks: AgentRunTask[] = [
+            { ...imageTask("task-1"), status: "completed" },
+            { ...imageTask("task-2"), status: "completed" },
+        ];
+        mocks.run = { ...runWithTasks(tasks), assetIds: ["asset-1", "asset-2"] };
+        mocks.getAuthSettings.mockResolvedValue(settings("image-default", "image-default-channel"));
+        mocks.updateAgentRunById.mockImplementation(async (_id, patch, event) => {
+            mocks.run = mocks.run ? { ...mocks.run, ...patch } : null;
+            if (event) mocks.events.push(event);
+            return mocks.run;
+        });
+
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        expect(mocks.run?.status).toBe("completed");
+        expect(mocks.events).toContainEqual(
+            expect.objectContaining({
+                type: "run.completed",
+            }),
+        );
+    });
+
+    it("should mark as failed when all tasks fail and no assets generated", async () => {
+        const tasks: AgentRunTask[] = [
+            { ...imageTask("task-1"), status: "failed", error: "错误1" },
+            { ...imageTask("task-2"), status: "failed", error: "错误2" },
+        ];
+        mocks.run = { ...runWithTasks(tasks), assetIds: [] };
+        mocks.getAuthSettings.mockResolvedValue(settings("image-default", "image-default-channel"));
+        mocks.updateAgentRunById.mockImplementation(async (_id, patch, event) => {
+            mocks.run = mocks.run ? { ...mocks.run, ...patch } : null;
+            if (event) mocks.events.push(event);
+            return mocks.run;
+        });
+
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+
+        expect(mocks.run?.status).toBe("failed");
+        expect(mocks.events).toContainEqual(
+            expect.objectContaining({
+                type: "run.failed",
+            }),
+        );
     });
 });

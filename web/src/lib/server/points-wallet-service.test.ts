@@ -8,7 +8,7 @@ import { emptyDb } from "@/lib/auth/store-normalizers";
 import { readAuthDb, writeAuthDb } from "@/lib/auth/store-repository";
 import type { AuthDatabase, EntitlementPlan, StoredUser } from "@/lib/auth/store-types";
 
-import { consumePoints, creditPermanentPoints, getPointsWalletSnapshot, refundPoints } from "./points-wallet-service";
+import { adjustPermanentPointsInAuthDb, consumePoints, creditPermanentPoints, getPointsWalletSnapshot, mutatePermanentPointsInAuthDb, refundPoints } from "./points-wallet-service";
 
 const previousProvider = process.env.VOZEB_PRO_DATABASE_PROVIDER;
 const previousDataDir = process.env.VOZEB_PRO_DATA_DIR;
@@ -35,6 +35,123 @@ afterAll(() => {
 });
 
 describe("points wallet service", () => {
+    it("mutates only permanent points for school compute", () => {
+        const db = emptyDb();
+        db.settings.freeDailyPointsEnabled = true;
+        db.settings.freeDailyPoints = 100;
+        db.users.push(user(20, "free"));
+        db.dailyPlanPointWallets.push({ userId: "user-one", date: "2026-07-22", planId: "free", assignmentId: "file:free", grantedPoints: 100, remainingPoints: 100, createdAt: "2026-07-22T00:00:00.000Z", updatedAt: "2026-07-22T00:00:00.000Z" });
+
+        const result = mutatePermanentPointsInAuthDb(db, { userId: "user-one", amount: -12.5, description: "学校算力个人垫付", idempotencyKey: "advance-a", recordType: "consume", model: "school-compute", now: at("2026-07-22T08:00:00+08:00") });
+
+        expect(result).toMatchObject({ applied: true, snapshot: { permanentPoints: 7.5, dailyPoints: 100, totalPoints: 107.5 }, record: { amount: -12.5, permanentAmount: -12.5, dailyAmount: 0, model: "school-compute" } });
+        expect(db.dailyPlanPointWallets[0].remainingPoints).toBe(100);
+        expect(db.quotaUsage).toHaveLength(0);
+    });
+
+    it("rejects school compute when permanent points are insufficient", () => {
+        const db = emptyDb();
+        db.users.push(user(5, "free"));
+        db.dailyPlanPointWallets.push({ userId: "user-one", date: "2026-07-22", planId: "free", assignmentId: "file:free", grantedPoints: 100, remainingPoints: 100, createdAt: "2026-07-22T00:00:00.000Z", updatedAt: "2026-07-22T00:00:00.000Z" });
+
+        expect(() =>
+            mutatePermanentPointsInAuthDb(db, { userId: "user-one", amount: -12.5, description: "学校算力个人垫付", idempotencyKey: "advance-insufficient", recordType: "consume", model: "school-compute", now: at("2026-07-22T08:00:00+08:00") }),
+        ).toThrow("永久积分不足");
+        expect(db.users[0].pointsBalance).toBe(5);
+        expect(db.dailyPlanPointWallets[0].remainingPoints).toBe(100);
+        expect(db.pointRecords).toHaveLength(0);
+    });
+
+    it("adjusts disabled users with decimal points, preserves daily points, and replays by request fingerprint", () => {
+        const db = emptyDb();
+        db.users.push(user(20, "free"));
+        db.users[0].status = "disabled";
+        db.dailyPlanPointWallets.push({ userId: "user-one", date: "2026-07-22", planId: "free", assignmentId: "file:free", grantedPoints: 100, remainingPoints: 100, createdAt: "2026-07-22T00:00:00.000Z", updatedAt: "2026-07-22T00:00:00.000Z" });
+
+        const input = {
+            userId: "user-one",
+            amount: -12.5,
+            description: "合同额度修正",
+            idempotencyKey: "school-member-adjust:file:one",
+            requestFingerprint: "a".repeat(64),
+            minimumBalance: 0,
+            requireActive: false,
+            now: at("2026-07-22T08:00:00+08:00"),
+        };
+        const first = adjustPermanentPointsInAuthDb(db, input);
+        const replay = adjustPermanentPointsInAuthDb(db, input);
+
+        expect(first).toMatchObject({
+            applied: true,
+            snapshot: { permanentPoints: 7.5, dailyPoints: 100 },
+            record: { type: "admin-adjust", amount: -12.5, permanentAmount: -12.5, dailyAmount: 0, requestFingerprint: "a".repeat(64) },
+        });
+        expect(replay).toMatchObject({ applied: false, record: { id: first?.record.id } });
+        expect(db.users[0].pointsBalance).toBe(7.5);
+        expect(db.dailyPlanPointWallets[0].remainingPoints).toBe(100);
+        expect(db.pointRecords).toHaveLength(1);
+
+        expect(() => adjustPermanentPointsInAuthDb(db, { ...input, requestFingerprint: "b".repeat(64) })).toThrow("积分幂等键对应的调账参数不一致");
+    });
+
+    it("rejects a permanent debit below the requested minimum without writing a record", () => {
+        const db = emptyDb();
+        db.users.push(user(5, "free"));
+
+        expect(() =>
+            adjustPermanentPointsInAuthDb(db, {
+                userId: "user-one",
+                amount: -12.5,
+                description: "合同额度修正",
+                idempotencyKey: "school-member-adjust:file:insufficient",
+                requestFingerprint: "c".repeat(64),
+                minimumBalance: 0,
+                requireActive: false,
+                now: at("2026-07-22T08:00:00+08:00"),
+            }),
+        ).toThrow("个人永久积分不足");
+        expect(db.users[0].pointsBalance).toBe(5);
+        expect(db.pointRecords).toHaveLength(0);
+    });
+
+    it("rejects a credit that would exceed the permanent balance limit without partial application", () => {
+        const db = emptyDb();
+        db.users.push(user(999_999, "free"));
+
+        expect(() =>
+            adjustPermanentPointsInAuthDb(db, {
+                userId: "user-one",
+                amount: 2,
+                description: "额度修正",
+                idempotencyKey: "school-member-adjust:file:overflow",
+                requestFingerprint: "d".repeat(64),
+                minimumBalance: 0,
+                requireActive: false,
+                now: at("2026-07-22T08:00:00+08:00"),
+            }),
+        ).toThrow("个人永久积分超出上限");
+        expect(db.users[0].pointsBalance).toBe(999_999);
+        expect(db.pointRecords).toHaveLength(0);
+    });
+
+    it("rejects an adjustment amount above the permanent balance limit before normalization", () => {
+        const db = emptyDb();
+        db.users.push(user(0, "free"));
+
+        expect(() =>
+            adjustPermanentPointsInAuthDb(db, {
+                userId: "user-one",
+                amount: 1_000_001,
+                description: "超限调账",
+                idempotencyKey: "school-member-adjust:amount-overflow",
+                requestFingerprint: "e".repeat(64),
+                minimumBalance: 0,
+                requireActive: false,
+            }),
+        ).toThrow("个人永久积分超出上限");
+        expect(db.users[0].pointsBalance).toBe(0);
+        expect(db.pointRecords).toHaveLength(0);
+    });
     it("settles one daily plan wallet lazily", async () => {
         await seedWallet({ permanentPoints: 50, dailyPoints: 30 });
 

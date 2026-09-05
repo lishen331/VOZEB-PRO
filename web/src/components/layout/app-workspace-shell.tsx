@@ -13,6 +13,7 @@ import { UserStatusActions } from "@/components/layout/user-status-actions";
 import { navigationToolForPathname } from "@/constant/navigation-tools";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
+import { useSchoolContextStore } from "@/stores/use-school-context-store";
 
 const PAGE_TITLES: Record<string, string> = {
     billing: "充值中心",
@@ -20,13 +21,17 @@ const PAGE_TITLES: Record<string, string> = {
     profile: "个人中心",
 };
 
-export function AppWorkspaceShell({ children }: { children: ReactNode }) {
+export function AppWorkspaceShell({ children, dramaWorkflowLabEnabled = false }: { children: ReactNode; dramaWorkflowLabEnabled?: boolean }) {
     const pathname = usePathname();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
     const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const siteTitle = resolveSiteTitle(site.title);
-    const tool = navigationToolForPathname(pathname);
+    const tool = navigationToolForPathname(
+        pathname,
+        useSchoolContextStore((state) => state.context),
+        { includeDramaWorkflowLab: dramaWorkflowLabEnabled },
+    );
     const fullscreen = isFullscreenWorkspacePath(pathname);
     const rootSlug = pathname.split("/").filter(Boolean)[0] || "";
     const pageTitle = tool?.label || PAGE_TITLES[rootSlug] || "工作空间";
@@ -35,7 +40,7 @@ export function AppWorkspaceShell({ children }: { children: ReactNode }) {
 
     return (
         <div className="workspace-shell flex h-dvh min-h-0 overflow-hidden bg-white text-foreground dark:bg-[#111316]">
-            <AppSidebar activeToolSlug={tool?.slug} expanded={sidebarExpanded} />
+            <AppSidebar activeToolSlug={tool?.slug} expanded={sidebarExpanded} dramaWorkflowLabEnabled={dramaWorkflowLabEnabled} />
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[#eaecf0] bg-white/96 px-3 backdrop-blur-xl sm:px-4 lg:px-7 dark:border-[#292d33] dark:bg-[#111316]/95">
                     <div className="flex min-w-0 items-center gap-2.5">
@@ -71,7 +76,7 @@ export function AppWorkspaceShell({ children }: { children: ReactNode }) {
                 </header>
                 <div className="min-h-0 min-w-0 flex-1 overflow-hidden bg-white dark:bg-[#111316]">{children}</div>
             </div>
-            <MobileNavDrawer open={mobileNavOpen} activeToolSlug={tool?.slug} onClose={() => setMobileNavOpen(false)} />
+            <MobileNavDrawer open={mobileNavOpen} activeToolSlug={tool?.slug} dramaWorkflowLabEnabled={dramaWorkflowLabEnabled} onClose={() => setMobileNavOpen(false)} />
         </div>
     );
 }

@@ -410,6 +410,8 @@ test("asset mentions stay as inline thumbnail references while the editor is foc
         await expect(page.getByTestId("creative-media-round")).toBeVisible({ timeout: 45_000 });
         await expect(composer).toHaveAttribute("data-ready", "true");
         await expect(input).toBeVisible();
+        await input.fill("222@");
+        await expect(page.getByTestId("creative-asset-mention-picker")).toBeVisible();
         await input.fill("书店收购价格");
         await input.evaluate((element) => {
             const textarea = element as HTMLTextAreaElement;
@@ -501,6 +503,7 @@ test("prompt library searches, filters and scrolls through bounded server pages"
     });
 
     await page.goto("/create", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".creative-composer")).toHaveAttribute("data-ready", "true", { timeout: 45_000 });
     await page.getByRole("button", { name: "打开资产面板" }).click();
     await page.getByRole("tab", { name: /提示词库/ }).click();
     const scroll = page.getByTestId("creative-prompt-scroll");
