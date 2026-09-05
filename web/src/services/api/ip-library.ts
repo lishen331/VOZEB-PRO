@@ -3,11 +3,12 @@ import type { IpDetail, IpSummary } from "@/lib/server/ip-library-service";
 import type { PageResult } from "@/lib/server/database/repository-types";
 import { serializeApiParams } from "@/services/api/request";
 
-export type IpLibraryListInput = { scope: "public" | "school"; page?: number; pageSize?: number; keyword?: string; kind?: IpAssetKind; category?: IpItemCategory };
+export type IpLibraryListInput = { scope: "public" | "school"; page?: number; pageSize?: number; keyword?: string; kind?: IpAssetKind; category?: IpItemCategory; tags?: string[] };
 
 export const ipLibraryApi = {
     list(input: IpLibraryListInput) {
-        const query = serializeApiParams(input);
+        const { tags, ...params } = input;
+        const query = serializeApiParams({ ...params, tag: tags });
         return request<PageResult<IpSummary>>(`/api/ip-library?${query.toString()}`);
     },
     get(id: string, versionId?: string) {

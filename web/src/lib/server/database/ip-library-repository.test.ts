@@ -178,14 +178,56 @@ describe("IpLibraryRepository PostgreSQL", () => {
         await expect(repository.listIpDownloads({ ipId: created.id, page: 1, pageSize: 10 })).resolves.toMatchObject({ total: 1, items: [{ itemId: draft.items[0]!.id }] });
     });
 
-    postgresIt("lists public IPs when optional school and content filters are empty", async () => {
+    postgresIt("claims a file before cleanup and prevents new draft references", async () => {
+        const repository = createPostgresRepositories().ipLibrary;
+        const created = await repository.createIpPackage(packageInput("deleting", "public"));
+        const fileId = `${created.id}-file`;
+        await repository.createIpContentFile({
+            id: fileId,
+            ipId: created.id,
+            kind: "text",
+            originalName: "deleting.txt",
+            extension: ".txt",
+            mimeType: "text/plain",
+            byteSize: 4,
+            sha256: `hash-${fileId}`,
+            storageProvider: "local",
+            storageKey: `${created.id}/${fileId}/original.txt`,
+            extractedText: "内容",
+            metadata: {},
+            status: "ready",
+            uploadedByUserId: ids.admin,
+        });
+
+        await expect(repository.claimIpContentFileDeletion(created.id, fileId)).resolves.toMatchObject({ id: fileId, status: "deleting" });
+        await expect(
+            repository.createIpDraftVersion(created.id, {
+                id: `${created.id}-version-deleting`,
+                title: "deleting version",
+                summary: "",
+                tags: [],
+                sourceNote: "",
+                changeNote: "",
+                createdByUserId: ids.admin,
+                items: [{ id: `${created.id}-item-deleting`, kind: "text", category: "story_summary", title: "内容", summary: "", fileId, sortOrder: 0 }],
+            }),
+        ).rejects.toThrow("内容文件未就绪");
+        await expect(repository.finalizeIpContentFileDeletion(created.id, fileId)).resolves.toBe(true);
+    });
+
+    postgresIt("lists public IPs with matching item and version tag filters", async () => {
         const repository = createPostgresRepositories().ipLibrary;
         const created = await repository.createIpPackage(packageInput("public-list", "public"));
-        const draft = await createDraft(repository, created.id, "v1");
+        const tag = `tag-${suffix}`;
+        const draft = await createDraft(repository, created.id, tag);
         await repository.publishIpVersion(created.id, draft.id);
 
         await expect(repository.listVisibleIps({ userId: ids.user, scope: "public", page: 1, pageSize: 20 })).resolves.toMatchObject({
             items: expect.arrayContaining([expect.objectContaining({ id: created.id, versionNumber: 1, itemCount: 2 })]),
+        });
+        await expect(repository.listVisibleIps({ userId: ids.user, scope: "public", kind: "image", category: "story_summary", page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0 });
+        await expect(repository.listVisibleIps({ userId: ids.user, scope: "public", kind: "image", category: "character", tags: [tag.toUpperCase()], page: 1, pageSize: 20 })).resolves.toMatchObject({
+            items: expect.arrayContaining([expect.objectContaining({ id: created.id })]),
         });
     });
 

@@ -117,22 +117,26 @@ export class FileIpLibraryRepository {
         return mutate(async (state) => {
             const record = state.files.find((item) => item.ipId === ipId && item.id === fileId);
             if (!record) return null;
+            if (record.status === "deleting") return null;
             if (isFilePublished(state, fileId)) throw new Error("已发布 IP 内容文件不可修改");
             Object.assign(record, structuredClone(patch), { updatedAt: new Date().toISOString() });
             return structuredClone(record);
         });
     }
 
-    deleteIpContentFile(ipId: string, fileId: string): Promise<boolean> {
+    claimIpContentFileDeletion(ipId: string, fileId: string): Promise<IpContentFileRecord | null> {
+        return mutate(async (state) => {
+            const record = state.files.find((item) => item.ipId === ipId && item.id === fileId);
+            if (!record || isFileReferenced(state, fileId)) return null;
+            if (record.status !== "deleting") Object.assign(record, { status: "deleting" as const, errorMessage: undefined, updatedAt: new Date().toISOString() });
+            return structuredClone(record);
+        });
+    }
+
+    finalizeIpContentFileDeletion(ipId: string, fileId: string): Promise<boolean> {
         return mutate(async (state) => {
             const index = state.files.findIndex((item) => item.ipId === ipId && item.id === fileId);
-            if (index < 0) return false;
-            if (
-                state.versions.some((version) => version.coverFileId === fileId || version.items.some((item) => item.fileId === fileId)) ||
-                state.downloads.some((download) => download.ipId === ipId && download.itemId && state.versions.some((version) => version.id === download.versionId && version.items.some((item) => item.id === download.itemId && item.fileId === fileId)))
-            ) {
-                throw new Error("IP 内容文件已被引用");
-            }
+            if (index < 0 || state.files[index]?.status !== "deleting" || isFileReferenced(state, fileId)) return false;
             state.files.splice(index, 1);
             return true;
         });
@@ -221,8 +225,12 @@ export class FileIpLibraryRepository {
             .filter(({ packageRecord, version }) => {
                 if (input.scope === "school" && !activeGrant(state.grants, packageRecord.id, input.schoolId!, at)) return false;
                 if (keyword && !`${packageRecord.title}\n${packageRecord.summary}`.toLowerCase().includes(keyword)) return false;
-                if (input.kind && !version.items.some((item) => item.kind === input.kind)) return false;
-                if (input.category && !version.items.some((item) => item.category === input.category)) return false;
+                if (input.kind || input.category) {
+                    const hasMatchingItem = version.items.some((item) => (!input.kind || item.kind === input.kind) && (!input.category || item.category === input.category));
+                    if (!hasMatchingItem) return false;
+                }
+                const tags = input.tags?.map((tag) => tag.trim().toLowerCase()).filter(Boolean) || [];
+                if (tags.length && !tags.some((tag) => version.tags.some((versionTag) => versionTag.toLowerCase() === tag))) return false;
                 return true;
             })
             .map(({ packageRecord, version }) => ({
@@ -484,6 +492,10 @@ function activeGrant(grants: IpSchoolGrantRecord[], ipId: string, schoolId: stri
 
 function isFilePublished(state: IpLibraryFile, fileId: string) {
     return state.versions.some((version) => version.status === "published" && (version.coverFileId === fileId || version.items.some((item) => item.fileId === fileId)));
+}
+
+function isFileReferenced(state: IpLibraryFile, fileId: string) {
+    return state.versions.some((version) => version.coverFileId === fileId || version.items.some((item) => item.fileId === fileId));
 }
 
 function rangesOverlap(leftStart: string, leftEnd: string | undefined, rightStart: string, rightEnd: string | undefined) {

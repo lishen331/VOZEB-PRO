@@ -122,9 +122,12 @@ export async function deleteAdminIpFile(actorId: string, ipId: string, fileId: s
     const repository = createIpLibraryRepository();
     const file = await repository.getIpContentFile(id, normalizedFileId);
     if (!file) throw new SchoolServiceError(404, "IP 内容文件不存在");
-    const deleted = await translateConflict("generic", () => repository.deleteIpContentFile(id, normalizedFileId));
-    if (!deleted) throw new SchoolServiceError(404, "IP 内容文件不存在");
-    await deleteStoredIpContentFile(file);
+    const claimed = await translateConflict("generic", () => repository.claimIpContentFileDeletion(id, normalizedFileId));
+    if (!claimed) throw new SchoolServiceError(409, "IP 内容文件已被引用或正在删除");
+    // The deletion state prevents new references while storage cleanup is retried.
+    await deleteStoredIpContentFile(claimed);
+    const deleted = await translateConflict("generic", () => repository.finalizeIpContentFileDeletion(id, normalizedFileId));
+    if (!deleted && (await repository.getIpContentFile(id, normalizedFileId))) throw new SchoolServiceError(409, "IP 内容文件正在删除，请稍后重试");
 }
 
 export async function createAdminIpVersion(actorId: string, ipId: string, input: AdminIpCreateVersionInput) {

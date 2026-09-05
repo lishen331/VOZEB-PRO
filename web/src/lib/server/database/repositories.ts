@@ -1,4 +1,4 @@
-import { postgresQuery, type QueryExecutor } from "@/lib/server/database/postgres";
+import { postgresQuery, type QueryExecutor, withPostgresTransaction } from "@/lib/server/database/postgres";
 import { AuditLogsRepository } from "./audit-log-repository";
 import { BillingOrderRepository } from "./billing-order-repository";
 import { BillingPaymentRepository } from "./billing-payment-repository";
@@ -149,7 +149,7 @@ export function createPostgresRepositories(executor?: QueryExecutor) {
         schoolDomain: createPostgresSchoolDomainRepository(db),
         schoolCompute: createPostgresSchoolComputeRepository(executor),
         practice: new PracticeRepository(db),
-        ipLibrary: new IpLibraryRepository(db),
+        ipLibrary: new IpLibraryRepository(db, executor ? undefined : withPostgresTransaction),
     };
 }
 

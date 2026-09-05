@@ -9,9 +9,11 @@ describe("IP library API client", () => {
         const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 0, data: { items: [], total: 0, page: 2, pageSize: 12 }, msg: "ok" }), { status: 200, headers: { "Content-Type": "application/json" } }));
         vi.stubGlobal("fetch", fetchMock);
 
-        await expect(ipLibraryApi.list({ scope: "school", page: 2, pageSize: 12, keyword: "星海", kind: "image", category: "character" })).resolves.toMatchObject({ total: 0, page: 2 });
+        await expect(ipLibraryApi.list({ scope: "school", page: 2, pageSize: 12, keyword: "星海", kind: "image", category: "character", tags: ["教学", "科幻"] })).resolves.toMatchObject({ total: 0, page: 2 });
         expect(fetchMock.mock.calls[0][0]).toContain("scope=school");
         expect(fetchMock.mock.calls[0][0]).toContain("keyword=%E6%98%9F%E6%B5%B7");
+        expect(fetchMock.mock.calls[0][0]).toContain("tag=%E6%95%99%E5%AD%A6");
+        expect(fetchMock.mock.calls[0][0]).toContain("tag=%E7%A7%91%E5%B9%BB");
     });
 
     it("returns a server-generated package blob and decoded file name", async () => {
