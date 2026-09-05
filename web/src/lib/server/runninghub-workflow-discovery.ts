@@ -146,14 +146,34 @@ function classifyRole(node: Node, fieldName: string, value: unknown): RunningHub
     // 名称里带 image/video/audio 的尺寸类字段（ref_image_size、image_width…）是内部旋钮，
     // 不能因为含有素材关键词就当成参考文件入参，否则会把素材 URL 塞进尺寸字段导致上游失败。
     const nameHint = (keyword: RegExp) => keyword.test(`${type} ${field}`) && !FILE_DIMENSION_GUARD.test(field);
+
+    // 优先级 1: 数值类型和布尔类型（强类型优先）
     if (/(duration|seconds|时长)/i.test(field) && typeof value === "number") return "duration";
     if (typeof value === "boolean") return "boolean";
     if (Array.isArray(value) && value.length && value.every((item) => isJsonPrimitive(item)) && !isNodeLink(value)) return "enum";
     if (typeof value === "number") return "number";
-    if (isFileLike(value, "image") || nameHint(/(loadimage|image|参考图|图片)/i)) return "image";
-    if (isFileLike(value, "video") || nameHint(/(loadvideo|video|视频)/i)) return "video";
-    if (isFileLike(value, "audio") || nameHint(/(loadaudio|audio|音频|声音)/i)) return "audio";
-    if (typeof value === "string" && /(prompt|text|value|内容|提示词|文本)/i.test(field)) return "prompt";
+
+    // 优先级 2: 字符串字段 - 先判断语义再判断文件名
+    if (typeof value === "string") {
+        // 2.1 提示词字段优先（避免 "prompt: 'example.png'" 被误判为图片）
+        if (/(prompt|text|value|内容|提示词|文本)/i.test(field)) return "prompt";
+
+        // 2.2 文件类字段 - 同时检查字段名和值的格式
+        const hasImageExt = /\.(?:png|jpe?g|webp|gif)$/i.test(value);
+        const hasVideoExt = /\.(?:mp4|mov|webm|mkv)$/i.test(value);
+        const hasAudioExt = /\.(?:mp3|wav|m4a|flac|ogg)$/i.test(value);
+
+        // 必须字段名包含素材关键词 + 值是文件路径，才识别为素材输入
+        if (hasImageExt && nameHint(/(loadimage|image|参考图|图片)/i)) return "image";
+        if (hasVideoExt && nameHint(/(loadvideo|video|视频)/i)) return "video";
+        if (hasAudioExt && nameHint(/(loadaudio|audio|音频|声音)/i)) return "audio";
+    }
+
+    // 优先级 3: 仅根据字段名推断（无默认值或默认值不是字符串）
+    if (nameHint(/(loadimage|image|参考图|图片)/i)) return "image";
+    if (nameHint(/(loadvideo|video|视频)/i)) return "video";
+    if (nameHint(/(loadaudio|audio|音频|声音)/i)) return "audio";
+
     return undefined;
 }
 

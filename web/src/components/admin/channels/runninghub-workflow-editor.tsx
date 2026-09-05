@@ -88,10 +88,10 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
         const outputMappings = parseJson("outputMappings", "array");
         const runOptions = parseJson("runOptions", "object");
         if ([inputSchema, nodeMappings, outputMappings, runOptions].some((value) => value === undefined)) return;
-        const confirmedNodeMappings =
-            discovery && selectedCandidates.length ? (nodeMappings as Array<Record<string, unknown>>).filter((mapping) => selectedCandidates.includes(`${String(mapping.nodeId || "")}.${String(mapping.fieldName || "")}`)) : nodeMappings;
-        const confirmedOutputMappings =
-            discovery && selectedCandidates.length ? (outputMappings as Array<Record<string, unknown>>).filter((mapping) => selectedCandidates.some((candidate) => candidate.startsWith(`${String(mapping.nodeId || "")}.`))) : outputMappings;
+        // 直接使用 JSON 编辑器里的配置，不根据勾选过滤
+        // 用户如果不想要某个字段，应该在 JSON 编辑器里删除，而不是取消勾选
+        const confirmedNodeMappings = nodeMappings;
+        const confirmedOutputMappings = outputMappings;
         setSaving(true);
         try {
             const payload: Record<string, unknown> = {
