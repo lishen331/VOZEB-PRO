@@ -32,7 +32,8 @@ export async function getAdminIp(actorId: string, ipId: string) {
 export async function createAdminIp(actorId: string, input: AdminIpCreateInput) {
     await requireContentDuty(actorId);
     const visibility = enumValue(input.visibility, IP_VISIBILITIES, "IP 可见范围无效");
-    const authorizationMode = visibility === "public" ? "multi_school" : enumValue(input.authorizationMode, IP_AUTHORIZATION_MODES, "IP 授权模式无效");
+    // Authorization mode is selected for each school grant, not when the IP profile is created.
+    const authorizationMode = visibility === "public" || input.authorizationMode === undefined ? "multi_school" : enumValue(input.authorizationMode, IP_AUTHORIZATION_MODES, "IP 授权模式无效");
     const slug = slugValue(input.slug);
     if (await createIpLibraryRepository().getIpPackageBySlug(slug)) throw new SchoolServiceError(409, "IP 标识已存在，请更换 slug", { field: "slug", reason: "duplicate" });
     return translateConflict("slug", () =>
