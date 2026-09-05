@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { ObjectStorageRuntimeConfig } from "@/lib/server/object-storage-config";
-import { objectStorageErrorMessage, testObjectStorageConnection } from "./object-storage-client";
+import { objectStorageErrorMessage, signObjectRead, testObjectStorageConnection } from "./object-storage-client";
 
 const config: ObjectStorageRuntimeConfig = {
     id: "default",
@@ -47,6 +47,18 @@ describe("object storage client", () => {
         expect(requests[1]?.headers["x-amz-sdk-checksum-algorithm"]).toBeUndefined();
         expect(requests[2]?.url).toMatch(/^\/media\/vozeb-pro\/media\/\.vozeb-healthcheck\/[0-9a-f-]+\.txt\?x-id=DeleteObject$/);
         expect(requests[2]?.body).toBe("");
+    });
+
+    it("does not override the stored content type in signed read urls", async () => {
+        const signedUrl = await signObjectRead(config, {
+            key: "vozeb-pro/media/reference/preview.webp",
+            contentType: "image/webp",
+            contentDisposition: 'inline; filename="preview.webp"',
+        });
+        const url = new URL(signedUrl);
+
+        expect(url.searchParams.get("response-content-type")).toBeNull();
+        expect(url.searchParams.get("response-content-disposition")).toBe('inline; filename="preview.webp"');
     });
 
     it("turns provider failures into actionable messages without exposing signed query values", () => {
