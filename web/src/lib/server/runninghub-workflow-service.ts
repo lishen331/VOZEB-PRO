@@ -282,7 +282,7 @@ function assertValid(candidate: RunningHubWorkflowConfig, siblings: readonly Run
 
 function ensureEnableEvidence(candidate: RunningHubWorkflowConfig, legacyEnabled = false) {
     if (legacyEnabled && !candidate.testRequired && !candidate.workflowJsonFingerprint && !candidate.lastTestConfigFingerprint) return;
-    if (candidate.testRequired || workflowRequiresRetest(candidate) || (!candidate.workflowJsonFingerprint && !candidate.lastTestConfigFingerprint)) throw new RunningHubWorkflowError("启用前请先提交当前配置的成功样例测试", 409);
+    if (workflowRequiresRetest(candidate) || (!candidate.workflowJsonFingerprint && !candidate.lastTestConfigFingerprint)) throw new RunningHubWorkflowError("启用前请先提交当前配置的成功样例测试", 409);
 }
 
 function publicWorkflow(config: RunningHubWorkflowConfig, channel: SystemModelChannel): PublicRunningHubWorkflow {

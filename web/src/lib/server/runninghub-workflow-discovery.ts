@@ -106,9 +106,8 @@ function extractNodes(raw: unknown): Node[] {
         const widgetsValues = record.widgets_values;
         const type = text(record.class_type) || text(record.nodeType) || text(record.type);
         if (!type) return;
-        const id = text(record.id) || key;
+        const id = nodeId(record.id) || key;
         if (!id || seen.has(id)) return;
-        seen.add(id);
 
         // 构建 inputs 对象：将 inputs 数组和 widgets_values 数组合并
         const inputs: Record<string, unknown> = {};
@@ -119,17 +118,17 @@ function extractNodes(raw: unknown): Node[] {
         }
         // 情况2: inputs 是数组 (ComfyUI 格式)
         else if (Array.isArray(inputsRaw) && inputsRaw.length) {
-            inputsRaw.forEach((input, index) => {
+            let widgetIndex = 0;
+            inputsRaw.forEach((input) => {
                 if (!input || typeof input !== "object") return;
                 const inputObj = input as Record<string, unknown>;
-                const fieldName = text(inputObj.name);
+                const widget = inputObj.widget && typeof inputObj.widget === "object" ? (inputObj.widget as Record<string, unknown>) : undefined;
+                const fieldName = text(inputObj.name) || text(widget?.name);
                 if (!fieldName) return;
 
-                // 从 widgets_values 数组获取对应的值
-                let fieldValue: unknown = undefined;
-                if (Array.isArray(widgetsValues) && index < widgetsValues.length) {
-                    fieldValue = widgetsValues[index];
-                }
+                // widgets_values 只按控件顺序排列，连线输入不会占用一个值。
+                const fieldValue = widget ? (Array.isArray(widgetsValues) ? widgetsValues[widgetIndex] : undefined) : undefined;
+                if (widget) widgetIndex += 1;
 
                 // 如果是连接到其他节点的输入 (有 link 字段)，跳过
                 if (inputObj.link !== undefined && inputObj.link !== null) return;
@@ -138,12 +137,23 @@ function extractNodes(raw: unknown): Node[] {
             });
         }
 
-        // 只有当节点有可配置的输入字段时才添加
-        if (Object.keys(inputs).length > 0) {
-            found.push({ id, type, title: text(record._meta && typeof record._meta === "object" ? (record._meta as Record<string, unknown>).title : undefined) || text(record.title) || type, inputs });
+        const title = text(record._meta && typeof record._meta === "object" ? (record._meta as Record<string, unknown>).title : undefined) || text(record.title) || type;
+        // 输出节点可能只有连线输入；保留它才能生成输出映射，但不要把普通内部节点的空输入变成 unknown 候选。
+        if (Object.keys(inputs).length > 0 || isOutputNodeLike(type, title)) {
+            seen.add(id);
+            found.push({ id, type, title, inputs });
         }
     });
     return found;
+}
+
+function nodeId(value: unknown) {
+    if (typeof value === "string") return value.trim();
+    return typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+}
+
+function isOutputNodeLike(type: string, title: string) {
+    return /(saveimage|savevideo|saveaudio|videocombine|audiooutput|imagesave|previewimage|previewvideo|previewaudio|输出|结果)/i.test(`${type} ${title}`);
 }
 
 function analyzeNode(node: Node, capability: LogicalModelCapability): RunningHubNodeCandidate[] {
