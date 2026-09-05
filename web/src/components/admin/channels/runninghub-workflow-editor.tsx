@@ -78,7 +78,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
     };
 
     const submit = async () => {
-        const nextErrors: Record<string, string> = {};
+        const nextErrors: Record<string, string> = ;
         if (!String(draft.workflowName || "").trim()) nextErrors.workflowName = "请填写工作流名称";
         if (!String(draft.workflowId || "").trim()) nextErrors.workflowId = "请填写 Workflow ID";
         setErrors(nextErrors);
@@ -88,10 +88,38 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
         const outputMappings = parseJson("outputMappings", "array");
         const runOptions = parseJson("runOptions", "object");
         if ([inputSchema, nodeMappings, outputMappings, runOptions].some((value) => value === undefined)) return;
-        // 直接使用 JSON 编辑器里的配置，不根据勾选过滤
-        // 用户如果不想要某个字段，应该在 JSON 编辑器里删除，而不是取消勾选
-        const confirmedNodeMappings = nodeMappings;
-        const confirmedOutputMappings = outputMappings;
+
+        // 根据用户勾选的候选项过滤配置
+        // 如果没有 discovery 或没有勾选任何项，使用 JSON 编辑器的完整配置（向后兼容）
+        let confirmedInputSchema = inputSchema;
+        let confirmedNodeMappings = nodeMappings;
+        let confirmedOutputMappings = outputMappings;
+
+        if (discovery && selectedCandidates.length > 0) {
+            // 过滤 inputSchema：保留勾选的字段
+            confirmedInputSchema = (inputSchema as Array<Record<string, unknown>>).filter((input) => {
+                const key = String(input.key || "");
+                // 在 nodeMappings 中找到对应的节点字段
+                const relatedMapping = (nodeMappings as Array<Record<string, unknown>>).find(
+                    (mapping) => String(mapping.paramKey || "") === key
+                );
+                if (!relatedMapping) return false;
+                const nodeField = `${String(relatedMapping.nodeId || "")}.${String(relatedMapping.fieldName || "")}`;
+                return selectedCandidates.includes(nodeField);
+            });
+
+            // 过滤 nodeMappings：只保留勾选的节点字段
+            confirmedNodeMappings = (nodeMappings as Array<Record<string, unknown>>).filter((mapping) => {
+                const nodeField = `${String(mapping.nodeId || "")}.${String(mapping.fieldName || "")}`;
+                return selectedCandidates.includes(nodeField);
+            });
+
+            // 过滤 outputMappings：只保留勾选的输出字段
+            confirmedOutputMappings = (outputMappings as Array<Record<string, unknown>>).filter((mapping) => {
+                const nodeField = `${String(mapping.nodeId || "")}.${String(mapping.fieldName || "")}`;
+                return selectedCandidates.includes(nodeField);
+            });
+        }
         setSaving(true);
         try {
             const payload: Record<string, unknown> = {
@@ -105,7 +133,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                 taskIdField: String(draft.taskIdField || "").trim(),
                 statusField: String(draft.statusField || "").trim(),
                 resultField: String(draft.resultField || "").trim(),
-                inputSchema,
+                inputSchema: confirmedInputSchema,
                 nodeMappings: confirmedNodeMappings,
                 outputMappings: confirmedOutputMappings,
                 runOptions,
@@ -181,12 +209,10 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                 value={jsonText[key]}
                 autoSize={{ minRows: 8, maxRows: 18 }}
                 spellCheck={false}
+                readOnly
+                placeholder="根据上方识别结果自动生成，通过勾选候选项控制"
                 status={errors[key] ? "error" : undefined}
-                onChange={(event) => {
-                    setJsonText((current) => ({ ...current, [key]: event.target.value }));
-                    setErrors((current) => ({ ...current, [key]: "" }));
-                }}
-                onBlur={() => parseJson(key, expected)}
+                className="bg-stone-50 dark:bg-stone-900"
             />
             {errors[key] ? <div className="mt-1 text-xs text-red-600">{`${key}: ${errors[key]}`}</div> : null}
         </div>
