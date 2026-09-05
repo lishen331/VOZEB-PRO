@@ -199,7 +199,7 @@ export async function POST(request: Request) {
         // 检查是否有健康的模型候选
         const requestedModel =
             executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "image", trustedContext?.businessCode || "canvas", resolvedBody.config?.model) : resolvedBody.config?.model || settings.defaultModels.imageModel;
-        const allCandidates = resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile);
+        const allCandidates = resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile).filter((candidate): candidate is typeof candidate & { channelId: string } => typeof candidate.channelId === "string");
         const hasHealthyModel = hasHealthyRuntimeCandidate(allCandidates, "image");
 
         if (!hasHealthyModel && allCandidates.length > 0) {

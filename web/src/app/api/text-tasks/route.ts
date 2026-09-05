@@ -99,14 +99,16 @@ function sanitizeConfigs(
     settings: Awaited<ReturnType<typeof getAuthSettings>>,
     executionProfile: "production" | "open-source-practice" = "production",
     context?: import("@/lib/server/generation-task-types").GenerationTaskContext,
-): TextTaskConfig[] {
+): Array<TextTaskConfig & { channelId: string }> {
     const requestedModel = executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "text", context?.businessCode || "script", config?.model) : config?.model || settings.defaultModels.textModel;
-    return resolveLogicalModelCandidates(settings, "text", requestedModel, "", executionProfile).map((resolved) => ({
-        ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {}),
-        channelId: resolved.channelId,
-        systemPrompt: "",
-        executionProfile,
-    }));
+    return resolveLogicalModelCandidates(settings, "text", requestedModel, "", executionProfile)
+        .map((resolved) => ({
+            ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {}),
+            channelId: resolved.channelId,
+            systemPrompt: "",
+            executionProfile,
+        }))
+        .filter((config): config is typeof config & { channelId: string } => typeof config.channelId === "string");
 }
 
 function sanitizeMessages(messages?: AiTextMessage[]) {

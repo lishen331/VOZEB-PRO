@@ -77,7 +77,7 @@ export async function POST(request: Request) {
             executionProfile,
         }));
         const prompt = String(body.prompt || "").trim();
-        const supportedChannels = channels.filter((channel) => channel.apiFormat !== "gemini");
+        const supportedChannels = channels.filter((channel): channel is typeof channel & { channelId: string } => channel.apiFormat !== "gemini" && typeof channel.channelId === "string");
         if (!supportedChannels.length || !prompt) return NextResponse.json({ error: "音频任务参数不完整或渠道不支持" }, { status: 400 });
         const hasHealthy = await hasHealthyRuntimeCandidate(supportedChannels, "audio");
         if (!hasHealthy) return NextResponse.json({ error: "当前音频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });

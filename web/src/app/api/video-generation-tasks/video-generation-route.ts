@@ -114,10 +114,9 @@ export async function POST(request: Request) {
                 : typeof body.config?.model === "string" && body.config.model.trim()
                   ? body.config.model
                   : settings.defaultModels.videoModel;
-            const allChannels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile).map((channel) => ({
-                ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext),
-                executionProfile,
-            }));
+            const allChannels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile)
+                .map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }))
+                .filter((channel): channel is typeof channel & { channelId: string } => typeof channel.channelId === "string");
             const prompt = String(body.prompt || "").trim();
             if (!allChannels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
             const hasHealthy = await hasHealthyRuntimeCandidate(allChannels, "video");
