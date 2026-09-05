@@ -26,8 +26,11 @@ export async function optimizeCreativePrompt(input: { origin: string; cookie: st
     const candidates = resolveLogicalModelCandidates(settings, "text", model);
     if (!model || !candidates.length) throw new PromptOptimizationError("后台尚未配置可用的默认文本模型", 503);
 
+    const rankedCandidates = rankTextPlanningCandidates(candidates);
+    if (!rankedCandidates.length) throw new PromptOptimizationError("当前没有可用的文本模型渠道，请检查模型配置或稍后重试", 503);
+
     let latestError: unknown;
-    for (const candidate of rankTextPlanningCandidates(candidates)) {
+    for (const candidate of rankedCandidates) {
         const idempotencyKey = systemAiIdempotencyKey("prompt-optimize", input.userId, input.requestId, candidate.channelId, candidate.upstreamModel);
         try {
             const call = await requestStructuredText({
