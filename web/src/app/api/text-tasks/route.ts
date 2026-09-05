@@ -12,6 +12,7 @@ import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
+import { hasHealthyRuntimeCandidate } from "@/lib/server/channel-runtime-health";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
@@ -73,6 +74,8 @@ export async function POST(request: Request) {
         const configs = sanitizeConfigs(body.config, settings, executionProfile, trustedContext);
         const messages = sanitizeMessages(body.messages);
         if (!configs.length || !messages.length) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
+        const hasHealthy = await hasHealthyRuntimeCandidate(configs, "text");
+        if (!hasHealthy) return NextResponse.json({ error: "当前文本模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
         if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(configs[0], trustedContext.businessCode) };
 
         const task = await createTextTask({ ...trustedContext, userId: currentUser.id, config: configs[0], candidateConfigs: configs.slice(1), messages });
