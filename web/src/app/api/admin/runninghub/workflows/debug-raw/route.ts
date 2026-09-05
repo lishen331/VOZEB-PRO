@@ -21,7 +21,7 @@ export async function POST(request: Request) {
         const raw = await fetchRunningHubWorkflowJson({
             baseUrl: channel.baseUrl,
             apiKey: channel.apiKey || "",
-            workflowId: body.workflowId
+            workflowId: body.workflowId,
         });
 
         return schoolApiOk({ raw });

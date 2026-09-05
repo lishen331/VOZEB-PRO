@@ -165,12 +165,5 @@ function MentionAssetIcon({ asset }: { asset: CanvasAgentMentionAsset }) {
         return <ImageIcon className="size-3 shrink-0" />;
     }
 
-    return (
-        <img
-            src={imagePreviewUrl(asset.url, 80)}
-            alt=""
-            className="size-3 shrink-0 rounded-sm object-cover"
-            onError={() => setImageError(true)}
-        />
-    );
+    return <img src={imagePreviewUrl(asset.url, 80)} alt="" className="size-3 shrink-0 rounded-sm object-cover" onError={() => setImageError(true)} />;
 }

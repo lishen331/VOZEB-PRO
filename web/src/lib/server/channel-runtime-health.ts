@@ -10,7 +10,7 @@ export type ChannelRuntimeHealth = {
     lastError?: string;
 };
 
-type RuntimeCandidate = { channelId: string };
+type RuntimeCandidate = { channelId?: string };
 
 const FAILURE_THRESHOLD = 3;
 const BASE_COOLDOWN_MS = 30_000;
@@ -38,7 +38,8 @@ export function getChannelRuntimeHealth(channelId: string | undefined, capabilit
     return current ? { ...current, cooldownUntil: current.cooldownUntil && current.cooldownUntil > now ? current.cooldownUntil : undefined } : { channelId: channelId || "", capability, consecutiveFailures: 0 };
 }
 
-export function isChannelRuntimeCooling(channelId: string, capability: LogicalModelCapability, now = Date.now()) {
+export function isChannelRuntimeCooling(channelId: string | undefined, capability: LogicalModelCapability, now = Date.now()) {
+    if (!channelId) return false;
     const state = states.get(stateKey(channelId, capability));
     return Boolean(state?.cooldownUntil && state.cooldownUntil > now);
 }

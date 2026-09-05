@@ -197,7 +197,8 @@ export async function POST(request: Request) {
         if (!configs.length || !prompt) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
 
         // 检查是否有健康的模型候选
-        const requestedModel = executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "image", trustedContext?.businessCode || "canvas", resolvedBody.config?.model) : resolvedBody.config?.model || settings.defaultModels.imageModel;
+        const requestedModel =
+            executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "image", trustedContext?.businessCode || "canvas", resolvedBody.config?.model) : resolvedBody.config?.model || settings.defaultModels.imageModel;
         const allCandidates = resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile);
         const hasHealthyModel = hasHealthyRuntimeCandidate(allCandidates, "image");
 

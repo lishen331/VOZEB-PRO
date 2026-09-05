@@ -55,11 +55,7 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
     useEffect(() => {
         const handleError = (event: ErrorEvent) => {
             const message = event.message || "";
-            const isPerformanceError =
-                message.includes("startTime") ||
-                message.includes("reportAllChanges") ||
-                message.includes("Performance") ||
-                message.includes("getEntriesByType");
+            const isPerformanceError = message.includes("startTime") || message.includes("reportAllChanges") || message.includes("Performance") || message.includes("getEntriesByType");
             if (isPerformanceError) {
                 event.preventDefault();
                 console.debug("Suppressed non-critical performance monitoring error:", message);

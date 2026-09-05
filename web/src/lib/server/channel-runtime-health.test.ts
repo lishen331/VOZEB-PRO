@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { filterHealthyRuntimeCandidates, getChannelRuntimeHealth, recordChannelRuntimeFailure, recordChannelRuntimeSuccess, resetChannelRuntimeHealth } from "./channel-runtime-health";
+import { filterHealthyRuntimeCandidates, getChannelRuntimeHealth, hasHealthyRuntimeCandidate, recordChannelRuntimeFailure, recordChannelRuntimeSuccess, resetChannelRuntimeHealth } from "./channel-runtime-health";
 
 describe("channel runtime health", () => {
     beforeEach(() => resetChannelRuntimeHealth());
@@ -33,5 +33,10 @@ describe("channel runtime health", () => {
         recordChannelRuntimeFailure("backup", "text", "timeout", 5000);
         recordChannelRuntimeFailure("backup", "text", "timeout", 6000);
         expect(filterHealthyRuntimeCandidates([{ channelId: "primary" }, { channelId: "backup" }], "text", 7000).map((item) => item.channelId)).toEqual(["primary"]);
+    });
+
+    it("treats candidates without a channel id as available", () => {
+        expect(hasHealthyRuntimeCandidate([{ channelId: undefined }], "text", 1000)).toBe(true);
+        expect(filterHealthyRuntimeCandidates([{ channelId: undefined }], "video", 1000)).toEqual([{ channelId: undefined }]);
     });
 });

@@ -100,9 +100,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
             confirmedInputSchema = (inputSchema as Array<Record<string, unknown>>).filter((input) => {
                 const key = String(input.key || "");
                 // 在 nodeMappings 中找到对应的节点字段
-                const relatedMapping = (nodeMappings as Array<Record<string, unknown>>).find(
-                    (mapping) => String(mapping.paramKey || "") === key
-                );
+                const relatedMapping = (nodeMappings as Array<Record<string, unknown>>).find((mapping) => String(mapping.paramKey || "") === key);
                 if (!relatedMapping) return false;
                 const nodeField = `${String(relatedMapping.nodeId || "")}.${String(relatedMapping.fieldName || "")}`;
                 return selectedCandidates.includes(nodeField);
