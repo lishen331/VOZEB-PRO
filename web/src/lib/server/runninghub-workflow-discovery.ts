@@ -102,13 +102,46 @@ function extractNodes(raw: unknown): Node[] {
     walk(raw, "", (value, key) => {
         if (!value || typeof value !== "object" || Array.isArray(value)) return;
         const record = value as Record<string, unknown>;
-        const inputs = record.inputs;
+        const inputsRaw = record.inputs;
+        const widgetsValues = record.widgets_values;
         const type = text(record.class_type) || text(record.nodeType) || text(record.type);
-        if (!inputs || typeof inputs !== "object" || Array.isArray(inputs) || !type) return;
+        if (!type) return;
         const id = text(record.id) || key;
         if (!id || seen.has(id)) return;
         seen.add(id);
-        found.push({ id, type, title: text(record._meta && typeof record._meta === "object" ? (record._meta as Record<string, unknown>).title : undefined) || text(record.title) || type, inputs: inputs as Record<string, unknown> });
+
+        // 构建 inputs 对象：将 inputs 数组和 widgets_values 数组合并
+        const inputs: Record<string, unknown> = {};
+
+        // 情况1: inputs 是对象 (旧格式或非 ComfyUI 格式)
+        if (inputsRaw && typeof inputsRaw === "object" && !Array.isArray(inputsRaw)) {
+            Object.assign(inputs, inputsRaw);
+        }
+        // 情况2: inputs 是数组 (ComfyUI 格式)
+        else if (Array.isArray(inputsRaw) && inputsRaw.length) {
+            inputsRaw.forEach((input, index) => {
+                if (!input || typeof input !== "object") return;
+                const inputObj = input as Record<string, unknown>;
+                const fieldName = text(inputObj.name);
+                if (!fieldName) return;
+
+                // 从 widgets_values 数组获取对应的值
+                let fieldValue: unknown = undefined;
+                if (Array.isArray(widgetsValues) && index < widgetsValues.length) {
+                    fieldValue = widgetsValues[index];
+                }
+
+                // 如果是连接到其他节点的输入 (有 link 字段)，跳过
+                if (inputObj.link !== undefined && inputObj.link !== null) return;
+
+                inputs[fieldName] = fieldValue;
+            });
+        }
+
+        // 只有当节点有可配置的输入字段时才添加
+        if (Object.keys(inputs).length > 0) {
+            found.push({ id, type, title: text(record._meta && typeof record._meta === "object" ? (record._meta as Record<string, unknown>).title : undefined) || text(record.title) || type, inputs });
+        }
     });
     return found;
 }
