@@ -123,9 +123,9 @@ describe("IP library administration service", () => {
     });
 
     it("creates a normalized package with server-owned ids and creator", async () => {
-        const created = await createAdminIp("content-admin", { title: " 星海计划 ", slug: " Star-Sea ", summary: " 简介 ", visibility: "school", authorizationMode: "exclusive" });
-        expect(created).toMatchObject({ title: "星海计划", slug: "star-sea", createdByUserId: "content-admin", status: "draft" });
-        expect(mocks.createIpPackage).toHaveBeenCalledWith(expect.objectContaining({ id: expect.any(String), createdByUserId: "content-admin" }));
+        const created = await createAdminIp("content-admin", { title: " 星海计划 ", slug: " Star-Sea ", summary: " 简介 ", visibility: "school" });
+        expect(created).toMatchObject({ title: "星海计划", slug: "star-sea", authorizationMode: "multi_school", createdByUserId: "content-admin", status: "draft" });
+        expect(mocks.createIpPackage).toHaveBeenCalledWith(expect.objectContaining({ id: expect.any(String), authorizationMode: "multi_school", createdByUserId: "content-admin" }));
     });
 
     it("rejects a duplicate slug before attempting to create the package", async () => {
