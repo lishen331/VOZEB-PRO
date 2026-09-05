@@ -44,16 +44,23 @@ export function analyzeRunningHubWorkflowJson(input: { workflowId: string; raw: 
     const suggestedNodeMappings: RunningHubNodeMapping[] = [];
     for (const role of ["prompt", "image", "video", "audio", "duration", "enum", "boolean", "number"] as const) {
         const roleCandidates = candidates.filter((item) => item.role === role && (isInternalKnobRole(role) ? isBusinessSelector(item.fieldName) : true));
-        if (!roleCandidates.length || (role === "prompt" && roleCandidates.length !== 1)) continue;
-        roleCandidates.forEach((candidate, index) => {
+        if (!roleCandidates.length) continue;
+        // 提示词：多个时取第一个，不跳过
+        if (role === "prompt" && roleCandidates.length > 1) {
+            warnings.push(`发现 ${roleCandidates.length} 个提示词候选，已自动选择第一个：${roleCandidates[0].nodeId}.${roleCandidates[0].fieldName}`);
+        }
+        const effectiveCandidates = role === "prompt" && roleCandidates.length > 1 ? [roleCandidates[0]] : roleCandidates;
+        effectiveCandidates.forEach((candidate, index) => {
             const key = inputKeyFor(role, index);
             const inputType = candidate.inputType || inputTypeForRole(role);
             if (!inputType) return;
+            // 参考素材：只有真实外部文件依赖才必填，没有默认值 = 可选
+            const isRequired = role === "prompt" || (["image", "video", "audio"].includes(role) && candidate.hasExternalFileDependency);
             suggestedInputs.push({
                 key,
-                label: roleCandidates.length > 1 && role === "image" ? `参考图 ${index + 1}` : candidate.label,
+                label: effectiveCandidates.length > 1 && role === "image" ? `参考图 ${index + 1}` : candidate.label,
                 type: inputType,
-                required: candidate.hasExternalFileDependency || role === "prompt",
+                required: isRequired,
                 ...(role === "enum" && candidate.options && candidate.options.length ? { options: candidate.options } : {}),
             });
             suggestedNodeMappings.push({
