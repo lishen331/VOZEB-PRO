@@ -121,10 +121,16 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
     const candidates = resolveLogicalModelCandidates(settings, "text", model);
     if (!model || !candidates.length) throw new DramaLabStoryboardExtractionError("后台尚未配置可用的默认文本模型", 503);
 
+    // Check if there are any healthy candidates before attempting extraction
+    const rankedCandidates = rankTextPlanningCandidates(candidates);
+    if (!rankedCandidates.length) {
+        throw new DramaLabStoryboardExtractionError("当前没有可用的文本模型渠道，请检查模型配置或稍后重试", 503);
+    }
+
     let latestError: unknown;
     const resumeShots = (input.resumeShots || []).filter((shot) => shot && Number.isFinite(shot.order) && shot.order > 0);
     const initialPrompt = resumeShots.length ? buildContinuationPrompt(userPrompt, resumeShots, Math.max(...resumeShots.map((shot) => shot.order)), 0) : userPrompt;
-    for (const candidate of rankTextPlanningCandidates(candidates)) {
+    for (const candidate of rankedCandidates) {
         const idempotencyKey = systemAiIdempotencyKey("drama-lab-extract-storyboards", input.userId, input.project.id, input.episodeId, input.requestId, candidate.channelId, candidate.upstreamModel);
         try {
             const call = await requestStoryboardText({ input, candidate, systemPrompt, userPrompt: initialPrompt, model, idempotencyKey });
