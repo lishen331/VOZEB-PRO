@@ -99,7 +99,7 @@ export function CanvasAgentMentionPreview({ segments, assetsById, previewRef, th
                                 {segment.text}
                             </span>
                             <span className="absolute inset-0 inline-flex min-w-0 items-center gap-0.5 overflow-hidden" style={{ color: theme.node.text }}>
-                                {asset.type === "image" ? <img src={imagePreviewUrl(asset.url, 80)} alt="" className="size-3 shrink-0 rounded-sm object-cover" /> : <FileVideo className="size-3 shrink-0" />}
+                                <MentionAssetIcon asset={asset} />
                                 <span className="min-w-0 truncate text-xs font-medium">{segment.text.slice(1)}</span>
                             </span>
                         </span>
@@ -151,5 +151,26 @@ function ScrollHint({ direction, theme }: { direction: "up" | "down"; theme: Can
         >
             <Icon className="size-3.5" />
         </span>
+    );
+}
+
+function MentionAssetIcon({ asset }: { asset: CanvasAgentMentionAsset }) {
+    const [imageError, setImageError] = useState(false);
+
+    if (asset.type === "video") {
+        return <FileVideo className="size-3 shrink-0" />;
+    }
+
+    if (imageError || !asset.url) {
+        return <ImageIcon className="size-3 shrink-0" />;
+    }
+
+    return (
+        <img
+            src={imagePreviewUrl(asset.url, 80)}
+            alt=""
+            className="size-3 shrink-0 rounded-sm object-cover"
+            onError={() => setImageError(true)}
+        />
     );
 }
