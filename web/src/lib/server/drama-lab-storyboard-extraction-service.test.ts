@@ -192,10 +192,7 @@ describe("drama lab storyboard extraction", () => {
     });
 
     it("finds a non-empty storyboard array under an arbitrary legacy wrapper key", () => {
-        const wrapped = normalizeExtractedDramaLabStoryboards(
-            JSON.stringify({ payload: [{ ...validShot, shotNumber: 2 }] }),
-            project,
-        );
+        const wrapped = normalizeExtractedDramaLabStoryboards(JSON.stringify({ payload: [{ ...validShot, shotNumber: 2 }] }), project);
 
         expect(wrapped).toMatchObject([{ order: 2, title: validShot.title }]);
     });

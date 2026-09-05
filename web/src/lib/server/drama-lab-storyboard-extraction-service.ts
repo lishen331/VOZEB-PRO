@@ -576,18 +576,7 @@ function object(value: unknown) {
     return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
-const STORYBOARD_ARRAY_KEYS = [
-    "shots",
-    "storyboards",
-    "storyboard",
-    "shotList",
-    "shot_list",
-    "segments",
-    "items",
-    "data",
-    "result",
-    "分镜",
-] as const;
+const STORYBOARD_ARRAY_KEYS = ["shots", "storyboards", "storyboard", "shotList", "shot_list", "segments", "items", "data", "result", "分镜"] as const;
 
 function extractStoryboardArray(value: Record<string, unknown> | unknown[] | null): unknown[] {
     if (Array.isArray(value)) return value;
