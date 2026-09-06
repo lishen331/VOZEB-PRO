@@ -14,6 +14,7 @@ vi.mock("./runninghub-provider", () => ({ fetchRunningHubWorkflowJson: mocks.fet
 
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store-types";
+import { runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
 import { RunningHubWorkflowError, copyWorkflowVersion, createWorkflow, discoverWorkflow, getWorkflow, listWorkflows, parseWorkflowId, setWorkflowEnabled, updateWorkflow } from "./runninghub-workflow-service";
 
 const workflow = {
@@ -130,6 +131,17 @@ describe("runninghub workflow service", () => {
     it("does not activate a copied version before it has fresh test evidence", async () => {
         await expect(copyWorkflowVersion(workflow.workflowKey, { activateVersion: true })).rejects.toMatchObject({ status: 409 });
         expect(mocks.setAuthSettings).not.toHaveBeenCalled();
+    });
+
+    it("activates a workflow after successful evidence even when testRequired remains set", async () => {
+        const candidate = { ...workflow, enabled: false, testRequired: true, workflowJsonFingerprint: "json-fingerprint" };
+        const evidence = runningHubWorkflowConfigFingerprint(candidate);
+        mocks.getFreshAuthSettings.mockResolvedValue(settingsWith({ ...candidate, lastTestConfigFingerprint: evidence }));
+
+        const result = await setWorkflowEnabled(candidate.workflowKey, true);
+
+        expect(result).toMatchObject({ workflowKey: candidate.workflowKey, enabled: true, requiresRetest: false });
+        expect(mocks.setAuthSettings).toHaveBeenCalled();
     });
 
     it("rejects edits to an enabled version and only changes activation through version operations", async () => {

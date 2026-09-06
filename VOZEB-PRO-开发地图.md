@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 集成基线：2026-09-04，已合并本地短剧实验室与 `origin/develop` 的平台、学校、实践和 RunningHub 更新。数量以当前源码为准；接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-09-06，`develop` 分支。当前源码包含 51 个 `page.tsx` 页面入口、332 个 API Route 文件和 116 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -338,14 +338,12 @@ Phase 3 的四条主线均位于 `drama-lab` 领域，不改变普通 Canvas 或
 
 ```mermaid
 flowchart LR
-    Local["本地 main 与测试"] --> GitHub["私人仓库 origin/main"]
-    Local --> Build["构建版本镜像 vozeb-pro:短 SHA"]
-    Build --> Tar["docker save、SHA-256、SCP"]
-    GitHub --> Pull["远程 Deploy Key 执行 git pull"]
-    Tar --> Load["远程 docker load"]
-    Pull --> Compose["Docker Compose"]
-    Load --> Compose
-    Compose --> App["app：127.0.0.1:3000"]
+    Local["本地 develop 与测试"] --> GitHub["私人仓库 origin/develop"]
+    GitHub --> Actions["GitHub Actions staging-image"]
+    Actions --> Registry["GHCR sha-<commit>"]
+    Registry --> Remote["/opt/vozeb-pro/staging"]
+    Remote --> Compose["Docker Compose"]
+    Compose --> App["app：127.0.0.1:3001"]
     Compose --> Worker["generation-worker"]
     Compose --> PG[("postgres")]
     App --> Data[("媒体持久卷")]
@@ -355,14 +353,14 @@ flowchart LR
     classDef artifact fill:#FEF3C7,stroke:#B45309,stroke-width:2px,color:#451A03
     classDef runtime fill:#DCFCE7,stroke:#15803D,stroke-width:2px,color:#14532D
     classDef data fill:#F3E8FF,stroke:#7E22CE,stroke-width:2px,color:#3B0764
-    class Local,GitHub,Pull source
-    class Build,Tar,Load artifact
+    class Local,GitHub,Actions source
+    class Registry artifact
     class Compose,App,Worker runtime
     class PG,Data,PGData data
 ```
 
-- [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)：299 个 Route 文件逐项权限、服务和边界。
-- [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)：本地验证、GitHub、版本镜像、远程更新与回滚。
+- [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)：当前源码 Route 文件逐项权限、服务和边界。
+- [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)：本地验证、develop 推送、测试镜像、远程 Compose 更新与健康检查。
 - [README](README.md)：产品能力、安装方式和上游项目说明。
 - [项目结构与流程](docs/content/docs/overview/project-structure.mdx)：上游维护的结构说明。
 - [配置说明](docs/content/docs/overview/configuration.mdx)：环境变量和后台配置。
