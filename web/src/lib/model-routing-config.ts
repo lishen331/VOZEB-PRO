@@ -96,14 +96,13 @@ export function normalizeDefaultModelsConfig(
         DEFAULT_MODEL_FIELDS.map(({ capability, key, allowFallback: allowFieldFallback }) => {
             const modelId = key === "visionModel" ? text(defaults?.visionModel ?? legacyDefaults?.imageUnderstandingModel, 120) : text(defaults?.[key], 120);
             if (!modelId) return [key, ""];
-            const isResolvable = key === "visionModel"
-                ? isVisionModelResolvable(logicalModels, channels, modelId, executionProfile)
-                : isLogicalModelResolvable(logicalModels, channels, capability, modelId, executionProfile);
+            const isResolvable = key === "visionModel" ? isVisionModelResolvable(logicalModels, channels, modelId, executionProfile) : isLogicalModelResolvable(logicalModels, channels, capability, modelId, executionProfile);
             if (isResolvable) return [key, modelId];
             if (!(allowFieldFallback ?? allowFallback)) return [key, ""];
-            const fallback = logicalModels.find((model) => model.capability === capability && (key === "visionModel"
-                ? isVisionModelResolvable(logicalModels, channels, model.id, executionProfile)
-                : isLogicalModelResolvable(logicalModels, channels, capability, model.id, executionProfile)));
+            const fallback = logicalModels.find(
+                (model) =>
+                    model.capability === capability && (key === "visionModel" ? isVisionModelResolvable(logicalModels, channels, model.id, executionProfile) : isLogicalModelResolvable(logicalModels, channels, capability, model.id, executionProfile)),
+            );
             return [key, fallback?.id || ""];
         }),
     ) as SystemDefaultModels;
@@ -132,9 +131,7 @@ export function resolveVisionModelConfig(logicalModels: LogicalModel[], channels
     const logical = logicalModels.find((model) => model.enabled && model.capability === capability && model.id.toLowerCase() === rawModelName(modelId).toLowerCase());
     if (!logical) return null;
     for (const binding of logical.bindings.filter((item) => item.enabled).sort((left, right) => left.priority - right.priority || left.id.localeCompare(right.id))) {
-        const channel = channels.find(
-            (item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel),
-        );
+        const channel = channels.find((item) => item.id === binding.channelId && item.enabled && resolvePracticeModelAccess(executionProfile, item.purpose || "shared") && channelConnectionReady(item) && channelSupportsModel(item, binding.upstreamModel));
         if (channel && resolveLogicalModelCapabilityProfile(binding, capability, channel, binding.upstreamModel)?.supportsImageInput === true) {
             return { logicalModel: logical, binding, channel };
         }
@@ -178,9 +175,7 @@ export function modelRoutingValidationErrors(logicalModels: LogicalModel[], chan
     }
     for (const { capability, key } of DEFAULT_MODEL_FIELDS) {
         const modelId = defaults[key];
-        const resolvable = key === "visionModel"
-            ? isVisionModelResolvable(logicalModels, channels, modelId || "")
-            : isLogicalModelResolvable(logicalModels, channels, capability, modelId || "");
+        const resolvable = key === "visionModel" ? isVisionModelResolvable(logicalModels, channels, modelId || "") : isLogicalModelResolvable(logicalModels, channels, capability, modelId || "");
         if (modelId && !resolvable) errors.push(key === "visionModel" ? `默认视觉理解模型不可解析：${modelId}` : `默认${capabilityLabel(capability)}模型不可解析：${modelId}`);
     }
     return Array.from(new Set(errors));

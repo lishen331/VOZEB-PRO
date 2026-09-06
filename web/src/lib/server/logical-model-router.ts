@@ -57,9 +57,7 @@ export function resolveLogicalModelCandidates(
 }
 
 export function resolveVisionModelCandidates(settings: Pick<AuthSettings, "logicalModels" | "systemChannels">, requestedModelId: string, preferredChannelId = "", executionProfile: PracticeExecutionProfile = "production"): ResolvedLogicalModel[] {
-    return resolveLogicalModelCandidates(settings, "text", requestedModelId, preferredChannelId, executionProfile).filter(
-        (candidate) => candidate.capabilityProfile?.supportsImageInput === true,
-    );
+    return resolveLogicalModelCandidates(settings, "text", requestedModelId, preferredChannelId, executionProfile).filter((candidate) => candidate.capabilityProfile?.supportsImageInput === true);
 }
 
 export function resolveLogicalBillingModel(logicalModels: AuthSettings["logicalModels"], capability: LogicalModelCapability, channelId: string, upstreamModel: string, preferredLogicalModelId = "") {

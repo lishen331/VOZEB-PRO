@@ -219,7 +219,9 @@ describe("admin channel config", () => {
         const logicalModels = [{ id: "vision-model", name: "Vision", capability: "text" as const, enabled: true, bindings: [{ id: "vision-binding", channelId: channel.id, upstreamModel: "vision-model", enabled: true, priority: 1 }] }];
 
         expect(practiceDefaultModelValidationErrors({ visionModel: "vision-model" }, logicalModels, [channel])).toEqual([]);
-        expect(practiceDefaultModelValidationErrors({ visionModel: "vision-model" }, logicalModels, [{ ...channel, advancedConfig: { ...channel.advancedConfig, modelConfigs: { "vision-model": { capability: "text" as const } } } }])).toEqual(["练习默认视觉理解模型不可解析：vision-model"]);
+        expect(practiceDefaultModelValidationErrors({ visionModel: "vision-model" }, logicalModels, [{ ...channel, advancedConfig: { ...channel.advancedConfig, modelConfigs: { "vision-model": { capability: "text" as const } } } }])).toEqual([
+            "练习默认视觉理解模型不可解析：vision-model",
+        ]);
         expect(practiceDefaultModelValidationErrors({ visionModel: "missing-model" }, logicalModels, [channel])[0]).toContain("视觉");
     });
 });

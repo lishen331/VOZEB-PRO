@@ -41,10 +41,12 @@ describe("creativeRunPresentation", () => {
             tasks: [{ id: "task-one", title: "生成图片", type: "image", model: "image-model", count: 1, references: [{ assetId: "asset-one", type: "image" }], status: "completed" }],
         } satisfies CreativeAgentRun;
 
-        expect(creativeRunPresentation(run, new Map())).toEqual(expect.arrayContaining([
-            { key: "skill", label: "Skill", value: "电商生图" },
-            { key: "references", label: "参考素材", value: "1个" },
-        ]));
+        expect(creativeRunPresentation(run, new Map())).toEqual(
+            expect.arrayContaining([
+                { key: "skill", label: "Skill", value: "电商生图" },
+                { key: "references", label: "参考素材", value: "1个" },
+            ]),
+        );
     });
 
     it("falls back to explicit preferences while planning", () => {

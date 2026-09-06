@@ -67,7 +67,20 @@ export function AgentSkillCreateModal({ open, existingSkills, onClose, onCreate 
         setSelectedPath("");
         setImportedSkill(undefined);
         setImportError("");
-        form.setFieldsValue({ name: "", description: "", instructions: "", keywords: "", workspaces: ["image"], action: "generate", requiresReference: false, size: "", quality: "", count: 1, videoSeconds: 5, capabilities: ["text->image", "image+text->image"] });
+        form.setFieldsValue({
+            name: "",
+            description: "",
+            instructions: "",
+            keywords: "",
+            workspaces: ["image"],
+            action: "generate",
+            requiresReference: false,
+            size: "",
+            quality: "",
+            count: 1,
+            videoSeconds: 5,
+            capabilities: ["text->image", "image+text->image"],
+        });
     }, [form, open]);
 
     const extract = async () => {

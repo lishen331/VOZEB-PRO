@@ -81,7 +81,13 @@ export function settings(imageModel: string, channelId: string) {
             { id: channelId, name: "图片", enabled: true, baseUrl: "https://api.example.com/v1", apiKey: "image-secret", models: [`vendor/${imageModel}`] },
         ],
         logicalModels: [
-            { id: "vision-planner", name: "Vision Planner", capability: "text", enabled: true, bindings: [{ id: "vision-binding", channelId: "vision-channel", upstreamModel: "vendor/vision-planner", enabled: true, priority: 1, capabilityProfile: { supportsImageInput: true } }] },
+            {
+                id: "vision-planner",
+                name: "Vision Planner",
+                capability: "text",
+                enabled: true,
+                bindings: [{ id: "vision-binding", channelId: "vision-channel", upstreamModel: "vendor/vision-planner", enabled: true, priority: 1, capabilityProfile: { supportsImageInput: true } }],
+            },
             { id: "planner", name: "规划", capability: "text", enabled: true, bindings: [{ id: "planner-binding", channelId: "planner-channel", upstreamModel: "vendor/planner", enabled: true, priority: 1 }] },
             { id: imageModel, name: "图片", capability: "image", enabled: true, bindings: [{ id: `${imageModel}-binding`, channelId, upstreamModel: `vendor/${imageModel}`, enabled: true, priority: 1 }] },
         ],

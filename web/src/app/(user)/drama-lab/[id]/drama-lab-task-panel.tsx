@@ -177,19 +177,69 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
     );
 }
 
-function TaskSection({ title, tasks, episodes, cancellingId, recheckingId, retryingId, onCancel, onRecheck, onRetry }: { title: string; tasks: DramaLabTaskView[]; episodes: Array<{ id: string; title?: string; number?: number }>; cancellingId?: string; recheckingId?: string; retryingId?: string; onCancel: (task: DramaLabTaskView) => void; onRecheck: (task: DramaLabTaskView) => void; onRetry: (task: DramaLabTaskView) => void }) {
+function TaskSection({
+    title,
+    tasks,
+    episodes,
+    cancellingId,
+    recheckingId,
+    retryingId,
+    onCancel,
+    onRecheck,
+    onRetry,
+}: {
+    title: string;
+    tasks: DramaLabTaskView[];
+    episodes: Array<{ id: string; title?: string; number?: number }>;
+    cancellingId?: string;
+    recheckingId?: string;
+    retryingId?: string;
+    onCancel: (task: DramaLabTaskView) => void;
+    onRecheck: (task: DramaLabTaskView) => void;
+    onRetry: (task: DramaLabTaskView) => void;
+}) {
     if (!tasks.length) return null;
     return (
         <div className="space-y-1.5" data-testid={`drama-task-section-${title}`}>
             <div className="px-1 text-[11px] font-semibold text-muted-foreground">{title}</div>
             <div className="max-h-56 space-y-1.5 overflow-y-auto overscroll-contain pr-1">
-                {tasks.map((task) => <TaskRow key={task.id} task={task} episodes={episodes} cancelling={cancellingId === task.id} rechecking={recheckingId === task.id} retrying={retryingId === task.id} onCancel={() => onCancel(task)} onRecheck={() => onRecheck(task)} onRetry={() => onRetry(task)} />)}
+                {tasks.map((task) => (
+                    <TaskRow
+                        key={task.id}
+                        task={task}
+                        episodes={episodes}
+                        cancelling={cancellingId === task.id}
+                        rechecking={recheckingId === task.id}
+                        retrying={retryingId === task.id}
+                        onCancel={() => onCancel(task)}
+                        onRecheck={() => onRecheck(task)}
+                        onRetry={() => onRetry(task)}
+                    />
+                ))}
             </div>
         </div>
     );
 }
 
-function TaskRow({ task, episodes, cancelling, rechecking, retrying, onCancel, onRecheck, onRetry }: { task: DramaLabTaskView; episodes: Array<{ id: string; title?: string; number?: number }>; cancelling: boolean; rechecking: boolean; retrying: boolean; onCancel: () => void; onRecheck: () => void; onRetry: () => void }) {
+function TaskRow({
+    task,
+    episodes,
+    cancelling,
+    rechecking,
+    retrying,
+    onCancel,
+    onRecheck,
+    onRetry,
+}: {
+    task: DramaLabTaskView;
+    episodes: Array<{ id: string; title?: string; number?: number }>;
+    cancelling: boolean;
+    rechecking: boolean;
+    retrying: boolean;
+    onCancel: () => void;
+    onRecheck: () => void;
+    onRetry: () => void;
+}) {
     const active = isTaskActive(task);
     const needsReview = isTaskNeedsReview(task);
     const failed = task.status === "error";
