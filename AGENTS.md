@@ -19,8 +19,11 @@
 
 ## 协作同步门禁
 
+- 当前协作主线是 `origin/develop`，允许直接推送 `develop`；不得按旧文档改推 `main` 或使用不存在的 `delivery` 远端。
+- 推送 `develop` 后由 `.github/workflows/staging-image.yml` 自动构建测试镜像、推送 GHCR，并通过 GitHub Actions 的 SSH Secret 部署到测试服务器；本地不得把 SSH 私钥、服务器 `.env` 或凭据写入仓库。
 - 每次执行 `git pull` 或把 `git fetch` 得到的变更整合到当前分支后，必须从仓库根目录运行 `pwsh -NoProfile -File .\过程文件\更新开发地图.ps1`，再运行 `pwsh -NoProfile -File .\过程文件\验证开发文档.ps1`。
 - 每次执行 `git push`（包括推送 `origin` 或交付仓库临时分支）前，必须完成上述更新和验证；验证失败时停止推送并先分析原因。
+- 接口索引或开发地图发生数量漂移时，后续任务必须优先修复生成脚本、基线格式或文档内容，再继续推送；禁止长期记录已知的 299/332 等不一致，也禁止用跳过验证代替修复。
 - `VOZEB-PRO-接口索引.md`、`VOZEB-PRO-开发地图.md` 是开发定位文档。接口、页面、Service、Repository、Schema、Worker 或部署拓扑发生变化时，必须在同一个代码提交中更新相关说明；没有相关结构变化时不得为了制造噪声修改业务文档。
 - 更新脚本只允许刷新源码清单、接口索引和开发地图基线，不得覆盖用户未提交的业务修改；提交前必须检查 `git diff`、`git status`，排除 `output/`、`.env`、凭据和其他无关文件。
 - 交付报告必须包含两个文档的验证结果；远端 Quality、镜像部署或健康检查失败时，先保留证据并说明原因，不得用跳过检查代替修复。

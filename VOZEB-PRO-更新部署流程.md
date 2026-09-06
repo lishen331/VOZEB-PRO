@@ -2,64 +2,83 @@
 
 ## 仓库主线
 
-- `origin/main`（`tjfeng741963/blue-oem`）是唯一主线和版本基线。
-- `delivery/develop` 只用于读取同事交付，不设置为本地分支的 upstream。
-- 两个仓库的提交历史不相同，禁止直接合并整条 `delivery/develop`；先查看提交和文件差异，再同步确认过的源码。
+- 远端仓库是 `origin`，协作主线是 `origin/develop`。
+- `develop` 允许直接推送，不要求额外建立交付分支或先推送 `main`。
+- 开始工作前检查本地改动和远端提交；本地有未提交改动时不得用拉取操作覆盖它们。
 - `.env`、SSH 私钥、管理员凭据、数据库和媒体数据不得提交到 GitHub。
 
-## 接口索引与开发地图同步门禁
+## 更新与合并
 
-`VOZEB-PRO-接口索引.md` 和 `VOZEB-PRO-开发地图.md` 是每次开发定位接口、页面、Service、Repository、Schema、Worker 和部署入口的基线文档。每次拉取整合完成后、每次推送开始前，都必须在仓库根目录执行：
+从远端同步 `develop`：
+
+```powershell
+git status --short --branch
+git fetch origin develop
+git log --oneline --decorate --graph --max-count=20 HEAD origin/develop
+git diff --check
+git merge origin/develop
+```
+
+如果出现冲突，先按源码和测试解决冲突，再运行开发地图门禁。不得使用 `git reset --hard` 覆盖用户改动。
+
+每次整合远端提交后，从仓库根目录执行：
 
 ```powershell
 pwsh -NoProfile -File .\过程文件\更新开发地图.ps1
 pwsh -NoProfile -File .\过程文件\验证开发文档.ps1
 ```
 
-更新脚本会刷新 Route、页面和 PostgreSQL 表清单，并同步两份 Markdown 的真实基线；验证脚本会检查数量、Handler 链接、重复路径和 UTF-8 乱码。验证失败不得推送。接口、页面、Service、Repository、Schema、Worker 或部署拓扑有变化时，两份文档必须与代码放在同一个提交中；没有相关结构变化时不为了制造噪声修改业务文档。执行前后都要保留用户未提交修改，并用 `git status` 和 `git diff` 排除 `output/`、`.env`、凭据及其他无关文件。
+更新脚本会根据当前源码刷新 Route、页面、PostgreSQL 表清单和开发地图基线；验证脚本会检查数量、Handler 链接、重复路径和 UTF-8 乱码。发现漂移时必须修复脚本或文档，不得跳过验证。
 
-## 拉取同事代码
+## 提交前检查
+
+在提交前确认：
 
 ```powershell
-git fetch delivery develop
-git log delivery/develop --oneline -20
-git show --stat delivery/develop
 git diff --check
+git status --short
+git diff --stat
+git diff --cached --stat
 ```
 
-同步完成后运行开发地图门禁：
+只提交本次任务相关文件，排除 `.env`、凭据、`output/`、`.e2e-data/`、`.e2e-artifacts/` 和其他测试产物。
+
+## 测试环境自动部署
+
+向 `develop` 推送后，GitHub Actions 工作流 `.github/workflows/staging-image.yml` 自动执行：
+
+1. 安装依赖并运行 Lint、TypeScript 检查、Vitest、格式检查和生产构建。
+2. 构建 `linux/amd64` 镜像并推送到 `ghcr.io/lishen331/vozeb-pro`，同时写入 `develop` 和 `sha-<commit>` 标签。
+3. 通过 GitHub Secrets 使用 SSH 连接测试服务器，在 `/opt/vozeb-pro/staging` 执行 `docker compose pull app generation-worker` 和 `docker compose up -d`。
+4. 检查 `http://127.0.0.1:3001/api/health/ready`，并在失败时输出 Compose 状态和应用/Worker 日志。
+
+推送命令：
 
 ```powershell
 pwsh -NoProfile -File .\过程文件\更新开发地图.ps1
 pwsh -NoProfile -File .\过程文件\验证开发文档.ps1
-git diff --check
+git push origin develop
 ```
 
-只把确认过的变更应用到当前开发分支，保留本地未提交内容。完成后检查 `git status` 和 `git diff --cached`，提交到当前分支，再将确认后的提交推送到私有 `origin/main`。
+文档门禁失败、质量检查失败或推送失败时停止后续部署判断，保留错误输出并先修复原因。
 
-## 测试环境
+## 测试服务器只读核查
 
-测试环境以快速合并和验证镜像可运行性为目标，不执行单元测试、PostgreSQL 集成测试或 E2E。GitHub 主线普通提交保留依赖审计、Lint、类型检查、格式检查和生产构建；测试与 E2E 只在正式发布标签触发。
+测试服务器实际使用 Docker Compose，当前已核对的服务为：
 
-本地测试环境更新：
+- 应用容器：`vozeb-staging-app-1`，宿主机端口 `3001 -> 3000`
+- 生成 Worker：`vozeb-staging-generation-worker-1`
+- PostgreSQL：`vozeb-staging-postgres-1`
+- 应用和 Worker 使用同一个 GHCR 提交 SHA 镜像；PostgreSQL 使用独立持久化容器/卷。
 
-```powershell
-git diff --check
-docker compose -f docker-compose.local.yml config --quiet
-docker compose -f docker-compose.local.yml build app generation-worker
-docker compose -f docker-compose.local.yml up -d
-Invoke-WebRequest http://127.0.0.1:3000/api/health/live
-docker compose -f docker-compose.local.yml ps
-```
+服务器检查只使用本机安全目录中的私钥，不在命令、日志或仓库中打印私钥内容。部署后至少检查：
 
-健康检查通过后再执行：
-
-```powershell
-git push origin HEAD:main
+```bash
+docker compose ps
+curl --fail http://127.0.0.1:3001/api/health/live
+curl --fail http://127.0.0.1:3001/api/health/ready
 ```
 
 ## 正式环境
 
-正式发布使用 `v*` 或 `VOZEB-PRO-v*` 标签触发完整门禁，包括单元测试、PostgreSQL 集成测试、生产构建和浏览器 E2E。发布镜像使用明确的版本标签或提交 SHA，不使用浮动标签覆盖既有正式版本。
-
-上线前记录当前提交、镜像 SHA 和数据库状态。部署后检查 `/api/health/live`、`/api/health/ready`、应用容器和生成 Worker；失败时切回上一版本镜像，不删除 PostgreSQL 或媒体卷。
+当前任务只覆盖 `develop` 的测试环境自动部署。正式环境的标签发布、数据库迁移、备份和回滚必须在确认正式服务器拓扑、镜像来源、持久化卷和人工审批规则后另行补充，不能从测试环境流程推断。
