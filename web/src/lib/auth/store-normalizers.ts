@@ -316,6 +316,16 @@ export function normalizeAgentSkill(skill: AgentSkill): AgentSkill {
                   .slice(0, 30)
             : [],
         workspaces: Array.isArray(skill.workspaces) ? skill.workspaces.filter((item): item is "image" | "video" | "canvas" | "drama" => ["image", "video", "canvas", "drama"].includes(item)) : ["image"],
+        ...(Array.isArray(skill.capabilities)
+            ? {
+                  capabilities: skill.capabilities
+                      .map((capability) => ({
+                          inputs: Array.isArray(capability?.inputs) ? capability.inputs.filter((item): item is "text" | "image" | "video" | "audio" => ["text", "image", "video", "audio"].includes(item)).slice(0, 4) : [],
+                          outputs: Array.isArray(capability?.outputs) ? capability.outputs.filter((item): item is "text" | "image" | "video" | "audio" => ["text", "image", "video", "audio"].includes(item)).slice(0, 4) : [],
+                      }))
+                      .filter((capability) => capability.inputs.length > 0 && capability.outputs.length > 0),
+              }
+            : {}),
         action: skill.action === "edit" ? "edit" : "generate",
         requiresReference: Boolean(skill.requiresReference),
         defaultConfig: skill.defaultConfig && typeof skill.defaultConfig === "object" ? skill.defaultConfig : {},

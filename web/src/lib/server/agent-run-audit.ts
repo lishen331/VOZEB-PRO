@@ -12,6 +12,7 @@ export type AgentRunSkillSnapshot = {
     enabled: boolean;
     keywords: string[];
     workspaces: AgentSkillWorkspace[];
+    capabilities?: AgentSkill["capabilities"];
     action: "generate" | "edit";
     requiresReference: boolean;
     defaultConfig: Record<string, string | number | boolean>;
@@ -72,6 +73,7 @@ function snapshotAgentSkill(skill: AgentSkill): AgentRunSkillSnapshot {
         enabled: skill.enabled,
         keywords: [...skill.keywords],
         workspaces: [...(skill.workspaces || ["image"])],
+        capabilities: skill.capabilities?.map((capability) => ({ inputs: [...capability.inputs], outputs: [...capability.outputs] })),
         action: skill.action === "edit" ? "edit" : "generate",
         requiresReference: Boolean(skill.requiresReference),
         defaultConfig: { ...(skill.defaultConfig || {}) },

@@ -16,6 +16,12 @@ export function publicAgentRun(run: AgentRun) {
         selectedSkillIds: run.selectedSkillIds,
         requestedModelIds: run.requestedModelIds,
         generationPreferences: run.generationPreferences,
+        execution: run.plannerAudit
+            ? {
+                  protocol: run.plannerAudit.protocol,
+                  skills: run.plannerAudit.skills.map((skill) => ({ id: skill.id, name: skill.name, workspaces: skill.workspaces, action: skill.action, capabilities: skill.capabilities })),
+              }
+            : undefined,
         assetIds: run.assetIds || [],
         tasks: (run.tasks || []).map(publicAgentRunTask),
         cancellation: run.cancellation ? { pendingCount: run.cancellation.pendingChildTaskIds.length } : undefined,
@@ -59,6 +65,7 @@ function publicAgentRunTask(task: AgentRunTask) {
         speed: task.speed,
         count: task.count,
         status: task.status,
+        references: task.references?.map((reference) => ({ assetId: reference.assetId, nodeId: reference.nodeId, type: reference.type, role: reference.role })),
         error: task.error ? toSafeGenerationErrorMessage(task.error, "生成任务失败") : undefined,
     };
 }

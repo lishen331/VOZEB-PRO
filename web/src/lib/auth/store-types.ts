@@ -212,6 +212,11 @@ export type SystemDefaultModels = {
 };
 
 export type AgentSkillWorkspace = "image" | "video" | "canvas" | "drama";
+export type AgentSkillMediaKind = "text" | "image" | "video" | "audio";
+export type AgentSkillCapability = {
+    inputs: AgentSkillMediaKind[];
+    outputs: AgentSkillMediaKind[];
+};
 
 export type AgentSkill = {
     id: string;
@@ -222,6 +227,7 @@ export type AgentSkill = {
     enabled: boolean;
     keywords: string[];
     workspaces?: AgentSkillWorkspace[];
+    capabilities?: AgentSkillCapability[];
     action?: "generate" | "edit";
     requiresReference?: boolean;
     defaultConfig?: Record<string, string | number | boolean>;
