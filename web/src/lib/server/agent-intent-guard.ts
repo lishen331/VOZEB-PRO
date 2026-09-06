@@ -8,9 +8,7 @@ export function isAnalysisIntent(prompt: string) {
     return Boolean(value && ANALYSIS_INTENT.test(value) && !MEDIA_ACTION.test(value));
 }
 
-export function assertAgentPlanIntent(plan: Pick<AgentPlan, "deliverables" | "intent">, prompt: string, hasMediaInput: boolean) {
-    if (!hasMediaInput || !isAnalysisIntent(prompt) || plan.intent === "conversation") return;
-    if (plan.deliverables.some((item) => ["image", "video", "audio"].includes(item.type))) {
-        throw new Error("当前请求是在分析或诊断素材，不应创建媒体生成任务");
-    }
+/** Intent is owned by the multimodal planner; this helper is advisory only. */
+export function assertAgentPlanIntent(_plan: Pick<AgentPlan, "deliverables" | "intent">, _prompt: string, _hasMediaInput: boolean) {
+    return;
 }
