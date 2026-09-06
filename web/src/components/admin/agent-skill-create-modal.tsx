@@ -45,6 +45,8 @@ const capabilityOptions = [
     { label: "图片 + 视频 → 文本分析", value: "image+video+text->text" },
     { label: "图片 → 文本分析", value: "image->text" },
     { label: "视频 → 文本分析", value: "video->text" },
+    { label: "文字 → 音频", value: "text->audio" },
+    { label: "文字 + 音频 → 文本分析", value: "audio+text->text" },
 ];
 
 export function AgentSkillCreateModal({ open, existingSkills, onClose, onCreate }: AgentSkillCreateModalProps) {

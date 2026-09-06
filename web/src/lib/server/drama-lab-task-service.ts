@@ -1,6 +1,6 @@
 import { getDramaLabCollaborationForUser, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { cancelDramaLabStoryTask } from "@/lib/server/drama-lab-story-generation-service";
-import { cancelDramaLabWorkflow, dramaLabWorkflowTaskView } from "@/lib/server/drama-lab-workflow-task-service";
+import { cancelDramaLabWorkflow, dramaLabWorkflowTaskView, resumeDramaLabWorkflow } from "@/lib/server/drama-lab-workflow-task-service";
 import { cancellationExecutionPatch } from "@/lib/server/generation-task-cancellation-service";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
@@ -154,12 +154,31 @@ export async function recheckDramaLabTask(input: { userId: string; projectId: st
     const located = await findTaskRecord(taskId, ownerIds, projectId);
     if (!located) throw new DramaLabTaskError("Task not found", 404);
     if (!located.upstreamTaskId) throw new DramaLabTaskError("This task has no upstream task ID and cannot be rechecked", 409);
-    if (!isActiveStatus(located.status, located.executionPhase)) throw new DramaLabTaskError("Only an active task can be rechecked", 409);
+    if (!isRecheckableStatus(located.status, located.executionPhase)) throw new DramaLabTaskError("Only an active task can be rechecked", 409);
     const scheduled = await scheduleGenerationTask(located.type, located.id, { executionPhase: "polling", nextPollAt: Date.now(), upstreamTaskId: located.upstreamTaskId });
     if (!scheduled) throw new DramaLabTaskError("Task status changed; refresh and try again", 409);
     void runGenerationTaskRecoveryBatch({ origin: input.origin, cookie: input.cookie, limit: 1, taskIds: [taskId], userRequested: true }).catch(() => undefined);
     const refreshed = await getStoredGenerationTaskRecord(located.type, taskId);
     return refreshed ? normalizeDramaLabTask(refreshed) : normalizeDramaLabTask({ ...located, executionPhase: "polling", nextPollAt: Date.now() });
+}
+
+export async function retryDramaLabTask(input: { userId: string; projectId: string; taskId: string; origin: string; cookie?: string }) {
+    const projectId = clean(input.projectId);
+    const taskId = clean(input.taskId);
+    if (!projectId || !taskId) throw new DramaLabTaskError("Task coordinates are incomplete", 400);
+    const resolved = await resolveDramaLabProjectForRequest(input.userId, projectId);
+    if (!resolved?.project) throw new DramaLabTaskError("Drama project not found", 404);
+    const ownerIds = await taskOwnerIds(input.userId, resolved.ownerUserId, projectId);
+    const located = await findTaskRecord(taskId, ownerIds, projectId);
+    if (!located) throw new DramaLabTaskError("Task not found", 404);
+    if (located.type !== "render") throw new DramaLabTaskError("单个媒体任务请在对应工作台重试", 409);
+    if (!isRetryableWorkflowStatus(located.status)) throw new DramaLabTaskError("Only a failed workflow can be retried", 409);
+    const task = await getStoredGenerationTask<DramaLabWorkflowTask>("render", taskId);
+    if (!task) throw new DramaLabTaskError("Task not found", 404);
+    const resumed = await resumeDramaLabWorkflow(task, input.userId, projectId);
+    if (!resumed) throw new DramaLabTaskError("Workflow status changed; refresh and try again", 409);
+    const refreshed = await getStoredGenerationTaskRecord("render", taskId);
+    return refreshed ? normalizeDramaLabTask(refreshed) : normalizeDramaLabTask({ ...located, status: "pending", executionPhase: "created", updatedAt: Date.now() });
 }
 
 export function normalizeDramaLabTask(record: StoredGenerationTaskRecord): DramaLabTaskView {
@@ -187,7 +206,7 @@ export function normalizeDramaLabTask(record: StoredGenerationTaskRecord): Drama
         currentStep: firstText(payload.currentStep, workflow.steps && currentWorkflowStep(workflow), storyBatch.status, record.executionPhase),
         error,
         canCancel: isActiveStatus(status, record.executionPhase),
-        canRetry: (status === "error" || status === "cancelled") && (payload.retryable === true || record.type === "render"),
+        canRetry: record.type === "render" && isRetryableWorkflowStatus(status),
         canRecheck: Boolean(record.upstreamTaskId) && isRecheckableStatus(status, record.executionPhase),
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,
@@ -323,6 +342,10 @@ function isActiveStatus(status: string, executionPhase?: StoredGenerationTaskRec
 
 function isRecheckableStatus(status: string, executionPhase?: StoredGenerationTaskRecord["executionPhase"]) {
     return (status === "pending" || status === "running") && !isCancellationPhase(executionPhase) && executionPhase !== "completed";
+}
+
+function isRetryableWorkflowStatus(status: string) {
+    return status === "error" || status === "cancelled";
 }
 
 function isActiveTaskView(task: DramaLabTaskView) {
