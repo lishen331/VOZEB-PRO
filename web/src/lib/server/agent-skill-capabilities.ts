@@ -22,7 +22,7 @@ export function normalizeSkillCapabilities(skill: Pick<AgentSkill, "capabilities
         ? skill.capabilities
               .map((capability) => ({
                   inputs: normalizeKinds(capability?.inputs),
-                  outputs: normalizeKinds(capability?.outputs).filter((kind) => kind !== "text"),
+                  outputs: normalizeKinds(capability?.outputs),
               }))
               .filter((capability) => capability.inputs.length > 0 && capability.outputs.length > 0)
         : [];

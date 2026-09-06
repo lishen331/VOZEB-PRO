@@ -188,7 +188,7 @@ export function normalizeDramaLabTask(record: StoredGenerationTaskRecord): Drama
         error,
         canCancel: isActiveStatus(status, record.executionPhase),
         canRetry: (status === "error" || status === "cancelled") && (payload.retryable === true || record.type === "render"),
-        canRecheck: Boolean(record.upstreamTaskId) && isActiveStatus(status, record.executionPhase),
+        canRecheck: Boolean(record.upstreamTaskId) && isRecheckableStatus(status, record.executionPhase),
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,
         title,
@@ -319,6 +319,10 @@ function matchesStatus(status: DramaTaskStatus, filter: TaskListStatus, executio
 
 function isActiveStatus(status: string, executionPhase?: StoredGenerationTaskRecord["executionPhase"]): status is "pending" | "running" {
     return (status === "pending" || status === "running") && !isReviewExecutionPhase(executionPhase);
+}
+
+function isRecheckableStatus(status: string, executionPhase?: StoredGenerationTaskRecord["executionPhase"]) {
+    return (status === "pending" || status === "running") && !isCancellationPhase(executionPhase) && executionPhase !== "completed";
 }
 
 function isActiveTaskView(task: DramaLabTaskView) {

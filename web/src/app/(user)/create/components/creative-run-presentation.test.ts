@@ -29,6 +29,24 @@ describe("creativeRunPresentation", () => {
         ]);
     });
 
+    it("shows the actual skill and reference count used by execution", () => {
+        const run = {
+            id: "run-skill",
+            conversationId: "conversation-one",
+            inputMessageId: "user-one",
+            assistantMessageId: "assistant-one",
+            status: "completed",
+            assetIds: [],
+            execution: { skills: [{ id: "ecommerce-image", name: "电商生图", workspaces: ["image"], action: "generate" }], referenceAssetCount: 1 },
+            tasks: [{ id: "task-one", title: "生成图片", type: "image", model: "image-model", count: 1, references: [{ assetId: "asset-one", type: "image" }], status: "completed" }],
+        } satisfies CreativeAgentRun;
+
+        expect(creativeRunPresentation(run, new Map())).toEqual(expect.arrayContaining([
+            { key: "skill", label: "Skill", value: "电商生图" },
+            { key: "references", label: "参考素材", value: "1个" },
+        ]));
+    });
+
     it("falls back to explicit preferences while planning", () => {
         const run = {
             id: "run-two",

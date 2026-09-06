@@ -11,6 +11,9 @@ export function creativeRunPresentation(run: CreativeAgentRun | undefined, model
     const items: CreativeRunPresentationItem[] = [];
     if (mode) items.push({ key: "mode", label: "类型", value: mediaModeLabel(mode) });
 
+    const skillNames = uniqueText(run.execution?.skills?.map((skill) => skill.name) || []);
+    if (skillNames.length) items.push({ key: "skill", label: "Skill", value: skillNames.join(" + ") });
+
     const modelIds = uniqueText([...tasks.map((task) => task.model), ...(run.requestedModelIds || [])]);
     if (modelIds.length) items.push({ key: "model", label: "模型", value: modelIds.map((id) => modelNames.get(id) || id).join(" + ") });
 
@@ -30,6 +33,8 @@ export function creativeRunPresentation(run: CreativeAgentRun | undefined, model
 
     const count = tasks.reduce((total, task) => total + (task.count || 1), 0);
     if (count > 1) items.push({ key: "count", label: "数量", value: `${count}个结果` });
+    const referenceCount = run.execution?.referenceAssetCount ?? tasks.reduce((total, task) => total + (task.references?.length || 0), 0);
+    if (referenceCount > 0) items.push({ key: "references", label: "参考素材", value: `${referenceCount}个` });
     items.push({ key: "status", label: "状态", value: runStatusLabel(run.status) });
     return items;
 }

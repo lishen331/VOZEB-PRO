@@ -2,6 +2,7 @@ import type { LogicalModelCapabilityProfile } from "@/lib/auth/store";
 
 export type CapabilityConstraintInput = {
     capability: "image" | "video" | "audio" | "text";
+    referenceTypes?: Array<"image" | "video" | "audio">;
     referenceCount?: number;
     durationSeconds?: number;
     batchSize?: number;
@@ -11,6 +12,12 @@ export type CapabilityConstraintInput = {
 
 export function assertCapabilityConstraints(profile: LogicalModelCapabilityProfile | undefined, input: CapabilityConstraintInput) {
     if (!profile) return;
+    for (const referenceType of input.referenceTypes || []) {
+        if (input.capability === "text" && referenceType === "image" && profile.supportsImageInput === false) throw new Error("当前模型不支持图片输入");
+        if (referenceType === "image" && profile.supportsReferenceImage === false) throw new Error("当前模型不支持图片参考素材");
+        if (referenceType === "video" && profile.supportsReferenceVideo === false) throw new Error("当前模型不支持视频参考素材");
+        if (referenceType === "audio" && profile.supportsReferenceAudio === false) throw new Error("当前模型不支持音频参考素材");
+    }
     if (input.referenceCount && profile.maxReferenceImages && input.referenceCount > profile.maxReferenceImages) throw new Error(`当前模型最多支持 ${profile.maxReferenceImages} 张参考图`);
     if (input.batchSize && profile.maxBatchSize && input.batchSize > profile.maxBatchSize) throw new Error(`当前模型最多支持批量生成 ${profile.maxBatchSize} 个结果`);
     if (input.durationSeconds && profile.minDurationSeconds && input.durationSeconds < profile.minDurationSeconds) throw new Error(`当前模型最短视频时长为 ${profile.minDurationSeconds} 秒`);

@@ -14,4 +14,12 @@ describe("capability constraints", () => {
         expect(() => assertCapabilityConstraints(profile, { capability: "image", aspectRatio: "1920x1080", resolution: "2k" })).not.toThrow();
         expect(() => assertCapabilityConstraints(profile, { capability: "image", aspectRatio: "auto", resolution: "AUTO" })).not.toThrow();
     });
+
+    it("rejects reference media when the selected model does not declare support", () => {
+        expect(() => assertCapabilityConstraints({ supportsReferenceImage: false }, { capability: "video", referenceTypes: ["image"] })).toThrow("不支持图片参考素材");
+        expect(() => assertCapabilityConstraints({ supportsReferenceVideo: false }, { capability: "video", referenceTypes: ["video"] })).toThrow("不支持视频参考素材");
+        expect(() => assertCapabilityConstraints({ supportsReferenceAudio: false }, { capability: "video", referenceTypes: ["audio"] })).toThrow("不支持音频参考素材");
+        expect(() => assertCapabilityConstraints({ supportsReferenceImage: true }, { capability: "video", referenceTypes: ["image"] })).not.toThrow();
+        expect(() => assertCapabilityConstraints({ supportsImageInput: false }, { capability: "text", referenceTypes: ["image"] })).toThrow("不支持图片输入");
+    });
 });

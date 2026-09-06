@@ -16,4 +16,9 @@ describe("agent skill capability contract", () => {
         expect(defaultSkillCapabilities(["image"])).toEqual(expect.arrayContaining([{ inputs: ["text"], outputs: ["image"] }]));
         expect(defaultSkillCapabilities(["video"])).toEqual(expect.arrayContaining([{ inputs: ["text"], outputs: ["video"] }]));
     });
+
+    it("preserves explicit text output for multimodal analysis skills", () => {
+        const skills: Array<{ capabilities: AgentSkillCapability[] }> = [{ capabilities: [{ inputs: ["image", "text"], outputs: ["text"] }] }];
+        expect(() => assertAgentPlanSkillCompatibility({ deliverables: [{ type: "text", title: "诊断", prompt: "解释失败原因" }] }, skills, ["image"])).not.toThrow();
+    });
 });

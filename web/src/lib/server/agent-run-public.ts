@@ -20,6 +20,7 @@ export function publicAgentRun(run: AgentRun) {
             ? {
                   protocol: run.plannerAudit.protocol,
                   skills: run.plannerAudit.skills.map((skill) => ({ id: skill.id, name: skill.name, workspaces: skill.workspaces, action: skill.action, capabilities: skill.capabilities })),
+                  referenceAssetCount: new Set((run.tasks || []).flatMap((task) => (task.references || []).map((reference) => reference.assetId).filter((id): id is string => Boolean(id)))).size || run.referencedAssetIds?.length || 0,
               }
             : undefined,
         assetIds: run.assetIds || [],

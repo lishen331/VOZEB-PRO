@@ -17,7 +17,7 @@ export type DramaLabTaskPanelProps = {
 
 /** A persistent project-scoped view over server-owned generation_tasks. */
 export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [], className, compact = false }: DramaLabTaskPanelProps) {
-    const [tasks, setTasks] = useState<DramaLabTaskView[]>(() => initialTasks.filter(isVisibleTask));
+    const [tasks, setTasks] = useState<DramaLabTaskView[]>(() => initialTasks);
     const [collapsed, setCollapsed] = useState(compact);
     const [loading, setLoading] = useState(initialTasks.length === 0);
     const [refreshing, setRefreshing] = useState(false);
@@ -36,7 +36,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
                 const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks?status=all`, { cache: "no-store" });
                 const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { tasks?: DramaLabTaskView[] } };
                 if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "Task status could not be loaded");
-                setTasks(Array.isArray(payload.data?.tasks) ? payload.data.tasks.filter(isVisibleTask) : []);
+                setTasks(Array.isArray(payload.data?.tasks) ? payload.data.tasks : []);
                 setError(undefined);
             } catch (reason) {
                 setError(reason instanceof Error ? reason.message : "Task status could not be loaded");
@@ -223,10 +223,6 @@ function episodeLabel(id: string | undefined, episodes: Array<{ id: string; titl
     const episode = episodes.find((item) => item.id === id);
     if (!episode) return `剧集 ${id}`;
     return `第${episode.number || ""}集${episode.title ? ` ${episode.title}` : ""}`;
-}
-
-function isVisibleTask(task: DramaLabTaskView) {
-    return task.status !== "success" && task.status !== "cancelled";
 }
 
 function isTaskNeedsReview(task: Pick<DramaLabTaskView, "executionPhase">) {
