@@ -338,13 +338,13 @@ describe("model routing config", () => {
         expect(logicalModelSupportsImageInput(models, [source], "text", "reference-only")).toBe(false);
     });
 
-    it("allows any reachable text model to be selected for Canvas while keeping image support advisory", () => {
+    it("requires an explicit image-input capability for Canvas vision routing", () => {
         const source = channel("newapi", ["gpt-5.6-sol"]);
         source.advancedConfig = { protocol: "newapi" } as never;
         const models = deriveLogicalModelsConfig([source]);
 
-        expect(isVisionModelResolvable(models, [source], "gpt-5.6-sol")).toBe(true);
-        expect(normalizeDefaultModelsConfig({ visionModel: "gpt-5.6-sol" }, models, [source]).visionModel).toBe("gpt-5.6-sol");
+        expect(isVisionModelResolvable(models, [source], "gpt-5.6-sol")).toBe(false);
+        expect(normalizeDefaultModelsConfig({ visionModel: "gpt-5.6-sol" }, models, [source]).visionModel).toBe("");
         expect(logicalModelSupportsImageInput(models, [source], "text", "gpt-5.6-sol")).toBe(false);
     });
 
