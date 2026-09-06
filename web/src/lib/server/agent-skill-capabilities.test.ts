@@ -3,12 +3,12 @@ import { assertAgentPlanSkillCompatibility, defaultSkillCapabilities, type Agent
 
 describe("agent skill capability contract", () => {
     it("accepts a skill that explicitly supports text plus image to image", () => {
-        const skills = [{ capabilities: [{ inputs: ["text", "image"], outputs: ["image"] }] }];
+        const skills: Array<{ capabilities: AgentSkillCapability[] }> = [{ capabilities: [{ inputs: ["text", "image"], outputs: ["image"] }] }];
         expect(() => assertAgentPlanSkillCompatibility({ deliverables: [{ type: "image", title: "商品图", prompt: "生成商品图" }] }, skills, ["image"])).not.toThrow();
     });
 
     it("rejects a video plan for an image-only skill", () => {
-        const skills = [{ capabilities: [{ inputs: ["text"], outputs: ["image"] }] }];
+        const skills: Array<{ capabilities: AgentSkillCapability[] }> = [{ capabilities: [{ inputs: ["text"], outputs: ["image"] }] }];
         expect(() => assertAgentPlanSkillCompatibility({ deliverables: [{ type: "video", title: "商品视频", prompt: "生成商品视频" }] }, skills, [])).toThrow("Skill 不支持当前输入与输出组合");
     });
 

@@ -3,6 +3,7 @@ import { cancelDramaLabStoryTask } from "@/lib/server/drama-lab-story-generation
 import { cancelDramaLabWorkflow, dramaLabWorkflowTaskView } from "@/lib/server/drama-lab-workflow-task-service";
 import { cancellationExecutionPatch } from "@/lib/server/generation-task-cancellation-service";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
+import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { listStoredDramaProjectTaskRecords, listStoredGenerationTaskRecords, getStoredGenerationTask, getStoredGenerationTaskRecord, type StoredGenerationTaskRecord } from "@/lib/server/generation-task-store";
 import { transitionTextTask, getTextTask, type TextTask } from "@/lib/server/text-task-store";
 import { transitionImageTask, getImageTask, type ImageTask } from "@/lib/server/image-task-store";
@@ -27,6 +28,7 @@ export type DramaLabTaskView = {
     error?: string;
     canCancel: boolean;
     canRetry: boolean;
+    canRecheck?: boolean;
     createdAt: number;
     updatedAt: number;
     title: string;
@@ -142,6 +144,24 @@ export async function cancelDramaLabTask(input: { userId: string; projectId: str
     return normalizeDramaLabTask(cancelled);
 }
 
+export async function recheckDramaLabTask(input: { userId: string; projectId: string; taskId: string; origin: string; cookie?: string }) {
+    const projectId = clean(input.projectId);
+    const taskId = clean(input.taskId);
+    if (!projectId || !taskId) throw new DramaLabTaskError("Task coordinates are incomplete", 400);
+    const resolved = await resolveDramaLabProjectForRequest(input.userId, projectId);
+    if (!resolved?.project) throw new DramaLabTaskError("Drama project not found", 404);
+    const ownerIds = await taskOwnerIds(input.userId, resolved.ownerUserId, projectId);
+    const located = await findTaskRecord(taskId, ownerIds, projectId);
+    if (!located) throw new DramaLabTaskError("Task not found", 404);
+    if (!located.upstreamTaskId) throw new DramaLabTaskError("This task has no upstream task ID and cannot be rechecked", 409);
+    if (!isActiveStatus(located.status, located.executionPhase)) throw new DramaLabTaskError("Only an active task can be rechecked", 409);
+    const scheduled = await scheduleGenerationTask(located.type, located.id, { executionPhase: "polling", nextPollAt: Date.now(), upstreamTaskId: located.upstreamTaskId });
+    if (!scheduled) throw new DramaLabTaskError("Task status changed; refresh and try again", 409);
+    void runGenerationTaskRecoveryBatch({ origin: input.origin, cookie: input.cookie, limit: 1, taskIds: [taskId], userRequested: true }).catch(() => undefined);
+    const refreshed = await getStoredGenerationTaskRecord(located.type, taskId);
+    return refreshed ? normalizeDramaLabTask(refreshed) : normalizeDramaLabTask({ ...located, executionPhase: "polling", nextPollAt: Date.now() });
+}
+
 export function normalizeDramaLabTask(record: StoredGenerationTaskRecord): DramaLabTaskView {
     const payload = object(record.payload);
     const nested = object(payload.context);
@@ -168,6 +188,7 @@ export function normalizeDramaLabTask(record: StoredGenerationTaskRecord): Drama
         error,
         canCancel: isActiveStatus(status, record.executionPhase),
         canRetry: (status === "error" || status === "cancelled") && (payload.retryable === true || record.type === "render"),
+        canRecheck: Boolean(record.upstreamTaskId) && isActiveStatus(status, record.executionPhase),
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,
         title,
