@@ -140,6 +140,8 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(ddl).toContain("20260906_ip_library_sub_ip_reset");
         expect(ddl).toContain("20260907_ip_library_file_integrity");
         expect(ddl).toContain("DROP TABLE IF EXISTS vozeb_pro_ip_versions CASCADE");
+        expect(ddl).toContain("IF to_regclass('vozeb_pro_ip_items') IS NOT NULL THEN");
+        expect(ddl).toContain("DELETE FROM vozeb_pro_ip_items WHERE file_id IN (SELECT id FROM vozeb_pro_ip_content_files WHERE sub_ip_id IS NULL)");
         expect(ddl).toContain("'processing', 'ready', 'failed', 'deleting'");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_download_records");
         expect(ddl).toContain("ADD CONSTRAINT vozeb_pro_ip_sub_ips_cover_file_fk FOREIGN KEY (cover_file_id) REFERENCES vozeb_pro_ip_content_files(id)");

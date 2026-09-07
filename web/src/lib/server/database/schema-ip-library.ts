@@ -120,7 +120,11 @@ BEGIN
 
         UPDATE ip_packages SET cover_file_id = NULL WHERE cover_file_id IN (SELECT id FROM ip_content_files WHERE sub_ip_id IS NULL);
         UPDATE ip_sub_ips SET cover_file_id = NULL WHERE cover_file_id IN (SELECT id FROM ip_content_files WHERE sub_ip_id IS NULL);
-        DELETE FROM ip_items WHERE file_id IN (SELECT id FROM ip_content_files WHERE sub_ip_id IS NULL);
+        -- On a legacy reset, ip_items was deliberately dropped above and is
+        -- recreated below. Only clean it when a previous schema still has it.
+        IF to_regclass('ip_items') IS NOT NULL THEN
+            DELETE FROM ip_items WHERE file_id IN (SELECT id FROM ip_content_files WHERE sub_ip_id IS NULL);
+        END IF;
         DELETE FROM ip_content_files WHERE sub_ip_id IS NULL;
         INSERT INTO schema_migrations (version) VALUES ('20260907_ip_library_file_integrity');
     END IF;
