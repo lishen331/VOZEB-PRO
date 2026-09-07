@@ -196,9 +196,9 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 style: proj.style || "",
                 aspectRatio: proj.ratio || "16:9",
                 episodes: (proj.episodes || []).map(normalizeEpisode),
-                characters: (proj.characters || []).map((asset: any) => ({ ...asset, imageUrl: assetImageUrl(asset) })),
-                scenes: (proj.scenes || []).map((asset: any) => ({ ...asset, location: asset.location || asset.name || "未命名场景", imageUrl: assetImageUrl(asset) })),
-                props: (proj.props || []).map((asset: any) => ({ ...asset, imageUrl: assetImageUrl(asset) })),
+                characters: (proj.characters || []).map((asset: Character) => ({ ...asset, imageUrl: assetImageUrl(asset) })),
+                scenes: (proj.scenes || []).map((asset: Scene) => ({ ...asset, location: asset.location || asset.name || "未命名场景", imageUrl: assetImageUrl(asset) })),
+                props: (proj.props || []).map((asset: Prop) => ({ ...asset, imageUrl: assetImageUrl(asset) })),
                 clues: proj.clues || [],
                 defaultVideoMode: proj.defaultVideoMode,
             };
