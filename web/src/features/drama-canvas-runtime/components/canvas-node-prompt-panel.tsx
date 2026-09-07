@@ -10,6 +10,7 @@ import { defaultConfig, useConfigStore, useEffectiveConfig, type AiConfig } from
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
+import { CanvasImageReferenceRolesPopover } from "@/components/canvas-image-reference-roles-popover";
 import { CanvasPromptLibrary } from "./canvas-prompt-library";
 import { CanvasAudioSettingsPopover } from "./canvas-audio-settings-popover";
 import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
@@ -135,6 +136,13 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 capability="image"
                                 onMissingConfig={() => openConfigDialog(true)}
                             />
+                            {mentionReferences.some((reference) => reference.kind === "image") ? (
+                                <CanvasImageReferenceRolesPopover
+                                    references={mentionReferences.filter((reference) => reference.kind === "image")}
+                                    roles={node.metadata?.imageReferenceRoles}
+                                    onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })}
+                                />
+                            ) : null}
                             <CanvasImageSettingsPopover
                                 config={config}
                                 placement="topLeft"

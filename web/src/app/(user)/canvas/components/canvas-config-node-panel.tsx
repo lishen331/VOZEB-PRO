@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Check, ChevronDown, Image as ImageIcon, LoaderCircle, MessageSquare, Music2, Play, Settings2, Sparkles, Square, Tag, Video } from "lucide-react";
+import { Check, ChevronDown, Image as ImageIcon, LoaderCircle, MessageSquare, Music2, Play, Settings2, Sparkles, Square, Video } from "lucide-react";
 import { Button, Dropdown } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
@@ -17,7 +17,6 @@ import type { CanvasGenerationMode, CanvasNodeData, CanvasNodeMetadata } from ".
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
 import { buildCanvasNodeConfig, canvasAudioConfigPatch, canvasVideoConfigPatch, resolveCanvasGenerationModel } from "../utils/canvas-node-config";
 import { canvasModelConfigPatch } from "../utils/canvas-model-capabilities";
-import { IMAGE_REFERENCE_ROLE_LABELS, imageReferenceRoleSummary, normalizeImageReferenceRoles, toggleImageReferenceRole, type ImageReferenceRole } from "@/lib/image-reference-roles";
 
 type CanvasConfigNodePanelProps = {
     node: CanvasNodeData;
@@ -133,7 +132,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, reference
             </div>
 
             <div
-                className={`mb-1.5 grid h-9 min-w-0 cursor-default items-stretch overflow-hidden rounded-xl border ${mode === "image" && references.some((reference) => reference.kind === "image") ? "grid-cols-[minmax(0,1fr)_108px_132px] divide-x" : mode === "image" ? "grid-cols-[minmax(0,1fr)_132px] divide-x" : mode === "video" || mode === "audio" ? "grid-cols-[minmax(0,1fr)_132px] divide-x" : "grid-cols-1"}`}
+                className={`mb-1.5 grid h-9 min-w-0 cursor-default items-stretch overflow-hidden rounded-xl border ${mode === "image" ? "grid-cols-[minmax(0,1fr)_132px] divide-x" : mode === "video" || mode === "audio" ? "grid-cols-[minmax(0,1fr)_132px] divide-x" : "grid-cols-1"}`}
                 style={{ background: theme.toolbar.itemHover, borderColor: theme.node.stroke }}
                 onMouseDown={(event) => event.stopPropagation()}
             >
@@ -146,14 +145,6 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, reference
                     onMissingConfig={() => openConfigDialog(true)}
                     fullWidth
                 />
-                {mode === "image" && references.some((reference) => reference.kind === "image") ? (
-                    <CanvasImageReferenceRolesPopover
-                        references={references.filter((reference) => reference.kind === "image")}
-                        roles={node.metadata?.imageReferenceRoles}
-                        theme={theme}
-                        onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })}
-                    />
-                ) : null}
                 {mode === "video" ? (
                     <CanvasVideoSettingsPopover
                         config={config}
@@ -281,68 +272,6 @@ function InputCount({ icon, label, value }: { icon: ReactNode; label: string; va
     );
 }
 
-function CanvasImageReferenceRolesPopover({
-    references,
-    roles,
-    theme,
-    onChange,
-}: {
-    references: CanvasResourceReference[];
-    roles?: CanvasNodeMetadata["imageReferenceRoles"];
-    theme: (typeof canvasThemes)[keyof typeof canvasThemes];
-    onChange: (roles: NonNullable<CanvasNodeMetadata["imageReferenceRoles"]>) => void;
-}) {
-    const current = normalizeImageReferenceRoles(roles);
-    const roleEntries = Object.entries(IMAGE_REFERENCE_ROLE_LABELS) as Array<[ImageReferenceRole, string]>;
-    return (
-        <Dropdown
-            trigger={["click"]}
-            placement="top"
-            popupRender={() => (
-                <div className="w-80 rounded-xl border p-2 shadow-xl" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
-                    <div className="px-2 pb-1 text-[11px] font-semibold">参考图用途（可多选）</div>
-                    {references.length ? (
-                        <div className="max-h-72 space-y-1 overflow-y-auto">
-                            {references.map((reference) => {
-                                const selected = current[reference.nodeId] || ["original"];
-                                return (
-                                    <div key={reference.nodeId} className="rounded-lg px-2 py-1.5" style={{ background: theme.toolbar.itemHover }}>
-                                        <div className="mb-1 truncate text-xs font-medium">
-                                            {reference.label} · {reference.title}
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                                            {roleEntries.map(([value, label]) => (
-                                                <label key={value} className="flex min-w-0 items-center gap-1 text-[11px] opacity-85">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selected.includes(value)}
-                                                        onChange={() => {
-                                                            const next = toggleImageReferenceRole(selected, value);
-                                                            onChange({ ...current, [reference.nodeId]: next });
-                                                        }}
-                                                    />
-                                                    <span className="truncate">{label}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                        <div className="mt-1 truncate text-[10px] opacity-55">当前：{imageReferenceRoleSummary(selected)}</div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className="px-2 py-2 text-[11px] opacity-60">暂无已连接图片</div>
-                    )}
-                </div>
-            )}
-        >
-            <Button type="text" data-canvas-no-drag className="canvas-compact-control !h-9 !w-full !justify-start !rounded-none !border-0 !bg-transparent !px-2 !shadow-none" style={{ color: theme.node.muted }} aria-label="设置参考图用途">
-                <Tag className="mr-1.5 size-3.5" />
-                <span className="truncate text-[11px]">参考图用途</span>
-            </Button>
-        </Dropdown>
-    );
-}
 const GENERATION_MODES: Array<{ value: CanvasGenerationMode; label: string }> = [
     { value: "image", label: "生图" },
     { value: "text", label: "文本" },
