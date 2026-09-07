@@ -108,7 +108,7 @@ export type CanvasNodeMetadata = {
     prompt?: string;
     sourcePrompt?: string;
     upstreamPrompt?: string;
-    imageReferenceRoles?: Record<string, "original" | "identity" | "clothing" | "skin">;
+    imageReferenceRoles?: Record<string, ("original" | "identity" | "clothing" | "skin" | "style" | "pose" | "composition" | "scene" | "lighting" | "product" | "prop")[]>;
     status?: CanvasNodeStatus;
     errorDetails?: string;
     fontSize?: number;

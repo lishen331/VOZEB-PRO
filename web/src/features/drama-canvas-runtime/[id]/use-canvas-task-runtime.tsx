@@ -23,6 +23,7 @@ type CanvasImageTaskOptions = {
     outputBackground?: "opaque" | "transparent";
     outputMode?: "layers";
     layerBatch?: { grant: string; slotId: string };
+    referenceRoles?: CanvasNodeMetadata["imageReferenceRoles"];
     commitResult?: boolean;
 };
 
@@ -314,7 +315,7 @@ export function useCanvasTaskRuntime({ state }: { state: CanvasPageState }) {
                 projectId,
                 outputBackground: options?.outputBackground,
                 outputMode: options?.outputMode,
-                referenceRoles: nodesRef.current.find((node) => node.id === nodeId)?.metadata?.imageReferenceRoles,
+                referenceRoles: options?.referenceRoles ?? nodesRef.current.find((node) => node.id === nodeId)?.metadata?.imageReferenceRoles,
                 layerBatch: options?.layerBatch,
                 ...createFreshGenerationTaskContext("canvas-image", [projectId, nodeId]),
             });

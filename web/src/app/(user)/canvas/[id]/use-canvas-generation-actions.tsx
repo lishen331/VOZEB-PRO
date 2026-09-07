@@ -192,6 +192,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                             isBatchRoot: count > 1,
                             batchChildIds: count > 1 ? childIds : undefined,
                             batchUsesReferenceImages: referenceImages.length > 0,
+                            imageReferenceRoles: sourceNode?.metadata?.imageReferenceRoles,
                             ...generationMetadata,
                             ...(isPanoramaNode ? { panoramaProjection: "equirectangular" as const, panoramaSourcePrompt: sourcePrompt } : {}),
                             ...(sourceNode?.metadata?.cameraControl && !isPanoramaNode ? { cameraControl: sourceNode.metadata.cameraControl } : {}),
@@ -213,6 +214,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                             sourcePrompt,
                             status: NODE_STATUS_LOADING,
                             batchRootId: count > 1 ? rootId : undefined,
+                            imageReferenceRoles: sourceNode?.metadata?.imageReferenceRoles,
                             ...generationMetadata,
                             ...(isPanoramaNode ? { panoramaProjection: "equirectangular" as const, panoramaSourcePrompt: sourcePrompt } : {}),
                             ...(sourceNode?.metadata?.cameraControl && !isPanoramaNode ? { cameraControl: sourceNode.metadata.cameraControl } : {}),
@@ -270,7 +272,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                     await Promise.all(
                         targetIds.map(async (targetId) => {
                             try {
-                                await startAndCompleteImageTask(targetId, { ...imageGenerationConfig, count: "1" }, effectivePrompt, referenceImages, undefined, controller);
+                                await startAndCompleteImageTask(targetId, { ...imageGenerationConfig, count: "1" }, effectivePrompt, referenceImages, undefined, controller, { referenceRoles: sourceNode?.metadata?.imageReferenceRoles });
                                 hasSuccess = true;
                                 if (isConfigNode) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS, errorDetails: undefined } } : node)));
                                 return true;
@@ -732,6 +734,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                     outputBackground: node.metadata?.imageOutputBackground,
                     outputMode: node.metadata?.imageOutputMode,
                     layerBatch: node.metadata?.imageLayerBatch,
+                    referenceRoles: node.metadata?.imageReferenceRoles,
                 });
             } catch (error) {
                 if (isGenerationCanceled(error)) return;

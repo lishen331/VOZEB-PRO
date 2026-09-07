@@ -30,7 +30,7 @@ type RequestOptions = {
     outputBackground?: "opaque" | "transparent";
     outputMode?: "layers";
     layerBatch?: { grant: string; slotId: string };
-    referenceRoles?: Record<string, "original" | "identity" | "clothing" | "skin">;
+    referenceRoles?: Record<string, ("original" | "identity" | "clothing" | "skin" | "style" | "pose" | "composition" | "scene" | "lighting" | "product" | "prop")[]>;
 };
 
 export type ImageGenerationTask = {

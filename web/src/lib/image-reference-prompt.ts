@@ -1,3 +1,5 @@
+import { IMAGE_REFERENCE_ROLE_CONSTRAINTS, normalizeImageReferenceRoles, type ImageReferenceRole } from "./image-reference-roles";
+
 export function imageReferenceLabel(index: number) {
     return `图片${index + 1}`;
 }
@@ -9,25 +11,31 @@ export function buildImageReferencePromptText(prompt: string, references: readon
     return `Reference images: ${labels.join(", ")}. Use the reference image as real visual input, not as a text description. If a reference image contains a person or character, keep the same identity/character, face proportions, hairstyle, body shape, clothing, and main pose as much as possible. Only change the scene, style, background, or details requested by the user. Do not replace the referenced person with a new person.\n\n参考图片编号：${labels.join("、")}。如果参考图中包含人物或角色，请保持同一人物/角色、五官比例、发型、体型、服饰和主要姿态，只按用户要求修改场景、风格、背景或细节，不要换成新人物。\n\n${text}`;
 }
 
+function buildCanvasReferenceRoleText(references: readonly { id?: string }[], referenceRoles: Record<string, ImageReferenceRole | ImageReferenceRole[]>) {
+    const normalized = normalizeImageReferenceRoles(referenceRoles);
+    return Object.entries(normalized)
+        .filter(([id, roles]) => references.some((reference) => reference.id === id) && roles.some((role) => role !== "original"))
+        .map(([id, roles]) => {
+            const index = references.findIndex((reference) => reference.id === id);
+            const constraints = roles
+                .filter((role): role is Exclude<ImageReferenceRole, "original"> => role !== "original")
+                .map((role) => IMAGE_REFERENCE_ROLE_CONSTRAINTS[role])
+                .join("；");
+            return `参考图${index + 1}用途：${constraints}`;
+        })
+        .join("\n");
+}
+
 /** Resolve the prompt sent to an image provider. Canvas direct generation keeps the user's prompt intact. */
 export function buildImageTaskPrompt(task: {
     prompt: string;
     source?: string;
     config: { systemPrompt?: string; outputBackground?: string; outputMode?: string };
     references: readonly { id?: string }[];
-    referenceRoles?: Record<string, "original" | "identity" | "clothing" | "skin">;
+    referenceRoles?: Record<string, ImageReferenceRole | ImageReferenceRole[]>;
 }) {
     const base = task.source === "canvas" ? task.prompt.trim() : buildImageReferencePromptText(task.prompt, task.references);
-    const roleText =
-        task.source === "canvas"
-            ? Object.entries(task.referenceRoles || {})
-                  .filter(([id, role]) => role !== "original" && task.references.some((reference) => reference.id === id))
-                  .map(
-                      ([id, role]) =>
-                          `参考图${task.references.findIndex((reference) => reference.id === id) + 1}用途：${role === "identity" ? "身份锚点，仅参考人物身份与脸部特征" : role === "clothing" ? "服装参考，仅参考服装与穿着细节" : "肤质参考，仅参考皮肤质感与纹理"}`,
-                  )
-                  .join("\n")
-            : "";
+    const roleText = task.source === "canvas" ? buildCanvasReferenceRoleText(task.references, task.referenceRoles || {}) : "";
     const withRoles = roleText ? `${base}\n\n用户明确指定的参考图用途：\n${roleText}` : base;
     const withOutput =
         task.config.outputMode === "layers"
