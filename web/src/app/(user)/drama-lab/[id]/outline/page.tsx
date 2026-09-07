@@ -64,7 +64,7 @@ interface Prop {
     prompt?: string;
 }
 
-type LooseAssetData = { storageKey?: string; serverUrl?: string; remoteUrl?: string; dataUrl?: string };
+type LooseAssetData = { storageKey?: string; serverUrl?: string; remoteUrl?: string; dataUrl?: string; content?: string; url?: string };
 type LooseAssetReference = { role?: string; url?: string };
 type LooseAsset = {
     referenceImageUrl?: string;
@@ -74,8 +74,11 @@ type LooseAsset = {
     name?: string;
     data?: LooseAssetData;
     references?: LooseAssetReference[];
+    note?: string;
+    tags?: string[];
+    metadata?: Record<string, unknown>;
 };
-type LooseEpisode = Partial<Episode> & { script_content?: unknown; reviewStatus?: unknown; shotCount?: unknown };
+type LooseEpisode = Partial<Episode> & { script_content?: unknown; reviewStatus?: unknown; shotCount?: unknown; status?: unknown };
 
 interface Project {
     id: string;
@@ -95,11 +98,12 @@ type StyleOption = { label: string; value: string; prompt?: string; promptEn?: s
 type StyleGroup = { label: string; options: StyleOption[] };
 const STYLE_GROUPS = styleGroups as StyleGroup[];
 
-function assetImageUrl(asset: LooseAsset | null | undefined): string | undefined {
+function assetImageUrl(asset: LooseAsset | Asset | null | undefined): string | undefined {
     if (!asset || typeof asset !== "object") return undefined;
-    const references = Array.isArray(asset.references) ? asset.references : [];
-    const data = asset.data && typeof asset.data === "object" ? asset.data : {};
-    return asset.referenceImageUrl || asset.imageUrl || data.serverUrl || data.remoteUrl || data.dataUrl || asset.coverUrl || references.find((reference) => reference?.role === "primary")?.url || references[0]?.url || undefined;
+    const source = asset as LooseAsset;
+    const references = Array.isArray(source.references) ? source.references : [];
+    const data = source.data && typeof source.data === "object" ? source.data : {};
+    return source.referenceImageUrl || source.imageUrl || data.serverUrl || data.remoteUrl || data.dataUrl || source.coverUrl || references.find((reference) => reference?.role === "primary")?.url || references[0]?.url || undefined;
 }
 
 function normalizeEpisode(value: LooseEpisode, index: number): Episode {
@@ -110,7 +114,7 @@ function normalizeEpisode(value: LooseEpisode, index: number): Episode {
         number,
         episodeNumber: number,
         script: typeof value?.script === "string" ? value.script : typeof value?.script_content === "string" ? value.script_content : "",
-        status: value?.status || value?.reviewStatus || "draft",
+        status: typeof value?.status === "string" ? value.status : typeof value?.reviewStatus === "string" ? value.reviewStatus : "draft",
         storyboardCount: Number(value?.storyboardCount ?? value?.shotCount ?? shots.length ?? 0),
         shots,
     };
@@ -322,8 +326,8 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
 
     const handleResourceImport = async (asset: Asset) => {
         if (!project) return;
-        const imageUrl = assetImageUrl(asset);
-        const source: LooseAsset = asset;
+        const source = asset as unknown as LooseAsset;
+        const imageUrl = assetImageUrl(source);
         const common = {
             description: asset.note || "",
             imageUrl,
@@ -877,8 +881,8 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                             >
                                 <List.Item.Meta
                                     avatar={
-                                        assetImageUrl(asset) ? (
-                                            <img src={assetImageUrl(asset)} alt={asset.title} className="size-9 rounded object-cover" />
+                                        assetImageUrl(asset as unknown as LooseAsset) ? (
+                                            <img src={assetImageUrl(asset as unknown as LooseAsset)} alt={asset.title} className="size-9 rounded object-cover" />
                                         ) : (
                                             <div className="grid size-9 place-items-center rounded bg-muted">
                                                 <LibraryBig className="size-4" />
