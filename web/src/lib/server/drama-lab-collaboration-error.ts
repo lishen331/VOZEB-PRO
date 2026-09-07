@@ -11,3 +11,7 @@ export class DramaLabCollaborationError extends Error {
         return value instanceof Error && (value.name === "DramaLabCollaborationError" || value.constructor?.name === "DramaLabCollaborationError");
     }
 }
+
+export function isDramaLabCollaborationError(value: unknown): value is { status: number; message: string } {
+    return value instanceof Error && (value.name === "DramaLabCollaborationError" || value.constructor?.name === "DramaLabCollaborationError");
+}

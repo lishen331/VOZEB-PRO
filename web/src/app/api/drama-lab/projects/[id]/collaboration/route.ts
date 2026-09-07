@@ -1,4 +1,4 @@
-import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
@@ -38,7 +38,7 @@ function jsonError(status: number, msg: string) {
 }
 
 function collaborationError(error: unknown) {
-    if (error instanceof DramaLabCollaborationError) return jsonError(error.status, error.message);
+    if (error isDramaLabCollaborationError) return jsonError(error.status, error.message);
     console.error("[drama-lab/collaboration]", error);
     return jsonError(500, error instanceof Error ? error.message : "团队协作请求失败");
 }

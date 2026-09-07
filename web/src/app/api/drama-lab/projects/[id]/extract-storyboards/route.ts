@@ -1,4 +1,4 @@
-import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { randomUUID } from "node:crypto";
 
 import { after, NextResponse } from "next/server";
@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         after(() => advanceDramaLabWorkflow({ userId: user.id, taskId: task.id, origin: new URL(request.url).origin, cookie: request.headers.get("cookie") || "" }).catch((error) => console.warn("Drama storyboard extraction advance deferred", error)));
         return NextResponse.json({ code: 0, data: { taskId: task.id, task: dramaLabWorkflowTaskView(task) }, msg: "分镜提取任务已创建" }, { status: 202 });
     } catch (error) {
-        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabWorkflowError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabWorkflowError || error isDramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜提取失败" }, { status });
     }
 }

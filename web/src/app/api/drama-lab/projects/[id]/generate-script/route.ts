@@ -1,4 +1,4 @@
-import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { randomUUID } from "node:crypto";
 
 import { after, NextResponse } from "next/server";
@@ -46,7 +46,7 @@ export async function POST(request: Request, { params }: RouteContext) {
         after(() => runGenerationTaskRecoveryBatch({ origin, cookie: request.headers.get("cookie") || "", limit: 1, taskIds: [task.id] }));
         return NextResponse.json({ code: 0, data: { ...data, taskId: task.id }, msg: "剧本生成任务已创建" }, { status: 202 });
     } catch (error) {
-        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabStoryGenerationError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabStoryGenerationError || error isDramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "剧本生成失败" }, { status });
     }
 }
@@ -82,7 +82,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         }
         return NextResponse.json({ code: 0, data, msg: "OK" });
     } catch (error) {
-        const status = error instanceof DramaLabStoryGenerationError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabStoryGenerationError || error isDramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "任务状态查询失败" }, { status });
     }
 }
@@ -102,7 +102,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         if (!cancelled) return NextResponse.json({ code: 409, data: null, msg: "当前故事生成任务无法取消" }, { status: 409 });
         return NextResponse.json({ code: 0, data: storyTaskView(cancelled), msg: "故事生成任务已取消" });
     } catch (error) {
-        const status = error instanceof DramaLabStoryGenerationError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabStoryGenerationError || error isDramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "任务取消失败" }, { status });
     }
 }

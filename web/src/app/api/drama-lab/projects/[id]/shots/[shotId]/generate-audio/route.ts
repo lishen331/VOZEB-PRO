@@ -1,4 +1,4 @@
-import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
@@ -107,7 +107,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         return NextResponse.json({ code: 0, data: { task: payload.task, kind: input.kind, speaker: input.speaker }, msg: "短剧音频任务已创建" });
     } catch (error) {
-        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError || error isDramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "短剧音频任务创建失败" }, { status });
     }
 }

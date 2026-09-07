@@ -1,4 +1,4 @@
-import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const result = await requestDramaLabJoin(user.id, token);
         return NextResponse.json({ code: 0, data: result, msg: "加入申请已提交，等待项目管理员确认" });
     } catch (error) {
-        return error instanceof DramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "加入申请失败");
+        return error isDramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "加入申请失败");
     }
 }
 

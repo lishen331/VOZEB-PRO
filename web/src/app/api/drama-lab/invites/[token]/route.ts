@@ -1,4 +1,4 @@
-import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
@@ -30,5 +30,5 @@ function fail(status: number, msg: string) {
     return NextResponse.json({ code: status, data: null, msg }, { status });
 }
 function handle(error: unknown) {
-    return error instanceof DramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "邀请请求失败");
+    return error isDramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "邀请请求失败");
 }

@@ -1,4 +1,4 @@
-import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getAuthSettings } from "@/lib/auth/store";
@@ -93,7 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             cause: error instanceof Error ? error.cause : undefined,
             name: error instanceof Error ? error.name : undefined,
         });
-        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError || error isDramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜图任务创建失败" }, { status });
     }
 }
