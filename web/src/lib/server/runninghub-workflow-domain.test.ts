@@ -165,10 +165,15 @@ describe("RunningHub workflow domain", () => {
         expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true, lastTestResult: "failed", lastTestConfigFingerprint: fingerprint })).toEqual(expect.arrayContaining([expect.stringContaining("测试")]));
     });
 
-    it("requires one enabled version per channel and business code", () => {
+    it("allows different workflow codes in the same business group to stay enabled", () => {
+        const first = { ...baseConfig, workflowKey: "character", workflowCode: "character_main_view", channelId: "rh", enabled: true };
+        const second = { ...baseConfig, workflowKey: "prop", workflowCode: "prop_main_view", channelId: "rh", enabled: true };
+        expect(validateRunningHubWorkflowConfig(second, [first, second])).toEqual([]);
+    });
+    it("requires one enabled version per channel and workflow code", () => {
         const configs = {
-            first: { ...baseConfig, workflowKey: "first", channelId: "rh", enabled: true },
-            second: { ...baseConfig, workflowKey: "second", channelId: "rh", version: 2, enabled: true },
+            first: { ...baseConfig, workflowKey: "first", workflowCode: "storyboard_shot", channelId: "rh", enabled: true },
+            second: { ...baseConfig, workflowKey: "second", workflowCode: "storyboard_shot", channelId: "rh", version: 2, enabled: true },
             otherChannel: { ...baseConfig, workflowKey: "other", channelId: "rh-2", enabled: true },
         };
         expect(validateRunningHubWorkflowConfig(configs.second, Object.values(configs))).toEqual(expect.arrayContaining([expect.stringContaining("enabled")]));

@@ -65,14 +65,32 @@ test("管理员可读取 RunningHub 工作流、测试并在当前指纹成功�
     });
     expect(created.ok(), await created.text()).toBe(true);
     const workflow = (await created.json()).data;
-    const submitted = await page.request.post(`/api/admin/runninghub/workflows/${workflow.workflowKey}/test`, { data: { input: { prompt: "测试视频" }, references: [{ type: "image", url: "https://fixture.invalid/reference.png" }] } });
+    const referenceKey = discovery.suggestedInputs.find((item: { type?: string }) => item.type === "image")?.key;
+    expect(referenceKey).toBeTruthy();
+    const submitted = await page.request.post(`/api/admin/runninghub/workflows/${workflow.workflowKey}/test`, {
+        multipart: {
+            input: JSON.stringify({ prompt: "测试视频" }),
+            references: "[]",
+            fileKeys: JSON.stringify([referenceKey]),
+            file: { name: "reference.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64") },
+        },
+    });
     expect(submitted.ok(), await submitted.text()).toBe(true);
     const run = (await submitted.json()).data;
     const inspected = await page.request.get(`/api/admin/runninghub/workflows/${workflow.workflowKey}/test/${run.runId}`);
     expect(inspected.ok(), await inspected.text()).toBe(true);
     expect((await inspected.json()).data).toMatchObject({ status: "success", taskId: run.taskId, workflowId: discovery.workflowId, configFingerprint: expect.any(String) });
+    const fixtureState = (await (await page.request.get(`http://127.0.0.1:${fixturePort}/__state`)).json()) as { tasks: Array<{ payload?: { nodeInfoList?: Array<{ fieldValue?: string }> } }>; uploads: string[] };
+    expect(fixtureState.uploads).toContain("reference.png");
+    expect(fixtureState.tasks.at(-1)?.payload?.nodeInfoList).toEqual(expect.arrayContaining([expect.objectContaining({ fieldValue: "api/fixture/uploaded-media.png" })]));
 
     const enabled = await page.request.put(`/api/admin/runninghub/workflows/${workflow.workflowKey}`, { data: { enabled: true } });
     expect(enabled.ok(), await enabled.text()).toBe(true);
     expect((await enabled.json()).data).toMatchObject({ enabled: true, requiresRetest: false });
+
+    const routedSettings = (await (await page.request.get("/api/admin/settings")).json()).settings;
+    const logicalModelId = routedSettings.practiceWorkflowModels[workflow.businessCode]?.[0];
+    expect(logicalModelId).toBeTruthy();
+    expect(routedSettings.systemChannels.find((item: { id: string }) => item.id === channel.id)?.models).toContain(logicalModelId);
+    expect(routedSettings.logicalModels).toContainEqual(expect.objectContaining({ id: logicalModelId, capability: workflow.capability, enabled: true }));
 });

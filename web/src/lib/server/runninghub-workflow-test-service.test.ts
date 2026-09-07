@@ -128,6 +128,29 @@ describe("runninghub workflow test service", () => {
         expect(mocks.submit).not.toHaveBeenCalled();
     });
 
+    it("rechecks the same upstream task after a previous query parsing error", async () => {
+        mocks.get.mockResolvedValue({
+            id: "run-recover",
+            userId: "admin-1",
+            workflowKey: "wf",
+            workflowVersion: 2,
+            upstreamWorkflowId: "remote",
+            businessCode: "script",
+            type: "text",
+            status: "error",
+            taskId: "task-recover",
+            error: "RunningHub 查询响应缺少状态字段",
+            createdAt: Date.now() - 20,
+            updatedAt: Date.now(),
+            taskOrigin: "admin-workflow-test",
+            workflowConfig: structuredClone(config),
+        });
+        mocks.query.mockResolvedValue({ status: "SUCCESS", resultText: "recovered", raw: {} });
+
+        await expect(inspectRunningHubWorkflowTest({ workflowKey: "wf", runId: "run-recover", adminId: "admin-1" })).resolves.toMatchObject({ status: "success", resultText: "recovered" });
+        expect(mocks.query).toHaveBeenCalledWith(expect.objectContaining({ taskId: "task-recover" }));
+        expect(mocks.submit).not.toHaveBeenCalled();
+    });
     it("does not mark a successful upstream status as tested when no configured artifact was returned", async () => {
         mocks.get.mockResolvedValue({
             id: "run-no-output",

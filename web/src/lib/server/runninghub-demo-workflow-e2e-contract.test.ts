@@ -27,10 +27,10 @@ describe("RunningHub Demo local fixture contract", () => {
             expect(body.data?.taskId).toMatch(/^fixture-task-/);
             const query = await fetch(`http://127.0.0.1:${port}/openapi/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ apiKey: "fixture-key", taskId: body.data?.taskId }) });
             expect(query.status).toBe(200);
-            const queryBody = (await query.json()) as { data?: { status?: string; results?: Array<{ url?: string; fileUrl?: string; fileType?: string; nodeId?: string }> } };
-            expect(queryBody.data?.status).toBe("SUCCESS");
-            expect(queryBody.data?.results).toHaveLength(1);
-            const result = queryBody.data?.results?.[0];
+            const queryBody = (await query.json()) as { status?: string; results?: Array<{ url?: string; fileUrl?: string; fileType?: string; nodeId?: string }> };
+            expect(queryBody.status).toBe("SUCCESS");
+            expect(queryBody.results).toHaveLength(1);
+            const result = queryBody.results?.[0];
             if (workflow.capability === "image") expect(result).toMatchObject({ url: expect.stringMatching(/\.png$/), fileUrl: expect.stringMatching(/\.png$/), fileType: "IMAGE", nodeId: expect.any(String) });
             if (workflow.capability === "video") expect(result).toMatchObject({ url: expect.stringMatching(/\.mp4$/), fileUrl: expect.stringMatching(/\.mp4$/), fileType: "VIDEO", nodeId: expect.any(String) });
             if (workflow.capability === "audio") expect(result).toMatchObject({ url: expect.stringMatching(/\.mp3$/), fileUrl: expect.stringMatching(/\.mp3$/), fileType: "AUDIO", nodeId: expect.any(String) });
@@ -64,7 +64,7 @@ describe("RunningHub Demo local fixture contract", () => {
         });
         const taskId = ((await created.json()) as { data: { taskId: string } }).data.taskId;
         const queried = await fetch(`http://127.0.0.1:${port}/openapi/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ apiKey: "fixture-key", taskId }) });
-        expect(await queried.json()).toMatchObject({ code: 0, data: { status: "FAILED", failedReason: "fixture task rejected", results: [] } });
+        expect(await queried.json()).toMatchObject({ status: "FAILED", failedReason: "fixture task rejected", results: [] });
     });
 });
 

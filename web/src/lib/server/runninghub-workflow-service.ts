@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { getFreshAuthSettings, setAuthSettings, type AuthSettings, type SystemModelChannel } from "@/lib/auth/store";
-import type { RunningHubWorkflowConfig } from "@/lib/auth/store-types";
+import type { RunningHubWorkflowConfig, SystemChannelModelConfig } from "@/lib/auth/store-types";
 import { isRunningHubWorkflowBusinessCode, nextWorkflowVersion, normalizeRunningHubWorkflowConfig, validateRunningHubWorkflowConfig, workflowRequiresRetest } from "./runninghub-workflow-domain";
 import { analyzeRunningHubWorkflowJson, type RunningHubWorkflowDiscovery } from "./runninghub-workflow-discovery";
 import { fetchRunningHubWorkflowJson } from "./runninghub-provider";
@@ -263,14 +263,20 @@ export async function setWorkflowEnabled(workflowKey: string, enabled: boolean) 
     const settings = await getFreshAuthSettings();
     const found = findWorkflow(settings, workflowKey);
     if (!found) throw new RunningHubWorkflowError("工作流不存在", 404);
-    const configs = workflowConfigs(found.channel).map((config) => ({ ...config, enabled: config.workflowKey === workflowKey ? enabled : enabled && config.businessCode === found.config.businessCode ? false : config.enabled }));
+    const configs = workflowConfigs(found.channel).map((config) => ({ ...config, enabled: config.workflowKey === workflowKey ? enabled : enabled && sameWorkflowIdentity(config, found.config) ? false : config.enabled }));
     const candidate = configs.find((config) => config.workflowKey === workflowKey) || found.config;
     if (enabled) ensureEnableEvidence(candidate, found.config.enabled);
     assertValid(
         candidate,
         configs.filter((config) => config.workflowKey !== workflowKey),
     );
-    const saved = await setAuthSettings({ systemChannels: replaceWorkflow(settings, found.channel.id, configs) });
+    const nextChannels = replaceWorkflow(settings, found.channel.id, configs);
+    const routing: Partial<Pick<AuthSettings, "systemChannels" | "logicalModels" | "practiceWorkflowModels">> = enabled ? ensurePracticeWorkflowRouting(settings, nextChannels, candidate) : {};
+    const saved = await setAuthSettings({
+        systemChannels: routing.systemChannels || nextChannels,
+        ...(routing.logicalModels ? { logicalModels: routing.logicalModels } : {}),
+        ...(routing.practiceWorkflowModels ? { practiceWorkflowModels: routing.practiceWorkflowModels } : {}),
+    });
     const persisted = findWorkflow(saved, workflowKey);
     return publicWorkflow(persisted?.config || candidate, persisted?.channel || found.channel);
 }
@@ -284,6 +290,61 @@ export async function deleteWorkflow(workflowKey: string) {
     await setAuthSettings({ systemChannels: replaceWorkflow(settings, found.channel.id, configs) });
 }
 
+function ensurePracticeWorkflowRouting(settings: AuthSettings, channels: SystemModelChannel[], workflow: RunningHubWorkflowConfig) {
+    const channel = channels.find((item) => item.id === workflow.channelId);
+    if (!channel) throw new RunningHubWorkflowError("工作流渠道不存在", 404);
+    const modelId = `runninghub-workflow-${workflow.capability}-${channel.id}`;
+    const bindingId = `${modelId}:${channel.id}`;
+    const enabledCapabilityWorkflows = workflowConfigs(channel).filter((item) => item.enabled && item.capability === workflow.capability && !workflowRequiresRetest(item));
+    const inputFields = enabledCapabilityWorkflows.flatMap((item) => item.inputSchema);
+    const capabilityProfile = {
+        supportsReferenceImage: inputFields.some((field) => field.type === "image" || field.type === "images"),
+        supportsReferenceVideo: inputFields.some((field) => field.type === "video"),
+        supportsReferenceAudio: inputFields.some((field) => field.type === "audio"),
+    };
+    const modelConfig: SystemChannelModelConfig = {
+        capability: workflow.capability,
+        source: "official",
+        protocol: "runninghub",
+        apiFormat: channel.apiFormat,
+        createPath: workflow.createPath,
+        queryPath: workflow.queryPath,
+        requestTemplate: workflow.requestTemplate,
+        taskIdField: workflow.taskIdField,
+        resultField: workflow.resultField,
+        statusField: workflow.statusField,
+        supportsReferenceImage: capabilityProfile.supportsReferenceImage,
+        supportsReferenceVideo: capabilityProfile.supportsReferenceVideo,
+        supportsReferenceAudio: capabilityProfile.supportsReferenceAudio,
+    };
+    const systemChannels = channels.map((item) =>
+        item.id === channel.id
+            ? {
+                  ...item,
+                  models: item.models.includes(modelId) ? item.models : [...item.models, modelId],
+                  advancedConfig: {
+                      ...item.advancedConfig!,
+                      modelCapabilities: { ...(item.advancedConfig?.modelCapabilities || {}), [modelId]: workflow.capability },
+                      modelConfigs: {
+                          ...(item.advancedConfig?.modelConfigs || {}),
+                          [modelId]: modelConfig,
+                      },
+                  },
+              }
+            : item,
+    );
+    const current = settings.logicalModels.find((item) => item.id === modelId);
+    const binding = { id: bindingId, channelId: channel.id, upstreamModel: modelId, enabled: true, priority: 1, capabilityProfile };
+    const logicalModel = current
+        ? { ...current, name: workflow.workflowName, capability: workflow.capability, enabled: true, bindings: [binding, ...current.bindings.filter((item) => item.id !== bindingId)] }
+        : { id: modelId, name: workflow.workflowName, capability: workflow.capability, enabled: true, bindings: [binding] };
+    const existingBindings = settings.practiceWorkflowModels[workflow.businessCode] || [];
+    return {
+        systemChannels,
+        logicalModels: [logicalModel, ...settings.logicalModels.filter((item) => item.id !== modelId)],
+        practiceWorkflowModels: { ...settings.practiceWorkflowModels, [workflow.businessCode]: [modelId, ...existingBindings.filter((item) => item !== modelId)] },
+    };
+}
 function workflowEntries(settings: AuthSettings) {
     return settings.systemChannels.flatMap((channel) => workflowConfigs(channel).map((config) => ({ channel, config })));
 }
@@ -337,10 +398,15 @@ function requireRunningHubChannel(settings: AuthSettings, channelId: string) {
 function assertValid(candidate: RunningHubWorkflowConfig, siblings: readonly RunningHubWorkflowConfig[]) {
     const errors = validateRunningHubWorkflowConfig(candidate, siblings);
     if (errors.length) throw new RunningHubWorkflowError(errors[0]);
-    if (siblings.some((sibling) => sibling.enabled && candidate.enabled && sibling.channelId === candidate.channelId && sibling.businessCode === candidate.businessCode && sibling.workflowKey !== candidate.workflowKey))
-        throw new RunningHubWorkflowError("同一渠道和业务 code 只能启用一个工作流版本", 409);
+    if (siblings.some((sibling) => sibling.enabled && candidate.enabled && sibling.channelId === candidate.channelId && sameWorkflowIdentity(sibling, candidate) && sibling.workflowKey !== candidate.workflowKey))
+        throw new RunningHubWorkflowError("同一渠道和工作流 code 只能启用一个版本", 409);
 }
 
+function sameWorkflowIdentity(left: RunningHubWorkflowConfig, right: RunningHubWorkflowConfig) {
+    const leftCode = left.workflowCode?.trim();
+    const rightCode = right.workflowCode?.trim();
+    return leftCode && rightCode ? leftCode === rightCode : left.businessCode === right.businessCode;
+}
 function ensureEnableEvidence(candidate: RunningHubWorkflowConfig, legacyEnabled = false) {
     if (legacyEnabled && !candidate.testRequired && !candidate.workflowJsonFingerprint && !candidate.lastTestConfigFingerprint) return;
     if (workflowRequiresRetest(candidate) || (!candidate.workflowJsonFingerprint && !candidate.lastTestConfigFingerprint)) throw new RunningHubWorkflowError("启用前请先提交当前配置的成功样例测试", 409);

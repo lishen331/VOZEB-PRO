@@ -63,9 +63,15 @@ export async function queryRunningHubTask(input: { baseUrl: string; apiKey: stri
         input.config.timeoutSeconds,
         officialQuery,
     );
-    const status = readProviderString(raw, statusField, []);
-    const officialResultList = officialQuery ? readOfficialResultList(raw) : undefined;
+    if (officialQuery && hasOfficialFailureCode(raw)) {
+        const message = sanitizeProviderMessage(readProviderError(raw), [input.apiKey]);
+        throw new Error(message || "RunningHub 查询失败");
+    }
+    const officialData = officialQuery ? unwrapOfficialResponse(raw) : undefined;
+    const officialResultList = officialData !== undefined ? readOfficialResultList(officialData) : undefined;
     const officialResults = officialResultList ? normalizeOfficialResults(officialResultList) : undefined;
+    const configuredStatus = officialData !== undefined ? readProviderString(officialData, "status", []) : readProviderString(raw, statusField, []);
+    const status = configuredStatus || (officialQuery ? (officialResults?.length ? "SUCCESS" : "RUNNING") : "");
     const result = officialResults ?? readProviderValue(raw, resultField);
     const outputs = officialResults ? resolveOfficialOutputs(officialResults, input.config.outputMappings || []) : resolveOutputs(result, raw, input.config.outputMappings || []);
     const resultUrls = uniqueStrings(outputs.length ? outputs.flatMap((output) => output.values.flatMap(collectUrls)) : officialResults && input.config.outputMappings?.length ? [] : collectUrls(result));
@@ -75,7 +81,7 @@ export async function queryRunningHubTask(input: { baseUrl: string; apiKey: stri
     if (!status) throw new Error("RunningHub 查询响应缺少状态字段");
     if (isSuccessfulStatus(status) && result === undefined) throw new Error("RunningHub 查询响应未返回结果列表");
     // 查询摘要会持久化并展示，必须在离开 Provider 边界前清除渠道密钥。
-    const upstreamError = officialQuery ? sanitizeProviderMessage(readProviderString(raw, "data.errorMessage / data.failedReason / data.error / errorMessage / failedReason / error", []), [input.apiKey]) : undefined;
+    const upstreamError = officialData !== undefined ? sanitizeProviderMessage(readProviderString(officialData, "errorMessage / failedReason / error", []), [input.apiKey]) : undefined;
     const querySummary = officialQuery
         ? { status, resultCount: officialResultList?.length || 0, nodeIds: uniqueStrings((officialResults || []).flatMap((result) => (result.nodeId ? [result.nodeId] : []))), ...(upstreamError ? { upstreamError } : {}) }
         : undefined;
@@ -92,8 +98,20 @@ export async function queryRunningHubTask(input: { baseUrl: string; apiKey: stri
 
 type OfficialRunningHubResult = { url?: string; fileUrl?: string; fileType?: string; nodeId?: string; taskCostTime?: string; text?: string };
 
-function readOfficialResultList(raw: unknown): unknown[] | undefined {
-    const value = readProviderValue(raw, "data.results");
+function hasOfficialFailureCode(raw: unknown) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+    const code = (raw as Record<string, unknown>).code;
+    if (code === undefined || code === null || code === "") return false;
+    return !["0", "200", "201", "202", "ok", "success"].includes(String(code).trim().toLowerCase());
+}
+function unwrapOfficialResponse(raw: unknown) {
+    const data = readProviderValue(raw, "data");
+    return data === undefined || data === null ? raw : data;
+}
+
+function readOfficialResultList(data: unknown): unknown[] | undefined {
+    if (Array.isArray(data)) return data;
+    const value = readProviderValue(data, "results / data");
     return Array.isArray(value) ? value : undefined;
 }
 
@@ -125,8 +143,8 @@ export async function uploadRunningHubMedia(input: { baseUrl: string; apiKey: st
     const form = new FormData();
     form.append("file", input.file, input.fileName);
     const raw = await requestJson(input.baseUrl, "/openapi/v2/media/upload/binary", input.apiKey, input.fetchImpl, { method: "POST", body: form });
-    const url = readProviderString(raw, "data.download_url / download_url", []);
-    if (!url) throw new Error("RunningHub 媒体上传响应缺少 download_url");
+    const url = readProviderString(raw, "data.fileName / fileName", []);
+    if (!url) throw new Error("RunningHub 媒体上传响应缺少 fileName");
     return url;
 }
 

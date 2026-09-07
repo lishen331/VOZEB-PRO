@@ -54,7 +54,7 @@ const server = http.createServer(async (req, res) => {
         const filenameMatch = body.match(/filename=(?:"([^"]+)"|([^;\r\n]+))/i);
         const filename = filenameMatch?.[1] || filenameMatch?.[2]?.trim();
         if (filename) uploads.push(filename);
-        return json(res, 200, { code: 0, data: { download_url: "https://fixture.invalid/uploaded-media.png" } });
+        return json(res, 200, { code: 0, data: { fileName: "api/fixture/uploaded-media.png" } });
     }
     if (req.method === "POST" && url.pathname === "/task/openapi/create") {
         const body = await readBody(req);
@@ -72,13 +72,13 @@ const server = http.createServer(async (req, res) => {
         const task = tasks.get(parsed.taskId);
         if (!task) return json(res, 404, { code: 404, message: "task not found" });
         const url = resultUrl(task.kind);
-        return json(res, 200, {
-            code: 0,
-            data:
-                task.status === "SUCCESS"
-                    ? { status: task.status, results: [{ url, fileUrl: url, fileType: fileType(task.kind), nodeId: outputNodeId(task), taskCostTime: "3128" }] }
-                    : { status: task.status, failedReason: "fixture task rejected", results: [] },
-        });
+        return json(
+            res,
+            200,
+            task.status === "SUCCESS"
+                ? { status: task.status, results: [{ url, fileUrl: url, fileType: fileType(task.kind), nodeId: outputNodeId(task), taskCostTime: "3128" }] }
+                : { status: task.status, failedReason: "fixture task rejected", results: [] },
+        );
     }
     return json(res, 404, { code: 404, message: "not found" });
 });

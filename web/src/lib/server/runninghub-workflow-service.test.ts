@@ -14,6 +14,8 @@ vi.mock("./runninghub-provider", () => ({ fetchRunningHubWorkflowJson: mocks.fet
 
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store-types";
+import { runningHubChannelValidationErrors } from "./admin-channel-config";
+import { resolvePracticeModuleModelOptions } from "./practice-module-service";
 import { runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
 import {
     RunningHubWorkflowError,
@@ -156,6 +158,50 @@ describe("runninghub workflow service", () => {
         expect(mocks.setAuthSettings).toHaveBeenCalled();
     });
 
+    it("keeps different Demo workflow codes enabled within the same image business group", async () => {
+        const storyboard = { ...workflow, workflowKey: "storyboard", workflowCode: "storyboard_shot" as const, enabled: true, inputSchema: [...workflow.inputSchema, { key: "sceneImage", label: "场景图", type: "image" as const, required: true }] };
+        const prop: RunningHubWorkflowConfig = { ...workflow, workflowKey: "prop", workflowCode: "prop_main_view", workflowName: "道具主视图", enabled: false };
+        prop.lastTestConfigFingerprint = runningHubWorkflowConfigFingerprint(prop);
+        const current = settingsWith(storyboard, prop);
+        mocks.getFreshAuthSettings.mockResolvedValue(current);
+        mocks.setAuthSettings.mockImplementation(async (patch: Partial<AuthSettings>) => ({ ...current, ...patch }));
+
+        await setWorkflowEnabled(prop.workflowKey, true);
+
+        const patch = mocks.setAuthSettings.mock.calls.at(-1)?.[0] as Partial<AuthSettings>;
+        expect(patch.systemChannels?.[0]?.advancedConfig?.workflowConfigs?.storyboard?.enabled).toBe(true);
+        expect(patch.systemChannels?.[0]?.advancedConfig?.workflowConfigs?.prop?.enabled).toBe(true);
+        const generatedModel = patch.practiceWorkflowModels?.[prop.businessCode]?.[0];
+        expect(patch.systemChannels?.[0]?.advancedConfig?.modelConfigs?.[generatedModel!]?.supportsReferenceImage).toBe(true);
+    });
+    it("creates the internal practice model binding when a tested workflow is enabled", async () => {
+        const candidate = { ...workflow, enabled: false, workflowCode: "storyboard_shot" as const, lastTestConfigFingerprint: runningHubWorkflowConfigFingerprint({ ...workflow, enabled: false, workflowCode: "storyboard_shot" }) };
+        const current = settingsWith(candidate);
+        current.logicalModels = [];
+        current.practiceWorkflowModels = {};
+        mocks.getFreshAuthSettings.mockResolvedValue(current);
+        mocks.setAuthSettings.mockImplementation(async (patch: Partial<AuthSettings>) => ({ ...current, ...patch }));
+
+        await setWorkflowEnabled(candidate.workflowKey, true);
+
+        const patch = mocks.setAuthSettings.mock.calls.at(-1)?.[0] as Partial<AuthSettings>;
+        const channel = patch.systemChannels?.find((item) => item.id === candidate.channelId);
+        const logicalModelId = patch.practiceWorkflowModels?.[candidate.businessCode]?.[0];
+        expect(logicalModelId).toBeTruthy();
+        expect(channel?.models).toContain(logicalModelId);
+        expect(channel?.advancedConfig?.modelCapabilities?.[logicalModelId!]).toBe(candidate.capability);
+        expect(channel && runningHubChannelValidationErrors(channel)).toEqual([]);
+        expect(resolvePracticeModuleModelOptions({ ...current, ...patch } as AuthSettings, "storyboard-image")).toEqual([{ id: logicalModelId, label: candidate.workflowName }]);
+        expect(patch.logicalModels).toContainEqual(
+            expect.objectContaining({
+                id: logicalModelId,
+                name: candidate.workflowName,
+                capability: candidate.capability,
+                enabled: true,
+                bindings: [expect.objectContaining({ channelId: candidate.channelId, upstreamModel: logicalModelId, enabled: true })],
+            }),
+        );
+    });
     it("rejects edits to an enabled version and only changes activation through version operations", async () => {
         await expect(updateWorkflow(workflow.workflowKey, { workflowName: "新的名称" })).rejects.toMatchObject({ status: 409 });
         await expect(setWorkflowEnabled("missing", true)).rejects.toBeInstanceOf(RunningHubWorkflowError);

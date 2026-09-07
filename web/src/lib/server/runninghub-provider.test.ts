@@ -115,6 +115,61 @@ describe("RunningHub provider", () => {
         });
     });
 
+    it("does not treat a nonzero official business response as a running task", async () => {
+        const fetchImpl = vi.fn(async () => Response.json({ code: 803, msg: "task not found", data: {} }));
+
+        await expect(
+            queryRunningHubTask({
+                baseUrl: "https://runninghub.example",
+                apiKey: "secret",
+                config: { ...config, queryPath: "/openapi/v2/query", statusField: "data.status", resultField: "data.result" },
+                taskId: "task-one",
+                fetchImpl,
+            }),
+        ).rejects.toThrow("task not found");
+    });
+    it("keeps an empty successful official result envelope queryable while the task is processing", async () => {
+        const fetchImpl = vi.fn(async () => Response.json({ code: 0, data: [] }));
+
+        await expect(
+            queryRunningHubTask({
+                baseUrl: "https://runninghub.example",
+                apiKey: "secret",
+                config: { ...config, queryPath: "/openapi/v2/query", statusField: "data.status", resultField: "data.result" },
+                taskId: "task-one",
+                fetchImpl,
+            }),
+        ).resolves.toMatchObject({ status: "RUNNING", querySummary: { status: "RUNNING", resultCount: 0, nodeIds: [] } });
+    });
+    it("accepts the unwrapped official query response used by the RunningHub demo", async () => {
+        const fetchImpl = vi.fn(async () =>
+            Response.json({
+                status: "SUCCESS",
+                results: [{ url: "https://cdn.example/result.png", fileType: "IMAGE", nodeId: "77", taskCostTime: "43128" }],
+            }),
+        );
+
+        await expect(
+            queryRunningHubTask({
+                baseUrl: "https://runninghub.example",
+                apiKey: "secret",
+                config: {
+                    ...config,
+                    queryPath: "/openapi/v2/query",
+                    statusField: "data.status",
+                    resultField: "data.result",
+                    outputMappings: [{ key: "image", label: "图片", nodeId: "77", assetType: "IMAGE", required: true, primary: true }],
+                },
+                taskId: "task-one",
+                fetchImpl,
+            }),
+        ).resolves.toMatchObject({
+            status: "SUCCESS",
+            resultUrl: "https://cdn.example/result.png",
+            resultUrls: ["https://cdn.example/result.png"],
+            querySummary: { status: "SUCCESS", resultCount: 1, nodeIds: ["77"] },
+        });
+    });
     it("preserves the official failed status and a safe query summary", async () => {
         const fetchImpl = vi.fn(async () =>
             Response.json({
@@ -266,14 +321,14 @@ describe("RunningHub provider", () => {
         await submitRunningHubTask({ baseUrl: "https://runninghub.example", apiKey: "secret", config: { ...config, timeoutSeconds: 5 }, payload: {}, fetchImpl });
     });
 
-    it("uploads media through the documented binary endpoint and returns short-lived download_url", async () => {
+    it("uploads media through the documented binary endpoint and returns the RunningHub fileName", async () => {
         const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
             expect(String(input)).toBe("https://runninghub.example/openapi/v2/media/upload/binary");
             expect(new Headers(init?.headers).get("authorization")).toBe("Bearer secret");
             expect(init?.body).toBeInstanceOf(FormData);
-            return Response.json({ data: { download_url: "https://cdn.example/uploaded.png" } });
+            return Response.json({ code: 0, data: { fileName: "api/2026/09/reference.png" } });
         });
 
-        await expect(uploadRunningHubMedia({ baseUrl: "https://runninghub.example", apiKey: "secret", file: new Blob(["image"], { type: "image/png" }), fileName: "reference.png", fetchImpl })).resolves.toBe("https://cdn.example/uploaded.png");
+        await expect(uploadRunningHubMedia({ baseUrl: "https://runninghub.example", apiKey: "secret", file: new Blob(["image"], { type: "image/png" }), fileName: "reference.png", fetchImpl })).resolves.toBe("api/2026/09/reference.png");
     });
 });

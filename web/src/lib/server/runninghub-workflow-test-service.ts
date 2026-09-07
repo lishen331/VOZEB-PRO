@@ -53,7 +53,7 @@ export async function inspectRunningHubWorkflowTest(input: { workflowKey: string
     const config = record.workflowConfig;
     const channel = await getWorkflowChannel(config.channelId);
     if (!record.taskId) return publicTest(record);
-    if (["success", "error", "cancelled"].includes(record.status)) return publicTest(record);
+    if (record.status === "success" || record.status === "cancelled" || (record.status === "error" && !isRetryableQueryError(record.error))) return publicTest(record);
     try {
         const result = await queryRunningHubTask({ baseUrl: channel.baseUrl, apiKey: channel.apiKey || "", config, taskId: record.taskId });
         const status = normalizeUpstreamStatus(result);
@@ -66,7 +66,7 @@ export async function inspectRunningHubWorkflowTest(input: { workflowKey: string
             ...(result.resultText ? { resultText: result.resultText } : {}),
             ...(result.outputs ? { outputs: result.outputs } : {}),
             ...(result.querySummary ? { querySummary: result.querySummary } : {}),
-            ...(status === "error" ? { error: result.querySummary?.upstreamError || (isSuccessfulStatus(result.status) ? "RunningHub 查询成功但未返回匹配的输出产物" : result.status || "RunningHub 工作流失败") } : {}),
+            ...(status === "error" ? { error: result.querySummary?.upstreamError || (isSuccessfulStatus(result.status) ? "RunningHub 查询成功但未返回匹配的输出产物" : result.status || "RunningHub 工作流失败") } : { error: undefined }),
             durationMs: Date.now() - record.createdAt,
         };
         const saved = await updateAdminWorkflowTest(next);
@@ -102,6 +102,9 @@ function normalizeUpstreamStatus(result: { status: string; resultUrl?: string; r
     return "running";
 }
 
+function isRetryableQueryError(error: string | undefined) {
+    return Boolean(error && /RunningHub 查询响应|RunningHub 请求失败|RunningHub 网络|RunningHub 请求超时/.test(error));
+}
 function isSuccessfulStatus(status: string) {
     return ["success", "succeeded", "completed", "done", "finished"].includes(status.trim().toLowerCase());
 }

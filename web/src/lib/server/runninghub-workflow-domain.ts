@@ -152,9 +152,10 @@ export function validateRunningHubWorkflowConfig(value: unknown, siblings: reado
     }
     const duplicateEnabled = siblings.filter((sibling) => {
         const candidate = normalizeRunningHubWorkflowConfig(sibling);
-        return candidate.enabled && normalized.enabled && candidate.channelId === normalized.channelId && candidate.businessCode === normalized.businessCode;
+        const sameIdentity = candidate.workflowCode && normalized.workflowCode ? candidate.workflowCode === normalized.workflowCode : candidate.businessCode === normalized.businessCode;
+        return candidate.enabled && normalized.enabled && candidate.channelId === normalized.channelId && sameIdentity;
     }).length;
-    if (duplicateEnabled > 1) errors.push("enabled: 同一 channelId + businessCode 只能存在一个启用版本");
+    if (duplicateEnabled > 1) errors.push("enabled: 同一 channelId + workflowCode 只能存在一个启用版本");
     return errors;
 }
 
