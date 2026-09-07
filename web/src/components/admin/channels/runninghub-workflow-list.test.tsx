@@ -33,14 +33,21 @@ describe("RunningHub workflow action column", () => {
     });
 });
 
-
 describe("RunningHub channel activation notice", () => {
     it("explains that enabled workflows cannot serve users while the channel is disabled", () => {
         const channel = { id: "rh", name: "RunningHub", enabled: false } as SystemModelChannel;
-        const html = renderToStaticMarkup(<App><RunningHubWorkflowList channel={channel} /></App>);
+        const html = renderToStaticMarkup(
+            <App>
+                <RunningHubWorkflowList channel={channel} />
+            </App>,
+        );
         expect(html).toContain("所属渠道已停用");
         expect(html).toContain("保存更改");
-        const enabledHtml = renderToStaticMarkup(<App><RunningHubWorkflowList channel={{ ...channel, enabled: true }} /></App>);
+        const enabledHtml = renderToStaticMarkup(
+            <App>
+                <RunningHubWorkflowList channel={{ ...channel, enabled: true }} />
+            </App>,
+        );
         expect(enabledHtml).not.toContain("所属渠道已停用");
     });
 });
