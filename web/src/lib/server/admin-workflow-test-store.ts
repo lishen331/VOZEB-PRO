@@ -19,6 +19,7 @@ export type AdminWorkflowTestRecord = {
     resultUrls?: string[];
     resultText?: string;
     outputs?: Array<{ key: string; label: string; assetType: "IMAGE" | "VIDEO" | "AUDIO" | "TEXT"; required: boolean; primary?: boolean; values: unknown[] }>;
+    querySummary?: { status?: string; resultCount: number; nodeIds: string[]; upstreamError?: string };
     error?: string;
     createdAt: number;
     updatedAt: number;

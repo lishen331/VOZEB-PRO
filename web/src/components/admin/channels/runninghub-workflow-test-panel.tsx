@@ -18,6 +18,7 @@ export function RunningHubWorkflowTestPanel({ open, workflow, onClose }: { open:
         resultUrls?: string[];
         resultText?: string;
         outputs?: Array<{ key: string; label: string; assetType: string; values: unknown[] }>;
+        querySummary?: { status?: string; resultCount: number; nodeIds: string[]; upstreamError?: string };
         error?: string;
         durationMs?: number;
     } | null>(null);
@@ -166,6 +167,15 @@ export function RunningHubWorkflowTestPanel({ open, workflow, onClose }: { open:
                                         <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-2 text-xs dark:bg-stone-900">{JSON.stringify(output.values, null, 2)}</pre>
                                     </div>
                                 ))}
+                            </div>
+                        ) : null}
+                        {result.querySummary ? (
+                            <div className="mt-2 rounded border border-stone-200 p-2 text-xs dark:border-stone-700">
+                                <div className="font-medium">查询响应摘要</div>
+                                <div className="mt-1">状态：{result.querySummary.status || "未返回"}</div>
+                                <div>结果数量：{result.querySummary.resultCount}</div>
+                                <div>节点 ID：{result.querySummary.nodeIds.length ? result.querySummary.nodeIds.join(", ") : "未返回"}</div>
+                                {result.querySummary.upstreamError ? <div className="mt-1 text-red-600">上游原因：{result.querySummary.upstreamError}</div> : null}
                             </div>
                         ) : null}
                         {result.error ? <div className="mt-2 text-red-600">{result.error}</div> : null}
