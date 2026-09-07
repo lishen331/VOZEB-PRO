@@ -18,6 +18,10 @@ describe("admin IP library section", () => {
         expect(source).toContain("adminIpLibraryApi.updateGrant");
         expect(source).toMatch(/adminIpLibraryApi\s*\.\s*listFiles/);
         expect(source).toContain("IpContentUpload");
+        expect(source).toContain("ipItemCategoryLabel");
+        expect(source).toContain('name={[field.name, "fileId"]}');
+        expect(source).toContain('kind="image"');
+        expect(source).toContain("openGrantOnMount");
         expect(source).toContain('aria-label="暂停授权"');
         expect(source).toContain('aria-label="恢复授权"');
         expect(source).toContain('aria-label="撤销授权"');
@@ -31,6 +35,8 @@ describe("admin IP library section", () => {
         expect(source).toContain("destroyOnHidden");
         expect(source).toContain("disabled={disabled}");
         expect(source).toContain('label: "学校授权"');
+        expect(source).toContain("详情");
+        expect(source).toContain("授权");
     });
 
     it("keeps authorization mode on each school grant instead of the IP profile form", async () => {

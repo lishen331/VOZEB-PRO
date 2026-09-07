@@ -17,5 +17,6 @@ describe("admin school members list", () => {
         expect(source).toContain("requestSequence");
         expect(source).toContain("precision={2}");
         expect(source).toContain("Math.min(520");
+        expect(source).toContain("data-school-member-card");
     });
 });

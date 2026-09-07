@@ -33,6 +33,13 @@ export async function createPublicPromptImage(pathValue: string | null, widthVal
     });
 }
 
+export function createUnavailablePublicPromptImage(widthValue: string | null) {
+    const width = normalizeImagePreviewWidth(widthValue, 640);
+    return sharp({ create: { width, height: Math.round((width * 9) / 16), channels: 3, background: "#d8e2e1" } })
+        .webp({ quality: 82, effort: 4 })
+        .toBuffer();
+}
+
 async function readLimitedBody(body: ReadableStream<Uint8Array>) {
     const reader = body.getReader();
     const chunks: Uint8Array[] = [];

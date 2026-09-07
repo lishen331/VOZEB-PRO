@@ -8,7 +8,7 @@ vi.mock("@/lib/server/media-image-variant-cache", () => ({
     getOrCreateCachedImageVariant: vi.fn(async (_key: string, factory: () => Promise<Buffer>) => factory()),
 }));
 
-import { createPublicPromptImage, normalizePublicPromptImagePath } from "./public-prompt-image";
+import { createPublicPromptImage, createUnavailablePublicPromptImage, normalizePublicPromptImagePath } from "./public-prompt-image";
 
 describe("public prompt images", () => {
     afterEach(() => {
@@ -39,5 +39,11 @@ describe("public prompt images", () => {
     it("rejects oversized upstream responses before decoding", async () => {
         mocks.fetchSafeOutbound.mockResolvedValue(new Response(new Uint8Array([1]), { headers: { "content-type": "image/jpeg", "content-length": String(25 * 1024 * 1024) } }));
         await expect(createPublicPromptImage("images/portrait_case12/output.jpg", "640")).rejects.toThrow("超过大小限制");
+    });
+
+    it("creates a valid uncached fallback image when the upstream source is unavailable", async () => {
+        const fallback = await createUnavailablePublicPromptImage("320");
+
+        await expect(sharp(fallback).metadata()).resolves.toMatchObject({ format: "webp", width: 320, height: 180 });
     });
 });

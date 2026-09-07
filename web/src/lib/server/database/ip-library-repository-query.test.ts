@@ -3,6 +3,21 @@ import { describe, expect, it, vi } from "vitest";
 import { IpLibraryRepository } from "./ip-library-repository";
 
 describe("IP library PostgreSQL repository", () => {
+    it("does not queue or delete a package that has a school grant", async () => {
+        const query = vi
+            .fn()
+            .mockResolvedValueOnce({ rows: [{ id: "ip-one" }] })
+            .mockResolvedValueOnce({ rows: [{ id: "ip-one" }] })
+            .mockResolvedValueOnce({ rows: [{ id: "grant-one" }] });
+        const repository = new IpLibraryRepository({ query });
+
+        await expect(repository.deleteIpPackage("ip-one")).resolves.toBe("has-school-grants");
+        expect(query).toHaveBeenNthCalledWith(1, "SELECT id FROM ip_packages WHERE id = $1 FOR UPDATE", ["ip-one"]);
+        expect(query).toHaveBeenNthCalledWith(2, "SELECT id FROM ip_packages WHERE id = $1", ["ip-one"]);
+        expect(query).toHaveBeenNthCalledWith(3, "SELECT id FROM ip_school_grants WHERE ip_id = $1 LIMIT 1 FOR UPDATE", ["ip-one"]);
+        expect(query).toHaveBeenCalledTimes(3);
+    });
+
     it("filters download records by type and result", async () => {
         const query = vi
             .fn()

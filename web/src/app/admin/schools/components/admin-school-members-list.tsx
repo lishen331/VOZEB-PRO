@@ -176,7 +176,7 @@ export function AdminSchoolMembersList({ school, onBack }: { school: SchoolSumma
             </div>
             <div className="space-y-2 md:hidden">
                 {items.map((member) => (
-                    <div key={member.id} className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                    <div key={member.id} data-school-member-card={member.id} className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
                         <div className="flex items-start justify-between gap-3">
                             <MemberIdentity member={member} />
                             <MemberStatus member={member} schoolDisabled={school.status === "disabled"} />

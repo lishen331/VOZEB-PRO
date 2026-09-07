@@ -67,6 +67,7 @@ export async function deleteAdminIp(actorId: string, ipId: string) {
     await requireContentDuty(actorId);
     const repository = createIpLibraryRepository();
     const files = await repository.deleteIpPackage(required(ipId, "IP 标识无效"));
+    if (files === "has-school-grants") throw new SchoolServiceError(409, "IP 已授权给学校，无法删除；请先撤销全部学校授权");
     if (!files) throw new SchoolServiceError(404, "IP 不存在");
     await retryIpLibraryFileCleanup();
     return { deleted: true };

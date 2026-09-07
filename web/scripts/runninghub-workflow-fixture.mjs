@@ -4,6 +4,7 @@ const port = Number(process.env.VOZEB_PRO_RUNNINGHUB_FIXTURE_PORT || 4030);
 let nextId = 1;
 const tasks = new Map();
 const uploads = [];
+const queries = [];
 
 function json(res, status, value) {
     res.writeHead(status, { "content-type": "application/json" });
@@ -16,6 +17,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/__reset") {
         tasks.clear();
         uploads.length = 0;
+        queries.length = 0;
         nextId = 1;
         return json(res, 200, { ok: true });
     }
@@ -32,7 +34,7 @@ const server = http.createServer(async (req, res) => {
             },
         });
     }
-    if (req.method === "GET" && url.pathname === "/__state") return json(res, 200, { tasks: [...tasks.values()], uploads });
+    if (req.method === "GET" && url.pathname === "/__state") return json(res, 200, { tasks: [...tasks.values()].map(publicTask), uploads, queries });
     if (req.method === "POST" && url.pathname === "/openapi/v2/task/create") {
         const body = await readBody(req);
         const parsed = body ? JSON.parse(body) : {};
@@ -65,9 +67,18 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/openapi/v2/query") {
         const body = await readBody(req);
         const parsed = body ? JSON.parse(body) : {};
+        if (!String(parsed.apiKey || "").trim() || !String(parsed.taskId || "").trim()) return json(res, 400, { code: 400, message: "apiKey and taskId required" });
+        queries.push({ taskId: String(parsed.taskId), hasApiKey: true });
         const task = tasks.get(parsed.taskId);
         if (!task) return json(res, 404, { code: 404, message: "task not found" });
-        return json(res, 200, { code: 0, data: { status: task.status, result: task.status === "SUCCESS" ? resultUrl(task.kind) : undefined, error: task.status === "FAILED" ? "fixture task rejected" : undefined } });
+        const url = resultUrl(task.kind);
+        return json(res, 200, {
+            code: 0,
+            data:
+                task.status === "SUCCESS"
+                    ? { status: task.status, results: [{ url, fileUrl: url, fileType: fileType(task.kind), nodeId: outputNodeId(task), taskCostTime: "3128" }] }
+                    : { status: task.status, failedReason: "fixture task rejected", results: [] },
+        });
     }
     return json(res, 404, { code: 404, message: "not found" });
 });
@@ -91,4 +102,27 @@ function workflowKind(workflowId) {
 
 function resultUrl(kind) {
     return "https://fixture.invalid/runninghub-result." + (kind === "audio" ? "mp3" : kind === "image" ? "png" : "mp4");
+}
+
+function fileType(kind) {
+    return kind === "audio" ? "AUDIO" : kind === "video" ? "VIDEO" : "IMAGE";
+}
+
+function outputNodeId(task) {
+    return (
+        {
+            "2090436762698080258": "35",
+            "2090436220538150914": "67",
+            "2090436223860039681": "424",
+            "2090436537182932994": "29",
+            "2090436770948272130": "90",
+            "2079446871415808002": "75",
+            "2090436199843454978": "92",
+        }[String(task.payload?.workflowId)] || "first-output"
+    );
+}
+
+function publicTask(task) {
+    const { apiKey: _apiKey, ...payload } = task.payload || {};
+    return { ...task, payload };
 }
