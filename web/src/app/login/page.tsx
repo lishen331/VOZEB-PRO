@@ -18,16 +18,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     if (!install.ready) redirect("/install");
     if (user) redirect(resolveLoginDestination(user, nextPath));
 
-    return (
-        <AuthForm
-            mode="login"
-            presentation="education-login"
-            nextPath={nextPath || undefined}
-            initialSite={settings ? serializePublicSettings(settings).site : DEFAULT_SITE_SETTINGS}
-            registrationEnabled={settings?.registrationEnabled ?? false}
-            authError={authError}
-        />
-    );
+    return <AuthForm mode="login" presentation="education-login" nextPath={nextPath || undefined} initialSite={settings ? serializePublicSettings(settings).site : DEFAULT_SITE_SETTINGS} authError={authError} />;
 }
 
 function firstValue(value: string | string[] | undefined) {

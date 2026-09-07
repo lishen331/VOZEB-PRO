@@ -268,9 +268,7 @@ export function AdminSettingsSection({ controller }: { controller: AdminDashboar
                 description={description}
                 actions={
                     <div className="flex items-center justify-end gap-1.5 sm:w-auto sm:flex-row sm:gap-2">
-                        <div className="hidden flex-wrap gap-2 text-xs text-stone-500 sm:flex dark:text-stone-400">
-                            {access.system ? <Tag className="m-0">{settings.registrationEnabled ? "注册开放" : "注册关闭"}</Tag> : <Tag className="m-0">生成控制</Tag>}
-                        </div>
+                        <div className="hidden flex-wrap gap-2 text-xs text-stone-500 sm:flex dark:text-stone-400">{access.system ? <Tag className="m-0">注册关闭</Tag> : <Tag className="m-0">生成控制</Tag>}</div>
                         <Button
                             type="primary"
                             aria-label="保存系统设置"
@@ -287,15 +285,7 @@ export function AdminSettingsSection({ controller }: { controller: AdminDashboar
             />
             <div className="space-y-3 p-3 sm:space-y-5 sm:p-5">
                 <div className={`grid gap-2 sm:gap-3 ${access.system && access.upstream ? "grid-cols-2" : "grid-cols-1"}`}>
-                    {access.system ? (
-                        <SettingsStatusTile
-                            icon={<UserCog className="size-4" />}
-                            label="账号入口"
-                            value={settings.registrationEnabled ? "注册开放" : "注册关闭"}
-                            detail={settings.emailRegistrationEnabled ? "邮箱注册已启用" : "邮箱注册未启用"}
-                            tone="cyan"
-                        />
-                    ) : null}
+                    {access.system ? <SettingsStatusTile icon={<UserCog className="size-4" />} label="账号入口" value="注册关闭" detail="用户只能由管理员创建" tone="cyan" /> : null}
                     {access.upstream ? (
                         <SettingsStatusTile
                             icon={<Sparkles className="size-4" />}
@@ -326,22 +316,9 @@ export function AdminSettingsSection({ controller }: { controller: AdminDashboar
                                     <div className="min-w-0 space-y-4">
                                         <SectionTitle icon={<UserCog className="size-4" />} title="账号策略" />
                                         <div className="grid gap-3">
-                                            <SettingToggle
-                                                title="开放注册"
-                                                description="关闭后，新账号不能自助注册。"
-                                                checked={settings.registrationEnabled}
-                                                checkedChildren="开放"
-                                                unCheckedChildren="关闭"
-                                                onChange={(registrationEnabled) => setSettings((current) => ({ ...current, registrationEnabled }))}
-                                            />
-                                            <SettingToggle
-                                                title="邮箱注册"
-                                                description="开启后，注册页必须填写邮箱；邮箱唯一，不允许重复注册。"
-                                                checked={settings.emailRegistrationEnabled}
-                                                checkedChildren="开启"
-                                                unCheckedChildren="关闭"
-                                                onChange={(emailRegistrationEnabled) => setSettings((current) => ({ ...current, emailRegistrationEnabled }))}
-                                            />
+                                            <div className="rounded-md border border-stone-200 bg-stone-50 p-3 text-sm leading-6 text-stone-600 dark:border-stone-800 dark:bg-stone-900/50 dark:text-stone-300">
+                                                公开注册已关闭。新账号请由管理员在“用户运营”中创建。
+                                            </div>
                                         </div>
                                     </div>
 

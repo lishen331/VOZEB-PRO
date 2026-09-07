@@ -9,13 +9,17 @@ describe("unified education login page contract", () => {
         const css = await readFile(resolve(process.cwd(), "src/app/styles/global-auth.css"), "utf8");
 
         expect(page).toContain('presentation="education-login"');
-        expect(page).toContain("registrationEnabled={settings?.registrationEnabled ?? false}");
         expect(form).toContain("auth-education-shell");
         expect(form).toContain("muted autoPlay loop playsInline");
         expect(css).toContain("prefers-reduced-motion: reduce");
         expect(form).toContain("jointBrandUrl");
         expect(form).toContain("policyAccepted");
         expect(form).toContain('mfaRequired ? "验证并登录"');
+        expect(form).toContain('educationLogin ? "sr-only"');
+        expect(form).toContain('educationLogin ? "auth-education-policy"');
+        expect(form).toContain("{isRegister ? (");
+        expect(css).toContain("background: #f2f5fb");
+        expect(css).toContain("border-radius: 40px");
         expect(form).toContain("mfaRequired");
         expect(form).not.toContain("图形验证码");
         expect(css).toContain("grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)");

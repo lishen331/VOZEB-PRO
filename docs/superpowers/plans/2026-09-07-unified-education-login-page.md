@@ -8,6 +8,12 @@
 
 **Tech Stack:** Next.js App Router, React 19, TypeScript, Ant Design 6, Tailwind CSS, Vitest, Playwright, ffmpeg/sharp.
 
+## 2026-09-08 Follow-up
+
+- Match the reference page more closely: centered brand/title, pale blue-gray login pane, pill inputs/button, and policy below the button.
+- Remove register and forgot-password links from the login page.
+- Disable public self-service registration after installation while preserving first-admin setup and administrator-created users.
+
 ## Global Constraints
 
 - Do not touch or revert unrelated existing worktree changes.

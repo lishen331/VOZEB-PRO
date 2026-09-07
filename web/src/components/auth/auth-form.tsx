@@ -214,7 +214,7 @@ export function AuthForm({
                 ) : null}
 
                 <label className="block space-y-3">
-                    <span className="text-sm font-medium text-stone-700 dark:text-stone-200">{isRegister ? "用户名" : "用户名或邮箱"}</span>
+                    <span className={educationLogin ? "sr-only" : "text-sm font-medium text-stone-700 dark:text-stone-200"}>{isRegister ? "用户名" : "用户名或邮箱"}</span>
                     <Input
                         size="large"
                         prefix={<UserRound className="size-4 text-stone-500" />}
@@ -224,7 +224,7 @@ export function AuthForm({
                             setMfaRequired(false);
                             setTotpCode("");
                         }}
-                        placeholder={isRegister ? "设置登录用户名" : "输入用户名或已绑定邮箱"}
+                        placeholder={isRegister ? "设置登录用户名" : educationLogin ? "请输入用户名或邮箱" : "输入用户名或已绑定邮箱"}
                         autoComplete="username"
                         disabled={submitting || disabled}
                         required
@@ -289,7 +289,7 @@ export function AuthForm({
                 ) : null}
 
                 <label className="block space-y-3">
-                    <span className="text-sm font-medium text-stone-700 dark:text-stone-200">密码</span>
+                    <span className={educationLogin ? "sr-only" : "text-sm font-medium text-stone-700 dark:text-stone-200"}>密码</span>
                     <Input.Password
                         size="large"
                         prefix={<LockKeyhole className="size-4 text-stone-500" />}
@@ -324,8 +324,22 @@ export function AuthForm({
                     </label>
                 ) : null}
 
+                <Button
+                    className="auth-submit-button"
+                    type="primary"
+                    htmlType="submit"
+                    size="large"
+                    block
+                    loading={submitting}
+                    disabled={disabled || !installTokenReady || ((educationLogin || (isRegister && !firstUser)) && !policyAccepted)}
+                    icon={educationLogin ? undefined : <ArrowRight className="size-4" />}
+                    iconPlacement="end"
+                >
+                    {firstUser ? "创建管理员并进入后台" : isRegister ? "注册并开始创作" : mfaRequired ? "验证并登录" : educationLogin ? "登录" : "登录并继续"}
+                </Button>
+
                 {educationLogin || (isRegister && !firstUser) ? (
-                    <Checkbox checked={policyAccepted} disabled={submitting || disabled} onChange={(event) => setPolicyAccepted(event.target.checked)}>
+                    <Checkbox className={educationLogin ? "auth-education-policy" : undefined} checked={policyAccepted} disabled={submitting || disabled} onChange={(event) => setPolicyAccepted(event.target.checked)}>
                         <span className="text-sm leading-6 text-stone-600 dark:text-stone-300">
                             我已阅读并同意
                             <a className="mx-1 font-medium text-stone-950 hover:underline dark:text-white" href={site.termsUrl || "/terms"} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
@@ -339,45 +353,14 @@ export function AuthForm({
                     </Checkbox>
                 ) : null}
 
-                <Button
-                    className="auth-submit-button"
-                    type="primary"
-                    htmlType="submit"
-                    size="large"
-                    block
-                    loading={submitting}
-                    disabled={disabled || !installTokenReady || ((educationLogin || (isRegister && !firstUser)) && !policyAccepted)}
-                    icon={<ArrowRight className="size-4" />}
-                    iconPlacement="end"
-                >
-                    {firstUser ? "创建管理员并进入后台" : isRegister ? "注册并开始创作" : mfaRequired ? "验证并登录" : educationLogin ? "登录" : "登录并继续"}
-                </Button>
-
-                <div className="auth-switch-link pt-2 text-center text-sm text-stone-500 dark:text-stone-400">
-                    {isRegister ? (
-                        <>
-                            已有账号？{" "}
-                            <Link href="/login" className="font-medium text-stone-950 hover:underline dark:text-white">
-                                直接登录
-                            </Link>
-                        </>
-                    ) : (
-                        <>
-                            {registrationEnabled ? (
-                                <>
-                                    还没有账号？{" "}
-                                    <Link href={`/register?next=${encodeURIComponent(nextPath || "/create")}`} className="font-medium text-stone-950 hover:underline dark:text-white">
-                                        立即注册
-                                    </Link>
-                                    <span className="mx-2 text-stone-300 dark:text-stone-700">/</span>
-                                </>
-                            ) : null}
-                            <Link href={`/forgot-password?next=${encodeURIComponent(nextPath || "/create")}`} className="font-medium text-stone-950 hover:underline dark:text-white">
-                                忘记密码
-                            </Link>
-                        </>
-                    )}
-                </div>
+                {isRegister ? (
+                    <div className="auth-switch-link pt-2 text-center text-sm text-stone-500 dark:text-stone-400">
+                        已有账号？{" "}
+                        <Link href="/login" className="font-medium text-stone-950 hover:underline dark:text-white">
+                            直接登录
+                        </Link>
+                    </div>
+                ) : null}
             </form>
         </section>
     );

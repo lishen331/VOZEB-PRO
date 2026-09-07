@@ -84,6 +84,7 @@ describe("serializePublicSettings", () => {
             instagram: { enabled: true, label: "Instagram", url: "https://instagram.com/vozeb.pro" },
         };
 
+        settings.registrationEnabled = true;
         const result = serializePublicSettings(settings);
         const serialized = JSON.stringify(result);
 
@@ -113,6 +114,7 @@ describe("serializePublicSettings", () => {
         expect(result).not.toHaveProperty("freeDailyPoints");
         expect(result.site).not.toHaveProperty("homeShowcaseMode");
         expect(result.site).not.toHaveProperty("homeShowcaseItems");
+        expect(result.registrationEnabled).toBe(false);
         expect(result.site.loginPage).toEqual(settings.site.loginPage);
         expect(result.site.socials).toEqual(settings.site.socials);
     });

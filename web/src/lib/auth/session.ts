@@ -120,7 +120,7 @@ export function serializePublicSettings(settings: AuthSettings) {
             friendLinks: settings.site.friendLinks.map((item) => ({ id: item.id, label: item.label, url: item.url, enabled: item.enabled })),
             socials: Object.fromEntries(Object.entries(settings.site.socials).map(([key, item]) => [key, { enabled: item.enabled, label: item.label, url: item.url }])),
         },
-        registrationEnabled: settings.registrationEnabled,
+        registrationEnabled: false,
         emailRegistrationEnabled: settings.emailRegistrationEnabled,
         featureModules: { ...settings.featureModules },
         modelPointCosts: { ...settings.modelPointCosts },
