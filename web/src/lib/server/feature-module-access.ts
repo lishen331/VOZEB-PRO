@@ -1,6 +1,5 @@
 import type { FeatureModuleId } from "@/lib/feature-modules";
 import { featureModuleDefinition } from "@/lib/feature-modules";
-import { getFreshAuthSettings } from "@/lib/auth/store";
 import type { GenerationTaskContext } from "@/lib/server/generation-task-store";
 
 export class FeatureModuleDisabledError extends Error {
@@ -14,6 +13,7 @@ export async function requireFeatureModuleEnabled(moduleId: FeatureModuleId) {
     // Some embedded consumers provide a partial auth-store mock. Treat a
     // missing settings reader as the default-enabled state in that context.
     try {
+        const { getFreshAuthSettings } = await import("@/lib/auth/store");
         const settings = await getFreshAuthSettings();
         if (settings?.featureModules?.[moduleId] === false) throw new FeatureModuleDisabledError(moduleId);
     } catch (error) {

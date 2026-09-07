@@ -3,11 +3,11 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("drama workflow lab isolation", () => {
-    it("gates the lab entry route behind the runtime flag", async () => {
-        const [homeRoute, projectRoute] = await Promise.all([readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/page.tsx"), "utf8"), readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/page.tsx"), "utf8")]);
+    it("gates the lab entry through the global feature module shell", async () => {
+        const [workspaceShell, projectRoute] = await Promise.all([readFile(resolve(process.cwd(), "src/components/layout/app-workspace-shell.tsx"), "utf8"), readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/page.tsx"), "utf8")]);
 
-        expect(homeRoute).toContain("isDramaWorkflowLabEnabled");
-        expect(homeRoute).toContain("notFound()");
+        expect(workspaceShell).toContain("FeatureModuleGate");
+        expect(workspaceShell).toContain("featureModules");
         expect(projectRoute).toContain("redirect(`/drama-lab/");
         expect(projectRoute).toContain("/outline`");
     });
