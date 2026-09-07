@@ -739,10 +739,20 @@ async function completeWorkflowStep(task: DramaLabWorkflowTask, key: DramaLabWor
 }
 
 async function failWorkflowStep(task: DramaLabWorkflowTask, key: DramaLabWorkflowStepKey, error: string) {
-    return mutateStoredGenerationTask<DramaLabWorkflowTask>("render", task.id, WORKFLOW_TTL_MS, (current) => {
+    const failed = await mutateStoredGenerationTask<DramaLabWorkflowTask>("render", task.id, WORKFLOW_TTL_MS, (current) => {
         const steps = current.workflow.steps.map((step) => (step.key === key ? { ...step, status: "error" as const, error, completedAt: Date.now() } : step));
         return { ...current, status: "error", error, workflow: { ...current.workflow, steps, error } };
     });
+    if (!failed) return failed;
+
+    // Synthetic children are durable task rows. If the operation throws
+    // before its normal completion path, close those rows as well; otherwise
+    // a failed workflow leaves a permanent, misleading "running" task.
+    const activeSyntheticChildren = failed.workflow.children.filter(
+        (child) => child.type === "render" && childStepKey(child.key) === key && (child.status === "pending" || child.status === "running"),
+    );
+    await Promise.all(activeSyntheticChildren.map((child) => updateChild(failed.id, child.id, { status: "error", error })));
+    return (await getStoredGenerationTask<DramaLabWorkflowTask>("render", failed.id)) || failed;
 }
 
 async function markWorkflowSuccess(task: DramaLabWorkflowTask) {
