@@ -12,7 +12,7 @@ describe("admin IP library route", () => {
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "admin-a", role: "admin", status: "active", adminPermissions: ["content.manage"] });
         mocks.list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
-        mocks.create.mockResolvedValue({ id: "ip-a", title: "星海", visibility: "school", authorizationMode: "exclusive", status: "draft" });
+        mocks.create.mockResolvedValue({ id: "ip-a", title: "星海", visibility: "school", status: "enabled" });
     });
 
     it("allows either IP duty to read but only content duty to create", async () => {
@@ -24,9 +24,9 @@ describe("admin IP library route", () => {
 
     it("rejects null JSON and audits stable create metadata only", async () => {
         expect((await POST(jsonRequest(null))).status).toBe(400);
-        const response = await POST(jsonRequest({ title: "星海", slug: "star-sea", summary: "敏感正文", visibility: "school", authorizationMode: "exclusive" }));
+        const response = await POST(jsonRequest({ title: "星海", slug: "star-sea", summary: "敏感正文", visibility: "school" }));
         expect(response.status).toBe(200);
-        expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ action: "admin.ip.create", target: { type: "ip", id: "ip-a", label: "星海" }, metadata: { status: "draft", visibility: "school", authorizationMode: "exclusive" } }));
+        expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ action: "admin.ip.create", target: { type: "ip", id: "ip-a", label: "星海" }, metadata: { status: "enabled", visibility: "school" } }));
         expect(JSON.stringify(mocks.audit.mock.calls)).not.toContain("敏感正文");
     });
 });

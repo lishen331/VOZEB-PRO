@@ -649,10 +649,10 @@ describe("practice sessions", () => {
         expect(dispatch).toHaveBeenCalledOnce();
     });
 
-    it("keeps a pinned IP version in the session and records its practice usage", async () => {
+    it("keeps a pinned child IP in the session and records its practice usage", async () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
         const store = memoryStore();
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: ["item-one"] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: ["item-one"] };
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
         const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-text", capability: "text" as const }));
 
@@ -665,7 +665,7 @@ describe("practice sessions", () => {
     it("repairs a queued idempotent session after usage recording failed", async () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
         const store = memoryStore();
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
         mocks.recordIpReferenceUsage.mockRejectedValueOnce(new Error("usage failed")).mockResolvedValueOnce(undefined);
         const dispatch = vi.fn(async () => ({ taskId: "task-one", taskType: "text" as const }));
@@ -682,7 +682,7 @@ describe("practice sessions", () => {
     it("blocks a failed session retry after its school IP grant is revoked", async () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
         const store = memoryStore();
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         mocks.validateIpReferences.mockResolvedValueOnce([{ reference }]);
         const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-text", capability: "text" as const }));
         const dispatch = vi.fn(async () => {

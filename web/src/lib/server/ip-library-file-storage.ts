@@ -23,6 +23,7 @@ export const IP_CONTENT_FILE_MAX_BYTES: Record<IpAssetKind, number> = {
 
 type WriteInput = {
     ipId: string;
+    subIpId: string;
     fileId: string;
     kind: IpAssetKind;
     originalName: string;
@@ -68,6 +69,7 @@ export async function writeIpContentFile(input: WriteInput): Promise<IpContentFi
     const common = {
         id: fileId,
         ipId,
+        subIpId: input.subIpId,
         kind: input.kind,
         originalName,
         extension: inspected.extension,
@@ -141,7 +143,7 @@ export async function readIpContentFileBytes(record: IpContentFileRecord | IpCon
     });
 }
 
-export async function deleteStoredIpContentFile(record: IpContentFileRecord | IpContentFileCreateInput) {
+export async function deleteStoredIpContentFile(record: Pick<IpContentFileRecord | IpContentFileCreateInput, "storageProvider" | "storageKey" | "externalStorageId" | "externalObjectKey">) {
     if (record.storageProvider === "object") {
         if (!record.externalObjectKey) return;
         const config = await getObjectStorageRuntimeConfig();

@@ -8,8 +8,7 @@ import type { GenerationTaskContext } from "./generation-task-types";
 export type IpReferencePreview = {
     reference: IpReference;
     title: string;
-    versionTitle: string;
-    versionNumber: number;
+    subIpTitle: string;
     coverPreviewUrl?: string;
     items: Array<{ id: string; kind: IpAssetKind; category: IpItemCategory; title: string; previewUrl?: string }>;
 };
@@ -18,15 +17,16 @@ export async function validateIpReferences(userId: string, value: unknown): Prom
     const references = normalizeReferences(value);
     return Promise.all(
         references.map(async (reference) => {
-            const detail = await getIpDetailForUser(userId, reference.id, reference.versionId);
-            const selected = reference.itemIds.length ? detail.version.items.filter((item) => reference.itemIds.includes(item.id)) : detail.version.items;
+            const detail = await getIpDetailForUser(userId, reference.id, reference.subIpId);
+            const subIp = detail.subIps[0];
+            if (!subIp) throw new SchoolServiceError(404, "子 IP 不存在或无权访问");
+            const selected = reference.itemIds.length ? subIp.items.filter((item) => reference.itemIds.includes(item.id)) : subIp.items;
             if (selected.length !== reference.itemIds.length && reference.itemIds.length) throw new SchoolServiceError(404, "IP 内容项不存在或无权访问");
             return {
                 reference,
                 title: detail.title,
-                versionTitle: detail.version.title,
-                versionNumber: detail.version.versionNumber,
-                ...(detail.coverPreviewUrl ? { coverPreviewUrl: detail.coverPreviewUrl } : {}),
+                subIpTitle: subIp.title,
+                ...(subIp.coverPreviewUrl ? { coverPreviewUrl: subIp.coverPreviewUrl } : {}),
                 items: selected.map((item) => ({
                     id: item.id,
                     kind: item.kind,
@@ -47,7 +47,7 @@ export async function recordIpReferenceUsage(userId: string, input: { targetType
         userId,
         previews.map(({ reference }) => ({
             ipId: reference.id,
-            versionId: reference.versionId,
+            subIpId: reference.subIpId,
             itemIds: reference.itemIds,
             action: "reference",
             targetType: input.targetType,
@@ -83,7 +83,7 @@ function normalizeReferences(value: unknown) {
     const references = value.map((item) => normalizeIpReference(item));
     if (references.some((item) => !item)) throw new SchoolServiceError(400, "IP 引用无效");
     const normalized = references as IpReference[];
-    const keys = normalized.map((item) => `${item.id}:${item.versionId}`);
-    if (new Set(keys).size !== keys.length) throw new SchoolServiceError(400, "同一 IP 版本不能重复引用");
+    const keys = normalized.map((item) => `${item.id}:${item.subIpId}`);
+    if (new Set(keys).size !== keys.length) throw new SchoolServiceError(400, "同一子 IP 不能重复引用");
     return normalized;
 }

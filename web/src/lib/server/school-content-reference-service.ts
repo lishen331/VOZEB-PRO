@@ -53,8 +53,8 @@ async function resolveReference(userId: string, reference: SchoolContentReferenc
             return preview(reference, text(asset, "title") || "素材", text(asset, "coverUrl"));
         }
         if (reference.type === "ip") {
-            const access = await requireVisibleIp(userId, reference.id, reference.versionId, reference.itemIds);
-            return preview(reference, access.detail.version.title || access.detail.title || "IP 内容");
+            const access = await requireVisibleIp(userId, reference.id, reference.subIpId, reference.itemIds);
+            return preview(reference, access.subIp.title || access.detail.title || "IP 内容");
         }
         const generation = await getGenerationLogForUser(userId, reference.id);
         if (!generation) throw new MissingSchoolContentReferenceError();

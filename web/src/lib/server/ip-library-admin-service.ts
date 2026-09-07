@@ -3,101 +3,163 @@ import { randomUUID } from "node:crypto";
 import { hasAdminPermission } from "@/lib/admin-permissions";
 import { getPublicUsersByIds } from "@/lib/auth/store";
 import { IP_ASSET_KINDS, IP_AUTHORIZATION_MODES, IP_STATUSES, IP_VISIBILITIES, normalizeIpItemCategory, type IpAssetKind, type IpAuthorizationMode, type IpItemCategory, type IpStatus, type IpVisibility } from "@/lib/ip-library-domain";
-import type { IpDraftItemInput, IpPackagePatch, IpSchoolGrantStatus, PageInput } from "@/lib/server/database/repository-types";
+import type { IpItemInput, IpPackagePatch, IpSchoolGrantStatus, PageInput } from "@/lib/server/database/repository-types";
 import { deleteStoredIpContentFile, readIpContentFile, writeIpContentFile } from "@/lib/server/ip-library-file-storage";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { createIpLibraryRepository } from "./ip-library-access-service";
 import { createSchoolDomainRepository } from "./school-domain-repository";
 
-export type AdminIpCreateInput = { title: string; slug: string; summary?: string; coverAssetId?: string; visibility: IpVisibility; authorizationMode?: IpAuthorizationMode };
+export type AdminIpCreateInput = { title: string; slug: string; summary?: string; visibility: IpVisibility };
 export type AdminIpPatchInput = Partial<AdminIpCreateInput> & { status?: IpStatus };
-export type AdminIpDraftItemInput = { kind: IpAssetKind; category: IpItemCategory; title: string; summary?: string; fileId: string; sortOrder?: number };
-export type AdminIpVersionInput = { title: string; summary?: string; coverFileId?: string; tags?: string[]; sourceNote?: string; changeNote?: string; items: AdminIpDraftItemInput[] };
-export type AdminIpCreateVersionInput = Partial<AdminIpVersionInput> & { sourceVersionId?: string };
-export type AdminIpGrantInput = { schoolId: string; mode: IpAuthorizationMode; startsAt: string; endsAt?: string; note?: string };
-export type AdminIpGrantPatchInput = { status?: IpSchoolGrantStatus; endsAt?: string; note?: string };
+export type AdminIpItemInput = { kind: IpAssetKind; category: IpItemCategory; title: string; summary?: string; fileId: string; sortOrder?: number };
+export type AdminIpSubIpInput = { title: string; summary?: string; coverFileId?: string; tags?: string[]; sourceNote?: string; sortOrder?: number; items?: AdminIpItemInput[] };
+export type AdminIpGrantInput = { subIpId: string; schoolId: string; mode: IpAuthorizationMode; startsAt: string; endsAt?: string; note?: string };
+export type AdminIpGrantPatchInput = { status?: IpSchoolGrantStatus; endsAt?: string | null; note?: string };
 
 export async function listAdminIps(actorId: string, input: PageInput & { keyword?: string; status?: string; visibility?: string }) {
     await requireAnyIpDuty(actorId);
+    await retryIpLibraryFileCleanup();
     return createIpLibraryRepository().listIpPackages(input);
 }
 
 export async function getAdminIp(actorId: string, ipId: string) {
     await requireAnyIpDuty(actorId);
-    const record = await createIpLibraryRepository().getIpPackage(required(ipId, "IP 标识无效"));
+    await retryIpLibraryFileCleanup();
+    const record = await createIpLibraryRepository().getIpDetail(required(ipId, "IP 标识无效"));
     if (!record) throw new SchoolServiceError(404, "IP 不存在");
     return record;
 }
 
 export async function createAdminIp(actorId: string, input: AdminIpCreateInput) {
     await requireContentDuty(actorId);
-    const visibility = enumValue(input.visibility, IP_VISIBILITIES, "IP 可见范围无效");
-    // Authorization mode is selected for each school grant, not when the IP profile is created.
-    const authorizationMode = visibility === "public" || input.authorizationMode === undefined ? "multi_school" : enumValue(input.authorizationMode, IP_AUTHORIZATION_MODES, "IP 授权模式无效");
+    const repository = createIpLibraryRepository();
     const slug = slugValue(input.slug);
-    if (await createIpLibraryRepository().getIpPackageBySlug(slug)) throw new SchoolServiceError(409, "IP 标识已存在，请更换 slug", { field: "slug", reason: "duplicate" });
-    return translateConflict("slug", () =>
-        createIpLibraryRepository().createIpPackage({
-            id: randomUUID(),
-            title: required(input.title, "请填写 IP 名称"),
-            slug,
-            summary: optional(input.summary),
-            coverAssetId: optional(input.coverAssetId) || undefined,
-            visibility,
-            authorizationMode,
-            status: "draft",
-            createdByUserId: actorId,
-        }),
+    if (await repository.getIpPackageBySlug(slug)) throw new SchoolServiceError(409, "IP 标识已存在，请更换 slug", { field: "slug", reason: "duplicate" });
+    const title = required(input.title, "请填写 IP 名称");
+    const record = await translateConflict("slug", () =>
+        repository.createIpPackage({ id: randomUUID(), title, slug, summary: optional(input.summary), visibility: enumValue(input.visibility, IP_VISIBILITIES, "IP 可见范围无效"), status: "enabled", createdByUserId: actorId }),
     );
+    // A new IP starts with one child so its content can be edited as a flat page.
+    await repository.createIpSubIp(record.id, { id: randomUUID(), ipId: record.id, title, summary: record.summary, tags: [], sourceNote: "", createdByUserId: actorId });
+    return record;
 }
 
 export async function updateAdminIp(actorId: string, ipId: string, input: AdminIpPatchInput) {
     await requireContentDuty(actorId);
     const id = required(ipId, "IP 标识无效");
-    const current = await getExistingPackage(id);
+    const repository = createIpLibraryRepository();
+    await getExistingPackage(id);
     const patch: IpPackagePatch = {};
     if (input.title !== undefined) patch.title = required(input.title, "请填写 IP 名称");
     if (input.slug !== undefined) {
         patch.slug = slugValue(input.slug);
-        if (await createIpLibraryRepository().getIpPackageBySlug(patch.slug, id)) throw new SchoolServiceError(409, "IP 标识已存在，请更换 slug", { field: "slug", reason: "duplicate" });
+        if (await repository.getIpPackageBySlug(patch.slug, id)) throw new SchoolServiceError(409, "IP 标识已存在，请更换 slug", { field: "slug", reason: "duplicate" });
     }
     if (input.summary !== undefined) patch.summary = optional(input.summary);
-    if (input.coverAssetId !== undefined) patch.coverAssetId = optional(input.coverAssetId) || null;
     if (input.visibility !== undefined) patch.visibility = enumValue(input.visibility, IP_VISIBILITIES, "IP 可见范围无效");
-    if (input.authorizationMode !== undefined) patch.authorizationMode = enumValue(input.authorizationMode, IP_AUTHORIZATION_MODES, "IP 授权模式无效");
-    if (input.status !== undefined) {
-        const status = enumValue(input.status, IP_STATUSES, "IP 状态无效");
-        if (status === "draft" || (status === "published" && !current.currentVersionId)) throw new SchoolServiceError(409, "IP 状态不能这样变更");
-        patch.status = status;
-    }
-    if ((patch.visibility || current.visibility) === "public") patch.authorizationMode = "multi_school";
-    const updated = await translateConflict(patch.slug ? "slug" : "generic", () => createIpLibraryRepository().updateIpPackage(id, patch));
-    if (!updated) throw new SchoolServiceError(409, "已有学校授权时不能修改可见范围或授权模式");
+    if (input.status !== undefined) patch.status = enumValue(input.status, IP_STATUSES, "IP 状态无效");
+    const updated = await translateConflict(patch.slug ? "slug" : "generic", () => repository.updateIpPackage(id, patch));
+    if (!updated) throw new SchoolServiceError(404, "IP 不存在");
     return updated;
 }
 
-export async function listAdminIpVersions(actorId: string, ipId: string, input: PageInput = {}) {
-    await requireAnyIpDuty(actorId);
-    await getExistingPackage(required(ipId, "IP 标识无效"));
-    return createIpLibraryRepository().listIpVersions(ipId, input);
+export async function deleteAdminIp(actorId: string, ipId: string) {
+    await requireContentDuty(actorId);
+    const repository = createIpLibraryRepository();
+    const files = await repository.deleteIpPackage(required(ipId, "IP 标识无效"));
+    if (!files) throw new SchoolServiceError(404, "IP 不存在");
+    await retryIpLibraryFileCleanup();
+    return { deleted: true };
 }
 
-export async function listAdminIpFiles(actorId: string, ipId: string) {
-    await requireAnyIpDuty(actorId);
-    const id = required(ipId, "IP 标识无效");
-    await getExistingPackage(id);
-    return createIpLibraryRepository().listIpContentFiles(id);
-}
-
-export async function uploadAdminIpFile(actorId: string, ipId: string, kindValue: unknown, file: File) {
+export async function createAdminIpSubIp(actorId: string, ipId: string, input: AdminIpSubIpInput) {
     await requireContentDuty(actorId);
     const id = required(ipId, "IP 标识无效");
-    const packageRecord = await getExistingPackage(id);
-    if (packageRecord.status === "disabled") throw new SchoolServiceError(409, "已停用 IP 不能上传文件");
+    const repository = createIpLibraryRepository();
+    await getExistingPackage(id);
+    // A file belongs to one child IP. Create that child first, then upload
+    // its files and set the cover in a later update.
+    if (input.coverFileId !== undefined) throw new SchoolServiceError(400, "请先创建子 IP，再上传文件并设置封面");
+    if (input.items?.length) throw new SchoolServiceError(400, "请先创建子 IP，再上传文件并保存内容项");
+    const subIp = await repository.createIpSubIp(id, {
+        id: randomUUID(),
+        ipId: id,
+        title: required(input.title, "请填写子 IP 名称"),
+        summary: optional(input.summary),
+        tags: normalizeTags(input.tags),
+        sourceNote: optional(input.sourceNote),
+        sortOrder: validSortOrder(input.sortOrder),
+        createdByUserId: actorId,
+    });
+    return (await repository.getIpSubIp(id, subIp.id))!;
+}
+
+export async function updateAdminIpSubIp(actorId: string, ipId: string, subIpId: string, input: AdminIpSubIpInput) {
+    await requireContentDuty(actorId);
+    const id = required(ipId, "IP 标识无效");
+    const childId = required(subIpId, "子 IP 标识无效");
+    const repository = createIpLibraryRepository();
+    const current = await repository.getIpSubIp(id, childId);
+    if (!current) throw new SchoolServiceError(404, "子 IP 不存在");
+    const patch = {
+        ...(input.title !== undefined ? { title: required(input.title, "请填写子 IP 名称") } : {}),
+        ...(input.summary !== undefined ? { summary: optional(input.summary) } : {}),
+        ...(input.coverFileId !== undefined ? { coverFileId: optional(input.coverFileId) || null } : {}),
+        ...(input.tags !== undefined ? { tags: normalizeTags(input.tags) } : {}),
+        ...(input.sourceNote !== undefined ? { sourceNote: optional(input.sourceNote) } : {}),
+        ...(input.sortOrder !== undefined ? { sortOrder: validSortOrder(input.sortOrder) } : {}),
+    };
+    if (patch.coverFileId) await requireReadyFile(repository, id, childId, patch.coverFileId, "image");
+    const updated = await repository.updateIpSubIp(id, childId, patch);
+    if (!updated) throw new SchoolServiceError(404, "子 IP 不存在");
+    if (input.items !== undefined) await replaceAdminIpSubIpItems(actorId, id, childId, input.items);
+    return (await repository.getIpSubIp(id, childId))!;
+}
+
+export async function deleteAdminIpSubIp(actorId: string, ipId: string, subIpId: string) {
+    await requireContentDuty(actorId);
+    const id = required(ipId, "IP 标识无效");
+    const childId = required(subIpId, "子 IP 标识无效");
+    const repository = createIpLibraryRepository();
+    const detail = await repository.getIpDetail(id);
+    if (!detail) throw new SchoolServiceError(404, "IP 不存在");
+    if (detail.subIps.length <= 1) throw new SchoolServiceError(409, "IP 至少保留一个子 IP");
+    const files = await repository.deleteIpSubIp(id, childId);
+    if (files === "last-sub-ip") throw new SchoolServiceError(409, "IP 至少保留一个子 IP");
+    if (!files) throw new SchoolServiceError(404, "子 IP 不存在");
+    await retryIpLibraryFileCleanup();
+    return { deleted: true };
+}
+
+export async function replaceAdminIpSubIpItems(actorId: string, ipId: string, subIpId: string, inputs: AdminIpItemInput[]) {
+    await requireContentDuty(actorId);
+    const id = required(ipId, "IP 标识无效");
+    const childId = required(subIpId, "子 IP 标识无效");
+    if (!Array.isArray(inputs)) throw new SchoolServiceError(400, "IP 内容无效");
+    const repository = createIpLibraryRepository();
+    const items: IpItemInput[] = [];
+    for (const [index, input] of inputs.entries()) items.push(await normalizeItem(repository, id, childId, input, index));
+    const updated = await translateConflict("generic", () => repository.replaceIpSubIpItems(id, childId, items));
+    if (!updated) throw new SchoolServiceError(404, "子 IP 不存在");
+    return updated;
+}
+
+export async function listAdminIpFiles(actorId: string, ipId: string, subIpId?: string) {
+    await requireAnyIpDuty(actorId);
+    const id = required(ipId, "IP 标识无效");
+    if (subIpId) await requireSubIp(id, required(subIpId, "子 IP 标识无效"));
+    return createIpLibraryRepository().listIpContentFiles(id, subIpId);
+}
+
+export async function uploadAdminIpFile(actorId: string, ipId: string, subIpId: string, kindValue: unknown, file: File) {
+    await requireContentDuty(actorId);
+    const id = required(ipId, "IP 标识无效");
+    const childId = required(subIpId, "子 IP 标识无效");
+    await requireSubIp(id, childId);
     if (!(file instanceof File)) throw new SchoolServiceError(400, "请选择要上传的文件");
     const kind = enumValue(kindValue, IP_ASSET_KINDS, "IP 内容类型无效");
     const repository = createIpLibraryRepository();
-    const stored = await writeIpContentFile({ ipId: id, fileId: randomUUID(), kind, originalName: file.name, bytes: Buffer.from(await file.arrayBuffer()), uploadedByUserId: actorId });
+    const stored = await writeIpContentFile({ ipId: id, subIpId: childId, fileId: randomUUID(), kind, originalName: file.name, bytes: Buffer.from(await file.arrayBuffer()), uploadedByUserId: actorId });
     try {
         return await repository.createIpContentFile(stored);
     } catch (error) {
@@ -119,237 +181,136 @@ export async function readAdminIpFile(actorId: string, request: Request, ipId: s
 export async function deleteAdminIpFile(actorId: string, ipId: string, fileId: string) {
     await requireContentDuty(actorId);
     const id = required(ipId, "IP 标识无效");
-    const normalizedFileId = required(fileId, "文件标识无效");
-    const repository = createIpLibraryRepository();
-    const file = await repository.getIpContentFile(id, normalizedFileId);
-    if (!file) throw new SchoolServiceError(404, "IP 内容文件不存在");
-    const claimed = await translateConflict("generic", () => repository.claimIpContentFileDeletion(id, normalizedFileId));
-    if (!claimed) throw new SchoolServiceError(409, "IP 内容文件已被引用或正在删除");
-    // The deletion state prevents new references while storage cleanup is retried.
-    await deleteStoredIpContentFile(claimed);
-    const deleted = await translateConflict("generic", () => repository.finalizeIpContentFileDeletion(id, normalizedFileId));
-    if (!deleted && (await repository.getIpContentFile(id, normalizedFileId))) throw new SchoolServiceError(409, "IP 内容文件正在删除，请稍后重试");
+    const file = await createIpLibraryRepository().claimIpContentFileDeletion(id, required(fileId, "文件标识无效"));
+    if (!file) throw new SchoolServiceError(409, "IP 内容文件已被内容或封面引用");
+    await deleteStoredIpContentFile(file);
+    const deleted = await createIpLibraryRepository().finalizeIpContentFileDeletion(id, file.id);
+    if (!deleted) throw new SchoolServiceError(409, "IP 内容文件正在删除，请稍后重试");
+    return { deleted: true };
 }
 
-export async function createAdminIpVersion(actorId: string, ipId: string, input: AdminIpCreateVersionInput) {
-    await requireContentDuty(actorId);
-    const id = required(ipId, "IP 标识无效");
-    const packageRecord = await getExistingPackage(id);
-    if (packageRecord.status === "disabled") throw new SchoolServiceError(409, "已停用 IP 不能创建新版本");
-    const repository = createIpLibraryRepository();
-    const sourceVersionId = optional(input.sourceVersionId);
-    const sourceVersion = sourceVersionId ? await repository.getIpVersion(id, sourceVersionId) : null;
-    if (sourceVersionId && !sourceVersion) throw new SchoolServiceError(404, "源 IP 版本不存在");
-    const coverFileId = input.coverFileId !== undefined ? optional(input.coverFileId) || undefined : sourceVersion?.coverFileId;
-    if (coverFileId) await requireReadyFile(repository, id, coverFileId, "image");
-    const draftItems = input.items ?? sourceVersion?.items ?? [];
-    if (!Array.isArray(draftItems)) throw new SchoolServiceError(400, "IP 版本内容无效");
-    const items: IpDraftItemInput[] = [];
-    for (const [index, item] of draftItems.entries()) items.push(await normalizeDraftItem(repository, id, item, index));
-    return translateConflict("generic", () =>
-        repository.createIpDraftVersion(id, {
-            id: randomUUID(),
-            title: required(input.title ?? sourceVersion?.title, "请填写版本名称"),
-            summary: input.summary !== undefined ? optional(input.summary) : sourceVersion?.summary || "",
-            coverFileId,
-            tags: input.tags !== undefined ? normalizeTags(input.tags) : sourceVersion?.tags || [],
-            sourceNote: input.sourceNote !== undefined ? optional(input.sourceNote) : sourceVersion?.sourceNote || "",
-            changeNote: optional(input.changeNote),
-            createdByUserId: actorId,
-            items,
-        }),
-    );
-}
-
-export async function updateAdminIpVersion(actorId: string, ipId: string, versionId: string, input: AdminIpVersionInput) {
-    await requireContentDuty(actorId);
-    const id = required(ipId, "IP 标识无效");
-    const normalizedVersionId = required(versionId, "版本标识无效");
-    const repository = createIpLibraryRepository();
-    const current = await repository.getIpVersion(id, normalizedVersionId);
-    if (!current) throw new SchoolServiceError(404, "IP 版本不存在");
-    if (current.status !== "draft") throw new SchoolServiceError(409, "已发布 IP 版本不可修改");
-    if (!Array.isArray(input.items)) throw new SchoolServiceError(400, "IP 版本内容无效");
-    const coverFileId = optional(input.coverFileId) || undefined;
-    if (coverFileId) await requireReadyFile(repository, id, coverFileId, "image");
-    const items: IpDraftItemInput[] = [];
-    for (const [index, item] of input.items.entries()) items.push(await normalizeDraftItem(repository, id, item, index));
-    return translateConflict("generic", () =>
-        repository.updateIpDraftVersion(id, normalizedVersionId, {
-            id: normalizedVersionId,
-            title: required(input.title, "请填写版本名称"),
-            summary: optional(input.summary),
-            coverFileId,
-            tags: normalizeTags(input.tags),
-            sourceNote: optional(input.sourceNote),
-            changeNote: optional(input.changeNote),
-            createdByUserId: actorId,
-            items,
-        }),
-    );
-}
-
-export async function publishAdminIpVersion(actorId: string, ipId: string, versionId: string) {
-    await requireContentDuty(actorId);
-    const id = required(ipId, "IP 标识无效");
-    const repository = createIpLibraryRepository();
-    const packageRecord = await getExistingPackage(id);
-    if (packageRecord.status === "disabled") throw new SchoolServiceError(409, "IP 已停用，不能发布新版本");
-    const version = await repository.getIpVersion(id, required(versionId, "版本标识无效"));
-    if (!version) throw new SchoolServiceError(404, "IP 版本不存在");
-    if (version.status === "published") throw new SchoolServiceError(409, "当前版本已经发布");
-    if (version.status !== "draft") throw new SchoolServiceError(409, "当前版本不能发布");
-    if (!version.items.length) throw new SchoolServiceError(400, "IP 版本至少需要一个内容项");
-    const itemFiles = await Promise.all(version.items.map((item) => repository.getIpContentFile(id, item.fileId)));
-    const coverFile = version.coverFileId ? await repository.getIpContentFile(id, version.coverFileId) : undefined;
-    if (itemFiles.some((file) => file?.status === "processing") || coverFile?.status === "processing") throw new SchoolServiceError(409, "仍有内容文件处理中，请稍后再发布");
-    if (itemFiles.some((file) => !file || file.status === "failed") || coverFile?.status === "failed") throw new SchoolServiceError(409, "有内容文件处理失败，请重新上传");
-    if (version.coverFileId && coverFile?.status !== "ready") throw new SchoolServiceError(409, "IP 封面尚未准备完成");
-    if (itemFiles.some((file) => file?.status !== "ready")) throw new SchoolServiceError(409, "有内容文件尚未准备完成");
-    return translateConflict("generic", () => repository.publishIpVersion(id, version.id));
-}
-
-export async function listAdminIpGrants(actorId: string, ipId: string, input: PageInput & { schoolId?: string; status?: string } = {}) {
+export async function listAdminIpGrants(actorId: string, ipId: string, input: PageInput & { subIpId?: string; schoolId?: string; status?: string } = {}) {
     await requireEducationDuty(actorId);
-    await getExistingPackage(required(ipId, "IP 标识无效"));
-    const page = await createIpLibraryRepository().listSchoolGrants({ ...input, ipId });
+    const id = required(ipId, "IP 标识无效");
+    await getExistingPackage(id);
+    const page = await createIpLibraryRepository().listSchoolGrants({ ...input, ipId: id });
     const schools = new Map((await createSchoolDomainRepository().listSchoolsByIds([...new Set(page.items.map((item) => item.schoolId))])).map((school) => [school.id, school]));
-    return { ...page, items: page.items.map((item) => ({ ...item, school: schools.has(item.schoolId) ? { id: item.schoolId, name: schools.get(item.schoolId)!.name } : undefined })) };
+    const detail = await createIpLibraryRepository().getIpDetail(id);
+    const subIps = new Map(detail?.subIps.map((item) => [item.id, item]) || []);
+    return {
+        ...page,
+        items: page.items.map((item) => ({
+            ...item,
+            school: schools.has(item.schoolId) ? { id: item.schoolId, name: schools.get(item.schoolId)!.name } : undefined,
+            subIp: subIps.has(item.subIpId) ? { id: item.subIpId, title: subIps.get(item.subIpId)!.title } : undefined,
+        })),
+    };
 }
 
 export async function createAdminIpGrant(actorId: string, ipId: string, input: AdminIpGrantInput) {
     await requireEducationDuty(actorId);
     const id = required(ipId, "IP 标识无效");
     const packageRecord = await getExistingPackage(id);
-    if (packageRecord.status !== "published" || packageRecord.visibility !== "school" || !packageRecord.currentVersionId) throw new SchoolServiceError(409, "只有已发布的本校 IP 可以授权");
+    if (packageRecord.visibility !== "school") throw new SchoolServiceError(409, "只有本校 IP 可以授权给学校");
+    const subIpId = required(input.subIpId, "请选择子 IP");
+    await requireSubIp(id, subIpId);
     const mode = enumValue(input.mode, IP_AUTHORIZATION_MODES, "IP 授权模式无效");
     const startsAt = isoTime(input.startsAt, "授权开始时间无效");
     const endsAt = input.endsAt ? isoTime(input.endsAt, "授权结束时间无效") : undefined;
     if (endsAt && Date.parse(endsAt) <= Date.parse(startsAt)) throw new SchoolServiceError(400, "IP 授权时间窗无效");
     const schoolId = required(input.schoolId, "请选择学校");
     const repository = createIpLibraryRepository();
-    if (await repository.findConflictingSchoolGrant({ ipId: id, schoolId, mode, startsAt, endsAt })) {
-        throw new SchoolServiceError(409, "授权创建失败：当前学校或授权模式存在重叠时间窗", { reason: "grant_conflict", ipId: id, schoolId });
-    }
-    return translateConflict(
-        "grant",
-        () =>
-            repository.createSchoolGrant({
-                id: randomUUID(),
-                ipId: id,
-                schoolId,
-                mode,
-                status: "active",
-                startsAt,
-                endsAt,
-                note: optional(input.note),
-                createdByUserId: actorId,
-            }),
-        { ipId: id, schoolId },
-    );
+    if (await repository.findConflictingSchoolGrant({ ipId: id, subIpId, schoolId, mode, startsAt, endsAt })) throw new SchoolServiceError(409, "授权创建失败：当前学校或授权模式存在重叠时间窗", { reason: "grant_conflict", ipId: id, subIpId, schoolId });
+    return translateConflict("grant", () => repository.createSchoolGrant({ id: randomUUID(), ipId: id, subIpId, schoolId, mode, status: "active", startsAt, endsAt, note: optional(input.note), createdByUserId: actorId }), { ipId: id, subIpId, schoolId });
 }
 
 export async function updateAdminIpGrant(actorId: string, ipId: string, grantId: string, input: AdminIpGrantPatchInput) {
     await requireEducationDuty(actorId);
     const id = required(ipId, "IP 标识无效");
     await getExistingPackage(id);
-    const patch = {
-        ...(input.status !== undefined ? { status: enumValue(input.status, ["active", "suspended", "revoked", "expired"] as const, "授权状态无效") } : {}),
-        ...(input.endsAt !== undefined ? { endsAt: input.endsAt ? isoTime(input.endsAt, "授权结束时间无效") : undefined } : {}),
-        ...(input.note !== undefined ? { note: optional(input.note) } : {}),
-        updatedAt: new Date().toISOString(),
-    };
-    const updated = await translateConflict("grant", () => createIpLibraryRepository().updateSchoolGrant(id, required(grantId, "授权标识无效"), patch));
+    const normalizedGrantId = required(grantId, "授权标识无效");
+    const repository = createIpLibraryRepository();
+    let endsAt: string | null | undefined;
+    if (input.endsAt !== undefined) {
+        endsAt = optional(input.endsAt) ? isoTime(input.endsAt, "授权结束时间无效") : null;
+        if (endsAt) {
+            const existing = await repository.listSchoolGrants({ ipId: id, grantId: normalizedGrantId, pageSize: 1 });
+            if (!existing.items[0]) throw new SchoolServiceError(404, "学校授权不存在");
+            if (Date.parse(endsAt) <= Date.parse(existing.items[0].startsAt)) throw new SchoolServiceError(400, "IP 授权时间窗无效");
+        }
+    }
+    const updated = await translateConflict("grant", () =>
+        repository.updateSchoolGrant(id, normalizedGrantId, {
+            ...(input.status !== undefined ? { status: enumValue(input.status, ["active", "suspended", "revoked", "expired"] as const, "授权状态无效") } : {}),
+            ...(endsAt !== undefined ? { endsAt } : {}),
+            ...(input.note !== undefined ? { note: optional(input.note) } : {}),
+            updatedAt: new Date().toISOString(),
+        }),
+    );
     if (!updated) throw new SchoolServiceError(404, "学校授权不存在");
     return updated;
 }
 
-export async function listAdminIpUsage(actorId: string, input: PageInput & { ipId?: string; versionId?: string; schoolId?: string; userId?: string; downloadType?: string; result?: string } = {}) {
+export async function listAdminIpUsage(actorId: string, input: PageInput & { ipId?: string; subIpId?: string; schoolId?: string; userId?: string; downloadType?: string; result?: string } = {}) {
     await requireAnyIpDuty(actorId);
     const page = await createIpLibraryRepository().listIpDownloads(input);
     const users = new Map((await getPublicUsersByIds([...new Set(page.items.map((item) => item.userId))])).map((user) => [user.id, user]));
-    const schools = new Map((await createSchoolDomainRepository().listSchoolsByIds([...new Set(page.items.map((item) => item.schoolId).filter((schoolId): schoolId is string => Boolean(schoolId)))])).map((school) => [school.id, school]));
-    return {
-        ...page,
-        items: page.items.map((item) => {
-            const user = users.get(item.userId);
-            const school = item.schoolId ? schools.get(item.schoolId) : undefined;
-            return {
-                ...item,
-                user: user ? { accountId: user.accountId, username: user.username, displayName: user.displayName, email: user.email } : undefined,
-                school: school ? { id: school.id, name: school.name } : undefined,
-                userId: undefined,
-            };
-        }),
-    };
+    const schools = new Map((await createSchoolDomainRepository().listSchoolsByIds([...new Set(page.items.map((item) => item.schoolId).filter((value): value is string => Boolean(value)))])).map((school) => [school.id, school]));
+    return { ...page, items: page.items.map((item) => ({ ...item, user: users.get(item.userId), school: item.schoolId ? schools.get(item.schoolId) : undefined, userId: undefined })) };
 }
 
-async function normalizeDraftItem(repository: ReturnType<typeof createIpLibraryRepository>, ipId: string, input: AdminIpDraftItemInput, index: number): Promise<IpDraftItemInput> {
+export async function retryIpLibraryFileCleanup() {
+    const repository = createIpLibraryRepository();
+    const records = await repository.listIpFileCleanupQueue();
+    for (const record of records) {
+        try {
+            await deleteStoredIpContentFile(record);
+            await repository.removeIpFileCleanupQueueRecord(record.id);
+        } catch {
+            // Keep the queue record for the next administrative operation.
+        }
+    }
+}
+
+async function normalizeItem(repository: ReturnType<typeof createIpLibraryRepository>, ipId: string, subIpId: string, input: AdminIpItemInput, index: number): Promise<IpItemInput> {
     const kind = enumValue(input.kind, IP_ASSET_KINDS, "IP 内容类型无效");
     const category = normalizeIpItemCategory(kind, input.category);
     if (!category) throw new SchoolServiceError(400, "IP 内容分类无效");
     const fileId = required(input.fileId, "请选择 IP 内容文件");
-    await requireReadyFile(repository, ipId, fileId, kind);
-    return {
-        id: randomUUID(),
-        kind,
-        category,
-        title: required(input.title, "请填写内容项标题"),
-        summary: optional(input.summary),
-        fileId,
-        sortOrder: Number.isSafeInteger(input.sortOrder) && Number(input.sortOrder) >= 0 ? Number(input.sortOrder) : index,
-    };
+    await requireReadyFile(repository, ipId, subIpId, fileId, kind);
+    return { id: randomUUID(), kind, category, title: required(input.title, "请填写内容项标题"), summary: optional(input.summary), fileId, sortOrder: validSortOrder(input.sortOrder) ?? index };
 }
-
-async function requireReadyFile(repository: ReturnType<typeof createIpLibraryRepository>, ipId: string, fileId: string, kind: IpAssetKind) {
-    const file = await repository.getIpContentFile(ipId, fileId);
-    if (!file || file.kind !== kind) throw new SchoolServiceError(400, "IP 内容文件不存在、跨 IP 或类型不匹配");
+async function requireReadyFile(repository: ReturnType<typeof createIpLibraryRepository>, ipId: string, subIpId: string, fileId: string, kind: IpAssetKind) {
+    const file = await repository.getIpContentFile(ipId, fileId, subIpId);
+    if (!file || file.kind !== kind) throw new SchoolServiceError(400, "IP 内容文件不存在、跨子 IP 或类型不匹配");
     if (file.status !== "ready") throw new SchoolServiceError(409, "IP 内容文件尚未处理完成");
     return file;
 }
-
+async function requireSubIp(ipId: string, subIpId: string) {
+    const subIp = await createIpLibraryRepository().getIpSubIp(ipId, subIpId);
+    if (!subIp) throw new SchoolServiceError(404, "子 IP 不存在");
+    return subIp;
+}
 async function getExistingPackage(ipId: string) {
     const record = await createIpLibraryRepository().getIpPackage(ipId);
     if (!record) throw new SchoolServiceError(404, "IP 不存在");
     return record;
 }
-
 async function requireActor(actorId: string) {
     const actor = (await getPublicUsersByIds([actorId]))[0];
     if (!actor || actor.status !== "active" || actor.role !== "admin") throw new SchoolServiceError(403, "当前管理员不可用");
     return actor;
 }
-
-async function requireContentDuty(actorId: string) {
-    const actor = await requireActor(actorId);
-    if (!hasAdminPermission(actor, "content.manage")) throw new SchoolServiceError(403, "当前管理员没有内容运营职责权限");
-    return actor;
-}
-async function requireEducationDuty(actorId: string) {
-    const actor = await requireActor(actorId);
-    if (!hasAdminPermission(actor, "education.manage")) throw new SchoolServiceError(403, "当前管理员没有产教运营职责权限");
-    return actor;
-}
 async function requireAnyIpDuty(actorId: string) {
     const actor = await requireActor(actorId);
     if (!hasAdminPermission(actor, "content.manage") && !hasAdminPermission(actor, "education.manage")) throw new SchoolServiceError(403, "当前管理员没有 IP 库职责权限");
-    return actor;
 }
-
-async function translateConflict<T>(kind: "slug" | "grant" | "generic", operation: () => Promise<T>, conflictData?: unknown) {
-    try {
-        return await operation();
-    } catch (error) {
-        if (error instanceof SchoolServiceError) throw error;
-        const value = error as { code?: string; message?: string };
-        if (kind === "slug" && (value.code === "23505" || /slug|IP 标识/i.test(value.message || ""))) throw new SchoolServiceError(409, "IP 标识已存在，请更换 slug", { field: "slug", reason: "duplicate" });
-        if (kind === "grant" && (value.code === "23505" || /Conflicting IP school grant|授权|时间窗/i.test(value.message || "")))
-            throw new SchoolServiceError(409, "授权创建失败：当前学校或授权模式存在重叠时间窗", { reason: "grant_conflict", ...(conflictData && typeof conflictData === "object" ? conflictData : {}) });
-        if (value.code === "23514" || value.code === "23503" || value.code === "P0001" || /冲突|已存在|不可授权|时间窗|已被引用/.test(value.message || "")) throw new SchoolServiceError(409, "IP 数据冲突");
-        throw error;
-    }
+async function requireContentDuty(actorId: string) {
+    if (!hasAdminPermission(await requireActor(actorId), "content.manage")) throw new SchoolServiceError(403, "当前管理员没有内容运营职责权限");
 }
-
+async function requireEducationDuty(actorId: string) {
+    if (!hasAdminPermission(await requireActor(actorId), "education.manage")) throw new SchoolServiceError(403, "当前管理员没有教育运营职责权限");
+}
 function required(value: unknown, message: string) {
     const text = typeof value === "string" ? value.trim() : "";
     if (!text) throw new SchoolServiceError(400, message);
@@ -364,16 +325,29 @@ function normalizeTags(value: unknown) {
     return [...new Set(value.map((item) => item.trim()).filter(Boolean))];
 }
 function slugValue(value: unknown) {
-    const slug = required(value, "请填写 IP slug").toLowerCase();
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw new SchoolServiceError(400, "IP slug 只能使用小写字母、数字和连字符");
+    const slug = required(value, "请填写 IP 标识").toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-_]{1,79}$/.test(slug)) throw new SchoolServiceError(400, "IP 标识仅支持小写字母、数字、中划线和下划线");
     return slug;
 }
 function enumValue<T extends string>(value: unknown, values: readonly T[], message: string): T {
-    if (typeof value !== "string" || !values.includes(value as T)) throw new SchoolServiceError(400, message);
-    return value as T;
+    if (typeof value === "string" && values.includes(value as T)) return value as T;
+    throw new SchoolServiceError(400, message);
 }
 function isoTime(value: unknown, message: string) {
     const text = required(value, message);
-    if (!/(?:Z|[+-]\d{2}:\d{2})$/i.test(text) || !Number.isFinite(Date.parse(text))) throw new SchoolServiceError(400, message);
-    return new Date(text).toISOString();
+    const time = Date.parse(text);
+    if (!Number.isFinite(time)) throw new SchoolServiceError(400, message);
+    return new Date(time).toISOString();
+}
+function validSortOrder(value: unknown) {
+    return Number.isSafeInteger(value) && Number(value) >= 0 ? Number(value) : undefined;
+}
+async function translateConflict<T>(kind: "slug" | "grant" | "generic", operation: () => Promise<T>, metadata?: Record<string, string>) {
+    try {
+        return await operation();
+    } catch (error) {
+        const code = (error as { code?: string }).code;
+        if (code === "23505") throw new SchoolServiceError(409, kind === "slug" ? "IP 标识已存在，请更换 slug" : kind === "grant" ? "授权创建失败：当前学校或授权模式存在重叠时间窗" : "数据冲突，请刷新后重试", metadata);
+        throw error;
+    }
 }

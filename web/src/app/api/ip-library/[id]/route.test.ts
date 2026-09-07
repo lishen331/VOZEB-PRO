@@ -10,13 +10,13 @@ describe("GET /api/ip-library/:id", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
-        mocks.getIpDetailForUser.mockResolvedValue({ id: "ip-one", version: { id: "version-one" } });
+        mocks.getIpDetailForUser.mockResolvedValue({ id: "ip-one", subIps: [{ id: "child-one" }] });
     });
 
-    it("reads a requested published historical version through the service", async () => {
-        const response = await GET(new Request("http://localhost/api/ip-library/ip-one?versionId=version-one"), { params: Promise.resolve({ id: "ip-one" }) });
+    it("reads a requested child IP through the service", async () => {
+        const response = await GET(new Request("http://localhost/api/ip-library/ip-one?subIpId=child-one"), { params: Promise.resolve({ id: "ip-one" }) });
         expect(response.status).toBe(200);
-        expect(mocks.getIpDetailForUser).toHaveBeenCalledWith("user-one", "ip-one", "version-one");
+        expect(mocks.getIpDetailForUser).toHaveBeenCalledWith("user-one", "ip-one", "child-one");
         expect(await response.json()).toMatchObject({ code: 0, data: { id: "ip-one" } });
     });
 

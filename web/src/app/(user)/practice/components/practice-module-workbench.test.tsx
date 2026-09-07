@@ -17,8 +17,8 @@ describe("practice module workbench contract", () => {
         expect(JSON.stringify(input)).not.toMatch(/provider|model|points|executionProfile|channel/i);
     });
 
-    it("submits stable IP versions together with ordinary asset references", () => {
-        const reference: IpReference = { type: "ip", id: "ip-one", versionId: "version-two", itemIds: ["item-three"] };
+    it("submits stable child IP references together with ordinary asset references", () => {
+        const reference: IpReference = { type: "ip", id: "ip-one", subIpId: "child-two", itemIds: ["item-three"] };
 
         expect(buildPracticeSessionInput("music", "雨夜配乐", ["asset-1"], [reference]).references).toEqual([{ type: "asset", id: "asset-1" }, reference]);
     });
@@ -100,7 +100,7 @@ describe("practice module workbench contract", () => {
     });
 
     it("preserves reference context while attaching a created session to the URL", () => {
-        expect(practiceSessionPath("storyboard-image", new URLSearchParams("ipId=ip-one&versionId=v-one"), "session-one")).toBe("/practice/storyboard-image?ipId=ip-one&versionId=v-one&sessionId=session-one");
+        expect(practiceSessionPath("storyboard-image", new URLSearchParams("ipId=ip-one&subIpId=child-one"), "session-one")).toBe("/practice/storyboard-image?ipId=ip-one&subIpId=child-one&sessionId=session-one");
     });
 
     it("keeps generated script text editable until another result is selected", () => {

@@ -1515,7 +1515,7 @@ function normalizeContextIpReferences(value: unknown) {
         const reference = normalizeIpReference(item);
         return reference ? [reference] : [];
     });
-    const unique = [...new Map(references.map((reference) => [`${reference.id}\0${reference.versionId}\0${reference.itemIds.join("\0")}`, reference])).values()];
+    const unique = [...new Map(references.map((reference) => [`${reference.id}\0${reference.subIpId}\0${reference.itemIds.join("\0")}`, reference])).values()];
     return unique.length ? unique : undefined;
 }
 

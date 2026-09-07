@@ -47,8 +47,8 @@ export default function CanvasPage() {
 
     const mode = searchParams.get("mode");
     const ipId = searchParams.get("ipId")?.trim() || "";
-    const ipVersionId = searchParams.get("versionId")?.trim() || "";
-    const ipReferenceKey = ipId && ipVersionId ? `${ipId}:${ipVersionId}` : "";
+    const subIpId = searchParams.get("subIpId")?.trim() || "";
+    const ipReferenceKey = ipId && subIpId ? `${ipId}:${subIpId}` : "";
     const agentMode = mode === "new" || mode === "recent" || mode === "choose";
     const agentQuery = agentMode ? `?${searchParams.toString()}` : "";
     const enterProject = useCallback(
@@ -121,15 +121,15 @@ export default function CanvasPage() {
         void (async () => {
             try {
                 const defaultName = `${siteTitle} 画布 ${total + 1}`;
-                const reference = ipId && ipVersionId ? ipReferenceFromQuery(new URLSearchParams({ ipId, versionId: ipVersionId })) : undefined;
-                const id = reference ? await createProject(defaultName, [reference], `ip-library-${reference.id}-${reference.versionId}`) : mode === "new" ? await createProject(defaultName) : projects[0]?.id || (await createProject(defaultName));
+                const reference = ipId && subIpId ? ipReferenceFromQuery(new URLSearchParams({ ipId, subIpId })) : undefined;
+                const id = reference ? await createProject(defaultName, [reference], `ip-library-${reference.id}-${reference.subIpId}`) : mode === "new" ? await createProject(defaultName) : projects[0]?.id || (await createProject(defaultName));
                 enterProject(id);
             } catch (error) {
                 autoOpenRef.current = false;
                 message.error(error instanceof Error ? error.message : "画布打开失败");
             }
         })();
-    }, [createProject, enterProject, ipId, ipReferenceKey, ipVersionId, message, mode, projects, ready, siteTitle, total]);
+    }, [createProject, enterProject, ipId, ipReferenceKey, message, mode, projects, ready, siteTitle, subIpId, total]);
 
     if (ready && (mode === "new" || mode === "recent" || ipReferenceKey)) return <main className="flex h-full items-center justify-center bg-background text-sm text-stone-500">正在打开画布...</main>;
 

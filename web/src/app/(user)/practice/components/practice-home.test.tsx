@@ -20,9 +20,9 @@ describe("practice home contract", () => {
         expect(PRACTICE_ASSET_MODULES.map((item) => item.module)).toEqual(["character", "scene", "prop"]);
     });
 
-    it("keeps a stable IP version when opening a focused practice module", () => {
-        const reference: IpReference = { type: "ip", id: "ip-one", versionId: "version-two", itemIds: [] };
+    it("keeps a stable child IP when opening a focused practice module", () => {
+        const reference: IpReference = { type: "ip", id: "ip-one", subIpId: "child-two", itemIds: [] };
 
-        expect(practiceModulePath("script", reference)).toBe("/practice/script?ipId=ip-one&versionId=version-two");
+        expect(practiceModulePath("script", reference)).toBe("/practice/script?ipId=ip-one&subIpId=child-two");
     });
 });

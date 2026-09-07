@@ -37,22 +37,22 @@ export default function DramaPage() {
     const [ipReferences, setIpReferences] = useState<IpReference[]>([]);
     const handledIpReference = useRef("");
     const ipId = searchParams.get("ipId")?.trim() || "";
-    const ipVersionId = searchParams.get("versionId")?.trim() || "";
+    const subIpId = searchParams.get("subIpId")?.trim() || "";
     const episodeCount = projects.reduce((total, project) => total + project.episodeCount, 0);
     const pendingCount = projects.reduce((total, project) => total + project.pendingTaskCount, 0);
     useEffect(() => {
         void hydrate();
     }, [hydrate, userId]);
     useEffect(() => {
-        const reference = ipId && ipVersionId ? ipReferenceFromQuery(new URLSearchParams({ ipId, versionId: ipVersionId })) : undefined;
+        const reference = ipId && subIpId ? ipReferenceFromQuery(new URLSearchParams({ ipId, subIpId })) : undefined;
         if (!reference) return;
-        const key = `${reference.id}:${reference.versionId}`;
+        const key = `${reference.id}:${reference.subIpId}`;
         if (handledIpReference.current === key) return;
         handledIpReference.current = key;
         setIpReferences([reference]);
         setTitle("IP 短剧");
         setOpen(true);
-    }, [ipId, ipVersionId]);
+    }, [ipId, subIpId]);
     const openCreate = () => {
         setIpReferences([]);
         setOpen(true);

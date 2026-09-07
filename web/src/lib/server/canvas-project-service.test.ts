@@ -155,7 +155,7 @@ describe("canvas project service lifecycle", () => {
     });
 
     it("validates and records stable IP references when creating a Canvas", async () => {
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: ["item-one"] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: ["item-one"] };
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
         mocks.createCanvasProject.mockImplementation(async (_userId, value) => value);
 
@@ -168,7 +168,7 @@ describe("canvas project service lifecycle", () => {
     });
 
     it("records a practice target when Canvas is created through the practice workspace", async () => {
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
         mocks.createCanvasProject.mockImplementation(async (_userId, value) => value);
 
@@ -178,7 +178,7 @@ describe("canvas project service lifecycle", () => {
     });
 
     it("does not create a Canvas when initial IP usage cannot be recorded", async () => {
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
         mocks.recordIpReferenceUsage.mockRejectedValue(new Error("usage failed"));
 
@@ -352,7 +352,7 @@ describe("canvas project service lifecycle", () => {
     });
 
     it("does not allow a revoked reference to be removed as a generation bypass", async () => {
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         const current = { ...project(), ipReferences: [reference] };
         mocks.getCanvasProject.mockResolvedValue(current);
         mocks.validateIpReferences.mockRejectedValue(Object.assign(new Error("IP 授权已失效"), { status: 403 }));
@@ -365,7 +365,7 @@ describe("canvas project service lifecycle", () => {
 
     it("records IP usage before persisting a reference update", async () => {
         const current = project();
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         mocks.getCanvasProject.mockResolvedValue(current);
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
         mocks.recordIpReferenceUsage.mockRejectedValueOnce(new Error("usage failed"));

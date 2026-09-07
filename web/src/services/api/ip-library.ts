@@ -11,11 +11,11 @@ export const ipLibraryApi = {
         const query = serializeApiParams({ ...params, tag: tags });
         return request<PageResult<IpSummary>>(`/api/ip-library?${query.toString()}`);
     },
-    get(id: string, versionId?: string) {
-        const query = serializeApiParams({ versionId });
+    get(id: string, subIpId?: string) {
+        const query = serializeApiParams({ subIpId });
         return request<IpDetail>(`/api/ip-library/${encodeURIComponent(id)}${query.size ? `?${query.toString()}` : ""}`);
     },
-    async download(id: string, input: { versionId?: string; itemIds?: string[]; package: boolean }): Promise<{ url: string; fileName: string } | { blob: Blob; fileName: string }> {
+    async download(id: string, input: { subIpId?: string; itemIds?: string[]; package: boolean }): Promise<{ url: string; fileName: string } | { blob: Blob; fileName: string }> {
         const response = await fetch(`/api/ip-library/${encodeURIComponent(id)}/download`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input), cache: "no-store" });
         if (!response.ok) throw new Error(await readError(response, "下载 IP 内容失败"));
         if (response.headers.get("content-type")?.includes("application/json")) {

@@ -1,7 +1,6 @@
 export const IP_VISIBILITIES = ["public", "school"] as const;
 export const IP_AUTHORIZATION_MODES = ["multi_school", "exclusive"] as const;
-export const IP_STATUSES = ["draft", "published", "disabled"] as const;
-export const IP_VERSION_STATUSES = ["draft", "published", "disabled"] as const;
+export const IP_STATUSES = ["enabled", "disabled"] as const;
 export const IP_ASSET_KINDS = ["text", "image", "audio", "video"] as const;
 export const IP_USAGE_ACTIONS = ["reference", "download_item", "download_package"] as const;
 export const IP_REFERENCE_ENTRY_VISIBLE = false;
@@ -16,11 +15,10 @@ export const IP_ITEM_CATEGORIES = {
 export type IpVisibility = (typeof IP_VISIBILITIES)[number];
 export type IpAuthorizationMode = (typeof IP_AUTHORIZATION_MODES)[number];
 export type IpStatus = (typeof IP_STATUSES)[number];
-export type IpVersionStatus = (typeof IP_VERSION_STATUSES)[number];
 export type IpAssetKind = (typeof IP_ASSET_KINDS)[number];
 export type IpItemCategory = (typeof IP_ITEM_CATEGORIES)[IpAssetKind][number];
 export type IpUsageAction = (typeof IP_USAGE_ACTIONS)[number];
-export type IpReference = { type: "ip"; id: string; versionId: string; itemIds: string[] };
+export type IpReference = { type: "ip"; id: string; subIpId: string; itemIds: string[] };
 
 const IP_ASSET_KIND_SET = new Set<string>(IP_ASSET_KINDS);
 const IP_ITEM_CATEGORY_SETS = Object.fromEntries(Object.entries(IP_ITEM_CATEGORIES).map(([kind, categories]) => [kind, new Set<string>(categories)])) as Record<IpAssetKind, Set<string>>;
@@ -34,14 +32,14 @@ export function normalizeIpItemCategory(kind: unknown, value: unknown): IpItemCa
 export function normalizeIpReference(value: unknown): IpReference | null {
     if (!value || typeof value !== "object") return null;
     const source = value as Record<string, unknown>;
-    if (source.type !== "ip" || typeof source.id !== "string" || typeof source.versionId !== "string" || !Array.isArray(source.itemIds)) return null;
+    if (source.type !== "ip" || typeof source.id !== "string" || typeof source.subIpId !== "string" || !Array.isArray(source.itemIds)) return null;
     const id = source.id.trim();
-    const versionId = source.versionId.trim();
-    if (!id || !versionId || source.itemIds.some((item) => typeof item !== "string")) return null;
+    const subIpId = source.subIpId.trim();
+    if (!id || !subIpId || source.itemIds.some((item) => typeof item !== "string")) return null;
 
     const itemIds = source.itemIds.map((item) => (item as string).trim()).filter(Boolean);
     if (new Set(itemIds).size !== itemIds.length) return null;
-    return { type: "ip", id, versionId, itemIds };
+    return { type: "ip", id, subIpId, itemIds };
 }
 
 export function ipAuthorizationLabel(mode: IpAuthorizationMode) {

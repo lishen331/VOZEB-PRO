@@ -21,13 +21,13 @@ describe("POST /api/ip-library/:id/download", () => {
 
     it("returns an original file response and does not expose a source URL", async () => {
         const response = await POST(
-            new Request("http://localhost/api/ip-library/ip-one/download", { method: "POST", body: JSON.stringify({ versionId: "version-one", itemIds: ["item-one"], package: false }), headers: { "Content-Type": "application/json" } }),
+            new Request("http://localhost/api/ip-library/ip-one/download", { method: "POST", body: JSON.stringify({ subIpId: "child-one", itemIds: ["item-one"], package: false }), headers: { "Content-Type": "application/json" } }),
             { params: Promise.resolve({ id: "ip-one" }) },
         );
         expect(response.status).toBe(200);
         expect(response.headers.get("content-disposition")).toContain("%E6%95%85%E4%BA%8B.md");
         expect(await response.text()).toBe("story");
-        expect(mocks.downloadIpForUser).toHaveBeenCalledWith("user-one", expect.any(Request), "ip-one", { versionId: "version-one", itemIds: ["item-one"], package: false });
+        expect(mocks.downloadIpForUser).toHaveBeenCalledWith("user-one", expect.any(Request), "ip-one", { subIpId: "child-one", itemIds: ["item-one"], package: false });
     });
 
     it("maps unauthorized item access to 403 and never writes a success payload", async () => {

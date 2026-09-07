@@ -370,7 +370,7 @@ describe("drama project service updates", () => {
     });
 
     it("does not persist a project when initial IP usage recording fails", async () => {
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
         mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
         mocks.recordIpReferenceUsage.mockRejectedValueOnce(new Error("usage failed"));
@@ -383,7 +383,7 @@ describe("drama project service updates", () => {
     });
 
     it("records newly referenced IP content when saving a version", async () => {
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         const current = { ...project("2026-07-19T08:00:02.000Z", "当前版本"), ipReferences: [] };
         const snapshot = { ...current, title: "引用版本", ipReferences: [reference] };
         mocks.getDramaProject.mockResolvedValue(current);
@@ -396,7 +396,7 @@ describe("drama project service updates", () => {
     });
 
     it("validates and records newly referenced IP content when restoring a version", async () => {
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         const current = { ...project("2026-07-19T08:00:02.000Z", "当前版本"), ipReferences: [] };
         const snapshot = { ...current, title: "引用版本", ipReferences: [reference] };
         mocks.getDramaProject.mockResolvedValue(current);
@@ -410,7 +410,7 @@ describe("drama project service updates", () => {
     });
 
     it("records IP usage before persisting a project reference update", async () => {
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         const current = { ...project("2026-07-19T08:00:02.000Z", "当前版本"), ipReferences: [] };
         mocks.getDramaProject.mockResolvedValue(current);
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
@@ -434,7 +434,7 @@ describe("drama project service updates", () => {
     });
 
     it("pins and records an authorized IP version when creating a short drama", async () => {
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
         mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
 
@@ -446,7 +446,7 @@ describe("drama project service updates", () => {
     });
 
     it("records a practice target when a short drama is created through the practice workspace", async () => {
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
         mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
 
