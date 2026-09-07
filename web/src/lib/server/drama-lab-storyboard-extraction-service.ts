@@ -73,6 +73,7 @@ type StoryboardTextRequestInput = {
     model: string;
     idempotencyKey: string;
     preferNativeTools?: boolean;
+    onStreamPartial?: (shots: DramaShot[], meta: DramaStoryboardExtractionMeta) => Promise<void>;
 };
 
 type NormalizedStoryboardResult = {
@@ -134,7 +135,27 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
     for (const candidate of rankedCandidates) {
         const idempotencyKey = systemAiIdempotencyKey("drama-lab-extract-storyboards", input.userId, input.project.id, input.episodeId, input.requestId, candidate.channelId, candidate.upstreamModel);
         try {
-            let call = await requestStoryboardText({ input, candidate, systemPrompt, userPrompt: initialPrompt, model, idempotencyKey });
+            let streamedShots = resumeShots;
+            let streamBaseShots = resumeShots;
+            const saveStreamedPartial = async (argumentsText: string) => {
+                if (!input.onPartial || !argumentsText.trim()) return;
+                try {
+                    const partial = normalizeExtractedDramaLabStoryboardsWithMeta(argumentsText, input.project);
+                    const merged = mergeStoryboardShots(streamBaseShots, partial.shots);
+                    if (merged.length <= streamedShots.length) return;
+                    try {
+                        await input.onPartial(merged, { ...partial.meta, truncated: true, recoveredCount: merged.length, continuationAttempts: 0 });
+                        streamedShots = merged;
+                    } catch {
+                        // A checkpoint failure must not discard the valid
+                        // upstream response; the final save will retry it.
+                    }
+                } catch {
+                    // A token stream is normally inside an incomplete JSON
+                    // object. Final parsing remains authoritative.
+                }
+            };
+            let call = await requestStoryboardText({ input, candidate, systemPrompt, userPrompt: initialPrompt, model, idempotencyKey, onStreamPartial: saveStreamedPartial });
             let initialResponseRefunded = false;
             try {
                 let normalized: NormalizedStoryboardResult;
@@ -155,6 +176,7 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
                         model,
                         idempotencyKey: systemAiIdempotencyKey("drama-lab-extract-storyboards-retry", input.userId, input.project.id, input.episodeId, input.requestId, candidate.channelId, candidate.upstreamModel),
                         preferNativeTools: true,
+                        onStreamPartial: saveStreamedPartial,
                     });
                     normalized = normalizeExtractedDramaLabStoryboardsWithMeta(call.arguments, input.project);
                 }
@@ -169,6 +191,7 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
                     const lastOrder = Math.max(...shots.map((shot) => shot.order));
                     const continuationPrompt = buildContinuationPrompt(userPrompt, shots, lastOrder, attempt);
                     try {
+                        streamBaseShots = shots;
                         const continuation = await requestStoryboardText({
                             input,
                             candidate,
@@ -176,6 +199,7 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
                             userPrompt: continuationPrompt,
                             model,
                             idempotencyKey: systemAiIdempotencyKey("drama-lab-extract-storyboards-continuation", input.userId, input.project.id, input.episodeId, input.requestId, String(attempt), candidate.channelId, candidate.upstreamModel),
+                            onStreamPartial: saveStreamedPartial,
                         });
                         const next = normalizeExtractedDramaLabStoryboardsWithMeta(continuation.arguments, input.project);
                         const merged = mergeStoryboardShots(shots, next.shots);
@@ -235,7 +259,7 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
     throw latestError instanceof DramaLabStoryboardExtractionError ? latestError : new DramaLabStoryboardExtractionError(latestError instanceof Error ? latestError.message : "分镜提取失败，请稍后重试");
 }
 
-async function requestStoryboardText({ input, candidate, systemPrompt, userPrompt, model, idempotencyKey, preferNativeTools = false }: StoryboardTextRequestInput) {
+async function requestStoryboardText({ input, candidate, systemPrompt, userPrompt, model, idempotencyKey, preferNativeTools = false, onStreamPartial }: StoryboardTextRequestInput) {
     return requestStructuredText({
         origin: input.origin,
         cookie: input.cookie,
@@ -247,6 +271,8 @@ async function requestStoryboardText({ input, candidate, systemPrompt, userPromp
         tool: extractDramaStoryboardsTool,
         preferNativeTools,
         headers: { "Content-Type": "application/json", ...systemAiBillingHeaders(model, idempotencyKey, candidate.upstreamModel) },
+        stream: true,
+        onStreamDelta: async (argumentsText) => onStreamPartial?.(argumentsText),
         onInvalidResponse: (headers) => refundInvalidResponse(input.userId, model, headers),
     });
 }

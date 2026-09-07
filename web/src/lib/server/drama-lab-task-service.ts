@@ -50,7 +50,7 @@ export class DramaLabTaskError extends Error {
     }
 }
 
-type TaskListStatus = "active" | "terminal" | "all" | DramaTaskStatus;
+type TaskListStatus = "active" | "visible" | "terminal" | "all" | DramaTaskStatus;
 
 /**
  * Read all task types from the shared generation_tasks store, then apply the
@@ -322,6 +322,7 @@ async function cancelAudioTask(task: AudioTask, record: StoredGenerationTaskReco
 function normalizeListStatus(value: string | undefined): TaskListStatus {
     const normalized = value?.trim().toLowerCase();
     if (!normalized || normalized === "active") return "active";
+    if (normalized === "visible") return "visible";
     if (normalized === "terminal" || normalized === "completed") return "terminal";
     if (normalized === "all") return "all";
     if (["pending", "running", "success", "error", "paused", "cancelled"].includes(normalized)) return normalized as DramaTaskStatus;
@@ -330,6 +331,7 @@ function normalizeListStatus(value: string | undefined): TaskListStatus {
 
 function matchesStatus(status: DramaTaskStatus, filter: TaskListStatus, executionPhase?: StoredGenerationTaskRecord["executionPhase"]) {
     if (filter === "active") return isActiveStatus(status, executionPhase);
+    if (filter === "visible") return isActiveStatus(status, executionPhase) || isReviewExecutionPhase(executionPhase) || (status === "error" && isRetryableWorkflowStatus(status));
     if (filter === "terminal") return !isActiveStatus(status, executionPhase);
     if (filter === "all") return true;
     if (filter === "pending" || filter === "running") return status === filter && isActiveStatus(status, executionPhase);

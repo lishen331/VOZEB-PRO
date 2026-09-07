@@ -57,6 +57,10 @@ import { DramaLabVideoBatchWaitError, waitForDramaLabVideoBatch, type DramaLabVi
 const { TextArea } = Input;
 const { Option } = Select;
 
+function announceDramaLabTaskCreated(projectId: string) {
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("drama-lab-task-created", { detail: { projectId } }));
+}
+
 export function dramaLabEpisodeCanvasHref(projectId: string, episodeId: string, shotId?: string) {
     const params = new URLSearchParams();
     params.set("episodeId", episodeId);
@@ -1143,8 +1147,9 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     }, [loadCollaboration]);
 
     // 加载项目数据
-    const loadProject = useCallback(async () => {
-        setLoading(true);
+    const loadProject = useCallback(async (options: { silent?: boolean } = {}) => {
+        const silent = options.silent === true;
+        if (!silent) setLoading(true);
         setError(undefined);
         const controller = new AbortController();
         // A cold Next.js route compile can exceed 15 seconds in development;
@@ -1186,7 +1191,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             setError(err instanceof DOMException && err.name === "AbortError" ? "项目加载超时，请重试" : err instanceof Error ? err.message : "加载失败");
         } finally {
             window.clearTimeout(timeoutId);
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, [initialEpisodeId, projectId]);
 
@@ -1287,6 +1292,29 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             // saveProject reads this ref before React effects run. Keep it in lockstep
             // with a server-synchronized task update so a following full-project save
             // cannot write an older task state back over the persisted result.
+            projectRef.current = nextProject;
+            return nextProject;
+        });
+    }, []);
+
+    const applyStoryboardCheckpoint = useCallback((episodeId: string, checkpointShots: unknown[]) => {
+        if (!checkpointShots.length) return;
+        setProject((current) => {
+            if (!current) return current;
+            const existing = new Set(current.shots.map((shot) => shot.id));
+            const additions = checkpointShots
+                .filter((shot): shot is Record<string, unknown> => Boolean(shot && typeof shot === "object" && typeof (shot as { id?: unknown }).id === "string" && !existing.has((shot as { id: string }).id)))
+                .map((shot, index) => ({
+                    ...shot,
+                    episodeId,
+                    shotNumber: Number(shot.shotNumber ?? shot.order ?? index + 1),
+                    script: typeof shot.script === "string" ? shot.script : typeof shot.description === "string" ? shot.description : "",
+                    duration: Number(shot.duration ?? 3),
+                    characterIds: Array.isArray(shot.characterIds) ? shot.characterIds : [],
+                    propIds: Array.isArray(shot.propIds) ? shot.propIds : [],
+                })) as Shot[];
+            if (!additions.length) return current;
+            const nextProject = { ...current, shots: [...current.shots, ...additions].sort((left, right) => left.episodeId.localeCompare(right.episodeId) || left.shotNumber - right.shotNumber) };
             projectRef.current = nextProject;
             return nextProject;
         });
@@ -1750,7 +1778,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     {activeStep === "script" && <ScriptEditor project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onActiveEpisodeChange={setActiveEpisodeId} messageApi={messageApi} />}
                     {activeStep === "review" && <ReviewPanel project={project} episode={activeEpisode} onStepChange={setActiveStep} messageApi={messageApi} />}
                     {activeStep === "assets" && <DramaLabVisualAssetsPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onLocateShot={locateStoryboardShot} messageApi={messageApi} />}
-                    {activeStep === "storyboard" && <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onShotSynced={updateProjectShotFromSync} messageApi={messageApi} />}
+                    {activeStep === "storyboard" && <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onCheckpoint={applyStoryboardCheckpoint} onShotSynced={updateProjectShotFromSync} messageApi={messageApi} />}
                     {activeStep === "export" && <ExportPanel project={project} episode={activeEpisode} messageApi={messageApi} exportBlockedByApproval={exportBlockedByApproval} />}
                 </div>
                 <aside className={cn("hidden min-h-0 shrink-0 flex-col border-l border-border bg-card transition-[width] duration-200 lg:flex", collaborationCollapsed ? "w-14" : "w-[340px]")}>
@@ -1992,6 +2020,7 @@ function ScriptEditor({
             const data = await response.json();
             if (!response.ok || data.code !== 0 || !data.data?.taskId) throw new Error(data.msg || "生成失败");
             const taskId = String(data.data.taskId);
+            announceDramaLabTaskCreated(project.id);
             const taskState = await waitForStoryTask(taskId);
             if (!taskState) return;
             messageApi.success({ content: `剧本生成成功，共 ${taskState.episodeCount || taskState.persistedEpisodeCount || 1} 集`, key: "generate-script", duration: 3 });
@@ -2934,6 +2963,7 @@ function WorkflowRunModal({
             const payload = (await response.json().catch(() => ({}))) as { code?: unknown; msg?: unknown; data?: WorkflowTaskView | null };
             if (!response.ok || (payload.code !== undefined && Number(payload.code) !== 0) || !payload.data) throw new Error(String(payload.msg || `工作流创建失败（${response.status}）`));
             setWorkflowTask(payload.data);
+            announceDramaLabTaskCreated(projectId);
         } catch (error) {
             setWorkflowError(error instanceof Error ? error.message : "工作流创建失败");
         } finally {
@@ -3933,19 +3963,22 @@ function StoryboardPanel({
     episode,
     onSave,
     onReload,
+    onCheckpoint,
     onShotSynced,
     messageApi,
 }: {
     project: Project;
     episode?: Episode;
     onSave: (updates: ProjectUpdate, options?: SaveOptions) => Promise<boolean>;
-    onReload: () => Promise<void>;
+    onReload: (options?: { silent?: boolean }) => Promise<void>;
+    onCheckpoint: (episodeId: string, shots: unknown[]) => void;
     onShotSynced: (episodeId: string, shotId: string, shot: unknown) => void;
     messageApi: ReturnType<typeof message.useMessage>[0];
 }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingShot, setEditingShot] = useState<Shot | null>(null);
     const [extracting, setExtracting] = useState(false);
+    const lastExtractionCheckpointRef = useRef(0);
     const [startingKeys, setStartingKeys] = useState<Set<string>>(() => new Set());
     const startingKeysRef = useRef(new Set<string>());
     const [batchRunning, setBatchRunning] = useState<"image" | "video" | "">("");
@@ -4197,6 +4230,7 @@ function StoryboardPanel({
     }, [abortTrackedOperations, episodeId, project.id]);
 
     const applyCreatedTask = (shot: Shot, kind: "image" | "video", taskId: string) => {
+        announceDramaLabTaskCreated(project.id);
         onShotSynced(episodeId!, shot.id, {
             id: shot.id,
             ...(kind === "image"
@@ -4206,6 +4240,7 @@ function StoryboardPanel({
     };
 
     const applyCreatedFrameTask = (shot: Shot, frameType: "first" | "key" | "last", taskId: string, prompt?: string, description?: string) => {
+        announceDramaLabTaskCreated(project.id);
         onShotSynced(episodeId!, shot.id, {
             id: shot.id,
             frames: {
@@ -4434,6 +4469,7 @@ function StoryboardPanel({
         extractionAbortRef.current = controller;
         try {
             setExtracting(true);
+            lastExtractionCheckpointRef.current = episodeShots.length;
             messageApi.loading({ content: "正在从剧本提取分镜...", key: "extract-storyboards", duration: 0 });
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/extract-storyboards`, {
                 method: "POST",
@@ -4445,6 +4481,7 @@ function StoryboardPanel({
             const data = await response.json();
             if (!response.ok || data.code !== 0 || typeof data.data?.taskId !== "string") throw new Error(data.msg || "分镜提取任务创建失败");
             const taskId = data.data.taskId as string;
+            announceDramaLabTaskCreated(project.id);
             for (;;) {
                 if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
                 const statusResponse = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/workflow?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store", signal: controller.signal });
@@ -4452,11 +4489,18 @@ function StoryboardPanel({
                 const statusData = await statusResponse.json();
                 if (!statusResponse.ok || statusData.code !== 0 || !statusData.data) throw new Error(statusData.msg || "分镜提取任务状态读取失败");
                 const status = statusData.data.status as string;
+                const checkpoint = statusData.data.checkpoint as { episodeId?: string; shotCount?: number; shots?: unknown[] } | undefined;
+                const checkpointCount = checkpoint?.episodeId === episode.id && Number.isFinite(Number(checkpoint.shotCount)) ? Number(checkpoint.shotCount) : 0;
+                if (checkpointCount > lastExtractionCheckpointRef.current) {
+                    lastExtractionCheckpointRef.current = checkpointCount;
+                    if (checkpoint?.shots?.length) onCheckpoint(episode.id, checkpoint.shots);
+                    else await onReload({ silent: true });
+                }
                 if (status === "success") break;
                 if (status === "error" || status === "cancelled") throw new Error(statusData.data.error || (status === "cancelled" ? "分镜提取任务已取消" : "分镜提取失败"));
                 await new Promise<void>((resolve) => window.setTimeout(resolve, 1_000));
             }
-            await onReload();
+            await onReload({ silent: true });
             messageApi.success({ content: "分镜提取完成", key: "extract-storyboards", duration: 3 });
         } catch (error) {
             if (!(error instanceof DOMException && error.name === "AbortError")) messageApi.error({ content: error instanceof Error ? error.message : "分镜提取失败", key: "extract-storyboards", duration: 3 });

@@ -35,7 +35,7 @@ describe("DramaLabTaskPanel", () => {
         expect(markup).toContain("可重试");
     });
 
-    it("keeps completed and cancelled tasks in the history section", () => {
+    it("hides completed and cancelled tasks from the active task panel", () => {
         const markup = renderToStaticMarkup(
             <DramaLabTaskPanel
                 projectId="project-one"
@@ -45,9 +45,9 @@ describe("DramaLabTaskPanel", () => {
                 ]}
             />,
         );
-        expect(markup).toContain("已完成任务");
-        expect(markup).toContain("已取消任务");
-        expect(markup).toContain("历史记录");
+        expect(markup).not.toContain("已完成任务");
+        expect(markup).not.toContain("已取消任务");
+        expect(markup).not.toContain("历史记录");
     });
 
     it("renders review-pending tasks without an active spinner", () => {

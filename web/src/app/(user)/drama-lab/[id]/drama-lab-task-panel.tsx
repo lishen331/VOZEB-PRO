@@ -17,7 +17,7 @@ export type DramaLabTaskPanelProps = {
 
 /** A persistent project-scoped view over server-owned generation_tasks. */
 export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [], className, compact = false }: DramaLabTaskPanelProps) {
-    const [tasks, setTasks] = useState<DramaLabTaskView[]>(() => initialTasks);
+    const [tasks, setTasks] = useState<DramaLabTaskView[]>(() => initialTasks.filter(isTaskVisible));
     const [collapsed, setCollapsed] = useState(compact);
     const [loading, setLoading] = useState(initialTasks.length === 0);
     const [refreshing, setRefreshing] = useState(false);
@@ -34,10 +34,10 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
             if (silent) setRefreshing(true);
             else setLoading(true);
             try {
-                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks?status=all`, { cache: "no-store" });
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks?status=visible`, { cache: "no-store" });
                 const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { tasks?: DramaLabTaskView[] } };
                 if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "Task status could not be loaded");
-                setTasks(Array.isArray(payload.data?.tasks) ? payload.data.tasks : []);
+                setTasks(Array.isArray(payload.data?.tasks) ? payload.data.tasks.filter(isTaskVisible) : []);
                 setError(undefined);
             } catch (reason) {
                 setError(reason instanceof Error ? reason.message : "Task status could not be loaded");
@@ -57,12 +57,33 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
         setCollapsed(compact);
     }, [compact]);
 
-    // Keep discovering tasks created by another panel/action. The previous
-    // activeCount-gated poll never noticed the first task until a refresh.
+    // Poll only while there is useful work to track. A task-created event
+    // performs the first read when an action starts from another panel.
     useEffect(() => {
-        const timer = window.setInterval(() => void load(true), 2_000);
+        if (activeCount === 0) return undefined;
+        const timer = window.setInterval(() => {
+            if (document.visibilityState === "hidden") return;
+            void load(true);
+        }, 2_000);
         return () => window.clearInterval(timer);
-    }, [load]);
+    }, [activeCount, load]);
+
+    useEffect(() => {
+        const onTaskCreated = (event: Event) => {
+            const detail = (event as CustomEvent<{ projectId?: string }>).detail;
+            if (!detail?.projectId || detail.projectId === projectId) void load(true);
+        };
+        window.addEventListener("drama-lab-task-created", onTaskCreated);
+        return () => window.removeEventListener("drama-lab-task-created", onTaskCreated);
+    }, [load, projectId]);
+
+    useEffect(() => {
+        const onVisibilityChange = () => {
+            if (document.visibilityState === "visible" && activeCount > 0) void load(true);
+        };
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+    }, [activeCount, load]);
 
     const cancel = async (task: DramaLabTaskView) => {
         if (!task.canCancel || cancellingId) return;
@@ -114,7 +135,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
 
     const activeTasks = tasks.filter(isTaskActive);
     const reviewTasks = tasks.filter((task) => isTaskNeedsReview(task));
-    const historyTasks = tasks.filter((task) => !isTaskActive(task) && !isTaskNeedsReview(task));
+    const retryTasks = tasks.filter((task) => !isTaskActive(task) && !isTaskNeedsReview(task) && task.canRetry);
 
     return (
         <section className={cn("border-b border-border bg-card", className)} data-testid="drama-lab-task-panel">
@@ -170,7 +191,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
                     {!loading && !error && !tasks.length ? <p className="px-1 py-2 text-xs text-muted-foreground">暂无任务</p> : null}
                     <TaskSection title="运行中" tasks={activeTasks} episodes={episodes} cancellingId={cancellingId} recheckingId={recheckingId} retryingId={retryingId} onCancel={cancel} onRecheck={recheck} onRetry={retry} />
                     <TaskSection title="待检查" tasks={reviewTasks} episodes={episodes} cancellingId={cancellingId} recheckingId={recheckingId} retryingId={retryingId} onCancel={cancel} onRecheck={recheck} onRetry={retry} />
-                    <TaskSection title="历史记录" tasks={historyTasks} episodes={episodes} cancellingId={cancellingId} recheckingId={recheckingId} retryingId={retryingId} onCancel={cancel} onRecheck={recheck} onRetry={retry} />
+                    <TaskSection title="需要处理" tasks={retryTasks} episodes={episodes} cancellingId={cancellingId} recheckingId={recheckingId} retryingId={retryingId} onCancel={cancel} onRecheck={recheck} onRetry={retry} />
                 </div>
             ) : null}
         </section>
@@ -299,6 +320,10 @@ function isTaskNeedsReview(task: Pick<DramaLabTaskView, "executionPhase">) {
 
 function isTaskActive(task: Pick<DramaLabTaskView, "status" | "executionPhase">) {
     return (task.status === "pending" || task.status === "running") && !isTaskNeedsReview(task);
+}
+
+function isTaskVisible(task: DramaLabTaskView) {
+    return isTaskActive(task) || isTaskNeedsReview(task) || task.canRetry;
 }
 
 function StatusIcon({ status, executionPhase }: { status: DramaLabTaskView["status"]; executionPhase?: DramaLabTaskView["executionPhase"] }) {

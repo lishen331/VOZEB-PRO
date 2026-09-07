@@ -48,6 +48,8 @@ export type StructuredTextRequest = {
     stream?: boolean;
     streamFallback?: boolean;
     onStreamStart?: () => Promise<void> | void;
+    /** Receives the accumulated structured JSON as an upstream stream arrives. */
+    onStreamDelta?: (argumentsText: string) => Promise<void> | void;
 };
 
 type ProtocolRequest = {
@@ -289,7 +291,7 @@ async function readStructuredResponse(input: StructuredTextRequest, request: Pro
         throw new TextPlanningRequestError(safeUpstreamError(raw, response.status), response.status, retryableStatus(response.status));
     }
     const streamed = request.stream ? createStreamAccumulator(request.protocol, input.tool.name, request.resultField, input.allowNaturalLanguage) : undefined;
-    const body = request.stream ? await readResponseBody(response, streamed) : await response.text();
+    const body = request.stream ? await readResponseBody(response, streamed, input.onStreamDelta) : await response.text();
     const raw = typeof body === "string" ? body : body.raw;
     let payload: Record<string, unknown> | null = null;
     try {
@@ -333,33 +335,35 @@ async function finalizeStructuredArguments(input: StructuredTextRequest, request
     return { arguments: argumentsText, headers: response.headers, protocol: request.protocol, elapsedMs, transport: request.stream ? ("stream" as const) : ("complete" as const) };
 }
 
-async function readResponseBody(response: Response, accumulator?: StreamAccumulator): Promise<string | { raw: string; arguments: string }> {
+async function readResponseBody(response: Response, accumulator?: StreamAccumulator, onStreamDelta?: (argumentsText: string) => Promise<void> | void): Promise<string | { raw: string; arguments: string }> {
     if (!response.body) return response.text();
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let pending = "";
     let output = "";
-    const consume = (value: string, flush = false) => {
+    const consume = async (value: string, flush = false) => {
         pending += value;
         const lines = pending.split(/\r?\n/);
         pending = flush ? "" : lines.pop() || "";
         for (const line of lines) {
             output += `${line}\n`;
             accumulator?.append(line);
+            if (accumulator && onStreamDelta) await onStreamDelta(accumulator.partial());
         }
         if (flush && pending) {
             output += pending;
             accumulator?.append(pending);
+            if (accumulator && onStreamDelta) await onStreamDelta(accumulator.partial());
             pending = "";
         }
     };
     while (true) {
         const next = await reader.read();
         if (next.done) {
-            consume(decoder.decode(), true);
+            await consume(decoder.decode(), true);
             return accumulator ? { raw: output, arguments: accumulator.result() } : output;
         }
-        consume(decoder.decode(next.value, { stream: true }));
+        await consume(decoder.decode(next.value, { stream: true }));
     }
 }
 
@@ -369,7 +373,7 @@ function extractStreamedArguments(raw: string, protocol: TextPlanningProtocol, t
     return accumulator.result();
 }
 
-type StreamAccumulator = { append: (line: string) => void; result: () => string };
+type StreamAccumulator = { append: (line: string) => void; partial: () => string; result: () => string };
 
 function createStreamAccumulator(protocol: TextPlanningProtocol, toolName: string, resultField?: string, allowNaturalLanguage = false): StreamAccumulator {
     let content = "";
@@ -414,6 +418,9 @@ function createStreamAccumulator(protocol: TextPlanningProtocol, toolName: strin
         },
         result() {
             return extractJsonObjectText(argumentsText) || extractJsonObjectText(content) || (allowNaturalLanguage ? content.trim() : "");
+        },
+        partial() {
+            return argumentsText || content;
         },
     };
 }
