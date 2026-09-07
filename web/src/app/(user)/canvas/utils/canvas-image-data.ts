@@ -1,5 +1,6 @@
+"use client";
+
 import { canvasReadableImageUrl } from "@/lib/browser-media-url";
-("use client");
 
 import type { CanvasImageDecomposition, CanvasImageLayerBox, CanvasImageLayerCandidate } from "@/lib/canvas-image-decomposition";
 import { originalImageDownloadUrl } from "@/lib/media-image-url";
