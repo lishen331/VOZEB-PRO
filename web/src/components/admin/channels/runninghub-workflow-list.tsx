@@ -228,6 +228,12 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
 
     return (
         <section className="mt-4 space-y-3 border-t border-stone-200 pt-4 dark:border-stone-800">
+            {!channel.enabled ? (
+                <div role="alert" className="rounded-md border border-border bg-muted/50 p-3 text-sm">
+                    <strong>所属渠道已停用</strong>
+                    <p className="mt-1 text-muted-foreground">工作流测试成功或已启用，不代表前端可用。请在“渠道配置”打开渠道总开关，再回到渠道列表点击“保存更改”；无需重复测试或重新启用工作流。</p>
+                </div>
+            ) : null}
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                     <div className="flex items-center gap-2 text-sm font-semibold">

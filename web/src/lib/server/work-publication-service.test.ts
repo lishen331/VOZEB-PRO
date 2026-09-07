@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     getRegistration: vi.fn(),
     getRegistrations: vi.fn(),
     transaction: vi.fn(),
+    moderate: vi.fn(),
 }));
 
 vi.mock("@/lib/server/database", () => ({
@@ -15,12 +16,14 @@ vi.mock("@/lib/server/database", () => ({
     getDatabaseProvider: mocks.getDatabaseProvider,
     withPostgresTransaction: mocks.transaction,
 }));
+vi.mock("@/lib/server/work-content-moderation", () => ({ moderateWorkContent: mocks.moderate }));
 vi.mock("@/lib/server/local-media-registry", () => ({
     getLocalMediaRegistration: mocks.getRegistration,
     getLocalMediaRegistrations: mocks.getRegistrations,
 }));
 
 import {
+    createOfficialWorkDraft,
     createWorkPublicationDraft,
     deleteWorkPublicationForAdmin,
     deleteWorkPublicationForUser,
@@ -29,8 +32,13 @@ import {
     listWorkPublicationSources,
     listWorkPublicationsForAdmin,
     listWorkPublicationsForUser,
+    publishOfficialWork,
+    relistOfficialWork,
     relistWorkPublication,
     reviewWorkPublication,
+    submitWorkPublication,
+    takeDownWorkPublication,
+    updateOfficialWorkDraft,
     updateWorkPublicationDraft,
 } from "./work-publication-service";
 
@@ -81,10 +89,20 @@ describe("work publication service", () => {
             getVersionById: vi.fn(async () => state.version),
             getNextVersionNumber: vi.fn(async () => 2),
             updateDraftVersion: vi.fn(),
+            setModerationSignal: vi.fn(async () => state.version),
+            approveOfficialVersion: vi.fn(async (_id, patch) => {
+                state.version = { ...state.version, moderationStatus: "approved", submittedAt: patch.reviewedAt, reviewedAt: patch.reviewedAt, reviewedByUserId: patch.reviewedByUserId };
+                return state.version;
+            }),
             reviewVersion: vi.fn(async (_id, patch) => {
                 state.version = { ...state.version, moderationStatus: patch.status, rejectionReason: patch.reason };
                 return state.version;
             }),
+            takeDownOfficialWork: vi.fn(async () => {
+                state.work = { ...state.work, lifecycleStatus: "revoked", publishedVersionId: undefined };
+                return state.work;
+            }),
+            clearPublishedVersion: vi.fn(async () => state.work),
             setPublishedVersion: vi.fn(async (_workId, versionId) => {
                 state.work = { ...state.work, publishedVersionId: versionId };
                 return state.work;
@@ -104,6 +122,77 @@ describe("work publication service", () => {
         });
         mocks.transaction.mockImplementation(async (handler) => handler({ query: vi.fn() }));
         mocks.getRegistrations.mockResolvedValue([ownedImage]);
+        mocks.moderate.mockResolvedValue({ provider: "manual", signal: { riskLevel: "review", labels: [], summary: "review", checkedAt: now } });
+    });
+
+    it("creates an official public media draft while allowing an empty prompt", async () => {
+        const result = await createOfficialWorkDraft("user-one", { title: "官方案例", publicPrompt: "", assetStorageKeys: [ownedImage.storageKey], coverStorageKey: ownedImage.storageKey });
+        expect(workPublications.createWork).toHaveBeenCalledWith(expect.objectContaining({ ownerUserId: "user-one", sourceType: "media", publicationOrigin: "official", sourceId: expect.stringMatching(/^official:/) }));
+        expect(workPublications.createVersion).toHaveBeenCalledWith(expect.objectContaining({ visibility: "public", authorDisplay: "custom", authorName: "平台官方", publicPrompt: "", moderationStatus: "draft" }));
+        expect(result.currentVersion).toMatchObject({ title: "官方案例" });
+    });
+
+    it("rejects foreign or temporary official media and requires an image cover", async () => {
+        mocks.getRegistrations.mockResolvedValueOnce([{ ...ownedImage, storageClass: "temporary" }]);
+        await expect(createOfficialWorkDraft("user-one", { title: "临时素材", assetStorageKeys: [ownedImage.storageKey] })).rejects.toThrow("永久媒体");
+        const audio = { ...ownedImage, storageKey: "permanent/audio.mp3", type: "audio", mimeType: "audio/mpeg" };
+        mocks.getRegistrations.mockResolvedValueOnce([audio]);
+        await expect(createOfficialWorkDraft("user-one", { title: "音频作品", assetStorageKeys: [audio.storageKey] })).rejects.toThrow("图片封面");
+    });
+
+    it("publishes the current official version directly and keeps review signals out of the queue", async () => {
+        await createOfficialWorkDraft("user-one", { title: "官方案例", assetStorageKeys: [ownedImage.storageKey], coverStorageKey: ownedImage.storageKey });
+        const versionId = String(state.version?.id);
+        const result = await publishOfficialWork({ adminUserId: "user-one", workId: state.work?.id, versionId });
+        expect(workPublications.approveOfficialVersion).toHaveBeenCalledWith(versionId, expect.objectContaining({ reviewedByUserId: "user-one" }));
+        expect(workPublications.setPublishedVersion).toHaveBeenCalledWith(state.work?.id, versionId);
+        expect(result.publicPath).toMatch(/^\/share\//);
+    });
+
+    it("blocks direct publication only when moderation explicitly blocks", async () => {
+        await createOfficialWorkDraft("user-one", { title: "官方案例", assetStorageKeys: [ownedImage.storageKey], coverStorageKey: ownedImage.storageKey });
+        mocks.moderate.mockResolvedValueOnce({ provider: "keywords", signal: { riskLevel: "block", labels: ["risk"], summary: "命中风险", checkedAt: now } });
+        await expect(publishOfficialWork({ adminUserId: "user-one", workId: state.work?.id, versionId: state.version?.id })).rejects.toThrow("命中风险");
+        expect(workPublications.setPublishedVersion).not.toHaveBeenCalled();
+    });
+
+    it("creates a new official draft version without replacing the live version", async () => {
+        await createOfficialWorkDraft("user-one", { title: "第一版", assetStorageKeys: [ownedImage.storageKey], coverStorageKey: ownedImage.storageKey });
+        const firstVersionId = String(state.version?.id);
+        state.version = { ...state.version, moderationStatus: "approved" };
+        state.work = { ...state.work, publishedVersionId: firstVersionId };
+        await updateOfficialWorkDraft("user-one", state.work.id, { title: "第二版", assetStorageKeys: [ownedImage.storageKey], coverStorageKey: ownedImage.storageKey });
+        expect(workPublications.createVersion).toHaveBeenLastCalledWith(expect.objectContaining({ versionNumber: 2, title: "第二版", moderationStatus: "draft" }));
+        expect(state.work.publishedVersionId).toBe(firstVersionId);
+    });
+
+    it("rejects official operations for user submissions and re-lists only official works", async () => {
+        state.work = { id: "work-one", ownerUserId: "user-one", publicationOrigin: "user_submission", lifecycleStatus: "active", currentVersionId: "version-one" };
+        state.version = { id: "version-one", workId: "work-one", moderationStatus: "draft" };
+        await expect(publishOfficialWork({ adminUserId: "user-one", workId: "work-one", versionId: "version-one" })).rejects.toThrow("官方作品");
+        state.work = { ...state.work, publicationOrigin: "official", lifecycleStatus: "revoked" };
+        state.version = { ...state.version, moderationStatus: "approved", visibility: "public" };
+        await expect(relistOfficialWork("user-one", "work-one")).resolves.toBeTruthy();
+    });
+
+    it("does not let official works enter the ordinary submission or review flow", async () => {
+        state.work = { id: "work-one", ownerUserId: "user-one", publicationOrigin: "official", lifecycleStatus: "active", currentVersionId: "version-one" };
+        state.version = { id: "version-one", workId: "work-one", moderationStatus: "draft", publicPrompt: "", title: "官方", description: "", category: "其他", tags: [] };
+        await expect(submitWorkPublication("user-one", "work-one")).rejects.toThrow("官方作品");
+        await expect(reviewWorkPublication({ reviewerUserId: "admin-one", workId: "work-one", versionId: "version-one", decision: "approved" })).rejects.toThrow("官方作品");
+    });
+
+    it("takes down an official work without invalidating its approved version", async () => {
+        state.work = { id: "work-one", ownerUserId: "user-one", publicationOrigin: "official", lifecycleStatus: "active", currentVersionId: "version-one", publishedVersionId: "version-one" };
+        state.version = { id: "version-one", workId: "work-one", moderationStatus: "approved", visibility: "public" };
+        workPublications.revokeWork = vi.fn(async () => {
+            state.work = { ...state.work, lifecycleStatus: "revoked", publishedVersionId: undefined };
+            return state.work;
+        });
+        await takeDownWorkPublication({ reviewerUserId: "admin-one", workId: "work-one", reason: "运营下架" });
+        expect(workPublications.takeDownOfficialWork).toHaveBeenCalled();
+        expect(workPublications.reviewVersion).not.toHaveBeenCalled();
+        await expect(relistOfficialWork("admin-one", "work-one")).resolves.toBeTruthy();
     });
 
     it("forwards source type, search, and pagination to the repository", async () => {
@@ -112,6 +201,7 @@ describe("work publication service", () => {
     });
 
     it("creates one immutable source snapshot and selects only registered permanent media", async () => {
+        mocks.getRegistrations.mockReset().mockResolvedValue([ownedImage]);
         const result = await createWorkPublicationDraft("user-one", {
             sourceType: "media",
             sourceId: "asset-one",

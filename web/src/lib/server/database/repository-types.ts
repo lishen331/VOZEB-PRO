@@ -818,6 +818,7 @@ export type BillingSummaryRecord = {
 };
 
 export type PublishedWorkSourceType = "media" | "canvas" | "drama";
+export type PublishedWorkOrigin = "user_submission" | "official";
 export type PublishedWorkLifecycleStatus = "active" | "revoked";
 export type PublishedWorkVisibility = "private" | "unlisted" | "public";
 export type PublishedWorkModerationStatus = "draft" | "pending" | "approved" | "rejected" | "taken_down";
@@ -834,6 +835,7 @@ export type PublishedWorkRecord = {
     slug: string;
     sourceType: PublishedWorkSourceType;
     sourceId: string;
+    publicationOrigin: PublishedWorkOrigin;
     lifecycleStatus: PublishedWorkLifecycleStatus;
     currentVersionId?: string;
     publishedVersionId?: string;
@@ -955,6 +957,7 @@ export type PublishedGalleryItemRecord = {
     authorUserId: string;
     slug: string;
     sourceType: PublishedWorkSourceType;
+    publicationOrigin: PublishedWorkOrigin;
     viewCount: number;
     likeCount: number;
     isFeatured: boolean;

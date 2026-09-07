@@ -189,6 +189,7 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "published_works_slug_idx",
     "published_works_owner_updated_idx",
     "published_works_lifecycle_idx",
+    "published_works_origin_updated_idx",
     "published_works_gallery_featured_idx",
     "published_works_gallery_popular_idx",
     "published_work_versions_work_number_idx",

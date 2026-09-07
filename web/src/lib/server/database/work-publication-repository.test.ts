@@ -4,6 +4,53 @@ import type { QueryExecutor } from "./postgres";
 import { WorkPublicationRepository } from "./work-publication-repository";
 
 describe("WorkPublicationRepository", () => {
+    it("writes and filters official publication origins", async () => {
+        const query = vi
+            .fn()
+            .mockResolvedValueOnce({
+                rows: [
+                    {
+                        id: "work-one",
+                        owner_user_id: "admin-one",
+                        slug: "official-one",
+                        source_type: "media",
+                        source_id: "official:work-one",
+                        publication_origin: "official",
+                        lifecycle_status: "active",
+                        is_featured: false,
+                        view_count: 0,
+                        like_count: 0,
+                        created_at: "2026-09-08T00:00:00.000Z",
+                        updated_at: "2026-09-08T00:00:00.000Z",
+                    },
+                ],
+            })
+            .mockResolvedValueOnce({ rows: [] });
+        const repository = new WorkPublicationRepository({ query } as unknown as QueryExecutor);
+
+        const work = await repository.createWork({
+            id: "work-one",
+            ownerUserId: "admin-one",
+            slug: "official-one",
+            sourceType: "media",
+            sourceId: "official:work-one",
+            publicationOrigin: "official",
+            lifecycleStatus: "active",
+            isFeatured: false,
+            viewCount: 0,
+            likeCount: 0,
+            createdAt: "2026-09-08T00:00:00.000Z",
+            updatedAt: "2026-09-08T00:00:00.000Z",
+        });
+        await repository.listWorks({ publicationOrigin: "official", page: 1, pageSize: 10 });
+
+        expect(work.publicationOrigin).toBe("official");
+        expect(String(query.mock.calls[0]?.[0])).toContain("publication_origin");
+        expect(query.mock.calls[0]?.[1]).toContain("official");
+        expect(String(query.mock.calls[1]?.[0])).toContain("work.publication_origin = $4");
+        expect(query.mock.calls[1]?.[1]).toEqual([null, null, null, "official", "", "%%", null, 10, 0]);
+    });
+
     it("only switches the public pointer to an approved version owned by the same work", async () => {
         const query = vi.fn(async (..._args: unknown[]) => ({ rows: [] }));
         const repository = new WorkPublicationRepository({ query } as unknown as QueryExecutor);
@@ -47,7 +94,7 @@ describe("WorkPublicationRepository", () => {
 
         const [sql, params] = query.mock.calls[0] || [];
         expect(String(sql)).toContain("work.lifecycle_status = 'revoked' OR current_version.moderation_status = 'taken_down'");
-        expect(params).toEqual(["user-one", null, null, "", "%%", "taken_down", 10, 0]);
+        expect(params).toEqual(["user-one", null, null, null, "", "%%", "taken_down", 10, 0]);
     });
 
     it("searches works by the padded public account id", async () => {
@@ -58,8 +105,8 @@ describe("WorkPublicationRepository", () => {
 
         const sql = String(query.mock.calls[0]?.[0]);
         expect(sql).toContain("owner.account_id AS owner_account_id");
-        expect(sql).toContain("lpad(owner.account_id::text, 4, '0') LIKE $5");
-        expect(query.mock.calls[0]?.[1]).toEqual([null, null, null, "0001", "%0001%", null, 10, 0]);
+        expect(sql).toContain("lpad(owner.account_id::text, 4, '0') LIKE $6");
+        expect(query.mock.calls[0]?.[1]).toEqual([null, null, null, null, "0001", "%0001%", null, 10, 0]);
     });
 
     it("pages and searches one publication source type without truncating the full source set", async () => {

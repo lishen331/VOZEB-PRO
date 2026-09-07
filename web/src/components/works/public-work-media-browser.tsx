@@ -1,6 +1,6 @@
 "use client";
 
-import { Film, Image as ImageIcon } from "lucide-react";
+import { Film, Image as ImageIcon, Music2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -11,7 +11,7 @@ import type { PublicWorkPublication } from "@/services/api/work-publications";
 type PublicWorkAsset = PublicWorkPublication["assets"][number];
 
 export function PublicWorkMediaBrowser({ assets, title, compact = false }: { assets: PublicWorkAsset[]; title: string; compact?: boolean }) {
-    const ordered = useMemo(() => assets.filter((asset) => asset.mediaType === "image" || asset.mediaType === "video"), [assets]);
+    const ordered = useMemo(() => assets.filter((asset) => asset.mediaType === "image" || asset.mediaType === "video" || asset.mediaType === "audio"), [assets]);
     const [activeId, setActiveId] = useState(ordered[0]?.id || "");
     const active = ordered.find((asset) => asset.id === activeId) || ordered[0];
 
@@ -43,9 +43,11 @@ export function PublicWorkMediaBrowser({ assets, title, compact = false }: { ass
                             <LazyMediaImage src={imagePreviewUrl(asset.url, 256)} alt="" containerClassName="size-full min-h-0" imageClassName="size-full object-cover" />
                         ) : asset.mediaType === "video" ? (
                             <video src={asset.url} muted playsInline preload="metadata" className="size-full object-cover" aria-hidden="true" />
+                        ) : asset.mediaType === "audio" ? (
+                            <Music2 className="size-7 text-muted-foreground" aria-hidden="true" />
                         ) : null}
                         <span className="absolute bottom-1 right-1 grid size-4 place-items-center rounded bg-black/65 text-white" aria-hidden="true">
-                            {asset.mediaType === "image" ? <ImageIcon className="size-2.5" /> : <Film className="size-2.5" />}
+                            {asset.mediaType === "image" ? <ImageIcon className="size-2.5" /> : asset.mediaType === "audio" ? <Music2 className="size-2.5" /> : <Film className="size-2.5" />}
                         </span>
                     </button>
                 ))}
@@ -61,6 +63,11 @@ export function PublicWorkMediaBrowser({ assets, title, compact = false }: { ass
                     <LazyMediaImage src={imagePreviewUrl(active.url, 1920)} alt={title} containerClassName="flex size-full min-h-0 items-center justify-center bg-transparent" imageClassName="max-h-full max-w-full object-contain" />
                 ) : active.mediaType === "video" ? (
                     <video key={active.id} src={active.url} controls playsInline preload="metadata" className="max-h-full max-w-full object-contain" aria-label={title} />
+                ) : active.mediaType === "audio" ? (
+                    <div className="flex w-full max-w-xl flex-col items-center gap-6 px-6">
+                        <Music2 className="size-16 text-muted-foreground" aria-hidden="true" />
+                        <audio key={active.id} src={active.url} controls preload="metadata" className="w-full" aria-label={title} />
+                    </div>
                 ) : null}
             </div>
         </section>
@@ -68,5 +75,5 @@ export function PublicWorkMediaBrowser({ assets, title, compact = false }: { ass
 }
 
 function mediaLabel(type: PublicWorkAsset["mediaType"]) {
-    return type === "image" ? "图片" : "视频";
+    return type === "image" ? "图片" : type === "audio" ? "音频" : "视频";
 }

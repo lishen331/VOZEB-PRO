@@ -11,13 +11,14 @@ import { PublicWorkCardTitle } from "./public-work-card-title";
 import { PublicWorkLikeButton } from "./public-work-like-button";
 
 export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: { item: PublicGalleryItem; nextPath: string; onOpen: () => void; onOpenAuthor?: (username: string) => void }) {
-    const authorUsername = item.authorUsername;
+    const official = item.publicationOrigin === "official";
+    const authorUsername = official ? undefined : item.authorUsername;
     const author = (
         <>
             <span className="grid size-5 shrink-0 place-items-center overflow-hidden rounded-full bg-foreground text-[8px] font-semibold text-background">
                 {item.authorAvatarUrl ? <img src={item.authorAvatarUrl} alt="" className="size-full object-cover" loading="lazy" /> : userAvatarFallback(item.authorName || "匿名作者")}
             </span>
-            <span className="truncate">{item.authorName || "匿名作者"}</span>
+            <span className="truncate">{official ? item.authorName || "平台官方" : item.authorName || "匿名作者"}</span>
         </>
     );
 
@@ -41,6 +42,7 @@ export function PublicWorkGalleryCard({ item, nextPath, onOpen, onOpenAuthor }: 
                         </div>
                     </div>
                 )}
+                {official ? <span className="absolute right-2 top-2 rounded bg-blue-600 px-2 py-1 text-[11px] font-medium text-white">官方</span> : null}
                 {item.isFeatured ? (
                     <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-foreground px-2 py-1 text-[11px] font-medium text-background">
                         <Star className="size-3 fill-current" />
