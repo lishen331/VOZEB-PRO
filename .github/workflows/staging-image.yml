@@ -20,6 +20,11 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+      STAGING_SSH_PORT: ${{ secrets.STAGING_SSH_PORT }}
+      STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+      STAGING_SSH_PRIVATE_KEY_B64: ${{ secrets.STAGING_SSH_PRIVATE_KEY_B64 }}
     defaults:
       run:
         working-directory: web
@@ -71,23 +76,14 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
+          load: true
           tags: |
             ${{ env.IMAGE_NAME }}:develop
             ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    env:
-      STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
-      STAGING_SSH_PORT: ${{ secrets.STAGING_SSH_PORT }}
-      STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
-      STAGING_SSH_PRIVATE_KEY_B64: ${{ secrets.STAGING_SSH_PRIVATE_KEY_B64 }}
-
-    steps:
-      - name: Deploy to staging server
+      - name: Deploy image over SSH
         shell: bash
         run: |
           set -euo pipefail
@@ -110,6 +106,19 @@ jobs:
           touch "$known_hosts_file"
           ssh-keyscan -p "$STAGING_SSH_PORT" -H "$STAGING_SSH_HOST" >> "$known_hosts_file"
 
+          image="${{ env.IMAGE_NAME }}:sha-${{ github.sha }}"
+          # Transfer the already-built image directly. This avoids the
+          # staging server's severely throttled GHCR blob egress.
+          docker save "$image" | gzip -1 | ssh \
+            -i "$key_file" \
+            -p "$STAGING_SSH_PORT" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$known_hosts_file" \
+            "$STAGING_SSH_USER@$STAGING_SSH_HOST" \
+            'gunzip | docker load'
+
           ssh \
             -i "$key_file" \
             -p "$STAGING_SSH_PORT" \
@@ -118,28 +127,19 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$known_hosts_file" \
             "$STAGING_SSH_USER@$STAGING_SSH_HOST" \
-            'bash -s' <<'REMOTE_SCRIPT'
-          set -euo pipefail
-
-          cd /opt/vozeb-pro/staging
-          upstream_image='${{ env.IMAGE_NAME }}:sha-${{ github.sha }}'
-          proxy_image='${{ env.STAGING_IMAGE_PROXY }}/lishen331/vozeb-pro:sha-${{ github.sha }}'
-
-          # Prefer the verified proxy for slow GHCR egress. The official
-          # registry remains the automatic fallback if the proxy is unavailable.
-          export VOZEB_PRO_IMAGE="$proxy_image"
-          if ! docker compose pull app generation-worker; then
-            printf 'Proxy pull failed; retrying from upstream GHCR.\n' >&2
-            export VOZEB_PRO_IMAGE="$upstream_image"
-            docker compose pull app generation-worker
-          fi
-          docker compose up -d
+            "cd /opt/vozeb-pro/staging && VOZEB_PRO_IMAGE='$image' docker compose up -d --pull never --no-deps app generation-worker"
 
           for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error --output /dev/null --max-time 10 \
-              http://127.0.0.1:3001/api/health/ready; then
+            if ssh \
+              -i "$key_file" \
+              -p "$STAGING_SSH_PORT" \
+              -o BatchMode=yes \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$known_hosts_file" \
+              "$STAGING_SSH_USER@$STAGING_SSH_HOST" \
+              'curl --fail --silent --show-error --output /dev/null --max-time 10 http://127.0.0.1:3001/api/health/ready'; then
               printf 'Readiness check passed on attempt %s/30\n' "$attempt"
-              docker compose ps
               exit 0
             fi
 
@@ -149,8 +149,4 @@ jobs:
           done
 
           printf 'Readiness check failed after 30 attempts.\n' >&2
-          curl --silent --show-error --max-time 10 http://127.0.0.1:3001/api/health/ready || true
-          docker compose ps
-          docker compose logs --tail=100 app generation-worker || true
           exit 1
-          REMOTE_SCRIPT
