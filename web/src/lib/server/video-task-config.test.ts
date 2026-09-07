@@ -64,8 +64,16 @@ describe("resolveVideoGenerationParameters", () => {
         const prompt = withVideoReferenceFidelity("让人物自然挥手", [{ type: "image", url: "https://cdn.example.com/reference.png" }]);
 
         expect(prompt).toContain("让人物自然挥手");
-        expect(prompt).toContain("将参考图作为首帧、主体身份、外观和场景的主要依据");
+        expect(prompt).toContain("主体身份、外观和场景");
+        expect(prompt).not.toContain("作为首帧");
+        expect(prompt).not.toContain("只添加");
         expect(prompt).toContain("禁止替换主体");
+    });
+
+    it("keeps storyboard action and camera changes available for ordinary references", () => {
+        const prompt = withVideoReferenceFidelity("Follow all four storyboard panels with changing shots", [{ type: "image", role: "reference", url: "https://cdn.example.com/storyboard.png" }]);
+        expect(prompt).toContain("Follow all four storyboard panels with changing shots");
+        expect(prompt).not.toContain("作为首帧");
     });
 
     it("does not change text-to-video or duplicate the fidelity constraint", () => {
