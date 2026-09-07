@@ -22,11 +22,38 @@ export type IpReference = { type: "ip"; id: string; subIpId: string; itemIds: st
 
 const IP_ASSET_KIND_SET = new Set<string>(IP_ASSET_KINDS);
 const IP_ITEM_CATEGORY_SETS = Object.fromEntries(Object.entries(IP_ITEM_CATEGORIES).map(([kind, categories]) => [kind, new Set<string>(categories)])) as Record<IpAssetKind, Set<string>>;
+const IP_ITEM_CATEGORY_LABELS: Record<IpItemCategory, string> = {
+    story_summary: "故事梗概",
+    worldbuilding: "世界观",
+    character_biography: "人物小传",
+    script: "剧本",
+    derivative_script: "衍生剧本",
+    creation_notes: "创作说明",
+    character: "角色",
+    scene: "场景",
+    prop: "道具",
+    effect: "特效",
+    style: "风格",
+    background_music: "背景音乐",
+    theme_music: "主题音乐",
+    character_voice: "角色配音",
+    narration: "旁白",
+    sound_effect: "音效",
+    trailer: "预告片",
+    action: "动作",
+    performance: "表演",
+    shot: "镜头",
+    clip: "片段",
+};
 
 export function normalizeIpItemCategory(kind: unknown, value: unknown): IpItemCategory | null {
     if (typeof kind !== "string" || !IP_ASSET_KIND_SET.has(kind) || typeof value !== "string") return null;
     const category = value.trim();
     return IP_ITEM_CATEGORY_SETS[kind as IpAssetKind].has(category) ? (category as IpItemCategory) : null;
+}
+
+export function ipItemCategoryLabel(category: IpItemCategory) {
+    return IP_ITEM_CATEGORY_LABELS[category];
 }
 
 export function normalizeIpReference(value: unknown): IpReference | null {

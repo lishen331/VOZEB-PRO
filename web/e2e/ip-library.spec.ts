@@ -10,7 +10,7 @@ const PASSWORD = "IpLibraryE2E!2026";
 
 type School = { id: string; name: string };
 type IpPackage = { id: string; title: string };
-type IpSubIp = { id: string; title: string; items: IpItem[] };
+type IpSubIp = { id: string; title: string; coverFileId?: string; items: IpItem[] };
 type IpDetail = IpPackage & { subIps: IpSubIp[]; singleSubIp: boolean };
 type IpItem = { id: string; title: string; fileId: string };
 type IpFile = { id: string; status: string };
@@ -61,7 +61,7 @@ test("IP 库按子 IP 编辑、授权、停用、下载和引用", async ({ brow
         const publicInitial = (await getIp(page.request, publicIp.id)).subIps[0];
         await replaceSubIpText(page.request, publicIp.id, publicInitial.id, names.publicIp, `公共 IP 正文 ${suffix}`);
 
-        await verifyAdminFullPageEditor(page, names.schoolIp, names.mainSubIp, names.extraSubIp);
+        await verifyAdminFullPageEditor(page, schoolIp.id, names.schoolIp, names.mainSubIp, names.extraSubIp);
         await verifyPublicSingleSubIp(page.request, browser, contexts, contextOptions, publicIp.id, names.publicIp);
         await verifySchoolMultiSubIp(teacher, schoolIp.id, names.mainSubIp, names.extraSubIp);
         await verifySchoolMultiSubIp(student, schoolIp.id, names.mainSubIp, names.extraSubIp);
@@ -90,16 +90,32 @@ test("IP 库按子 IP 编辑、授权、停用、下载和引用", async ({ brow
         expect(managerLedger.items).toEqual(expect.arrayContaining([expect.objectContaining({ ipId: schoolIp.id, subIpId: configuredMain.id, ipStatus: "disabled", effective: false })]));
         expect((await teacher.request.get(`/api/ip-library/${schoolIp.id}`)).status()).toBe(404);
         expect((await student.request.get(`/api/ip-library/${schoolIp.id}`)).status()).toBe(404);
+        const deleted = await page.request.delete(`/api/admin/ip-library/${schoolIp.id}`);
+        expect(deleted.status()).toBe(409);
+        await expect(deleted.json()).resolves.toMatchObject({ code: 409, msg: "IP 已授权给学校，无法删除；请先撤销全部学校授权" });
+        await expect(getIp(page.request, schoolIp.id)).resolves.toMatchObject({ id: schoolIp.id });
     } finally {
         await Promise.all(contexts.map((context) => context.close()));
     }
 });
 
-async function verifyAdminFullPageEditor(page: Page, title: string, mainSubIpTitle: string, extraSubIpTitle: string) {
+async function verifyAdminFullPageEditor(page: Page, ipId: string, title: string, mainSubIpTitle: string, extraSubIpTitle: string) {
     await page.goto("/admin?section=ipLibrary", { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-admin-ip-library]")).toBeVisible();
     const row = page.locator("[data-admin-ip-library] .ant-table-row").filter({ hasText: title });
     await expect(row).toHaveCount(1);
+    await expect(row.getByRole("button", { name: title, exact: true })).toHaveCount(0);
+    await expect(row.getByRole("button", { name: "查看详情" })).toHaveText("详情");
+    await expect(row.getByRole("button", { name: "停用 IP" })).toContainText("停用");
+    await expect(row.getByRole("button", { name: "授权" })).toBeVisible();
+    await row.getByRole("button", { name: "授权" }).click();
+    const grantEditor = page.locator("[data-admin-ip-detail]");
+    await expect(grantEditor).toBeVisible();
+    await expect(grantEditor.getByRole("tab", { name: "学校授权", exact: true })).toHaveAttribute("aria-selected", "true");
+    const grantDialog = page.getByRole("dialog", { name: "授权给学校" });
+    await expect(grantDialog).toBeVisible();
+    await grantDialog.getByRole("button", { name: "Close", exact: true }).click();
+    await grantEditor.getByRole("button", { name: "返回 IP 列表" }).click();
     await row.getByRole("button", { name: "查看详情" }).click();
     const editor = page.locator("[data-admin-ip-detail]");
     await expect(editor).toBeVisible();
@@ -108,6 +124,32 @@ async function verifyAdminFullPageEditor(page: Page, title: string, mainSubIpTit
     await expect(editor.getByRole("heading", { name: mainSubIpTitle, exact: true })).toBeVisible();
     await expect(editor.getByRole("button", { name: extraSubIpTitle, exact: false })).toBeVisible();
     await expect(editor.getByRole("button", { name: "保存子 IP" })).toBeVisible();
+    const categorySelect = editor.getByLabel("分类").first();
+    await categorySelect.click();
+    await expect(page.locator('[role="option"][aria-label="故事梗概"]')).toHaveCount(1);
+    await page.keyboard.press("Escape");
+    const coverField = editor
+        .locator(".ant-form-item")
+        .filter({ has: page.getByText("封面", { exact: true }) })
+        .first();
+    await expect(coverField.getByRole("button", { name: "上传原文件" })).toBeVisible();
+    await coverField.locator('input[type="file"]').setInputFiles({
+        name: "cover.png",
+        mimeType: "image/png",
+        buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+3MxR9wAAAABJRU5ErkJggg==", "base64"),
+    });
+    await expect(page.getByText("IP 文件已上传", { exact: true })).toBeVisible();
+    await editor.getByRole("button", { name: "添加内容" }).click();
+    const contentTitle = `${mainSubIpTitle} 新增正文`;
+    await editor.getByLabel("标题").last().fill(contentTitle);
+    await editor.getByPlaceholder("手工录入正文").last().fill(`${contentTitle} 内容`);
+    await editor.getByRole("button", { name: "保存正文" }).last().click();
+    await expect(page.getByText("IP 文件已上传", { exact: true })).toBeVisible();
+    await editor.getByRole("button", { name: "保存子 IP" }).click();
+    await expect(page.getByText("子 IP 内容已保存，已立即生效", { exact: true })).toBeVisible();
+    const saved = requireSubIpByTitle(await getIp(page.request, ipId), mainSubIpTitle);
+    expect(saved.coverFileId).toEqual(expect.any(String));
+    expect(saved.items).toEqual(expect.arrayContaining([expect.objectContaining({ title: contentTitle, fileId: expect.any(String) })]));
     await editor.getByRole("tab", { name: "学校授权", exact: true }).click();
     await expect(editor.getByText("授权后，该校管理员、教师和学生可直接访问对应子 IP。", { exact: true })).toBeVisible();
     await expectNoHorizontalOverflow(page, "admin IP full-page editor");
@@ -210,6 +252,12 @@ async function authenticatedContext(browser: Parameters<typeof createAuthenticat
 function requireSubIp(detail: IpDetail, id: string) {
     const subIp = detail.subIps.find((item) => item.id === id);
     if (!subIp) throw new Error(`子 IP ${id} 不存在`);
+    return subIp;
+}
+
+function requireSubIpByTitle(detail: IpDetail, title: string) {
+    const subIp = detail.subIps.find((item) => item.title === title);
+    if (!subIp) throw new Error(`子 IP ${title} 不存在`);
     return subIp;
 }
 

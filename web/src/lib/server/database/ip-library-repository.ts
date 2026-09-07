@@ -105,10 +105,12 @@ export class IpLibraryRepository {
         return { ...packageRecord, subIps: await this.listSubIpDetails(ipId) };
     }
 
-    async deleteIpPackage(ipId: string): Promise<IpContentFileRecord[] | null> {
+    async deleteIpPackage(ipId: string): Promise<IpContentFileRecord[] | "has-school-grants" | null> {
         return this.withIpPackageLock(ipId, async (db) => {
             const found = await db.query("SELECT id FROM ip_packages WHERE id = $1", [ipId]);
             if (!found.rows[0]) return null;
+            const grants = await db.query("SELECT id FROM ip_school_grants WHERE ip_id = $1 LIMIT 1 FOR UPDATE", [ipId]);
+            if (grants.rows[0]) return "has-school-grants";
             const files = await db.query("SELECT * FROM ip_content_files WHERE ip_id = $1 FOR UPDATE", [ipId]);
             await enqueueFiles(db, files.rows);
             await db.query("DELETE FROM ip_packages WHERE id = $1", [ipId]);
