@@ -73,6 +73,7 @@ export async function PATCH(request: Request) {
             patch.practiceDefaultModels = normalizeDefaultModelsConfig(practiceDefaults, logicalModels, channels, "open-source-practice", { allowFallback: false });
         }
         if (Array.isArray(body.agentSkills)) patch.agentSkills = body.agentSkills;
+        if (body.featureModules && typeof body.featureModules === "object" && !Array.isArray(body.featureModules)) patch.featureModules = body.featureModules;
         if (!Object.keys(patch).length) return NextResponse.json({ error: "没有可更新的设置" }, { status: 400 });
 
         const settings = await setAuthSettings(patch);
@@ -118,6 +119,7 @@ const SETTINGS_PERMISSION_BY_FIELD = {
     practiceDefaultModels: "upstream.manage",
     practiceWorkflowModels: "upstream.manage",
     agentSkills: "upstream.manage",
+    featureModules: "upstream.manage",
 } as const satisfies Partial<Record<keyof AuthSettings, AdminPermission>>;
 
 function settingsPermissionsForPatch(patch: Partial<AuthSettings>) {

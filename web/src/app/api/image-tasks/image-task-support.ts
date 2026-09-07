@@ -3,7 +3,7 @@ import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings } from "@/lib/auth/store";
-import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
+import { buildImageTaskPrompt } from "@/lib/image-reference-prompt";
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
 import { fetchInternalApi, isInternalApiBaseUrl, resolveInternalOrigin } from "@/lib/server/internal-origin";
@@ -67,6 +67,7 @@ export function publicTask(task: ImageTask) {
         kind: task.kind,
         status: task.status,
         model: generationModelId(task.config),
+        ...(task.source === "canvas" && task.upstreamPrompt ? { upstreamPrompt: task.upstreamPrompt } : {}),
     };
 }
 
@@ -725,7 +726,7 @@ export function toGeminiImagePart(dataUrl: string, fallbackType?: string): Gemin
 export async function buildImageEditFormData(task: ImageTask, quality: string | undefined, requestSize: string | undefined, origin: string, cookie: string, responseFormat: (typeof IMAGE_RESPONSE_FORMATS)[number], includeCompatibilityFields = true) {
     const formData = new FormData();
     formData.set("model", task.config.model);
-    formData.set("prompt", withSystemPrompt(task.config, withImageOutputInstructions(task.config, buildImageReferencePromptText(task.prompt, task.references))));
+    formData.set("prompt", task.upstreamPrompt || buildImageTaskPrompt(task));
     if (task.config.outputMode !== "layers") formData.set("n", "1");
     if (includeCompatibilityFields) {
         formData.set("response_format", responseFormat);

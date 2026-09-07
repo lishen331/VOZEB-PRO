@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { create } from "zustand";
+import type { FeatureModuleSettings } from "@/lib/feature-modules";
 import { nanoid } from "nanoid";
 
 import { flattenPublicCapabilityModels, resolvePublicCapabilityModels } from "@/lib/public-model-catalog";
@@ -129,6 +130,7 @@ type GenerationConcurrencySettings = {
 };
 
 export type PublicSystemSettings = {
+    featureModules?: FeatureModuleSettings;
     modelPointCosts?: Record<string, number>;
     generationPointMultipliers?: GenerationPointMultipliers;
     generationConcurrency?: GenerationConcurrencySettings;

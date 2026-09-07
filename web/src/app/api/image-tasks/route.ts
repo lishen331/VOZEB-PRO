@@ -4,7 +4,6 @@ import { after, NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError, refundUserPoints } from "@/lib/auth/store";
-import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
 import { fetchInternalApi, isInternalApiBaseUrl, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
@@ -31,6 +30,7 @@ import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/securit
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
+import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -154,6 +154,13 @@ export async function POST(request: Request) {
         if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
+    try {
+        const moduleId = featureModuleForGenerationContext(resolvedBody.context);
+        if (moduleId) await requireFeatureModuleEnabled(moduleId);
+    } catch (error) {
+        if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ error: error.message }, { status: 403 });
+        throw error;
+    }
     const trustedPractice = isTrustedPracticeTaskRequest(request, currentUser.id, resolvedBody.context);
     const requestId = headerRequestId || resolvedBody.context?.clientRequestId?.trim();
     if (!headerRequestId && requestId) {
@@ -246,6 +253,7 @@ export async function POST(request: Request) {
             candidateConfigs: compatibleConfigs.slice(1),
             prompt,
             references,
+            referenceRoles: resolvedBody.referenceRoles,
             mask: resolvedBody.mask?.dataUrl || resolvedBody.mask?.url || resolvedBody.mask?.remoteUrl || resolvedBody.mask?.serverUrl ? resolvedBody.mask : undefined,
         });
         await linkStoredGenerationTask("image", task.id, trustedContext);

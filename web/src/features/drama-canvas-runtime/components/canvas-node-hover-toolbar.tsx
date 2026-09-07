@@ -138,7 +138,7 @@ export function CanvasNodeHoverToolbar({
     const canRetry = node.metadata?.status === "error";
     const quickImageToolIdSet = new Set(quickImageToolIds);
     const copyImagePrompt = (target: CanvasNodeData) => {
-        const prompt = target.metadata?.prompt?.trim();
+        const prompt = (target.metadata?.upstreamPrompt || target.metadata?.prompt)?.trim();
         if (!prompt) {
             message.warning("暂无可复制的提示词");
             return;

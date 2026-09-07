@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { SchoolContext } from "@/lib/school-domain";
 
 import { landingNavigationTools, navigationGroups, navigationToolForPathname, navigationTools, navigationToolsForContext, roleNavigationOverview, schoolNavigationTools } from "./navigation-tools";
+import { normalizeFeatureModuleSettings } from "@/lib/feature-modules";
 
 describe("user navigation order", () => {
     it("keeps the landing page entries in their dedicated order", () => {
@@ -46,6 +47,13 @@ describe("user navigation order", () => {
         expect(navigationToolsForContext(null, { includeDramaWorkflowLab: false }).some((tool) => tool.slug === "drama-lab")).toBe(false);
         expect(navigationToolForPathname("/drama-lab", null)?.slug).toBe("drama-lab");
         expect(navigationToolForPathname("/drama-lab", null, { includeDramaWorkflowLab: false })).toBeUndefined();
+    });
+
+    it("filters every navigation entry through the global feature module switches", () => {
+        const featureModules = normalizeFeatureModuleSettings({ "drama-lab": false, "ip-library": false });
+        const tools = navigationToolsForContext(context("teacher", true), { featureModules });
+        expect(tools.map((tool) => tool.slug)).not.toEqual(expect.arrayContaining(["drama-lab", "ip-library"]));
+        expect(tools.map((tool) => tool.slug)).toEqual(expect.arrayContaining(["canvas", "teaching"]));
     });
 
     it("exposes the same practice entry in role overview metadata", () => {

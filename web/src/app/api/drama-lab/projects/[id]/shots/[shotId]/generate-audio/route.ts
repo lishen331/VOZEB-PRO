@@ -10,6 +10,7 @@ import { DramaLabAudioError, legacyDramaAudioTaskId, prepareDramaLabAudio } from
 import { persistDramaLabShotUpdate } from "@/lib/server/drama-lab-shot-generation-service";
 import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 import { getAudioTask } from "@/lib/server/audio-task-store";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     try {
+        await requireFeatureModuleEnabled("drama-lab");
         const { id, shotId } = await params;
         const episodeId = new URL(request.url).searchParams.get("episodeId")?.trim() || "";
         if (!episodeId) throw new DramaLabAudioError("当前剧集不能为空");
@@ -104,7 +106,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         return NextResponse.json({ code: 0, data: { task: payload.task, kind: input.kind, speaker: input.speaker }, msg: "短剧音频任务已创建" });
     } catch (error) {
-        const status = error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "短剧音频任务创建失败" }, { status });
     }
 }

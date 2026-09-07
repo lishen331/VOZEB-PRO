@@ -15,6 +15,7 @@ import {
     resumeDramaLabWorkflow,
     startDramaLabWorkflow,
 } from "@/lib/server/drama-lab-workflow-task-service";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +27,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "Please log in" }, { status: 401 });
     try {
+        await requireFeatureModuleEnabled("drama-lab");
         const { id } = await params;
         const body = await readJsonBody<Record<string, unknown>>(request, 64 * 1024);
         const { project } = await resolveDramaLabProjectForRequest(user.id, id);
@@ -52,7 +54,7 @@ export async function POST(request: Request, { params }: RouteContext) {
         after(() => advanceDramaLabWorkflow({ userId: user.id, taskId: task.id, origin: new URL(request.url).origin, cookie: request.headers.get("cookie") || "" }).catch((error) => console.warn("Drama workflow advance deferred", error)));
         return NextResponse.json({ code: 0, data: dramaLabWorkflowTaskView(task), msg: "Workflow task created" }, { status: 202 });
     } catch (error) {
-        const status = error instanceof DramaLabWorkflowError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabWorkflowError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "Unable to create workflow" }, { status });
     }
 }

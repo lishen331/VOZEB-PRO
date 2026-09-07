@@ -4,6 +4,7 @@ import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { AgentSkillCreateModal } from "@/components/admin/agent-skill-create-modal";
 import { AdminChannelWorkspace } from "@/components/admin/channels/admin-channel-workspace";
 import type { AgentSkill } from "@/lib/auth/store";
+import { FEATURE_MODULES, type FeatureModuleId } from "@/lib/feature-modules";
 import { Button, Input, InputNumber, Select, Switch, Tag } from "antd";
 import { ChevronDown, Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -275,6 +276,49 @@ export function AdminSkillsSection({ controller }: { controller: AdminDashboardC
                     return saved;
                 }}
             />
+        </Panel>
+    );
+}
+
+export function AdminPluginsSection({ controller }: { controller: AdminDashboardController }) {
+    const { settings, settingsLoading, activeSection, saveSettings } = controller;
+    if (activeSection !== "plugins") return null;
+
+    const toggle = (id: FeatureModuleId, enabled: boolean) =>
+        saveSettings((current) => ({ featureModules: { ...current.featureModules, [id]: enabled } }), `${FEATURE_MODULES.find((item) => item.id === id)?.name || "插件"}${enabled ? "已启用" : "已停用"}`);
+
+    return (
+        <Panel>
+            <PanelHeader title="插件市场" description="启停已发布的前台模块。停用后会隐藏导航和跨模块入口，并阻止新建、写入和生成；历史数据与运行中任务会保留。" />
+            <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-5 xl:grid-cols-3">
+                {FEATURE_MODULES.map((plugin) => {
+                    const Icon = plugin.icon;
+                    const enabled = settings.featureModules[plugin.id] !== false;
+                    return (
+                        <section key={plugin.id} className="flex min-h-40 flex-col border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-950">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <span className="grid size-9 shrink-0 place-items-center rounded-md bg-stone-100 text-stone-700 dark:bg-stone-900 dark:text-stone-200">
+                                        <Icon className="size-4.5" />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <h2 className="truncate font-semibold text-stone-950 dark:text-stone-100">{plugin.name}</h2>
+                                        <div className="mt-1 text-xs text-stone-500">{plugin.group}</div>
+                                    </div>
+                                </div>
+                                <Switch checked={enabled} loading={settingsLoading} aria-label={`${plugin.name}启用状态`} onChange={(next) => void toggle(plugin.id, next)} />
+                            </div>
+                            <p className="mt-3 line-clamp-2 text-sm leading-5 text-stone-600 dark:text-stone-400">{plugin.description}</p>
+                            <div className="mt-auto flex flex-wrap gap-1.5 pt-4">
+                                {plugin.pathPrefixes.map((path) => (
+                                    <Tag key={path}>{path}</Tag>
+                                ))}
+                                <Tag color={enabled ? "success" : "default"}>{enabled ? "已启用" : "已停用"}</Tag>
+                            </div>
+                        </section>
+                    );
+                })}
+            </div>
         </Panel>
     );
 }

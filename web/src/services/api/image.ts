@@ -30,6 +30,7 @@ type RequestOptions = {
     outputBackground?: "opaque" | "transparent";
     outputMode?: "layers";
     layerBatch?: { grant: string; slotId: string };
+    referenceRoles?: Record<string, "original" | "identity" | "clothing" | "skin">;
 };
 
 export type ImageGenerationTask = {
@@ -37,6 +38,7 @@ export type ImageGenerationTask = {
     kind: "generation" | "edit";
     model: string;
     status?: "pending" | "running" | "success" | "error" | "cancelled";
+    upstreamPrompt?: string;
 };
 
 type ImageTaskPayload = {
@@ -57,6 +59,7 @@ export type ImageGenerationResult = {
     height?: number;
     bytes?: number;
     mimeType?: string;
+    upstreamPrompt?: string;
 };
 
 const IMAGE_TASK_POLL_INTERVAL_MS = 1800;
@@ -105,6 +108,7 @@ export async function createImageGenerationTask(config: AiConfig, prompt: string
             },
             prompt,
             references: taskReferences,
+            referenceRoles: options?.referenceRoles,
             mask: taskMask,
             layerBatch: options?.layerBatch,
             source: options?.logSource || "image-workbench",
@@ -213,6 +217,7 @@ export async function waitForImageGenerationTask(config: AiConfig, task: ImageGe
             return {
                 ...first,
                 results,
+                upstreamPrompt: current.upstreamPrompt,
             };
         }
         if (current.status === "error") {

@@ -17,6 +17,7 @@ import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/securit
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
+import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 import { createTextTask, type TextTask, type TextTaskConfig } from "@/lib/server/text-task-store";
 import { recordTextTaskLog } from "@/lib/server/text-task-log";
 import type { AiTextMessage } from "@/types/ai";
@@ -39,6 +40,13 @@ export async function POST(request: Request) {
         body = await readJsonBody(request);
     } catch (error) {
         if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
+        throw error;
+    }
+    try {
+        const moduleId = featureModuleForGenerationContext(body.context);
+        if (moduleId) await requireFeatureModuleEnabled(moduleId);
+    } catch (error) {
+        if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ error: error.message }, { status: 403 });
         throw error;
     }
     const requestId = body.context?.clientRequestId?.trim();

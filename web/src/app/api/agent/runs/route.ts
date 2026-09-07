@@ -13,6 +13,7 @@ import { publicAgentRun } from "@/lib/server/agent-run-public";
 import { validateCreativeProjectIpReferencesForRun } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const maxDuration = 2400;
 
@@ -44,6 +45,8 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     try {
         const input = normalizeCreativeRunRequest(await readJsonBody<unknown>(request));
+        await requireFeatureModuleEnabled("creative-agent");
+        if (input.surface === "canvas" || input.surface === "drama") await requireFeatureModuleEnabled(input.surface);
         const existing = await getAgentRunByClientRequestId(user.id, input.clientRequestId);
         if (existing) return NextResponse.json({ code: 0, data: { run: publicAgentRun(existing), created: false }, msg: "Agent 任务已存在" });
         if (input.surface === "canvas" || input.surface === "drama") await validateCreativeProjectIpReferencesForRun(user.id, input.surface, input.projectId!);
@@ -61,6 +64,7 @@ export async function POST(request: Request) {
         });
         return response || NextResponse.json({ code: 429, data: null, msg: `当前最多同时运行 ${settings.generationConcurrency.agent} 个 Agent 任务` }, { status: 429 });
     } catch (error) {
+        if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ code: 403, data: null, msg: error.message }, { status: 403 });
         if (error instanceof CreativeRuntimeInputError || error instanceof CreativeStoreConflict || error instanceof SchoolServiceError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
         throw error;
     }
