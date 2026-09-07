@@ -74,7 +74,12 @@ export function resolvePracticeModuleModelOptions(settings: AuthSettings, module
         const workflow = workflowForModule(resolved.channel.advancedConfig?.workflowConfigs, resolved.channel.id, module);
         if (!workflow) continue;
         seen.add(logical.id.toLowerCase());
-        options.push({ id: logical.id, label: logical.name || logical.id });
+        const generated = logical.id.startsWith("runninghub-workflow-");
+        options.push({
+            id: logical.id,
+            label: generated ? `${resolved.channel.name} · ${capability === "image" ? "图片" : capability === "video" ? "视频" : "音频"}` : logical.name || logical.id,
+            ...(module === "character" ? { workflowOptions: workflowOptions(resolved.channel.advancedConfig?.workflowConfigs, resolved.channel.id, module) } : {}),
+        });
     }
     return options;
 }
@@ -88,17 +93,13 @@ function describeModule(settings: AuthSettings, module: PracticeModuleKind): Pra
     if (!first) return { module, ...base, available: false, models: [], unavailableReason: "当前模块暂无可用开源模型" };
     const workflow = workflowForModule(first.channel.advancedConfig?.workflowConfigs, first.channel.id, module);
     if (!workflow) return { module, ...base, available: false, models: [], unavailableReason: "当前模块暂无可用工作流" };
-    const workflows = workflowsForModule(first.channel.advancedConfig?.workflowConfigs, first.channel.id, module);
     return {
         module,
         ...base,
         available: true,
         models,
         workflowOptions: workflowOptions(first.channel.advancedConfig?.workflowConfigs, first.channel.id, module),
-        inputSchema: mergeOptionalWorkflowFields(
-            base.inputSchema,
-            workflows.flatMap((item) => item.inputSchema),
-        ),
+        inputSchema: mergeOptionalWorkflowFields(base.inputSchema, workflow.inputSchema),
     };
 }
 
@@ -106,6 +107,7 @@ function mergeOptionalWorkflowFields(base: PracticeModuleInputField[], fields: R
     const reserved = new Set(base.map((field) => field.key));
     const optional = fields.flatMap((field) => {
         if (!isPublicPracticeFieldType(field) || reserved.has(field.key) || isDialogueSlotField(field.key)) return [];
+        reserved.add(field.key);
         const candidate: PracticeModuleInputField = { key: field.key, label: field.label || field.key, type: field.type, required: false };
         candidate.required = field.required;
         if (field.options?.length) candidate.options = [...field.options];
@@ -152,7 +154,7 @@ function workflowOptions(configs: Record<string, unknown> | undefined, channelId
         .map((item) => normalizeWorkflow(item))
         .filter((item) => item.enabled && item.channelId === channelId && item.workflowCode && allowedCodes.has(item.workflowCode))
         .sort((left, right) => (left.workflowCode || "").localeCompare(right.workflowCode || ""))
-        .map((item) => ({ code: item.workflowCode!, label: item.workflowName }));
+        .map((item) => ({ code: item.workflowCode!, label: item.workflowName, inputSchema: mergeOptionalWorkflowFields([], item.inputSchema) }));
 }
 
 function legacyBusinessCode(module: Exclude<PracticeModuleKind, "script">) {

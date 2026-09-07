@@ -47,6 +47,50 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
 
             await rolePage.goto("/practice/character", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByText("等待生成角色图", { exact: true })).toBeVisible();
+            const boxes = await rolePage.locator('[aria-label="练习工具"], [aria-label="当前结果"]').evaluateAll((nodes) =>
+                nodes.map((node) => {
+                    const r = node.getBoundingClientRect();
+                    return { x: r.x, y: r.y, width: r.width, right: r.right };
+                }),
+            );
+            if ((testInfo.project.use.viewport?.width || 1280) >= 1024) {
+                expect(Math.abs(boxes[0].y - boxes[1].y)).toBeLessThan(2);
+                expect(boxes[1].x).toBeGreaterThan(boxes[0].right);
+            } else {
+                expect(boxes[1].y).toBeGreaterThan(boxes[0].y);
+            }
+            await expect(rolePage.getByRole("spinbutton", { name: "宽", exact: false })).toHaveCount(1);
+            await expect(rolePage.getByRole("spinbutton", { name: "宽", exact: false })).toHaveValue("720");
+            await expect(rolePage.getByRole("textbox", { name: "正视图指令", exact: true })).toHaveCount(0);
+            await rolePage.getByText("多视图", { exact: true }).click();
+            await expect(rolePage.getByRole("textbox", { name: "正视图指令", exact: true })).toBeVisible();
+            await expect(rolePage.getByRole("spinbutton", { name: /合并图宽度/ })).toHaveValue("1350");
+            await expect(rolePage.getByRole("spinbutton")).toHaveCount(2);
+            await rolePage.getByLabel("主形象参考图（必需）", { exact: true }).setInputFiles({ name: "character.png", mimeType: "image/png", buffer: ONE_PIXEL_PNG });
+            const multiSubmit = rolePage.waitForRequest((request) => request.url().endsWith("/api/practice/sessions") && request.method() === "POST");
+            await rolePage.getByRole("button", { name: "生成角色多视图", exact: true }).click();
+            const multiBody = (await multiSubmit).postDataJSON();
+            expect(multiBody.workflowCode).toBe("character_multi_view");
+            expect(multiBody.input.width).toBe(1350);
+            expect(multiBody.input.height).toBe(2400);
+            await expect(rolePage.getByRole("img", { name: "练习结果" })).toBeVisible();
+            await rolePage.getByText("主形象", { exact: true }).click();
+            await expect(rolePage.getByRole("textbox", { name: "正视图指令", exact: true })).toHaveCount(0);
+            await expect(rolePage.getByRole("spinbutton", { name: "宽", exact: false })).toHaveValue("720");
+            await rolePage.getByLabel("角色设定", { exact: true }).fill("角色设定测试");
+            await rolePage.getByRole("button", { name: "生成提示词", exact: true }).click();
+            await expect(rolePage.getByRole("textbox", { name: "角色描述", exact: true })).toHaveValue("可编辑的角色提示词");
+            await rolePage.getByRole("textbox", { name: "角色描述", exact: true }).fill("用户最终编辑的提示词");
+            await rolePage.locator("[data-practice-workbench]").evaluate((node) => {
+                node.scrollTop = 0;
+            });
+            await rolePage.screenshot({ path: testInfo.outputPath("character-form.png") });
+            const mainSubmit = rolePage.waitForRequest((request) => request.url().endsWith("/api/practice/sessions") && request.method() === "POST");
+            await rolePage.getByRole("button", { name: "生成角色主视图", exact: true }).click();
+            const mainBody = (await mainSubmit).postDataJSON();
+            expect(mainBody.input.prompt).toBe("用户最终编辑的提示词");
+            expect(mainBody.input).not.toHaveProperty("frontPrompt");
+
             await rolePage.goto("/practice/scene", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByText("等待生成场景图", { exact: true })).toBeVisible();
             await rolePage.goto("/practice/prop", { waitUntil: "domcontentloaded" });
@@ -62,12 +106,38 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             await rolePage.goto("/practice/storyboard-video", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByText("等待生成分镜视频", { exact: true })).toBeVisible();
             await expect(rolePage.getByRole("button", { name: "生成分镜视频", exact: true })).toBeDisabled();
+            await rolePage.getByLabel("参考图片", { exact: true }).setInputFiles({ name: "video.png", mimeType: "image/png", buffer: ONE_PIXEL_PNG });
+            await rolePage.getByLabel("视频提示词", { exact: true }).fill("缓慢推进");
+            await expect(rolePage.getByRole("button", { name: "生成分镜视频", exact: true })).toBeEnabled();
+            await rolePage.getByRole("switch").check();
+            await expect(rolePage.getByRole("button", { name: "生成分镜视频", exact: true })).toBeDisabled();
+            await rolePage.getByRole("switch").uncheck();
+            const videoSubmit = rolePage.waitForRequest((request) => request.url().endsWith("/api/practice/sessions") && request.method() === "POST");
+            await rolePage.getByRole("button", { name: "生成分镜视频", exact: true }).click();
+            expect((await videoSubmit).postDataJSON().input.audioEnabled).toBe(false);
 
             await rolePage.goto("/practice/dubbing", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByText("等待生成配音", { exact: true })).toBeVisible();
             await rolePage.getByLabel("配音文本").fill("欢迎来到练习课堂。");
             await rolePage.getByRole("button", { name: "开始配音", exact: true }).click();
             await expect(rolePage.locator("audio")).toBeVisible();
+            for (const moduleKind of ["character", "scene", "prop", "storyboard-image", "storyboard-video", "dubbing"]) {
+                await rolePage.goto(`/practice/${moduleKind}`, { waitUntil: "domcontentloaded" });
+                await expect(rolePage.getByText("开源模型", { exact: false }).first()).toBeVisible();
+                const geometry = await rolePage.locator('[aria-label="练习工具"], [aria-label="当前结果"]').evaluateAll((nodes) =>
+                    nodes.map((node) => {
+                        const r = node.getBoundingClientRect();
+                        return { left: r.left, top: r.top, right: r.right, width: r.width };
+                    }),
+                );
+                expect(geometry.every((box) => box.left >= 0 && box.right <= (testInfo.project.use.viewport?.width || 1280))).toBe(true);
+                if ((testInfo.project.use.viewport?.width || 1280) >= 1024) expect(Math.abs(geometry[0].top - geometry[1].top)).toBeLessThan(2);
+                await rolePage.screenshot({ path: testInfo.outputPath(`${moduleKind}-layout.png`) });
+            }
+            await rolePage.getByRole("button", { name: "切换到深色主题", exact: true }).click();
+            await expect(rolePage.getByRole("button", { name: "切换到浅色主题", exact: true })).toBeVisible();
+            await rolePage.evaluate(async () => { await Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))); });
+            await rolePage.screenshot({ path: testInfo.outputPath("audio-dark.png") });
             await rolePage.close();
         } finally {
             await teacherContext.close();
@@ -92,6 +162,7 @@ test("没有学校成员身份的账号不能访问无限练习", async ({ brows
 });
 
 async function installPracticeFixtures(page: import("@playwright/test").Page, modules: ReturnType<typeof moduleFixtureCapabilities>) {
+    await page.route("**/api/agent/prompt-optimization", (route) => route.fulfill({ json: { code: 200, data: { prompt: "可编辑的角色提示词" }, msg: "ok" } }));
     await page.route("**/api/practice/modules", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ code: 200, data: { modules, projects: { canvas: false, drama: false } }, msg: "ok" }) }));
     await page.route("**/api/practice/sessions**", async (route) => {
         const request = route.request();
@@ -125,7 +196,32 @@ function moduleFixtureCapabilities() {
             mode: "workflow",
             available: true,
             models: [{ id: "image-one", label: "图片模型" }],
-            inputSchema: [{ key: "prompt", label: "角色描述", type: "textarea", required: true }],
+            inputSchema: [
+                { key: "prompt", label: "角色描述", type: "textarea", required: true },
+                { key: "width", label: "宽", type: "number", required: true, defaultValue: 720 },
+                { key: "height", label: "高", type: "number", required: true, defaultValue: 1280 },
+            ],
+            workflowOptions: [
+                {
+                    code: "character_main_view",
+                    label: "角色主视图",
+                    inputSchema: [
+                        { key: "prompt", label: "角色描述", type: "textarea", required: true },
+                        { key: "width", label: "宽", type: "number", required: true, defaultValue: 720 },
+                        { key: "height", label: "高", type: "number", required: true, defaultValue: 1280 },
+                    ],
+                },
+                {
+                    code: "character_multi_view",
+                    label: "角色多视图",
+                    inputSchema: [
+                        { key: "prompt", label: "角色描述", type: "textarea", required: false },
+                        { key: "frontPrompt", label: "正视图指令", type: "text", required: false, defaultValue: "正视图" },
+                        { key: "width", label: "合并图宽度", type: "number", required: false, defaultValue: 1350 },
+                        { key: "height", label: "合并图高度", type: "number", required: false, defaultValue: 2400 },
+                    ],
+                },
+            ],
             outputType: "image",
         },
         {

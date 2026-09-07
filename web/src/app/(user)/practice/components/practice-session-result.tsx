@@ -1,7 +1,7 @@
 "use client";
 
-import { Button, Empty, Spin } from "antd";
-import { RefreshCw } from "lucide-react";
+import { Button, Spin } from "antd";
+import { Image, Film, AudioLines, RefreshCw } from "lucide-react";
 
 import type { PracticeModuleKind } from "@/lib/practice-domain";
 import type { PracticeSession } from "@/services/api/practice";
@@ -18,7 +18,18 @@ const WAITING: Record<PracticeModuleKind, string> = {
 };
 
 export function PracticeSessionResult({ module, session, onRetry, onRefresh }: { module: PracticeModuleKind; session?: PracticeSession | null; onRetry: () => void; onRefresh: () => void }) {
-    if (!session) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={WAITING[module]} className="!my-8" />;
+    if (!session) {
+        const Icon = module === "storyboard-video" ? Film : module === "dubbing" ? AudioLines : Image;
+        return (
+            <div className="flex min-h-52 flex-col items-center justify-center gap-3 text-center lg:min-h-80">
+                <div className="rounded-2xl bg-muted/60 p-5">
+                    <Icon className="size-8 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium">{WAITING[module]}</p>
+                <p className="max-w-64 text-xs leading-5 text-muted-foreground">完成输入后开始生成，结果会在这里呈现。</p>
+            </div>
+        );
+    }
     if (session.status === "draft") return <p className="mt-4 text-sm text-muted-foreground">剧本草稿已保存，可继续编辑。</p>;
     if (session.status === "queued" || session.status === "running" || session.result?.status === "pending" || session.result?.status === "running")
         return (

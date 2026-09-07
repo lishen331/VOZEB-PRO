@@ -1,4 +1,5 @@
 "use client";
+import styles from "./practice-workbench.module.css";
 
 import { App, Button, Empty, Input, Spin } from "antd";
 import { ArrowLeft, BookOpen, Box, Film, Image, Mic2, Music2, PanelsTopLeft, RefreshCw, UserRound, type LucideIcon } from "lucide-react";
@@ -218,13 +219,13 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
             );
     }
     return (
-        <main className="h-full min-h-0 overflow-y-auto bg-background text-foreground" data-practice-workbench={module}>
-            <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6 sm:py-8">
+        <main className={`${styles.workbench} h-full min-h-0 overflow-y-auto bg-background text-foreground`} data-practice-workbench={module}>
+            <div className="mx-auto w-full max-w-[1440px] px-3 py-4 sm:px-6 sm:py-6">
                 <button type="button" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" onClick={() => router.push("/practice")}>
                     <ArrowLeft className="size-4" />
                     返回无限练习
                 </button>
-                <header className="mt-5 border-b border-border pb-4 sm:mt-7 sm:pb-6">
+                <header className="mt-4 flex items-center justify-between border-b border-border pb-4">
                     <div className="flex items-start gap-3">
                         <Icon className="mt-0.5 size-6 shrink-0" />
                         <div>
@@ -233,27 +234,34 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                         </div>
                     </div>
                 </header>
-                <section className="mt-5 border border-border bg-card p-3 sm:mt-7 sm:p-5" aria-label="练习工具">
-                    {loading ? (
-                        <div className="grid min-h-40 place-items-center">
-                            <Spin />
+                <div className={styles.grid}>
+                    <section className={`${styles.input} rounded-xl border border-border bg-card p-4 sm:p-6`} aria-label="练习工具">
+                        <div className="mb-5 flex items-center gap-2 border-b border-border pb-3">
+                            <Icon className="size-4 text-primary" />
+                            <h2 className="text-sm font-semibold">创作输入</h2>
+                            <span className="ml-auto text-xs text-muted-foreground">素材与生成参数</span>
                         </div>
-                    ) : capability ? (
-                        <>
-                            {!capability.available ? <p className="mb-4 border border-dashed border-border p-3 text-sm text-muted-foreground">{capability.unavailableReason}</p> : null}
-                            {panel}
-                        </>
-                    ) : (
-                        <Empty description="当前模块不可用" />
-                    )}
-                </section>
-                <section className="mt-5 border border-border bg-card p-3 sm:p-5" aria-label="当前结果">
-                    <div className="flex items-center justify-between gap-3">
-                        <h2 className="text-base font-semibold">练习结果</h2>
-                        <Button type="text" size="small" icon={<RefreshCw className="size-4" />} loading={refreshing} onClick={() => void refresh()} aria-label="刷新练习状态" />
-                    </div>
-                    <SessionResult module={module} session={current} onRetry={() => void retry()} onRefresh={() => void refresh()} />
-                </section>
+                        {loading ? (
+                            <div className="grid min-h-40 place-items-center">
+                                <Spin />
+                            </div>
+                        ) : capability ? (
+                            <>
+                                {!capability.available ? <p className="mb-4 border border-dashed border-border p-3 text-sm text-muted-foreground">{capability.unavailableReason}</p> : null}
+                                {panel}
+                            </>
+                        ) : (
+                            <Empty description="当前模块不可用" />
+                        )}
+                    </section>
+                    <section className={`${styles.result} rounded-xl border border-border bg-card p-4 sm:p-6`} aria-label="当前结果">
+                        <div className="flex items-center justify-between gap-3">
+                            <h2 className="text-base font-semibold">练习结果</h2>
+                            <Button type="text" size="small" icon={<RefreshCw className="size-4" />} loading={refreshing} onClick={() => void refresh()} aria-label="刷新练习状态" />
+                        </div>
+                        <SessionResult module={module} session={current} onRetry={() => void retry()} onRefresh={() => void refresh()} />
+                    </section>
+                </div>
                 <section className="mt-7 border-t border-border pt-5" aria-labelledby="practice-module-history">
                     <h2 id="practice-module-history" className="text-base font-semibold">
                         历史练习
