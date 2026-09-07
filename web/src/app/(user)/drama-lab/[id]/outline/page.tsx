@@ -64,6 +64,19 @@ interface Prop {
     prompt?: string;
 }
 
+type LooseAssetData = { storageKey?: string; serverUrl?: string; remoteUrl?: string; dataUrl?: string };
+type LooseAssetReference = { role?: string; url?: string };
+type LooseAsset = {
+    referenceImageUrl?: string;
+    imageUrl?: string;
+    coverUrl?: string;
+    location?: string;
+    name?: string;
+    data?: LooseAssetData;
+    references?: LooseAssetReference[];
+};
+type LooseEpisode = Partial<Episode> & { script_content?: unknown; reviewStatus?: unknown; shotCount?: unknown };
+
 interface Project {
     id: string;
     title: string;
@@ -82,14 +95,14 @@ type StyleOption = { label: string; value: string; prompt?: string; promptEn?: s
 type StyleGroup = { label: string; options: StyleOption[] };
 const STYLE_GROUPS = styleGroups as StyleGroup[];
 
-function assetImageUrl(asset: any): string | undefined {
+function assetImageUrl(asset: LooseAsset | null | undefined): string | undefined {
     if (!asset || typeof asset !== "object") return undefined;
     const references = Array.isArray(asset.references) ? asset.references : [];
     const data = asset.data && typeof asset.data === "object" ? asset.data : {};
-    return asset.referenceImageUrl || asset.imageUrl || data.serverUrl || data.remoteUrl || data.dataUrl || asset.coverUrl || references.find((reference: any) => reference?.role === "primary")?.url || references[0]?.url || undefined;
+    return asset.referenceImageUrl || asset.imageUrl || data.serverUrl || data.remoteUrl || data.dataUrl || asset.coverUrl || references.find((reference) => reference?.role === "primary")?.url || references[0]?.url || undefined;
 }
 
-function normalizeEpisode(value: any, index: number): Episode {
+function normalizeEpisode(value: LooseEpisode, index: number): Episode {
     const shots = Array.isArray(value?.shots) ? value.shots : [];
     const number = Number(value?.episodeNumber || value?.number || index + 1);
     return {
@@ -310,7 +323,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const handleResourceImport = async (asset: Asset) => {
         if (!project) return;
         const imageUrl = assetImageUrl(asset);
-        const source = asset as any;
+        const source: LooseAsset = asset;
         const common = {
             description: asset.note || "",
             imageUrl,
@@ -772,14 +785,12 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                             size="small"
                             pagination={false}
                             dataSource={previewEpisodes}
-                            columns={
-                                [
-                                    { title: "集数", dataIndex: "episodeNumber", width: 80 },
-                                    { title: "标题", dataIndex: "title" },
-                                    { title: "章节", render: (_: unknown, row: (typeof previewEpisodes)[number]) => row.chapterTitles.join("、") },
-                                    { title: "剧本预览", render: (_: unknown, row: (typeof previewEpisodes)[number]) => row.script.slice(0, 100) },
-                                ] as any
-                            }
+                            columns={[
+                                { title: "集数", dataIndex: "episodeNumber", width: 80 },
+                                { title: "标题", dataIndex: "title" },
+                                { title: "章节", render: (_: unknown, row: (typeof previewEpisodes)[number]) => row.chapterTitles.join("、") },
+                                { title: "剧本预览", render: (_: unknown, row: (typeof previewEpisodes)[number]) => row.script.slice(0, 100) },
+                            ]}
                             scroll={{ y: 360 }}
                         />
                         <div className="flex justify-end gap-2">
