@@ -15,6 +15,7 @@ permissions:
 
 env:
   IMAGE_NAME: ghcr.io/lishen331/vozeb-pro
+  STAGING_IMAGE_PROXY: ghcr.nju.edu.cn
 
 jobs:
   build:
@@ -121,8 +122,17 @@ jobs:
           set -euo pipefail
 
           cd /opt/vozeb-pro/staging
-          export VOZEB_PRO_IMAGE='${{ env.IMAGE_NAME }}:sha-${{ github.sha }}'
-          docker compose pull app generation-worker
+          upstream_image='${{ env.IMAGE_NAME }}:sha-${{ github.sha }}'
+          proxy_image='${{ env.STAGING_IMAGE_PROXY }}/lishen331/vozeb-pro:sha-${{ github.sha }}'
+
+          # Prefer the verified proxy for slow GHCR egress. The official
+          # registry remains the automatic fallback if the proxy is unavailable.
+          export VOZEB_PRO_IMAGE="$proxy_image"
+          if ! docker compose pull app generation-worker; then
+            printf 'Proxy pull failed; retrying from upstream GHCR.\n' >&2
+            export VOZEB_PRO_IMAGE="$upstream_image"
+            docker compose pull app generation-worker
+          fi
           docker compose up -d
 
           for attempt in $(seq 1 30); do
