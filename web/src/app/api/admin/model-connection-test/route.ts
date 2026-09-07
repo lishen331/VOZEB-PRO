@@ -1,7 +1,7 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 
 import { hasAdminPermission } from "@/lib/admin-permissions";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth/session";`r`nimport { readJsonBody } from "@/lib/auth/request";
 import { getAuthSettings, type LogicalModelCapability } from "@/lib/auth/store";
 import { channelConnectionReady, protocolAuthHeaders } from "@/lib/channel-protocol-registry";
 import { buildModelCatalogUrls, parseModelCatalog } from "@/lib/server/admin-model-catalog";
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     if (!user) return Response.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     if (!hasAdminPermission(user, "upstream.manage")) return Response.json({ code: 403, data: null, msg: "需要管理员权限" }, { status: 403 });
 
-    const body = (await request.json().catch(() => ({}))) as { targets?: TestTarget[] };
+    const body = await readJsonBody<{ targets?: TestTarget[] }>(request, 64 * 1024);
     const targets = Array.isArray(body.targets) ? body.targets : [];
     if (!targets.length) return Response.json({ code: 400, data: null, msg: "至少选择一个模型" }, { status: 400 });
 
@@ -168,3 +168,4 @@ function modelSignature(
         .sort((a, b) => a.id.localeCompare(b.id));
     return JSON.stringify({ id: model.id, capability: model.capability, enabled: model.enabled, bindings, channelShape });
 }
+
