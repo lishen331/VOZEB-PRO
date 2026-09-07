@@ -1,4 +1,4 @@
-import { createPublicPromptImage } from "@/lib/server/public-prompt-image";
+import { createPublicPromptImage, createUnavailablePublicPromptImage } from "@/lib/server/public-prompt-image";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,16 @@ export async function GET(request: Request) {
             },
         });
     } catch (error) {
-        console.error("Public prompt image failed", error);
-        return Response.json({ code: 502, data: null, msg: "提示词图片加载失败" }, { status: 502 });
+        console.warn("Public prompt image unavailable", error instanceof Error ? error.message : error);
+        const image = await createUnavailablePublicPromptImage(params.get("width"));
+        return new Response(new Uint8Array(image), {
+            headers: {
+                "Cache-Control": "no-store",
+                "Content-Type": "image/webp",
+                "Cross-Origin-Resource-Policy": "same-origin",
+                "X-Content-Type-Options": "nosniff",
+                "X-Robots-Tag": "noindex, nofollow, noarchive",
+            },
+        });
     }
 }

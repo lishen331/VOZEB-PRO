@@ -25,12 +25,15 @@ describe("RunningHub Demo local fixture contract", () => {
             expect(response.status).toBe(200);
             const body = (await response.json()) as { data?: { taskId?: string } };
             expect(body.data?.taskId).toMatch(/^fixture-task-/);
-            const query = await fetch(`http://127.0.0.1:${port}/openapi/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId: body.data?.taskId }) });
+            const query = await fetch(`http://127.0.0.1:${port}/openapi/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ apiKey: "fixture-key", taskId: body.data?.taskId }) });
             expect(query.status).toBe(200);
-            const queryBody = (await query.json()) as { data?: { result?: string } };
-            if (workflow.capability === "image") expect(queryBody.data?.result).toMatch(/\.png$/);
-            if (workflow.capability === "video") expect(queryBody.data?.result).toMatch(/\.mp4$/);
-            if (workflow.capability === "audio") expect(queryBody.data?.result).toMatch(/\.mp3$/);
+            const queryBody = (await query.json()) as { data?: { status?: string; results?: Array<{ url?: string; fileUrl?: string; fileType?: string; nodeId?: string }> } };
+            expect(queryBody.data?.status).toBe("SUCCESS");
+            expect(queryBody.data?.results).toHaveLength(1);
+            const result = queryBody.data?.results?.[0];
+            if (workflow.capability === "image") expect(result).toMatchObject({ url: expect.stringMatching(/\.png$/), fileUrl: expect.stringMatching(/\.png$/), fileType: "IMAGE", nodeId: expect.any(String) });
+            if (workflow.capability === "video") expect(result).toMatchObject({ url: expect.stringMatching(/\.mp4$/), fileUrl: expect.stringMatching(/\.mp4$/), fileType: "VIDEO", nodeId: expect.any(String) });
+            if (workflow.capability === "audio") expect(result).toMatchObject({ url: expect.stringMatching(/\.mp3$/), fileUrl: expect.stringMatching(/\.mp3$/), fileType: "AUDIO", nodeId: expect.any(String) });
         }
 
         const upload = await fetch(`http://127.0.0.1:${port}/openapi/v2/media/upload/binary`, {
@@ -39,6 +42,9 @@ describe("RunningHub Demo local fixture contract", () => {
             body: '--fixture\r\nContent-Disposition: form-data; name="file"; filename=reference.png\r\n\r\nfixture\r\n--fixture--\r\n',
         });
         expect(upload.status).toBe(200);
+
+        const missingKey = await fetch(`http://127.0.0.1:${port}/openapi/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId: "fixture-task-1" }) });
+        expect(missingKey.status).toBe(400);
 
         const state = (await (await fetch(`http://127.0.0.1:${port}/__state`)).json()) as { tasks?: Array<{ payload?: Record<string, unknown> }> };
         expect(state.tasks).toHaveLength(7);
@@ -57,8 +63,8 @@ describe("RunningHub Demo local fixture contract", () => {
             body: JSON.stringify({ workflowId: "2069627147735621634", nodeInfoList: [{ nodeId: "prompt", fieldName: "value", fieldValue: "__FAIL__" }] }),
         });
         const taskId = ((await created.json()) as { data: { taskId: string } }).data.taskId;
-        const queried = await fetch(`http://127.0.0.1:${port}/openapi/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId }) });
-        expect(await queried.json()).toMatchObject({ code: 0, data: { status: "FAILED", error: "fixture task rejected" } });
+        const queried = await fetch(`http://127.0.0.1:${port}/openapi/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ apiKey: "fixture-key", taskId }) });
+        expect(await queried.json()).toMatchObject({ code: 0, data: { status: "FAILED", failedReason: "fixture task rejected", results: [] } });
     });
 });
 

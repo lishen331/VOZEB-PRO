@@ -70,23 +70,145 @@ describe("RunningHub provider", () => {
         await expect(queryRunningHubTask({ baseUrl: "https://runninghub.example", apiKey: "secret", config, taskId: "task one", fetchImpl })).resolves.toEqual({ status: "success", resultUrl: "https://cdn.example/result.mp4", raw: expect.any(Object) });
     });
 
-    it("uses the official POST query contract without appending the task id to the URL", async () => {
+    it("queries official tasks with the API key and maps data.results by output node", async () => {
         const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
             expect(String(input)).toBe("https://runninghub.example/openapi/v2/query");
             expect(init?.method).toBe("POST");
-            expect(JSON.parse(String(init?.body))).toEqual({ taskId: "task-one" });
-            return Response.json({ status: "SUCCESS", results: [{ url: "https://cdn.example/result.png", outputType: "png" }] });
+            expect(JSON.parse(String(init?.body))).toEqual({ apiKey: "secret", taskId: "task-one" });
+            return Response.json({
+                code: 0,
+                data: {
+                    status: "SUCCESS",
+                    results: [
+                        { url: "https://cdn.example/image.png", fileUrl: "https://cdn.example/image.png", fileType: "IMAGE", nodeId: "77", taskCostTime: "3128" },
+                        { url: "https://cdn.example/other.png", fileType: "IMAGE", nodeId: "78" },
+                    ],
+                },
+            });
         });
 
         await expect(
             queryRunningHubTask({
                 baseUrl: "https://runninghub.example",
                 apiKey: "secret",
-                config: { ...config, queryPath: "/openapi/v2/query", statusField: "status", resultField: "results" },
+                config: {
+                    ...config,
+                    queryPath: "/openapi/v2/query",
+                    statusField: "data.status",
+                    resultField: "data.result",
+                    outputMappings: [{ key: "image", label: "图片", nodeId: "77", assetType: "IMAGE", required: true, primary: true }],
+                },
                 taskId: "task-one",
                 fetchImpl,
             }),
-        ).resolves.toMatchObject({ status: "SUCCESS", resultUrl: "https://cdn.example/result.png" });
+        ).resolves.toMatchObject({
+            status: "SUCCESS",
+            resultUrl: "https://cdn.example/image.png",
+            resultUrls: ["https://cdn.example/image.png"],
+            outputs: [
+                {
+                    key: "image",
+                    nodeId: "77",
+                    values: [expect.objectContaining({ url: "https://cdn.example/image.png", fileUrl: "https://cdn.example/image.png", fileType: "IMAGE", nodeId: "77" })],
+                },
+            ],
+        });
+    });
+
+    it("preserves the official failed status and a safe query summary", async () => {
+        const fetchImpl = vi.fn(async () =>
+            Response.json({
+                code: 0,
+                data: { status: "FAILED", failedReason: "fixture task rejected", results: [] },
+            }),
+        );
+
+        await expect(
+            queryRunningHubTask({
+                baseUrl: "https://runninghub.example",
+                apiKey: "secret",
+                config: { ...config, queryPath: "/openapi/v2/query", statusField: "data.status", resultField: "data.result" },
+                taskId: "task-one",
+                fetchImpl,
+            }),
+        ).resolves.toMatchObject({
+            status: "FAILED",
+            querySummary: { status: "FAILED", resultCount: 0, nodeIds: [], upstreamError: "fixture task rejected" },
+        });
+    });
+
+    it("redacts the RunningHub API key from the official query summary", async () => {
+        const fetchImpl = vi.fn(async () =>
+            Response.json({
+                code: 0,
+                data: { status: "FAILED", failedReason: "Authorization: Bearer secret; apiKey=secret", results: [] },
+            }),
+        );
+
+        const result = await queryRunningHubTask({
+            baseUrl: "https://runninghub.example",
+            apiKey: "secret",
+            config: { ...config, queryPath: "/openapi/v2/query", statusField: "data.status", resultField: "data.result" },
+            taskId: "task-one",
+            fetchImpl,
+        });
+
+        expect(result.querySummary?.upstreamError).not.toContain("secret");
+        expect(result.querySummary?.upstreamError).toContain("[REDACTED]");
+    });
+
+    it("preserves official text results for a configured text output node", async () => {
+        const fetchImpl = vi.fn(async () =>
+            Response.json({
+                code: 0,
+                data: { status: "SUCCESS", results: [{ text: "生成完成", fileType: "TEXT", nodeId: "90" }] },
+            }),
+        );
+
+        await expect(
+            queryRunningHubTask({
+                baseUrl: "https://runninghub.example",
+                apiKey: "secret",
+                config: {
+                    ...config,
+                    queryPath: "/openapi/v2/query",
+                    statusField: "data.status",
+                    resultField: "data.result",
+                    outputMappings: [{ key: "text", label: "文本", nodeId: "90", assetType: "TEXT", required: true }],
+                },
+                taskId: "task-one",
+                fetchImpl,
+            }),
+        ).resolves.toMatchObject({
+            status: "SUCCESS",
+            resultText: "生成完成",
+            outputs: [{ key: "text", nodeId: "90", values: ["生成完成"] }],
+        });
+    });
+
+    it("does not use a result from another output node as the configured artifact", async () => {
+        const fetchImpl = vi.fn(async () =>
+            Response.json({
+                code: 0,
+                data: { status: "SUCCESS", results: [{ fileUrl: "https://cdn.example/other.png", fileType: "IMAGE", nodeId: "78" }] },
+            }),
+        );
+
+        await expect(
+            queryRunningHubTask({
+                baseUrl: "https://runninghub.example",
+                apiKey: "secret",
+                config: {
+                    ...config,
+                    queryPath: "/openapi/v2/query",
+                    statusField: "data.status",
+                    resultField: "data.result",
+                    outputMappings: [{ key: "image", label: "图片", nodeId: "77", assetType: "IMAGE", required: true }],
+                },
+                taskId: "task-one",
+                fetchImpl,
+            }),
+        ).resolves.toMatchObject({ status: "SUCCESS", resultUrls: [], querySummary: { status: "SUCCESS", resultCount: 1, nodeIds: ["78"] } });
     });
 
     it("keeps text results out of resultUrl and preserves multiple structured outputs", async () => {

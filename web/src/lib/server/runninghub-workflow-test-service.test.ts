@@ -113,12 +113,44 @@ describe("runninghub workflow test service", () => {
             resultText: "hello",
             resultUrls: ["https://fixture/a.png", "https://fixture/b.png"],
             outputs: [{ key: "images", label: "图片", assetType: "IMAGE", values: ["https://fixture/a.png", "https://fixture/b.png"] }],
+            querySummary: { status: "SUCCESS", resultCount: 2, nodeIds: ["77", "78"] },
             raw: {},
         });
         const result = await inspectRunningHubWorkflowTest({ workflowKey: "wf", runId: "run-1", adminId: "admin-1" });
-        expect(result).toMatchObject({ runId: "run-1", status: "success", resultText: "hello", resultUrls: ["https://fixture/a.png", "https://fixture/b.png"] });
+        expect(result).toMatchObject({
+            runId: "run-1",
+            status: "success",
+            resultText: "hello",
+            resultUrls: ["https://fixture/a.png", "https://fixture/b.png"],
+            querySummary: { status: "SUCCESS", resultCount: 2, nodeIds: ["77", "78"] },
+        });
         expect(mocks.query).toHaveBeenCalledTimes(1);
         expect(mocks.submit).not.toHaveBeenCalled();
+    });
+
+    it("does not mark a successful upstream status as tested when no configured artifact was returned", async () => {
+        mocks.get.mockResolvedValue({
+            id: "run-no-output",
+            userId: "admin-1",
+            workflowKey: "wf",
+            workflowVersion: 2,
+            upstreamWorkflowId: "remote",
+            businessCode: "script",
+            type: "text",
+            status: "running",
+            taskId: "task-no-output",
+            createdAt: Date.now() - 20,
+            updatedAt: Date.now(),
+            taskOrigin: "admin-workflow-test",
+            workflowConfig: structuredClone(config),
+        });
+        mocks.query.mockResolvedValue({ status: "SUCCESS", resultUrls: [], querySummary: { status: "SUCCESS", resultCount: 1, nodeIds: ["wrong-node"] }, raw: {} });
+
+        await expect(inspectRunningHubWorkflowTest({ workflowKey: "wf", runId: "run-no-output", adminId: "admin-1" })).resolves.toMatchObject({
+            status: "error",
+            querySummary: { status: "SUCCESS", resultCount: 1, nodeIds: ["wrong-node"] },
+            error: "RunningHub 查询成功但未返回匹配的输出产物",
+        });
     });
 
     it("uses the stored workflow snapshot when the current workflow changed", async () => {
