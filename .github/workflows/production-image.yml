@@ -186,7 +186,7 @@ jobs:
             "docker inspect --format '{{.Config.Image}}' vozeb-pro 2>/dev/null || true")"
 
           ssh "${ssh_args[@]}" "$target" \
-            "cd /opt/vozeb-pro/production && VOZEB_PRO_IMAGE='$image' docker compose -f compose.production.yml up -d --pull never"
+            "cd /opt/vozeb-pro/production && sed -i 's#^VOZEB_PRO_IMAGE=.*#VOZEB_PRO_IMAGE=$image#' .env && chmod 600 .env && VOZEB_PRO_IMAGE='$image' docker compose -f compose.production.yml up -d --pull never"
 
           healthy=false
           for attempt in $(seq 1 30); do
