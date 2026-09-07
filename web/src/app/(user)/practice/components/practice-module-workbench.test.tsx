@@ -12,7 +12,7 @@ import { workflowFieldDefaults, workflowFormFields } from "./practice-panel-type
 describe("practice module workbench contract", () => {
     it("sends only user content, public references and a fresh request id", () => {
         const input = buildPracticeSessionInput("script", "一场雨中的重逢", ["asset-1"]);
-        expect(input).toMatchObject({ module: "script", title: "剧本练习", input: { prompt: "一场雨中的重逢" }, references: [{ type: "asset", id: "asset-1" }] });
+        expect(input).toMatchObject({ module: "script", title: "单项练习", input: { prompt: "一场雨中的重逢" }, references: [{ type: "asset", id: "asset-1" }] });
         expect(input.clientRequestId).toMatch(/^[0-9a-f-]{36}$/i);
         expect(JSON.stringify(input)).not.toMatch(/provider|model|points|executionProfile|channel/i);
     });
@@ -35,8 +35,8 @@ describe("practice module workbench contract", () => {
         expect(publicPracticeResult({ status: "error", taskId: "secret-task", error: "失败" })).toEqual({ status: "error", error: "失败" });
     });
 
-    it("keeps all five modules in the same workbench contract", () => {
-        expect(PRACTICE_MODULES).toHaveLength(5);
+    it("keeps all six modules in the same workbench contract", () => {
+        expect(PRACTICE_MODULES).toHaveLength(6);
     });
 
     it("routes asset modules to their dedicated panels", async () => {
