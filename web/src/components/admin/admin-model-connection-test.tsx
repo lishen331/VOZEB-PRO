@@ -50,14 +50,43 @@ export function AdminModelConnectionTest({ targets, label = "连接测试", titl
             <Button className={className} size="small" loading={testing} icon={status === "untested" ? <RefreshCw className="size-3.5" /> : <StatusIcon status={status} />} onClick={() => (status === "untested" ? void run() : setOpen(true))}>
                 {status === "untested" ? label : statusLabel(status)}
             </Button>
-            <Modal title={title} open={open} onCancel={() => setOpen(false)} destroyOnHidden footer={<Space><Button onClick={() => setOpen(false)}>关闭</Button><Button type="primary" loading={testing} onClick={() => void run()}>重新测试</Button></Space>}>
+            <Modal
+                title={title}
+                open={open}
+                onCancel={() => setOpen(false)}
+                destroyOnHidden
+                footer={
+                    <Space>
+                        <Button onClick={() => setOpen(false)}>关闭</Button>
+                        <Button type="primary" loading={testing} onClick={() => void run()}>
+                            重新测试
+                        </Button>
+                    </Space>
+                }
+            >
                 <div className="space-y-3">
-                    {results.length ? results.map((result) => (
-                        <div key={`${result.capability}:${result.logicalModelId}`} className="rounded-lg border border-stone-200 p-3 dark:border-stone-700">
-                            <div className="flex items-center justify-between"><span className="font-medium">{result.modelName}</span><Tag color={result.status === "available" ? "green" : result.status === "partial" ? "orange" : "red"}>{statusLabel(result.status)}</Tag></div>
-                            {result.channels.map((channel) => <div key={channel.requestId} className="mt-2 rounded border p-2 text-xs"><div className="flex items-center gap-2"><StatusIcon status={channel.status} />{channel.channelName} · {channel.responseMs}ms</div><div className="text-stone-500">请求 ID：{channel.requestId}</div>{channel.error ? <div className="text-red-600">{channel.error}</div> : null}</div>)}
-                        </div>
-                    )) : <div className="py-8 text-center text-stone-500">点击“重新测试”开始测试当前实际路由</div>}
+                    {results.length ? (
+                        results.map((result) => (
+                            <div key={`${result.capability}:${result.logicalModelId}`} className="rounded-lg border border-stone-200 p-3 dark:border-stone-700">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-medium">{result.modelName}</span>
+                                    <Tag color={result.status === "available" ? "green" : result.status === "partial" ? "orange" : "red"}>{statusLabel(result.status)}</Tag>
+                                </div>
+                                {result.channels.map((channel) => (
+                                    <div key={channel.requestId} className="mt-2 rounded border p-2 text-xs">
+                                        <div className="flex items-center gap-2">
+                                            <StatusIcon status={channel.status} />
+                                            {channel.channelName} · {channel.responseMs}ms
+                                        </div>
+                                        <div className="text-stone-500">请求 ID：{channel.requestId}</div>
+                                        {channel.error ? <div className="text-red-600">{channel.error}</div> : null}
+                                    </div>
+                                ))}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="py-8 text-center text-stone-500">点击“重新测试”开始测试当前实际路由</div>
+                    )}
                 </div>
             </Modal>
         </>

@@ -175,9 +175,9 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                                     </div>
                                     <Space className="shrink-0">
                                         <AdminModelConnectionTest targets={[{ logicalModelId: model.id, capability: model.capability }]} />
-                                    <Button className="shrink-0" size="small" icon={<Pencil className="size-3.5" />} onClick={() => openEdit(model)}>
-                                        路由设置
-                                    </Button>
+                                        <Button className="shrink-0" size="small" icon={<Pencil className="size-3.5" />} onClick={() => openEdit(model)}>
+                                            路由设置
+                                        </Button>
                                     </Space>
                                 </div>
                             );
