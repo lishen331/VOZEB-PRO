@@ -115,7 +115,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             cause: error instanceof Error ? error.cause : undefined,
             name: error instanceof Error ? error.name : undefined,
         });
-        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError || error isDramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜视频任务创建失败" }, { status });
     }
 }

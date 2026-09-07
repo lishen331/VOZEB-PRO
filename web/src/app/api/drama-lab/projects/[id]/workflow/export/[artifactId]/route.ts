@@ -34,7 +34,7 @@ export async function GET(request: Request, { params }: Context) {
             },
         });
     } catch (error) {
-        const status = error instanceof DramaLabWorkflowError || error isDramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabWorkflowError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "导出产物读取失败" }, { status });
     }
 }

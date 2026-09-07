@@ -34,7 +34,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         });
     } catch (error) {
         console.error("[drama-lab/projects/:id] GET error:", error);
-        if (error isDramaLabCollaborationError) return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
+        if (isDramaLabCollaborationError(error)) return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         return NextResponse.json(
             {
                 code: 500,
@@ -89,7 +89,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         if (error instanceof DramaProjectServiceError) {
             return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         }
-        if (error isDramaLabCollaborationError) {
+        if (isDramaLabCollaborationError(error)) {
             return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         }
 
@@ -312,7 +312,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         if (error instanceof DramaProjectServiceError) {
             return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         }
-        if (error isDramaLabCollaborationError) {
+        if (isDramaLabCollaborationError(error)) {
             return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         }
         return NextResponse.json(

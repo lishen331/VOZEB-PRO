@@ -38,7 +38,7 @@ function jsonError(status: number, msg: string) {
 }
 
 function collaborationError(error: unknown) {
-    if (error isDramaLabCollaborationError) return jsonError(error.status, error.message);
+    if (isDramaLabCollaborationError(error)) return jsonError(error.status, error.message);
     console.error("[drama-lab/collaboration]", error);
     return jsonError(500, error instanceof Error ? error.message : "团队协作请求失败");
 }

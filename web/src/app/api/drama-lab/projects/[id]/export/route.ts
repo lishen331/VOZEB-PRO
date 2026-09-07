@@ -37,7 +37,7 @@ export async function GET(request: Request, context: Context) {
             },
         });
     } catch (error) {
-        if (error instanceof DramaLabProjectArchiveError || error isDramaLabCollaborationError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
+        if (error instanceof DramaLabProjectArchiveError || isDramaLabCollaborationError(error)) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
         console.error("drama lab project export failed", error);
         return NextResponse.json({ code: 500, data: null, msg: "短剧项目导出失败" }, { status: 500 });
     }

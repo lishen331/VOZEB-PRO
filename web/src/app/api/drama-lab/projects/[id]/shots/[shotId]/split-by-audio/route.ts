@@ -84,7 +84,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             msg: result.createdShots.length ? `已追加 ${result.createdShots.length} 条音频拆镜候选` : "音频拆镜候选已存在，未重复创建",
         });
     } catch (error) {
-        const status = error instanceof DramaLabAudioSplitError || error instanceof DramaProjectStoreError || error isDramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabAudioSplitError || error instanceof DramaProjectStoreError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "按音频拆镜失败" }, { status });
     }
 }

@@ -45,7 +45,7 @@ export async function POST(request: Request, context: Context) {
             },
         });
     } catch (error) {
-        if (error instanceof DramaJianyingExportError || error isDramaLabCollaborationError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
+        if (error instanceof DramaJianyingExportError || isDramaLabCollaborationError(error)) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
         console.error("[drama-lab] jianying export failed:", error);
         return NextResponse.json({ code: 500, data: null, msg: "剪映草稿导出失败" }, { status: 500 });
     }

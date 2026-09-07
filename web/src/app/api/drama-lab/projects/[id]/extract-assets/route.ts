@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         return NextResponse.json({ code: 0, data: result, msg: "资产提取完成" });
     } catch (error) {
-        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabAssetExtractionError || error isDramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabAssetExtractionError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "资产提取失败" }, { status });
     }
 }

@@ -24,7 +24,7 @@ export async function POST(request: Request, { params }: RouteContext) {
         });
         return NextResponse.json({ code: 0, data: task, msg: "Cancellation request recorded" });
     } catch (error) {
-        const status = error instanceof DramaLabTaskError || error isDramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabTaskError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "Unable to cancel task" }, { status });
     }
 }

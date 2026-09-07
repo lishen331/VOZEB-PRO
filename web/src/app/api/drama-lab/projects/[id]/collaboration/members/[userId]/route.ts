@@ -38,5 +38,5 @@ function fail(status: number, msg: string) {
     return NextResponse.json({ code: status, data: null, msg }, { status });
 }
 function handle(error: unknown) {
-    return error isDramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "成员请求失败");
+    return isDramaLabCollaborationError(error) ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "成员请求失败");
 }
