@@ -6,6 +6,7 @@ import { generationModelId, toSystemGenerationChannel } from "@/lib/server/gener
 import { finishGenerationAttempt, startGenerationAttempt, type GenerationAttempt } from "@/lib/server/generation-attempt";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
+import { hasHealthyRuntimeCandidate } from "@/lib/server/channel-runtime-health";
 import { assertReferenceCapabilities, assertReferenceUrls, assertVideoReferenceRoles, buildVideoProviderRequest, isProviderBusinessError, readProviderError, readProviderString, resolvedProviderCreatePaths } from "@/lib/server/provider-task-config";
 import { buildGlobalAiOpcVideoRequest, resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { createVideoTask, transitionVideoTask, updateVideoTask, type VideoTask } from "@/lib/server/video-task-store";
@@ -51,6 +52,7 @@ import {
     workflowTimeoutMs,
 } from "@/lib/server/runninghub-workflow-runtime";
 import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
 type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext };
@@ -71,6 +73,13 @@ export async function POST(request: Request) {
         body = await readJsonBody(request);
     } catch (error) {
         if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
+        throw error;
+    }
+    try {
+        const moduleId = featureModuleForGenerationContext(body.context);
+        if (moduleId) await requireFeatureModuleEnabled(moduleId);
+    } catch (error) {
+        if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ error: error.message }, { status: 403 });
         throw error;
     }
     const trustedPractice = isTrustedPracticeTaskRequest(request, user.id, body.context);
@@ -113,10 +122,15 @@ export async function POST(request: Request) {
                 : typeof body.config?.model === "string" && body.config.model.trim()
                   ? body.config.model
                   : settings.defaultModels.videoModel;
-            const channels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile).map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }));
+            const allChannels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile)
+                .map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }))
+                .filter((channel): channel is typeof channel & { channelId: string } => typeof channel.channelId === "string");
             const prompt = String(body.prompt || "").trim();
-            if (!channels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
-            if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(channels[0], trustedContext.businessCode) };
+            if (!allChannels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
+            const hasHealthy = await hasHealthyRuntimeCandidate(allChannels, "video");
+            if (!hasHealthy) return NextResponse.json({ error: "当前视频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
+            const channels = allChannels;
+            if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(channels[0], trustedContext.businessCode, trustedContext) };
             const publicOrigin = requestPublicOrigin(request);
             let references: VideoGenerationReference[];
             try {
@@ -392,7 +406,11 @@ export async function createUpstream(
     const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
     const multipart = channel.advancedConfig?.requestTemplate?.trim().toLowerCase().startsWith("multipart/form-data") === true;
     const payload = workflow
-        ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: { ...values, ...raw }, references: references.map((reference) => ({ type: reference.type, url: reference.url })) })
+        ? buildRunningHubWorkflowPayload({
+              config: workflow,
+              businessInput: { ...values, ...raw },
+              references: references.map((reference) => ({ type: reference.type, url: reference.url, ...(reference.inputKey ? { inputKey: reference.inputKey } : {}) })),
+          })
         : multipart
           ? undefined
           : channel.advancedConfig?.protocol === "vozeb-recommended"

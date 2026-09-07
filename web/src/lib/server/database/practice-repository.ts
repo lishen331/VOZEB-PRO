@@ -9,8 +9,8 @@ export class PracticeRepository {
 
     async createPracticeSession(input: PracticeSessionCreateInput) {
         const result = await this.db.query(
-            `INSERT INTO practice_sessions (id, user_id, project_id, project_kind, module, mode, title, client_request_id, execution_profile, prompt_json, input_json, task_refs, selected_logical_model_id, error_code, error_message, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'open-source-practice', $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, $15)
+            `INSERT INTO practice_sessions (id, user_id, project_id, project_kind, module, mode, title, client_request_id, execution_profile, prompt_json, input_json, task_refs, selected_logical_model_id, workflow_code, workflow_version, workflow_config_fingerprint, workflow_adapter_version, error_code, error_message, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'open-source-practice', $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, $15, $16, $17, $18, $19)
              ON CONFLICT (user_id, client_request_id) DO UPDATE SET updated_at = practice_sessions.updated_at
              RETURNING *`,
             [
@@ -26,6 +26,10 @@ export class PracticeRepository {
                 jsonParam(input.input),
                 jsonParam(input.taskRefs),
                 input.selectedLogicalModelId || null,
+                input.workflowCode || null,
+                input.workflowVersion || null,
+                input.workflowConfigFingerprint || null,
+                input.workflowAdapterVersion || null,
                 input.errorCode || null,
                 input.errorMessage || null,
                 input.status,
@@ -209,6 +213,10 @@ function mapPracticeSession(row: Record<string, unknown>): PracticeSessionRecord
         input: jsonValue(row.input_json),
         taskRefs: jsonValue(row.task_refs),
         ...(optionalString(row.selected_logical_model_id) ? { selectedLogicalModelId: optionalString(row.selected_logical_model_id) } : {}),
+        ...(optionalString(row.workflow_code) ? { workflowCode: optionalString(row.workflow_code) } : {}),
+        ...(Number.isSafeInteger(Number(row.workflow_version)) && Number(row.workflow_version) > 0 ? { workflowVersion: Number(row.workflow_version) } : {}),
+        ...(optionalString(row.workflow_config_fingerprint) ? { workflowConfigFingerprint: optionalString(row.workflow_config_fingerprint) } : {}),
+        ...(Number.isSafeInteger(Number(row.workflow_adapter_version)) && Number(row.workflow_adapter_version) > 0 ? { workflowAdapterVersion: Number(row.workflow_adapter_version) } : {}),
         ...(optionalString(row.error_code) ? { errorCode: optionalString(row.error_code) } : {}),
         ...(optionalString(row.error_message) ? { errorMessage: optionalString(row.error_message) } : {}),
         status: practiceSessionStatus(row.status),
@@ -242,7 +250,7 @@ function mapPullFilmVersion(row: Record<string, unknown>): PullFilmVersionRecord
 }
 
 function practiceModule(value: unknown): PracticeSessionRecord["module"] {
-    return value === "storyboard-image" || value === "storyboard-video" || value === "dubbing" || value === "music" ? value : "script";
+    return value === "character" || value === "scene" || value === "prop" || value === "storyboard-image" || value === "storyboard-video" || value === "dubbing" || value === "music" ? value : "script";
 }
 
 function practiceSessionStatus(value: unknown): PracticeSessionStatus {

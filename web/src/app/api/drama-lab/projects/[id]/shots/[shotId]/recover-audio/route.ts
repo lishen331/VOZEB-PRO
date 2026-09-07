@@ -1,7 +1,8 @@
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabAudioError, assertAudioTaskBinding, assertAudioTaskContext, legacyDramaAudioTaskId, syncDramaLabAudioTask } from "@/lib/server/drama-lab-audio-service";
 import { getAudioTask } from "@/lib/server/audio-task-store";
 import { getStoredGenerationTaskRecord, hasStoredGenerationTaskContextConflict } from "@/lib/server/generation-task-store";
@@ -91,7 +92,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const updated = latestProject && latestTask ? await syncDramaLabAudioTask({ userId: user.id, projectOwnerUserId: ownerUserId, project: latestProject, episodeId, shotId, taskId, kind }) : latestProject;
         return NextResponse.json({ code: 0, data: { task: latestTask, project: updated }, msg: "音频任务已重新检查" });
     } catch (error) {
-        const status = error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "音频任务恢复失败" }, { status });
     }
 }

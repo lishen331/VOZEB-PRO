@@ -179,4 +179,51 @@ describe("RunningHub workflow discovery", () => {
         // the size knob named ref_image_size must never be surfaced as a file input
         expect(result.suggestedNodeMappings.some((item) => item.fieldName === "ref_image_size")).toBe(false);
     });
+
+    it("pairs ComfyUI widgets by writable inputs instead of raw input indexes", () => {
+        const result = analyzeRunningHubWorkflowJson({
+            workflowId: "comfyui-array",
+            raw: {
+                nodes: [
+                    {
+                        id: 1,
+                        type: "CLIPTextEncode",
+                        inputs: [
+                            { name: "clip", link: 10, type: "CLIP" },
+                            { widget: { name: "text" }, name: "text", type: "STRING" },
+                        ],
+                        widgets_values: ["{{prompt}}"],
+                    },
+                ],
+            },
+            capability: "image",
+        });
+
+        expect(result.candidates).toEqual([expect.objectContaining({ nodeId: "1", fieldName: "text", role: "prompt", defaultValue: "{{prompt}}" })]);
+        expect(result.suggestedInputs).toEqual([expect.objectContaining({ key: "prompt", type: "textarea", required: true })]);
+    });
+
+    it("keeps a ComfyUI output node when all of its inputs are linked", () => {
+        const result = analyzeRunningHubWorkflowJson({
+            workflowId: "comfyui-output",
+            raw: { nodes: [{ id: 2, type: "SaveImage", inputs: [{ name: "images", link: 11, type: "IMAGE" }], widgets_values: [] }] },
+            capability: "image",
+        });
+
+        expect(result.candidates).toEqual([expect.objectContaining({ nodeId: "2", role: "output" })]);
+        expect(result.suggestedOutputs).toEqual([expect.objectContaining({ nodeId: "2", assetType: "IMAGE" })]);
+    });
+
+    it("does not let top-level link ids hide real ComfyUI nodes", () => {
+        const result = analyzeRunningHubWorkflowJson({
+            workflowId: "comfyui-link-id",
+            raw: {
+                links: [{ id: 9, type: "IMAGE" }],
+                nodes: [{ id: 9, type: "SaveImage", inputs: [{ name: "images", link: 9, type: "IMAGE" }], widgets_values: [] }],
+            },
+            capability: "image",
+        });
+
+        expect(result.suggestedOutputs).toEqual([expect.objectContaining({ nodeId: "9", assetType: "IMAGE" })]);
+    });
 });

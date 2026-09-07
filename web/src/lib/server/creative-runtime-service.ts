@@ -13,6 +13,9 @@ import {
 } from "@/lib/server/creative-runtime-store";
 import { writePersistentMediaDataUrl } from "@/lib/server/reference-asset-store";
 import { deleteCreativeConversationAggregates } from "@/lib/server/creative-entity-deletion-store";
+import { getLocalMediaRegistration, isLocalMediaRegistrationExpired } from "@/lib/server/local-media-registry";
+import { localMediaStorageKeyFromValue } from "@/lib/server/local-media-references";
+import { readRegisteredMediaBytes } from "@/lib/server/object-storage-service";
 import { deleteUserMediaAssetsCascade } from "@/lib/server/user-media-deletion-service";
 
 export class CreativeRuntimeServiceError extends Error {
@@ -125,6 +128,60 @@ export async function uploadAssetForUser(userId: string, conversationId: string,
     return asset;
 }
 
+export async function referenceAssetForUser(userId: string, conversationId: string, value: unknown) {
+    const conversation = await getConversationForUser(userId, conversationId);
+    if (conversation.status !== "active") throw new CreativeRuntimeServiceError("已归档会话不能引用素材", 409);
+    const input = object(value);
+    const sourceUrl = optionalText(input.sourceUrl, 2_000) || "";
+    const storageKey = localMediaStorageKeyFromValue(sourceUrl);
+    const scope = mediaScopeFromUrl(sourceUrl);
+    if (!storageKey || !scope) throw new CreativeRuntimeServiceError("仅支持引用站内生成素材", 400);
+    const registration = await getLocalMediaRegistration(storageKey);
+    if (!registration || registration.ownerUserId !== userId || registration.scope !== scope || isLocalMediaRegistrationExpired(registration)) throw new CreativeRuntimeServiceError("参考素材不存在", 404);
+    const type = creativeAssetType(registration.mimeType);
+    if (!type || registration.type !== type) throw new CreativeRuntimeServiceError("该媒体格式暂不支持作为参考素材", 400);
+    let bytes: Buffer;
+    try {
+        bytes = await readRegisteredMediaBytes(registration, CREATIVE_UPLOAD_MAX_BYTES);
+    } catch (error) {
+        throw new CreativeRuntimeServiceError(error instanceof Error ? error.message : "读取参考素材失败", 400);
+    }
+    const title = optionalText(input.title, 160) || `引用${type === "image" ? "图片" : type === "video" ? "视频" : "音频"}`;
+    const originalName = `${title}.${extensionFromMimeType(registration.mimeType, type)}`;
+    let stored: Awaited<ReturnType<typeof writePersistentMediaDataUrl>>;
+    try {
+        stored = await writePersistentMediaDataUrl(`data:${registration.mimeType};base64,${bytes.toString("base64")}`, type, {
+            ownerUserId: userId,
+            source: "creative-reference",
+            originalName,
+            conversationId,
+            maxBytes: CREATIVE_UPLOAD_MAX_BYTES,
+        });
+    } catch (error) {
+        throw new CreativeRuntimeServiceError(error instanceof Error ? error.message : "参考素材保存失败", 400);
+    }
+    const url = stored.url || `/api/reference-assets/${stored.token}`;
+    const [asset] = await registerCreativeAssets([
+        {
+            userId,
+            conversationId,
+            sourceRunId: "reference",
+            sourceTaskId: stored.token,
+            ordinal: 0,
+            type,
+            title,
+            storageKind: stored.storage === "object" ? "object" : "local",
+            storageKey: stored.token,
+            remoteUrl: /^https?:\/\//i.test(url) ? url : undefined,
+            serverUrl: /^https?:\/\//i.test(url) ? undefined : url,
+            mimeType: stored.mimeType,
+            bytes: stored.bytes,
+            metadata: { source: "reference", sourceUrl, sourceStorageKey: storageKey, originalName, storageClass: "permanent" },
+        },
+    ]);
+    return asset;
+}
+
 export async function registerGenerationTaskAssetsForUser(
     userId: string,
     input: {
@@ -174,6 +231,25 @@ function creativeAssetType(mimeType: string): Exclude<CreativeAssetType, "text">
     if (mimeType.startsWith("video/")) return "video";
     if (mimeType.startsWith("audio/")) return "audio";
     return null;
+}
+
+function mediaScopeFromUrl(value: string) {
+    try {
+        const pathname = new URL(value, "http://vozeb.local").pathname;
+        if (pathname.startsWith("/api/generation-log-assets/")) return "generation" as const;
+        if (pathname.startsWith("/api/reference-assets/")) return "reference" as const;
+    } catch {
+        // Invalid URLs are rejected by the caller.
+    }
+    return null;
+}
+
+function extensionFromMimeType(mimeType: string, type: Exclude<CreativeAssetType, "text">) {
+    const subtype = mimeType.split("/", 2)[1]?.split(";", 1)[0]?.trim().toLowerCase();
+    if (subtype === "jpeg") return "jpg";
+    if (subtype === "quicktime") return "mov";
+    if (subtype === "mpeg") return type === "audio" ? "mp3" : "mpeg";
+    return subtype?.replace(/[^a-z0-9.+-]/g, "") || (type === "image" ? "png" : type === "video" ? "mp4" : "mp3");
 }
 
 function object(value: unknown) {

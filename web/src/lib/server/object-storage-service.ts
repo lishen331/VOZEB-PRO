@@ -1,4 +1,4 @@
-import { stat, unlink } from "node:fs/promises";
+import { readFile, stat, unlink } from "node:fs/promises";
 import { basename, resolve, sep } from "node:path";
 
 import sharp from "sharp";
@@ -72,6 +72,26 @@ export async function createExternalMediaReadUrl(request: Request, registration:
         contentDisposition: mediaContentDisposition(download ? "attachment" : "inline", registration.originalName || basename(registration.storageKey), registration.mimeType, download ? registration.storageKey : ""),
         expiresIn: registration.type === "image" ? IMAGE_ORIGINAL_READ_URL_TTL_SECONDS : STREAMING_MEDIA_READ_URL_TTL_SECONDS,
     });
+}
+
+export async function readRegisteredMediaBytes(registration: LocalMediaRegistration, maxBytes: number) {
+    const limit = Math.max(1, Math.floor(maxBytes));
+    if (registration.bytes <= 0) throw new Error("媒体文件为空");
+    if (registration.bytes > limit) throw new Error("单个素材不能超过 20MB");
+    let bytes: Buffer;
+    if (registration.storageProvider === "object") {
+        if (!registration.externalObjectKey) throw new Error("外部存储文件不存在");
+        const config = await getObjectStorageRuntimeConfig();
+        assertRegistrationConfig(config, registration);
+        bytes = await getObjectBytes(config, registration.externalObjectKey);
+    } else {
+        const filePath = localMediaPath(registration);
+        if (!filePath) throw new Error("媒体文件不存在");
+        bytes = await readFile(filePath);
+    }
+    if (!bytes.length) throw new Error("媒体文件为空");
+    if (bytes.length > limit) throw new Error("单个素材不能超过 20MB");
+    return bytes;
 }
 
 export async function createExternalStorageImagePreviewUrl(objectKey: string, width: unknown) {

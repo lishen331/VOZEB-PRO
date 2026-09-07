@@ -1,4 +1,4 @@
-import type { DramaProject } from "@/lib/drama-project-contract";
+import type { DramaProject, DramaShot } from "@/lib/drama-project-contract";
 import type { GenerationTaskContext } from "@/lib/server/generation-task-store";
 
 export type DramaLabWorkflowMode = "assets" | "storyboard_extract" | "storyboard" | "video";
@@ -85,6 +85,15 @@ export type DramaLabWorkflowTaskView = {
     steps: DramaLabWorkflowStep[];
     children: DramaLabWorkflowChild[];
     outputRefs: Array<Record<string, unknown>>;
+    /** Latest durable partial result exposed to the client while a step runs. */
+    checkpoint?: {
+        episodeId: string;
+        shotCount: number;
+        recoveredCount: number;
+        truncated: boolean;
+        updatedAt: number;
+        shots?: DramaShot[];
+    };
     error?: string;
     createdAt: number;
     updatedAt: number;

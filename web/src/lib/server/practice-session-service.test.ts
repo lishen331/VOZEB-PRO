@@ -33,6 +33,7 @@ import {
     type PracticeSessionStore,
     type PracticeTaskDispatchResult,
 } from "./practice-session-service";
+import type { PracticeModuleKind } from "@/lib/practice-domain";
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { PracticeSessionRecord } from "./database/repository-types";
 
@@ -102,6 +103,202 @@ describe("practice sessions", () => {
         expect(() => normalizePracticeModuleInput("storyboard-video", { prompt: "镜头推进" }, [], workflow)).toThrow("请选择一张参考图片");
         expect(normalizePracticeModuleInput("dubbing", { text: "我们出发。" }, [], workflow)).toMatchObject({ input: { text: "我们出发。" } });
         expect(normalizePracticeModuleInput("music", { prompt: "紧张但克制" }, [], workflow)).toMatchObject({ input: { prompt: "紧张但克制" } });
+    });
+
+    it("accepts Demo asset modules and blocks character multi-view without a source image", () => {
+        const workflow = { workflowCode: "character_multi_view", inputSchema: [{ key: "referenceImage", label: "参考图", type: "image", required: true }] } as never;
+        expect(() => normalizePracticeModuleInput("character", { prompt: "角色", workflowCode: "character_multi_view" }, [], workflow)).toThrow("参考图");
+        expect(normalizePracticeModuleInput("character", { prompt: "角色", workflowCode: "character_multi_view" }, [{ type: "asset", id: "asset-main" }], workflow)).toMatchObject({ input: { prompt: "角色", workflowCode: "character_multi_view" } });
+    });
+
+    it("preserves controlled input keys on practice asset references", () => {
+        expect(
+            normalizePracticeModuleInput(
+                "storyboard-image",
+                { prompt: "雨夜车站" },
+                [
+                    { type: "asset", id: "scene-one", inputKey: "sceneImage" },
+                    { type: "asset", id: "character-one", inputKey: "characterPropImage1" },
+                    { type: "asset", id: "character-two", inputKey: "characterPropImage2" },
+                ],
+                { inputSchema: [] } as never,
+            ),
+        ).toMatchObject({
+            references: [
+                { type: "asset", id: "scene-one", inputKey: "sceneImage" },
+                { type: "asset", id: "character-one", inputKey: "characterPropImage1" },
+                { type: "asset", id: "character-two", inputKey: "characterPropImage2" },
+            ],
+        });
+    });
+
+    it("preserves workflow identity through session creation and dispatch", async () => {
+        const store = memoryStore();
+        const dispatch = vi.fn(async () => ({ taskId: "task-character", taskType: "image" as const }));
+        const resolveModel = vi.fn(async (_module: PracticeModuleKind, _model?: string, workflowCode?: string) => {
+            expect(workflowCode).toBe("character_main_view");
+            return {
+                logicalModelId: "practice-image",
+                capability: "image" as const,
+                workflow: {
+                    workflowKey: "character-key",
+                    workflowCode: "character_main_view",
+                    version: 3,
+                    adapterType: "character-main-view",
+                    workflowId: "rh-character",
+                    channelId: "rh",
+                    businessCode: "storyboard-image",
+                    capability: "image",
+                    providerType: "runninghub",
+                    enabled: true,
+                    createPath: "/task/openapi/create",
+                    queryPath: "/openapi/v2/query",
+                    taskIdField: "data.taskId",
+                    statusField: "data.status",
+                    resultField: "data.result",
+                    requestTemplate: "{}",
+                    inputSchema: [],
+                    nodeMappings: [],
+                    outputMappings: [],
+                },
+            } as never;
+        });
+        const created = await createPracticeSessionForUser(
+            { id: "student-one", role: "user" },
+            { module: "character", title: "角色", workflowCode: "character_main_view", input: { prompt: "角色" }, clientRequestId: "character-request" },
+            { store, dispatch, resolveModel },
+        );
+        expect(created).toMatchObject({ module: "character", workflowCode: "character_main_view" });
+        expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ workflow: expect.objectContaining({ workflowCode: "character_main_view", adapterType: "character-main-view" }) }));
+    });
+
+    it("preserves video and dialogue reference slot keys for downstream adapters", async () => {
+        const store = memoryStore();
+        const dispatch = vi.fn(async () => ({ taskId: "task-video", taskType: "video" as const }));
+        const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-video", capability: "video" as const }));
+        await createPracticeSessionForUser(
+            { id: "student-one", role: "user" },
+            {
+                module: "storyboard-video",
+                title: "视频",
+                input: { prompt: "推进", audioEnabled: true },
+                references: [
+                    { type: "asset", id: "image-one", inputKey: "image" },
+                    { type: "asset", id: "audio-one", inputKey: "audio" },
+                ],
+                clientRequestId: "video-slots",
+            },
+            { store, dispatch, resolveModel },
+        );
+        expect(dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                references: [
+                    { type: "asset", id: "image-one", inputKey: "image" },
+                    { type: "asset", id: "audio-one", inputKey: "audio" },
+                ],
+            }),
+        );
+    });
+
+    it("accepts one video image plus one optional audio reference when audio is enabled", () => {
+        expect(
+            normalizePracticeModuleInput(
+                "storyboard-video",
+                { prompt: "推进", audioEnabled: true },
+                [
+                    { type: "asset", id: "image-one", inputKey: "image" },
+                    { type: "asset", id: "audio-one", inputKey: "audio" },
+                ],
+                { inputSchema: [] } as never,
+            ),
+        ).toMatchObject({
+            references: [
+                { type: "asset", id: "image-one", inputKey: "image" },
+                { type: "asset", id: "audio-one", inputKey: "audio" },
+            ],
+        });
+    });
+
+    it("keeps structured dialogue lines and required workflow dimensions in the persisted dispatch input", async () => {
+        const store = memoryStore();
+        const dispatch = vi.fn(async () => ({ taskId: "task-audio", taskType: "audio" as const }));
+        const resolveModel = vi.fn(
+            async () =>
+                ({
+                    logicalModelId: "practice-audio",
+                    capability: "audio" as const,
+                    workflow: {
+                        workflowKey: "dubbing-key",
+                        workflowCode: "storyboard_dialogue_audio",
+                        version: 1,
+                        adapterType: "storyboard-dialogue-audio",
+                        workflowId: "rh-audio",
+                        channelId: "rh",
+                        businessCode: "dubbing",
+                        capability: "audio",
+                        providerType: "runninghub",
+                        enabled: true,
+                        createPath: "/task/openapi/create",
+                        queryPath: "/openapi/v2/query",
+                        taskIdField: "data.taskId",
+                        statusField: "data.status",
+                        resultField: "data.result",
+                        requestTemplate: "{}",
+                        inputSchema: [
+                            { key: "text", label: "台词", type: "text", required: true },
+                            { key: "s1_audio", label: "音色", type: "audio", required: false },
+                        ],
+                        nodeMappings: [],
+                        outputMappings: [],
+                    },
+                }) as never,
+        );
+        await createPracticeSessionForUser(
+            { id: "student-one", role: "user" },
+            { module: "dubbing", title: "配音", input: { text: "第一句", lines: [{ text: "第一句", audio: "voice-one", emotion: { happy: 0.8 } }] }, clientRequestId: "dialogue-lines" },
+            { store, dispatch, resolveModel },
+        );
+        expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ input: expect.objectContaining({ text: "第一句", lines: [{ text: "第一句", audio: "voice-one", emotion: { happy: 0.8 } }] }) }));
+
+        const dimensionDispatch = vi.fn(async () => ({ taskId: "task-character", taskType: "image" as const }));
+        const dimensionResolve = vi.fn(
+            async () =>
+                ({
+                    logicalModelId: "practice-image",
+                    capability: "image" as const,
+                    workflow: {
+                        workflowKey: "character-key",
+                        workflowCode: "character_main_view",
+                        version: 1,
+                        adapterType: "character-main-view",
+                        workflowId: "rh-character",
+                        channelId: "rh",
+                        businessCode: "storyboard-image",
+                        capability: "image",
+                        providerType: "runninghub",
+                        enabled: true,
+                        createPath: "/task/openapi/create",
+                        queryPath: "/openapi/v2/query",
+                        taskIdField: "data.taskId",
+                        statusField: "data.status",
+                        resultField: "data.result",
+                        requestTemplate: "{}",
+                        inputSchema: [
+                            { key: "prompt", label: "描述", type: "text", required: true },
+                            { key: "width", label: "宽", type: "number", required: true },
+                            { key: "height", label: "高", type: "number", required: true },
+                        ],
+                        nodeMappings: [],
+                        outputMappings: [],
+                    },
+                }) as never,
+        );
+        await createPracticeSessionForUser(
+            { id: "student-one", role: "user" },
+            { module: "character", title: "角色", input: { prompt: "角色", width: 720, height: 1280 }, clientRequestId: "character-dimensions" },
+            { store, dispatch: dimensionDispatch, resolveModel: dimensionResolve },
+        );
+        expect(dimensionDispatch).toHaveBeenCalledWith(expect.objectContaining({ input: { prompt: "角色", width: 720, height: 1280 }, workflow: expect.objectContaining({ workflowCode: "character_main_view" }) }));
     });
 
     it("does not create a workflow session when model preflight fails", async () => {
@@ -452,10 +649,10 @@ describe("practice sessions", () => {
         expect(dispatch).toHaveBeenCalledOnce();
     });
 
-    it("keeps a pinned IP version in the session and records its practice usage", async () => {
+    it("keeps a pinned child IP in the session and records its practice usage", async () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
         const store = memoryStore();
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: ["item-one"] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: ["item-one"] };
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
         const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-text", capability: "text" as const }));
 
@@ -468,7 +665,7 @@ describe("practice sessions", () => {
     it("repairs a queued idempotent session after usage recording failed", async () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
         const store = memoryStore();
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         mocks.validateIpReferences.mockResolvedValue([{ reference }]);
         mocks.recordIpReferenceUsage.mockRejectedValueOnce(new Error("usage failed")).mockResolvedValueOnce(undefined);
         const dispatch = vi.fn(async () => ({ taskId: "task-one", taskType: "text" as const }));
@@ -485,7 +682,7 @@ describe("practice sessions", () => {
     it("blocks a failed session retry after its school IP grant is revoked", async () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
         const store = memoryStore();
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: [] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: [] };
         mocks.validateIpReferences.mockResolvedValueOnce([{ reference }]);
         const resolveModel = vi.fn(async () => ({ logicalModelId: "practice-text", capability: "text" as const }));
         const dispatch = vi.fn(async () => {

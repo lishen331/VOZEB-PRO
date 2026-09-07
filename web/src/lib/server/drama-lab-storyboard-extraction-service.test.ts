@@ -175,6 +175,49 @@ describe("drama lab storyboard extraction", () => {
         ]);
     });
 
+    it("accepts nested and provider-specific storyboard array wrappers", () => {
+        const wrapped = normalizeExtractedDramaLabStoryboards(
+            JSON.stringify({
+                shots: [],
+                data: {
+                    result: {
+                        storyboard: [{ ...validShot, shot_number: 4, scene_id: "scene-station", character_ids: ["character-lin"], prop_ids: ["prop-phone"] }],
+                    },
+                },
+            }),
+            project,
+        );
+
+        expect(wrapped).toMatchObject([{ order: 4, sceneId: "scene-station", characterIds: ["character-lin"], propIds: ["prop-phone"] }]);
+    });
+
+    it("finds a non-empty storyboard array under an arbitrary legacy wrapper key", () => {
+        const wrapped = normalizeExtractedDramaLabStoryboards(JSON.stringify({ payload: [{ ...validShot, shotNumber: 2 }] }), project);
+
+        expect(wrapped).toMatchObject([{ order: 2, title: validShot.title }]);
+    });
+
+    it("retries once when the model returns an empty storyboard array", async () => {
+        mocks.requestStructuredText
+            .mockReset()
+            .mockResolvedValueOnce({ arguments: JSON.stringify({ shots: [] }), headers: new Headers(), elapsedMs: 12 })
+            .mockResolvedValueOnce({ arguments: JSON.stringify({ shots: [validShot] }), headers: new Headers(), elapsedMs: 12 });
+
+        const result = await extractDramaLabStoryboards({
+            userId: "user-one",
+            origin: "http://localhost:3002",
+            cookie: "session=test",
+            requestId: "request-empty-retry",
+            episodeId: "episode-one",
+            project,
+        });
+
+        expect(result.shots).toHaveLength(1);
+        expect(mocks.requestStructuredText).toHaveBeenCalledTimes(2);
+        expect(mocks.requestStructuredText.mock.calls[1]?.[0]).toMatchObject({ preferNativeTools: true });
+        expect(mocks.requestStructuredText.mock.calls[1]?.[0].messages[1].content).toContain("返回了空的 shots 数组");
+    });
+
     it("persists a recoverable prefix and continues after truncated JSON without replacing duplicate orders", async () => {
         const first = JSON.stringify({
             shots: [

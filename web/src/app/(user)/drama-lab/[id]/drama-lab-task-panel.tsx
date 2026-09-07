@@ -17,11 +17,13 @@ export type DramaLabTaskPanelProps = {
 
 /** A persistent project-scoped view over server-owned generation_tasks. */
 export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [], className, compact = false }: DramaLabTaskPanelProps) {
-    const [tasks, setTasks] = useState<DramaLabTaskView[]>(() => initialTasks.filter(isVisibleTask));
+    const [tasks, setTasks] = useState<DramaLabTaskView[]>(() => initialTasks.filter(isTaskVisible));
     const [collapsed, setCollapsed] = useState(compact);
     const [loading, setLoading] = useState(initialTasks.length === 0);
     const [refreshing, setRefreshing] = useState(false);
     const [cancellingId, setCancellingId] = useState<string>();
+    const [recheckingId, setRecheckingId] = useState<string>();
+    const [retryingId, setRetryingId] = useState<string>();
     const [error, setError] = useState<string>();
     const [messageApi, contextHolder] = message.useMessage();
 
@@ -32,10 +34,10 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
             if (silent) setRefreshing(true);
             else setLoading(true);
             try {
-                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks?status=all`, { cache: "no-store" });
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks?status=visible`, { cache: "no-store" });
                 const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { tasks?: DramaLabTaskView[] } };
                 if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "Task status could not be loaded");
-                setTasks(Array.isArray(payload.data?.tasks) ? payload.data.tasks.filter(isVisibleTask) : []);
+                setTasks(Array.isArray(payload.data?.tasks) ? payload.data.tasks.filter(isTaskVisible) : []);
                 setError(undefined);
             } catch (reason) {
                 setError(reason instanceof Error ? reason.message : "Task status could not be loaded");
@@ -55,12 +57,33 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
         setCollapsed(compact);
     }, [compact]);
 
-    // Keep discovering tasks created by another panel/action. The previous
-    // activeCount-gated poll never noticed the first task until a refresh.
+    // Poll only while there is useful work to track. A task-created event
+    // performs the first read when an action starts from another panel.
     useEffect(() => {
-        const timer = window.setInterval(() => void load(true), 2_000);
+        if (activeCount === 0) return undefined;
+        const timer = window.setInterval(() => {
+            if (document.visibilityState === "hidden") return;
+            void load(true);
+        }, 2_000);
         return () => window.clearInterval(timer);
-    }, [load]);
+    }, [activeCount, load]);
+
+    useEffect(() => {
+        const onTaskCreated = (event: Event) => {
+            const detail = (event as CustomEvent<{ projectId?: string }>).detail;
+            if (!detail?.projectId || detail.projectId === projectId) void load(true);
+        };
+        window.addEventListener("drama-lab-task-created", onTaskCreated);
+        return () => window.removeEventListener("drama-lab-task-created", onTaskCreated);
+    }, [load, projectId]);
+
+    useEffect(() => {
+        const onVisibilityChange = () => {
+            if (document.visibilityState === "visible" && activeCount > 0) void load(true);
+        };
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+    }, [activeCount, load]);
 
     const cancel = async (task: DramaLabTaskView) => {
         if (!task.canCancel || cancellingId) return;
@@ -77,6 +100,42 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
             setCancellingId(undefined);
         }
     };
+
+    const recheck = async (task: DramaLabTaskView) => {
+        if (!task.canRecheck || recheckingId) return;
+        setRecheckingId(task.id);
+        try {
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(task.id)}/recheck`, { method: "POST", cache: "no-store" });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: DramaLabTaskView };
+            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "重新检查失败");
+            if (payload.data) setTasks((current) => current.map((item) => (item.id === task.id ? payload.data! : item)));
+            messageApi.success({ content: "已重新检查任务", key: `drama-task-recheck-${task.id}`, duration: 2 });
+        } catch (reason) {
+            messageApi.error({ content: reason instanceof Error ? reason.message : "重新检查失败", key: `drama-task-recheck-${task.id}`, duration: 3 });
+        } finally {
+            setRecheckingId(undefined);
+        }
+    };
+
+    const retry = async (task: DramaLabTaskView) => {
+        if (!task.canRetry || retryingId) return;
+        setRetryingId(task.id);
+        try {
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(task.id)}/retry`, { method: "POST", cache: "no-store" });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: DramaLabTaskView };
+            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "重试失败");
+            if (payload.data) setTasks((current) => current.map((item) => (item.id === task.id ? payload.data! : item)));
+            messageApi.success({ content: "已重新启动工作流", key: `drama-task-retry-${task.id}`, duration: 2 });
+        } catch (reason) {
+            messageApi.error({ content: reason instanceof Error ? reason.message : "重试失败", key: `drama-task-retry-${task.id}`, duration: 3 });
+        } finally {
+            setRetryingId(undefined);
+        }
+    };
+
+    const activeTasks = tasks.filter(isTaskActive);
+    const reviewTasks = tasks.filter((task) => isTaskNeedsReview(task));
+    const retryTasks = tasks.filter((task) => !isTaskActive(task) && !isTaskNeedsReview(task) && task.canRetry);
 
     return (
         <section className={cn("border-b border-border bg-card", className)} data-testid="drama-lab-task-panel">
@@ -130,16 +189,78 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
                         </div>
                     ) : null}
                     {!loading && !error && !tasks.length ? <p className="px-1 py-2 text-xs text-muted-foreground">暂无任务</p> : null}
-                    {tasks.map((task) => (
-                        <TaskRow key={task.id} task={task} episodes={episodes} cancelling={cancellingId === task.id} onCancel={() => void cancel(task)} />
-                    ))}
+                    <TaskSection title="运行中" tasks={activeTasks} episodes={episodes} cancellingId={cancellingId} recheckingId={recheckingId} retryingId={retryingId} onCancel={cancel} onRecheck={recheck} onRetry={retry} />
+                    <TaskSection title="待检查" tasks={reviewTasks} episodes={episodes} cancellingId={cancellingId} recheckingId={recheckingId} retryingId={retryingId} onCancel={cancel} onRecheck={recheck} onRetry={retry} />
+                    <TaskSection title="需要处理" tasks={retryTasks} episodes={episodes} cancellingId={cancellingId} recheckingId={recheckingId} retryingId={retryingId} onCancel={cancel} onRecheck={recheck} onRetry={retry} />
                 </div>
             ) : null}
         </section>
     );
 }
 
-function TaskRow({ task, episodes, cancelling, onCancel }: { task: DramaLabTaskView; episodes: Array<{ id: string; title?: string; number?: number }>; cancelling: boolean; onCancel: () => void }) {
+function TaskSection({
+    title,
+    tasks,
+    episodes,
+    cancellingId,
+    recheckingId,
+    retryingId,
+    onCancel,
+    onRecheck,
+    onRetry,
+}: {
+    title: string;
+    tasks: DramaLabTaskView[];
+    episodes: Array<{ id: string; title?: string; number?: number }>;
+    cancellingId?: string;
+    recheckingId?: string;
+    retryingId?: string;
+    onCancel: (task: DramaLabTaskView) => void;
+    onRecheck: (task: DramaLabTaskView) => void;
+    onRetry: (task: DramaLabTaskView) => void;
+}) {
+    if (!tasks.length) return null;
+    return (
+        <div className="space-y-1.5" data-testid={`drama-task-section-${title}`}>
+            <div className="px-1 text-[11px] font-semibold text-muted-foreground">{title}</div>
+            <div className="max-h-56 space-y-1.5 overflow-y-auto overscroll-contain pr-1">
+                {tasks.map((task) => (
+                    <TaskRow
+                        key={task.id}
+                        task={task}
+                        episodes={episodes}
+                        cancelling={cancellingId === task.id}
+                        rechecking={recheckingId === task.id}
+                        retrying={retryingId === task.id}
+                        onCancel={() => onCancel(task)}
+                        onRecheck={() => onRecheck(task)}
+                        onRetry={() => onRetry(task)}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function TaskRow({
+    task,
+    episodes,
+    cancelling,
+    rechecking,
+    retrying,
+    onCancel,
+    onRecheck,
+    onRetry,
+}: {
+    task: DramaLabTaskView;
+    episodes: Array<{ id: string; title?: string; number?: number }>;
+    cancelling: boolean;
+    rechecking: boolean;
+    retrying: boolean;
+    onCancel: () => void;
+    onRecheck: () => void;
+    onRetry: () => void;
+}) {
     const active = isTaskActive(task);
     const needsReview = isTaskNeedsReview(task);
     const failed = task.status === "error";
@@ -176,7 +297,11 @@ function TaskRow({ task, episodes, cancelling, onCancel }: { task: DramaLabTaskV
                     ) : null}
                     {task.canRetry ? <p className="mt-1 text-[11px] text-amber-700">可重试</p> : null}
                 </div>
-                {task.canCancel ? <Button type="text" danger size="small" loading={cancelling} icon={<Square className="size-3" />} onClick={onCancel} aria-label={`取消${task.title}`} title="取消任务" /> : null}
+                <div className="flex shrink-0 items-center gap-1">
+                    {task.canRetry ? <Button type="text" size="small" loading={retrying} icon={<RefreshCw className="size-3" />} onClick={onRetry} aria-label={`重试${task.title}`} title="重试工作流" /> : null}
+                    {task.canRecheck ? <Button type="text" size="small" loading={rechecking} icon={<RefreshCw className="size-3" />} onClick={onRecheck} aria-label={`重新检查${task.title}`} title="重新检查" /> : null}
+                    {task.canCancel ? <Button type="text" danger size="small" loading={cancelling} icon={<Square className="size-3" />} onClick={onCancel} aria-label={`取消${task.title}`} title="取消任务" /> : null}
+                </div>
             </div>
         </article>
     );
@@ -189,16 +314,16 @@ function episodeLabel(id: string | undefined, episodes: Array<{ id: string; titl
     return `第${episode.number || ""}集${episode.title ? ` ${episode.title}` : ""}`;
 }
 
-function isVisibleTask(task: DramaLabTaskView) {
-    return task.status !== "success" && task.status !== "cancelled";
-}
-
 function isTaskNeedsReview(task: Pick<DramaLabTaskView, "executionPhase">) {
     return task.executionPhase === "needs_review" || task.executionPhase === "review_pending" || task.executionPhase === "reviewing" || task.executionPhase === "review_unavailable";
 }
 
 function isTaskActive(task: Pick<DramaLabTaskView, "status" | "executionPhase">) {
     return (task.status === "pending" || task.status === "running") && !isTaskNeedsReview(task);
+}
+
+function isTaskVisible(task: DramaLabTaskView) {
+    return isTaskActive(task) || isTaskNeedsReview(task) || task.canRetry;
 }
 
 function StatusIcon({ status, executionPhase }: { status: DramaLabTaskView["status"]; executionPhase?: DramaLabTaskView["executionPhase"] }) {

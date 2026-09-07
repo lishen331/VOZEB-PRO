@@ -81,7 +81,7 @@ export function DramaLabVisualAssetsPanel({
         setLibraryOpen(true);
         setLibraryLoading(true);
         try {
-            const result = await listLibraryAssetPage({ page: 1, pageSize: 100, kind: "image" });
+            const result = await listLibraryAssetPage({ page: 1, pageSize: 100, kind: "image", dramaAssetType: kind === "characters" ? "character" : kind === "scenes" ? "scene" : "prop" });
             setLibraryAssets(result.assets);
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "素材库加载失败");
@@ -324,7 +324,7 @@ export function DramaLabVisualAssetsPanel({
                                                         <Button size="small" icon={<Upload className="size-3.5" />} onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })}>
                                                             上传
                                                         </Button>
-                                                        <Button size="small" icon={<LibraryBig className="size-3.5" />} disabled={!primary} onClick={() => void saveToLibrary(asset, meta.label, messageApi)}>
+                                                        <Button size="small" icon={<LibraryBig className="size-3.5" />} disabled={!primary} onClick={() => void saveToLibrary(asset, assetKind, meta.label, messageApi)}>
                                                             加入素材库
                                                         </Button>
                                                     </div>
@@ -551,7 +551,7 @@ function shotAssetIds(shot: Shot) {
     return [shot.sceneId, ...shot.characterIds, ...(shot.propIds || [])].filter((value): value is string => Boolean(value));
 }
 
-async function saveToLibrary(asset: VisualAsset, label: string, messageApi: MessageInstance) {
+async function saveToLibrary(asset: VisualAsset, kind: AssetKind, label: string, messageApi: MessageInstance) {
     const primary = dramaAssetPrimaryReference(asset);
     if (!primary) return;
     try {
@@ -562,6 +562,7 @@ async function saveToLibrary(asset: VisualAsset, label: string, messageApi: Mess
             tags: ["短剧", label],
             source: "短剧实验室",
             note: asset.description || "",
+            metadata: { source: "drama-lab", dramaAssetType: kind === "characters" ? "character" : kind === "scenes" ? "scene" : "prop" },
             data: {
                 dataUrl: primary.url,
                 storageKey: primary.storageKey,

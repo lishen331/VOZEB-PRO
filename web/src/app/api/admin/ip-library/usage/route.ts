@@ -21,7 +21,7 @@ export async function GET(request: Request) {
                 page: positiveInteger(params.get("page"), 1),
                 pageSize: positiveInteger(params.get("pageSize"), 20),
                 ipId: params.get("ipId") || undefined,
-                versionId: params.get("versionId") || undefined,
+                subIpId: params.get("subIpId") || undefined,
                 schoolId: params.get("schoolId") || undefined,
                 userId: params.get("userId") || undefined,
                 downloadType,

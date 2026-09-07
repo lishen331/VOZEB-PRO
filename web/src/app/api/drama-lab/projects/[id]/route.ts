@@ -1,3 +1,4 @@
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 /**
  * Drama Lab API - Project Detail
  *
@@ -8,7 +9,7 @@ import { NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { DramaProjectServiceError, updateDramaProjectForUser } from "@/lib/server/drama-project-service";
-import { deleteDramaLabProjectForUser, DramaLabCollaborationError, resolveDramaLabProjectForRequest, updateDramaLabProjectForUser } from "@/lib/server/drama-lab-collaboration-service";
+import { deleteDramaLabProjectForUser, resolveDramaLabProjectForRequest, updateDramaLabProjectForUser } from "@/lib/server/drama-lab-collaboration-service";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         });
     } catch (error) {
         console.error("[drama-lab/projects/:id] GET error:", error);
-        if (error instanceof DramaLabCollaborationError) return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
+        if (isDramaLabCollaborationError(error)) return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         return NextResponse.json(
             {
                 code: 500,
@@ -88,7 +89,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         if (error instanceof DramaProjectServiceError) {
             return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         }
-        if (error instanceof DramaLabCollaborationError) {
+        if (isDramaLabCollaborationError(error)) {
             return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         }
 
@@ -311,7 +312,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         if (error instanceof DramaProjectServiceError) {
             return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         }
-        if (error instanceof DramaLabCollaborationError) {
+        if (isDramaLabCollaborationError(error)) {
             return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         }
         return NextResponse.json(

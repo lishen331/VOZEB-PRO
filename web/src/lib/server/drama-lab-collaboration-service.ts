@@ -4,6 +4,8 @@ import { getDramaProject, getDramaProjectWithOwner } from "@/lib/server/drama-pr
 import { summarizeDramaProject } from "@/lib/drama-project-summary";
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
+export { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 
 export const DRAMA_LAB_APPROVAL_STAGES = ["script", "assets", "storyboard", "storyboard_image", "storyboard_video", "final_export"] as const;
 export type DramaLabApprovalStage = (typeof DRAMA_LAB_APPROVAL_STAGES)[number];
@@ -117,15 +119,6 @@ type StoredState = {
 const FILE_NAME = "drama-lab-collaboration.json";
 const PROJECT_FILE_NAME = "drama-projects.json";
 const MAX_SNAPSHOT_BYTES = 512 * 1024;
-
-export class DramaLabCollaborationError extends Error {
-    constructor(
-        message: string,
-        readonly status: number,
-    ) {
-        super(message);
-    }
-}
 
 /** Ensure every newly-created Short Drama Lab project has a group and owner row. */
 export async function ensureDramaLabProjectGroup(projectId: string, ownerUserId: string): Promise<DramaLabProjectGroup> {

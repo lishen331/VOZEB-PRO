@@ -64,6 +64,7 @@ describe("release type-check and build contract", () => {
                 mkdir(path.join(fixtureRoot, "public", "icons"), { recursive: true }),
                 mkdir(path.join(fixtureRoot, "node_modules", ".pnpm", "@img+sharp-linux-x64@0.35.3", "node_modules", "@img", "sharp-linux-x64"), { recursive: true }),
                 mkdir(path.join(fixtureRoot, "node_modules", ".pnpm", "@img+sharp-libvips-linux-x64@1.3.2", "node_modules", "@img", "sharp-libvips-linux-x64", "lib"), { recursive: true }),
+                mkdir(path.join(fixtureRoot, "node_modules", ".pnpm", "@img+sharp-win32-x64@0.35.3", "node_modules", "@img", "sharp-win32-x64"), { recursive: true }),
             ]);
             await Promise.all([
                 writeFile(path.join(fixtureRoot, distDir, "standalone", "server.js"), "server"),
@@ -73,9 +74,10 @@ describe("release type-check and build contract", () => {
                 writeFile(path.join(fixtureRoot, "public", "icons", "icon-192.png"), "png"),
                 writeFile(path.join(fixtureRoot, "node_modules", ".pnpm", "@img+sharp-linux-x64@0.35.3", "node_modules", "@img", "sharp-linux-x64", "sharp.node"), "native"),
                 writeFile(path.join(fixtureRoot, "node_modules", ".pnpm", "@img+sharp-libvips-linux-x64@1.3.2", "node_modules", "@img", "sharp-libvips-linux-x64", "lib", "libvips.so"), "libvips"),
+                writeFile(path.join(fixtureRoot, "node_modules", ".pnpm", "@img+sharp-win32-x64@0.35.3", "node_modules", "@img", "sharp-win32-x64", "sharp.node"), "native-windows"),
             ]);
 
-            const result = await prepareStandaloneAssets({ webRoot: fixtureRoot, distDir });
+            const result = await prepareStandaloneAssets({ webRoot: fixtureRoot, distDir, runtimePlatform: "linux", runtimeArch: "x64" });
 
             expect(result.staticFiles).toBe(1);
             expect(result.publicFiles).toBe(3);
@@ -85,6 +87,10 @@ describe("release type-check and build contract", () => {
             expect(existsSync(path.join(fixtureRoot, distDir, "standalone", "public", "icons", "icon-192.png"))).toBe(true);
             expect(existsSync(path.join(fixtureRoot, distDir, "standalone", "node_modules", ".pnpm", "@img+sharp-linux-x64@0.35.3", "node_modules", "@img", "sharp-linux-x64", "sharp.node"))).toBe(true);
             expect(existsSync(path.join(fixtureRoot, distDir, "standalone", "node_modules", ".pnpm", "@img+sharp-libvips-linux-x64@1.3.2", "node_modules", "@img", "sharp-libvips-linux-x64", "lib", "libvips.so"))).toBe(true);
+
+            const windowsResult = await prepareStandaloneAssets({ webRoot: fixtureRoot, distDir, runtimePlatform: "win32", runtimeArch: "x64" });
+            expect(windowsResult.sharpRuntimePackages).toEqual(["@img+sharp-win32-x64@0.35.3"]);
+            expect(existsSync(path.join(fixtureRoot, distDir, "standalone", "node_modules", ".pnpm", "@img+sharp-win32-x64@0.35.3", "node_modules", "@img", "sharp-win32-x64", "sharp.node"))).toBe(true);
         } finally {
             await rm(fixtureRoot, { recursive: true, force: true });
         }

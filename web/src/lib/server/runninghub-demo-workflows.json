@@ -1,0 +1,2469 @@
+{
+    "catalogVersion": "server-dev-runninghub-main-verified-20260903-0115",
+    "source": "server-dev:aigc_ai_dev",
+    "exportedAt": "2026-09-03T01:15:00+08:00",
+    "apiKey": {
+        "code": "runninghub-main",
+        "name": "runninghub",
+        "platform": "RunningHub",
+        "baseUrl": "https://www.runninghub.cn",
+        "fingerprint": "dacb9232",
+        "last4": "c067"
+    },
+    "workflows": [
+        {
+            "sourceRowId": "1",
+            "sourceUpdatedAt": "2026-08-26 17:09:04",
+            "workflowCode": "character_main_view",
+            "workflowName": "角色主形象图",
+            "runninghubWorkflowName": "定稿-角色图（提示词+参考图）-6.24",
+            "runninghubWorkflowId": "2069627147735621634",
+            "inputSchema": [
+                {
+                    "key": "prompt",
+                    "type": "string",
+                    "group": "基础参数",
+                    "label": "描述词",
+                    "order": 1,
+                    "widget": "textarea",
+                    "required": true,
+                    "maxLength": 4000,
+                    "description": "描述角色的容貌、发型、身形、服装、画风等。留空参考图时走纯文生图",
+                    "placeholder": "例：一位沉稳清朗的少年武者，全身立像，纯白背景",
+                    "sampleValue": "一位气质凛然的成熟女性，乌黑长发松松挽起，几缕碎发垂落颊边；凤眼含威，红唇淡抹；身着剪裁利落的墨色长风衣，内搭酒红色高领针织衫，配深灰阔腿裤与短靴；单人全身立像，平视镜头，纯白色背景；2D手绘动画风格，赛璐璐平涂，柔和线条，质感精致"
+                },
+                {
+                    "key": "width",
+                    "max": 4096,
+                    "min": 64,
+                    "type": "number",
+                    "group": "画面尺寸",
+                    "label": "宽",
+                    "order": 1,
+                    "required": true,
+                    "sampleValue": 720,
+                    "defaultValue": 720
+                },
+                {
+                    "key": "height",
+                    "max": 4096,
+                    "min": 64,
+                    "type": "number",
+                    "group": "画面尺寸",
+                    "label": "高",
+                    "order": 2,
+                    "required": true,
+                    "sampleValue": 1280,
+                    "defaultValue": 1280
+                },
+                {
+                    "key": "referenceImage",
+                    "type": "image_url",
+                    "group": "参考素材",
+                    "label": "参考图",
+                    "required": false,
+                    "description": "可选。上传后按图生图跑；留空则自动裁剪成纯文生图分支，两条路径的产出风格会有差异",
+                    "sampleValue": "",
+                    "uploadPolicy": "IMAGE"
+                }
+            ],
+            "nodeMappings": [
+                {
+                    "nodeId": "182",
+                    "source": "INPUT",
+                    "inputKey": "prompt",
+                    "paramKey": "prompt",
+                    "required": true,
+                    "fieldName": "text",
+                    "valueType": "STRING",
+                    "description": "描述词→CR Text(182)"
+                },
+                {
+                    "nodeId": "171",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "width",
+                    "paramKey": "width",
+                    "fieldName": "value",
+                    "valueType": "NUMBER",
+                    "description": "宽→Int(171)",
+                    "defaultValue": 720
+                },
+                {
+                    "nodeId": "172",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "height",
+                    "paramKey": "height",
+                    "fieldName": "value",
+                    "valueType": "NUMBER",
+                    "description": "高→Int(172)",
+                    "defaultValue": 1280
+                },
+                {
+                    "nodeId": "131",
+                    "source": "INPUT",
+                    "inputKey": "referenceImage",
+                    "paramKey": "referenceImage",
+                    "required": false,
+                    "fieldName": "image",
+                    "valueType": "STRING",
+                    "description": "参考图→LoadImage(131)，无则 server 裁剪为纯文生图"
+                }
+            ],
+            "outputMappings": [
+                {
+                    "key": "mainImage",
+                    "label": "主形象图",
+                    "required": true,
+                    "assetType": "IMAGE",
+                    "matchMode": "FIRST",
+                    "mirrorToOss": true
+                }
+            ],
+            "runtimeOptions": {},
+            "generationSizeOptions": [
+                {
+                    "width": 720,
+                    "height": 1280,
+                    "disabled": false
+                }
+            ],
+            "workflowApiJson": "{\"170\":{\"class_type\":\"忽略多组孤海\",\"inputs\":{},\"_meta\":{\"title\":\"参考图开关\"}},\"171\":{\"class_type\":\"Int\",\"inputs\":{\"value\":720},\"_meta\":{\"title\":\"Int\"}},\"172\":{\"class_type\":\"Int\",\"inputs\":{\"value\":1280},\"_meta\":{\"title\":\"Int\"}},\"131\":{\"class_type\":\"LoadImage\",\"inputs\":{\"image\":\"de5e322d71d646d5dc646aabff72a5b4b5a4c7ea3c7598b169b8d97d49103c73.png\"},\"_meta\":{\"title\":\"Load Image\"}},\"153\":{\"class_type\":\"ConditioningZeroOut\",\"inputs\":{\"conditioning\":[\"141\",0]},\"_meta\":{\"title\":\"Conditioning Zero Out\"}},\"132\":{\"class_type\":\"KSamplerSelect\",\"inputs\":{\"sampler_name\":\"euler\"},\"_meta\":{\"title\":\"KSamplerSelect\"}},\"154\":{\"class_type\":\"LayerUtility: ImageScaleByAspectRatio V2\",\"inputs\":{\"fit\":\"crop\",\"aspect_ratio\":\"original\",\"image\":[\"131\",0],\"method\":\"lanczos\",\"background_color\":\"#000000\",\"round_to_multiple\":\"8\",\"scale_to_side\":\"longest\",\"proportional_height\":1,\"proportional_width\":1,\"scale_to_length\":1024},\"_meta\":{\"title\":\"LayerUtility: ImageScaleByAspectRatio V2\"}},\"133\":{\"class_type\":\"Flux2Scheduler\",\"inputs\":{\"width\":[\"171\",0],\"steps\":8,\"height\":[\"172\",0]},\"_meta\":{\"title\":\"Flux2Scheduler\"}},\"134\":{\"class_type\":\"CFGGuider\",\"inputs\":{\"negative\":[\"153\",0],\"cfg\":1,\"model\":[\"138\",0],\"positive\":[\"148\",0]},\"_meta\":{\"title\":\"CFG Guider\"}},\"178\":{\"class_type\":\"AILab_QwenVL\",\"inputs\":{\"keep_model_loaded\":true,\"attention_mode\":\"auto\",\"image\":[\"154\",0],\"model_name\":\"Qwen3-VL-2B-Instruct\",\"seed\":1006324395063235,\"max_tokens\":512,\"custom_prompt\":\"判断反推图片的提示词，如果图片识别结果是人就输出提示词1：[生成全身照，纯白色背景]，如果图片识别结果不是人类就输出提示词2:[生成角色图，纯白色背景]，如果图片识别结果是物品就输出提示词3:[生成道具图，纯白色背景],不要产生其他描述\",\"preset_prompt\":\"🖼️ Detailed Description\",\"quantization\":\"None (FP16)\"},\"_meta\":{\"title\":\"QwenVL\"}},\"135\":{\"class_type\":\"SamplerCustomAdvanced\",\"inputs\":{\"guider\":[\"134\",0],\"latent_image\":[\"143\",0],\"noise\":[\"137\",0],\"sigmas\":[\"133\",0],\"sampler\":[\"132\",0]},\"_meta\":{\"title\":\"SamplerCustomAdvanced\"}},\"179\":{\"class_type\":\"PreviewAny\",\"inputs\":{\"preview\":\"\",\"source\":[\"180\",0]},\"_meta\":{\"title\":\"Preview as Text\"}},\"136\":{\"class_type\":\"VAEDecode\",\"inputs\":{\"vae\":[\"142\",0],\"samples\":[\"135\",0]},\"_meta\":{\"title\":\"VAE Decode\"}},\"137\":{\"class_type\":\"RandomNoise\",\"inputs\":{\"noise_seed\":900427256743863},\"_meta\":{\"title\":\"RandomNoise\"}},\"138\":{\"class_type\":\"UNETLoader\",\"inputs\":{\"weight_dtype\":\"default\",\"unet_name\":\"Flux.2 Klein 9B.safetensors\"},\"_meta\":{\"title\":\"Load Diffusion Model\"}},\"139\":{\"class_type\":\"CLIPLoader\",\"inputs\":{\"clip_name\":\"qwen_3_8b_fp8mixed.safetensors\",\"type\":\"flux2\",\"device\":\"default\"},\"_meta\":{\"title\":\"Load CLIP\"}},\"180\":{\"class_type\":\"ttN concat\",\"inputs\":{\"text3\":\"\",\"text1\":[\"178\",0],\"delimiter\":\",\",\"text2\":[\"182\",0]},\"_meta\":{\"title\":\"textConcat\"}},\"182\":{\"class_type\":\"CR Text\",\"inputs\":{\"text\":\"人物：青年，东亚族裔，面部轮廓分明，鼻梁挺直，眉毛浓密，眼睛有神，肤色健康偏黄，自然妆容\\n发型：深黑色短发，长度介于寸头与普通短发之间，自然下垂\\n身形：中等偏瘦，身体正面自然挺立，双肩舒展，头部抬起，面向镜头\\n服装：深色休闲上衣，深色长裤，脚穿深色布鞋，鞋子完整清楚可见\\n配饰：造型简洁，无明显配饰\\n画面类型：单人全身立像，人物主视觉，平视镜头\\n构图：头顶到脚底完整入镜，双脚和鞋子完整显示，不裁切头部、手部、腿部、脚部或鞋子\\n背景：纯白色背景\\n风格：真人写实摄影风格，柔和电影光，高级电影机质感，真实自然质感，画面中无文字，real photography， photorealistic\\n质感：细节清晰，材质真实，皮肤自然，服装纹理清楚，构图干净\"},\"_meta\":{\"title\":\"CR Text（兼容文本）\"}},\"140\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":[\"180\",0],\"clip\":[\"139\",0]},\"_meta\":{\"title\":\"CLIP Text Encode (Prompt)\"}},\"141\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"\",\"clip\":[\"139\",0]},\"_meta\":{\"title\":\"CLIP Text Encode (Prompt)\"}},\"142\":{\"class_type\":\"VAELoader\",\"inputs\":{\"vae_name\":\"full_encoder_small_decoder.safetensors\"},\"_meta\":{\"title\":\"Load VAE\"}},\"143\":{\"class_type\":\"EmptyFlux2LatentImage\",\"inputs\":{\"batch_size\":1,\"width\":[\"171\",0],\"height\":[\"172\",0]},\"_meta\":{\"title\":\"Empty Flux 2 Latent\"}},\"147\":{\"class_type\":\"VAEEncode\",\"inputs\":{\"pixels\":[\"154\",0],\"vae\":[\"142\",0]},\"_meta\":{\"title\":\"VAE Encode\"}},\"148\":{\"class_type\":\"ReferenceLatent\",\"inputs\":{\"latent\":[\"147\",0],\"conditioning\":[\"140\",0]},\"_meta\":{\"title\":\"Set Reference Latent\"}},\"9\":{\"class_type\":\"SaveImage\",\"inputs\":{\"filename_prefix\":\"Flux2-Klein-4b-base\",\"images\":[\"136\",0]},\"_meta\":{\"title\":\"Save Image\"}}}",
+            "timeoutSeconds": 600,
+            "enabled": true,
+            "remark": "角色主形象/装束主视图：Flux2 图生图；描述词182/宽171默认720/高172默认1080/参考图131可选；无参考图时 server 裁剪纯文生图。2026-06-25"
+        },
+        {
+            "sourceRowId": "2",
+            "sourceUpdatedAt": "2026-08-24 00:30:55",
+            "workflowCode": "scene_main_view",
+            "workflowName": "场景360度全景",
+            "runninghubWorkflowName": "定稿场景360度全景",
+            "runninghubWorkflowId": "2090436762698080258",
+            "inputSchema": [
+                {
+                    "key": "prompt",
+                    "type": "string",
+                    "group": "基础参数",
+                    "label": "描述词",
+                    "order": 1,
+                    "widget": "textarea",
+                    "required": true,
+                    "maxLength": 4000,
+                    "description": "描述场景的时间、天气、建筑、氛围等，用于生成 360 度全景",
+                    "placeholder": "例：黄昏的江南水乡庭院，雨后青石板路",
+                    "sampleValue": "入夜的都市高层公寓客厅，落地窗外层叠着城市灯火，室内暖黄壁灯映着深色木地板与皮质沙发，茶几上搁着一杯尚温的红酒；2D手绘动画风格，柔和光影，静谧都市感"
+                },
+                {
+                    "key": "outputPreset",
+                    "type": "string",
+                    "group": "画面尺寸",
+                    "label": "输出尺寸预设",
+                    "order": 1,
+                    "required": false,
+                    "description": "全景图输出尺寸预设，格式为「宽 x 高」，需与工作流内置预设一致",
+                    "sampleValue": "2048 x 1024",
+                    "defaultValue": "2048 x 1024"
+                }
+            ],
+            "nodeMappings": [
+                {
+                    "nodeId": "24",
+                    "source": "INPUT",
+                    "inputKey": "prompt",
+                    "paramKey": "prompt",
+                    "required": true,
+                    "fieldName": "prompt",
+                    "valueType": "STRING",
+                    "description": "正向描述词",
+                    "defaultValue": null
+                },
+                {
+                    "nodeId": "34",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "outputPreset",
+                    "paramKey": "outputPreset",
+                    "required": null,
+                    "fieldName": "output_preset",
+                    "valueType": "STRING",
+                    "description": "ERP全景输出尺寸预设",
+                    "defaultValue": "2048 x 1024"
+                }
+            ],
+            "outputMappings": [
+                {
+                    "key": "mainImage",
+                    "label": "全景主视图",
+                    "nodeId": "35",
+                    "required": true,
+                    "assetType": "IMAGE",
+                    "matchMode": "BY_NODE_ID",
+                    "mirrorToOss": true
+                }
+            ],
+            "runtimeOptions": {},
+            "generationSizeOptions": [],
+            "workflowApiJson": "{\"22\":{\"class_type\":\"CLIPLoader\",\"inputs\":{\"clip_name\":\"qwen_3_8b.safetensors\",\"type\":\"flux2\",\"device\":\"default\"},\"_meta\":{\"title\":\"Load CLIP\"}},\"23\":{\"class_type\":\"VAELoader\",\"inputs\":{\"vae_name\":\"flux2-vae.safetensors\"},\"_meta\":{\"title\":\"Load VAE\"}},\"24\":{\"class_type\":\"CR Prompt Text\",\"inputs\":{\"prompt\":\"宽敞的三居室客厅，空旷而崭新，几乎无装修与家具。角落一张绿色台球桌最为醒目，地上散落酒瓶与脏杯子。半掩的窗帘透入昏暗光线，空气弥漫酒味与烟味。日系动漫画风，柔和色彩，低饱和度，镜头从门口向内平视，聚焦台球桌与凌乱地面，营造出慵懒而颓废的氛围。\"},\"_meta\":{\"title\":\"⚙️ CR Prompt Text\"}},\"26\":{\"class_type\":\"PreviewImage\",\"inputs\":{\"images\":[\"34\",0]},\"_meta\":{\"title\":\"Preview Image\"}},\"27\":{\"class_type\":\"SaveImage\",\"inputs\":{\"filename_prefix\":\"ComfyUI\",\"images\":[\"36\",0]},\"_meta\":{\"title\":\"Save Image\"}},\"29\":{\"class_type\":\"UNETLoader\",\"inputs\":{\"weight_dtype\":\"default\",\"unet_name\":\"flux-2-klein-9b-fp8.safetensors\"},\"_meta\":{\"title\":\"Load Diffusion Model\"}},\"30\":{\"class_type\":\"LoraLoaderModelOnly\",\"inputs\":{\"lora_name\":\"flux-2-klein-9B-360-erp-outpaint-lora_V1.safetensors\",\"strength_model\":0.9,\"model\":[\"29\",0]},\"_meta\":{\"title\":\"Load LoRA\"}},\"31\":{\"class_type\":\"CR Prompt Text\",\"inputs\":{\"prompt\":\"Fill the green spaces according to the image. Outpaint as a seamless 360 equirectangular panorama (2:1). Keep the horizon level. Match left and right edges.\"},\"_meta\":{\"title\":\"⚙️ CR Prompt Text\"}},\"10\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"text, worst quality, blurry, ugly\",\"clip\":[\"22\",0]},\"_meta\":{\"title\":\"CLIP Text Encode (Prompt)\"}},\"32\":{\"class_type\":\"VAELoader\",\"inputs\":{\"vae_name\":\"flux2-vae.safetensors\"},\"_meta\":{\"title\":\"Load VAE\"}},\"11\":{\"class_type\":\"VAEEncodeForInpaint\",\"inputs\":{\"grow_mask_by\":20,\"pixels\":[\"19\",0],\"vae\":[\"23\",0],\"mask\":[\"19\",1]},\"_meta\":{\"title\":\"VAE Encode (for Inpainting)\"}},\"33\":{\"class_type\":\"JoinStringMulti\",\"inputs\":{\"delimiter\":\",\",\"inputcount\":2,\"return_list\":false,\"string_2\":[\"24\",0],\"string_1\":[\"31\",0]},\"_meta\":{\"title\":\"Join String Multi\"}},\"12\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":[\"14\",0],\"clip\":[\"22\",0]},\"_meta\":{\"title\":\"CLIP Text Encode (Prompt)\"}},\"34\":{\"class_type\":\"PanoramaStickers\",\"inputs\":{\"bg_color\":\"#00ff00\",\"output_preset\":\"4096 x 2048\",\"state_json\":\"{\\\"version\\\":1,\\\"projection_model\\\":\\\"pinhole_rectilinear\\\",\\\"alpha_mode\\\":\\\"straight\\\",\\\"bg_color\\\":\\\"#00ff00\\\",\\\"output_preset\\\":2048,\\\"assets\\\":{\\\"asset_9a7eaad8\\\":{\\\"type\\\":\\\"comfy_image\\\",\\\"filename\\\":\\\"jiBs5fpuko.jpg\\\",\\\"subfolder\\\":\\\"panorama_stickers\\\",\\\"storage\\\":\\\"input\\\",\\\"name\\\":\\\"jiBs5fpuko.jpg\\\"}},\\\"stickers\\\":[{\\\"id\\\":\\\"st_6adde1ad\\\",\\\"asset_id\\\":\\\"asset_9a7eaad8\\\",\\\"yaw_deg\\\":1.7615497439236378,\\\"pitch_deg\\\":0.8669781959515619,\\\"hFOV_deg\\\":97.02195799278637,\\\"vFOV_deg\\\":55.82873684500165,\\\"rot_deg\\\":0,\\\"z_index\\\":0,\\\"visible\\\":true}],\\\"shots\\\":[],\\\"ui_settings\\\":{\\\"invert_view_x\\\":false,\\\"invert_view_y\\\":false,\\\"preview_quality\\\":\\\"balanced\\\"},\\\"active\\\":{\\\"selected_sticker_id\\\":\\\"st_6adde1ad\\\",\\\"selected_shot_id\\\":null}}\"},\"_meta\":{\"title\":\"Panorama Stickers\"}},\"13\":{\"class_type\":\"CR Prompt Text\",\"inputs\":{\"prompt\":\"修复图片\"},\"_meta\":{\"title\":\"⚙️ CR Prompt Text\"}},\"35\":{\"class_type\":\"SaveImage\",\"inputs\":{\"filename_prefix\":\"ComfyUI\",\"images\":[\"2\",0]},\"_meta\":{\"title\":\"Save Image\"}},\"14\":{\"class_type\":\"JoinStringMulti\",\"inputs\":{\"delimiter\":\",\",\"inputcount\":2,\"return_list\":false,\"string_2\":[\"20\",0],\"string_1\":[\"13\",0]},\"_meta\":{\"title\":\"Join String Multi\"}},\"36\":{\"class_type\":\"PanoramaCutout\",\"inputs\":{\"output_megapixels\":1,\"erp_image\":[\"2\",0],\"state_json\":\"{\\\"version\\\":1,\\\"projection_model\\\":\\\"pinhole_rectilinear\\\",\\\"alpha_mode\\\":\\\"straight\\\",\\\"bg_color\\\":\\\"#00ff00\\\",\\\"output_preset\\\":2048,\\\"assets\\\":{},\\\"stickers\\\":[],\\\"shots\\\":[{\\\"id\\\":\\\"sh_cd59dca1\\\",\\\"yaw_deg\\\":-34.599087378716945,\\\"pitch_deg\\\":-2.7769709617187908,\\\"hFOV_deg\\\":95.41452440211535,\\\"vFOV_deg\\\":59.634077751322096,\\\"roll_deg\\\":0,\\\"out_w\\\":1024,\\\"out_h\\\":1024,\\\"aspect_id\\\":\\\"1:1\\\"}],\\\"ui_settings\\\":{\\\"invert_view_x\\\":false,\\\"invert_view_y\\\":false,\\\"preview_quality\\\":\\\"balanced\\\"},\\\"active\\\":{\\\"selected_sticker_id\\\":null,\\\"selected_shot_id\\\":\\\"sh_cd59dca1\\\"}}\"},\"_meta\":{\"title\":\"Panorama Cutout\"}},\"15\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":[\"33\",0],\"clip\":[\"7\",0]},\"_meta\":{\"title\":\"CLIP Text Encode (Prompt)\"}},\"37\":{\"class_type\":\"PanoramaPreview\",\"inputs\":{\"erp_image\":[\"2\",0]},\"_meta\":{\"title\":\"Panorama Preview\"}},\"16\":{\"class_type\":\"PreviewImage\",\"inputs\":{\"images\":[\"19\",0]},\"_meta\":{\"title\":\"Preview Image\"}},\"38\":{\"class_type\":\"KSampler\",\"inputs\":{\"scheduler\":\"simple\",\"negative\":[\"4\",0],\"denoise\":1,\"latent_image\":[\"5\",0],\"seed\":61377029973278,\"cfg\":1,\"sampler_name\":\"euler\",\"model\":[\"30\",0],\"positive\":[\"1\",0],\"steps\":8},\"_meta\":{\"title\":\"KSampler\"}},\"39\":{\"class_type\":\"PreviewImage\",\"inputs\":{\"images\":[\"6\",0]},\"_meta\":{\"title\":\"Preview Image\"}},\"19\":{\"class_type\":\"PanoramaSeamPrep\",\"inputs\":{\"image\":[\"6\",0],\"seam_width_px\":64,\"seam_center_offset_px\":0,\"mask_blur_px\":10},\"_meta\":{\"title\":\"Panorama Seam Prep\"}},\"1\":{\"class_type\":\"ReferenceLatent\",\"inputs\":{\"latent\":[\"5\",0],\"conditioning\":[\"15\",0]},\"_meta\":{\"title\":\"Set Reference Latent\"}},\"2\":{\"class_type\":\"VAEDecode\",\"inputs\":{\"vae\":[\"23\",0],\"samples\":[\"3\",0]},\"_meta\":{\"title\":\"VAE Decode\"}},\"3\":{\"class_type\":\"KSampler\",\"inputs\":{\"scheduler\":\"simple\",\"negative\":[\"10\",0],\"denoise\":1,\"latent_image\":[\"11\",0],\"seed\":884093770173643,\"cfg\":1,\"sampler_name\":\"euler\",\"model\":[\"21\",0],\"positive\":[\"12\",0],\"steps\":8},\"_meta\":{\"title\":\"KSampler\"}},\"4\":{\"class_type\":\"ReferenceLatent\",\"inputs\":{\"latent\":[\"5\",0],\"conditioning\":[\"8\",0]},\"_meta\":{\"title\":\"Set Reference Latent\"}},\"5\":{\"class_type\":\"VAEEncode\",\"inputs\":{\"pixels\":[\"34\",0],\"vae\":[\"32\",0]},\"_meta\":{\"title\":\"VAE Encode\"}},\"6\":{\"class_type\":\"VAEDecode\",\"inputs\":{\"vae\":[\"32\",0],\"samples\":[\"38\",0]},\"_meta\":{\"title\":\"VAE Decode\"}},\"7\":{\"class_type\":\"CLIPLoader\",\"inputs\":{\"clip_name\":\"qwen_3_8b.safetensors\",\"type\":\"flux2\",\"device\":\"default\"},\"_meta\":{\"title\":\"Load CLIP\"}},\"8\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"text, worst quality, blurry, ugly，\",\"clip\":[\"7\",0]},\"_meta\":{\"title\":\"CLIP Text Encode (Prompt)\"}},\"20\":{\"class_type\":\"CR Prompt Text\",\"inputs\":{\"prompt\":\"修补接缝\"},\"_meta\":{\"title\":\"⚙️ CR Prompt Text\"}},\"21\":{\"class_type\":\"UNETLoader\",\"inputs\":{\"weight_dtype\":\"default\",\"unet_name\":\"flux-2-klein-9b-fp8.safetensors\"},\"_meta\":{\"title\":\"Load Diffusion Model\"}}}",
+            "timeoutSeconds": 600,
+            "enabled": true,
+            "remark": "场景主视图（360度全景工作流：节点24描述词 / 节点34尺寸预设 / 节点35全景输出）"
+        },
+        {
+            "sourceRowId": "3",
+            "sourceUpdatedAt": "2026-08-26 17:09:04",
+            "workflowCode": "prop_main_view",
+            "workflowName": "道具主视图",
+            "runninghubWorkflowName": "boogu_道具图（0813ZD优化)",
+            "runninghubWorkflowId": "2090436220538150914",
+            "inputSchema": [
+                {
+                    "key": "prompt",
+                    "type": "string",
+                    "group": "基础参数",
+                    "label": "描述词",
+                    "order": 1,
+                    "widget": "textarea",
+                    "required": true,
+                    "maxLength": 4000,
+                    "description": "描述道具的主体、材质、配色、画风；画面里不应出现人物与手部",
+                    "placeholder": "例：一柄古朴的青铜短剑，独立展示，纯净背景",
+                    "sampleValue": "一张手绘动画道具设定图：一支黑檀木长柄伞，伞骨镶细银线，伞面深酒红色暗纹提花，握柄末端坠一枚素银环；纯道具静物展示，单一视角，无人持有；纯净中性灰背景；赛璐璐平涂，柔和线条"
+                },
+                {
+                    "key": "width",
+                    "max": 4096,
+                    "min": 64,
+                    "type": "number",
+                    "group": "画面尺寸",
+                    "label": "宽",
+                    "order": 1,
+                    "required": true,
+                    "sampleValue": 1024,
+                    "defaultValue": 1024
+                },
+                {
+                    "key": "height",
+                    "max": 4096,
+                    "min": 64,
+                    "type": "number",
+                    "group": "画面尺寸",
+                    "label": "高",
+                    "order": 2,
+                    "required": true,
+                    "sampleValue": 1024,
+                    "defaultValue": 1024
+                },
+                {
+                    "key": "referenceImage",
+                    "type": "image_url",
+                    "group": "参考素材",
+                    "label": "参考图",
+                    "required": false,
+                    "description": "可选。注入 LoadImage(13)；有图保留 13/68，留空则裁掉该支",
+                    "sampleValue": "",
+                    "uploadPolicy": "IMAGE"
+                }
+            ],
+            "nodeMappings": [
+                {
+                    "nodeId": "35",
+                    "source": "INPUT",
+                    "inputKey": "prompt",
+                    "paramKey": "prompt",
+                    "required": true,
+                    "fieldName": "text",
+                    "valueType": "STRING",
+                    "description": "描述词→CR Text(35).text"
+                },
+                {
+                    "nodeId": "65",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "width",
+                    "paramKey": "width",
+                    "required": false,
+                    "fieldName": "width",
+                    "valueType": "NUMBER",
+                    "description": "宽→EmptyLatentImage(65)",
+                    "defaultValue": 1024
+                },
+                {
+                    "nodeId": "65",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "height",
+                    "paramKey": "height",
+                    "required": false,
+                    "fieldName": "height",
+                    "valueType": "NUMBER",
+                    "description": "高→EmptyLatentImage(65)",
+                    "defaultValue": 1024
+                },
+                {
+                    "nodeId": "13",
+                    "source": "INPUT",
+                    "inputKey": "referenceImage",
+                    "paramKey": "referenceImage",
+                    "required": false,
+                    "fieldName": "image",
+                    "valueType": "STRING",
+                    "description": "参考图→LoadImage(13)"
+                }
+            ],
+            "outputMappings": [
+                {
+                    "key": "mainImage",
+                    "label": "主图",
+                    "nodeId": "67",
+                    "required": true,
+                    "assetType": "IMAGE",
+                    "matchMode": "BY_NODE_ID",
+                    "mirrorToOss": true
+                }
+            ],
+            "runtimeOptions": {},
+            "generationSizeOptions": [
+                {
+                    "width": 1024,
+                    "height": 1024,
+                    "disabled": false
+                }
+            ],
+            "workflowApiJson": "{\"66\":{\"class_type\":\"VAEDecode\",\"inputs\":{\"vae\":[\"60\",0],\"samples\":[\"64\",0]},\"_meta\":{\"title\":\"VAE Decode\"}},\"67\":{\"class_type\":\"SaveImage\",\"inputs\":{\"filename_prefix\":\"boogu\",\"images\":[\"66\",0]},\"_meta\":{\"title\":\"Save Image\"}},\"13\":{\"class_type\":\"LoadImage\",\"inputs\":{\"image\":\"pasted/ea4e94decf2b58dbe212f23039b065168a18fe68d26110edfc0d7723bcd383dc.png\"},\"_meta\":{\"title\":\"Load Image\"}},\"35\":{\"class_type\":\"CR Text\",\"inputs\":{\"text\":\"生成一件衬衫上面有这张图的纹样\"},\"_meta\":{\"title\":\"CR Text（兼容文本）\"}},\"57\":{\"class_type\":\"UNETLoader\",\"inputs\":{\"weight_dtype\":\"default\",\"unet_name\":\"boogu_image_edit_turbo_int8.safetensors\"},\"_meta\":{\"title\":\"Load Diffusion Model\"}},\"68\":{\"class_type\":\"LayerUtility: ImageScaleByAspectRatio V2\",\"inputs\":{\"fit\":\"letterbox\",\"aspect_ratio\":\"original\",\"image\":[\"13\",0],\"method\":\"lanczos\",\"background_color\":\"#000000\",\"round_to_multiple\":\"8\",\"scale_to_side\":\"None\",\"proportional_height\":1,\"proportional_width\":1,\"scale_to_length\":1024},\"_meta\":{\"title\":\"LayerUtility: ImageScaleByAspectRatio V2\"}},\"58\":{\"class_type\":\"CLIPLoader\",\"inputs\":{\"clip_name\":\"qwen3vl_8b_fp8_scaled.safetensors\",\"type\":\"boogu\",\"device\":\"default\"},\"_meta\":{\"title\":\"Load CLIP\"}},\"59\":{\"class_type\":\"TextEncodeBooguEdit\",\"inputs\":{\"negative_prompt\":\"\",\"vae\":[\"60\",0],\"prompt\":[\"35\",0],\"clip\":[\"58\",0],\"images.image_1\":[\"68\",0]},\"_meta\":{\"title\":\"TextEncodeBooguEdit\"}},\"60\":{\"class_type\":\"VAELoader\",\"inputs\":{\"vae_name\":\"ae.safetensors\"},\"_meta\":{\"title\":\"Load VAE\"}},\"61\":{\"class_type\":\"ModelSamplingAuraFlow\",\"inputs\":{\"shift\":3,\"model\":[\"57\",0]},\"_meta\":{\"title\":\"ModelSamplingAuraFlow\"}},\"62\":{\"class_type\":\"KSamplerSelect\",\"inputs\":{\"sampler_name\":\"euler\"},\"_meta\":{\"title\":\"KSamplerSelect\"}},\"63\":{\"class_type\":\"BasicScheduler\",\"inputs\":{\"scheduler\":\"simple\",\"denoise\":1,\"model\":[\"61\",0],\"steps\":8},\"_meta\":{\"title\":\"BasicScheduler\"}},\"64\":{\"class_type\":\"SamplerCustom\",\"inputs\":{\"negative\":[\"59\",1],\"latent_image\":[\"65\",0],\"cfg\":1,\"noise_seed\":732417834656375,\"model\":[\"57\",0],\"positive\":[\"59\",0],\"sigmas\":[\"63\",0],\"add_noise\":true,\"sampler\":[\"62\",0]},\"_meta\":{\"title\":\"SamplerCustom\"}},\"65\":{\"class_type\":\"EmptyLatentImage\",\"inputs\":{\"batch_size\":1,\"width\":720,\"height\":1280},\"_meta\":{\"title\":\"Empty Latent Image\"}}}",
+            "timeoutSeconds": 600,
+            "enabled": true,
+            "remark": "Boogu道具（2026-08-24）：描述词35 / 宽高65 / 参考图13→缩放68；无参考图裁掉13/68并清59.images.image_1；输出SaveImage(67)。"
+        },
+        {
+            "sourceRowId": "4",
+            "sourceUpdatedAt": "2026-08-26 17:09:04",
+            "workflowCode": "character_multi_view",
+            "workflowName": "角色多视图",
+            "runninghubWorkflowName": "人物4视图0812_ZD修改(boogu)",
+            "runninghubWorkflowId": "2090436223860039681",
+            "inputSchema": [
+                {
+                    "key": "referenceImage",
+                    "type": "image_url",
+                    "group": "基础参数",
+                    "label": "角色主形象图",
+                    "order": 1,
+                    "required": true,
+                    "description": "必填。以这张图为基准生成正视图、右视图、背视图与面部特写的 2×2 合并图",
+                    "sampleValue": "https://aigc-anime.oss-cn-guangzhou.aliyuncs.com/aigc/runninghub/image/20260811/juese/oerxn_1786420501.png",
+                    "uploadPolicy": "IMAGE"
+                },
+                {
+                    "key": "prompt",
+                    "type": "string",
+                    "group": "基础参数",
+                    "label": "角色主描述词",
+                    "order": 2,
+                    "widget": "textarea",
+                    "required": false,
+                    "maxLength": 2000,
+                    "description": "可选。不填则沿用工作流内置的人物/动物描述词",
+                    "sampleValue": ""
+                },
+                {
+                    "key": "width",
+                    "max": 4096,
+                    "min": 64,
+                    "type": "number",
+                    "group": "画面尺寸",
+                    "label": "合并图宽度",
+                    "order": 1,
+                    "required": false,
+                    "description": "可选。不填则沿用工作流默认值 1350",
+                    "sampleValue": 1350
+                },
+                {
+                    "key": "height",
+                    "max": 4096,
+                    "min": 64,
+                    "type": "number",
+                    "group": "画面尺寸",
+                    "label": "合并图高度",
+                    "order": 2,
+                    "required": false,
+                    "description": "可选。不填则沿用工作流默认值 2400",
+                    "sampleValue": 2400
+                },
+                {
+                    "key": "frontPrompt",
+                    "type": "string",
+                    "group": "各视角描述词",
+                    "label": "正视图描述词",
+                    "order": 1,
+                    "required": false,
+                    "sampleValue": "出角色全身正视图，背景改为白色背景。"
+                },
+                {
+                    "key": "rightPrompt",
+                    "type": "string",
+                    "group": "各视角描述词",
+                    "label": "右视图描述词",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": "出角色全身右视图，背景改为白色背景。"
+                },
+                {
+                    "key": "backPrompt",
+                    "type": "string",
+                    "group": "各视角描述词",
+                    "label": "背视图描述词",
+                    "order": 3,
+                    "required": false,
+                    "sampleValue": "出角色全身背视图，背景改为白色背景。"
+                },
+                {
+                    "key": "facePrompt",
+                    "type": "string",
+                    "group": "各视角描述词",
+                    "label": "面部特写描述词",
+                    "order": 4,
+                    "required": false,
+                    "description": "可选。不填则沿用工作流默认值",
+                    "sampleValue": ""
+                }
+            ],
+            "nodeMappings": [
+                {
+                    "nodeId": "282",
+                    "source": "INPUT",
+                    "inputKey": "referenceImage",
+                    "paramKey": "referenceImage",
+                    "required": true,
+                    "fieldName": "image",
+                    "valueType": "STRING",
+                    "description": "LoadImage 参考图"
+                },
+                {
+                    "nodeId": "433",
+                    "source": "INPUT",
+                    "inputKey": "width",
+                    "paramKey": "width",
+                    "required": false,
+                    "fieldName": "value",
+                    "valueType": "NUMBER",
+                    "description": "四视图合并图宽度"
+                },
+                {
+                    "nodeId": "431",
+                    "source": "INPUT",
+                    "inputKey": "height",
+                    "paramKey": "height",
+                    "required": false,
+                    "fieldName": "value",
+                    "valueType": "NUMBER",
+                    "description": "四视图合并图高度"
+                },
+                {
+                    "nodeId": "355",
+                    "source": "INPUT",
+                    "inputKey": "prompt",
+                    "paramKey": "prompt",
+                    "required": false,
+                    "fieldName": "custom_prompt",
+                    "valueType": "STRING",
+                    "description": "非空时覆盖 Llama-cpp Instruct 自定义提示词"
+                },
+                {
+                    "nodeId": "359",
+                    "source": "INPUT",
+                    "inputKey": "frontPrompt",
+                    "paramKey": "frontPrompt",
+                    "required": false,
+                    "fieldName": "text",
+                    "valueType": "STRING",
+                    "description": "正视图 Text 提示词"
+                },
+                {
+                    "nodeId": "362",
+                    "source": "INPUT",
+                    "inputKey": "rightPrompt",
+                    "paramKey": "rightPrompt",
+                    "required": false,
+                    "fieldName": "text",
+                    "valueType": "STRING",
+                    "description": "右视图 Text 提示词"
+                },
+                {
+                    "nodeId": "365",
+                    "source": "INPUT",
+                    "inputKey": "backPrompt",
+                    "paramKey": "backPrompt",
+                    "required": false,
+                    "fieldName": "text",
+                    "valueType": "STRING",
+                    "description": "背视图 Text 提示词"
+                },
+                {
+                    "nodeId": "391",
+                    "source": "INPUT",
+                    "inputKey": "facePrompt",
+                    "paramKey": "facePrompt",
+                    "required": false,
+                    "fieldName": "text",
+                    "valueType": "STRING",
+                    "description": "面部特写 Text 提示词"
+                }
+            ],
+            "outputMappings": [
+                {
+                    "key": "merge",
+                    "label": "四视图合并图",
+                    "nodeId": "424",
+                    "required": true,
+                    "assetType": "IMAGE",
+                    "matchMode": "BY_NODE_ID",
+                    "mirrorToOss": true
+                }
+            ],
+            "runtimeOptions": {},
+            "generationSizeOptions": [
+                {
+                    "width": 2400,
+                    "height": 1350,
+                    "disabled": false
+                },
+                {
+                    "width": 1350,
+                    "height": 2400,
+                    "disabled": false
+                }
+            ],
+            "workflowApiJson": "{\"391\":{\"class_type\":\"Text\",\"inputs\":{\"text\":\"出角色正面面部特写图片，白色背景。\"},\"_meta\":{\"title\":\"Text\"}},\"395\":{\"class_type\":\"LayerUtility: ImageScaleByAspectRatio V2\",\"inputs\":{\"fit\":\"crop\",\"aspect_ratio\":\"original\",\"image\":[\"282\",0],\"method\":\"lanczos\",\"background_color\":\"#000000\",\"round_to_multiple\":\"8\",\"scale_to_side\":\"longest\",\"proportional_height\":1,\"proportional_width\":1,\"scale_to_length\":1024},\"_meta\":{\"title\":\"LayerUtility: ImageScaleByAspectRatio V2\"}},\"450\":{\"class_type\":\"SamplerCustom\",\"inputs\":{\"negative\":[\"445\",1],\"latent_image\":[\"446\",0],\"cfg\":1,\"noise_seed\":0,\"model\":[\"443\",0],\"positive\":[\"445\",0],\"sigmas\":[\"448\",0],\"add_noise\":true,\"sampler\":[\"449\",0]},\"_meta\":{\"title\":\"SamplerCustom\"}},\"451\":{\"class_type\":\"VAEDecode\",\"inputs\":{\"vae\":[\"444\",0],\"samples\":[\"450\",0]},\"_meta\":{\"title\":\"VAE Decode\"}},\"430\":{\"class_type\":\"SimpleMath+\",\"inputs\":{\"a\":[\"431\",0],\"value\":\"a/2\"},\"_meta\":{\"title\":\"🔧 Simple Math\"}},\"431\":{\"class_type\":\"easy int\",\"inputs\":{\"value\":1350},\"_meta\":{\"title\":\"Int\"}},\"453\":{\"class_type\":\"ImageListToImageBatch\",\"inputs\":{\"images\":[\"451\",0]},\"_meta\":{\"title\":\"Image List to Image Batch\"}},\"355\":{\"class_type\":\"llama_cpp_instruct_adv\",\"inputs\":{\"images\":[\"282\",0],\"max_frames\":24,\"seed\":164405608068022,\"inference_mode\":\"one by one\",\"custom_prompt\":\"判断图片是人物还是动物，如果是人物表诉：描述人物的全身穿着，包含鞋子（若图片为半身照片，则自由生成下半身穿着描述，包含鞋子）并且根据图像表诉人物身材比例。如果是动物则表诉：动物种类，毛发/皮肤颜色。不产出其它任何内容。 \",\"force_offload\":false,\"system_prompt\":\"\",\"save_states\":false,\"preset_prompt\":\"Normal - Describe\",\"llama_model\":[\"356\",0],\"max_size\":256},\"_meta\":{\"title\":\"Llama-cpp Instruct\"}},\"432\":{\"class_type\":\"SimpleMath+\",\"inputs\":{\"b\":[\"433\",0],\"value\":\"b/2\"},\"_meta\":{\"title\":\"🔧 Simple Math\"}},\"454\":{\"class_type\":\"ImageConcatFromBatch\",\"inputs\":{\"num_columns\":2,\"images\":[\"453\",0],\"match_image_size\":false,\"max_resolution\":4096},\"_meta\":{\"title\":\"Image Concatenate From Batch\"}},\"356\":{\"class_type\":\"llama_cpp_model_loader\",\"inputs\":{\"image_min_tokens\":0,\"load_mtp\":false,\"vram_limit\":-1,\"mmproj\":\"Qwen3.5-9B-mmproj-F16.gguf\",\"model\":\"Qwen3.5-9B-Q4_0.gguf\",\"n_ctx\":8192,\"chat_handler\":\"Qwen3.5\",\"image_max_tokens\":0},\"_meta\":{\"title\":\"Llama-cpp Model Loader\"}},\"433\":{\"class_type\":\"easy int\",\"inputs\":{\"value\":2400},\"_meta\":{\"title\":\"Int\"}},\"358\":{\"class_type\":\"MultiTextConcatenate\",\"inputs\":{\"text0\":[\"359\",0],\"delimiter\":\"。\",\"text1\":[\"355\",0],\"linebreak_addition\":\"false\"},\"_meta\":{\"title\":\"多文本联合\"}},\"359\":{\"class_type\":\"Text\",\"inputs\":{\"text\":\"出角色全身正视图，背景改为白色背景。 \"},\"_meta\":{\"title\":\"Text\"}},\"416\":{\"class_type\":\"easy promptList\",\"inputs\":{\"prompt_3\":[\"407\",0],\"prompt_4\":[\"391\",0],\"prompt_5\":\"\",\"prompt_1\":[\"358\",0],\"prompt_2\":[\"361\",0]},\"_meta\":{\"title\":\"PromptList\"}},\"282\":{\"class_type\":\"LoadImage\",\"inputs\":{\"image\":\"pasted/30ae6848aa9c84d369ec3058347b496be2bc853df2566ad036ceb1db94b3580e.png\"},\"_meta\":{\"title\":\"Load Image\"}},\"361\":{\"class_type\":\"MultiTextConcatenate\",\"inputs\":{\"text0\":[\"362\",0],\"delimiter\":\"。\",\"text1\":[\"355\",0],\"linebreak_addition\":\"false\"},\"_meta\":{\"title\":\"多文本联合\"}},\"362\":{\"class_type\":\"Text\",\"inputs\":{\"text\":\"出角色全身右视图，背景改为白色背景。\"},\"_meta\":{\"title\":\"Text\"}},\"365\":{\"class_type\":\"Text\",\"inputs\":{\"text\":\"出角色全身背视图，背景改为白色背景\"},\"_meta\":{\"title\":\"Text\"}},\"442\":{\"class_type\":\"CLIPLoader\",\"inputs\":{\"clip_name\":\"qwen3vl_8b_fp8_scaled.safetensors\",\"type\":\"boogu\",\"device\":\"default\"},\"_meta\":{\"title\":\"Load CLIP\"}},\"443\":{\"class_type\":\"UNETLoader\",\"inputs\":{\"weight_dtype\":\"default\",\"unet_name\":\"boogu_image_edit_turbo_int8.safetensors\"},\"_meta\":{\"title\":\"Load Diffusion Model\"}},\"444\":{\"class_type\":\"VAELoader\",\"inputs\":{\"vae_name\":\"ae.safetensors\"},\"_meta\":{\"title\":\"Load VAE\"}},\"445\":{\"class_type\":\"TextEncodeBooguEdit\",\"inputs\":{\"negative_prompt\":\"\",\"vae\":[\"444\",0],\"prompt\":[\"416\",1],\"clip\":[\"442\",0],\"images.image_1\":[\"395\",0]},\"_meta\":{\"title\":\"TextEncodeBooguEdit\"}},\"424\":{\"class_type\":\"SaveImage\",\"inputs\":{\"filename_prefix\":\"ComfyUI\",\"images\":[\"454\",0]},\"_meta\":{\"title\":\"Save Image\"}},\"446\":{\"class_type\":\"EmptyLatentImage\",\"inputs\":{\"batch_size\":1,\"width\":[\"432\",0],\"height\":[\"430\",0]},\"_meta\":{\"title\":\"Empty Latent Image\"}},\"447\":{\"class_type\":\"ModelSamplingAuraFlow\",\"inputs\":{\"shift\":3.16,\"model\":[\"443\",0]},\"_meta\":{\"title\":\"ModelSamplingAuraFlow\"}},\"448\":{\"class_type\":\"BasicScheduler\",\"inputs\":{\"scheduler\":\"simple\",\"denoise\":1,\"model\":[\"447\",0],\"steps\":8},\"_meta\":{\"title\":\"BasicScheduler\"}},\"449\":{\"class_type\":\"KSamplerSelect\",\"inputs\":{\"sampler_name\":\"euler\"},\"_meta\":{\"title\":\"KSamplerSelect\"}},\"407\":{\"class_type\":\"MultiTextConcatenate\",\"inputs\":{\"text0\":[\"365\",0],\"delimiter\":\"。\",\"text1\":[\"355\",0],\"linebreak_addition\":\"false\"},\"_meta\":{\"title\":\"多文本联合\"}}}",
+            "timeoutSeconds": 600,
+            "enabled": true,
+            "remark": "角色多视图（Boogu turbo 图编辑模型，2026-08-12 换模型）：参考图282 / llama描述355 / 方向词359正·362右·365背·391面部特写 / 宽433默认1350 / 高431默认2400 / 输出SaveImage(424) 单张2x2合并图。节点号与旧版一致，换模型无需改代码。"
+        },
+        {
+            "sourceRowId": "5",
+            "sourceUpdatedAt": "2026-08-26 17:09:04",
+            "workflowCode": "storyboard_shot",
+            "workflowName": "分镜单镜头图",
+            "runninghubWorkflowName": "定稿-分镜图-klein多图编辑-正起-分镜图",
+            "runninghubWorkflowId": "2090436537182932994",
+            "inputSchema": [
+                {
+                    "key": "prompt",
+                    "type": "string",
+                    "group": "基础参数",
+                    "label": "描述词",
+                    "order": 1,
+                    "widget": "textarea",
+                    "required": true,
+                    "maxLength": 4000,
+                    "description": "描述这个镜头的构图、景别、光线、氛围"
+                },
+                {
+                    "key": "width",
+                    "max": 4096,
+                    "min": 64,
+                    "type": "number",
+                    "group": "画面尺寸",
+                    "label": "宽",
+                    "order": 1,
+                    "required": true,
+                    "defaultValue": 1536
+                },
+                {
+                    "key": "height",
+                    "max": 4096,
+                    "min": 64,
+                    "type": "number",
+                    "group": "画面尺寸",
+                    "label": "高",
+                    "order": 2,
+                    "required": true,
+                    "defaultValue": 864
+                },
+                {
+                    "key": "sceneImage",
+                    "type": "image_url",
+                    "group": "基础参数",
+                    "label": "主场景图/背景",
+                    "order": 2,
+                    "required": true,
+                    "description": "必填，注入 LoadImage(13)",
+                    "uploadPolicy": "IMAGE"
+                },
+                {
+                    "key": "characterPropImage1",
+                    "type": "image_url",
+                    "group": "参考素材",
+                    "label": "角色/道具图 1",
+                    "order": 1,
+                    "required": false,
+                    "description": "可选；注入 LoadImage(20)。无图时裁掉该支",
+                    "uploadPolicy": "IMAGE"
+                },
+                {
+                    "key": "characterPropImage2",
+                    "type": "image_url",
+                    "group": "参考素材",
+                    "label": "角色/道具图 2",
+                    "order": 2,
+                    "required": false,
+                    "description": "可选；注入 LoadImage(24)。无图时裁掉该支",
+                    "uploadPolicy": "IMAGE"
+                },
+                {
+                    "key": "characterPropImage3",
+                    "type": "image_url",
+                    "group": "参考素材",
+                    "label": "角色/道具图 3",
+                    "order": 3,
+                    "required": false,
+                    "description": "可选；注入 LoadImage(48)。无图时裁掉该支",
+                    "uploadPolicy": "IMAGE"
+                }
+            ],
+            "nodeMappings": [
+                {
+                    "nodeId": "35",
+                    "source": "INPUT",
+                    "inputKey": "prompt",
+                    "paramKey": "prompt",
+                    "required": true,
+                    "fieldName": "text",
+                    "valueType": "STRING",
+                    "description": "描述词→CR Text(35).text"
+                },
+                {
+                    "nodeId": "40",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "width",
+                    "paramKey": "width",
+                    "required": false,
+                    "fieldName": "width",
+                    "valueType": "NUMBER",
+                    "description": "宽→背景 ImageResize+(40)",
+                    "defaultValue": 1536
+                },
+                {
+                    "nodeId": "40",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "height",
+                    "paramKey": "height",
+                    "required": false,
+                    "fieldName": "height",
+                    "valueType": "NUMBER",
+                    "description": "高→背景 ImageResize+(40)",
+                    "defaultValue": 864
+                },
+                {
+                    "nodeId": "13",
+                    "source": "INPUT",
+                    "inputKey": "sceneImage",
+                    "paramKey": "sceneImage",
+                    "required": true,
+                    "fieldName": "image",
+                    "valueType": "STRING",
+                    "description": "背景图→LoadImage(13)"
+                },
+                {
+                    "nodeId": "20",
+                    "source": "INPUT",
+                    "inputKey": "characterPropImage1",
+                    "paramKey": "characterPropImage1",
+                    "required": false,
+                    "fieldName": "image",
+                    "valueType": "STRING",
+                    "description": "第1张角色/道具→LoadImage(20)"
+                },
+                {
+                    "nodeId": "24",
+                    "source": "INPUT",
+                    "inputKey": "characterPropImage2",
+                    "paramKey": "characterPropImage2",
+                    "required": false,
+                    "fieldName": "image",
+                    "valueType": "STRING",
+                    "description": "第2张角色/道具→LoadImage(24)"
+                },
+                {
+                    "nodeId": "48",
+                    "source": "INPUT",
+                    "inputKey": "characterPropImage3",
+                    "paramKey": "characterPropImage3",
+                    "required": false,
+                    "fieldName": "image",
+                    "valueType": "STRING",
+                    "description": "第3张角色/道具→LoadImage(48)"
+                }
+            ],
+            "outputMappings": [
+                {
+                    "key": "imageUrl",
+                    "label": "分镜图",
+                    "nodeId": "29",
+                    "required": true,
+                    "assetType": "IMAGE",
+                    "matchMode": "BY_NODE_ID",
+                    "mirrorToOss": true
+                }
+            ],
+            "runtimeOptions": {},
+            "generationSizeOptions": [
+                {
+                    "width": 1024,
+                    "height": 1024,
+                    "disabled": false
+                },
+                {
+                    "width": 1280,
+                    "height": 1280,
+                    "disabled": false
+                },
+                {
+                    "width": 1024,
+                    "height": 768,
+                    "disabled": false
+                },
+                {
+                    "width": 1280,
+                    "height": 960,
+                    "disabled": false
+                },
+                {
+                    "width": 768,
+                    "height": 1024,
+                    "disabled": false
+                },
+                {
+                    "width": 960,
+                    "height": 1280,
+                    "disabled": false
+                },
+                {
+                    "width": 1280,
+                    "height": 720,
+                    "disabled": false
+                },
+                {
+                    "width": 1920,
+                    "height": 1080,
+                    "disabled": false
+                },
+                {
+                    "width": 720,
+                    "height": 1280,
+                    "disabled": false
+                },
+                {
+                    "width": 1080,
+                    "height": 1920,
+                    "disabled": false
+                }
+            ],
+            "workflowApiJson": "{\"22\":{\"class_type\":\"GetImageSize\",\"inputs\":{\"image\":[\"41\",0]},\"_meta\":{\"title\":\"GetImageSize\"}},\"23\":{\"class_type\":\"VAEEncode\",\"inputs\":{\"pixels\":[\"41\",0],\"vae\":[\"6\",0]},\"_meta\":{\"title\":\"VAE Encode\"}},\"24\":{\"class_type\":\"LoadImage\",\"inputs\":{\"image\":\"e6d84b421e48b81219bc91d8a2e4ed46a13ace0a3bfff4d7abc4ab1591280628.png\"},\"_meta\":{\"title\":\"Load Image\"}},\"26\":{\"class_type\":\"GetImageSize\",\"inputs\":{\"image\":[\"42\",0]},\"_meta\":{\"title\":\"GetImageSize\"}},\"48\":{\"class_type\":\"LoadImage\",\"inputs\":{\"image\":\"None\"},\"_meta\":{\"title\":\"Load Image\"}},\"27\":{\"class_type\":\"VAEEncode\",\"inputs\":{\"pixels\":[\"42\",0],\"vae\":[\"6\",0]},\"_meta\":{\"title\":\"VAE Encode\"}},\"28\":{\"class_type\":\"ReferenceLatent\",\"inputs\":{\"latent\":[\"27\",0],\"conditioning\":[\"18\",0]},\"_meta\":{\"title\":\"Set Reference Latent\"}},\"29\":{\"class_type\":\"SaveImage\",\"inputs\":{\"filename_prefix\":\"ComfyUI\",\"images\":[\"5\",0]},\"_meta\":{\"title\":\"Save Image\"}},\"10\":{\"class_type\":\"KSamplerSelect\",\"inputs\":{\"sampler_name\":\"euler_ancestral\"},\"_meta\":{\"title\":\"KSamplerSelect\"}},\"11\":{\"class_type\":\"EmptyFlux2LatentImage\",\"inputs\":{\"batch_size\":1,\"width\":[\"15\",0],\"height\":[\"15\",1]},\"_meta\":{\"title\":\"Empty Flux 2 Latent\"}},\"12\":{\"class_type\":\"Flux2Scheduler\",\"inputs\":{\"width\":[\"15\",0],\"steps\":4,\"height\":[\"15\",1]},\"_meta\":{\"title\":\"Flux2Scheduler\"}},\"13\":{\"class_type\":\"LoadImage\",\"inputs\":{\"image\":\"68702ecf4505f96672a14349b412b811d7ec908acec91801672dd2bf883a0ab8.png\"},\"_meta\":{\"title\":\"Load Image\"}},\"35\":{\"class_type\":\"CR Text\",\"inputs\":{\"text\":\"中景构图，宽阔的沥青街道上，一名男性路人双手抱头蹲在路面中央，面部扭曲，额头青筋暴起，双眼圆睁充满恐惧，嘴巴大张嘶吼着“有人……有人炸开了！”，背景中其他路人四散奔逃，身影因快速移动而模糊。天空被巨大的半透明血色书页虚影覆盖，光线在诡异的暗红与刺眼的白光之间快速闪烁，街灯和建筑表面反射出冷红调的光泽。侧逆光勾勒出人物颤抖的轮廓，地面投下长长的阴影，整体氛围压抑恐慌。好莱坞大片质感，电影级光影，高对比度，强烈的戏剧张力。\"},\"_meta\":{\"title\":\"CR Text（兼容文本）\"}},\"15\":{\"class_type\":\"GetImageSize\",\"inputs\":{\"image\":[\"40\",0]},\"_meta\":{\"title\":\"GetImageSize\"}},\"38\":{\"class_type\":\"ReferenceLatent\",\"inputs\":{\"latent\":[\"19\",0],\"conditioning\":[\"9\",0]},\"_meta\":{\"title\":\"Set Reference Latent\"}},\"17\":{\"class_type\":\"ReferenceLatent\",\"inputs\":{\"latent\":[\"19\",0],\"conditioning\":[\"8\",0]},\"_meta\":{\"title\":\"Set Reference Latent\"}},\"18\":{\"class_type\":\"ReferenceLatent\",\"inputs\":{\"latent\":[\"23\",0],\"conditioning\":[\"17\",0]},\"_meta\":{\"title\":\"Set Reference Latent\"}},\"19\":{\"class_type\":\"VAEEncode\",\"inputs\":{\"pixels\":[\"40\",0],\"vae\":[\"6\",0]},\"_meta\":{\"title\":\"VAE Encode\"}},\"1\":{\"class_type\":\"UNETLoader\",\"inputs\":{\"weight_dtype\":\"default\",\"unet_name\":\"flux-2-klein-9b-fp8.safetensors\"},\"_meta\":{\"title\":\"Load Diffusion Model\"}},\"2\":{\"class_type\":\"SamplerCustomAdvanced\",\"inputs\":{\"guider\":[\"4\",0],\"latent_image\":[\"11\",0],\"noise\":[\"3\",0],\"sigmas\":[\"12\",0],\"sampler\":[\"10\",0]},\"_meta\":{\"title\":\"SamplerCustomAdvanced\"}},\"3\":{\"class_type\":\"RandomNoise\",\"inputs\":{\"noise_seed\":325048596610713},\"_meta\":{\"title\":\"RandomNoise\"}},\"4\":{\"class_type\":\"CFGGuider\",\"inputs\":{\"negative\":[\"28\",0],\"cfg\":1,\"model\":[\"1\",0],\"positive\":[\"28\",0]},\"_meta\":{\"title\":\"CFG Guider\"}},\"5\":{\"class_type\":\"VAEDecode\",\"inputs\":{\"vae\":[\"6\",0],\"samples\":[\"2\",0]},\"_meta\":{\"title\":\"VAE Decode\"}},\"6\":{\"class_type\":\"VAELoader\",\"inputs\":{\"vae_name\":\"flux2-vae.safetensors\"},\"_meta\":{\"title\":\"Load VAE\"}},\"7\":{\"class_type\":\"CLIPLoader\",\"inputs\":{\"clip_name\":\"qwen_3_8b.safetensors\",\"type\":\"flux2\",\"device\":\"default\"},\"_meta\":{\"title\":\"Load CLIP\"}},\"8\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":[\"35\",0],\"clip\":[\"7\",0]},\"_meta\":{\"title\":\"CLIP Text Encode (Prompt)\"}},\"9\":{\"class_type\":\"ConditioningZeroOut\",\"inputs\":{\"conditioning\":[\"8\",0]},\"_meta\":{\"title\":\"Conditioning Zero Out\"}},\"40\":{\"class_type\":\"ImageResize+\",\"inputs\":{\"multiple_of\":16,\"image\":[\"13\",0],\"interpolation\":\"bicubic\",\"condition\":\"downscale if bigger\",\"method\":\"keep proportion\",\"width\":1080,\"height\":1920},\"_meta\":{\"title\":\"🔧 Image Resize\"}},\"41\":{\"class_type\":\"ImageResize+\",\"inputs\":{\"multiple_of\":16,\"image\":[\"20\",0],\"interpolation\":\"bicubic\",\"condition\":\"downscale if bigger\",\"method\":\"keep proportion\",\"width\":1920,\"height\":1920},\"_meta\":{\"title\":\"🔧 Image Resize\"}},\"20\":{\"class_type\":\"LoadImage\",\"inputs\":{\"image\":\"a40d305165c1f8e08cbd75c8c467d2fd5345a5083418740e6286498005ddd8c6.jpg\"},\"_meta\":{\"title\":\"Load Image\"}},\"42\":{\"class_type\":\"ImageResize+\",\"inputs\":{\"multiple_of\":16,\"image\":[\"24\",0],\"interpolation\":\"bicubic\",\"condition\":\"downscale if bigger\",\"method\":\"keep proportion\",\"width\":1920,\"height\":1920},\"_meta\":{\"title\":\"🔧 Image Resize\"}}}",
+            "timeoutSeconds": 600,
+            "enabled": true,
+            "remark": "Klein多图分镜（2026-08-24）：描述词35 / 背景13 / 角色道具20·24·48；空槽删除整支并重接CFGGuider(4)；宽高写入40；输出SaveImage(29)。"
+        },
+        {
+            "sourceRowId": "6",
+            "sourceUpdatedAt": "2026-08-24 00:27:46",
+            "workflowCode": "storyboard_dialogue_audio",
+            "workflowName": "分镜台词音频合成",
+            "runninghubWorkflowName": "定稿-indexTTS2多人语音控制-生成音频-CC",
+            "runninghubWorkflowId": "2090436770948272130",
+            "inputSchema": [
+                {
+                    "key": "text",
+                    "type": "string",
+                    "group": "基础参数",
+                    "label": "台词文本",
+                    "order": 1,
+                    "widget": "textarea",
+                    "required": true,
+                    "maxLength": 4000,
+                    "description": "每句台词用 [s1]~[s10] 标号，一行一句；停顿单独写成 -0.6s- 这样的一行，停顿不占用句子槽位",
+                    "placeholder": "例：[s1]早上好　（多句时换行写 [s2]...）",
+                    "sampleValue": "[s1]这么早就到了？看来今天状态不错。"
+                },
+                {
+                    "key": "s1_audio",
+                    "type": "audio_url",
+                    "group": "第 1 句台词",
+                    "label": "第 1 句音色",
+                    "order": 1,
+                    "required": false,
+                    "description": "这句台词用哪个音色来念。上传一段参考人声即可克隆音色",
+                    "sampleValue": "https://aigc-anime.oss-cn-guangzhou.aliyuncs.com/aigc/runninghub/image/20260728/yinpin/uxfad_1785207370.flac",
+                    "uploadPolicy": "AUDIO"
+                },
+                {
+                    "key": "s1_happy",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 1 句台词",
+                    "label": "开心强度",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": 0.5,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s1_sad",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 1 句台词",
+                    "label": "悲伤强度",
+                    "order": 3,
+                    "required": false,
+                    "sampleValue": 0.5,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s1_disgust",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 1 句台词",
+                    "label": "厌恶强度",
+                    "order": 4,
+                    "required": false,
+                    "sampleValue": 0.5,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s1_fear",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 1 句台词",
+                    "label": "恐惧强度",
+                    "order": 5,
+                    "required": false,
+                    "sampleValue": 0.5,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s1_surprise",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 1 句台词",
+                    "label": "惊讶强度",
+                    "order": 6,
+                    "required": false,
+                    "sampleValue": 0.5,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s1_angry",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 1 句台词",
+                    "label": "愤怒强度",
+                    "order": 7,
+                    "required": false,
+                    "sampleValue": 0.5,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s2_audio",
+                    "type": "audio_url",
+                    "group": "第 2 句台词",
+                    "label": "第 2 句音色",
+                    "order": 1,
+                    "required": false,
+                    "description": "不填则该句不生效",
+                    "sampleValue": "",
+                    "uploadPolicy": "AUDIO"
+                },
+                {
+                    "key": "s2_happy",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 2 句台词",
+                    "label": "开心强度",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s2_sad",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 2 句台词",
+                    "label": "悲伤强度",
+                    "order": 3,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s2_disgust",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 2 句台词",
+                    "label": "厌恶强度",
+                    "order": 4,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s2_fear",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 2 句台词",
+                    "label": "恐惧强度",
+                    "order": 5,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s2_surprise",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 2 句台词",
+                    "label": "惊讶强度",
+                    "order": 6,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s2_angry",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 2 句台词",
+                    "label": "愤怒强度",
+                    "order": 7,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s3_audio",
+                    "type": "audio_url",
+                    "group": "第 3 句台词",
+                    "label": "第 3 句音色",
+                    "order": 1,
+                    "required": false,
+                    "description": "不填则该句不生效",
+                    "sampleValue": "",
+                    "uploadPolicy": "AUDIO"
+                },
+                {
+                    "key": "s3_happy",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 3 句台词",
+                    "label": "开心强度",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s3_sad",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 3 句台词",
+                    "label": "悲伤强度",
+                    "order": 3,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s3_disgust",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 3 句台词",
+                    "label": "厌恶强度",
+                    "order": 4,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s3_fear",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 3 句台词",
+                    "label": "恐惧强度",
+                    "order": 5,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s3_surprise",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 3 句台词",
+                    "label": "惊讶强度",
+                    "order": 6,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s3_angry",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 3 句台词",
+                    "label": "愤怒强度",
+                    "order": 7,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s4_audio",
+                    "type": "audio_url",
+                    "group": "第 4 句台词",
+                    "label": "第 4 句音色",
+                    "order": 1,
+                    "required": false,
+                    "description": "不填则该句不生效",
+                    "sampleValue": "",
+                    "uploadPolicy": "AUDIO"
+                },
+                {
+                    "key": "s4_happy",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 4 句台词",
+                    "label": "开心强度",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s4_sad",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 4 句台词",
+                    "label": "悲伤强度",
+                    "order": 3,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s4_disgust",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 4 句台词",
+                    "label": "厌恶强度",
+                    "order": 4,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s4_fear",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 4 句台词",
+                    "label": "恐惧强度",
+                    "order": 5,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s4_surprise",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 4 句台词",
+                    "label": "惊讶强度",
+                    "order": 6,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s4_angry",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 4 句台词",
+                    "label": "愤怒强度",
+                    "order": 7,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s5_audio",
+                    "type": "audio_url",
+                    "group": "第 5 句台词",
+                    "label": "第 5 句音色",
+                    "order": 1,
+                    "required": false,
+                    "description": "不填则该句不生效",
+                    "sampleValue": "",
+                    "uploadPolicy": "AUDIO"
+                },
+                {
+                    "key": "s5_happy",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 5 句台词",
+                    "label": "开心强度",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s5_sad",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 5 句台词",
+                    "label": "悲伤强度",
+                    "order": 3,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s5_disgust",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 5 句台词",
+                    "label": "厌恶强度",
+                    "order": 4,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s5_fear",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 5 句台词",
+                    "label": "恐惧强度",
+                    "order": 5,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s5_surprise",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 5 句台词",
+                    "label": "惊讶强度",
+                    "order": 6,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s5_angry",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 5 句台词",
+                    "label": "愤怒强度",
+                    "order": 7,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s6_audio",
+                    "type": "audio_url",
+                    "group": "第 6 句台词",
+                    "label": "第 6 句音色",
+                    "order": 1,
+                    "required": false,
+                    "description": "不填则该句不生效",
+                    "sampleValue": "",
+                    "uploadPolicy": "AUDIO"
+                },
+                {
+                    "key": "s6_happy",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 6 句台词",
+                    "label": "开心强度",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s6_sad",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 6 句台词",
+                    "label": "悲伤强度",
+                    "order": 3,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s6_disgust",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 6 句台词",
+                    "label": "厌恶强度",
+                    "order": 4,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s6_fear",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 6 句台词",
+                    "label": "恐惧强度",
+                    "order": 5,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s6_surprise",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 6 句台词",
+                    "label": "惊讶强度",
+                    "order": 6,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s6_angry",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 6 句台词",
+                    "label": "愤怒强度",
+                    "order": 7,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s7_audio",
+                    "type": "audio_url",
+                    "group": "第 7 句台词",
+                    "label": "第 7 句音色",
+                    "order": 1,
+                    "required": false,
+                    "description": "不填则该句不生效",
+                    "sampleValue": "",
+                    "uploadPolicy": "AUDIO"
+                },
+                {
+                    "key": "s7_happy",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 7 句台词",
+                    "label": "开心强度",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s7_sad",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 7 句台词",
+                    "label": "悲伤强度",
+                    "order": 3,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s7_disgust",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 7 句台词",
+                    "label": "厌恶强度",
+                    "order": 4,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s7_fear",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 7 句台词",
+                    "label": "恐惧强度",
+                    "order": 5,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s7_surprise",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 7 句台词",
+                    "label": "惊讶强度",
+                    "order": 6,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s7_angry",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 7 句台词",
+                    "label": "愤怒强度",
+                    "order": 7,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s8_audio",
+                    "type": "audio_url",
+                    "group": "第 8 句台词",
+                    "label": "第 8 句音色",
+                    "order": 1,
+                    "required": false,
+                    "description": "不填则该句不生效",
+                    "sampleValue": "",
+                    "uploadPolicy": "AUDIO"
+                },
+                {
+                    "key": "s8_happy",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 8 句台词",
+                    "label": "开心强度",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s8_sad",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 8 句台词",
+                    "label": "悲伤强度",
+                    "order": 3,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s8_disgust",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 8 句台词",
+                    "label": "厌恶强度",
+                    "order": 4,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s8_fear",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 8 句台词",
+                    "label": "恐惧强度",
+                    "order": 5,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s8_surprise",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 8 句台词",
+                    "label": "惊讶强度",
+                    "order": 6,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s8_angry",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 8 句台词",
+                    "label": "愤怒强度",
+                    "order": 7,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s9_audio",
+                    "type": "audio_url",
+                    "group": "第 9 句台词",
+                    "label": "第 9 句音色",
+                    "order": 1,
+                    "required": false,
+                    "description": "不填则该句不生效",
+                    "sampleValue": "",
+                    "uploadPolicy": "AUDIO"
+                },
+                {
+                    "key": "s9_happy",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 9 句台词",
+                    "label": "开心强度",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s9_sad",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 9 句台词",
+                    "label": "悲伤强度",
+                    "order": 3,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s9_disgust",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 9 句台词",
+                    "label": "厌恶强度",
+                    "order": 4,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s9_fear",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 9 句台词",
+                    "label": "恐惧强度",
+                    "order": 5,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s9_surprise",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 9 句台词",
+                    "label": "惊讶强度",
+                    "order": 6,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s9_angry",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 9 句台词",
+                    "label": "愤怒强度",
+                    "order": 7,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s10_audio",
+                    "type": "audio_url",
+                    "group": "第 10 句台词",
+                    "label": "第 10 句音色",
+                    "order": 1,
+                    "required": false,
+                    "description": "不填则该句不生效",
+                    "sampleValue": "",
+                    "uploadPolicy": "AUDIO"
+                },
+                {
+                    "key": "s10_happy",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 10 句台词",
+                    "label": "开心强度",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s10_sad",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 10 句台词",
+                    "label": "悲伤强度",
+                    "order": 3,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s10_disgust",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 10 句台词",
+                    "label": "厌恶强度",
+                    "order": 4,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s10_fear",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 10 句台词",
+                    "label": "恐惧强度",
+                    "order": 5,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s10_surprise",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 10 句台词",
+                    "label": "惊讶强度",
+                    "order": 6,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                },
+                {
+                    "key": "s10_angry",
+                    "max": 1.4,
+                    "min": 0,
+                    "type": "number",
+                    "group": "第 10 句台词",
+                    "label": "愤怒强度",
+                    "order": 7,
+                    "required": false,
+                    "sampleValue": 0,
+                    "defaultValue": 0
+                }
+            ],
+            "nodeMappings": [
+                {
+                    "nodeId": "87",
+                    "source": "INPUT",
+                    "inputKey": "text",
+                    "paramKey": "text",
+                    "required": true,
+                    "fieldName": "text",
+                    "valueType": "STRING",
+                    "description": "合并台词→indexTTSGenerateSimple(87)"
+                },
+                {
+                    "nodeId": "83",
+                    "source": "INPUT",
+                    "inputKey": "s1_audio",
+                    "paramKey": "s1_audio",
+                    "required": false,
+                    "fieldName": "audio",
+                    "valueType": "STRING",
+                    "description": "第1句台词音色文件→LoadAudio(83)"
+                },
+                {
+                    "nodeId": "84",
+                    "source": "INPUT",
+                    "inputKey": "s2_audio",
+                    "paramKey": "s2_audio",
+                    "required": false,
+                    "fieldName": "audio",
+                    "valueType": "STRING",
+                    "description": "第2句台词音色文件→LoadAudio(84)"
+                },
+                {
+                    "nodeId": "92",
+                    "source": "INPUT",
+                    "inputKey": "s3_audio",
+                    "paramKey": "s3_audio",
+                    "required": false,
+                    "fieldName": "audio",
+                    "valueType": "STRING",
+                    "description": "第3句台词音色文件→LoadAudio(92)"
+                },
+                {
+                    "nodeId": "94",
+                    "source": "INPUT",
+                    "inputKey": "s4_audio",
+                    "paramKey": "s4_audio",
+                    "required": false,
+                    "fieldName": "audio",
+                    "valueType": "STRING",
+                    "description": "第4句台词音色文件→LoadAudio(94)"
+                },
+                {
+                    "nodeId": "96",
+                    "source": "INPUT",
+                    "inputKey": "s5_audio",
+                    "paramKey": "s5_audio",
+                    "required": false,
+                    "fieldName": "audio",
+                    "valueType": "STRING",
+                    "description": "第5句台词音色文件→LoadAudio(96)"
+                },
+                {
+                    "nodeId": "101",
+                    "source": "INPUT",
+                    "inputKey": "s6_audio",
+                    "paramKey": "s6_audio",
+                    "required": false,
+                    "fieldName": "audio",
+                    "valueType": "STRING",
+                    "description": "第6句台词音色文件→LoadAudio(101)"
+                },
+                {
+                    "nodeId": "103",
+                    "source": "INPUT",
+                    "inputKey": "s7_audio",
+                    "paramKey": "s7_audio",
+                    "required": false,
+                    "fieldName": "audio",
+                    "valueType": "STRING",
+                    "description": "第7句台词音色文件→LoadAudio(103)"
+                },
+                {
+                    "nodeId": "105",
+                    "source": "INPUT",
+                    "inputKey": "s8_audio",
+                    "paramKey": "s8_audio",
+                    "required": false,
+                    "fieldName": "audio",
+                    "valueType": "STRING",
+                    "description": "第8句台词音色文件→LoadAudio(105)"
+                },
+                {
+                    "nodeId": "107",
+                    "source": "INPUT",
+                    "inputKey": "s9_audio",
+                    "paramKey": "s9_audio",
+                    "required": false,
+                    "fieldName": "audio",
+                    "valueType": "STRING",
+                    "description": "第9句台词音色文件→LoadAudio(107)"
+                },
+                {
+                    "nodeId": "109",
+                    "source": "INPUT",
+                    "inputKey": "s10_audio",
+                    "paramKey": "s10_audio",
+                    "required": false,
+                    "fieldName": "audio",
+                    "valueType": "STRING",
+                    "description": "第10句台词音色文件→LoadAudio(109)"
+                },
+                {
+                    "nodeId": "98",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s1_happy",
+                    "paramKey": "s1_happy",
+                    "fieldName": "Happy",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "98",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s1_sad",
+                    "paramKey": "s1_sad",
+                    "fieldName": "Sad",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "98",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s1_disgust",
+                    "paramKey": "s1_disgust",
+                    "fieldName": "Hate",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "98",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s1_fear",
+                    "paramKey": "s1_fear",
+                    "fieldName": "Fear",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "98",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s1_surprise",
+                    "paramKey": "s1_surprise",
+                    "fieldName": "Surprise",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "98",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s1_angry",
+                    "paramKey": "s1_angry",
+                    "fieldName": "Angry",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "99",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s2_happy",
+                    "paramKey": "s2_happy",
+                    "fieldName": "Happy",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "99",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s2_sad",
+                    "paramKey": "s2_sad",
+                    "fieldName": "Sad",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "99",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s2_disgust",
+                    "paramKey": "s2_disgust",
+                    "fieldName": "Hate",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "99",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s2_fear",
+                    "paramKey": "s2_fear",
+                    "fieldName": "Fear",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "99",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s2_surprise",
+                    "paramKey": "s2_surprise",
+                    "fieldName": "Surprise",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "99",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s2_angry",
+                    "paramKey": "s2_angry",
+                    "fieldName": "Angry",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "93",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s3_happy",
+                    "paramKey": "s3_happy",
+                    "fieldName": "Happy",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "93",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s3_sad",
+                    "paramKey": "s3_sad",
+                    "fieldName": "Sad",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "93",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s3_disgust",
+                    "paramKey": "s3_disgust",
+                    "fieldName": "Hate",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "93",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s3_fear",
+                    "paramKey": "s3_fear",
+                    "fieldName": "Fear",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "93",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s3_surprise",
+                    "paramKey": "s3_surprise",
+                    "fieldName": "Surprise",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "93",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s3_angry",
+                    "paramKey": "s3_angry",
+                    "fieldName": "Angry",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "95",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s4_happy",
+                    "paramKey": "s4_happy",
+                    "fieldName": "Happy",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "95",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s4_sad",
+                    "paramKey": "s4_sad",
+                    "fieldName": "Sad",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "95",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s4_disgust",
+                    "paramKey": "s4_disgust",
+                    "fieldName": "Hate",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "95",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s4_fear",
+                    "paramKey": "s4_fear",
+                    "fieldName": "Fear",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "95",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s4_surprise",
+                    "paramKey": "s4_surprise",
+                    "fieldName": "Surprise",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "95",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s4_angry",
+                    "paramKey": "s4_angry",
+                    "fieldName": "Angry",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "97",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s5_happy",
+                    "paramKey": "s5_happy",
+                    "fieldName": "Happy",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "97",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s5_sad",
+                    "paramKey": "s5_sad",
+                    "fieldName": "Sad",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "97",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s5_disgust",
+                    "paramKey": "s5_disgust",
+                    "fieldName": "Hate",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "97",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s5_fear",
+                    "paramKey": "s5_fear",
+                    "fieldName": "Fear",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "97",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s5_surprise",
+                    "paramKey": "s5_surprise",
+                    "fieldName": "Surprise",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "97",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s5_angry",
+                    "paramKey": "s5_angry",
+                    "fieldName": "Angry",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "100",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s6_happy",
+                    "paramKey": "s6_happy",
+                    "fieldName": "Happy",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "100",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s6_sad",
+                    "paramKey": "s6_sad",
+                    "fieldName": "Sad",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "100",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s6_disgust",
+                    "paramKey": "s6_disgust",
+                    "fieldName": "Hate",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "100",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s6_fear",
+                    "paramKey": "s6_fear",
+                    "fieldName": "Fear",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "100",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s6_surprise",
+                    "paramKey": "s6_surprise",
+                    "fieldName": "Surprise",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "100",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s6_angry",
+                    "paramKey": "s6_angry",
+                    "fieldName": "Angry",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "102",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s7_happy",
+                    "paramKey": "s7_happy",
+                    "fieldName": "Happy",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "102",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s7_sad",
+                    "paramKey": "s7_sad",
+                    "fieldName": "Sad",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "102",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s7_disgust",
+                    "paramKey": "s7_disgust",
+                    "fieldName": "Hate",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "102",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s7_fear",
+                    "paramKey": "s7_fear",
+                    "fieldName": "Fear",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "102",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s7_surprise",
+                    "paramKey": "s7_surprise",
+                    "fieldName": "Surprise",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "102",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s7_angry",
+                    "paramKey": "s7_angry",
+                    "fieldName": "Angry",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "104",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s8_happy",
+                    "paramKey": "s8_happy",
+                    "fieldName": "Happy",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "104",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s8_sad",
+                    "paramKey": "s8_sad",
+                    "fieldName": "Sad",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "104",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s8_disgust",
+                    "paramKey": "s8_disgust",
+                    "fieldName": "Hate",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "104",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s8_fear",
+                    "paramKey": "s8_fear",
+                    "fieldName": "Fear",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "104",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s8_surprise",
+                    "paramKey": "s8_surprise",
+                    "fieldName": "Surprise",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "104",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s8_angry",
+                    "paramKey": "s8_angry",
+                    "fieldName": "Angry",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "106",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s9_happy",
+                    "paramKey": "s9_happy",
+                    "fieldName": "Happy",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "106",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s9_sad",
+                    "paramKey": "s9_sad",
+                    "fieldName": "Sad",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "106",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s9_disgust",
+                    "paramKey": "s9_disgust",
+                    "fieldName": "Hate",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "106",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s9_fear",
+                    "paramKey": "s9_fear",
+                    "fieldName": "Fear",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "106",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s9_surprise",
+                    "paramKey": "s9_surprise",
+                    "fieldName": "Surprise",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "106",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s9_angry",
+                    "paramKey": "s9_angry",
+                    "fieldName": "Angry",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "108",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s10_happy",
+                    "paramKey": "s10_happy",
+                    "fieldName": "Happy",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "108",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s10_sad",
+                    "paramKey": "s10_sad",
+                    "fieldName": "Sad",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "108",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s10_disgust",
+                    "paramKey": "s10_disgust",
+                    "fieldName": "Hate",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "108",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s10_fear",
+                    "paramKey": "s10_fear",
+                    "fieldName": "Fear",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "108",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s10_surprise",
+                    "paramKey": "s10_surprise",
+                    "fieldName": "Surprise",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                },
+                {
+                    "nodeId": "108",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "s10_angry",
+                    "paramKey": "s10_angry",
+                    "fieldName": "Angry",
+                    "valueType": "NUMBER",
+                    "defaultValue": 0
+                }
+            ],
+            "outputMappings": [
+                {
+                    "key": "audioUrl",
+                    "label": "合成音频",
+                    "nodeId": "90",
+                    "required": true,
+                    "assetType": "AUDIO",
+                    "matchMode": "BY_NODE_ID",
+                    "mirrorToOss": true
+                }
+            ],
+            "runtimeOptions": {},
+            "generationSizeOptions": [],
+            "workflowApiJson": "{\"88\":{\"class_type\":\"easy indexTTSEmotionMerge\",\"inputs\":{\"emotion6\":[\"100\",0],\"emotion5\":[\"97\",0],\"emotion4\":[\"95\",0],\"emotion3\":[\"93\",0],\"emotion9\":[\"106\",0],\"emotion8\":[\"104\",0],\"emotion7\":[\"102\",0],\"emotion10\":[\"108\",0],\"emotion2\":[\"99\",0],\"emotion1\":[\"98\",0]},\"_meta\":{\"title\":\"Merge Voice Emotions\"}},\"90\":{\"class_type\":\"SaveAudio\",\"inputs\":{\"filename_prefix\":\"audio/ComfyUI\",\"audio\":[\"87\",0],\"audioUI\":\"\"},\"_meta\":{\"title\":\"Save Audio (FLAC) (DEPRECATED)\"}},\"92\":{\"class_type\":\"LoadAudio\",\"inputs\":{\"audio\":\"0b22f6605789fec8293e63a983f64133d51d59f2e0fd7d3e0d3e710634668fb0.mp3\",\"audioUI\":\"\"},\"_meta\":{\"title\":\"Load Audio\"}},\"93\":{\"class_type\":\"easy indexTTSEmotionVector\",\"inputs\":{\"Fear\":0,\"Neutral\":0,\"use_random\":false,\"Happy\":0.7100000000000002,\"Low\":0,\"Angry\":0,\"Sad\":0,\"Hate\":0,\"voice_name\":\"s3\",\"Surprise\":0,\"reference_audio\":[\"92\",0]},\"_meta\":{\"title\":\"Voice Emotion Vector\"}},\"94\":{\"class_type\":\"LoadAudio\",\"inputs\":{\"audio\":\"b6f83bb25e9877b9e891245b840b26d456ac18e3af6f37d3b7ac59876eb6c0cb.mp3\",\"audioUI\":\"\"},\"_meta\":{\"title\":\"Load Audio\"}},\"95\":{\"class_type\":\"easy indexTTSEmotionVector\",\"inputs\":{\"Fear\":0,\"Neutral\":0,\"use_random\":false,\"Happy\":0,\"Low\":0,\"Angry\":0,\"Sad\":0,\"Hate\":0,\"voice_name\":\"s4\",\"Surprise\":0.7100000000000002,\"reference_audio\":[\"94\",0]},\"_meta\":{\"title\":\"Voice Emotion Vector\"}},\"96\":{\"class_type\":\"LoadAudio\",\"inputs\":{\"audio\":\"None\",\"audioUI\":\"\"},\"_meta\":{\"title\":\"Load Audio\"}},\"97\":{\"class_type\":\"easy indexTTSEmotionVector\",\"inputs\":{\"Fear\":0,\"Neutral\":0,\"use_random\":false,\"Happy\":0,\"Low\":0,\"Angry\":0,\"Sad\":0,\"Hate\":0,\"voice_name\":\"s5\",\"Surprise\":0,\"reference_audio\":[\"96\",0]},\"_meta\":{\"title\":\"Voice Emotion Vector\"}},\"98\":{\"class_type\":\"easy indexTTSEmotionVector\",\"inputs\":{\"Fear\":0,\"Neutral\":0,\"use_random\":false,\"Happy\":0,\"Low\":0,\"Angry\":0,\"Sad\":0,\"Hate\":0,\"voice_name\":\"s1\",\"Surprise\":0,\"reference_audio\":[\"83\",0]},\"_meta\":{\"title\":\"Voice Emotion Vector\"}},\"99\":{\"class_type\":\"easy indexTTSEmotionVector\",\"inputs\":{\"Fear\":0,\"Neutral\":0,\"use_random\":false,\"Happy\":0,\"Low\":0,\"Angry\":0.6400000000000001,\"Sad\":0,\"Hate\":0,\"voice_name\":\"s2\",\"Surprise\":0,\"reference_audio\":[\"84\",0]},\"_meta\":{\"title\":\"Voice Emotion Vector\"}},\"100\":{\"class_type\":\"easy indexTTSEmotionVector\",\"inputs\":{\"Fear\":0,\"Neutral\":0,\"use_random\":false,\"Happy\":0,\"Low\":0,\"Angry\":0,\"Sad\":0,\"Hate\":0,\"voice_name\":\"s6\",\"Surprise\":0,\"reference_audio\":[\"101\",0]},\"_meta\":{\"title\":\"Voice Emotion Vector\"}},\"101\":{\"class_type\":\"LoadAudio\",\"inputs\":{\"audio\":\"None\",\"audioUI\":\"\"},\"_meta\":{\"title\":\"Load Audio\"}},\"102\":{\"class_type\":\"easy indexTTSEmotionVector\",\"inputs\":{\"Fear\":0,\"Neutral\":0,\"use_random\":false,\"Happy\":0,\"Low\":0,\"Angry\":0,\"Sad\":0,\"Hate\":0,\"voice_name\":\"s7\",\"Surprise\":0,\"reference_audio\":[\"103\",0]},\"_meta\":{\"title\":\"Voice Emotion Vector\"}},\"103\":{\"class_type\":\"LoadAudio\",\"inputs\":{\"audio\":\"None\",\"audioUI\":\"\"},\"_meta\":{\"title\":\"Load Audio\"}},\"104\":{\"class_type\":\"easy indexTTSEmotionVector\",\"inputs\":{\"Fear\":0,\"Neutral\":0,\"use_random\":false,\"Happy\":0,\"Low\":0,\"Angry\":0,\"Sad\":0,\"Hate\":0,\"voice_name\":\"s8\",\"Surprise\":0,\"reference_audio\":[\"105\",0]},\"_meta\":{\"title\":\"Voice Emotion Vector\"}},\"105\":{\"class_type\":\"LoadAudio\",\"inputs\":{\"audio\":\"None\",\"audioUI\":\"\"},\"_meta\":{\"title\":\"Load Audio\"}},\"106\":{\"class_type\":\"easy indexTTSEmotionVector\",\"inputs\":{\"Fear\":0,\"Neutral\":0,\"use_random\":false,\"Happy\":0,\"Low\":0,\"Angry\":0,\"Sad\":0,\"Hate\":0,\"voice_name\":\"s9\",\"Surprise\":0,\"reference_audio\":[\"107\",0]},\"_meta\":{\"title\":\"Voice Emotion Vector\"}},\"107\":{\"class_type\":\"LoadAudio\",\"inputs\":{\"audio\":\"None\",\"audioUI\":\"\"},\"_meta\":{\"title\":\"Load Audio\"}},\"108\":{\"class_type\":\"easy indexTTSEmotionVector\",\"inputs\":{\"Fear\":0,\"Neutral\":0,\"use_random\":false,\"Happy\":0,\"Low\":0,\"Angry\":0,\"Sad\":0,\"Hate\":0,\"voice_name\":\"s10\",\"Surprise\":0,\"reference_audio\":[\"109\",0]},\"_meta\":{\"title\":\"Voice Emotion Vector\"}},\"82\":{\"class_type\":\"easy downloadIndexTTSAndLoadModel\",\"inputs\":{\"model\":\"IndexTTS-2\"},\"_meta\":{\"title\":\"IndexTTS Model Loader\"}},\"109\":{\"class_type\":\"LoadAudio\",\"inputs\":{\"audio\":\"None\",\"audioUI\":\"\"},\"_meta\":{\"title\":\"Load Audio\"}},\"83\":{\"class_type\":\"LoadAudio\",\"inputs\":{\"audio\":\"ddd2e353b2acd2f1e5f0a13809c74bf4568a41a1887a3ca73e9eecce73e49158.mp3\",\"audioUI\":\"\"},\"_meta\":{\"title\":\"Load Audio\"}},\"84\":{\"class_type\":\"LoadAudio\",\"inputs\":{\"audio\":\"662fdd734a08ab7d2e271cd30a9d9b58cae2a7fff6831a8d0a4e0508ca95cead.mp3\",\"audioUI\":\"\"},\"_meta\":{\"title\":\"Load Audio\"}},\"86\":{\"class_type\":\"PreviewAudio\",\"inputs\":{\"audio\":[\"87\",0],\"audioUI\":\"\"},\"_meta\":{\"title\":\"Preview Audio\"}},\"87\":{\"class_type\":\"easy indexTTSGenerateSimple\",\"inputs\":{\"indextts_model\":[\"82\",0],\"emotions\":[\"88\",0],\"seed\":4242950412,\"unload_model\":false,\"text\":\"[s1]大哥大姐你们好，你这个工作流怎么用？\\n[s2]这个很简单啊，红色的地方加载音频，上传需要克隆的声音s1和s2\\n-0.8s-\\n[s3]嗖嘎，原来如此简单\"},\"_meta\":{\"title\":\"IndexTTS Generate Simple\"}}}",
+            "timeoutSeconds": 900,
+            "enabled": true,
+            "remark": "IndexTTS2多人语音:有效台词按顺序占s1~s10；每句独立音色(audioUrl上传RunningHub后注入LoadAudio)和6维情绪；停顿不占槽位；输出SaveAudio(90)。"
+        },
+        {
+            "sourceRowId": "7",
+            "sourceUpdatedAt": "2026-08-16 17:35:20",
+            "workflowCode": "storyboard_shot_video",
+            "workflowName": "分镜视频生成",
+            "runninghubWorkflowName": "ZD优化-分镜图+音频生成视频-0721",
+            "runninghubWorkflowId": "2079446871415808002",
+            "inputSchema": [
+                {
+                    "key": "image",
+                    "type": "image_url",
+                    "group": "基础参数",
+                    "label": "分镜图",
+                    "order": 1,
+                    "required": true,
+                    "description": "必填。以这张静态分镜图为首帧生成视频",
+                    "sampleValue": "https://aigc-anime.oss-cn-guangzhou.aliyuncs.com/aigc/runninghub/image/20260811/fenjing/rfrqc_1786417595.png",
+                    "uploadPolicy": "IMAGE"
+                },
+                {
+                    "key": "prompt",
+                    "type": "string",
+                    "group": "基础参数",
+                    "label": "描述词",
+                    "order": 2,
+                    "widget": "textarea",
+                    "required": true,
+                    "maxLength": 4000,
+                    "description": "描述镜头内的动作、运镜与画面变化",
+                    "placeholder": "例：老师在黑板前书写，粉笔灰在光柱中浮动",
+                    "sampleValue": "全景教室，一位成熟知性的女教师立在黑板前，右手持粉笔缓缓书写，长发随动作轻晃；窗外阳光斜射形成光柱，粉笔灰在光柱中缓慢浮动；镜头缓慢推进，气氛安静"
+                },
+                {
+                    "key": "duration",
+                    "max": 30,
+                    "min": 1,
+                    "type": "number",
+                    "group": "基础参数",
+                    "label": "时长（秒）",
+                    "order": 3,
+                    "required": false,
+                    "description": "视频时长（整数秒）。有台词音频时会自动取「本值与音频时长的较大者」",
+                    "sampleValue": 3,
+                    "defaultValue": 6
+                },
+                {
+                    "key": "width",
+                    "max": 4096,
+                    "min": 64,
+                    "type": "number",
+                    "group": "画面尺寸",
+                    "label": "宽",
+                    "order": 1,
+                    "required": false,
+                    "sampleValue": 1280,
+                    "defaultValue": 1280
+                },
+                {
+                    "key": "height",
+                    "max": 4096,
+                    "min": 64,
+                    "type": "number",
+                    "group": "画面尺寸",
+                    "label": "高",
+                    "order": 2,
+                    "required": false,
+                    "sampleValue": 720,
+                    "defaultValue": 720
+                },
+                {
+                    "key": "audioEnabled",
+                    "type": "boolean",
+                    "group": "高级参数",
+                    "label": "启用台词音频",
+                    "order": 1,
+                    "required": false,
+                    "description": "关闭时走无声分支，不注入音频节点；开启后必须提供台词音频",
+                    "sampleValue": false,
+                    "defaultValue": false
+                },
+                {
+                    "key": "audio",
+                    "type": "audio_url",
+                    "group": "高级参数",
+                    "label": "台词音频",
+                    "order": 2,
+                    "required": false,
+                    "description": "仅在「启用台词音频」打开时生效",
+                    "sampleValue": "",
+                    "uploadPolicy": "AUDIO"
+                }
+            ],
+            "nodeMappings": [
+                {
+                    "nodeId": "380",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "audioEnabled",
+                    "paramKey": "audioEnabled",
+                    "required": true,
+                    "fieldName": "value",
+                    "valueType": "BOOLEAN",
+                    "description": "音频开关→PrimitiveBoolean(380)，无音频时false",
+                    "defaultValue": false
+                },
+                {
+                    "nodeId": "386",
+                    "source": "INPUT",
+                    "inputKey": "audio",
+                    "paramKey": "audio",
+                    "required": false,
+                    "fieldName": "audio",
+                    "valueType": "STRING",
+                    "description": "台词音频→LoadAudio(386)，audioEnabled=false时不传"
+                },
+                {
+                    "nodeId": "269",
+                    "source": "INPUT",
+                    "inputKey": "image",
+                    "paramKey": "image",
+                    "required": true,
+                    "fieldName": "image",
+                    "valueType": "STRING",
+                    "description": "分镜图→LoadImage(269)"
+                },
+                {
+                    "nodeId": "373",
+                    "source": "INPUT",
+                    "inputKey": "prompt",
+                    "paramKey": "prompt",
+                    "required": true,
+                    "fieldName": "value",
+                    "valueType": "STRING",
+                    "description": "视频描述词→Prompt(373)"
+                },
+                {
+                    "nodeId": "355",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "duration",
+                    "paramKey": "duration",
+                    "fieldName": "value",
+                    "valueType": "NUMBER",
+                    "description": "视频时长秒(整数)→Duration(355)",
+                    "defaultValue": 6
+                },
+                {
+                    "nodeId": "366",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "width",
+                    "paramKey": "width",
+                    "fieldName": "value",
+                    "valueType": "NUMBER",
+                    "description": "宽→Width(366)",
+                    "defaultValue": 1280
+                },
+                {
+                    "nodeId": "353",
+                    "source": "INPUT_OR_DEFAULT",
+                    "inputKey": "height",
+                    "paramKey": "height",
+                    "fieldName": "value",
+                    "valueType": "NUMBER",
+                    "description": "高→Height(353)",
+                    "defaultValue": 720
+                }
+            ],
+            "outputMappings": [
+                {
+                    "key": "videoUrl",
+                    "label": "分镜视频",
+                    "nodeId": "75",
+                    "required": true,
+                    "assetType": "VIDEO",
+                    "matchMode": "FIRST",
+                    "mirrorToOss": true
+                }
+            ],
+            "runtimeOptions": {},
+            "generationSizeOptions": [],
+            "workflowApiJson": "{\"350\":{\"class_type\":\"LTXVImgToVideoInplace\",\"inputs\":{\"bypass\":false,\"image\":[\"343\",0],\"strength\":0.7,\"latent\":[\"349\",0],\"vae\":[\"370\",2]},\"_meta\":{\"title\":\"LTXVImgToVideoInplace\"}},\"351\":{\"class_type\":\"LTXVAudioVAEDecode\",\"inputs\":{\"audio_vae\":[\"333\",0],\"samples\":[\"363\",1]},\"_meta\":{\"title\":\"LTXV Audio VAE Decode\"}},\"352\":{\"class_type\":\"ComfyMathExpression\",\"inputs\":{\"expression\":\"a\",\"values.a\":[\"354\",0]},\"_meta\":{\"title\":\"Math Expression\"}},\"353\":{\"class_type\":\"PrimitiveInt\",\"inputs\":{\"value\":720},\"_meta\":{\"title\":\"Height\"}},\"354\":{\"class_type\":\"PrimitiveInt\",\"inputs\":{\"value\":25},\"_meta\":{\"title\":\"Frame Rate\"}},\"355\":{\"class_type\":\"PrimitiveInt\",\"inputs\":{\"value\":5},\"_meta\":{\"title\":\"Duration\"}},\"357\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":[\"373\",0],\"clip\":[\"371\",0]},\"_meta\":{\"title\":\"CLIP Text Encode (Prompt)\"}},\"358\":{\"class_type\":\"LTXVConditioning\",\"inputs\":{\"negative\":[\"367\",0],\"positive\":[\"357\",0],\"frame_rate\":[\"352\",0]},\"_meta\":{\"title\":\"LTXVConditioning\"}},\"359\":{\"class_type\":\"LTXVEmptyLatentAudio\",\"inputs\":{\"batch_size\":1,\"frame_rate\":[\"352\",1],\"audio_vae\":[\"333\",0],\"frames_number\":[\"374\",1]},\"_meta\":{\"title\":\"LTXV Empty Latent Audio\"}},\"360\":{\"class_type\":\"ManualSigmas\",\"inputs\":{\"sigmas\":\"1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0\"},\"_meta\":{\"title\":\"ManualSigmas\"}},\"361\":{\"class_type\":\"LTXVSeparateAVLatent\",\"inputs\":{\"av_latent\":[\"337\",0]},\"_meta\":{\"title\":\"LTXVSeparateAVLatent\"}},\"362\":{\"class_type\":\"SamplerCustomAdvanced\",\"inputs\":{\"guider\":[\"336\",0],\"latent_image\":[\"332\",0],\"noise\":[\"330\",0],\"sigmas\":[\"335\",0],\"sampler\":[\"334\",0]},\"_meta\":{\"title\":\"SamplerCustomAdvanced\"}},\"363\":{\"class_type\":\"LTXVSeparateAVLatent\",\"inputs\":{\"av_latent\":[\"362\",0]},\"_meta\":{\"title\":\"LTXVSeparateAVLatent\"}},\"364\":{\"class_type\":\"CreateVideo\",\"inputs\":{\"images\":[\"369\",0],\"fps\":[\"352\",0],\"audio\":[\"351\",0],\"bit_depth\":8},\"_meta\":{\"title\":\"Create Video\"}},\"365\":{\"class_type\":\"LatentUpscaleModelLoader\",\"inputs\":{\"model_name\":\"ltx-2.3-spatial-upscaler-x2-1.1.safetensors\"},\"_meta\":{\"title\":\"Load Latent Upscale Model\"}},\"366\":{\"class_type\":\"PrimitiveInt\",\"inputs\":{\"value\":1280},\"_meta\":{\"title\":\"Width\"}},\"367\":{\"class_type\":\"CLIPTextEncode\",\"inputs\":{\"text\":\"pc game, console game, video game,  childish, ugly，Subtitles\",\"clip\":[\"371\",0]},\"_meta\":{\"title\":\"CLIP Text Encode (Prompt)\"}},\"368\":{\"class_type\":\"CFGGuider\",\"inputs\":{\"negative\":[\"358\",1],\"cfg\":1,\"model\":[\"339\",0],\"positive\":[\"358\",0]},\"_meta\":{\"title\":\"CFG Guider\"}},\"369\":{\"class_type\":\"VAEDecodeTiled\",\"inputs\":{\"overlap\":64,\"tile_size\":768,\"temporal_overlap\":4,\"vae\":[\"370\",2],\"samples\":[\"363\",0],\"temporal_size\":4096},\"_meta\":{\"title\":\"VAE Decode (Tiled)\"}},\"370\":{\"class_type\":\"CheckpointLoaderSimple\",\"inputs\":{\"ckpt_name\":\"ltx-2.3-22b-dev-fp8.safetensors\"},\"_meta\":{\"title\":\"Load Checkpoint\"}},\"371\":{\"class_type\":\"LTXAVTextEncoderLoader\",\"inputs\":{\"ckpt_name\":\"ltx-2.3-22b-dev-fp8.safetensors\",\"text_encoder\":\"gemma_3_12B_it_fp4_mixed.safetensors\",\"device\":\"default\"},\"_meta\":{\"title\":\"Load LTXV Audio Text Encoder\"}},\"372\":{\"class_type\":\"LTXVConcatAVLatent\",\"inputs\":{\"audio_latent\":[\"381\",0],\"video_latent\":[\"350\",0]},\"_meta\":{\"title\":\"LTXVConcatAVLatent\"}},\"373\":{\"class_type\":\"PrimitiveStringMultiline\",\"inputs\":{\"value\":\"以参考图作为首帧，严格保持原图中的教室布局、人物位置、学生校服、课桌椅、自然光线和画面构图一致。\\n\\n中景构图，固定镜头，平拍视角。前景左侧扎低马尾的女生是同学A，前景右侧扎高马尾的女生是同学B，背景中央是刚刚站起来的陆燃。陆燃背对镜头、低头站立，身影清晰可见，姿态懒散，全程保持安静。\\n\\n同学A先侧头看向邻座的同学B，身体略微靠近，嘴角挂着一丝窃笑，眼神带着戏谑，用压低的中文声音小声说：“又走神画他的鬼画符呢。”同学A的嘴型与台词准确同步。说完后，同学A闭上嘴，等待同学B回应。\\n\\n随后同学B凑近同学A，眼神略带同情又夹杂嘲讽，用压低的中文声音回应：“妄想症晚期，没救了。”同学B的嘴型与台词准确同步。两句台词严格按照先后顺序说出，两人不同时开口，声音轻而清晰，像是在偷偷议论陆燃。\"},\"_meta\":{\"title\":\"Prompt\"}},\"330\":{\"class_type\":\"RandomNoise\",\"inputs\":{\"noise_seed\":42},\"_meta\":{\"title\":\"RandomNoise\"}},\"374\":{\"class_type\":\"ComfyMathExpression\",\"inputs\":{\"expression\":\"a * b + 1\",\"values.b\":[\"354\",0],\"values.a\":[\"355\",0]},\"_meta\":{\"title\":\"Math Expression (length)\"}},\"331\":{\"class_type\":\"RandomNoise\",\"inputs\":{\"noise_seed\":360376379855542},\"_meta\":{\"title\":\"RandomNoise\"}},\"332\":{\"class_type\":\"LTXVConcatAVLatent\",\"inputs\":{\"audio_latent\":[\"361\",1],\"video_latent\":[\"342\",0]},\"_meta\":{\"title\":\"LTXVConcatAVLatent\"}},\"333\":{\"class_type\":\"LTXVAudioVAELoader\",\"inputs\":{\"ckpt_name\":\"ltx-2.3-22b-dev-fp8.safetensors\"},\"_meta\":{\"title\":\"Load LTXV Audio VAE\"}},\"334\":{\"class_type\":\"KSamplerSelect\",\"inputs\":{\"sampler_name\":\"euler\"},\"_meta\":{\"title\":\"KSamplerSelect\"}},\"335\":{\"class_type\":\"ManualSigmas\",\"inputs\":{\"sigmas\":\"0.85, 0.7250, 0.4219, 0.0\"},\"_meta\":{\"title\":\"ManualSigmas\"}},\"336\":{\"class_type\":\"CFGGuider\",\"inputs\":{\"negative\":[\"338\",1],\"cfg\":1,\"model\":[\"339\",0],\"positive\":[\"338\",0]},\"_meta\":{\"title\":\"CFG Guider\"}},\"337\":{\"class_type\":\"SamplerCustomAdvanced\",\"inputs\":{\"guider\":[\"368\",0],\"latent_image\":[\"372\",0],\"noise\":[\"331\",0],\"sigmas\":[\"360\",0],\"sampler\":[\"345\",0]},\"_meta\":{\"title\":\"SamplerCustomAdvanced\"}},\"338\":{\"class_type\":\"LTXVCropGuides\",\"inputs\":{\"negative\":[\"358\",1],\"latent\":[\"361\",0],\"positive\":[\"358\",0]},\"_meta\":{\"title\":\"LTXVCropGuides\"}},\"339\":{\"class_type\":\"LoraLoaderModelOnly\",\"inputs\":{\"lora_name\":\"ltx_2.3_22b_distilled_1.1_lora_dynamic_fro09_avg_rank_111_bf16.safetensors\",\"strength_model\":0.5,\"model\":[\"370\",0]},\"_meta\":{\"title\":\"Load LoRA\"}},\"75\":{\"class_type\":\"SaveVideo\",\"inputs\":{\"codec\":\"auto\",\"filename_prefix\":\"video/LTX_2.3_i2v\",\"fw_video_preview\":\"\",\"format\":\"auto\",\"video\":[\"364\",0]},\"_meta\":{\"title\":\"💾 Save Video\"}},\"380\":{\"class_type\":\"PrimitiveBoolean\",\"inputs\":{\"value\":false},\"_meta\":{\"title\":\"音频开关\"}},\"381\":{\"class_type\":\"ComfySwitchNode\",\"inputs\":{\"on_false\":[\"359\",0],\"on_true\":[\"382\",0],\"switch\":[\"380\",0]},\"_meta\":{\"title\":\"If/Else Switch\"}},\"382\":{\"class_type\":\"SetLatentNoiseMask\",\"inputs\":{\"samples\":[\"383\",0],\"mask\":[\"384\",0]},\"_meta\":{\"title\":\"Set Latent Noise Mask\"}},\"383\":{\"class_type\":\"LTXVAudioVAEEncode\",\"inputs\":{\"audio\":[\"385\",0],\"audio_vae\":[\"333\",0]},\"_meta\":{\"title\":\"LTXV Audio VAE Encode\"}},\"340\":{\"class_type\":\"ResizeImagesByLongerEdge\",\"inputs\":{\"images\":[\"344\",0],\"longer_edge\":1536},\"_meta\":{\"title\":\"Resize Images by Longer Edge (DEPRECATED)\"}},\"384\":{\"class_type\":\"SolidMask\",\"inputs\":{\"width\":[\"366\",0],\"value\":0,\"height\":[\"353\",0]},\"_meta\":{\"title\":\"Create Solid Mask\"}},\"341\":{\"class_type\":\"LTXVLatentUpsampler\",\"inputs\":{\"upscale_model\":[\"365\",0],\"vae\":[\"370\",2],\"samples\":[\"361\",0]},\"_meta\":{\"title\":\"LTXVLatentUpsampler\"}},\"385\":{\"class_type\":\"TrimAudioDuration\",\"inputs\":{\"duration\":60,\"start_index\":0,\"audio\":[\"386\",0]},\"_meta\":{\"title\":\"Trim Audio Duration\"}},\"342\":{\"class_type\":\"LTXVImgToVideoInplace\",\"inputs\":{\"bypass\":false,\"image\":[\"343\",0],\"strength\":1,\"latent\":[\"341\",0],\"vae\":[\"370\",2]},\"_meta\":{\"title\":\"LTXVImgToVideoInplace\"}},\"386\":{\"class_type\":\"LoadAudio\",\"inputs\":{\"audio\":\"1ee2c36864e5c1ecf5d85c276eb2d009d835a9fe43edff6a43aca453811679b3.wav\",\"audioUI\":\"\"},\"_meta\":{\"title\":\"Load Audio\"}},\"343\":{\"class_type\":\"LTXVPreprocess\",\"inputs\":{\"img_compression\":18,\"image\":[\"340\",0]},\"_meta\":{\"title\":\"LTXV Preprocess\"}},\"344\":{\"class_type\":\"ResizeImageMaskNode\",\"inputs\":{\"input\":[\"269\",0],\"resize_type.height\":[\"353\",0],\"resize_type\":\"scale dimensions\",\"resize_type.width\":[\"366\",0],\"scale_method\":\"lanczos\",\"resize_type.crop\":\"center\"},\"_meta\":{\"title\":\"Resize Image/Mask\"}},\"345\":{\"class_type\":\"KSamplerSelect\",\"inputs\":{\"sampler_name\":\"euler\"},\"_meta\":{\"title\":\"KSamplerSelect\"}},\"269\":{\"class_type\":\"LoadImage\",\"inputs\":{\"image\":\"a75be63cc3706a088c5116ad55f796d59c7b7c8dadc2e6bc1db79ab386a05a7b.png\"},\"_meta\":{\"title\":\"Load Image\"}},\"346\":{\"class_type\":\"ComfyMathExpression\",\"inputs\":{\"expression\":\"a/2\",\"values.a\":[\"366\",0]},\"_meta\":{\"title\":\"Math Expression\"}},\"348\":{\"class_type\":\"ComfyMathExpression\",\"inputs\":{\"expression\":\"a/2\",\"values.a\":[\"353\",0]},\"_meta\":{\"title\":\"Math Expression\"}},\"349\":{\"class_type\":\"EmptyLTXVLatentVideo\",\"inputs\":{\"batch_size\":1,\"width\":[\"346\",1],\"length\":[\"374\",1],\"height\":[\"348\",1]},\"_meta\":{\"title\":\"EmptyLTXVLatentVideo\"}}}",
+            "timeoutSeconds": 1800,
+            "enabled": true,
+            "remark": "LTX2.3图+音频生视频:节点380音频开关/386台词音频(可选,上传RunningHub)/269分镜图/373视频描述词/355时长(整数)/366宽/353高,输出SaveVideo(75)镜像OSS"
+        }
+    ]
+}

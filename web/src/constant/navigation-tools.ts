@@ -1,6 +1,7 @@
 import { BookMarked, Clapperboard, Compass, FileText, FlaskConical, GalleryVerticalEnd, GraduationCap, Images, Library, Maximize2, Presentation, School, Sparkles, UserRound } from "lucide-react";
 
 import type { SchoolContext } from "@/lib/school-domain";
+import { featureModuleForNavigationSlug, type FeatureModuleSettings } from "@/lib/feature-modules";
 
 export const navigationGroups = [
     { id: "create", label: "创作" },
@@ -171,14 +172,17 @@ export function schoolNavigationTools(context: SchoolContext | null) {
 export type NavigationToolSlug = (typeof navigationTools)[number]["slug"] | "learning" | "teaching" | "practice" | "school" | "drama-lab";
 export type NavigationGroupId = (typeof navigationGroups)[number]["id"];
 
-export function navigationToolsForContext(context: SchoolContext | null = null, options: { includeDramaWorkflowLab?: boolean } = {}) {
+export function navigationToolsForContext(context: SchoolContext | null = null, options: { featureModules?: FeatureModuleSettings; includeDramaWorkflowLab?: boolean } = {}) {
     const schoolTools = schoolNavigationTools(context);
     // 默认包含短剧实验室（如果环境变量启用）
-    const includeLab = options.includeDramaWorkflowLab !== false;
-    return [...navigationTools, ...(includeLab ? [dramaWorkflowLabNavigationTool] : []), ...(schoolTools.length ? [practiceNavigationTool] : []), ...schoolTools];
+    const candidates = [...navigationTools, ...(options.includeDramaWorkflowLab === false ? [] : [dramaWorkflowLabNavigationTool]), ...(schoolTools.length ? [practiceNavigationTool] : []), ...schoolTools];
+    return candidates.filter((tool) => {
+        const featureModule = featureModuleForNavigationSlug(tool.slug);
+        return !featureModule || options.featureModules?.[featureModule] !== false;
+    });
 }
 
-export function navigationToolForPathname(pathname: string, context: SchoolContext | null = null, options: { includeDramaWorkflowLab?: boolean } = {}) {
+export function navigationToolForPathname(pathname: string, context: SchoolContext | null = null, options: { featureModules?: FeatureModuleSettings; includeDramaWorkflowLab?: boolean } = {}) {
     const slug = pathname.split("/").filter(Boolean)[0];
     return navigationToolsForContext(context, options).find((tool) => tool.slug === slug);
 }

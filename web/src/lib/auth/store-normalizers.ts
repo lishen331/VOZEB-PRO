@@ -5,6 +5,7 @@ import { decryptSecretValue, encryptSecretValue, isEncryptedSecretValue } from "
 import { ECOMMERCE_IMAGE_SKILL } from "@/lib/server/agent-skills/ecommerce-image";
 import { YANAI_BEAUTY_SKILL } from "@/lib/server/agent-skills/yanai-beauty";
 import { DEFAULT_CREATIVE_SHORTCUT_SKILLS } from "@/lib/server/agent-skills/creative-shortcuts";
+import { normalizeFeatureModuleSettings } from "@/lib/feature-modules";
 import { deriveLogicalModelsConfig, normalizeDefaultModelsConfig, normalizeLogicalModelsConfig } from "@/lib/model-routing-config";
 import { applyChannelProtocol } from "@/lib/channel-protocol-registry";
 import { resolveConfiguredModelPointCost } from "@/lib/model-point-cost";
@@ -262,6 +263,7 @@ export function normalizeSettings(settings: AuthSettings): AuthSettings {
         practiceDefaultModels: normalizeDefaultModelsConfig(settings.practiceDefaultModels, logicalModels, systemChannels, "open-source-practice", { allowFallback: false }),
         practiceWorkflowModels: normalizePracticeWorkflowModels(settings.practiceWorkflowModels),
         agentSkills: normalizeAgentSkills(settings.agentSkills),
+        featureModules: normalizeFeatureModuleSettings(settings.featureModules),
     };
 }
 
@@ -316,6 +318,16 @@ export function normalizeAgentSkill(skill: AgentSkill): AgentSkill {
                   .slice(0, 30)
             : [],
         workspaces: Array.isArray(skill.workspaces) ? skill.workspaces.filter((item): item is "image" | "video" | "canvas" | "drama" => ["image", "video", "canvas", "drama"].includes(item)) : ["image"],
+        ...(Array.isArray(skill.capabilities)
+            ? {
+                  capabilities: skill.capabilities
+                      .map((capability) => ({
+                          inputs: Array.isArray(capability?.inputs) ? capability.inputs.filter((item): item is "text" | "image" | "video" | "audio" => ["text", "image", "video", "audio"].includes(item)).slice(0, 4) : [],
+                          outputs: Array.isArray(capability?.outputs) ? capability.outputs.filter((item): item is "text" | "image" | "video" | "audio" => ["text", "image", "video", "audio"].includes(item)).slice(0, 4) : [],
+                      }))
+                      .filter((capability) => capability.inputs.length > 0 && capability.outputs.length > 0),
+              }
+            : {}),
         action: skill.action === "edit" ? "edit" : "generate",
         requiresReference: Boolean(skill.requiresReference),
         defaultConfig: skill.defaultConfig && typeof skill.defaultConfig === "object" ? skill.defaultConfig : {},

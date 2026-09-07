@@ -795,6 +795,8 @@ export async function linkStoredGenerationTask(type: GenerationTaskType, id: str
     if (!context.executionProfile) delete linkedContext.executionProfile;
     if (!context.workflowKey) delete linkedContext.workflowKey;
     if (context.workflowVersion === undefined) delete linkedContext.workflowVersion;
+    if (!context.workflowCode) delete linkedContext.workflowCode;
+    if (context.workflowAdapterVersion === undefined) delete linkedContext.workflowAdapterVersion;
     if (!context.upstreamWorkflowId) delete linkedContext.upstreamWorkflowId;
     if (!context.businessCode) delete linkedContext.businessCode;
     if (!context.taskOrigin) delete linkedContext.taskOrigin;
@@ -806,8 +808,9 @@ export async function linkStoredGenerationTask(type: GenerationTaskType, id: str
                  project_id = COALESCE($6, project_id), parent_task_id = COALESCE($7, parent_task_id), attempt_no = COALESCE($8, attempt_no),
                  client_request_id = COALESCE($9, client_request_id),
                  workflow_key = COALESCE($11, workflow_key), workflow_version = COALESCE($12, workflow_version),
-                 upstream_workflow_id = COALESCE($13, upstream_workflow_id), business_code = COALESCE($14, business_code),
-                 task_origin = COALESCE($15, task_origin), payload = payload || $10::jsonb
+                 upstream_workflow_id = COALESCE($13, upstream_workflow_id), workflow_code = COALESCE($14, workflow_code),
+                 workflow_adapter_version = COALESCE($15, workflow_adapter_version), business_code = COALESCE($16, business_code),
+                 task_origin = COALESCE($17, task_origin), payload = payload || $10::jsonb
              WHERE id = $1 AND task_type = $2`,
             [
                 id,
@@ -823,6 +826,8 @@ export async function linkStoredGenerationTask(type: GenerationTaskType, id: str
                 normalized.workflowKey || null,
                 normalized.workflowVersion ?? null,
                 normalized.upstreamWorkflowId || null,
+                normalized.workflowCode || null,
+                normalized.workflowAdapterVersion ?? null,
                 normalized.businessCode || null,
                 context.taskOrigin || null,
             ],
@@ -964,9 +969,9 @@ async function upsertTask<T extends { id: string; userId: string; status: string
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
                 conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
-                workflow_key, workflow_version, upstream_workflow_id, business_code, task_origin
+                workflow_key, workflow_version, upstream_workflow_id, workflow_code, workflow_adapter_version, business_code, task_origin
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
              ON CONFLICT (id) DO UPDATE SET
                 status = EXCLUDED.status, payload = jsonb_set(EXCLUDED.payload, '{executionProfile}', to_jsonb(generation_tasks.execution_profile), true), updated_at = EXCLUDED.updated_at, expires_at = EXCLUDED.expires_at,
                 conversation_id = COALESCE(EXCLUDED.conversation_id, generation_tasks.conversation_id),
@@ -974,7 +979,7 @@ async function upsertTask<T extends { id: string; userId: string; status: string
                 project_id = COALESCE(EXCLUDED.project_id, generation_tasks.project_id), parent_task_id = COALESCE(EXCLUDED.parent_task_id, generation_tasks.parent_task_id),
                 attempt_no = COALESCE(EXCLUDED.attempt_no, generation_tasks.attempt_no), client_request_id = COALESCE(EXCLUDED.client_request_id, generation_tasks.client_request_id), execution_profile = generation_tasks.execution_profile,
                 workflow_key = COALESCE(EXCLUDED.workflow_key, generation_tasks.workflow_key), workflow_version = COALESCE(EXCLUDED.workflow_version, generation_tasks.workflow_version),
-                upstream_workflow_id = COALESCE(EXCLUDED.upstream_workflow_id, generation_tasks.upstream_workflow_id), business_code = COALESCE(EXCLUDED.business_code, generation_tasks.business_code),
+                upstream_workflow_id = COALESCE(EXCLUDED.upstream_workflow_id, generation_tasks.upstream_workflow_id), workflow_code = COALESCE(EXCLUDED.workflow_code, generation_tasks.workflow_code), workflow_adapter_version = COALESCE(EXCLUDED.workflow_adapter_version, generation_tasks.workflow_adapter_version), business_code = COALESCE(EXCLUDED.business_code, generation_tasks.business_code),
                 task_origin = COALESCE(EXCLUDED.task_origin, generation_tasks.task_origin)`,
             [
                 task.id,
@@ -996,6 +1001,8 @@ async function upsertTask<T extends { id: string; userId: string; status: string
                 context.workflowKey || null,
                 context.workflowVersion ?? null,
                 context.upstreamWorkflowId || null,
+                context.workflowCode || null,
+                context.workflowAdapterVersion ?? null,
                 context.businessCode || null,
                 context.taskOrigin,
             ],
@@ -1030,9 +1037,9 @@ async function insertTask<T extends { id: string; userId: string; status: string
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
                 conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
-                workflow_key, workflow_version, upstream_workflow_id, business_code, task_origin
+                workflow_key, workflow_version, upstream_workflow_id, workflow_code, workflow_adapter_version, business_code, task_origin
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
              ON CONFLICT DO NOTHING
              RETURNING payload`,
             values,
@@ -1082,6 +1089,8 @@ function taskValues<T extends { id: string; userId: string; createdAt: number; u
         context.workflowKey || null,
         context.workflowVersion ?? null,
         context.upstreamWorkflowId || null,
+        context.workflowCode || null,
+        context.workflowAdapterVersion ?? null,
         context.businessCode || null,
         context.taskOrigin,
     ];
@@ -1138,6 +1147,8 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         workflowVersion: Number.isSafeInteger(workflowVersion) && workflowVersion > 0 ? workflowVersion : undefined,
         upstreamWorkflowId: cleanContextText(context.upstreamWorkflowId),
         workflowConfigFingerprint: cleanContextText(context.workflowConfigFingerprint),
+        workflowCode: cleanContextText(context.workflowCode),
+        workflowAdapterVersion: Number.isSafeInteger(Number(context.workflowAdapterVersion)) && Number(context.workflowAdapterVersion) > 0 ? Number(context.workflowAdapterVersion) : undefined,
         businessCode,
         taskOrigin: context.taskOrigin === "admin-workflow-test" ? "admin-workflow-test" : "user",
     };
@@ -1166,6 +1177,8 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         workflowVersion: next.workflowVersion ?? previous?.workflowVersion,
         upstreamWorkflowId: next.upstreamWorkflowId || previous?.upstreamWorkflowId,
         workflowConfigFingerprint: next.workflowConfigFingerprint || previous?.workflowConfigFingerprint,
+        workflowCode: next.workflowCode || previous?.workflowCode,
+        workflowAdapterVersion: next.workflowAdapterVersion ?? previous?.workflowAdapterVersion,
         businessCode: next.businessCode || previous?.businessCode,
         taskOrigin: next.taskOrigin || previous?.taskOrigin || "user",
         executionProfile: previous?.executionProfile || next.executionProfile || "production",
@@ -1287,6 +1300,8 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         workflowVersion: positiveWorkflowVersion(row.workflow_version ?? payload.workflowVersion),
         upstreamWorkflowId: cleanContextText(String(row.upstream_workflow_id || payload.upstreamWorkflowId || "")),
         workflowConfigFingerprint: cleanContextText(String(payload.workflowConfigFingerprint || "")),
+        workflowCode: cleanContextText(String(row.workflow_code || payload.workflowCode || "")),
+        workflowAdapterVersion: positiveWorkflowVersion(row.workflow_adapter_version ?? payload.workflowAdapterVersion),
         businessCode: isRunningHubWorkflowBusinessCode(workflowBusinessCode) ? workflowBusinessCode : undefined,
         taskOrigin: row.task_origin === "admin-workflow-test" || payload.taskOrigin === "admin-workflow-test" ? "admin-workflow-test" : "user",
         executionPhase,
@@ -1500,7 +1515,7 @@ function normalizeContextIpReferences(value: unknown) {
         const reference = normalizeIpReference(item);
         return reference ? [reference] : [];
     });
-    const unique = [...new Map(references.map((reference) => [`${reference.id}\0${reference.versionId}\0${reference.itemIds.join("\0")}`, reference])).values()];
+    const unique = [...new Map(references.map((reference) => [`${reference.id}\0${reference.subIpId}\0${reference.itemIds.join("\0")}`, reference])).values()];
     return unique.length ? unique : undefined;
 }
 

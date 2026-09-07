@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Alert, Button, Form, Input, InputNumber, Modal, Segmented, Select, Space, Switch } from "antd";
+import { Alert, Button, Checkbox, Form, Input, InputNumber, Modal, Segmented, Select, Space, Switch } from "antd";
 import { Download, GitBranch, PencilLine } from "lucide-react";
 import { nanoid } from "nanoid";
 
@@ -27,6 +27,7 @@ type SkillFormValues = {
     quality: string;
     count: number;
     videoSeconds: number;
+    capabilities: string[];
 };
 
 const workspaceOptions = [
@@ -34,6 +35,18 @@ const workspaceOptions = [
     { value: "video", label: "视频创作" },
     { value: "canvas", label: "画布" },
     { value: "drama", label: "短剧项目" },
+];
+
+const capabilityOptions = [
+    { label: "文字 → 图片", value: "text->image" },
+    { label: "图片 + 文字 → 图片", value: "image+text->image" },
+    { label: "文字 → 视频", value: "text->video" },
+    { label: "图片 + 文字 → 视频", value: "image+text->video" },
+    { label: "图片 + 视频 → 文本分析", value: "image+video+text->text" },
+    { label: "图片 → 文本分析", value: "image->text" },
+    { label: "视频 → 文本分析", value: "video->text" },
+    { label: "文字 → 音频", value: "text->audio" },
+    { label: "文字 + 音频 → 文本分析", value: "audio+text->text" },
 ];
 
 export function AgentSkillCreateModal({ open, existingSkills, onClose, onCreate }: AgentSkillCreateModalProps) {
@@ -54,7 +67,20 @@ export function AgentSkillCreateModal({ open, existingSkills, onClose, onCreate 
         setSelectedPath("");
         setImportedSkill(undefined);
         setImportError("");
-        form.setFieldsValue({ name: "", description: "", instructions: "", keywords: "", workspaces: ["image"], action: "generate", requiresReference: false, size: "", quality: "", count: 1, videoSeconds: 5 });
+        form.setFieldsValue({
+            name: "",
+            description: "",
+            instructions: "",
+            keywords: "",
+            workspaces: ["image"],
+            action: "generate",
+            requiresReference: false,
+            size: "",
+            quality: "",
+            count: 1,
+            videoSeconds: 5,
+            capabilities: ["text->image", "image+text->image"],
+        });
     }, [form, open]);
 
     const extract = async () => {
@@ -107,6 +133,7 @@ export function AgentSkillCreateModal({ open, existingSkills, onClose, onCreate 
                 workspaces: values.workspaces?.length ? values.workspaces : ["image"],
                 action: values.action || "generate",
                 requiresReference: Boolean(values.requiresReference),
+                capabilities: values.capabilities?.map(parseCapabilitySelection).filter((value): value is NonNullable<AgentSkill["capabilities"]>[number] => Boolean(value)),
                 defaultConfig,
                 sourceUrl: importedSkill?.sourceUrl,
                 sourceRepository: importedSkill?.repository,
@@ -223,6 +250,9 @@ export function AgentSkillCreateModal({ open, existingSkills, onClose, onCreate 
                             <Input placeholder="用逗号分隔，例如：海报, 电商" />
                         </Form.Item>
                     </div>
+                    <Form.Item label="输入与输出能力" name="capabilities" extra="同一个 Skill 可以同时支持多种组合；附件只是输入，不会自动决定输出类型。">
+                        <Checkbox.Group options={capabilityOptions} className="grid gap-2 sm:grid-cols-2" />
+                    </Form.Item>
                     <Form.Item label="用途说明" name="description">
                         <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} maxLength={240} placeholder="说明这个 Skill 适合处理什么任务" />
                     </Form.Item>
@@ -289,7 +319,19 @@ function valuesFromSkill(skill: ImportedAgentSkill): SkillFormValues {
         quality: String(skill.defaultConfig?.quality || skill.defaultConfig?.vquality || ""),
         count: Number(skill.defaultConfig?.count || 1),
         videoSeconds: Number(skill.defaultConfig?.videoSeconds || 5),
+        capabilities: (skill.capabilities || []).map(formatCapabilitySelection),
     };
+}
+
+function parseCapabilitySelection(value: string) {
+    const [inputText, output] = value.split("->");
+    if (!inputText || !output || !["text", "image", "video", "audio"].includes(output)) return undefined;
+    const inputs = inputText.split("+").filter((item): item is "text" | "image" | "video" | "audio" => ["text", "image", "video", "audio"].includes(item));
+    return inputs.length ? { inputs, outputs: [output as "text" | "image" | "video" | "audio"] } : undefined;
+}
+
+function formatCapabilitySelection(value: NonNullable<AgentSkill["capabilities"]>[number]) {
+    return `${value.inputs.join("+")}->${value.outputs[0] || "text"}`;
 }
 
 function uniqueId(base: string, skills: AgentSkill[]) {

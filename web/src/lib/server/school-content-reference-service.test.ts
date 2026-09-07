@@ -43,28 +43,24 @@ describe("validateSchoolContentReferences", () => {
             detail: {
                 id: "ip-a",
                 title: "星海计划",
-                version: {
-                    id: "version-a",
-                    title: "星海计划 v1",
-                    items: [{ id: "ip-item-a" }],
-                },
             },
+            subIp: { id: "child-a", title: "星海计划主线", items: [{ id: "ip-item-a" }] },
             userId: "user-a",
             schoolId: "school-a",
         });
     });
 
-    it("validates IP version items and returns only a lightweight reference preview", async () => {
-        const reference = { type: "ip", id: "ip-a", versionId: "version-a", itemIds: ["ip-item-a"] };
+    it("validates child IP items and returns only a lightweight reference preview", async () => {
+        const reference = { type: "ip", id: "ip-a", subIpId: "child-a", itemIds: ["ip-item-a"] };
 
-        await expect(validateSchoolContentReferences({ userId: "user-a", schoolId: "school-a", references: [reference] })).resolves.toEqual([{ reference, title: "星海计划 v1" }]);
-        expect(mocks.requireVisibleIp).toHaveBeenCalledWith("user-a", "ip-a", "version-a", ["ip-item-a"]);
+        await expect(validateSchoolContentReferences({ userId: "user-a", schoolId: "school-a", references: [reference] })).resolves.toEqual([{ reference, title: "星海计划主线" }]);
+        expect(mocks.requireVisibleIp).toHaveBeenCalledWith("user-a", "ip-a", "child-a", ["ip-item-a"]);
     });
 
-    it("maps unauthorized IP versions and cross-version items to a tenant-safe 404", async () => {
-        mocks.requireVisibleIp.mockRejectedValue(Object.assign(new Error("IP 内容项不存在或不属于当前版本"), { status: 403 }));
+    it("maps unauthorized child IP items to a tenant-safe 404", async () => {
+        mocks.requireVisibleIp.mockRejectedValue(Object.assign(new Error("IP 内容项不存在或不属于当前子 IP"), { status: 403 }));
 
-        await expect(validateSchoolContentReferences({ userId: "user-a", schoolId: "school-a", references: [{ type: "ip", id: "ip-a", versionId: "version-b", itemIds: ["item-other"] }] })).rejects.toMatchObject({ status: 404 });
+        await expect(validateSchoolContentReferences({ userId: "user-a", schoolId: "school-a", references: [{ type: "ip", id: "ip-a", subIpId: "child-b", itemIds: ["item-other"] }] })).rejects.toMatchObject({ status: 404 });
     });
 
     it("validates all five owner-scoped reference types and returns lightweight previews", async () => {

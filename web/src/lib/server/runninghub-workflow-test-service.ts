@@ -53,7 +53,7 @@ export async function inspectRunningHubWorkflowTest(input: { workflowKey: string
     const config = record.workflowConfig;
     const channel = await getWorkflowChannel(config.channelId);
     if (!record.taskId) return publicTest(record);
-    if (["success", "error", "cancelled"].includes(record.status)) return publicTest(record);
+    if (record.status === "success" || record.status === "cancelled" || (record.status === "error" && !isRetryableQueryError(record.error))) return publicTest(record);
     try {
         const result = await queryRunningHubTask({ baseUrl: channel.baseUrl, apiKey: channel.apiKey || "", config, taskId: record.taskId });
         const status = normalizeUpstreamStatus(result);
@@ -65,7 +65,8 @@ export async function inspectRunningHubWorkflowTest(input: { workflowKey: string
             ...(result.resultUrls ? { resultUrls: result.resultUrls } : {}),
             ...(result.resultText ? { resultText: result.resultText } : {}),
             ...(result.outputs ? { outputs: result.outputs } : {}),
-            ...(status === "error" ? { error: result.status || "RunningHub 工作流失败" } : {}),
+            ...(result.querySummary ? { querySummary: result.querySummary } : {}),
+            ...(status === "error" ? { error: result.querySummary?.upstreamError || (isSuccessfulStatus(result.status) ? "RunningHub 查询成功但未返回匹配的输出产物" : result.status || "RunningHub 工作流失败") } : { error: undefined }),
             durationMs: Date.now() - record.createdAt,
         };
         const saved = await updateAdminWorkflowTest(next);
@@ -96,8 +97,16 @@ function normalizeUpstreamStatus(result: { status: string; resultUrl?: string; r
     const normalized = result.status.trim().toLowerCase();
     if (["failed", "failure", "error", "cancelled", "canceled"].includes(normalized)) return "error";
     if (["pending", "queued", "running", "processing", "in_progress", "created", "submitted"].includes(normalized)) return "running";
-    if (result.resultUrl || result.resultUrls?.length || result.resultText || result.outputs?.length || ["success", "succeeded", "completed", "done", "finished"].includes(normalized)) return "success";
+    if (result.resultUrl || result.resultUrls?.length || result.resultText || result.outputs?.length) return "success";
+    if (isSuccessfulStatus(result.status)) return "error";
     return "running";
+}
+
+function isRetryableQueryError(error: string | undefined) {
+    return Boolean(error && /RunningHub 查询响应|RunningHub 请求失败|RunningHub 网络|RunningHub 请求超时/.test(error));
+}
+function isSuccessfulStatus(status: string) {
+    return ["success", "succeeded", "completed", "done", "finished"].includes(status.trim().toLowerCase());
 }
 
 function publicTest(record: AdminWorkflowTestRecord) {
@@ -114,6 +123,7 @@ function publicTest(record: AdminWorkflowTestRecord) {
         resultUrls: record.resultUrls,
         resultText: record.resultText,
         outputs: record.outputs,
+        querySummary: record.querySummary,
         error: record.error,
     };
 }

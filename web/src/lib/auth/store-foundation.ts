@@ -1,6 +1,7 @@
 import { ECOMMERCE_IMAGE_SKILL } from "@/lib/server/agent-skills/ecommerce-image";
 import { YANAI_BEAUTY_SKILL } from "@/lib/server/agent-skills/yanai-beauty";
 import { DEFAULT_CREATIVE_SHORTCUT_SKILLS } from "@/lib/server/agent-skills/creative-shortcuts";
+import { DEFAULT_FEATURE_MODULE_SETTINGS } from "@/lib/feature-modules";
 import {
     type UserRole,
     type UserStatus,
@@ -180,6 +181,7 @@ export const DEFAULT_SETTINGS: AuthSettings = {
         { ...YANAI_BEAUTY_SKILL, keywords: [...YANAI_BEAUTY_SKILL.keywords], workspaces: [...YANAI_BEAUTY_SKILL.workspaces] },
         ...DEFAULT_CREATIVE_SHORTCUT_SKILLS.map((skill) => ({ ...skill, keywords: [...skill.keywords], workspaces: [...skill.workspaces] })),
     ],
+    featureModules: DEFAULT_FEATURE_MODULE_SETTINGS,
 };
 export const AUTH_DATA_FILE = "auth.json";
 export const USERNAME_PATTERN = /^[a-zA-Z0-9_.-]{3,32}$/;

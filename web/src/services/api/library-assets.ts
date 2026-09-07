@@ -1,4 +1,5 @@
 import type { Asset, CreateLibraryAssetInput } from "@/lib/library-asset-contract";
+import type { DramaLibraryAssetType } from "@/lib/drama-lab-library-assets";
 import { deleteStoredImages, uploadImage } from "@/services/image-storage";
 
 export function listLibraryAssets() {
@@ -7,10 +8,11 @@ export function listLibraryAssets() {
 
 export type LibraryAssetPage = { assets: Asset[]; total: number; page: number; pageSize: number };
 
-export function listLibraryAssetPage(input: { page: number; pageSize: number; kind?: Asset["kind"]; keyword?: string }, signal?: AbortSignal) {
+export function listLibraryAssetPage(input: { page: number; pageSize: number; kind?: Asset["kind"]; keyword?: string; dramaAssetType?: DramaLibraryAssetType }, signal?: AbortSignal) {
     const query = new URLSearchParams({ page: String(input.page), pageSize: String(input.pageSize) });
     if (input.kind) query.set("kind", input.kind);
     if (input.keyword?.trim()) query.set("keyword", input.keyword.trim());
+    if (input.dramaAssetType) query.set("dramaAssetType", input.dramaAssetType);
     return request<LibraryAssetPage>(`/api/library-assets?${query}`, { cache: "no-store", signal });
 }
 

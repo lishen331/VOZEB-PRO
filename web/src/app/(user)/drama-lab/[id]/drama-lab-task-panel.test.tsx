@@ -35,7 +35,7 @@ describe("DramaLabTaskPanel", () => {
         expect(markup).toContain("可重试");
     });
 
-    it("does not keep completed or cancelled tasks in the panel", () => {
+    it("hides completed and cancelled tasks from the active task panel", () => {
         const markup = renderToStaticMarkup(
             <DramaLabTaskPanel
                 projectId="project-one"
@@ -47,14 +47,16 @@ describe("DramaLabTaskPanel", () => {
         );
         expect(markup).not.toContain("已完成任务");
         expect(markup).not.toContain("已取消任务");
+        expect(markup).not.toContain("历史记录");
     });
 
     it("renders review-pending tasks without an active spinner", () => {
-        const markup = renderToStaticMarkup(<DramaLabTaskPanel projectId="project-one" initialTasks={[{ ...base, status: "running", executionPhase: "needs_review", canCancel: false }]} />);
+        const markup = renderToStaticMarkup(<DramaLabTaskPanel projectId="project-one" initialTasks={[{ ...base, status: "running", executionPhase: "needs_review", canCancel: false, canRecheck: true }]} />);
         expect(markup).toContain("待检查");
         expect(markup).toContain("不会继续轮询");
         expect(markup).not.toContain('data-progress-indeterminate="true"');
         expect(markup).not.toContain("animate-spin");
+        expect(markup).toContain("重新检查");
     });
 
     it("keeps a collapsed badge available", () => {

@@ -1,7 +1,8 @@
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabWorkflowError, getDramaLabWorkflowTask } from "@/lib/server/drama-lab-workflow-task-service";
 import { readDramaLabWorkflowExportArtifact } from "@/lib/server/drama-lab-workflow-export-artifact";
 
@@ -33,7 +34,7 @@ export async function GET(request: Request, { params }: Context) {
             },
         });
     } catch (error) {
-        const status = error instanceof DramaLabWorkflowError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabWorkflowError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "导出产物读取失败" }, { status });
     }
 }

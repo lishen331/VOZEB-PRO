@@ -20,12 +20,15 @@ const mocks = vi.hoisted(() => ({
     workflowView: vi.fn(),
     recovery: vi.fn(),
     cancellationPatch: vi.fn(() => ({ executionPhase: "cancel_requested" })),
+    schedule: vi.fn(),
+    resumeWorkflow: vi.fn(),
 }));
 
 vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({ resolveDramaLabProjectForRequest: mocks.resolveProject, getDramaLabCollaborationForUser: mocks.getCollaboration }));
 vi.mock("@/lib/server/drama-lab-story-generation-service", () => ({ cancelDramaLabStoryTask: mocks.cancelStoryTask }));
-vi.mock("@/lib/server/drama-lab-workflow-task-service", () => ({ cancelDramaLabWorkflow: mocks.cancelWorkflow, dramaLabWorkflowTaskView: mocks.workflowView }));
+vi.mock("@/lib/server/drama-lab-workflow-task-service", () => ({ cancelDramaLabWorkflow: mocks.cancelWorkflow, dramaLabWorkflowTaskView: mocks.workflowView, resumeDramaLabWorkflow: mocks.resumeWorkflow }));
 vi.mock("@/lib/server/generation-task-cancellation-service", () => ({ cancellationExecutionPatch: mocks.cancellationPatch }));
+vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: mocks.schedule }));
 vi.mock("@/lib/server/generation-task-recovery-service", () => ({ runGenerationTaskRecoveryBatch: mocks.recovery }));
 vi.mock("@/lib/server/generation-task-store", () => ({
     listStoredGenerationTaskRecords: mocks.listRecords,
@@ -38,7 +41,7 @@ vi.mock("@/lib/server/image-task-store", () => ({ getImageTask: mocks.getImageTa
 vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask, transitionVideoTask: mocks.transitionVideo }));
 vi.mock("@/lib/server/audio-task-store", () => ({ getAudioTask: mocks.getAudioTask, transitionAudioTask: mocks.transitionAudio }));
 
-import { cancelDramaLabTask, listDramaLabTasksForProject, normalizeDramaLabTask, DramaLabTaskError } from "./drama-lab-task-service";
+import { cancelDramaLabTask, listDramaLabTasksForProject, normalizeDramaLabTask, recheckDramaLabTask, retryDramaLabTask, DramaLabTaskError } from "./drama-lab-task-service";
 import type { StoredGenerationTaskRecord } from "./generation-task-types";
 
 function record(overrides: Partial<StoredGenerationTaskRecord> = {}): StoredGenerationTaskRecord {
@@ -72,7 +75,32 @@ describe("drama lab task service", () => {
         });
         mocks.listRecords.mockResolvedValue({ items: [] });
         mocks.listProjectRecords.mockResolvedValue([]);
+        mocks.getRecord.mockReset();
         mocks.getRecord.mockResolvedValue(null);
+        mocks.schedule.mockResolvedValue({ id: "task-one" });
+        mocks.recovery.mockResolvedValue(undefined);
+        mocks.resumeWorkflow.mockResolvedValue(null);
+    });
+
+    it("allows rechecking a task awaiting review without creating a new upstream task", async () => {
+        const pending = record({ executionPhase: "needs_review", upstreamTaskId: "upstream-one" });
+        const refreshed = record({ executionPhase: "polling", upstreamTaskId: "upstream-one" });
+        mocks.getRecord.mockResolvedValueOnce(pending).mockResolvedValueOnce(refreshed);
+        const result = await recheckDramaLabTask({ userId: "member-one", projectId: "project-one", taskId: "task-one", origin: "http://localhost" });
+        expect(result).toMatchObject({ id: "task-one", canRecheck: true });
+        expect(mocks.schedule).toHaveBeenCalledWith("video", "task-one", expect.objectContaining({ upstreamTaskId: "upstream-one", executionPhase: "polling" }));
+        expect(mocks.recovery).toHaveBeenCalledWith(expect.objectContaining({ taskIds: ["task-one"], userRequested: true }));
+    });
+
+    it("retries a failed workflow through the drama workflow resume path", async () => {
+        const failed = record({ type: "render", status: "error", payload: { surface: "drama", projectId: "project-one", title: "全流程", workflow: {} } });
+        const resumed = { ...failed, status: "pending", executionPhase: "created" };
+        mocks.getRecord.mockResolvedValueOnce(failed).mockResolvedValueOnce(resumed);
+        mocks.getStoredTask.mockResolvedValue(failed);
+        mocks.resumeWorkflow.mockResolvedValue(resumed);
+        const result = await retryDramaLabTask({ userId: "member-one", projectId: "project-one", taskId: "task-one", origin: "http://localhost" });
+        expect(result).toMatchObject({ id: "task-one", status: "pending" });
+        expect(mocks.resumeWorkflow).toHaveBeenCalledWith(failed, "member-one", "project-one");
     });
 
     it("filters by project and keeps episode/shot coordinates", async () => {

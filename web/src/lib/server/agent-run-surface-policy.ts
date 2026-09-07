@@ -7,6 +7,7 @@ import type { AgentPlan } from "@/lib/server/agent-run-validation";
 import { resolveAgentPlanningProfile } from "@/lib/server/agent-run-planning-profile";
 import { canvasSnapshotPlannerView, selectedCanvasNodeIds } from "./agent-run-canvas-snapshot";
 import { resolveDramaPlannerSnapshot } from "./agent-context-resolver";
+import { normalizeSkillCapabilities } from "./agent-skill-capabilities";
 
 export function availableAgentSkills(settings: AuthSettings, surface: CreativeSurface) {
     const workspaces = surface === "canvas" ? new Set(["canvas"]) : surface === "drama" ? new Set(["drama"]) : new Set(["image", "video", "drama"]);
@@ -118,6 +119,7 @@ function plannerSkillSummary(skill: AuthSettings["agentSkills"][number]) {
         name: skill.name,
         plannerSummary: skill.plannerSummary || skill.description || skill.instructions,
         workspaces: skill.workspaces || ["image"],
+        capabilities: normalizeSkillCapabilities(skill),
     };
 }
 

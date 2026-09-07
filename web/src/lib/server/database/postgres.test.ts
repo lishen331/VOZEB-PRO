@@ -103,6 +103,12 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(mocks.query.mock.calls[3]?.[0]).toBe("COMMIT");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_schema_migrations");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_generation_worker_heartbeats");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_code text");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_version integer");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_config_fingerprint text");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_adapter_version integer");
+        expect(ddl).toContain("practice_sessions_module");
+        expect(ddl.indexOf("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_code text")).toBeLessThan(ddl.indexOf("CREATE INDEX IF NOT EXISTS vozeb_pro_practice_sessions_user_updated_idx"));
         expect(ddl).toContain("CREATE SEQUENCE IF NOT EXISTS vozeb_pro_user_account_id_seq");
         expect(ddl).toContain("account_id bigint NOT NULL DEFAULT nextval('vozeb_pro_user_account_id_seq')");
         expect(ddl).toMatch(/SELECT setval\(\s*'vozeb_pro_user_account_id_seq'/);
@@ -129,16 +135,22 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(ddl).toContain("user_id text NOT NULL REFERENCES vozeb_pro_users(id) ON DELETE CASCADE");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_account_deletion_requests");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_content_files");
+        expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_sub_ips");
+        expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_file_cleanup_queue");
+        expect(ddl).toContain("20260906_ip_library_sub_ip_reset");
+        expect(ddl).toContain("20260907_ip_library_file_integrity");
+        expect(ddl).toContain("DROP TABLE IF EXISTS vozeb_pro_ip_versions CASCADE");
+        expect(ddl).toContain("IF to_regclass('vozeb_pro_ip_items') IS NOT NULL THEN");
+        expect(ddl).toContain("DELETE FROM vozeb_pro_ip_items WHERE file_id IN (SELECT id FROM vozeb_pro_ip_content_files WHERE sub_ip_id IS NULL)");
+        expect(ddl).toContain("'processing', 'ready', 'failed', 'deleting'");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_download_records");
-        expect(ddl).toContain("ALTER TABLE vozeb_pro_ip_versions ADD COLUMN IF NOT EXISTS cover_file_id text");
-        expect(ddl).toContain("ALTER TABLE vozeb_pro_ip_items ADD COLUMN IF NOT EXISTS file_id text");
-        expect(ddl).toContain("ALTER TABLE vozeb_pro_ip_school_grants ADD COLUMN IF NOT EXISTS member_access_enabled boolean NOT NULL DEFAULT false");
-        expect(ddl).toContain("ADD CONSTRAINT vozeb_pro_ip_versions_cover_file_fk FOREIGN KEY (cover_file_id) REFERENCES vozeb_pro_ip_content_files(id)");
-        expect(ddl).toContain("ADD CONSTRAINT vozeb_pro_ip_items_file_fk FOREIGN KEY (file_id) REFERENCES vozeb_pro_ip_content_files(id)");
-        expect(ddl).toContain("ADD CONSTRAINT vozeb_pro_ip_school_grants_member_access_user_fk FOREIGN KEY (member_access_updated_by_user_id) REFERENCES vozeb_pro_users(id)");
-        expect(ddl).toContain("DROP INDEX IF EXISTS vozeb_pro_ip_school_grants_exclusive_active_idx");
-        expect(ddl).not.toContain("CREATE UNIQUE INDEX IF NOT EXISTS vozeb_pro_ip_school_grants_exclusive_active_idx");
-        expect(ddl.indexOf("ALTER TABLE vozeb_pro_ip_items ADD COLUMN IF NOT EXISTS file_id text")).toBeLessThan(ddl.indexOf("CREATE INDEX IF NOT EXISTS vozeb_pro_ip_items_file_idx"));
+        expect(ddl).toContain("ADD CONSTRAINT vozeb_pro_ip_sub_ips_cover_file_fk FOREIGN KEY (cover_file_id) REFERENCES vozeb_pro_ip_content_files(id)");
+        expect(ddl).toContain("file_id text NOT NULL REFERENCES vozeb_pro_ip_content_files(id) ON DELETE RESTRICT");
+        expect(ddl).toContain("sub_ip_id text NOT NULL REFERENCES vozeb_pro_ip_sub_ips(id) ON DELETE CASCADE");
+        expect(ddl).toContain("ip_content_files_sub_ip_ip_fk FOREIGN KEY (sub_ip_id, ip_id) REFERENCES vozeb_pro_ip_sub_ips(id, ip_id) ON DELETE CASCADE");
+        expect(ddl).toContain("ip_items_file_sub_ip_fk FOREIGN KEY (file_id, sub_ip_id) REFERENCES vozeb_pro_ip_content_files(id, sub_ip_id) ON DELETE RESTRICT");
+        expect(ddl).not.toContain("member_access_enabled");
+        expect(ddl).not.toContain("vozeb_pro_ip_school_grants_sub_ip_ip_unique");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_usage_records");
         expect(ddl).toContain("'reference', 'download_item', 'download_package'");
         expect(ddl).toContain("'review_pending', 'reviewing', 'review_unavailable'");
@@ -178,7 +190,7 @@ describe("PostgreSQL schema lifecycle", () => {
                 "vozeb_pro_practice_sessions",
                 "vozeb_pro_practice_copy_requests",
                 "vozeb_pro_ip_packages",
-                "vozeb_pro_ip_versions",
+                "vozeb_pro_ip_sub_ips",
                 "vozeb_pro_ip_content_files",
                 "vozeb_pro_ip_items",
                 "vozeb_pro_ip_school_grants",

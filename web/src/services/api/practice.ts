@@ -14,6 +14,10 @@ export type PracticeSession = {
     input: Record<string, unknown>;
     status: "draft" | "queued" | "running" | "success" | "failed" | "cancelled";
     selectedLogicalModelId?: string;
+    workflowCode?: string;
+    workflowVersion?: number;
+    workflowConfigFingerprint?: string;
+    workflowAdapterVersion?: number;
     errorCode?: string;
     errorMessage?: string;
     result?: PracticeSessionResult;
@@ -26,8 +30,9 @@ export type PracticeSessionInput = {
     mode?: PracticeSessionMode;
     title: string;
     input: Record<string, unknown>;
-    references?: Array<{ type: "asset"; id: string } | IpReference>;
+    references?: Array<{ type: "asset"; id: string; inputKey?: string } | IpReference>;
     logicalModelId?: string;
+    workflowCode?: string;
     clientRequestId: string;
     projectId?: string;
     projectKind?: PracticeProjectKind;

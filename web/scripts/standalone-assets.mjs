@@ -1,7 +1,7 @@
 import { cp, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
-export async function prepareStandaloneAssets({ webRoot, distDir = ".next" }) {
+export async function prepareStandaloneAssets({ webRoot, distDir = ".next", runtimePlatform = process.platform, runtimeArch = process.arch }) {
     const buildRoot = resolveChildPath(webRoot, distDir, "build directory");
     const standaloneRoot = path.join(buildRoot, "standalone");
     const serverEntry = path.join(standaloneRoot, "server.js");
@@ -11,7 +11,7 @@ export async function prepareStandaloneAssets({ webRoot, distDir = ".next" }) {
     const targetPublic = path.join(standaloneRoot, "public");
 
     await assertFile(serverEntry, `Standalone server was not found: ${serverEntry}`);
-    const sharpRuntimePackages = await copySharpRuntimePackages(webRoot, standaloneRoot);
+    const sharpRuntimePackages = await copySharpRuntimePackages(webRoot, standaloneRoot, runtimePlatform, runtimeArch);
     const sourceStaticFiles = await listRelativeFiles(sourceStatic);
     if (!sourceStaticFiles.length) throw new Error(`Build static directory is empty: ${sourceStatic}`);
 
@@ -32,21 +32,25 @@ export async function prepareStandaloneAssets({ webRoot, distDir = ".next" }) {
     return { serverEntry, standaloneRoot, staticFiles: targetStaticFiles.length, publicFiles: targetPublicFiles.length, sharpRuntimePackages };
 }
 
-async function copySharpRuntimePackages(webRoot, standaloneRoot) {
+async function copySharpRuntimePackages(webRoot, standaloneRoot, runtimePlatform, runtimeArch) {
     const sourcePnpmRoot = path.join(webRoot, "node_modules", ".pnpm");
     const targetPnpmRoot = path.join(standaloneRoot, "node_modules", ".pnpm");
-    const packages = (await readdir(sourcePnpmRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory() && entry.name.startsWith("@img+sharp-"));
-    if (!packages.length) throw new Error(`Sharp runtime packages were not found: ${sourcePnpmRoot}`);
-    if (process.platform === "linux" && !packages.some((entry) => entry.name.startsWith("@img+sharp-linux"))) {
-        throw new Error(`Sharp native Linux runtime package was not found: ${sourcePnpmRoot}`);
-    }
-    if (process.platform === "linux" && !packages.some((entry) => entry.name.startsWith("@img+sharp-libvips-linux"))) {
-        throw new Error(`Sharp libvips runtime package was not found: ${sourcePnpmRoot}`);
-    }
+    const prefixGroups = sharpRuntimePackagePrefixGroups(runtimePlatform, runtimeArch);
+    const entries = await readdir(sourcePnpmRoot, { withFileTypes: true });
+    const packages = entries.filter((entry) => entry.isDirectory() && prefixGroups.some((prefixes) => prefixes.some((prefix) => entry.name.startsWith(prefix))));
+    const missing = prefixGroups.filter((prefixes) => !packages.some((entry) => prefixes.some((prefix) => entry.name.startsWith(prefix))));
+    if (missing.length) throw new Error(`Sharp runtime packages were not found for ${runtimePlatform}/${runtimeArch}: ${missing.join(", ")}`);
 
     await mkdir(targetPnpmRoot, { recursive: true });
     await Promise.all(packages.map((entry) => cp(path.join(sourcePnpmRoot, entry.name), path.join(targetPnpmRoot, entry.name), { recursive: true, force: true })));
     return packages.map((entry) => entry.name).sort();
+}
+
+function sharpRuntimePackagePrefixGroups(runtimePlatform, runtimeArch) {
+    if (runtimePlatform === "linux") return [[`@img+sharp-linux-${runtimeArch}@`], [`@img+sharp-libvips-linux-${runtimeArch}@`]];
+    if (runtimePlatform === "win32") return [[`@img+sharp-win32-${runtimeArch}@`, `@img+sharp-win32-${runtimeArch}-msvc@`]];
+    if (runtimePlatform === "darwin") return [[`@img+sharp-darwin-${runtimeArch}@`]];
+    throw new Error(`Unsupported Sharp runtime platform: ${runtimePlatform}/${runtimeArch}`);
 }
 
 async function assertFile(target, message) {

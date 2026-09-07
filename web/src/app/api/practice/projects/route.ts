@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
@@ -18,6 +19,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+    try {
+        await requireFeatureModuleEnabled("practice");
+    } catch (error) {
+        if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ code: 403, msg: error.message }, { status: 403 });
+        throw error;
+    }
     const user = await getCurrentUser(request);
     if (!user) return response(401, "请先登录");
     const parsed = await readJsonBodyResult<unknown>(request, 64 * 1024);

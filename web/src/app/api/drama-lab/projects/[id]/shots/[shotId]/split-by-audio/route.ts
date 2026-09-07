@@ -1,8 +1,9 @@
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabAudioSplitError, applyDramaAudioSplitDetailed, findDramaAudioSplitShot, normalizeDramaAudioSplitOptions, planDramaAudioSplit } from "@/lib/server/drama-lab-audio-split-service";
 import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 
@@ -83,7 +84,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             msg: result.createdShots.length ? `已追加 ${result.createdShots.length} 条音频拆镜候选` : "音频拆镜候选已存在，未重复创建",
         });
     } catch (error) {
-        const status = error instanceof DramaLabAudioSplitError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabAudioSplitError || error instanceof DramaProjectStoreError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "按音频拆镜失败" }, { status });
     }
 }

@@ -72,6 +72,8 @@ type StoryboardTextRequestInput = {
     userPrompt: string;
     model: string;
     idempotencyKey: string;
+    preferNativeTools?: boolean;
+    onStreamPartial?: (argumentsText: string) => Promise<void>;
 };
 
 type NormalizedStoryboardResult = {
@@ -133,9 +135,51 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
     for (const candidate of rankedCandidates) {
         const idempotencyKey = systemAiIdempotencyKey("drama-lab-extract-storyboards", input.userId, input.project.id, input.episodeId, input.requestId, candidate.channelId, candidate.upstreamModel);
         try {
-            const call = await requestStoryboardText({ input, candidate, systemPrompt, userPrompt: initialPrompt, model, idempotencyKey });
+            let streamedShots = resumeShots;
+            let streamBaseShots = resumeShots;
+            const saveStreamedPartial = async (argumentsText: string) => {
+                if (!input.onPartial || !argumentsText.trim()) return;
+                try {
+                    const partial = normalizeExtractedDramaLabStoryboardsWithMeta(argumentsText, input.project);
+                    const merged = mergeStoryboardShots(streamBaseShots, partial.shots);
+                    if (merged.length <= streamedShots.length) return;
+                    try {
+                        await input.onPartial(merged, { ...partial.meta, truncated: true, recoveredCount: merged.length, continuationAttempts: 0 });
+                        streamedShots = merged;
+                    } catch {
+                        // A checkpoint failure must not discard the valid
+                        // upstream response; the final save will retry it.
+                    }
+                } catch {
+                    // A token stream is normally inside an incomplete JSON
+                    // object. Final parsing remains authoritative.
+                }
+            };
+            let call = await requestStoryboardText({ input, candidate, systemPrompt, userPrompt: initialPrompt, model, idempotencyKey, onStreamPartial: saveStreamedPartial });
+            let initialResponseRefunded = false;
             try {
-                const normalized = normalizeExtractedDramaLabStoryboardsWithMeta(call.arguments, input.project);
+                let normalized: NormalizedStoryboardResult;
+                try {
+                    normalized = normalizeExtractedDramaLabStoryboardsWithMeta(call.arguments, input.project);
+                } catch (error) {
+                    if (!isEmptyStoryboardResult(error)) throw error;
+                    // An empty array is a provider/model semantic failure, not
+                    // a valid extraction. Refund that response before making
+                    // one recovery request with native structured output.
+                    await refundInvalidResponse(input.userId, model, call.headers);
+                    initialResponseRefunded = true;
+                    call = await requestStoryboardText({
+                        input,
+                        candidate,
+                        systemPrompt,
+                        userPrompt: buildEmptyStoryboardRetryPrompt(userPrompt),
+                        model,
+                        idempotencyKey: systemAiIdempotencyKey("drama-lab-extract-storyboards-retry", input.userId, input.project.id, input.episodeId, input.requestId, candidate.channelId, candidate.upstreamModel),
+                        preferNativeTools: true,
+                        onStreamPartial: saveStreamedPartial,
+                    });
+                    normalized = normalizeExtractedDramaLabStoryboardsWithMeta(call.arguments, input.project);
+                }
                 let shots = mergeStoryboardShots(resumeShots, normalized.shots);
                 let meta = { ...normalized.meta, continuationAttempts: 0 };
                 await input.onPartial?.(shots, meta);
@@ -147,6 +191,7 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
                     const lastOrder = Math.max(...shots.map((shot) => shot.order));
                     const continuationPrompt = buildContinuationPrompt(userPrompt, shots, lastOrder, attempt);
                     try {
+                        streamBaseShots = shots;
                         const continuation = await requestStoryboardText({
                             input,
                             candidate,
@@ -154,6 +199,7 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
                             userPrompt: continuationPrompt,
                             model,
                             idempotencyKey: systemAiIdempotencyKey("drama-lab-extract-storyboards-continuation", input.userId, input.project.id, input.episodeId, input.requestId, String(attempt), candidate.channelId, candidate.upstreamModel),
+                            onStreamPartial: saveStreamedPartial,
                         });
                         const next = normalizeExtractedDramaLabStoryboardsWithMeta(continuation.arguments, input.project);
                         const merged = mergeStoryboardShots(shots, next.shots);
@@ -189,7 +235,7 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
                 });
                 return { shots, ...meta, templateKeys: [storyboardPrompt.key, outputPrompt.key] as const };
             } catch (error) {
-                await refundInvalidResponse(input.userId, model, call.headers);
+                if (!initialResponseRefunded) await refundInvalidResponse(input.userId, model, call.headers);
                 throw error;
             }
         } catch (error) {
@@ -213,7 +259,7 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
     throw latestError instanceof DramaLabStoryboardExtractionError ? latestError : new DramaLabStoryboardExtractionError(latestError instanceof Error ? latestError.message : "分镜提取失败，请稍后重试");
 }
 
-async function requestStoryboardText({ input, candidate, systemPrompt, userPrompt, model, idempotencyKey }: StoryboardTextRequestInput) {
+async function requestStoryboardText({ input, candidate, systemPrompt, userPrompt, model, idempotencyKey, preferNativeTools = false, onStreamPartial }: StoryboardTextRequestInput) {
     return requestStructuredText({
         origin: input.origin,
         cookie: input.cookie,
@@ -223,9 +269,25 @@ async function requestStoryboardText({ input, candidate, systemPrompt, userPromp
             { role: "user", content: userPrompt },
         ],
         tool: extractDramaStoryboardsTool,
+        preferNativeTools,
         headers: { "Content-Type": "application/json", ...systemAiBillingHeaders(model, idempotencyKey, candidate.upstreamModel) },
+        stream: true,
+        onStreamDelta: async (argumentsText) => onStreamPartial?.(argumentsText),
         onInvalidResponse: (headers) => refundInvalidResponse(input.userId, model, headers),
     });
+}
+
+function isEmptyStoryboardResult(error: unknown): error is DramaLabStoryboardExtractionError {
+    return error instanceof DramaLabStoryboardExtractionError && /没有返回任何分镜|没有返回可恢复的分镜/.test(error.message);
+}
+
+function buildEmptyStoryboardRetryPrompt(originalUserPrompt: string) {
+    return [
+        "上一次模型响应返回了空的 shots 数组，这是无效结果。当前剧本非空，请重新完成分镜拆解。",
+        "必须返回至少一个真实镜头；每个镜头严格使用原始请求中的完整字段和项目资产 ID 白名单。",
+        "只返回 extract_drama_storyboards 的 JSON 参数，不要返回 slots、metadata、解释文字或 Markdown。",
+        `原始请求：${originalUserPrompt}`,
+    ].join("\n\n");
 }
 
 export function normalizeExtractedDramaLabStoryboards(value: string, project: DramaProject): DramaShot[] {
@@ -235,10 +297,12 @@ export function normalizeExtractedDramaLabStoryboards(value: string, project: Dr
 export function normalizeExtractedDramaLabStoryboardsWithMeta(value: string, project: DramaProject): NormalizedStoryboardResult {
     const parsed = parseStoryboardPayload(value);
     if (!parsed.payload) throw new DramaLabStoryboardExtractionError("文本模型没有返回有效的分镜提取结果");
-    const payloadObject = object(parsed.payload);
-    // LocalMiniDrama historically wrapped the array as `storyboards`, while
-    // the native VOZEB contract uses `shots`. Accept both at the parser edge.
-    const sourceShots = Array.isArray(parsed.payload) ? parsed.payload : array(payloadObject?.shots ?? payloadObject?.storyboards);
+    // LocalMiniDrama historically accepted any object wrapper around the
+    // storyboard array (`storyboards`, `data`, `result`, etc.). New API
+    // gateways also occasionally preserve an empty `shots` field while
+    // putting the actual result in a nested envelope. Resolve that variation
+    // at the parser edge, before applying the strict asset-ID contract.
+    const sourceShots = extractStoryboardArray(parsed.payload);
     if (!sourceShots.length) throw new DramaLabStoryboardExtractionError("文本模型没有返回任何分镜");
 
     const sceneIds = new Set(project.scenes.map((asset) => asset.id));
@@ -538,8 +602,73 @@ function object(value: unknown) {
     return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
-function array(value: unknown) {
-    return Array.isArray(value) ? value : [];
+const STORYBOARD_ARRAY_KEYS = ["shots", "storyboards", "storyboard", "shotList", "shot_list", "segments", "items", "data", "result", "分镜"] as const;
+
+function extractStoryboardArray(value: Record<string, unknown> | unknown[] | null): unknown[] {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+
+    const visited = new Set<object>();
+    const preferred: unknown[][] = [];
+    const fallback: unknown[][] = [];
+
+    const visit = (current: unknown, depth: number) => {
+        if (Array.isArray(current)) {
+            if (current.length > 0 && current.every((item) => isLikelyStoryboard(item))) preferred.push(current);
+            else if (current.length > 0) fallback.push(current);
+            return;
+        }
+        const recordValue = object(current);
+        if (!recordValue || depth > 4 || visited.has(recordValue)) return;
+        visited.add(recordValue);
+
+        for (const [childKey, child] of Object.entries(recordValue)) {
+            if (Array.isArray(child)) {
+                if (STORYBOARD_ARRAY_KEYS.includes(childKey as (typeof STORYBOARD_ARRAY_KEYS)[number])) {
+                    if (child.length > 0 && child.every((item) => isLikelyStoryboard(item))) preferred.push(child);
+                    else if (child.length > 0) fallback.push(child);
+                } else if (child.length > 0 && child.every((item) => isLikelyStoryboard(item))) {
+                    preferred.push(child);
+                }
+            } else if (STORYBOARD_ARRAY_KEYS.includes(childKey as (typeof STORYBOARD_ARRAY_KEYS)[number]) || depth < 2) {
+                visit(child, depth + 1);
+            }
+        }
+    };
+
+    visit(value, 0);
+    // Prefer an array whose records look like shots. The fallback is retained
+    // for legacy payloads where the provider used an arbitrary wrapper key.
+    return preferred[0] || fallback[0] || [];
+}
+
+function isLikelyStoryboard(value: unknown) {
+    const recordValue = object(value);
+    if (!recordValue) return false;
+    const keys = Object.keys(recordValue);
+    const markers = [
+        "shotNumber",
+        "shot_number",
+        "storyboardNumber",
+        "storyboard_number",
+        "shotBoundary",
+        "shot_boundary",
+        "cameraAngle",
+        "camera_angle",
+        "cameraMotion",
+        "camera_motion",
+        "imagePrompt",
+        "image_prompt",
+        "sceneId",
+        "scene_id",
+        "characterIds",
+        "character_ids",
+        "propIds",
+        "prop_ids",
+        "duration",
+        "action",
+    ];
+    return keys.filter((key) => markers.includes(key)).length >= 2;
 }
 
 async function refundInvalidResponse(userId: string, model: string, headers: Headers) {

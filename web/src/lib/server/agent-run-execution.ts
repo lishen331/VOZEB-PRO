@@ -341,7 +341,14 @@ function directModelAllocations(models: DirectAgentModelOption[], preferences?: 
 function assertAgentTaskCapabilities(settings: Awaited<ReturnType<typeof getAuthSettings>>, task: AgentRunTask) {
     if (!task.model) return;
     const candidates = resolveLogicalModelCandidates(settings, task.type, task.model);
-    const input = { capability: task.type, batchSize: task.count, durationSeconds: task.seconds, aspectRatio: task.ratio, resolution: task.quality } as const;
+    const input = {
+        capability: task.type,
+        referenceTypes: Array.from(new Set((task.references || []).map((reference) => reference.type).filter((type): type is "image" | "video" | "audio" => type === "image" || type === "video" || type === "audio"))),
+        batchSize: task.count,
+        durationSeconds: task.seconds,
+        aspectRatio: task.ratio,
+        resolution: task.quality,
+    } as const;
     if (candidates.some((candidate) => allowsCapability(candidate.capabilityProfile, input))) return;
     assertCapabilityConstraints(candidates[0]?.capabilityProfile, input);
     throw new Error("当前模型没有支持所选生成参数的可用渠道");

@@ -165,6 +165,8 @@ export type CanvasNodeMetadata = {
     cameraControl?: CameraControlOptions;
     panoramaProjection?: "equirectangular";
     panoramaSourcePrompt?: string;
+    upstreamPrompt?: string;
+    imageReferenceRoles?: Record<string, "original" | "identity" | "clothing" | "skin">;
     references?: string[];
     naturalWidth?: number;
     naturalHeight?: number;

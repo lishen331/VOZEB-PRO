@@ -6,6 +6,7 @@ import type { GlobalAiOpcPresetId } from "@/lib/globalaiopc-catalog";
 import type { RegistrationPolicyConsent } from "@/lib/registration-consent";
 import { VOZEB_QQ_GROUP_URL } from "@/constant/community";
 import type { SystemChannelPurpose } from "@/lib/practice-domain";
+import type { FeatureModuleSettings } from "@/lib/feature-modules";
 
 export type ApiCallFormat = "openai" | "gemini";
 export type SystemChannelProtocol = "auto" | "openai" | "yumeng" | "gemini" | "sub2api" | "newapi" | "vozeb-recommended" | "globalaiopc" | "seedance" | "stable-diffusion" | "volcengine-video" | "seedance-special" | "runninghub" | "custom" | "compatible";
@@ -43,6 +44,16 @@ export type SystemChannelStreamingConfig = {
 };
 
 export type RunningHubWorkflowBusinessCode = "script" | "storyboard-image" | "storyboard-video" | "dubbing" | "music" | "canvas" | "drama";
+export type RunningHubWorkflowCode = string;
+export type RunningHubWorkflowAdapterType = "character-main-view" | "character-multi-view" | "scene-main-view" | "prop-main-view" | "storyboard-shot" | "storyboard-dialogue-audio" | "storyboard-shot-video" | "generic";
+export type RunningHubGenerationSizeOption = {
+    key: string;
+    label: string;
+    width?: number;
+    height?: number;
+    value?: string;
+    disabled?: boolean;
+};
 export type PracticeWorkflowModelBindings = Partial<Record<RunningHubWorkflowBusinessCode, string[]>>;
 export type RunningHubWorkflowInputField = {
     key: string;
@@ -51,6 +62,16 @@ export type RunningHubWorkflowInputField = {
     required: boolean;
     options?: string[];
     defaultValue?: string | number | boolean | null;
+    description?: string;
+    placeholder?: string;
+    sampleValue?: string | number | boolean | null;
+    maxLength?: number;
+    min?: number;
+    max?: number;
+    uploadPolicy?: "IMAGE" | "VIDEO" | "AUDIO";
+    group?: string;
+    order?: number;
+    widget?: string;
 };
 export type RunningHubNodeMapping = {
     paramKey: string;
@@ -60,6 +81,7 @@ export type RunningHubNodeMapping = {
     source: "INPUT" | "INPUT_OR_DEFAULT";
     inputKey: string;
     defaultValue?: string | number | boolean | null;
+    description?: string;
 };
 export type RunningHubOutputMapping = {
     key: string;
@@ -68,6 +90,8 @@ export type RunningHubOutputMapping = {
     assetType: "IMAGE" | "VIDEO" | "AUDIO" | "TEXT";
     required: boolean;
     primary?: boolean;
+    matchMode?: "FIRST" | "BY_NODE_ID" | string;
+    mirrorToOss?: boolean;
 };
 export type RunningHubWorkflowConfig = {
     workflowKey: string;
@@ -88,6 +112,14 @@ export type RunningHubWorkflowConfig = {
     inputSchema: RunningHubWorkflowInputField[];
     nodeMappings: RunningHubNodeMapping[];
     outputMappings: RunningHubOutputMapping[];
+    workflowCode?: RunningHubWorkflowCode;
+    workflowApiJson?: string;
+    generationSizeOptions?: RunningHubGenerationSizeOption[];
+    remark?: string;
+    source?: string;
+    sourceVersion?: string;
+    adapterType?: RunningHubWorkflowAdapterType;
+    adapterVersion?: number;
     /** New or edited configs must pass a successful sample test before enable. */
     testRequired?: boolean;
     workflowJsonFingerprint?: string;
@@ -212,6 +244,11 @@ export type SystemDefaultModels = {
 };
 
 export type AgentSkillWorkspace = "image" | "video" | "canvas" | "drama";
+export type AgentSkillMediaKind = "text" | "image" | "video" | "audio";
+export type AgentSkillCapability = {
+    inputs: AgentSkillMediaKind[];
+    outputs: AgentSkillMediaKind[];
+};
 
 export type AgentSkill = {
     id: string;
@@ -222,6 +259,7 @@ export type AgentSkill = {
     enabled: boolean;
     keywords: string[];
     workspaces?: AgentSkillWorkspace[];
+    capabilities?: AgentSkillCapability[];
     action?: "generate" | "edit";
     requiresReference?: boolean;
     defaultConfig?: Record<string, string | number | boolean>;
@@ -555,6 +593,8 @@ export type AuthSettings = {
     practiceDefaultModels: SystemDefaultModels;
     practiceWorkflowModels: PracticeWorkflowModelBindings;
     agentSkills: AgentSkill[];
+    /** Global enablement for built-in user-facing modules. */
+    featureModules: FeatureModuleSettings;
 };
 
 export type AuthDatabase = {

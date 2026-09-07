@@ -17,12 +17,12 @@ export async function POST(request: Request, context: RouteContext) {
     const packageMode = body.package;
     if (typeof packageMode !== "boolean") return schoolApiError(400, "下载类型无效");
     const itemIds = body.itemIds;
-    const versionId = body.versionId;
-    if (versionId !== undefined && typeof versionId !== "string") return schoolApiError(400, "版本标识无效");
+    const subIpId = body.subIpId;
+    if (subIpId !== undefined && typeof subIpId !== "string") return schoolApiError(400, "子 IP 标识无效");
     if (itemIds !== undefined && (!Array.isArray(itemIds) || itemIds.some((item) => typeof item !== "string"))) return schoolApiError(400, "IP 内容项无效");
     const { id } = await context.params;
     try {
-        const result = await downloadIpForUser(user.id, request, id, { package: packageMode, versionId, itemIds: itemIds as string[] | undefined } satisfies IpDownloadInput);
+        const result = await downloadIpForUser(user.id, request, id, { package: packageMode, subIpId, itemIds: itemIds as string[] | undefined } satisfies IpDownloadInput);
         if (result.kind === "redirect") {
             const response = schoolApiOk({ url: result.url, fileName: result.fileName, downloadId: result.downloadId });
             response.headers.set("Cache-Control", "private, no-store, max-age=0");

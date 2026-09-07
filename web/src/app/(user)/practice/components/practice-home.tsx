@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { App, Button, Empty, Spin } from "antd";
-import { BookOpen, Clapperboard, Film, Image, Maximize2, Mic2, Music2, Plus, type LucideIcon } from "lucide-react";
+import { BookOpen, Box, Clapperboard, Film, Image, Maximize2, Mic2, Music2, PanelsTopLeft, Plus, UserRound, type LucideIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-domain";
@@ -24,6 +24,12 @@ export const PRACTICE_MODULES: Array<{ module: PracticeModuleKind; title: string
     { module: "music", title: "音乐练习", description: "为一段情绪或场景尝试配乐。", icon: Music2 },
 ];
 
+export const PRACTICE_ASSET_MODULES: Array<{ module: PracticeModuleKind; title: string; description: string; icon: LucideIcon }> = [
+    { module: "character", title: "角色练习", description: "从角色设定生成主形象或多视图。", icon: UserRound },
+    { module: "scene", title: "场景练习", description: "练习空间、光线和环境氛围。", icon: PanelsTopLeft },
+    { module: "prop", title: "道具练习", description: "把关键物件设定成可用素材。", icon: Box },
+];
+
 export function practiceProjectPath(kind: PracticeProjectKind, id: string) {
     return `/${kind}/${encodeURIComponent(id)}`;
 }
@@ -35,7 +41,7 @@ export function practiceModulePath(module: PracticeModuleKind, options?: IpRefer
     const query = new URLSearchParams();
     if (reference) {
         query.set("ipId", reference.id);
-        query.set("versionId", reference.versionId);
+        query.set("subIpId", reference.subIpId);
     }
     if (sessionId) query.set("sessionId", sessionId);
     return `/practice/${module}?${query.toString()}`;
@@ -169,6 +175,33 @@ export default function PracticeHome() {
                                 >
                                     <Icon className="size-5 text-foreground" />
                                     <span className="mt-3 block truncate text-sm font-medium">{item.title}</span>
+                                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </section>
+
+                <section className="mt-7 sm:mt-10" aria-labelledby="practice-assets-heading">
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 id="practice-assets-heading" className="text-base font-semibold sm:text-lg">
+                            创作资产练习
+                        </h2>
+                        <span className="text-xs text-muted-foreground">角色、场景与道具</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+                        {PRACTICE_ASSET_MODULES.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <button
+                                    key={item.module}
+                                    type="button"
+                                    className="min-w-0 border border-border bg-card p-3 text-left transition hover:border-foreground/40 hover:bg-muted/30 sm:p-4"
+                                    onClick={() => router.push(practiceModulePath(item.module, ipReference))}
+                                    data-practice-asset-module={item.module}
+                                >
+                                    <Icon className="size-5 text-foreground" />
+                                    <span className="mt-3 block text-sm font-medium">{item.title}</span>
                                     <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span>
                                 </button>
                             );

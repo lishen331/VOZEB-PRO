@@ -1,7 +1,8 @@
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabAudioError, assertAudioTaskBinding, syncDramaLabAudioTask } from "@/lib/server/drama-lab-audio-service";
 import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 
@@ -26,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const updatedShot = updated.episodes.find((episode) => episode.id === episodeId)?.shots.find((item) => item.id === shotId);
         return NextResponse.json({ code: 0, data: { shot: updatedShot, project: updated }, msg: "短剧音频状态已同步" });
     } catch (error) {
-        const status = error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabAudioError || error instanceof DramaProjectStoreError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "短剧音频状态同步失败" }, { status });
     }
 }

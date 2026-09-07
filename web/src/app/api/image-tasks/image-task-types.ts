@@ -2,7 +2,6 @@ import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
-import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
 import { fetchInternalApi, isInternalApiBaseUrl, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveGeneratedMediaUrl } from "@/lib/media-url";
@@ -26,6 +25,7 @@ export type CreateImageTaskBody = {
     config?: ImageTaskConfig;
     prompt?: string;
     references?: ImageTaskReference[];
+    referenceRoles?: Record<string, "original" | "identity" | "clothing" | "skin">;
     mask?: ImageTaskReference;
     source?: string;
     title?: string;

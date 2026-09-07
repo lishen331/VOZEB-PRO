@@ -1,14 +1,14 @@
 import type { IpStatus, IpVisibility } from "@/lib/ip-library-domain";
-import type { IpContentFileRecord, IpDownloadRecord, IpDownloadResult, IpDownloadType, IpPackageRecord, IpSchoolGrantRecord, IpVersionRecord, PageResult } from "@/lib/server/database/repository-types";
-import type { AdminIpCreateInput, AdminIpCreateVersionInput, AdminIpGrantInput, AdminIpGrantPatchInput, AdminIpPatchInput, AdminIpVersionInput } from "@/lib/server/ip-library-admin-service";
+import type { IpContentFileRecord, IpDetailRecord, IpDownloadRecord, IpDownloadResult, IpDownloadType, IpPackageRecord, IpSchoolGrantRecord, IpSubIpDetailRecord, PageResult } from "@/lib/server/database/repository-types";
+import type { AdminIpCreateInput, AdminIpGrantInput, AdminIpGrantPatchInput, AdminIpPatchInput, AdminIpSubIpInput } from "@/lib/server/ip-library-admin-service";
 import { serializeApiParams } from "@/services/api/request";
 
 export const adminIpLibraryApi = {
     list(input: { page?: number; pageSize?: number; keyword?: string; status?: IpStatus; visibility?: IpVisibility } = {}) {
-        return getPage<IpPackageRecord & { versionNumber: number; itemCount: number }>("/api/admin/ip-library", input);
+        return getPage<IpPackageRecord & { subIpCount: number }>("/api/admin/ip-library", input);
     },
     get(id: string) {
-        return request<IpPackageRecord>(ipPath(id));
+        return request<IpDetailRecord>(ipPath(id));
     },
     create(input: AdminIpCreateInput) {
         return request<IpPackageRecord>("/api/admin/ip-library", jsonRequest("POST", input));
@@ -16,20 +16,24 @@ export const adminIpLibraryApi = {
     update(id: string, input: AdminIpPatchInput) {
         return request<IpPackageRecord>(ipPath(id), jsonRequest("PATCH", input));
     },
-    listVersions(id: string, input: { page?: number; pageSize?: number } = {}) {
-        return getPage<IpVersionRecord>(`${ipPath(id)}/versions`, input);
+    remove(id: string) {
+        return request<{ deleted: boolean }>(ipPath(id), { method: "DELETE" });
     },
-    createVersion(id: string, input: AdminIpCreateVersionInput) {
-        return request<IpVersionRecord>(`${ipPath(id)}/versions`, jsonRequest("POST", { action: "create", ...input }));
+    createSubIp(id: string, input: AdminIpSubIpInput) {
+        return request<IpSubIpDetailRecord>(`${ipPath(id)}/sub-ips`, jsonRequest("POST", input));
     },
-    updateVersion(id: string, versionId: string, input: AdminIpVersionInput) {
-        return request<IpVersionRecord>(`${ipPath(id)}/versions/${encodeURIComponent(versionId)}`, jsonRequest("PATCH", input));
+    updateSubIp(id: string, subIpId: string, input: AdminIpSubIpInput) {
+        return request<IpSubIpDetailRecord>(`${ipPath(id)}/sub-ips/${encodeURIComponent(subIpId)}`, jsonRequest("PATCH", input));
     },
-    listFiles(id: string) {
-        return request<IpContentFileRecord[]>(`${ipPath(id)}/files`);
+    deleteSubIp(id: string, subIpId: string) {
+        return request<{ deleted: boolean }>(`${ipPath(id)}/sub-ips/${encodeURIComponent(subIpId)}`, { method: "DELETE" });
     },
-    uploadFile(id: string, kind: IpContentFileRecord["kind"], file: File) {
+    listFiles(id: string, subIpId: string) {
+        return request<IpContentFileRecord[]>(`${ipPath(id)}/files?${serializeApiParams({ subIpId }).toString()}`);
+    },
+    uploadFile(id: string, subIpId: string, kind: IpContentFileRecord["kind"], file: File) {
         const body = new FormData();
+        body.set("subIpId", subIpId);
         body.set("kind", kind);
         body.set("file", file);
         return request<IpContentFileRecord>(`${ipPath(id)}/files`, { method: "POST", body });
@@ -41,10 +45,7 @@ export const adminIpLibraryApi = {
         const query = serializeApiParams(input);
         return `${ipPath(id)}/files/${encodeURIComponent(fileId)}${query.size ? `?${query.toString()}` : ""}`;
     },
-    publishVersion(id: string, versionId: string) {
-        return request<IpVersionRecord>(`${ipPath(id)}/versions`, jsonRequest("POST", { action: "publish", versionId }));
-    },
-    listGrants(id: string, input: { page?: number; pageSize?: number; schoolId?: string; status?: string } = {}) {
+    listGrants(id: string, input: { page?: number; pageSize?: number; subIpId?: string; schoolId?: string; status?: string } = {}) {
         return getPage<AdminIpGrantItem>(`${ipPath(id)}/schools`, input);
     },
     createGrant(id: string, input: AdminIpGrantInput) {
@@ -53,7 +54,7 @@ export const adminIpLibraryApi = {
     updateGrant(id: string, grantId: string, input: AdminIpGrantPatchInput) {
         return request<IpSchoolGrantRecord>(`${ipPath(id)}/schools/${encodeURIComponent(grantId)}`, jsonRequest("PATCH", input));
     },
-    listUsage(input: { page?: number; pageSize?: number; ipId?: string; versionId?: string; schoolId?: string; userId?: string; downloadType?: IpDownloadType; result?: IpDownloadResult } = {}) {
+    listUsage(input: { page?: number; pageSize?: number; ipId?: string; subIpId?: string; schoolId?: string; userId?: string; downloadType?: IpDownloadType; result?: IpDownloadResult } = {}) {
         return getPage<AdminIpUsageItem>("/api/admin/ip-library/usage", input);
     },
 };
@@ -76,7 +77,7 @@ export type AdminIpUsageItem = Omit<IpDownloadRecord, "userId"> & {
     user?: { accountId: string; username: string; displayName: string; email?: string };
     school?: { id: string; name: string };
 };
-export type AdminIpGrantItem = IpSchoolGrantRecord & { school?: { id: string; name: string } };
+export type AdminIpGrantItem = IpSchoolGrantRecord & { school?: { id: string; name: string }; subIp?: { id: string; title: string } };
 
 function ipPath(id: string) {
     return `/api/admin/ip-library/${encodeURIComponent(id)}`;

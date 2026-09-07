@@ -4,7 +4,6 @@ import { after, NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError, refundUserPoints } from "@/lib/auth/store";
-import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
 import { fetchInternalApi, isInternalApiBaseUrl, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
@@ -31,6 +30,7 @@ import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/securit
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
+import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -154,6 +154,13 @@ export async function POST(request: Request) {
         if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
         throw error;
     }
+    try {
+        const moduleId = featureModuleForGenerationContext(resolvedBody.context);
+        if (moduleId) await requireFeatureModuleEnabled(moduleId);
+    } catch (error) {
+        if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ error: error.message }, { status: 403 });
+        throw error;
+    }
     const trustedPractice = isTrustedPracticeTaskRequest(request, currentUser.id, resolvedBody.context);
     const requestId = headerRequestId || resolvedBody.context?.clientRequestId?.trim();
     if (!headerRequestId && requestId) {
@@ -197,8 +204,9 @@ export async function POST(request: Request) {
         if (!configs.length || !prompt) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
 
         // 检查是否有健康的模型候选
-        const requestedModel = executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "image", trustedContext?.businessCode || "canvas", resolvedBody.config?.model) : resolvedBody.config?.model || settings.defaultModels.imageModel;
-        const allCandidates = resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile);
+        const requestedModel =
+            executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "image", trustedContext?.businessCode || "canvas", resolvedBody.config?.model) : resolvedBody.config?.model || settings.defaultModels.imageModel;
+        const allCandidates = resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile).filter((candidate): candidate is typeof candidate & { channelId: string } => typeof candidate.channelId === "string");
         const hasHealthyModel = hasHealthyRuntimeCandidate(allCandidates, "image");
 
         if (!hasHealthyModel && allCandidates.length > 0) {
@@ -229,7 +237,7 @@ export async function POST(request: Request) {
         });
         if (!compatibleConfigs.length) return NextResponse.json({ error: "当前模型能力不满足参考素材、比例或分辨率参数" }, { status: 400 });
         const config = compatibleConfigs[0];
-        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(config, trustedContext.businessCode) };
+        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(config, trustedContext.businessCode, trustedContext) };
         if (config.outputMode === "layers" && (kind !== "edit" || references.length !== 1)) {
             return NextResponse.json({ error: "电商分层需要且只能使用一张源图" }, { status: 400 });
         }
@@ -245,6 +253,7 @@ export async function POST(request: Request) {
             candidateConfigs: compatibleConfigs.slice(1),
             prompt,
             references,
+            referenceRoles: resolvedBody.referenceRoles,
             mask: resolvedBody.mask?.dataUrl || resolvedBody.mask?.url || resolvedBody.mask?.remoteUrl || resolvedBody.mask?.serverUrl ? resolvedBody.mask : undefined,
         });
         await linkStoredGenerationTask("image", task.id, trustedContext);

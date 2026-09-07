@@ -14,13 +14,13 @@ describe("GET /api/ip-library/:id/items/:itemId/media", () => {
     });
 
     it("streams an authorized item inline with private caching", async () => {
-        const request = new Request("http://localhost/api/ip-library/ip-one/items/item-one/media?versionId=version-one");
+        const request = new Request("http://localhost/api/ip-library/ip-one/items/item-one/media?subIpId=child-one");
         const response = await GET(request, { params: Promise.resolve({ id: "ip-one", itemId: "item-one" }) });
 
         expect(response.status).toBe(200);
         expect(response.headers.get("content-type")).toBe("image/png");
         expect(response.headers.get("cache-control")).toContain("no-store");
-        expect(mocks.previewIpMediaForUser).toHaveBeenCalledWith("user-one", request, "ip-one", { itemId: "item-one", versionId: "version-one" });
+        expect(mocks.previewIpMediaForUser).toHaveBeenCalledWith("user-one", request, "ip-one", { itemId: "item-one", subIpId: "child-one" });
     });
 
     it("preserves a short-lived object storage redirect", async () => {

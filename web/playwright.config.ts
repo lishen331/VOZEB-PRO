@@ -71,7 +71,7 @@ export default defineConfig({
             env: { ...process.env, VOZEB_PRO_RUNNINGHUB_FIXTURE_PORT: String(runningHubFixturePort) },
         },
         {
-            command: "corepack pnpm run start",
+            command: "pnpm run start",
             url: `${baseURL}/api/auth/session`,
             timeout: 120_000,
             reuseExistingServer: false,

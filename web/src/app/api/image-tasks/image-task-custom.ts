@@ -47,7 +47,7 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
     const outputCount = config.outputMode === "layers" ? undefined : 1;
     const values = {
         model: config.model,
-        prompt: withSystemPrompt(config, withImageOutputInstructions(config, task.prompt)),
+        prompt: task.upstreamPrompt || withSystemPrompt(config, withImageOutputInstructions(config, task.prompt)),
         size,
         ratio: imageRequestAspectRatio(config.size || "auto"),
         aspect_ratio: imageRequestAspectRatio(config.size || "auto"),
@@ -65,7 +65,11 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
         images,
     };
     const payload = workflow
-        ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: { ...values, image: images[0] || "", images }, references: images.map((url) => ({ type: "image", url })) })
+        ? buildRunningHubWorkflowPayload({
+              config: workflow,
+              businessInput: { ...values, image: images[0] || "", images },
+              references: task.references.map((reference, index) => ({ type: "image", url: images[index] || "", ...(reference.inputKey ? { inputKey: reference.inputKey } : {}) })).filter((reference) => reference.url),
+          })
         : advanced.protocol === "yumeng"
           ? buildYumengImageRequest({ model: config.model, prompt: values.prompt, images, aspectRatio: values.aspect_ratio, resolution: values.resolution, size })
           : buildProviderRequest(advanced.requestTemplate, values, values);

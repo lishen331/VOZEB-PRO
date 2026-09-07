@@ -1,7 +1,7 @@
 "use client";
 
 import { App, Button, Empty, Input, Spin } from "antd";
-import { ArrowLeft, BookOpen, Film, Image, Mic2, Music2, RefreshCw, type LucideIcon } from "lucide-react";
+import { ArrowLeft, BookOpen, Box, Film, Image, Mic2, Music2, PanelsTopLeft, RefreshCw, UserRound, type LucideIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -14,6 +14,9 @@ import PracticeStoryboardImagePanel from "./practice-storyboard-image-panel";
 import PracticeStoryboardVideoPanel from "./practice-storyboard-video-panel";
 import PracticeDubbingPanel from "./practice-dubbing-panel";
 import PracticeMusicPanel from "./practice-music-panel";
+import PracticeCharacterPanel from "./practice-character-panel";
+import PracticeScenePanel from "./practice-scene-panel";
+import PracticePropPanel from "./practice-prop-panel";
 import { PracticeSessionResult as SessionResult } from "./practice-session-result";
 import PracticeSessionHistory from "./practice-session-history";
 import { PRACTICE_MODULES } from "./practice-home";
@@ -48,7 +51,12 @@ export function publicPracticeResult(value: unknown): PracticeSessionResult | un
     return { status, error: typeof source.error === "string" ? source.error : undefined };
 }
 
-const ICONS: Record<PracticeModuleKind, LucideIcon> = { script: BookOpen, "storyboard-image": Image, "storyboard-video": Film, dubbing: Mic2, music: Music2 };
+const ICONS: Record<PracticeModuleKind, LucideIcon> = { script: BookOpen, character: UserRound, scene: PanelsTopLeft, prop: Box, "storyboard-image": Image, "storyboard-video": Film, dubbing: Mic2, music: Music2 };
+const ASSET_META: Partial<Record<PracticeModuleKind, { title: string; description: string }>> = {
+    character: { title: "角色练习", description: "从角色设定生成主形象或多视图。" },
+    scene: { title: "场景练习", description: "练习空间、光线和环境氛围。" },
+    prop: { title: "道具练习", description: "把关键物件设定成可用素材。" },
+};
 
 export default function PracticeModuleWorkbench({ module }: { module: PracticeModuleKind }) {
     const router = useRouter();
@@ -60,7 +68,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [ipReferences, setIpReferences] = useState<IpReference[]>([]);
-    const meta = PRACTICE_MODULES.find((item) => item.module === module) || PRACTICE_MODULES[0];
+    const meta = PRACTICE_MODULES.find((item) => item.module === module) || ASSET_META[module] || PRACTICE_MODULES[0];
     const Icon = ICONS[module];
     const sessionId = searchParams.get("sessionId") || "";
 
@@ -193,6 +201,12 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
         panel =
             module === "script" ? (
                 <PracticeScriptPanel {...props} />
+            ) : module === "character" ? (
+                <PracticeCharacterPanel {...props} />
+            ) : module === "scene" ? (
+                <PracticeScenePanel {...props} />
+            ) : module === "prop" ? (
+                <PracticePropPanel {...props} />
             ) : module === "storyboard-image" ? (
                 <PracticeStoryboardImagePanel {...props} />
             ) : module === "storyboard-video" ? (

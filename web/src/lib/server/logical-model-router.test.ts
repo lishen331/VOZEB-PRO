@@ -120,12 +120,29 @@ describe("resolveLogicalModel", () => {
         expect(resolveLogicalBillingModel(logicalModels, "text", "primary", "vendor/shared", "forged-model")).toBe("writer-basic");
     });
 
-    it("routes Canvas through a reachable text model even without an image-input flag", () => {
+    it("does not route a text model as vision without an image-input flag", () => {
         const settings = {
             systemChannels: [channel("primary", ["gpt-5.6-sol"])],
             logicalModels: [{ id: "gpt-5.6-sol", name: "GPT-5.6 Sol", capability: "text" as const, enabled: true, bindings: [{ id: "one", channelId: "primary", upstreamModel: "gpt-5.6-sol", enabled: true, priority: 1 }] }],
         };
 
-        expect(resolveVisionModelCandidates(settings, "gpt-5.6-sol")).toMatchObject([{ logicalModelId: "gpt-5.6-sol", upstreamModel: "gpt-5.6-sol", channelId: "primary" }]);
+        expect(resolveVisionModelCandidates(settings, "gpt-5.6-sol")).toEqual([]);
+    });
+
+    it("routes a text model as vision only when the binding supports image input", () => {
+        const settings = {
+            systemChannels: [channel("primary", ["gpt-5.6-sol"])],
+            logicalModels: [
+                {
+                    id: "gpt-5.6-sol",
+                    name: "GPT-5.6 Sol",
+                    capability: "text" as const,
+                    enabled: true,
+                    bindings: [{ id: "one", channelId: "primary", upstreamModel: "gpt-5.6-sol", enabled: true, priority: 1, capabilityProfile: { supportsImageInput: true } }],
+                },
+            ],
+        };
+
+        expect(resolveVisionModelCandidates(settings, "gpt-5.6-sol")).toMatchObject([{ logicalModelId: "gpt-5.6-sol", upstreamModel: "gpt-5.6-sol", channelId: "primary", capabilityProfile: { supportsImageInput: true } }]);
     });
 });

@@ -3,7 +3,7 @@
 import { Alert, App, Button, Checkbox, Collapse, Drawer, Input, InputNumber, Select, Space, Tabs } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";
+import type { RunningHubWorkflowAdapterType, RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";
 import type { PublicRunningHubWorkflow } from "@/lib/server/runninghub-workflow-service";
 import type { RunningHubWorkflowDiscovery } from "@/lib/server/runninghub-workflow-discovery";
 
@@ -88,15 +88,45 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
         const outputMappings = parseJson("outputMappings", "array");
         const runOptions = parseJson("runOptions", "object");
         if ([inputSchema, nodeMappings, outputMappings, runOptions].some((value) => value === undefined)) return;
-        const confirmedNodeMappings =
-            discovery && selectedCandidates.length ? (nodeMappings as Array<Record<string, unknown>>).filter((mapping) => selectedCandidates.includes(`${String(mapping.nodeId || "")}.${String(mapping.fieldName || "")}`)) : nodeMappings;
-        const confirmedOutputMappings =
-            discovery && selectedCandidates.length ? (outputMappings as Array<Record<string, unknown>>).filter((mapping) => selectedCandidates.some((candidate) => candidate.startsWith(`${String(mapping.nodeId || "")}.`))) : outputMappings;
+
+        // 根据用户勾选的候选项过滤配置
+        // 如果没有 discovery 或没有勾选任何项，使用 JSON 编辑器的完整配置（向后兼容）
+        let confirmedInputSchema = inputSchema;
+        let confirmedNodeMappings = nodeMappings;
+        let confirmedOutputMappings = outputMappings;
+
+        if (discovery && selectedCandidates.length > 0) {
+            // 过滤 inputSchema：保留勾选的字段
+            confirmedInputSchema = (inputSchema as Array<Record<string, unknown>>).filter((input) => {
+                const key = String(input.key || "");
+                // 在 nodeMappings 中找到对应的节点字段
+                const relatedMapping = (nodeMappings as Array<Record<string, unknown>>).find((mapping) => String(mapping.paramKey || "") === key);
+                if (!relatedMapping) return false;
+                const nodeField = `${String(relatedMapping.nodeId || "")}.${String(relatedMapping.fieldName || "")}`;
+                return selectedCandidates.includes(nodeField);
+            });
+
+            // 过滤 nodeMappings：只保留勾选的节点字段
+            confirmedNodeMappings = (nodeMappings as Array<Record<string, unknown>>).filter((mapping) => {
+                const nodeField = `${String(mapping.nodeId || "")}.${String(mapping.fieldName || "")}`;
+                return selectedCandidates.includes(nodeField);
+            });
+
+            // 过滤 outputMappings：只保留勾选的输出字段
+            confirmedOutputMappings = (outputMappings as Array<Record<string, unknown>>).filter((mapping) => {
+                const nodeField = `${String(mapping.nodeId || "")}.${String(mapping.fieldName || "")}`;
+                return selectedCandidates.includes(nodeField);
+            });
+        }
         setSaving(true);
         try {
             const payload: Record<string, unknown> = {
                 channelId,
                 workflowName: String(draft.workflowName || "").trim(),
+                workflowCode: String(draft.workflowCode || "").trim() || undefined,
+                adapterType: draft.adapterType,
+                adapterVersion: draft.adapterVersion,
+                remark: String(draft.remark || "").trim() || undefined,
                 businessCode: draft.businessCode,
                 capability: draft.capability,
                 workflowId: String(draft.workflowId || "").trim(),
@@ -105,7 +135,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                 taskIdField: String(draft.taskIdField || "").trim(),
                 statusField: String(draft.statusField || "").trim(),
                 resultField: String(draft.resultField || "").trim(),
-                inputSchema,
+                inputSchema: confirmedInputSchema,
                 nodeMappings: confirmedNodeMappings,
                 outputMappings: confirmedOutputMappings,
                 runOptions,
@@ -181,12 +211,10 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                 value={jsonText[key]}
                 autoSize={{ minRows: 8, maxRows: 18 }}
                 spellCheck={false}
+                readOnly
+                placeholder="根据上方识别结果自动生成，通过勾选候选项控制"
                 status={errors[key] ? "error" : undefined}
-                onChange={(event) => {
-                    setJsonText((current) => ({ ...current, [key]: event.target.value }));
-                    setErrors((current) => ({ ...current, [key]: "" }));
-                }}
-                onBlur={() => parseJson(key, expected)}
+                className="bg-stone-50 dark:bg-stone-900"
             />
             {errors[key] ? <div className="mt-1 text-xs text-red-600">{`${key}: ${errors[key]}`}</div> : null}
         </div>
@@ -244,6 +272,46 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                                 <Field label="Workflow ID" error={errors.workflowId}>
                                     <Input value={String(draft.workflowId || "")} onChange={(event) => update({ workflowId: event.target.value })} />
                                 </Field>
+                                <Field label="业务工作流 code">
+                                    <Input value={String(draft.workflowCode || "")} placeholder="character_main_view" onChange={(event) => update({ workflowCode: event.target.value })} />
+                                </Field>
+                                <Field label="适配器类型">
+                                    <Select
+                                        className="w-full"
+                                        value={draft.adapterType || "generic"}
+                                        options={["generic", "character-main-view", "character-multi-view", "scene-main-view", "prop-main-view", "storyboard-shot", "storyboard-dialogue-audio", "storyboard-shot-video"].map((value) => ({
+                                            value,
+                                            label: value,
+                                        }))}
+                                        onChange={(value) => update({ adapterType: value as RunningHubWorkflowAdapterType })}
+                                    />
+                                </Field>
+                                <Field label="备注">
+                                    <Input value={String(draft.remark || "")} onChange={(event) => update({ remark: event.target.value })} />
+                                </Field>
+                                {workflow?.workflowJsonFingerprint ? (
+                                    <div className="sm:col-span-2">
+                                        <Alert
+                                            type={workflow.requiresRetest ? "warning" : "success"}
+                                            showIcon
+                                            message={workflow.requiresRetest ? "JSON 快照已变化，需要重新测试" : "已保存 RunningHub JSON 快照"}
+                                            description={`指纹：${workflow.workflowJsonFingerprint}`}
+                                        />
+                                    </div>
+                                ) : null}
+                                {workflow?.generationSizeOptions?.length ? (
+                                    <div className="sm:col-span-2">
+                                        <div className="mb-1 text-xs font-medium text-stone-600 dark:text-stone-300">可用尺寸预设</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {workflow.generationSizeOptions.map((option) => (
+                                                <span key={option.key} className="rounded border border-stone-200 px-2 py-1 text-xs text-stone-600 dark:border-stone-700 dark:text-stone-300">
+                                                    {option.label}
+                                                    {option.disabled ? "（停用）" : ""}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
                                 <div className="flex items-end">
                                     <Button className="w-full" loading={discovering} onClick={() => void discover()}>
                                         读取工作流
@@ -373,6 +441,10 @@ function makeDraft(channelId: string, workflow?: PublicRunningHubWorkflow): Draf
     return {
         channelId,
         workflowName: workflow?.workflowName || "",
+        workflowCode: workflow?.workflowCode || "",
+        adapterType: workflow?.adapterType || "generic",
+        adapterVersion: workflow?.adapterVersion || 1,
+        remark: workflow?.remark || "",
         businessCode,
         capability: workflow?.capability || businessOptions.find((item) => item.value === businessCode)?.capability,
         providerType: "runninghub",

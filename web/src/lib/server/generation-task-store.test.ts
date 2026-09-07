@@ -337,7 +337,7 @@ describe("mutateStoredGenerationTask", () => {
                 status: "pending",
                 surface: "canvas",
                 executionProfile: "open-source-practice",
-                ipReferences: [{ type: "ip", id: "ip-one", versionId: "version-one", itemIds: ["item-one"] }],
+                ipReferences: [{ type: "ip", id: "ip-one", subIpId: "sub-ip-one", itemIds: ["item-one"] }],
                 createdAt: now,
                 updatedAt: now,
             },
@@ -348,8 +348,8 @@ describe("mutateStoredGenerationTask", () => {
         await expect(getStoredGenerationTaskRecord("image", "practice-image")).resolves.toMatchObject({
             surface: "canvas",
             executionProfile: "open-source-practice",
-            ipReferences: [{ type: "ip", id: "ip-one", versionId: "version-one", itemIds: ["item-one"] }],
-            payload: { ipReferences: [{ type: "ip", id: "ip-one", versionId: "version-one", itemIds: ["item-one"] }] },
+            ipReferences: [{ type: "ip", id: "ip-one", subIpId: "sub-ip-one", itemIds: ["item-one"] }],
+            payload: { ipReferences: [{ type: "ip", id: "ip-one", subIpId: "sub-ip-one", itemIds: ["item-one"] }] },
         });
         await expect(getStoredGenerationTaskRecord("image", "production-image")).resolves.toMatchObject({ executionProfile: "production" });
     });

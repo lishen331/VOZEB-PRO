@@ -24,6 +24,7 @@ export type CreativeAgentRun = {
     selectedSkillIds?: string[];
     requestedModelIds?: string[];
     generationPreferences?: CreativeGenerationPreferences;
+    execution?: { skills?: Array<{ id: string; name: string; workspaces?: string[]; action?: string }>; referenceAssetCount?: number };
     createdAt?: number;
     updatedAt?: number;
     assetIds: string[];
@@ -43,6 +44,7 @@ export type CreativeAgentRun = {
         speed?: number;
         count?: number;
         status: "ready" | "running" | "needs_review" | "completed" | "failed" | "cancelled";
+        references?: Array<{ assetId?: string; nodeId?: string; type: "image" | "video" | "audio"; role?: string }>;
         error?: string;
     }>;
     cancellation?: { pendingCount: number };
@@ -87,6 +89,14 @@ export function uploadCreativeAsset(conversationId: string, file: File) {
     body.set("conversationId", conversationId);
     body.set("file", file);
     return request<{ asset: CreativeAsset }>("/api/creative/assets", { method: "POST", body }).then((data) => data.asset);
+}
+
+export function referenceCreativeAsset(conversationId: string, input: { sourceUrl: string; title?: string }) {
+    return request<{ asset: CreativeAsset }>("/api/creative/assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, ...input }),
+    }).then((data) => data.asset);
 }
 
 export function createCreativeAgentRun(input: CreativeRunRequest) {

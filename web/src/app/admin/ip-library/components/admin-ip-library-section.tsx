@@ -1,864 +1,800 @@
 "use client";
 
-import type { TableColumnsType } from "antd";
-import { App, Button, Drawer, Form, Input, InputNumber, Modal, Pagination, Select, Space, Table, Tabs, Tag, Tooltip } from "antd";
-import { Ban, Building2, FilePlus2, History, Pencil, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { FormInstance, TableColumnsType } from "antd";
+import { App, Button, Empty, Form, Input, Modal, Pagination, Popconfirm, Select, Space, Table, Tabs, Tag, Tooltip } from "antd";
+import { ArrowLeft, Ban, Building2, Eye, FilePlus2, FolderPlus, Pause, Pencil, Plus, RefreshCw, RotateCcw, Save, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
-import { AdminUserIdentity } from "@/components/admin/admin-user-identity";
 import { hasAdminPermission } from "@/lib/admin-permissions";
 import type { PublicUser } from "@/lib/auth/store";
-import { IP_ASSET_KINDS, IP_AUTHORIZATION_MODES, IP_ITEM_CATEGORIES, IP_STATUSES, IP_VISIBILITIES, ipAuthorizationLabel, type IpAssetKind, type IpAuthorizationMode, type IpItemCategory, type IpStatus, type IpVisibility } from "@/lib/ip-library-domain";
-import type { SchoolSummary } from "@/lib/school-domain";
-import type { IpContentFileRecord, IpDownloadResult, IpDownloadType, IpItemRecord, IpPackageRecord, IpSchoolGrantRecord, IpVersionRecord } from "@/lib/server/database/repository-types";
+import {
+    IP_ASSET_KINDS,
+    IP_AUTHORIZATION_MODES,
+    IP_ITEM_CATEGORIES,
+    IP_STATUSES,
+    IP_VISIBILITIES,
+    ipAuthorizationLabel,
+    ipItemCategoryLabel,
+    type IpAssetKind,
+    type IpAuthorizationMode,
+    type IpItemCategory,
+    type IpStatus,
+    type IpVisibility,
+} from "@/lib/ip-library-domain";
+import type { IpContentFileRecord, IpDetailRecord, IpItemRecord, IpPackageRecord, IpSchoolGrantStatus, IpSubIpDetailRecord } from "@/lib/server/database/repository-types";
 import { adminEducationApi } from "@/services/api/admin-education";
 import { adminIpLibraryApi, type AdminIpGrantItem, type AdminIpUsageItem } from "@/services/api/admin-ip-library";
-import { IpContentPreview } from "./ip-content-preview";
 import { IpContentUpload } from "./ip-content-upload";
 
 const PAGE_SIZE = 12;
-type AdminIp = IpPackageRecord & { versionNumber: number; itemCount: number };
+type AdminIp = IpPackageRecord & { subIpCount: number };
 type IpForm = { title: string; slug: string; summary?: string; visibility: IpVisibility };
-type VersionItemForm = { kind: IpAssetKind; category: IpItemCategory; title: string; summary?: string; fileId: string; sortOrder?: number };
-type VersionForm = { title: string; summary?: string; coverFileId?: string; tags?: string[]; sourceNote?: string; changeNote?: string; items: VersionItemForm[] };
-type GrantForm = { schoolId: string; mode: IpAuthorizationMode; startsAt: string; endsAt?: string; note?: string };
+type SubIpItemForm = { kind: IpAssetKind; category: IpItemCategory; title: string; summary?: string; fileId: string; sortOrder?: number };
+type SubIpForm = { title: string; summary?: string; coverFileId?: string; tags?: string[]; sourceNote?: string; sortOrder?: number; items: SubIpItemForm[] };
+type GrantForm = { subIpId: string; schoolId: string; mode: IpAuthorizationMode; startsAt: string; endsAt?: string; note?: string };
+type GrantPatchForm = { status: IpSchoolGrantStatus; endsAt?: string; note?: string };
+type DetailTab = "content" | "grants" | "usage";
+type DetailOpenIntent = { tab?: DetailTab; openGrant?: boolean };
 
 export function AdminIpLibrarySection({ currentUser }: { currentUser: PublicUser }) {
     const canManageContent = hasAdminPermission(currentUser, "content.manage");
     const canManageEducation = hasAdminPermission(currentUser, "education.manage");
-    const tabs = [
-        { key: "content", label: "IP 内容", children: <IpContentPanel canManageContent={canManageContent} canManageEducation={canManageEducation} /> },
-        ...(canManageEducation ? [{ key: "grants", label: "学校授权", children: <GrantPanel /> }] : []),
-        { key: "usage", label: "下载记录", children: <UsagePanel /> },
-    ];
-    return <Tabs items={tabs} destroyOnHidden />;
+    const [opened, setOpened] = useState<{ detail: IpDetailRecord; initialTab: DetailTab; openGrantOnMount: boolean }>();
+    return opened ? (
+        <IpDetailEditor
+            detail={opened.detail}
+            initialTab={opened.initialTab}
+            openGrantOnMount={opened.openGrantOnMount}
+            onClose={() => setOpened(undefined)}
+            onReload={(detail) => setOpened((current) => (current ? { ...current, detail, openGrantOnMount: false } : current))}
+            canManageContent={canManageContent}
+            canManageEducation={canManageEducation}
+        />
+    ) : (
+        <IpList canManageContent={canManageContent} canManageEducation={canManageEducation} onOpen={(detail, intent = {}) => setOpened({ detail, initialTab: intent.tab || "content", openGrantOnMount: Boolean(intent.openGrant) })} />
+    );
 }
 
-function IpContentPanel({ canManageContent, canManageEducation }: { canManageContent: boolean; canManageEducation: boolean }) {
+function IpList({ canManageContent, canManageEducation, onOpen }: { canManageContent: boolean; canManageEducation: boolean; onOpen: (detail: IpDetailRecord, intent?: DetailOpenIntent) => void }) {
     const { message, modal } = App.useApp();
     const [form] = Form.useForm<IpForm>();
     const [items, setItems] = useState<AdminIp[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [keyword, setKeyword] = useState("");
-    const [queryKeyword, setQueryKeyword] = useState("");
     const [status, setStatus] = useState<IpStatus>();
     const [visibility, setVisibility] = useState<IpVisibility>();
     const [loading, setLoading] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [editing, setEditing] = useState<AdminIp>();
-    const [editorOpen, setEditorOpen] = useState(false);
-    const [versionIp, setVersionIp] = useState<AdminIp>();
-    const [grantIp, setGrantIp] = useState<AdminIp>();
-    const requestId = useRef(0);
-    const slugEditedRef = useRef(false);
-
     const load = useCallback(async () => {
-        const id = ++requestId.current;
         setLoading(true);
         try {
-            const result = await adminIpLibraryApi.list({ page, pageSize: PAGE_SIZE, keyword: queryKeyword || undefined, status, visibility });
-            if (id !== requestId.current) return;
+            const result = await adminIpLibraryApi.list({ page, pageSize: PAGE_SIZE, keyword: keyword.trim() || undefined, status, visibility });
             setItems(result.items);
             setTotal(result.total);
         } catch (error) {
-            if (id === requestId.current) message.error(errorMessage(error, "IP 列表加载失败"));
+            message.error(errorMessage(error, "IP 列表加载失败"));
         } finally {
-            if (id === requestId.current) setLoading(false);
+            setLoading(false);
         }
-    }, [message, page, queryKeyword, status, visibility]);
+    }, [keyword, message, page, status, visibility]);
     useEffect(() => void load(), [load]);
-
-    const openEditor = (ip?: AdminIp) => {
-        setEditing(ip);
-        slugEditedRef.current = Boolean(ip);
-        form.resetFields();
-        form.setFieldsValue(ip ? { title: ip.title, slug: ip.slug, summary: ip.summary, visibility: ip.visibility } : { visibility: "public" });
-        setEditorOpen(true);
-    };
-    const save = async (values: IpForm) => {
-        setSaving(true);
+    const open = async (id: string, intent?: DetailOpenIntent) => {
         try {
-            if (editing) await adminIpLibraryApi.update(editing.id, values);
-            else await adminIpLibraryApi.create(values);
-            message.success(editing ? "IP 已更新" : "IP 草稿已创建");
-            setEditorOpen(false);
-            await load();
+            onOpen(await adminIpLibraryApi.get(id), intent);
         } catch (error) {
-            const text = errorMessage(error, "IP 保存失败");
-            const data = error && typeof error === "object" ? (error as { data?: { field?: string } }).data : undefined;
-            if (data?.field === "slug") form.setFields([{ name: "slug", errors: [text] }]);
-            message.error(text);
-            throw error;
+            message.error(errorMessage(error, "IP 详情加载失败"));
+        }
+    };
+    const create = async () => {
+        try {
+            const value = await form.validateFields();
+            setSaving(true);
+            const ip = await adminIpLibraryApi.create(value);
+            setCreateOpen(false);
+            form.resetFields();
+            await open(ip.id);
+        } catch (error) {
+            if (error && typeof error === "object" && "errorFields" in error) return;
+            message.error(errorMessage(error, "创建 IP 失败"));
         } finally {
             setSaving(false);
         }
     };
-    const disableIp = (ip: AdminIp) =>
+    const toggle = async (ip: AdminIp) => {
+        try {
+            await adminIpLibraryApi.update(ip.id, { status: ip.status === "enabled" ? "disabled" : "enabled" });
+            message.success(ip.status === "enabled" ? "已停用，老师和学生将无法访问" : "已启用");
+            await load();
+        } catch (error) {
+            message.error(errorMessage(error, "更新 IP 状态失败"));
+        }
+    };
+    const remove = (ip: AdminIp) =>
         modal.confirm({
-            title: `停用“${ip.title}”`,
-            content: "停用后禁止新的查看和下载，历史版本仍保留。",
-            okText: "确认停用",
+            title: `删除“${ip.title}”`,
+            content: "已授权给学校的 IP 不能删除。未授权的 IP 会删除其子 IP、内容、下载记录及关联文件，且无法恢复。",
+            okText: "删除",
+            okButtonProps: { danger: true },
             cancelText: "取消",
-            async onOk() {
-                await adminIpLibraryApi.update(ip.id, { status: "disabled" });
-                message.success("IP 已停用");
+            onOk: async () => {
+                await adminIpLibraryApi.remove(ip.id);
+                message.success("IP 已删除");
                 await load();
             },
         });
-    const actions = (ip: AdminIp) => (
-        <Space size={0} wrap>
-            <Button type="text" size="small" icon={<History className="size-3.5" />} onClick={() => setVersionIp(ip)}>
-                版本
-            </Button>
-            {canManageContent ? (
-                <Button type="text" size="small" icon={<Pencil className="size-3.5" />} onClick={() => openEditor(ip)}>
-                    编辑
-                </Button>
-            ) : null}
-            {canManageEducation && ip.visibility === "school" ? (
-                <Button type="text" size="small" icon={<Building2 className="size-3.5" />} onClick={() => setGrantIp(ip)}>
-                    授权
-                </Button>
-            ) : null}
-            {canManageContent && ip.status === "published" ? (
-                <Button type="text" size="small" danger icon={<Ban className="size-3.5" />} onClick={() => disableIp(ip)}>
-                    停用
-                </Button>
-            ) : null}
-        </Space>
-    );
     const columns: TableColumnsType<AdminIp> = [
         {
             title: "IP",
-            render: (_, ip) => (
-                <div className="min-w-0">
-                    <div className="truncate font-medium text-zinc-950 dark:text-zinc-100">{ip.title}</div>
-                    <div className="mt-0.5 truncate text-xs text-zinc-500">
-                        {ip.slug} · {ip.summary || "暂无简介"}
-                    </div>
+            dataIndex: "title",
+            render: (_, item) => (
+                <div className="min-w-0 text-left">
+                    <div className="truncate font-medium text-zinc-900 dark:text-zinc-100">{item.title}</div>
+                    <div className="mt-1 max-w-[34rem] truncate text-xs text-zinc-500">{item.summary || item.slug}</div>
                 </div>
             ),
         },
+        { title: "范围", width: 100, render: (_, item) => <Tag>{item.visibility === "school" ? "本校 IP" : "公共 IP"}</Tag> },
+        { title: "子 IP", dataIndex: "subIpCount", width: 92, render: (count) => `${count} 个` },
+        { title: "状态", width: 96, render: (_, item) => <Tag color={item.status === "enabled" ? "green" : "default"}>{item.status === "enabled" ? "启用" : "停用"}</Tag> },
         {
-            title: "发行",
-            width: 150,
-            render: (_, ip) => (
-                <div className="space-y-1">
-                    <IpStatusTag status={ip.status} />
-                    <div className="text-xs text-zinc-500">{ip.visibility === "public" ? "公共 IP" : "本校 IP"}</div>
-                </div>
-            ),
-        },
-        {
-            title: "当前版本",
-            width: 110,
-            render: (_, ip) => (
-                <span className="text-sm">
-                    v{ip.versionNumber || 0} · {ip.itemCount} 项
-                </span>
-            ),
-        },
-        { title: "更新时间", width: 160, dataIndex: "updatedAt", render: (value: string) => <span className="text-xs text-zinc-500">{formatTime(value)}</span> },
-        { title: "操作", width: 270, align: "right", render: (_, ip) => actions(ip) },
-    ];
-
-    return (
-        <section className="space-y-3">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_108px_112px] gap-2 lg:max-w-3xl">
-                    <Input.Search
-                        value={keyword}
-                        allowClear
-                        placeholder="搜索 IP 名称、slug 或简介"
-                        onChange={(event) => setKeyword(event.target.value)}
-                        onSearch={(value) => {
-                            setQueryKeyword(value.trim());
-                            setPage(1);
-                        }}
-                    />
-                    <Select
-                        allowClear
-                        value={visibility}
-                        placeholder="范围"
-                        options={visibilityOptions}
-                        onChange={(value) => {
-                            setVisibility(value);
-                            setPage(1);
-                        }}
-                    />
-                    <Select
-                        allowClear
-                        value={status}
-                        placeholder="状态"
-                        options={statusOptions}
-                        onChange={(value) => {
-                            setStatus(value);
-                            setPage(1);
-                        }}
-                    />
-                </div>
-                <Space className="justify-end">
-                    <Button icon={<RefreshCw className="size-4" />} aria-label="刷新 IP 列表" loading={loading} onClick={() => void load()} />
-                    {canManageContent ? (
-                        <Button type="primary" icon={<Plus className="size-4" />} onClick={() => openEditor()}>
-                            创建 IP
+            title: "操作",
+            width: 330,
+            render: (_, item) => (
+                <Space size={0} wrap>
+                    <Button type="text" icon={<Eye className="size-4" />} aria-label="查看详情" onClick={() => void open(item.id)}>
+                        详情
+                    </Button>
+                    {canManageEducation && item.visibility === "school" ? (
+                        <Button type="text" icon={<Building2 className="size-4" />} onClick={() => void open(item.id, { tab: "grants", openGrant: true })}>
+                            授权
                         </Button>
+                    ) : null}
+                    {canManageContent ? (
+                        <>
+                            <Button type="text" icon={item.status === "enabled" ? <Ban className="size-4" /> : <RotateCcw className="size-4" />} aria-label={item.status === "enabled" ? "停用 IP" : "启用 IP"} onClick={() => void toggle(item)}>
+                                {item.status === "enabled" ? "停用" : "启用"}
+                            </Button>
+                            <Button type="text" danger icon={<Trash2 className="size-4" />} aria-label="删除 IP" onClick={() => remove(item)}>
+                                删除
+                            </Button>
+                        </>
                     ) : null}
                 </Space>
-            </div>
-            <div className="hidden md:block">
-                <Table rowKey="id" columns={columns} dataSource={items} loading={loading} pagination={false} scroll={{ x: 940 }} />
-            </div>
-            <div className="space-y-2 md:hidden">
-                {items.map((ip) => (
-                    <article key={ip.id} className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <h2 className="truncate text-sm font-medium">{ip.title}</h2>
-                                <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{ip.summary || "暂无简介"}</p>
-                            </div>
-                            <IpStatusTag status={ip.status} />
-                        </div>
-                        <div className="mt-2 text-xs text-zinc-500">
-                            {ip.visibility === "public" ? "公共 IP" : "本校 IP"} · v{ip.versionNumber || 0} · {ip.itemCount} 项
-                        </div>
-                        <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">{actions(ip)}</div>
-                    </article>
-                ))}
-            </div>
-            <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage responsive showSizeChanger={false} onChange={setPage} />
-
-            <Modal title={editing ? "编辑 IP 档案" : "创建 IP 档案"} open={editorOpen} destroyOnHidden width="min(640px, 100vw)" okText="保存" cancelText="取消" confirmLoading={saving} onCancel={() => setEditorOpen(false)} onOk={() => form.submit()}>
-                <Form form={form} layout="vertical" onFinish={save} className="pt-2">
-                    <div className="grid gap-x-3 sm:grid-cols-2">
-                        <Form.Item name="title" label="IP 名称" rules={[{ required: true, message: "请填写 IP 名称" }]}>
-                            <Input
-                                maxLength={120}
-                                onChange={(event) => {
-                                    if (!slugEditedRef.current && !editing) form.setFieldValue("slug", slugSuggestion(event.target.value));
-                                }}
-                            />
-                        </Form.Item>
-                        <Form.Item
-                            name="slug"
-                            label="slug"
-                            rules={[
-                                { required: true, message: "请填写 slug" },
-                                { pattern: /^[a-z0-9]+(?:-[a-z0-9]+)*$/, message: "使用小写字母、数字和连字符" },
-                            ]}
-                        >
-                            <Input
-                                onChange={() => {
-                                    slugEditedRef.current = true;
-                                }}
-                            />
-                        </Form.Item>
-                    </div>
-                    <Form.Item name="summary" label="简介">
-                        <Input.TextArea rows={3} maxLength={1000} showCount />
-                    </Form.Item>
-                    <Form.Item name="visibility" label="前端范围" rules={[{ required: true }]}>
-                        <Select options={visibilityOptions} />
-                    </Form.Item>
-                    <p className="-mt-2 text-xs text-zinc-500">公共 IP 可公开查看，不能绑定学校授权；学校授权仅适用于已发布的本校 IP。</p>
-                </Form>
-            </Modal>
-            <VersionDrawer ip={versionIp} canManage={canManageContent} onClose={() => setVersionIp(undefined)} onChanged={load} />
-            <GrantDrawer ip={grantIp} onClose={() => setGrantIp(undefined)} />
-        </section>
-    );
-}
-
-function VersionDrawer({ ip, canManage, onClose, onChanged }: { ip?: AdminIp; canManage: boolean; onClose: () => void; onChanged: () => Promise<void> }) {
-    const { message } = App.useApp();
-    const [form] = Form.useForm<VersionForm>();
-    const [versions, setVersions] = useState<IpVersionRecord[]>([]);
-    const [files, setFiles] = useState<IpContentFileRecord[]>([]);
-    const [page, setPage] = useState(1);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(false);
-    const [creating, setCreating] = useState(false);
-    const [editingVersion, setEditingVersion] = useState<IpVersionRecord>();
-    const [saving, setSaving] = useState(false);
-    const load = useCallback(async () => {
-        if (!ip) return;
-        setLoading(true);
-        try {
-            const [versionPage, fileRecords] = await Promise.all([adminIpLibraryApi.listVersions(ip.id, { page, pageSize: PAGE_SIZE }), adminIpLibraryApi.listFiles(ip.id)]);
-            setVersions(versionPage.items);
-            setTotal(versionPage.total);
-            setFiles(fileRecords);
-        } catch (error) {
-            message.error(errorMessage(error, "版本列表加载失败"));
-        } finally {
-            setLoading(false);
-        }
-    }, [ip, message, page]);
-    useEffect(() => void load(), [load]);
-    const save = async (values: VersionForm) => {
-        if (!ip) return;
-        setSaving(true);
-        try {
-            if (editingVersion) await adminIpLibraryApi.updateVersion(ip.id, editingVersion.id, values);
-            else await adminIpLibraryApi.createVersion(ip.id, values);
-            message.success(editingVersion ? "草稿已保存" : "新版本草稿已创建");
-            setCreating(false);
-            setEditingVersion(undefined);
-            form.resetFields();
-            setPage(1);
-            await load();
-        } catch (error) {
-            message.error(errorMessage(error, "版本创建失败"));
-            throw error;
-        } finally {
-            setSaving(false);
-        }
-    };
-    const openNew = () => {
-        const current = versions.find((version) => version.id === ip?.currentVersionId);
-        setEditingVersion(undefined);
-        form.resetFields();
-        form.setFieldsValue(current ? versionFormValue(current) : { title: "", summary: "", tags: [], sourceNote: "", changeNote: "", items: [] });
-        setCreating(true);
-    };
-    const openEdit = (version: IpVersionRecord) => {
-        setEditingVersion(version);
-        form.resetFields();
-        form.setFieldsValue(versionFormValue(version));
-        setCreating(true);
-    };
-    const rememberFile = (file: IpContentFileRecord) => setFiles((current) => [file, ...current.filter((item) => item.id !== file.id)]);
-    const publish = async (version: IpVersionRecord) => {
-        if (!ip) return;
-        setSaving(true);
-        try {
-            await adminIpLibraryApi.publishVersion(ip.id, version.id);
-            message.success(`v${version.versionNumber} 已发布`);
-            await Promise.all([load(), onChanged()]);
-        } catch (error) {
-            message.error(errorMessage(error, "版本发布失败"));
-        } finally {
-            setSaving(false);
-        }
-    };
-    return (
-        <Drawer
-            title={ip ? `${ip.title} · 版本历史` : "版本历史"}
-            open={Boolean(ip)}
-            width="min(760px, 100vw)"
-            destroyOnHidden
-            onClose={onClose}
-            styles={{ wrapper: { maxWidth: "100vw" }, header: { minWidth: 0 } }}
-            extra={
-                canManage ? (
-                    <Tooltip title="新建版本">
-                        <Button type="primary" icon={<FilePlus2 className="size-4" />} aria-label="新建版本" onClick={openNew} />
-                    </Tooltip>
-                ) : null
-            }
-        >
-            <div className="space-y-3" aria-busy={loading}>
-                {versions.map((version) => (
-                    <section key={version.id} className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-                        <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <div className="font-medium">
-                                    v{version.versionNumber} · {version.title}
-                                </div>
-                                <div className="mt-1 text-xs text-zinc-500">
-                                    {version.items.length} 项内容 · {formatTime(version.publishedAt || version.createdAt)}
-                                </div>
-                            </div>
-                            <Space>
-                                <Tag color={version.status === "published" ? "green" : version.status === "draft" ? "gold" : "default"}>{versionStatusLabel[version.status]}</Tag>
-                                {canManage && version.status === "draft" ? (
-                                    <>
-                                        <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => openEdit(version)}>
-                                            编辑
-                                        </Button>
-                                        <Button size="small" type="primary" disabled={!versionReady(version, files)} loading={saving} onClick={() => void publish(version)}>
-                                            发布
-                                        </Button>
-                                    </>
-                                ) : null}
-                            </Space>
-                        </div>
-                        {canManage && version.status === "draft" && !versionReady(version, files) ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{versionBlockReason(version, files)}</p> : null}
-                        {version.summary ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{version.summary}</p> : null}
-                        {version.tags.length ? (
-                            <div className="mt-2 flex flex-wrap gap-1">
-                                {version.tags.map((tag) => (
-                                    <Tag key={tag}>{tag}</Tag>
-                                ))}
-                            </div>
-                        ) : null}
-                        {version.coverFileId ? (
-                            <div className="mt-3">
-                                <IpContentPreview ipId={version.ipId} file={files.find((file) => file.id === version.coverFileId)} compact />
-                            </div>
-                        ) : null}
-                        <VersionItems ipId={version.ipId} items={version.items} files={files} />
-                    </section>
-                ))}
-            </div>
-            <Pagination className="mt-3" current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
-            <Modal
-                title={editingVersion ? `编辑 v${editingVersion.versionNumber} 草稿` : "创建不可覆盖的新版本"}
-                open={creating}
-                destroyOnHidden
-                width="min(880px, 100vw)"
-                okText="保存草稿"
-                cancelText="取消"
-                confirmLoading={saving}
-                onCancel={() => {
-                    setCreating(false);
-                    setEditingVersion(undefined);
-                }}
-                onOk={() => form.submit()}
-            >
-                <Form form={form} layout="vertical" onFinish={save} className="pt-2">
-                    <div className="grid gap-x-3 sm:grid-cols-2">
-                        <Form.Item name="title" label="版本名称" rules={[{ required: true, message: "请填写版本名称" }]}>
-                            <Input maxLength={120} />
-                        </Form.Item>
-                        <Form.Item name="tags" label="标签">
-                            <Select mode="tags" tokenSeparators={[",", "，"]} maxTagCount="responsive" />
-                        </Form.Item>
-                    </div>
-                    <Form.Item name="summary" label="版本说明">
-                        <Input.TextArea rows={2} maxLength={1000} />
-                    </Form.Item>
-                    {ip ? (
-                        <Form.Item name="coverFileId" label="版本封面">
-                            <IpContentUpload ipId={ip.id} kind="image" files={files} onUploaded={rememberFile} />
-                        </Form.Item>
-                    ) : null}
-                    <div className="grid gap-x-3 sm:grid-cols-2">
-                        <Form.Item name="sourceNote" label="来源与署名">
-                            <Input.TextArea rows={3} maxLength={1000} />
-                        </Form.Item>
-                        <Form.Item name="changeNote" label="版本变更">
-                            <Input.TextArea rows={3} maxLength={1000} />
-                        </Form.Item>
-                    </div>
-                    <Form.List name="items">
-                        {(fields, { add, remove }) => (
-                            <div className="space-y-3">
-                                {fields.map((field, index) => (
-                                    <VersionItemEditor key={field.key} ipId={ip?.id || ""} files={files} field={field} index={index} onUploaded={rememberFile} remove={() => remove(field.name)} />
-                                ))}
-                                <Button block icon={<Plus className="size-4" />} onClick={() => add({ kind: "text", category: "story_summary", title: "", fileId: "", sortOrder: fields.length })}>
-                                    添加内容项
-                                </Button>
-                            </div>
-                        )}
-                    </Form.List>
-                </Form>
-            </Modal>
-        </Drawer>
-    );
-}
-
-function VersionItemEditor({ ipId, files, field, index, onUploaded, remove }: { ipId: string; files: IpContentFileRecord[]; field: { key: number; name: number }; index: number; onUploaded: (file: IpContentFileRecord) => void; remove: () => void }) {
-    const form = Form.useFormInstance<VersionForm>();
-    return (
-        <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-            <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium">内容项 {index + 1}</span>
-                <Button type="text" danger aria-label={`删除内容项 ${index + 1}`} icon={<Trash2 className="size-4" />} onClick={remove} />
-            </div>
-            <div className="grid gap-x-3 sm:grid-cols-2">
-                <Form.Item name={[field.name, "kind"]} label="类型" rules={[{ required: true }]}>
-                    <Select
-                        options={kindOptions}
-                        onChange={(kind: IpAssetKind) => {
-                            form.setFieldValue(["items", field.name, "category"], IP_ITEM_CATEGORIES[kind][0]);
-                            form.setFieldValue(["items", field.name, "fileId"], undefined);
-                        }}
-                    />
-                </Form.Item>
-                <Form.Item noStyle shouldUpdate>
-                    {({ getFieldValue }) => {
-                        const kind = (getFieldValue(["items", field.name, "kind"]) || "text") as IpAssetKind;
-                        const options = IP_ITEM_CATEGORIES[kind].map((value) => ({ value, label: categoryLabels[value] || value }));
-                        return (
-                            <Form.Item name={[field.name, "category"]} label="分类" rules={[{ required: true }]}>
-                                <Select options={options} />
-                            </Form.Item>
-                        );
-                    }}
-                </Form.Item>
-            </div>
-            <Form.Item name={[field.name, "title"]} label="标题" rules={[{ required: true, message: "请填写内容项标题" }]}>
-                <Input maxLength={120} />
-            </Form.Item>
-            <Form.Item noStyle shouldUpdate>
-                {({ getFieldValue }) => {
-                    const kind = (getFieldValue(["items", field.name, "kind"]) || "text") as IpAssetKind;
-                    return (
-                        <Form.Item name={[field.name, "fileId"]} label="IP 原文件" rules={[{ required: true, message: "请上传或选择 IP 原文件" }]}>
-                            <IpContentUpload ipId={ipId} kind={kind} files={files} onUploaded={onUploaded} />
-                        </Form.Item>
-                    );
-                }}
-            </Form.Item>
-            <div className="grid gap-x-3 sm:grid-cols-[1fr_110px]">
-                <Form.Item name={[field.name, "summary"]} label="说明">
-                    <Input />
-                </Form.Item>
-                <Form.Item name={[field.name, "sortOrder"]} label="排序">
-                    <InputNumber min={0} precision={0} className="w-full" />
-                </Form.Item>
-            </div>
-        </div>
-    );
-}
-
-function VersionItems({ ipId, items, files }: { ipId: string; items: IpItemRecord[]; files: IpContentFileRecord[] }) {
-    if (!items.length) return null;
-    return (
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {items.map((item) => (
-                <div key={item.id} className="min-w-0 border-l-2 border-zinc-200 pl-2 dark:border-zinc-700">
-                    <div className="truncate text-sm">{item.title}</div>
-                    <div className="mb-2 text-xs text-zinc-500">
-                        {kindLabel[item.kind]} · {categoryLabels[item.category] || item.category}
-                    </div>
-                    <IpContentPreview ipId={ipId} file={files.find((file) => file.id === item.fileId)} compact />
-                </div>
-            ))}
-        </div>
-    );
-}
-
-function versionFormValue(version: IpVersionRecord): VersionForm {
-    return {
-        title: version.title,
-        summary: version.summary,
-        coverFileId: version.coverFileId,
-        tags: version.tags,
-        sourceNote: version.sourceNote,
-        changeNote: "",
-        items: version.items.map((item) => ({ kind: item.kind, category: item.category, title: item.title, summary: item.summary, fileId: item.fileId, sortOrder: item.sortOrder })),
-    };
-}
-
-function versionReady(version: IpVersionRecord, files: IpContentFileRecord[]) {
-    if (!version.items.length) return false;
-    const readyIds = new Set(files.filter((file) => file.status === "ready").map((file) => file.id));
-    return (!version.coverFileId || readyIds.has(version.coverFileId)) && version.items.every((item) => readyIds.has(item.fileId));
-}
-
-function versionBlockReason(version: IpVersionRecord, files: IpContentFileRecord[]) {
-    if (!version.items.length) return "IP 版本至少需要一个内容项";
-    const byId = new Map(files.map((file) => [file.id, file]));
-    const itemFiles = version.items.map((item) => byId.get(item.fileId));
-    const coverFile = version.coverFileId ? byId.get(version.coverFileId) : undefined;
-    if (itemFiles.some((file) => file?.status === "processing") || coverFile?.status === "processing") return "仍有内容文件处理中，请稍后再发布";
-    if (itemFiles.some((file) => !file || file.status === "failed") || coverFile?.status === "failed") return "有内容文件处理失败，请重新上传";
-    if (version.coverFileId && coverFile?.status !== "ready") return "IP 封面尚未准备完成";
-    if (itemFiles.some((file) => file?.status !== "ready")) return "有内容文件尚未准备完成";
-    return "当前版本暂不可发布";
-}
-
-function GrantPanel() {
-    const { message } = App.useApp();
-    const [items, setItems] = useState<AdminIp[]>([]);
-    const [page, setPage] = useState(1);
-    const [total, setTotal] = useState(0);
-    const [keyword, setKeyword] = useState("");
-    const [queryKeyword, setQueryKeyword] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [selected, setSelected] = useState<AdminIp>();
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
-            const result = await adminIpLibraryApi.list({ page, pageSize: PAGE_SIZE, keyword: queryKeyword || undefined, status: "published", visibility: "school" });
-            setItems(result.items);
-            setTotal(result.total);
-        } catch (error) {
-            message.error(errorMessage(error, "可授权 IP 加载失败"));
-        } finally {
-            setLoading(false);
-        }
-    }, [message, page, queryKeyword]);
-    useEffect(() => void load(), [load]);
-    return (
-        <section className="space-y-3">
-            <div className="flex gap-2">
-                <Input.Search
-                    value={keyword}
-                    allowClear
-                    placeholder="搜索已发布的本校 IP"
-                    onChange={(event) => setKeyword(event.target.value)}
-                    onSearch={(value) => {
-                        setQueryKeyword(value.trim());
-                        setPage(1);
-                    }}
-                />
-                <Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void load()} />
-            </div>
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {items.map((ip) => (
-                    <article key={ip.id} className="flex items-center justify-between gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-                        <div className="min-w-0">
-                            <h2 className="truncate text-sm font-medium">{ip.title}</h2>
-                            <p className="mt-1 text-xs text-zinc-500">授权方式按学校单独设置 · v{ip.versionNumber}</p>
-                        </div>
-                        <Button size="small" icon={<ShieldCheck className="size-3.5" />} onClick={() => setSelected(ip)}>
-                            管理授权
-                        </Button>
-                    </article>
-                ))}
-                {!items.length ? <EmptyText text="暂无可授权 IP。授权入口只展示已发布的本校 IP，公共 IP、草稿和已停用 IP 不在此列表。" /> : null}
-            </div>
-            <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
-            <GrantDrawer ip={selected} onClose={() => setSelected(undefined)} />
-        </section>
-    );
-}
-
-function GrantDrawer({ ip, onClose }: { ip?: AdminIp; onClose: () => void }) {
-    const { message } = App.useApp();
-    const [form] = Form.useForm<GrantForm>();
-    const [items, setItems] = useState<AdminIpGrantItem[]>([]);
-    const [schools, setSchools] = useState<SchoolSummary[]>([]);
-    const [page, setPage] = useState(1);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(false);
-    const [creating, setCreating] = useState(false);
-    const schoolRequest = useRef(0);
-    const load = useCallback(async () => {
-        if (!ip) return;
-        setLoading(true);
-        try {
-            const result = await adminIpLibraryApi.listGrants(ip.id, { page, pageSize: PAGE_SIZE });
-            setItems(result.items);
-            setTotal(result.total);
-        } catch (error) {
-            message.error(errorMessage(error, "授权列表加载失败"));
-        } finally {
-            setLoading(false);
-        }
-    }, [ip, message, page]);
-    useEffect(() => void load(), [load]);
-    const searchSchools = async (keyword = "") => {
-        const id = ++schoolRequest.current;
-        const result = await adminEducationApi.listSchools({ page: 1, pageSize: PAGE_SIZE, keyword: keyword.trim() || undefined, status: "active" });
-        if (id === schoolRequest.current) setSchools(result.items);
-    };
-    const create = async (values: GrantForm) => {
-        if (!ip) return;
-        setLoading(true);
-        try {
-            await adminIpLibraryApi.createGrant(ip.id, { ...values, startsAt: localToIso(values.startsAt), endsAt: values.endsAt ? localToIso(values.endsAt) : undefined });
-            message.success("学校授权已创建");
-            setCreating(false);
-            form.resetFields();
-            await load();
-        } catch (error) {
-            message.error(errorMessage(error, "授权创建失败"));
-            throw error;
-        } finally {
-            setLoading(false);
-        }
-    };
-    const update = async (grant: IpSchoolGrantRecord, status: "active" | "suspended" | "revoked") => {
-        if (!ip) return;
-        setLoading(true);
-        try {
-            await adminIpLibraryApi.updateGrant(ip.id, grant.id, { status });
-            message.success(status === "active" ? "授权已恢复" : status === "suspended" ? "授权已暂停" : "授权已撤销");
-            await load();
-        } catch (error) {
-            message.error(errorMessage(error, "授权更新失败"));
-        } finally {
-            setLoading(false);
-        }
-    };
-    return (
-        <Drawer
-            title={ip ? `${ip.title} · 学校授权` : "学校授权"}
-            open={Boolean(ip)}
-            width="min(760px, 100vw)"
-            destroyOnHidden
-            onClose={onClose}
-            extra={
-                <Button
-                    type="primary"
-                    icon={<Plus className="size-4" />}
-                    onClick={() => {
-                        form.resetFields();
-                        form.setFieldsValue({ mode: "multi_school", startsAt: toLocalInput(new Date().toISOString()) });
-                        setCreating(true);
-                        void searchSchools();
-                    }}
-                >
-                    新增授权
-                </Button>
-            }
-        >
-            <div className="space-y-2" aria-busy={loading}>
-                {items.map((grant) => (
-                    <article key={grant.id} className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-                        <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <div className="font-medium">{grant.school?.name || "学校信息不可用"}</div>
-                                <div className="mt-1 text-xs text-zinc-500">
-                                    {ipAuthorizationLabel(grant.mode)} · {formatTime(grant.startsAt)} 至 {grant.endsAt ? formatTime(grant.endsAt) : "长期"}
-                                </div>
-                            </div>
-                            <GrantStatusTag status={grant.status} />
-                        </div>
-                        <div className="mt-2 flex justify-end gap-1">
-                            {grant.status === "active" ? (
-                                <Button size="small" onClick={() => void update(grant, "suspended")}>
-                                    暂停
-                                </Button>
-                            ) : grant.status === "suspended" ? (
-                                <Button size="small" onClick={() => void update(grant, "active")}>
-                                    恢复
-                                </Button>
-                            ) : null}
-                            {grant.status !== "revoked" ? (
-                                <Button size="small" danger onClick={() => void update(grant, "revoked")}>
-                                    撤销
-                                </Button>
-                            ) : null}
-                        </div>
-                    </article>
-                ))}
-                {!items.length ? <EmptyText text="暂无学校授权记录。只有已发布的本校 IP 才能创建授权。" /> : null}
-            </div>
-            <Pagination className="mt-3" current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
-            <Modal title="新增学校授权" open={creating} destroyOnHidden width="min(560px, 100vw)" okText="创建授权" cancelText="取消" confirmLoading={loading} onCancel={() => setCreating(false)} onOk={() => form.submit()}>
-                {items.filter((item) => item.status === "active").length ? (
-                    <p className="mb-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
-                        当前有效授权：
-                        {items
-                            .filter((item) => item.status === "active")
-                            .map((item) => `${item.school?.name || "学校"}（${ipAuthorizationLabel(item.mode)}，${formatTime(item.startsAt)} 至 ${item.endsAt ? formatTime(item.endsAt) : "长期"}）`)
-                            .join("；")}
-                    </p>
-                ) : null}
-                <Form form={form} layout="vertical" onFinish={create} className="pt-2">
-                    <div className="grid gap-x-3 sm:grid-cols-2">
-                        <Form.Item name="schoolId" label="学校" rules={[{ required: true, message: "请选择学校" }]}>
-                            <Select
-                                showSearch
-                                filterOption={false}
-                                placeholder="搜索学校名称"
-                                options={schools.map((school) => ({ value: school.id, label: school.name }))}
-                                onSearch={(value) => void searchSchools(value)}
-                                onOpenChange={(open) => {
-                                    if (open && !schools.length) void searchSchools();
-                                }}
-                            />
-                        </Form.Item>
-                        <Form.Item name="mode" label="授权方式" rules={[{ required: true, message: "请选择授权方式" }]}>
-                            <Select options={authorizationOptions} />
-                        </Form.Item>
-                    </div>
-                    <div className="grid gap-x-3 sm:grid-cols-2">
-                        <Form.Item name="startsAt" label="开始时间" rules={[{ required: true, message: "请选择开始时间" }]}>
-                            <Input type="datetime-local" />
-                        </Form.Item>
-                        <Form.Item name="endsAt" label="结束时间">
-                            <Input type="datetime-local" />
-                        </Form.Item>
-                    </div>
-                    <Form.Item name="note" label="线下授权说明">
-                        <Input.TextArea rows={3} maxLength={500} />
-                    </Form.Item>
-                </Form>
-            </Modal>
-        </Drawer>
-    );
-}
-
-function UsagePanel() {
-    const { message } = App.useApp();
-    const [items, setItems] = useState<AdminIpUsageItem[]>([]);
-    const [page, setPage] = useState(1);
-    const [total, setTotal] = useState(0);
-    const [downloadType, setDownloadType] = useState<IpDownloadType>();
-    const [result, setResult] = useState<IpDownloadResult>();
-    const [loading, setLoading] = useState(false);
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
-            const pageResult = await adminIpLibraryApi.listUsage({ page, pageSize: PAGE_SIZE, downloadType, result });
-            setItems(pageResult.items);
-            setTotal(pageResult.total);
-        } catch (error) {
-            message.error(errorMessage(error, "下载记录加载失败"));
-        } finally {
-            setLoading(false);
-        }
-    }, [downloadType, message, page, result]);
-    useEffect(() => void load(), [load]);
-    const columns: TableColumnsType<AdminIpUsageItem> = [
-        { title: "用户", render: (_, item) => (item.user ? <AdminUserIdentity accountId={item.user.accountId} username={item.user.username} displayName={item.user.displayName} /> : <span className="text-sm text-zinc-500">用户信息不可用</span>) },
-        { title: "学校", width: 180, render: (_, item) => item.school?.name || "公共访问" },
-        { title: "下载类型", width: 130, dataIndex: "downloadType", render: (value: IpDownloadType) => downloadTypeLabel[value] },
-        { title: "结果", width: 100, dataIndex: "result", render: (value: IpDownloadResult) => <Tag color={value === "succeeded" ? "green" : "red"}>{downloadResultLabel[value]}</Tag> },
-        { title: "时间", width: 170, dataIndex: "createdAt", render: (value: string) => <span className="text-xs text-zinc-500">{formatTime(value)}</span> },
+            ),
+        },
     ];
     return (
-        <section className="space-y-3">
-            <div className="flex justify-end gap-2">
+        <section className="space-y-4" data-admin-ip-library>
+            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-200 pb-4 dark:border-zinc-800">
+                <div>
+                    <h2 className="text-base font-semibold">IP 内容</h2>
+                    <p className="mt-1 text-sm text-zinc-500">一个 IP 可以包含多个子 IP；保存后内容立即对有权限的用户生效。</p>
+                </div>
+                {canManageContent ? (
+                    <Button
+                        type="primary"
+                        icon={<Plus className="size-4" />}
+                        onClick={() => {
+                            form.setFieldsValue({ visibility: "public" });
+                            setCreateOpen(true);
+                        }}
+                    >
+                        新建 IP
+                    </Button>
+                ) : null}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_130px_auto]">
+                <Input.Search
+                    allowClear
+                    placeholder="搜索名称、简介或标识"
+                    value={keyword}
+                    onChange={(event) => {
+                        setPage(1);
+                        setKeyword(event.target.value);
+                    }}
+                    onSearch={() => void load()}
+                />
                 <Select
                     allowClear
-                    value={downloadType}
-                    className="w-40"
-                    placeholder="下载类型"
-                    options={(Object.keys(downloadTypeLabel) as IpDownloadType[]).map((value) => ({ value, label: downloadTypeLabel[value] }))}
+                    placeholder="范围"
+                    value={visibility}
+                    options={IP_VISIBILITIES.map((value) => ({ value, label: value === "school" ? "本校 IP" : "公共 IP" }))}
                     onChange={(value) => {
-                        setDownloadType(value);
                         setPage(1);
+                        setVisibility(value);
                     }}
                 />
                 <Select
                     allowClear
-                    value={result}
-                    className="w-32"
-                    placeholder="下载结果"
-                    options={(Object.keys(downloadResultLabel) as IpDownloadResult[]).map((value) => ({ value, label: downloadResultLabel[value] }))}
+                    placeholder="状态"
+                    value={status}
+                    options={IP_STATUSES.map((value) => ({ value, label: value === "enabled" ? "启用" : "停用" }))}
                     onChange={(value) => {
-                        setResult(value);
                         setPage(1);
+                        setStatus(value);
                     }}
                 />
-                <Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void load()} />
+                <Tooltip title="刷新">
+                    <Button icon={<RefreshCw className="size-4" />} loading={loading} aria-label="刷新列表" onClick={() => void load()} />
+                </Tooltip>
             </div>
-            <div className="hidden md:block">
-                <Table rowKey="id" columns={columns} dataSource={items} loading={loading} pagination={false} scroll={{ x: 760 }} />
-            </div>
-            <div className="space-y-2 md:hidden">
-                {items.map((item) => (
-                    <article key={item.id} className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-                        {item.user ? <AdminUserIdentity accountId={item.user.accountId} username={item.user.username} displayName={item.user.displayName} /> : <span className="text-sm text-zinc-500">用户信息不可用</span>}
-                        <div className="mt-2 flex justify-between text-xs text-zinc-500">
-                            <span>
-                                {item.school?.name || "公共访问"} · {downloadTypeLabel[item.downloadType]} · {downloadResultLabel[item.result]}
-                            </span>
-                            <span>{formatTime(item.createdAt)}</span>
-                        </div>
-                    </article>
-                ))}
-            </div>
+            <Table rowKey="id" size="middle" loading={loading} columns={columns} dataSource={items} pagination={false} scroll={{ x: 930 }} />
             <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
+            <Modal title="新建 IP" open={createOpen} onCancel={() => setCreateOpen(false)} onOk={() => void create()} confirmLoading={saving} okText="创建并编辑" cancelText="取消" destroyOnHidden>
+                <Form form={form} layout="vertical">
+                    <Form.Item name="title" label="IP 名称" rules={[{ required: true, message: "请填写 IP 名称" }]}>
+                        <Input autoFocus />
+                    </Form.Item>
+                    <Form.Item name="slug" label="IP 标识" rules={[{ required: true, message: "请填写 IP 标识" }]}>
+                        <Input placeholder="例如 star-sea" />
+                    </Form.Item>
+                    <Form.Item name="visibility" label="可见范围" rules={[{ required: true }]}>
+                        <Select options={IP_VISIBILITIES.map((value) => ({ value, label: value === "school" ? "本校 IP" : "公共 IP" }))} />
+                    </Form.Item>
+                    <Form.Item name="summary" label="简介">
+                        <Input.TextArea autoSize={{ minRows: 3, maxRows: 5 }} />
+                    </Form.Item>
+                </Form>
+            </Modal>
         </section>
     );
 }
 
-function IpStatusTag({ status }: { status: IpStatus }) {
-    return <Tag color={status === "published" ? "green" : status === "draft" ? "gold" : "default"}>{statusLabel[status]}</Tag>;
+function IpDetailEditor({
+    detail,
+    initialTab,
+    openGrantOnMount,
+    onClose,
+    onReload,
+    canManageContent,
+    canManageEducation,
+}: {
+    detail: IpDetailRecord;
+    initialTab: DetailTab;
+    openGrantOnMount: boolean;
+    onClose: () => void;
+    onReload: (detail: IpDetailRecord) => void;
+    canManageContent: boolean;
+    canManageEducation: boolean;
+}) {
+    const { message, modal } = App.useApp();
+    const [ipForm] = Form.useForm<IpForm>();
+    const [subForm] = Form.useForm<SubIpForm>();
+    const [grantForm] = Form.useForm<GrantForm>();
+    const [selectedSubIpId, setSelectedSubIpId] = useState<string | undefined>(detail.subIps[0]?.id);
+    const [files, setFiles] = useState<IpContentFileRecord[]>([]);
+    const [loadingFiles, setLoadingFiles] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [grantOpen, setGrantOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<DetailTab>(initialTab);
+    const [grantIntentPending, setGrantIntentPending] = useState(openGrantOnMount);
+    const [grants, setGrants] = useState<AdminIpGrantItem[]>([]);
+    const [usage, setUsage] = useState<AdminIpUsageItem[]>([]);
+    const [schools, setSchools] = useState<Array<{ id: string; name: string }>>([]);
+    const selected = detail.subIps.find((item) => item.id === selectedSubIpId) || detail.subIps[0];
+    const reload = useCallback(async () => {
+        try {
+            onReload(await adminIpLibraryApi.get(detail.id));
+        } catch (error) {
+            message.error(errorMessage(error, "刷新 IP 详情失败"));
+        }
+    }, [detail.id, message, onReload]);
+    useEffect(() => {
+        ipForm.setFieldsValue({ title: detail.title, slug: detail.slug, summary: detail.summary, visibility: detail.visibility });
+    }, [detail, ipForm]);
+    useEffect(() => {
+        if (!selected) return;
+        subForm.setFieldsValue({ title: selected.title, summary: selected.summary, coverFileId: selected.coverFileId, tags: selected.tags, sourceNote: selected.sourceNote, sortOrder: selected.sortOrder, items: selected.items.map(itemForm) });
+        setFiles([]);
+        setLoadingFiles(true);
+        void adminIpLibraryApi
+            .listFiles(detail.id, selected.id)
+            .then(setFiles)
+            .catch((error) => message.error(errorMessage(error, "内容文件加载失败")))
+            .finally(() => setLoadingFiles(false));
+    }, [detail.id, message, selected, subForm]);
+    const addFile = useCallback((file: IpContentFileRecord) => {
+        setFiles((current) => (current.some((item) => item.id === file.id) ? current : [...current, file]));
+    }, []);
+    const removeFile = useCallback(
+        (fileId: string) => {
+            setFiles((current) => current.filter((file) => file.id !== fileId));
+            if (subForm.getFieldValue("coverFileId") === fileId) subForm.setFieldValue("coverFileId", undefined);
+            const items = subForm.getFieldValue("items") as SubIpItemForm[] | undefined;
+            items?.forEach((item, index) => {
+                if (item?.fileId === fileId) subForm.setFieldValue(["items", index, "fileId"], undefined);
+            });
+        },
+        [subForm],
+    );
+    const saveIp = async () => {
+        try {
+            setSaving(true);
+            await adminIpLibraryApi.update(detail.id, await ipForm.validateFields());
+            message.success("IP 信息已保存");
+            await reload();
+        } catch (error) {
+            message.error(errorMessage(error, "保存 IP 信息失败"));
+        } finally {
+            setSaving(false);
+        }
+    };
+    const saveSubIp = async () => {
+        if (!selected) return;
+        try {
+            setSaving(true);
+            await adminIpLibraryApi.updateSubIp(detail.id, selected.id, await subForm.validateFields());
+            message.success("子 IP 内容已保存，已立即生效");
+            await reload();
+        } catch (error) {
+            message.error(errorMessage(error, "保存子 IP 失败"));
+        } finally {
+            setSaving(false);
+        }
+    };
+    const addSubIp = async () => {
+        const name = `子 IP ${detail.subIps.length + 1}`;
+        try {
+            const subIp = await adminIpLibraryApi.createSubIp(detail.id, { title: name, summary: "", tags: [], sourceNote: "" });
+            setSelectedSubIpId(subIp.id);
+            message.success("子 IP 已添加");
+            await reload();
+        } catch (error) {
+            message.error(errorMessage(error, "添加子 IP 失败"));
+        }
+    };
+    const deleteSubIp = (subIp: IpSubIpDetailRecord) =>
+        modal.confirm({
+            title: `删除“${subIp.title}”`,
+            content: "会删除此子 IP 的内容、学校授权和文件。",
+            okText: "删除",
+            cancelText: "取消",
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                await adminIpLibraryApi.deleteSubIp(detail.id, subIp.id);
+                setSelectedSubIpId(undefined);
+                await reload();
+            },
+        });
+    const loadGrants = useCallback(async () => {
+        try {
+            const result = await adminIpLibraryApi.listGrants(detail.id, { pageSize: 100 });
+            setGrants(result.items);
+        } catch (error) {
+            message.error(errorMessage(error, "学校授权加载失败"));
+        }
+    }, [detail.id, message]);
+    const loadUsage = useCallback(async () => {
+        try {
+            const result = await adminIpLibraryApi.listUsage({ ipId: detail.id, pageSize: 100 });
+            setUsage(result.items);
+        } catch (error) {
+            message.error(errorMessage(error, "下载记录加载失败"));
+        }
+    }, [detail.id, message]);
+    const openGrant = useCallback(async () => {
+        try {
+            const result = await adminEducationApi.listSchools({ pageSize: 100, status: "active" });
+            setSchools(result.items);
+            grantForm.setFieldsValue({ subIpId: selected?.id, mode: "multi_school", startsAt: new Date().toISOString() });
+            setGrantOpen(true);
+        } catch (error) {
+            message.error(errorMessage(error, "学校列表加载失败"));
+        }
+    }, [grantForm, message, selected?.id]);
+    useEffect(() => {
+        if (initialTab === "grants") void loadGrants();
+    }, [initialTab, loadGrants]);
+    useEffect(() => {
+        if (!grantIntentPending) return;
+        setGrantIntentPending(false);
+        void openGrant();
+    }, [grantIntentPending, openGrant]);
+    const createGrant = async () => {
+        try {
+            await adminIpLibraryApi.createGrant(detail.id, await grantForm.validateFields());
+            setGrantOpen(false);
+            message.success("学校授权已生效");
+            await loadGrants();
+        } catch (error) {
+            message.error(errorMessage(error, "创建学校授权失败"));
+        }
+    };
+    const updateGrant = async (grant: AdminIpGrantItem, input: { status: IpSchoolGrantStatus; endsAt?: string | null; note?: string }) => {
+        try {
+            await adminIpLibraryApi.updateGrant(detail.id, grant.id, input);
+            message.success("学校授权已更新");
+            await loadGrants();
+            return true;
+        } catch (error) {
+            message.error(errorMessage(error, "更新学校授权失败"));
+            return false;
+        }
+    };
+    const tabs = [
+        {
+            key: "content",
+            label: "内容编辑",
+            children: selected ? (
+                <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+                    <aside className="border-b border-zinc-200 pb-4 lg:border-b-0 lg:border-r lg:pr-4 dark:border-zinc-800">
+                        <div className="mb-3 flex items-center justify-between">
+                            <span className="text-sm font-medium">子 IP</span>
+                            {canManageContent ? (
+                                <Tooltip title="添加子 IP">
+                                    <Button type="text" icon={<FolderPlus className="size-4" />} aria-label="添加子 IP" onClick={() => void addSubIp()} />
+                                </Tooltip>
+                            ) : null}
+                        </div>
+                        <div className="grid gap-1">
+                            {detail.subIps.map((subIp) => (
+                                <div
+                                    key={subIp.id}
+                                    className={`flex min-w-0 items-center gap-1 border p-2 ${subIp.id === selected.id ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-900" : "border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-900"}`}
+                                >
+                                    <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setSelectedSubIpId(subIp.id)}>
+                                        <span className="block truncate text-sm font-medium">{subIp.title}</span>
+                                        <span className="mt-0.5 block text-xs text-zinc-500">{subIp.items.length} 项内容</span>
+                                    </button>
+                                    {canManageContent && detail.subIps.length > 1 ? (
+                                        <Tooltip title="删除子 IP">
+                                            <Button type="text" danger size="small" icon={<Trash2 className="size-3.5" />} aria-label="删除子 IP" onClick={() => deleteSubIp(subIp)} />
+                                        </Tooltip>
+                                    ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    </aside>
+                    <SubIpEditor ipId={detail.id} subIp={selected} form={subForm} files={files} loadingFiles={loadingFiles} disabled={!canManageContent} saving={saving} onSave={saveSubIp} onFileUploaded={addFile} onFileDeleted={removeFile} />
+                </div>
+            ) : (
+                <Empty description="暂无子 IP" />
+            ),
+        },
+        ...(canManageEducation && detail.visibility === "school"
+            ? [{ key: "grants", label: "学校授权", children: <GrantPanel detail={detail} grants={grants} selectedSubIpId={selected?.id} onLoad={loadGrants} onCreate={openGrant} onUpdate={updateGrant} /> }]
+            : []),
+        { key: "usage", label: "下载记录", children: <UsagePanel usage={usage} onLoad={loadUsage} /> },
+    ];
+    return (
+        <section className="space-y-4" data-admin-ip-detail>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-4 dark:border-zinc-800">
+                <div className="flex min-w-0 items-center gap-2">
+                    <Tooltip title="返回 IP 列表">
+                        <Button type="text" icon={<ArrowLeft className="size-4" />} aria-label="返回 IP 列表" onClick={onClose} />
+                    </Tooltip>
+                    <div className="min-w-0">
+                        <h2 className="truncate text-lg font-semibold">{detail.title}</h2>
+                        <p className="mt-0.5 text-sm text-zinc-500">{detail.status === "enabled" ? "已启用，保存的内容会立即生效" : "已停用，学校管理员仍可查看授权记录"}</p>
+                    </div>
+                </div>
+                <Space>
+                    <Tag color={detail.status === "enabled" ? "green" : "default"}>{detail.status === "enabled" ? "启用" : "停用"}</Tag>
+                    <Tooltip title="刷新详情">
+                        <Button icon={<RefreshCw className="size-4" />} aria-label="刷新详情" onClick={() => void reload()} />
+                    </Tooltip>
+                </Space>
+            </div>
+            <div className="border-b border-zinc-200 pb-4 dark:border-zinc-800">
+                <Form form={ipForm} layout="vertical">
+                    <div className="grid gap-x-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <Form.Item name="title" label="IP 名称" rules={[{ required: true }]}>
+                            <Input disabled={!canManageContent} />
+                        </Form.Item>
+                        <Form.Item name="slug" label="IP 标识" rules={[{ required: true }]}>
+                            <Input disabled={!canManageContent} />
+                        </Form.Item>
+                        <Form.Item name="visibility" label="可见范围">
+                            <Select disabled={!canManageContent} options={IP_VISIBILITIES.map((value) => ({ value, label: value === "school" ? "本校 IP" : "公共 IP" }))} />
+                        </Form.Item>
+                        <div className="flex items-end pb-6">
+                            {canManageContent ? (
+                                <Button type="primary" icon={<Save className="size-4" />} loading={saving} onClick={() => void saveIp()}>
+                                    保存 IP 信息
+                                </Button>
+                            ) : null}
+                        </div>
+                    </div>
+                    <Form.Item name="summary" label="简介" className="!mb-0">
+                        <Input.TextArea disabled={!canManageContent} autoSize={{ minRows: 2, maxRows: 4 }} />
+                    </Form.Item>
+                </Form>
+            </div>
+            <Tabs
+                items={tabs}
+                destroyOnHidden
+                onChange={(key) => {
+                    setActiveTab(key as DetailTab);
+                    if (key === "grants") void loadGrants();
+                    if (key === "usage") void loadUsage();
+                }}
+                activeKey={activeTab}
+            />
+            <Modal title="授权给学校" open={grantOpen} onCancel={() => setGrantOpen(false)} onOk={() => void createGrant()} okText="确认授权" cancelText="取消" destroyOnHidden>
+                <Form form={grantForm} layout="vertical">
+                    <Form.Item name="subIpId" label="子 IP" rules={[{ required: true }]}>
+                        <Select options={detail.subIps.map((item) => ({ value: item.id, label: item.title }))} />
+                    </Form.Item>
+                    <Form.Item name="schoolId" label="学校" rules={[{ required: true }]}>
+                        <Select showSearch optionFilterProp="label" options={schools.map((item) => ({ value: item.id, label: item.name }))} />
+                    </Form.Item>
+                    <Form.Item name="mode" label="授权方式" rules={[{ required: true }]}>
+                        <Select options={IP_AUTHORIZATION_MODES.map((value) => ({ value, label: ipAuthorizationLabel(value) }))} />
+                    </Form.Item>
+                    <Form.Item name="startsAt" label="开始时间" rules={[{ required: true }]}>
+                        <Input placeholder="ISO 时间，例如 2026-09-06T00:00:00Z" />
+                    </Form.Item>
+                    <Form.Item name="endsAt" label="结束时间">
+                        <Input placeholder="留空表示长期有效" />
+                    </Form.Item>
+                    <Form.Item name="note" label="备注">
+                        <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} />
+                    </Form.Item>
+                </Form>
+            </Modal>
+        </section>
+    );
 }
-function GrantStatusTag({ status }: { status: IpSchoolGrantRecord["status"] }) {
-    const label = { active: "生效中", suspended: "已暂停", revoked: "已撤销", expired: "已到期" }[status];
-    return <Tag color={status === "active" ? "green" : status === "suspended" ? "gold" : "default"}>{label}</Tag>;
+
+function SubIpEditor({
+    ipId,
+    subIp,
+    form,
+    files,
+    loadingFiles,
+    disabled,
+    saving,
+    onSave,
+    onFileUploaded,
+    onFileDeleted,
+}: {
+    ipId: string;
+    subIp: IpSubIpDetailRecord;
+    form: FormInstance<SubIpForm>;
+    files: IpContentFileRecord[];
+    loadingFiles: boolean;
+    disabled: boolean;
+    saving: boolean;
+    onSave: () => Promise<void>;
+    onFileUploaded: (file: IpContentFileRecord) => void;
+    onFileDeleted: (fileId: string) => void;
+}) {
+    return (
+        <Form form={form} layout="vertical">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-3 dark:border-zinc-800">
+                <div className="min-w-0">
+                    <h3 className="truncate text-base font-semibold">{subIp.title}</h3>
+                    <p className="mt-1 text-xs text-zinc-500">编辑完成点击保存，即刻更新此子 IP 内容。</p>
+                </div>
+                {!disabled ? (
+                    <Button type="primary" icon={<Save className="size-4" />} loading={saving} onClick={() => void onSave()}>
+                        保存子 IP
+                    </Button>
+                ) : null}
+            </div>
+            <div className="mt-4 grid gap-x-4 sm:grid-cols-2">
+                <Form.Item name="title" label="子 IP 名称" rules={[{ required: true }]}>
+                    <Input disabled={disabled} />
+                </Form.Item>
+                <Form.Item name="tags" label="标签">
+                    <Select disabled={disabled} mode="tags" tokenSeparators={[",", "，"]} />
+                </Form.Item>
+                <Form.Item name="summary" label="简介">
+                    <Input.TextArea disabled={disabled} autoSize={{ minRows: 2, maxRows: 4 }} />
+                </Form.Item>
+                <Form.Item name="sourceNote" label="来源说明">
+                    <Input.TextArea disabled={disabled} autoSize={{ minRows: 2, maxRows: 4 }} />
+                </Form.Item>
+                <Form.Item name="coverFileId" label="封面">
+                    <IpContentUpload ipId={ipId} subIpId={subIp.id} kind="image" files={files} disabled={disabled || loadingFiles} onUploaded={onFileUploaded} onDeleted={onFileDeleted} />
+                </Form.Item>
+            </div>
+            <Form.List name="items">
+                {(fields, { add, remove }) => (
+                    <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                        <div className="flex items-center justify-between gap-3">
+                            <h4 className="text-sm font-semibold">详细内容</h4>
+                            {!disabled ? (
+                                <Button icon={<FilePlus2 className="size-4" />} onClick={() => add({ kind: "text", category: "story_summary", title: "", summary: "", sortOrder: fields.length })}>
+                                    添加内容
+                                </Button>
+                            ) : null}
+                        </div>
+                        <div className="mt-3 grid gap-3">
+                            {fields.map((field, index) => (
+                                <div key={field.key} className="border border-zinc-200 p-3 dark:border-zinc-800">
+                                    <div className="grid gap-x-3 sm:grid-cols-2 lg:grid-cols-4">
+                                        <Form.Item name={[field.name, "kind"]} label="类型" rules={[{ required: true }]}>
+                                            <Select disabled={disabled} options={IP_ASSET_KINDS.map((kind) => ({ value: kind, label: kind === "text" ? "文本" : kind === "image" ? "图片" : kind === "audio" ? "音频" : "视频" }))} />
+                                        </Form.Item>
+                                        <Form.Item noStyle shouldUpdate={(prev, current) => prev.items?.[field.name]?.kind !== current.items?.[field.name]?.kind}>
+                                            {({ getFieldValue }) => {
+                                                const kind = (getFieldValue(["items", field.name, "kind"]) as IpAssetKind) || "text";
+                                                return (
+                                                    <Form.Item name={[field.name, "category"]} label="分类" rules={[{ required: true }]}>
+                                                        <Select disabled={disabled} options={IP_ITEM_CATEGORIES[kind].map((value) => ({ value, label: ipItemCategoryLabel(value) }))} />
+                                                    </Form.Item>
+                                                );
+                                            }}
+                                        </Form.Item>
+                                        <Form.Item name={[field.name, "title"]} label="标题" rules={[{ required: true }]}>
+                                            <Input disabled={disabled} />
+                                        </Form.Item>
+                                        <Form.Item name={[field.name, "sortOrder"]} label="排序">
+                                            <Input type="number" disabled={disabled} />
+                                        </Form.Item>
+                                        <Form.Item name={[field.name, "summary"]} label="说明" className="sm:col-span-2">
+                                            <Input disabled={disabled} />
+                                        </Form.Item>
+                                        <Form.Item noStyle shouldUpdate={(prev, current) => prev.items?.[field.name]?.kind !== current.items?.[field.name]?.kind}>
+                                            {({ getFieldValue }) => {
+                                                const kind = (getFieldValue(["items", field.name, "kind"]) as IpAssetKind) || "text";
+                                                return (
+                                                    <Form.Item name={[field.name, "fileId"]} label="原文件" className="sm:col-span-2" rules={[{ required: true, message: "请选择 IP 内容文件" }]}>
+                                                        <IpContentUpload ipId={ipId} subIpId={subIp.id} kind={kind} files={files} disabled={disabled} onUploaded={onFileUploaded} onDeleted={onFileDeleted} />
+                                                    </Form.Item>
+                                                );
+                                            }}
+                                        </Form.Item>
+                                    </div>
+                                    {!disabled ? (
+                                        <div className="mt-2 flex justify-end">
+                                            <Button type="text" danger icon={<Trash2 className="size-4" />} onClick={() => remove(index)}>
+                                                删除内容
+                                            </Button>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </Form.List>
+        </Form>
+    );
+}
+
+function GrantPanel({
+    detail,
+    grants,
+    selectedSubIpId,
+    onLoad,
+    onCreate,
+    onUpdate,
+}: {
+    detail: IpDetailRecord;
+    grants: AdminIpGrantItem[];
+    selectedSubIpId?: string;
+    onLoad: () => Promise<void>;
+    onCreate: () => Promise<void>;
+    onUpdate: (grant: AdminIpGrantItem, input: { status: IpSchoolGrantStatus; endsAt?: string | null; note?: string }) => Promise<boolean>;
+}) {
+    const [form] = Form.useForm<GrantPatchForm>();
+    const [editing, setEditing] = useState<AdminIpGrantItem>();
+    const visible = selectedSubIpId ? grants.filter((item) => item.subIpId === selectedSubIpId) : grants;
+    const save = async () => {
+        if (!editing) return;
+        const values = await form.validateFields();
+        if (await onUpdate(editing, { ...values, endsAt: values.endsAt?.trim() || null })) setEditing(undefined);
+    };
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-zinc-500">授权后，该校管理员、教师和学生可直接访问对应子 IP。</p>
+                <Space>
+                    <Tooltip title="刷新">
+                        <Button icon={<RefreshCw className="size-4" />} aria-label="刷新学校授权" onClick={() => void onLoad()} />
+                    </Tooltip>
+                    <Button type="primary" icon={<Building2 className="size-4" />} onClick={() => void onCreate()}>
+                        授权学校
+                    </Button>
+                </Space>
+            </div>
+            <Table
+                size="small"
+                rowKey="id"
+                pagination={false}
+                dataSource={visible}
+                columns={[
+                    { title: "学校", render: (_, item) => item.school?.name || item.schoolId },
+                    { title: "子 IP", render: (_, item) => item.subIp?.title || detail.subIps.find((subIp) => subIp.id === item.subIpId)?.title || item.subIpId },
+                    { title: "方式", render: (_, item) => ipAuthorizationLabel(item.mode) },
+                    { title: "状态", render: (_, item) => <Tag color={item.status === "active" ? "green" : item.status === "suspended" ? "gold" : "default"}>{grantStatusLabel(item.status)}</Tag> },
+                    { title: "有效期", render: (_, item) => `${formatTime(item.startsAt)} - ${item.endsAt ? formatTime(item.endsAt) : "长期"}` },
+                    {
+                        title: "操作",
+                        width: 128,
+                        render: (_, item) => (
+                            <Space size={0}>
+                                <Tooltip title="编辑授权">
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<Pencil className="size-3.5" />}
+                                        aria-label="编辑授权"
+                                        onClick={() => {
+                                            form.setFieldsValue({ status: item.status, endsAt: item.endsAt, note: item.note });
+                                            setEditing(item);
+                                        }}
+                                    />
+                                </Tooltip>
+                                {item.status === "active" ? (
+                                    <Tooltip title="暂停授权">
+                                        <Button type="text" size="small" icon={<Pause className="size-3.5" />} aria-label="暂停授权" onClick={() => void onUpdate(item, { status: "suspended" })} />
+                                    </Tooltip>
+                                ) : (
+                                    <Tooltip title="恢复授权">
+                                        <Button type="text" size="small" icon={<RotateCcw className="size-3.5" />} aria-label="恢复授权" onClick={() => void onUpdate(item, { status: "active" })} />
+                                    </Tooltip>
+                                )}
+                                {item.status !== "revoked" ? (
+                                    <Popconfirm title="撤销此学校授权？" okText="撤销" cancelText="取消" okButtonProps={{ danger: true }} onConfirm={() => onUpdate(item, { status: "revoked" })}>
+                                        <Tooltip title="撤销授权">
+                                            <Button type="text" danger size="small" icon={<Trash2 className="size-3.5" />} aria-label="撤销授权" />
+                                        </Tooltip>
+                                    </Popconfirm>
+                                ) : null}
+                            </Space>
+                        ),
+                    },
+                ]}
+                scroll={{ x: 860 }}
+            />
+            <Modal title="编辑学校授权" open={Boolean(editing)} onCancel={() => setEditing(undefined)} onOk={() => void save()} okText="保存" cancelText="取消" destroyOnHidden>
+                <Form form={form} layout="vertical">
+                    <Form.Item name="status" label="授权状态" rules={[{ required: true }]}>
+                        <Select
+                            options={[
+                                { value: "active", label: "生效" },
+                                { value: "suspended", label: "暂停" },
+                                { value: "revoked", label: "已撤销" },
+                                { value: "expired", label: "已到期" },
+                            ]}
+                        />
+                    </Form.Item>
+                    <Form.Item name="endsAt" label="结束时间">
+                        <Input placeholder="留空表示长期有效" />
+                    </Form.Item>
+                    <Form.Item name="note" label="备注">
+                        <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} />
+                    </Form.Item>
+                </Form>
+            </Modal>
+        </div>
+    );
+}
+function grantStatusLabel(status: IpSchoolGrantStatus) {
+    return status === "active" ? "生效" : status === "suspended" ? "暂停" : status === "revoked" ? "已撤销" : "已到期";
+}
+function UsagePanel({ usage, onLoad }: { usage: AdminIpUsageItem[]; onLoad: () => Promise<void> }) {
+    return (
+        <div className="space-y-3">
+            <div className="flex justify-end">
+                <Tooltip title="刷新">
+                    <Button icon={<RefreshCw className="size-4" />} aria-label="刷新下载记录" onClick={() => void onLoad()} />
+                </Tooltip>
+            </div>
+            <Table
+                size="small"
+                rowKey="id"
+                pagination={false}
+                dataSource={usage}
+                columns={[
+                    { title: "用户", render: (_, item) => item.user?.displayName || "已删除用户" },
+                    { title: "学校", render: (_, item) => item.school?.name || "-" },
+                    { title: "类型", dataIndex: "downloadType" },
+                    { title: "结果", render: (_, item) => <Tag color={item.result === "succeeded" ? "green" : "red"}>{item.result === "succeeded" ? "成功" : "失败"}</Tag> },
+                    { title: "时间", render: (_, item) => formatTime(item.createdAt) },
+                ]}
+                scroll={{ x: 620 }}
+            />
+        </div>
+    );
+}
+function itemForm(item: IpItemRecord): SubIpItemForm {
+    return { kind: item.kind, category: item.category, title: item.title, summary: item.summary, fileId: item.fileId, sortOrder: item.sortOrder };
 }
 function formatTime(value: string) {
     return new Date(value).toLocaleString("zh-CN", { hour12: false });
@@ -866,57 +802,3 @@ function formatTime(value: string) {
 function errorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback;
 }
-function EmptyText({ text }: { text: string }) {
-    return <div className="col-span-full py-8 text-center text-sm text-zinc-500">{text}</div>;
-}
-function slugSuggestion(value: string) {
-    const slug = value
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-    return slug || "new-ip";
-}
-function localToIso(value: string) {
-    const date = new Date(value);
-    if (!Number.isFinite(date.getTime())) throw new Error("授权时间无效");
-    return date.toISOString();
-}
-function toLocalInput(value: string) {
-    const date = new Date(value);
-    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-    return local.toISOString().slice(0, 16);
-}
-
-const visibilityOptions = IP_VISIBILITIES.map((value) => ({ value, label: value === "public" ? "公共 IP" : "本校 IP" }));
-const authorizationOptions = IP_AUTHORIZATION_MODES.map((value) => ({ value, label: ipAuthorizationLabel(value) }));
-const statusOptions = IP_STATUSES.map((value) => ({ value, label: { draft: "草稿", published: "已发布", disabled: "已停用" }[value] }));
-const kindOptions = IP_ASSET_KINDS.map((value) => ({ value, label: { text: "文本", image: "图片", audio: "音乐与声音", video: "视频参考" }[value] }));
-const kindLabel: Record<IpAssetKind, string> = { text: "文本", image: "图片", audio: "音乐与声音", video: "视频参考" };
-const statusLabel: Record<IpStatus, string> = { draft: "草稿", published: "已发布", disabled: "已停用" };
-const versionStatusLabel = { draft: "草稿", published: "已发布", disabled: "已停用" } as const;
-const downloadTypeLabel: Record<IpDownloadType, string> = { item: "单项下载", package: "完整包下载" };
-const downloadResultLabel: Record<IpDownloadResult, string> = { succeeded: "成功", failed: "失败" };
-const categoryLabels: Partial<Record<IpItemCategory, string>> = {
-    story_summary: "故事梗概",
-    worldbuilding: "世界观",
-    character_biography: "角色小传",
-    script: "剧本",
-    derivative_script: "衍生剧本",
-    creation_notes: "创作说明",
-    character: "角色",
-    scene: "场景",
-    prop: "道具",
-    effect: "特效",
-    style: "风格参考",
-    background_music: "背景音乐",
-    theme_music: "主题音乐",
-    character_voice: "角色声音",
-    narration: "旁白",
-    sound_effect: "音效",
-    trailer: "预告片",
-    action: "动作",
-    performance: "表演",
-    shot: "镜头",
-    clip: "片段",
-};

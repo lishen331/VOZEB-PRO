@@ -1,8 +1,9 @@
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { DramaLabCollaborationError, getDramaLabCollaborationForUser, saveDramaLabApprovalConfigs, type DramaLabCollaborationOverview } from "@/lib/server/drama-lab-collaboration-service";
+import { getDramaLabCollaborationForUser, saveDramaLabApprovalConfigs, type DramaLabCollaborationOverview } from "@/lib/server/drama-lab-collaboration-service";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ function jsonError(status: number, msg: string) {
 }
 
 function collaborationError(error: unknown) {
-    if (error instanceof DramaLabCollaborationError) return jsonError(error.status, error.message);
+    if (isDramaLabCollaborationError(error)) return jsonError(error.status, error.message);
     console.error("[drama-lab/collaboration]", error);
     return jsonError(500, error instanceof Error ? error.message : "团队协作请求失败");
 }

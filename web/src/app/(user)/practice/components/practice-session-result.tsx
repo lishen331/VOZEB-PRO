@@ -8,6 +8,9 @@ import type { PracticeSession } from "@/services/api/practice";
 
 const WAITING: Record<PracticeModuleKind, string> = {
     script: "等待保存剧本",
+    character: "等待生成角色图",
+    scene: "等待生成场景图",
+    prop: "等待生成道具图",
     "storyboard-image": "等待生成分镜图",
     "storyboard-video": "等待生成分镜视频",
     dubbing: "等待生成配音",

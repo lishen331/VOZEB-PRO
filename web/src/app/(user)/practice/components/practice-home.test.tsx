@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { IpReference } from "@/lib/ip-library-domain";
-import { PRACTICE_MODULES, PRACTICE_PROJECT_CARDS, practiceProjectPath, practiceModulePath } from "./practice-home";
+import { PRACTICE_ASSET_MODULES, PRACTICE_MODULES, PRACTICE_PROJECT_CARDS, practiceProjectPath, practiceModulePath } from "./practice-home";
 
 describe("practice home contract", () => {
     it("exposes two project cards and five focused modules", () => {
@@ -15,9 +15,14 @@ describe("practice home contract", () => {
         expect(practiceModulePath("storyboard-video")).toBe("/practice/storyboard-video");
     });
 
-    it("keeps a stable IP version when opening a focused practice module", () => {
-        const reference: IpReference = { type: "ip", id: "ip-one", versionId: "version-two", itemIds: [] };
+    it("adds the three asset practice entries without changing the focused module array", () => {
+        expect(PRACTICE_MODULES.map((item) => item.module)).toEqual(["script", "storyboard-image", "storyboard-video", "dubbing", "music"]);
+        expect(PRACTICE_ASSET_MODULES.map((item) => item.module)).toEqual(["character", "scene", "prop"]);
+    });
 
-        expect(practiceModulePath("script", reference)).toBe("/practice/script?ipId=ip-one&versionId=version-two");
+    it("keeps a stable child IP when opening a focused practice module", () => {
+        const reference: IpReference = { type: "ip", id: "ip-one", subIpId: "child-two", itemIds: [] };
+
+        expect(practiceModulePath("script", reference)).toBe("/practice/script?ipId=ip-one&subIpId=child-two");
     });
 });

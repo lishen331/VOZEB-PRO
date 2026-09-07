@@ -74,12 +74,20 @@ export function creativeImageAsset(id: string, title: string, remoteUrl: string)
 export function settings(imageModel: string, channelId: string) {
     return {
         site: { title: "星河创作" },
-        defaultModels: { textModel: "planner", imageModel, videoModel: "", audioModel: "" },
+        defaultModels: { textModel: "planner", visionModel: "vision-planner", imageModel, videoModel: "", audioModel: "" },
         systemChannels: [
+            { id: "vision-channel", name: "Vision", enabled: true, baseUrl: "https://api.example.com/v1", apiKey: "vision-secret", models: ["vendor/vision-planner"] },
             { id: "planner-channel", name: "规划", enabled: true, baseUrl: "https://api.example.com/v1", apiKey: "planner-secret", models: ["vendor/planner"] },
             { id: channelId, name: "图片", enabled: true, baseUrl: "https://api.example.com/v1", apiKey: "image-secret", models: [`vendor/${imageModel}`] },
         ],
         logicalModels: [
+            {
+                id: "vision-planner",
+                name: "Vision Planner",
+                capability: "text",
+                enabled: true,
+                bindings: [{ id: "vision-binding", channelId: "vision-channel", upstreamModel: "vendor/vision-planner", enabled: true, priority: 1, capabilityProfile: { supportsImageInput: true } }],
+            },
             { id: "planner", name: "规划", capability: "text", enabled: true, bindings: [{ id: "planner-binding", channelId: "planner-channel", upstreamModel: "vendor/planner", enabled: true, priority: 1 }] },
             { id: imageModel, name: "图片", capability: "image", enabled: true, bindings: [{ id: `${imageModel}-binding`, channelId, upstreamModel: `vendor/${imageModel}`, enabled: true, priority: 1 }] },
         ],
@@ -102,7 +110,9 @@ export function plannerFailoverSettings(imageModel: string, channelId: string) {
     };
     value.systemChannels[0] = { id: "planner-primary", name: "主规划", enabled: true, baseUrl: "https://api.example.com/v1", apiKey: "primary-secret", models: ["vendor/planner-primary"] };
     value.systemChannels.push({ id: "planner-backup", name: "备用规划", enabled: true, baseUrl: "https://api.example.com/v1", apiKey: "backup-secret", models: ["vendor/planner-backup"] });
-    value.logicalModels[0].bindings = [
+    const planner = value.logicalModels.find((model) => model.id === "planner");
+    if (!planner) throw new Error("planner fixture missing");
+    planner.bindings = [
         { id: "planner-primary-binding", channelId: "planner-primary", upstreamModel: "vendor/planner-primary", enabled: true, priority: 1 },
         { id: "planner-backup-binding", channelId: "planner-backup", upstreamModel: "vendor/planner-backup", enabled: true, priority: 2 },
     ];

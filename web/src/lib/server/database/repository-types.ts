@@ -1,6 +1,6 @@
 import type { RegistrationPolicyConsent } from "@/lib/registration-consent";
 import type { AdminPermission } from "@/lib/admin-permissions";
-import type { IpAssetKind, IpAuthorizationMode, IpItemCategory, IpStatus, IpUsageAction, IpVersionStatus, IpVisibility } from "@/lib/ip-library-domain";
+import type { IpAssetKind, IpAuthorizationMode, IpItemCategory, IpStatus, IpUsageAction, IpVisibility } from "@/lib/ip-library-domain";
 import type { PracticeExecutionProfile, PracticeModuleKind, PracticeProjectKind, PracticeSessionMode, SystemChannelPurpose } from "@/lib/practice-domain";
 
 export type JsonPrimitive = string | number | boolean | null;
@@ -20,7 +20,7 @@ export type PageResult<T> = {
 
 export type IpSchoolGrantStatus = "active" | "suspended" | "revoked" | "expired";
 export type IpUsageTargetType = "canvas" | "drama" | "practice" | "download";
-export type IpContentFileStatus = "processing" | "ready" | "failed";
+export type IpContentFileStatus = "processing" | "ready" | "failed" | "deleting";
 export type IpStorageProvider = "local" | "object";
 export type IpDownloadType = "item" | "package";
 export type IpDownloadResult = "succeeded" | "failed";
@@ -30,11 +30,9 @@ export type IpPackageRecord = {
     title: string;
     slug: string;
     summary: string;
-    coverAssetId?: string;
+    coverFileId?: string;
     visibility: IpVisibility;
-    authorizationMode: IpAuthorizationMode;
     status: IpStatus;
-    currentVersionId?: string;
     createdByUserId?: string;
     createdAt: string;
     updatedAt: string;
@@ -42,70 +40,61 @@ export type IpPackageRecord = {
 
 export type IpItemRecord = {
     id: string;
-    versionId: string;
+    subIpId: string;
     kind: IpAssetKind;
     category: IpItemCategory;
     title: string;
     summary: string;
     fileId: string;
-    textContent?: string;
-    assetId?: string;
     sortOrder: number;
     createdAt: string;
 };
 
-export type IpVersionRecord = {
+export type IpSubIpRecord = {
     id: string;
     ipId: string;
-    versionNumber: number;
     title: string;
     summary: string;
     coverFileId?: string;
     tags: string[];
     sourceNote: string;
-    changeNote: string;
-    status: IpVersionStatus;
-    manifest: JsonValue;
-    publishedAt?: string;
     createdByUserId?: string;
     createdAt: string;
-    items: IpItemRecord[];
+    updatedAt: string;
+    sortOrder: number;
 };
 
-export type IpPackageCreateInput = Omit<IpPackageRecord, "currentVersionId" | "createdAt" | "updatedAt">;
-export type IpPackagePatch = Partial<Pick<IpPackageRecord, "title" | "slug" | "summary" | "visibility" | "authorizationMode" | "status">> & { coverAssetId?: string | null };
-export type IpDraftItemInput = Omit<IpItemRecord, "versionId" | "createdAt" | "textContent" | "assetId">;
-export type IpDraftVersionInput = Pick<IpVersionRecord, "id" | "title" | "summary" | "coverFileId" | "tags" | "sourceNote" | "changeNote"> & {
-    createdByUserId?: string;
-    items: IpDraftItemInput[];
-};
-export type IpSummaryRecord = IpPackageRecord & { versionNumber: number; itemCount: number; grantMode?: IpAuthorizationMode; coverFileId?: string; tags?: string[] };
-export type IpDetailRecord = IpPackageRecord & { version: IpVersionRecord; grantMode?: IpAuthorizationMode };
+export type IpPackageCreateInput = Omit<IpPackageRecord, "createdAt" | "updatedAt">;
+export type IpPackagePatch = Partial<Pick<IpPackageRecord, "title" | "slug" | "summary" | "visibility" | "status">> & { coverFileId?: string | null };
+export type IpSubIpCreateInput = Omit<IpSubIpRecord, "createdAt" | "updatedAt" | "sortOrder"> & { sortOrder?: number };
+export type IpSubIpPatch = Partial<Pick<IpSubIpRecord, "title" | "summary" | "tags" | "sourceNote" | "sortOrder">> & { coverFileId?: string | null };
+export type IpItemInput = Omit<IpItemRecord, "subIpId" | "createdAt">;
+export type IpSummaryRecord = IpPackageRecord & { subIpCount: number; accessibleSubIpCount?: number; coverSubIpId?: string; coverFileId?: string };
+export type IpSubIpDetailRecord = IpSubIpRecord & { items: IpItemRecord[]; grantMode?: IpAuthorizationMode };
+export type IpDetailRecord = IpPackageRecord & { subIps: IpSubIpDetailRecord[] };
 
 export type IpSchoolGrantRecord = {
     id: string;
     ipId: string;
+    subIpId: string;
     schoolId: string;
     mode: IpAuthorizationMode;
     status: IpSchoolGrantStatus;
     startsAt: string;
     endsAt?: string;
     note: string;
-    memberAccessEnabled: boolean;
-    memberAccessUpdatedByUserId?: string;
-    memberAccessUpdatedAt?: string;
     createdByUserId?: string;
     createdAt: string;
     updatedAt: string;
 };
 
-export type IpSchoolGrantCreateInput = Omit<IpSchoolGrantRecord, "createdAt" | "updatedAt" | "memberAccessEnabled" | "memberAccessUpdatedByUserId" | "memberAccessUpdatedAt"> &
-    Partial<Pick<IpSchoolGrantRecord, "memberAccessEnabled" | "memberAccessUpdatedByUserId" | "memberAccessUpdatedAt">>;
-export type IpSchoolGrantUpdateInput = Partial<Pick<IpSchoolGrantRecord, "status" | "endsAt" | "note" | "memberAccessEnabled" | "memberAccessUpdatedByUserId" | "memberAccessUpdatedAt">> & { updatedAt: string };
+export type IpSchoolGrantCreateInput = Omit<IpSchoolGrantRecord, "createdAt" | "updatedAt">;
+export type IpSchoolGrantUpdateInput = Partial<Pick<IpSchoolGrantRecord, "status" | "note">> & { endsAt?: string | null; updatedAt: string };
 
 export type IpContentFileRecord = {
     id: string;
     ipId: string;
+    subIpId: string;
     kind: IpAssetKind;
     originalName: string;
     extension: string;
@@ -128,10 +117,14 @@ export type IpContentFileRecord = {
 export type IpContentFileCreateInput = Omit<IpContentFileRecord, "createdAt" | "updatedAt">;
 export type IpContentFilePatch = Partial<Pick<IpContentFileRecord, "status" | "errorMessage" | "metadata" | "extractedText">>;
 
+export type IpFileCleanupRecord = Pick<IpContentFileRecord, "id" | "storageProvider" | "storageKey" | "externalStorageId" | "externalObjectKey"> & {
+    createdAt: string;
+};
+
 export type IpUsageRecord = {
     id: string;
     ipId: string;
-    versionId: string;
+    subIpId: string;
     itemIds: string[];
     schoolId?: string;
     userId: string;
@@ -146,7 +139,7 @@ export type IpUsageCreateInput = Omit<IpUsageRecord, "createdAt">;
 export type IpDownloadRecord = {
     id: string;
     ipId: string;
-    versionId: string;
+    subIpId: string;
     itemId?: string;
     schoolId?: string;
     userId: string;
@@ -277,6 +270,7 @@ export type AppSettingsRecord = {
     practiceDefaultModels: JsonValue;
     practiceWorkflowModels: JsonValue;
     agentSkills: JsonValue;
+    featureModules: JsonValue;
     createdAt: string;
     updatedAt: string;
 };
@@ -898,6 +892,10 @@ export type PracticeSessionRecord = {
     input: JsonValue;
     taskRefs: JsonValue;
     selectedLogicalModelId?: string;
+    workflowCode?: string;
+    workflowVersion?: number;
+    workflowConfigFingerprint?: string;
+    workflowAdapterVersion?: number;
     errorCode?: string;
     errorMessage?: string;
     status: PracticeSessionStatus;

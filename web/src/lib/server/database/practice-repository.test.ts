@@ -64,6 +64,10 @@ describe("PracticeRepository", () => {
             prompt_json: {},
             input_json: {},
             task_refs: [],
+            workflow_code: "storyboard_shot",
+            workflow_version: 2,
+            workflow_config_fingerprint: "fingerprint",
+            workflow_adapter_version: 1,
         };
         const { executor, query } = mockExecutor([[row], [row]]);
         const repository = new PracticeRepository(executor);
@@ -78,6 +82,10 @@ describe("PracticeRepository", () => {
             selectedLogicalModelId: "practice-image",
             errorCode: "PRACTICE_DISPATCH_FAILED",
             errorMessage: "任务提交失败",
+            workflowCode: "storyboard_shot",
+            workflowVersion: 2,
+            workflowConfigFingerprint: "fingerprint",
+            workflowAdapterVersion: 1,
             prompt: {},
             input: {},
             taskRefs: [],
@@ -86,8 +94,18 @@ describe("PracticeRepository", () => {
         expect(String(query.mock.calls[0]?.[0])).toContain("INSERT INTO practice_sessions");
         expect(String(query.mock.calls[0]?.[0])).toContain("'open-source-practice'");
         expect(String(query.mock.calls[0]?.[0])).toContain("selected_logical_model_id");
+        expect(String(query.mock.calls[0]?.[0])).toContain("workflow_code");
         expect(query.mock.calls[0]?.[1]).toEqual(expect.arrayContaining(["storyboard-image", "workflow", "practice-image", "PRACTICE_DISPATCH_FAILED", "failed"]));
-        await expect(repository.getPracticeSessionForUser("user-one", "session-one")).resolves.toMatchObject({ mode: "workflow", selectedLogicalModelId: "practice-image", errorCode: "PRACTICE_DISPATCH_FAILED", errorMessage: "任务提交失败" });
+        await expect(repository.getPracticeSessionForUser("user-one", "session-one")).resolves.toMatchObject({
+            mode: "workflow",
+            selectedLogicalModelId: "practice-image",
+            workflowCode: "storyboard_shot",
+            workflowVersion: 2,
+            workflowConfigFingerprint: "fingerprint",
+            workflowAdapterVersion: 1,
+            errorCode: "PRACTICE_DISPATCH_FAILED",
+            errorMessage: "任务提交失败",
+        });
     });
 
     it("claims a queued session with one conditional provider update", async () => {

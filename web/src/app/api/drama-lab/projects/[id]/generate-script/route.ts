@@ -1,14 +1,16 @@
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { randomUUID } from "node:crypto";
 
 import { after, NextResponse } from "next/server";
 
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { cancelDramaLabStoryTask, DramaLabStoryGenerationError, findActiveDramaLabStoryTask, getDramaLabStoryTaskView, startDramaLabStoryGeneration, storyTaskView } from "@/lib/server/drama-lab-story-generation-service";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { getTextTask } from "@/lib/server/text-task-store";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +22,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     try {
+        await requireFeatureModuleEnabled("drama-lab");
         const { id } = await params;
         const body = await readJsonBody<Record<string, unknown>>(request, 256 * 1024);
         const { project } = await resolveDramaLabProjectForRequest(user.id, id);
@@ -43,7 +46,7 @@ export async function POST(request: Request, { params }: RouteContext) {
         after(() => runGenerationTaskRecoveryBatch({ origin, cookie: request.headers.get("cookie") || "", limit: 1, taskIds: [task.id] }));
         return NextResponse.json({ code: 0, data: { ...data, taskId: task.id }, msg: "剧本生成任务已创建" }, { status: 202 });
     } catch (error) {
-        const status = error instanceof DramaLabStoryGenerationError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabStoryGenerationError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "剧本生成失败" }, { status });
     }
 }
@@ -79,7 +82,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         }
         return NextResponse.json({ code: 0, data, msg: "OK" });
     } catch (error) {
-        const status = error instanceof DramaLabStoryGenerationError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabStoryGenerationError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "任务状态查询失败" }, { status });
     }
 }
@@ -99,7 +102,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         if (!cancelled) return NextResponse.json({ code: 409, data: null, msg: "当前故事生成任务无法取消" }, { status: 409 });
         return NextResponse.json({ code: 0, data: storyTaskView(cancelled), msg: "故事生成任务已取消" });
     } catch (error) {
-        const status = error instanceof DramaLabStoryGenerationError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabStoryGenerationError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "任务取消失败" }, { status });
     }
 }

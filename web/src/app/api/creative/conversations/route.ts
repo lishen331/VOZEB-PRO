@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBody } from "@/lib/auth/request";
 import { createConversationForUser, CreativeRuntimeServiceError, deleteConversationsForUser, listConversationsForUser } from "@/lib/server/creative-runtime-service";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export async function GET(request: Request) {
     const user = await getCurrentUser();
@@ -28,9 +29,11 @@ export async function POST(request: Request) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     try {
+        await requireFeatureModuleEnabled("creative-agent");
         const conversation = await createConversationForUser(user.id, await readJsonBody<unknown>(request));
         return NextResponse.json({ code: 0, data: { conversation }, msg: "创作会话已创建" });
     } catch (error) {
+        if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ code: 403, data: null, msg: error.message }, { status: 403 });
         return serviceError(error);
     }
 }

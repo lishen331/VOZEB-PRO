@@ -1,10 +1,11 @@
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { randomUUID } from "node:crypto";
 
 import { after, NextResponse } from "next/server";
 
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import {
     advanceDramaLabWorkflow,
     cancelDramaLabWorkflow,
@@ -15,6 +16,7 @@ import {
     resumeDramaLabWorkflow,
     startDramaLabWorkflow,
 } from "@/lib/server/drama-lab-workflow-task-service";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +28,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "Please log in" }, { status: 401 });
     try {
+        await requireFeatureModuleEnabled("drama-lab");
         const { id } = await params;
         const body = await readJsonBody<Record<string, unknown>>(request, 64 * 1024);
         const { project } = await resolveDramaLabProjectForRequest(user.id, id);
@@ -52,7 +55,7 @@ export async function POST(request: Request, { params }: RouteContext) {
         after(() => advanceDramaLabWorkflow({ userId: user.id, taskId: task.id, origin: new URL(request.url).origin, cookie: request.headers.get("cookie") || "" }).catch((error) => console.warn("Drama workflow advance deferred", error)));
         return NextResponse.json({ code: 0, data: dramaLabWorkflowTaskView(task), msg: "Workflow task created" }, { status: 202 });
     } catch (error) {
-        const status = error instanceof DramaLabWorkflowError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabWorkflowError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "Unable to create workflow" }, { status });
     }
 }
@@ -68,7 +71,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         const advanced = await advanceDramaLabWorkflow({ userId: user.id, taskId: task.id, origin: new URL(request.url).origin, cookie: request.headers.get("cookie") || "" });
         return NextResponse.json({ code: 0, data: advanced ? dramaLabWorkflowTaskView(advanced) : dramaLabWorkflowTaskView(task), msg: "OK" });
     } catch (error) {
-        const status = error instanceof DramaLabWorkflowError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabWorkflowError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "Unable to read workflow" }, { status });
     }
 }
@@ -89,7 +92,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         if (action === "resume") after(() => advanceDramaLabWorkflow({ userId: user.id, taskId, origin: new URL(request.url).origin, cookie: request.headers.get("cookie") || "" }).catch((error) => console.warn("Drama workflow resume deferred", error)));
         return NextResponse.json({ code: 0, data: dramaLabWorkflowTaskView(changed), msg: action === "cancel" ? "Workflow cancelled" : "Workflow resumed" });
     } catch (error) {
-        const status = error instanceof DramaLabWorkflowError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof DramaLabWorkflowError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "Unable to update workflow" }, { status });
     }
 }

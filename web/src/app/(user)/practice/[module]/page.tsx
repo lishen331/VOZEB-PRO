@@ -5,7 +5,7 @@ import { requirePracticeAccess } from "@/lib/server/practice-access-service";
 import type { PracticeModuleKind } from "@/lib/practice-domain";
 import PracticeModuleWorkbench from "../components/practice-module-workbench";
 
-const MODULES: PracticeModuleKind[] = ["script", "storyboard-image", "storyboard-video", "dubbing", "music"];
+const MODULES: PracticeModuleKind[] = ["script", "character", "scene", "prop", "storyboard-image", "storyboard-video", "dubbing", "music"];
 
 export default async function PracticeModulePage({ params }: { params: Promise<{ module: string }> }) {
     const user = await getCurrentUser();

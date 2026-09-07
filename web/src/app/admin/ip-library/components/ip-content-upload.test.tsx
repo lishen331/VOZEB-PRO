@@ -3,12 +3,12 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("IP content upload", () => {
-    it("uploads independent original files and turns manual text into a TXT file", async () => {
+    it("deletes unreferenced original files instead of only clearing their form selection", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/admin/ip-library/components/ip-content-upload.tsx"), "utf8");
-        expect(source).toContain("adminIpLibraryApi.uploadFile");
-        expect(source).toContain('new File([manualText], "手工正文.txt"');
-        expect(source).toContain("IpContentPreview");
-        expect(source).not.toContain("listLibraryAssetPage");
-        expect(source).not.toContain("assetId");
+
+        expect(source).toContain("adminIpLibraryApi.deleteFile(ipId, selected.id)");
+        expect(source).toContain("onDeleted?.(selected.id)");
+        expect(source).toContain('aria-label="删除未引用原文件"');
+        expect(source).toContain('aria-label="取消选择当前文件"');
     });
 });

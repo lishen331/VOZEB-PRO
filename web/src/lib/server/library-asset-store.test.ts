@@ -10,7 +10,7 @@ vi.mock("@/lib/server/data-adapter", () => ({
     writeJsonDataFile: vi.fn(async (name: string, value: unknown) => mocks.files.set(name, structuredClone(value))),
 }));
 
-import { createLibraryAsset, deleteLibraryAsset, getLibraryAsset, getLibraryAssetById, listLibraryAssetPage, listLibraryAssets, updateLibraryAsset } from "./library-asset-store";
+import { createLibraryAsset, deleteLibraryAsset, getLibraryAsset, getLibraryAssetById, hasLibraryAssetMediaReference, listLibraryAssetPage, listLibraryAssets, updateLibraryAsset } from "./library-asset-store";
 
 describe("library asset file provider", () => {
     beforeEach(() => {
@@ -44,6 +44,15 @@ describe("library asset file provider", () => {
         await expect(getLibraryAsset("user-one", "two")).resolves.toMatchObject({ title: "商品标题" });
     });
 
+    it("filters short-drama material libraries without exposing unrelated assets", async () => {
+        await createLibraryAsset("user-one", { ...textAsset("character", "角色甲"), tags: ["短剧", "角色"] });
+        await createLibraryAsset("user-one", { ...textAsset("scene", "场景甲"), metadata: { dramaAssetType: "scene" } });
+        await createLibraryAsset("user-one", textAsset("other", "普通素材"));
+
+        await expect(listLibraryAssetPage("user-one", { page: 1, pageSize: 20, dramaAssetType: "character" })).resolves.toMatchObject({ total: 1, items: [{ id: "character" }] });
+        await expect(listLibraryAssetPage("user-one", { page: 1, pageSize: 20, dramaAssetType: "scene" })).resolves.toMatchObject({ total: 1, items: [{ id: "scene" }] });
+    });
+
     it("uses one bounded PostgreSQL query for a filtered page", async () => {
         mocks.provider = "postgres";
         mocks.postgresQuery.mockResolvedValue({ rows: [{ assets: [textAsset("one", "品牌脚本")], total: "12" }] });
@@ -56,7 +65,7 @@ describe("library asset file provider", () => {
         expect(statement).toContain("WHERE user_id = $1");
         expect(statement).toContain("ORDER BY updated_at DESC, id ASC");
         expect(statement).toContain("LIMIT $5 OFFSET $6");
-        expect(params).toEqual(["user-one", "text", "品牌", "%品牌%", 5, 5]);
+        expect(params).toEqual(["user-one", "text", "品牌", "%品牌%", 5, 5, null, null]);
     });
 
     it("prevents the unbounded asset reader from querying PostgreSQL", async () => {
@@ -74,6 +83,19 @@ describe("library asset file provider", () => {
         mocks.postgresQuery.mockResolvedValue({ rows: [{ asset_json: textAsset("ip-source", "审核素材") }] });
         await expect(getLibraryAssetById("ip-source")).resolves.toMatchObject({ id: "ip-source" });
         expect(mocks.postgresQuery).toHaveBeenLastCalledWith("SELECT asset_json FROM library_assets WHERE id = $1", ["ip-source"]);
+    });
+
+    it("recognizes media referenced by an asset owned by the requesting user", async () => {
+        await createLibraryAsset("user-one", { ...textAsset("one", "素材一"), coverUrl: "/api/reference-assets/permanent/shared.png" });
+        await createLibraryAsset("user-two", { ...textAsset("two", "素材二"), coverUrl: "/api/reference-assets/permanent/private.png" });
+
+        await expect(hasLibraryAssetMediaReference("user-one", "permanent/shared.png")).resolves.toBe(true);
+        await expect(hasLibraryAssetMediaReference("user-one", "permanent/private.png")).resolves.toBe(false);
+
+        mocks.provider = "postgres";
+        mocks.postgresQuery.mockResolvedValue({ rows: [{ allowed: true }] });
+        await expect(hasLibraryAssetMediaReference("user-one", "permanent/shared.png")).resolves.toBe(true);
+        expect(mocks.postgresQuery).toHaveBeenLastCalledWith(expect.stringContaining("position($2 in COALESCE(asset_json::text, '')) > 0"), ["user-one", "permanent/shared.png"]);
     });
 });
 

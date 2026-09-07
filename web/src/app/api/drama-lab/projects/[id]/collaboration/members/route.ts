@@ -1,7 +1,8 @@
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { listDramaLabMembers, leaveDramaLabProject, DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-service";
+import { listDramaLabMembers, leaveDramaLabProject } from "@/lib/server/drama-lab-collaboration-service";
 
 export const dynamic = "force-dynamic";
 
@@ -32,5 +33,5 @@ function fail(status: number, msg: string) {
     return NextResponse.json({ code: status, data: null, msg }, { status });
 }
 function handle(error: unknown) {
-    return error instanceof DramaLabCollaborationError ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "成员请求失败");
+    return isDramaLabCollaborationError(error) ? fail(error.status, error.message) : fail(500, error instanceof Error ? error.message : "成员请求失败");
 }

@@ -130,7 +130,8 @@ async function verifyAdminUi(page: Page, schoolName: string, accountId: string, 
     await page.getByPlaceholder("搜索账号 ID、用户名、姓名或邮箱").fill(accountId);
     await expect(page.getByText(`账号 ID：${accountId}`, { exact: false }).filter({ visible: true })).toBeVisible();
     await expect(page.getByText("停用账号当前不能生成", { exact: true }).filter({ visible: true })).toBeVisible();
-    await page.getByRole("button", { name: "调整积分", exact: true }).filter({ visible: true }).click();
+    const member = projectName.startsWith("mobile-") ? page.locator("[data-school-member-card]").filter({ hasText: `账号 ID：${accountId}` }) : page.locator("tbody tr").filter({ hasText: `账号 ID：${accountId}` });
+    await member.getByRole("button", { name: "调整积分", exact: true }).click();
     const modal = page.getByRole("dialog", { name: new RegExp(`调整 ${accountId} 的个人永久积分`) });
     await expect(modal).toBeVisible();
     await expectDialogWithinViewport(modal);

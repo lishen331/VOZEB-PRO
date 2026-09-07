@@ -1,12 +1,15 @@
 "use client";
 
-import { Alert, App, Button, Input, InputNumber, Modal, Segmented, Spin, Tag } from "antd";
-import { ArrowRight, Clapperboard, Download, FlaskConical, Pencil, Plus, RefreshCcw, Upload, UserRound, Image as ImageIcon, Box } from "lucide-react";
+import { Alert, App, Button, Input, Modal, Select, Spin, Tag } from "antd";
+import { ArrowRight, Clapperboard, Download, FlaskConical, Pencil, Plus, RefreshCcw, Trash2, Upload, UserRound, Image as ImageIcon, Box } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { DRAMA_WORKFLOW_LAB_STAGES } from "@/lib/drama-workflow-lab";
+import type { DramaLibraryAssetType } from "@/lib/drama-lab-library-assets";
 import type { DramaProjectSummary } from "@/lib/drama-project-contract";
+
+import { DramaLabMaterialLibraryModal } from "./drama-lab-material-library-modal";
 
 type ProjectListResponse = { code: number; data?: { projects?: DramaProjectSummary[]; total?: number }; msg?: string };
 type ProjectCreateResponse = { code: number; data?: { project?: { id: string } }; msg?: string };
@@ -14,7 +17,7 @@ type ProjectCreateResponse = { code: number; data?: { project?: { id: string } }
 const DEFAULT_STYLE = "电影感国漫";
 
 export function DramaWorkflowLabHome() {
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
     const [projects, setProjects] = useState<DramaProjectSummary[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -23,18 +26,17 @@ export function DramaWorkflowLabHome() {
     const [creating, setCreating] = useState(false);
     const [title, setTitle] = useState("");
     const [summary, setSummary] = useState("");
-    const [style, setStyle] = useState(DEFAULT_STYLE);
-    const [ratio, setRatio] = useState("9:16");
-    const [customWidth, setCustomWidth] = useState(1080);
-    const [customHeight, setCustomHeight] = useState(1920);
+    const [ratio, setRatio] = useState("16:9");
     const [importing, setImporting] = useState(false);
     const [exportingId, setExportingId] = useState<string>();
+    const [editingProject, setEditingProject] = useState<DramaProjectSummary>();
+    const [editTitle, setEditTitle] = useState("");
+    const [editSummary, setEditSummary] = useState("");
+    const [editing, setEditing] = useState(false);
+    const [deletingId, setDeletingId] = useState<string>();
     const importInputRef = useRef<HTMLInputElement>(null);
 
-    // 素材库弹窗状态
-    const [characterLibraryOpen, setCharacterLibraryOpen] = useState(false);
-    const [sceneLibraryOpen, setSceneLibraryOpen] = useState(false);
-    const [propLibraryOpen, setPropLibraryOpen] = useState(false);
+    const [materialLibraryType, setMaterialLibraryType] = useState<DramaLibraryAssetType>();
 
     const loadProjects = useCallback(async () => {
         setLoading(true);
@@ -59,9 +61,11 @@ export function DramaWorkflowLabHome() {
     const importProject = async (file: File) => {
         setImporting(true);
         try {
-            const form = new FormData();
-            form.set("file", file);
-            const response = await fetch("/api/drama-lab/projects/import", { method: "POST", body: form });
+            const response = await fetch("/api/drama-lab/projects/import", {
+                method: "POST",
+                headers: { "Content-Type": "application/zip", "X-Archive-Filename": encodeURIComponent(file.name) },
+                body: file,
+            });
             const payload = (await response.json().catch(() => ({}))) as { code?: number; data?: { project?: { id?: string } }; msg?: string };
             if (!response.ok || payload.code !== 0 || !payload.data?.project?.id) throw new Error(payload.msg || "短剧项目导入失败");
             message.success("短剧项目导入成功");
@@ -99,18 +103,67 @@ export function DramaWorkflowLabHome() {
         }
     };
 
+    const openProjectEditor = (project: DramaProjectSummary) => {
+        setEditingProject(project);
+        setEditTitle(project.title);
+        setEditSummary(project.summary || "");
+    };
+
+    const saveProjectSummary = async () => {
+        if (!editingProject || !editTitle.trim()) return message.warning("请输入项目标题");
+        setEditing(true);
+        try {
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(editingProject.id)}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: editTitle.trim(), summary: editSummary.trim() }),
+            });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string };
+            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "项目保存失败");
+            message.success("项目已保存");
+            setEditingProject(undefined);
+            await loadProjects();
+        } catch (saveError) {
+            message.error(saveError instanceof Error ? saveError.message : "项目保存失败");
+        } finally {
+            setEditing(false);
+        }
+    };
+
+    const deleteProject = (project: DramaProjectSummary) => {
+        modal.confirm({
+            title: "删除确认",
+            content: `确定要删除项目「${project.title.slice(0, 20) || "未命名项目"}」吗？此操作不可恢复。`,
+            okText: "删除",
+            okButtonProps: { danger: true },
+            cancelText: "取消",
+            onOk: async () => {
+                setDeletingId(project.id);
+                try {
+                    const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}`, { method: "DELETE" });
+                    const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string };
+                    if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "项目删除失败");
+                    message.success("项目已删除");
+                    await loadProjects();
+                } catch (deleteError) {
+                    message.error(deleteError instanceof Error ? deleteError.message : "项目删除失败");
+                    throw deleteError;
+                } finally {
+                    setDeletingId(undefined);
+                }
+            },
+        });
+    };
+
     const resetCreateForm = () => {
         setTitle("");
         setSummary("");
-        setStyle(DEFAULT_STYLE);
-        setRatio("9:16");
-        setCustomWidth(1080);
-        setCustomHeight(1920);
+        setRatio("16:9");
     };
 
     const createProject = async () => {
         if (!title.trim()) {
-            message.warning("请输入短剧项目名称");
+            message.warning("请输入项目标题");
             return;
         }
         setCreating(true);
@@ -118,7 +171,7 @@ export function DramaWorkflowLabHome() {
             const response = await fetch("/api/drama-lab/projects", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title: title.trim(), summary: summary.trim(), style: style.trim() || DEFAULT_STYLE, ratio }),
+                body: JSON.stringify({ title: title.trim(), summary: summary.trim(), style: DEFAULT_STYLE, ratio }),
             });
             const payload = (await response.json()) as ProjectCreateResponse;
             if (!response.ok || payload.code !== 0 || !payload.data?.project?.id) throw new Error(payload.msg || "短剧项目创建失败");
@@ -153,20 +206,20 @@ export function DramaWorkflowLabHome() {
                                 if (file) void importProject(file);
                             }}
                         />
-                        <Button icon={<UserRound className="size-4" />} onClick={() => setCharacterLibraryOpen(true)} className="hidden sm:inline-flex">
+                        <Button icon={<UserRound className="size-4" />} onClick={() => setMaterialLibraryType("character")} className="hidden sm:inline-flex">
                             素材角色
                         </Button>
-                        <Button icon={<ImageIcon className="size-4" />} onClick={() => setSceneLibraryOpen(true)} className="hidden sm:inline-flex">
+                        <Button icon={<ImageIcon className="size-4" />} onClick={() => setMaterialLibraryType("scene")} className="hidden sm:inline-flex">
                             素材场景
                         </Button>
-                        <Button icon={<Box className="size-4" />} onClick={() => setPropLibraryOpen(true)} className="hidden sm:inline-flex">
+                        <Button icon={<Box className="size-4" />} onClick={() => setMaterialLibraryType("prop")} className="hidden sm:inline-flex">
                             素材道具
                         </Button>
                         <Button icon={<Upload className="size-4" />} loading={importing} onClick={() => importInputRef.current?.click()}>
                             导入项目
                         </Button>
                         <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setCreateOpen(true)}>
-                            新建短剧
+                            新建项目
                         </Button>
                     </div>
                 </header>
@@ -229,7 +282,8 @@ export function DramaWorkflowLabHome() {
                                         </Link>
                                         <div className="flex items-center gap-1">
                                             <Button type="text" size="small" icon={<Download className="size-4" />} aria-label="导出项目" title="导出项目" loading={exportingId === project.id} onClick={() => void exportProject(project)} />
-                                            <Button type="text" size="small" icon={<Pencil className="size-4" />} aria-label="编辑项目" title="编辑项目" />
+                                            <Button type="text" size="small" icon={<Pencil className="size-4" />} aria-label="编辑项目" title="编辑项目" onClick={() => openProjectEditor(project)} />
+                                            <Button type="text" danger size="small" icon={<Trash2 className="size-4" />} aria-label="删除项目" title="删除项目" loading={deletingId === project.id} onClick={() => deleteProject(project)} />
                                         </div>
                                     </div>
                                     <div className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -260,9 +314,9 @@ export function DramaWorkflowLabHome() {
             </div>
 
             <Modal
-                title="新建短剧项目"
+                title="新建项目"
                 open={createOpen}
-                width={560}
+                width={480}
                 destroyOnHidden
                 confirmLoading={creating}
                 onCancel={() => {
@@ -270,84 +324,56 @@ export function DramaWorkflowLabHome() {
                     resetCreateForm();
                 }}
                 onOk={() => void createProject()}
-                okText="创建并进入制作"
+                okText="确定"
                 cancelText="取消"
             >
                 <div className="grid gap-4 pt-2">
                     <label className="grid gap-1.5 text-sm font-medium">
-                        项目名称
-                        <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例如：月影长安" />
+                        <span>
+                            <span className="mr-1 text-red-500">*</span>标题
+                        </span>
+                        <Input value={title} maxLength={100} showCount onChange={(event) => setTitle(event.target.value)} placeholder="输入项目标题" />
                     </label>
                     <label className="grid gap-1.5 text-sm font-medium">
-                        故事简介
-                        <Input.TextArea value={summary} onChange={(event) => setSummary(event.target.value)} autoSize={{ minRows: 2, maxRows: 4 }} placeholder="一句话说明人物、冲突和目标" />
-                    </label>
-                    <label className="grid gap-1.5 text-sm font-medium">
-                        统一视觉风格
-                        <Input value={style} onChange={(event) => setStyle(event.target.value)} />
+                        描述
+                        <Input.TextArea value={summary} onChange={(event) => setSummary(event.target.value)} rows={3} placeholder="输入项目描述（选填）" />
                     </label>
                     <div className="grid gap-1.5 text-sm font-medium">
                         <span>画面比例</span>
-                        <Segmented
-                            block
-                            value={ratio.includes("x") ? "custom" : ratio}
+                        <Select
+                            className="w-full"
+                            value={ratio}
                             options={[
-                                { label: "9:16", value: "9:16" },
-                                { label: "16:9", value: "16:9" },
-                                { label: "自定义", value: "custom" },
+                                { label: "16:9 横屏（默认）", value: "16:9" },
+                                { label: "9:16 竖屏（短视频）", value: "9:16" },
+                                { label: "3:4 竖版", value: "3:4" },
+                                { label: "1:1 方形", value: "1:1" },
+                                { label: "4:3 传统横屏", value: "4:3" },
+                                { label: "21:9 宽银幕", value: "21:9" },
                             ]}
-                            onChange={(value) => setRatio(value === "custom" ? `${customWidth}x${customHeight}` : String(value))}
+                            onChange={setRatio}
                         />
-                        {ratio.includes("x") ? (
-                            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                                <InputNumber
-                                    className="w-full"
-                                    min={256}
-                                    value={customWidth}
-                                    onChange={(value) => {
-                                        const width = Number(value) || 256;
-                                        setCustomWidth(width);
-                                        setRatio(`${width}x${customHeight}`);
-                                    }}
-                                />
-                                <span>×</span>
-                                <InputNumber
-                                    className="w-full"
-                                    min={256}
-                                    value={customHeight}
-                                    onChange={(value) => {
-                                        const height = Number(value) || 256;
-                                        setCustomHeight(height);
-                                        setRatio(`${customWidth}x${height}`);
-                                    }}
-                                />
-                            </div>
-                        ) : null}
+                        <p className="text-xs font-normal text-muted-foreground">影响分镜图和视频的生成比例，短视频选 9:16</p>
                     </div>
                 </div>
             </Modal>
 
-            {/* 素材库弹窗 */}
-            <Modal title="素材角色库" open={characterLibraryOpen} onCancel={() => setCharacterLibraryOpen(false)} footer={null} width={1000}>
-                <div className="py-4 text-center text-gray-500">
-                    角色库功能开发中...
-                    <p className="mt-2 text-sm">将显示公共角色素材，可以选择并添加到项目中</p>
+            <Modal title="编辑项目" open={Boolean(editingProject)} onCancel={() => setEditingProject(undefined)} onOk={() => void saveProjectSummary()} okText="保存" cancelText="取消" confirmLoading={editing} width={480} destroyOnHidden>
+                <div className="grid gap-4 pt-2">
+                    <label className="grid gap-1.5 text-sm font-medium">
+                        <span>
+                            <span className="mr-1 text-red-500">*</span>标题
+                        </span>
+                        <Input value={editTitle} maxLength={100} showCount onChange={(event) => setEditTitle(event.target.value)} placeholder="输入项目标题" />
+                    </label>
+                    <label className="grid gap-1.5 text-sm font-medium">
+                        描述
+                        <Input.TextArea value={editSummary} onChange={(event) => setEditSummary(event.target.value)} rows={3} placeholder="输入项目描述（选填）" />
+                    </label>
                 </div>
             </Modal>
 
-            <Modal title="素材场景库" open={sceneLibraryOpen} onCancel={() => setSceneLibraryOpen(false)} footer={null} width={1000}>
-                <div className="py-4 text-center text-gray-500">
-                    场景库功能开发中...
-                    <p className="mt-2 text-sm">将显示公共场景素材，可以选择并添加到项目中</p>
-                </div>
-            </Modal>
-
-            <Modal title="素材道具库" open={propLibraryOpen} onCancel={() => setPropLibraryOpen(false)} footer={null} width={1000}>
-                <div className="py-4 text-center text-gray-500">
-                    道具库功能开发中...
-                    <p className="mt-2 text-sm">将显示公共道具素材，可以选择并添加到项目中</p>
-                </div>
-            </Modal>
+            {materialLibraryType ? <DramaLabMaterialLibraryModal open type={materialLibraryType} onClose={() => setMaterialLibraryType(undefined)} /> : null}
         </main>
     );
 }

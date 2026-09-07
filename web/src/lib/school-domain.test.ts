@@ -28,16 +28,16 @@ describe("school domain contracts", () => {
         expect(normalizeSchoolPermissions("school.manage")).toEqual([]);
     });
 
-    it("accepts existing owner references and stable IP version references", () => {
+    it("accepts existing owner references and stable child IP references", () => {
         expect(SCHOOL_CONTENT_REFERENCE_TYPES).toEqual(["work", "canvas", "drama", "asset", "generation", "ip"]);
         expect(normalizeSchoolContentReference({ type: "canvas", id: "canvas-1" })).toEqual({ type: "canvas", id: "canvas-1" });
-        expect(normalizeSchoolContentReference({ type: "ip", id: "ip-1", versionId: "version-1", itemIds: ["item-1"] })).toEqual({
+        expect(normalizeSchoolContentReference({ type: "ip", id: "ip-1", subIpId: "child-1", itemIds: ["item-1"] })).toEqual({
             type: "ip",
             id: "ip-1",
-            versionId: "version-1",
+            subIpId: "child-1",
             itemIds: ["item-1"],
         });
-        expect(normalizeSchoolContentReference({ type: "ip", id: "ip-1", versionId: "version-1", itemIds: ["item-1", "item-1"] })).toBeNull();
+        expect(normalizeSchoolContentReference({ type: "ip", id: "ip-1", subIpId: "child-1", itemIds: ["item-1", "item-1"] })).toBeNull();
         expect(normalizeSchoolContentReference({ type: "audio", id: "audio-1" })).toBeNull();
         expect(normalizeSchoolContentReference({ type: "work", id: "" })).toBeNull();
     });

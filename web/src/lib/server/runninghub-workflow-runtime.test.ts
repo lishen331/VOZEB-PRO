@@ -237,6 +237,21 @@ describe("RunningHub workflow runtime", () => {
         ).toBeUndefined();
     });
 
+    it("rejects a persisted workflow identity when its configuration fingerprint changed", () => {
+        const changed = { ...config, requestTemplate: '{"changed":true}', lastTestResult: "success" as const, lastTestConfigFingerprint: runningHubWorkflowConfigFingerprint({ ...config, requestTemplate: '{"changed":true}' }) };
+        const channel = { channelId: "rh-practice", logicalModel: "practice-image", advancedConfig: { workflowConfigs: { [changed.workflowKey]: changed } } };
+        const settings = { practiceWorkflowModels: {}, systemChannels: [{ id: "rh-practice", advancedConfig: { ...channel.advancedConfig, protocol: "runninghub" } }] } as never;
+        expect(() =>
+            attachPracticeWorkflowToChannel(channel as never, settings, {
+                executionProfile: "open-source-practice",
+                businessCode: config.businessCode,
+                workflowKey: config.workflowKey,
+                workflowVersion: config.version,
+                workflowConfigFingerprint: runningHubWorkflowConfigFingerprint(config),
+            }),
+        ).toThrow("版本不存在或已停用");
+    });
+
     it("uses workflow timeout when scheduling a RunningHub request", () => {
         expect(workflowTimeoutMs(config, 999)).toBe(11_000);
         expect(workflowTimeoutMs({ ...config, timeoutSeconds: undefined }, 999)).toBe(999);
@@ -245,6 +260,27 @@ describe("RunningHub workflow runtime", () => {
     it("uses the practice script business code for drama text and tolerates no channels", () => {
         expect(generationBusinessCode("drama", "text")).toBe("script");
         expect(workflowTaskContextForChannel(undefined, "script")).toEqual({});
+    });
+
+    it("resolves the persisted workflow version instead of silently switching to the latest version", () => {
+        const previous = { ...config, workflowKey: "practice-image-v1", version: 1, lastTestResult: "success" as const, lastTestConfigFingerprint: runningHubWorkflowConfigFingerprint({ ...config, workflowKey: "practice-image-v1", version: 1 }) };
+        const latest = {
+            ...config,
+            workflowKey: "practice-image-v2",
+            version: 2,
+            workflowId: "workflow-image-v2",
+            lastTestResult: "success" as const,
+            lastTestConfigFingerprint: runningHubWorkflowConfigFingerprint({ ...config, workflowKey: "practice-image-v2", version: 2, workflowId: "workflow-image-v2" }),
+        };
+        const channel = { advancedConfig: { workflowConfigs: { [previous.workflowKey]: previous, [latest.workflowKey]: latest } } };
+
+        expect(
+            workflowTaskContextForChannel(channel as never, config.businessCode, {
+                workflowKey: previous.workflowKey,
+                workflowVersion: previous.version,
+                workflowConfigFingerprint: runningHubWorkflowConfigFingerprint(previous),
+            }),
+        ).toMatchObject({ workflowKey: previous.workflowKey, workflowVersion: 1, upstreamWorkflowId: previous.workflowId });
     });
 
     it("always chooses the server practice model binding for a practice task", () => {

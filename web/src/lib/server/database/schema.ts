@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
     practice_default_models jsonb NOT NULL DEFAULT '{}'::jsonb,
     practice_workflow_models jsonb NOT NULL DEFAULT '{}'::jsonb,
     agent_skills jsonb NOT NULL DEFAULT '[{"id":"ecommerce-image","name":"电商生图","description":"为商品主图、场景图和详情页视觉生成结构化方案。","instructions":"识别商品卖点、目标人群、平台与画幅。优先规划白底主图、核心卖点场景图、细节特写和详情页横幅；保持商品外观、材质、颜色、Logo 与包装一致。提示词必须写清主体、构图、光线、背景、镜头、商业质感、尺寸比例与禁止变形要求。","enabled":true,"keywords":["电商","商品","主图","详情页","淘宝","京东","亚马逊"]}]'::jsonb,
+    feature_modules jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT app_settings_singleton CHECK (id = 'default')
@@ -108,6 +109,7 @@ ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS generation_cost_control jsonb 
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS data_lifecycle jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_default_models jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_workflow_models jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS feature_modules jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS system_model_channels (
     id text PRIMARY KEY,
@@ -331,6 +333,8 @@ ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS last_heartbeat_at timestam
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS workflow_key text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS workflow_version integer;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS upstream_workflow_id text;
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS workflow_code text;
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS workflow_adapter_version integer;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS business_code text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS task_origin text NOT NULL DEFAULT 'user';
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_execution_phase;
@@ -653,8 +657,12 @@ CREATE TABLE IF NOT EXISTS practice_sessions (
 );
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS mode text;
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS selected_logical_model_id text;
-ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS error_code text;
+    ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS error_code text;
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS error_message text;
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS workflow_code text;
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS workflow_version integer;
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS workflow_config_fingerprint text;
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS workflow_adapter_version integer;
 UPDATE practice_sessions SET mode = 'workflow' WHERE mode IS NULL;
 ALTER TABLE practice_sessions ALTER COLUMN mode SET DEFAULT 'workflow';
 ALTER TABLE practice_sessions ALTER COLUMN mode SET NOT NULL;
@@ -662,6 +670,8 @@ ALTER TABLE practice_sessions DROP CONSTRAINT IF EXISTS practice_sessions_mode;
 ALTER TABLE practice_sessions ADD CONSTRAINT practice_sessions_mode CHECK (mode IN ('manual', 'workflow'));
 ALTER TABLE practice_sessions DROP CONSTRAINT IF EXISTS practice_sessions_status;
 ALTER TABLE practice_sessions ADD CONSTRAINT practice_sessions_status CHECK (status IN ('draft', 'queued', 'running', 'success', 'failed', 'cancelled'));
+ALTER TABLE practice_sessions DROP CONSTRAINT IF EXISTS practice_sessions_module;
+ALTER TABLE practice_sessions ADD CONSTRAINT practice_sessions_module CHECK (module IN ('script', 'character', 'scene', 'prop', 'storyboard-image', 'storyboard-video', 'dubbing', 'music'));
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS title text NOT NULL DEFAULT '';
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS client_request_id text;
 UPDATE practice_sessions SET client_request_id = id WHERE client_request_id IS NULL;

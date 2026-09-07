@@ -12,6 +12,7 @@ import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerationConcurrencyLimit, type GenerationTaskContext } from "@/lib/server/generation-task-store";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
+import { hasHealthyRuntimeCandidate } from "@/lib/server/channel-runtime-health";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
@@ -19,6 +20,7 @@ import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeLogicalModel, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
 import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,11 +33,18 @@ export async function POST(request: Request) {
     if (!rate.allowed) return NextResponse.json({ error: "音频生成请求过于频繁，请稍后重试" }, { status: 429, headers: rateLimitHeaders(rate) });
     const settings = await getAuthSettings();
     const response = await withGenerationConcurrencyLimit(user.id, "audio", 10 * 60 * 1000, settings.generationConcurrency.audio, async () => {
-        let body: { config?: AudioTaskConfig; prompt?: string; source?: string; context?: GenerationTaskContext };
+        let body: { config?: AudioTaskConfig; prompt?: string; input?: Record<string, unknown>; source?: string; context?: GenerationTaskContext };
         try {
             body = await readJsonBody(request);
         } catch (error) {
             if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
+            throw error;
+        }
+        try {
+            const moduleId = featureModuleForGenerationContext(body.context);
+            if (moduleId) await requireFeatureModuleEnabled(moduleId);
+        } catch (error) {
+            if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ error: error.message }, { status: 403 });
             throw error;
         }
         const trustedPractice = isTrustedPracticeTaskRequest(request, user.id, body.context);
@@ -76,11 +85,21 @@ export async function POST(request: Request) {
             executionProfile,
         }));
         const prompt = String(body.prompt || "").trim();
-        const supportedChannels = channels.filter((channel) => channel.apiFormat !== "gemini");
+        const supportedChannels = channels.filter((channel): channel is typeof channel & { channelId: string } => channel.apiFormat !== "gemini" && typeof channel.channelId === "string");
         if (!supportedChannels.length || !prompt) return NextResponse.json({ error: "音频任务参数不完整或渠道不支持" }, { status: 400 });
+        const hasHealthy = await hasHealthyRuntimeCandidate(supportedChannels, "audio");
+        if (!hasHealthy) return NextResponse.json({ error: "当前音频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
         const configs: AudioTaskConfig[] = supportedChannels.map((channel) => ({ ...channel, ...resolveAudioTaskOptions(body.config, settings.generationDefaults), instructions: clean(body.config?.instructions, 2_000) }));
-        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(configs[0], trustedContext.businessCode) };
-        const task = await createAudioTask({ ...trustedContext, userId: user.id, config: configs[0], candidateConfigs: configs.slice(1), prompt: prompt.slice(0, 20_000), source: mediaTaskSource(body.source, trustedContext, "audio-task") });
+        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(configs[0], trustedContext.businessCode, trustedContext) };
+        const task = await createAudioTask({
+            ...trustedContext,
+            userId: user.id,
+            config: configs[0],
+            candidateConfigs: configs.slice(1),
+            prompt: prompt.slice(0, 20_000),
+            workflowInput: body.input,
+            source: mediaTaskSource(body.source, trustedContext, "audio-task"),
+        });
         await linkStoredGenerationTask("audio", task.id, trustedContext);
         const origin = resolveInternalOrigin(new URL(request.url).origin);
         const cookie = request.headers.get("cookie") || "";

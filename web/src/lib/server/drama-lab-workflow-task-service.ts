@@ -227,6 +227,7 @@ export function dramaLabWorkflowTaskView(task: DramaLabWorkflowTask): DramaLabWo
     const steps = task.workflow?.steps || [];
     const done = steps.filter((step) => ["success", "skipped"].includes(step.status)).length;
     const progress = steps.length ? Math.round((done / steps.length) * 100) : task.status === "success" ? 100 : 0;
+    const checkpoint = latestStoryboardCheckpoint(task.workflow?.children || []);
     return {
         id: task.id,
         status: task.status,
@@ -239,10 +240,31 @@ export function dramaLabWorkflowTaskView(task: DramaLabWorkflowTask): DramaLabWo
         steps,
         children: task.workflow?.children || [],
         outputRefs: task.workflow?.outputRefs || [],
+        checkpoint,
         error: task.error || task.workflow?.error,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
     };
+}
+
+function latestStoryboardCheckpoint(children: DramaLabWorkflowChild[]): DramaLabWorkflowTaskView["checkpoint"] {
+    const candidates = children
+        .filter((child) => child.key.startsWith("storyboard:") && child.output && typeof child.output === "object")
+        .map((child) => {
+            const output = child.output as Record<string, unknown>;
+            const shotCount = Number(output.shotCount);
+            if (!Number.isFinite(shotCount) || shotCount < 0) return undefined;
+            return {
+                episodeId: typeof output.episodeId === "string" ? output.episodeId : child.episodeId || "",
+                shotCount,
+                recoveredCount: Number.isFinite(Number(output.recoveredCount)) ? Number(output.recoveredCount) : shotCount,
+                truncated: output.truncated === true,
+                updatedAt: Number.isFinite(Number(output.checkpointAt)) ? Number(output.checkpointAt) : child.updatedAt,
+                shots: Array.isArray(output.newShots) ? output.newShots as DramaShot[] : undefined,
+            };
+        })
+        .filter(Boolean);
+    return candidates.sort((left, right) => (right?.updatedAt ?? 0) - (left?.updatedAt ?? 0))[0];
 }
 
 async function executeWorkflowStep(task: DramaLabWorkflowTask, step: DramaLabWorkflowStep, input: AdvanceDramaLabWorkflowInput): Promise<"pending" | "success"> {
@@ -316,6 +338,7 @@ async function executeStoryboardStep(task: DramaLabWorkflowTask, step: DramaLabW
         }
         await updateChild(task.id, child.id, { status: "running" });
         let latest: DramaProject = project as DramaProject;
+        let checkpointShotCount = project.episodes.find((item) => item.id === episodeId)?.shots.length || 0;
         const result = await extractDramaLabStoryboards({
             userId: input.userId,
             origin: input.origin || "",
@@ -324,8 +347,20 @@ async function executeStoryboardStep(task: DramaLabWorkflowTask, step: DramaLabW
             project,
             episodeId,
             resumeShots: project.episodes.find((item) => item.id === episodeId)?.shots || [],
-            onPartial: async (shots) => {
+            onPartial: async (shots, meta) => {
                 latest = await persistEpisodeShots(ownerUserId, latest, episodeId, shots);
+                await updateChild(task.id, child.id, {
+                    status: "running",
+                    output: {
+                        episodeId,
+                        shotCount: shots.length,
+                        recoveredCount: meta.recoveredCount,
+                        truncated: meta.truncated,
+                        checkpointAt: Date.now(),
+                        newShots: shots.slice(checkpointShotCount),
+                    },
+                });
+                checkpointShotCount = shots.length;
             },
         });
         latest = await persistEpisodeShots(ownerUserId, latest, episodeId, result.shots);
@@ -739,10 +774,18 @@ async function completeWorkflowStep(task: DramaLabWorkflowTask, key: DramaLabWor
 }
 
 async function failWorkflowStep(task: DramaLabWorkflowTask, key: DramaLabWorkflowStepKey, error: string) {
-    return mutateStoredGenerationTask<DramaLabWorkflowTask>("render", task.id, WORKFLOW_TTL_MS, (current) => {
+    const failed = await mutateStoredGenerationTask<DramaLabWorkflowTask>("render", task.id, WORKFLOW_TTL_MS, (current) => {
         const steps = current.workflow.steps.map((step) => (step.key === key ? { ...step, status: "error" as const, error, completedAt: Date.now() } : step));
         return { ...current, status: "error", error, workflow: { ...current.workflow, steps, error } };
     });
+    if (!failed) return failed;
+
+    // Synthetic children are durable task rows. If the operation throws
+    // before its normal completion path, close those rows as well; otherwise
+    // a failed workflow leaves a permanent, misleading "running" task.
+    const activeSyntheticChildren = failed.workflow.children.filter((child) => child.type === "render" && childStepKey(child.key) === key && (child.status === "pending" || child.status === "running"));
+    await Promise.all(activeSyntheticChildren.map((child) => updateChild(failed.id, child.id, { status: "error", error })));
+    return (await getStoredGenerationTask<DramaLabWorkflowTask>("render", failed.id)) || failed;
 }
 
 async function markWorkflowSuccess(task: DramaLabWorkflowTask) {

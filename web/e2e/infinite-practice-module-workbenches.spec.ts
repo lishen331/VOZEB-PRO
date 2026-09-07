@@ -5,6 +5,7 @@ import { expect, test } from "@playwright/test";
 import { createAuthenticatedE2EContext, E2E_PRACTICE_PASSWORD } from "./support";
 
 const BASE_URL = `http://127.0.0.1:${Number(process.env.VOZEB_PRO_E2E_PORT || 3100)}`;
+const ONE_PIXEL_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=", "base64");
 
 test.describe.configure({ mode: "serial" });
 
@@ -39,6 +40,7 @@ test("学校成员使用五个独立的无限练习工作台", async ({ browser,
 
             await rolePage.goto("/practice/storyboard-image", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByText("等待生成分镜图", { exact: true })).toBeVisible();
+            await rolePage.getByLabel("主场景图（必需）").setInputFiles({ name: "scene.png", mimeType: "image/png", buffer: ONE_PIXEL_PNG });
             await rolePage.getByLabel("画面描述").fill("雨夜车站，中景");
             await rolePage.getByRole("button", { name: "生成分镜图", exact: true }).click();
             await expect(rolePage.getByRole("img", { name: "练习结果" })).toBeVisible();

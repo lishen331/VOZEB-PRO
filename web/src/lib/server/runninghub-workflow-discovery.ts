@@ -44,16 +44,23 @@ export function analyzeRunningHubWorkflowJson(input: { workflowId: string; raw: 
     const suggestedNodeMappings: RunningHubNodeMapping[] = [];
     for (const role of ["prompt", "image", "video", "audio", "duration", "enum", "boolean", "number"] as const) {
         const roleCandidates = candidates.filter((item) => item.role === role && (isInternalKnobRole(role) ? isBusinessSelector(item.fieldName) : true));
-        if (!roleCandidates.length || (role === "prompt" && roleCandidates.length !== 1)) continue;
-        roleCandidates.forEach((candidate, index) => {
+        if (!roleCandidates.length) continue;
+        // 提示词：多个时跳过自动映射（歧义），由用户手动配置
+        if (role === "prompt" && roleCandidates.length > 1) {
+            continue;
+        }
+        const effectiveCandidates = roleCandidates;
+        effectiveCandidates.forEach((candidate, index) => {
             const key = inputKeyFor(role, index);
             const inputType = candidate.inputType || inputTypeForRole(role);
             if (!inputType) return;
+            // 参考素材：只有真实外部文件依赖才必填，没有默认值 = 可选
+            const isRequired = role === "prompt" || (["image", "video", "audio"].includes(role) && candidate.hasExternalFileDependency);
             suggestedInputs.push({
                 key,
-                label: roleCandidates.length > 1 && role === "image" ? `参考图 ${index + 1}` : candidate.label,
+                label: effectiveCandidates.length > 1 && role === "image" ? `参考图 ${index + 1}` : candidate.label,
                 type: inputType,
-                required: candidate.hasExternalFileDependency || role === "prompt",
+                required: isRequired,
                 ...(role === "enum" && candidate.options && candidate.options.length ? { options: candidate.options } : {}),
             });
             suggestedNodeMappings.push({
@@ -95,15 +102,58 @@ function extractNodes(raw: unknown): Node[] {
     walk(raw, "", (value, key) => {
         if (!value || typeof value !== "object" || Array.isArray(value)) return;
         const record = value as Record<string, unknown>;
-        const inputs = record.inputs;
+        const inputsRaw = record.inputs;
+        const widgetsValues = record.widgets_values;
         const type = text(record.class_type) || text(record.nodeType) || text(record.type);
-        if (!inputs || typeof inputs !== "object" || Array.isArray(inputs) || !type) return;
-        const id = text(record.id) || key;
+        if (!type) return;
+        const id = nodeId(record.id) || key;
         if (!id || seen.has(id)) return;
-        seen.add(id);
-        found.push({ id, type, title: text(record._meta && typeof record._meta === "object" ? (record._meta as Record<string, unknown>).title : undefined) || text(record.title) || type, inputs: inputs as Record<string, unknown> });
+
+        // 构建 inputs 对象：将 inputs 数组和 widgets_values 数组合并
+        const inputs: Record<string, unknown> = {};
+
+        // 情况1: inputs 是对象 (旧格式或非 ComfyUI 格式)
+        if (inputsRaw && typeof inputsRaw === "object" && !Array.isArray(inputsRaw)) {
+            Object.assign(inputs, inputsRaw);
+        }
+        // 情况2: inputs 是数组 (ComfyUI 格式)
+        else if (Array.isArray(inputsRaw) && inputsRaw.length) {
+            let widgetIndex = 0;
+            inputsRaw.forEach((input) => {
+                if (!input || typeof input !== "object") return;
+                const inputObj = input as Record<string, unknown>;
+                const widget = inputObj.widget && typeof inputObj.widget === "object" ? (inputObj.widget as Record<string, unknown>) : undefined;
+                const fieldName = text(inputObj.name) || text(widget?.name);
+                if (!fieldName) return;
+
+                // widgets_values 只按控件顺序排列，连线输入不会占用一个值。
+                const fieldValue = widget ? (Array.isArray(widgetsValues) ? widgetsValues[widgetIndex] : undefined) : undefined;
+                if (widget) widgetIndex += 1;
+
+                // 如果是连接到其他节点的输入 (有 link 字段)，跳过
+                if (inputObj.link !== undefined && inputObj.link !== null) return;
+
+                inputs[fieldName] = fieldValue;
+            });
+        }
+
+        const title = text(record._meta && typeof record._meta === "object" ? (record._meta as Record<string, unknown>).title : undefined) || text(record.title) || type;
+        // 输出节点可能只有连线输入；保留它才能生成输出映射，但不要把普通内部节点的空输入变成 unknown 候选。
+        if (Object.keys(inputs).length > 0 || isOutputNodeLike(type, title)) {
+            seen.add(id);
+            found.push({ id, type, title, inputs });
+        }
     });
     return found;
+}
+
+function nodeId(value: unknown) {
+    if (typeof value === "string") return value.trim();
+    return typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+}
+
+function isOutputNodeLike(type: string, title: string) {
+    return /(saveimage|savevideo|saveaudio|videocombine|audiooutput|imagesave|previewimage|previewvideo|previewaudio|输出|结果)/i.test(`${type} ${title}`);
 }
 
 function analyzeNode(node: Node, capability: LogicalModelCapability): RunningHubNodeCandidate[] {
@@ -139,14 +189,34 @@ function classifyRole(node: Node, fieldName: string, value: unknown): RunningHub
     // 名称里带 image/video/audio 的尺寸类字段（ref_image_size、image_width…）是内部旋钮，
     // 不能因为含有素材关键词就当成参考文件入参，否则会把素材 URL 塞进尺寸字段导致上游失败。
     const nameHint = (keyword: RegExp) => keyword.test(`${type} ${field}`) && !FILE_DIMENSION_GUARD.test(field);
+
+    // 优先级 1: 数值类型和布尔类型（强类型优先）
     if (/(duration|seconds|时长)/i.test(field) && typeof value === "number") return "duration";
     if (typeof value === "boolean") return "boolean";
     if (Array.isArray(value) && value.length && value.every((item) => isJsonPrimitive(item)) && !isNodeLink(value)) return "enum";
     if (typeof value === "number") return "number";
-    if (isFileLike(value, "image") || nameHint(/(loadimage|image|参考图|图片)/i)) return "image";
-    if (isFileLike(value, "video") || nameHint(/(loadvideo|video|视频)/i)) return "video";
-    if (isFileLike(value, "audio") || nameHint(/(loadaudio|audio|音频|声音)/i)) return "audio";
-    if (typeof value === "string" && /(prompt|text|value|内容|提示词|文本)/i.test(field)) return "prompt";
+
+    // 优先级 2: 字符串字段 - 先判断语义再判断文件名
+    if (typeof value === "string") {
+        // 2.1 提示词字段优先（避免 "prompt: 'example.png'" 被误判为图片）
+        if (/(prompt|text|value|内容|提示词|文本)/i.test(field)) return "prompt";
+
+        // 2.2 文件类字段 - 同时检查字段名和值的格式
+        const hasImageExt = /\.(?:png|jpe?g|webp|gif)$/i.test(value);
+        const hasVideoExt = /\.(?:mp4|mov|webm|mkv)$/i.test(value);
+        const hasAudioExt = /\.(?:mp3|wav|m4a|flac|ogg)$/i.test(value);
+
+        // 必须字段名包含素材关键词 + 值是文件路径，才识别为素材输入
+        if (hasImageExt && nameHint(/(loadimage|image|参考图|图片)/i)) return "image";
+        if (hasVideoExt && nameHint(/(loadvideo|video|视频)/i)) return "video";
+        if (hasAudioExt && nameHint(/(loadaudio|audio|音频|声音)/i)) return "audio";
+    }
+
+    // 优先级 3: 仅根据字段名推断（无默认值或默认值不是字符串）
+    if (nameHint(/(loadimage|image|参考图|图片)/i)) return "image";
+    if (nameHint(/(loadvideo|video|视频)/i)) return "video";
+    if (nameHint(/(loadaudio|audio|音频|声音)/i)) return "audio";
+
     return undefined;
 }
 

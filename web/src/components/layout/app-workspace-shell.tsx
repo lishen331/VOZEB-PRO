@@ -6,11 +6,13 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { FeatureModuleGate } from "@/components/layout/feature-module-gate";
 import { isFullscreenWorkspacePath } from "@/components/layout/app-workspace-path";
 import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { SiteLogo } from "@/components/layout/site-logo";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
 import { navigationToolForPathname } from "@/constant/navigation-tools";
+import type { FeatureModuleSettings } from "@/lib/feature-modules";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
@@ -21,26 +23,34 @@ const PAGE_TITLES: Record<string, string> = {
     profile: "个人中心",
 };
 
-export function AppWorkspaceShell({ children, dramaWorkflowLabEnabled = false }: { children: ReactNode; dramaWorkflowLabEnabled?: boolean }) {
+export function AppWorkspaceShell({ children, featureModules }: { children: ReactNode; featureModules: FeatureModuleSettings }) {
     const pathname = usePathname();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
-    const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
+    const publicSettings = usePublicSessionStore((state) => state.payload?.settings);
+    const site = publicSettings?.site || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
+    const effectiveFeatureModules = publicSettings?.featureModules || featureModules;
+    const homePath = effectiveFeatureModules["creative-agent"] === false ? "/profile" : "/create";
     const siteTitle = resolveSiteTitle(site.title);
     const tool = navigationToolForPathname(
         pathname,
         useSchoolContextStore((state) => state.context),
-        { includeDramaWorkflowLab: dramaWorkflowLabEnabled },
+        { featureModules: effectiveFeatureModules },
     );
     const fullscreen = isFullscreenWorkspacePath(pathname);
     const rootSlug = pathname.split("/").filter(Boolean)[0] || "";
     const pageTitle = tool?.label || PAGE_TITLES[rootSlug] || "工作空间";
 
-    if (fullscreen) return <div className="h-dvh min-h-0 overflow-hidden">{children}</div>;
+    if (fullscreen)
+        return (
+            <FeatureModuleGate initialFeatureModules={effectiveFeatureModules}>
+                <div className="h-dvh min-h-0 overflow-hidden">{children}</div>
+            </FeatureModuleGate>
+        );
 
     return (
         <div className="workspace-shell flex h-dvh min-h-0 overflow-hidden bg-white text-foreground dark:bg-[#111316]">
-            <AppSidebar activeToolSlug={tool?.slug} expanded={sidebarExpanded} dramaWorkflowLabEnabled={dramaWorkflowLabEnabled} />
+            <AppSidebar activeToolSlug={tool?.slug} expanded={sidebarExpanded} featureModules={effectiveFeatureModules} />
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[#eaecf0] bg-white/96 px-3 backdrop-blur-xl sm:px-4 lg:px-7 dark:border-[#292d33] dark:bg-[#111316]/95">
                     <div className="flex min-w-0 items-center gap-2.5">
@@ -53,7 +63,7 @@ export function AppWorkspaceShell({ children, dramaWorkflowLabEnabled = false }:
                         >
                             <Menu className="size-5" />
                         </button>
-                        <Link href="/create" className="inline-flex shrink-0 items-center lg:hidden" aria-label={siteTitle}>
+                        <Link href={homePath} className="inline-flex shrink-0 items-center lg:hidden" aria-label={siteTitle}>
                             <SiteLogo logoUrl={site.logoUrl} className="size-6" />
                         </Link>
                         <button
@@ -74,9 +84,11 @@ export function AppWorkspaceShell({ children, dramaWorkflowLabEnabled = false }:
                         <UserStatusActions />
                     </div>
                 </header>
-                <div className="min-h-0 min-w-0 flex-1 overflow-hidden bg-white dark:bg-[#111316]">{children}</div>
+                <FeatureModuleGate initialFeatureModules={effectiveFeatureModules}>
+                    <div className="min-h-0 min-w-0 flex-1 overflow-hidden bg-white dark:bg-[#111316]">{children}</div>
+                </FeatureModuleGate>
             </div>
-            <MobileNavDrawer open={mobileNavOpen} activeToolSlug={tool?.slug} dramaWorkflowLabEnabled={dramaWorkflowLabEnabled} onClose={() => setMobileNavOpen(false)} />
+            <MobileNavDrawer open={mobileNavOpen} activeToolSlug={tool?.slug} featureModules={effectiveFeatureModules} onClose={() => setMobileNavOpen(false)} />
         </div>
     );
 }

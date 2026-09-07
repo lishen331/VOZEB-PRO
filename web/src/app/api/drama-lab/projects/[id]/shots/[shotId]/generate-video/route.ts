@@ -1,8 +1,9 @@
+import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getAuthSettings } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
-import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 import { DramaLabShotGenerationError, persistDramaLabShotUpdate, prepareDramaLabStoryboardVideo } from "@/lib/server/drama-lab-shot-generation-service";
@@ -13,6 +14,7 @@ import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { templateVideoReferenceRoles } from "@/lib/server/provider-task-config";
 import { maintenanceWorkerContextHeaders, requestRuntimeCredential } from "@/lib/server/maintenance-auth";
 import type { VideoReferenceRole } from "@/lib/video-reference-contract";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 type VideoCandidate = ReturnType<typeof resolveLogicalModelCandidates>[number];
 
@@ -25,6 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
 
     try {
+        await requireFeatureModuleEnabled("drama-lab");
         const { id, shotId } = await params;
         const episodeId = new URL(request.url).searchParams.get("episodeId")?.trim() || "";
         if (!episodeId) throw new DramaLabShotGenerationError("当前剧集不能为空");
@@ -112,7 +115,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             cause: error instanceof Error ? error.cause : undefined,
             name: error instanceof Error ? error.name : undefined,
         });
-        const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜视频任务创建失败" }, { status });
     }
 }

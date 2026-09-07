@@ -1,4 +1,4 @@
-import { postgresQuery, type QueryExecutor } from "@/lib/server/database/postgres";
+import { postgresQuery, type QueryExecutor, withPostgresTransaction } from "@/lib/server/database/postgres";
 import { AuditLogsRepository } from "./audit-log-repository";
 import { BillingOrderRepository } from "./billing-order-repository";
 import { BillingPaymentRepository } from "./billing-payment-repository";
@@ -149,7 +149,7 @@ export function createPostgresRepositories(executor?: QueryExecutor) {
         schoolDomain: createPostgresSchoolDomainRepository(db),
         schoolCompute: createPostgresSchoolComputeRepository(executor),
         practice: new PracticeRepository(db),
-        ipLibrary: new IpLibraryRepository(db),
+        ipLibrary: new IpLibraryRepository(db, executor ? undefined : withPostgresTransaction),
     };
 }
 
@@ -209,6 +209,7 @@ class SettingsRepository {
         if (input.practiceDefaultModels !== undefined) add("practice_default_models", jsonParam(input.practiceDefaultModels));
         if (input.practiceWorkflowModels !== undefined) add("practice_workflow_models", jsonParam(input.practiceWorkflowModels));
         if (input.agentSkills !== undefined) add("agent_skills", jsonParam(input.agentSkills));
+        if (input.featureModules !== undefined) add("feature_modules", jsonParam(input.featureModules));
         if (input.freeDailyPoints !== undefined) add("free_daily_points", input.freeDailyPoints);
         if (!assignments.length) throw new Error("Settings update requires at least one field");
         const row = await this.db.query(`UPDATE app_settings SET ${assignments.join(", ")} WHERE id = 'default' RETURNING *`, values);
@@ -326,6 +327,7 @@ function mapSettings(row: Record<string, unknown>): AppSettingsRecord {
         practiceDefaultModels: jsonValue(row.practice_default_models),
         practiceWorkflowModels: jsonValue(row.practice_workflow_models),
         agentSkills: jsonValue(row.agent_skills),
+        featureModules: jsonValue(row.feature_modules),
         createdAt: isoValue(row.created_at),
         updatedAt: isoValue(row.updated_at),
     };

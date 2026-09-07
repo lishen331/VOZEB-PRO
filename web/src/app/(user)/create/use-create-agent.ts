@@ -15,6 +15,7 @@ import {
     listCreativeAssets,
     listCreativeConversationPage,
     listCreativeMessages,
+    referenceCreativeAsset,
     retryCreativeAgentTask,
     retryCreativeAgentTasks,
     updateCreativeConversation,
@@ -365,6 +366,26 @@ export function useCreateAgent() {
         [ensureConversation, isCurrentConversation, removeDraftAttachments],
     );
 
+    const referenceAttachment = useCallback(
+        async (input: { sourceUrl: string; title?: string }) => {
+            const generation = conversationGenerationRef.current;
+            setUploading(true);
+            let referencedConversationId: string | undefined;
+            try {
+                referencedConversationId = await ensureConversation(generation);
+                const asset = await referenceCreativeAsset(referencedConversationId, input);
+                if (isCurrentConversation(referencedConversationId, generation)) {
+                    setAssets((current) => [...current.filter((item) => item.id !== asset.id), asset]);
+                    setSelectedAssetIds((current) => Array.from(new Set([...current, asset.id])));
+                }
+                return asset;
+            } finally {
+                if (!referencedConversationId || isCurrentConversation(referencedConversationId, generation)) setUploading(false);
+            }
+        },
+        [ensureConversation, isCurrentConversation],
+    );
+
     const watchRun = useCallback(
         (run: CreativeAgentRun, assistantMessageId: string, generation = conversationGenerationRef.current) => {
             if (!isCurrentConversation(run.conversationId, generation)) return false;
@@ -672,6 +693,7 @@ export function useCreateAgent() {
         selectAsset: (id: string) => setSelectedAssetIds((current) => (current.includes(id) ? current : [...current, id])),
         uploading,
         uploadAttachments,
+        referenceAttachment,
         removeAttachment: (id: string) => {
             if (getCreateDraftAttachment(id)) removeDraftAttachments([id]);
             setSelectedAssetIds((current) => current.filter((item) => item !== id));

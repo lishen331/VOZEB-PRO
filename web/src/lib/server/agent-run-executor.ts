@@ -1,6 +1,6 @@
 import { getAuthSettings } from "@/lib/auth/store";
 import { nanoid } from "nanoid";
-import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
+import { resolveLogicalModelCandidates, resolveVisionModelCandidates } from "@/lib/server/logical-model-router";
 import { systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { getAgentRun, updateAgentRunById, type AgentRun } from "@/lib/server/agent-run-store";
 import { agentPlannerSystemPrompt, agentPlanReply, buildAgentPlannerInput, conversationFallbackReply, plannerAgentSkills, prioritizeAgentPlannerModels, selectAgentSkills, taskPlanSummary } from "@/lib/server/agent-run-surface-policy";
@@ -17,6 +17,7 @@ import { buildAgentRunPlannerAudit } from "@/lib/server/agent-run-audit";
 import { agentRequestDigest, buildAgentRequest, serializeAgentRequest } from "@/lib/server/agent-prompt-json";
 import { orderCreativeAssetsByIds } from "@/lib/creative-asset-references";
 import { withDirectAgentExecutionContext } from "./agent-run-direct-context";
+import { assertAgentPlanSkillCompatibility } from "./agent-skill-capabilities";
 
 const globalAgentExecutors = globalThis as typeof globalThis & { __vozebProAgentRunControllers?: Map<string, AbortController> };
 const controllers = (globalAgentExecutors.__vozebProAgentRunControllers ??= new Map<string, AbortController>());
@@ -72,6 +73,11 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
             const selectedModels = claimed.requestedModelIds.map((id) => directModelOptions.find((item) => item.id === id && item.capability !== "text")).filter((item): item is ReturnType<typeof agentModelOptions>[number] => Boolean(item));
             if (selectedModels.length !== claimed.requestedModelIds.length) throw new Error("部分所选模型当前不可用，请重新选择");
             const plan = directAgentPlan(selectedModels, claimed.prompt, claimed.referencedAssetIds, claimed.generationPreferences);
+            assertAgentPlanSkillCompatibility(
+                plan,
+                skills,
+                explicitAssets.map((asset) => asset.type).filter((type): type is "image" | "video" | "audio" => type !== "text"),
+            );
             const tasks = withDirectAgentExecutionContext(
                 normalizeTasks(plan, skills, settings, claimed.snapshot, claimed.prompt, claimed.surface, explicitAssets, claimed.requestedImageSize, directGenerationPreferences(claimed.generationPreferences)),
                 claimed.surface,
@@ -90,11 +96,14 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
             await executeTasks(run.id, origin, cookie, executionId, settings);
             return;
         }
+        // Select the planner capability from the final references sent to the model.
         const referencedAssets = usesMemoryCandidates ? memoryAssets : explicitAssets;
         const referenceSource = claimed.referencedAssetIds.length ? "current-turn-explicit" : usesMemoryCandidates && referencedAssets.length ? "conversation-memory-candidates" : "none";
-        const model = settings.defaultModels.textModel;
-        const candidates = resolveLogicalModelCandidates(settings, "text", model);
-        if (!model || !candidates.length) throw new Error("后台尚未配置可用的默认文本模型");
+        const requiresMultimodal = referencedAssets.some((asset) => asset.type === "image" || asset.type === "video");
+        const model = (requiresMultimodal ? settings.defaultModels.visionModel : settings.defaultModels.textModel)?.trim() || "";
+        if (!model) throw new Error(requiresMultimodal ? "当前请求包含图片或视频，需要先配置多模态图片/视频理解模型" : "后台尚未配置可用的默认文本模型");
+        const candidates = requiresMultimodal ? resolveVisionModelCandidates(settings, model) : resolveLogicalModelCandidates(settings, "text", model);
+        if (!candidates.length) throw new Error(requiresMultimodal ? "当前配置的视觉理解模型不可用，或不支持图片/视频输入" : "后台尚未配置可用的默认文本模型");
         const fallbackExample = agentPlanFallbackExample(availableModels);
         const plannerContext = buildAgentPlannerInput(claimed, conversationContext, referencedAssets, referenceSource, skillOptions, availableModels, settings);
         if (!(await updateAgentRunById(run.id, { plannerContext: plannerContext.summary }, { type: "skills.selected", data: { skills: skills.map((skill) => ({ id: skill.id, name: skill.name })) } }, ["running"], executionId))) return;
@@ -197,6 +206,11 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
             planningPersisted = true;
             return;
         }
+        assertAgentPlanSkillCompatibility(
+            plan,
+            skills,
+            referencedAssets.map((asset) => asset.type).filter((type): type is "image" | "video" | "audio" => type !== "text"),
+        );
         const tasks = normalizeTasks(plan, skills, settings, claimed.snapshot, claimed.prompt, claimed.surface, referencedAssets, claimed.requestedImageSize, claimed.generationPreferences);
         const projectHandoff = normalizeAgentProjectHandoff(plan, claimed.surface, referencedAssets, claimed.prompt);
         const reply = agentPlanReply({ ...plan, projectHandoff }, tasks, claimed.surface);
