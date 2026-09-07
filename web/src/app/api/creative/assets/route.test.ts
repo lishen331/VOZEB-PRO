@@ -72,6 +72,20 @@ describe("POST /api/creative/assets", () => {
         expect(mocks.uploadAssetForUser).not.toHaveBeenCalled();
     });
 
+    it("rejects an oversized JSON reference request before parsing it", async () => {
+        const response = await POST(
+            new Request("http://localhost/api/creative/assets", {
+                method: "POST",
+                headers: { "content-type": "application/json", "content-length": String(64 * 1024 + 1) },
+                body: JSON.stringify({ conversationId: "conversation-one", sourceUrl: "/api/generation-log-assets/permanent/source.png" }),
+            }),
+        );
+
+        expect(response.status).toBe(413);
+        expect((await response.json()).msg).toBe("引用素材参数不能超过 64KB");
+        expect(mocks.referenceAssetForUser).not.toHaveBeenCalled();
+    });
+
     it("rejects an oversized multipart request before parsing it", async () => {
         const response = await POST(
             new Request("http://localhost/api/creative/assets", {

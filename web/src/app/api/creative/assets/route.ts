@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_UPLOAD_REQUEST_BYTES = CREATIVE_UPLOAD_MAX_BYTES + 64 * 1024;
+const MAX_REFERENCE_ASSET_REQUEST_BYTES = 64 * 1024;
 
 export async function POST(request: Request) {
     const user = await getCurrentUser();
@@ -18,8 +19,11 @@ export async function POST(request: Request) {
         if (contentType.toLowerCase().includes("application/json")) {
             let body: Record<string, unknown>;
             try {
-                body = (await request.json()) as Record<string, unknown>;
-            } catch {
+                body = JSON.parse(new TextDecoder().decode(await readRequestBodyBytes(request, MAX_REFERENCE_ASSET_REQUEST_BYTES))) as Record<string, unknown>;
+            } catch (error) {
+                if (error instanceof RequestBodyTooLargeError) {
+                    throw new CreativeRuntimeServiceError("引用素材参数不能超过 64KB", error.status);
+                }
                 throw new CreativeRuntimeServiceError("引用素材参数格式不正确", 400);
             }
             const conversationId = String(body.conversationId || "").trim();
