@@ -509,9 +509,35 @@ export function normalizeSiteSettings(settings: Partial<SiteSettings> | undefine
         termsVersion: normalizeText(settings?.termsVersion, DEFAULT_SITE_SETTINGS.termsVersion, 80),
         privacyUrl: normalizeLinkUrl(settings?.privacyUrl, DEFAULT_SITE_SETTINGS.privacyUrl),
         privacyVersion: normalizeText(settings?.privacyVersion, DEFAULT_SITE_SETTINGS.privacyVersion, 80),
+        loginPage: normalizeLoginPageSettings(settings?.loginPage),
         friendLinks: normalizeSiteFriendLinks(settings?.friendLinks, title),
         socials: normalizeSiteSocials(settings?.socials),
     };
+}
+
+export function normalizeLoginPageSettings(settings: Partial<SiteSettings["loginPage"]> | undefined): SiteSettings["loginPage"] {
+    const fallback = DEFAULT_SITE_SETTINGS.loginPage;
+    return {
+        heroVideoUrl: normalizeLoginMediaUrl(settings?.heroVideoUrl, fallback.heroVideoUrl),
+        heroPosterUrl: normalizeLoginMediaUrl(settings?.heroPosterUrl, fallback.heroPosterUrl),
+        jointBrandUrl: normalizeLoginMediaUrl(settings?.jointBrandUrl, fallback.jointBrandUrl),
+        slogan: normalizeText(settings?.slogan, fallback.slogan, 40),
+        platformName: normalizeText(settings?.platformName, fallback.platformName, 80),
+        footerOrganization: normalizeOptionalSiteText(settings?.footerOrganization, 120),
+        servicePhone: normalizeOptionalSiteText(settings?.servicePhone, 40),
+        serviceHours: normalizeOptionalSiteText(settings?.serviceHours, 80),
+    };
+}
+
+export function normalizeLoginMediaUrl(value: unknown, fallback: string) {
+    const url = typeof value === "string" ? value.trim() : "";
+    if (url.startsWith("/") && !url.startsWith("//")) return url.slice(0, 2000);
+    if (url.startsWith("https://")) return url.slice(0, 2000);
+    return fallback;
+}
+
+function normalizeOptionalSiteText(value: unknown, maxLength: number) {
+    return (typeof value === "string" ? repairKnownMojibakeText(value.trim()) : "").slice(0, maxLength);
 }
 
 function normalizeBrandDefault(value: unknown, defaultValue: string, siteTitle: string, fallback: string, maxLength: number) {

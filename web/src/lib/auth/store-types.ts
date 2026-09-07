@@ -408,6 +408,17 @@ export type AnnouncementPage = {
     pageSize: number;
 };
 
+export type LoginPageSettings = {
+    heroVideoUrl: string;
+    heroPosterUrl: string;
+    jointBrandUrl: string;
+    slogan: string;
+    platformName: string;
+    footerOrganization: string;
+    servicePhone: string;
+    serviceHours: string;
+};
+
 export type SiteSettings = {
     title: string;
     logoUrl: string;
@@ -420,6 +431,7 @@ export type SiteSettings = {
     termsVersion: string;
     privacyUrl: string;
     privacyVersion: string;
+    loginPage: LoginPageSettings;
     friendLinks: SiteFriendLink[];
     socials: SiteSocialSettings;
 };

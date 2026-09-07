@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-07。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **335** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-09-07。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **337** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**335**
-- 方法出现次数：DELETE 54、GET 181、HEAD 6、PATCH 53、POST 181、PUT 11
-- 一级域：`admin` 116、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 45、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 5、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 27、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**337**
+- 方法出现次数：DELETE 54、GET 182、HEAD 6、PATCH 53、POST 182、PUT 11
+- 一级域：`admin` 117、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 45、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 5、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 27、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（116）
+### `admin`（117）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -105,6 +105,7 @@
 | POST | `/api/admin/ip-library/[id]/sub-ips` | 管理员 | [route.ts](web/src/app/api/admin/ip-library/[id]/sub-ips/route.ts) | [ip-library-admin-service](web/src/lib/server/ip-library-admin-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / ip-library / 单项 / sub-ips：提交/执行 |
 | DELETE, PATCH | `/api/admin/ip-library/[id]/sub-ips/[subIpId]` | 管理员 | [route.ts](web/src/app/api/admin/ip-library/[id]/sub-ips/[subIpId]/route.ts) | [ip-library-admin-service](web/src/lib/server/ip-library-admin-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / ip-library / 单项 / sub-ips / [subIpId]：更新、删除 |
 | GET | `/api/admin/ip-library/usage` | 管理员 | [route.ts](web/src/app/api/admin/ip-library/usage/route.ts) | [ip-library-admin-service](web/src/lib/server/ip-library-admin-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / ip-library / usage：查询 |
+| POST | `/api/admin/login-page-media` | 管理员 | [route.ts](web/src/app/api/admin/login-page-media/route.ts) | [login-page-media](web/src/lib/server/login-page-media.ts)<br>[creative-upload](web/src/lib/creative-upload.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / login-page-media：提交/执行 |
 | POST | `/api/admin/mail/test` | 管理员 | [route.ts](web/src/app/api/admin/mail/test/route.ts) | [store](web/src/lib/auth/store.ts)<br>[smtp](web/src/lib/mail/smtp.ts) | PostgreSQL、SMTP | 管理后台 / 邮件 / 测试：提交/执行 |
 | POST | `/api/admin/models` | 管理员 | [route.ts](web/src/app/api/admin/models/route.ts) | [admin-channel-config](web/src/lib/server/admin-channel-config.ts)<br>[admin-model-catalog](web/src/lib/server/admin-model-catalog.ts)<br>[provider-task-config](web/src/lib/server/provider-task-config.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 模型目录：提交/执行 |
 | GET, PATCH, POST | `/api/admin/object-storage` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[object-storage-config](web/src/lib/server/object-storage-config.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储：查询、更新、提交/执行 |
@@ -388,6 +389,12 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET, POST | `/api/library-assets` | 用户 | [route.ts](web/src/app/api/library-assets/route.ts) | [library-asset-service](web/src/lib/server/library-asset-service.ts)<br>[feature-module-access](web/src/lib/server/feature-module-access.ts) | PostgreSQL、创作数据 | 素材库：查询、提交/执行 |
 | DELETE, PATCH | `/api/library-assets/[id]` | 用户 | [route.ts](web/src/app/api/library-assets/[id]/route.ts) | [library-asset-service](web/src/lib/server/library-asset-service.ts)<br>[feature-module-access](web/src/lib/server/feature-module-access.ts) | PostgreSQL、创作数据 | 素材库 / 单项：更新、删除 |
+
+### `login-page-media`（1）
+
+| 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
+| --- | --- | --- | --- | --- | --- | --- |
+| GET | `/api/login-page-media/[fileName]` | 公开 | [route.ts](web/src/app/api/login-page-media/[fileName]/route.ts) | [local-media-response](web/src/lib/server/local-media-response.ts)<br>[login-page-media](web/src/lib/server/login-page-media.ts) | PostgreSQL | login-page-media / [fileName]：查询 |
 
 ### `maintenance`（6）
 
