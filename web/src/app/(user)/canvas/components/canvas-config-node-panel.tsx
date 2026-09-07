@@ -145,7 +145,14 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, reference
                     onMissingConfig={() => openConfigDialog(true)}
                     fullWidth
                 />
-                {mode === "image" ? <CanvasImageReferenceRolesPopover references={references.filter((reference) => reference.kind === "image")} roles={node.metadata?.imageReferenceRoles} theme={theme} onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })} /> : null}
+                {mode === "image" ? (
+                    <CanvasImageReferenceRolesPopover
+                        references={references.filter((reference) => reference.kind === "image")}
+                        roles={node.metadata?.imageReferenceRoles}
+                        theme={theme}
+                        onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })}
+                    />
+                ) : null}
                 {mode === "video" ? (
                     <CanvasVideoSettingsPopover
                         config={config}
@@ -273,7 +280,17 @@ function InputCount({ icon, label, value }: { icon: ReactNode; label: string; va
     );
 }
 
-function CanvasImageReferenceRolesPopover({ references, roles, theme, onChange }: { references: CanvasResourceReference[]; roles?: CanvasNodeMetadata["imageReferenceRoles"]; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; onChange: (roles: NonNullable<CanvasNodeMetadata["imageReferenceRoles"]>) => void }) {
+function CanvasImageReferenceRolesPopover({
+    references,
+    roles,
+    theme,
+    onChange,
+}: {
+    references: CanvasResourceReference[];
+    roles?: CanvasNodeMetadata["imageReferenceRoles"];
+    theme: (typeof canvasThemes)[keyof typeof canvasThemes];
+    onChange: (roles: NonNullable<CanvasNodeMetadata["imageReferenceRoles"]>) => void;
+}) {
     const labels = { original: "原始参考", identity: "身份锚点", clothing: "服装参考", skin: "肤质参考" } as const;
     const current = roles || {};
     return (
@@ -283,14 +300,28 @@ function CanvasImageReferenceRolesPopover({ references, roles, theme, onChange }
             popupRender={() => (
                 <div className="w-64 rounded-xl border p-2 shadow-xl" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                     <div className="px-2 pb-1 text-[11px] font-semibold">参考图用途</div>
-                    {references.length ? references.map((reference) => (
-                        <div key={reference.nodeId} className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-                            <span className="min-w-0 flex-1 truncate text-xs">{reference.label} · {reference.title}</span>
-                            <select className="h-7 max-w-28 rounded-md border bg-transparent px-1 text-[11px]" value={current[reference.nodeId] || "original"} onChange={(event) => onChange({ ...current, [reference.nodeId]: event.target.value as keyof typeof labels })}>
-                                {Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                            </select>
-                        </div>
-                    )) : <div className="px-2 py-2 text-[11px] opacity-60">暂无已连接图片</div>}
+                    {references.length ? (
+                        references.map((reference) => (
+                            <div key={reference.nodeId} className="flex items-center gap-2 rounded-lg px-2 py-1.5">
+                                <span className="min-w-0 flex-1 truncate text-xs">
+                                    {reference.label} · {reference.title}
+                                </span>
+                                <select
+                                    className="h-7 max-w-28 rounded-md border bg-transparent px-1 text-[11px]"
+                                    value={current[reference.nodeId] || "original"}
+                                    onChange={(event) => onChange({ ...current, [reference.nodeId]: event.target.value as keyof typeof labels })}
+                                >
+                                    {Object.entries(labels).map(([value, label]) => (
+                                        <option key={value} value={value}>
+                                            {label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-2 py-2 text-[11px] opacity-60">暂无已连接图片</div>
+                    )}
                 </div>
             )}
         >

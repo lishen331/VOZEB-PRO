@@ -29,6 +29,8 @@ vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
     deleteDramaLabProjectForUser: mocks.deleteDramaLabProjectForUser,
     resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
     updateDramaLabProjectForUser: mocks.updateDramaProjectForUser,
+}));
+vi.mock("@/lib/server/drama-lab-collaboration-error", () => ({
     DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
         constructor(
             message: string,
@@ -40,7 +42,7 @@ vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
 }));
 
 import { DramaProjectServiceError } from "@/lib/server/drama-project-service";
-import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-service";
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { DELETE, PUT } from "./route";
 
 describe("DELETE /api/drama-lab/projects/[id]", () => {
