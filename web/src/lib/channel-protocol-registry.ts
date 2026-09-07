@@ -55,7 +55,8 @@ const newApiDoubaoVideoOperation: ProtocolOperation = {
     createPath: "/video/generations",
     imageToVideoPath: "/video/generations",
     queryPath: "/video/generations/:task_id",
-    requestTemplate: '{"model":"{{model}}","prompt":"{{prompt}}","seconds":"{{seconds_string}}","images":"{{images}}","metadata":{"ratio":"{{ratio}}","resolution":"{{resolution}}","generate_audio":"{{generate_audio}}","watermark":"{{watermark}}"}}',
+    requestTemplate:
+        '{"model":"{{model}}","prompt":"{{prompt}}","duration":"{{duration}}","seconds":"{{seconds_string}}","ratio":"{{ratio}}","aspect_ratio":"{{aspect_ratio}}","image":"{{image}}","input_reference":"{{image}}","images":"{{images}}","content":"{{content}}","metadata":{"ratio":"{{ratio}}","aspect_ratio":"{{aspect_ratio}}","duration":"{{duration}}","resolution":"{{resolution}}","generate_audio":"{{generate_audio}}","watermark":"{{watermark}}"}}',
     resultField: "metadata.url",
     statusField: "status",
     durationRange: "4-15 秒，具体范围以模型文档为准",
@@ -409,7 +410,17 @@ function operationConfigsFor(config: SystemChannelAdvancedConfig, key: string) {
 
 function isStaleNewApiVideoConfig(config: SystemChannelModelConfig | undefined) {
     if (!config || config.capability !== "video") return false;
-    return config.protocol === "newapi" && (config.createPath !== "/video/generations" || !config.requestTemplate?.trim().startsWith("{") || !config.requestTemplate.includes("{{seconds_string}}"));
+    const template = config.requestTemplate || "";
+    return (
+        config.protocol === "newapi" &&
+        (config.createPath !== "/video/generations" ||
+            !template.trim().startsWith("{") ||
+            !template.includes("{{seconds_string}}") ||
+            !template.includes("{{duration}}") ||
+            !template.includes("{{aspect_ratio}}") ||
+            !template.includes("{{image}}") ||
+            !template.includes("{{content}}"))
+    );
 }
 
 function isStaleGenericSeedance25Config(config: SystemChannelModelConfig | undefined) {

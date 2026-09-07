@@ -34,5 +34,7 @@ Playwright 对原图实际请求复现：站内 generation-log-assets 返回 307
 ## 尚未完成的线上验收
 - 本次修改未推送部署，线上完整页面尚未验证修复版；组件回归不能替代线上验收。
 - 尚未使用修复版重新付费生成视频，不宣称新视频视觉一致性已验证。
-- 上游把 16:9/10 秒变为 9:16/5 秒的问题需进一步核对中转转发参数及原始图片输入，不通过增添无依据参数掩盖。
+- 已进一步核对所用 New API Doubao 适配契约：历史模板只发送 `seconds + metadata.ratio + images`，不同中转版本可能按 OpenAI 视频兼容字段读取 `duration / aspect_ratio / input_reference / content`，缺失时会回退默认时长、比例或文本生成路径。
+- 运行时现会将旧的 Doubao 模板识别为过期配置并自动替换为兼容模板；同一真实参数同时映射为 `duration/seconds`、`ratio/aspect_ratio`、`image/input_reference/images/content`，不是伪造或拍脑袋参数。
+- 模板与请求构造回归确认：10 秒、16:9、参考图 URL 和带故事板约束的完整文字同时进入请求。线上付费生成验收需等待本提交部署。
 - 短剧专属复制画布未自动同步本次组件修改；按已有独立发布边界后续同步。
