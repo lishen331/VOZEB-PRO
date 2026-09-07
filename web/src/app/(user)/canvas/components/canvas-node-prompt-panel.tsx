@@ -47,6 +47,8 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const hasImageContent = isCanvasImageNodeType(node.type) && Boolean(node.metadata?.content);
     const isPanorama = node.type === CanvasNodeType.Panorama;
     const isEditingExistingContent = hasTextContent || hasImageContent;
+    const imageReferenceRoles = mentionReferences.filter((reference) => reference.kind === "image");
+    const referenceRoleImages = imageReferenceRoles.length ? imageReferenceRoles : hasImageContent ? [{ nodeId: node.id, kind: "image" as const, label: "\u56fe\u7247 1", title: node.title || "\u5f53\u524d\u56fe\u7247" }] : [];
     const [prompt, setPrompt] = useState(isEditingExistingContent ? "" : node.metadata?.prompt || "");
     const [expanded, setExpanded] = useState(false);
     const expandedEditorRef = useRef<HTMLTextAreaElement | null>(null);
@@ -136,12 +138,8 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 capability="image"
                                 onMissingConfig={() => openConfigDialog(true)}
                             />
-                            {mentionReferences.some((reference) => reference.kind === "image") ? (
-                                <CanvasImageReferenceRolesPopover
-                                    references={mentionReferences.filter((reference) => reference.kind === "image")}
-                                    roles={node.metadata?.imageReferenceRoles}
-                                    onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })}
-                                />
+                            {referenceRoleImages.length ? (
+                                <CanvasImageReferenceRolesPopover references={referenceRoleImages} roles={node.metadata?.imageReferenceRoles} onChange={(imageReferenceRoles) => onConfigChange(node.id, { imageReferenceRoles })} />
                             ) : null}
                             <CanvasImageSettingsPopover
                                 config={config}
