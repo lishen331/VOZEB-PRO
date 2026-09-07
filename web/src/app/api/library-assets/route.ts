@@ -13,6 +13,7 @@ export async function GET(request: Request) {
         pageSize: params.get("pageSize"),
         kind: params.get("kind"),
         keyword: params.get("keyword"),
+        dramaAssetType: params.get("dramaAssetType"),
     });
     return NextResponse.json({ code: 0, data: { assets: page.items, total: page.total, page: page.page, pageSize: page.pageSize }, msg: "OK" });
 }

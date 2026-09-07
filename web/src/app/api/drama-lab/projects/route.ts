@@ -8,8 +8,8 @@
 import { NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import type { DramaProject } from "@/lib/drama-project-contract";
 import { listDramaProjectSummaries } from "@/lib/server/drama-project-store";
+import { createDramaProjectForUser, DramaProjectServiceError } from "@/lib/server/drama-project-service";
 import { ensureDramaLabProjectGroup, listDramaLabProjectsForUser } from "@/lib/server/drama-lab-collaboration-service";
 
 export const dynamic = "force-dynamic";
@@ -79,34 +79,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ code: 400, msg: "项目标题不能为空" }, { status: 400 });
         }
 
-        const summaryText = typeof summary === "string" ? summary.trim() : "";
-        const styleText = typeof style === "string" ? style.trim() : "电影感写实";
-        const ratioText = typeof ratio === "string" && ratio.trim() ? ratio.trim() : "9:16";
-
-        // 生成项目 ID
-        const projectId = `drama-lab-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-        const now = new Date().toISOString();
-
-        // 创建项目结构
-        const project: DramaProject = {
-            id: projectId,
+        const created = await createDramaProjectForUser(user.id, {
             title: title.trim(),
-            summary: summaryText,
-            style: styleText,
-            ratio: ratioText,
-            status: "active" as const,
-            episodes: [],
-            characters: [],
-            scenes: [],
-            props: [],
-            clues: [],
-            defaultVideoMode: "storyboard",
-            createdAt: now,
-            updatedAt: now,
-        };
-
-        const { createDramaProject } = await import("@/lib/server/drama-project-store");
-        const created = await createDramaProject(user.id, project);
+            summary: typeof summary === "string" ? summary.trim() : "",
+            style: typeof style === "string" && style.trim() ? style.trim() : "电影感国漫",
+            ratio: typeof ratio === "string" && ratio.trim() ? ratio.trim() : "16:9",
+        });
         await ensureDramaLabProjectGroup(created.id, user.id);
 
         return NextResponse.json({
@@ -116,6 +94,7 @@ export async function POST(request: Request) {
         });
     } catch (error) {
         console.error("[drama-lab/projects] POST error:", error);
+        if (error instanceof DramaProjectServiceError) return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         return NextResponse.json(
             {
                 code: 500,

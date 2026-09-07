@@ -27,4 +27,24 @@ describe("drama workflow lab isolation", () => {
         expect(project).not.toMatch(/method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i);
         expect(source).toContain("/api/drama-lab/projects");
     });
+
+    it("keeps the LocalMiniDrama home create and archive import contract", async () => {
+        const home = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/drama-workflow-lab-home.tsx"), "utf8");
+
+        expect(home).toContain("新建项目");
+        expect(home).toContain('title="新建项目"');
+        expect(home).toContain("输入项目标题");
+        expect(home).toContain("输入项目描述（选填）");
+        expect(home).toContain("16:9 横屏（默认）");
+        expect(home).toContain("9:16 竖屏（短视频）");
+        expect(home).toContain("3:4 竖版");
+        expect(home).toContain("1:1 方形");
+        expect(home).toContain("4:3 传统横屏");
+        expect(home).toContain("21:9 宽银幕");
+        expect(home).toContain('headers: { "Content-Type": "application/zip"');
+        expect(home).toContain("body: file");
+        expect(home).not.toContain("角色库功能开发中");
+        expect(home).not.toContain("场景库功能开发中");
+        expect(home).not.toContain("道具库功能开发中");
+    });
 });

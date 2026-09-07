@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 
 import type { Asset, CreateLibraryAssetInput } from "@/lib/library-asset-contract";
+import type { DramaLibraryAssetType } from "@/lib/drama-lab-library-assets";
 import { createLibraryAsset, deleteLibraryAsset, getLibraryAsset, listLibraryAssetPage, updateLibraryAsset } from "@/lib/server/library-asset-store";
 import { deleteUserMediaAssetsCascade } from "@/lib/server/user-media-deletion-service";
 
@@ -13,14 +14,19 @@ export class LibraryAssetServiceError extends Error {
     }
 }
 
-export function listLibraryAssetPageForUser(userId: string, input: { page?: unknown; pageSize?: unknown; kind?: unknown; keyword?: unknown }) {
+export function listLibraryAssetPageForUser(userId: string, input: { page?: unknown; pageSize?: unknown; kind?: unknown; keyword?: unknown; dramaAssetType?: unknown }) {
     const kind = input.kind === "text" || input.kind === "image" || input.kind === "video" || input.kind === "audio" ? input.kind : undefined;
     return listLibraryAssetPage(userId, {
         page: positiveInteger(input.page, 1, 1_000_000),
         pageSize: positiveInteger(input.pageSize, 20, 100),
         kind,
         keyword: cleanText(input.keyword, 160),
+        dramaAssetType: normalizeDramaAssetType(input.dramaAssetType),
     });
+}
+
+function normalizeDramaAssetType(value: unknown): DramaLibraryAssetType | undefined {
+    return value === "character" || value === "scene" || value === "prop" ? value : undefined;
 }
 
 export function createLibraryAssetForUser(userId: string, value: unknown) {
