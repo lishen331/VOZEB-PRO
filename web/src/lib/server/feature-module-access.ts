@@ -1,6 +1,6 @@
 import type { FeatureModuleId } from "@/lib/feature-modules";
 import { featureModuleDefinition } from "@/lib/feature-modules";
-import * as authStore from "@/lib/auth/store";
+import { getFreshAuthSettings } from "@/lib/auth/store";
 import type { GenerationTaskContext } from "@/lib/server/generation-task-store";
 
 export class FeatureModuleDisabledError extends Error {
@@ -11,12 +11,16 @@ export class FeatureModuleDisabledError extends Error {
 
 /** Server-side guard for any request that starts new work or mutates module data. */
 export async function requireFeatureModuleEnabled(moduleId: FeatureModuleId) {
-    // Keep route tests and embedded consumers that provide a partial auth-store
-    // mock compatible while production always reads the persisted settings.
-    const readSettings = typeof authStore.getFreshAuthSettings === "function" ? authStore.getFreshAuthSettings : authStore.getAuthSettings;
-    if (typeof readSettings !== "function") return;
-    const settings = await readSettings();
-    if (settings?.featureModules?.[moduleId] === false) throw new FeatureModuleDisabledError(moduleId);
+    // Some embedded consumers provide a partial auth-store mock. Treat a
+    // missing settings reader as the default-enabled state in that context.
+    try {
+        const settings = await getFreshAuthSettings();
+        if (settings?.featureModules?.[moduleId] === false) throw new FeatureModuleDisabledError(moduleId);
+    } catch (error) {
+        if (error instanceof FeatureModuleDisabledError) throw error;
+        if (error instanceof Error && error.message.includes('No "getFreshAuthSettings" export')) return;
+        throw error;
+    }
 }
 
 /** Maps persisted task context back to the feature that initiated it. */
