@@ -47,10 +47,21 @@ vi.mock("@/lib/server/drama-lab-shot-generation-service", () => {
     };
 });
 vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask }));
-vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
-    resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
-    assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed,
-}));
+vi.mock("@/lib/server/drama-lab-collaboration-service", () => {
+    class DramaLabCollaborationError extends Error {
+        constructor(
+            message: string,
+            readonly status = 400,
+        ) {
+            super(message);
+        }
+    }
+    return {
+        DramaLabCollaborationError,
+        resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
+        assertDramaLabStageAllowed: mocks.assertDramaLabStageAllowed,
+    };
+});
 vi.mock("@/lib/server/maintenance-auth", () => ({
     requestRuntimeCredential: mocks.requestRuntimeCredential,
     maintenanceWorkerContextHeaders: mocks.maintenanceWorkerContextHeaders,
