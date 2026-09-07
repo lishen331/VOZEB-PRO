@@ -140,7 +140,7 @@ function workflowsForModule(configs: Record<string, unknown> | undefined, channe
     const allowedCodes = module === "character" ? new Set(["character_main_view", "character_multi_view"]) : new Set(code ? [code] : []);
     return Object.values(configs || {})
         .map((item) => normalizeWorkflow(item))
-        .filter((item) => item.enabled && item.channelId === channelId && (!item.workflowCode ? false : allowedCodes.has(item.workflowCode)) )
+        .filter((item) => item.enabled && item.channelId === channelId && (!item.workflowCode ? false : allowedCodes.has(item.workflowCode)))
         .sort((left, right) => (left.workflowCode || "").localeCompare(right.workflowCode || ""));
 }
 
@@ -150,7 +150,7 @@ function workflowOptions(configs: Record<string, unknown> | undefined, channelId
     const allowedCodes = module === "character" ? new Set(["character_main_view", "character_multi_view"]) : new Set([code]);
     return Object.values(configs || {})
         .map((item) => normalizeWorkflow(item))
-        .filter((item) => item.enabled && item.channelId === channelId && item.workflowCode && allowedCodes.has(item.workflowCode) )
+        .filter((item) => item.enabled && item.channelId === channelId && item.workflowCode && allowedCodes.has(item.workflowCode))
         .sort((left, right) => (left.workflowCode || "").localeCompare(right.workflowCode || ""))
         .map((item) => ({ code: item.workflowCode!, label: item.workflowName }));
 }
