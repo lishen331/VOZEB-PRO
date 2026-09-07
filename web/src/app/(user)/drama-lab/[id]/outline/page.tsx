@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { use, useState, useEffect, useCallback, type ChangeEvent, type MouseEvent } from "react";
 import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, List, Spin, Upload as AntUpload, Steps, Table } from "antd";
@@ -110,7 +110,8 @@ function normalizeEpisode(value: LooseEpisode, index: number): Episode {
     const shots = Array.isArray(value?.shots) ? value.shots : [];
     const number = Number(value?.episodeNumber || value?.number || index + 1);
     return {
-        ...value,
+        id: typeof value.id === "string" ? value.id : `episode_${crypto.randomUUID()}`,
+        title: typeof value.title === "string" ? value.title : `第 ${number} 集`,
         number,
         episodeNumber: number,
         script: typeof value?.script === "string" ? value.script : typeof value?.script_content === "string" ? value.script_content : "",
@@ -119,7 +120,6 @@ function normalizeEpisode(value: LooseEpisode, index: number): Episode {
         shots,
     };
 }
-
 function parseChapters(text: string, pattern: string) {
     const normalized = text.replace(/\r\n/g, "\n").trim();
     if (!normalized) return [];
