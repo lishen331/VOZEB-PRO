@@ -24,6 +24,15 @@ const labels: Record<RunningHubWorkflowBusinessCode, string> = {
 
 type WorkflowActionColumnRenderer = NonNullable<TableColumnsType<PublicRunningHubWorkflow>[number]["render"]>;
 
+export function runningHubDemoBootstrapPath(_channelId: string) {
+    return "/api/admin/runninghub/workflows/bootstrap";
+}
+
+export function runningHubWorkflowSnapshotLabel(workflow: Pick<PublicRunningHubWorkflow, "workflowJsonFingerprint" | "requiresRetest">) {
+    if (!workflow.workflowJsonFingerprint) return "未拉取 JSON";
+    return workflow.requiresRetest ? "JSON 已更新，需重测" : "已有 JSON 快照";
+}
+
 export function getRunningHubWorkflowActionColumn(render: WorkflowActionColumnRenderer): TableColumnsType<PublicRunningHubWorkflow>[number] {
     return {
         title: "操作",
@@ -45,6 +54,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
     const [status, setStatus] = useState<"all" | "enabled" | "disabled">("all");
     const [editor, setEditor] = useState<{ workflow?: PublicRunningHubWorkflow; autoDiscover?: boolean } | null | undefined>();
     const [testWorkflow, setTestWorkflow] = useState<PublicRunningHubWorkflow | null>(null);
+    const [bootstrapping, setBootstrapping] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -97,15 +107,46 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
         }
     };
 
+    const bootstrapDemo = async () => {
+        if (bootstrapping) return;
+        setBootstrapping(true);
+        try {
+            const response = await fetch(runningHubDemoBootstrapPath(channel.id), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channelId: channel.id }) });
+            const result = (await response.json()) as { data?: { added?: number; updated?: number; skipped?: number }; msg?: string };
+            if (!response.ok) throw new Error(result.msg || "初始化 Demo 工作流失败");
+            message.success(`Demo 工作流已初始化：新增 ${result.data?.added || 0} 条，跳过 ${result.data?.skipped || 0} 条`);
+            await load();
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "初始化 Demo 工作流失败");
+        } finally {
+            setBootstrapping(false);
+        }
+    };
+
+    const fetchJson = async (workflow: PublicRunningHubWorkflow) => {
+        try {
+            const response = await fetch(`/api/admin/runninghub/workflows/${encodeURIComponent(workflow.workflowKey)}/fetch-json`, { method: "POST" });
+            const result = (await response.json()) as { msg?: string };
+            if (!response.ok) throw new Error(result.msg || "拉取工作流 JSON 失败");
+            message.success("工作流 JSON 快照已更新");
+            await load();
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "拉取工作流 JSON 失败");
+        }
+    };
+
     const columns: TableColumnsType<PublicRunningHubWorkflow> = useMemo(
         () => [
             {
                 title: "工作流",
                 key: "name",
+                fixed: "left",
+                width: 190,
                 render: (_, item) => (
                     <div className="min-w-0">
                         <div className="truncate font-medium">{item.workflowName}</div>
-                        <div className="truncate text-xs text-stone-500">{item.workflowKey}</div>
+                        <div className="truncate text-xs text-stone-500">{item.workflowCode || item.workflowKey}</div>
+                        <div className="truncate text-xs text-stone-500">{item.adapterType || "generic"} · {runningHubWorkflowSnapshotLabel(item)}</div>
                     </div>
                 ),
             },
@@ -143,6 +184,9 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                     <Button size="small" icon={<RefreshCw className="size-3.5" />} onClick={() => setEditor({ workflow: item, autoDiscover: true })}>
                         读取工作流
                     </Button>
+                    <Button size="small" onClick={() => void fetchJson(item)}>
+                        拉取 JSON
+                    </Button>
                     <Button size="small" icon={<TestTube className="size-3.5" />} onClick={() => setTestWorkflow(item)}>
                         测试
                     </Button>
@@ -175,6 +219,9 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                 <Space>
                     <Button size="small" icon={<RefreshCw className="size-3.5" />} loading={loading} onClick={() => void load()}>
                         刷新
+                    </Button>
+                    <Button size="small" loading={bootstrapping} onClick={() => void bootstrapDemo()}>
+                        初始化 Demo
                     </Button>
                     <Button size="small" type="primary" icon={<Plus className="size-3.5" />} onClick={() => setEditor(null)}>
                         新建
@@ -212,8 +259,9 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                             <div className="min-w-0">
                                 <div className="truncate text-sm font-medium">{item.workflowName}</div>
                                 <div className="mt-1 text-xs text-stone-500">
-                                    {labels[item.businessCode]} · v{item.version} · {item.workflowId}
+                                    {labels[item.businessCode]} · {item.workflowCode || item.workflowKey} · v{item.version}
                                 </div>
+                                <div className="mt-1 text-xs text-stone-500">{runningHubWorkflowSnapshotLabel(item)}</div>
                             </div>
                             <Tag color={item.enabled ? "success" : "default"}>{item.enabled ? "启用" : "停用"}</Tag>
                         </div>
@@ -223,6 +271,9 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                             </Button>
                             <Button size="small" onClick={() => setEditor({ workflow: item, autoDiscover: true })}>
                                 读取工作流
+                            </Button>
+                            <Button size="small" onClick={() => void fetchJson(item)}>
+                                拉取 JSON
                             </Button>
                             <Button size="small" onClick={() => setTestWorkflow(item)}>
                                 测试

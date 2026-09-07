@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     if (!rate.allowed) return NextResponse.json({ error: "音频生成请求过于频繁，请稍后重试" }, { status: 429, headers: rateLimitHeaders(rate) });
     const settings = await getAuthSettings();
     const response = await withGenerationConcurrencyLimit(user.id, "audio", 10 * 60 * 1000, settings.generationConcurrency.audio, async () => {
-        let body: { config?: AudioTaskConfig; prompt?: string; source?: string; context?: GenerationTaskContext };
+        let body: { config?: AudioTaskConfig; prompt?: string; input?: Record<string, unknown>; source?: string; context?: GenerationTaskContext };
         try {
             body = await readJsonBody(request);
         } catch (error) {
@@ -82,8 +82,8 @@ export async function POST(request: Request) {
         const hasHealthy = await hasHealthyRuntimeCandidate(supportedChannels, "audio");
         if (!hasHealthy) return NextResponse.json({ error: "当前音频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
         const configs: AudioTaskConfig[] = supportedChannels.map((channel) => ({ ...channel, ...resolveAudioTaskOptions(body.config, settings.generationDefaults), instructions: clean(body.config?.instructions, 2_000) }));
-        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(configs[0], trustedContext.businessCode) };
-        const task = await createAudioTask({ ...trustedContext, userId: user.id, config: configs[0], candidateConfigs: configs.slice(1), prompt: prompt.slice(0, 20_000), source: mediaTaskSource(body.source, trustedContext, "audio-task") });
+        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(configs[0], trustedContext.businessCode, trustedContext) };
+        const task = await createAudioTask({ ...trustedContext, userId: user.id, config: configs[0], candidateConfigs: configs.slice(1), prompt: prompt.slice(0, 20_000), workflowInput: body.input, source: mediaTaskSource(body.source, trustedContext, "audio-task") });
         await linkStoredGenerationTask("audio", task.id, trustedContext);
         const origin = resolveInternalOrigin(new URL(request.url).origin);
         const cookie = request.headers.get("cookie") || "";

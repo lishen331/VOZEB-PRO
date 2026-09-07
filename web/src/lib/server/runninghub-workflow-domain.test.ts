@@ -140,6 +140,23 @@ describe("RunningHub workflow domain", () => {
         expect(workflowRequiresRetest({ ...baseConfig, nodeMappings: [{ ...baseConfig.nodeMappings[0], fieldName: "value" }], lastTestResult: "success", lastTestConfigFingerprint: fingerprint })).toBe(true);
     });
 
+    it("preserves Demo workflow metadata through normalization and fingerprints it", () => {
+        const demo = {
+            ...baseConfig,
+            workflowCode: "storyboard_shot_video",
+            adapterType: "storyboard-shot-video",
+            adapterVersion: 1,
+            workflowApiJson: "{\"269\":{\"class_type\":\"LoadImage\"}}",
+            generationSizeOptions: [{ key: "1280x720", label: "1280 x 720", width: 1280, height: 720 }],
+            remark: "Demo workflow",
+            source: "server-dev:aigc_ai_dev",
+            sourceVersion: "server-dev-runninghub-main-verified-20260903-0115",
+        };
+        const normalized = normalizeRunningHubWorkflowConfig(demo);
+        expect(normalized).toMatchObject(demo);
+        expect(runningHubWorkflowConfigFingerprint({ ...demo, remark: "first" })).not.toBe(runningHubWorkflowConfigFingerprint({ ...demo, remark: "second" }));
+    });
+
     it("requires successful current evidence before enabling new configurations while preserving legacy enabled configs", () => {
         const fingerprint = runningHubWorkflowConfigFingerprint(baseConfig);
         expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true })).toEqual([]);

@@ -14,9 +14,9 @@ import { getAudioTask } from "@/lib/server/audio-task-store";
 import { getStoredGenerationTaskByRequest } from "@/lib/server/generation-task-store";
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "./ip-library-reference-service";
-import type { RunningHubWorkflowConfig } from "@/lib/auth/store-types";
+import type { RunningHubWorkflowCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";
 import type { RunningHubWorkflowInputField } from "@/lib/auth/store-types";
-import { resolveEnabledWorkflow } from "./runninghub-workflow-domain";
+import { resolveEnabledWorkflow, runningHubWorkflowConfigFingerprint, workflowRequiresRetest } from "./runninghub-workflow-domain";
 
 export type PracticeSessionCreateInput = {
     module: PracticeModuleKind;
@@ -28,6 +28,7 @@ export type PracticeSessionCreateInput = {
     clientRequestId: string;
     projectId?: string;
     projectKind?: PracticeProjectKind;
+    workflowCode?: RunningHubWorkflowCode;
 };
 
 export type PracticeTaskDispatchInput = {
@@ -71,7 +72,7 @@ export type PracticePublicErrorCode =
 export async function createPracticeSessionForUser(
     actor: PracticeActor,
     input: PracticeSessionCreateInput,
-    deps: { store?: PracticeSessionStore; dispatch?: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>; resolveModel?: (module: PracticeModuleKind, requestedLogicalModelId?: string) => Promise<PracticeModelResolution> } = {},
+    deps: { store?: PracticeSessionStore; dispatch?: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>; resolveModel?: (module: PracticeModuleKind, requestedLogicalModelId?: string, workflowCode?: string) => Promise<PracticeModelResolution> } = {},
 ) {
     await requirePracticeAccess(actor);
     const store = deps.store || defaultPracticeSessionStore();
@@ -101,9 +102,10 @@ export async function createPracticeSessionForUser(
     const references = normalizeReferences(input.references);
     const ipReferences = references.filter((reference): reference is IpReference => reference.type === "ip");
     await validateIpReferences(actor.id, ipReferences);
+    const requestedWorkflowCode = cleanOptional(input.workflowCode || sourcePayload.workflowCode, 160);
     const baseNormalized = mode === "workflow" ? normalizePracticeModuleInput(moduleKind, sourcePayload, references) : undefined;
     const resolveModel = deps.resolveModel || defaultResolveModel;
-    const model = mode === "workflow" ? await resolveModel(moduleKind, input.logicalModelId) : undefined;
+    const model = mode === "workflow" ? (requestedWorkflowCode ? await resolveModel(moduleKind, input.logicalModelId, requestedWorkflowCode) : await resolveModel(moduleKind, input.logicalModelId)) : undefined;
     const normalizedWorkflow = mode === "workflow" ? normalizePracticeModuleInput(moduleKind, sourcePayload, references, model?.workflow) : undefined;
     const payload =
         mode === "manual"
@@ -128,6 +130,7 @@ export async function createPracticeSessionForUser(
         input: payload as JsonValue,
         taskRefs: [],
         ...(model ? { selectedLogicalModelId: model.logicalModelId } : {}),
+        ...(model?.workflow ? { workflowCode: model.workflow.workflowCode || requestedWorkflowCode, workflowVersion: model.workflow.version, workflowConfigFingerprint: runningHubWorkflowConfigFingerprint(model.workflow), workflowAdapterVersion: model.workflow.adapterVersion || 1 } : {}),
         status: mode === "manual" ? "draft" : "queued",
     });
     if (mode === "manual") {
@@ -148,7 +151,7 @@ async function dispatchQueuedSession(
     clientRequestId: string,
     store: PracticeSessionStore,
     dispatch: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>,
-    resolveModel: (module: PracticeModuleKind, requestedLogicalModelId?: string) => Promise<PracticeModelResolution>,
+    resolveModel: (module: PracticeModuleKind, requestedLogicalModelId?: string, workflowCode?: string) => Promise<PracticeModelResolution>,
     preflightModel?: PracticeModelResolution,
 ) {
     const claimed = await store.claimDispatch(userId, session.id);
@@ -160,7 +163,7 @@ async function dispatchQueuedSession(
     try {
         await validateIpReferences(userId, ipReferences);
         if (ipReferences.length) await recordIpReferenceUsage(userId, { targetType: "practice", targetId: claimed.id, references: ipReferences });
-        model = preflightModel || (await resolveModel(claimed.module, claimed.selectedLogicalModelId));
+        model = preflightModel || (claimed.workflowCode ? await resolveModel(claimed.module, claimed.selectedLogicalModelId, claimed.workflowCode) : await resolveModel(claimed.module, claimed.selectedLogicalModelId));
     } catch (error) {
         await store.update(userId, claimed.id, { status: "failed", errorCode: publicErrorCode(error, "PRACTICE_MODEL_UNAVAILABLE"), errorMessage: publicErrorMessage(error, "PRACTICE_MODEL_UNAVAILABLE") });
         throw error;
@@ -282,6 +285,10 @@ export async function publicPracticeSession(session: PracticeSessionRecord) {
         projectId: reconciled.projectId,
         projectKind: reconciled.projectKind,
         input: reconciled.input,
+        ...(reconciled.workflowCode ? { workflowCode: reconciled.workflowCode } : {}),
+        ...(reconciled.workflowVersion ? { workflowVersion: reconciled.workflowVersion } : {}),
+        ...(reconciled.workflowConfigFingerprint ? { workflowConfigFingerprint: reconciled.workflowConfigFingerprint } : {}),
+        ...(reconciled.workflowAdapterVersion ? { workflowAdapterVersion: reconciled.workflowAdapterVersion } : {}),
         status: task?.status === "success" ? "success" : task?.status === "error" ? "failed" : task?.status === "cancelled" ? "cancelled" : dispatchNeverStarted ? "failed" : reconciled.status,
         ...(reconciled.selectedLogicalModelId ? { selectedLogicalModelId: reconciled.selectedLogicalModelId } : {}),
         ...(dispatchNeverStarted ? { errorCode: "PRACTICE_DISPATCH_NOT_STARTED" as const, errorMessage: "练习任务尚未提交，请重试" } : reconciled.errorCode ? { errorCode: reconciled.errorCode, errorMessage: reconciled.errorMessage } : {}),
@@ -351,15 +358,16 @@ async function findDurableTaskReference(userId: string, clientRequestId: string,
     return task && typeof task.id === "string" && task.id.trim() ? { taskId: task.id, taskType } : null;
 }
 
-async function defaultResolveModel(module: PracticeModuleKind, requestedLogicalModelId?: string): Promise<PracticeModelResolution> {
+async function defaultResolveModel(module: PracticeModuleKind, requestedLogicalModelId?: string, requestedWorkflowCode?: string): Promise<PracticeModelResolution> {
     const settings = await getAuthSettings();
-    return resolvePracticeModelFromSettings(settings, module, requestedLogicalModelId);
+    return resolvePracticeModelFromSettings(settings, module, requestedLogicalModelId, requestedWorkflowCode);
 }
 
-export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<typeof getAuthSettings>>, module: PracticeModuleKind, requestedLogicalModelId?: string): PracticeModelResolution {
-    const capability = module === "script" ? "text" : module === "storyboard-image" ? "image" : module === "storyboard-video" ? "video" : "audio";
+export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<typeof getAuthSettings>>, module: PracticeModuleKind, requestedLogicalModelId?: string, requestedWorkflowCode?: string): PracticeModelResolution {
+    const capability = module === "script" ? "text" : module === "storyboard-video" ? "video" : module === "dubbing" || module === "music" ? "audio" : "image";
     const key = `${capability}Model` as "textModel" | "imageModel" | "videoModel" | "audioModel";
-    const rawBindings: unknown = settings.practiceWorkflowModels[module];
+    const legacyBindingKey = module === "character" || module === "scene" || module === "prop" ? "storyboard-image" : module;
+    const rawBindings: unknown = settings.practiceWorkflowModels[legacyBindingKey];
     const boundModels = Array.isArray(rawBindings) ? rawBindings.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : typeof rawBindings === "string" && rawBindings.trim().length > 0 ? [rawBindings] : [];
     if (module !== "script" && boundModels.length) {
         const requested = requestedLogicalModelId?.trim();
@@ -370,7 +378,7 @@ export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<ty
             const model = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, candidate, "", "open-source-practice");
             if (!model) continue;
             hadModel = true;
-            const workflow = resolveEnabledWorkflow(Object.values(model.channel.advancedConfig?.workflowConfigs || {}), model.channel.id, module);
+            const workflow = resolvePracticeWorkflow(Object.values(model.channel.advancedConfig?.workflowConfigs || {}), model.channel.id, module, requestedWorkflowCode);
             if (workflow) return { logicalModelId: model.logicalModelId, capability, workflow };
         }
         throw new PracticeServiceError(hadModel ? "当前练习模块没有可用工作流" : "当前练习模块没有可用的开源模型", 503, hadModel ? "PRACTICE_WORKFLOW_UNAVAILABLE" : "PRACTICE_MODEL_UNAVAILABLE");
@@ -379,7 +387,7 @@ export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<ty
     const model = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, requestedModel, "", "open-source-practice");
     if (!model || !model.channel || !["open-source-practice", "shared"].includes(model.channel.purpose || "shared")) throw new PracticeServiceError("当前练习模块没有可用的开源模型", 503, "PRACTICE_MODEL_UNAVAILABLE");
     if (module === "script") return { logicalModelId: model.logicalModelId, capability };
-    const workflow = resolveEnabledWorkflow(Object.values(model.channel.advancedConfig?.workflowConfigs || {}), model.channel.id, module);
+    const workflow = resolvePracticeWorkflow(Object.values(model.channel.advancedConfig?.workflowConfigs || {}), model.channel.id, module, requestedWorkflowCode);
     if (!workflow) throw new PracticeServiceError("当前练习模块没有可用工作流", 503, "PRACTICE_WORKFLOW_UNAVAILABLE");
     return { logicalModelId: model.logicalModelId, capability, workflow };
 }
@@ -389,26 +397,64 @@ export function normalizePracticeModuleInput(module: PracticeModuleKind, input: 
     const prompt = text(input.prompt);
     const value = module === "dubbing" ? text(input.text) : prompt;
     if (!["script"].includes(module) && !value) throw new PracticeServiceError("练习内容不能为空", 400, "PRACTICE_INPUT_INVALID");
-    if (module === "storyboard-video") {
-        const imageReferences = normalizedReferences.filter((reference) => reference.type === "asset");
-        if (imageReferences.length !== 1) throw new PracticeServiceError("请选择一张参考图片", 400, "PRACTICE_REFERENCE_INVALID");
+    if (module === "character" && input.workflowCode === "character_multi_view") {
+        const hasReference = normalizedReferences.some((reference) => reference.type === "asset");
+        if (!hasReference) throw new PracticeServiceError("角色多视图需要一张主形象参考图", 400, "PRACTICE_REFERENCE_INVALID");
     }
-    const base = module === "dubbing" ? { text: value } : { prompt: value };
-    const accepted = new Set(["prompt", "text"]);
-    const optional =
+    if (module === "scene" || module === "prop" || module === "character") {
+        // Asset modules use their own workflow adapters while retaining the public prompt shape.
+    }
+    if (module === "storyboard-video") {
+        const imageReferences = normalizedReferences.filter((reference) => reference.type === "asset" && (!["audio", "lastFrameImage", "firstFrameImage"].includes(reference.inputKey || "")));
+        if (imageReferences.length !== 1) throw new PracticeServiceError("请选择一张参考图片", 400, "PRACTICE_REFERENCE_INVALID");
+        if (input.audioEnabled === true && !normalizedReferences.some((reference) => reference.type === "asset" && reference.inputKey === "audio") && !text(input.audio)) throw new PracticeServiceError("启用台词音频后必须提供音频", 400, "PRACTICE_REFERENCE_INVALID");
+    }
+    const base = { ...(module === "dubbing" ? { text: value } : { prompt: value }), ...(text(input.workflowCode) ? { workflowCode: text(input.workflowCode) } : {}) };
+    const accepted = new Set(["prompt", "text", "workflowCode"]);
+    const workflowFields =
         workflow?.inputSchema.flatMap((field) => {
-            if (field.required || accepted.has(field.key) || input[field.key] === undefined || !matchesWorkflowField(field, input[field.key])) return [];
+            if (accepted.has(field.key) || input[field.key] === undefined || !isPublicWorkflowField(field) || !matchesWorkflowField(field, input[field.key])) return [];
             accepted.add(field.key);
             return [[field.key, input[field.key]] as const];
         }) || [];
-    return { input: Object.fromEntries([...Object.entries(base), ...optional]), references: normalizedReferences };
+    const lines = module === "dubbing" ? normalizeDialogueLines(input.lines) : [];
+    return { input: Object.fromEntries([...Object.entries(base), ...workflowFields, ...(lines.length ? [["lines", lines] as const] : [])]), references: normalizedReferences };
+}
+
+function resolvePracticeWorkflow(configs: readonly unknown[], channelId: string, module: PracticeModuleKind, requestedWorkflowCode?: string) {
+    const code = requestedWorkflowCode || ({ character: "character_main_view", scene: "scene_main_view", prop: "prop_main_view", "storyboard-image": "storyboard_shot", "storyboard-video": "storyboard_shot_video", dubbing: "storyboard_dialogue_audio" } as Record<string, string>)[module];
+    const exact = code ? configs.map(normalizeWorkflow).find((item) => item.enabled && item.channelId === channelId && item.workflowCode === code && !workflowRequiresRetest(item)) : undefined;
+    return exact || (module === "music" ? resolveEnabledWorkflow(configs, channelId, "music") : module === "script" ? undefined : resolveEnabledWorkflow(configs, channelId, module === "dubbing" ? "dubbing" : module === "storyboard-video" ? "storyboard-video" : "storyboard-image"));
+}
+
+function normalizeWorkflow(value: unknown) {
+    return value as RunningHubWorkflowConfig;
 }
 
 function matchesWorkflowField(field: RunningHubWorkflowInputField, value: unknown) {
+    if (field.type === "text" || field.type === "textarea") return typeof value === "string";
     if (field.type === "number") return typeof value === "number" && Number.isFinite(value);
     if (field.type === "boolean") return typeof value === "boolean";
     if (field.type === "enum") return typeof value === "string" && (!field.options?.length || field.options.includes(value));
     return false;
+}
+
+function isPublicWorkflowField(field: RunningHubWorkflowInputField) {
+    return ["text", "textarea", "number", "enum", "boolean"].includes(field.type) && !/^s\d+_/.test(field.key);
+}
+
+function normalizeDialogueLines(value: unknown) {
+    if (!Array.isArray(value)) return [];
+    const emotionKeys = ["happy", "sad", "disgust", "fear", "surprise", "angry"] as const;
+    return value.flatMap((item) => {
+        const source = object(item);
+        const lineText = text(source.text);
+        if (!lineText || /^-[0-9]+(?:\.[0-9]+)?s-$/.test(lineText)) return [];
+        const audio = text(source.audio) || text(source.audioUrl);
+        const rawEmotion = object(source.emotion);
+        const emotion = Object.fromEntries(emotionKeys.flatMap((key) => (typeof rawEmotion[key] === "number" && Number.isFinite(rawEmotion[key]) ? [[key, rawEmotion[key]]] : [])));
+        return [{ text: lineText.slice(0, 2_000), ...(audio ? { audio: audio.slice(0, 2_000) } : {}), ...(Object.keys(emotion).length ? { emotion } : {}) }];
+    }).slice(0, 10);
 }
 
 function defaultPracticeSessionStore(): PracticeSessionStore & { list(userId: string, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
@@ -510,7 +556,7 @@ function normalizeFileSession(value: PracticeSessionRecord): PracticeSessionReco
 }
 
 function normalizeModule(value: unknown): PracticeModuleKind {
-    if (value === "storyboard-image" || value === "storyboard-video" || value === "dubbing" || value === "music") return value;
+    if (value === "character" || value === "scene" || value === "prop" || value === "storyboard-image" || value === "storyboard-video" || value === "dubbing" || value === "music") return value;
     if (value === "script") return value;
     throw new PracticeServiceError("练习模块无效", 400);
 }
@@ -529,12 +575,19 @@ function normalizeReferences(value: unknown) {
     const assets = value.flatMap((item) => {
         const source = object(item);
         const id = text(source.id);
-        if (source.type !== "asset" || !id || seen.has(id)) return [];
-        seen.add(id);
-        return [{ type: "asset" as const, id }];
+        const inputKey = normalizeReferenceInputKey(source.inputKey);
+        const identity = `${id}:${inputKey || ""}`;
+        if (source.type !== "asset" || !id || seen.has(identity)) return [];
+        seen.add(identity);
+        return [{ type: "asset" as const, id, ...(inputKey ? { inputKey } : {}) }];
     });
     const ipReferences = normalizeIpReferences(value.filter((item) => object(item).type === "ip"));
     return [...assets, ...ipReferences];
+}
+
+function normalizeReferenceInputKey(value: unknown) {
+    const key = text(value);
+    return ["referenceImage", "firstFrameImage", "lastFrameImage", "sceneImage", "characterPropImage1", "characterPropImage2", "characterPropImage3", "image", "audio"].includes(key) ? key : undefined;
 }
 
 function hasTaskReference(session: Pick<PracticeSessionRecord, "taskRefs">) {

@@ -36,6 +36,7 @@ export async function POST(request: Request) {
                 input,
                 references: Array.isArray(body.references) ? body.references : [],
                 ...(typeof body.logicalModelId === "string" ? { logicalModelId: body.logicalModelId } : {}),
+                ...(typeof body.workflowCode === "string" ? { workflowCode: body.workflowCode } : {}),
                 clientRequestId: typeof body.clientRequestId === "string" ? body.clientRequestId : "",
                 projectId: typeof body.projectId === "string" ? body.projectId : undefined,
                 projectKind: body.projectKind === "drama" ? "drama" : "canvas",
@@ -68,9 +69,11 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
     const workflowInput = Object.fromEntries(Object.entries(input.input).filter(([key]) => key !== "prompt" && key !== "text" && key !== "references"));
     const references = input.references.flatMap((reference) => {
         if (!reference || typeof reference !== "object" || Array.isArray(reference)) return [];
-        const source = reference as { type?: unknown; id?: unknown };
+        const source = reference as { type?: unknown; id?: unknown; inputKey?: unknown };
         if (source.type !== "asset" || typeof source.id !== "string" || !source.id.trim()) return [];
-        return [{ type: "image" as const, url: practiceReferenceUrl(source.id) }];
+        const inputKey = normalizePracticeReferenceInputKey(source.inputKey);
+        const type = inputKey === "audio" ? "audio" : "image";
+        return [{ type, url: practiceReferenceUrl(source.id), ...(inputKey ? { inputKey } : {}) }];
     });
     const body =
         input.capability === "text"
@@ -79,7 +82,7 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
               ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
               : input.capability === "video"
                 ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
-                : { ...workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" };
+              : { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" };
     const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(input.userId, input.clientRequestId) });
     const cookie = request.headers.get("cookie");
     if (cookie) headers.set("cookie", cookie);
@@ -95,6 +98,11 @@ function practiceReferenceUrl(storageKey: string) {
     return `/api/reference-assets/${value.split("/").map(encodeURIComponent).join("/")}`;
 }
 
+function normalizePracticeReferenceInputKey(value: unknown) {
+    const key = typeof value === "string" ? value.trim() : "";
+    return ["referenceImage", "firstFrameImage", "lastFrameImage", "sceneImage", "characterPropImage1", "characterPropImage2", "characterPropImage3", "image", "audio"].includes(key) ? key : undefined;
+}
+
 function knownError(error: unknown) {
     const status = typeof error === "object" && error && "status" in error && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 500;
     return response(status, error instanceof Error ? error.message : "练习会话请求失败");
@@ -107,5 +115,23 @@ function response(code: number, msg: string) {
 function sanitizePracticeInput(value: unknown) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const blocked = new Set(["provider", "model", "channelId", "workflowId", "workflowKey", "taskRefs", "pointsCost", "executionProfile"]);
-    return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([key, item]) => !blocked.has(key) && (typeof item === "string" || typeof item === "number" || typeof item === "boolean" || item === null)));
+    const result = Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([key, item]) => !blocked.has(key) && (typeof item === "string" || typeof item === "number" || typeof item === "boolean" || item === null)));
+    const lines = sanitizeDialogueLines((value as Record<string, unknown>).lines);
+    if (lines.length) result.lines = lines;
+    return result;
+}
+
+function sanitizeDialogueLines(value: unknown) {
+    if (!Array.isArray(value)) return [];
+    const emotionKeys = ["happy", "sad", "disgust", "fear", "surprise", "angry"] as const;
+    return value.flatMap((item) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+        const source = item as Record<string, unknown>;
+        const text = typeof source.text === "string" ? source.text.trim().slice(0, 2_000) : "";
+        if (!text) return [];
+        const audioValue = typeof source.audio === "string" ? source.audio.trim().slice(0, 2_000) : typeof source.audioUrl === "string" ? source.audioUrl.trim().slice(0, 2_000) : "";
+        const emotionSource = source.emotion && typeof source.emotion === "object" && !Array.isArray(source.emotion) ? (source.emotion as Record<string, unknown>) : {};
+        const emotion = Object.fromEntries(emotionKeys.flatMap((key) => (typeof emotionSource[key] === "number" && Number.isFinite(emotionSource[key]) ? [[key, emotionSource[key]]] : [])));
+        return [{ text, ...(audioValue ? { audio: audioValue } : {}), ...(Object.keys(emotion).length ? { emotion } : {}) }];
+    }).slice(0, 10);
 }

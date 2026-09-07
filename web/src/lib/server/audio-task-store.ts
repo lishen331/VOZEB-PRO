@@ -30,6 +30,7 @@ export type AudioTask = GenerationTaskContext & {
     updatedAt: number;
     config: AudioTaskConfig;
     prompt: string;
+    workflowInput?: Record<string, unknown>;
     source?: string;
     upstream?: { id: string; createPath: string };
     result?: { url: string; mimeType: string };
@@ -53,7 +54,7 @@ export async function getAudioTask(id: string) {
     return getStoredGenerationTask<AudioTask>("audio", id);
 }
 
-export async function updateAudioTask(id: string, patch: Partial<Pick<AudioTask, "status" | "config" | "upstream" | "result" | "billing" | "error" | "candidateConfigs" | "attempts" | "attemptNo">>) {
+export async function updateAudioTask(id: string, patch: Partial<Pick<AudioTask, "status" | "config" | "upstream" | "result" | "billing" | "error" | "candidateConfigs" | "attempts" | "attemptNo" | "workflowInput">>) {
     return mutateStoredGenerationTask<AudioTask>("audio", id, GENERATION_TASK_RETENTION_MS, (task) => ({ ...task, ...patch }));
 }
 

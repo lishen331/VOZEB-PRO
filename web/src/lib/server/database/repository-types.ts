@@ -898,6 +898,10 @@ export type PracticeSessionRecord = {
     input: JsonValue;
     taskRefs: JsonValue;
     selectedLogicalModelId?: string;
+    workflowCode?: string;
+    workflowVersion?: number;
+    workflowConfigFingerprint?: string;
+    workflowAdapterVersion?: number;
     errorCode?: string;
     errorMessage?: string;
     status: PracticeSessionStatus;

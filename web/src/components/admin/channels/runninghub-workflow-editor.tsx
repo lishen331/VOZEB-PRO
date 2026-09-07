@@ -3,7 +3,7 @@
 import { Alert, App, Button, Checkbox, Collapse, Drawer, Input, InputNumber, Select, Space, Tabs } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";
+import type { RunningHubWorkflowAdapterType, RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";
 import type { PublicRunningHubWorkflow } from "@/lib/server/runninghub-workflow-service";
 import type { RunningHubWorkflowDiscovery } from "@/lib/server/runninghub-workflow-discovery";
 
@@ -123,6 +123,10 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
             const payload: Record<string, unknown> = {
                 channelId,
                 workflowName: String(draft.workflowName || "").trim(),
+                workflowCode: String(draft.workflowCode || "").trim() || undefined,
+                adapterType: draft.adapterType,
+                adapterVersion: draft.adapterVersion,
+                remark: String(draft.remark || "").trim() || undefined,
                 businessCode: draft.businessCode,
                 capability: draft.capability,
                 workflowId: String(draft.workflowId || "").trim(),
@@ -268,6 +272,22 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                                 <Field label="Workflow ID" error={errors.workflowId}>
                                     <Input value={String(draft.workflowId || "")} onChange={(event) => update({ workflowId: event.target.value })} />
                                 </Field>
+                                <Field label="业务工作流 code">
+                                    <Input value={String(draft.workflowCode || "")} placeholder="character_main_view" onChange={(event) => update({ workflowCode: event.target.value })} />
+                                </Field>
+                                <Field label="适配器类型">
+                                    <Select
+                                        className="w-full"
+                                        value={draft.adapterType || "generic"}
+                                        options={["generic", "character-main-view", "character-multi-view", "scene-main-view", "prop-main-view", "storyboard-shot", "storyboard-dialogue-audio", "storyboard-shot-video"].map((value) => ({ value, label: value }))}
+                                        onChange={(value) => update({ adapterType: value as RunningHubWorkflowAdapterType })}
+                                    />
+                                </Field>
+                                <Field label="备注">
+                                    <Input value={String(draft.remark || "")} onChange={(event) => update({ remark: event.target.value })} />
+                                </Field>
+                                {workflow?.workflowJsonFingerprint ? <div className="sm:col-span-2"><Alert type={workflow.requiresRetest ? "warning" : "success"} showIcon message={workflow.requiresRetest ? "JSON 快照已变化，需要重新测试" : "已保存 RunningHub JSON 快照"} description={`指纹：${workflow.workflowJsonFingerprint}`} /></div> : null}
+                                {workflow?.generationSizeOptions?.length ? <div className="sm:col-span-2"><div className="mb-1 text-xs font-medium text-stone-600 dark:text-stone-300">可用尺寸预设</div><div className="flex flex-wrap gap-2">{workflow.generationSizeOptions.map((option) => <span key={option.key} className="rounded border border-stone-200 px-2 py-1 text-xs text-stone-600 dark:border-stone-700 dark:text-stone-300">{option.label}{option.disabled ? "（停用）" : ""}</span>)}</div></div> : null}
                                 <div className="flex items-end">
                                     <Button className="w-full" loading={discovering} onClick={() => void discover()}>
                                         读取工作流
@@ -397,6 +417,10 @@ function makeDraft(channelId: string, workflow?: PublicRunningHubWorkflow): Draf
     return {
         channelId,
         workflowName: workflow?.workflowName || "",
+        workflowCode: workflow?.workflowCode || "",
+        adapterType: workflow?.adapterType || "generic",
+        adapterVersion: workflow?.adapterVersion || 1,
+        remark: workflow?.remark || "",
         businessCode,
         capability: workflow?.capability || businessOptions.find((item) => item.value === businessCode)?.capability,
         providerType: "runninghub",

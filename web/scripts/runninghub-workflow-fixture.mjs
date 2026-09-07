@@ -3,6 +3,7 @@ import http from "node:http";
 const port = Number(process.env.VOZEB_PRO_RUNNINGHUB_FIXTURE_PORT || 4030);
 let nextId = 1;
 const tasks = new Map();
+const uploads = [];
 
 function json(res, status, value) {
     res.writeHead(status, { "content-type": "application/json" });
@@ -14,6 +15,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/health") return json(res, 200, { ok: true });
     if (req.method === "POST" && url.pathname === "/__reset") {
         tasks.clear();
+        uploads.length = 0;
         nextId = 1;
         return json(res, 200, { ok: true });
     }
@@ -30,28 +32,34 @@ const server = http.createServer(async (req, res) => {
             },
         });
     }
-    if (req.method === "GET" && url.pathname === "/__state") return json(res, 200, { tasks: [...tasks.values()] });
+    if (req.method === "GET" && url.pathname === "/__state") return json(res, 200, { tasks: [...tasks.values()], uploads });
     if (req.method === "POST" && url.pathname === "/openapi/v2/task/create") {
         const body = await readBody(req);
         const parsed = body ? JSON.parse(body) : {};
         const id = `fixture-task-${nextId++}`;
         const failed = parsed.nodeInfoList?.some((item) => String(item.fieldValue || "").includes("__FAIL__"));
-        tasks.set(id, { id, status: failed ? "FAILED" : "SUCCESS", payload: parsed });
+        tasks.set(id, { id, status: failed ? "FAILED" : "SUCCESS", kind: workflowKind(parsed.workflowId), payload: parsed });
         return json(res, 200, { code: 0, data: { taskId: id } });
     }
     const query = url.pathname.match(/^\/openapi\/v2\/task\/query\/([^/]+)$/);
     if (req.method === "GET" && query) {
         const task = tasks.get(query[1]);
         if (!task) return json(res, 404, { code: 404, message: "task not found" });
-        return json(res, 200, { code: 0, data: { status: task.status, result: task.status === "SUCCESS" ? "https://fixture.invalid/runninghub-result.txt" : undefined } });
+        return json(res, 200, { code: 0, data: { status: task.status, result: task.status === "SUCCESS" ? resultUrl(task.kind) : undefined, error: task.status === "FAILED" ? "fixture task rejected" : undefined } });
     }
-    if (req.method === "POST" && url.pathname === "/openapi/v2/media/upload/binary") return json(res, 200, { code: 0, data: { download_url: "https://fixture.invalid/uploaded-media.png" } });
+    if (req.method === "POST" && url.pathname === "/openapi/v2/media/upload/binary") {
+        const body = await readBody(req);
+        const filenameMatch = body.match(/filename=(?:"([^"]+)"|([^;\r\n]+))/i);
+        const filename = filenameMatch?.[1] || filenameMatch?.[2]?.trim();
+        if (filename) uploads.push(filename);
+        return json(res, 200, { code: 0, data: { download_url: "https://fixture.invalid/uploaded-media.png" } });
+    }
     if (req.method === "POST" && url.pathname === "/task/openapi/create") {
         const body = await readBody(req);
         const parsed = body ? JSON.parse(body) : {};
         const id = `fixture-task-${nextId++}`;
         const failed = parsed.nodeInfoList?.some((item) => String(item.fieldValue || "").includes("__FAIL__"));
-        tasks.set(id, { id, status: failed ? "FAILED" : "SUCCESS", payload: parsed });
+        tasks.set(id, { id, status: failed ? "FAILED" : "SUCCESS", kind: workflowKind(parsed.workflowId), payload: parsed });
         return json(res, 200, { code: 0, data: { taskId: id } });
     }
     if (req.method === "POST" && url.pathname === "/openapi/v2/query") {
@@ -59,7 +67,7 @@ const server = http.createServer(async (req, res) => {
         const parsed = body ? JSON.parse(body) : {};
         const task = tasks.get(parsed.taskId);
         if (!task) return json(res, 404, { code: 404, message: "task not found" });
-        return json(res, 200, { code: 0, data: { status: task.status, result: task.status === "SUCCESS" ? "https://fixture.invalid/runninghub-result.mp4" : undefined } });
+        return json(res, 200, { code: 0, data: { status: task.status, result: task.status === "SUCCESS" ? resultUrl(task.kind) : undefined, error: task.status === "FAILED" ? "fixture task rejected" : undefined } });
     }
     return json(res, 404, { code: 404, message: "not found" });
 });
@@ -73,4 +81,14 @@ function readBody(req) {
         req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
         req.on("error", reject);
     });
+}
+
+function workflowKind(workflowId) {
+    if (String(workflowId) === "2090436770948272130") return "audio";
+    if (String(workflowId) === "2079446871415808002") return "video";
+    return "image";
+}
+
+function resultUrl(kind) {
+    return "https://fixture.invalid/runninghub-result." + (kind === "audio" ? "mp3" : kind === "image" ? "png" : "mp4");
 }

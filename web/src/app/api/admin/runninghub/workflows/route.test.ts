@@ -45,4 +45,5 @@ describe("admin RunningHub workflow collection routes", () => {
         expect(response.status).toBe(400);
         expect(mocks.createWorkflow).not.toHaveBeenCalled();
     });
+
 });

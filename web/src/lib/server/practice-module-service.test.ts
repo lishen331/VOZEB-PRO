@@ -96,9 +96,34 @@ describe("practice module capabilities", () => {
     it("returns a manual script and only enabled open-source workflow models", async () => {
         const capabilities = await listPracticeModuleCapabilities({ id: "teacher-one" }, { settings: settings() });
         expect(capabilities.find((item) => item.module === "script")).toMatchObject({ mode: "manual", available: true, models: [], outputType: "text" });
+        expect(capabilities.map((item) => item.module)).toEqual(expect.arrayContaining(["character", "scene", "prop"]));
         expect(capabilities.find((item) => item.module === "storyboard-image")?.models).toEqual([{ id: "practice-image-a", label: "分镜图模型 A" }]);
         expect(JSON.stringify(capabilities)).not.toContain("workflow-internal");
         expect(JSON.stringify(capabilities)).not.toContain("channelId");
+    });
+
+    it("exposes only public Demo workflow codes for asset practice options", async () => {
+        const current = settings();
+        const channel = current.systemChannels[0];
+        const workflow = channel.advancedConfig?.workflowConfigs?.current;
+        if (!workflow || !channel.advancedConfig) throw new Error("missing fixture workflow");
+        channel.advancedConfig.workflowConfigs = {
+            ...channel.advancedConfig.workflowConfigs,
+            character: { ...workflow, workflowKey: "character-key", workflowCode: "character_main_view", workflowName: "角色主形象图", businessCode: "storyboard-image", lastTestResult: "success" },
+            characterMulti: { ...workflow, workflowKey: "character-multi-key", workflowCode: "character_multi_view", workflowName: "角色多视图", businessCode: "storyboard-image", lastTestResult: "success" },
+        };
+        channel.advancedConfig.workflowConfigs.characterMulti = {
+            ...channel.advancedConfig.workflowConfigs.characterMulti,
+            inputSchema: [
+                { key: "referenceImage", label: "主形象", type: "image", required: true },
+                { key: "frontPrompt", label: "正视图", type: "text", required: false },
+            ],
+        };
+        const capabilities = await listPracticeModuleCapabilities({ id: "teacher-one" }, { settings: current });
+        expect(capabilities.find((item) => item.module === "character")?.workflowOptions).toEqual([{ code: "character_main_view", label: "角色主形象图" }, { code: "character_multi_view", label: "角色多视图" }]);
+        expect(capabilities.find((item) => item.module === "character")?.inputSchema).toEqual(expect.arrayContaining([{ key: "frontPrompt", label: "正视图", type: "text", required: false }]));
+        expect(JSON.stringify(capabilities)).not.toContain("workflow-internal");
+        expect(JSON.stringify(capabilities)).not.toContain("workflowKey");
     });
 
     it("marks a module unavailable when its model or workflow cannot be used", async () => {
@@ -117,5 +142,27 @@ describe("practice module capabilities", () => {
         current.practiceWorkflowModels = {};
         current.practiceDefaultModels = { ...current.practiceDefaultModels, imageModel: "practice-image-a" };
         expect(resolvePracticeModuleModelOptions(current, "storyboard-image")).toEqual([{ id: "practice-image-a", label: "分镜图模型 A" }]);
+    });
+
+    it("exposes declared scalar workflow fields needed by specialized practice forms", async () => {
+        const current = settings();
+        const channel = current.systemChannels[0];
+        const workflow = channel.advancedConfig?.workflowConfigs?.current;
+        if (!workflow || !channel.advancedConfig) throw new Error("missing fixture workflow");
+        channel.advancedConfig.workflowConfigs = {
+            current: {
+                ...workflow,
+                workflowCode: "character_main_view",
+                businessCode: "storyboard-image",
+                lastTestResult: "success",
+                inputSchema: [
+                    { key: "prompt", label: "描述", type: "text", required: true },
+                    { key: "width", label: "宽", type: "number", required: true, defaultValue: 720 },
+                    { key: "height", label: "高", type: "number", required: true, defaultValue: 1280 },
+                ],
+            },
+        };
+        const character = (await listPracticeModuleCapabilities({ id: "teacher-one" }, { settings: current })).find((item) => item.module === "character");
+        expect(character?.inputSchema).toEqual(expect.arrayContaining([{ key: "width", label: "宽", type: "number", required: true, defaultValue: 720 }, { key: "height", label: "高", type: "number", required: true, defaultValue: 1280 }]));
     });
 });

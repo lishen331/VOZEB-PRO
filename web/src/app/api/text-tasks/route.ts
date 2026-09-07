@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         if (!configs.length || !messages.length) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
         const hasHealthy = await hasHealthyRuntimeCandidate(configs, "text");
         if (!hasHealthy) return NextResponse.json({ error: "当前文本模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
-        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(configs[0], trustedContext.businessCode) };
+        if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(configs[0], trustedContext.businessCode, trustedContext) };
 
         const task = await createTextTask({ ...trustedContext, userId: currentUser.id, config: configs[0], candidateConfigs: configs.slice(1), messages });
         await recordTextTaskLog(task, currentUser, "pending").catch((error) => console.warn("Text generation log creation failed", { taskId: task.id, error }));

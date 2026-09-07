@@ -4,6 +4,10 @@ import { resolve } from "node:path";
 
 import type { IpReference } from "@/lib/ip-library-domain";
 import { PRACTICE_MODULES, buildPracticeSessionInput, editablePracticeTextReducer, practiceSessionPath, publicPracticeResult } from "./practice-module-workbench";
+import { buildStoryboardImageReferences } from "./practice-storyboard-image-panel";
+import { buildStoryboardVideoReferences } from "./practice-storyboard-video-panel";
+import { normalizePracticeDialogueLines } from "./practice-dubbing-panel";
+import { workflowFieldDefaults, workflowFormFields } from "./practice-panel-types";
 
 describe("practice module workbench contract", () => {
     it("sends only user content, public references and a fresh request id", () => {
@@ -33,6 +37,64 @@ describe("practice module workbench contract", () => {
 
     it("keeps all five modules in the same workbench contract", () => {
         expect(PRACTICE_MODULES).toHaveLength(5);
+    });
+
+    it("routes asset modules to their dedicated panels", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/components/practice-module-workbench.tsx"), "utf8");
+        expect(source).toContain("PracticeCharacterPanel");
+        expect(source).toContain("PracticeScenePanel");
+        expect(source).toContain("PracticePropPanel");
+    });
+
+    it("maps storyboard assets to the Demo input slots", () => {
+        expect(buildStoryboardImageReferences("scene", ["character", "prop", "extra"])).toEqual([
+            { type: "asset", id: "scene", inputKey: "sceneImage" },
+            { type: "asset", id: "character", inputKey: "characterPropImage1" },
+            { type: "asset", id: "prop", inputKey: "characterPropImage2" },
+            { type: "asset", id: "extra", inputKey: "characterPropImage3" },
+        ]);
+    });
+
+    it("keeps video audio toggle and dialogue pauses out of workflow slots", () => {
+        expect(buildStoryboardVideoReferences("image", true, "audio")).toEqual([
+            { type: "asset", id: "image", inputKey: "image" },
+            { type: "asset", id: "audio", inputKey: "audio" },
+        ]);
+        expect(normalizePracticeDialogueLines([{ text: "第一句" }, { text: "-0.8s-" }, { text: "第二句", audio: "voice" }])).toEqual([
+            { text: "第一句" },
+            { text: "第二句", audio: "voice" },
+        ]);
+    });
+
+    it("renders required dimensions and character multi-view direction fields from the public capability", () => {
+        const capability = {
+            module: "character",
+            mode: "workflow",
+            available: true,
+            models: [],
+            outputType: "image",
+            inputSchema: [
+                { key: "prompt", label: "描述", type: "textarea", required: true },
+                { key: "width", label: "宽", type: "number", required: true, defaultValue: 720 },
+                { key: "height", label: "高", type: "number", required: true, defaultValue: 1280 },
+                { key: "frontPrompt", label: "正视图", type: "text", required: false },
+            ],
+        } as const;
+        expect(workflowFieldDefaults(capability as never)).toMatchObject({ width: 720, height: 1280 });
+        expect(workflowFormFields(capability as never).map((field) => field.key)).toEqual(["width", "height", "frontPrompt"]);
+        expect(workflowFormFields({ ...capability, inputSchema: [...capability.inputSchema, { key: "duration", label: "时长", type: "number", required: false }] } as never).map((field) => field.key)).not.toContain("duration");
+    });
+
+    it("keeps internal dialogue slots out of public form defaults", () => {
+        const capability = { inputSchema: [{ key: "s1_happy", label: "开心", type: "number", required: false, defaultValue: 0 }, { key: "duration", label: "时长", type: "number", required: false, defaultValue: 6 }] } as never;
+        expect(workflowFieldDefaults(capability)).toEqual({ duration: 6 });
+    });
+
+    it("exposes emotion controls for structured dialogue lines", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/components/practice-dubbing-panel.tsx"), "utf8");
+        expect(source).toContain("InputNumber");
+        expect(source).toContain("happy");
+        expect(source).toContain("surprise");
     });
 
     it("preserves reference context while attaching a created session to the URL", () => {

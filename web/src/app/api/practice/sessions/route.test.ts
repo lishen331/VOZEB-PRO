@@ -65,6 +65,11 @@ describe("/api/practice/sessions", () => {
         expect(JSON.stringify(await response.json())).not.toMatch(/provider|model|pointsCost|executionProfile|channelId|taskRefs/);
     });
 
+    it("keeps structured dialogue lines", async () => {
+        await POST(new Request("http://localhost/api/practice/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ module: "dubbing", input: { text: "你好", lines: [{ text: "你好", audio: "permanent/audio-one.mp3", emotion: { happy: 0.8 } }] }, clientRequestId: "request-dubbing" }) }));
+        expect(mocks.createSession).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ input: { text: "你好", lines: [{ text: "你好", audio: "permanent/audio-one.mp3", emotion: { happy: 0.8 } }] } }), expect.anything());
+    });
+
     it("passes bounded query inputs to the ownership-aware service", async () => {
         const response = await GET(new Request("http://localhost/api/practice/sessions?module=music&page=3&pageSize=4"));
         expect(response.status).toBe(200);
@@ -115,7 +120,7 @@ describe("/api/practice/sessions", () => {
                 userId: "teacher-one",
                 module: "storyboard-video",
                 input: { prompt: "镜头推进", seed: 12 },
-                references: [{ type: "asset", id: "permanent/2026/09/02/images/reference.png" }],
+                references: [{ type: "asset", id: "permanent/2026/09/02/images/reference.png", inputKey: "referenceImage" }],
                 executionProfile: "open-source-practice",
                 capability: "video",
                 logicalModelId: "practice-video",
@@ -134,6 +139,36 @@ describe("/api/practice/sessions", () => {
         );
         expect(response.status).toBe(200);
         const [, init] = mocks.fetchInternalApi.mock.calls[0];
-        expect(JSON.parse(String(init.body))).toMatchObject({ seed: 12, prompt: "镜头推进", references: [{ type: "image", url: "/api/reference-assets/permanent/2026/09/02/images/reference.png" }] });
+        expect(JSON.parse(String(init.body))).toMatchObject({ seed: 12, prompt: "镜头推进", references: [{ type: "image", url: "/api/reference-assets/permanent/2026/09/02/images/reference.png", inputKey: "referenceImage" }] });
+    });
+
+    it("preserves the declared audio type for video workflow references", async () => {
+        mocks.fetchInternalApi.mockResolvedValue(new Response(JSON.stringify({ task: { id: "task-video", type: "video" } }), { status: 200 }));
+        mocks.createSession.mockImplementation(async (_user, _input, deps) => {
+            await deps.dispatch({
+                sessionId: "session-video-audio",
+                userId: "teacher-one",
+                module: "storyboard-video",
+                input: { prompt: "镜头推进", audioEnabled: true },
+                references: [
+                    { type: "asset", id: "permanent/images/shot.png", inputKey: "image" },
+                    { type: "asset", id: "permanent/audio/dialogue.wav", inputKey: "audio" },
+                ],
+                executionProfile: "open-source-practice",
+                capability: "video",
+                logicalModelId: "practice-video",
+                clientRequestId: "request-video-audio",
+                projectKind: "canvas",
+            });
+            return { id: "session-video-audio", module: "storyboard-video", status: "running", input: { prompt: "镜头推进" } };
+        });
+
+        const response = await POST(new Request("http://localhost/api/practice/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ module: "storyboard-video", input: { prompt: "镜头推进" }, clientRequestId: "request-video-audio" }) }));
+        expect(response.status).toBe(200);
+        const [, init] = mocks.fetchInternalApi.mock.calls[0];
+        expect(JSON.parse(String(init.body)).references).toEqual([
+            { type: "image", url: "/api/reference-assets/permanent/images/shot.png", inputKey: "image" },
+            { type: "audio", url: "/api/reference-assets/permanent/audio/dialogue.wav", inputKey: "audio" },
+        ]);
     });
 });

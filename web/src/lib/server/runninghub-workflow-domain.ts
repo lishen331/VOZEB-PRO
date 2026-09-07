@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { LogicalModelCapability, RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig, RunningHubWorkflowInputField, RunningHubNodeMapping, RunningHubOutputMapping, SystemChannelAdvancedConfig } from "@/lib/auth/store-types";
+import type { LogicalModelCapability, RunningHubGenerationSizeOption, RunningHubWorkflowAdapterType, RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig, RunningHubWorkflowInputField, RunningHubNodeMapping, RunningHubOutputMapping, SystemChannelAdvancedConfig } from "@/lib/auth/store-types";
 
 export type { RunningHubNodeMapping, RunningHubWorkflowBusinessCode, RunningHubWorkflowConfig, RunningHubWorkflowInputField, RunningHubOutputMapping } from "@/lib/auth/store-types";
 
@@ -33,8 +33,9 @@ export function normalizeRunningHubWorkflowConfig(value: unknown): RunningHubWor
     const input = asRecord(value);
     const businessCode = isRunningHubWorkflowBusinessCode(input.businessCode) ? input.businessCode : "script";
     const capability = isCapability(input.capability) ? input.capability : CAPABILITY_BY_BUSINESS_CODE[businessCode];
+    const workflowKey = text(input.workflowKey, 160);
     return {
-        workflowKey: text(input.workflowKey, 160),
+        workflowKey,
         workflowName: text(input.workflowName, 160),
         businessCode,
         capability,
@@ -52,6 +53,14 @@ export function normalizeRunningHubWorkflowConfig(value: unknown): RunningHubWor
         inputSchema: normalizeInputSchema(input.inputSchema),
         nodeMappings: normalizeNodeMappings(input.nodeMappings),
         outputMappings: normalizeOutputMappings(input.outputMappings),
+        ...(text(input.workflowCode, 160) || workflowKey ? { workflowCode: text(input.workflowCode, 160) || workflowKey } : {}),
+        ...(text(input.workflowApiJson, 120_000) ? { workflowApiJson: text(input.workflowApiJson, 120_000) } : {}),
+        ...(normalizeGenerationSizeOptions(input.generationSizeOptions) ? { generationSizeOptions: normalizeGenerationSizeOptions(input.generationSizeOptions) } : {}),
+        ...(text(input.remark, 2_000) ? { remark: text(input.remark, 2_000) } : {}),
+        ...(text(input.source, 240) ? { source: text(input.source, 240) } : {}),
+        ...(text(input.sourceVersion, 240) ? { sourceVersion: text(input.sourceVersion, 240) } : {}),
+        ...(isAdapterType(input.adapterType) ? { adapterType: input.adapterType } : {}),
+        ...(positiveInteger(input.adapterVersion, 0) ? { adapterVersion: positiveInteger(input.adapterVersion, 0) } : {}),
         ...(input.testRequired === true ? { testRequired: true } : {}),
         ...(text(input.workflowJsonFingerprint, 128) ? { workflowJsonFingerprint: text(input.workflowJsonFingerprint, 128) } : {}),
         ...(text(input.lastTestConfigFingerprint, 128) ? { lastTestConfigFingerprint: text(input.lastTestConfigFingerprint, 128) } : {}),
@@ -71,6 +80,9 @@ export function validateRunningHubWorkflowConfig(value: unknown, siblings: reado
     if (!isCapability(input.capability)) errors.push("capability 必须是 text、image、video 或 audio");
     else if (isRunningHubWorkflowBusinessCode(input.businessCode) && input.capability !== CAPABILITY_BY_BUSINESS_CODE[input.businessCode]) errors.push(`capability 与 businessCode 不匹配，应为 ${CAPABILITY_BY_BUSINESS_CODE[input.businessCode]}`);
     if (input.providerType !== "runninghub") errors.push("providerType 必须为 runninghub");
+    if (input.workflowCode !== undefined && !text(input.workflowCode, 160)) errors.push("workflowCode 不能为空");
+    if (input.adapterType !== undefined && !isAdapterType(input.adapterType)) errors.push("adapterType 无效");
+    if (input.adapterVersion !== undefined && (!Number.isSafeInteger(input.adapterVersion) || Number(input.adapterVersion) <= 0)) errors.push("adapterVersion 必须为正整数");
     for (const field of ["workflowKey", "workflowName", "channelId", "workflowId", "createPath", "queryPath", "taskIdField", "statusField", "resultField", "requestTemplate"] as const) {
         if (!text(normalized[field], field === "requestTemplate" ? 12_000 : 500)) errors.push(`${field} 不能为空`);
     }
@@ -156,10 +168,18 @@ export function resolveEnabledWorkflow(configs: readonly unknown[], channelId: s
 export function runningHubWorkflowConfigFingerprint(value: unknown): string {
     const input = asRecord(value);
     const payload = {
+        workflowCode: text(input.workflowCode, 160) || text(input.workflowKey, 160),
+        adapterType: isAdapterType(input.adapterType) ? input.adapterType : "generic",
+        adapterVersion: positiveInteger(input.adapterVersion, 0) || null,
         workflowId: text(input.workflowId, 240),
         businessCode: text(input.businessCode, 160),
         capability: text(input.capability, 40),
         workflowJsonFingerprint: text(input.workflowJsonFingerprint, 128),
+        workflowApiJson: text(input.workflowApiJson, 120_000),
+        generationSizeOptions: normalizeGenerationSizeOptions(input.generationSizeOptions) || null,
+        remark: text(input.remark, 2_000),
+        source: text(input.source, 240),
+        sourceVersion: text(input.sourceVersion, 240),
         createPath: path(input.createPath) || "/task/openapi/create",
         queryPath: path(input.queryPath) || "/openapi/v2/query",
         taskIdField: text(input.taskIdField, 500) || "data.taskId",
@@ -191,6 +211,16 @@ function normalizeInputSchema(value: unknown): RunningHubWorkflowInputField[] {
         const options = Array.isArray(input.options) ? input.options.map((option) => text(option, 160)).filter(Boolean) : [];
         if (options.length) result.options = options;
         if (input.defaultValue === null || isJsonPrimitive(input.defaultValue)) result.defaultValue = input.defaultValue as RunningHubWorkflowInputField["defaultValue"];
+        if (text(input.description, 2_000)) result.description = text(input.description, 2_000);
+        if (text(input.placeholder, 500)) result.placeholder = text(input.placeholder, 500);
+        if (input.sampleValue === null || isJsonPrimitive(input.sampleValue)) result.sampleValue = input.sampleValue as RunningHubWorkflowInputField["sampleValue"];
+        if (Number.isSafeInteger(input.maxLength) && Number(input.maxLength) > 0) result.maxLength = Number(input.maxLength);
+        if (typeof input.min === "number" && Number.isFinite(input.min)) result.min = input.min;
+        if (typeof input.max === "number" && Number.isFinite(input.max)) result.max = input.max;
+        if (input.uploadPolicy === "IMAGE" || input.uploadPolicy === "VIDEO" || input.uploadPolicy === "AUDIO") result.uploadPolicy = input.uploadPolicy;
+        if (text(input.group, 160)) result.group = text(input.group, 160);
+        if (Number.isSafeInteger(input.order) && Number(input.order) > 0) result.order = Number(input.order);
+        if (text(input.widget, 80)) result.widget = text(input.widget, 80);
         return [result];
     });
 }
@@ -203,6 +233,7 @@ function normalizeNodeMappings(value: unknown): RunningHubNodeMapping[] {
         const source = NODE_SOURCES.includes(input.source as (typeof NODE_SOURCES)[number]) ? (input.source as RunningHubNodeMapping["source"]) : "INPUT";
         const result: RunningHubNodeMapping = { paramKey: text(input.paramKey, 160), nodeId: text(input.nodeId, 200), fieldName: text(input.fieldName, 200), valueType, source, inputKey: text(input.inputKey, 160) };
         if (input.defaultValue === null || isJsonPrimitive(input.defaultValue)) result.defaultValue = input.defaultValue as RunningHubNodeMapping["defaultValue"];
+        if (text(input.description, 2_000)) result.description = text(input.description, 2_000);
         return [result];
     });
 }
@@ -215,8 +246,28 @@ function normalizeOutputMappings(value: unknown): RunningHubOutputMapping[] {
         const result: RunningHubOutputMapping = { key: text(input.key, 160), label: text(input.label, 160), assetType, required: input.required === true };
         if (text(input.nodeId, 200)) result.nodeId = text(input.nodeId, 200);
         if (typeof input.primary === "boolean") result.primary = input.primary;
+        if (text(input.matchMode, 80)) result.matchMode = text(input.matchMode, 80);
+        if (typeof input.mirrorToOss === "boolean") result.mirrorToOss = input.mirrorToOss;
         return [result];
     });
+}
+
+function normalizeGenerationSizeOptions(value: unknown): RunningHubGenerationSizeOption[] | undefined {
+    if (!Array.isArray(value)) return undefined;
+    const options = value.flatMap((raw) => {
+        const input = asRecord(raw);
+        const width = positiveInteger(input.width, 0);
+        const height = positiveInteger(input.height, 0);
+        const key = text(input.key, 160) || (width && height ? `${width}x${height}` : "");
+        const label = text(input.label, 160) || (width && height ? `${width} x ${height}` : key);
+        if (!key || !label) return [];
+        return [{ key, label, ...(width ? { width } : {}), ...(height ? { height } : {}), ...(text(input.value, 160) ? { value: text(input.value, 160) } : {}), ...(typeof input.disabled === "boolean" ? { disabled: input.disabled } : {}) }];
+    });
+    return options.length ? options : undefined;
+}
+
+function isAdapterType(value: unknown): value is RunningHubWorkflowAdapterType {
+    return ["character-main-view", "character-multi-view", "scene-main-view", "prop-main-view", "storyboard-shot", "storyboard-dialogue-audio", "storyboard-shot-video", "generic"].includes(value as string);
 }
 
 function normalizeRunOptions(value: unknown) {

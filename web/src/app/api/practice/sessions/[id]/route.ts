@@ -67,15 +67,16 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
     const workflowInput = Object.fromEntries(Object.entries(input.input).filter(([key]) => key !== "prompt" && key !== "text" && key !== "references"));
     const references = input.references.flatMap((reference) => {
         if (!reference || typeof reference !== "object" || Array.isArray(reference)) return [];
-        const source = reference as { type?: unknown; id?: unknown };
+        const source = reference as { type?: unknown; id?: unknown; inputKey?: unknown };
         if (source.type !== "asset" || typeof source.id !== "string" || !source.id.trim()) return [];
-        return [{ type: "image" as const, url: practiceReferenceUrl(source.id) }];
+        const inputKey = normalizePracticeReferenceInputKey(source.inputKey);
+        return [{ type: inputKey === "audio" ? "audio" as const : "image" as const, url: practiceReferenceUrl(source.id), ...(inputKey ? { inputKey } : {}) }];
     });
     const body =
         input.capability === "text"
             ? { ...workflowInput, config: { model: input.logicalModelId }, messages: [{ role: "user", content: prompt }], context }
             : input.capability === "audio"
-              ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" }
+              ? { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" }
               : { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" };
     const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(input.userId, input.clientRequestId) });
     const cookie = request.headers.get("cookie");
@@ -90,4 +91,9 @@ function practiceReferenceUrl(storageKey: string) {
     const value = storageKey.trim();
     if (!/^(?:temporary|permanent)\//.test(value)) throw new Error("练习参考素材无效");
     return `/api/reference-assets/${value.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function normalizePracticeReferenceInputKey(value: unknown) {
+    const key = typeof value === "string" ? value.trim() : "";
+    return ["referenceImage", "firstFrameImage", "lastFrameImage", "sceneImage", "characterPropImage1", "characterPropImage2", "characterPropImage3", "image", "audio"].includes(key) ? key : undefined;
 }

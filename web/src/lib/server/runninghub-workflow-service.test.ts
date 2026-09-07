@@ -15,7 +15,7 @@ vi.mock("./runninghub-provider", () => ({ fetchRunningHubWorkflowJson: mocks.fet
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store-types";
 import { runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
-import { RunningHubWorkflowError, copyWorkflowVersion, createWorkflow, discoverWorkflow, getWorkflow, listWorkflows, parseWorkflowId, setWorkflowEnabled, updateWorkflow } from "./runninghub-workflow-service";
+import { RunningHubWorkflowError, copyWorkflowVersion, createWorkflow, discoverWorkflow, fetchAndSaveWorkflowJson, getWorkflow, initializeDemoRunningHubWorkflows, listWorkflows, parseWorkflowId, setWorkflowEnabled, updateWorkflow } from "./runninghub-workflow-service";
 
 const workflow = {
     workflowKey: "storyboard-image-v1",
@@ -158,6 +158,22 @@ describe("runninghub workflow service", () => {
         expect(saved[0].advancedConfig?.workflowConfigs?.[workflow.workflowKey]?.channelId).toBe("rh-practice");
     });
 
+    it("bootstraps all Demo workflows idempotently without enabling or overwriting edits", async () => {
+        const result = await initializeDemoRunningHubWorkflows({ channelId: "rh-practice" });
+        expect(result).toMatchObject({ added: 7, updated: 0, skipped: 0, workflowKeys: expect.arrayContaining([expect.stringContaining("character_main_view")]) });
+        const patch = mocks.setAuthSettings.mock.calls[0][0] as Partial<AuthSettings>;
+        const configs = Object.values(patch.systemChannels?.[0]?.advancedConfig?.workflowConfigs || {});
+        expect(configs).toHaveLength(8);
+        expect(configs.filter((item) => item.workflowCode === "character_main_view")[0]).toMatchObject({ enabled: false, workflowId: "2069627147735621634" });
+    });
+
+    it("fetches and persists the official workflow JSON snapshot and fingerprint", async () => {
+        mocks.fetchRunningHubWorkflowJson.mockResolvedValue({ code: 0, data: { prompt: JSON.stringify({ "1": { class_type: "SaveImage", inputs: {} } }) } });
+        const result = await fetchAndSaveWorkflowJson(workflow.workflowKey);
+        expect(result).toMatchObject({ workflowKey: workflow.workflowKey, workflowJsonFingerprint: expect.any(String), nodeCount: 1 });
+        const patch = mocks.setAuthSettings.mock.calls.at(-1)?.[0] as Partial<AuthSettings>;
+        expect(patch.systemChannels?.[0]?.advancedConfig?.workflowConfigs?.[workflow.workflowKey]).toMatchObject({ workflowApiJson: expect.stringContaining("SaveImage"), workflowJsonFingerprint: expect.any(String) });
+    });
     it("returns a 404 for unknown workflow keys", async () => {
         await expect(getWorkflow("missing")).rejects.toMatchObject({ status: 404 });
     });

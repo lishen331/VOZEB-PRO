@@ -37,6 +37,7 @@ export type ImageTaskReference = {
     url?: string;
     remoteUrl?: string;
     serverUrl?: string;
+    inputKey?: string;
 };
 
 export type StoredImageTaskMediaResult = {

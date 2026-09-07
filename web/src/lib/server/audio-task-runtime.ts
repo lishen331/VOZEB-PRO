@@ -53,6 +53,7 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
                 format: config.format,
                 speed: Number(config.speed) || 1,
                 ...(config.instructions ? { instructions: config.instructions } : {}),
+                ...(candidate.workflowInput || {}),
             };
             const workflow = workflowConfigForTask(candidate);
             let payload: Record<string, unknown>;

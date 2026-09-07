@@ -122,7 +122,7 @@ export async function POST(request: Request) {
             const hasHealthy = await hasHealthyRuntimeCandidate(allChannels, "video");
             if (!hasHealthy) return NextResponse.json({ error: "当前视频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
             const channels = allChannels;
-            if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(channels[0], trustedContext.businessCode) };
+            if (executionProfile === "open-source-practice") trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(channels[0], trustedContext.businessCode, trustedContext) };
             const publicOrigin = requestPublicOrigin(request);
             let references: VideoGenerationReference[];
             try {
@@ -398,7 +398,7 @@ export async function createUpstream(
     const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
     const multipart = channel.advancedConfig?.requestTemplate?.trim().toLowerCase().startsWith("multipart/form-data") === true;
     const payload = workflow
-        ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: { ...values, ...raw }, references: references.map((reference) => ({ type: reference.type, url: reference.url })) })
+        ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: { ...values, ...raw }, references: references.map((reference) => ({ type: reference.type, url: reference.url, ...(reference.inputKey ? { inputKey: reference.inputKey } : {}) })) })
         : multipart
           ? undefined
           : channel.advancedConfig?.protocol === "vozeb-recommended"

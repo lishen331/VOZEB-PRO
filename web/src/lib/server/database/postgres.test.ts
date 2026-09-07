@@ -103,6 +103,12 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(mocks.query.mock.calls[3]?.[0]).toBe("COMMIT");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_schema_migrations");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_generation_worker_heartbeats");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_code text");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_version integer");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_config_fingerprint text");
+        expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_adapter_version integer");
+        expect(ddl).toContain("practice_sessions_module");
+        expect(ddl.indexOf("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_code text")).toBeLessThan(ddl.indexOf("CREATE INDEX IF NOT EXISTS vozeb_pro_practice_sessions_user_updated_idx"));
         expect(ddl).toContain("CREATE SEQUENCE IF NOT EXISTS vozeb_pro_user_account_id_seq");
         expect(ddl).toContain("account_id bigint NOT NULL DEFAULT nextval('vozeb_pro_user_account_id_seq')");
         expect(ddl).toMatch(/SELECT setval\(\s*'vozeb_pro_user_account_id_seq'/);

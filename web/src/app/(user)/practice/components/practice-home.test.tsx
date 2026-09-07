@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { IpReference } from "@/lib/ip-library-domain";
-import { PRACTICE_MODULES, PRACTICE_PROJECT_CARDS, practiceProjectPath, practiceModulePath } from "./practice-home";
+import { PRACTICE_ASSET_MODULES, PRACTICE_MODULES, PRACTICE_PROJECT_CARDS, practiceProjectPath, practiceModulePath } from "./practice-home";
 
 describe("practice home contract", () => {
     it("exposes two project cards and five focused modules", () => {
@@ -13,6 +13,11 @@ describe("practice home contract", () => {
         expect(practiceProjectPath("canvas", "canvas-practice-1")).toBe("/canvas/canvas-practice-1");
         expect(practiceProjectPath("drama", "drama-practice-1")).toBe("/drama/drama-practice-1");
         expect(practiceModulePath("storyboard-video")).toBe("/practice/storyboard-video");
+    });
+
+    it("adds the three asset practice entries without changing the focused module array", () => {
+        expect(PRACTICE_MODULES.map((item) => item.module)).toEqual(["script", "storyboard-image", "storyboard-video", "dubbing", "music"]);
+        expect(PRACTICE_ASSET_MODULES.map((item) => item.module)).toEqual(["character", "scene", "prop"]);
     });
 
     it("keeps a stable IP version when opening a focused practice module", () => {
