@@ -39,4 +39,22 @@ describe("IP library PostgreSQL repository", () => {
 
         expect(query).toHaveBeenCalledWith(expect.stringContaining("ends_at = CASE WHEN $4 THEN $5::timestamptz ELSE ends_at END"), ["ip-one", "grant-one", null, true, null, null, "2026-09-07T00:00:00.000Z"]);
     });
+
+    it("replaces a package cover before deleting the child that owns it", async () => {
+        const query = vi
+            .fn()
+            .mockResolvedValueOnce({ rows: [{ id: "ip-one" }] })
+            .mockResolvedValueOnce({ rows: [{ id: "child-one" }] })
+            .mockResolvedValueOnce({ rows: [{ id: "child-two" }] })
+            .mockResolvedValueOnce({
+                rows: [{ id: "cover-one", ip_id: "ip-one", sub_ip_id: "child-one", kind: "image", original_name: "cover.png", extension: ".png", mime_type: "image/png", byte_size: 1, sha256: "hash", storage_provider: "local", storage_key: "cover" }],
+            })
+            .mockResolvedValue({ rows: [] });
+        const repository = new IpLibraryRepository({ query });
+
+        await repository.deleteIpSubIp("ip-one", "child-one");
+
+        expect(query).toHaveBeenCalledWith(expect.stringContaining("SET cover_file_id ="), ["ip-one", "child-one"]);
+        expect(query).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM ip_sub_ips"), ["ip-one", "child-one"]);
+    });
 });

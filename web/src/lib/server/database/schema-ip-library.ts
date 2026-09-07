@@ -195,6 +195,7 @@ CREATE TABLE IF NOT EXISTS ip_school_grants (
     status text NOT NULL DEFAULT 'active',
     starts_at timestamptz NOT NULL,
     ends_at timestamptz,
+    revoked_at timestamptz,
     note text NOT NULL DEFAULT '',
     created_by_user_id text REFERENCES users(id) ON DELETE SET NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -231,22 +232,60 @@ CREATE INDEX IF NOT EXISTS ip_usage_records_user_created_idx ON ip_usage_records
 CREATE TABLE IF NOT EXISTS ip_download_records (
     id text PRIMARY KEY,
     ip_id text NOT NULL REFERENCES ip_packages(id) ON DELETE CASCADE,
-    sub_ip_id text NOT NULL REFERENCES ip_sub_ips(id) ON DELETE CASCADE,
+    sub_ip_id text REFERENCES ip_sub_ips(id) ON DELETE CASCADE,
     item_id text REFERENCES ip_items(id) ON DELETE SET NULL,
     school_id text REFERENCES schools(id) ON DELETE SET NULL,
     user_id text NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     download_type text NOT NULL,
+    package_scope text,
     result text NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT ip_download_records_type_check CHECK (download_type IN ('item', 'package')),
+    CONSTRAINT ip_download_records_package_scope_check CHECK (package_scope IS NULL OR package_scope IN ('ip', 'sub_ip')),
     CONSTRAINT ip_download_records_result_check CHECK (result IN ('succeeded', 'failed')),
-    CONSTRAINT ip_download_records_item_check CHECK ((download_type = 'item' AND item_id IS NOT NULL) OR (download_type = 'package' AND item_id IS NULL))
+    CONSTRAINT ip_download_records_item_check CHECK (
+        (download_type = 'item' AND sub_ip_id IS NOT NULL AND item_id IS NOT NULL AND package_scope IS NULL)
+        OR (download_type = 'package' AND item_id IS NULL AND package_scope = 'ip')
+        OR (download_type = 'package' AND sub_ip_id IS NOT NULL AND item_id IS NULL AND package_scope = 'sub_ip')
+    )
 );
 
 CREATE INDEX IF NOT EXISTS ip_download_records_ip_created_idx ON ip_download_records (ip_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS ip_download_records_sub_ip_created_idx ON ip_download_records (sub_ip_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS ip_download_records_school_created_idx ON ip_download_records (school_id, created_at DESC) WHERE school_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ip_download_records_user_created_idx ON ip_download_records (user_id, created_at DESC);
+
+-- Keep existing grants and download records usable while adding the audit
+-- fields required by the non-versioned IP and child-IP package workflow.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = '20260907_ip_library_grant_revocation_and_package_downloads') THEN
+        ALTER TABLE ip_school_grants ADD COLUMN IF NOT EXISTS revoked_at timestamptz;
+        UPDATE ip_packages AS package
+        SET cover_file_id = (
+            SELECT sub_ip.cover_file_id
+            FROM ip_sub_ips AS sub_ip
+            JOIN ip_content_files AS file ON file.id = sub_ip.cover_file_id AND file.ip_id = package.id AND file.sub_ip_id = sub_ip.id
+            WHERE sub_ip.ip_id = package.id AND sub_ip.cover_file_id IS NOT NULL AND file.kind = 'image' AND file.status = 'ready'
+            ORDER BY sub_ip.sort_order, sub_ip.created_at, sub_ip.id
+            LIMIT 1
+        )
+        WHERE package.cover_file_id IS NULL;
+        ALTER TABLE ip_download_records ADD COLUMN IF NOT EXISTS package_scope text;
+        ALTER TABLE ip_download_records ALTER COLUMN sub_ip_id DROP NOT NULL;
+        UPDATE ip_download_records SET package_scope = 'sub_ip' WHERE download_type = 'package' AND package_scope IS NULL;
+        ALTER TABLE ip_download_records DROP CONSTRAINT IF EXISTS ip_download_records_package_scope_check;
+        ALTER TABLE ip_download_records ADD CONSTRAINT ip_download_records_package_scope_check CHECK (package_scope IS NULL OR package_scope IN ('ip', 'sub_ip'));
+        ALTER TABLE ip_download_records DROP CONSTRAINT IF EXISTS ip_download_records_item_check;
+        ALTER TABLE ip_download_records ADD CONSTRAINT ip_download_records_item_check CHECK (
+            (download_type = 'item' AND sub_ip_id IS NOT NULL AND item_id IS NOT NULL AND package_scope IS NULL)
+            OR (download_type = 'package' AND item_id IS NULL AND package_scope = 'ip')
+            OR (download_type = 'package' AND sub_ip_id IS NOT NULL AND item_id IS NULL AND package_scope = 'sub_ip')
+        );
+        INSERT INTO schema_migrations (version) VALUES ('20260907_ip_library_grant_revocation_and_package_downloads');
+    END IF;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION ip_library_validate_school_grant()
 RETURNS trigger AS $$

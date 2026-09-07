@@ -10,10 +10,11 @@ import { createIpLibraryRepository } from "./ip-library-access-service";
 import { createSchoolDomainRepository } from "./school-domain-repository";
 
 export type AdminIpCreateInput = { title: string; slug: string; summary?: string; visibility: IpVisibility };
-export type AdminIpPatchInput = Partial<AdminIpCreateInput> & { status?: IpStatus };
+export type AdminIpPatchInput = Partial<AdminIpCreateInput> & { status?: IpStatus; coverFileId?: string | null };
 export type AdminIpItemInput = { kind: IpAssetKind; category: IpItemCategory; title: string; summary?: string; fileId: string; sortOrder?: number };
 export type AdminIpSubIpInput = { title: string; summary?: string; coverFileId?: string; tags?: string[]; sourceNote?: string; sortOrder?: number; items?: AdminIpItemInput[] };
 export type AdminIpGrantInput = { subIpId: string; schoolId: string; mode: IpAuthorizationMode; startsAt: string; endsAt?: string; note?: string };
+export type AdminIpGrantBatchInput = { subIpIds: string[]; schoolIds: string[]; mode: IpAuthorizationMode; startsAt: string; endsAt?: string; note?: string };
 export type AdminIpGrantPatchInput = { status?: IpSchoolGrantStatus; endsAt?: string | null; note?: string };
 
 export async function listAdminIps(actorId: string, input: PageInput & { keyword?: string; status?: string; visibility?: string }) {
@@ -58,6 +59,10 @@ export async function updateAdminIp(actorId: string, ipId: string, input: AdminI
     if (input.summary !== undefined) patch.summary = optional(input.summary);
     if (input.visibility !== undefined) patch.visibility = enumValue(input.visibility, IP_VISIBILITIES, "IP 可见范围无效");
     if (input.status !== undefined) patch.status = enumValue(input.status, IP_STATUSES, "IP 状态无效");
+    if (input.coverFileId !== undefined) {
+        patch.coverFileId = optional(input.coverFileId) || null;
+        if (patch.coverFileId) await requireReadyPackageCover(repository, id, patch.coverFileId);
+    }
     const updated = await translateConflict(patch.slug ? "slug" : "generic", () => repository.updateIpPackage(id, patch));
     if (!updated) throw new SchoolServiceError(404, "IP 不存在");
     return updated;
@@ -209,20 +214,26 @@ export async function listAdminIpGrants(actorId: string, ipId: string, input: Pa
 }
 
 export async function createAdminIpGrant(actorId: string, ipId: string, input: AdminIpGrantInput) {
+    const grants = await createAdminIpGrants(actorId, ipId, { subIpIds: [input.subIpId], schoolIds: [input.schoolId], mode: input.mode, startsAt: input.startsAt, endsAt: input.endsAt, note: input.note });
+    return grants[0];
+}
+
+export async function createAdminIpGrants(actorId: string, ipId: string, input: AdminIpGrantBatchInput) {
     await requireEducationDuty(actorId);
     const id = required(ipId, "IP 标识无效");
     const packageRecord = await getExistingPackage(id);
     if (packageRecord.visibility !== "school") throw new SchoolServiceError(409, "只有本校 IP 可以授权给学校");
-    const subIpId = required(input.subIpId, "请选择子 IP");
-    await requireSubIp(id, subIpId);
+    const subIpIds = requiredUniqueIds(input.subIpIds, "请选择至少一个子 IP");
+    await Promise.all(subIpIds.map((subIpId) => requireSubIp(id, subIpId)));
+    const schoolIds = requiredUniqueIds(input.schoolIds, "请选择至少一所学校");
     const mode = enumValue(input.mode, IP_AUTHORIZATION_MODES, "IP 授权模式无效");
+    if (mode === "exclusive" && schoolIds.length > 1) throw new SchoolServiceError(400, "独家授权一次只能选择一所学校");
     const startsAt = isoTime(input.startsAt, "授权开始时间无效");
     const endsAt = input.endsAt ? isoTime(input.endsAt, "授权结束时间无效") : undefined;
     if (endsAt && Date.parse(endsAt) <= Date.parse(startsAt)) throw new SchoolServiceError(400, "IP 授权时间窗无效");
-    const schoolId = required(input.schoolId, "请选择学校");
     const repository = createIpLibraryRepository();
-    if (await repository.findConflictingSchoolGrant({ ipId: id, subIpId, schoolId, mode, startsAt, endsAt })) throw new SchoolServiceError(409, "授权创建失败：当前学校或授权模式存在重叠时间窗", { reason: "grant_conflict", ipId: id, subIpId, schoolId });
-    return translateConflict("grant", () => repository.createSchoolGrant({ id: randomUUID(), ipId: id, subIpId, schoolId, mode, status: "active", startsAt, endsAt, note: optional(input.note), createdByUserId: actorId }), { ipId: id, subIpId, schoolId });
+    const records = subIpIds.flatMap((subIpId) => schoolIds.map((schoolId) => ({ id: randomUUID(), ipId: id, subIpId, schoolId, mode, status: "active" as const, startsAt, endsAt, note: optional(input.note), createdByUserId: actorId })));
+    return translateConflict("grant", () => repository.createSchoolGrants(records), { ipId: id });
 }
 
 export async function updateAdminIpGrant(actorId: string, ipId: string, grantId: string, input: AdminIpGrantPatchInput) {
@@ -255,9 +266,27 @@ export async function updateAdminIpGrant(actorId: string, ipId: string, grantId:
 export async function listAdminIpUsage(actorId: string, input: PageInput & { ipId?: string; subIpId?: string; schoolId?: string; userId?: string; downloadType?: string; result?: string } = {}) {
     await requireAnyIpDuty(actorId);
     const page = await createIpLibraryRepository().listIpDownloads(input);
+    const details = await Promise.all([...new Set(page.items.map((item) => item.ipId))].map((ipId) => createIpLibraryRepository().getIpDetail(ipId)));
+    const ips = new Map(details.filter((item): item is NonNullable<typeof item> => Boolean(item)).map((item) => [item.id, item]));
     const users = new Map((await getPublicUsersByIds([...new Set(page.items.map((item) => item.userId))])).map((user) => [user.id, user]));
     const schools = new Map((await createSchoolDomainRepository().listSchoolsByIds([...new Set(page.items.map((item) => item.schoolId).filter((value): value is string => Boolean(value)))])).map((school) => [school.id, school]));
-    return { ...page, items: page.items.map((item) => ({ ...item, user: users.get(item.userId), school: item.schoolId ? schools.get(item.schoolId) : undefined, userId: undefined })) };
+    return {
+        ...page,
+        items: page.items.map((item) => {
+            const ip = ips.get(item.ipId);
+            const subIp = item.subIpId ? ip?.subIps.find((candidate) => candidate.id === item.subIpId) : undefined;
+            const content = item.itemId ? subIp?.items.find((candidate) => candidate.id === item.itemId) : undefined;
+            return {
+                ...item,
+                ip: ip ? { id: ip.id, title: ip.title } : undefined,
+                subIp: subIp ? { id: subIp.id, title: subIp.title } : undefined,
+                item: content ? { id: content.id, title: content.title } : undefined,
+                user: users.get(item.userId),
+                school: item.schoolId ? schools.get(item.schoolId) : undefined,
+                userId: undefined,
+            };
+        }),
+    };
 }
 
 export async function retryIpLibraryFileCleanup() {
@@ -285,6 +314,12 @@ async function requireReadyFile(repository: ReturnType<typeof createIpLibraryRep
     const file = await repository.getIpContentFile(ipId, fileId, subIpId);
     if (!file || file.kind !== kind) throw new SchoolServiceError(400, "IP 内容文件不存在、跨子 IP 或类型不匹配");
     if (file.status !== "ready") throw new SchoolServiceError(409, "IP 内容文件尚未处理完成");
+    return file;
+}
+async function requireReadyPackageCover(repository: ReturnType<typeof createIpLibraryRepository>, ipId: string, fileId: string) {
+    const file = await repository.getIpContentFile(ipId, fileId);
+    if (!file || file.kind !== "image") throw new SchoolServiceError(400, "IP 封面文件不存在或不是图片");
+    if (file.status !== "ready") throw new SchoolServiceError(409, "IP 封面文件尚未处理完成");
     return file;
 }
 async function requireSubIp(ipId: string, subIpId: string) {
@@ -324,6 +359,12 @@ function normalizeTags(value: unknown) {
     if (value === undefined) return [];
     if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) throw new SchoolServiceError(400, "IP 标签无效");
     return [...new Set(value.map((item) => item.trim()).filter(Boolean))];
+}
+function requiredUniqueIds(value: unknown, message: string) {
+    if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) throw new SchoolServiceError(400, message);
+    const ids = [...new Set(value.map((item) => item.trim()).filter(Boolean))];
+    if (!ids.length) throw new SchoolServiceError(400, message);
+    return ids;
 }
 function slugValue(value: unknown) {
     const slug = required(value, "请填写 IP 标识").toLowerCase();

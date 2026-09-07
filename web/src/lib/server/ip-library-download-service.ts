@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 import { zipSync, type Zippable } from "fflate";
-import type { IpContentFileRecord, IpItemRecord, IpSubIpDetailRecord } from "@/lib/server/database/repository-types";
+import type { IpContentFileRecord, IpDetailRecord, IpItemRecord, IpSubIpDetailRecord } from "@/lib/server/database/repository-types";
 import { createIpLibraryRepository, requireVisibleIp } from "./ip-library-access-service";
 import { readIpContentFile, readIpContentFileBytes } from "./ip-library-file-storage";
 import { SchoolServiceError } from "./school-access-service";
 
-export type IpDownloadInput = { subIpId?: string; itemIds?: string[]; package: boolean };
+export type IpDownloadInput = { subIpId?: string; itemIds?: string[]; package: boolean; packageScope?: "ip" | "sub_ip" };
 export type IpDownloadResult =
     { kind: "redirect"; url: string; fileName: string; downloadId: string } | { kind: "response"; response: Response; fileName: string; downloadId: string } | { kind: "file"; bytes: Buffer; mimeType: string; fileName: string; downloadId: string };
 type PreparedIpDownload = { kind: "redirect"; url: string; fileName: string } | { kind: "response"; response: Response; fileName: string } | { kind: "file"; bytes: Buffer; mimeType: string; fileName: string };
@@ -14,14 +14,28 @@ export type IpPreviewInput = { subIpId?: string; itemId?: string; cover?: boolea
 
 export async function downloadIpForUser(userId: string, request: Request, ipId: string, input: IpDownloadInput): Promise<IpDownloadResult> {
     const itemIds = normalizeItemIds(input.itemIds);
-    const access = await requireVisibleIp(userId, requiredText(ipId, "IP 标识无效"), optionalText(input.subIpId), input.package ? [] : itemIds);
+    const packageScope = input.package ? normalizePackageScope(input.packageScope) : undefined;
+    if (!input.package && input.packageScope !== undefined) throw new SchoolServiceError(400, "下载内容范围无效");
+    if (packageScope === "ip" && input.subIpId !== undefined) throw new SchoolServiceError(400, "下载 IP 内容包时无需指定子 IP");
+    const access = await requireVisibleIp(userId, requiredText(ipId, "IP 标识无效"), packageScope === "ip" ? undefined : optionalText(input.subIpId), input.package ? [] : itemIds);
     const selectedItems = input.package ? access.subIp.items : selectSingleItem(access.subIp.items, itemIds);
-    const record = { id: randomUUID(), ipId: access.detail.id, subIpId: access.subIp.id, itemId: input.package ? undefined : selectedItems[0]?.id, schoolId: access.schoolId, userId, downloadType: input.package ? ("package" as const) : ("item" as const) };
+    const record = {
+        id: randomUUID(),
+        ipId: access.detail.id,
+        ...(packageScope === "ip" ? {} : { subIpId: access.subIp.id }),
+        itemId: input.package ? undefined : selectedItems[0]?.id,
+        schoolId: access.schoolId,
+        userId,
+        downloadType: input.package ? ("package" as const) : ("item" as const),
+        ...(packageScope ? { packageScope } : {}),
+    };
     const repository = createIpLibraryRepository();
     let prepared: PreparedIpDownload;
     try {
         prepared = input.package
-            ? { kind: "file", bytes: await createPackage(repository, access.detail.title, access.subIp, selectedItems), mimeType: "application/zip", fileName: `${safeName(access.detail.title)}-${safeName(access.subIp.title)}.zip` }
+            ? packageScope === "ip"
+                ? { kind: "file", bytes: await createIpPackageArchive(repository, access.detail), mimeType: "application/zip", fileName: `${safeName(access.detail.title)}.zip` }
+                : { kind: "file", bytes: await createSubIpPackage(repository, access.detail.title, access.subIp, selectedItems), mimeType: "application/zip", fileName: `${safeName(access.detail.title)}-${safeName(access.subIp.title)}.zip` }
             : await resolveItemDownload(repository, request, access.detail.id, access.subIp.id, selectedItems[0]);
     } catch (error) {
         await repository.recordIpDownload({ ...record, result: "failed" }).catch(() => undefined);
@@ -31,12 +45,14 @@ export async function downloadIpForUser(userId: string, request: Request, ipId: 
     return { ...prepared, downloadId: record.id };
 }
 export async function previewIpMediaForUser(userId: string, request: Request, ipId: string, input: IpPreviewInput): Promise<PreparedIpDownload> {
-    const access = await requireVisibleIp(userId, requiredText(ipId, "IP 标识无效"), optionalText(input.subIpId), input.itemId ? [input.itemId] : []);
+    const subIpId = optionalText(input.subIpId);
+    const access = await requireVisibleIp(userId, requiredText(ipId, "IP 标识无效"), subIpId, input.itemId ? [input.itemId] : []);
     const repository = createIpLibraryRepository();
     if (input.cover) {
-        if (!access.subIp.coverFileId) throw new SchoolServiceError(404, "子 IP 封面不存在");
-        const file = await repository.getIpContentFile(access.detail.id, access.subIp.coverFileId, access.subIp.id);
-        if (!file || file.kind !== "image" || file.status !== "ready") throw new SchoolServiceError(404, "子 IP 封面不存在");
+        const coverFileId = subIpId ? access.subIp.coverFileId : access.detail.coverFileId;
+        if (!coverFileId) throw new SchoolServiceError(404, subIpId ? "子 IP 封面不存在" : "IP 封面不存在");
+        const file = await repository.getIpContentFile(access.detail.id, coverFileId, subIpId ? access.subIp.id : undefined);
+        if (!file || file.kind !== "image" || file.status !== "ready") throw new SchoolServiceError(404, subIpId ? "子 IP 封面不存在" : "IP 封面不存在");
         return resolveStoredFile(request, file, false);
     }
     const item = access.subIp.items.find((candidate) => candidate.id === requiredText(input.itemId, "IP 内容项无效"));
@@ -60,7 +76,20 @@ async function resolveStoredFile(request: Request, file: IpContentFileRecord, or
     }
     return { kind: "response", response, fileName: file.originalName };
 }
-async function createPackage(repository: ReturnType<typeof createIpLibraryRepository>, ipTitle: string, subIp: IpSubIpDetailRecord, items: IpItemRecord[]) {
+async function createIpPackageArchive(repository: ReturnType<typeof createIpLibraryRepository>, detail: IpDetailRecord) {
+    const entries: Zippable = {};
+    const names = new Set<string>();
+    const children: Array<{ id: string; title: string; fileName: string }> = [];
+    for (const subIp of detail.subIps) {
+        const fileName = uniqueFileName(`${safeName(subIp.title)}.zip`, names, subIp.id);
+        entries[fileName] = await createSubIpPackage(repository, detail.title, subIp, subIp.items);
+        children.push({ id: subIp.id, title: subIp.title, fileName });
+    }
+    entries["manifest.json"] = Buffer.from(JSON.stringify({ ipId: detail.id, ipTitle: detail.title, summary: detail.summary, source: "VOZEB PRO 平台 IP 内容包", subIpPackages: children }, null, 2), "utf8");
+    entries["README.md"] = Buffer.from(`# ${detail.title}\n\n本压缩包内每个子 IP 均为独立内容包。\n`, "utf8");
+    return Buffer.from(zipSync(entries, { level: 0 }));
+}
+async function createSubIpPackage(repository: ReturnType<typeof createIpLibraryRepository>, ipTitle: string, subIp: IpSubIpDetailRecord, items: IpItemRecord[]) {
     const entries: Zippable = {};
     const manifestItems: Array<Record<string, unknown>> = [];
     const names = new Set<string>();
@@ -108,6 +137,11 @@ function normalizeItemIds(value: string[] | undefined) {
     const ids = value.map((item) => item.trim());
     if (ids.some((item) => !item) || new Set(ids).size !== ids.length) throw new SchoolServiceError(400, "IP 内容项无效");
     return ids;
+}
+function normalizePackageScope(value: unknown): "ip" | "sub_ip" {
+    if (value === undefined) return "sub_ip" as const;
+    if (value === "ip" || value === "sub_ip") return value;
+    throw new SchoolServiceError(400, "下载内容范围无效");
 }
 function requiredText(value: unknown, message: string) {
     const text = typeof value === "string" ? value.trim() : "";

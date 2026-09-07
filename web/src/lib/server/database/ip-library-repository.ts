@@ -88,10 +88,7 @@ export class IpLibraryRepository {
             AND ($2::text IS NULL OR package.status = $2) AND ($3::text IS NULL OR package.visibility = $3)`;
         const count = await this.db.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM ip_packages AS package WHERE ${where}`, values.slice(0, 3));
         const result = await this.db.query(
-            `SELECT package.*, COUNT(sub_ip.id)::integer AS sub_ip_count,
-                    COALESCE((array_agg(sub_ip.id ORDER BY sub_ip.sort_order, sub_ip.created_at, sub_ip.id) FILTER (WHERE sub_ip.cover_file_id IS NOT NULL))[1],
-                             (array_agg(sub_ip.id ORDER BY sub_ip.sort_order, sub_ip.created_at, sub_ip.id))[1]) AS cover_sub_ip_id,
-                    COALESCE((array_agg(sub_ip.cover_file_id ORDER BY sub_ip.sort_order, sub_ip.created_at, sub_ip.id) FILTER (WHERE sub_ip.cover_file_id IS NOT NULL))[1], package.cover_file_id) AS summary_cover_file_id
+            `SELECT package.*, COUNT(sub_ip.id)::integer AS sub_ip_count
              FROM ip_packages AS package LEFT JOIN ip_sub_ips AS sub_ip ON sub_ip.ip_id = package.id
              WHERE ${where} GROUP BY package.id ORDER BY package.updated_at DESC, package.id LIMIT $4 OFFSET $5`,
             values,
@@ -154,6 +151,20 @@ export class IpLibraryRepository {
             const remaining = await db.query("SELECT id FROM ip_sub_ips WHERE ip_id = $1 AND id <> $2 LIMIT 1", [ipId, subIpId]);
             if (!remaining.rows[0]) return "last-sub-ip";
             const files = await db.query("SELECT * FROM ip_content_files WHERE ip_id = $1 AND sub_ip_id = $2 FOR UPDATE", [ipId, subIpId]);
+            await db.query(
+                `UPDATE ip_packages AS package
+                 SET cover_file_id = (
+                    SELECT candidate.cover_file_id
+                    FROM ip_sub_ips AS candidate
+                    JOIN ip_content_files AS file ON file.id = candidate.cover_file_id AND file.ip_id = package.id AND file.sub_ip_id = candidate.id
+                    WHERE candidate.ip_id = package.id AND candidate.id <> $2 AND candidate.cover_file_id IS NOT NULL AND file.kind = 'image' AND file.status = 'ready'
+                    ORDER BY candidate.sort_order, candidate.created_at, candidate.id
+                    LIMIT 1
+                 )
+                 WHERE package.id = $1
+                   AND package.cover_file_id IN (SELECT id FROM ip_content_files WHERE ip_id = $1 AND sub_ip_id = $2)`,
+                [ipId, subIpId],
+            );
             await enqueueFiles(db, files.rows);
             await db.query("DELETE FROM ip_sub_ips WHERE ip_id = $1 AND id = $2", [ipId, subIpId]);
             return files.rows.map(mapContentFile);
@@ -306,6 +317,32 @@ export class IpLibraryRepository {
         return mapGrant(result.rows[0]);
     }
 
+    async createSchoolGrants(inputs: IpSchoolGrantCreateInput[]): Promise<IpSchoolGrantRecord[]> {
+        if (!inputs.length) return [];
+        const ipId = inputs[0].ipId;
+        if (inputs.some((input) => input.ipId !== ipId)) throw new Error("批量学校授权必须属于同一个 IP");
+        return this.withIpPackageLock(ipId, async (db) => {
+            const created: IpSchoolGrantRecord[] = [];
+            for (const input of inputs) {
+                const conflict = await db.query(
+                    `SELECT id FROM ip_school_grants WHERE sub_ip_id = $1 AND status = 'active'
+                       AND (school_id = $2 OR mode = 'exclusive' OR $3::text = 'exclusive')
+                       AND tstzrange(starts_at, COALESCE(ends_at, 'infinity'::timestamptz), '[)') && tstzrange($4::timestamptz, COALESCE($5::timestamptz, 'infinity'::timestamptz), '[)')
+                     LIMIT 1`,
+                    [input.subIpId, input.schoolId, input.mode, input.startsAt, input.endsAt || null],
+                );
+                if (conflict.rows[0]) throw Object.assign(new Error("IP 学校授权冲突"), { code: "23505" });
+                const result = await db.query(
+                    `INSERT INTO ip_school_grants (id, ip_id, sub_ip_id, school_id, mode, status, starts_at, ends_at, note, created_by_user_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+                    [input.id, input.ipId, input.subIpId, input.schoolId, input.mode, input.status, input.startsAt, input.endsAt || null, input.note, input.createdByUserId || null],
+                );
+                created.push(mapGrant(result.rows[0]));
+            }
+            return created;
+        });
+    }
+
     async findConflictingSchoolGrant(input: IpGrantConflictInput): Promise<IpSchoolGrantRecord | null> {
         const result = await this.db.query(
             `SELECT * FROM ip_school_grants WHERE sub_ip_id = $1 AND status = 'active' AND ($6::text IS NULL OR id <> $6)
@@ -320,7 +357,9 @@ export class IpLibraryRepository {
     async updateSchoolGrant(ipId: string, grantId: string, patch: IpSchoolGrantUpdateInput): Promise<IpSchoolGrantRecord | null> {
         const result = await this.db.query(
             `UPDATE ip_school_grants SET status = COALESCE($3, status), ends_at = CASE WHEN $4 THEN $5::timestamptz ELSE ends_at END,
-                note = COALESCE($6, note), updated_at = $7::timestamptz WHERE ip_id = $1 AND id = $2 RETURNING *`,
+                note = COALESCE($6, note), updated_at = $7::timestamptz,
+                revoked_at = CASE WHEN $3::text = 'revoked' AND status <> 'revoked' THEN $7::timestamptz WHEN $3::text = 'active' THEN NULL ELSE revoked_at END
+             WHERE ip_id = $1 AND id = $2 RETURNING *`,
             [ipId, grantId, patch.status || null, patch.endsAt !== undefined, patch.endsAt ?? null, patch.note ?? null, patch.updatedAt],
         );
         return result.rows[0] ? mapGrant(result.rows[0]) : null;
@@ -337,14 +376,15 @@ export class IpLibraryRepository {
     }
 
     async recordIpDownload(input: IpDownloadCreateInput): Promise<IpDownloadRecord> {
-        const result = await this.db.query("INSERT INTO ip_download_records (id, ip_id, sub_ip_id, item_id, school_id, user_id, download_type, result) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *", [
+        const result = await this.db.query("INSERT INTO ip_download_records (id, ip_id, sub_ip_id, item_id, school_id, user_id, download_type, package_scope, result) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *", [
             input.id,
             input.ipId,
-            input.subIpId,
+            input.subIpId || null,
             input.itemId || null,
             input.schoolId || null,
             input.userId,
             input.downloadType,
+            input.packageScope || null,
             input.result,
         ]);
         return mapDownload(result.rows[0]);
@@ -477,9 +517,7 @@ function mapPackage(row: Record<string, unknown>): IpPackageRecord {
     };
 }
 function mapSummary(row: Record<string, unknown>): IpSummaryRecord {
-    const subIpId = optionalString(row.sub_ip_id) || optionalString(row.cover_sub_ip_id);
-    const coverFileId = optionalString(row.sub_ip_cover_file_id) || optionalString(row.summary_cover_file_id) || optionalString(row.cover_file_id);
-    return { ...mapPackage(row), subIpCount: numberValue(row.sub_ip_count) || 1, accessibleSubIpCount: numberValue(row.accessible_sub_ip_count) || undefined, coverSubIpId: subIpId, ...(coverFileId ? { coverFileId } : {}) };
+    return { ...mapPackage(row), subIpCount: numberValue(row.sub_ip_count) || 1, accessibleSubIpCount: numberValue(row.accessible_sub_ip_count) || undefined };
 }
 function mapSubIp(row: Record<string, unknown>): IpSubIpRecord {
     const tags = jsonValue(row.sub_ip_tags_json ?? row.tags_json);
@@ -520,6 +558,7 @@ function mapGrant(row: Record<string, unknown>): IpSchoolGrantRecord {
         status: row.status === "suspended" || row.status === "revoked" || row.status === "expired" ? row.status : "active",
         startsAt: isoValue(row.starts_at),
         endsAt: optionalIso(row.ends_at),
+        revokedAt: optionalIso(row.revoked_at),
         note: stringValue(row.note),
         createdByUserId: optionalString(row.created_by_user_id),
         createdAt: isoValue(row.created_at),
@@ -560,11 +599,12 @@ function mapDownload(row: Record<string, unknown>): IpDownloadRecord {
     return {
         id: stringValue(row.id),
         ipId: stringValue(row.ip_id),
-        subIpId: stringValue(row.sub_ip_id),
+        subIpId: optionalString(row.sub_ip_id),
         itemId: optionalString(row.item_id),
         schoolId: optionalString(row.school_id),
         userId: stringValue(row.user_id),
         downloadType: row.download_type === "package" ? "package" : "item",
+        packageScope: row.package_scope === "ip" || row.package_scope === "sub_ip" ? row.package_scope : undefined,
         result: row.result === "failed" ? "failed" : "succeeded",
         createdAt: isoValue(row.created_at),
     };

@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
     replaceIpSubIpItems: vi.fn(),
     findConflictingSchoolGrant: vi.fn(),
     createSchoolGrant: vi.fn(),
+    createSchoolGrants: vi.fn(),
     listSchoolGrants: vi.fn(),
     updateSchoolGrant: vi.fn(),
     getIpContentFile: vi.fn(),
@@ -37,6 +38,7 @@ vi.mock("./ip-library-access-service", () => ({
         replaceIpSubIpItems: mocks.replaceIpSubIpItems,
         findConflictingSchoolGrant: mocks.findConflictingSchoolGrant,
         createSchoolGrant: mocks.createSchoolGrant,
+        createSchoolGrants: mocks.createSchoolGrants,
         listSchoolGrants: mocks.listSchoolGrants,
         updateSchoolGrant: mocks.updateSchoolGrant,
         getIpContentFile: mocks.getIpContentFile,
@@ -47,7 +49,7 @@ vi.mock("./ip-library-access-service", () => ({
 vi.mock("./school-domain-repository", () => ({ createSchoolDomainRepository: () => ({ listSchoolsByIds: vi.fn() }) }));
 vi.mock("@/lib/server/ip-library-file-storage", () => ({ deleteStoredIpContentFile: mocks.deleteStoredIpContentFile, readIpContentFile: mocks.readIpContentFile, writeIpContentFile: mocks.writeIpContentFile }));
 
-import { createAdminIp, createAdminIpGrant, createAdminIpSubIp, deleteAdminIp, updateAdminIpGrant, updateAdminIpSubIp, uploadAdminIpFile } from "./ip-library-admin-service";
+import { createAdminIp, createAdminIpGrant, createAdminIpGrants, createAdminIpSubIp, deleteAdminIp, updateAdminIpGrant, updateAdminIpSubIp, uploadAdminIpFile } from "./ip-library-admin-service";
 
 const now = "2026-09-07T00:00:00.000Z";
 const packageRecord = { id: "ip-one", title: "星海计划", slug: "star-sea", summary: "简介", visibility: "school" as const, status: "enabled" as const, createdByUserId: "content-admin", createdAt: now, updatedAt: now };
@@ -69,6 +71,7 @@ describe("IP library administration service", () => {
         mocks.replaceIpSubIpItems.mockResolvedValue([]);
         mocks.findConflictingSchoolGrant.mockResolvedValue(null);
         mocks.createSchoolGrant.mockImplementation(async (input) => ({ ...input, createdAt: now, updatedAt: now }));
+        mocks.createSchoolGrants.mockImplementation(async (inputs) => inputs.map((input: Record<string, unknown>) => ({ ...input, createdAt: now, updatedAt: now })));
         mocks.listSchoolGrants.mockResolvedValue({ items: [grantRecord], total: 1, page: 1, pageSize: 1 });
         mocks.updateSchoolGrant.mockImplementation(async (_ipId, _grantId, input) => ({ ...grantRecord, ...input, endsAt: input.endsAt ?? undefined }));
         mocks.getIpContentFile.mockResolvedValue({ id: "cover-one", ipId: "ip-one", subIpId: "child-one", kind: "image", status: "ready" });
@@ -111,8 +114,23 @@ describe("IP library administration service", () => {
         const grant = await createAdminIpGrant("education-admin", "ip-one", { subIpId: "child-one", schoolId: "school-a", mode: "multi_school", startsAt: now, note: "教学使用" });
 
         expect(grant).toMatchObject({ ipId: "ip-one", subIpId: "child-one", schoolId: "school-a", status: "active" });
-        expect(mocks.findConflictingSchoolGrant).toHaveBeenCalledWith(expect.objectContaining({ ipId: "ip-one", subIpId: "child-one", schoolId: "school-a" }));
-        expect(mocks.createSchoolGrant).toHaveBeenCalledWith(expect.objectContaining({ subIpId: "child-one", status: "active" }));
+        expect(mocks.findConflictingSchoolGrant).not.toHaveBeenCalled();
+        expect(mocks.createSchoolGrants).toHaveBeenCalledWith([expect.objectContaining({ subIpId: "child-one", schoolId: "school-a", status: "active" })]);
+    });
+
+    it("creates the cross-product of selected children and schools atomically", async () => {
+        mocks.getIpSubIp.mockImplementation(async (_ipId: string, subIpId: string) => ({ ...childRecord, id: subIpId }));
+
+        const grants = await createAdminIpGrants("education-admin", "ip-one", {
+            subIpIds: ["child-one", "child-two"],
+            schoolIds: ["school-a", "school-b"],
+            mode: "multi_school",
+            startsAt: now,
+        });
+
+        expect(grants).toHaveLength(4);
+        expect(mocks.createSchoolGrants).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ subIpId: "child-one", schoolId: "school-a" }), expect.objectContaining({ subIpId: "child-two", schoolId: "school-b" })]));
+        await expect(createAdminIpGrants("education-admin", "ip-one", { subIpIds: ["child-one"], schoolIds: ["school-a", "school-b"], mode: "exclusive", startsAt: now })).rejects.toMatchObject({ status: 400 });
     });
 
     it("clears an authorization end date and rejects an end date before its start", async () => {

@@ -138,6 +138,14 @@ export class FileIpLibraryRepository {
             if (index < 0) return null;
             if (state.subIps.filter((item) => item.ipId === ipId).length <= 1) return "last-sub-ip" as const;
             const files = state.files.filter((item) => item.ipId === ipId && item.subIpId === subIpId);
+            const packageRecord = state.packages.find((item) => item.id === ipId);
+            if (packageRecord && files.some((file) => file.id === packageRecord.coverFileId)) {
+                const replacement = state.subIps
+                    .filter((item) => item.ipId === ipId && item.id !== subIpId && item.coverFileId)
+                    .find((item) => state.files.some((file) => file.id === item.coverFileId && file.ipId === ipId && file.subIpId === item.id && file.kind === "image" && file.status === "ready"));
+                packageRecord.coverFileId = replacement?.coverFileId;
+                packageRecord.updatedAt = new Date().toISOString();
+            }
             state.cleanup.push(...files.map(cleanupFor));
             state.subIps.splice(index, 1);
             state.items = state.items.filter((item) => item.subIpId !== subIpId);
@@ -241,6 +249,32 @@ export class FileIpLibraryRepository {
             return structuredClone(record);
         });
     }
+    createSchoolGrants(inputs: IpSchoolGrantCreateInput[]) {
+        return mutate(async (state, school) => {
+            if (!inputs.length) return [];
+            const ipId = inputs[0].ipId;
+            if (inputs.some((input) => input.ipId !== ipId)) throw new Error("批量学校授权必须属于同一个 IP");
+            const pending = [...state.grants];
+            const records: IpSchoolGrantRecord[] = [];
+            for (const input of inputs) {
+                if (
+                    !state.packages.some((item) => item.id === input.ipId && item.visibility === "school") ||
+                    !state.subIps.some((item) => item.id === input.subIpId && item.ipId === input.ipId) ||
+                    !school.schools?.some((item) => item.id === input.schoolId)
+                )
+                    throw new Error("IP、子 IP 或学校不存在");
+                if (pending.some((item) => item.id === input.id)) throw new Error("IP 学校授权已存在");
+                assertGrantWindow(input.startsAt, input.endsAt);
+                if (grantConflict(pending, input)) throw new Error("IP 学校授权冲突");
+                const now = new Date().toISOString();
+                const record: IpSchoolGrantRecord = { ...structuredClone(input), createdAt: now, updatedAt: now };
+                pending.push(record);
+                records.push(record);
+            }
+            state.grants.push(...records);
+            return structuredClone(records);
+        });
+    }
     async findConflictingSchoolGrant(input: IpGrantConflictInput) {
         return detached(grantConflict((await readFile()).grants, input));
     }
@@ -248,7 +282,13 @@ export class FileIpLibraryRepository {
         return mutate(async (state) => {
             const record = state.grants.find((item) => item.ipId === ipId && item.id === grantId);
             if (!record) return null;
-            const next = { ...record, ...structuredClone(patch), endsAt: patch.endsAt === null ? undefined : (patch.endsAt ?? record.endsAt), updatedAt: patch.updatedAt };
+            const next = {
+                ...record,
+                ...structuredClone(patch),
+                endsAt: patch.endsAt === null ? undefined : (patch.endsAt ?? record.endsAt),
+                revokedAt: patch.status === "revoked" && record.status !== "revoked" ? patch.updatedAt : patch.status === "active" ? undefined : record.revokedAt,
+                updatedAt: patch.updatedAt,
+            };
             assertGrantWindow(next.startsAt, next.endsAt);
             if (next.status === "active" && grantConflict(state.grants, { ...next, excludeGrantId: record.id })) throw new Error("IP 学校授权冲突");
             Object.assign(record, next);
@@ -368,13 +408,10 @@ function subIpDetailFor(state: IpLibraryFile, subIp: IpSubIpRecord): IpSubIpDeta
 }
 function summaryFor(state: IpLibraryFile, packageRecord: IpPackageRecord, visibleSubIps?: IpSubIpRecord[]): IpSummaryRecord {
     const subIps = visibleSubIps || state.subIps.filter((item) => item.ipId === packageRecord.id);
-    const cover = subIps.find((item) => item.coverFileId) || subIps[0];
     return {
         ...structuredClone(packageRecord),
         subIpCount: subIps.length,
         ...(visibleSubIps ? { accessibleSubIpCount: subIps.length } : {}),
-        ...(cover?.id ? { coverSubIpId: cover.id } : {}),
-        ...(cover?.coverFileId ? { coverFileId: cover.coverFileId } : {}),
     } as IpSummaryRecord;
 }
 function visibleSubIp(state: IpLibraryFile, subIp: IpSubIpRecord, input: Pick<VisibleIpListInput, "scope" | "schoolId">, at: number) {
@@ -411,6 +448,10 @@ function grantConflict(grants: IpSchoolGrantRecord[], input: IpGrantConflictInpu
     );
 }
 function assertUsage(state: IpLibraryFile, input: IpUsageCreateInput | IpDownloadCreateInput) {
+    if ("downloadType" in input && input.downloadType === "package" && input.packageScope === "ip") {
+        if (!state.packages.some((item) => item.id === input.ipId)) throw new Error("IP 不存在");
+        return;
+    }
     const itemIds = "itemIds" in input ? input.itemIds : input.itemId ? [input.itemId] : [];
     if (!state.subIps.some((item) => item.id === input.subIpId && item.ipId === input.ipId) || itemIds.some((id) => !state.items.some((item) => item.id === id && item.subIpId === input.subIpId))) throw new Error("IP 内容项不存在或不属于当前子 IP");
 }
@@ -437,7 +478,7 @@ function assertGrantWindow(startsAt: string, endsAt?: string) {
 function rangesOverlap(leftStart: string, leftEnd: string | undefined, rightStart: string, rightEnd: string | undefined) {
     return Date.parse(leftStart) < (rightEnd ? Date.parse(rightEnd) : Number.POSITIVE_INFINITY) && Date.parse(rightStart) < (leftEnd ? Date.parse(leftEnd) : Number.POSITIVE_INFINITY);
 }
-function matchesRecord(item: { ipId: string; subIpId: string; schoolId?: string; userId: string }, input: { ipId?: string; subIpId?: string; schoolId?: string; userId?: string }) {
+function matchesRecord(item: { ipId: string; subIpId?: string; schoolId?: string; userId: string }, input: { ipId?: string; subIpId?: string; schoolId?: string; userId?: string }) {
     return (!input.ipId || item.ipId === input.ipId) && (!input.subIpId || item.subIpId === input.subIpId) && (!input.schoolId || item.schoolId === input.schoolId) && (!input.userId || item.userId === input.userId);
 }
 function detached<T>(value: T | undefined): T | null {

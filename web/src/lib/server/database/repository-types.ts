@@ -23,6 +23,7 @@ export type IpUsageTargetType = "canvas" | "drama" | "practice" | "download";
 export type IpContentFileStatus = "processing" | "ready" | "failed" | "deleting";
 export type IpStorageProvider = "local" | "object";
 export type IpDownloadType = "item" | "package";
+export type IpPackageDownloadScope = "ip" | "sub_ip";
 export type IpDownloadResult = "succeeded" | "failed";
 
 export type IpPackageRecord = {
@@ -82,6 +83,7 @@ export type IpSchoolGrantRecord = {
     status: IpSchoolGrantStatus;
     startsAt: string;
     endsAt?: string;
+    revokedAt?: string;
     note: string;
     createdByUserId?: string;
     createdAt: string;
@@ -139,11 +141,12 @@ export type IpUsageCreateInput = Omit<IpUsageRecord, "createdAt">;
 export type IpDownloadRecord = {
     id: string;
     ipId: string;
-    subIpId: string;
+    subIpId?: string;
     itemId?: string;
     schoolId?: string;
     userId: string;
     downloadType: IpDownloadType;
+    packageScope?: IpPackageDownloadScope;
     result: IpDownloadResult;
     createdAt: string;
 };

@@ -94,11 +94,35 @@ describe("file IP library repository", () => {
         await expect(repository.getIpDetail("single-child-ip")).resolves.toMatchObject({ subIps: [{ id: "only-child" }] });
     });
 
+    it("moves a package cover to a remaining child before deleting its current child", async () => {
+        const repository = createFileIpLibraryRepository();
+        await repository.createIpPackage(packageInput("cover-ip", "public"));
+        await repository.createIpSubIp("cover-ip", childInput("cover-child-a", "cover-ip"));
+        await repository.createIpSubIp("cover-ip", childInput("cover-child-b", "cover-ip"));
+        await repository.createIpContentFile(imageFileInput("cover-file-a", "cover-ip", "cover-child-a"));
+        await repository.createIpContentFile(imageFileInput("cover-file-b", "cover-ip", "cover-child-b"));
+        await repository.updateIpSubIp("cover-ip", "cover-child-a", { coverFileId: "cover-file-a" });
+        await repository.updateIpSubIp("cover-ip", "cover-child-b", { coverFileId: "cover-file-b" });
+        await repository.updateIpPackage("cover-ip", { coverFileId: "cover-file-a" });
+
+        await expect(repository.deleteIpSubIp("cover-ip", "cover-child-a")).resolves.toHaveLength(1);
+        await expect(repository.getIpPackage("cover-ip")).resolves.toMatchObject({ coverFileId: "cover-file-b" });
+    });
+
     it("requires every file to belong to an existing child IP", async () => {
         const repository = createFileIpLibraryRepository();
         await repository.createIpPackage(packageInput("file-owner-ip", "public"));
 
         await expect(repository.createIpContentFile(fileInput("orphan-file", "file-owner-ip", ""))).rejects.toThrow("IP 或子 IP 不存在");
+    });
+
+    it("records an IP-level package download without assigning it to a child", async () => {
+        const repository = createFileIpLibraryRepository();
+        await repository.createIpPackage(packageInput("download-ip", "public"));
+
+        const record = await repository.recordIpDownload({ id: "download-ip-package", ipId: "download-ip", userId: "teacher", downloadType: "package", packageScope: "ip", result: "succeeded" });
+        expect(record).toMatchObject({ ipId: "download-ip", packageScope: "ip" });
+        expect(record).not.toHaveProperty("subIpId");
     });
 });
 
@@ -126,4 +150,7 @@ function fileInput(id: string, ipId: string, subIpId: string) {
         status: "ready" as const,
         uploadedByUserId: "admin",
     };
+}
+function imageFileInput(id: string, ipId: string, subIpId: string) {
+    return { ...fileInput(id, ipId, subIpId), kind: "image" as const, originalName: `${id}.png`, extension: ".png", mimeType: "image/png" };
 }
