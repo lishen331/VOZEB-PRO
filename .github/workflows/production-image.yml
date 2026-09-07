@@ -171,7 +171,15 @@ jobs:
           target="$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST"
           image="${IMAGE_NAME}:sha-${RELEASE_SHA}"
 
-          scp "${ssh_args[@]}" compose.production.yml "${target}:/opt/vozeb-pro/production/compose.production.yml"
+          scp \
+            -i "$key_file" \
+            -P "$PRODUCTION_SSH_PORT" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$known_hosts_file" \
+            compose.production.yml \
+            "${target}:/opt/vozeb-pro/production/compose.production.yml"
           docker save "$image" | gzip -1 | ssh "${ssh_args[@]}" "$target" 'gunzip | docker load'
 
           old_image="$(ssh "${ssh_args[@]}" "$target" \
