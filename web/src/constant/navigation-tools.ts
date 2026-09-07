@@ -177,8 +177,8 @@ export function navigationToolsForContext(context: SchoolContext | null = null, 
     // 默认包含短剧实验室（如果环境变量启用）
     const candidates = [...navigationTools, ...(options.includeDramaWorkflowLab === false ? [] : [dramaWorkflowLabNavigationTool]), ...(schoolTools.length ? [practiceNavigationTool] : []), ...schoolTools];
     return candidates.filter((tool) => {
-        const module = featureModuleForNavigationSlug(tool.slug);
-        return !module || options.featureModules?.[module] !== false;
+        const featureModule = featureModuleForNavigationSlug(tool.slug);
+        return !featureModule || options.featureModules?.[featureModule] !== false;
     });
 }
 
