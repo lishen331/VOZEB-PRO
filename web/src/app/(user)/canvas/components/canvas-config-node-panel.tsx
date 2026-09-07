@@ -307,7 +307,9 @@ function CanvasImageReferenceRolesPopover({
                                 const selected = current[reference.nodeId] || ["original"];
                                 return (
                                     <div key={reference.nodeId} className="rounded-lg px-2 py-1.5" style={{ background: theme.toolbar.itemHover }}>
-                                        <div className="mb-1 truncate text-xs font-medium">{reference.label} · {reference.title}</div>
+                                        <div className="mb-1 truncate text-xs font-medium">
+                                            {reference.label} · {reference.title}
+                                        </div>
                                         <div className="grid grid-cols-2 gap-x-2 gap-y-1">
                                             {roleEntries.map(([value, label]) => (
                                                 <label key={value} className="flex min-w-0 items-center gap-1 text-[11px] opacity-85">
