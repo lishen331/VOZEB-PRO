@@ -1,7 +1,8 @@
 ﻿import { randomUUID } from "node:crypto";
 
 import { hasAdminPermission } from "@/lib/admin-permissions";
-import { getCurrentUser } from "@/lib/auth/session";`r`nimport { readJsonBody } from "@/lib/auth/request";
+import { getCurrentUser } from "@/lib/auth/session";
+import { readJsonBody } from "@/lib/auth/request";
 import { getAuthSettings, type LogicalModelCapability } from "@/lib/auth/store";
 import { channelConnectionReady, protocolAuthHeaders } from "@/lib/channel-protocol-registry";
 import { buildModelCatalogUrls, parseModelCatalog } from "@/lib/server/admin-model-catalog";
@@ -168,4 +169,3 @@ function modelSignature(
         .sort((a, b) => a.id.localeCompare(b.id));
     return JSON.stringify({ id: model.id, capability: model.capability, enabled: model.enabled, bindings, channelShape });
 }
-
