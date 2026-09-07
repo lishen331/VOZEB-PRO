@@ -318,7 +318,13 @@ export default function CreatePage() {
     };
 
     const useRecentAsset = async (asset: CreateOverviewAsset) => {
-        await importReferenceMedia({ url: asset.url, fileStem: asset.id });
+        try {
+            await agent.referenceAttachment({ sourceUrl: asset.url, title: asset.title });
+            window.requestAnimationFrame(() => inputRef.current?.focus());
+            message.success("已引用到 Agent 输入框");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "引用素材失败");
+        }
     };
 
     const selectSkill = (skill: AgentSkillSummary) => {

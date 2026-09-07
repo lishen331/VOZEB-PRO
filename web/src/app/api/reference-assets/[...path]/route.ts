@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { getDramaLabMembership } from "@/lib/server/drama-lab-collaboration-service";
+import { hasLibraryAssetMediaReference } from "@/lib/server/library-asset-store";
 import { acquireMediaConcurrency, withMediaConcurrency } from "@/lib/server/media-concurrency";
 import { verifyReferenceAssetSignature } from "@/lib/server/reference-asset-access";
 import { createLocalMediaResponse, createMediaHeadResponse, mediaContentDisposition } from "@/lib/server/local-media-response";
@@ -52,8 +53,8 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
         // Drama Lab project media is shared only with active members of that
         // exact project. Do not broaden the global media endpoint to arbitrary
         // users or expose owner media that has no project scope.
-        const member = registration.projectId ? await getDramaLabMembership(currentUser.id, registration.projectId) : null;
-        if (!member) return NextResponse.json({ code: 404, data: null, msg: "媒体文件不存在" }, { status: 404 });
+        const [member, libraryReference] = await Promise.all([registration.projectId ? getDramaLabMembership(currentUser.id, registration.projectId) : Promise.resolve(null), hasLibraryAssetMediaReference(currentUser.id, storagePath)]);
+        if (!member && !libraryReference) return NextResponse.json({ code: 404, data: null, msg: "媒体文件不存在" }, { status: 404 });
     }
     if (request.method === "HEAD" && registration.storageProvider === "object") {
         return createMediaHeadResponse(registration.mimeType, registration.bytes, {

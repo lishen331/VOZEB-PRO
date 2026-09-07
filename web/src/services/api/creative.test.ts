@@ -14,7 +14,7 @@ vi.mock("@/services/api/session-expiration", () => {
     };
 });
 
-import { controlCreativeAgentRun, createCreativeAgentRun, listCreativeAgentRuns, listCreativeConversationPage, listCreativeMessages, retryCreativeAgentTask, watchCreativeAgentRun } from "./creative";
+import { controlCreativeAgentRun, createCreativeAgentRun, listCreativeAgentRuns, listCreativeConversationPage, listCreativeMessages, referenceCreativeAsset, retryCreativeAgentTask, watchCreativeAgentRun } from "./creative";
 import type { CreativeProjectHandoff } from "@/lib/creative-runtime-contract";
 
 class FakeEventSource extends EventTarget {
@@ -273,6 +273,23 @@ describe("创作会话来源", () => {
                 cache: "no-store",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ conversationId: "conversation-one" }),
+            }),
+        );
+    });
+
+    it("references recent media through the same-origin creative API", async () => {
+        const asset = { id: "asset-one", type: "image" };
+        const fetchMock = vi.fn(async () => Response.json({ code: 0, data: { asset }, msg: "OK" }));
+        vi.stubGlobal("fetch", fetchMock);
+
+        await expect(referenceCreativeAsset("conversation-one", { sourceUrl: "/api/generation-log-assets/permanent/source.png", title: "商品主图" })).resolves.toEqual(asset);
+        expect(fetchMock).toHaveBeenCalledWith(
+            "/api/creative/assets",
+            expect.objectContaining({
+                method: "POST",
+                cache: "no-store",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ conversationId: "conversation-one", sourceUrl: "/api/generation-log-assets/permanent/source.png", title: "商品主图" }),
             }),
         );
     });

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
     getCurrentUser: vi.fn(),
     uploadAssetForUser: vi.fn(),
+    referenceAssetForUser: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -16,6 +17,7 @@ vi.mock("@/lib/server/creative-runtime-service", () => ({
         }
     },
     uploadAssetForUser: mocks.uploadAssetForUser,
+    referenceAssetForUser: mocks.referenceAssetForUser,
 }));
 
 import { POST } from "./route";
@@ -25,6 +27,7 @@ describe("POST /api/creative/assets", () => {
         vi.clearAllMocks();
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.uploadAssetForUser.mockResolvedValue({ id: "asset-one", type: "audio" });
+        mocks.referenceAssetForUser.mockResolvedValue({ id: "asset-reference", type: "image" });
     });
 
     it("requires authentication", async () => {
@@ -48,6 +51,24 @@ describe("POST /api/creative/assets", () => {
         const response = await POST(request("", new File(["video"], "clip.mp4", { type: "video/mp4" })));
 
         expect(response.status).toBe(400);
+        expect(mocks.uploadAssetForUser).not.toHaveBeenCalled();
+    });
+
+    it("imports an owned server media reference without asking the browser to fetch OSS", async () => {
+        const response = await POST(
+            new Request("http://localhost/api/creative/assets", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ conversationId: "conversation-one", sourceUrl: "/api/generation-log-assets/permanent/source.png", title: "商品主图" }),
+            }),
+        );
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ code: 0, data: { asset: { id: "asset-reference" } } });
+        expect(mocks.referenceAssetForUser).toHaveBeenCalledWith("user-one", "conversation-one", {
+            sourceUrl: "/api/generation-log-assets/permanent/source.png",
+            title: "商品主图",
+        });
         expect(mocks.uploadAssetForUser).not.toHaveBeenCalled();
     });
 

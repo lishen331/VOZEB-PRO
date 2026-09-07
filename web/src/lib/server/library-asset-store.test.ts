@@ -10,7 +10,7 @@ vi.mock("@/lib/server/data-adapter", () => ({
     writeJsonDataFile: vi.fn(async (name: string, value: unknown) => mocks.files.set(name, structuredClone(value))),
 }));
 
-import { createLibraryAsset, deleteLibraryAsset, getLibraryAsset, getLibraryAssetById, listLibraryAssetPage, listLibraryAssets, updateLibraryAsset } from "./library-asset-store";
+import { createLibraryAsset, deleteLibraryAsset, getLibraryAsset, getLibraryAssetById, hasLibraryAssetMediaReference, listLibraryAssetPage, listLibraryAssets, updateLibraryAsset } from "./library-asset-store";
 
 describe("library asset file provider", () => {
     beforeEach(() => {
@@ -74,6 +74,19 @@ describe("library asset file provider", () => {
         mocks.postgresQuery.mockResolvedValue({ rows: [{ asset_json: textAsset("ip-source", "审核素材") }] });
         await expect(getLibraryAssetById("ip-source")).resolves.toMatchObject({ id: "ip-source" });
         expect(mocks.postgresQuery).toHaveBeenLastCalledWith("SELECT asset_json FROM library_assets WHERE id = $1", ["ip-source"]);
+    });
+
+    it("recognizes media referenced by an asset owned by the requesting user", async () => {
+        await createLibraryAsset("user-one", { ...textAsset("one", "素材一"), coverUrl: "/api/reference-assets/permanent/shared.png" });
+        await createLibraryAsset("user-two", { ...textAsset("two", "素材二"), coverUrl: "/api/reference-assets/permanent/private.png" });
+
+        await expect(hasLibraryAssetMediaReference("user-one", "permanent/shared.png")).resolves.toBe(true);
+        await expect(hasLibraryAssetMediaReference("user-one", "permanent/private.png")).resolves.toBe(false);
+
+        mocks.provider = "postgres";
+        mocks.postgresQuery.mockResolvedValue({ rows: [{ allowed: true }] });
+        await expect(hasLibraryAssetMediaReference("user-one", "permanent/shared.png")).resolves.toBe(true);
+        expect(mocks.postgresQuery).toHaveBeenLastCalledWith(expect.stringContaining("position($2 in COALESCE(asset_json::text, '')) > 0"), ["user-one", "permanent/shared.png"]);
     });
 });
 

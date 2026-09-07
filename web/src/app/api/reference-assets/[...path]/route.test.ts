@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
     wrap: vi.fn(),
     head: vi.fn(),
     release: vi.fn(),
+    libraryReference: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -29,6 +30,7 @@ vi.mock("@/lib/server/local-media-response", () => ({
 vi.mock("@/lib/server/media-concurrency", () => ({ acquireMediaConcurrency: mocks.acquire, withMediaConcurrency: mocks.wrap }));
 vi.mock("@/lib/server/security", () => ({ checkLocalMediaRateLimit: mocks.rate, rateLimitHeaders: vi.fn(() => ({ "Retry-After": "60" })) }));
 vi.mock("@/lib/server/object-storage-service", () => ({ createExternalMediaReadUrl: mocks.externalRead }));
+vi.mock("@/lib/server/library-asset-store", () => ({ hasLibraryAssetMediaReference: mocks.libraryReference }));
 
 import { GET, HEAD } from "./route";
 
@@ -49,6 +51,7 @@ describe("reference asset access", () => {
         mocks.acquire.mockReturnValue({ release: mocks.release });
         mocks.wrap.mockImplementation((response: Response) => response);
         mocks.head.mockReturnValue(new Response(null, { status: 200, headers: { "Content-Type": "image/png", "Content-Length": "5" } }));
+        mocks.libraryReference.mockResolvedValue(false);
     });
 
     it("does not expose another user's media to an authenticated user", async () => {
@@ -56,6 +59,16 @@ describe("reference asset access", () => {
         const response = await GET(new Request("http://localhost/api/reference-assets/permanent/2026/07/20/images/file.png"), context);
         expect(response.status).toBe(404);
         expect(mocks.read).not.toHaveBeenCalled();
+    });
+
+    it("allows media referenced by the requesting user's own library asset", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "library-owner", role: "user" });
+        mocks.libraryReference.mockResolvedValue(true);
+
+        const response = await GET(new Request("http://localhost/api/reference-assets/permanent/2026/07/20/images/file.png"), context);
+
+        expect(response.status).toBe(200);
+        expect(mocks.libraryReference).toHaveBeenCalledWith("library-owner", "permanent/2026/07/20/images/file.png");
     });
 
     it("rejects malformed paths without querying authentication or media registrations", async () => {

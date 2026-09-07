@@ -72,6 +72,25 @@ export async function getLibraryAssetById(id: string) {
     return (await readDatabase()).assets.find((record) => record.asset.id === assetId)?.asset || null;
 }
 
+export async function hasLibraryAssetMediaReference(userId: string, storageKey: string) {
+    const ownerUserId = userId.trim();
+    const key = storageKey.trim().replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!ownerUserId || !/^(?:temporary|permanent)\//.test(key)) return false;
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        const result = await postgresQuery<{ allowed: boolean }>(
+            `SELECT EXISTS (
+                 SELECT 1 FROM library_assets
+                 WHERE user_id = $1
+                   AND position($2 in COALESCE(asset_json::text, '')) > 0
+             ) AS allowed`,
+            [ownerUserId, key],
+        );
+        return Boolean(result.rows[0]?.allowed);
+    }
+    return (await readDatabase()).assets.some((record) => record.userId === ownerUserId && JSON.stringify(record.asset).includes(key));
+}
+
 export async function createLibraryAsset(userId: string, asset: Asset) {
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();

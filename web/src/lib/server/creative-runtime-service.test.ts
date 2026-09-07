@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
     writePersistentMediaDataUrl: vi.fn(),
     deleteCreativeConversationAggregates: vi.fn(),
     deleteUserMediaAssetsCascade: vi.fn(),
+    getLocalMediaRegistration: vi.fn(),
+    readRegisteredMediaBytes: vi.fn(),
 }));
 
 vi.mock("@/lib/server/creative-runtime-store", () => ({
@@ -23,8 +25,10 @@ vi.mock("@/lib/server/creative-runtime-store", () => ({
 vi.mock("@/lib/server/reference-asset-store", () => ({ writePersistentMediaDataUrl: mocks.writePersistentMediaDataUrl }));
 vi.mock("@/lib/server/creative-entity-deletion-store", () => ({ deleteCreativeConversationAggregates: mocks.deleteCreativeConversationAggregates }));
 vi.mock("@/lib/server/user-media-deletion-service", () => ({ deleteUserMediaAssetsCascade: mocks.deleteUserMediaAssetsCascade }));
+vi.mock("@/lib/server/local-media-registry", () => ({ getLocalMediaRegistration: mocks.getLocalMediaRegistration, isLocalMediaRegistrationExpired: vi.fn(() => false) }));
+vi.mock("@/lib/server/object-storage-service", () => ({ readRegisteredMediaBytes: mocks.readRegisteredMediaBytes }));
 
-import { deleteConversationsForUser, registerGenerationTaskAssetsForUser, uploadAssetForUser } from "./creative-runtime-service";
+import { deleteConversationsForUser, referenceAssetForUser, registerGenerationTaskAssetsForUser, uploadAssetForUser } from "./creative-runtime-service";
 
 function file(name: string, type: string, size = 4): File {
     return { name, type, size, arrayBuffer: async () => new Uint8Array(Math.min(size, 4)).buffer } as File;
@@ -37,6 +41,17 @@ describe("创作会话素材上传", () => {
         mocks.writePersistentMediaDataUrl.mockReset().mockResolvedValue({ token: "persistent-one.mp4", storage: "local", bytes: 4, mimeType: "video/mp4" });
         mocks.deleteCreativeConversationAggregates.mockReset().mockResolvedValue({ deletedConversations: 1, deletedProjects: 0, mediaStorageKeys: ["permanent/one.png"] });
         mocks.deleteUserMediaAssetsCascade.mockReset().mockResolvedValue({ deletedFiles: 1, deletedBytes: 4, blocked: [] });
+        mocks.getLocalMediaRegistration.mockReset().mockResolvedValue({
+            storageKey: "permanent/source.png",
+            scope: "generation",
+            storageClass: "permanent",
+            type: "image",
+            ownerUserId: "user-one",
+            source: "generation",
+            mimeType: "image/png",
+            bytes: 4,
+        });
+        mocks.readRegisteredMediaBytes.mockReset().mockResolvedValue(Buffer.from("image"));
         mocks.registerCreativeAssets.mockReset().mockImplementation(async ([input]) => [{ ...input, id: "asset-one", status: "ready", metadata: input.metadata || {}, createdAt: 1, updatedAt: 1 }]);
     });
 
@@ -72,6 +87,36 @@ describe("创作会话素材上传", () => {
         const asset = await uploadAssetForUser("user-one", "conversation-one", file("image.png", "image/png"));
 
         expect(asset).toMatchObject({ storageKind: "object", storageKey: "permanent/object.png", serverUrl: "/api/reference-assets/permanent/object.png" });
+    });
+
+    it("copies an owned generated asset server-side before attaching it to Agent", async () => {
+        mocks.writePersistentMediaDataUrl.mockResolvedValue({ token: "permanent/copied.png", storage: "object", bytes: 5, mimeType: "image/png" });
+
+        const asset = await referenceAssetForUser("user-one", "conversation-one", {
+            sourceUrl: "/api/generation-log-assets/permanent/source.png",
+            title: "商品主图",
+        });
+
+        expect(mocks.getLocalMediaRegistration).toHaveBeenCalledWith("permanent/source.png");
+        expect(mocks.readRegisteredMediaBytes).toHaveBeenCalledWith(expect.objectContaining({ ownerUserId: "user-one" }), 20 * 1024 * 1024);
+        expect(mocks.writePersistentMediaDataUrl).toHaveBeenCalledWith(
+            expect.stringMatching(/^data:image\/png;base64,/),
+            "image",
+            expect.objectContaining({ ownerUserId: "user-one", conversationId: "conversation-one", source: "creative-reference", originalName: "商品主图.png" }),
+        );
+        expect(asset).toMatchObject({ type: "image", storageKey: "permanent/copied.png", serverUrl: "/api/reference-assets/permanent/copied.png" });
+    });
+
+    it("rejects foreign, missing and mismatched generated media references", async () => {
+        mocks.getLocalMediaRegistration.mockResolvedValueOnce(null);
+        await expect(referenceAssetForUser("user-one", "conversation-one", { sourceUrl: "/api/generation-log-assets/permanent/missing.png" })).rejects.toMatchObject({ status: 404 });
+
+        mocks.getLocalMediaRegistration.mockResolvedValueOnce({ storageKey: "permanent/foreign.png", scope: "generation", type: "image", ownerUserId: "user-two", mimeType: "image/png", bytes: 4 });
+        await expect(referenceAssetForUser("user-one", "conversation-one", { sourceUrl: "/api/generation-log-assets/permanent/foreign.png" })).rejects.toMatchObject({ status: 404 });
+
+        mocks.getLocalMediaRegistration.mockResolvedValueOnce({ storageKey: "permanent/source.png", scope: "reference", type: "image", ownerUserId: "user-one", mimeType: "image/png", bytes: 4 });
+        await expect(referenceAssetForUser("user-one", "conversation-one", { sourceUrl: "/api/generation-log-assets/permanent/source.png" })).rejects.toMatchObject({ status: 404 });
+        expect(mocks.readRegisteredMediaBytes).not.toHaveBeenCalled();
     });
 
     it("rejects unsupported files, oversized files and other users' conversations", async () => {
