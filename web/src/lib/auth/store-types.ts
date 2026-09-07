@@ -55,6 +55,16 @@ export type RunningHubGenerationSizeOption = {
     disabled?: boolean;
 };
 export type PracticeWorkflowModelBindings = Partial<Record<RunningHubWorkflowBusinessCode, string[]>>;
+export type PracticeModuleVisibility = {
+    canvas: boolean;
+    drama: boolean;
+    character: boolean;
+    scene: boolean;
+    prop: boolean;
+    "storyboard-image": boolean;
+    "storyboard-video": boolean;
+    dubbing: boolean;
+};
 export type RunningHubWorkflowInputField = {
     key: string;
     label: string;
@@ -604,6 +614,7 @@ export type AuthSettings = {
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
     practiceWorkflowModels: PracticeWorkflowModelBindings;
+    practiceModuleVisibility?: PracticeModuleVisibility;
     agentSkills: AgentSkill[];
     /** Global enablement for built-in user-facing modules. */
     featureModules: FeatureModuleSettings;

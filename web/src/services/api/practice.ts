@@ -40,7 +40,7 @@ export type PracticeSessionInput = {
 
 export const practiceApi = {
     listModules() {
-        return request<{ modules: PracticeModuleCapability[] }>("/api/practice/modules");
+        return request<{ modules: PracticeModuleCapability[]; projects: Record<PracticeProjectKind, boolean> }>("/api/practice/modules");
     },
     listProjects(input: { kind: PracticeProjectKind; page?: number; pageSize?: number }) {
         const query = new URLSearchParams({ kind: input.kind, page: String(input.page || 1), pageSize: String(input.pageSize || 12) });

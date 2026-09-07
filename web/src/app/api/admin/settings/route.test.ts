@@ -134,6 +134,13 @@ describe("admin settings model routing", () => {
         expect(mocks.safeRecordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ metadata: { fields: ["dataLifecycle"] } }));
     });
 
+    it("persists infinite practice entry visibility under the upstream duty", async () => {
+        const practiceModuleVisibility = { canvas: false, drama: false, character: true, scene: false, prop: true, "storyboard-image": true, "storyboard-video": true, dubbing: true };
+        const response = await PATCH(request({ practiceModuleVisibility }));
+
+        expect(response.status).toBe(200);
+        expect(mocks.setAuthSettings).toHaveBeenCalledWith({ practiceModuleVisibility });
+    });
     it("persists practice workflow model bindings under the upstream duty", async () => {
         const practiceWorkflowModels = { script: "practice-script", "storyboard-image": "practice-image" };
         const response = await PATCH(request({ practiceWorkflowModels }));

@@ -93,10 +93,24 @@ describe("practice module capabilities", () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "member-one", role: "teacher" });
     });
 
-    it("returns a manual script and only enabled open-source workflow models", async () => {
+    it("returns only visible Demo modules", async () => {
+        const current = settings();
+        current.practiceModuleVisibility = {
+            canvas: false,
+            drama: false,
+            character: true,
+            scene: false,
+            prop: true,
+            "storyboard-image": true,
+            "storyboard-video": true,
+            dubbing: true,
+        };
+        const capabilities = await listPracticeModuleCapabilities({ id: "teacher-one" }, { settings: current });
+        expect(capabilities.map((item) => item.module)).toEqual(["character", "prop", "storyboard-image", "storyboard-video", "dubbing"]);
+    });
+    it("returns the six Demo modules with only enabled open-source workflow models", async () => {
         const capabilities = await listPracticeModuleCapabilities({ id: "teacher-one" }, { settings: settings() });
-        expect(capabilities.find((item) => item.module === "script")).toMatchObject({ mode: "manual", available: true, models: [], outputType: "text" });
-        expect(capabilities.map((item) => item.module)).toEqual(expect.arrayContaining(["character", "scene", "prop"]));
+        expect(capabilities.map((item) => item.module)).toEqual(["character", "scene", "prop", "storyboard-image", "storyboard-video", "dubbing"]);
         expect(capabilities.find((item) => item.module === "storyboard-image")?.models).toEqual([{ id: "practice-image-a", label: "分镜图模型 A" }]);
         expect(JSON.stringify(capabilities)).not.toContain("workflow-internal");
         expect(JSON.stringify(capabilities)).not.toContain("channelId");

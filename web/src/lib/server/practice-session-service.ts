@@ -16,7 +16,7 @@ import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "./ip-library-reference-service";
 import type { RunningHubWorkflowCode, RunningHubWorkflowConfig } from "@/lib/auth/store-types";
 import type { RunningHubWorkflowInputField } from "@/lib/auth/store-types";
-import { resolveEnabledWorkflow, runningHubWorkflowConfigFingerprint, workflowRequiresRetest } from "./runninghub-workflow-domain";
+import { resolveEnabledWorkflow, runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
 
 export type PracticeSessionCreateInput = {
     module: PracticeModuleKind;
@@ -437,7 +437,7 @@ function resolvePracticeWorkflow(configs: readonly unknown[], channelId: string,
     const code =
         requestedWorkflowCode ||
         ({ character: "character_main_view", scene: "scene_main_view", prop: "prop_main_view", "storyboard-image": "storyboard_shot", "storyboard-video": "storyboard_shot_video", dubbing: "storyboard_dialogue_audio" } as Record<string, string>)[module];
-    const exact = code ? configs.map(normalizeWorkflow).find((item) => item.enabled && item.channelId === channelId && item.workflowCode === code && !workflowRequiresRetest(item)) : undefined;
+    const exact = code ? configs.map(normalizeWorkflow).find((item) => item.enabled && item.channelId === channelId && item.workflowCode === code) : undefined;
     return (
         exact ||
         (module === "music"

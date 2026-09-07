@@ -157,12 +157,17 @@ describe("RunningHub workflow domain", () => {
         expect(runningHubWorkflowConfigFingerprint({ ...demo, remark: "first" })).not.toBe(runningHubWorkflowConfigFingerprint({ ...demo, remark: "second" }));
     });
 
-    it("requires successful current evidence before enabling new configurations while preserving legacy enabled configs", () => {
+    it("keeps structural validation while treating test evidence as advisory", () => {
         const fingerprint = runningHubWorkflowConfigFingerprint(baseConfig);
         expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true })).toEqual([]);
-        expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true, workflowJsonFingerprint: "json-1" })).toEqual(expect.arrayContaining([expect.stringContaining("测试")]));
+        expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true, workflowJsonFingerprint: "json-1" })).toEqual([]);
         expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true, lastTestResult: "success", lastTestConfigFingerprint: fingerprint })).toEqual([]);
-        expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true, lastTestResult: "failed", lastTestConfigFingerprint: fingerprint })).toEqual(expect.arrayContaining([expect.stringContaining("测试")]));
+        expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true, lastTestResult: "failed", lastTestConfigFingerprint: fingerprint })).toEqual([]);
+        expect(validateRunningHubWorkflowConfig({ ...baseConfig, enabled: true, workflowJsonFingerprint: "json-1", inputSchema: [], nodeMappings: [], outputMappings: [] })).toEqual(expect.arrayContaining([expect.stringContaining("输入映射")]));
+    });
+
+    it("resolves an enabled workflow even when it needs a retest", () => {
+        expect(resolveEnabledWorkflow([{ ...baseConfig, enabled: true, testRequired: true }], baseConfig.channelId, baseConfig.businessCode)).toMatchObject({ workflowKey: baseConfig.workflowKey, enabled: true });
     });
 
     it("allows different workflow codes in the same business group to stay enabled", () => {

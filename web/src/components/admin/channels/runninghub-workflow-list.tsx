@@ -33,6 +33,24 @@ export function runningHubWorkflowSnapshotLabel(workflow: Pick<PublicRunningHubW
     return workflow.requiresRetest ? "JSON 已更新，需重测" : "已有 JSON 快照";
 }
 
+export function runningHubWorkflowTestLabel(workflow: Pick<PublicRunningHubWorkflow, "lastTestAt" | "lastTestResult" | "requiresRetest">) {
+    if (!workflow.lastTestAt && !workflow.lastTestResult) return "未测试";
+    if (workflow.requiresRetest) return "配置已修改，尚未重新测试";
+    if (workflow.lastTestResult === "success") return "成功";
+    if (workflow.lastTestResult === "failed") return "测试失败";
+    return "未测试";
+}
+
+export function runningHubWorkflowEnableConfirmation(workflow: Pick<PublicRunningHubWorkflow, "enabled" | "requiresRetest">) {
+    const riskyEnable = !workflow.enabled && workflow.requiresRetest;
+    return {
+        title: workflow.enabled ? "停用这个版本？" : riskyEnable ? "当前工作流尚未通过当前配置的成功测试，仍要启用吗？" : "启用这个版本？",
+        description: riskyEnable ? "启用后如果上游参数或素材不匹配，前端生成可能失败；建议先完成一次样例测试。" : undefined,
+        okText: riskyEnable ? "仍然启用" : "确定",
+        cancelText: "取消",
+    };
+}
+
 export function getRunningHubWorkflowActionColumn(render: WorkflowActionColumnRenderer): TableColumnsType<PublicRunningHubWorkflow>[number] {
     return {
         title: "操作",
@@ -172,10 +190,10 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                 render: (_, item) =>
                     item.lastTestAt ? (
                         <span className={item.requiresRetest ? "text-amber-600" : item.lastTestResult === "success" ? "text-emerald-600" : "text-red-600"}>
-                            {item.requiresRetest ? "配置已修改，请重新测试" : item.lastTestResult === "success" ? "成功" : "失败"} · {new Date(item.lastTestAt).toLocaleString()}
+                            {runningHubWorkflowTestLabel(item)} · {new Date(item.lastTestAt).toLocaleString()}
                         </span>
                     ) : (
-                        <span className="text-stone-500">未测试</span>
+                        <span className={item.requiresRetest ? "text-amber-600" : "text-stone-500"}>{runningHubWorkflowTestLabel(item)}</span>
                     ),
             },
             getRunningHubWorkflowActionColumn((_, item) => (
@@ -192,7 +210,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                     <Button size="small" icon={<TestTube className="size-3.5" />} onClick={() => setTestWorkflow(item)}>
                         测试
                     </Button>
-                    <Popconfirm title={item.enabled ? "停用这个版本？" : "启用这个版本？"} onConfirm={() => void mutate(item, item.enabled ? "disable" : "enable")}>
+                    <Popconfirm {...runningHubWorkflowEnableConfirmation(item)} onConfirm={() => void mutate(item, item.enabled ? "disable" : "enable")}>
                         <Button size="small" icon={<ToggleLeft className="size-3.5" />}>
                             {item.enabled ? "停用" : "启用"}
                         </Button>
@@ -280,7 +298,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                             <Button size="small" onClick={() => setTestWorkflow(item)}>
                                 测试
                             </Button>
-                            <Popconfirm title={item.enabled ? "停用这个版本？" : "启用这个版本？"} onConfirm={() => void mutate(item, item.enabled ? "disable" : "enable")}>
+                            <Popconfirm {...runningHubWorkflowEnableConfirmation(item)} onConfirm={() => void mutate(item, item.enabled ? "disable" : "enable")}>
                                 <Button size="small">{item.enabled ? "停用" : "启用"}</Button>
                             </Popconfirm>
                         </div>

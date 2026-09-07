@@ -186,6 +186,16 @@ export const DEFAULT_SETTINGS: AuthSettings = {
     defaultModels: { imageModel: "", videoModel: "", textModel: "", visionModel: "", audioModel: "" },
     practiceDefaultModels: { imageModel: "", videoModel: "", textModel: "", visionModel: "", audioModel: "" },
     practiceWorkflowModels: {},
+    practiceModuleVisibility: {
+        canvas: false,
+        drama: false,
+        character: true,
+        scene: true,
+        prop: true,
+        "storyboard-image": true,
+        "storyboard-video": true,
+        dubbing: true,
+    },
     agentSkills: [
         { ...ECOMMERCE_IMAGE_SKILL, keywords: [...ECOMMERCE_IMAGE_SKILL.keywords], workspaces: [...ECOMMERCE_IMAGE_SKILL.workspaces] },
         { ...YANAI_BEAUTY_SKILL, keywords: [...YANAI_BEAUTY_SKILL.keywords], workspaces: [...YANAI_BEAUTY_SKILL.workspaces] },

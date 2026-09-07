@@ -6,8 +6,7 @@ import { resolveLogicalModel } from "./logical-model-router";
 import { resolveEnabledWorkflow } from "./runninghub-workflow-domain";
 import { requirePracticeAccess, type PracticeActor } from "./practice-access-service";
 
-const MODULES = ["script", "character", "scene", "prop", "storyboard-image", "storyboard-video", "dubbing", "music"] as const satisfies readonly PracticeModuleKind[];
-const WORKFLOW_MODULES = MODULES.filter((module): module is Exclude<PracticeModuleKind, "script"> => module !== "script");
+const MODULES = ["character", "scene", "prop", "storyboard-image", "storyboard-video", "dubbing"] as const satisfies readonly PracticeModuleKind[];
 const WORKFLOW_CODE_BY_MODULE = {
     character: "character_main_view",
     scene: "scene_main_view",
@@ -43,10 +42,18 @@ const BASE_MODULES: Record<PracticeModuleKind, Omit<PracticeModuleCapability, "m
     music: { mode: "workflow", outputType: "audio", inputSchema: [{ key: "prompt", label: "音乐需求", type: "textarea", required: true }] },
 };
 
-export async function listPracticeModuleCapabilities(actor: PracticeActor, deps: { settings?: AuthSettings } = {}): Promise<PracticeModuleCapability[]> {
+export async function getPracticeModuleConfiguration(actor: PracticeActor, deps: { settings?: AuthSettings } = {}) {
     await requirePracticeAccess(actor);
     const settings = deps.settings || (await getAuthSettings());
-    return MODULES.map((module) => describeModule(settings, module));
+    const visibility = settings.practiceModuleVisibility;
+    return {
+        modules: MODULES.filter((module) => visibility?.[module] !== false).map((module) => describeModule(settings, module)),
+        projects: { canvas: visibility?.canvas === true, drama: visibility?.drama === true },
+    };
+}
+
+export async function listPracticeModuleCapabilities(actor: PracticeActor, deps: { settings?: AuthSettings } = {}): Promise<PracticeModuleCapability[]> {
+    return (await getPracticeModuleConfiguration(actor, deps)).modules;
 }
 
 export function resolvePracticeModuleModelOptions(settings: AuthSettings, module: Exclude<PracticeModuleKind, "script">): PracticeModuleModelOption[] {
@@ -133,7 +140,7 @@ function workflowsForModule(configs: Record<string, unknown> | undefined, channe
     const allowedCodes = module === "character" ? new Set(["character_main_view", "character_multi_view"]) : new Set(code ? [code] : []);
     return Object.values(configs || {})
         .map((item) => normalizeWorkflow(item))
-        .filter((item) => item.enabled && item.channelId === channelId && (!item.workflowCode ? false : allowedCodes.has(item.workflowCode)) && item.lastTestResult === "success")
+        .filter((item) => item.enabled && item.channelId === channelId && (!item.workflowCode ? false : allowedCodes.has(item.workflowCode)) )
         .sort((left, right) => (left.workflowCode || "").localeCompare(right.workflowCode || ""));
 }
 
@@ -143,7 +150,7 @@ function workflowOptions(configs: Record<string, unknown> | undefined, channelId
     const allowedCodes = module === "character" ? new Set(["character_main_view", "character_multi_view"]) : new Set([code]);
     return Object.values(configs || {})
         .map((item) => normalizeWorkflow(item))
-        .filter((item) => item.enabled && item.channelId === channelId && item.workflowCode && allowedCodes.has(item.workflowCode) && item.lastTestResult === "success")
+        .filter((item) => item.enabled && item.channelId === channelId && item.workflowCode && allowedCodes.has(item.workflowCode) )
         .sort((left, right) => (left.workflowCode || "").localeCompare(right.workflowCode || ""))
         .map((item) => ({ code: item.workflowCode!, label: item.workflowName }));
 }

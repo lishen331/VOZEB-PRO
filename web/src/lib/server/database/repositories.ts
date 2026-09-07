@@ -208,6 +208,7 @@ class SettingsRepository {
         if (input.defaultModels !== undefined) add("default_models", jsonParam(input.defaultModels));
         if (input.practiceDefaultModels !== undefined) add("practice_default_models", jsonParam(input.practiceDefaultModels));
         if (input.practiceWorkflowModels !== undefined) add("practice_workflow_models", jsonParam(input.practiceWorkflowModels));
+        if (input.practiceModuleVisibility !== undefined) add("practice_module_visibility", jsonParam(input.practiceModuleVisibility));
         if (input.agentSkills !== undefined) add("agent_skills", jsonParam(input.agentSkills));
         if (input.featureModules !== undefined) add("feature_modules", jsonParam(input.featureModules));
         if (input.freeDailyPoints !== undefined) add("free_daily_points", input.freeDailyPoints);
@@ -326,6 +327,7 @@ function mapSettings(row: Record<string, unknown>): AppSettingsRecord {
         defaultModels: jsonValue(row.default_models),
         practiceDefaultModels: jsonValue(row.practice_default_models),
         practiceWorkflowModels: jsonValue(row.practice_workflow_models),
+        practiceModuleVisibility: jsonValue(row.practice_module_visibility),
         agentSkills: jsonValue(row.agent_skills),
         featureModules: jsonValue(row.feature_modules),
         createdAt: isoValue(row.created_at),

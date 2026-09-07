@@ -9,7 +9,7 @@ const ONE_PIXEL_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCA
 
 test.describe.configure({ mode: "serial" });
 
-test("学校成员使用五个独立的无限练习工作台", async ({ browser, page }, testInfo) => {
+test("学校成员使用六个独立的无限练习工作台", async ({ browser, page }, testInfo) => {
     test.setTimeout(180_000);
     const suffix = randomUUID().replaceAll("-", "").slice(0, 10);
     const managerUsername = `practice_manager_${suffix}`;
@@ -28,15 +28,29 @@ test("学校成员使用五个独立的无限练习工作台", async ({ browser,
             await installPracticeFixtures(rolePage, moduleFixtureCapabilities());
             await rolePage.goto("/practice", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByRole("heading", { name: "无限练习", exact: true })).toBeVisible();
+            await expect(rolePage.locator("[data-practice-module]")).toHaveCount(6);
+            await expect(rolePage.locator('[data-practice-module="character"]')).toBeVisible();
+            await expect(rolePage.locator('[data-practice-module="scene"]')).toBeVisible();
+            await expect(rolePage.locator('[data-practice-module="prop"]')).toBeVisible();
+            await expect(rolePage.locator('[data-practice-module="storyboard-image"]')).toBeVisible();
+            await expect(rolePage.locator('[data-practice-module="storyboard-video"]')).toBeVisible();
+            await expect(rolePage.locator('[data-practice-module="dubbing"]')).toBeVisible();
+            await expect(rolePage.locator('[data-practice-module="script"]')).toHaveCount(0);
+            await expect(rolePage.locator('[data-practice-module="music"]')).toHaveCount(0);
             const overflow = await rolePage.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
             expect(overflow.width).toBeLessThanOrEqual(overflow.viewport);
 
-            await rolePage.goto("/practice/script", { waitUntil: "domcontentloaded" });
-            await expect(rolePage.getByText("等待保存剧本", { exact: true })).toBeVisible();
-            await rolePage.getByLabel("剧本标题").fill("雨夜重逢");
-            await rolePage.getByLabel("剧本正文").fill("车站，雨声盖过了远处的广播。两人终于见面。");
-            await rolePage.getByRole("button", { name: "保存草稿", exact: true }).click();
-            await expect(rolePage.getByText("剧本草稿已保存", { exact: true })).toBeVisible();
+            const hiddenScript = await rolePage.goto("/practice/script", { waitUntil: "domcontentloaded" });
+            expect(hiddenScript?.status()).toBe(404);
+            const hiddenMusic = await rolePage.goto("/practice/music", { waitUntil: "domcontentloaded" });
+            expect(hiddenMusic?.status()).toBe(404);
+
+            await rolePage.goto("/practice/character", { waitUntil: "domcontentloaded" });
+            await expect(rolePage.getByText("等待生成角色图", { exact: true })).toBeVisible();
+            await rolePage.goto("/practice/scene", { waitUntil: "domcontentloaded" });
+            await expect(rolePage.getByText("等待生成场景图", { exact: true })).toBeVisible();
+            await rolePage.goto("/practice/prop", { waitUntil: "domcontentloaded" });
+            await expect(rolePage.getByText("等待生成道具图", { exact: true })).toBeVisible();
 
             await rolePage.goto("/practice/storyboard-image", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByText("等待生成分镜图", { exact: true })).toBeVisible();
@@ -53,12 +67,6 @@ test("学校成员使用五个独立的无限练习工作台", async ({ browser,
             await expect(rolePage.getByText("等待生成配音", { exact: true })).toBeVisible();
             await rolePage.getByLabel("配音文本").fill("欢迎来到练习课堂。");
             await rolePage.getByRole("button", { name: "开始配音", exact: true }).click();
-            await expect(rolePage.locator("audio")).toBeVisible();
-
-            await rolePage.goto("/practice/music", { waitUntil: "domcontentloaded" });
-            await expect(rolePage.getByText("等待生成音乐", { exact: true })).toBeVisible();
-            await rolePage.getByLabel("音乐需求").fill("轻快的片尾音乐");
-            await rolePage.getByRole("button", { name: "生成音乐", exact: true }).click();
             await expect(rolePage.locator("audio")).toBeVisible();
             await rolePage.close();
         } finally {
@@ -84,18 +92,17 @@ test("没有学校成员身份的账号不能访问无限练习", async ({ brows
 });
 
 async function installPracticeFixtures(page: import("@playwright/test").Page, modules: ReturnType<typeof moduleFixtureCapabilities>) {
-    await page.route("**/api/practice/modules", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ code: 200, data: { modules }, msg: "ok" }) }));
+    await page.route("**/api/practice/modules", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ code: 200, data: { modules, projects: { canvas: false, drama: false } }, msg: "ok" }) }));
     await page.route("**/api/practice/sessions**", async (route) => {
         const request = route.request();
         if (request.method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ code: 0, data: { sessions: [], total: 0, page: 1, pageSize: 24 }, msg: "ok" }) });
         const body = request.postDataJSON() as { module?: string; mode?: string; input?: Record<string, unknown> };
         const moduleName = body.module || "script";
-        const media =
-            moduleName === "storyboard-image"
-                ? { kind: "image", url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=" }
-                : moduleName === "dubbing" || moduleName === "music"
-                  ? { kind: "audio", url: "data:audio/wav;base64,UklGRgAAAAAA" }
-                  : undefined;
+        const media = ["character", "scene", "prop", "storyboard-image"].includes(moduleName)
+            ? { kind: "image", url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=" }
+            : moduleName === "dubbing"
+              ? { kind: "audio", url: "data:audio/wav;base64,UklGRgAAAAAA" }
+              : undefined;
         const session = {
             id: `fixture-${moduleName}`,
             title: moduleName,
@@ -114,15 +121,28 @@ async function installPracticeFixtures(page: import("@playwright/test").Page, mo
 function moduleFixtureCapabilities() {
     return [
         {
-            module: "script",
-            mode: "manual",
+            module: "character",
+            mode: "workflow",
             available: true,
-            models: [],
-            inputSchema: [
-                { key: "title", label: "剧本标题", type: "text", required: true },
-                { key: "content", label: "剧本正文", type: "textarea", required: true },
-            ],
-            outputType: "text",
+            models: [{ id: "image-one", label: "图片模型" }],
+            inputSchema: [{ key: "prompt", label: "角色描述", type: "textarea", required: true }],
+            outputType: "image",
+        },
+        {
+            module: "scene",
+            mode: "workflow",
+            available: true,
+            models: [{ id: "image-one", label: "图片模型" }],
+            inputSchema: [{ key: "prompt", label: "场景描述", type: "textarea", required: true }],
+            outputType: "image",
+        },
+        {
+            module: "prop",
+            mode: "workflow",
+            available: true,
+            models: [{ id: "image-one", label: "图片模型" }],
+            inputSchema: [{ key: "prompt", label: "道具描述", type: "textarea", required: true }],
+            outputType: "image",
         },
         {
             module: "storyboard-image",
@@ -147,6 +167,5 @@ function moduleFixtureCapabilities() {
             outputType: "video",
         },
         { module: "dubbing", mode: "workflow", available: true, models: [{ id: "voice-one", label: "配音模型" }], inputSchema: [{ key: "text", label: "配音文本", type: "textarea", required: true }], outputType: "audio" },
-        { module: "music", mode: "workflow", available: true, models: [{ id: "music-one", label: "音乐模型" }], inputSchema: [{ key: "prompt", label: "音乐需求", type: "textarea", required: true }], outputType: "audio" },
     ] as const;
 }

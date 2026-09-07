@@ -142,9 +142,11 @@ describe("runninghub workflow service", () => {
         expect(result.items[0].requestTemplate).toBeUndefined();
     });
 
-    it("does not activate a copied version before it has fresh test evidence", async () => {
-        await expect(copyWorkflowVersion(workflow.workflowKey, { activateVersion: true })).rejects.toMatchObject({ status: 409 });
-        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
+    it("allows a complete copied version to activate while exposing retest risk", async () => {
+        const result = await copyWorkflowVersion(workflow.workflowKey, { activateVersion: true });
+
+        expect(result).toMatchObject({ enabled: true, requiresRetest: true });
+        expect(mocks.setAuthSettings).toHaveBeenCalled();
     });
 
     it("activates a workflow after successful evidence even when testRequired remains set", async () => {

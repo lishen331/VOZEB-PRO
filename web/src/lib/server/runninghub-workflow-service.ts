@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import { getFreshAuthSettings, setAuthSettings, type AuthSettings, type SystemModelChannel } from "@/lib/auth/store";
-import type { RunningHubWorkflowConfig, SystemChannelModelConfig } from "@/lib/auth/store-types";
+import type { RunningHubWorkflowConfig } from "@/lib/auth/store-types";
+import { deriveRunningHubPracticeRouting } from "@/lib/auth/runninghub-practice-routing";
 import { isRunningHubWorkflowBusinessCode, nextWorkflowVersion, normalizeRunningHubWorkflowConfig, validateRunningHubWorkflowConfig, workflowRequiresRetest } from "./runninghub-workflow-domain";
 import { analyzeRunningHubWorkflowJson, type RunningHubWorkflowDiscovery } from "./runninghub-workflow-discovery";
 import { fetchRunningHubWorkflowJson } from "./runninghub-provider";
@@ -217,7 +218,6 @@ export async function copyWorkflowVersion(workflowKey: string, input: { config?:
     const settings = await getFreshAuthSettings();
     const found = findWorkflow(settings, workflowKey);
     if (!found) throw new RunningHubWorkflowError("工作流不存在", 404);
-    if (input.activateVersion === true) throw new RunningHubWorkflowError("复制的新版本必须先提交样例测试后才能启用", 409);
     const rawOverrides = asRecord(input.config);
     const version = nextWorkflowVersion(
         workflowEntries(settings).map((entry) => entry.config),
@@ -230,7 +230,7 @@ export async function copyWorkflowVersion(workflowKey: string, input: { config?:
         ...rawOverrides,
         workflowKey: nextKey,
         version,
-        enabled: false,
+        enabled: input.activateVersion === true,
         providerType: "runninghub",
         channelId: found.channel.id,
         businessCode: found.config.businessCode,
@@ -271,7 +271,9 @@ export async function setWorkflowEnabled(workflowKey: string, enabled: boolean) 
         configs.filter((config) => config.workflowKey !== workflowKey),
     );
     const nextChannels = replaceWorkflow(settings, found.channel.id, configs);
-    const routing: Partial<Pick<AuthSettings, "systemChannels" | "logicalModels" | "practiceWorkflowModels">> = enabled ? ensurePracticeWorkflowRouting(settings, nextChannels, candidate) : {};
+    const routing: Partial<Pick<AuthSettings, "systemChannels" | "logicalModels" | "practiceWorkflowModels">> = enabled
+        ? deriveRunningHubPracticeRouting({ systemChannels: nextChannels, logicalModels: settings.logicalModels, practiceWorkflowModels: settings.practiceWorkflowModels })
+        : {};
     const saved = await setAuthSettings({
         systemChannels: routing.systemChannels || nextChannels,
         ...(routing.logicalModels ? { logicalModels: routing.logicalModels } : {}),
@@ -290,61 +292,6 @@ export async function deleteWorkflow(workflowKey: string) {
     await setAuthSettings({ systemChannels: replaceWorkflow(settings, found.channel.id, configs) });
 }
 
-function ensurePracticeWorkflowRouting(settings: AuthSettings, channels: SystemModelChannel[], workflow: RunningHubWorkflowConfig) {
-    const channel = channels.find((item) => item.id === workflow.channelId);
-    if (!channel) throw new RunningHubWorkflowError("工作流渠道不存在", 404);
-    const modelId = `runninghub-workflow-${workflow.capability}-${channel.id}`;
-    const bindingId = `${modelId}:${channel.id}`;
-    const enabledCapabilityWorkflows = workflowConfigs(channel).filter((item) => item.enabled && item.capability === workflow.capability && !workflowRequiresRetest(item));
-    const inputFields = enabledCapabilityWorkflows.flatMap((item) => item.inputSchema);
-    const capabilityProfile = {
-        supportsReferenceImage: inputFields.some((field) => field.type === "image" || field.type === "images"),
-        supportsReferenceVideo: inputFields.some((field) => field.type === "video"),
-        supportsReferenceAudio: inputFields.some((field) => field.type === "audio"),
-    };
-    const modelConfig: SystemChannelModelConfig = {
-        capability: workflow.capability,
-        source: "official",
-        protocol: "runninghub",
-        apiFormat: channel.apiFormat,
-        createPath: workflow.createPath,
-        queryPath: workflow.queryPath,
-        requestTemplate: workflow.requestTemplate,
-        taskIdField: workflow.taskIdField,
-        resultField: workflow.resultField,
-        statusField: workflow.statusField,
-        supportsReferenceImage: capabilityProfile.supportsReferenceImage,
-        supportsReferenceVideo: capabilityProfile.supportsReferenceVideo,
-        supportsReferenceAudio: capabilityProfile.supportsReferenceAudio,
-    };
-    const systemChannels = channels.map((item) =>
-        item.id === channel.id
-            ? {
-                  ...item,
-                  models: item.models.includes(modelId) ? item.models : [...item.models, modelId],
-                  advancedConfig: {
-                      ...item.advancedConfig!,
-                      modelCapabilities: { ...(item.advancedConfig?.modelCapabilities || {}), [modelId]: workflow.capability },
-                      modelConfigs: {
-                          ...(item.advancedConfig?.modelConfigs || {}),
-                          [modelId]: modelConfig,
-                      },
-                  },
-              }
-            : item,
-    );
-    const current = settings.logicalModels.find((item) => item.id === modelId);
-    const binding = { id: bindingId, channelId: channel.id, upstreamModel: modelId, enabled: true, priority: 1, capabilityProfile };
-    const logicalModel = current
-        ? { ...current, name: workflow.workflowName, capability: workflow.capability, enabled: true, bindings: [binding, ...current.bindings.filter((item) => item.id !== bindingId)] }
-        : { id: modelId, name: workflow.workflowName, capability: workflow.capability, enabled: true, bindings: [binding] };
-    const existingBindings = settings.practiceWorkflowModels[workflow.businessCode] || [];
-    return {
-        systemChannels,
-        logicalModels: [logicalModel, ...settings.logicalModels.filter((item) => item.id !== modelId)],
-        practiceWorkflowModels: { ...settings.practiceWorkflowModels, [workflow.businessCode]: [modelId, ...existingBindings.filter((item) => item !== modelId)] },
-    };
-}
 function workflowEntries(settings: AuthSettings) {
     return settings.systemChannels.flatMap((channel) => workflowConfigs(channel).map((config) => ({ channel, config })));
 }
@@ -407,9 +354,8 @@ function sameWorkflowIdentity(left: RunningHubWorkflowConfig, right: RunningHubW
     const rightCode = right.workflowCode?.trim();
     return leftCode && rightCode ? leftCode === rightCode : left.businessCode === right.businessCode;
 }
-function ensureEnableEvidence(candidate: RunningHubWorkflowConfig, legacyEnabled = false) {
-    if (legacyEnabled && !candidate.testRequired && !candidate.workflowJsonFingerprint && !candidate.lastTestConfigFingerprint) return;
-    if (workflowRequiresRetest(candidate) || (!candidate.workflowJsonFingerprint && !candidate.lastTestConfigFingerprint)) throw new RunningHubWorkflowError("启用前请先提交当前配置的成功样例测试", 409);
+function ensureEnableEvidence(_candidate: RunningHubWorkflowConfig, _legacyEnabled = false) {
+    // Testing is advisory: the enable action may proceed after the UI warning.
 }
 
 function publicWorkflow(config: RunningHubWorkflowConfig, channel: SystemModelChannel): PublicRunningHubWorkflow {
