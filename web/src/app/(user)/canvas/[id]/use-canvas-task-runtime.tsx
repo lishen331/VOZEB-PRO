@@ -276,6 +276,7 @@ export function useCanvasTaskRuntime({ state }: { state: CanvasPageState }) {
                           taskId: task.id,
                           images: uploaded.map((image) => ({ width: image.width, height: image.height, metadata: imageMetadata(image) })),
                           prompt,
+                          upstreamPrompt: result.upstreamPrompt,
                           model: generationConfig.model,
                           size: generationConfig.size,
                       })
@@ -284,6 +285,7 @@ export function useCanvasTaskRuntime({ state }: { state: CanvasPageState }) {
                           taskId: task.id,
                           images: uploaded.map((image) => ({ width: image.width, height: image.height, metadata: imageMetadata(image) })),
                           prompt,
+                          upstreamPrompt: result.upstreamPrompt,
                           model: generationConfig.model,
                           size: generationConfig.size,
                       }),
@@ -312,6 +314,7 @@ export function useCanvasTaskRuntime({ state }: { state: CanvasPageState }) {
                 projectId,
                 outputBackground: options?.outputBackground,
                 outputMode: options?.outputMode,
+                referenceRoles: nodesRef.current.find((node) => node.id === nodeId)?.metadata?.imageReferenceRoles,
                 layerBatch: options?.layerBatch,
                 ...createFreshGenerationTaskContext("canvas-image", [projectId, nodeId]),
             });

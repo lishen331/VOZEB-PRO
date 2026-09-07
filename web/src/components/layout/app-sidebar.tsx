@@ -6,25 +6,27 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { SiteLogo } from "@/components/layout/site-logo";
 import { navigationGroups, navigationToolsForContext, type NavigationToolSlug } from "@/constant/navigation-tools";
+import type { FeatureModuleSettings } from "@/lib/feature-modules";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 
-export function AppSidebar({ activeToolSlug, expanded, dramaWorkflowLabEnabled = false }: { activeToolSlug?: NavigationToolSlug; expanded: boolean; dramaWorkflowLabEnabled?: boolean }) {
+export function AppSidebar({ activeToolSlug, expanded, featureModules }: { activeToolSlug?: NavigationToolSlug; expanded: boolean; featureModules: FeatureModuleSettings }) {
     const pathname = usePathname();
     const router = useRouter();
     const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const siteTitle = resolveSiteTitle(site.title);
     const helpActive = pathname.startsWith("/help");
     const context = useSchoolContextStore((state) => state.context);
-    const tools = navigationToolsForContext(context, { includeDramaWorkflowLab: dramaWorkflowLabEnabled });
+    const tools = navigationToolsForContext(context, { featureModules });
+    const homePath = featureModules["creative-agent"] === false ? "/profile" : "/create";
     const schoolTools = tools.filter((tool) => tool.group === "school");
     const groups = schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups;
 
     return (
         <aside className={cn("hidden h-full shrink-0 flex-col border-r border-[#eaecf0] bg-white text-[#111827] transition-[width] duration-200 lg:flex dark:border-[#292d33] dark:bg-[#111316] dark:text-[#f3f5f7]", expanded ? "w-44" : "w-[72px]")}>
-            <Link href="/create" className={cn("flex h-16 shrink-0 items-center border-b border-[#eaecf0] px-3 dark:border-[#292d33]", expanded ? "justify-start px-5" : "justify-center")} aria-label={siteTitle}>
+            <Link href={homePath} className={cn("flex h-16 shrink-0 items-center border-b border-[#eaecf0] px-3 dark:border-[#292d33]", expanded ? "justify-start px-5" : "justify-center")} aria-label={siteTitle}>
                 <SiteLogo logoUrl={site.logoUrl} className="size-8" />
                 {expanded ? <span className="ml-3 min-w-0 truncate text-[15px] font-semibold">{siteTitle}</span> : null}
             </Link>
@@ -71,32 +73,34 @@ export function AppSidebar({ activeToolSlug, expanded, dramaWorkflowLabEnabled =
                 })}
             </nav>
 
-            <div className={cn("shrink-0 border-t border-[#eaecf0] dark:border-[#292d33]", expanded ? "px-3 pb-3 pt-3.5" : "p-2")}>
-                <Link
-                    href="/help"
-                    prefetch
-                    title="帮助"
-                    onMouseEnter={() => router.prefetch("/help")}
-                    onFocus={() => router.prefetch("/help")}
-                    className={cn(
-                        "relative flex min-h-[46px] items-center rounded-lg px-2 text-sm font-medium text-[#111827] transition-colors duration-150 hover:bg-[#f8f9fb] dark:text-[#c7cdd5] dark:hover:bg-[#20242a] dark:hover:text-[#f3f5f7]",
-                        expanded ? "justify-start gap-3 px-2" : "justify-center",
-                        helpActive && "bg-[#f0f2f4] text-[#1d2127] dark:bg-[#22262c] dark:text-[#f3f5f7]",
-                    )}
-                    aria-current={helpActive ? "page" : undefined}
-                >
-                    <CircleHelp className="size-[18px] shrink-0" />
-                    {expanded ? (
-                        <>
-                            <span className="min-w-0 flex-1">
-                                <span className="block truncate">帮助</span>
-                            </span>
-                            <ChevronRight className="size-4 shrink-0 text-[#7f8995]" />
-                        </>
-                    ) : null}
-                    {helpActive ? <span className="absolute right-0 h-4 w-0.5 rounded-full bg-[#5965ff]" /> : null}
-                </Link>
-            </div>
+            {featureModules["help-center"] !== false ? (
+                <div className={cn("shrink-0 border-t border-[#eaecf0] dark:border-[#292d33]", expanded ? "px-3 pb-3 pt-3.5" : "p-2")}>
+                    <Link
+                        href="/help"
+                        prefetch
+                        title="帮助"
+                        onMouseEnter={() => router.prefetch("/help")}
+                        onFocus={() => router.prefetch("/help")}
+                        className={cn(
+                            "relative flex min-h-[46px] items-center rounded-lg px-2 text-sm font-medium text-[#111827] transition-colors duration-150 hover:bg-[#f8f9fb] dark:text-[#c7cdd5] dark:hover:bg-[#20242a] dark:hover:text-[#f3f5f7]",
+                            expanded ? "justify-start gap-3 px-2" : "justify-center",
+                            helpActive && "bg-[#f0f2f4] text-[#1d2127] dark:bg-[#22262c] dark:text-[#f3f5f7]",
+                        )}
+                        aria-current={helpActive ? "page" : undefined}
+                    >
+                        <CircleHelp className="size-[18px] shrink-0" />
+                        {expanded ? (
+                            <>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate">帮助</span>
+                                </span>
+                                <ChevronRight className="size-4 shrink-0 text-[#7f8995]" />
+                            </>
+                        ) : null}
+                        {helpActive ? <span className="absolute right-0 h-4 w-0.5 rounded-full bg-[#5965ff]" /> : null}
+                    </Link>
+                </div>
+            ) : null}
         </aside>
     );
 }

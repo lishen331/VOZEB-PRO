@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { extractDramaLabTailFrame } from "@/lib/server/drama-lab-tail-frame-service";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     try {
+        await requireFeatureModuleEnabled("drama-lab");
         const { id, shotId } = await params;
         const search = new URL(request.url).searchParams;
         const episodeId = search.get("episodeId")?.trim() || "";
@@ -31,6 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 }
 
 function errorStatus(error: unknown) {
+    if (error instanceof FeatureModuleDisabledError) return 403;
     const status = error && typeof error === "object" && "status" in error ? Number((error as { status?: unknown }).status) : 500;
     return Number.isInteger(status) && status >= 400 && status < 600 ? status : 500;
 }

@@ -1,12 +1,14 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 import { getAuthSettings } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
-import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 import { appendDramaLabGenerationHistory, DramaLabShotGenerationError, persistDramaLabShotUpdate } from "@/lib/server/drama-lab-shot-generation-service";
 import { findShot } from "@/lib/server/drama-lab-shot-generation-service";
 import { isDramaShotFrameType, prepareDramaLabFrame } from "@/lib/server/drama-lab-frame-generation-service";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     try {
+        await requireFeatureModuleEnabled("drama-lab");
         const { id, shotId } = await params;
         const url = new URL(request.url);
         const episodeId = url.searchParams.get("episodeId")?.trim() || "";
@@ -89,7 +92,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         return NextResponse.json({ code: 0, data: { task: payload.task, frameType, templateKey: prepared.templateKey, prompt: prepared.prompt, description: prepared.description }, msg: "帧图任务已创建" });
     } catch (error) {
-        const status = error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabShotGenerationError || error instanceof DramaProjectStoreError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "帧图任务创建失败" }, { status });
     }
 }

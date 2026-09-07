@@ -11,6 +11,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { listDramaProjectSummaries } from "@/lib/server/drama-project-store";
 import { createDramaProjectForUser, DramaProjectServiceError } from "@/lib/server/drama-project-service";
 import { ensureDramaLabProjectGroup, listDramaLabProjectsForUser } from "@/lib/server/drama-lab-collaboration-service";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
     }
 
     try {
+        await requireFeatureModuleEnabled("drama-lab");
         const body = await readJsonBody<Record<string, unknown>>(request, 256 * 1024);
         const { title, summary, style, ratio } = body;
 
@@ -94,6 +96,7 @@ export async function POST(request: Request) {
         });
     } catch (error) {
         console.error("[drama-lab/projects] POST error:", error);
+        if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ code: 403, msg: error.message }, { status: 403 });
         if (error instanceof DramaProjectServiceError) return NextResponse.json({ code: error.status, msg: error.message }, { status: error.status });
         return NextResponse.json(
             {

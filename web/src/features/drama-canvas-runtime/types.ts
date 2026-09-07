@@ -107,6 +107,8 @@ export type CanvasNodeMetadata = {
     composerContent?: string;
     prompt?: string;
     sourcePrompt?: string;
+    upstreamPrompt?: string;
+    imageReferenceRoles?: Record<string, "original" | "identity" | "clothing" | "skin">;
     status?: CanvasNodeStatus;
     errorDetails?: string;
     fontSize?: number;

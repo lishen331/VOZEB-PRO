@@ -1,7 +1,7 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabTaskError, listDramaLabTasksForProject } from "@/lib/server/drama-lab-task-service";
 
 export const runtime = "nodejs";

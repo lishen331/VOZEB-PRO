@@ -1,7 +1,8 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { DramaLabProjectArchiveError, exportDramaLabProjectForUser } from "@/lib/server/drama-lab-project-archive";
 

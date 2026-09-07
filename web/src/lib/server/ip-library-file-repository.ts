@@ -94,6 +94,7 @@ export class FileIpLibraryRepository {
         return mutate(async (state) => {
             const packageIndex = state.packages.findIndex((item) => item.id === ipId);
             if (packageIndex < 0) return null;
+            if (state.grants.some((item) => item.ipId === ipId)) return "has-school-grants" as const;
             const files = state.files.filter((item) => item.ipId === ipId);
             state.cleanup.push(...files.map(cleanupFor));
             state.packages.splice(packageIndex, 1);

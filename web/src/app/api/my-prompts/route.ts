@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isAuthInputError } from "@/lib/auth/store";
 import { readJsonBody } from "@/lib/auth/request";
 import { createPrompt, listPrompts, type PromptInput } from "@/lib/prompts/store";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 
@@ -29,10 +30,12 @@ export async function POST(request: Request) {
     const currentUser = await getCurrentUser();
     if (!currentUser) return NextResponse.json({ error: "请先登录" }, { status: 401 });
     try {
+        await requireFeatureModuleEnabled("my-prompts");
         const body = await readJsonBody<PromptInput>(request);
         const prompt = await createPrompt("user", body, currentUser.id);
         return NextResponse.json({ prompt });
     } catch (error) {
+        if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ error: error.message }, { status: 403 });
         if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
         console.error("Create user prompt failed", error);
         return NextResponse.json({ error: "新增提示词失败" }, { status: 500 });

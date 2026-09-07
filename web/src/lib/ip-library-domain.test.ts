@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { IP_ASSET_KINDS, IP_AUTHORIZATION_MODES, IP_REFERENCE_ENTRY_VISIBLE, IP_STATUSES, IP_USAGE_ACTIONS, IP_VISIBILITIES, ipAuthorizationLabel, normalizeIpItemCategory, normalizeIpReference } from "./ip-library-domain";
+import { IP_ASSET_KINDS, IP_AUTHORIZATION_MODES, IP_REFERENCE_ENTRY_VISIBLE, IP_STATUSES, IP_USAGE_ACTIONS, IP_VISIBILITIES, ipAuthorizationLabel, ipItemCategoryLabel, normalizeIpItemCategory, normalizeIpReference } from "./ip-library-domain";
 
 describe("IP library domain contracts", () => {
     it("uses parent IP visibility, child grants, and enabled status without versions", () => {
@@ -23,5 +23,7 @@ describe("IP library domain contracts", () => {
         expect(IP_REFERENCE_ENTRY_VISIBLE).toBe(false);
         expect(IP_USAGE_ACTIONS).toContain("reference");
         expect(ipAuthorizationLabel("exclusive")).toBe("独家授权");
+        expect(ipItemCategoryLabel("story_summary")).toBe("故事梗概");
+        expect(ipItemCategoryLabel("background_music")).toBe("背景音乐");
     });
 });

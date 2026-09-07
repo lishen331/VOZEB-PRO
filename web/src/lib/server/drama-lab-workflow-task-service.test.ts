@@ -276,6 +276,25 @@ describe("drama lab workflow task service", () => {
         expect(result?.workflow.steps[0]).toMatchObject({ status: "error", error: "前置阶段尚未通过" });
     });
 
+    it("closes the synthetic storyboard child when extraction fails", async () => {
+        const task = workflowTask({
+            status: "running",
+            workflow: workflowState({ currentStepIndex: 0, steps: [step("storyboard", "running")] }),
+        });
+        mocks.tasks.set(`render:${task.id}`, task);
+        mocks.extractDramaLabStoryboards.mockRejectedValueOnce(new Error("upstream text channel rejected the request"));
+
+        const result = await advanceDramaLabWorkflow({ userId: "user-one", taskId: task.id });
+
+        expect(result).toMatchObject({ status: "error", error: "upstream text channel rejected the request" });
+        const child = result?.workflow.children.find((item) => item.key === "storyboard:episode-one");
+        expect(child).toMatchObject({ status: "error", error: "upstream text channel rejected the request" });
+        expect(mocks.tasks.get(`render:${child?.id}`)).toMatchObject({
+            status: "error",
+            workflowChild: expect.objectContaining({ status: "error", error: "upstream text channel rejected the request" }),
+        });
+    });
+
     it("aggregates an external child failure onto the parent step and task", async () => {
         const task = workflowTask({
             status: "running",

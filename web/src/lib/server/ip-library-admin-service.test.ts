@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
     getPublicUsersByIds: vi.fn(),
     getIpPackage: vi.fn(),
     getIpPackageBySlug: vi.fn(),
+    deleteIpPackage: vi.fn(),
     createIpPackage: vi.fn(),
     createIpSubIp: vi.fn(),
     createIpContentFile: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock("./ip-library-access-service", () => ({
     createIpLibraryRepository: () => ({
         getIpPackage: mocks.getIpPackage,
         getIpPackageBySlug: mocks.getIpPackageBySlug,
+        deleteIpPackage: mocks.deleteIpPackage,
         createIpPackage: mocks.createIpPackage,
         createIpSubIp: mocks.createIpSubIp,
         createIpContentFile: mocks.createIpContentFile,
@@ -45,7 +47,7 @@ vi.mock("./ip-library-access-service", () => ({
 vi.mock("./school-domain-repository", () => ({ createSchoolDomainRepository: () => ({ listSchoolsByIds: vi.fn() }) }));
 vi.mock("@/lib/server/ip-library-file-storage", () => ({ deleteStoredIpContentFile: mocks.deleteStoredIpContentFile, readIpContentFile: mocks.readIpContentFile, writeIpContentFile: mocks.writeIpContentFile }));
 
-import { createAdminIp, createAdminIpGrant, createAdminIpSubIp, updateAdminIpGrant, updateAdminIpSubIp, uploadAdminIpFile } from "./ip-library-admin-service";
+import { createAdminIp, createAdminIpGrant, createAdminIpSubIp, deleteAdminIp, updateAdminIpGrant, updateAdminIpSubIp, uploadAdminIpFile } from "./ip-library-admin-service";
 
 const now = "2026-09-07T00:00:00.000Z";
 const packageRecord = { id: "ip-one", title: "星海计划", slug: "star-sea", summary: "简介", visibility: "school" as const, status: "enabled" as const, createdByUserId: "content-admin", createdAt: now, updatedAt: now };
@@ -58,6 +60,7 @@ describe("IP library administration service", () => {
         mocks.getPublicUsersByIds.mockImplementation(async (ids: string[]) => ids.map((id) => ({ id, role: "admin", status: "active", adminPermissions: id === "education-admin" ? ["education.manage"] : ["content.manage"] })));
         mocks.getIpPackage.mockResolvedValue(packageRecord);
         mocks.getIpPackageBySlug.mockResolvedValue(null);
+        mocks.deleteIpPackage.mockResolvedValue([]);
         mocks.createIpPackage.mockImplementation(async (input) => ({ ...input, createdAt: now, updatedAt: now }));
         mocks.createIpSubIp.mockImplementation(async (_ipId, input) => ({ ...input, sortOrder: input.sortOrder ?? 0, createdAt: now, updatedAt: now, items: [] }));
         mocks.createIpContentFile.mockImplementation(async (input) => ({ ...input, createdAt: now, updatedAt: now }));
@@ -95,6 +98,13 @@ describe("IP library administration service", () => {
 
         mocks.getIpContentFile.mockResolvedValue(null);
         await expect(updateAdminIpSubIp("content-admin", "ip-one", "child-one", { title: "第一子 IP", coverFileId: "cover-one" })).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("does not delete an IP that has ever been granted to a school", async () => {
+        mocks.deleteIpPackage.mockResolvedValue("has-school-grants");
+
+        await expect(deleteAdminIp("content-admin", "ip-one")).rejects.toMatchObject({ status: 409, message: "IP 已授权给学校，无法删除；请先撤销全部学校授权" });
+        expect(mocks.listIpFileCleanupQueue).not.toHaveBeenCalled();
     });
 
     it("authorizes a school directly at child IP scope", async () => {

@@ -20,6 +20,7 @@ import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeLogicalModel, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
 import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,13 @@ export async function POST(request: Request) {
             body = await readJsonBody(request);
         } catch (error) {
             if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
+            throw error;
+        }
+        try {
+            const moduleId = featureModuleForGenerationContext(body.context);
+            if (moduleId) await requireFeatureModuleEnabled(moduleId);
+        } catch (error) {
+            if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ error: error.message }, { status: 403 });
             throw error;
         }
         const trustedPractice = isTrustedPracticeTaskRequest(request, user.id, body.context);

@@ -47,7 +47,7 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
     const outputCount = config.outputMode === "layers" ? undefined : 1;
     const values = {
         model: config.model,
-        prompt: withSystemPrompt(config, withImageOutputInstructions(config, task.prompt)),
+        prompt: task.upstreamPrompt || withSystemPrompt(config, withImageOutputInstructions(config, task.prompt)),
         size,
         ratio: imageRequestAspectRatio(config.size || "auto"),
         aspect_ratio: imageRequestAspectRatio(config.size || "auto"),

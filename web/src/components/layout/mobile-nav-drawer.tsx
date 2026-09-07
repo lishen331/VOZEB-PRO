@@ -8,6 +8,7 @@ import { useEffect, useRef } from "react";
 
 import { SiteLogo } from "@/components/layout/site-logo";
 import { navigationGroups, navigationToolsForContext, type NavigationToolSlug } from "@/constant/navigation-tools";
+import type { FeatureModuleSettings } from "@/lib/feature-modules";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
@@ -16,11 +17,11 @@ import { useSchoolContextStore } from "@/stores/use-school-context-store";
 type MobileNavDrawerProps = {
     open: boolean;
     activeToolSlug?: NavigationToolSlug;
-    dramaWorkflowLabEnabled?: boolean;
+    featureModules: FeatureModuleSettings;
     onClose: () => void;
 };
 
-export function MobileNavDrawer({ open, activeToolSlug, dramaWorkflowLabEnabled = false, onClose }: MobileNavDrawerProps) {
+export function MobileNavDrawer({ open, activeToolSlug, featureModules, onClose }: MobileNavDrawerProps) {
     const pathname = usePathname();
     const router = useRouter();
     const previousPathnameRef = useRef(pathname);
@@ -28,7 +29,8 @@ export function MobileNavDrawer({ open, activeToolSlug, dramaWorkflowLabEnabled 
     const siteTitle = resolveSiteTitle(site.title);
     const helpActive = pathname.startsWith("/help");
     const context = useSchoolContextStore((state) => state.context);
-    const tools = navigationToolsForContext(context, { includeDramaWorkflowLab: dramaWorkflowLabEnabled });
+    const tools = navigationToolsForContext(context, { featureModules });
+    const homePath = featureModules["creative-agent"] === false ? "/profile" : "/create";
     const schoolTools = tools.filter((tool) => tool.group === "school");
     const groups = schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups;
 
@@ -41,7 +43,7 @@ export function MobileNavDrawer({ open, activeToolSlug, dramaWorkflowLabEnabled 
     return (
         <Drawer
             title={
-                <Link href="/create" onClick={onClose} className="inline-flex min-w-0 items-center gap-2.5 text-base font-semibold leading-none text-[#20242a] dark:text-[#f3f5f7]">
+                <Link href={homePath} onClick={onClose} className="inline-flex min-w-0 items-center gap-2.5 text-base font-semibold leading-none text-[#20242a] dark:text-[#f3f5f7]">
                     <SiteLogo logoUrl={site.logoUrl} className="size-8" />
                     <span className="truncate">{siteTitle}</span>
                 </Link>
@@ -87,24 +89,26 @@ export function MobileNavDrawer({ open, activeToolSlug, dramaWorkflowLabEnabled 
                     </div>
                 </div>
             ))}
-            <div className="mt-5 border-t border-border pt-4">
-                <Link
-                    href="/help"
-                    prefetch
-                    onMouseEnter={() => router.prefetch("/help")}
-                    onFocus={() => router.prefetch("/help")}
-                    onClick={onClose}
-                    className={cn(
-                        "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition",
-                        helpActive ? "bg-[#f0f2f4] font-medium text-[#1d2127] dark:bg-[#22262c] dark:text-[#f3f5f7]" : "text-[#697381] hover:bg-[#f3f5f7] hover:text-[#20242a] dark:text-[#9aa3af] dark:hover:bg-[#20242a] dark:hover:text-[#f3f5f7]",
-                    )}
-                    aria-current={helpActive ? "page" : undefined}
-                >
-                    <CircleHelp className="size-[18px] shrink-0" />
-                    <span className="min-w-0 flex-1 truncate">帮助</span>
-                    <span className={cn("size-1.5 rounded-full", helpActive ? "bg-current" : "bg-transparent")} />
-                </Link>
-            </div>
+            {featureModules["help-center"] !== false ? (
+                <div className="mt-5 border-t border-border pt-4">
+                    <Link
+                        href="/help"
+                        prefetch
+                        onMouseEnter={() => router.prefetch("/help")}
+                        onFocus={() => router.prefetch("/help")}
+                        onClick={onClose}
+                        className={cn(
+                            "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition",
+                            helpActive ? "bg-[#f0f2f4] font-medium text-[#1d2127] dark:bg-[#22262c] dark:text-[#f3f5f7]" : "text-[#697381] hover:bg-[#f3f5f7] hover:text-[#20242a] dark:text-[#9aa3af] dark:hover:bg-[#20242a] dark:hover:text-[#f3f5f7]",
+                        )}
+                        aria-current={helpActive ? "page" : undefined}
+                    >
+                        <CircleHelp className="size-[18px] shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">帮助</span>
+                        <span className={cn("size-1.5 rounded-full", helpActive ? "bg-current" : "bg-transparent")} />
+                    </Link>
+                </div>
+            ) : null}
         </Drawer>
     );
 }

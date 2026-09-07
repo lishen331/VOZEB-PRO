@@ -6,6 +6,7 @@ import type { GlobalAiOpcPresetId } from "@/lib/globalaiopc-catalog";
 import type { RegistrationPolicyConsent } from "@/lib/registration-consent";
 import { VOZEB_QQ_GROUP_URL } from "@/constant/community";
 import type { SystemChannelPurpose } from "@/lib/practice-domain";
+import type { FeatureModuleSettings } from "@/lib/feature-modules";
 
 export type ApiCallFormat = "openai" | "gemini";
 export type SystemChannelProtocol = "auto" | "openai" | "yumeng" | "gemini" | "sub2api" | "newapi" | "vozeb-recommended" | "globalaiopc" | "seedance" | "stable-diffusion" | "volcengine-video" | "seedance-special" | "runninghub" | "custom" | "compatible";
@@ -592,6 +593,8 @@ export type AuthSettings = {
     practiceDefaultModels: SystemDefaultModels;
     practiceWorkflowModels: PracticeWorkflowModelBindings;
     agentSkills: AgentSkill[];
+    /** Global enablement for built-in user-facing modules. */
+    featureModules: FeatureModuleSettings;
 };
 
 export type AuthDatabase = {

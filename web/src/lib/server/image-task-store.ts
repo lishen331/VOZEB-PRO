@@ -57,13 +57,16 @@ export type ImageTask = GenerationTaskContext & {
     displayName: string;
     kind: ImageTaskKind;
     source: GenerationLogSource;
+    canvasDirect?: boolean;
     title?: string;
     status: ImageTaskStatus;
     createdAt: number;
     updatedAt: number;
     config: ImageTaskConfig;
     prompt: string;
+    upstreamPrompt?: string;
     references: ImageTaskReference[];
+    referenceRoles?: Record<string, "original" | "identity" | "clothing" | "skin">;
     mask?: ImageTaskReference;
     result?: StoredImageTaskMediaResult & { results?: StoredImageTaskMediaResult[] };
     upstream?: { id: string; mediaBaseUrl: string; pollBaseUrl: string; explicitPollUrl?: string };
@@ -111,6 +114,6 @@ export function touchImageTask(id: string) {
     return touchStoredGenerationTask("image", id, Date.now(), GENERATION_TASK_RETENTION_MS);
 }
 
-export async function updateImageTask(id: string, patch: Partial<Pick<ImageTask, "config" | "candidateConfigs" | "attempts" | "attemptNo" | "upstream" | "billing" | "result" | "retryable">>) {
+export async function updateImageTask(id: string, patch: Partial<Pick<ImageTask, "config" | "candidateConfigs" | "attempts" | "attemptNo" | "upstream" | "billing" | "result" | "retryable" | "upstreamPrompt">>) {
     return mutateStoredGenerationTask<ImageTask>("image", id, GENERATION_TASK_RETENTION_MS, (task) => ({ ...task, ...patch }));
 }

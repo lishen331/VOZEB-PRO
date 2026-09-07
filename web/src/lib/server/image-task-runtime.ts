@@ -18,6 +18,7 @@ import { getImageTask, transitionImageTask, updateImageTask, type ImageTask, typ
 import { maintenanceWorkerContext } from "@/lib/server/maintenance-auth";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
+import { buildImageTaskPrompt } from "@/lib/image-reference-prompt";
 
 export type ImageUpstreamStep =
     | { state: "pending"; upstream: NonNullable<ImageTask["upstream"]>; status: string }
@@ -41,7 +42,9 @@ export async function createImageTaskUpstreamStep(task: ImageTask, origin: strin
     const started = startGenerationAttempt(attempts, { channelId: config.channelId, model: generationModelId(config), capability: "image" });
     attempts = started.attempts;
     const candidate = { ...running, config, attempts, attemptNo: started.attempt.attemptNo, upstream: undefined, billing: undefined };
-    await updateImageTask(task.id, { config, attempts, attemptNo: candidate.attemptNo, upstream: undefined, billing: undefined });
+    const upstreamPrompt = candidate.source === "canvas" ? `${buildImageTaskPrompt(candidate)}${candidate.mask ? "\n\n最后一张图片是编辑蒙版：透明区域需要重新生成，白色不透明区域必须保持原图。只补全透明区域，不要把蒙版当作画面内容。" : ""}` : undefined;
+    if (upstreamPrompt) candidate.upstreamPrompt = upstreamPrompt;
+    await updateImageTask(task.id, { config, attempts, attemptNo: candidate.attemptNo, upstream: undefined, billing: undefined, ...(upstreamPrompt ? { upstreamPrompt } : {}) });
     const submissionStartedAt = Date.now();
     await scheduleGenerationTask("image", task.id, {
         executionPhase: "submitting",

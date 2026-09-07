@@ -1,11 +1,13 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { extractDramaLabAssets, isDramaLabAssetType, DramaLabAssetExtractionError } from "@/lib/server/drama-lab-asset-extraction-service";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 
@@ -14,6 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
 
     try {
+        await requireFeatureModuleEnabled("drama-lab");
         const { id } = await params;
         const body = await readJsonBody<Record<string, unknown>>(request, 128 * 1024);
         const episodeId = typeof body.episodeId === "string" ? body.episodeId.trim() : "";
@@ -36,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
         return NextResponse.json({ code: 0, data: result, msg: "资产提取完成" });
     } catch (error) {
-        const status = error instanceof DramaLabAssetExtractionError || error instanceof DramaLabCollaborationError ? error.status : 500;
+        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabAssetExtractionError || error instanceof DramaLabCollaborationError ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "资产提取失败" }, { status });
     }
 }

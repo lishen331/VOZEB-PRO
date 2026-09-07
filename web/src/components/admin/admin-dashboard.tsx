@@ -44,6 +44,7 @@ const loadCdkSection = () => import("./admin-cdk-section").then((module) => modu
 const loadReferralsSection = () => import("./admin-marketing-sections").then((module) => module.AdminReferralsSection);
 const loadChannelsSection = () => import("./admin-upstream-sections").then((module) => module.AdminChannelsSection);
 const loadSkillsSection = () => import("./admin-upstream-sections").then((module) => module.AdminSkillsSection);
+const loadPluginsSection = () => import("./admin-upstream-sections").then((module) => module.AdminPluginsSection);
 const loadAnnouncementsSection = () => import("./admin-content-sections").then((module) => module.AdminAnnouncementsSection);
 const loadPromptsSection = () => import("./admin-content-sections").then((module) => module.AdminPromptsSection);
 const loadDramaProjectsSection = () => import("@/app/admin/drama-projects/page").then((module) => ({ default: module.default }));
@@ -88,6 +89,7 @@ const sectionLoaders: Partial<Record<AdminSectionKey, () => Promise<unknown>>> =
     referrals: loadReferralsSection,
     channels: loadChannelsSection,
     skills: loadSkillsSection,
+    plugins: loadPluginsSection,
     announcements: loadAnnouncementsSection,
     prompts: loadPromptsSection,
     dramaProjects: loadDramaProjectsSection,
@@ -122,6 +124,7 @@ const AdminPaymentsSection = dynamic(loadPaymentsSection, { loading: AdminSectio
 const AdminCdkSection = dynamic(loadCdkSection, { loading: AdminSectionLoading });
 const AdminChannelsSection = dynamic(loadChannelsSection, { loading: AdminSectionLoading });
 const AdminSkillsSection = dynamic(loadSkillsSection, { loading: AdminSectionLoading });
+const AdminPluginsSection = dynamic(loadPluginsSection, { loading: AdminSectionLoading });
 const AdminAnnouncementsSection = dynamic(loadAnnouncementsSection, { loading: AdminSectionLoading });
 const AdminPromptsSection = dynamic(loadPromptsSection, { loading: AdminSectionLoading });
 const AdminWorksSection = dynamic(loadWorksSection, { loading: AdminSectionLoading });
@@ -291,6 +294,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                     {activeSection === "updates" ? <AdminUpdatesSection controller={controller} /> : null}
                     {activeSection === "channels" ? <AdminChannelsSection controller={controller} /> : null}
                     {activeSection === "skills" ? <AdminSkillsSection controller={controller} /> : null}
+                    {activeSection === "plugins" ? <AdminPluginsSection controller={controller} /> : null}
                     {activeSection === "cdk" ? <AdminCdkSection controller={controller} /> : null}
                     {activeSection === "announcements" ? <AdminAnnouncementsSection controller={controller} /> : null}
                     {activeSection === "works" ? <AdminWorksSection /> : null}

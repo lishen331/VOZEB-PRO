@@ -1,7 +1,8 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabAudioError, assertAudioTaskBinding, syncDramaLabAudioTask } from "@/lib/server/drama-lab-audio-service";
 import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 

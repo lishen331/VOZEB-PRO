@@ -6,6 +6,7 @@ import { decodeDramaNovelBytes } from "@/lib/drama-novel-text-decoder";
 import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabNovelImportError, importDramaLabNovelForUser } from "@/lib/server/drama-lab-novel-import-service";
 import { readRequestBodyBytes, RequestBodyTooLargeError } from "@/lib/server/request-body-limit";
+import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
 
     try {
+        await requireFeatureModuleEnabled("drama-lab");
         const { id } = await params;
         const { ownerUserId } = await resolveDramaLabProjectForRequest(user.id, id);
         const input = await readNovelImportRequest(request);
@@ -33,6 +35,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const result = await importDramaLabNovelForUser({ userId: ownerUserId, projectId: id, sourceText, fileName, targetCharacters, commit });
         return NextResponse.json({ code: 0, data: result, msg: result.committed ? "小说已导入" : "小说解析完成，请确认导入" });
     } catch (error) {
+        if (error instanceof FeatureModuleDisabledError) return NextResponse.json({ code: 403, data: null, msg: error.message }, { status: 403 });
         if (error instanceof DramaLabNovelImportError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
         const status = error instanceof Error && "status" in error && typeof error.status === "number" ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "小说导入失败" }, { status });

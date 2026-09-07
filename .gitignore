@@ -13,6 +13,9 @@ node_modules/
 playwright-report/
 .tmp/
 web/.tmp/
+/.next.verify-plugin-market-*/
+web/.next.verify-plugin-market-*/
+web/node_modules.broken-*/
 .tmp_*.txt
 data/
 *.log
@@ -80,4 +83,6 @@ scripts/capture-readme-screenshots.mjs
 /*-success.yaml
 /tmp-*.png
 /tmp-*.txt
+/canvas-reference-role-*.png
+/login.yml
 /tests/setup-playwright.sh

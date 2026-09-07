@@ -121,6 +121,7 @@ export function serializePublicSettings(settings: AuthSettings) {
         },
         registrationEnabled: settings.registrationEnabled,
         emailRegistrationEnabled: settings.emailRegistrationEnabled,
+        featureModules: { ...settings.featureModules },
         modelPointCosts: { ...settings.modelPointCosts },
         generationPointMultipliers: {
             imageQuality: { ...settings.generationPointMultipliers.imageQuality },

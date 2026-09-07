@@ -17,6 +17,7 @@ export function applyCanvasImageTaskResults(
         taskId: string;
         images: CompletedCanvasImage[];
         prompt?: string;
+        upstreamPrompt?: string;
         model: string;
         size?: string;
     },
@@ -55,6 +56,7 @@ export function applyCanvasImageTaskResults(
                     ...image.metadata,
                     ...(isPanorama ? { size: PANORAMA_IMAGE_SIZE, panoramaProjection: "equirectangular" as const } : { size: input.size }),
                     prompt: input.prompt || target.metadata?.prompt,
+                    upstreamPrompt: input.upstreamPrompt || target.metadata?.upstreamPrompt,
                     model: input.model,
                     batchRootId,
                     imageTask: undefined,
@@ -70,7 +72,7 @@ export function applyCanvasImageTaskResults(
     return next;
 }
 
-export function applyCanvasImageLayerTaskResults(nodes: CanvasNodeData[], input: { nodeId: string; taskId: string; images: CompletedCanvasImage[]; prompt?: string; model: string; size?: string }) {
+export function applyCanvasImageLayerTaskResults(nodes: CanvasNodeData[], input: { nodeId: string; taskId: string; images: CompletedCanvasImage[]; prompt?: string; upstreamPrompt?: string; model: string; size?: string }) {
     const target = nodes.find((node) => node.id === input.nodeId);
     if (!target || !input.images.length) return nodes;
     let next = nodes;
@@ -95,6 +97,7 @@ export function applyCanvasImageLayerTaskResults(nodes: CanvasNodeData[], input:
                 ...generatedSiblingMetadata(base.metadata),
                 ...image.metadata,
                 prompt: input.prompt || target.metadata?.prompt,
+                upstreamPrompt: input.upstreamPrompt || target.metadata?.upstreamPrompt,
                 model: input.model,
                 size: input.size || target.metadata?.size,
                 generationType: "edit",
@@ -116,7 +119,7 @@ export function canvasImageLayerResultNodeId(targetNodeId: string, taskId: strin
     return resultIndex === 0 ? targetNodeId : `image-layer-${taskId}-${resultIndex + 1}`;
 }
 
-function completedImageNode(node: CanvasNodeData, image: CompletedCanvasImage, input: { nodeId: string; prompt?: string; model: string; size?: string }, updateBatchRoot: boolean) {
+function completedImageNode(node: CanvasNodeData, image: CompletedCanvasImage, input: { nodeId: string; prompt?: string; upstreamPrompt?: string; model: string; size?: string }, updateBatchRoot: boolean) {
     const isPanorama = node.type === CanvasNodeType.Panorama;
     const imageSize = isPanorama ? NODE_DEFAULT_SIZE[CanvasNodeType.Panorama] : fitNodeSize(image.width, image.height, node.width || NODE_DEFAULT_SIZE[CanvasNodeType.Image].width, node.height || NODE_DEFAULT_SIZE[CanvasNodeType.Image].height);
     const center = { x: node.position.x + node.width / 2, y: node.position.y + node.height / 2 };
@@ -130,6 +133,7 @@ function completedImageNode(node: CanvasNodeData, image: CompletedCanvasImage, i
             ...image.metadata,
             ...(isPanorama ? { size: PANORAMA_IMAGE_SIZE, panoramaProjection: "equirectangular" as const } : { size: input.size || node.metadata?.size }),
             prompt: input.prompt || node.metadata?.prompt,
+            upstreamPrompt: input.upstreamPrompt || node.metadata?.upstreamPrompt,
             model: input.model,
             imageTask: undefined,
             primaryImageId: updateBatchRoot ? input.nodeId : node.metadata?.primaryImageId,

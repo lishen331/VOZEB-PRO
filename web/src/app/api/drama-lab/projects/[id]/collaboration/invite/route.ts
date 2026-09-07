@@ -1,8 +1,9 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { createDramaLabInvite, DramaLabCollaborationError, listDramaLabInvites, revokeDramaLabInvite, rotateDramaLabInvite } from "@/lib/server/drama-lab-collaboration-service";
+import { createDramaLabInvite, listDramaLabInvites, revokeDramaLabInvite, rotateDramaLabInvite } from "@/lib/server/drama-lab-collaboration-service";
 import { resolvePublicRequestOrigin } from "@/lib/server/public-request-origin";
 
 export const dynamic = "force-dynamic";

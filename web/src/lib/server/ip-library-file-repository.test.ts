@@ -71,6 +71,20 @@ describe("file IP library repository", () => {
         await expect(repository.listIpPackages()).resolves.toMatchObject({ total: 0 });
     });
 
+    it("does not delete an IP that has a current or historical school grant", async () => {
+        const repository = createFileIpLibraryRepository();
+        await repository.createIpPackage(packageInput("granted-ip", "school"));
+        await repository.createIpSubIp("granted-ip", childInput("granted-child", "granted-ip"));
+        await repository.createIpContentFile(fileInput("granted-file", "granted-ip", "granted-child"));
+        await repository.createSchoolGrant({ id: "revoked-grant", ipId: "granted-ip", subIpId: "granted-child", schoolId: "school-a", mode: "multi_school", status: "revoked", startsAt: now, note: "历史授权", createdByUserId: "admin" });
+
+        await expect(repository.deleteIpPackage("granted-ip")).resolves.toBe("has-school-grants");
+        await expect(repository.getIpDetail("granted-ip")).resolves.toMatchObject({ id: "granted-ip", subIps: [{ id: "granted-child" }] });
+        await expect(repository.listIpContentFiles("granted-ip", "granted-child")).resolves.toMatchObject([{ id: "granted-file" }]);
+        await expect(repository.listSchoolGrants({ ipId: "granted-ip" })).resolves.toMatchObject({ total: 1 });
+        await expect(repository.listIpFileCleanupQueue()).resolves.toEqual([]);
+    });
+
     it("keeps the final child even when deletion reaches the repository lock", async () => {
         const repository = createFileIpLibraryRepository();
         await repository.createIpPackage(packageInput("single-child-ip", "public"));
