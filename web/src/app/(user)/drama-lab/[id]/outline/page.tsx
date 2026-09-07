@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import { use, useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
 import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, List, Spin, Upload as AntUpload, Steps, Table } from "antd";
-import { ArrowLeft, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig } from "lucide-react";
+import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
@@ -181,6 +181,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const [libraryKeyword, setLibraryKeyword] = useState("");
     const [libraryLoading, setLibraryLoading] = useState(false);
     const [resourceImporting, setResourceImporting] = useState(false);
+    const selectedStyleOption = STYLE_GROUPS.flatMap((group) => group.options).find((option) => option.value === selectedStyle || option.label === selectedStyle);
 
     // 加载项目
     const loadProject = useCallback(async () => {
@@ -539,10 +540,18 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                 <Input placeholder="剧集标题" />
                             </Form.Item>
                             <Form.Item label="图片/视频风格">
-                                <Button className="w-full justify-between" onClick={() => setStylePickerOpen(true)}>
-                                    <span>{selectedStyle || "选择生成风格"}</span>
-                                    <span className="text-muted-foreground">⌄</span>
-                                </Button>
+                                <button
+                                    type="button"
+                                    aria-label="选择图片或视频风格"
+                                    className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-2 text-left text-sm shadow-xs transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    onClick={() => setStylePickerOpen(true)}
+                                >
+                                    <span className="grid size-6 shrink-0 overflow-hidden rounded-sm bg-muted">
+                                        {selectedStyleOption?.thumb ? <img src={selectedStyleOption.thumb} alt="" className="size-full object-cover" /> : <span className="size-full bg-gradient-to-br from-violet-300 via-primary/60 to-slate-700" />}
+                                    </span>
+                                    <span className={selectedStyle ? "min-w-0 flex-1 truncate text-foreground" : "min-w-0 flex-1 truncate text-muted-foreground"}>{selectedStyleOption?.label || selectedStyle || "选择生成风格"}</span>
+                                    <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" aria-hidden />
+                                </button>
                             </Form.Item>
                             <Form.Item label="画面比例" name="aspectRatio">
                                 <Select>
