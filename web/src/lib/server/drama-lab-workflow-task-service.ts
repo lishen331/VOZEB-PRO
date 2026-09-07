@@ -343,7 +343,11 @@ async function executeStoryboardStep(task: DramaLabWorkflowTask, step: DramaLabW
             userId: input.userId,
             origin: input.origin || "",
             cookie: input.cookie || "",
-            requestId: `${task.id}:storyboard:${episodeId}`,
+            // A resumed extraction includes the already persisted shots in its
+            // continuation prompt. Keep duplicate delivery of one attempt
+            // idempotent, but give each resumed attempt its own billing
+            // identity so its changed prompt is not rejected as a conflict.
+            requestId: `${task.id}:storyboard:${episodeId}:attempt:${step.attempts}`,
             project,
             episodeId,
             resumeShots: project.episodes.find((item) => item.id === episodeId)?.shots || [],

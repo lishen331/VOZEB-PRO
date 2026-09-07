@@ -295,6 +295,21 @@ describe("drama lab workflow task service", () => {
         });
     });
 
+    it("uses a new storyboard request identity when a failed extraction resumes", async () => {
+        const storyboard = step("storyboard", "error");
+        storyboard.attempts = 1;
+        const task = workflowTask({
+            status: "error",
+            workflow: workflowState({ currentStepIndex: 0, steps: [storyboard] }),
+        });
+        mocks.tasks.set(`render:${task.id}`, task);
+
+        const resumed = await resumeDramaLabWorkflow(task as never, "user-one");
+        await advanceDramaLabWorkflow({ userId: "user-one", taskId: resumed!.id });
+
+        expect(mocks.extractDramaLabStoryboards).toHaveBeenCalledWith(expect.objectContaining({ requestId: `${task.id}:storyboard:episode-one:attempt:2` }));
+    });
+
     it("aggregates an external child failure onto the parent step and task", async () => {
         const task = workflowTask({
             status: "running",
