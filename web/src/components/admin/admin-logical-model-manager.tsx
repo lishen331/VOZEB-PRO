@@ -5,6 +5,7 @@ import { AlertTriangle, GitBranch, Pencil, RefreshCw, Route, Search } from "luci
 import { useDeferredValue, useMemo, useState } from "react";
 
 import { LabeledControl, SectionTitle } from "@/components/admin/admin-settings-controls";
+import { AdminModelConnectionTest } from "@/components/admin/admin-model-connection-test";
 import type { LogicalModel, LogicalModelBinding, LogicalModelCapability, LogicalModelCapabilityProfile, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
 import type { PracticeWorkflowModelBindings, RunningHubWorkflowBusinessCode } from "@/lib/auth/store-types";
 import { capabilityLabel, isLogicalModelResolvable, logicalModelSupportsImageInput, normalizeDefaultModelsConfig, resolveLogicalModelConfig, resolveVisionModelConfig, synchronizeLogicalModelsWithChannels } from "@/lib/model-routing-config";
@@ -172,9 +173,12 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                                             <span className={resolved ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>{resolved ? `${resolved.channel.name} / ${resolved.binding.upstreamModel}` : "当前无可用渠道"}</span>
                                         </div>
                                     </div>
+                                    <Space className="shrink-0">
+                                        <AdminModelConnectionTest targets={[{ logicalModelId: model.id, capability: model.capability }]} />
                                     <Button className="shrink-0" size="small" icon={<Pencil className="size-3.5" />} onClick={() => openEdit(model)}>
                                         路由设置
                                     </Button>
+                                    </Space>
                                 </div>
                             );
                         })}
@@ -185,6 +189,15 @@ export function AdminLogicalModelManager({ channels, logicalModels, defaultModel
                 <div className="rounded-lg border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <SectionTitle icon={<GitBranch className="size-4" />} title="默认模型" />
+                        <AdminModelConnectionTest
+                            targets={Object.entries(defaultModels).flatMap(([key, value]) => {
+                                if (!value) return [];
+                                const capability = key === "imageModel" ? "image" : key === "videoModel" ? "video" : key === "audioModel" ? "audio" : "text";
+                                return [{ logicalModelId: value, capability: capability as LogicalModelCapability }];
+                            })}
+                            label="连接测试"
+                            title="当前正式默认模型连接测试"
+                        />
                         <Segmented
                             value={defaultPool}
                             options={[
