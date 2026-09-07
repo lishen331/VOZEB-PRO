@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { use, useState, useEffect, useCallback, type ChangeEvent, type MouseEvent } from "react";
+import { use, useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
 import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, List, Spin, Upload as AntUpload, Steps, Table } from "antd";
 import { ArrowLeft, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig } from "lucide-react";
 import Link from "next/link";
@@ -161,6 +161,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [form] = Form.useForm();
+    const autoSaveTimerRef = useRef<number | undefined>(undefined);
     const [activeTab, setActiveTab] = useState("characters");
     const [batchImportOpen, setBatchImportOpen] = useState(false);
     const [batchImportText, setBatchImportText] = useState("");
@@ -358,7 +359,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     });
 
     // 保存项目信息
-    const saveProjectInfo = async () => {
+    const saveProjectInfo = async (silent = false) => {
         if (!project) return;
 
         setSaving(true);
@@ -392,13 +393,28 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 aspectRatio: values.aspectRatio,
             });
 
-            message.success("保存成功");
+            if (!silent) message.success("保存成功");
         } catch (err) {
             message.error(err instanceof Error ? err.message : "保存失败");
         } finally {
             setSaving(false);
         }
     };
+
+    const scheduleProjectSettingsSave = () => {
+        if (autoSaveTimerRef.current !== undefined) window.clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = window.setTimeout(() => {
+            autoSaveTimerRef.current = undefined;
+            void saveProjectInfo(true);
+        }, 700);
+    };
+
+    useEffect(
+        () => () => {
+            if (autoSaveTimerRef.current !== undefined) window.clearTimeout(autoSaveTimerRef.current);
+        },
+        [],
+    );
 
     // 添加分集
     const handleAddEpisode = async () => {
@@ -507,16 +523,9 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                         <span className="text-muted-foreground">›</span>
                         <h1 className="text-lg font-semibold">{project.title}</h1>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-2">
-                            <Button type="primary" icon={<Play className="size-4" />} onClick={() => project.episodes[0] && goToCreate(project.episodes[0].id)} disabled={!project.episodes.length}>
-                                进入制作
-                            </Button>
-                            <Button onClick={saveProjectInfo} loading={saving}>
-                                保存设置
-                            </Button>
-                        </div>
-                    </div>
+                    <Button type="primary" icon={<Play className="size-4" />} onClick={() => project.episodes[0] && goToCreate(project.episodes[0].id)} disabled={!project.episodes.length}>
+                        进入制作
+                    </Button>
                 </div>
             </header>
 
@@ -524,10 +533,16 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
             <main className="mx-auto max-w-7xl space-y-6 p-6">
                 {/* 剧集信息 */}
                 <Card title="剧集信息">
-                    <Form form={form} layout="vertical">
-                        <div className="grid grid-cols-2 gap-4">
+                    <Form form={form} layout="vertical" onValuesChange={scheduleProjectSettingsSave}>
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
                             <Form.Item label="标题" name="title" rules={[{ required: true }]}>
                                 <Input placeholder="剧集标题" />
+                            </Form.Item>
+                            <Form.Item label="图片/视频风格">
+                                <Button className="w-full justify-between" onClick={() => setStylePickerOpen(true)}>
+                                    <span>{selectedStyle || "选择生成风格"}</span>
+                                    <span className="text-muted-foreground">⌄</span>
+                                </Button>
                             </Form.Item>
                             <Form.Item label="画面比例" name="aspectRatio">
                                 <Select>
@@ -540,15 +555,10 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                 </Select>
                             </Form.Item>
                         </div>
-                        <Form.Item label="图片/视频风格">
-                            <Button className="w-full justify-between" onClick={() => setStylePickerOpen(true)}>
-                                <span>{selectedStyle || "选择生成风格"}</span>
-                                <span className="text-muted-foreground">⌄</span>
-                            </Button>
-                        </Form.Item>
                         <Form.Item label="故事梗概" name="description">
                             <TextArea rows={3} placeholder="一句话描述故事梗概" />
                         </Form.Item>
+                        <p className="-mt-2 text-xs text-muted-foreground">设置会在停止输入后自动保存。</p>
                     </Form>
                 </Card>
 
@@ -857,6 +867,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                             onChange={(event: ChangeEvent<HTMLInputElement>) => {
                                 form.setFieldValue("style", event.target.value);
                                 setSelectedStyle(event.target.value);
+                                scheduleProjectSettingsSave();
                             }}
                         />
                     </section>
