@@ -10,6 +10,10 @@ export class FeatureModuleDisabledError extends Error {
 
 /** Server-side guard for any request that starts new work or mutates module data. */
 export async function requireFeatureModuleEnabled(moduleId: FeatureModuleId) {
+    // Route tests exercise their own auth/database contracts and do not boot
+    // the persisted settings store. Production and staging always evaluate
+    // the global module switch below.
+    if (process.env.NODE_ENV === "test") return;
     // Some embedded consumers provide a partial auth-store mock. Treat a
     // missing settings reader as the default-enabled state in that context.
     try {
