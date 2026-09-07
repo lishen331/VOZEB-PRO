@@ -28,9 +28,9 @@ import { IpContentUpload } from "./ip-content-upload";
 
 const PAGE_SIZE = 12;
 type AdminIp = IpPackageRecord & { subIpCount: number };
-type IpForm = { title: string; slug: string; summary?: string; visibility: IpVisibility; coverFileId?: string };
+type IpForm = { title: string; summary?: string; visibility: IpVisibility; coverFileId?: string };
 type SubIpItemForm = { kind: IpAssetKind; category: IpItemCategory; title: string; summary?: string; fileId: string; sortOrder?: number };
-type SubIpForm = { title: string; summary?: string; coverFileId?: string; tags?: string[]; sourceNote?: string; sortOrder?: number; items: SubIpItemForm[] };
+type SubIpForm = { title: string; summary?: string; coverFileId?: string; tags?: string[]; sortOrder?: number; items: SubIpItemForm[] };
 type GrantForm = { subIpIds: string[]; schoolIds: string[]; mode: IpAuthorizationMode; startsAt: string; endsAt?: string; note?: string };
 type GrantPatchForm = { status: IpSchoolGrantStatus; endsAt?: string; note?: string };
 type DetailTab = "content" | "grants" | "usage";
@@ -131,7 +131,7 @@ function IpList({ canManageContent, canManageEducation, onOpen }: { canManageCon
             render: (_, item) => (
                 <div className="min-w-0 text-left">
                     <div className="truncate font-medium text-zinc-900 dark:text-zinc-100">{item.title}</div>
-                    <div className="mt-1 max-w-[34rem] truncate text-xs text-zinc-500">{item.summary || item.slug}</div>
+                    <div className="mt-1 max-w-[34rem] truncate text-xs text-zinc-500">{item.summary || "暂无简介"}</div>
                 </div>
             ),
         },
@@ -188,7 +188,7 @@ function IpList({ canManageContent, canManageEducation, onOpen }: { canManageCon
             <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_130px_auto]">
                 <Input.Search
                     allowClear
-                    placeholder="搜索名称、简介或标识"
+                    placeholder="搜索名称或简介"
                     value={keyword}
                     onChange={(event) => {
                         setPage(1);
@@ -226,9 +226,6 @@ function IpList({ canManageContent, canManageEducation, onOpen }: { canManageCon
                 <Form form={form} layout="vertical">
                     <Form.Item name="title" label="IP 名称" rules={[{ required: true, message: "请填写 IP 名称" }]}>
                         <Input autoFocus />
-                    </Form.Item>
-                    <Form.Item name="slug" label="IP 标识" rules={[{ required: true, message: "请填写 IP 标识" }]}>
-                        <Input placeholder="例如 star-sea" />
                     </Form.Item>
                     <Form.Item name="visibility" label="可见范围" rules={[{ required: true }]}>
                         <Select options={IP_VISIBILITIES.map((value) => ({ value, label: value === "school" ? "本校 IP" : "公共 IP" }))} />
@@ -283,7 +280,7 @@ function IpDetailEditor({
         }
     }, [detail.id, message, onReload]);
     useEffect(() => {
-        ipForm.setFieldsValue({ title: detail.title, slug: detail.slug, summary: detail.summary, visibility: detail.visibility, coverFileId: detail.coverFileId });
+        ipForm.setFieldsValue({ title: detail.title, summary: detail.summary, visibility: detail.visibility, coverFileId: detail.coverFileId });
     }, [detail, ipForm]);
     useEffect(() => {
         let active = true;
@@ -297,7 +294,7 @@ function IpDetailEditor({
     }, [detail.id, message]);
     useEffect(() => {
         if (!selected) return;
-        subForm.setFieldsValue({ title: selected.title, summary: selected.summary, coverFileId: selected.coverFileId, tags: selected.tags, sourceNote: selected.sourceNote, sortOrder: selected.sortOrder, items: selected.items.map(itemForm) });
+        subForm.setFieldsValue({ title: selected.title, summary: selected.summary, coverFileId: selected.coverFileId, tags: selected.tags, sortOrder: selected.sortOrder, items: selected.items.map(itemForm) });
         setFiles([]);
         setLoadingFiles(true);
         void adminIpLibraryApi
@@ -320,13 +317,14 @@ function IpDetailEditor({
         (fileId: string) => {
             setFiles((current) => current.filter((file) => file.id !== fileId));
             setIpCoverFiles((current) => current.filter((file) => file.id !== fileId));
+            if (ipForm.getFieldValue("coverFileId") === fileId) ipForm.setFieldValue("coverFileId", undefined);
             if (subForm.getFieldValue("coverFileId") === fileId) subForm.setFieldValue("coverFileId", undefined);
             const items = subForm.getFieldValue("items") as SubIpItemForm[] | undefined;
             items?.forEach((item, index) => {
                 if (item?.fileId === fileId) subForm.setFieldValue(["items", index, "fileId"], undefined);
             });
         },
-        [subForm],
+        [ipForm, subForm],
     );
     const saveIp = async () => {
         try {
@@ -356,7 +354,7 @@ function IpDetailEditor({
     const addSubIp = async () => {
         const name = `子 IP ${detail.subIps.length + 1}`;
         try {
-            const subIp = await adminIpLibraryApi.createSubIp(detail.id, { title: name, summary: "", tags: [], sourceNote: "" });
+            const subIp = await adminIpLibraryApi.createSubIp(detail.id, { title: name, summary: "", tags: [] });
             setSelectedSubIpId(subIp.id);
             message.success("子 IP 已添加");
             await reload();
@@ -500,9 +498,6 @@ function IpDetailEditor({
                         <Form.Item name="title" label="IP 名称" rules={[{ required: true }]}>
                             <Input disabled={!canManageContent} />
                         </Form.Item>
-                        <Form.Item name="slug" label="IP 标识" rules={[{ required: true }]}>
-                            <Input disabled={!canManageContent} />
-                        </Form.Item>
                         <Form.Item name="visibility" label="可见范围">
                             <Select disabled={!canManageContent} options={IP_VISIBILITIES.map((value) => ({ value, label: value === "school" ? "本校 IP" : "公共 IP" }))} />
                         </Form.Item>
@@ -519,7 +514,7 @@ function IpDetailEditor({
                     </Form.Item>
                     {detail.subIps[0] ? (
                         <Form.Item name="coverFileId" label="IP 封面" className="!mb-0 mt-4">
-                            <IpContentUpload ipId={detail.id} subIpId={detail.subIps[0].id} kind="image" files={ipCoverFiles} disabled={!canManageContent} onUploaded={addIpCoverFile} onDeleted={removeFile} />
+                            <IpContentUpload variant="cover" ipId={detail.id} subIpId={detail.subIps[0].id} kind="image" files={ipCoverFiles} disabled={!canManageContent} onUploaded={addIpCoverFile} onDeleted={removeFile} />
                         </Form.Item>
                     ) : (
                         <p className="mt-4 text-sm text-zinc-500">暂无子 IP，无法上传 IP 封面。</p>
@@ -600,11 +595,7 @@ function SubIpEditor({
                     <h3 className="truncate text-base font-semibold">{subIp.title}</h3>
                     <p className="mt-1 text-xs text-zinc-500">编辑完成点击保存，即刻更新此子 IP 内容。</p>
                 </div>
-                {!disabled ? (
-                    <Button type="primary" icon={<Save className="size-4" />} loading={saving} onClick={() => void onSave()}>
-                        保存子 IP
-                    </Button>
-                ) : null}
+                <span className="text-xs text-zinc-500">修改后在详细内容末尾保存</span>
             </div>
             <div className="mt-4 grid gap-x-4 sm:grid-cols-2">
                 <Form.Item name="title" label="子 IP 名称" rules={[{ required: true }]}>
@@ -616,11 +607,8 @@ function SubIpEditor({
                 <Form.Item name="summary" label="简介">
                     <Input.TextArea disabled={disabled} autoSize={{ minRows: 2, maxRows: 4 }} />
                 </Form.Item>
-                <Form.Item name="sourceNote" label="来源说明">
-                    <Input.TextArea disabled={disabled} autoSize={{ minRows: 2, maxRows: 4 }} />
-                </Form.Item>
                 <Form.Item name="coverFileId" label="封面">
-                    <IpContentUpload ipId={ipId} subIpId={subIp.id} kind="image" files={files} disabled={disabled || loadingFiles} onUploaded={onFileUploaded} onDeleted={onFileDeleted} />
+                    <IpContentUpload variant="cover" ipId={ipId} subIpId={subIp.id} kind="image" files={files} disabled={disabled || loadingFiles} onUploaded={onFileUploaded} onDeleted={onFileDeleted} />
                 </Form.Item>
             </div>
             <Form.List name="items">
@@ -681,6 +669,11 @@ function SubIpEditor({
                                 </div>
                             ))}
                         </div>
+                        {!disabled ? (
+                            <Button type="primary" className="mt-4 h-10 w-full" icon={<Save className="size-4" />} loading={saving} onClick={() => void onSave()}>
+                                保存子 IP
+                            </Button>
+                        ) : null}
                     </div>
                 )}
             </Form.List>

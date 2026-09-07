@@ -109,13 +109,12 @@ async function createSubIpPackage(repository: ReturnType<typeof createIpLibraryR
         subIpTitle: subIp.title,
         summary: subIp.summary,
         tags: subIp.tags,
-        sourceNote: subIp.sourceNote,
         source: "VOZEB PRO 平台 IP 内容包",
         attribution: "内容仅限当前有效授权范围内的学校教学、练习和创作使用。",
         items: manifestItems,
     };
     entries["manifest.json"] = Buffer.from(JSON.stringify(manifest, null, 2), "utf8");
-    entries["README.md"] = Buffer.from(`# ${ipTitle}\n\n子 IP：${subIp.title}\n\n来源说明：${subIp.sourceNote || "无"}\n\n${manifest.attribution}\n`, "utf8");
+    entries["README.md"] = Buffer.from(`# ${ipTitle}\n\n子 IP：${subIp.title}\n\n${manifest.attribution}\n`, "utf8");
     return Buffer.from(zipSync(entries, { level: 0 }));
 }
 async function addCover(repository: ReturnType<typeof createIpLibraryRepository>, entries: Zippable, names: Set<string>, subIp: IpSubIpDetailRecord) {

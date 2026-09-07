@@ -19,6 +19,8 @@ describe("admin IP library section", () => {
         expect(source).toContain("adminIpLibraryApi.updateGrant");
         expect(source).toMatch(/adminIpLibraryApi\s*\.\s*listFiles/);
         expect(source).toContain("IpContentUpload");
+        expect(source).toContain('<Form.Item name="coverFileId" label="IP 封面" className="!mb-0 mt-4">\n                            <IpContentUpload variant="cover"');
+        expect(source).toContain('<Form.Item name="coverFileId" label="封面">\n                    <IpContentUpload variant="cover"');
         expect(source).toContain("ipItemCategoryLabel");
         expect(source).toContain('name={[field.name, "fileId"]}');
         expect(source).toContain('kind="image"');

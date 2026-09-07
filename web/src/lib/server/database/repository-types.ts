@@ -58,7 +58,6 @@ export type IpSubIpRecord = {
     summary: string;
     coverFileId?: string;
     tags: string[];
-    sourceNote: string;
     createdByUserId?: string;
     createdAt: string;
     updatedAt: string;
@@ -68,7 +67,7 @@ export type IpSubIpRecord = {
 export type IpPackageCreateInput = Omit<IpPackageRecord, "createdAt" | "updatedAt">;
 export type IpPackagePatch = Partial<Pick<IpPackageRecord, "title" | "slug" | "summary" | "visibility" | "status">> & { coverFileId?: string | null };
 export type IpSubIpCreateInput = Omit<IpSubIpRecord, "createdAt" | "updatedAt" | "sortOrder"> & { sortOrder?: number };
-export type IpSubIpPatch = Partial<Pick<IpSubIpRecord, "title" | "summary" | "tags" | "sourceNote" | "sortOrder">> & { coverFileId?: string | null };
+export type IpSubIpPatch = Partial<Pick<IpSubIpRecord, "title" | "summary" | "tags" | "sortOrder">> & { coverFileId?: string | null };
 export type IpItemInput = Omit<IpItemRecord, "subIpId" | "createdAt">;
 export type IpSummaryRecord = IpPackageRecord & { subIpCount: number; accessibleSubIpCount?: number; coverSubIpId?: string; coverFileId?: string };
 export type IpSubIpDetailRecord = IpSubIpRecord & { items: IpItemRecord[]; grantMode?: IpAuthorizationMode };
@@ -89,6 +88,7 @@ export type IpSchoolGrantRecord = {
     createdAt: string;
     updatedAt: string;
 };
+export type IpSchoolGrantPackageRecord = IpPackageRecord & { subIps: IpSubIpRecord[]; grants: IpSchoolGrantRecord[] };
 
 export type IpSchoolGrantCreateInput = Omit<IpSchoolGrantRecord, "createdAt" | "updatedAt">;
 export type IpSchoolGrantUpdateInput = Partial<Pick<IpSchoolGrantRecord, "status" | "note">> & { endsAt?: string | null; updatedAt: string };

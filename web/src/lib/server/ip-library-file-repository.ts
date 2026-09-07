@@ -14,6 +14,7 @@ import type {
     IpPackagePatch,
     IpPackageRecord,
     IpSchoolGrantCreateInput,
+    IpSchoolGrantPackageRecord,
     IpSchoolGrantRecord,
     IpSchoolGrantUpdateInput,
     IpSubIpCreateInput,
@@ -25,7 +26,7 @@ import type {
     IpUsageRecord,
     PageResult,
 } from "@/lib/server/database/repository-types";
-import type { AdminIpListInput, IpDownloadListInput, IpGrantConflictInput, IpGrantListInput, IpUsageListInput, VisibleIpDetailInput, VisibleIpListInput } from "@/lib/server/database/ip-library-repository";
+import type { AdminIpListInput, IpDownloadListInput, IpGrantConflictInput, IpGrantListInput, IpUsageListInput, SchoolIpGrantPackageListInput, VisibleIpDetailInput, VisibleIpListInput } from "@/lib/server/database/ip-library-repository";
 import { SCHOOL_DOMAIN_DATA_FILE } from "./school-domain-file-repository";
 
 export const IP_LIBRARY_DATA_FILE = "ip-library.json";
@@ -118,7 +119,7 @@ export class FileIpLibraryRepository {
             if (!state.packages.some((item) => item.id === ipId)) throw new Error("IP 不存在");
             if (state.subIps.some((item) => item.id === input.id)) throw new Error("子 IP 已存在");
             const now = new Date().toISOString();
-            const record: IpSubIpRecord = { ...structuredClone(input), ipId, tags: structuredClone(input.tags || []), sourceNote: input.sourceNote || "", sortOrder: input.sortOrder ?? nextOrder(state, ipId), createdAt: now, updatedAt: now };
+            const record: IpSubIpRecord = { ...structuredClone(input), ipId, tags: structuredClone(input.tags || []), sortOrder: input.sortOrder ?? nextOrder(state, ipId), createdAt: now, updatedAt: now };
             state.subIps.push(record);
             return { ...structuredClone(record), items: [] };
         });
@@ -310,6 +311,29 @@ export class FileIpLibraryRepository {
             input,
         );
     }
+    async listSchoolGrantPackages(input: SchoolIpGrantPackageListInput): Promise<PageResult<IpSchoolGrantPackageRecord>> {
+        const state = await readFile();
+        const grantsByIp = new Map<string, IpSchoolGrantRecord[]>();
+        for (const grant of state.grants.filter((item) => item.schoolId === input.schoolId)) {
+            const grants = grantsByIp.get(grant.ipId) || [];
+            grants.push(structuredClone(grant));
+            grantsByIp.set(grant.ipId, grants);
+        }
+        return page(
+            state.packages
+                .filter((item) => grantsByIp.has(item.id))
+                .map((item) => ({
+                    ...structuredClone(item),
+                    subIps: state.subIps
+                        .filter((subIp) => subIp.ipId === item.id)
+                        .sort(subIpOrder)
+                        .map((subIp) => structuredClone(subIp)),
+                    grants: (grantsByIp.get(item.id) || []).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id)),
+                }))
+                .sort((left, right) => right.grants[0].updatedAt.localeCompare(left.grants[0].updatedAt) || left.id.localeCompare(right.id)),
+            input,
+        );
+    }
     recordIpUsage(input: IpUsageCreateInput) {
         return mutate(async (state) => {
             const existing = state.usages.find((item) => item.id === input.id);
@@ -381,11 +405,16 @@ function normalizeFile(value: Partial<IpLibraryFile>): IpLibraryFile {
     for (const file of rawFiles) {
         if (!files.includes(file) && file?.id && file.storageKey) cleanup.set(file.id, cleanupFor(file));
     }
+    const rawSubIps = Array.isArray(value.subIps) ? structuredClone(value.subIps) : [];
+    const subIps = rawSubIps.map((subIp) => {
+        if (subIp && typeof subIp === "object") delete (subIp as unknown as Record<string, unknown>).sourceNote;
+        return subIp;
+    });
     return {
         ...EMPTY_FILE,
         version: 3,
         packages: Array.isArray(value.packages) ? structuredClone(value.packages) : [],
-        subIps: Array.isArray(value.subIps) ? structuredClone(value.subIps) : [],
+        subIps,
         items: Array.isArray(value.items) ? structuredClone(value.items) : [],
         files,
         grants: Array.isArray(value.grants) ? structuredClone(value.grants) : [],

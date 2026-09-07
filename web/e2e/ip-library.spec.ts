@@ -44,7 +44,7 @@ test("IP 库按子 IP 编辑、授权、停用、下载和引用", async ({ brow
         const teacher = await authenticatedContext(browser, contexts, names.teacher, contextOptions);
         const student = await authenticatedContext(browser, contexts, names.student, contextOptions);
 
-        const schoolIp = await createIp(page.request, names.schoolIp, `school-${suffix}`, "school");
+        const schoolIp = await createIp(page.request, names.schoolIp, "school");
         const initial = await getIp(page.request, schoolIp.id);
         const mainSubIp = initial.subIps[0];
         const extraSubIp = await createSubIp(page.request, schoolIp.id, names.extraSubIp);
@@ -58,7 +58,7 @@ test("IP 库按子 IP 编辑、授权、停用、下载和引用", async ({ brow
         const grants = await createGrants(page.request, schoolIp.id, [configuredMain.id, configuredExtra.id], [school.id]);
         expect(new Set(grants.map((grant) => grant.subIpId))).toEqual(new Set([configuredMain.id, configuredExtra.id]));
 
-        const publicIp = await createIp(page.request, names.publicIp, `public-${suffix}`, "public");
+        const publicIp = await createIp(page.request, names.publicIp, "public");
         const publicInitial = (await getIp(page.request, publicIp.id)).subIps[0];
         await replaceSubIpText(page.request, publicIp.id, publicInitial.id, names.publicIp, `公共 IP 正文 ${suffix}`);
 
@@ -93,8 +93,17 @@ test("IP 库按子 IP 编辑、授权、停用、下载和引用", async ({ brow
         expect(usage.items).toEqual(expect.arrayContaining([expect.objectContaining({ ipId: schoolIp.id, downloadType: "package", packageScope: "ip" })]));
 
         await apiData(await page.request.patch(`/api/admin/ip-library/${schoolIp.id}`, { data: { status: "disabled" } }));
-        const managerLedger = await apiData<PageResult<{ ipId: string; subIpId: string; ipStatus: string; effective: boolean }>>(await manager.request.get("/api/school/ip-library"));
-        expect(managerLedger.items).toEqual(expect.arrayContaining([expect.objectContaining({ ipId: schoolIp.id, subIpId: configuredMain.id, ipStatus: "disabled", effective: false })]));
+        const managerLedger = await apiData<PageResult<{ id: string; ipStatus: string; effective: boolean; subIps: Array<{ id: string; effective: boolean }> }>>(await manager.request.get("/api/school/ip-library"));
+        expect(managerLedger.items).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: schoolIp.id,
+                    ipStatus: "disabled",
+                    effective: false,
+                    subIps: expect.arrayContaining([expect.objectContaining({ id: configuredMain.id, effective: false }), expect.objectContaining({ id: configuredExtra.id, effective: false })]),
+                }),
+            ]),
+        );
         expect((await teacher.request.get(`/api/ip-library/${schoolIp.id}`)).status()).toBe(404);
         expect((await student.request.get(`/api/ip-library/${schoolIp.id}`)).status()).toBe(404);
         const deleted = await page.request.delete(`/api/admin/ip-library/${schoolIp.id}`);
@@ -240,8 +249,8 @@ async function createOrdinaryUser(request: APIRequestContext, username: string) 
     expect(JSON.parse(body)).toMatchObject({ user: { username } });
 }
 
-async function createIp(request: APIRequestContext, title: string, slug: string, visibility: "public" | "school"): Promise<IpPackage> {
-    return apiData(await request.post("/api/admin/ip-library", { data: { title, slug, summary: `${title} 简介`, visibility } }));
+async function createIp(request: APIRequestContext, title: string, visibility: "public" | "school"): Promise<IpPackage> {
+    return apiData(await request.post("/api/admin/ip-library", { data: { title, summary: `${title} 简介`, visibility } }));
 }
 
 async function getIp(request: APIRequestContext, ipId: string): Promise<IpDetail> {
@@ -249,7 +258,7 @@ async function getIp(request: APIRequestContext, ipId: string): Promise<IpDetail
 }
 
 async function createSubIp(request: APIRequestContext, ipId: string, title: string): Promise<IpSubIp> {
-    return apiData(await request.post(`/api/admin/ip-library/${ipId}/sub-ips`, { data: { title, summary: `${title} 简介`, tags: ["E2E"], sourceNote: "测试授权" } }));
+    return apiData(await request.post(`/api/admin/ip-library/${ipId}/sub-ips`, { data: { title, summary: `${title} 简介`, tags: ["E2E"] } }));
 }
 
 async function replaceSubIpText(request: APIRequestContext, ipId: string, subIpId: string, title: string, content: string) {
@@ -257,7 +266,7 @@ async function replaceSubIpText(request: APIRequestContext, ipId: string, subIpI
     expect(file.status).toBe("ready");
     return apiData<IpSubIp>(
         await request.patch(`/api/admin/ip-library/${ipId}/sub-ips/${subIpId}`, {
-            data: { title, summary: `${title} 简介`, tags: ["E2E", "子IP"], sourceNote: "测试授权", items: [{ kind: "text", category: "story_summary", title: `${title} 正文`, summary: "用于端到端验收", fileId: file.id, sortOrder: 0 }] },
+            data: { title, summary: `${title} 简介`, tags: ["E2E", "子IP"], items: [{ kind: "text", category: "story_summary", title: `${title} 正文`, summary: "用于端到端验收", fileId: file.id, sortOrder: 0 }] },
         }),
     );
 }

@@ -100,11 +100,11 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
                                 </>
                             ) : null}
                         </div>
-                        <div className="mt-4 grid min-w-0 gap-4 sm:grid-cols-[minmax(180px,320px)_minmax(0,1fr)] sm:gap-7">
-                            <div className="flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden bg-muted/50">
+                        <div className="mt-5 grid min-w-0 gap-5 sm:grid-cols-[minmax(180px,300px)_minmax(0,1fr)] sm:gap-8">
+                            <div className="mx-auto flex aspect-[4/3] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-xl border border-border bg-card p-2 shadow-sm">
                                 {selected.coverPreviewUrl ? <img src={selected.coverPreviewUrl} alt={selected.title} className="max-h-full max-w-full object-contain" /> : <BookOpen className="size-12 text-muted-foreground/40" />}
                             </div>
-                            <div className="flex min-w-0 flex-col justify-center">
+                            <div className="flex min-w-0 flex-col justify-center rounded-xl border border-border bg-card p-4 sm:p-6">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <Tag color={detail.visibility === "public" ? "blue" : "green"} className="!m-0">
                                         {detail.visibility === "public" ? "公共 IP" : "本校 IP"}
@@ -135,7 +135,7 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
                                         ))}
                                     </div>
                                 ) : null}
-                                <div className="mt-5 flex flex-wrap gap-2">
+                                <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
                                     {IP_REFERENCE_ENTRY_VISIBLE ? <DormantReferenceActions detail={detail} subIpId={selected.id} /> : null}
                                     <Button icon={<Download className="size-4" />} loading={downloading === "sub_ip"} onClick={() => void download({ packageScope: "sub_ip" })}>
                                         下载此子 IP 内容包
@@ -212,11 +212,11 @@ function IpOverview({ detail, downloading, onDownload, onDownloadSubIp }: { deta
                     <ChevronRight className="size-3.5" />
                     <span className="truncate">{detail.title}</span>
                 </div>
-                <div className="mt-4 grid min-w-0 gap-4 sm:grid-cols-[minmax(180px,320px)_minmax(0,1fr)] sm:gap-7">
-                    <div className="flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden bg-muted/50">
+                <div className="mt-5 grid min-w-0 gap-5 sm:grid-cols-[minmax(180px,300px)_minmax(0,1fr)] sm:gap-8">
+                    <div className="mx-auto flex aspect-[4/3] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-xl border border-border bg-card p-2 shadow-sm">
                         {detail.coverPreviewUrl ? <img src={detail.coverPreviewUrl} alt={detail.title} className="max-h-full max-w-full object-contain" /> : <BookOpen className="size-12 text-muted-foreground/40" />}
                     </div>
-                    <div className="flex min-w-0 flex-col justify-center">
+                    <div className="flex min-w-0 flex-col justify-center rounded-xl border border-border bg-card p-4 sm:p-6">
                         <div className="flex flex-wrap items-center gap-2">
                             <Tag color={detail.visibility === "public" ? "blue" : "green"} className="!m-0">
                                 {detail.visibility === "public" ? "公共 IP" : "本校 IP"}
@@ -228,19 +228,25 @@ function IpOverview({ detail, downloading, onDownload, onDownloadSubIp }: { deta
                         <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
                             <CalendarClock className="size-3.5" /> 更新于 {formatDate(detail.updatedAt)}
                         </div>
-                        <div className="mt-5">
-                            <Button icon={<Download className="size-4" />} loading={downloading === "ip"} onClick={onDownload}>
+                        <div className="mt-5 border-t border-border pt-4">
+                            <Button type="primary" icon={<Download className="size-4" />} loading={downloading === "ip"} onClick={onDownload}>
                                 下载此 IP 内容包
                             </Button>
                         </div>
                     </div>
                 </div>
             </header>
-            <section className="border-b border-border py-5 sm:py-7">
-                <h2 className="text-base font-semibold sm:text-lg">子 IP</h2>
+            <section className="border-b border-border py-6 sm:py-8">
+                <div className="flex items-end justify-between gap-3">
+                    <div>
+                        <h2 className="text-base font-semibold sm:text-lg">子 IP</h2>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">选择一个子 IP 查看完整内容。</p>
+                    </div>
+                    <span className="text-xs tabular-nums text-muted-foreground">{detail.subIps.length} 个</span>
+                </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {detail.subIps.map((subIp) => (
-                        <article key={subIp.id} className="group overflow-hidden border border-border bg-card text-foreground transition hover:border-foreground/30 hover:shadow-sm">
+                        <article key={subIp.id} className="group overflow-hidden rounded-xl border border-border bg-card text-foreground transition hover:border-foreground/30 hover:shadow-sm">
                             <Link href={`/ip-library/${encodeURIComponent(detail.id)}/${encodeURIComponent(subIp.id)}`} className="block">
                                 <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-muted/50">
                                     {subIp.coverPreviewUrl ? (
@@ -282,7 +288,7 @@ export function groupIpLibraryItems(items: IpPublicItem[]) {
 
 function TextItem({ item, onDownload, loading }: { item: IpPublicItem; onDownload: () => void; loading: boolean }) {
     return (
-        <article className="min-w-0 border border-border bg-card p-3 sm:p-4">
+        <article className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
             <div className="flex items-start justify-between gap-2">
                 <BookOpen className="size-5 shrink-0" />
                 <Button type="text" size="small" aria-label={`下载${item.title}`} icon={<Download className="size-4" />} loading={loading} onClick={onDownload} />
@@ -296,8 +302,16 @@ function TextItem({ item, onDownload, loading }: { item: IpPublicItem; onDownloa
 
 function MediaItem({ item, onDownload, loading }: { item: IpPublicItem; onDownload: () => void; loading: boolean }) {
     return (
-        <article className="min-w-0 overflow-hidden border border-border bg-card">
-            <div className={item.kind === "audio" ? "flex min-h-28 min-w-0 flex-col items-center justify-center gap-3 bg-muted/50 px-3 py-4" : "flex aspect-video min-w-0 items-center justify-center overflow-hidden bg-muted/50"}>
+        <article className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+            <div
+                className={
+                    item.kind === "audio"
+                        ? "flex min-h-28 min-w-0 flex-col items-center justify-center gap-3 bg-muted/50 px-3 py-4"
+                        : item.kind === "image"
+                          ? "flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden bg-muted/50 p-2"
+                          : "flex aspect-video min-w-0 items-center justify-center overflow-hidden bg-muted/50"
+                }
+            >
                 {item.kind === "image" && item.previewUrl ? (
                     <AntImage src={item.previewUrl} alt={item.title} rootClassName="flex size-full items-center justify-center" className="!max-h-full !max-w-full !object-contain" />
                 ) : item.kind === "video" && item.previewUrl ? (

@@ -23,7 +23,7 @@ const item = { id: "item-one", subIpId: "child-one", kind: "text" as const, cate
 describe("IP library download service", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mocks.requireVisibleIp.mockResolvedValue({ detail: { id: "ip-one", title: "星海计划" }, subIp: { id: "child-one", ipId: "ip-one", title: "第一子 IP", summary: "", tags: [], sourceNote: "", items: [item] }, schoolId: "school-a" });
+        mocks.requireVisibleIp.mockResolvedValue({ detail: { id: "ip-one", title: "星海计划" }, subIp: { id: "child-one", ipId: "ip-one", title: "第一子 IP", summary: "", tags: [], items: [item] }, schoolId: "school-a" });
         mocks.getIpContentFile.mockResolvedValue({ id: "file-one", ipId: "ip-one", subIpId: "child-one", kind: "text", status: "ready", originalName: "故事.md" });
         mocks.readIpContentFile.mockResolvedValue(new Response("故事正文", { headers: { "content-type": "text/markdown" } }));
         mocks.recordIpDownload.mockResolvedValue(undefined);
@@ -50,11 +50,11 @@ describe("IP library download service", () => {
                 title: "星海计划",
                 summary: "教学素材",
                 subIps: [
-                    { id: "child-one", ipId: "ip-one", title: "第一子 IP", summary: "", tags: [], sourceNote: "", items: [item] },
-                    { id: "child-two", ipId: "ip-one", title: "第二子 IP", summary: "", tags: [], sourceNote: "", items: [itemTwo] },
+                    { id: "child-one", ipId: "ip-one", title: "第一子 IP", summary: "", tags: [], items: [item] },
+                    { id: "child-two", ipId: "ip-one", title: "第二子 IP", summary: "", tags: [], items: [itemTwo] },
                 ],
             },
-            subIp: { id: "child-one", ipId: "ip-one", title: "第一子 IP", summary: "", tags: [], sourceNote: "", items: [item] },
+            subIp: { id: "child-one", ipId: "ip-one", title: "第一子 IP", summary: "", tags: [], items: [item] },
             schoolId: "school-a",
         });
         mocks.getIpContentFile.mockImplementation(async (_ipId: string, fileId: string) => ({

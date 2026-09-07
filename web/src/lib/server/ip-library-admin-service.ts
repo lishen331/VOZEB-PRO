@@ -9,10 +9,10 @@ import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { createIpLibraryRepository } from "./ip-library-access-service";
 import { createSchoolDomainRepository } from "./school-domain-repository";
 
-export type AdminIpCreateInput = { title: string; slug: string; summary?: string; visibility: IpVisibility };
+export type AdminIpCreateInput = { title: string; slug?: string; summary?: string; visibility: IpVisibility };
 export type AdminIpPatchInput = Partial<AdminIpCreateInput> & { status?: IpStatus; coverFileId?: string | null };
 export type AdminIpItemInput = { kind: IpAssetKind; category: IpItemCategory; title: string; summary?: string; fileId: string; sortOrder?: number };
-export type AdminIpSubIpInput = { title: string; summary?: string; coverFileId?: string; tags?: string[]; sourceNote?: string; sortOrder?: number; items?: AdminIpItemInput[] };
+export type AdminIpSubIpInput = { title: string; summary?: string; coverFileId?: string; tags?: string[]; sortOrder?: number; items?: AdminIpItemInput[] };
 export type AdminIpGrantInput = { subIpId: string; schoolId: string; mode: IpAuthorizationMode; startsAt: string; endsAt?: string; note?: string };
 export type AdminIpGrantBatchInput = { subIpIds: string[]; schoolIds: string[]; mode: IpAuthorizationMode; startsAt: string; endsAt?: string; note?: string };
 export type AdminIpGrantPatchInput = { status?: IpSchoolGrantStatus; endsAt?: string | null; note?: string };
@@ -34,14 +34,17 @@ export async function getAdminIp(actorId: string, ipId: string) {
 export async function createAdminIp(actorId: string, input: AdminIpCreateInput) {
     await requireContentDuty(actorId);
     const repository = createIpLibraryRepository();
-    const slug = slugValue(input.slug);
-    if (await repository.getIpPackageBySlug(slug)) throw new SchoolServiceError(409, "IP 标识已存在，请更换 slug", { field: "slug", reason: "duplicate" });
     const title = required(input.title, "请填写 IP 名称");
+    let slug = input.slug ? slugValue(input.slug) : generatedSlug(title);
+    if (await repository.getIpPackageBySlug(slug)) {
+        if (input.slug) throw new SchoolServiceError(409, "IP 标识已存在，请更换 slug", { field: "slug", reason: "duplicate" });
+        slug = `${slug.slice(0, 70)}-${randomUUID().slice(0, 8)}`;
+    }
     const record = await translateConflict("slug", () =>
         repository.createIpPackage({ id: randomUUID(), title, slug, summary: optional(input.summary), visibility: enumValue(input.visibility, IP_VISIBILITIES, "IP 可见范围无效"), status: "enabled", createdByUserId: actorId }),
     );
     // A new IP starts with one child so its content can be edited as a flat page.
-    await repository.createIpSubIp(record.id, { id: randomUUID(), ipId: record.id, title, summary: record.summary, tags: [], sourceNote: "", createdByUserId: actorId });
+    await repository.createIpSubIp(record.id, { id: randomUUID(), ipId: record.id, title, summary: record.summary, tags: [], createdByUserId: actorId });
     return record;
 }
 
@@ -93,7 +96,6 @@ export async function createAdminIpSubIp(actorId: string, ipId: string, input: A
         title: required(input.title, "请填写子 IP 名称"),
         summary: optional(input.summary),
         tags: normalizeTags(input.tags),
-        sourceNote: optional(input.sourceNote),
         sortOrder: validSortOrder(input.sortOrder),
         createdByUserId: actorId,
     });
@@ -112,7 +114,6 @@ export async function updateAdminIpSubIp(actorId: string, ipId: string, subIpId:
         ...(input.summary !== undefined ? { summary: optional(input.summary) } : {}),
         ...(input.coverFileId !== undefined ? { coverFileId: optional(input.coverFileId) || null } : {}),
         ...(input.tags !== undefined ? { tags: normalizeTags(input.tags) } : {}),
-        ...(input.sourceNote !== undefined ? { sourceNote: optional(input.sourceNote) } : {}),
         ...(input.sortOrder !== undefined ? { sortOrder: validSortOrder(input.sortOrder) } : {}),
     };
     if (patch.coverFileId) await requireReadyFile(repository, id, childId, patch.coverFileId, "image");
@@ -370,6 +371,15 @@ function slugValue(value: unknown) {
     const slug = required(value, "请填写 IP 标识").toLowerCase();
     if (!/^[a-z0-9][a-z0-9-_]{1,79}$/.test(slug)) throw new SchoolServiceError(400, "IP 标识仅支持小写字母、数字、中划线和下划线");
     return slug;
+}
+function generatedSlug(title: string) {
+    const slug = title
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 70);
+    return slug.length >= 2 ? slug : `ip-${randomUUID().slice(0, 8)}`;
 }
 function enumValue<T extends string>(value: unknown, values: readonly T[], message: string): T {
     if (typeof value === "string" && values.includes(value as T)) return value as T;

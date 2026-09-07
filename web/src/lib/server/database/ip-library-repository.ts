@@ -13,6 +13,7 @@ import type {
     IpPackagePatch,
     IpPackageRecord,
     IpSchoolGrantCreateInput,
+    IpSchoolGrantPackageRecord,
     IpSchoolGrantRecord,
     IpSchoolGrantUpdateInput,
     IpSubIpCreateInput,
@@ -42,6 +43,7 @@ export type IpUsageListInput = PageInput & { ipId?: string; subIpId?: string; sc
 export type IpDownloadListInput = PageInput & { ipId?: string; subIpId?: string; schoolId?: string; userId?: string; downloadType?: string; result?: string };
 export type AdminIpListInput = PageInput & { keyword?: string; status?: string; visibility?: string };
 export type IpGrantListInput = PageInput & { ipId?: string; subIpId?: string; grantId?: string; schoolId?: string; status?: string };
+export type SchoolIpGrantPackageListInput = PageInput & { schoolId: string };
 export type IpGrantConflictInput = { ipId: string; subIpId: string; schoolId: string; mode: string; startsAt: string; endsAt?: string; excludeGrantId?: string };
 type TransactionRunner = <T>(operation: (db: QueryExecutor) => Promise<T>) => Promise<T>;
 
@@ -123,10 +125,10 @@ export class IpLibraryRepository {
     async createIpSubIp(ipId: string, input: IpSubIpCreateInput): Promise<IpSubIpDetailRecord> {
         return this.withIpPackageLock(ipId, async (db) => {
             const result = await db.query(
-                `INSERT INTO ip_sub_ips (id, ip_id, title, summary, cover_file_id, tags_json, source_note, sort_order, created_by_user_id)
-                 SELECT $2, package.id, $3, $4, $5, $6::jsonb, $7, COALESCE($8, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM ip_sub_ips WHERE ip_id = package.id)), $9
+                `INSERT INTO ip_sub_ips (id, ip_id, title, summary, cover_file_id, tags_json, sort_order, created_by_user_id)
+                 SELECT $2, package.id, $3, $4, $5, $6::jsonb, COALESCE($7, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM ip_sub_ips WHERE ip_id = package.id)), $8
                  FROM ip_packages AS package WHERE package.id = $1 RETURNING *`,
-                [ipId, input.id, input.title, input.summary, input.coverFileId || null, jsonParam(input.tags), input.sourceNote, input.sortOrder ?? null, input.createdByUserId || null],
+                [ipId, input.id, input.title, input.summary, input.coverFileId || null, jsonParam(input.tags), input.sortOrder ?? null, input.createdByUserId || null],
             );
             if (!result.rows[0]) throw new Error("IP 不存在");
             return { ...mapSubIp(result.rows[0]), items: [] };
@@ -137,9 +139,9 @@ export class IpLibraryRepository {
         const result = await this.db.query(
             `UPDATE ip_sub_ips SET title = COALESCE($3, title), summary = COALESCE($4, summary),
                 cover_file_id = CASE WHEN $5 THEN $6 ELSE cover_file_id END, tags_json = CASE WHEN $7 THEN $8::jsonb ELSE tags_json END,
-                source_note = COALESCE($9, source_note), sort_order = COALESCE($10, sort_order)
+                sort_order = COALESCE($9, sort_order)
              WHERE ip_id = $1 AND id = $2 RETURNING *`,
-            [ipId, subIpId, patch.title || null, patch.summary ?? null, patch.coverFileId !== undefined, patch.coverFileId || null, patch.tags !== undefined, jsonParam(patch.tags || []), patch.sourceNote ?? null, patch.sortOrder ?? null],
+            [ipId, subIpId, patch.title || null, patch.summary ?? null, patch.coverFileId !== undefined, patch.coverFileId || null, patch.tags !== undefined, jsonParam(patch.tags || []), patch.sortOrder ?? null],
         );
         return result.rows[0] ? mapSubIp(result.rows[0]) : null;
     }
@@ -375,6 +377,38 @@ export class IpLibraryRepository {
         return pageResult(result.rows.map(mapGrant), numberValue(count.rows[0]?.count), page, pageSize);
     }
 
+    async listSchoolGrantPackages(input: SchoolIpGrantPackageListInput): Promise<PageResult<IpSchoolGrantPackageRecord>> {
+        const page = normalizePage(input.page);
+        const pageSize = normalizePageSize(input.pageSize);
+        const count = await this.db.query<{ count: string }>("SELECT COUNT(DISTINCT ip_id)::text AS count FROM ip_school_grants WHERE school_id = $1", [input.schoolId]);
+        const result = await this.db.query(
+            `SELECT package.*, MAX(grant.updated_at) AS latest_grant_at
+             FROM ip_school_grants AS grant JOIN ip_packages AS package ON package.id = grant.ip_id
+             WHERE grant.school_id = $1 GROUP BY package.id
+             ORDER BY MAX(grant.updated_at) DESC, package.id LIMIT $2 OFFSET $3`,
+            [input.schoolId, pageSize, (page - 1) * pageSize],
+        );
+        const packageIds = result.rows.map((row) => stringValue(row.id));
+        if (!packageIds.length) return pageResult([], numberValue(count.rows[0]?.count), page, pageSize);
+        const [grants, subIps] = await Promise.all([
+            this.db.query("SELECT * FROM ip_school_grants WHERE school_id = $1 AND ip_id = ANY($2::text[]) ORDER BY updated_at DESC, id", [input.schoolId, packageIds]),
+            this.db.query("SELECT * FROM ip_sub_ips WHERE ip_id = ANY($1::text[]) ORDER BY ip_id, sort_order, created_at, id", [packageIds]),
+        ]);
+        return pageResult(
+            result.rows.map((row) => {
+                const packageRecord = mapPackage(row);
+                return {
+                    ...packageRecord,
+                    subIps: subIps.rows.filter((subIp) => stringValue(subIp.ip_id) === packageRecord.id).map(mapSubIp),
+                    grants: grants.rows.filter((grant) => stringValue(grant.ip_id) === packageRecord.id).map(mapGrant),
+                };
+            }),
+            numberValue(count.rows[0]?.count),
+            page,
+            pageSize,
+        );
+    }
+
     async recordIpDownload(input: IpDownloadCreateInput): Promise<IpDownloadRecord> {
         const result = await this.db.query("INSERT INTO ip_download_records (id, ip_id, sub_ip_id, item_id, school_id, user_id, download_type, package_scope, result) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *", [
             input.id,
@@ -448,7 +482,7 @@ export class IpLibraryRepository {
         const school = input.scope === "school";
         const result = await this.db.query(
             `SELECT package.*, sub_ip.id AS sub_ip_id, sub_ip.ip_id AS sub_ip_ip_id, sub_ip.title AS sub_ip_title, sub_ip.summary AS sub_ip_summary, sub_ip.cover_file_id AS sub_ip_cover_file_id,
-                    sub_ip.tags_json AS sub_ip_tags_json, sub_ip.source_note AS sub_ip_source_note, sub_ip.sort_order AS sub_ip_sort_order, sub_ip.created_by_user_id AS sub_ip_created_by_user_id,
+                    sub_ip.tags_json AS sub_ip_tags_json, sub_ip.sort_order AS sub_ip_sort_order, sub_ip.created_by_user_id AS sub_ip_created_by_user_id,
                     sub_ip.created_at AS sub_ip_created_at, sub_ip.updated_at AS sub_ip_updated_at, school_grant.mode AS grant_mode
              FROM ip_packages AS package
              JOIN users AS account ON account.id = $1 AND account.status = 'active'
@@ -528,7 +562,6 @@ function mapSubIp(row: Record<string, unknown>): IpSubIpRecord {
         summary: stringValue(row.sub_ip_summary ?? row.summary),
         coverFileId: optionalString(row.sub_ip_cover_file_id ?? row.cover_file_id),
         tags: Array.isArray(tags) ? tags.filter((item): item is string => typeof item === "string") : [],
-        sourceNote: stringValue(row.sub_ip_source_note ?? row.source_note),
         sortOrder: numberValue(row.sub_ip_sort_order ?? row.sort_order),
         createdByUserId: optionalString(row.sub_ip_created_by_user_id ?? row.created_by_user_id),
         createdAt: isoValue(row.sub_ip_created_at ?? row.created_at),

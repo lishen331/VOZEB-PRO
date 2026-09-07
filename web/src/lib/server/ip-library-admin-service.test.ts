@@ -53,7 +53,7 @@ import { createAdminIp, createAdminIpGrant, createAdminIpGrants, createAdminIpSu
 
 const now = "2026-09-07T00:00:00.000Z";
 const packageRecord = { id: "ip-one", title: "星海计划", slug: "star-sea", summary: "简介", visibility: "school" as const, status: "enabled" as const, createdByUserId: "content-admin", createdAt: now, updatedAt: now };
-const childRecord = { id: "child-one", ipId: "ip-one", title: "第一子 IP", summary: "", tags: [], sourceNote: "", sortOrder: 0, createdByUserId: "content-admin", createdAt: now, updatedAt: now, items: [] };
+const childRecord = { id: "child-one", ipId: "ip-one", title: "第一子 IP", summary: "", tags: [], sortOrder: 0, createdByUserId: "content-admin", createdAt: now, updatedAt: now, items: [] };
 const grantRecord = { id: "grant-one", ipId: "ip-one", subIpId: "child-one", schoolId: "school-a", mode: "multi_school" as const, status: "active" as const, startsAt: now, note: "", createdByUserId: "education-admin", createdAt: now, updatedAt: now };
 
 describe("IP library administration service", () => {

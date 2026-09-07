@@ -64,7 +64,6 @@ CREATE TABLE IF NOT EXISTS ip_sub_ips (
     summary text NOT NULL DEFAULT '',
     cover_file_id text,
     tags_json jsonb NOT NULL DEFAULT '[]'::jsonb,
-    source_note text NOT NULL DEFAULT '',
     sort_order integer NOT NULL DEFAULT 0,
     created_by_user_id text REFERENCES users(id) ON DELETE SET NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -283,6 +282,15 @@ BEGIN
             OR (download_type = 'package' AND sub_ip_id IS NOT NULL AND item_id IS NULL AND package_scope = 'sub_ip')
         );
         INSERT INTO schema_migrations (version) VALUES ('20260907_ip_library_grant_revocation_and_package_downloads');
+    END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = '20260908_ip_library_remove_sub_ip_source_note') THEN
+        ALTER TABLE ip_sub_ips DROP COLUMN IF EXISTS source_note;
+        INSERT INTO schema_migrations (version) VALUES ('20260908_ip_library_remove_sub_ip_source_note');
     END IF;
 END;
 $$;
