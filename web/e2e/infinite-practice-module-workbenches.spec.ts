@@ -136,7 +136,9 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             }
             await rolePage.getByRole("button", { name: "切换到深色主题", exact: true }).click();
             await expect(rolePage.getByRole("button", { name: "切换到浅色主题", exact: true })).toBeVisible();
-            await rolePage.evaluate(async () => { await Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))); });
+            await rolePage.evaluate(async () => {
+                await Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined)));
+            });
             await rolePage.screenshot({ path: testInfo.outputPath("audio-dark.png") });
             await rolePage.close();
         } finally {
