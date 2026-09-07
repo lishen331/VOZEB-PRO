@@ -94,6 +94,16 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     termsVersion: "1.0",
     privacyUrl: "/privacy",
     privacyVersion: "1.0",
+    loginPage: {
+        heroVideoUrl: "/login/hero.mp4",
+        heroPosterUrl: "/login/hero-poster.webp",
+        jointBrandUrl: "/login/joint-brand.webp",
+        slogan: "以热爱，燃未来",
+        platformName: "AIGC 智能影像教学平台",
+        footerOrganization: "",
+        servicePhone: "",
+        serviceHours: "",
+    },
     friendLinks: DEFAULT_SITE_FRIEND_LINKS,
     socials: DEFAULT_SITE_SOCIALS,
 };

@@ -13,7 +13,7 @@ import { SettingsAnchorItem, SettingsStatusTile } from "./admin-dashboard-elemen
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";
 
 export function AdminSiteSection({ controller }: { controller: AdminDashboardController }) {
-    const { logoInputRef, iconInputRef, settings, settingsLoading, activeSection, saveSettings, updateSiteSetting, getLatestSiteSettings, updateSiteSocialSetting, addFriendLink, updateFriendLink, deleteFriendLink } = controller;
+    const { logoInputRef, iconInputRef, settings, settingsLoading, activeSection, saveSettings, updateSiteSetting, getLatestSiteSettings, updateSiteSocialSetting, addFriendLink, updateFriendLink, deleteFriendLink, uploadLoginPageMedia } = controller;
     if (activeSection !== "site") return null;
     return (
         <Panel>
@@ -53,6 +53,58 @@ export function AdminSiteSection({ controller }: { controller: AdminDashboardCon
                         </div>
                         <div className="rounded-md border border-dashed border-stone-300 bg-white p-3 text-xs leading-5 text-stone-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-400">
                             Logo 用于站点品牌展示，浏览器图标用于 favicon、Apple 图标和 PWA；两者支持站内路径、远程 URL、data:image 或本地上传，最大 300KB。
+                        </div>
+
+                        <div className="border-t border-stone-200 pt-5 dark:border-stone-800">
+                            <SectionTitle icon={<Sparkles className="size-4" />} title="登录页" />
+                            <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                <LabeledControl label="宣传语">
+                                    <Input value={settings.site.loginPage.slogan} maxLength={40} onChange={(event) => updateSiteSetting("loginPage", { ...settings.site.loginPage, slogan: event.target.value })} />
+                                </LabeledControl>
+                                <LabeledControl label="平台名称">
+                                    <Input value={settings.site.loginPage.platformName} maxLength={80} onChange={(event) => updateSiteSetting("loginPage", { ...settings.site.loginPage, platformName: event.target.value })} />
+                                </LabeledControl>
+                                <LabeledControl label="运营单位">
+                                    <Input value={settings.site.loginPage.footerOrganization} maxLength={120} onChange={(event) => updateSiteSetting("loginPage", { ...settings.site.loginPage, footerOrganization: event.target.value })} />
+                                </LabeledControl>
+                                <LabeledControl label="客服电话">
+                                    <Input value={settings.site.loginPage.servicePhone} maxLength={40} onChange={(event) => updateSiteSetting("loginPage", { ...settings.site.loginPage, servicePhone: event.target.value })} />
+                                </LabeledControl>
+                                <LabeledControl label="工作时间">
+                                    <Input value={settings.site.loginPage.serviceHours} maxLength={80} onChange={(event) => updateSiteSetting("loginPage", { ...settings.site.loginPage, serviceHours: event.target.value })} />
+                                </LabeledControl>
+                            </div>
+                            <div className="mt-4 grid gap-4 md:grid-cols-3">
+                                {(
+                                    [
+                                        ["heroVideoUrl", "主视觉视频", "video/mp4,video/webm"],
+                                        ["heroPosterUrl", "视频封面", "image/png,image/jpeg,image/webp"],
+                                        ["jointBrandUrl", "联合品牌图", "image/png,image/jpeg,image/webp"],
+                                    ] as const
+                                ).map(([key, label, accept]) => (
+                                    <div key={key} className="rounded-md border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950/60">
+                                        <div className="mb-2 text-sm font-semibold text-stone-950 dark:text-stone-100">{label}</div>
+                                        {key === "heroVideoUrl" ? (
+                                            <video className="mb-3 aspect-[4/5] w-full rounded object-cover" src={settings.site.loginPage[key]} poster={settings.site.loginPage.heroPosterUrl} muted controls preload="metadata" />
+                                        ) : (
+                                            <img className="mb-3 aspect-[4/2] w-full rounded object-contain" src={settings.site.loginPage[key]} alt={label} />
+                                        )}
+                                        <Input value={settings.site.loginPage[key]} maxLength={2000} onChange={(event) => updateSiteSetting("loginPage", { ...settings.site.loginPage, [key]: event.target.value })} />
+                                        <label className="mt-2 inline-flex cursor-pointer items-center rounded-md border border-stone-200 px-3 py-1.5 text-xs font-medium dark:border-stone-700">
+                                            上传
+                                            <input
+                                                className="hidden"
+                                                type="file"
+                                                accept={accept}
+                                                onChange={(event) => {
+                                                    void uploadLoginPageMedia(event.target.files?.[0], key, label);
+                                                    event.target.value = "";
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="border-t border-stone-200 pt-5 dark:border-stone-800">

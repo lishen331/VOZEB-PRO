@@ -38,6 +38,11 @@ describe("application proxy security", () => {
 
         expect(policy).not.toContain("upgrade-insecure-requests");
     });
+    it("forwards the exact internal path for protected-page login redirects", () => {
+        const response = proxy(new NextRequest("https://app.example.com/canvas/project-one?tab=layers"));
+        expect(response.headers.get("x-middleware-request-x-vozeb-login-next")).toBe("/canvas/project-one?tab=layers");
+    });
+
     it("does not trust a spoofed forwarded HTTPS protocol without a trusted proxy", () => {
         vi.stubEnv("NODE_ENV", "production");
 

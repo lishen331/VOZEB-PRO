@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 import { AuthUserHydrator } from "@/components/auth/auth-user-hydrator";
 import { AppWorkspaceShell } from "@/components/layout/app-workspace-shell";
@@ -8,6 +9,7 @@ import { SchoolContextHydrator } from "@/components/school/school-context-hydrat
 import { getSchoolContextForUser } from "@/lib/server/school-access-service";
 import { getAuthenticatedPageAccess } from "@/lib/server/page-access";
 import { getFreshAuthSettings } from "@/lib/auth/store";
+import { loginHref } from "@/lib/login-navigation";
 
 export const metadata: Metadata = {
     robots: { index: false, follow: false, noarchive: true, noimageindex: true, nosnippet: true },
@@ -17,7 +19,8 @@ export default async function UserLayout({ children }: { children: ReactNode }) 
     const access = await getAuthenticatedPageAccess();
     if (!access.user) {
         if (!access.install.database.healthy || access.install.firstAdminRequired) redirect("/install");
-        redirect("/login");
+        const nextPath = (await headers()).get("x-vozeb-login-next");
+        redirect(loginHref(nextPath));
     }
     const user = access.user;
     const schoolContext = await getSchoolContextForUser(user.id);

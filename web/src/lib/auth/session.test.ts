@@ -76,6 +76,7 @@ describe("serializePublicSettings", () => {
                 ],
             },
         ];
+        settings.site.loginPage = { ...settings.site.loginPage, slogan: "公开宣传语", heroVideoUrl: "/api/login-page-media/hero.mp4" };
         settings.site.socials = {
             email: { enabled: true, label: "邮箱", url: "mailto:owner@example.com" },
             telegram: { enabled: true, label: "Telegram", url: "https://t.me/vozeb_group" },
@@ -112,6 +113,7 @@ describe("serializePublicSettings", () => {
         expect(result).not.toHaveProperty("freeDailyPoints");
         expect(result.site).not.toHaveProperty("homeShowcaseMode");
         expect(result.site).not.toHaveProperty("homeShowcaseItems");
+        expect(result.site.loginPage).toEqual(settings.site.loginPage);
         expect(result.site.socials).toEqual(settings.site.socials);
     });
 });
