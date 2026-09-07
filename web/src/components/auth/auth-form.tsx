@@ -1,15 +1,13 @@
 "use client";
 
 import type { FormEvent, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Gift, LockKeyhole, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { App, Button, Checkbox, Input } from "antd";
 
 import { SiteLogo } from "@/components/layout/site-logo";
 import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
-import type { PublicSiteSettings } from "@/stores/use-public-session-store";
-import { resolveLoginDestination } from "@/lib/login-navigation";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
 import { type LocalUser, useUserStore } from "@/stores/use-user-store";
 import { cn } from "@/lib/utils";
@@ -17,14 +15,12 @@ import { cn } from "@/lib/utils";
 type AuthFormProps = {
     mode: "login" | "register";
     nextPath?: string;
-    initialSite?: PublicSiteSettings;
     registrationEnabled?: boolean;
     emailRegistrationEnabled?: boolean;
     firstUser?: boolean;
     installToken?: string;
     onInstallTokenChange?: (value: string) => void;
     variant?: "page" | "embedded";
-    presentation?: "default" | "education-login";
     className?: string;
     headerSlot?: ReactNode;
     authError?: string;
@@ -35,15 +31,13 @@ type AuthFormProps = {
 
 export function AuthForm({
     mode,
-    nextPath,
-    initialSite,
+    nextPath = "/create",
     registrationEnabled = true,
     emailRegistrationEnabled = false,
     firstUser = false,
     installToken = "",
     onInstallTokenChange,
     variant = "page",
-    presentation = "default",
     className,
     headerSlot,
     authError,
@@ -52,8 +46,7 @@ export function AuthForm({
     inviteError,
 }: AuthFormProps) {
     const { message } = App.useApp();
-    const publicSite = usePublicSessionStore((state) => state.payload?.settings?.site);
-    const site = publicSite || initialSite || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
+    const site = usePublicSessionStore((state) => state.payload?.settings?.site) || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const siteTitle = resolveSiteTitle(site.title);
     const setUser = useUserStore((state) => state.setUser);
     const [username, setUsername] = useState("");
@@ -67,45 +60,9 @@ export function AuthForm({
     const [policyAccepted, setPolicyAccepted] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [sendingCode, setSendingCode] = useState(false);
-    const [heroVideoReady, setHeroVideoReady] = useState(false);
-    const [heroMotionEnabled, setHeroMotionEnabled] = useState(false);
     const isRegister = mode === "register";
     const disabled = isRegister && !registrationEnabled;
     const installTokenReady = !firstUser || installToken.trim().length >= 32;
-    const educationLogin = presentation === "education-login" && !isRegister && !firstUser;
-    const loginPage = site.loginPage || {
-        heroVideoUrl: "/login/hero.mp4",
-        heroPosterUrl: "/login/hero-poster.webp",
-        jointBrandUrl: "/login/joint-brand.webp",
-        slogan: "以热爱，燃未来",
-        platformName: "AIGC 智能影像教学平台",
-        footerOrganization: "",
-        servicePhone: "",
-        serviceHours: "",
-    };
-
-    useEffect(() => {
-        if (!educationLogin) return;
-        const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-        const syncMotion = () => setHeroMotionEnabled(!media.matches);
-        syncMotion();
-        media.addEventListener("change", syncMotion);
-        return () => media.removeEventListener("change", syncMotion);
-    }, [educationLogin]);
-
-    useEffect(() => {
-        if (!educationLogin) return;
-        const root = document.documentElement;
-        const restoreDarkTheme = root.classList.contains("dark");
-        root.classList.add("auth-brand-light");
-        root.classList.remove("dark");
-        root.style.colorScheme = "light";
-        return () => {
-            root.classList.remove("auth-brand-light");
-            root.classList.toggle("dark", restoreDarkTheme);
-            root.style.colorScheme = restoreDarkTheme ? "dark" : "light";
-        };
-    }, [educationLogin]);
 
     const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -142,9 +99,7 @@ export function AuthForm({
             } else {
                 message.success(isRegister ? "注册成功" : "登录成功");
             }
-            const destination = isRegister ? nextPath || "/create" : resolveLoginDestination(payload.user, nextPath);
-            if (!isRegister && nextPath && destination !== nextPath) message.warning("当前账号无权访问原目标，已进入默认工作区");
-            window.location.replace(destination);
+            window.location.replace(nextPath);
         } catch (error) {
             message.error(error instanceof Error ? error.message : isRegister ? "注册失败" : "登录失败");
         } finally {
@@ -171,24 +126,14 @@ export function AuthForm({
     };
 
     const form = (
-        <section className={cn("auth-panel flex min-h-full items-center", educationLogin ? "auth-education-form-panel" : variant === "embedded" ? "p-6 sm:p-7" : "p-8 sm:p-10", className)}>
-            <form onSubmit={submit} className={cn("auth-form-body w-full", educationLogin ? "auth-education-form-body" : variant === "embedded" ? "space-y-4" : "space-y-6")}>
+        <section className={cn("auth-panel flex min-h-full items-center", variant === "embedded" ? "p-6 sm:p-7" : "p-8 sm:p-10", className)}>
+            <form onSubmit={submit} className={cn("auth-form-body w-full", variant === "embedded" ? "space-y-4" : "space-y-6")}>
                 {headerSlot}
-                {educationLogin ? (
-                    <>
-                        <img className="auth-education-joint-brand" src={loginPage.jointBrandUrl} alt="中国动漫集团与 BLUEGAMMA 广东 AIGC 培训产教融合基地联合品牌" />
-                        <div className="auth-education-heading">
-                            <p>{loginPage.slogan}</p>
-                            <h1>{loginPage.platformName}</h1>
-                        </div>
-                    </>
-                ) : (
-                    <div className="auth-form-header">
-                        <p className="auth-form-kicker text-sm font-medium">{firstUser ? "首次初始化" : isRegister ? "创建创作账号" : "欢迎回来"}</p>
-                        <h2 className={cn("mt-2 font-semibold tracking-normal text-stone-950 dark:text-white", variant === "embedded" ? "text-2xl" : "text-3xl")}>{firstUser ? "创建首个管理员" : isRegister ? `注册 ${siteTitle}` : `登录 ${siteTitle}`}</h2>
-                        <p className="auth-form-description mt-3 text-sm leading-6 text-stone-500 dark:text-stone-400">{isRegister ? "保存创作项目、提示词和常用风格，从同一个入口继续。" : "继续你的电商、短剧、美颜与画布创作。"}</p>
-                    </div>
-                )}
+                <div className="auth-form-header">
+                    <p className="auth-form-kicker text-sm font-medium">{firstUser ? "首次初始化" : isRegister ? "创建创作账号" : "欢迎回来"}</p>
+                    <h2 className={cn("mt-2 font-semibold tracking-normal text-stone-950 dark:text-white", variant === "embedded" ? "text-2xl" : "text-3xl")}>{firstUser ? "创建首个管理员" : isRegister ? `注册 ${siteTitle}` : `登录 ${siteTitle}`}</h2>
+                    <p className="auth-form-description mt-3 text-sm leading-6 text-stone-500 dark:text-stone-400">{isRegister ? "保存创作项目、提示词和常用风格，从同一个入口继续。" : "继续你的电商、短剧、美颜与画布创作。"}</p>
+                </div>
 
                 {authError ? <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-100">{authError}</div> : null}
 
@@ -324,7 +269,7 @@ export function AuthForm({
                     </label>
                 ) : null}
 
-                {educationLogin || (isRegister && !firstUser) ? (
+                {isRegister && !firstUser ? (
                     <Checkbox checked={policyAccepted} disabled={submitting || disabled} onChange={(event) => setPolicyAccepted(event.target.checked)}>
                         <span className="text-sm leading-6 text-stone-600 dark:text-stone-300">
                             我已阅读并同意
@@ -346,11 +291,11 @@ export function AuthForm({
                     size="large"
                     block
                     loading={submitting}
-                    disabled={disabled || !installTokenReady || ((educationLogin || (isRegister && !firstUser)) && !policyAccepted)}
+                    disabled={disabled || !installTokenReady || (isRegister && !firstUser && !policyAccepted)}
                     icon={<ArrowRight className="size-4" />}
                     iconPlacement="end"
                 >
-                    {firstUser ? "创建管理员并进入后台" : isRegister ? "注册并开始创作" : mfaRequired ? "验证并登录" : educationLogin ? "登录" : "登录并继续"}
+                    {firstUser ? "创建管理员并进入后台" : isRegister ? "注册并开始创作" : mfaRequired ? "验证并登录" : "登录并继续"}
                 </Button>
 
                 <div className="auth-switch-link pt-2 text-center text-sm text-stone-500 dark:text-stone-400">
@@ -363,16 +308,12 @@ export function AuthForm({
                         </>
                     ) : (
                         <>
-                            {registrationEnabled ? (
-                                <>
-                                    还没有账号？{" "}
-                                    <Link href={`/register?next=${encodeURIComponent(nextPath || "/create")}`} className="font-medium text-stone-950 hover:underline dark:text-white">
-                                        立即注册
-                                    </Link>
-                                    <span className="mx-2 text-stone-300 dark:text-stone-700">/</span>
-                                </>
-                            ) : null}
-                            <Link href={`/forgot-password?next=${encodeURIComponent(nextPath || "/create")}`} className="font-medium text-stone-950 hover:underline dark:text-white">
+                            还没有账号？{" "}
+                            <Link href="/register" className="font-medium text-stone-950 hover:underline dark:text-white">
+                                立即注册
+                            </Link>
+                            <span className="mx-2 text-stone-300 dark:text-stone-700">/</span>
+                            <Link href="/forgot-password" className="font-medium text-stone-950 hover:underline dark:text-white">
                                 忘记密码
                             </Link>
                         </>
@@ -383,29 +324,6 @@ export function AuthForm({
     );
 
     if (variant === "embedded") return form;
-
-    if (educationLogin) {
-        return (
-            <main className="auth-education-shell">
-                <section className="auth-education-hero">
-                    <img src={loginPage.heroPosterUrl} alt="" aria-hidden="true" />
-                    {heroMotionEnabled ? (
-                        <video className={heroVideoReady ? "is-ready" : ""} muted autoPlay loop playsInline poster={loginPage.heroPosterUrl} onCanPlay={() => setHeroVideoReady(true)} onError={() => setHeroVideoReady(false)}>
-                            <source src={loginPage.heroVideoUrl} type="video/mp4" />
-                        </video>
-                    ) : null}
-                </section>
-                <section className="auth-education-login">
-                    <div className="auth-education-content">{form}</div>
-                    <footer className="auth-education-footer">
-                        <p>{site.footerCopyright || "© 2026 VOZEB PRO. All rights reserved."}</p>
-                        {loginPage.footerOrganization ? <p>运营单位：{loginPage.footerOrganization}</p> : null}
-                        {loginPage.servicePhone || loginPage.serviceHours ? <p>{[loginPage.servicePhone ? `客服电话 ${loginPage.servicePhone}` : "", loginPage.serviceHours].filter(Boolean).join(" · ")}</p> : null}
-                    </footer>
-                </section>
-            </main>
-        );
-    }
 
     return (
         <main className="auth-page-bg app-scroll-page flex items-center justify-center px-4 py-6 text-foreground sm:px-6 sm:py-10">

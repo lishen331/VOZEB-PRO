@@ -5,7 +5,6 @@ import { createDefaultChannelAdvancedConfig } from "@/components/admin/admin-sys
 import { toNumberOrOne, toNumberOrZero, uniqueList } from "@/components/admin/admin-values";
 import { channelProtocolDefinition, channelSupportsModelCatalog, normalizeStrictProtocolModelConfig } from "@/lib/channel-protocol-registry";
 import { nanoid } from "nanoid";
-import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
 import type { ReactNode } from "react";
 
 import type { AuthSettings, PublicUser, PublicUserSummary, SiteFriendLink, SiteSocialKey, SystemChannelAdvancedConfig, SystemModelChannel } from "@/lib/auth/store";
@@ -234,31 +233,6 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
     const uploadSiteLogo = (file?: File) => uploadSiteImage(file, "logoUrl", "Logo");
     const uploadSiteIcon = (file?: File) => uploadSiteImage(file, "iconUrl", "浏览器图标");
 
-    const uploadLoginPageMedia = async (file: File | undefined, key: keyof AuthSettings["site"]["loginPage"], label: string) => {
-        if (!file) return;
-        const allowed = key === "heroVideoUrl" ? ["video/mp4", "video/webm"] : ["image/png", "image/jpeg", "image/webp"];
-        if (!allowed.includes(file.type)) {
-            message.warning(`${label} 格式不支持`);
-            return;
-        }
-        if (file.size > CREATIVE_UPLOAD_MAX_BYTES) {
-            message.warning(`${label} 文件过大`);
-            return;
-        }
-        const form = new FormData();
-        form.set("file", file);
-        form.set("kind", key);
-        try {
-            const response = await fetch("/api/admin/login-page-media", { method: "POST", body: form });
-            const payload = (await response.json()) as { url?: string; error?: string };
-            if (!response.ok || !payload.url) throw new Error(payload.error || `${label}上传失败`);
-            updateSite((site) => ({ ...site, loginPage: { ...site.loginPage, [key]: payload.url } }));
-            message.success(`${label}已上传，保存设置后生效`);
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : `${label}上传失败`);
-        }
-    };
-
     const updateSiteSocialSetting = (key: SiteSocialKey, patch: Partial<AuthSettings["site"]["socials"][SiteSocialKey]>) => {
         updateSite((site) => ({
             ...site,
@@ -369,7 +343,6 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
         getLatestSettings,
         uploadSiteLogo,
         uploadSiteIcon,
-        uploadLoginPageMedia,
         updateSiteSocialSetting,
         addFriendLink,
         updateFriendLink,

@@ -16,16 +16,6 @@ export type PublicSiteSettings = {
     termsVersion?: string;
     privacyUrl?: string;
     privacyVersion?: string;
-    loginPage?: {
-        heroVideoUrl: string;
-        heroPosterUrl: string;
-        jointBrandUrl: string;
-        slogan: string;
-        platformName: string;
-        footerOrganization: string;
-        servicePhone: string;
-        serviceHours: string;
-    };
     friendLinks?: Array<{ id: string; label: string; url: string; enabled: boolean }>;
     socials?: Record<string, { enabled: boolean; label: string; url: string }>;
 };

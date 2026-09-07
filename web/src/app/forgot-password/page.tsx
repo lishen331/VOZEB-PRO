@@ -1,17 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { loginHref, safeLoginNextPath } from "@/lib/login-navigation";
 import Link from "next/link";
 import { App, Button, Input } from "antd";
 import { ArrowLeft, Mail } from "lucide-react";
 
 export default function ForgotPasswordPage() {
     const { message } = App.useApp();
-    const searchParams = useSearchParams();
-    const nextPath = safeLoginNextPath(searchParams.get("next"));
-    const backToLogin = loginHref(nextPath);
     const [email, setEmail] = useState("");
     const [code, setCode] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -47,7 +42,7 @@ export default function ForgotPasswordPage() {
             const payload = (await response.json()) as { error?: string };
             if (!response.ok) throw new Error(payload.error || "重置密码失败");
             message.success("密码已重置，请登录");
-            window.location.href = backToLogin;
+            window.location.href = "/login";
         } catch (error) {
             message.error(error instanceof Error ? error.message : "重置密码失败");
         } finally {
@@ -58,7 +53,7 @@ export default function ForgotPasswordPage() {
     return (
         <main className="auth-page-bg app-scroll-page flex items-center justify-center px-4 py-6 text-foreground sm:px-6 sm:py-10">
             <section className="auth-reset-card w-full max-w-md border p-6 backdrop-blur">
-                <Link href={backToLogin} className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white">
+                <Link href="/login" className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white">
                     <ArrowLeft className="size-4" />
                     返回登录
                 </Link>
