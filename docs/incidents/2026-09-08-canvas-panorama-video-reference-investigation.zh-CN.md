@@ -32,8 +32,10 @@ Playwright 对原图实际请求复现：站内 generation-log-assets 返回 307
 - 当前环境没有 pwsh；用 Windows PowerShell 执行文档验证脚本因 UTF-8 无 BOM 解码失败，接口索引/开发地图验证尚未通过。没有跳过门禁推送。
 
 ## 尚未完成的线上验收
-- 本次修改未推送部署，线上完整页面尚未验证修复版；组件回归不能替代线上验收。
-- 尚未使用修复版重新付费生成视频，不宣称新视频视觉一致性已验证。
+- 已包含在 develop 并由 `ddc6d0e2` 镜像成功部署，服务健康。
+- 线上原全景节点已实测：交互式查看器加载成功，控制台 0 错误。
+- 线上使用原四宫格参考图、明确 16:9 参数创建修复版视频任务 `a984e2e1-c84e-4e3d-98ec-7f54c1fa266e`；中转任务 `task_gYNZdoMpVXzV8H0RxyEYTiytwqzXVeIT` 显示 `16:9 / 5 秒 / 720p`，最终 MP4 实测 `1280×720 / 5.088 秒`。中间帧保留篮球场、拟人鸡、篮球与相同动画风格，确认参考图进入实际模型链路。截图：`2026-09-08-video-reference-fixed-midframe.png`。
+- 一条 10 秒真实验收请求因中转令牌余额不足（剩余 ¥4.4174、需要 ¥11.940588）被中转拒绝；但同模板此前已有任务 `fece52cc-2203-4544-bd94-cea1af9f3f34` 成功达到 10 秒。该任务在画布节点自身记录的 size 为 1:1，因此上游 1:1 不是服务端丢失 16:9。
 - 已进一步核对所用 New API Doubao 适配契约：历史模板只发送 `seconds + metadata.ratio + images`，不同中转版本可能按 OpenAI 视频兼容字段读取 `duration / aspect_ratio / input_reference / content`，缺失时会回退默认时长、比例或文本生成路径。
 - 运行时现会将旧的 Doubao 模板识别为过期配置并自动替换为兼容模板；同一真实参数同时映射为 `duration/seconds`、`ratio/aspect_ratio`、`image/input_reference/images/content`，不是伪造或拍脑袋参数。
 - 模板与请求构造回归确认：10 秒、16:9、参考图 URL 和带故事板约束的完整文字同时进入请求。线上付费生成验收需等待本提交部署。
