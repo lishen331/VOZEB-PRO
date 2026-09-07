@@ -1,4 +1,4 @@
-﻿name: Production image
+name: Production image
 
 on:
   push:
@@ -108,6 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
+      RELEASE_SHA: ${{ needs.build.outputs.release_sha }}
       PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
       PRODUCTION_SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
       PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
@@ -133,7 +134,7 @@ jobs:
             printf 'Release tag must match vX.Y.Z: %s\n' "$RELEASE_TAG" >&2
             exit 1
           fi
-          docker pull "${IMAGE_NAME}:${RELEASE_TAG}"
+          docker pull "${IMAGE_NAME}:sha-${RELEASE_SHA}"
 
       - name: Deploy with health check and rollback
         shell: bash
@@ -168,7 +169,7 @@ jobs:
             -o UserKnownHostsFile="$known_hosts_file"
           )
           target="$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST"
-          image="${IMAGE_NAME}:${RELEASE_TAG}"
+          image="${IMAGE_NAME}:sha-${RELEASE_SHA}"
 
           scp "${ssh_args[@]}" compose.production.yml "${target}:/opt/vozeb-pro/production/compose.production.yml"
           docker save "$image" | gzip -1 | ssh "${ssh_args[@]}" "$target" 'gunzip | docker load'
