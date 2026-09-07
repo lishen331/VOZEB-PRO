@@ -260,7 +260,7 @@ function latestStoryboardCheckpoint(children: DramaLabWorkflowChild[]): DramaLab
                 recoveredCount: Number.isFinite(Number(output.recoveredCount)) ? Number(output.recoveredCount) : shotCount,
                 truncated: output.truncated === true,
                 updatedAt: Number.isFinite(Number(output.checkpointAt)) ? Number(output.checkpointAt) : child.updatedAt,
-                shots: Array.isArray(output.newShots) ? output.newShots as DramaShot[] : undefined,
+                shots: Array.isArray(output.newShots) ? (output.newShots as DramaShot[]) : undefined,
             };
         })
         .filter(Boolean);

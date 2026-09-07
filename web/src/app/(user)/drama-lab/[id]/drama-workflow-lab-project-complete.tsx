@@ -1147,53 +1147,56 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     }, [loadCollaboration]);
 
     // 加载项目数据
-    const loadProject = useCallback(async (options: { silent?: boolean } = {}) => {
-        const silent = options.silent === true;
-        if (!silent) setLoading(true);
-        setError(undefined);
-        const controller = new AbortController();
-        // A cold Next.js route compile can exceed 15 seconds in development;
-        // do not abort an otherwise healthy project read before it responds.
-        const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
-        try {
-            const response = await fetch(`/api/drama-lab/projects/${projectId}`, { signal: controller.signal });
-            await assertJsonApiResponse(response);
-            const data = await response.json();
+    const loadProject = useCallback(
+        async (options: { silent?: boolean } = {}) => {
+            const silent = options.silent === true;
+            if (!silent) setLoading(true);
+            setError(undefined);
+            const controller = new AbortController();
+            // A cold Next.js route compile can exceed 15 seconds in development;
+            // do not abort an otherwise healthy project read before it responds.
+            const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+            try {
+                const response = await fetch(`/api/drama-lab/projects/${projectId}`, { signal: controller.signal });
+                await assertJsonApiResponse(response);
+                const data = await response.json();
 
-            if (data.code !== 0 || !data.data?.project) {
-                throw new Error(data.msg || "加载失败");
+                if (data.code !== 0 || !data.data?.project) {
+                    throw new Error(data.msg || "加载失败");
+                }
+
+                const proj = data.data.project;
+                const legacy = (proj.projectJson || {}) as Record<string, unknown>;
+                const sourceEpisodes = proj.episodes ?? legacy.episodes ?? [];
+                const episodes = normalizeEpisodes(sourceEpisodes);
+                setProject({
+                    id: proj.id,
+                    title: proj.title,
+                    description: proj.summary ?? legacy.description ?? "",
+                    style: proj.style ?? legacy.style ?? "",
+                    aspectRatio: proj.ratio ?? legacy.aspectRatio ?? "16:9",
+                    episodes,
+                    characters: (proj.characters ?? legacy.characters ?? []) as Character[],
+                    scenes: normalizeScenes(proj.scenes ?? legacy.scenes),
+                    props: (proj.props ?? legacy.props ?? []) as Prop[],
+                    shots: normalizeProjectShots(proj as Record<string, unknown>, episodes, legacy),
+                });
+
+                if (episodes.length > 0) {
+                    // Keep the episode currently being edited when a background
+                    // task recovery reloads the project.
+                    setActiveEpisodeId((current) => (current && episodes.some((episode) => episode.id === current) ? current : initialEpisodeId || episodes[0].id));
+                }
+                setExpandedEpisodeIds(new Set(episodes.map((episode: Episode) => episode.id)));
+            } catch (err) {
+                setError(err instanceof DOMException && err.name === "AbortError" ? "项目加载超时，请重试" : err instanceof Error ? err.message : "加载失败");
+            } finally {
+                window.clearTimeout(timeoutId);
+                if (!silent) setLoading(false);
             }
-
-            const proj = data.data.project;
-            const legacy = (proj.projectJson || {}) as Record<string, unknown>;
-            const sourceEpisodes = proj.episodes ?? legacy.episodes ?? [];
-            const episodes = normalizeEpisodes(sourceEpisodes);
-            setProject({
-                id: proj.id,
-                title: proj.title,
-                description: proj.summary ?? legacy.description ?? "",
-                style: proj.style ?? legacy.style ?? "",
-                aspectRatio: proj.ratio ?? legacy.aspectRatio ?? "16:9",
-                episodes,
-                characters: (proj.characters ?? legacy.characters ?? []) as Character[],
-                scenes: normalizeScenes(proj.scenes ?? legacy.scenes),
-                props: (proj.props ?? legacy.props ?? []) as Prop[],
-                shots: normalizeProjectShots(proj as Record<string, unknown>, episodes, legacy),
-            });
-
-            if (episodes.length > 0) {
-                // Keep the episode currently being edited when a background
-                // task recovery reloads the project.
-                setActiveEpisodeId((current) => (current && episodes.some((episode) => episode.id === current) ? current : initialEpisodeId || episodes[0].id));
-            }
-            setExpandedEpisodeIds(new Set(episodes.map((episode: Episode) => episode.id)));
-        } catch (err) {
-            setError(err instanceof DOMException && err.name === "AbortError" ? "项目加载超时，请重试" : err instanceof Error ? err.message : "加载失败");
-        } finally {
-            window.clearTimeout(timeoutId);
-            if (!silent) setLoading(false);
-        }
-    }, [initialEpisodeId, projectId]);
+        },
+        [initialEpisodeId, projectId],
+    );
 
     useEffect(() => {
         void loadProject();
@@ -1778,7 +1781,9 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     {activeStep === "script" && <ScriptEditor project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onActiveEpisodeChange={setActiveEpisodeId} messageApi={messageApi} />}
                     {activeStep === "review" && <ReviewPanel project={project} episode={activeEpisode} onStepChange={setActiveStep} messageApi={messageApi} />}
                     {activeStep === "assets" && <DramaLabVisualAssetsPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onLocateShot={locateStoryboardShot} messageApi={messageApi} />}
-                    {activeStep === "storyboard" && <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onCheckpoint={applyStoryboardCheckpoint} onShotSynced={updateProjectShotFromSync} messageApi={messageApi} />}
+                    {activeStep === "storyboard" && (
+                        <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onCheckpoint={applyStoryboardCheckpoint} onShotSynced={updateProjectShotFromSync} messageApi={messageApi} />
+                    )}
                     {activeStep === "export" && <ExportPanel project={project} episode={activeEpisode} messageApi={messageApi} exportBlockedByApproval={exportBlockedByApproval} />}
                 </div>
                 <aside className={cn("hidden min-h-0 shrink-0 flex-col border-l border-border bg-card transition-[width] duration-200 lg:flex", collaborationCollapsed ? "w-14" : "w-[340px]")}>
