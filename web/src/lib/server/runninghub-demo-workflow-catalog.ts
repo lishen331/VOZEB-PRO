@@ -125,7 +125,8 @@ export function demoRunningHubWorkflowCatalog(): RunningHubWorkflowConfig[] {
 }
 
 function normalizeInputField(field: DemoInputField): RunningHubWorkflowInputField {
-    const type: RunningHubWorkflowInputField["type"] = field.type === "image_url" ? "image" : field.type === "audio_url" ? "audio" : field.type === "string" ? (field.widget === "textarea" ? "textarea" : "text") : field.type === "boolean" ? "boolean" : field.type === "number" ? "number" : "text";
+    const type: RunningHubWorkflowInputField["type"] =
+        field.type === "image_url" ? "image" : field.type === "audio_url" ? "audio" : field.type === "string" ? (field.widget === "textarea" ? "textarea" : "text") : field.type === "boolean" ? "boolean" : field.type === "number" ? "number" : "text";
     return {
         key: field.key,
         label: field.label,

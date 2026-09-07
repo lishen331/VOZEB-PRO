@@ -109,8 +109,21 @@ export async function initializeDemoRunningHubWorkflows(input: { channelId: stri
         }
         workflowKeys.push(current.workflowKey);
         if (input.overwrite === true) {
-            const replacement = normalizeRunningHubWorkflowConfig({ ...candidate, workflowKey: current.workflowKey, version: current.version, enabled: current.enabled, lastTestAt: current.lastTestAt, lastTestResult: current.lastTestResult, lastTestError: current.lastTestError, lastTestConfigFingerprint: current.lastTestConfigFingerprint });
-            merged.splice(merged.findIndex((item) => item.workflowKey === current.workflowKey), 1, replacement);
+            const replacement = normalizeRunningHubWorkflowConfig({
+                ...candidate,
+                workflowKey: current.workflowKey,
+                version: current.version,
+                enabled: current.enabled,
+                lastTestAt: current.lastTestAt,
+                lastTestResult: current.lastTestResult,
+                lastTestError: current.lastTestError,
+                lastTestConfigFingerprint: current.lastTestConfigFingerprint,
+            });
+            merged.splice(
+                merged.findIndex((item) => item.workflowKey === current.workflowKey),
+                1,
+                replacement,
+            );
             updated += 1;
         } else {
             skipped += 1;
@@ -374,7 +387,11 @@ function workflowJsonText(raw: unknown, unwrapped: unknown) {
 
 function stableJson(value: unknown): string {
     if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
-    if (value && typeof value === "object") return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
+    if (value && typeof value === "object")
+        return `{${Object.entries(value as Record<string, unknown>)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+            .join(",")}}`;
     return JSON.stringify(value);
 }
 

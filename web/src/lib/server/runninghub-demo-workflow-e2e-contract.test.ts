@@ -33,7 +33,11 @@ describe("RunningHub Demo local fixture contract", () => {
             if (workflow.capability === "audio") expect(queryBody.data?.result).toMatch(/\.mp3$/);
         }
 
-        const upload = await fetch(`http://127.0.0.1:${port}/openapi/v2/media/upload/binary`, { method: "POST", headers: { "content-type": "multipart/form-data; boundary=fixture" }, body: "--fixture\r\nContent-Disposition: form-data; name=\"file\"; filename=reference.png\r\n\r\nfixture\r\n--fixture--\r\n" });
+        const upload = await fetch(`http://127.0.0.1:${port}/openapi/v2/media/upload/binary`, {
+            method: "POST",
+            headers: { "content-type": "multipart/form-data; boundary=fixture" },
+            body: '--fixture\r\nContent-Disposition: form-data; name="file"; filename=reference.png\r\n\r\nfixture\r\n--fixture--\r\n',
+        });
         expect(upload.status).toBe(200);
 
         const state = (await (await fetch(`http://127.0.0.1:${port}/__state`)).json()) as { tasks?: Array<{ payload?: Record<string, unknown> }> };
@@ -47,7 +51,11 @@ describe("RunningHub Demo local fixture contract", () => {
         const port = await freePort();
         fixture = spawn(process.execPath, [resolve(process.cwd(), "scripts/runninghub-workflow-fixture.mjs")], { env: { ...process.env, VOZEB_PRO_RUNNINGHUB_FIXTURE_PORT: String(port) } });
         await waitForFixture(fixture);
-        const created = await fetch(`http://127.0.0.1:${port}/task/openapi/create`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ workflowId: "2069627147735621634", nodeInfoList: [{ nodeId: "prompt", fieldName: "value", fieldValue: "__FAIL__" }] }) });
+        const created = await fetch(`http://127.0.0.1:${port}/task/openapi/create`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ workflowId: "2069627147735621634", nodeInfoList: [{ nodeId: "prompt", fieldName: "value", fieldValue: "__FAIL__" }] }),
+        });
         const taskId = ((await created.json()) as { data: { taskId: string } }).data.taskId;
         const queried = await fetch(`http://127.0.0.1:${port}/openapi/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId }) });
         expect(await queried.json()).toMatchObject({ code: 0, data: { status: "FAILED", error: "fixture task rejected" } });
@@ -83,6 +91,6 @@ function waitForFixture(child: ChildProcessWithoutNullStreams) {
             if (output.includes("RunningHub fixture listening")) resolveReady();
         });
         child.once("error", reject);
-        child.once("exit", (code) => code === 0 ? undefined : reject(new Error(`fixture exited: ${code}`)));
+        child.once("exit", (code) => (code === 0 ? undefined : reject(new Error(`fixture exited: ${code}`))));
     });
 }

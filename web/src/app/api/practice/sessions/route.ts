@@ -82,7 +82,7 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
               ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
               : input.capability === "video"
                 ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
-              : { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" };
+                : { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" };
     const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(input.userId, input.clientRequestId) });
     const cookie = request.headers.get("cookie");
     if (cookie) headers.set("cookie", cookie);
@@ -124,14 +124,16 @@ function sanitizePracticeInput(value: unknown) {
 function sanitizeDialogueLines(value: unknown) {
     if (!Array.isArray(value)) return [];
     const emotionKeys = ["happy", "sad", "disgust", "fear", "surprise", "angry"] as const;
-    return value.flatMap((item) => {
-        if (!item || typeof item !== "object" || Array.isArray(item)) return [];
-        const source = item as Record<string, unknown>;
-        const text = typeof source.text === "string" ? source.text.trim().slice(0, 2_000) : "";
-        if (!text) return [];
-        const audioValue = typeof source.audio === "string" ? source.audio.trim().slice(0, 2_000) : typeof source.audioUrl === "string" ? source.audioUrl.trim().slice(0, 2_000) : "";
-        const emotionSource = source.emotion && typeof source.emotion === "object" && !Array.isArray(source.emotion) ? (source.emotion as Record<string, unknown>) : {};
-        const emotion = Object.fromEntries(emotionKeys.flatMap((key) => (typeof emotionSource[key] === "number" && Number.isFinite(emotionSource[key]) ? [[key, emotionSource[key]]] : [])));
-        return [{ text, ...(audioValue ? { audio: audioValue } : {}), ...(Object.keys(emotion).length ? { emotion } : {}) }];
-    }).slice(0, 10);
+    return value
+        .flatMap((item) => {
+            if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+            const source = item as Record<string, unknown>;
+            const text = typeof source.text === "string" ? source.text.trim().slice(0, 2_000) : "";
+            if (!text) return [];
+            const audioValue = typeof source.audio === "string" ? source.audio.trim().slice(0, 2_000) : typeof source.audioUrl === "string" ? source.audioUrl.trim().slice(0, 2_000) : "";
+            const emotionSource = source.emotion && typeof source.emotion === "object" && !Array.isArray(source.emotion) ? (source.emotion as Record<string, unknown>) : {};
+            const emotion = Object.fromEntries(emotionKeys.flatMap((key) => (typeof emotionSource[key] === "number" && Number.isFinite(emotionSource[key]) ? [[key, emotionSource[key]]] : [])));
+            return [{ text, ...(audioValue ? { audio: audioValue } : {}), ...(Object.keys(emotion).length ? { emotion } : {}) }];
+        })
+        .slice(0, 10);
 }

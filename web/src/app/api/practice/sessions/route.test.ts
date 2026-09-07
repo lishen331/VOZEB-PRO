@@ -66,7 +66,13 @@ describe("/api/practice/sessions", () => {
     });
 
     it("keeps structured dialogue lines", async () => {
-        await POST(new Request("http://localhost/api/practice/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ module: "dubbing", input: { text: "你好", lines: [{ text: "你好", audio: "permanent/audio-one.mp3", emotion: { happy: 0.8 } }] }, clientRequestId: "request-dubbing" }) }));
+        await POST(
+            new Request("http://localhost/api/practice/sessions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ module: "dubbing", input: { text: "你好", lines: [{ text: "你好", audio: "permanent/audio-one.mp3", emotion: { happy: 0.8 } }] }, clientRequestId: "request-dubbing" }),
+            }),
+        );
         expect(mocks.createSession).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ input: { text: "你好", lines: [{ text: "你好", audio: "permanent/audio-one.mp3", emotion: { happy: 0.8 } }] } }), expect.anything());
     });
 
@@ -163,7 +169,13 @@ describe("/api/practice/sessions", () => {
             return { id: "session-video-audio", module: "storyboard-video", status: "running", input: { prompt: "镜头推进" } };
         });
 
-        const response = await POST(new Request("http://localhost/api/practice/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ module: "storyboard-video", input: { prompt: "镜头推进" }, clientRequestId: "request-video-audio" }) }));
+        const response = await POST(
+            new Request("http://localhost/api/practice/sessions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ module: "storyboard-video", input: { prompt: "镜头推进" }, clientRequestId: "request-video-audio" }),
+            }),
+        );
         expect(response.status).toBe(200);
         const [, init] = mocks.fetchInternalApi.mock.calls[0];
         expect(JSON.parse(String(init.body)).references).toEqual([

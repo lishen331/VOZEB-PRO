@@ -70,7 +70,7 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
         const source = reference as { type?: unknown; id?: unknown; inputKey?: unknown };
         if (source.type !== "asset" || typeof source.id !== "string" || !source.id.trim()) return [];
         const inputKey = normalizePracticeReferenceInputKey(source.inputKey);
-        return [{ type: inputKey === "audio" ? "audio" as const : "image" as const, url: practiceReferenceUrl(source.id), ...(inputKey ? { inputKey } : {}) }];
+        return [{ type: inputKey === "audio" ? ("audio" as const) : ("image" as const), url: practiceReferenceUrl(source.id), ...(inputKey ? { inputKey } : {}) }];
     });
     const body =
         input.capability === "text"

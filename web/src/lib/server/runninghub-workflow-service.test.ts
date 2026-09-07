@@ -15,7 +15,19 @@ vi.mock("./runninghub-provider", () => ({ fetchRunningHubWorkflowJson: mocks.fet
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store-types";
 import { runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
-import { RunningHubWorkflowError, copyWorkflowVersion, createWorkflow, discoverWorkflow, fetchAndSaveWorkflowJson, getWorkflow, initializeDemoRunningHubWorkflows, listWorkflows, parseWorkflowId, setWorkflowEnabled, updateWorkflow } from "./runninghub-workflow-service";
+import {
+    RunningHubWorkflowError,
+    copyWorkflowVersion,
+    createWorkflow,
+    discoverWorkflow,
+    fetchAndSaveWorkflowJson,
+    getWorkflow,
+    initializeDemoRunningHubWorkflows,
+    listWorkflows,
+    parseWorkflowId,
+    setWorkflowEnabled,
+    updateWorkflow,
+} from "./runninghub-workflow-service";
 
 const workflow = {
     workflowKey: "storyboard-image-v1",

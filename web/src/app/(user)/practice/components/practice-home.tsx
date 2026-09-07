@@ -193,7 +193,13 @@ export default function PracticeHome() {
                         {PRACTICE_ASSET_MODULES.map((item) => {
                             const Icon = item.icon;
                             return (
-                                <button key={item.module} type="button" className="min-w-0 border border-border bg-card p-3 text-left transition hover:border-foreground/40 hover:bg-muted/30 sm:p-4" onClick={() => router.push(practiceModulePath(item.module, ipReference))} data-practice-asset-module={item.module}>
+                                <button
+                                    key={item.module}
+                                    type="button"
+                                    className="min-w-0 border border-border bg-card p-3 text-left transition hover:border-foreground/40 hover:bg-muted/30 sm:p-4"
+                                    onClick={() => router.push(practiceModulePath(item.module, ipReference))}
+                                    data-practice-asset-module={item.module}
+                                >
                                     <Icon className="size-5 text-foreground" />
                                     <span className="mt-3 block text-sm font-medium">{item.title}</span>
                                     <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span>

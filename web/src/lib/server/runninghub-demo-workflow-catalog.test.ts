@@ -4,15 +4,7 @@ import { demoRunningHubWorkflowCatalog } from "./runninghub-demo-workflow-catalo
 
 describe("RunningHub Demo workflow catalog", () => {
     it("contains the seven verified workflow codes and IDs", () => {
-        expect(demoRunningHubWorkflowCatalog().map((item) => item.workflowCode)).toEqual([
-            "character_main_view",
-            "scene_main_view",
-            "prop_main_view",
-            "character_multi_view",
-            "storyboard_shot",
-            "storyboard_dialogue_audio",
-            "storyboard_shot_video",
-        ]);
+        expect(demoRunningHubWorkflowCatalog().map((item) => item.workflowCode)).toEqual(["character_main_view", "scene_main_view", "prop_main_view", "character_multi_view", "storyboard_shot", "storyboard_dialogue_audio", "storyboard_shot_video"]);
         expect(demoRunningHubWorkflowCatalog().find((item) => item.workflowCode === "storyboard_shot_video")).toMatchObject({
             workflowId: "2079446871415808002",
             adapterType: "storyboard-shot-video",

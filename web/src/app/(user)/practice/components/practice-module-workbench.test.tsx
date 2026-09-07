@@ -60,10 +60,7 @@ describe("practice module workbench contract", () => {
             { type: "asset", id: "image", inputKey: "image" },
             { type: "asset", id: "audio", inputKey: "audio" },
         ]);
-        expect(normalizePracticeDialogueLines([{ text: "第一句" }, { text: "-0.8s-" }, { text: "第二句", audio: "voice" }])).toEqual([
-            { text: "第一句" },
-            { text: "第二句", audio: "voice" },
-        ]);
+        expect(normalizePracticeDialogueLines([{ text: "第一句" }, { text: "-0.8s-" }, { text: "第二句", audio: "voice" }])).toEqual([{ text: "第一句" }, { text: "第二句", audio: "voice" }]);
     });
 
     it("renders required dimensions and character multi-view direction fields from the public capability", () => {
@@ -86,7 +83,12 @@ describe("practice module workbench contract", () => {
     });
 
     it("keeps internal dialogue slots out of public form defaults", () => {
-        const capability = { inputSchema: [{ key: "s1_happy", label: "开心", type: "number", required: false, defaultValue: 0 }, { key: "duration", label: "时长", type: "number", required: false, defaultValue: 6 }] } as never;
+        const capability = {
+            inputSchema: [
+                { key: "s1_happy", label: "开心", type: "number", required: false, defaultValue: 0 },
+                { key: "duration", label: "时长", type: "number", required: false, defaultValue: 6 },
+            ],
+        } as never;
         expect(workflowFieldDefaults(capability)).toEqual({ duration: 6 });
     });
 

@@ -120,7 +120,10 @@ describe("practice module capabilities", () => {
             ],
         };
         const capabilities = await listPracticeModuleCapabilities({ id: "teacher-one" }, { settings: current });
-        expect(capabilities.find((item) => item.module === "character")?.workflowOptions).toEqual([{ code: "character_main_view", label: "角色主形象图" }, { code: "character_multi_view", label: "角色多视图" }]);
+        expect(capabilities.find((item) => item.module === "character")?.workflowOptions).toEqual([
+            { code: "character_main_view", label: "角色主形象图" },
+            { code: "character_multi_view", label: "角色多视图" },
+        ]);
         expect(capabilities.find((item) => item.module === "character")?.inputSchema).toEqual(expect.arrayContaining([{ key: "frontPrompt", label: "正视图", type: "text", required: false }]));
         expect(JSON.stringify(capabilities)).not.toContain("workflow-internal");
         expect(JSON.stringify(capabilities)).not.toContain("workflowKey");
@@ -163,6 +166,11 @@ describe("practice module capabilities", () => {
             },
         };
         const character = (await listPracticeModuleCapabilities({ id: "teacher-one" }, { settings: current })).find((item) => item.module === "character");
-        expect(character?.inputSchema).toEqual(expect.arrayContaining([{ key: "width", label: "宽", type: "number", required: true, defaultValue: 720 }, { key: "height", label: "高", type: "number", required: true, defaultValue: 1280 }]));
+        expect(character?.inputSchema).toEqual(
+            expect.arrayContaining([
+                { key: "width", label: "宽", type: "number", required: true, defaultValue: 720 },
+                { key: "height", label: "高", type: "number", required: true, defaultValue: 1280 },
+            ]),
+        );
     });
 });

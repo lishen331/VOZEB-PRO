@@ -86,7 +86,15 @@ export function attachPracticeWorkflowToChannel<T extends { channelId?: string; 
     if (!sourceChannel || sourceChannel.advancedConfig?.protocol !== "runninghub") throw new Error("练习工作流渠道不可用");
     const workflows = Object.values(sourceChannel.advancedConfig.workflowConfigs || {}).map(normalizeRunningHubWorkflowConfig);
     const workflow = context.workflowKey
-        ? workflows.find((item) => item.workflowKey === context.workflowKey && item.version === context.workflowVersion && item.businessCode === context.businessCode && item.enabled && !workflowRequiresRetest(item) && (!context.workflowConfigFingerprint || runningHubWorkflowConfigFingerprint(item) === context.workflowConfigFingerprint))
+        ? workflows.find(
+              (item) =>
+                  item.workflowKey === context.workflowKey &&
+                  item.version === context.workflowVersion &&
+                  item.businessCode === context.businessCode &&
+                  item.enabled &&
+                  !workflowRequiresRetest(item) &&
+                  (!context.workflowConfigFingerprint || runningHubWorkflowConfigFingerprint(item) === context.workflowConfigFingerprint),
+          )
         : workflows.filter((item) => item.businessCode === context.businessCode && item.enabled && !workflowRequiresRetest(item)).sort((left, right) => right.version - left.version)[0];
     if (!workflow) throw new Error("练习工作流版本不存在或已停用");
     const advancedConfig = {

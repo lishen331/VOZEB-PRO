@@ -146,7 +146,7 @@ describe("RunningHub workflow domain", () => {
             workflowCode: "storyboard_shot_video",
             adapterType: "storyboard-shot-video",
             adapterVersion: 1,
-            workflowApiJson: "{\"269\":{\"class_type\":\"LoadImage\"}}",
+            workflowApiJson: '{"269":{"class_type":"LoadImage"}}',
             generationSizeOptions: [{ key: "1280x720", label: "1280 x 720", width: 1280, height: 720 }],
             remark: "Demo workflow",
             source: "server-dev:aigc_ai_dev",

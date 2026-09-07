@@ -52,14 +52,16 @@ function WorkflowField({ field, value, onChange }: { field: PracticeModuleInputF
     if (field.type === "text" || field.type === "textarea")
         return (
             <label className="block text-sm font-medium">
-                {field.label}{field.required ? " *" : ""}
+                {field.label}
+                {field.required ? " *" : ""}
                 <Input.TextArea value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)} autoSize={{ minRows: field.type === "textarea" ? 2 : 1, maxRows: 6 }} className="!mt-2" />
             </label>
         );
     if (field.type === "number")
         return (
             <label className="block text-sm font-medium">
-                {field.label}{field.required ? " *" : ""}
+                {field.label}
+                {field.required ? " *" : ""}
                 <InputNumber value={typeof value === "number" ? value : undefined} onChange={(next) => onChange(next ?? undefined)} className="!mt-2 !w-full" />{" "}
             </label>
         );

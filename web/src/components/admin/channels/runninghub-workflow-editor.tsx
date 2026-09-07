@@ -279,15 +279,39 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                                     <Select
                                         className="w-full"
                                         value={draft.adapterType || "generic"}
-                                        options={["generic", "character-main-view", "character-multi-view", "scene-main-view", "prop-main-view", "storyboard-shot", "storyboard-dialogue-audio", "storyboard-shot-video"].map((value) => ({ value, label: value }))}
+                                        options={["generic", "character-main-view", "character-multi-view", "scene-main-view", "prop-main-view", "storyboard-shot", "storyboard-dialogue-audio", "storyboard-shot-video"].map((value) => ({
+                                            value,
+                                            label: value,
+                                        }))}
                                         onChange={(value) => update({ adapterType: value as RunningHubWorkflowAdapterType })}
                                     />
                                 </Field>
                                 <Field label="备注">
                                     <Input value={String(draft.remark || "")} onChange={(event) => update({ remark: event.target.value })} />
                                 </Field>
-                                {workflow?.workflowJsonFingerprint ? <div className="sm:col-span-2"><Alert type={workflow.requiresRetest ? "warning" : "success"} showIcon message={workflow.requiresRetest ? "JSON 快照已变化，需要重新测试" : "已保存 RunningHub JSON 快照"} description={`指纹：${workflow.workflowJsonFingerprint}`} /></div> : null}
-                                {workflow?.generationSizeOptions?.length ? <div className="sm:col-span-2"><div className="mb-1 text-xs font-medium text-stone-600 dark:text-stone-300">可用尺寸预设</div><div className="flex flex-wrap gap-2">{workflow.generationSizeOptions.map((option) => <span key={option.key} className="rounded border border-stone-200 px-2 py-1 text-xs text-stone-600 dark:border-stone-700 dark:text-stone-300">{option.label}{option.disabled ? "（停用）" : ""}</span>)}</div></div> : null}
+                                {workflow?.workflowJsonFingerprint ? (
+                                    <div className="sm:col-span-2">
+                                        <Alert
+                                            type={workflow.requiresRetest ? "warning" : "success"}
+                                            showIcon
+                                            message={workflow.requiresRetest ? "JSON 快照已变化，需要重新测试" : "已保存 RunningHub JSON 快照"}
+                                            description={`指纹：${workflow.workflowJsonFingerprint}`}
+                                        />
+                                    </div>
+                                ) : null}
+                                {workflow?.generationSizeOptions?.length ? (
+                                    <div className="sm:col-span-2">
+                                        <div className="mb-1 text-xs font-medium text-stone-600 dark:text-stone-300">可用尺寸预设</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {workflow.generationSizeOptions.map((option) => (
+                                                <span key={option.key} className="rounded border border-stone-200 px-2 py-1 text-xs text-stone-600 dark:border-stone-700 dark:text-stone-300">
+                                                    {option.label}
+                                                    {option.disabled ? "（停用）" : ""}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
                                 <div className="flex items-end">
                                     <Button className="w-full" loading={discovering} onClick={() => void discover()}>
                                         读取工作流

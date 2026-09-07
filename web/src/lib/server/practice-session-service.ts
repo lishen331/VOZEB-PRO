@@ -72,7 +72,11 @@ export type PracticePublicErrorCode =
 export async function createPracticeSessionForUser(
     actor: PracticeActor,
     input: PracticeSessionCreateInput,
-    deps: { store?: PracticeSessionStore; dispatch?: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>; resolveModel?: (module: PracticeModuleKind, requestedLogicalModelId?: string, workflowCode?: string) => Promise<PracticeModelResolution> } = {},
+    deps: {
+        store?: PracticeSessionStore;
+        dispatch?: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>;
+        resolveModel?: (module: PracticeModuleKind, requestedLogicalModelId?: string, workflowCode?: string) => Promise<PracticeModelResolution>;
+    } = {},
 ) {
     await requirePracticeAccess(actor);
     const store = deps.store || defaultPracticeSessionStore();
@@ -130,7 +134,14 @@ export async function createPracticeSessionForUser(
         input: payload as JsonValue,
         taskRefs: [],
         ...(model ? { selectedLogicalModelId: model.logicalModelId } : {}),
-        ...(model?.workflow ? { workflowCode: model.workflow.workflowCode || requestedWorkflowCode, workflowVersion: model.workflow.version, workflowConfigFingerprint: runningHubWorkflowConfigFingerprint(model.workflow), workflowAdapterVersion: model.workflow.adapterVersion || 1 } : {}),
+        ...(model?.workflow
+            ? {
+                  workflowCode: model.workflow.workflowCode || requestedWorkflowCode,
+                  workflowVersion: model.workflow.version,
+                  workflowConfigFingerprint: runningHubWorkflowConfigFingerprint(model.workflow),
+                  workflowAdapterVersion: model.workflow.adapterVersion || 1,
+              }
+            : {}),
         status: mode === "manual" ? "draft" : "queued",
     });
     if (mode === "manual") {
@@ -405,9 +416,10 @@ export function normalizePracticeModuleInput(module: PracticeModuleKind, input: 
         // Asset modules use their own workflow adapters while retaining the public prompt shape.
     }
     if (module === "storyboard-video") {
-        const imageReferences = normalizedReferences.filter((reference) => reference.type === "asset" && (!["audio", "lastFrameImage", "firstFrameImage"].includes(reference.inputKey || "")));
+        const imageReferences = normalizedReferences.filter((reference) => reference.type === "asset" && !["audio", "lastFrameImage", "firstFrameImage"].includes(reference.inputKey || ""));
         if (imageReferences.length !== 1) throw new PracticeServiceError("请选择一张参考图片", 400, "PRACTICE_REFERENCE_INVALID");
-        if (input.audioEnabled === true && !normalizedReferences.some((reference) => reference.type === "asset" && reference.inputKey === "audio") && !text(input.audio)) throw new PracticeServiceError("启用台词音频后必须提供音频", 400, "PRACTICE_REFERENCE_INVALID");
+        if (input.audioEnabled === true && !normalizedReferences.some((reference) => reference.type === "asset" && reference.inputKey === "audio") && !text(input.audio))
+            throw new PracticeServiceError("启用台词音频后必须提供音频", 400, "PRACTICE_REFERENCE_INVALID");
     }
     const base = { ...(module === "dubbing" ? { text: value } : { prompt: value }), ...(text(input.workflowCode) ? { workflowCode: text(input.workflowCode) } : {}) };
     const accepted = new Set(["prompt", "text", "workflowCode"]);
@@ -422,9 +434,18 @@ export function normalizePracticeModuleInput(module: PracticeModuleKind, input: 
 }
 
 function resolvePracticeWorkflow(configs: readonly unknown[], channelId: string, module: PracticeModuleKind, requestedWorkflowCode?: string) {
-    const code = requestedWorkflowCode || ({ character: "character_main_view", scene: "scene_main_view", prop: "prop_main_view", "storyboard-image": "storyboard_shot", "storyboard-video": "storyboard_shot_video", dubbing: "storyboard_dialogue_audio" } as Record<string, string>)[module];
+    const code =
+        requestedWorkflowCode ||
+        ({ character: "character_main_view", scene: "scene_main_view", prop: "prop_main_view", "storyboard-image": "storyboard_shot", "storyboard-video": "storyboard_shot_video", dubbing: "storyboard_dialogue_audio" } as Record<string, string>)[module];
     const exact = code ? configs.map(normalizeWorkflow).find((item) => item.enabled && item.channelId === channelId && item.workflowCode === code && !workflowRequiresRetest(item)) : undefined;
-    return exact || (module === "music" ? resolveEnabledWorkflow(configs, channelId, "music") : module === "script" ? undefined : resolveEnabledWorkflow(configs, channelId, module === "dubbing" ? "dubbing" : module === "storyboard-video" ? "storyboard-video" : "storyboard-image"));
+    return (
+        exact ||
+        (module === "music"
+            ? resolveEnabledWorkflow(configs, channelId, "music")
+            : module === "script"
+              ? undefined
+              : resolveEnabledWorkflow(configs, channelId, module === "dubbing" ? "dubbing" : module === "storyboard-video" ? "storyboard-video" : "storyboard-image"))
+    );
 }
 
 function normalizeWorkflow(value: unknown) {
@@ -446,15 +467,17 @@ function isPublicWorkflowField(field: RunningHubWorkflowInputField) {
 function normalizeDialogueLines(value: unknown) {
     if (!Array.isArray(value)) return [];
     const emotionKeys = ["happy", "sad", "disgust", "fear", "surprise", "angry"] as const;
-    return value.flatMap((item) => {
-        const source = object(item);
-        const lineText = text(source.text);
-        if (!lineText || /^-[0-9]+(?:\.[0-9]+)?s-$/.test(lineText)) return [];
-        const audio = text(source.audio) || text(source.audioUrl);
-        const rawEmotion = object(source.emotion);
-        const emotion = Object.fromEntries(emotionKeys.flatMap((key) => (typeof rawEmotion[key] === "number" && Number.isFinite(rawEmotion[key]) ? [[key, rawEmotion[key]]] : [])));
-        return [{ text: lineText.slice(0, 2_000), ...(audio ? { audio: audio.slice(0, 2_000) } : {}), ...(Object.keys(emotion).length ? { emotion } : {}) }];
-    }).slice(0, 10);
+    return value
+        .flatMap((item) => {
+            const source = object(item);
+            const lineText = text(source.text);
+            if (!lineText || /^-[0-9]+(?:\.[0-9]+)?s-$/.test(lineText)) return [];
+            const audio = text(source.audio) || text(source.audioUrl);
+            const rawEmotion = object(source.emotion);
+            const emotion = Object.fromEntries(emotionKeys.flatMap((key) => (typeof rawEmotion[key] === "number" && Number.isFinite(rawEmotion[key]) ? [[key, rawEmotion[key]]] : [])));
+            return [{ text: lineText.slice(0, 2_000), ...(audio ? { audio: audio.slice(0, 2_000) } : {}), ...(Object.keys(emotion).length ? { emotion } : {}) }];
+        })
+        .slice(0, 10);
 }
 
 function defaultPracticeSessionStore(): PracticeSessionStore & { list(userId: string, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {

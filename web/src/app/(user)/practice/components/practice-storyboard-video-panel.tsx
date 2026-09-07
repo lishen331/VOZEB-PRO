@@ -9,10 +9,9 @@ import { WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps 
 import { ModelField } from "./practice-storyboard-image-panel";
 
 export function buildStoryboardVideoReferences(imageId: string, audioEnabled: boolean, audioId?: string) {
-    return [
-        imageId ? { type: "asset" as const, id: imageId, inputKey: "image" } : null,
-        audioEnabled && audioId ? { type: "asset" as const, id: audioId, inputKey: "audio" } : null,
-    ].filter((reference): reference is { type: "asset"; id: string; inputKey: string } => Boolean(reference));
+    return [imageId ? { type: "asset" as const, id: imageId, inputKey: "image" } : null, audioEnabled && audioId ? { type: "asset" as const, id: audioId, inputKey: "audio" } : null].filter(
+        (reference): reference is { type: "asset"; id: string; inputKey: string } => Boolean(reference),
+    );
 }
 export default function PracticeStoryboardVideoPanel({ capability, onCreated }: PracticePanelProps) {
     const [prompt, setPrompt] = useState("");
@@ -35,7 +34,11 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated }: 
     const chooseAudio = async (file?: File) => {
         if (!file || !file.type.startsWith("audio/")) return;
         setUploading(true);
-        try { setAudio(await uploadMediaFile(file, "audio")); } finally { setUploading(false); }
+        try {
+            setAudio(await uploadMediaFile(file, "audio"));
+        } finally {
+            setUploading(false);
+        }
     };
     const submit = async () => {
         if (!prompt.trim() || !image?.storageKey || !model || busy || (audioEnabled && !audio?.storageKey)) return;

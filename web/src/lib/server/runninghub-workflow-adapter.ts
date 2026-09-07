@@ -16,11 +16,7 @@ const STORYBOARD_SLOTS = [
     { inputKey: "characterPropImage3", loadImageNode: "48", referenceNode: "45", branchNodes: ["48", "47", "43", "44", "45"] },
 ] as const;
 
-export function prepareRunningHubWorkflowExecution(input: {
-    config: RunningHubWorkflowConfig;
-    businessInput: Record<string, unknown>;
-    references: RunningHubWorkflowReference[];
-}): RunningHubWorkflowExecution {
+export function prepareRunningHubWorkflowExecution(input: { config: RunningHubWorkflowConfig; businessInput: Record<string, unknown>; references: RunningHubWorkflowReference[] }): RunningHubWorkflowExecution {
     const config = input.config;
     if (config.adapterType === "storyboard-shot" && !text(input.businessInput.sceneImage) && !input.references.some((reference) => reference.inputKey === "sceneImage" && Boolean(referenceValue(reference)))) {
         throw new Error("分镜图缺少主场景图（sceneImage）");
@@ -63,7 +59,10 @@ function resolveInputValues(config: RunningHubWorkflowConfig, businessInput: Rec
     for (const field of config.inputSchema) {
         if (resolved[field.key] !== undefined) continue;
         if (field.type === "images") {
-            const values = references.filter((reference) => reference.type === "image").map(referenceValue).filter(Boolean);
+            const values = references
+                .filter((reference) => reference.type === "image")
+                .map(referenceValue)
+                .filter(Boolean);
             if (values.length) resolved[field.key] = values;
             continue;
         }
@@ -247,5 +246,5 @@ function isOfficialCreatePath(path: string) {
 
 function allowlistedRunOptions(options: Record<string, string | number | boolean | null>) {
     const keys = new Set(["addMetadata", "instanceType", "usePersonalQueue", "retainSeconds", "accessPassword"]);
-    return Object.fromEntries(Object.entries(options).filter(([key, value]) => keys.has(key) && value !== null && (key !== "retainSeconds" || Number(value) >= 10 && Number(value) <= 180)));
+    return Object.fromEntries(Object.entries(options).filter(([key, value]) => keys.has(key) && value !== null && (key !== "retainSeconds" || (Number(value) >= 10 && Number(value) <= 180))));
 }

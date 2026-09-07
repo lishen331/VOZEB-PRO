@@ -398,7 +398,11 @@ export async function createUpstream(
     const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
     const multipart = channel.advancedConfig?.requestTemplate?.trim().toLowerCase().startsWith("multipart/form-data") === true;
     const payload = workflow
-        ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: { ...values, ...raw }, references: references.map((reference) => ({ type: reference.type, url: reference.url, ...(reference.inputKey ? { inputKey: reference.inputKey } : {}) })) })
+        ? buildRunningHubWorkflowPayload({
+              config: workflow,
+              businessInput: { ...values, ...raw },
+              references: references.map((reference) => ({ type: reference.type, url: reference.url, ...(reference.inputKey ? { inputKey: reference.inputKey } : {}) })),
+          })
         : multipart
           ? undefined
           : channel.advancedConfig?.protocol === "vozeb-recommended"

@@ -44,15 +44,7 @@ export type SystemChannelStreamingConfig = {
 
 export type RunningHubWorkflowBusinessCode = "script" | "storyboard-image" | "storyboard-video" | "dubbing" | "music" | "canvas" | "drama";
 export type RunningHubWorkflowCode = string;
-export type RunningHubWorkflowAdapterType =
-    | "character-main-view"
-    | "character-multi-view"
-    | "scene-main-view"
-    | "prop-main-view"
-    | "storyboard-shot"
-    | "storyboard-dialogue-audio"
-    | "storyboard-shot-video"
-    | "generic";
+export type RunningHubWorkflowAdapterType = "character-main-view" | "character-multi-view" | "scene-main-view" | "prop-main-view" | "storyboard-shot" | "storyboard-dialogue-audio" | "storyboard-shot-video" | "generic";
 export type RunningHubGenerationSizeOption = {
     key: string;
     label: string;

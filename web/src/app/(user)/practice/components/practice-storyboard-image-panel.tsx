@@ -9,10 +9,9 @@ import { WorkflowFormFields, WorkflowOptionalFields, workflowFieldDefaults, type
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
 
 export function buildStoryboardImageReferences(sceneId: string, assetIds: string[]) {
-    return [
-        sceneId ? { type: "asset" as const, id: sceneId, inputKey: "sceneImage" } : null,
-        ...assetIds.slice(0, 3).map((id, index) => (id ? { type: "asset" as const, id, inputKey: `characterPropImage${index + 1}` } : null)),
-    ].filter((reference): reference is { type: "asset"; id: string; inputKey: string } => Boolean(reference));
+    return [sceneId ? { type: "asset" as const, id: sceneId, inputKey: "sceneImage" } : null, ...assetIds.slice(0, 3).map((id, index) => (id ? { type: "asset" as const, id, inputKey: `characterPropImage${index + 1}` } : null))].filter(
+        (reference): reference is { type: "asset"; id: string; inputKey: string } => Boolean(reference),
+    );
 }
 export default function PracticeStoryboardImagePanel({ capability, ipReferences, onIpReferencesChange, onCreated }: PracticePanelProps) {
     const [prompt, setPrompt] = useState("");
@@ -29,7 +28,9 @@ export default function PracticeStoryboardImagePanel({ capability, ipReferences,
             const uploaded = await uploadImage(file);
             if (index === undefined) setScene(uploaded);
             else setAssets((current) => Object.assign([...current], { [index]: uploaded }));
-        } finally { setUploading(false); }
+        } finally {
+            setUploading(false);
+        }
     };
     const submit = async () => {
         if (!prompt.trim() || !model || !scene?.storageKey || busy) return;
@@ -43,7 +44,13 @@ export default function PracticeStoryboardImagePanel({ capability, ipReferences,
                         title: "分镜图练习",
                         workflowCode: "storyboard_shot",
                         input: { prompt: prompt.trim(), workflowCode: "storyboard_shot", ...workflowInput },
-                        references: [...buildStoryboardImageReferences(scene.storageKey, assets.flatMap((item) => item?.storageKey || [])), ...ipReferences],
+                        references: [
+                            ...buildStoryboardImageReferences(
+                                scene.storageKey,
+                                assets.flatMap((item) => item?.storageKey || []),
+                            ),
+                            ...ipReferences,
+                        ],
                         logicalModelId: model,
                         clientRequestId: crypto.randomUUID(),
                     })
@@ -62,7 +69,13 @@ export default function PracticeStoryboardImagePanel({ capability, ipReferences,
                 {scene ? <img src={scene.url} alt="已选择的主场景图" className="mt-2 max-h-48 w-full object-contain" /> : null}
             </label>
             <div className="grid gap-3 sm:grid-cols-3">
-                {[0, 1, 2].map((index) => <label key={index} className="block text-sm font-medium">角色/道具图 {index + 1}<input type="file" accept="image/*" disabled={uploading} onChange={(event) => void chooseImage(event.target.files?.[0], index)} className="mt-2 block w-full text-xs" />{assets[index] ? <img src={assets[index]?.url} alt={`已选择的角色或道具图 ${index + 1}`} className="mt-2 max-h-28 w-full object-contain" /> : null}</label>)}
+                {[0, 1, 2].map((index) => (
+                    <label key={index} className="block text-sm font-medium">
+                        角色/道具图 {index + 1}
+                        <input type="file" accept="image/*" disabled={uploading} onChange={(event) => void chooseImage(event.target.files?.[0], index)} className="mt-2 block w-full text-xs" />
+                        {assets[index] ? <img src={assets[index]?.url} alt={`已选择的角色或道具图 ${index + 1}`} className="mt-2 max-h-28 w-full object-contain" /> : null}
+                    </label>
+                ))}
             </div>
             <label className="block text-sm font-medium">
                 画面描述

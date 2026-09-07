@@ -146,7 +146,9 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                     <div className="min-w-0">
                         <div className="truncate font-medium">{item.workflowName}</div>
                         <div className="truncate text-xs text-stone-500">{item.workflowCode || item.workflowKey}</div>
-                        <div className="truncate text-xs text-stone-500">{item.adapterType || "generic"} · {runningHubWorkflowSnapshotLabel(item)}</div>
+                        <div className="truncate text-xs text-stone-500">
+                            {item.adapterType || "generic"} · {runningHubWorkflowSnapshotLabel(item)}
+                        </div>
                     </div>
                 ),
             },

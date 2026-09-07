@@ -82,7 +82,17 @@ function describeModule(settings: AuthSettings, module: PracticeModuleKind): Pra
     const workflow = workflowForModule(first.channel.advancedConfig?.workflowConfigs, first.channel.id, module);
     if (!workflow) return { module, ...base, available: false, models: [], unavailableReason: "当前模块暂无可用工作流" };
     const workflows = workflowsForModule(first.channel.advancedConfig?.workflowConfigs, first.channel.id, module);
-    return { module, ...base, available: true, models, workflowOptions: workflowOptions(first.channel.advancedConfig?.workflowConfigs, first.channel.id, module), inputSchema: mergeOptionalWorkflowFields(base.inputSchema, workflows.flatMap((item) => item.inputSchema)) };
+    return {
+        module,
+        ...base,
+        available: true,
+        models,
+        workflowOptions: workflowOptions(first.channel.advancedConfig?.workflowConfigs, first.channel.id, module),
+        inputSchema: mergeOptionalWorkflowFields(
+            base.inputSchema,
+            workflows.flatMap((item) => item.inputSchema),
+        ),
+    };
 }
 
 function mergeOptionalWorkflowFields(base: PracticeModuleInputField[], fields: RunningHubWorkflowInputField[]) {
