@@ -1,6 +1,6 @@
 "use client";
 
-import { App, Empty, Input, Pagination, Select, Segmented, Spin, Tag } from "antd";
+import { App, Empty, Input, Pagination, Select, Segmented, Spin } from "antd";
 import { BookOpen, Search } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useState } from "react";
@@ -27,10 +27,6 @@ export function availableIpLibraryScopes(hasSchool: boolean) {
               { label: "本校 IP", value: "school" as const },
           ]
         : [{ label: "公共 IP", value: "public" as const }];
-}
-
-export function shouldShowExclusiveBadge(visibility: IpSummary["visibility"], isExclusive: boolean) {
-    return visibility === "school" && isExclusive;
 }
 
 export default function IpLibraryPage() {
@@ -76,7 +72,7 @@ export default function IpLibraryPage() {
                     <div className="min-w-0">
                         <p className="text-xs font-medium text-muted-foreground">社区内容资源</p>
                         <h1 className="mt-1.5 text-2xl font-semibold tracking-normal sm:text-3xl">IP库</h1>
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">查看平台审核发布的 IP 版本，用于教学、练习和创作。</p>
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">查看可用的 IP 内容，用于教学、练习和创作。</p>
                     </div>
                     <Segmented<IpLibraryScope>
                         value={scope}
@@ -158,18 +154,11 @@ function IpLibraryCard({ item }: { item: IpSummary }) {
                 )}
             </div>
             <div className="min-w-0 p-3">
-                <div className="flex min-w-0 items-start justify-between gap-2">
-                    <h2 className="line-clamp-2 min-w-0 text-sm font-semibold leading-5">{item.title}</h2>
-                    {shouldShowExclusiveBadge(item.visibility, item.isExclusive) ? (
-                        <Tag color="gold" className="!m-0 shrink-0">
-                            独家授权
-                        </Tag>
-                    ) : null}
-                </div>
+                <h2 className="line-clamp-2 min-w-0 text-sm font-semibold leading-5">{item.title}</h2>
                 <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.summary || "暂无简介"}</p>
                 <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>v{item.versionNumber}</span>
-                    <span>{item.itemCount} 项内容</span>
+                    <span>{item.subIpCount > 1 ? `${item.subIpCount} 个子 IP` : "IP 内容"}</span>
+                    <span>{item.accessibleSubIpCount && item.accessibleSubIpCount !== item.subIpCount ? `已授权 ${item.accessibleSubIpCount} 个` : "查看详情"}</span>
                 </div>
             </div>
         </Link>

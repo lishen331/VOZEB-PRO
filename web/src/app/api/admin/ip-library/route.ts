@@ -38,7 +38,7 @@ export async function POST(request: Request) {
             action: "admin.ip.create",
             actor: auditActorFromRequest(request, user),
             target: { type: "ip", id: record.id, label: record.title },
-            metadata: { status: record.status, visibility: record.visibility, authorizationMode: record.authorizationMode },
+            metadata: { status: record.status, visibility: record.visibility },
         });
         return schoolApiOk(record);
     } catch (error) {

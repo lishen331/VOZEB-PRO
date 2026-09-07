@@ -1,462 +1,318 @@
 import { AUTH_DATA_FILE } from "@/lib/auth/store-foundation";
 import { readJsonDataFile, withJsonDataFileLocks, writeJsonDataFile } from "@/lib/server/data-adapter";
 import type {
-    IpDetailRecord,
     IpContentFileCreateInput,
     IpContentFilePatch,
     IpContentFileRecord,
+    IpDetailRecord,
     IpDownloadCreateInput,
     IpDownloadRecord,
-    IpDraftVersionInput,
+    IpFileCleanupRecord,
+    IpItemInput,
+    IpItemRecord,
     IpPackageCreateInput,
     IpPackagePatch,
     IpPackageRecord,
     IpSchoolGrantCreateInput,
     IpSchoolGrantRecord,
     IpSchoolGrantUpdateInput,
+    IpSubIpCreateInput,
+    IpSubIpDetailRecord,
+    IpSubIpPatch,
+    IpSubIpRecord,
     IpSummaryRecord,
     IpUsageCreateInput,
     IpUsageRecord,
-    IpVersionRecord,
     PageResult,
 } from "@/lib/server/database/repository-types";
-import type { IpAssetKind, IpItemCategory } from "@/lib/ip-library-domain";
+import type { AdminIpListInput, IpDownloadListInput, IpGrantConflictInput, IpGrantListInput, IpUsageListInput, VisibleIpDetailInput, VisibleIpListInput } from "@/lib/server/database/ip-library-repository";
 import { SCHOOL_DOMAIN_DATA_FILE } from "./school-domain-file-repository";
-import type { AdminIpListInput, IpGrantConflictInput, IpGrantListInput, IpUsageListInput, VisibleIpDetailInput, VisibleIpListInput } from "./database/ip-library-repository";
 
 export const IP_LIBRARY_DATA_FILE = "ip-library.json";
 
 type IpLibraryFile = {
-    version: 2;
+    version: 3;
     packages: IpPackageRecord[];
-    versions: IpVersionRecord[];
+    subIps: IpSubIpRecord[];
+    items: IpItemRecord[];
     files: IpContentFileRecord[];
     grants: IpSchoolGrantRecord[];
     usages: IpUsageRecord[];
     downloads: IpDownloadRecord[];
+    cleanup: IpFileCleanupRecord[];
 };
-
-const EMPTY_FILE: IpLibraryFile = { version: 2, packages: [], versions: [], files: [], grants: [], usages: [], downloads: [] };
-
 type AuthSnapshot = { users?: Array<{ id?: string; status?: string }> };
 type SchoolSnapshot = { schools?: Array<{ id?: string; status?: string }>; memberships?: Array<{ userId?: string; schoolId?: string; status?: string }> };
+const EMPTY_FILE: IpLibraryFile = { version: 3, packages: [], subIps: [], items: [], files: [], grants: [], usages: [], downloads: [], cleanup: [] };
 
 export function createFileIpLibraryRepository() {
     return new FileIpLibraryRepository();
 }
 
 export class FileIpLibraryRepository {
-    async getIpPackage(ipId: string): Promise<IpPackageRecord | null> {
+    async getIpPackage(ipId: string) {
         return detached((await readFile()).packages.find((item) => item.id === ipId));
     }
-
-    async getIpPackageBySlug(slug: string, excludeIpId?: string): Promise<IpPackageRecord | null> {
-        const normalized = slug.toLowerCase();
-        return detached((await readFile()).packages.find((item) => item.id !== excludeIpId && item.slug.toLowerCase() === normalized));
+    async getIpPackageBySlug(slug: string, excludeIpId?: string) {
+        return detached((await readFile()).packages.find((item) => item.id !== excludeIpId && item.slug.toLowerCase() === slug.toLowerCase()));
     }
-
-    createIpPackage(input: IpPackageCreateInput): Promise<IpPackageRecord> {
+    createIpPackage(input: IpPackageCreateInput) {
         return mutate(async (state) => {
             if (state.packages.some((item) => item.id === input.id || item.slug.toLowerCase() === input.slug.toLowerCase())) throw new Error("IP 标识或 slug 已存在");
             const now = new Date().toISOString();
-            const record: IpPackageRecord = { ...structuredClone(input), createdAt: now, updatedAt: now };
+            const record = { ...structuredClone(input), createdAt: now, updatedAt: now };
             state.packages.push(record);
             return structuredClone(record);
         });
     }
-
-    async listIpPackages(input: AdminIpListInput = {}): Promise<PageResult<IpSummaryRecord>> {
-        const page = positiveInteger(input.page, 1);
-        const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
-        const keyword = input.keyword?.trim().toLowerCase();
-        const state = await readFile();
-        const records = state.packages
-            .filter((item) => (!keyword || `${item.title}\n${item.summary}\n${item.slug}`.toLowerCase().includes(keyword)) && (!input.status || item.status === input.status) && (!input.visibility || item.visibility === input.visibility))
-            .map((item) => {
-                const version = state.versions.find((candidate) => candidate.id === item.currentVersionId);
-                return { ...structuredClone(item), versionNumber: version?.versionNumber || 0, itemCount: version?.items.length || 0 };
-            })
-            .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id));
-        return { items: records.slice((page - 1) * pageSize, page * pageSize), total: records.length, page, pageSize };
-    }
-
-    updateIpPackage(ipId: string, patch: IpPackagePatch): Promise<IpPackageRecord | null> {
+    async updateIpPackage(ipId: string, patch: IpPackagePatch) {
         return mutate(async (state) => {
             const record = state.packages.find((item) => item.id === ipId);
             if (!record) return null;
             if (patch.slug && state.packages.some((item) => item.id !== ipId && item.slug.toLowerCase() === patch.slug!.toLowerCase())) throw new Error("IP slug 已存在");
-            if (state.grants.some((grant) => grant.ipId === ipId) && ((patch.visibility && patch.visibility !== record.visibility) || (patch.authorizationMode && patch.authorizationMode !== record.authorizationMode))) return null;
-            const { coverAssetId, ...values } = structuredClone(patch);
-            Object.assign(record, values, { updatedAt: new Date().toISOString() });
-            if (coverAssetId === null) record.coverAssetId = undefined;
-            else if (coverAssetId !== undefined) record.coverAssetId = coverAssetId;
+            Object.assign(record, patch, { updatedAt: new Date().toISOString() });
+            if (patch.coverFileId === null) record.coverFileId = undefined;
             return structuredClone(record);
         });
     }
-
-    createIpContentFile(input: IpContentFileCreateInput): Promise<IpContentFileRecord> {
+    async listIpPackages(input: AdminIpListInput = {}): Promise<PageResult<IpSummaryRecord>> {
+        const state = await readFile();
+        return page(
+            state.packages
+                .filter((item) => matchesPackage(item, input))
+                .map((item) => summaryFor(state, item))
+                .sort(byUpdated),
+            input,
+        );
+    }
+    async getIpDetail(ipId: string): Promise<IpDetailRecord | null> {
+        const state = await readFile();
+        const packageRecord = state.packages.find((item) => item.id === ipId);
+        return packageRecord ? detailFor(state, packageRecord) : null;
+    }
+    deleteIpPackage(ipId: string) {
         return mutate(async (state) => {
-            if (!state.packages.some((item) => item.id === input.ipId)) throw new Error("IP 不存在");
+            const packageIndex = state.packages.findIndex((item) => item.id === ipId);
+            if (packageIndex < 0) return null;
+            const files = state.files.filter((item) => item.ipId === ipId);
+            state.cleanup.push(...files.map(cleanupFor));
+            state.packages.splice(packageIndex, 1);
+            const subIds = new Set(state.subIps.filter((item) => item.ipId === ipId).map((item) => item.id));
+            state.subIps = state.subIps.filter((item) => item.ipId !== ipId);
+            state.items = state.items.filter((item) => !subIds.has(item.subIpId));
+            state.files = state.files.filter((item) => item.ipId !== ipId);
+            state.grants = state.grants.filter((item) => item.ipId !== ipId);
+            state.usages = state.usages.filter((item) => item.ipId !== ipId);
+            state.downloads = state.downloads.filter((item) => item.ipId !== ipId);
+            return structuredClone(files);
+        });
+    }
+    async getIpSubIp(ipId: string, subIpId: string): Promise<IpSubIpDetailRecord | null> {
+        const state = await readFile();
+        const subIp = state.subIps.find((item) => item.ipId === ipId && item.id === subIpId);
+        return subIp ? subIpDetailFor(state, subIp) : null;
+    }
+    createIpSubIp(ipId: string, input: IpSubIpCreateInput) {
+        return mutate(async (state) => {
+            if (!state.packages.some((item) => item.id === ipId)) throw new Error("IP 不存在");
+            if (state.subIps.some((item) => item.id === input.id)) throw new Error("子 IP 已存在");
+            const now = new Date().toISOString();
+            const record: IpSubIpRecord = { ...structuredClone(input), ipId, tags: structuredClone(input.tags || []), sourceNote: input.sourceNote || "", sortOrder: input.sortOrder ?? nextOrder(state, ipId), createdAt: now, updatedAt: now };
+            state.subIps.push(record);
+            return { ...structuredClone(record), items: [] };
+        });
+    }
+    updateIpSubIp(ipId: string, subIpId: string, patch: IpSubIpPatch) {
+        return mutate(async (state) => {
+            const record = state.subIps.find((item) => item.ipId === ipId && item.id === subIpId);
+            if (!record) return null;
+            Object.assign(record, patch, { updatedAt: new Date().toISOString() });
+            if (patch.coverFileId === null) record.coverFileId = undefined;
+            return structuredClone(record);
+        });
+    }
+    deleteIpSubIp(ipId: string, subIpId: string) {
+        return mutate(async (state) => {
+            const index = state.subIps.findIndex((item) => item.ipId === ipId && item.id === subIpId);
+            if (index < 0) return null;
+            if (state.subIps.filter((item) => item.ipId === ipId).length <= 1) return "last-sub-ip" as const;
+            const files = state.files.filter((item) => item.ipId === ipId && item.subIpId === subIpId);
+            state.cleanup.push(...files.map(cleanupFor));
+            state.subIps.splice(index, 1);
+            state.items = state.items.filter((item) => item.subIpId !== subIpId);
+            state.files = state.files.filter((item) => item.subIpId !== subIpId);
+            state.grants = state.grants.filter((item) => item.subIpId !== subIpId);
+            state.usages = state.usages.filter((item) => item.subIpId !== subIpId);
+            state.downloads = state.downloads.filter((item) => item.subIpId !== subIpId);
+            return structuredClone(files);
+        });
+    }
+    replaceIpSubIpItems(ipId: string, subIpId: string, inputs: IpItemInput[]) {
+        return mutate(async (state) => {
+            if (!state.subIps.some((item) => item.ipId === ipId && item.id === subIpId)) return null;
+            if (
+                new Set(inputs.map((item) => item.id)).size !== inputs.length ||
+                inputs.some((item) => !state.files.some((file) => file.id === item.fileId && file.ipId === ipId && file.subIpId === subIpId && file.kind === item.kind && file.status === "ready"))
+            )
+                throw new Error("IP 内容文件不存在、跨子 IP、类型不匹配或尚未就绪");
+            state.items = state.items.filter((item) => item.subIpId !== subIpId);
+            const now = new Date().toISOString();
+            const records = inputs.map((item, index) => ({ ...structuredClone(item), subIpId, sortOrder: item.sortOrder ?? index, createdAt: now }));
+            state.items.push(...records);
+            return structuredClone(records);
+        });
+    }
+    createIpContentFile(input: IpContentFileCreateInput) {
+        return mutate(async (state) => {
+            if (!state.packages.some((item) => item.id === input.ipId) || !state.subIps.some((item) => item.id === input.subIpId && item.ipId === input.ipId)) throw new Error("IP 或子 IP 不存在");
             if (state.files.some((item) => item.id === input.id)) throw new Error("IP 内容文件已存在");
             const now = new Date().toISOString();
-            const record: IpContentFileRecord = { ...structuredClone(input), createdAt: now, updatedAt: now };
+            const record = { ...structuredClone(input), createdAt: now, updatedAt: now };
             state.files.push(record);
             return structuredClone(record);
         });
     }
-
-    async getIpContentFile(ipId: string, fileId: string): Promise<IpContentFileRecord | null> {
-        return detached((await readFile()).files.find((item) => item.ipId === ipId && item.id === fileId));
+    async getIpContentFile(ipId: string, fileId: string, subIpId?: string) {
+        return detached((await readFile()).files.find((item) => item.ipId === ipId && item.id === fileId && (!subIpId || item.subIpId === subIpId)));
     }
-
-    async listIpContentFiles(ipId: string): Promise<IpContentFileRecord[]> {
-        return structuredClone((await readFile()).files.filter((item) => item.ipId === ipId).sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id)));
+    async listIpContentFiles(ipId: string, subIpId?: string) {
+        return structuredClone((await readFile()).files.filter((item) => item.ipId === ipId && (!subIpId || item.subIpId === subIpId)).sort(byCreated));
     }
-
-    updateIpContentFile(ipId: string, fileId: string, patch: IpContentFilePatch): Promise<IpContentFileRecord | null> {
+    updateIpContentFile(ipId: string, fileId: string, patch: IpContentFilePatch) {
         return mutate(async (state) => {
             const record = state.files.find((item) => item.ipId === ipId && item.id === fileId);
-            if (!record) return null;
-            if (record.status === "deleting") return null;
-            if (isFilePublished(state, fileId)) throw new Error("已发布 IP 内容文件不可修改");
+            if (!record || record.status === "deleting") return null;
             Object.assign(record, structuredClone(patch), { updatedAt: new Date().toISOString() });
             return structuredClone(record);
         });
     }
-
-    claimIpContentFileDeletion(ipId: string, fileId: string): Promise<IpContentFileRecord | null> {
+    claimIpContentFileDeletion(ipId: string, fileId: string) {
         return mutate(async (state) => {
             const record = state.files.find((item) => item.ipId === ipId && item.id === fileId);
             if (!record || isFileReferenced(state, fileId)) return null;
-            if (record.status !== "deleting") Object.assign(record, { status: "deleting" as const, errorMessage: undefined, updatedAt: new Date().toISOString() });
+            Object.assign(record, { status: "deleting" as const, errorMessage: undefined, updatedAt: new Date().toISOString() });
             return structuredClone(record);
         });
     }
-
-    finalizeIpContentFileDeletion(ipId: string, fileId: string): Promise<boolean> {
+    finalizeIpContentFileDeletion(ipId: string, fileId: string) {
         return mutate(async (state) => {
-            const index = state.files.findIndex((item) => item.ipId === ipId && item.id === fileId);
-            if (index < 0 || state.files[index]?.status !== "deleting" || isFileReferenced(state, fileId)) return false;
+            const index = state.files.findIndex((item) => item.ipId === ipId && item.id === fileId && item.status === "deleting");
+            if (index < 0 || isFileReferenced(state, fileId)) return false;
             state.files.splice(index, 1);
             return true;
         });
     }
-
-    createIpDraftVersion(ipId: string, input: IpDraftVersionInput): Promise<IpVersionRecord> {
-        return mutate(async (state) => {
-            const packageRecord = state.packages.find((item) => item.id === ipId);
-            if (!packageRecord) throw new Error("IP 不存在");
-            if (state.versions.some((item) => item.id === input.id)) throw new Error("IP 版本已存在");
-            const itemIds = input.items.map((item) => item.id);
-            if (new Set(itemIds).size !== itemIds.length || state.versions.some((item) => item.items.some((existing) => itemIds.includes(existing.id)))) throw new Error("IP 内容项已存在");
-            const fileIds = [...input.items.map((item) => item.fileId), input.coverFileId].filter((item): item is string => Boolean(item));
-            if (fileIds.length !== input.items.length + (input.coverFileId ? 1 : 0) || fileIds.some((fileId) => !state.files.some((file) => file.id === fileId && file.ipId === ipId && file.status === "ready"))) {
-                throw new Error("IP 内容文件不存在、未就绪或不属于当前 IP");
-            }
-            const createdAt = new Date().toISOString();
-            const versionNumber = Math.max(0, ...state.versions.filter((item) => item.ipId === ipId).map((item) => item.versionNumber)) + 1;
-            const record: IpVersionRecord = {
-                id: input.id,
-                ipId,
-                versionNumber,
-                title: input.title,
-                summary: input.summary,
-                coverFileId: input.coverFileId,
-                tags: structuredClone(input.tags || []),
-                sourceNote: input.sourceNote || "",
-                changeNote: input.changeNote || "",
-                status: "draft",
-                manifest: {},
-                createdByUserId: input.createdByUserId,
-                createdAt,
-                items: input.items.map((item) => ({ ...structuredClone(item), versionId: input.id, createdAt })),
-            };
-            state.versions.push(record);
-            return structuredClone(record);
-        });
-    }
-
-    updateIpDraftVersion(ipId: string, versionId: string, input: IpDraftVersionInput): Promise<IpVersionRecord> {
-        return mutate(async (state) => {
-            const version = state.versions.find((item) => item.id === versionId && item.ipId === ipId);
-            if (!version || version.status !== "draft") throw new Error("IP 草稿版本不存在");
-            const itemIds = input.items.map((item) => item.id);
-            if (new Set(itemIds).size !== itemIds.length || state.versions.some((item) => item.id !== versionId && item.items.some((existing) => itemIds.includes(existing.id)))) throw new Error("IP 内容项已存在");
-            const fileIds = [...input.items.map((item) => item.fileId), input.coverFileId].filter((item): item is string => Boolean(item));
-            if (fileIds.some((fileId) => !state.files.some((file) => file.id === fileId && file.ipId === ipId && file.status === "ready"))) throw new Error("IP 内容文件不存在、未就绪或不属于当前 IP");
-            version.title = input.title;
-            version.summary = input.summary;
-            version.coverFileId = input.coverFileId;
-            version.tags = structuredClone(input.tags);
-            version.sourceNote = input.sourceNote;
-            version.changeNote = input.changeNote;
-            version.items = input.items.map((item) => ({ ...structuredClone(item), versionId, createdAt: version.createdAt }));
-            return structuredClone(version);
-        });
-    }
-
-    publishIpVersion(ipId: string, versionId: string): Promise<IpVersionRecord> {
-        return mutate(async (state) => {
-            const packageRecord = state.packages.find((item) => item.id === ipId);
-            const version = state.versions.find((item) => item.id === versionId && item.ipId === ipId && item.status === "draft");
-            if (!packageRecord || !version) throw new Error("IP 草稿版本不存在");
-            const publishedAt = new Date().toISOString();
-            version.status = "published";
-            version.publishedAt = publishedAt;
-            version.manifest = manifestFor(version);
-            packageRecord.status = "published";
-            packageRecord.currentVersionId = version.id;
-            packageRecord.updatedAt = publishedAt;
-            return structuredClone(version);
-        });
-    }
-
     async listVisibleIps(input: VisibleIpListInput): Promise<PageResult<IpSummaryRecord>> {
-        const [state, auth, school] = await Promise.all([readFile(), readJsonDataFile<AuthSnapshot>(AUTH_DATA_FILE, {}), readJsonDataFile<SchoolSnapshot>(SCHOOL_DOMAIN_DATA_FILE, {})]);
-        const page = positiveInteger(input.page, 1);
-        const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
-        if (!activeUser(auth, input.userId) || (input.scope === "school" && (!input.schoolId || !activeMembership(school, input.userId, input.schoolId)))) return { items: [], total: 0, page, pageSize };
+        const [state, auth, school] = await readAccessState();
+        if (!activeUser(auth, input.userId) || (input.scope === "school" && (!input.schoolId || !activeMembership(school, input.userId, input.schoolId)))) return page([], input);
         const at = Date.parse(input.at || new Date().toISOString());
-        const keyword = input.keyword?.trim().toLowerCase();
-        const records = state.packages
-            .filter((item) => item.status === "published" && item.visibility === input.scope && item.currentVersionId)
-            .map((item) => ({ packageRecord: item, version: state.versions.find((version) => version.id === item.currentVersionId && version.status === "published") }))
-            .filter((entry): entry is { packageRecord: IpPackageRecord; version: IpVersionRecord } => Boolean(entry.version))
-            .filter(({ packageRecord, version }) => {
-                if (input.scope === "school" && !activeGrant(state.grants, packageRecord.id, input.schoolId!, at)) return false;
-                if (keyword && !`${packageRecord.title}\n${packageRecord.summary}`.toLowerCase().includes(keyword)) return false;
-                if (input.kind || input.category) {
-                    const hasMatchingItem = version.items.some((item) => (!input.kind || item.kind === input.kind) && (!input.category || item.category === input.category));
-                    if (!hasMatchingItem) return false;
-                }
-                const tags = input.tags?.map((tag) => tag.trim().toLowerCase()).filter(Boolean) || [];
-                if (tags.length && !tags.some((tag) => version.tags.some((versionTag) => versionTag.toLowerCase() === tag))) return false;
-                return true;
-            })
-            .map(({ packageRecord, version }) => ({
-                ...structuredClone(packageRecord),
-                title: version.title,
-                summary: version.summary,
-                versionNumber: version.versionNumber,
-                itemCount: version.items.length,
-                coverFileId: version.coverFileId,
-                tags: structuredClone(version.tags || []),
-                ...(input.scope === "school" ? { grantMode: activeGrant(state.grants, packageRecord.id, input.schoolId!, at)?.mode } : {}),
-            }))
-            .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id));
-        return { items: records.slice((page - 1) * pageSize, page * pageSize), total: records.length, page, pageSize };
+        const visibleSubIps = state.subIps.filter((subIp) => visibleSubIp(state, subIp, input, at));
+        const byIp = new Map<string, IpSubIpRecord[]>();
+        for (const subIp of visibleSubIps) byIp.set(subIp.ipId, [...(byIp.get(subIp.ipId) || []), subIp]);
+        return page(
+            state.packages
+                .filter((item) => item.status === "enabled" && item.visibility === input.scope && byIp.has(item.id) && matchesVisible(state, item, byIp.get(item.id)!, input))
+                .map((item) => summaryFor(state, item, byIp.get(item.id)!))
+                .sort(byUpdated),
+            input,
+        );
     }
-
     async getVisibleIp(input: VisibleIpDetailInput): Promise<IpDetailRecord | null> {
-        const [state, auth, school] = await Promise.all([readFile(), readJsonDataFile<AuthSnapshot>(AUTH_DATA_FILE, {}), readJsonDataFile<SchoolSnapshot>(SCHOOL_DOMAIN_DATA_FILE, {})]);
-        if (!activeUser(auth, input.userId)) return null;
-        const packageRecord = state.packages.find((item) => item.id === input.ipId && item.status === "published");
-        if (!packageRecord) return null;
-        const version = state.versions.find((item) => item.id === (input.versionId || packageRecord.currentVersionId) && item.ipId === packageRecord.id && item.status === "published");
-        if (!version) return null;
-        if (packageRecord.visibility === "public") return { ...structuredClone(packageRecord), version: structuredClone(version) };
-        if (!input.schoolId || !activeMembership(school, input.userId, input.schoolId)) return null;
-        const grant = activeGrant(state.grants, packageRecord.id, input.schoolId, Date.parse(input.at || new Date().toISOString()));
-        return grant ? { ...structuredClone(packageRecord), version: structuredClone(version), grantMode: grant.mode } : null;
+        const [state, auth, school] = await readAccessState();
+        const packageRecord = state.packages.find((item) => item.id === input.ipId && item.status === "enabled");
+        if (!packageRecord || !activeUser(auth, input.userId)) return null;
+        const at = Date.parse(input.at || new Date().toISOString());
+        const subIps = state.subIps.filter((item) => item.ipId === packageRecord.id && (!input.subIpId || item.id === input.subIpId) && visibleSubIp(state, item, { ...input, scope: packageRecord.visibility }, at));
+        if (!subIps.length || (packageRecord.visibility === "school" && (!input.schoolId || !activeMembership(school, input.userId, input.schoolId)))) return null;
+        return { ...structuredClone(packageRecord), subIps: subIps.map((item) => ({ ...subIpDetailFor(state, item), ...(packageRecord.visibility === "school" ? { grantMode: activeGrant(state, item.id, input.schoolId!, at)?.mode } : {}) })) };
     }
-
-    async getIpVersion(ipId: string, versionId: string): Promise<IpVersionRecord | null> {
-        return detached((await readFile()).versions.find((item) => item.ipId === ipId && item.id === versionId));
-    }
-
-    async listIpVersions(ipId: string, input: { page?: number; pageSize?: number } = {}): Promise<PageResult<IpVersionRecord>> {
-        const page = positiveInteger(input.page, 1);
-        const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
-        const records = (await readFile()).versions.filter((item) => item.ipId === ipId).sort((left, right) => right.versionNumber - left.versionNumber || left.id.localeCompare(right.id));
-        return { items: structuredClone(records.slice((page - 1) * pageSize, page * pageSize)), total: records.length, page, pageSize };
-    }
-
-    createSchoolGrant(input: IpSchoolGrantCreateInput): Promise<IpSchoolGrantRecord> {
+    createSchoolGrant(input: IpSchoolGrantCreateInput) {
         return mutate(async (state, school) => {
-            const packageRecord = state.packages.find((item) => item.id === input.ipId);
-            if (!packageRecord || packageRecord.visibility !== "school" || packageRecord.status !== "published") throw new Error("IP 不可授权");
-            if (!school.schools?.some((item) => item.id === input.schoolId)) throw new Error("学校不存在");
-            if (state.grants.some((item) => item.id === input.id)) throw new Error("授权记录已存在");
+            if (!state.packages.some((item) => item.id === input.ipId && item.visibility === "school") || !state.subIps.some((item) => item.id === input.subIpId && item.ipId === input.ipId) || !school.schools?.some((item) => item.id === input.schoolId))
+                throw new Error("IP、子 IP 或学校不存在");
+            if (state.grants.some((item) => item.id === input.id)) throw new Error("IP 学校授权已存在");
             assertGrantWindow(input.startsAt, input.endsAt);
-            if (
-                input.status === "active" &&
-                state.grants.some(
-                    (item) => item.ipId === input.ipId && item.status === "active" && rangesOverlap(item.startsAt, item.endsAt, input.startsAt, input.endsAt) && (item.schoolId === input.schoolId || item.mode === "exclusive" || input.mode === "exclusive"),
-                )
-            )
-                throw new Error("IP 学校授权冲突");
+            const conflict = grantConflict(state.grants, input);
+            if (conflict) throw new Error("IP 学校授权冲突");
             const now = new Date().toISOString();
-            const record: IpSchoolGrantRecord = { ...structuredClone(input), memberAccessEnabled: input.memberAccessEnabled === true, createdAt: now, updatedAt: now };
+            const record = { ...structuredClone(input), createdAt: now, updatedAt: now };
             state.grants.push(record);
             return structuredClone(record);
         });
     }
-
-    async findConflictingSchoolGrant(input: IpGrantConflictInput): Promise<IpSchoolGrantRecord | null> {
-        const state = await readFile();
-        const startsAt = Date.parse(input.startsAt);
-        const endsAt = input.endsAt ? Date.parse(input.endsAt) : Number.POSITIVE_INFINITY;
-        return detached(
-            state.grants.find((grant) => {
-                if (grant.ipId !== input.ipId || grant.status !== "active" || grant.id === input.excludeGrantId) return false;
-                if (!(grant.schoolId === input.schoolId || grant.mode === "exclusive" || input.mode === "exclusive")) return false;
-                const existingStart = Date.parse(grant.startsAt);
-                const existingEnd = grant.endsAt ? Date.parse(grant.endsAt) : Number.POSITIVE_INFINITY;
-                return existingStart < endsAt && startsAt < existingEnd;
-            }),
-        );
+    async findConflictingSchoolGrant(input: IpGrantConflictInput) {
+        return detached(grantConflict((await readFile()).grants, input));
     }
-
-    updateSchoolGrant(ipId: string, grantId: string, patch: IpSchoolGrantUpdateInput): Promise<IpSchoolGrantRecord | null> {
+    updateSchoolGrant(ipId: string, grantId: string, patch: IpSchoolGrantUpdateInput) {
         return mutate(async (state) => {
-            const grant = state.grants.find((item) => item.ipId === ipId && item.id === grantId);
-            if (!grant) return null;
-            const nextStatus = patch.status ?? grant.status;
-            const nextEndsAt = patch.endsAt ?? grant.endsAt;
-            assertGrantWindow(grant.startsAt, nextEndsAt);
-            if (
-                nextStatus === "active" &&
-                state.grants.some(
-                    (item) =>
-                        item.id !== grant.id &&
-                        item.ipId === ipId &&
-                        item.status === "active" &&
-                        rangesOverlap(item.startsAt, item.endsAt, grant.startsAt, nextEndsAt) &&
-                        (item.schoolId === grant.schoolId || item.mode === "exclusive" || grant.mode === "exclusive"),
-                )
-            )
-                throw new Error("IP 学校授权冲突");
-            grant.status = nextStatus;
-            if (patch.endsAt !== undefined) grant.endsAt = patch.endsAt;
-            if (patch.note !== undefined) grant.note = patch.note;
-            if (patch.memberAccessEnabled !== undefined) grant.memberAccessEnabled = patch.memberAccessEnabled;
-            if (patch.memberAccessUpdatedByUserId !== undefined) grant.memberAccessUpdatedByUserId = patch.memberAccessUpdatedByUserId;
-            if (patch.memberAccessUpdatedAt !== undefined) grant.memberAccessUpdatedAt = patch.memberAccessUpdatedAt;
-            grant.updatedAt = patch.updatedAt;
-            return structuredClone(grant);
+            const record = state.grants.find((item) => item.ipId === ipId && item.id === grantId);
+            if (!record) return null;
+            const next = { ...record, ...structuredClone(patch), endsAt: patch.endsAt === null ? undefined : (patch.endsAt ?? record.endsAt), updatedAt: patch.updatedAt };
+            assertGrantWindow(next.startsAt, next.endsAt);
+            if (next.status === "active" && grantConflict(state.grants, { ...next, excludeGrantId: record.id })) throw new Error("IP 学校授权冲突");
+            Object.assign(record, next);
+            return structuredClone(record);
         });
     }
-
-    async listSchoolGrants(input: IpGrantListInput): Promise<PageResult<IpSchoolGrantRecord>> {
-        const page = positiveInteger(input.page, 1);
-        const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
-        const records = (await readFile()).grants
-            .filter((item) => (!input.ipId || item.ipId === input.ipId) && (!input.grantId || item.id === input.grantId) && (!input.schoolId || item.schoolId === input.schoolId) && (!input.status || item.status === input.status))
-            .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id));
-        return { items: structuredClone(records.slice((page - 1) * pageSize, page * pageSize)), total: records.length, page, pageSize };
+    async listSchoolGrants(input: IpGrantListInput = {}): Promise<PageResult<IpSchoolGrantRecord>> {
+        return page(
+            (await readFile()).grants
+                .filter(
+                    (item) =>
+                        (!input.ipId || item.ipId === input.ipId) &&
+                        (!input.subIpId || item.subIpId === input.subIpId) &&
+                        (!input.grantId || item.id === input.grantId) &&
+                        (!input.schoolId || item.schoolId === input.schoolId) &&
+                        (!input.status || item.status === input.status),
+                )
+                .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id)),
+            input,
+        );
     }
-
-    recordIpUsage(input: IpUsageCreateInput): Promise<IpUsageRecord> {
-        return mutate(async (state, school, auth) => {
-            if (!activeUser(auth, input.userId)) throw new Error("用户不可用");
+    recordIpUsage(input: IpUsageCreateInput) {
+        return mutate(async (state) => {
             const existing = state.usages.find((item) => item.id === input.id);
-            if (existing) {
-                if (!sameUsage(existing, input)) throw new Error("IP 使用记录冲突");
-                return structuredClone(existing);
-            }
-            const version = state.versions.find((item) => item.id === input.versionId && item.ipId === input.ipId && item.status === "published");
-            if (!version || input.itemIds.some((id) => !version.items.some((item) => item.id === id))) throw new Error("IP 内容项不存在或不属于当前版本");
-            if (input.schoolId && !activeMembership(school, input.userId, input.schoolId)) throw new Error("学校成员不可用");
-            const record: IpUsageRecord = { ...structuredClone(input), createdAt: new Date().toISOString() };
+            if (existing) return structuredClone(existing);
+            assertUsage(state, input);
+            const record = { ...structuredClone(input), createdAt: new Date().toISOString() };
             state.usages.push(record);
             return structuredClone(record);
         });
     }
-
-    recordIpUsages(inputs: IpUsageCreateInput[]): Promise<IpUsageRecord[]> {
-        if (!inputs.length) return Promise.resolve([]);
-        return mutate(async (state, school, auth) => {
-            const known = new Map(state.usages.map((item) => [item.id, item]));
-            const createdAt = new Date().toISOString();
-            const records: IpUsageRecord[] = [];
-            const additions: IpUsageRecord[] = [];
-            for (const input of inputs) {
-                if (!activeUser(auth, input.userId)) throw new Error("用户不可用");
-                const existing = known.get(input.id);
-                if (existing) {
-                    if (!sameUsage(existing, input)) throw new Error("IP 使用记录冲突");
-                    records.push(existing);
-                    continue;
-                }
-                const version = state.versions.find((item) => item.id === input.versionId && item.ipId === input.ipId && item.status === "published");
-                if (!version || input.itemIds.some((id) => !version.items.some((item) => item.id === id))) throw new Error("IP 内容项不存在或不属于当前版本");
-                if (input.schoolId && !activeMembership(school, input.userId, input.schoolId)) throw new Error("学校成员不可用");
-                const record = { ...structuredClone(input), createdAt };
-                known.set(input.id, record);
-                additions.push(record);
-                records.push(record);
-            }
-            state.usages.push(...additions);
-            return structuredClone(records);
-        });
+    async recordIpUsages(inputs: IpUsageCreateInput[]) {
+        return Promise.all(inputs.map((input) => this.recordIpUsage(input)));
     }
-
     async listIpUsage(input: IpUsageListInput = {}): Promise<PageResult<IpUsageRecord>> {
-        const page = positiveInteger(input.page, 1);
-        const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
-        const records = (await readFile()).usages
-            .filter(
-                (item) =>
-                    (!input.ipId || item.ipId === input.ipId) &&
-                    (!input.versionId || item.versionId === input.versionId) &&
-                    (!input.schoolId || item.schoolId === input.schoolId) &&
-                    (!input.userId || item.userId === input.userId) &&
-                    (!input.action || item.action === input.action),
-            )
-            .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id));
-        return { items: structuredClone(records.slice((page - 1) * pageSize, page * pageSize)), total: records.length, page, pageSize };
+        return page((await readFile()).usages.filter((item) => matchesRecord(item, input)).sort(byCreatedDesc), input);
     }
-
-    recordIpDownload(input: IpDownloadCreateInput): Promise<IpDownloadRecord> {
-        return mutate(async (state, school, auth) => {
-            if (!activeUser(auth, input.userId)) throw new Error("用户不可用");
+    recordIpDownload(input: IpDownloadCreateInput) {
+        return mutate(async (state) => {
             if (state.downloads.some((item) => item.id === input.id)) throw new Error("IP 下载记录已存在");
-            const version = state.versions.find((item) => item.id === input.versionId && item.ipId === input.ipId && item.status === "published");
-            if (!version || (input.downloadType === "item" && !version.items.some((item) => item.id === input.itemId)) || (input.downloadType === "package" && input.itemId)) throw new Error("IP 下载对象无效");
-            if (input.schoolId && !activeMembership(school, input.userId, input.schoolId)) throw new Error("学校成员不可用");
-            const record: IpDownloadRecord = { ...structuredClone(input), createdAt: new Date().toISOString() };
+            assertUsage(state, input);
+            const record = { ...structuredClone(input), createdAt: new Date().toISOString() };
             state.downloads.push(record);
             return structuredClone(record);
         });
     }
-
-    async listIpDownloads(input: { ipId?: string; versionId?: string; schoolId?: string; userId?: string; downloadType?: string; result?: string; page?: number; pageSize?: number } = {}): Promise<PageResult<IpDownloadRecord>> {
-        const page = positiveInteger(input.page, 1);
-        const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
-        const records = (await readFile()).downloads
-            .filter(
-                (item) =>
-                    (!input.ipId || item.ipId === input.ipId) &&
-                    (!input.versionId || item.versionId === input.versionId) &&
-                    (!input.schoolId || item.schoolId === input.schoolId) &&
-                    (!input.userId || item.userId === input.userId) &&
-                    (!input.downloadType || item.downloadType === input.downloadType) &&
-                    (!input.result || item.result === input.result),
-            )
-            .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id));
-        return { items: structuredClone(records.slice((page - 1) * pageSize, page * pageSize)), total: records.length, page, pageSize };
+    async listIpDownloads(input: IpDownloadListInput = {}): Promise<PageResult<IpDownloadRecord>> {
+        return page((await readFile()).downloads.filter((item) => matchesRecord(item, input) && (!input.downloadType || item.downloadType === input.downloadType) && (!input.result || item.result === input.result)).sort(byCreatedDesc), input);
+    }
+    async listIpFileCleanupQueue() {
+        return structuredClone((await readFile()).cleanup.sort(byCreated));
+    }
+    removeIpFileCleanupQueueRecord(id: string) {
+        return mutate(async (state) => {
+            const index = state.cleanup.findIndex((item) => item.id === id);
+            if (index < 0) return false;
+            state.cleanup.splice(index, 1);
+            return true;
+        });
     }
 }
 
-function sameUsage(record: IpUsageRecord, input: IpUsageCreateInput) {
-    return (
-        record.ipId === input.ipId &&
-        record.versionId === input.versionId &&
-        record.schoolId === input.schoolId &&
-        record.userId === input.userId &&
-        record.action === input.action &&
-        record.targetType === input.targetType &&
-        record.targetId === input.targetId &&
-        record.itemIds.length === input.itemIds.length &&
-        record.itemIds.every((item, index) => item === input.itemIds[index])
-    );
-}
-
 async function readFile() {
-    const value = await readJsonDataFile<Partial<IpLibraryFile>>(IP_LIBRARY_DATA_FILE, EMPTY_FILE);
-    return normalizeFile(value);
+    return normalizeFile(await readJsonDataFile<Partial<IpLibraryFile>>(IP_LIBRARY_DATA_FILE, EMPTY_FILE));
 }
-
 async function mutate<T>(operation: (state: IpLibraryFile, school: SchoolSnapshot, auth: AuthSnapshot) => Promise<T>) {
     return withJsonDataFileLocks([AUTH_DATA_FILE, IP_LIBRARY_DATA_FILE, SCHOOL_DOMAIN_DATA_FILE], async () => {
         const [state, school, auth] = await Promise.all([readFile(), readJsonDataFile<SchoolSnapshot>(SCHOOL_DOMAIN_DATA_FILE, {}), readJsonDataFile<AuthSnapshot>(AUTH_DATA_FILE, {})]);
@@ -465,77 +321,142 @@ async function mutate<T>(operation: (state: IpLibraryFile, school: SchoolSnapsho
         return result;
     });
 }
-
+async function readAccessState() {
+    return Promise.all([readFile(), readJsonDataFile<AuthSnapshot>(AUTH_DATA_FILE, {}), readJsonDataFile<SchoolSnapshot>(SCHOOL_DOMAIN_DATA_FILE, {})]) as Promise<[IpLibraryFile, AuthSnapshot, SchoolSnapshot]>;
+}
 function normalizeFile(value: Partial<IpLibraryFile>): IpLibraryFile {
+    if (value.version !== 3) {
+        const files = Array.isArray(value.files) ? (value.files as IpContentFileRecord[]) : [];
+        const existing = Array.isArray(value.cleanup) ? (value.cleanup as IpFileCleanupRecord[]) : [];
+        const cleanup = new Map(existing.map((item) => [item.id, structuredClone(item)]));
+        for (const file of files) {
+            if (file?.id && file.storageKey) cleanup.set(file.id, cleanupFor(file));
+        }
+        return { ...EMPTY_FILE, cleanup: [...cleanup.values()] };
+    }
+    const rawFiles = Array.isArray(value.files) ? structuredClone(value.files) : [];
+    const files = rawFiles.filter((file): file is IpContentFileRecord => typeof file?.subIpId === "string" && Boolean(file.subIpId));
+    const cleanup = new Map((Array.isArray(value.cleanup) ? value.cleanup : []).map((item) => [item.id, structuredClone(item)]));
+    for (const file of rawFiles) {
+        if (!files.includes(file) && file?.id && file.storageKey) cleanup.set(file.id, cleanupFor(file));
+    }
     return {
-        version: 2,
+        ...EMPTY_FILE,
+        version: 3,
         packages: Array.isArray(value.packages) ? structuredClone(value.packages) : [],
-        versions: Array.isArray(value.versions) ? structuredClone(value.versions) : [],
-        files: Array.isArray(value.files) ? structuredClone(value.files) : [],
+        subIps: Array.isArray(value.subIps) ? structuredClone(value.subIps) : [],
+        items: Array.isArray(value.items) ? structuredClone(value.items) : [],
+        files,
         grants: Array.isArray(value.grants) ? structuredClone(value.grants) : [],
         usages: Array.isArray(value.usages) ? structuredClone(value.usages) : [],
         downloads: Array.isArray(value.downloads) ? structuredClone(value.downloads) : [],
+        cleanup: [...cleanup.values()],
     };
 }
-
+function detailFor(state: IpLibraryFile, packageRecord: IpPackageRecord): IpDetailRecord {
+    return {
+        ...structuredClone(packageRecord),
+        subIps: state.subIps
+            .filter((item) => item.ipId === packageRecord.id)
+            .sort(subIpOrder)
+            .map((item) => subIpDetailFor(state, item)),
+    };
+}
+function subIpDetailFor(state: IpLibraryFile, subIp: IpSubIpRecord): IpSubIpDetailRecord {
+    return { ...structuredClone(subIp), items: structuredClone(state.items.filter((item) => item.subIpId === subIp.id).sort(itemOrder)) };
+}
+function summaryFor(state: IpLibraryFile, packageRecord: IpPackageRecord, visibleSubIps?: IpSubIpRecord[]): IpSummaryRecord {
+    const subIps = visibleSubIps || state.subIps.filter((item) => item.ipId === packageRecord.id);
+    const cover = subIps.find((item) => item.coverFileId) || subIps[0];
+    return {
+        ...structuredClone(packageRecord),
+        subIpCount: subIps.length,
+        ...(visibleSubIps ? { accessibleSubIpCount: subIps.length } : {}),
+        ...(cover?.id ? { coverSubIpId: cover.id } : {}),
+        ...(cover?.coverFileId ? { coverFileId: cover.coverFileId } : {}),
+    } as IpSummaryRecord;
+}
+function visibleSubIp(state: IpLibraryFile, subIp: IpSubIpRecord, input: Pick<VisibleIpListInput, "scope" | "schoolId">, at: number) {
+    return input.scope === "public" || Boolean(input.schoolId && activeGrant(state, subIp.id, input.schoolId, at));
+}
+function matchesVisible(state: IpLibraryFile, packageRecord: IpPackageRecord, subIps: IpSubIpRecord[], input: VisibleIpListInput) {
+    const keyword = input.keyword?.trim().toLowerCase();
+    const tags = input.tags?.map((item) => item.trim().toLowerCase()).filter(Boolean) || [];
+    if (keyword && !`${packageRecord.title}\n${packageRecord.summary}\n${subIps.map((item) => `${item.title}\n${item.summary}`).join("\n")}`.toLowerCase().includes(keyword)) return false;
+    if ((input.kind || input.category) && !subIps.some((subIp) => state.items.some((item) => item.subIpId === subIp.id && (!input.kind || item.kind === input.kind) && (!input.category || item.category === input.category)))) return false;
+    return !tags.length || subIps.some((subIp) => tags.some((tag) => subIp.tags.some((value) => value.toLowerCase() === tag)));
+}
+function matchesPackage(item: IpPackageRecord, input: AdminIpListInput) {
+    const text = `${item.title}\n${item.summary}\n${item.slug}`.toLowerCase();
+    return (!input.keyword || text.includes(input.keyword.trim().toLowerCase())) && (!input.status || item.status === input.status) && (!input.visibility || item.visibility === input.visibility);
+}
 function activeUser(auth: AuthSnapshot, userId: string) {
     return Boolean(auth.users?.some((item) => item.id === userId && item.status === "active"));
 }
-
 function activeMembership(school: SchoolSnapshot, userId: string, schoolId: string) {
     return Boolean(school.schools?.some((item) => item.id === schoolId && item.status === "active") && school.memberships?.some((item) => item.userId === userId && item.schoolId === schoolId && item.status === "active"));
 }
-
-function activeGrant(grants: IpSchoolGrantRecord[], ipId: string, schoolId: string, at: number) {
-    return grants.find((item) => item.ipId === ipId && item.schoolId === schoolId && item.status === "active" && item.memberAccessEnabled && Date.parse(item.startsAt) <= at && (!item.endsAt || Date.parse(item.endsAt) > at));
+function activeGrant(state: IpLibraryFile, subIpId: string, schoolId: string, at: number) {
+    return state.grants.find((item) => item.subIpId === subIpId && item.schoolId === schoolId && item.status === "active" && Date.parse(item.startsAt) <= at && (!item.endsAt || Date.parse(item.endsAt) > at));
 }
-
-function isFilePublished(state: IpLibraryFile, fileId: string) {
-    return state.versions.some((version) => version.status === "published" && (version.coverFileId === fileId || version.items.some((item) => item.fileId === fileId)));
+function grantConflict(grants: IpSchoolGrantRecord[], input: IpGrantConflictInput | (IpSchoolGrantRecord & { excludeGrantId?: string })) {
+    return grants.find(
+        (item) =>
+            item.subIpId === input.subIpId &&
+            item.status === "active" &&
+            item.id !== input.excludeGrantId &&
+            (item.schoolId === input.schoolId || item.mode === "exclusive" || input.mode === "exclusive") &&
+            rangesOverlap(item.startsAt, item.endsAt, input.startsAt, input.endsAt),
+    );
 }
-
+function assertUsage(state: IpLibraryFile, input: IpUsageCreateInput | IpDownloadCreateInput) {
+    const itemIds = "itemIds" in input ? input.itemIds : input.itemId ? [input.itemId] : [];
+    if (!state.subIps.some((item) => item.id === input.subIpId && item.ipId === input.ipId) || itemIds.some((id) => !state.items.some((item) => item.id === id && item.subIpId === input.subIpId))) throw new Error("IP 内容项不存在或不属于当前子 IP");
+}
 function isFileReferenced(state: IpLibraryFile, fileId: string) {
-    return state.versions.some((version) => version.coverFileId === fileId || version.items.some((item) => item.fileId === fileId));
+    return state.packages.some((item) => item.coverFileId === fileId) || state.subIps.some((item) => item.coverFileId === fileId) || state.items.some((item) => item.fileId === fileId);
 }
-
-function rangesOverlap(leftStart: string, leftEnd: string | undefined, rightStart: string, rightEnd: string | undefined) {
-    return Date.parse(leftStart) < (rightEnd ? Date.parse(rightEnd) : Number.POSITIVE_INFINITY) && Date.parse(rightStart) < (leftEnd ? Date.parse(leftEnd) : Number.POSITIVE_INFINITY);
+function cleanupFor(file: IpContentFileRecord): IpFileCleanupRecord {
+    const { id, storageProvider, storageKey, externalStorageId, externalObjectKey } = file;
+    return { id, storageProvider, storageKey, externalStorageId, externalObjectKey, createdAt: new Date().toISOString() };
 }
-
-function assertGrantWindow(startsAt: string, endsAt: string | undefined) {
+function page<T>(items: T[], input: { page?: number; pageSize?: number }): PageResult<T> {
+    const page = positiveInteger(input.page, 1);
+    const pageSize = Math.min(100, positiveInteger(input.pageSize, 20));
+    return { items: structuredClone(items.slice((page - 1) * pageSize, page * pageSize)), total: items.length, page, pageSize };
+}
+function nextOrder(state: IpLibraryFile, ipId: string) {
+    return Math.max(-1, ...state.subIps.filter((item) => item.ipId === ipId).map((item) => item.sortOrder)) + 1;
+}
+function assertGrantWindow(startsAt: string, endsAt?: string) {
     const start = Date.parse(startsAt);
     const end = endsAt ? Date.parse(endsAt) : Number.POSITIVE_INFINITY;
     if (!Number.isFinite(start) || Number.isNaN(end) || end <= start) throw new Error("IP 授权时间窗无效");
 }
-
-function manifestFor(version: IpVersionRecord) {
-    return {
-        id: version.id,
-        versionNumber: version.versionNumber,
-        title: version.title,
-        summary: version.summary,
-        ...(version.coverFileId ? { coverFileId: version.coverFileId } : {}),
-        tags: version.tags || [],
-        sourceNote: version.sourceNote || "",
-        changeNote: version.changeNote || "",
-        items: version.items.map((item) => ({
-            id: item.id,
-            kind: item.kind as IpAssetKind,
-            category: item.category as IpItemCategory,
-            title: item.title,
-            summary: item.summary,
-            ...(item.fileId ? { fileId: item.fileId } : {}),
-            ...(item.textContent ? { textContent: item.textContent } : {}),
-            ...(item.assetId ? { assetId: item.assetId } : {}),
-            sortOrder: item.sortOrder,
-        })),
-    };
+function rangesOverlap(leftStart: string, leftEnd: string | undefined, rightStart: string, rightEnd: string | undefined) {
+    return Date.parse(leftStart) < (rightEnd ? Date.parse(rightEnd) : Number.POSITIVE_INFINITY) && Date.parse(rightStart) < (leftEnd ? Date.parse(leftEnd) : Number.POSITIVE_INFINITY);
 }
-
+function matchesRecord(item: { ipId: string; subIpId: string; schoolId?: string; userId: string }, input: { ipId?: string; subIpId?: string; schoolId?: string; userId?: string }) {
+    return (!input.ipId || item.ipId === input.ipId) && (!input.subIpId || item.subIpId === input.subIpId) && (!input.schoolId || item.schoolId === input.schoolId) && (!input.userId || item.userId === input.userId);
+}
 function detached<T>(value: T | undefined): T | null {
     return value === undefined ? null : structuredClone(value);
 }
-
 function positiveInteger(value: number | undefined, fallback: number) {
     return Number.isFinite(value) && Number(value) > 0 ? Math.floor(Number(value)) : fallback;
+}
+function byUpdated(left: { updatedAt: string; id: string }, right: { updatedAt: string; id: string }) {
+    return right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id);
+}
+function byCreated(left: { createdAt: string; id: string }, right: { createdAt: string; id: string }) {
+    return left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id);
+}
+function byCreatedDesc(left: { createdAt: string; id: string }, right: { createdAt: string; id: string }) {
+    return right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id);
+}
+function subIpOrder(left: IpSubIpRecord, right: IpSubIpRecord) {
+    return left.sortOrder - right.sortOrder || byCreated(left, right);
+}
+function itemOrder(left: IpItemRecord, right: IpItemRecord) {
+    return left.sortOrder - right.sortOrder || byCreated(left, right);
 }

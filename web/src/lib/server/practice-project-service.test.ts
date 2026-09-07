@@ -46,7 +46,7 @@ describe("practice projects", () => {
     });
 
     it("passes pinned IP references into the independent practice aggregate", async () => {
-        const references = [{ type: "ip" as const, id: "ip-one", versionId: "version-three", itemIds: ["item-one"] }];
+        const references = [{ type: "ip" as const, id: "ip-one", subIpId: "child-three", itemIds: ["item-one"] }];
         mocks.createCanvas.mockResolvedValue({ id: "practice-ip", ipReferences: references });
 
         await createPracticeProject(actor, { kind: "canvas", title: "IP 练习", references });

@@ -1,12 +1,12 @@
 "use client";
 
-import { App, Button, Image as AntImage, Modal, Spin, Tag } from "antd";
-import { BookOpen, Boxes, CalendarClock, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
+import { App, Button, Image as AntImage, Modal, Segmented, Spin, Tag } from "antd";
+import { BookOpen, Boxes, CalendarClock, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import type { IpDetail, IpPublicItem } from "@/lib/server/ip-library-service";
 import { IP_REFERENCE_ENTRY_VISIBLE } from "@/lib/ip-library-domain";
+import type { IpDetail, IpPublicItem } from "@/lib/server/ip-library-service";
 import { ipLibraryApi } from "@/services/api/ip-library";
 import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { IpLibrarySection } from "./ip-library-section";
@@ -19,8 +19,8 @@ export const IP_IMAGE_CATEGORIES = [
     { value: "style", label: "风格参考" },
 ] as const;
 
-export function ipUseTargetPath(target: "canvas" | "drama" | "practice", detail: Pick<IpDetail, "id" | "version">) {
-    const query = new URLSearchParams({ ipId: detail.id, versionId: detail.version.id });
+export function ipUseTargetPath(target: "canvas" | "drama" | "practice", detail: Pick<IpDetail, "id">, subIpId: string) {
+    const query = new URLSearchParams({ ipId: detail.id, subIpId });
     return `/${target}?${query.toString()}`;
 }
 
@@ -31,6 +31,7 @@ export function visibleIpDetailCommands() {
 export default function IpLibraryDetail({ ipId }: { ipId: string }) {
     const { message } = App.useApp();
     const [detail, setDetail] = useState<IpDetail | null>(null);
+    const [selectedSubIpId, setSelectedSubIpId] = useState("");
     const [loading, setLoading] = useState(true);
     const [downloading, setDownloading] = useState("");
 
@@ -39,7 +40,11 @@ export default function IpLibraryDetail({ ipId }: { ipId: string }) {
         setLoading(true);
         void ipLibraryApi
             .get(ipId)
-            .then((value) => active && setDetail(value))
+            .then((value) => {
+                if (!active) return;
+                setDetail(value);
+                setSelectedSubIpId(value.subIps[0]?.id || "");
+            })
             .catch((error) => active && message.error(error instanceof Error ? error.message : "IP 详情加载失败"))
             .finally(() => active && setLoading(false));
         return () => {
@@ -47,12 +52,13 @@ export default function IpLibraryDetail({ ipId }: { ipId: string }) {
         };
     }, [ipId, message]);
 
-    const grouped = useMemo(() => groupIpLibraryItems(detail?.version.items || []), [detail]);
+    const selected = detail?.subIps.find((item) => item.id === selectedSubIpId) || detail?.subIps[0];
+    const grouped = useMemo(() => groupIpLibraryItems(selected?.items || []), [selected]);
     const download = async (itemId?: string) => {
-        if (!detail || downloading) return;
+        if (!detail || !selected || downloading) return;
         setDownloading(itemId || "package");
         try {
-            const result = await ipLibraryApi.download(detail.id, { versionId: detail.version.id, itemIds: itemId ? [itemId] : undefined, package: !itemId });
+            const result = await ipLibraryApi.download(detail.id, { subIpId: selected.id, itemIds: itemId ? [itemId] : undefined, package: !itemId });
             if ("url" in result) window.location.assign(result.url);
             else saveBlob(result.blob, result.fileName);
         } catch (error) {
@@ -68,57 +74,77 @@ export default function IpLibraryDetail({ ipId }: { ipId: string }) {
                 <Spin />
             </main>
         );
-    if (!detail) return <main className="grid h-full min-h-0 place-items-center px-4 text-sm text-muted-foreground">IP 不存在或当前无权查看</main>;
+    if (!detail || !selected) return <main className="grid h-full min-h-0 place-items-center px-4 text-sm text-muted-foreground">IP 不存在或当前无权查看</main>;
 
     return (
         <main className="h-full min-h-0 overflow-y-auto bg-background text-foreground" data-ip-library-detail>
             <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-8">
-                <header className="grid min-w-0 gap-4 border-b border-border pb-5 sm:grid-cols-[minmax(180px,320px)_minmax(0,1fr)] sm:gap-7 sm:pb-8">
-                    <div className="flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden bg-muted/50">
-                        {detail.coverPreviewUrl ? <img src={detail.coverPreviewUrl} alt={detail.title} className="max-h-full max-w-full object-contain" /> : <BookOpen className="size-12 text-muted-foreground/40" />}
-                    </div>
-                    <div className="flex min-w-0 flex-col justify-center">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Tag className="!m-0">v{detail.version.versionNumber}</Tag>
-                            <Tag color={detail.visibility === "public" ? "blue" : "green"} className="!m-0">
-                                {detail.visibility === "public" ? "公共 IP" : "本校 IP"}
-                            </Tag>
-                            {detail.isExclusive ? (
-                                <Tag color="gold" className="!m-0">
-                                    独家授权
-                                </Tag>
-                            ) : null}
-                        </div>
-                        <h1 className="mt-3 text-2xl font-semibold tracking-normal sm:text-3xl">{detail.title}</h1>
-                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{detail.summary || detail.version.summary || "暂无简介"}</p>
-                        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            <span>当前版本：{detail.version.title}</span>
-                            <span className="inline-flex items-center gap-1">
-                                <CalendarClock className="size-3.5" />
-                                更新于 {formatDate(detail.version.publishedAt || detail.updatedAt)}
-                            </span>
-                        </div>
-                        {detail.version.tags.length ? (
-                            <div className="mt-3 flex flex-wrap gap-1.5">
-                                {detail.version.tags.map((tag) => (
-                                    <Tag key={tag} className="!m-0">
-                                        {tag}
-                                    </Tag>
-                                ))}
-                            </div>
+                <header className="border-b border-border pb-5 sm:pb-8">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span>IP 库</span>
+                        <ChevronRight className="size-3.5" />
+                        <span className="truncate">{detail.title}</span>
+                        {detail.subIps.length > 1 ? (
+                            <>
+                                <ChevronRight className="size-3.5" />
+                                <span className="truncate">{selected.title}</span>
+                            </>
                         ) : null}
-                        <div className="mt-5 flex flex-wrap gap-2">
-                            {IP_REFERENCE_ENTRY_VISIBLE ? <DormantReferenceActions detail={detail} /> : null}
-                            <Button icon={<Download className="size-4" />} loading={downloading === "package"} onClick={() => void download()}>
-                                下载资源包
-                            </Button>
+                    </div>
+                    <div className="mt-4 grid min-w-0 gap-4 sm:grid-cols-[minmax(180px,320px)_minmax(0,1fr)] sm:gap-7">
+                        <div className="flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden bg-muted/50">
+                            {selected.coverPreviewUrl ? <img src={selected.coverPreviewUrl} alt={selected.title} className="max-h-full max-w-full object-contain" /> : <BookOpen className="size-12 text-muted-foreground/40" />}
+                        </div>
+                        <div className="flex min-w-0 flex-col justify-center">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Tag color={detail.visibility === "public" ? "blue" : "green"} className="!m-0">
+                                    {detail.visibility === "public" ? "公共 IP" : "本校 IP"}
+                                </Tag>
+                                {selected.isExclusive ? (
+                                    <Tag color="gold" className="!m-0">
+                                        独家授权
+                                    </Tag>
+                                ) : null}
+                                {detail.subIps.length > 1 ? <Tag className="!m-0">{detail.subIps.length} 个子 IP</Tag> : null}
+                            </div>
+                            <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">{detail.subIps.length > 1 ? selected.title : detail.title}</h1>
+                            {detail.subIps.length > 1 ? <p className="mt-1 text-sm text-muted-foreground">{detail.title}</p> : null}
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">{selected.summary || detail.summary || "暂无简介"}</p>
+                            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                <span className="inline-flex items-center gap-1">
+                                    <CalendarClock className="size-3.5" />
+                                    更新于 {formatDate(selected.updatedAt)}
+                                </span>
+                                <span>{selected.items.length} 项内容</span>
+                            </div>
+                            {selected.tags.length ? (
+                                <div className="mt-3 flex flex-wrap gap-1.5">
+                                    {selected.tags.map((tag) => (
+                                        <Tag key={tag} className="!m-0">
+                                            {tag}
+                                        </Tag>
+                                    ))}
+                                </div>
+                            ) : null}
+                            <div className="mt-5 flex flex-wrap gap-2">
+                                {IP_REFERENCE_ENTRY_VISIBLE ? <DormantReferenceActions detail={detail} subIpId={selected.id} /> : null}
+                                <Button icon={<Download className="size-4" />} loading={downloading === "package"} onClick={() => void download()}>
+                                    下载此子 IP 内容包
+                                </Button>
+                            </div>
                         </div>
                     </div>
+                    {detail.subIps.length > 1 ? (
+                        <div className="mt-5 border-t border-border pt-4">
+                            <p className="mb-2 text-xs font-medium text-muted-foreground">选择子 IP</p>
+                            <Segmented block value={selected.id} options={detail.subIps.map((item) => ({ value: item.id, label: item.title }))} onChange={(value) => setSelectedSubIpId(String(value))} />
+                        </div>
+                    ) : null}
                 </header>
 
                 <IpLibrarySection
                     title="文本"
-                    description="世界观、人物小传、剧本与创作说明，只读查看。"
+                    description="世界观、人物小传、剧本与创作说明。"
                     items={grouped.text}
                     layout="list"
                     initialCount={3}
@@ -225,7 +251,7 @@ function MediaItem({ item, onDownload, loading }: { item: IpPublicItem; onDownlo
     );
 }
 
-function DormantReferenceActions({ detail }: { detail: IpDetail }) {
+function DormantReferenceActions({ detail, subIpId }: { detail: IpDetail; subIpId: string }) {
     const router = useRouter();
     const schoolContext = useSchoolContextStore((state) => state.context);
     const [useOpen, setUseOpen] = useState(false);
@@ -236,9 +262,9 @@ function DormantReferenceActions({ detail }: { detail: IpDetail }) {
             </Button>
             <Modal title="选择使用位置" open={useOpen} footer={null} destroyOnHidden width="min(520px, 100vw)" onCancel={() => setUseOpen(false)}>
                 <div className="grid gap-2 sm:grid-cols-3">
-                    <UseTarget icon={<Maximize2 className="size-5" />} title="画布" onClick={() => router.push(ipUseTargetPath("canvas", detail))} />
-                    <UseTarget icon={<Clapperboard className="size-5" />} title="短剧" onClick={() => router.push(ipUseTargetPath("drama", detail))} />
-                    {schoolContext ? <UseTarget icon={<Boxes className="size-5" />} title="无限练习" onClick={() => router.push(ipUseTargetPath("practice", detail))} /> : null}
+                    <UseTarget icon={<Maximize2 className="size-5" />} title="画布" onClick={() => router.push(ipUseTargetPath("canvas", detail, subIpId))} />
+                    <UseTarget icon={<Clapperboard className="size-5" />} title="短剧" onClick={() => router.push(ipUseTargetPath("drama", detail, subIpId))} />
+                    {schoolContext ? <UseTarget icon={<Boxes className="size-5" />} title="无限练习" onClick={() => router.push(ipUseTargetPath("practice", detail, subIpId))} /> : null}
                 </div>
             </Modal>
         </>
@@ -253,7 +279,6 @@ function UseTarget({ icon, title, onClick }: { icon: React.ReactNode; title: str
         </button>
     );
 }
-
 function saveBlob(blob: Blob, fileName: string) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -262,7 +287,6 @@ function saveBlob(blob: Blob, fileName: string) {
     link.click();
     URL.revokeObjectURL(url);
 }
-
 function formatDate(value: string) {
     const date = new Date(value);
     return Number.isFinite(date.getTime()) ? date.toLocaleString("zh-CN", { hour12: false }) : "未知";

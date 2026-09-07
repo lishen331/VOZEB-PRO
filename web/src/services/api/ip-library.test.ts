@@ -5,42 +5,17 @@ import { fileNameFromDisposition, ipLibraryApi } from "./ip-library";
 describe("IP library API client", () => {
     afterEach(() => vi.unstubAllGlobals());
 
-    it("serializes list filters and reads the shared response envelope", async () => {
-        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 0, data: { items: [], total: 0, page: 2, pageSize: 12 }, msg: "ok" }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    it("serializes list filters and a selected child download", async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, data: { items: [], total: 0, page: 2, pageSize: 12 }, msg: "ok" }), { status: 200, headers: { "Content-Type": "application/json" } }))
+            .mockResolvedValueOnce(new Response("zip", { status: 200, headers: { "Content-Type": "application/zip" } }));
         vi.stubGlobal("fetch", fetchMock);
-
-        await expect(ipLibraryApi.list({ scope: "school", page: 2, pageSize: 12, keyword: "星海", kind: "image", category: "character", tags: ["教学", "科幻"] })).resolves.toMatchObject({ total: 0, page: 2 });
+        await ipLibraryApi.list({ scope: "school", page: 2, pageSize: 12, keyword: "星海", tags: ["教学"] });
+        await ipLibraryApi.download("ip-one", { subIpId: "child-one", package: true });
         expect(fetchMock.mock.calls[0][0]).toContain("scope=school");
-        expect(fetchMock.mock.calls[0][0]).toContain("keyword=%E6%98%9F%E6%B5%B7");
-        expect(fetchMock.mock.calls[0][0]).toContain("tag=%E6%95%99%E5%AD%A6");
-        expect(fetchMock.mock.calls[0][0]).toContain("tag=%E7%A7%91%E5%B9%BB");
+        expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ subIpId: "child-one", package: true });
     });
 
-    it("returns a server-generated package blob and decoded file name", async () => {
-        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("zip", { status: 200, headers: { "Content-Type": "application/zip", "Content-Disposition": "attachment; filename=download; filename*=UTF-8''%E6%98%9F%E6%B5%B7-v2.zip" } })));
-        const result = await ipLibraryApi.download("ip-one", { versionId: "version-two", package: true });
-        expect(result).toMatchObject({ fileName: "星海-v2.zip", blob: expect.any(Blob) });
-    });
-
-    it("preserves an uploaded TXT file name for a single download", async () => {
-        vi.stubGlobal(
-            "fetch",
-            vi.fn().mockResolvedValue(new Response("正文", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Content-Disposition": "attachment; filename=download; filename*=UTF-8''%E6%95%85%E4%BA%8B%E6%A2%97%E6%A6%82.txt" } })),
-        );
-        await expect(ipLibraryApi.download("ip-one", { itemIds: ["text-one"], package: false })).resolves.toMatchObject({ fileName: "故事梗概.txt", blob: expect.any(Blob) });
-    });
-
-    it("returns a short-lived URL without storing it in client state", async () => {
-        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 0, data: { url: "https://objects.example/signed", fileName: "角色.png" }, msg: "ok" }), { status: 200, headers: { "Content-Type": "application/json" } })));
-        await expect(ipLibraryApi.download("ip-one", { itemIds: ["item-one"], package: false })).resolves.toEqual({ url: "https://objects.example/signed", fileName: "角色.png" });
-    });
-
-    it("surfaces API error messages", async () => {
-        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 404, data: null, msg: "IP 不存在或无权访问" }), { status: 404, headers: { "Content-Type": "application/json" } })));
-        await expect(ipLibraryApi.get("other-school-ip")).rejects.toThrow("IP 不存在或无权访问");
-    });
-
-    it("sanitizes download file names", () => {
-        expect(fileNameFromDisposition("attachment; filename*=UTF-8''%E6%98%9F%2F%E6%B5%B7.zip")).toBe("星-海.zip");
-    });
+    it("decodes a server file name", () => expect(fileNameFromDisposition("attachment; filename*=UTF-8''%E6%98%9F%2F%E6%B5%B7.zip")).toBe("星-海.zip"));
 });

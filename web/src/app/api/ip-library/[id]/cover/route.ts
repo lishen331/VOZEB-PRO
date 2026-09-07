@@ -12,7 +12,7 @@ export async function GET(request: Request, context: RouteContext) {
     if (!user) return schoolApiError(401, "请先登录");
     const { id } = await context.params;
     try {
-        return previewResponse(await previewIpMediaForUser(user.id, request, id, { cover: true, versionId: new URL(request.url).searchParams.get("versionId") || undefined }));
+        return previewResponse(await previewIpMediaForUser(user.id, request, id, { cover: true, subIpId: new URL(request.url).searchParams.get("subIpId") || undefined }));
     } catch (error) {
         return schoolApiFailure(error, "读取 IP 封面失败");
     }

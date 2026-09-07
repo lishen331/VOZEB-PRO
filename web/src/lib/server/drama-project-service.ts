@@ -297,7 +297,7 @@ function addedIpReferences(previous: IpReference[] | undefined, next: IpReferenc
 }
 
 function referenceKey(reference: IpReference) {
-    return `${reference.id}:${reference.versionId}:${reference.itemIds.join(",")}`;
+    return `${reference.id}:${reference.subIpId}:${reference.itemIds.join(",")}`;
 }
 
 function normalizeEpisode(value: unknown, index: number): DramaEpisode | null {

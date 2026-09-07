@@ -84,7 +84,7 @@ describe("/api/practice/sessions", () => {
     });
 
     it("pins IP references in the dispatched generation task context", async () => {
-        const reference = { type: "ip" as const, id: "ip-one", versionId: "version-one", itemIds: ["item-one"] };
+        const reference = { type: "ip" as const, id: "ip-one", subIpId: "child-one", itemIds: ["item-one"] };
         mocks.fetchInternalApi.mockResolvedValue(new Response(JSON.stringify({ task: { id: "task-one", type: "image" } }), { status: 200 }));
         mocks.createSession.mockImplementation(async (_user, _input, deps) => {
             await deps.dispatch({

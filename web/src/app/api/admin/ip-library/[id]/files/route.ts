@@ -12,12 +12,12 @@ export const dynamic = "force-dynamic";
 const MAX_MULTIPART_BYTES = IP_CONTENT_FILE_MAX_BYTES.video + 64 * 1024;
 type Context = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, context: Context) {
+export async function GET(request: Request, context: Context) {
     const user = await getCurrentUser();
     if (!user) return schoolApiError(401, "请先登录");
     if (!hasAdminPermission(user, "content.manage")) return schoolApiError(403, "当前管理员没有内容运营职责权限");
     try {
-        return schoolApiOk(await listAdminIpFiles(user.id, (await context.params).id));
+        return schoolApiOk(await listAdminIpFiles(user.id, (await context.params).id, new URL(request.url).searchParams.get("subIpId") || undefined));
     } catch (error) {
         return schoolApiFailure(error, "读取 IP 内容文件失败");
     }
@@ -35,12 +35,14 @@ export async function POST(request: Request, context: Context) {
         const form = await new Request(request.url, { method: "POST", headers: { "content-type": contentType }, body: bytes }).formData();
         const file = form.get("file");
         if (!(file instanceof File) || !file.size) return schoolApiError(400, "请选择要上传的文件");
-        const record = await uploadAdminIpFile(user.id, ipId, form.get("kind"), file);
+        const subIpId = form.get("subIpId");
+        if (typeof subIpId !== "string") return schoolApiError(400, "请选择子 IP");
+        const record = await uploadAdminIpFile(user.id, ipId, subIpId, form.get("kind"), file);
         await safeRecordAuditLog({
             action: "admin.ip.file.upload",
             actor: auditActorFromRequest(request, user),
             target: { type: "ip_file", id: record.id },
-            metadata: { ipId, kind: record.kind, status: record.status },
+            metadata: { ipId, subIpId, kind: record.kind, status: record.status },
         });
         return schoolApiOk(record);
     } catch (error) {

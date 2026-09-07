@@ -12,7 +12,7 @@ export async function GET(request: Request, context: RouteContext) {
     if (!user) return schoolApiError(401, "请先登录");
     const { id, itemId } = await context.params;
     try {
-        const result = await previewIpMediaForUser(user.id, request, id, { itemId, versionId: new URL(request.url).searchParams.get("versionId") || undefined });
+        const result = await previewIpMediaForUser(user.id, request, id, { itemId, subIpId: new URL(request.url).searchParams.get("subIpId") || undefined });
         if (result.kind === "redirect") return new Response(null, { status: 307, headers: { Location: result.url, "Cache-Control": "private, no-store, max-age=0" } });
         if (result.kind === "response") {
             const headers = new Headers(result.response.headers);

@@ -18,7 +18,12 @@ export async function PATCH(request: Request, context: Context) {
     const { id: ipId, grantId } = await context.params;
     try {
         const grant = await updateAdminIpGrant(user.id, ipId, grantId, parsed.data as AdminIpGrantPatchInput);
-        await safeRecordAuditLog({ action: "admin.ip.grant.update", actor: auditActorFromRequest(request, user), target: { type: "ip_school_grant", id: grant.id }, metadata: { ipId, schoolId: grant.schoolId, mode: grant.mode, status: grant.status } });
+        await safeRecordAuditLog({
+            action: "admin.ip.grant.update",
+            actor: auditActorFromRequest(request, user),
+            target: { type: "ip_school_grant", id: grant.id },
+            metadata: { ipId, subIpId: grant.subIpId, schoolId: grant.schoolId, mode: grant.mode, status: grant.status },
+        });
         return schoolApiOk(grant);
     } catch (error) {
         await safeRecordAuditLog({ action: "admin.ip.grant.update", status: "failure", actor: auditActorFromRequest(request, user), target: { type: "ip_school_grant", id: grantId }, metadata: { ipId, errorStatus: schoolApiErrorStatus(error) } });

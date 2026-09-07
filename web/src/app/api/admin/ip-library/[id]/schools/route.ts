@@ -20,6 +20,7 @@ export async function GET(request: Request, context: Context) {
                 page: positiveInteger(params.get("page"), 1),
                 pageSize: positiveInteger(params.get("pageSize"), 20),
                 schoolId: params.get("schoolId") || undefined,
+                subIpId: params.get("subIpId") || undefined,
                 status: params.get("status") || undefined,
             }),
         );
@@ -38,7 +39,12 @@ export async function POST(request: Request, context: Context) {
     const ipId = (await context.params).id;
     try {
         const grant = await createAdminIpGrant(user.id, ipId, parsed.data as AdminIpGrantInput);
-        await safeRecordAuditLog({ action: "admin.ip.grant.create", actor: auditActorFromRequest(request, user), target: { type: "ip_school_grant", id: grant.id }, metadata: { ipId, schoolId: grant.schoolId, mode: grant.mode, status: grant.status } });
+        await safeRecordAuditLog({
+            action: "admin.ip.grant.create",
+            actor: auditActorFromRequest(request, user),
+            target: { type: "ip_school_grant", id: grant.id },
+            metadata: { ipId, subIpId: grant.subIpId, schoolId: grant.schoolId, mode: grant.mode, status: grant.status },
+        });
         return schoolApiOk(grant);
     } catch (error) {
         await safeRecordAuditLog({ action: "admin.ip.grant.create", status: "failure", actor: auditActorFromRequest(request, user), target: { type: "ip", id: ipId }, metadata: { errorStatus: schoolApiErrorStatus(error) } });

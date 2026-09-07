@@ -11,9 +11,9 @@ export async function GET(request: Request, context: RouteContext) {
     const user = await getCurrentUser();
     if (!user) return schoolApiError(401, "请先登录");
     const { id } = await context.params;
-    const versionId = new URL(request.url).searchParams.get("versionId") || undefined;
+    const subIpId = new URL(request.url).searchParams.get("subIpId") || undefined;
     try {
-        return schoolApiOk(await getIpDetailForUser(user.id, id, versionId));
+        return schoolApiOk(await getIpDetailForUser(user.id, id, subIpId));
     } catch (error) {
         return schoolApiFailure(error, "读取 IP 详情失败");
     }

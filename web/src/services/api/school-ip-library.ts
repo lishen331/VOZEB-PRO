@@ -5,14 +5,15 @@ import { serializeApiParams } from "./request";
 export type SchoolIpAccessItem = {
     id: string;
     ipId: string;
+    subIpId: string;
     title: string;
+    subIpTitle: string;
     summary: string;
     mode: IpAuthorizationMode;
     status: IpSchoolGrantStatus;
     ipStatus: IpStatus;
     startsAt: string;
     endsAt?: string;
-    memberAccessEnabled: boolean;
     effective: boolean;
     updatedAt: string;
 };
@@ -20,13 +21,6 @@ export type SchoolIpAccessItem = {
 export const schoolIpLibraryApi = {
     list(input: { page?: number; pageSize?: number } = {}) {
         return request<PageResult<SchoolIpAccessItem>>(`/api/school/ip-library?${serializeApiParams(input).toString()}`);
-    },
-    updateMemberAccess(grantId: string, enabled: boolean) {
-        return request<SchoolIpAccessItem>(`/api/school/ip-library/${encodeURIComponent(grantId)}/access`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enabled }),
-        });
     },
 };
 

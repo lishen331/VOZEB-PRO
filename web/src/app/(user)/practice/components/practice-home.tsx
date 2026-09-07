@@ -41,7 +41,7 @@ export function practiceModulePath(module: PracticeModuleKind, options?: IpRefer
     const query = new URLSearchParams();
     if (reference) {
         query.set("ipId", reference.id);
-        query.set("versionId", reference.versionId);
+        query.set("subIpId", reference.subIpId);
     }
     if (sessionId) query.set("sessionId", sessionId);
     return `/practice/${module}?${query.toString()}`;
