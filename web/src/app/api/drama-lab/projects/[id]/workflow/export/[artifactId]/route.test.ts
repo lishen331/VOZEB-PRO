@@ -31,7 +31,10 @@ vi.mock("@/lib/server/drama-lab-workflow-task-service", () => ({
 vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
     resolveDramaLabProjectForRequest: mocks.resolveDramaLabProjectForRequest,
 }));
-vi.mock("@/lib/server/drama-lab-collaboration-error", () => ({ DramaLabCollaborationError: mocks.DramaLabCollaborationError }));
+vi.mock("@/lib/server/drama-lab-collaboration-error", () => ({
+    DramaLabCollaborationError: mocks.DramaLabCollaborationError,
+    isDramaLabCollaborationError: (value: unknown) => value instanceof mocks.DramaLabCollaborationError,
+}));
 vi.mock("@/lib/server/drama-lab-workflow-export-artifact", () => ({
     readDramaLabWorkflowExportArtifact: mocks.readDramaLabWorkflowExportArtifact,
 }));

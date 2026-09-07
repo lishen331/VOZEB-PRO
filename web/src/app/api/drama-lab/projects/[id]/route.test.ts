@@ -7,6 +7,14 @@ const mocks = vi.hoisted(() => ({
     getDramaProject: vi.fn(),
     updateDramaProjectForUser: vi.fn(),
     resolveDramaLabProjectForRequest: vi.fn(),
+    DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
+        constructor(
+            message: string,
+            readonly status: number,
+        ) {
+            super(message);
+        }
+    },
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -31,14 +39,8 @@ vi.mock("@/lib/server/drama-lab-collaboration-service", () => ({
     updateDramaLabProjectForUser: mocks.updateDramaProjectForUser,
 }));
 vi.mock("@/lib/server/drama-lab-collaboration-error", () => ({
-    DramaLabCollaborationError: class DramaLabCollaborationError extends Error {
-        constructor(
-            message: string,
-            readonly status: number,
-        ) {
-            super(message);
-        }
-    },
+    DramaLabCollaborationError: mocks.DramaLabCollaborationError,
+    isDramaLabCollaborationError: (value: unknown) => value instanceof mocks.DramaLabCollaborationError,
 }));
 
 import { DramaProjectServiceError } from "@/lib/server/drama-project-service";
