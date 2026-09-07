@@ -263,8 +263,8 @@ function latestStoryboardCheckpoint(children: DramaLabWorkflowChild[]): DramaLab
                 shots: Array.isArray(output.newShots) ? output.newShots as DramaShot[] : undefined,
             };
         })
-        .filter((value): value is NonNullable<DramaLabWorkflowTaskView["checkpoint"]> => Boolean(value));
-    return candidates.sort((left, right) => right.updatedAt - left.updatedAt)[0];
+        .filter(Boolean);
+    return candidates.sort((left, right) => (right?.updatedAt ?? 0) - (left?.updatedAt ?? 0))[0];
 }
 
 async function executeWorkflowStep(task: DramaLabWorkflowTask, step: DramaLabWorkflowStep, input: AdvanceDramaLabWorkflowInput): Promise<"pending" | "success"> {

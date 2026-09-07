@@ -73,7 +73,7 @@ type StoryboardTextRequestInput = {
     model: string;
     idempotencyKey: string;
     preferNativeTools?: boolean;
-    onStreamPartial?: (shots: DramaShot[], meta: DramaStoryboardExtractionMeta) => Promise<void>;
+    onStreamPartial?: (argumentsText: string) => Promise<void>;
 };
 
 type NormalizedStoryboardResult = {
