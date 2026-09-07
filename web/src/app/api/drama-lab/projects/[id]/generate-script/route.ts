@@ -1,10 +1,11 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { randomUUID } from "node:crypto";
 
 import { after, NextResponse } from "next/server";
 
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { cancelDramaLabStoryTask, DramaLabStoryGenerationError, findActiveDramaLabStoryTask, getDramaLabStoryTaskView, startDramaLabStoryGeneration, storyTaskView } from "@/lib/server/drama-lab-story-generation-service";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";

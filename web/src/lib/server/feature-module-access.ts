@@ -1,6 +1,6 @@
 import type { FeatureModuleId } from "@/lib/feature-modules";
 import { featureModuleDefinition } from "@/lib/feature-modules";
-import { getFreshAuthSettings } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import type { GenerationTaskContext } from "@/lib/server/generation-task-store";
 
 export class FeatureModuleDisabledError extends Error {
@@ -11,7 +11,7 @@ export class FeatureModuleDisabledError extends Error {
 
 /** Server-side guard for any request that starts new work or mutates module data. */
 export async function requireFeatureModuleEnabled(moduleId: FeatureModuleId) {
-    const settings = await getFreshAuthSettings();
+    const settings = await getAuthSettings();
     if (settings.featureModules[moduleId] === false) throw new FeatureModuleDisabledError(moduleId);
 }
 

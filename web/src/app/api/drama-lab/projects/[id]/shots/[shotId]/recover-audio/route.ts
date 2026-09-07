@@ -1,7 +1,8 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabAudioError, assertAudioTaskBinding, assertAudioTaskContext, legacyDramaAudioTaskId, syncDramaLabAudioTask } from "@/lib/server/drama-lab-audio-service";
 import { getAudioTask } from "@/lib/server/audio-task-store";
 import { getStoredGenerationTaskRecord, hasStoredGenerationTaskContextConflict } from "@/lib/server/generation-task-store";

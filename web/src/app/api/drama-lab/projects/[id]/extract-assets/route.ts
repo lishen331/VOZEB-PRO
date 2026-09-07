@@ -1,10 +1,11 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { extractDramaLabAssets, isDramaLabAssetType, DramaLabAssetExtractionError } from "@/lib/server/drama-lab-asset-extraction-service";
 import { FeatureModuleDisabledError, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 

@@ -1,8 +1,9 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { assertDramaLabStageAllowed, DramaLabCollaborationError, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
+import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabAudioSplitError, applyDramaAudioSplitDetailed, findDramaAudioSplitShot, normalizeDramaAudioSplitOptions, planDramaAudioSplit } from "@/lib/server/drama-lab-audio-split-service";
 import { DramaProjectStoreError } from "@/lib/server/drama-project-store";
 

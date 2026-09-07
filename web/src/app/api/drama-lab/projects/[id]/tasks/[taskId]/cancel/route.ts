@@ -1,7 +1,7 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-service";
 import { cancelDramaLabTask, DramaLabTaskError } from "@/lib/server/drama-lab-task-service";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 

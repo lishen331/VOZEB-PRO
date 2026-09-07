@@ -1,3 +1,4 @@
+import { DramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 /**
  * Drama Lab API - Project Detail
  *
@@ -8,7 +9,7 @@ import { NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { DramaProjectServiceError, updateDramaProjectForUser } from "@/lib/server/drama-project-service";
-import { deleteDramaLabProjectForUser, DramaLabCollaborationError, resolveDramaLabProjectForRequest, updateDramaLabProjectForUser } from "@/lib/server/drama-lab-collaboration-service";
+import { deleteDramaLabProjectForUser, resolveDramaLabProjectForRequest, updateDramaLabProjectForUser } from "@/lib/server/drama-lab-collaboration-service";
 
 export const dynamic = "force-dynamic";
 
