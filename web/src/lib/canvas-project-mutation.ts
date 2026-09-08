@@ -41,6 +41,10 @@ export function applyCanvasProjectMutation(previous: CanvasProject, mutation: Ca
     };
 }
 
+export function rebaseCanvasProjectMutation(latest: CanvasProject, mutation: CanvasProjectMutation) {
+    const desired = applyCanvasProjectMutation(latest, mutation, latest.updatedAt);
+    return createCanvasProjectMutation(latest, desired, mutation.mutationId);
+}
 export function hasCanvasProjectMutationChanges(mutation: CanvasProjectMutation) {
     return Object.keys(mutation).some((key) => key !== "mutationId" && key !== "baseUpdatedAt");
 }

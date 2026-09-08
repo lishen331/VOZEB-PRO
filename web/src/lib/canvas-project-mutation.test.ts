@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CanvasProject } from "./canvas-project-contract";
-import { applyCanvasProjectMutation, createCanvasProjectMutation, hasCanvasProjectMutationChanges } from "./canvas-project-mutation";
+import { applyCanvasProjectMutation, createCanvasProjectMutation, hasCanvasProjectMutationChanges, rebaseCanvasProjectMutation } from "./canvas-project-mutation";
 
 function project(): CanvasProject {
     return {
@@ -52,10 +52,21 @@ describe("canvas project mutations", () => {
         expect(applied.updatedAt).toBe("2026-08-01T00:00:00.002Z");
     });
 
+    it("rebases a mutation onto the latest snapshot without dropping remote nodes", () => {
+        const latest = { ...project(), updatedAt: "2026-08-01T00:00:00.010Z", nodes: [...project().nodes, { id: "remote-node", type: "text" as CanvasProject["nodes"][number]["type"], title: "远端", position: { x: 400, y: 0 }, width: 100, height: 100 }] };
+        const stale = project();
+        const local = { ...stale, nodes: [...stale.nodes, { id: "local-node", type: "text" as CanvasProject["nodes"][number]["type"], title: "本地", position: { x: 280, y: 0 }, width: 100, height: 100 }], updatedAt: "2026-08-01T00:00:00.011Z" };
+        const mutation = createCanvasProjectMutation(stale, local, "mutation-rebase");
+        const rebased = rebaseCanvasProjectMutation(latest, mutation);
+        const merged = applyCanvasProjectMutation(latest, rebased);
+        expect(rebased.baseUpdatedAt).toBe(latest.updatedAt);
+        expect(merged.nodes.map((node) => node.id)).toEqual(["node-a", "node-b", "remote-node", "local-node"]);
+        expect(rebased.mutationId).toBe("mutation-rebase");
+    });
+
     it("recognizes a mutation with no changed fields as a no-op", () => {
         const current = project();
         const mutation = createCanvasProjectMutation(current, { ...current, updatedAt: "2026-08-01T00:00:00.001Z" }, "mutation-empty");
-
         expect(mutation).toEqual({ mutationId: "mutation-empty", baseUpdatedAt: current.updatedAt });
         expect(hasCanvasProjectMutationChanges(mutation)).toBe(false);
     });
