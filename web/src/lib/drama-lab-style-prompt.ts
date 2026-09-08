@@ -17,3 +17,8 @@ export function renderDramaLabFrameTemplate(template: string, project: { style: 
     const variables = { ...dramaLabStyleContext(project.style), aspectRatio: project.ratio };
     return template.replace(/\{\{(stylePromptZh|stylePromptEn|aspectRatio)\}\}/g, (_, key: keyof typeof variables) => variables[key]);
 }
+
+/** Both tokens occur in production L (runtime template and editable admin body). */
+export function renderDramaLabStoryTemplate(template: string, episodeCount: number) {
+    return template.replace(/\{\{episodeCount\}\}|\$\{n\}/g, () => String(episodeCount));
+}

@@ -1,3 +1,4 @@
+import { dramaLabPromptDefinition } from "@/lib/drama-lab-prompt-templates";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -120,6 +121,27 @@ describe("drama lab storyboard extraction", () => {
         expect(context.project.style).toBe("realistic");
         expect(context.project.stylePromptZh).toContain("真实皮肤纹理");
         expect(context.project.stylePromptEn).toContain("RAW photo");
+    });
+
+    it("combines production storyboard rules with V field mapping and preserved asset visuals", async () => {
+        mocks.resolveDramaLabPrompt.mockReset();
+        mocks.resolveDramaLabPrompt.mockImplementation(async (key) => dramaLabPromptDefinition(key));
+        const value = {
+            ...project,
+            characters: [{ ...project.characters[0], appearance: "短发红衣" }],
+            scenes: [{ ...project.scenes[0], time: "午夜", imagePrompt: "冷光空站台，无人物" }],
+            props: [{ ...project.props[0], imagePrompt: "单一裂屏手机，纯色底" }],
+        };
+        await extractDramaLabStoryboards({ userId: "user-one", origin: "http://localhost", cookie: "", requestId: "production", episodeId: "episode-one", project: value });
+        const request = mocks.requestStructuredText.mock.calls[0][0];
+        expect(request.messages[0].content).toContain("固定镜头不得超过20%");
+        expect(request.messages[0].content).toContain("运镜呼吸空间");
+        expect(request.messages[0].content).toContain("layout_description → layoutDescription");
+        expect(request.messages[0].content).toContain("characters → characterIds");
+        const context = JSON.parse(request.messages[1].content);
+        expect(context.availableAssets.characters[0].appearance).toBe("短发红衣");
+        expect(context.availableAssets.scenes[0]).toMatchObject({ time: "午夜", imagePrompt: "冷光空站台，无人物" });
+        expect(context.availableAssets.props[0].imagePrompt).toBe("单一裂屏手机，纯色底");
     });
 
     it("rejects invalid asset IDs instead of mapping them by name", () => {

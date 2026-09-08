@@ -104,16 +104,23 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
     const [storyboardPrompt, outputPrompt] = await Promise.all([resolveDramaLabPrompt("storyboard_system"), resolveDramaLabPrompt("storyboard_output_format")]);
     const systemPrompt = withDramaLabPromptContract(
         `${storyboardPrompt.template}\n\n${outputPrompt.template}`,
-        "只调用 extract_drama_storyboards 并返回 JSON 对象，不要返回 Markdown 或解释。shots 必须是数组；每个镜头必须填写 shotNumber、title、description、sourceText、shotBoundary、segmentIndex、segmentTitle、shotType、cameraAngle、cameraMotion、angleH、angleV、angleS、location、time、action、result、emotion、emotionIntensity、atmosphere、lightingStyle、depthOfField、layoutDescription、duration、dialogue、narration、creationMode、universalSegmentText、polishedPrompt、imagePrompt、videoPrompt、continuity、sceneId、characterIds、propIds。sceneId 只能是 availableAssets.scenes 中的真实 id，或空字符串；characterIds 和 propIds 只能引用各自对应资产列表中的真实 id，且只能包含本镜实际出场的资产。绝不能根据名称编造、猜测或新建资产 ID。imagePrompt 和 videoPrompt 必须是可执行的提示词文本，不得是图片链接。creationMode 只能为 classic 或 universal；universal 模式必须填写包含时间线和至少两步运镜的 universalSegmentText。未使用的可选文本字段使用空字符串，未使用的 ID 数组返回空数组。不得返回未定义字段。",
+        "只调用 extract_drama_storyboards 并返回 JSON 对象，不要返回 Markdown 或解释。迁移字段映射：storyboards → shots，shot_number → shotNumber，scene_id → sceneId，characters → characterIds，props → propIds，layout_description → layoutDescription，segment_index → segmentIndex，segment_title → segmentTitle，shot_type → shotType，angle → cameraAngle，movement/camera_movement → cameraMotion，lighting_style → lightingStyle，depth_of_field → depthOfField，emotion_intensity → emotionIntensity。ID 使用 availableAssets 中原始字符串，不转成数字。以本契约和工具 Schema 为最终输出形状，替代正文中的数组或 snake_case 示例；保留正文的叙事、空间、尺度、运镜要求。模板中的 sound_effect 信息写入 videoPrompt，bgm_prompt 的禁BGM要求也写入 videoPrompt；不额外输出工具未声明字段。shots 必须是数组；每个镜头必须填写 shotNumber、title、description、sourceText、shotBoundary、segmentIndex、segmentTitle、shotType、cameraAngle、cameraMotion、angleH、angleV、angleS、location、time、action、result、emotion、emotionIntensity、atmosphere、lightingStyle、depthOfField、layoutDescription、duration、dialogue、narration、creationMode、universalSegmentText、polishedPrompt、imagePrompt、videoPrompt、continuity、sceneId、characterIds、propIds。sceneId 只能是 availableAssets.scenes 中的真实 id，或空字符串；characterIds 和 propIds 只能引用各自对应资产列表中的真实 id，且只能包含本镜实际出场的资产。绝不能根据名称编造、猜测或新建资产 ID。imagePrompt 和 videoPrompt 必须是可执行的提示词文本，不得是图片链接。creationMode 只能为 classic 或 universal；universal 模式必须填写包含时间线和至少两步运镜的 universalSegmentText。未使用的可选文本字段使用空字符串，未使用的 ID 数组返回空数组。不得返回未定义字段。",
     );
     const userPrompt = JSON.stringify({
         task: "从当前集剧本拆解可执行的结构化分镜",
         project: { title: input.project.title, style: input.project.style, ...dramaLabStyleContext(input.project.style), aspectRatio: input.project.ratio },
         episode: { id: episode.id, title: episode.title, script },
         availableAssets: {
-            characters: input.project.characters.map((asset) => ({ id: asset.id, name: asset.name, description: asset.description || "", visualIdentity: asset.profile?.visualIdentity || "", styling: asset.profile?.styling || "" })),
-            scenes: input.project.scenes.map((asset) => ({ id: asset.id, name: asset.name, description: asset.description || "", visualIdentity: asset.profile?.visualIdentity || "" })),
-            props: input.project.props.map((asset) => ({ id: asset.id, name: asset.name, description: asset.description || "", visualIdentity: asset.profile?.visualIdentity || "" })),
+            characters: input.project.characters.map((asset) => ({
+                id: asset.id,
+                name: asset.name,
+                description: asset.description || "",
+                appearance: asset.appearance || "",
+                visualIdentity: asset.profile?.visualIdentity || "",
+                styling: asset.profile?.styling || "",
+            })),
+            scenes: input.project.scenes.map((asset) => ({ id: asset.id, name: asset.name, time: asset.time || "", imagePrompt: asset.imagePrompt || "", description: asset.description || "", visualIdentity: asset.profile?.visualIdentity || "" })),
+            props: input.project.props.map((asset) => ({ id: asset.id, name: asset.name, imagePrompt: asset.imagePrompt || "", description: asset.description || "", visualIdentity: asset.profile?.visualIdentity || "" })),
         },
     });
 

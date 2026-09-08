@@ -1,3 +1,4 @@
+import { renderDramaLabStoryTemplate } from "@/lib/drama-lab-style-prompt";
 import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveDramaLabPrompt } from "@/lib/server/drama-lab-prompt-template-service";
@@ -43,7 +44,10 @@ export async function generateDramaLabScript(input: { userId: string; origin: st
                 cookie: input.cookie,
                 candidate,
                 messages: [
-                    { role: "system", content: `${prompt.template}\n\n【系统固定输出契约，不可由模板覆盖】\n只调用 generate_drama_script 并返回 JSON 对象。script 必须是当前一集完整中文剧本文字；不要输出 Markdown、说明、标题前缀或其他字段。` },
+                    {
+                        role: "system",
+                        content: `${renderDramaLabStoryTemplate(prompt.template, 1)}\n\n【系统固定输出契约，不可由模板覆盖】\n只调用 generate_drama_script 并返回 JSON 对象。script 必须是当前一集完整中文剧本文字；不要输出 Markdown、说明、标题前缀或其他字段。`,
+                    },
                     { role: "user", content: context },
                 ],
                 tool: generateDramaScriptTool,
