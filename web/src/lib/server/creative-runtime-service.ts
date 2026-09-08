@@ -1,5 +1,5 @@
 import { creativeConversationSourceForSurface, isCreativeConversationSourceCompatible, normalizeCreativeConversationSource, normalizeCreativeSurface, type CreativeAssetType, type CreativeConversationStatus } from "@/lib/creative-runtime-contract";
-import { CREATIVE_UPLOAD_MAX_BYTES, isCreativeUploadMimeType } from "@/lib/creative-upload";
+import { creativeUploadLimitMessage, creativeUploadMaxBytes, isCreativeUploadMimeType } from "@/lib/creative-upload";
 import {
     createCreativeConversation,
     getCreativeAsset,
@@ -98,11 +98,12 @@ export async function uploadAssetForUser(userId: string, conversationId: string,
     const type = isCreativeUploadMimeType(file.type) ? creativeAssetType(file.type) : null;
     if (!type) throw new CreativeRuntimeServiceError("仅支持图片、视频和音频素材", 400);
     if (!file.size) throw new CreativeRuntimeServiceError("上传文件为空", 400);
-    if (file.size > CREATIVE_UPLOAD_MAX_BYTES) throw new CreativeRuntimeServiceError("单个素材不能超过 20MB", 413);
+    const maxBytes = creativeUploadMaxBytes(type);
+    if (file.size > maxBytes) throw new CreativeRuntimeServiceError(creativeUploadLimitMessage(type), 413);
     const dataUrl = `data:${file.type};base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}`;
     let stored: Awaited<ReturnType<typeof writePersistentMediaDataUrl>>;
     try {
-        stored = await writePersistentMediaDataUrl(dataUrl, type, { ownerUserId: userId, source: "creative-upload", originalName: file.name, conversationId, maxBytes: CREATIVE_UPLOAD_MAX_BYTES });
+        stored = await writePersistentMediaDataUrl(dataUrl, type, { ownerUserId: userId, source: "creative-upload", originalName: file.name, conversationId, maxBytes });
     } catch (error) {
         throw new CreativeRuntimeServiceError(error instanceof Error ? error.message : "素材保存失败", 400);
     }
@@ -140,9 +141,10 @@ export async function referenceAssetForUser(userId: string, conversationId: stri
     if (!registration || registration.ownerUserId !== userId || registration.scope !== scope || isLocalMediaRegistrationExpired(registration)) throw new CreativeRuntimeServiceError("参考素材不存在", 404);
     const type = creativeAssetType(registration.mimeType);
     if (!type || registration.type !== type) throw new CreativeRuntimeServiceError("该媒体格式暂不支持作为参考素材", 400);
+    const maxBytes = creativeUploadMaxBytes(type);
     let bytes: Buffer;
     try {
-        bytes = await readRegisteredMediaBytes(registration, CREATIVE_UPLOAD_MAX_BYTES);
+        bytes = await readRegisteredMediaBytes(registration, creativeUploadMaxBytes(type));
     } catch (error) {
         throw new CreativeRuntimeServiceError(error instanceof Error ? error.message : "读取参考素材失败", 400);
     }
@@ -155,7 +157,7 @@ export async function referenceAssetForUser(userId: string, conversationId: stri
             source: "creative-reference",
             originalName,
             conversationId,
-            maxBytes: CREATIVE_UPLOAD_MAX_BYTES,
+            maxBytes,
         });
     } catch (error) {
         throw new CreativeRuntimeServiceError(error instanceof Error ? error.message : "参考素材保存失败", 400);

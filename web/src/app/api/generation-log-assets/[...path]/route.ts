@@ -1,4 +1,4 @@
-import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
+import { creativeUploadMaxBytes, creativeUploadTypeFromMime } from "@/lib/creative-upload";
 import { resolve, sep } from "node:path";
 import { NextResponse } from "next/server";
 
@@ -67,7 +67,7 @@ async function serveGenerationAsset(request: Request, context: RouteContext) {
             // WebGL/canvas pixel reads require an origin-clean response. Normal
             // display still redirects to OSS; only explicit canvas reads use bytes.
             if (url.searchParams.get("render") === "canvas" && registration.mimeType.startsWith("image/")) {
-                const bytes = await readRegisteredMediaBytes(registration, CREATIVE_UPLOAD_MAX_BYTES);
+                const bytes = await readRegisteredMediaBytes(registration, creativeUploadMaxBytes(creativeUploadTypeFromMime(registration.mimeType) || "image"));
                 const response = new Response(new Uint8Array(bytes), { headers: { "Content-Type": registration.mimeType, "Content-Length": String(bytes.length), "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
                 return withMediaConcurrency(response, permit, request.signal);
             }

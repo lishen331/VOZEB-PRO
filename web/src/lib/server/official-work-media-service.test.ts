@@ -44,7 +44,7 @@ describe("official work media service", () => {
     it("uses the established image, video, and audio byte limits", async () => {
         const cases = [
             ["image/png", "image", 20 * 1024 * 1024],
-            ["video/mp4", "video", 200 * 1024 * 1024],
+            ["video/mp4", "video", 800 * 1024 * 1024],
             ["audio/mpeg", "audio", 30 * 1024 * 1024],
         ] as const;
         for (const [mime, type, maxBytes] of cases) {
