@@ -1,3 +1,4 @@
+import productionAssetDefaults from "./drama-lab-production-asset-defaults.json";
 import productionFrameDefaults from "./drama-lab-production-frame-defaults.json";
 
 export const DRAMA_LAB_PROMPT_KEYS = ["story_expansion_system", "character_extraction", "scene_extraction", "prop_extraction", "storyboard_system", "storyboard_user_suffix", "first_frame_prompt", "key_frame_prompt", "last_frame_prompt"] as const;
@@ -40,11 +41,7 @@ export const DRAMA_LAB_PROMPT_DEFINITIONS: readonly DramaLabPromptDefinition[] =
         name: "角色提取提示词",
         category: "character",
         description: "控制如何从当前集剧本中提取可复用的命名角色。",
-        template: `你是一个专业的角色分析师，擅长从剧本中提取和分析角色信息。
-
-【语言要求】所有字段的值必须使用中文，role 字段固定为 main、supporting 或 minor。
-提取所有有名字的角色，忽略无名路人或背景人物。每个角色提取：name、role、appearance、description。appearance 为 100-200 字的外貌描述，包含性别、年龄、体型、面部特征、发型、服装风格等，不含场景或环境；description 为背景和关系，不得臆造剧本没有的信息。主要角色外貌详细，次要角色可简化。
-输出必须只返回纯 JSON 数组，不要 Markdown、解释或其他文字。`,
+        template: productionAssetDefaults.character_extraction,
         variables: ["当前剧本", "项目风格", "已有角色"],
     },
     {
@@ -52,13 +49,7 @@ export const DRAMA_LAB_PROMPT_DEFINITIONS: readonly DramaLabPromptDefinition[] =
         name: "场景提取提示词",
         category: "scene",
         description: "控制如何从当前集剧本中提取可复用的拍摄场景。",
-        template: `【任务】从剧本中提取所有唯一的场景背景。
-
-1. 识别所有不同场景（地点+时间组合），合并视觉设定一致的重复地点。
-2. 为每个场景生成详细中文图片提示词，描述空间、陈设、氛围、光线、透视和时代。
-3. 场景描述必须是纯背景，不能包含人物、角色、人物外貌或动作。
-4. 严格遵循当前项目风格和图片比例，不得凭空加入剧本未出现的关键道具。
-输出必须只返回纯 JSON 数组，每项包含 location、time、prompt；prompt 明确说明无人物。`,
+        template: productionAssetDefaults.scene_extraction,
         variables: ["当前剧本", "项目风格", "画幅比例", "已有场景"],
     },
     {
@@ -66,12 +57,7 @@ export const DRAMA_LAB_PROMPT_DEFINITIONS: readonly DramaLabPromptDefinition[] =
         name: "道具提取提示词",
         category: "prop",
         description: "控制如何从当前集剧本中提取剧情相关的关键道具。",
-        template: `你是一位专业的剧本道具分析师，擅长从剧本中提取具有视觉特征的关键道具。
-
-只提取对剧情发展有重要作用、被强调、承载线索或影响行动的关键道具，忽略普通背景杂物。description 必须用中文描述道具作用、材质、外观、时代和可见细节；若有归属者，仅写在 description，禁止在 image_prompt 出现角色名或剧情专名。
-
-【主图铁律】image_prompt 必须描述单一无缝纯色棚拍背景、画面只有该道具一个主体、柔和均匀棚拍光；禁止人物、手、家具、地面/台面、环境、散落杂物、其他道具、文字商标或包装。道具必须符合所属时代真实物理比例，作为次要环境元素，不得夸大、立起或成为主导视觉。
-输出必须只返回纯 JSON 数组，每项包含 name、type、description、image_prompt。`,
+        template: productionAssetDefaults.prop_extraction,
         variables: ["当前剧本", "项目风格", "已有道具"],
     },
     {

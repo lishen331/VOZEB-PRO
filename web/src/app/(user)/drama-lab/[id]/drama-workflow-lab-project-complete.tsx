@@ -1,5 +1,8 @@
 "use client";
 
+import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
+import { readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
+
 import { Alert, Button, Drawer, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Radio, QRCode } from "antd";
 import {
     ArrowLeft,
@@ -194,7 +197,7 @@ export interface Episode {
     status?: string;
 }
 
-export interface Character {
+export interface Character extends DramaAssetVisualDetails {
     id: string;
     name: string;
     description?: string;
@@ -206,7 +209,7 @@ export interface Character {
     profile?: DramaLabAssetProfile;
 }
 
-export interface Scene {
+export interface Scene extends DramaAssetVisualDetails {
     id: string;
     location: string;
     name?: string;
@@ -220,7 +223,7 @@ export interface Scene {
     profile?: DramaLabAssetProfile;
 }
 
-export interface Prop {
+export interface Prop extends DramaAssetVisualDetails {
     id: string;
     name: string;
     description?: string;
@@ -458,6 +461,7 @@ function normalizeScenes(value: unknown): Scene[] {
         if (!id || !location) return [];
         return [
             {
+                ...readDramaLabAssetVisualDetails(scene),
                 id,
                 location,
                 name: typeof scene.name === "string" ? scene.name : location,

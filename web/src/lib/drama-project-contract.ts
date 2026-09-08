@@ -115,7 +115,16 @@ export type DramaVoiceProfile = {
     instructions: string;
 };
 
-export type DramaNamedAsset = {
+/** Optional extraction fields retained by the short-drama lab in project_json. */
+export type DramaAssetVisualDetails = {
+    appearance?: string;
+    imagePrompt?: string;
+    role?: string;
+    type?: string;
+    time?: string;
+};
+
+export type DramaNamedAsset = DramaAssetVisualDetails & {
     id: string;
     name: string;
     description: string;

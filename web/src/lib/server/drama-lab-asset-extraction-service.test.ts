@@ -1,3 +1,4 @@
+import { dramaLabPromptDefinition } from "@/lib/drama-lab-prompt-templates";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -28,6 +29,7 @@ import { extractDramaLabAssets, normalizeExtractedDramaLabAssets } from "./drama
 
 describe("drama lab asset extraction", () => {
     beforeEach(() => {
+        vi.clearAllMocks();
         mocks.getAuthSettings.mockResolvedValue({ defaultModels: { textModel: "writer" } });
         const candidate = { channelId: "channel", upstreamModel: "writer-vendor", channel: {} };
         mocks.resolveLogicalModelCandidates.mockReturnValue([candidate]);
@@ -73,6 +75,10 @@ describe("drama lab asset extraction", () => {
         expect(mocks.requestStructuredText.mock.calls[0]?.[0].messages[0].content).toContain("CUSTOM CHARACTER TEMPLATE");
         expect(result.assets).toMatchObject([{ name: "周明", description: "同事" }]);
         expect(result.skippedCount).toBe(1);
+        const properties = mocks.requestStructuredText.mock.calls[0][0].tool.parameters.properties.items.items.properties;
+        expect(properties).toHaveProperty("appearance");
+        expect(properties).toHaveProperty("imagePrompt");
+        expect(properties).toHaveProperty("role");
         expect(mocks.recordDramaLabTextGenerationLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 id: "drama-lab-extract:project-one:episode-one:character:request-one",
@@ -83,6 +89,49 @@ describe("drama lab asset extraction", () => {
                 model: "writer",
             }),
         );
+    });
+
+    it.each([
+        { kind: "character" as const, item: { name: "林薇", description: "主角", role: "main", appearance: "年轻女生，短发红衣" }, expected: { appearance: "年轻女生，短发红衣", role: "main" } },
+        { kind: "scene" as const, item: { location: "古宅", time: "黄昏", description: "旧宅", prompt: "古宅纯背景，无人物，暖色侧光" }, expected: { name: "古宅", time: "黄昏", imagePrompt: "古宅纯背景，无人物，暖色侧光" } },
+        { kind: "prop" as const, item: { name: "铜灯", description: "林薇的关键线索", type: "证物", image_prompt: "单一铜灯，纯色背景，无人物无手，真实尺度" }, expected: { type: "证物", imagePrompt: "单一铜灯，纯色背景，无人物无手，真实尺度" } },
+    ])("preserves production $kind visual fields in the extracted result", ({ kind, item, expected }) => {
+        const result = normalizeExtractedDramaLabAssets(JSON.stringify({ items: [item] }), kind, []);
+        expect(result[0]).toMatchObject(expected);
+    });
+
+    it("substitutes production asset template variables before sending the request", async () => {
+        mocks.resolveDramaLabPrompt.mockResolvedValue(dramaLabPromptDefinition("prop_extraction"));
+        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify({ items: [{ name: "铜灯", type: "线索", description: "主角使用", imagePrompt: "单一铜灯，纯色底，无人物" }] }), headers: new Headers(), elapsedMs: 1 });
+        const result = await extractDramaLabAssets({
+            userId: "fixture",
+            origin: "http://127.0.0.1",
+            cookie: "",
+            requestId: "props",
+            episodeId: "ep",
+            assetType: "prop",
+            project: {
+                id: "project",
+                title: "test",
+                summary: "",
+                style: "realistic",
+                ratio: "9:16",
+                status: "active",
+                characters: [],
+                scenes: [],
+                props: [],
+                clues: [],
+                defaultVideoMode: "storyboard",
+                episodes: [{ id: "ep", title: "test", script: "主角拿起铜灯", outline: "", hook: "", nextPreview: "", sourceRange: "", reviewStatus: "draft", shots: [] }],
+                createdAt: "",
+                updatedAt: "",
+            },
+        });
+        const request = mocks.requestStructuredText.mock.calls[0][0];
+        expect(request.messages[0].content).toContain("真实皮肤纹理");
+        expect(request.messages[0].content).not.toContain("{{aspectRatio}}");
+        expect(request.messages[0].content).toContain("image_prompt 映射到 imagePrompt");
+        expect(result.assets[0]).toMatchObject({ imagePrompt: "单一铜灯，纯色底，无人物", type: "线索" });
     });
 
     it("normalizes legacy scene locations when checking duplicate names", () => {

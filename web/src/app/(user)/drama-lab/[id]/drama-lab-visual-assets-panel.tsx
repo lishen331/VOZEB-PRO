@@ -1,5 +1,8 @@
 "use client";
 
+import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
+import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
+
 import { Button, Image, Input, List, Modal, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
 import { Check, Edit2, ImagePlus, Images, LibraryBig, MapPin, Package, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
@@ -104,7 +107,7 @@ export function DramaLabVisualAssetsPanel({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ episodeId: episode.id, assetType: resourceType, requestId: `drama-lab-extract:${project.id}:${episode.id}:${resourceType}:${nanoid()}` }),
             });
-            const payload = (await response.json()) as { code?: number; msg?: string; data?: { assets?: Array<{ id?: string; name?: string; description?: string; location?: string; time?: string }> } };
+            const payload = (await response.json()) as { code?: number; msg?: string; data?: { assets?: Array<DramaAssetVisualDetails & { id?: string; name?: string; description?: string; location?: string }> } };
             if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "资产提取失败");
             const current = project[kind] as VisualAsset[];
             const names = new Set(current.map((asset) => assetName(asset).trim()));
@@ -112,7 +115,9 @@ export function DramaLabVisualAssetsPanel({
                 const name = asset.name?.trim() || "";
                 if (!name || names.has(name)) return [];
                 names.add(name);
-                return [createAsset(kind, { id: asset.id || `${kind}-${nanoid()}`, name, description: asset.description || "", ...(kind === "scenes" ? { location: asset.location || name, time: asset.time } : {}) })];
+                return [
+                    createAsset(kind, { ...readDramaLabAssetVisualDetails(asset), id: asset.id || `${kind}-${nanoid()}`, name, description: asset.description || "", ...(kind === "scenes" ? { location: asset.location || name, time: asset.time } : {}) }),
+                ];
             });
             if (!additions.length) {
                 messageApi.info(`没有发现需要新增的${definition.label}`);
@@ -143,6 +148,7 @@ export function DramaLabVisualAssetsPanel({
         const next = createAsset(kind, {
             id: `${kind}-${nanoid()}`,
             name: libraryAsset.title,
+            ...readDramaLabAssetVisualDetails(libraryAsset.metadata),
             description: libraryAsset.note || libraryAsset.tags.join("、"),
             references: [reference],
             primaryReferenceId: reference.id,
@@ -177,7 +183,7 @@ export function DramaLabVisualAssetsPanel({
         const requestKey = `asset:${asset.id}`;
         setBusyKey(requestKey);
         try {
-            const prompt = assetReferencePrompt(project, asset, kind);
+            const prompt = buildDramaLabAssetImagePrompt(project, asset, kind);
             const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: project.aspectRatio || config.size, count: "1" };
             const task = await createImageGenerationTask(imageConfig, prompt, [], undefined, {
                 logSource: "drama",
@@ -491,6 +497,16 @@ function AssetEditorModal({
                     <span>文字设定</span>
                     <Input.TextArea rows={3} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value })} />
                 </label>
+                {editor?.kind === "characters" ? (
+                    <label className="grid gap-1.5 text-sm">
+                        <span>人物外貌</span>
+                        <Input.TextArea rows={3} value={asset.appearance || ""} onChange={(event) => onChange({ ...asset, appearance: event.target.value })} />
+                    </label>
+                ) : null}
+                <label className="grid gap-1.5 text-sm">
+                    <span>生图提示词</span>
+                    <Input.TextArea rows={3} value={asset.imagePrompt || ""} onChange={(event) => onChange({ ...asset, imagePrompt: event.target.value })} />
+                </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                     {(["visualIdentity", "styling", "colorPalette", "consistencyRules"] as const).map((key) => (
                         <label key={key} className="grid gap-1.5 text-sm">
@@ -530,23 +546,6 @@ function stableImageUrl(image: ImageGenerationResult) {
     return [image.serverUrl, image.remoteUrl, image.dataUrl].find((value) => Boolean(value?.trim()))?.trim();
 }
 
-function assetReferencePrompt(project: Project, asset: VisualAsset, kind: AssetKind) {
-    const label = ASSET_META[kind].label;
-    const profile = asset.profile;
-    return [
-        `${label}设定图，${project.aspectRatio || "16:9"}，${project.style || "保持项目统一风格"}`,
-        `名称：${asset.name}`,
-        asset.description ? `文字设定：${asset.description}` : "",
-        profile?.visualIdentity ? `视觉识别：${profile.visualIdentity}` : "",
-        profile?.styling ? `造型与材质：${profile.styling}` : "",
-        profile?.colorPalette ? `固定色彩：${profile.colorPalette}` : "",
-        profile?.consistencyRules ? `一致性规则：${profile.consistencyRules}` : "",
-        kind === "characters" ? "完整人物设定视图，五官、体型和服装清晰，干净中性背景，不添加文字。" : "主体结构清晰，便于后续镜头稳定引用，不添加文字。",
-    ]
-        .filter(Boolean)
-        .join("\n");
-}
-
 function shotAssetIds(shot: Shot) {
     return [shot.sceneId, ...shot.characterIds, ...(shot.propIds || [])].filter((value): value is string => Boolean(value));
 }
@@ -562,7 +561,7 @@ async function saveToLibrary(asset: VisualAsset, kind: AssetKind, label: string,
             tags: ["短剧", label],
             source: "短剧实验室",
             note: asset.description || "",
-            metadata: { source: "drama-lab", dramaAssetType: kind === "characters" ? "character" : kind === "scenes" ? "scene" : "prop" },
+            metadata: { ...readDramaLabAssetVisualDetails(asset), source: "drama-lab", dramaAssetType: kind === "characters" ? "character" : kind === "scenes" ? "scene" : "prop" },
             data: {
                 dataUrl: primary.url,
                 storageKey: primary.storageKey,

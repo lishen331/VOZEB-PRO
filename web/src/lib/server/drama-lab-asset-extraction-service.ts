@@ -1,4 +1,4 @@
-import { dramaLabStyleContext } from "@/lib/drama-lab-style-prompt";
+import { dramaLabStyleContext, renderDramaLabFrameTemplate } from "@/lib/drama-lab-style-prompt";
 import { nanoid } from "nanoid";
 
 import type { DramaCharacter, DramaProject, DramaProp, DramaScene } from "@/lib/drama-project-contract";
@@ -39,8 +39,8 @@ export async function extractDramaLabAssets(input: { userId: string; origin: str
     const prompt = await resolveDramaLabPrompt(promptKey);
     const existing = assetsForType(input.project, input.assetType);
     const systemPrompt = withDramaLabPromptContract(
-        prompt.template,
-        `只调用 extract_drama_assets 并返回 JSON 对象。items 必须是数组；每个项目只保留 name、description，场景可额外提供 time。不要返回 Markdown、解释、图片链接、角色 ID 或任何未定义字段。名称必须来自当前剧本。`,
+        renderDramaLabFrameTemplate(prompt.template, input.project),
+        `只调用 extract_drama_assets 并返回 JSON 对象。items 必须是数组；每个项目包含 name、description。角色另填 role（main/supporting/minor）、appearance（纯人物外貌）；场景另填 time、imagePrompt（纯背景，无人物）；道具另填 type、imagePrompt（仅道具主体、纯色底、无人物无手、符合真实尺度）。模板中的 location 映射到 name；prompt、image_prompt 映射到 imagePrompt。不要把生图提示词并入背景故事 description。不要返回 Markdown、解释、图片链接、角色 ID 或任何未定义字段。名称必须来自当前剧本。`,
     );
     const userPrompt = JSON.stringify({
         task: `从当前集剧本提取${assetLabel(input.assetType)}`,
@@ -123,11 +123,23 @@ export function normalizeExtractedDramaLabAssets(value: string, assetType: Drama
     return array(payload.items).flatMap((value) => {
         const item = object(value);
         if (!item) return [];
-        const name = text(item.name, 120);
+        const name = text(item.name, 120) || (assetType === "scene" ? text(item.location, 120) : "");
         if (!name || names.has(normalizedName(name))) return [];
         names.add(normalizedName(name));
         const description = text(item.description, 2_000);
-        const base = { id: `${assetType}_${nanoid()}`, name, description };
+        const appearance = typeof item.appearance === "string" ? item.appearance.trim() : "";
+        const imagePrompt = [item.imagePrompt, item.image_prompt, item.prompt].find((value) => typeof value === "string" && value.trim());
+        const role = typeof item.role === "string" && ["main", "supporting", "minor"].includes(item.role) ? item.role : undefined;
+        const type = typeof item.type === "string" ? item.type.trim() : "";
+        const base = {
+            id: `${assetType}_${nanoid()}`,
+            name,
+            description,
+            ...(assetType === "character" && appearance ? { appearance } : {}),
+            ...(assetType === "character" && role ? { role } : {}),
+            ...(typeof imagePrompt === "string" ? { imagePrompt: imagePrompt.trim() } : {}),
+            ...(assetType === "prop" && type ? { type } : {}),
+        };
         if (assetType === "scene") {
             const time = text(item.time, 120);
             return [{ ...base, ...(time ? { time } : {}) }];
@@ -194,6 +206,10 @@ const extractDramaAssetsTool = {
                         name: { type: "string" },
                         description: { type: "string" },
                         time: { type: "string" },
+                        appearance: { type: "string" },
+                        imagePrompt: { type: "string" },
+                        role: { type: "string", enum: ["main", "supporting", "minor"] },
+                        type: { type: "string" },
                     },
                     required: ["name", "description"],
                     additionalProperties: false,
