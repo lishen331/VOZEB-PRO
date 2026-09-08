@@ -262,3 +262,30 @@ describe("agentPlannerInput", () => {
         expect(plannerAgentSkills(DEFAULT_SETTINGS, { surface: "chat", selectedSkillIds: ["image-motion", "character-design"] }).map((skill) => skill.id)).toEqual(["image-motion", "character-design"]);
     });
 });
+
+describe("Canvas multimodal context", () => {
+    it("keeps selected image in current-turn selection and does not turn other text into edit scope", () => {
+        const run = {
+            id: "r",
+            conversationId: "c",
+            surface: "canvas",
+            prompt: "分析这张图",
+            projectId: "p",
+            referencedAssetIds: [],
+            selectedSkillIds: [],
+            requestedModelIds: [],
+            snapshot: {
+                selectedNodeIds: ["image"],
+                nodes: [
+                    { id: "image", type: "image", title: "参考", metadata: { url: "/api/reference-assets/ref.png" } },
+                    { id: "text", type: "text", title: "正文", metadata: { content: "do not edit" } },
+                ],
+                connections: [],
+            },
+        } as never;
+        const result = buildAgentPlannerInput(run, { summary: "", recentMessages: [] } as never, [], "none", [], [], { defaultModels: {}, generationDefaults: {}, agentSkills: [] } as never);
+        expect(result.input.currentTurnSelection).toMatchObject({ selectedNodeIds: ["image"] });
+        expect(JSON.stringify(result.input.canvasSnapshot)).toContain("/api/reference-assets/ref.png");
+        expect(JSON.stringify(result.input.canvasSnapshot)).not.toContain("do not edit");
+    });
+});

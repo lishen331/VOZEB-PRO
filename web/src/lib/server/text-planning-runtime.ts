@@ -32,11 +32,12 @@ type RuntimeState = {
     lastSuccessAt?: number;
 };
 
+export type TextPlanningMessageContent = string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
 export type StructuredTextRequest = {
     origin: string;
     cookie: string;
     candidate: TextPlanningCandidate;
-    messages: Array<{ role: string; content: string }>;
+    messages: Array<{ role: string; content: TextPlanningMessageContent }>;
     tool: TextPlanningTool;
     headers?: HeadersInit;
     fallbackHeaders?: HeadersInit;
@@ -129,7 +130,7 @@ export function resetTextPlanningRuntime() {
     states.clear();
 }
 
-function planningProtocolRequests(input: StructuredTextRequest, messages: Array<{ role: string; content: string }>) {
+function planningProtocolRequests(input: StructuredTextRequest, messages: Array<{ role: string; content: TextPlanningMessageContent }>) {
     const promptRequest = planningProtocolRequest(input.candidate, messages, "json", undefined, input.stream === true);
     if (input.allowRepair === false) {
         return input.preferNativeTools && promptRequest.protocol !== "custom" ? [planningProtocolRequest(input.candidate, messages, "tool", input.tool), promptRequest] : [promptRequest];
@@ -139,7 +140,7 @@ function planningProtocolRequests(input: StructuredTextRequest, messages: Array<
     return [planningProtocolRequest(input.candidate, messages, "tool", input.tool), promptRequest, recoveryRequest];
 }
 
-function planningProtocolRequest(candidate: TextPlanningCandidate, messages: Array<{ role: string; content: string }>, variant: ProtocolRequest["variant"], tool?: TextPlanningTool, requestedStream = false): ProtocolRequest {
+function planningProtocolRequest(candidate: TextPlanningCandidate, messages: Array<{ role: string; content: TextPlanningMessageContent }>, variant: ProtocolRequest["variant"], tool?: TextPlanningTool, requestedStream = false): ProtocolRequest {
     const resolved = resolveTextProtocol({
         model: candidate.upstreamModel,
         apiFormat: candidate.channel.apiFormat,
@@ -161,7 +162,7 @@ function planningProtocolRequest(candidate: TextPlanningCandidate, messages: Arr
 
 function chatRequest(
     model: string,
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: TextPlanningMessageContent }>,
     path = "/chat/completions",
     tool?: TextPlanningTool,
     variant: ProtocolRequest["variant"] = "json",
@@ -182,7 +183,7 @@ function chatRequest(
     };
 }
 
-function responsesRequest(model: string, messages: Array<{ role: string; content: string }>, path = "/responses", tool?: TextPlanningTool, variant: ProtocolRequest["variant"] = "json", stream = false): ProtocolRequest {
+function responsesRequest(model: string, messages: Array<{ role: string; content: TextPlanningMessageContent }>, path = "/responses", tool?: TextPlanningTool, variant: ProtocolRequest["variant"] = "json", stream = false): ProtocolRequest {
     return {
         protocol: "responses",
         variant,
@@ -199,7 +200,7 @@ function responsesRequest(model: string, messages: Array<{ role: string; content
 
 function geminiRequest(
     model: string,
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: TextPlanningMessageContent }>,
     configuredPath: string,
     tool?: TextPlanningTool,
     variant: ProtocolRequest["variant"] = "json",
@@ -216,7 +217,12 @@ function geminiRequest(
         variant,
         path,
         body: {
-            contents: messages.filter((message) => message.role !== "system").map((message) => ({ role: message.role === "assistant" ? "model" : "user", parts: [{ text: message.content }] })),
+            contents: messages
+                .filter((message) => message.role !== "system")
+                .map((message) => ({
+                    role: message.role === "assistant" ? "model" : "user",
+                    parts: Array.isArray(message.content) ? message.content.map((part) => (part.type === "text" ? { text: part.text } : { inlineData: { mimeType: "image/png", data: part.image_url.url } })) : [{ text: message.content }],
+                })),
             ...(systemText ? { systemInstruction: { parts: [{ text: systemText }] } } : {}),
             ...(tool
                 ? { tools: [{ functionDeclarations: [tool] }], toolConfig: { functionCallingConfig: { mode: "ANY", allowedFunctionNames: [tool.name] } } }
@@ -234,13 +240,14 @@ function customRequest(
     configuredPath: string,
     requestTemplate: string,
     resultField: string,
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: TextPlanningMessageContent }>,
     variant: ProtocolRequest["variant"],
     stream = false,
     streamFormat: ProtocolRequest["streamFormat"] = "sse",
 ): ProtocolRequest {
-    const prompt = messages.map((message) => `${message.role}: ${message.content}`).join("\n\n");
-    const promptJson = messages.find((message) => message.role === "user")?.content || "";
+    const prompt = messages.map((message) => `${message.role}: ${typeof message.content === "string" ? message.content : message.content.map((part) => (part.type === "text" ? part.text : `[image:${part.image_url.url}]`)).join(" ")}`).join("\n\n");
+    const promptJsonValue = messages.find((message) => message.role === "user")?.content || "";
+    const promptJson = typeof promptJsonValue === "string" ? promptJsonValue : promptJsonValue.map((part) => (part.type === "text" ? part.text : part.image_url.url)).join(" ");
     const values = { model, messages, prompt, input: prompt, text: prompt, prompt_json: parsePromptJsonValue(promptJson), stream };
     return { protocol: "custom", variant, path: configuredPath, body: buildProviderRequest(requestTemplate, values, values), resultField, ...(stream ? { stream: true, streamFormat } : {}) };
 }

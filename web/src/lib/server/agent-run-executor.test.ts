@@ -1339,3 +1339,30 @@ describe("partial success handling", () => {
         );
     });
 });
+
+describe("Canvas multimodal planner transport", () => {
+    it("sends a selected image as a real image part while keeping editable selection IDs", async () => {
+        mocks.run = {
+            ...planningRun("分析选中的图片"),
+            snapshot: {
+                selectedNodeIds: ["image"],
+                nodes: [
+                    { id: "image", type: "image", title: "参考", metadata: { url: "/api/reference-assets/ref.png" } },
+                    { id: "text", type: "text", title: "正文", metadata: { content: "do not edit" } },
+                ],
+                connections: [],
+            },
+        };
+        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
+        mocks.fetchInternalApi.mockResolvedValue(
+            Response.json({ output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify({ ...canvasPlan("image-default"), intent: "conversation", reply: "已分析", decisions: [], deliverables: [] }) }] }),
+        );
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+        const call = mocks.fetchInternalApi.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
+        const body = JSON.parse(String(call?.[1]?.body)) as { messages: Array<{ role: string; content: unknown }> };
+        const user = body.messages.find((message) => message.role === "user");
+        expect(user?.content).toEqual(expect.arrayContaining([expect.objectContaining({ type: "image_url", image_url: { url: "/api/reference-assets/ref.png" } })]));
+        expect(JSON.stringify(user?.content)).toContain("selectedNodeIds");
+        expect(JSON.stringify(user?.content)).not.toContain("do not edit");
+    });
+});

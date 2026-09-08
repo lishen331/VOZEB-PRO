@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SystemChannelAdvancedConfig, SystemModelChannel } from "@/lib/auth/store";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
+import type { TextPlanningMessageContent } from "./text-planning-runtime";
 import { getTextPlanningRuntime, isStructuredTextFailure, rankTextPlanningCandidates, requestStructuredText, resetTextPlanningRuntime, type TextPlanningCandidate } from "./text-planning-runtime";
 
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: vi.fn() }));
@@ -14,6 +15,22 @@ const mockedWorkerHeaders = vi.mocked(maintenanceWorkerContextHeaders);
 const tool = { name: "make_plan", description: "创建计划", parameters: { type: "object", properties: { result: { type: "string" } } } };
 
 describe("text planning runtime protocol matrix", () => {
+    it("preserves multimodal image parts for chat and responses planning requests", async () => {
+        mockedFetch.mockResolvedValue(Response.json({ choices: [{ message: { tool_calls: [{ function: { name: "make_plan", arguments: "{}" } }] } }] }));
+        const messages: Array<{ role: string; content: TextPlanningMessageContent }> = [
+            { role: "system", content: "system" },
+            {
+                role: "user",
+                content: [
+                    { type: "text", text: "inspect" },
+                    { type: "image_url", image_url: { url: "/api/reference-assets/ref.png" } },
+                ],
+            },
+        ];
+        await requestStructuredText({ ...requestInput(candidate("newapi")), messages });
+        expect((requestBody().messages as Array<{ content: unknown }>)[1].content).toEqual(messages[1].content);
+    });
+
     beforeEach(() => {
         resetTextPlanningRuntime();
         mockedFetch.mockReset();

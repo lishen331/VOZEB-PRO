@@ -170,3 +170,17 @@ Files: Canvas compact snapshot / assistant-panel、Canvas 专属媒体解析、�
 - 最新定向回归 **15 个文件 / 199 项通过**；新增纯函数、解析、执行器、SSE、恢复、历史和确认组件均通过。TypeScript 全项目仍仅 `papaparse` 学校模块缺失及两处隐式 any。
 - 本阶段仅在隔离分支实现与 fixture 验证；未做真实登录态线上验收、真实 PostgreSQL 跨设备确认并发、部署后回归。未推送/部署。
 - Git 代码提交：`78c0af34`；阶段记录补充提交为本次文档提交。
+
+## 2026-09-09 第四阶段第一检查点：Canvas 多模态规划输入
+
+### 已实现
+- 规划请求保留规范化 JSON 文本，同时在普通 Canvas 且本轮明确选中 image/panorama 节点时，向视觉规划模型增加真实 `image_url` 消息片段。图片输入仅来自受快照校验的 `/api/reference-assets/*` 或 `/api/generation-log-assets/*` URL，不接受任意 data/blob URL。
+- Chat/Responses 协议保留图片 parts；Gemini 转换为图片输入 part；custom 协议降级为可审计的图片 URL 标记文本，避免丢失上下文。
+- 规划模型仍按图片/视频引用选择视觉模型；没有明确选中媒体时继续走文本模型。
+- `currentTurnSelection` 继续限制可修改目标；读取整个 Canvas 的结构快照与“允许修改范围”分开，非选中文本不会被自动作为编辑目标。
+
+### 验证
+- 定向回归：5 文件 / **129 项通过**，覆盖 Chat/Responses 多模态消息、Canvas 选中图片传输、执行器视觉模型路径、读取/修改范围边界。
+- TypeScript 本次新增代码无错误；全项目仍仅学校模块缺 `papaparse` 及关联隐式 any。ESLint/Prettier 已通过。
+- 尚未完成：真实视觉模型上游的图片解析、Gemini/custom 线上协议矩阵、实际登录态页面回归和图片引用权限的线上部署验收；没有调用真实收费上游。
+- 当前没有提交或推送；下一步继续补充多模态 URL 访问权限与 Canvas 新对话范围回归，再做隔离浏览器验证。

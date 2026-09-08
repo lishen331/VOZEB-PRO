@@ -141,14 +141,15 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
         const plannerContext = buildAgentPlannerInput(claimed, conversationContext, referencedAssets, referenceSource, skillOptions, availableModels, settings);
         if (!(await updateAgentRunById(run.id, { plannerContext: plannerContext.summary }, { type: "skills.selected", data: { skills: skills.map((skill) => ({ id: skill.id, name: skill.name })) } }, ["running"], executionId))) return;
         const plannerRequest = buildAgentRequest(claimed, plannerContext.input);
+        const plannerUserContent = plannerMessageContent(plannerRequest, claimed.surface);
         const planningInput = [
             {
-                role: "system",
+                role: "system" as const,
                 content: agentPlannerSystemPrompt(claimed.surface, fallbackExample, settings.site.title),
             },
             {
-                role: "user",
-                content: serializeAgentRequest(plannerRequest),
+                role: "user" as const,
+                content: plannerUserContent,
             },
         ];
         if (
@@ -335,4 +336,14 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
     } finally {
         if (controllers.get(run.id) === controller) controllers.delete(run.id);
     }
+}
+
+function plannerMessageContent(request: ReturnType<typeof buildAgentRequest>, surface: AgentRun["surface"]) {
+    const json = serializeAgentRequest(request);
+    if (surface !== "canvas") return json;
+    const snapshot = request.canvasSnapshot as { nodes?: Array<{ id?: string; type?: string; metadata?: { url?: string } }> } | undefined;
+    const selected = new Set(request.references.selectedNodeIds);
+    const images = (snapshot?.nodes || []).filter((node) => selected.has(String(node.id)) && (node.type === "image" || node.type === "panorama") && node.metadata?.url);
+    if (!images.length) return json;
+    return [{ type: "text" as const, text: json }, ...images.map((node) => ({ type: "image_url" as const, image_url: { url: node.metadata!.url! } }))];
 }
