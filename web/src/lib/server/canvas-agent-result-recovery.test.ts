@@ -43,6 +43,33 @@ function run(patch: Partial<AgentRun> = {}): AgentRun {
     };
 }
 describe("Canvas durable result recovery", () => {
+    it.each(["cancelled", "applied"])("preserves %s decision on entry and never applies deletion", (decision) => {
+        const p = project(),
+            r = run({ tasks: [], canvasDestructiveProposal: { id: "confirm-run", runId: "run", type: "delete_nodes", ids: ["original"] } });
+        p.chatSessions = [
+            {
+                id: "s",
+                conversationId: r.conversationId,
+                title: "s",
+                createdAt: p.createdAt,
+                updatedAt: p.updatedAt,
+                messages: [{ id: "m", runId: r.id, role: "assistant", text: decision, detail: { destructiveProposalId: "confirm-run", destructiveDecision: decision } }],
+            },
+        ];
+        const next = recoverCanvasAgentResults(p, [r], "owner", new Map([[r.id, "please confirm"]]));
+        expect(next.nodes).toEqual(p.nodes);
+        expect(next.chatSessions[0].messages[0]).toMatchObject({ text: decision, detail: { destructiveDecision: decision } });
+    });
+
+    it("restores a pending destructive confirmation without deleting anything", () => {
+        const p = project(),
+            r = run({ tasks: [], canvasDestructiveProposal: { id: "confirm-run", runId: "run", type: "delete_nodes", ids: ["original"] } });
+        const next = recoverCanvasAgentResults(p, [r], "owner");
+        expect(next.nodes).toEqual(p.nodes);
+        expect(next.chatSessions[0].messages.at(-1)?.detail).toMatchObject({ destructiveProposalId: "confirm-run", destructiveDecision: "pending" });
+        expect(next.chatSessions[0].messages.at(-1)?.text).toContain("确认");
+    });
+
     it("preserves live layout acknowledgement after undo and reopen", () => {
         const p = project();
         const operation = planCanvasAgentLayout("run", { type: "layout", scope: "all" }, { nodes: canvasLayoutGeometry(p.nodes), selectedNodeIds: [], connections: [] }, p.nodes);

@@ -5,6 +5,7 @@ import type { AgentRun, AgentRunTask } from "./agent-run-store";
 export function publicAgentRun(run: AgentRun) {
     return {
         id: run.id,
+        ...(run.surface === "canvas" && run.canvasDestructiveProposal ? { canvasDestructiveProposal: run.canvasDestructiveProposal } : {}),
         ...(run.surface === "canvas" && run.canvasLayoutOperation ? { canvasLayoutOperation: run.canvasLayoutOperation } : {}),
         conversationId: run.conversationId,
         inputMessageId: run.inputMessageId,
@@ -35,7 +36,16 @@ export function publicAgentRun(run: AgentRun) {
 
 export function publicAgentRunSnapshot(run: AgentRun) {
     const value = publicAgentRun(run);
-    return { ...(value.canvasLayoutOperation ? { canvasLayoutOperation: value.canvasLayoutOperation } : {}), id: value.id, status: value.status, tasks: value.tasks, cancellation: value.cancellation, timings: value.timings, updatedAt: value.updatedAt };
+    return {
+        ...(value.canvasDestructiveProposal ? { canvasDestructiveProposal: value.canvasDestructiveProposal } : {}),
+        ...(value.canvasLayoutOperation ? { canvasLayoutOperation: value.canvasLayoutOperation } : {}),
+        id: value.id,
+        status: value.status,
+        tasks: value.tasks,
+        cancellation: value.cancellation,
+        timings: value.timings,
+        updatedAt: value.updatedAt,
+    };
 }
 
 export function publicAgentRunEvent(event: CreativeRunEvent): CreativeRunEvent {

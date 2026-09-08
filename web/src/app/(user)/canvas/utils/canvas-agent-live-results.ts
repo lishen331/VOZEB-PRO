@@ -25,6 +25,8 @@ export function guardCanvasAgentLiveOps(snapshot: CanvasAgentSnapshot, ops: Canv
     let current = snapshot;
     const accepted: CanvasAgentOp[] = [];
     for (const op of ops) {
+        // Remote model/events may only propose destructive actions; local confirmation is a separate path.
+        if (op.type === "delete_node" || op.type === "delete_connections" || op.type === "confirmed_destructive") continue;
         if (op.type === "layout_nodes") {
             if (guard.layoutResults.has(op.operation.id)) continue;
             const result = applyCanvasAgentLayout(current.nodes, op.operation);

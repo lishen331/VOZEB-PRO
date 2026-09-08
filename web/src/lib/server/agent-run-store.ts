@@ -87,6 +87,7 @@ export type AgentRun = {
     prompt: string;
     publicPrompt?: string;
     snapshot?: unknown;
+    canvasDestructiveProposal?: import("@/lib/canvas-agent-destructive").CanvasDestructiveProposal;
     canvasLayoutOperation?: import("@/lib/canvas-agent-layout").CanvasLayoutOperation;
     referencedAssetIds: string[];
     selectedSkillIds?: string[];
@@ -276,6 +277,7 @@ export async function updateAgentRunById(
             | "tasks"
             | "foundation"
             | "canvasLayoutOperation"
+            | "canvasDestructiveProposal"
             | "projectHandoff"
             | "projectHandoffEmitted"
             | "review"

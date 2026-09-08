@@ -1,5 +1,8 @@
 "use client";
 
+import { previewCanvasDestructiveProposal, type CanvasDestructivePreview, type CanvasDestructiveProposal } from "@/lib/canvas-agent-destructive";
+import { CanvasDestructiveConfirmation } from "./canvas-destructive-confirmation";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowRight, Bot, Files, History, ImagePlus, Layers3, LayoutPanelTop, PanelRightClose, Pause, PenLine, Play, Plus, Sparkles, Square, WandSparkles } from "lucide-react";
 import { App, Button, Modal, Tooltip } from "antd";
@@ -8,7 +11,7 @@ import { motion } from "motion/react";
 import { canvasLayoutGeometry } from "@/lib/canvas-agent-layout";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { nanoid } from "nanoid";
-import { controlCreativeAgentRun, createCreativeAgentRun, listCreativeAgentRuns, retryCreativeAgentTask } from "@/services/api/creative";
+import { controlCreativeAgentRun, createCreativeAgentRun, getCreativeAgentRun, listCreativeAgentRuns, retryCreativeAgentTask } from "@/services/api/creative";
 import { updateCreativeConversation } from "@/services/api/creative";
 import { deleteCanvasAssistantConversations } from "@/services/api/canvas-projects";
 import { refreshUserPointsIfSystem } from "@/services/api/points";
@@ -78,6 +81,10 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
     const [localSessions, setLocalSessions] = useState<CanvasAssistantSession[]>(sessions);
     const [localActiveSessionId, setLocalActiveSessionId] = useState<string | null>(activeSessionId);
     const snapshotRef = useRef(snapshot);
+    const [destructivePreview, setDestructivePreview] = useState<{ projectId: string; sessionId: string; messageId: string; proposal: CanvasDestructiveProposal; preview: CanvasDestructivePreview; error?: string } | null>(null);
+    const [destructiveBusy, setDestructiveBusy] = useState(false);
+    const destructiveBusyRef = useRef(false);
+    const handledProposalsRef = useRef(new Set<string>());
     const liveGuardsRef = useRef(new Map<string, CanvasAgentLiveGuard>());
     const localSessionsRef = useRef(localSessions);
     const localActiveSessionIdRef = useRef(localActiveSessionId);
@@ -305,6 +312,69 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
         }
     };
 
+    const openDestructivePreview = async (item: CanvasAssistantMessage) => {
+        if (!item.runId || destructiveBusyRef.current || !isPendingDestructive(item)) return;
+        const projectId = snapshotRef.current.projectId;
+        const sessionId = localSessionsRef.current.find((s) => s.messages.some((m) => m.id === item.id))?.id;
+        if (!sessionId) return;
+        destructiveBusyRef.current = true;
+        try {
+            const run = await getCreativeAgentRun(item.runId);
+            if (snapshotRef.current.projectId !== projectId) return;
+            const proposal = run.canvasDestructiveProposal;
+            if (
+                run.surface !== "canvas" ||
+                run.projectId !== projectId ||
+                run.status !== "completed" ||
+                run.conversationId !== localSessionsRef.current.find((s) => s.id === sessionId)?.conversationId ||
+                !proposal ||
+                handledProposalsRef.current.has(proposal.id)
+            )
+                throw new Error("操作不可用或已经处理");
+            const current = onApplyOps([]);
+            const preview = previewCanvasDestructiveProposal(current, proposal);
+            setDestructivePreview({ projectId, sessionId, messageId: item.id, proposal, preview });
+        } catch (error) {
+            message.error(friendlyAgentError(error, "无法读取待确认操作"));
+        } finally {
+            destructiveBusyRef.current = false;
+        }
+    };
+    const decideDestructive = async (confirm: boolean) => {
+        const pending = destructivePreview;
+        if (!pending || destructiveBusyRef.current || handledProposalsRef.current.has(pending.proposal.id)) return;
+        if (snapshotRef.current.projectId !== pending.projectId) {
+            setDestructivePreview(null);
+            return;
+        }
+        destructiveBusyRef.current = true;
+        setDestructiveBusy(true);
+        let applied = false;
+        try {
+            const current = onApplyOps(confirm ? [{ type: "confirmed_destructive", proposal: pending.proposal, preview: pending.preview }] : []);
+            applied = confirm;
+            handledProposalsRef.current.add(pending.proposal.id);
+            const detail = { destructiveProposalId: pending.proposal.id, destructiveDecision: confirm ? "applied" : "cancelled" };
+            upsertMessage(pending.sessionId, { id: pending.messageId, runId: pending.proposal.runId, role: "assistant", text: confirm ? "已执行确认的操作，可通过画布撤销恢复；正在确认保存。" : "已取消操作，未删除节点或连线。", detail });
+            const saved = await persistCanvasAgentResult(current, localSessionsRef.current, localActiveSessionIdRef.current, useCanvasStore.getState);
+            if (snapshotRef.current.projectId !== pending.projectId) return;
+            if (saved.status !== "saved") message.error(saved.status === "conflict" ? "操作仅在本页生效，远端版本冲突。请保留当前修改，再处理保存；不要重复执行。" : "操作已处理，但尚未确认保存，请重试画布保存，不要重复执行。");
+            else upsertMessage(pending.sessionId, { id: pending.messageId, runId: pending.proposal.runId, role: "assistant", text: confirm ? "已执行并保存，可通过画布撤销恢复。" : "已取消，未删除节点或连线。", detail });
+            setDestructivePreview(null);
+        } catch (error) {
+            const text = friendlyAgentError(error, "操作失败");
+            if (applied) {
+                message.error(`本页操作已执行，但保存未确认：${text}`);
+                setDestructivePreview(null);
+            } else setDestructivePreview((current) => (current ? { ...current, error: text } : current));
+        } finally {
+            destructiveBusyRef.current = false;
+            setDestructiveBusy(false);
+        }
+    };
+    const isPendingDestructive = (item: CanvasAssistantMessage) =>
+        Boolean(item.runId && item.detail && typeof item.detail === "object" && "destructiveProposalId" in item.detail && "destructiveDecision" in item.detail && item.detail.destructiveDecision === "pending");
+
     const waitForBackendAgent = async (runId: string, sessionId: string, assistantId: string, retryTaskId?: string, replaceFirstFailure = false) => {
         await withCanvasAgentRunWatch(watchingRunIdsRef.current, runId, async () => {
             const controller = new AbortController();
@@ -343,6 +413,17 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                         onStage: (stage) => updateSessionRun(sessionId, runId, { stage }),
                         onPaused: (paused) => updateSessionRun(sessionId, runId, { paused }),
                         onOps: applyOps,
+                        onProposal: (proposal) => {
+                            const existing = localSessionsRef.current.find((s) => s.id === sessionId)?.messages.find((m) => m.id === assistantId);
+                            const detail = existing?.detail && typeof existing.detail === "object" ? existing.detail : {};
+                            upsertMessage(sessionId, {
+                                id: assistantId,
+                                runId,
+                                role: "assistant",
+                                text: "操作方案已准备，尚未执行。请查看影响并确认。",
+                                detail: { ...detail, destructiveProposalId: proposal.id, destructiveDecision: "destructiveDecision" in detail ? detail.destructiveDecision : "pending" },
+                            });
+                        },
                     },
                     { signal: controller.signal },
                 );
@@ -627,6 +708,11 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                                             onSelectNodeIds(new Set((message.references || []).map((item) => item.id).filter((id) => nodes.some((node) => node.id === id))));
                                         }}
                                     />
+                                    {isPendingDestructive(message) ? (
+                                        <Button size="small" danger onClick={() => void openDestructivePreview(message)}>
+                                            查看影响并确认
+                                        </Button>
+                                    ) : null}
                                 </div>
                             ))}
                             {isRunning ? (
@@ -841,6 +927,27 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                 </header>
                 {onlineContent}
             </motion.aside>
+            <Modal
+                open={Boolean(destructivePreview)}
+                title="确认画布操作"
+                footer={null}
+                closable={!destructiveBusy}
+                maskClosable={false}
+                onCancel={() => {
+                    if (!destructiveBusy) setDestructivePreview(null);
+                }}
+            >
+                {destructivePreview ? (
+                    <CanvasDestructiveConfirmation
+                        proposal={destructivePreview.proposal}
+                        preview={destructivePreview.preview}
+                        busy={destructiveBusy}
+                        error={destructivePreview.error}
+                        onCancel={() => void decideDestructive(false)}
+                        onConfirm={() => void decideDestructive(true)}
+                    />
+                ) : null}
+            </Modal>
         </motion.div>
     );
 }

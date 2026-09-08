@@ -3,6 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import { parseAgentPlanCall, parseReviewCall } from "./agent-function-call";
 
 describe("Agent Function Call parsing refunds", () => {
+    it.each(["delete_nodes", "disconnect"])("accepts precise Canvas %s proposal but not empty or wildcard targets", async (type) => {
+        const plan = { intent: "canvas_operation", objective: "确认后删除", canvasOperation: { type, ids: ["a"] }, deliverables: [] };
+        await expect(parseAgentPlanCall({ arguments: JSON.stringify(plan) }, vi.fn(), undefined, { allowCanvasOperation: true })).resolves.toMatchObject(plan);
+        await expect(parseAgentPlanCall({ arguments: JSON.stringify({ ...plan, canvasOperation: { type, ids: [] } }) }, vi.fn(), undefined, { allowCanvasOperation: true })).rejects.toThrow();
+        await expect(parseAgentPlanCall({ arguments: JSON.stringify(plan) }, vi.fn())).rejects.toThrow();
+    });
+
     it("accepts layout only with explicit Canvas allowance and no fake deliverables", async () => {
         const plan = { intent: "canvas_operation", objective: "整理画布", canvasOperation: { type: "layout", scope: "all" }, deliverables: [] };
         await expect(parseAgentPlanCall({ arguments: JSON.stringify(plan) }, vi.fn(), undefined, { allowCanvasOperation: true })).resolves.toMatchObject(plan);

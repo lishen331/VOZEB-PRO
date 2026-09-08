@@ -16,6 +16,15 @@ function apply(current: CanvasAgentSnapshot, guard: ReturnType<typeof createCanv
     return applyCanvasAgentOps(current, guardCanvasAgentLiveOps(current, ops, guard));
 }
 describe("live Canvas Agent result guard", () => {
+    it("never executes destructive ops received directly from the event stream", () => {
+        const ops: CanvasAgentOp[] = [
+            { type: "delete_node", ids: ["text"] },
+            { type: "delete_connections", all: true },
+            { type: "confirmed_destructive", proposal: { id: "p", runId: "run", type: "delete_nodes", ids: ["text"] }, preview: { nodes: original.nodes, connections: [] } },
+        ];
+        expect(apply(original, createCanvasAgentLiveGuard("run", original), ops).nodes).toEqual(original.nodes);
+    });
+
     it("does not reapply a layout event after the user undoes it", () => {
         const guard = createCanvasAgentLiveGuard("run", original);
         const operation = planCanvasAgentLayout("run", { type: "layout", scope: "all" }, { nodes: canvasLayoutGeometry(original.nodes), connections: [], selectedNodeIds: [] }, original.nodes);

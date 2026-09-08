@@ -46,6 +46,17 @@ describe("Canvas Agent 事件流", () => {
         expect(order).toEqual(["ops", "reply"]);
     });
 
+    it("delivers destructive proposals only to confirmation handler, never onOps", async () => {
+        vi.stubGlobal("EventSource", FakeEventSource);
+        const onOps = vi.fn(),
+            onProposal = vi.fn();
+        const promise = watchCanvasAgentRun("run", { onPlan: () => {}, onAssistant: () => {}, onStage: () => {}, onPaused: () => {}, onOps, onProposal });
+        FakeEventSource.instance.emit("run.completed", { data: { reply: "请确认", canvasDestructiveProposal: { id: "confirm-run", runId: "run", type: "delete_nodes", ids: ["n"] } } });
+        await promise;
+        expect(onProposal).toHaveBeenCalledOnce();
+        expect(onOps).not.toHaveBeenCalled();
+    });
+
     it("applies durable layout ops from terminal event before reporting completion", async () => {
         vi.stubGlobal("EventSource", FakeEventSource);
         const order: string[] = [];

@@ -1,10 +1,11 @@
+import { isCanvasDestructiveRequest, type CanvasDestructiveRequest } from "@/lib/canvas-agent-destructive";
 import type { CreativeFoundation } from "@/lib/creative-agent-contract";
 import type { CreativeGenerationMode, CreativeProjectHandoffPlan } from "@/lib/creative-runtime-contract";
 import { agentTaskResultItems } from "@/lib/server/agent-run-result-items";
 
 export type AgentPlan = {
     intent?: "conversation" | "generation" | "canvas_operation";
-    canvasOperation?: import("@/lib/canvas-agent-layout").CanvasLayoutRequest;
+    canvasOperation?: import("@/lib/canvas-agent-layout").CanvasLayoutRequest | CanvasDestructiveRequest;
     objective: string;
     audience?: string;
     reply?: string;
@@ -40,7 +41,13 @@ export function validateAgentPlan(value: unknown, options?: { allowCanvasOperati
     if (!plan?.objective?.trim() || !Array.isArray(plan.deliverables)) throw new Error("模型返回的创作计划无效");
     if (plan.skillIds !== undefined && (!Array.isArray(plan.skillIds) || plan.skillIds.some((id) => typeof id !== "string" || !id.trim()))) throw new Error("模型返回的技能选择无效");
     if (plan.intent === "canvas_operation" || plan.canvasOperation !== undefined) {
-        if (!options?.allowCanvasOperation || plan.intent !== "canvas_operation" || plan.canvasOperation?.type !== "layout" || !["all", "selected"].includes(plan.canvasOperation.scope) || plan.deliverables.length || plan.projectHandoff)
+        if (
+            !options?.allowCanvasOperation ||
+            plan.intent !== "canvas_operation" ||
+            !(plan.canvasOperation?.type === "layout" ? ["all", "selected"].includes(plan.canvasOperation.scope) : isCanvasDestructiveRequest(plan.canvasOperation)) ||
+            plan.deliverables.length ||
+            plan.projectHandoff
+        )
             throw new Error("模型返回的画布结构操作无效");
         return;
     }

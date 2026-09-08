@@ -1,3 +1,4 @@
+import { applyConfirmedCanvasDestructiveProposal, type CanvasDestructiveProposal, type CanvasDestructivePreview } from "@/lib/canvas-agent-destructive";
 import { applyCanvasAgentLayout, type CanvasLayoutOperation } from "@/lib/canvas-agent-layout";
 import { nanoid } from "nanoid";
 
@@ -6,6 +7,7 @@ import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type Canvas
 import { fitNodeAspectRatio, nodeSizeFromRatio } from "./canvas-node-size";
 
 export type CanvasAgentOp =
+    | { type: "confirmed_destructive"; proposal: CanvasDestructiveProposal; preview: CanvasDestructivePreview }
     | { type: "layout_nodes"; operation: CanvasLayoutOperation }
     | { type: "add_node"; id?: string; nodeType?: CanvasNodeType; title?: string; position?: { x: number; y: number }; x?: number; y?: number; width?: number; height?: number; metadata?: CanvasNodeMetadata }
     | { type: "update_node"; id: string; patch?: Partial<CanvasNodeData>; metadata?: CanvasNodeMetadata }
@@ -34,6 +36,13 @@ export function applyCanvasAgentOps(snapshot: CanvasAgentSnapshot, ops?: CanvasA
 
     (Array.isArray(ops) ? ops : []).forEach((op, index) => {
         if (!op?.type) return;
+        if (op.type === "confirmed_destructive") {
+            const next = applyConfirmedCanvasDestructiveProposal({ nodes, connections }, op.proposal, op.preview);
+            nodes = next.nodes;
+            connections = next.connections;
+            const remaining = new Set(nodes.map((n) => n.id));
+            selectedNodeIds = selectedNodeIds.filter((id) => remaining.has(id));
+        }
         if (op.type === "layout_nodes") nodes = applyCanvasAgentLayout(nodes, op.operation).nodes;
         if (op.type === "add_node") {
             const nodeType = Object.values(CanvasNodeType).includes(op.nodeType as CanvasNodeType) ? op.nodeType! : CanvasNodeType.Text;

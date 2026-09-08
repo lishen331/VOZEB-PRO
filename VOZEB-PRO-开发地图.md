@@ -378,3 +378,9 @@ flowchart LR
 - `agent-run-canvas-snapshot` 将全画布几何信息与选中内容范围分离，剥离几何字段内的正文。`agent-run-executor` 检查项目所有权与真实节点ID，经 `canvas-agent-layout` 复用现有自动排版生成只改position的操作。
 - 操作及before/after/context几何持久化在既有任务JSON `canvasLayoutOperation`，无需新增表；终态SSE和授权任务快照均可交付。`canvas-agent-live-results` 防重放并拒绝覆盖规划期间改变的几何；进入恢复复用同一操作和回执。
 - 不新增周期轮询或生成任务；已规划、已应用、保存确认分开。未开放删除、断线、分组等破坏性结构操作。完整Canvas UI历史联动和线上模型自然语言识别仍待验收。
+
+## 普通画布 Agent 破坏性操作（开发分支）
+Canvas Agent 仅能提出 `delete_nodes` / `disconnect` 待确认方案，消息进入确认弹窗后才允许在本页应用；服务端在规划阶段校验真实 ID、所有权、选中范围和运行状态，确认前不修改项目。弹窗重新校验预览快照，冲突即拒绝。确认通过现有画布保存版本与历史机制写入；素材库文件不删除，普通 Canvas 无通用分组 CRUD。
+
+## 普通画布 Agent 破坏性操作（开发分支）
+Canvas Agent 仅能提出 `delete_nodes` / `disconnect` 待确认方案，消息进入确认弹窗后才允许在本页应用；服务端在规划阶段校验真实 ID、所有权、选中范围和运行状态，确认前不修改项目。弹窗重新校验预览快照，冲突即拒绝。确认通过现有画布保存版本与历史机制写入；素材库文件不删除，普通 Canvas 无通用分组 CRUD。

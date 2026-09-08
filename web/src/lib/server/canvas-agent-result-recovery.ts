@@ -16,7 +16,12 @@ export function canvasAgentResultFingerprint(run: AgentRun) {
     // Review/heartbeat timestamps are not new deliveries. A new attempt or result is.
     return createHash("sha256")
         .update(
-            JSON.stringify({ status: run.status, layout: run.canvasLayoutOperation, tasks: run.tasks.map((t) => ({ id: t.id, status: t.status, attempts: t.attempts, target: t.targetNodeId, result: t.result, children: t.childTasks, error: t.error })) }),
+            JSON.stringify({
+                status: run.status,
+                layout: run.canvasLayoutOperation,
+                proposal: run.canvasDestructiveProposal,
+                tasks: run.tasks.map((t) => ({ id: t.id, status: t.status, attempts: t.attempts, target: t.targetNodeId, result: t.result, children: t.childTasks, error: t.error })),
+            }),
         )
         .digest("hex");
 }
@@ -184,7 +189,18 @@ function recoverConversation(project: CanvasProject, run: AgentRun, reply: strin
     const previous = found?.messages.find((m) => m.runId === run.id && m.role !== "user");
     // Do not replace a completed ordinary conversation with a generic task summary.
     const text = run.status === "completed" && !run.tasks.length && !reply ? previous?.text || "任务已结束，但最终回复暂不可恢复，请查看创作历史。" : reply;
-    const message: CanvasAssistantMessage = { ...previous, id: previous?.id || run.assistantMessageId, runId: run.id, role: run.status === "failed" ? "error" : "assistant", text };
+    const previousDetail = previous?.detail && typeof previous.detail === "object" ? previous.detail : {};
+    const proposalDetail = run.canvasDestructiveProposal
+        ? { ...previousDetail, destructiveProposalId: run.canvasDestructiveProposal.id, destructiveDecision: "destructiveDecision" in previousDetail ? previousDetail.destructiveDecision : "pending" }
+        : undefined;
+    const message: CanvasAssistantMessage = {
+        ...previous,
+        id: previous?.id || run.assistantMessageId,
+        runId: run.id,
+        role: run.status === "failed" ? "error" : "assistant",
+        text: run.canvasDestructiveProposal ? previous?.text || "操作方案待确认，尚未删除任何内容，请查看影响并确认。" : text,
+        ...(proposalDetail ? { detail: proposalDetail } : {}),
+    };
     const existingMessages = found?.messages || [];
     const hasInput = existingMessages.some((m) => m.role === "user" && (m.id === run.inputMessageId || m.runId === run.id)) || Boolean(previous);
     const inputs: CanvasAssistantMessage[] = hasInput ? existingMessages : [...existingMessages, { id: run.inputMessageId, role: "user", text: run.prompt, runId: run.id }];

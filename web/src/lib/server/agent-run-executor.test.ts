@@ -115,6 +115,22 @@ describe("executeAgentRun backend settings", () => {
         expect(mocks.run?.canvasLayoutOperation).toBeUndefined();
     });
 
+    it("stores delete proposal without applying destructive ops or claiming deletion", async () => {
+        const nodes = [{ id: "n", type: CanvasNodeType.Text, title: "Text", position: { x: 0, y: 0 }, width: 300, height: 200 }];
+        mocks.run = { ...planningRun("删除选中节点"), snapshot: { nodes, selectedNodeIds: ["n"], layout: { nodes: canvasLayoutGeometry(nodes), connections: [], selectedNodeIds: ["n"] } } };
+        mocks.getCanvasProjectForRecovery.mockResolvedValue({ id: mocks.run.projectId, nodes, connections: [] });
+        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
+        mocks.fetchInternalApi.mockResolvedValue(
+            Response.json({ output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify({ intent: "canvas_operation", objective: "删除选中节点", canvasOperation: { type: "delete_nodes", ids: ["n"] }, deliverables: [] }) }] }),
+        );
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+        expect(mocks.run?.canvasDestructiveProposal).toMatchObject({ type: "delete_nodes", ids: ["n"] });
+        expect(mocks.run?.tasks).toEqual([]);
+        const event = mocks.events.find((e) => e.type === "run.completed");
+        expect(event?.data).toMatchObject({ reply: expect.stringContaining("确认"), canvasDestructiveProposal: { ids: ["n"] } });
+        expect(event?.data).not.toHaveProperty("ops");
+    });
+
     it("persists a real layout operation without dispatching generation tasks", async () => {
         const nodes = [{ id: "n", type: CanvasNodeType.Text, title: "Text", position: { x: 0, y: 0 }, width: 300, height: 200, metadata: { content: "retain" } }];
         mocks.run = { ...planningRun("整理全部画布"), snapshot: { nodes, layout: { nodes: canvasLayoutGeometry(nodes), connections: [], selectedNodeIds: [] } } };

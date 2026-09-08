@@ -601,3 +601,9 @@
 
 ### 普通画布布局契约补充（2026-09-08，开发分支）
 现有 Agent Run 创建、GET详情和SSE接口在 `surface=canvas` 时支持布局操作：请求快照可带不含正文的 `layout` 几何信息；授权响应可带 `canvasLayoutOperation`，完成事件携带 `layout_nodes` 操作。请求模型计划仅允许 layout/all或selected，项目权限与节点ID由服务端核验。没有新增Route，主Agent不开放布局计划。
+
+## 普通画布 Agent 破坏性操作（开发分支）
+Canvas Agent 仅能提出 `delete_nodes` / `disconnect` 待确认方案，消息进入确认弹窗后才允许在本页应用；服务端在规划阶段校验真实 ID、所有权、选中范围和运行状态，确认前不修改项目。弹窗重新校验预览快照，冲突即拒绝。确认通过现有画布保存版本与历史机制写入；素材库文件不删除，普通 Canvas 无通用分组 CRUD。
+
+### 画布 Agent 破坏性操作补充（2026-09-08，开发分支）
+未新增 Route。既有 `/api/agent/runs`、Run 查询与 SSE 在 `surface=canvas` 时可交付待确认 `canvasDestructiveProposal`；确认由 Canvas 页面使用当前项目版本和现有 PATCH 保存链路完成，目标变化/409 时拒绝或报告冲突，不自动删除。

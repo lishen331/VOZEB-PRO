@@ -1,3 +1,4 @@
+import { createCanvasDestructiveProposal } from "@/lib/canvas-agent-destructive";
 import { planCanvasAgentLayout } from "@/lib/canvas-agent-layout";
 import { agentRunCanvasSnapshot } from "./agent-run-canvas-snapshot";
 import { getCanvasProjectForRecovery } from "./canvas-project-store";
@@ -34,7 +35,12 @@ const canvasAgentPlanTool = {
         properties: {
             ...agentPlanTool.parameters.properties,
             intent: { type: "string", enum: ["conversation", "generation", "canvas_operation"] },
-            canvasOperation: { type: "object", properties: { type: { type: "string", enum: ["layout"] }, scope: { type: "string", enum: ["all", "selected"] } }, required: ["type", "scope"], additionalProperties: false },
+            canvasOperation: {
+                type: "object",
+                properties: { type: { type: "string", enum: ["layout", "delete_nodes", "disconnect"] }, scope: { type: "string", enum: ["all", "selected"] }, ids: { type: "array", items: { type: "string" }, minItems: 1 } },
+                required: ["type"],
+                additionalProperties: false,
+            },
             deliverables: {
                 ...agentPlanTool.parameters.properties.deliverables,
                 items: {
@@ -217,6 +223,22 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
             if (!project || isDramaLabCanvasProject(project)) throw new Error("画布不存在或无权整理");
             const layout = agentRunCanvasSnapshot(claimed.snapshot).layout;
             if (!layout) throw new Error("本次请求缺少布局快照，请刷新画布后重新提交");
+            if (plan.canvasOperation.type !== "layout") {
+                const proposal = createCanvasDestructiveProposal(run.id, plan.canvasOperation, project, layout.selectedNodeIds);
+                const completed = await updateAgentRunById(
+                    run.id,
+                    { status: "completed", tasks: [], reviewed: true, plannerAudit, canvasDestructiveProposal: proposal, executionId: undefined },
+                    { type: "run.completed", data: { reply: "操作方案已准备，尚未删除任何内容。请查看影响并确认执行。", canvasDestructiveProposal: proposal } },
+                    ["running"],
+                    executionId,
+                );
+                if (!completed) {
+                    await refundAcceptedPlan();
+                    return;
+                }
+                planningPersisted = true;
+                return;
+            }
             const operation = planCanvasAgentLayout(run.id, plan.canvasOperation, layout, project.nodes);
             const completed = await updateAgentRunById(
                 run.id,
