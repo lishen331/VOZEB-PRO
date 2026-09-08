@@ -70,3 +70,6 @@ The approved defect fixes are deployed and the two highest-risk flows have onlin
 - 2026-09-09 任务恢复/取消/重试矩阵补充：服务端路由测试通过（19 tests），事件流与客户端状态同步测试通过（23 tests）。覆盖 whole-run retry、child retry、并发保护、取消保留已完成子任务、partial_success 终态与事件游标。
 - 当前线上可继续证明：暂停运行重新检查不会创建新任务；取消会将未完成子任务置为 cancelled 并保留已完成结果。
 - 音频仍为环境阻断：未配置生产音频模型，未执行虚假成功测试。
+- 2026-09-09 Agent 混合流程与结果回写补充验证：服务端 planner/media、intent guard、结果项持久化、recheck、direct execution 共 6 个测试文件 38 tests 全部通过。
+- 线上 create overview 可读取最近双模型两项图片资产及两个仍暂停的历史任务；任务列表与资产列表数据均可回写，未发现成功资产被任务列表隐藏。
+- 线上页面仍有头像 404（/api/public/users/laoshi1/avatar），不影响 Agent 任务链路，未在本轮修改无关头像回退。
