@@ -34,3 +34,31 @@
 5. 完成、失败、取消、重试、刷新和离页恢复，核对任务及计费记录。
 
 状态：修复和本地质量门禁完成，线上部署及完整媒体验收未完成，不得记为全量通过。
+
+## 线上修复后验收结果（2026-09-08）
+
+部署：GitHub Actions 34172976810成功；app和Worker镜像均为f24ebb12d081021e4daa922df0de98b54c96dd79；ready与Worker heartbeat正常。部署前整合质量门禁：820个测试文件通过、6跳过，4012项测试通过、31跳过；类型、Lint、格式、生产构建均通过。
+
+### 已验证通过
+
+- 原模式污染复现步骤：Agent模式→浏览视频参数→关闭→发送“请只回复：语义验收通过。不要生成图片、视频或音频。”。实际只回复文字，无强制mode、无媒体tasks；run `agent-eGQwJAbQErCBmphaZBiKu` completed。截图agent-fixed-mode-text.png。
+- 指定gpt-image-2-all生成1张白底蓝圆：run `agent-x2udafTYIqqTre5ERFvK6` completed；资产 `asset-kfMjfqU6A5vy-WRjpP9cv`，实际加载960×960，肉眼验证内容正确。执行中刷新同会话后恢复并显示完成结果。点击下载触发PNG下载事件；本次未校验下载文件哈希。截图agent-fixed-image-generated.png。
+
+### 有修复但识别效果验收被额度阻断
+
+- 上传原始报错盲测图并提交相同问题。run `agent-Q1PEH-MQ_q3tme3RSrv9O` failed，而不是空承诺completed。
+- 浏览器只显示“当前模型暂不可用”；只读查询服务端 `vozeb_pro_generation_tasks`：failureStage=planning；真实错误为 `token quota is not enough, token remain quota: ¥0.223256, need quota: ¥0.283366`，请求ID `20260908003630861338868AyeYjPYFLNSRWTJS`。
+- 因本次未得到模型识别结果，不能标“截图分析已通过”。代码与协议测试通过不替代真实识别。
+
+### 其他实际执行/问题
+
+- 手动选择唯一音频模型“分镜台词音频合成”，run `agent-ZhcOBf0q7OMpk3-ZdTy61`失败，提示所选模型不可用，无子任务。只读数据库确认对应RunningHub渠道purpose=open-source-practice，而正式Agent服务端按production解析：前端候选展示与后端执行范围不一致。没有修改渠道用途。
+- 电商Skill+指定gpt-image-2-all+产品参考图：run `agent-6iCrOyhILSdWhcLauTnfo`包含ecommerce-image及真实参考资产，模型提交后额度不足：剩余¥0.071256，要求¥0.152000，请求ID `20260908004540012246485AyeYjPYF9Vdh7Gm8`。只能证明Skill/引用已进入链路，不是电商图质量通过。
+- 上述电商用例原计划双参考图，第二次上传时自动化定位失败，实际只传1张且正文仍提到图片2。因此该条不能作为双参考图用例证据；重新上传正确两张后才可验收。
+- 额度错误在前端被泛化为“模型暂不可用”，任务API/数据库保留了真实原因。作为新增体验缺陷登记，未在本轮扩大修改。
+
+### 尚未完成
+
+截图盲测完整回答、双参考图、自然美颜/角色设定/图片动效/短剧策划真实产物、视频正向生成、音频、双模型真实结果、取消与成功重试、混合任务与完整恢复矩阵均未完成。视频此前也受同类额度阻断，未再次无意义提交。
+
+继续条件：恢复上游测试令牌额度或由管理员选定有额度的测试渠道；修正正式Agent音频候选/渠道用途边界。当前用户账号平台积分足够不代表上游令牌有额度。没有擅自充值、变更默认模型、改变练习渠道用途。
