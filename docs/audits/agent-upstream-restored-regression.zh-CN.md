@@ -43,3 +43,14 @@
 先修复新发现的重试尝试身份、Skill文字与必需参考校验、needs_review操作与部分结果同步；用同一失败用例回归。再补自然美颜/角色设定正向成品、全成功双模型、音频、首尾帧、成功重试、混合流程。上游间歇502与未知提交需结合中转日志，不能把所有问题都归为额度。
 
 证据：本目录agent-resumed-*.png；本轮没有改业务代码、没有推送或部署。结果按样例成立，不承诺所有正向组合无问题。
+# Online regression evidence — 2026-09-08 deployment ff24046e
+
+- GitHub Actions `34187120450`: success.
+- Staging app and generation worker both run `sha-ff24046e327942841e1297e4efd10fd1d9433a12`.
+- `/api/health/ready`: ready=true, database healthy/schemaReady=true, generationWorker healthy.
+- Multi-model paused run `agent-2xusKvTDsiV5HuJugGkv9`: after clicking `重新检查原任务`, completed sibling changed from running to completed and remained visible; unknown sibling stayed needs_review; no duplicate task was created. UI displayed explicit warning and safe recheck/cancel controls.
+- Old retry run `agent-Q1PEH-MQ_q3tme3RSrv9O`: POST retry returned 200 and did not reproduce the former billing idempotency conflict. The run subsequently failed with `当前模型暂不可用`, which is an upstream/model availability result, not the former billing fingerprint mismatch.
+
+## Current acceptance boundary
+
+The approved defect fixes are deployed and the two highest-risk flows have online evidence. The retry flow still requires a currently available vision model for a successful final answer; this run cannot be declared content-successful solely because the old billing conflict disappeared. Drama planning text-only, beauty-without-reference, mobile layout, audio, and full five-Skill matrix remain separate acceptance cases.
