@@ -37,6 +37,53 @@ describe("Canvas Agent 事件流", () => {
     });
     afterEach(() => vi.unstubAllGlobals());
 
+    it.each(["run.partial_success", "run.snapshot"])("closes on partial success via %s and reports incomplete work", async (type) => {
+        vi.stubGlobal("EventSource", FakeEventSource);
+        const messages: string[] = [];
+        const controller = new AbortController();
+        const promise = watchCanvasAgentRun("run", { onPlan: () => {}, onAssistant: (text) => messages.push(text), onStage: () => {}, onPaused: () => {}, onOps: () => {} }, { signal: controller.signal });
+        const source = FakeEventSource.instance;
+        source.emit(
+            type,
+            type === "run.partial_success"
+                ? { data: { reply: "一项完成，一项失败" } }
+                : {
+                      status: "partial_success",
+                      tasks: [
+                          { id: "one", title: "One", status: "completed" },
+                          { id: "two", title: "Two", status: "failed", error: "上游失败" },
+                      ],
+                  },
+        );
+        const closed = source.closed;
+        controller.abort();
+        await promise;
+        expect(closed).toBe(true);
+        expect(messages.join(" ")).toMatch(/失败|部分/);
+    });
+    it("settles partial success after a connection interruption", async () => {
+        vi.stubGlobal("EventSource", FakeEventSource);
+        mocks.getCreativeAgentRun.mockResolvedValue({
+            status: "partial_success",
+            tasks: [
+                { id: "one", status: "completed" },
+                { id: "two", title: "Two", status: "failed", error: "上游失败" },
+            ],
+        });
+        const controller = new AbortController();
+        const messages: string[] = [];
+        const promise = watchCanvasAgentRun("run", { onPlan: () => {}, onAssistant: (text) => messages.push(text), onStage: () => {}, onPaused: () => {}, onOps: () => {} }, { signal: controller.signal });
+        FakeEventSource.instance.onerror?.();
+        await vi.waitFor(() => expect(mocks.getCreativeAgentRun).toHaveBeenCalled());
+        await Promise.resolve();
+        await Promise.resolve();
+        const closed = FakeEventSource.instance.closed;
+        controller.abort();
+        await promise;
+        expect(closed).toBe(true);
+        expect(messages.join(" ")).toContain("部分");
+    });
+
     it("reports thinking stages and the final returned message", async () => {
         vi.stubGlobal("EventSource", FakeEventSource);
         const stages: CanvasAgentRunStage[] = [];

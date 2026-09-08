@@ -45,6 +45,7 @@ export type AgentRunTask = {
     type: "text" | "image" | "video" | "audio";
     model?: string;
     optimizedPrompt?: string;
+    literalContent?: string;
     prompt: string;
     count: number;
     ratio?: string;

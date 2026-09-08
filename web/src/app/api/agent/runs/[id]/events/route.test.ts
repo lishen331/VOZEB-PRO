@@ -24,6 +24,23 @@ describe("Agent Run SSE", () => {
         mocks.getLatestCreativeRunEventId.mockResolvedValue("");
     });
 
+    it("closes a partially successful Canvas stream after delivering saved results", async () => {
+        mocks.getAgentRun.mockResolvedValue({ id: "run", userId: "user", surface: "canvas", status: "partial_success", tasks: [], updatedAt: 4 });
+        mocks.listCreativeRunEvents.mockResolvedValue([{ id: "3", runId: "run", type: "run.partial_success", createdAt: 4, data: { reply: "部分任务成功" } }]);
+        const controller = new AbortController();
+        const response = await GET(new Request("http://localhost/api/agent/runs/run/events", { signal: controller.signal }), { params: Promise.resolve({ id: "run" }) });
+        const reader = response.body!.getReader();
+        const first = await reader.read();
+        const second = await reader.read();
+        const closed = reader.read();
+        // An AbortSignal would also close a stream: assert normal closure first.
+        await expect(closed).resolves.toMatchObject({ done: true });
+        expect(new TextDecoder().decode(first.value)).toContain("run.partial_success");
+        expect(new TextDecoder().decode(second.value)).toContain('"status":"partial_success"');
+        expect(mocks.getAgentRun).toHaveBeenCalledTimes(1);
+        controller.abort();
+    });
+
     it("resumes after Last-Event-ID and closes after the terminal snapshot", async () => {
         const response = await GET(new Request("http://localhost/api/agent/runs/run/events", { headers: { "last-event-id": "1" } }), { params: Promise.resolve({ id: "run" }) });
         const body = await response.text();

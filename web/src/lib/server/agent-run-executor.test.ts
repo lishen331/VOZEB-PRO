@@ -505,6 +505,7 @@ describe("executeAgentRun backend settings", () => {
                 id: "text-one",
                 title: "欢迎文案",
                 type: "text",
+                literalContent: "欢迎使用 VOZEB PRO Agent",
                 prompt: "创建一个文字节点，内容写“欢迎使用 VOZEB PRO Agent”，放在画布中央，并选中它。\n\n严格输出要求：只输出最终文本，不要标题、Markdown、解释或列表。",
                 count: 1,
                 dependencies: [],

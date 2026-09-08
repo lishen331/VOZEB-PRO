@@ -22,6 +22,27 @@ import { assertAgentPlanSkillCompatibility } from "./agent-skill-capabilities";
 const globalAgentExecutors = globalThis as typeof globalThis & { __vozebProAgentRunControllers?: Map<string, AbortController> };
 const controllers = (globalAgentExecutors.__vozebProAgentRunControllers ??= new Map<string, AbortController>());
 
+// Keep Canvas literal writes out of the main Agent's planner contract.
+const canvasAgentPlanTool = {
+    ...agentPlanTool,
+    parameters: {
+        ...agentPlanTool.parameters,
+        properties: {
+            ...agentPlanTool.parameters.properties,
+            deliverables: {
+                ...agentPlanTool.parameters.properties.deliverables,
+                items: {
+                    ...agentPlanTool.parameters.properties.deliverables.items,
+                    properties: {
+                        ...agentPlanTool.parameters.properties.deliverables.items.properties,
+                        literalContent: { type: "string", description: "仅用户明确给定最终原样写入正文时填写。翻译、改写、润色等需要创作时省略，禁止填操作说明或内部目标。" },
+                    },
+                },
+            },
+        },
+    },
+};
+
 export function abortAgentRun(id: string) {
     controllers.get(id)?.abort();
 }
@@ -143,7 +164,7 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
                     cookie,
                     candidate,
                     planningInput,
-                    agentPlanTool,
+                    claimed.surface === "canvas" ? canvasAgentPlanTool : agentPlanTool,
                     "create_agent_plan",
                     controller.signal,
                     run.userId,

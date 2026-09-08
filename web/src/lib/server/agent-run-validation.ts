@@ -15,6 +15,7 @@ export type AgentPlan = {
     deliverables: Array<{
         id?: string;
         targetNodeId?: string;
+        literalContent?: string;
         title: string;
         type: "text" | "image" | "video" | "audio";
         model?: string;
@@ -55,6 +56,7 @@ export function validateAgentPlan(value: unknown): asserts value is AgentPlan {
             (item) =>
                 !item?.title?.trim() ||
                 !item?.prompt?.trim() ||
+                (item.literalContent !== undefined && (item.type !== "text" || typeof item.literalContent !== "string" || !item.literalContent.trim())) ||
                 !["text", "image", "video", "audio"].includes(item.type) ||
                 (item.count !== undefined && (!Number.isSafeInteger(Number(item.count)) || Number(item.count) <= 0)) ||
                 (item.seconds !== undefined && (!Number.isFinite(Number(item.seconds)) || Number(item.seconds) <= 0)) ||

@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { agentChildTaskTerminal, agentTaskCopies, resolveAgentTaskCount, resolveAgentVideoSeconds, validateAgentPlan, validateAgentPlanGenerationMode, validateAgentTaskResult } from "./agent-run-validation";
 
 describe("validateAgentPlan", () => {
+    it("validates explicit literal text without accepting blank or media literals", () => {
+        const plan = { objective: "Write text", deliverables: [{ id: "one", title: "Text", type: "text", prompt: "Set text", literalContent: "Final content" }] };
+        expect(() => validateAgentPlan(plan)).not.toThrow();
+        expect(() => validateAgentPlan({ ...plan, deliverables: [{ ...plan.deliverables[0], literalContent: "  " }] })).toThrow();
+        expect(() => validateAgentPlan({ ...plan, deliverables: [{ ...plan.deliverables[0], type: "image" }] })).toThrow();
+        expect(() => validateAgentPlan({ ...plan, deliverables: [{ ...plan.deliverables[0], literalContent: 42 }] })).toThrow();
+    });
+
     it("accepts a bounded executable plan", () => {
         expect(() => validateAgentPlan({ objective: "商品发布", deliverables: [{ title: "主图", type: "image", prompt: "生成商品主图" }] })).not.toThrow();
     });

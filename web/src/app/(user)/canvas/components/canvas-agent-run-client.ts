@@ -57,6 +57,11 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
             try {
                 const run = await getCreativeAgentRun(runId);
                 if (settled) return;
+                if (run.status === "partial_success") {
+                    handlers.onAssistant("部分任务成功，失败项可重试；已成功的结果已保留。", latestOutput);
+                    finish();
+                    return;
+                }
                 if (run.status === "completed") {
                     handlers.onAssistant("Agent 任务已完成，结果已经返回。", latestOutput);
                     finish();
@@ -150,6 +155,11 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
         listen("run.review.retry", () => reportStage({ key: "reviewing", text: "发现可优化内容，正在重新生成" }));
         listen("run.review.passed", () => reportStage({ key: "finalizing", text: "检查完成，正在整理结果" }));
         listen("run.review.unavailable", () => reportStage({ key: "finalizing", text: "正在整理已完成结果" }));
+        listen("run.partial_success", (event) => {
+            const payload = read<{ data?: { reply?: string } }>(event);
+            handlers.onAssistant(payload.data?.reply || "部分任务成功，失败项可重试；已成功的结果已保留。", latestOutput);
+            finish();
+        });
         listen("run.completed", (event) => {
             const payload = read<{ data?: { reply?: string } }>(event);
             handlers.onAssistant(payload.data?.reply || "创作计划与后台生成任务已全部完成。", latestOutput);
@@ -178,6 +188,10 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
             const payload = read<{ status?: string; tasks?: Array<{ id?: string; title?: string; status?: string; error?: string }> }>(event);
             if (payload.status === "cancelled") {
                 handlers.onAssistant("Agent 任务已取消。");
+                finish();
+            }
+            if (payload.status === "partial_success") {
+                handlers.onAssistant("部分任务成功，失败项可重试；已成功的结果已保留。", latestOutput);
                 finish();
             }
             if (payload.status === "completed") {

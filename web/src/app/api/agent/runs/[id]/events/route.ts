@@ -55,7 +55,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
                                 controller.enqueue(encoder.encode(`event: run.snapshot\ndata: ${JSON.stringify(publicAgentRunSnapshot(current))}\n\n`));
                                 lastSnapshotVersion = snapshotVersion;
                             }
-                            if (["completed", "failed", "cancelled"].includes(current.status)) {
+                            if (["completed", "failed", "cancelled"].includes(current.status) || (current.surface === "canvas" && current.status === "partial_success")) {
                                 close();
                                 return;
                             }
