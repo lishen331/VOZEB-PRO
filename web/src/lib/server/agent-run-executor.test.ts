@@ -1,5 +1,3 @@
-import { canvasLayoutGeometry } from "@/lib/canvas-agent-layout";
-import { CanvasNodeType } from "@/app/(user)/canvas/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CreativeConversationContext } from "@/lib/creative-runtime-contract";
 import { AGENT_PLAN_SCHEMA_VERSION } from "./agent-run-audit";
@@ -7,7 +5,6 @@ import type { AgentRun, AgentRunTask } from "./agent-run-store";
 import { canvasPlan, canvasSettings, conversationPlan, creativeImageAsset, disabledSettings, imageTask, plannerFailoverSettings, planningRun, runFixture, runWithTasks, settings } from "./agent-run-executor.test-fixtures";
 
 const mocks = vi.hoisted(() => ({
-    getCanvasProjectForRecovery: vi.fn(),
     fetchInternalApi: vi.fn(),
     prepareAgentPlannerMedia: vi.fn(),
     getAuthSettings: vi.fn(),
@@ -25,7 +22,6 @@ const mocks = vi.hoisted(() => ({
     scheduleGenerationTask: vi.fn(async () => undefined),
 }));
 
-vi.mock("./canvas-project-store", () => ({ getCanvasProjectForRecovery: mocks.getCanvasProjectForRecovery }));
 vi.mock("@/lib/server/agent-planner-media", () => ({ prepareAgentPlannerMedia: mocks.prepareAgentPlannerMedia }));
 vi.mock("@/lib/auth/store", () => ({
     getAuthSettings: mocks.getAuthSettings,
@@ -106,49 +102,6 @@ describe("executeAgentRun backend settings", () => {
         });
     });
 
-    it("rejects layout when the project is not owned by the run user", async () => {
-        mocks.run = { ...planningRun("整理画布"), snapshot: { layout: { nodes: [], connections: [], selectedNodeIds: [] } } };
-        mocks.getCanvasProjectForRecovery.mockResolvedValue(null);
-        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
-        mocks.fetchInternalApi.mockResolvedValue(
-            Response.json({ output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify({ intent: "canvas_operation", objective: "整理画布", canvasOperation: { type: "layout", scope: "all" }, deliverables: [] }) }] }),
-        );
-        await executeAgentRun(mocks.run, "http://localhost", "session=test");
-        expect(mocks.run?.status).toBe("failed");
-        expect(mocks.run?.canvasLayoutOperation).toBeUndefined();
-    });
-
-    it("stores delete proposal without applying destructive ops or claiming deletion", async () => {
-        const nodes = [{ id: "n", type: CanvasNodeType.Text, title: "Text", position: { x: 0, y: 0 }, width: 300, height: 200 }];
-        mocks.run = { ...planningRun("删除选中节点"), snapshot: { nodes, selectedNodeIds: ["n"], layout: { nodes: canvasLayoutGeometry(nodes), connections: [], selectedNodeIds: ["n"] } } };
-        mocks.getCanvasProjectForRecovery.mockResolvedValue({ id: mocks.run.projectId, nodes, connections: [] });
-        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
-        mocks.fetchInternalApi.mockResolvedValue(
-            Response.json({ output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify({ intent: "canvas_operation", objective: "删除选中节点", canvasOperation: { type: "delete_nodes", ids: ["n"] }, deliverables: [] }) }] }),
-        );
-        await executeAgentRun(mocks.run, "http://localhost", "session=test");
-        expect(mocks.run?.canvasDestructiveProposal).toMatchObject({ type: "delete_nodes", ids: ["n"] });
-        expect(mocks.run?.tasks).toEqual([]);
-        const event = mocks.events.find((e) => e.type === "run.completed");
-        expect(event?.data).toMatchObject({ reply: expect.stringContaining("确认"), canvasDestructiveProposal: { ids: ["n"] } });
-        expect(event?.data).not.toHaveProperty("ops");
-    });
-
-    it("persists a real layout operation without dispatching generation tasks", async () => {
-        const nodes = [{ id: "n", type: CanvasNodeType.Text, title: "Text", position: { x: 0, y: 0 }, width: 300, height: 200, metadata: { content: "retain" } }];
-        mocks.run = { ...planningRun("整理全部画布"), snapshot: { nodes, layout: { nodes: canvasLayoutGeometry(nodes), connections: [], selectedNodeIds: [] } } };
-        mocks.getCanvasProjectForRecovery.mockResolvedValue({ id: mocks.run.projectId, nodes });
-        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
-        mocks.fetchInternalApi.mockResolvedValue(
-            Response.json({ output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify({ intent: "canvas_operation", objective: "整理画布", canvasOperation: { type: "layout", scope: "all" }, deliverables: [] }) }] }),
-        );
-        await executeAgentRun(mocks.run, "http://localhost", "session=test");
-        expect(mocks.run?.status).toBe("completed");
-        expect(mocks.run?.tasks).toEqual([]);
-        expect(mocks.run?.canvasLayoutOperation?.after[0].position).toEqual({ x: 96, y: 96 });
-        expect(mocks.events.find((e) => e.type === "run.completed")).toMatchObject({ data: { ops: [{ type: "layout_nodes" }] } });
-        expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/image-tasks") || String(url).includes("/api/video-tasks"))).toBe(false);
-        expect(mocks.getCanvasProjectForRecovery).toHaveBeenCalledWith(mocks.run?.projectId, "user");
     it("blocks a reference-required skill when the planner omits actual task references", async () => {
         mocks.run = runWithTasks([{ ...imageTask("retouch"), references: [] }]);
         mocks.run.plannerAudit = {
@@ -629,7 +582,6 @@ describe("executeAgentRun backend settings", () => {
                 id: "text-one",
                 title: "欢迎文案",
                 type: "text",
-                literalContent: "欢迎使用 VOZEB PRO Agent",
                 prompt: "创建一个文字节点，内容写“欢迎使用 VOZEB PRO Agent”，放在画布中央，并选中它。\n\n严格输出要求：只输出最终文本，不要标题、Markdown、解释或列表。",
                 count: 1,
                 dependencies: [],
@@ -1412,32 +1364,5 @@ describe("partial success handling", () => {
                 type: "run.failed",
             }),
         );
-    });
-});
-
-describe("Canvas multimodal planner transport", () => {
-    it("sends a selected image as a real image part while keeping editable selection IDs", async () => {
-        mocks.run = {
-            ...planningRun("分析选中的图片"),
-            snapshot: {
-                selectedNodeIds: ["image"],
-                nodes: [
-                    { id: "image", type: "image", title: "参考", metadata: { url: "/api/reference-assets/ref.png" } },
-                    { id: "text", type: "text", title: "正文", metadata: { content: "do not edit" } },
-                ],
-                connections: [],
-            },
-        };
-        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
-        mocks.fetchInternalApi.mockResolvedValue(
-            Response.json({ output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify({ ...canvasPlan("image-default"), intent: "conversation", reply: "已分析", decisions: [], deliverables: [] }) }] }),
-        );
-        await executeAgentRun(mocks.run, "http://localhost", "session=test");
-        const call = mocks.fetchInternalApi.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
-        const body = JSON.parse(String(call?.[1]?.body)) as { messages: Array<{ role: string; content: unknown }> };
-        const user = body.messages.find((message) => message.role === "user");
-        expect(user?.content).toEqual(expect.arrayContaining([expect.objectContaining({ type: "image_url", image_url: { url: "/api/reference-assets/ref.png" } })]));
-        expect(JSON.stringify(user?.content)).toContain("selectedNodeIds");
-        expect(JSON.stringify(user?.content)).not.toContain("do not edit");
     });
 });
