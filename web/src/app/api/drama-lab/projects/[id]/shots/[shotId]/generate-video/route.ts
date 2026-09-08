@@ -43,7 +43,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const supportsFirstFrame = candidates.length ? candidates.every(candidateSupportsFirstFrame) : undefined;
         const supportsLastFrame = candidates.length ? candidates.every(candidateSupportsLastFrame) : false;
         const maxReferenceImages = minimumReferenceLimit(candidates);
-        const prepared = prepareDramaLabStoryboardVideo(project, episodeId, shotId, { model: settings.defaultModels.videoModel, supportsFirstFrame, supportsLastFrame, maxReferenceImages });
+        const supportsReferenceImages = candidates.length > 0 && candidates.every(candidateSupportsReferenceImages);
+        const prepared = prepareDramaLabStoryboardVideo(project, episodeId, shotId, { supportsReferenceImages, model: settings.defaultModels.videoModel, supportsFirstFrame, supportsLastFrame, maxReferenceImages });
         const retainedTaskId = typeof prepared.shot.generationTaskId === "string" ? prepared.shot.generationTaskId.trim() : "";
         const retainedTask = retainedTaskId ? await getVideoTask(retainedTaskId) : null;
         const ownedRetainedTask = retainedTask?.userId === user.id ? retainedTask : null;
@@ -96,7 +97,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             episodeId,
             shotId,
             patch: {
-                videoPrompt: prepared.visiblePrompt,
+                ...(prepared.shot.creationMode === "universal" ? { universalSegmentText: prepared.visiblePrompt } : { videoPrompt: prepared.visiblePrompt }),
                 // Result URLs are persisted by sync-generation after the task record has
                 // been reconciled. Keep this active until that happens so an immediate
                 // upstream success cannot leave the card terminal without a playable URL.
@@ -153,4 +154,15 @@ function minimumReferenceLimit(candidates: VideoCandidate[]) {
         return typeof value === "number" && Number.isFinite(value) && value > 0 ? [Math.floor(value)] : [];
     });
     return limits.length ? Math.min(...limits) : undefined;
+}
+
+function candidateSupportsReferenceImages(candidate: VideoCandidate) {
+    const advanced = candidate.channel.advancedConfig;
+    const preset = resolveGlobalAiOpcPreset(advanced, candidate.upstreamModel);
+    if (preset?.videoReferenceRoles) return preset.videoReferenceRoles.includes("reference");
+    // A custom first/last-frame-only template cannot carry numbered multi-image slots.
+    // templateVideoReferenceRoles intentionally defaults to reference for classic tasks;
+    // that default is not evidence of a multi-image input in a custom request.
+    if (advanced?.protocol === "custom") return /\{\{\s*(?:references|images|image_urls)\s*\}\}/i.test(advanced.requestTemplate || "");
+    return candidateVideoReferenceRoles(candidate).includes("reference");
 }

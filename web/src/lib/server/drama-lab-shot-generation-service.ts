@@ -1,3 +1,4 @@
+﻿import { validateDramaLabUniversalVideoPrompt } from "@/lib/drama-lab-universal-video";
 import { resolveDramaLabStylePrompt, renderDramaLabFrameTemplate } from "@/lib/drama-lab-style-prompt";
 import type { DramaAssetReference, DramaEpisode, DramaProject, DramaShot, DramaShotFrameSource, DramaShotFrameType, DramaShotGenerationHistory, DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
 import { dramaAssetPrimaryReference, dramaShotAssetReferences } from "@/lib/drama-asset-references";
@@ -33,6 +34,7 @@ export type DramaLabVideoGenerationReference = DramaLabGenerationReference & {
 
 export type DramaLabStoryboardVideoOptions = {
     model?: string;
+    supportsReferenceImages?: boolean;
     supportsFirstFrame?: boolean;
     supportsLastFrame?: boolean;
     maxReferenceImages?: number;
@@ -64,6 +66,7 @@ export async function prepareDramaLabStoryboardImage(project: DramaProject, epis
 export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId: string, shotId: string, options: DramaLabStoryboardVideoOptions = {}) {
     const context = findShot(project, episodeId, shotId);
     assertProjectAssetBindings(project, context.shot);
+    if (context.shot.creationMode === "universal") return prepareUniversalVideo(project, context, options);
     const firstFrame = context.shot.frames?.first;
     const keyFrame = context.shot.frames?.key;
     const lastFrame = context.shot.frames?.last;
@@ -139,6 +142,58 @@ export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId:
         parentTaskId: visualSource.taskId,
         frameSnapshot,
         shot: context.shot,
+    };
+}
+
+function prepareUniversalVideo(project: DramaProject, { episode, shot }: ShotContext, options: DramaLabStoryboardVideoOptions) {
+    if (options.supportsReferenceImages !== true) throw new DramaLabShotGenerationError("当前视频渠道未确认支持全能模式普通参考图，请选择支持参考图的视频模型；不会静默改用经典模式");
+    assertDramaLabShotAssetReferences(project, shot);
+    const owners = [project.scenes.find((asset) => asset.id === shot.sceneId), ...shot.characterIds.map((id) => project.characters.find((asset) => asset.id === id)), ...shot.propIds.map((id) => project.props.find((asset) => asset.id === id))].filter(
+        (asset) => Boolean(asset),
+    );
+    const seen = new Set<string>();
+    const references: DramaLabVideoGenerationReference[] = [];
+    for (const asset of owners) {
+        if (!asset) continue;
+        const ref = dramaAssetPrimaryReference(asset);
+        if (!ref) continue;
+        if (seen.has(ref.url)) throw new DramaLabShotGenerationError("多个资产共用同一参考图，可能导致全能图片编号错位，请核对资产参考图后重试");
+        seen.add(ref.url);
+        references.push({ id: ref.id, url: ref.url, storageKey: ref.storageKey, label: asset.name, width: ref.width, height: ref.height, role: "reference" });
+    }
+    const imageUrl = shot.frames?.key?.url || shot.storyboardImageUrl;
+    if (imageUrl && !seen.has(imageUrl)) references.push({ id: `storyboard-${shot.id}`, url: imageUrl, label: "当前分镜图", role: "reference", frameType: "key", taskId: shot.frames?.key?.taskId || shot.storyboardTaskId });
+    if (!references.length) throw new DramaLabShotGenerationError("全能模式至少需要一张已绑定资产或分镜参考图");
+    const limit = positiveReferenceLimit(options.maxReferenceImages);
+    if (limit && references.length > limit) throw new DramaLabShotGenerationError(`当前视频模型最多接受 ${limit} 张参考图，但本镜需要 ${references.length} 张；不能截断导致图片编号错位`);
+    const visiblePrompt = shot.universalSegmentText?.trim() || "";
+    try {
+        validateDramaLabUniversalVideoPrompt(visiblePrompt, shot.duration, references.length);
+    } catch (error) {
+        throw new DramaLabShotGenerationError(error instanceof Error ? error.message : "全能提示词不符合格式");
+    }
+    const frameSnapshot: DramaShotVideoFrameSnapshot = {
+        capturedAt: new Date().toISOString(),
+        model: options.model,
+        supportsFirstFrame: false,
+        supportsLastFrame: false,
+        maxReferenceImages: limit,
+        references: references.map(({ role, url, storageKey, taskId, frameType }) => ({ role, url, storageKey, taskId, frameType })),
+    };
+    return {
+        prompt: [
+            visiblePrompt,
+            "【实际参考图顺序】",
+            ...references.map((reference, index) => `@图片${index + 1}：${reference.label}`),
+            `项目：${project.title}；剧集：${episode.title}；画幅：${project.ratio}`,
+            `风格：${resolveDramaLabStylePrompt(project.style).zh}`,
+            "仅使用本镜绑定的参考图，保持身份与真实尺度；禁止未绑定角色、字幕、水印和额外背景音乐。",
+        ].join("\n"),
+        visiblePrompt,
+        references,
+        parentTaskId: shot.frames?.key?.taskId || shot.storyboardTaskId,
+        frameSnapshot,
+        shot,
     };
 }
 
