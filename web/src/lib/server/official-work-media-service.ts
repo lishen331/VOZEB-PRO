@@ -1,10 +1,12 @@
 import { fileTypeFromBuffer } from "file-type";
 
+import { creativeUploadLimitMessage, creativeUploadMaxBytes } from "@/lib/creative-upload";
+
 import { deleteUserLocalMediaAssets } from "@/lib/server/local-media-storage";
 import { getLocalMediaRegistrations, listLocalMediaRegistrationPage } from "@/lib/server/local-media-registry";
 import { writePersistentMediaDataUrl } from "@/lib/server/reference-asset-store";
 
-const MEDIA_LIMITS = { image: 20 * 1024 * 1024, video: 200 * 1024 * 1024, audio: 30 * 1024 * 1024 } as const;
+const MEDIA_LIMITS = { image: creativeUploadMaxBytes("image"), video: creativeUploadMaxBytes("video"), audio: creativeUploadMaxBytes("audio") } as const;
 type OfficialMediaType = keyof typeof MEDIA_LIMITS;
 
 export class OfficialWorkMediaServiceError extends Error {
@@ -21,7 +23,7 @@ export async function uploadOfficialWorkMedia(adminUserIdValue: unknown, file: F
     if (!(file instanceof File) || !file.size) throw new OfficialWorkMediaServiceError("请选择媒体文件");
     const declaredType = mediaType(file.type);
     if (!declaredType) throw new OfficialWorkMediaServiceError("仅支持图片、视频或音频", 415);
-    if (file.size > MEDIA_LIMITS[declaredType]) throw new OfficialWorkMediaServiceError(`${mediaLabel(declaredType)}文件过大`, 413);
+    if (file.size > MEDIA_LIMITS[declaredType]) throw new OfficialWorkMediaServiceError(creativeUploadLimitMessage(declaredType), 413);
     const bytes = Buffer.from(await file.arrayBuffer());
     const detectedMime = (await fileTypeFromBuffer(bytes))?.mime?.toLowerCase() || "";
     const detectedType = mediaType(detectedMime);

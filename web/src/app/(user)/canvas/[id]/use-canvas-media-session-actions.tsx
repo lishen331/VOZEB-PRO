@@ -3,6 +3,7 @@
 import type { ChangeEvent as ReactChangeEvent, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent } from "react";
 import { useCallback } from "react";
 
+import { creativeUploadLimitMessage, creativeUploadMaxBytes, creativeUploadTypeFromMime } from "@/lib/creative-upload";
 import { droppedFiles, preventFileDragEvent } from "@/lib/file-drop";
 import { readImageMeta } from "@/lib/image-utils";
 import { uploadMediaFile } from "@/services/file-storage";
@@ -63,10 +64,11 @@ export function useCanvasMediaSessionActions({ state, interactions, files }: { s
                 return;
             }
 
-            if (file.size > CANVAS_UPLOAD_MAX_BYTES) {
+            const uploadType = creativeUploadTypeFromMime(file.type) || (isAudioFile(file) ? "audio" : "image");
+            if (file.size > creativeUploadMaxBytes(uploadType)) {
                 uploadTargetRef.current = null;
                 event.target.value = "";
-                message.error("画布单个文件不能超过 20MB");
+                message.error(creativeUploadLimitMessage(uploadType));
                 return;
             }
 
@@ -166,8 +168,13 @@ export function useCanvasMediaSessionActions({ state, interactions, files }: { s
             if (!preventFileDragEvent(event)) return;
             const files = droppedFiles(event, (item) => item.type.startsWith("image/") || item.type.startsWith("video/") || isAudioFile(item));
             if (!files.length) return;
-            if (files.some((file) => file.size > CANVAS_UPLOAD_MAX_BYTES)) {
-                message.error("画布单个文件不能超过 20MB");
+            const oversized = files.find((file) => {
+                const type = creativeUploadTypeFromMime(file.type) || (isAudioFile(file) ? "audio" : "image");
+                return file.size > creativeUploadMaxBytes(type);
+            });
+            if (oversized) {
+                const type = creativeUploadTypeFromMime(oversized.type) || (isAudioFile(oversized) ? "audio" : "image");
+                message.error(creativeUploadLimitMessage(type));
                 return;
             }
 

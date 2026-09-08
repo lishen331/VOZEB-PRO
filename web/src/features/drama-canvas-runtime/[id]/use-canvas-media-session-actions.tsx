@@ -3,6 +3,7 @@
 import type { ChangeEvent as ReactChangeEvent, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent } from "react";
 import { useCallback } from "react";
 
+import { creativeUploadLimitMessage, creativeUploadMaxBytes, creativeUploadTypeFromMime } from "@/lib/creative-upload";
 import { droppedFiles, preventFileDragEvent } from "@/lib/file-drop";
 import { readImageMeta } from "@/lib/image-utils";
 import { uploadMediaFile } from "@/services/file-storage";
@@ -58,6 +59,14 @@ export function useCanvasMediaSessionActions({ state, interactions, files }: { s
                 uploadTargetRef.current = null;
                 event.target.value = "";
                 message.error("请选择图片、视频、MP3 或 WAV 文件");
+                return;
+            }
+
+            const uploadType = creativeUploadTypeFromMime(file.type) || (isAudioFile(file) ? "audio" : "image");
+            if (file.size > creativeUploadMaxBytes(uploadType)) {
+                uploadTargetRef.current = null;
+                event.target.value = "";
+                message.error(creativeUploadLimitMessage(uploadType));
                 return;
             }
 
@@ -156,6 +165,15 @@ export function useCanvasMediaSessionActions({ state, interactions, files }: { s
         (event: ReactDragEvent<HTMLDivElement>) => {
             if (!preventFileDragEvent(event)) return;
             const files = droppedFiles(event, (item) => item.type.startsWith("image/") || item.type.startsWith("video/") || isAudioFile(item));
+            const oversized = files.find((file) => {
+                const type = creativeUploadTypeFromMime(file.type) || (isAudioFile(file) ? "audio" : "image");
+                return file.size > creativeUploadMaxBytes(type);
+            });
+            if (oversized) {
+                const type = creativeUploadTypeFromMime(oversized.type) || (isAudioFile(oversized) ? "audio" : "image");
+                message.error(creativeUploadLimitMessage(type));
+                return;
+            }
             if (!files.length) return;
 
             const pos = screenToCanvas(event.clientX, event.clientY);
