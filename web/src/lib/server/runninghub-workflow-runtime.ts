@@ -1,7 +1,7 @@
 import type { AuthSettings, RunningHubWorkflowConfig } from "@/lib/auth/store";
 
 import { prepareRunningHubWorkflowExecution } from "./runninghub-workflow-adapter";
-import { isRunningHubWorkflowBusinessCode, normalizeRunningHubWorkflowConfig, runningHubWorkflowConfigFingerprint, workflowRequiresRetest } from "./runninghub-workflow-domain";
+import { isRunningHubWorkflowBusinessCode, normalizeRunningHubWorkflowConfig, runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
 
 export type { RunningHubWorkflowConfig } from "@/lib/auth/store";
 
@@ -51,10 +51,9 @@ export function workflowTaskContextForChannel(
                   item.version === persisted.workflowVersion &&
                   item.businessCode === businessCode &&
                   item.enabled &&
-                  !workflowRequiresRetest(item) &&
                   (!persisted.workflowConfigFingerprint || runningHubWorkflowConfigFingerprint(item) === persisted.workflowConfigFingerprint),
           )
-        : workflows.filter((item) => item.enabled && item.businessCode === businessCode && !workflowRequiresRetest(item)).sort((left, right) => right.version - left.version)[0];
+        : workflows.filter((item) => item.enabled && item.businessCode === businessCode).sort((left, right) => right.version - left.version)[0];
     return workflow ? { ...recordWorkflowTaskContext(workflow), taskOrigin: "user" as const } : {};
 }
 
@@ -92,10 +91,9 @@ export function attachPracticeWorkflowToChannel<T extends { channelId?: string; 
                   item.version === context.workflowVersion &&
                   item.businessCode === context.businessCode &&
                   item.enabled &&
-                  !workflowRequiresRetest(item) &&
                   (!context.workflowConfigFingerprint || runningHubWorkflowConfigFingerprint(item) === context.workflowConfigFingerprint),
           )
-        : workflows.filter((item) => item.businessCode === context.businessCode && item.enabled && !workflowRequiresRetest(item)).sort((left, right) => right.version - left.version)[0];
+        : workflows.filter((item) => item.businessCode === context.businessCode && item.enabled).sort((left, right) => right.version - left.version)[0];
     if (!workflow) throw new Error("练习工作流版本不存在或已停用");
     const advancedConfig = {
         ...(channel.advancedConfig || sourceChannel.advancedConfig),
@@ -130,8 +128,7 @@ export function workflowConfigForTask(task: {
         normalized.businessCode === task.businessCode &&
         normalized.enabled &&
         (!task.config.channelId || normalized.channelId === task.config.channelId) &&
-        (!task.workflowConfigFingerprint || task.workflowConfigFingerprint === runningHubWorkflowConfigFingerprint(normalized)) &&
-        !workflowRequiresRetest(normalized)
+        (!task.workflowConfigFingerprint || task.workflowConfigFingerprint === runningHubWorkflowConfigFingerprint(normalized))
         ? normalized
         : undefined;
 }

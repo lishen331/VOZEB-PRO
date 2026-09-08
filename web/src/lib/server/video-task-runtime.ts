@@ -1,3 +1,4 @@
+import { isOfficialWorkflowQueryPath, queryRunningHubTask } from "./runninghub-provider";
 import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { generationModelId, systemGenerationChannelId } from "@/lib/server/generation-channel";
 import { generationMediaProxyHeaders } from "@/lib/server/generation-media-authorization";
@@ -50,6 +51,24 @@ export async function queryVideoTaskUpstream(task: VideoTask, origin: string, co
     const cachedResultUrl = typeof task.upstream.resultUrl === "string" ? task.upstream.resultUrl.trim() : "";
     if (isVideoProviderMediaUrl(cachedResultUrl)) return { state: "result_ready", status: "completed", resultUrl: cachedResultUrl };
     if (isGeminiVideoTask(task)) return queryGeminiVideoUpstream(task, origin, cookie, workerUserId);
+    if (task.config.advancedConfig?.protocol === "runninghub" && isOfficialWorkflowQueryPath(task.config.advancedConfig.queryPath || "")) {
+        const workflow = workflowConfigForTask(task);
+        const result = await queryRunningHubTask({
+            baseUrl: new URL(task.config.baseUrl, origin).href,
+            apiKey: task.config.apiKey,
+            taskId: task.upstream.id,
+            config: { ...task.config.advancedConfig, outputMappings: workflow?.outputMappings, timeoutSeconds: workflow?.timeoutSeconds },
+            fetchImpl: (url, init = {}) => {
+                const headers = new Headers(videoProxyHeaders(task, cookie, workerUserId));
+                headers.set("content-type", "application/json");
+                return fetchInternalApi(String(url), { ...init, headers });
+            },
+        });
+        if (VIDEO_PROVIDER_FAILED.has(result.status.toLowerCase())) return { state: "failed", status: result.status, error: result.querySummary?.upstreamError || readProviderError(result.raw) || "RunningHub 视频生成失败" };
+        if (result.resultUrl) return { state: "result_ready", status: result.status, resultUrl: result.resultUrl };
+        if (VIDEO_PROVIDER_SUCCESS.has(result.status.toLowerCase())) return { state: "failed", status: result.status, error: "RunningHub 已完成，但输出节点未返回视频" };
+        return { state: "pending", status: result.status };
+    }
     const data = await queryVideoUpstream(task, origin, cookie, workerUserId);
     const status = readVideoProviderStatus(data, task.config.advancedConfig?.statusField);
     const resultUrl = readVideoProviderUrl(data, task.config.advancedConfig?.resultField);

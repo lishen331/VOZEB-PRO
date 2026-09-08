@@ -373,3 +373,10 @@ flowchart LR
 - `practice-character-panel.tsx`：主形象/多视图按选中模型和 workflowCode 独立选择参数及默认尺寸，不合并两条 Schema。
 - `practice-media-input.tsx`、`practice-prompt-editor.tsx`：复用真实素材上传与后台默认文本模型提示词优化；优化结果可编辑，不自动提交生成。
 - `/api/practice/modules`：workflowOptions 携带对应工作流的公开 inputSchema；角色模型选项携带自身工作流列表；自动内部模型展示渠道与能力名称，不冒充某一工作流。
+
+
+### 无限练习查询与历史恢复（2026-09-08）
+
+- 图片 `image-task-custom.ts`、视频 `video-task-runtime.ts`、音频 `audio-task-runtime.ts` 的 RunningHub 官方查询复用 `queryRunningHubTask`，POST body 传 taskId，系统代理注入渠道 apiKey；继续原站内代理鉴权，不重新创建任务。
+- `practice-module-workbench.tsx` 分离目录/历史读取与选中任务查询；按稳定 sessionId 恢复结果，URL切换不卸载输入表单，历史支持加载更多。
+- 视频输入增加已完成配音选择及去配音入口；配音使用六维情绪滑杆，主文本对应首行的参考音色与情绪一起提交。

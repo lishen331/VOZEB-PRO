@@ -593,3 +593,8 @@
 4. 权限必须从代码证据更新；新增 Helper 时同步扩展清单脚本的认证标记。
 
 返回 [VOZEB PRO 开发地图](VOZEB-PRO-开发地图.md)。
+
+
+### RunningHub 查询行为补充
+
+`/api/ai/system/{channelId}/openapi/v2/query` 继续由现有动态代理处理：POST 请求在服务器注入渠道 apiKey，保留 taskId；查询不作为新的生成请求扣费。无限练习历史使用原 `/api/practice/sessions` 分页及 `/api/practice/sessions/{id}` 恢复，不新增接口。

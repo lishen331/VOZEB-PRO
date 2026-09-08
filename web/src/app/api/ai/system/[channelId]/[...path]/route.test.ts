@@ -935,6 +935,22 @@ describe("RunningHub official workflow proxy", () => {
         });
     });
 
+    it("injects the server key into a query without charging a new generation", async () => {
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ status: "SUCCESS", results: [] }));
+        const response = await POST(
+            new Request("http://localhost/api/ai/system/channel-one/openapi/v2/query", {
+                method: "POST",
+                headers: { "content-type": "application/json", ...systemModelHeaders("minimax-video", "workflow-minimax-h3-base") },
+                body: JSON.stringify({ taskId: "existing-task", apiKey: "system" }),
+            }),
+            { params: Promise.resolve({ channelId: "channel-one", path: ["openapi", "v2", "query"] }) },
+        );
+        expect(response.status).toBe(200);
+        const body = fetchMock.mock.calls[0]?.[1]?.body;
+        expect(JSON.parse(typeof body === "string" ? body : new TextDecoder().decode(body as ArrayBuffer))).toEqual({ taskId: "existing-task", apiKey: "shared-secret" });
+        expect(mocks.consumeUserPoints).not.toHaveBeenCalled();
+    });
+
     it("injects the channel key into the official workflow create body", async () => {
         const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ code: 0, data: { taskId: "task-one" } }));
         const response = await POST(

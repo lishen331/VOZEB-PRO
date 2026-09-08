@@ -90,6 +90,12 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             const mainBody = (await mainSubmit).postDataJSON();
             expect(mainBody.input.prompt).toBe("用户最终编辑的提示词");
             expect(mainBody.input).not.toHaveProperty("frontPrompt");
+            await expect(rolePage.getByRole("textbox", { name: "角色描述", exact: true })).toHaveValue("用户最终编辑的提示词");
+            await rolePage.reload();
+            await expect(rolePage.getByRole("img", { name: "练习结果" })).toBeVisible();
+            await rolePage.goto("/practice/character");
+            await expect(rolePage).toHaveURL(/sessionId=/);
+            await expect(rolePage.getByRole("img", { name: "练习结果" })).toBeVisible();
 
             await rolePage.goto("/practice/scene", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByText("等待生成场景图", { exact: true })).toBeVisible();
@@ -119,8 +125,28 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             await rolePage.goto("/practice/dubbing", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByText("等待生成配音", { exact: true })).toBeVisible();
             await rolePage.getByLabel("配音文本").fill("欢迎来到练习课堂。");
+            const happy = rolePage.getByRole("slider", { name: "台词 1 开心", exact: true });
+            await happy.focus();
+            await happy.press("ArrowRight");
+            await expect(happy).toHaveAttribute("aria-valuenow", "0.01");
+            await rolePage.getByText("六维情绪", { exact: true }).scrollIntoViewIfNeeded();
+            await rolePage.screenshot({ path: testInfo.outputPath("emotion-sliders.png") });
+            const audioSubmit = rolePage.waitForRequest((request) => request.url().endsWith("/api/practice/sessions") && request.method() === "POST");
+
             await rolePage.getByRole("button", { name: "开始配音", exact: true }).click();
-            await expect(rolePage.locator("audio")).toBeVisible();
+            const audioBody = (await audioSubmit).postDataJSON();
+            expect(audioBody.input.lines[0].emotion.happy).toBe(0.01);
+            expect(audioBody.input.lines[0].text).toBe("欢迎来到练习课堂。");
+            await expect(rolePage.locator("audio").first()).toBeVisible();
+            await rolePage.goto("/practice/storyboard-video");
+            await rolePage.getByRole("switch", { name: "启用台词音频", exact: true }).check();
+            await expect(rolePage.getByRole("link", { name: "去配音", exact: true })).toHaveAttribute("href", "/practice/dubbing");
+            await rolePage.getByRole("combobox", { name: "配音来源", exact: true }).click();
+            await rolePage.getByText("引用历史配音", { exact: true }).click();
+            await rolePage.getByRole("combobox", { name: "历史配音", exact: true }).click();
+            await expect(rolePage.getByText(/dubbing ·/).last()).toBeVisible();
+            await rolePage.keyboard.press("Escape");
+
             for (const moduleKind of ["character", "scene", "prop", "storyboard-image", "storyboard-video", "dubbing"]) {
                 await rolePage.goto(`/practice/${moduleKind}`, { waitUntil: "domcontentloaded" });
                 await expect(rolePage.getByText("开源模型", { exact: false }).first()).toBeVisible();
@@ -132,6 +158,21 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
                 );
                 expect(geometry.every((box) => box.left >= 0 && box.right <= (testInfo.project.use.viewport?.width || 1280))).toBe(true);
                 if ((testInfo.project.use.viewport?.width || 1280) >= 1024) expect(Math.abs(geometry[0].top - geometry[1].top)).toBeLessThan(2);
+                if (["character", "scene", "prop", "storyboard-image", "storyboard-video"].includes(moduleKind)) {
+                    const labels: Record<string, [string, string]> = {
+                        character: ["角色设定", "角色描述"],
+                        scene: ["场景设定", "场景描述"],
+                        prop: ["道具设定", "道具描述"],
+                        "storyboard-image": ["分镜脚本", "画面描述"],
+                        "storyboard-video": ["分镜脚本", "视频提示词"],
+                    };
+                    const [brief, prompt] = labels[moduleKind];
+                    await rolePage.getByRole("textbox", { name: brief, exact: true }).fill("本模块需求");
+                    const optimized = rolePage.waitForRequest((request) => request.url().endsWith("/api/agent/prompt-optimization"));
+                    await rolePage.getByRole("button", { name: "生成提示词", exact: true }).click();
+                    expect((await optimized).postDataJSON().prompt).toContain(prompt);
+                    await expect(rolePage.getByRole("textbox", { name: prompt, exact: true })).toHaveValue("可编辑的角色提示词");
+                }
                 await rolePage.screenshot({ path: testInfo.outputPath(`${moduleKind}-layout.png`) });
             }
             await rolePage.getByRole("button", { name: "切换到深色主题", exact: true }).click();
@@ -164,11 +205,18 @@ test("没有学校成员身份的账号不能访问无限练习", async ({ brows
 });
 
 async function installPracticeFixtures(page: import("@playwright/test").Page, modules: ReturnType<typeof moduleFixtureCapabilities>) {
+    const saved = new Map<string, Record<string, unknown>>();
     await page.route("**/api/agent/prompt-optimization", (route) => route.fulfill({ json: { code: 200, data: { prompt: "可编辑的角色提示词" }, msg: "ok" } }));
     await page.route("**/api/practice/modules", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ code: 200, data: { modules, projects: { canvas: false, drama: false } }, msg: "ok" }) }));
     await page.route("**/api/practice/sessions**", async (route) => {
         const request = route.request();
-        if (request.method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ code: 0, data: { sessions: [], total: 0, page: 1, pageSize: 24 }, msg: "ok" }) });
+        if (request.method() === "GET") {
+            const url = new URL(request.url());
+            const id = url.pathname.split("/").at(-1)!;
+            if (id !== "sessions") return route.fulfill({ json: { code: 0, data: { session: saved.get(id) }, msg: "ok" } });
+            const sessions = [...saved.values()].filter((session) => !url.searchParams.get("module") || session.module === url.searchParams.get("module")).reverse();
+            return route.fulfill({ json: { code: 0, data: { sessions, total: sessions.length, page: 1, pageSize: 24 }, msg: "ok" } });
+        }
         const body = request.postDataJSON() as { module?: string; mode?: string; input?: Record<string, unknown> };
         const moduleName = body.module || "script";
         const media = ["character", "scene", "prop", "storyboard-image"].includes(moduleName)
@@ -177,7 +225,7 @@ async function installPracticeFixtures(page: import("@playwright/test").Page, mo
               ? { kind: "audio", url: "data:audio/wav;base64,UklGRgAAAAAA" }
               : undefined;
         const session = {
-            id: `fixture-${moduleName}`,
+            id: `fixture-${moduleName}-${saved.size}`,
             title: moduleName,
             module: moduleName,
             mode: body.mode || "workflow",
@@ -187,6 +235,7 @@ async function installPracticeFixtures(page: import("@playwright/test").Page, mo
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
+        saved.set(session.id, session);
         return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ code: 0, data: { session }, msg: "ok" }) });
     });
 }
