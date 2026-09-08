@@ -6,6 +6,7 @@ import { canvasPlan, canvasSettings, conversationPlan, creativeImageAsset, disab
 
 const mocks = vi.hoisted(() => ({
     fetchInternalApi: vi.fn(),
+    prepareAgentPlannerMedia: vi.fn(),
     getAuthSettings: vi.fn(),
     refundGenerationCharge: vi.fn(async () => ({ refunded: true })),
     getCreativeAssetsByIds: vi.fn(async (_ids: string[] = []): Promise<Array<Record<string, unknown>>> => []),
@@ -21,6 +22,7 @@ const mocks = vi.hoisted(() => ({
     scheduleGenerationTask: vi.fn(async () => undefined),
 }));
 
+vi.mock("@/lib/server/agent-planner-media", () => ({ prepareAgentPlannerMedia: mocks.prepareAgentPlannerMedia }));
 vi.mock("@/lib/auth/store", () => ({
     getAuthSettings: mocks.getAuthSettings,
 }));
@@ -54,6 +56,7 @@ describe("executeAgentRun backend settings", () => {
         vi.clearAllMocks();
         resetTextPlanningRuntime();
         mocks.events = [];
+        mocks.prepareAgentPlannerMedia.mockResolvedValue([]);
         mocks.getCreativeAssetsByIds.mockResolvedValue([]);
         mocks.listRecentCreativeMediaAssets.mockResolvedValue([]);
         mocks.getCreativeConversationContext.mockResolvedValue({ summary: "", summaryThroughSequence: 0, recentMessages: [] });
@@ -97,6 +100,31 @@ describe("executeAgentRun backend settings", () => {
             if (url.includes("/api/image-tasks/")) return Response.json({ task: { status: "success", result: { url: "https://cdn.example.com/output.png" } } });
             throw new Error(`unexpected request: ${url}`);
         });
+    });
+
+    it("uses loaded image content in the visual planner request", async () => {
+        mocks.run = runFixture({ surface: "chat", projectId: undefined, prompt: "Read the error in the attached screenshot", referencedAssetIds: ["asset-first"] });
+        mocks.getCreativeAssetsByIds.mockResolvedValue([creativeImageAsset("asset-first", "input.png", "https://cdn.example.com/first.png")]);
+        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
+        mocks.prepareAgentPlannerMedia.mockResolvedValue([{ type: "image", url: "data:image/png;base64,aGVsbG8=" }]);
+        mocks.fetchInternalApi.mockResolvedValue(Response.json({ choices: [{ message: { content: JSON.stringify(conversationPlan("planner", "HTTP 403: access denied")) } }] }));
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+        expect(mocks.prepareAgentPlannerMedia).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ id: "asset-first" })]), "http://localhost", "session=test", expect.any(AbortSignal));
+        const call = mocks.fetchInternalApi.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
+        const body = JSON.parse(String(call?.[1]?.body));
+        expect(body.messages[1].content).toContainEqual({ type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } });
+        expect(mocks.run).toMatchObject({ status: "completed", tasks: [] });
+        expect(mocks.events).toContainEqual(expect.objectContaining({ type: "run.completed", data: expect.objectContaining({ reply: "HTTP 403: access denied" }) }));
+    });
+
+    it("fails before calling the planner when referenced media cannot be loaded", async () => {
+        mocks.run = runFixture({ surface: "chat", projectId: undefined, prompt: "Read screenshot", referencedAssetIds: ["asset-first"] });
+        mocks.getCreativeAssetsByIds.mockResolvedValue([creativeImageAsset("asset-first", "input.png", "https://cdn.example.com/first.png")]);
+        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
+        mocks.prepareAgentPlannerMedia.mockRejectedValue(new Error("Reference image access denied"));
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+        expect(mocks.run?.status).toBe("failed");
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
     });
 
     it("preserves generated media dimensions in canvas output ops", () => {

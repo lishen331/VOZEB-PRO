@@ -6,7 +6,7 @@ import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveLogicalModel, resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { reviewCreativeOutputs } from "@/lib/server/creative-review-service";
-import { requestStructuredText, type TextPlanningCandidate } from "@/lib/server/text-planning-runtime";
+import { requestStructuredText, type TextPlanningCandidate, type TextPlanningMediaInput } from "@/lib/server/text-planning-runtime";
 import { registerAgentTaskAssets } from "@/lib/server/agent-run-assets";
 import { buildAgentProjectHandoff } from "@/lib/server/agent-run-project-handoff";
 import { getAgentRun, updateAgentRunById, updateAgentRunTaskById, type AgentRun, type AgentRunChildTask, type AgentRunReference, type AgentRunTask } from "@/lib/server/agent-run-store";
@@ -583,6 +583,7 @@ export async function requestFunctionCall(
     stream = false,
     onStreamStart?: () => Promise<void> | void,
     billingContext?: SchoolComputeBillingContext,
+    mediaInputs?: TextPlanningMediaInput[],
 ) {
     const requestHeaders = runtimeRequestHeaders(cookie, {
         "Content-Type": "application/json",
@@ -594,6 +595,7 @@ export async function requestFunctionCall(
         cookie,
         candidate,
         messages: input,
+        mediaInputs,
         tool: { name: tool.name, description: tool.description, parameters: tool.parameters },
         headers: requestHeaders,
         signal,

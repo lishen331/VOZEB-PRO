@@ -209,7 +209,8 @@ export default function CreatePage() {
         }
         promptRevisionRef.current += 1;
         try {
-            const preferences = { ...generationPreferences, ...(creationMode !== "agent" ? { mode: creationMode } : {}) };
+            const parameters = applyAgentGenerationCapability(creationMode, generationPreferences.mode || "image", generationPreferences);
+            const preferences = { ...parameters, ...(creationMode !== "agent" ? { mode: creationMode } : {}) };
             if (
                 await agent.submit(prompt, {
                     publicPrompt: publicCreativeAssetPrompt(prompt),
@@ -367,13 +368,16 @@ export default function CreatePage() {
 
     const changeGenerationCapability = (capability: CreativeGenerationMode) => {
         setGenerationPreferences((current) => {
-            const next = { ...current, mode: capability };
+            const next = applyAgentGenerationCapability(creationMode, capability, current);
             if (capability === "video" || !current.video) return next;
             return { ...next, video: { ...current.video, referenceMode: "reference", firstFrameAssetId: undefined, lastFrameAssetId: undefined } };
         });
     };
 
     const changeGenerationPreference = (capability: "image" | "video" | "audio", patch: Record<string, string | number | boolean>) => {
+        // Selecting frame roles is an explicit video action, unlike browsing
+        // parameter tabs. Reflect it in the visible mode selector as well.
+        if (capability === "video" && (patch.referenceMode === "first_frame" || patch.referenceMode === "first_last")) setCreationMode("video");
         setGenerationPreferences((current) => {
             const activePreferences = applyAgentGenerationCapability(creationMode, capability, current);
             if (capability !== "video") return { ...activePreferences, [capability]: { ...activePreferences[capability], ...patch } };

@@ -21,6 +21,63 @@ describe("text planning runtime protocol matrix", () => {
         vi.useRealTimers();
     });
 
+    it("keeps video content as a video part, not an image or text URL", async () => {
+        mockedFetch.mockResolvedValue(chatJsonResponse());
+        await requestStructuredText({ ...requestInput(candidate("newapi")), mediaInputs: [{ type: "video", url: "data:video/mp4;base64,aGVsbG8=" }] });
+        expect(requestBody()).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: "user", content: expect.arrayContaining([{ type: "video_url", video_url: { url: "data:video/mp4;base64,aGVsbG8=" } }]) })]) });
+    });
+
+    it("rejects unconfigured custom multimodal transport instead of dropping media", async () => {
+        const configured = candidate("custom", { createPath: "/plan", requestTemplate: '{"prompt":"{{prompt}}"}', resultField: "result" });
+        await expect(requestStructuredText({ ...requestInput(configured), mediaInputs: [{ type: "image", url: "data:image/png;base64,aGVsbG8=" }] })).rejects.toThrow();
+        expect(mockedFetch).not.toHaveBeenCalled();
+    });
+
+    it("sends real image parts to Chat instead of a URL in JSON text", async () => {
+        mockedFetch.mockResolvedValue(chatJsonResponse());
+        await requestStructuredText({ ...requestInput(candidate("newapi")), mediaInputs: [{ type: "image", url: "data:image/png;base64,aGVsbG8=" }] });
+        expect(requestBody()).toMatchObject({
+            messages: expect.arrayContaining([
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: "test" },
+                        { type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } },
+                    ],
+                },
+            ]),
+        });
+    });
+
+    it("preserves media during structured repair", async () => {
+        mockedFetch.mockResolvedValueOnce(Response.json({ choices: [{ message: { content: "invalid" } }] })).mockResolvedValueOnce(chatJsonResponse());
+        await requestStructuredText({ ...requestInput(candidate("newapi")), mediaInputs: [{ type: "image", url: "data:image/png;base64,aGVsbG8=" }] });
+        expect(mockedFetch).toHaveBeenCalledTimes(2);
+        expect(requestBody()).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: "user", content: expect.arrayContaining([{ type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } }]) })]) });
+    });
+
+    it("sends native media parts for Responses", async () => {
+        mockedFetch.mockResolvedValue(Response.json({ output_text: "{}" }));
+        await requestStructuredText({ ...requestInput(candidate("compatible", { createPath: "/responses" })), mediaInputs: [{ type: "image", url: "data:image/png;base64,aGVsbG8=" }] });
+        expect(requestBody()).toMatchObject({
+            input: expect.arrayContaining([
+                {
+                    role: "user",
+                    content: [
+                        { type: "input_text", text: "test" },
+                        { type: "input_image", image_url: "data:image/png;base64,aGVsbG8=" },
+                    ],
+                },
+            ]),
+        });
+    });
+
+    it("sends Gemini inline media with MIME type", async () => {
+        mockedFetch.mockResolvedValue(Response.json({ candidates: [{ content: { parts: [{ text: "{}" }] } }] }));
+        await requestStructuredText({ ...requestInput(candidate("compatible", { apiFormat: "gemini" })), mediaInputs: [{ type: "image", url: "data:image/png;base64,aGVsbG8=" }] });
+        expect(requestBody()).toMatchObject({ contents: [{ role: "user", parts: [{ text: "test" }, { inlineData: { mimeType: "image/png", data: "aGVsbG8=" } }] }] });
+    });
+
     it("forwards signed worker context as proxy authentication headers", async () => {
         mockedFetch.mockResolvedValue(chatJsonResponse());
         mockedWorkerHeaders.mockReturnValue({ authorization: "Bearer worker-token", "x-vozeb-pro-worker-user-id": "user-one" });
