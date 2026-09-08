@@ -144,6 +144,14 @@ describe("drama lab storyboard extraction", () => {
         expect(context.availableAssets.props[0].imagePrompt).toBe("单一裂屏手机，纯色底");
     });
 
+    it("sends explicit count and total duration to the model", async () => {
+        await extractDramaLabStoryboards({ userId: "user-one", origin: "http://localhost", cookie: "", requestId: "options", episodeId: "episode-one", project, options: { shotCount: 12, totalDuration: 90.5 } });
+        const request = mocks.requestStructuredText.mock.calls[0][0];
+        expect(request.messages[0].content).toContain("12 个左右（允许±20%）");
+        expect(request.messages[0].content).toContain("90.5 秒左右（允许±10%）");
+        expect(JSON.parse(request.messages[1].content).options).toEqual({ shotCount: 12, totalDuration: 90.5 });
+    });
+
     it("rejects invalid asset IDs instead of mapping them by name", () => {
         expect(() => normalizeExtractedDramaLabStoryboards(JSON.stringify({ shots: [{ ...validShot, characterIds: ["林薇"] }] }), project)).toThrow(new DramaLabStoryboardExtractionError("第 1 个分镜引用了项目中不存在的角色 ID：林薇"));
     });
