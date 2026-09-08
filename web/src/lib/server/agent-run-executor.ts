@@ -1,3 +1,4 @@
+import { prepareAgentPlannerMedia } from "./agent-planner-media";
 import { getAuthSettings } from "@/lib/auth/store";
 import { nanoid } from "nanoid";
 import { resolveLogicalModelCandidates, resolveVisionModelCandidates } from "@/lib/server/logical-model-router";
@@ -108,6 +109,7 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
         const plannerContext = buildAgentPlannerInput(claimed, conversationContext, referencedAssets, referenceSource, skillOptions, availableModels, settings);
         if (!(await updateAgentRunById(run.id, { plannerContext: plannerContext.summary }, { type: "skills.selected", data: { skills: skills.map((skill) => ({ id: skill.id, name: skill.name })) } }, ["running"], executionId))) return;
         const plannerRequest = buildAgentRequest(claimed, plannerContext.input);
+        const mediaInputs = await prepareAgentPlannerMedia(referencedAssets, origin, cookie, controller.signal);
         const planningInput = [
             {
                 role: "system",
@@ -153,6 +155,7 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
                     undefined,
                     undefined,
                     claimed.billingContext,
+                    mediaInputs,
                 );
                 plan = await parseAgentPlanCall(planCall, () => refundFunctionCall(claimed.userId, model, planCall), undefined, {
                     allowProjectHandoff: claimed.surface === "chat" && isExplicitProjectHandoffRequest(claimed.prompt),

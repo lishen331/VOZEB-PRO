@@ -32,7 +32,10 @@ type RuntimeState = {
     lastSuccessAt?: number;
 };
 
+export type TextPlanningMediaInput = { type: "image" | "video"; url: string };
+
 export type StructuredTextRequest = {
+    mediaInputs?: TextPlanningMediaInput[];
     origin: string;
     cookie: string;
     candidate: TextPlanningCandidate;
@@ -253,7 +256,39 @@ function parsePromptJsonValue(value: string) {
     }
 }
 
+/** Attach media to the final user message for every protocol/repair attempt.
+ * Keep the JSON planning context separate from actual multimodal content. */
+function attachPlanningMedia(request: ProtocolRequest, media: TextPlanningMediaInput[] = []) {
+    if (!media.length) return;
+    if (request.protocol === "custom") throw new TextPlanningRequestError("当前自定义文本协议尚未配置多模态输入，不能只发送素材地址代替图片", 422, false);
+    const key = request.protocol === "responses" ? "input" : request.protocol === "gemini" ? "contents" : "messages";
+    const messages = request.body[key] as Array<Record<string, unknown>>;
+    const index = messages.findLastIndex((message) => message.role === "user");
+    if (index < 0) throw new TextPlanningRequestError("多模态请求缺少用户消息", 422, false);
+    const message = messages[index];
+    if (request.protocol === "gemini") {
+        message.parts = [
+            ...(message.parts as unknown[]),
+            ...media.map((item) => {
+                const match = /^data:((?:image|video)\/[^;]+);base64,(.+)$/.exec(item.url);
+                if (!match) throw new TextPlanningRequestError("Gemini 图片输入需要已读取的图片内容", 422, false);
+                return { inlineData: { mimeType: match[1], data: match[2] } };
+            }),
+        ];
+    } else {
+        const responses = request.protocol === "responses";
+        // Requests can share the same original messages array. Copy before
+        // attaching so protocol repair cannot duplicate attachments.
+        const parts = [
+            { type: responses ? "input_text" : "text", text: message.content },
+            ...media.map((item) => (responses ? { type: `input_${item.type}`, [`${item.type}_url`]: item.url } : { type: `${item.type}_url`, [`${item.type}_url`]: { url: item.url } })),
+        ];
+        request.body[key] = messages.map((item, i) => (i === index ? { ...item, content: parts } : item));
+    }
+}
+
 async function requestTextProtocol(input: StructuredTextRequest, request: ProtocolRequest) {
+    attachPlanningMedia(request, input.mediaInputs);
     const base = `${input.origin}/api/ai/system/${encodeURIComponent(input.candidate.channelId)}`;
     const headers = request.variant === "repair" ? repairRequestHeaders(input) : new Headers(request.variant !== "tool" && input.fallbackHeaders ? input.fallbackHeaders : input.headers);
     headers.set("content-type", "application/json");

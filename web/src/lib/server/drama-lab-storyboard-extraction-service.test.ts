@@ -114,6 +114,14 @@ describe("drama lab storyboard extraction", () => {
         );
     });
 
+    it("injects the full production style into the actual planning request", async () => {
+        await extractDramaLabStoryboards({ userId: "user-one", origin: "http://localhost:3000", cookie: "session=test", requestId: "style-test", episodeId: "episode-one", project: { ...project, style: "realistic" } });
+        const context = JSON.parse(mocks.requestStructuredText.mock.calls[0][0].messages[1].content);
+        expect(context.project.style).toBe("realistic");
+        expect(context.project.stylePromptZh).toContain("真实皮肤纹理");
+        expect(context.project.stylePromptEn).toContain("RAW photo");
+    });
+
     it("rejects invalid asset IDs instead of mapping them by name", () => {
         expect(() => normalizeExtractedDramaLabStoryboards(JSON.stringify({ shots: [{ ...validShot, characterIds: ["林薇"] }] }), project)).toThrow(new DramaLabStoryboardExtractionError("第 1 个分镜引用了项目中不存在的角色 ID：林薇"));
     });

@@ -1,5 +1,5 @@
 "use client";
-import { App, Button, Input, InputNumber } from "antd";
+import { App, Button, Input, Slider } from "antd";
 import { Mic2 } from "lucide-react";
 import { useState } from "react";
 import { practiceApi } from "@/services/api/practice";
@@ -38,7 +38,7 @@ export default function PracticeDubbingPanel({ capability, onCreated }: Practice
     const [busy, setBusy] = useState(false);
     const submit = async () => {
         if (!text.trim() || !model || busy || uploading) return;
-        const normalizedLines = normalizePracticeDialogueLines(lines);
+        const normalizedLines = normalizePracticeDialogueLines(lines.map((line, index) => (index === 0 && !line.text.trim() ? { ...line, text: text.trim() } : line)));
         setBusy(true);
         try {
             onCreated(
@@ -99,20 +99,30 @@ export default function PracticeDubbingPanel({ capability, onCreated }: Practice
                             onChoose={(file) => void chooseVoice(index, file)}
                             onRemove={() => setLines((current) => current.map((item, i) => (i === index ? { ...item, audio: undefined } : item)))}
                         />
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
-                            {EMOTION_KEYS.map((key) => (
-                                <label key={key} className="text-xs text-muted-foreground">
-                                    {EMOTION_LABELS[key]}
-                                    <InputNumber
-                                        min={0}
-                                        max={1.4}
-                                        step={0.1}
-                                        value={line.emotion?.[key]}
-                                        onChange={(value) => setLines((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, emotion: { ...(item.emotion || {}), ...(value === null ? {} : { [key]: value }) } } : item)))}
-                                        className="!mt-1 !w-full"
-                                    />
-                                </label>
-                            ))}
+                        <div className="rounded-lg border border-border p-3">
+                            <div className="mb-3 flex justify-between text-sm font-medium">
+                                <span>六维情绪</span>
+                                <span className="text-xs text-muted-foreground">0.00 — 1.40</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-5 gap-y-3">
+                                {EMOTION_KEYS.map((key) => (
+                                    <label key={key} className="text-xs text-muted-foreground">
+                                        <span className="flex justify-between gap-2">
+                                            <span>{EMOTION_LABELS[key]}</span>
+                                            <span>{(line.emotion?.[key] || 0).toFixed(2)}</span>
+                                        </span>
+                                        <Slider
+                                            ariaLabelForHandle={`台词 ${index + 1} ${EMOTION_LABELS[key]}`}
+                                            min={0}
+                                            max={1.4}
+                                            step={0.01}
+                                            value={line.emotion?.[key] || 0}
+                                            onChange={(value) => setLines((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, emotion: { ...(item.emotion || {}), ...(value === null ? {} : { [key]: value }) } } : item)))}
+                                            className="!mt-1 !w-full"
+                                        />
+                                    </label>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 ))}

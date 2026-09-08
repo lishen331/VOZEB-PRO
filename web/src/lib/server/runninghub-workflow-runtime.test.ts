@@ -169,7 +169,7 @@ describe("RunningHub workflow runtime", () => {
         expect(attached.advancedConfig?.workflowConfigs?.[config.workflowKey]).toMatchObject({ version: 3, enabled: true });
     });
 
-    it("rejects a newly discovered workflow until its current mapping fingerprint has a successful test", () => {
+    it("allows enabled workflows without using test evidence as a runtime gate", () => {
         const discovered = { ...config, workflowJsonFingerprint: "json-1" };
         const channel = { channelId: "rh-practice", advancedConfig: { workflowConfigs: { [discovered.workflowKey]: discovered } } } as unknown as Parameters<typeof attachPracticeWorkflowToChannel>[0];
         const settings = {
@@ -204,7 +204,7 @@ describe("RunningHub workflow runtime", () => {
                 },
             ],
         };
-        expect(() => attachPracticeWorkflowToChannel(channel, settings as never, { executionProfile: "open-source-practice", businessCode: config.businessCode })).toThrow("版本不存在或已停用");
+        expect(attachPracticeWorkflowToChannel(channel, settings as never, { executionProfile: "open-source-practice", businessCode: config.businessCode }).advancedConfig?.createPath).toBe(config.createPath);
         const tested = { ...discovered, lastTestResult: "success" as const, lastTestConfigFingerprint: runningHubWorkflowConfigFingerprint(discovered) };
         const testedChannel = { ...channel, advancedConfig: { ...channel.advancedConfig, workflowConfigs: { [tested.workflowKey]: tested } } } as Parameters<typeof attachPracticeWorkflowToChannel>[0];
         expect(

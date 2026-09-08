@@ -94,7 +94,7 @@ describe("practice module workbench contract", () => {
 
     it("exposes emotion controls for structured dialogue lines", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/components/practice-dubbing-panel.tsx"), "utf8");
-        expect(source).toContain("InputNumber");
+        expect(source).toContain("Slider");
         expect(source).toContain("happy");
         expect(source).toContain("surprise");
     });

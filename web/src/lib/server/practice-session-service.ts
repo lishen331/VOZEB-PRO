@@ -364,7 +364,7 @@ async function reconcileUnknownSubmission(session: PracticeSessionRecord, store?
 }
 
 async function findDurableTaskReference(userId: string, clientRequestId: string, module: PracticeModuleKind) {
-    const taskType = module === "script" ? "text" : module === "storyboard-image" ? "image" : module === "storyboard-video" ? "video" : "audio";
+    const taskType = module === "script" ? "text" : ["character", "scene", "prop", "storyboard-image"].includes(module) ? "image" : module === "storyboard-video" ? "video" : "audio";
     const task = await getStoredGenerationTaskByRequest<{ id?: unknown }>(taskType, userId, clientRequestId);
     return task && typeof task.id === "string" && task.id.trim() ? { taskId: task.id, taskType } : null;
 }

@@ -43,7 +43,7 @@ function isOfficialWorkflowCreatePath(path: string) {
     return path.replace(/\/+$/, "").toLowerCase() === "/task/openapi/create";
 }
 
-function isOfficialWorkflowQueryPath(path: string) {
+export function isOfficialWorkflowQueryPath(path: string) {
     const normalized = path.replace(/\/+$/, "").toLowerCase();
     return normalized === "/openapi/v2/query" || normalized === "/task/openapi/status";
 }

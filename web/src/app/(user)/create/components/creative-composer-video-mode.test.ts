@@ -18,8 +18,9 @@ describe("shouldShowVideoFrameControls", () => {
         expect(shouldShowVideoFrameControls("audio", { video: { referenceMode: "first_frame" } })).toBe(false);
     });
 
-    it("makes the edited Agent parameter capability immediately effective", () => {
-        expect(applyAgentGenerationCapability("agent", "video", { image: { quality: "high" } })).toEqual({ mode: "video", image: { quality: "high" } });
+    it("does not turn parameter browsing into a forced generation mode", () => {
+        expect(applyAgentGenerationCapability("agent", "video", { image: { quality: "high" } })).toEqual({ image: { quality: "high" } });
+        expect(applyAgentGenerationCapability("agent", "audio", { mode: "video" })).toEqual({});
         expect(applyAgentGenerationCapability("image", "video", { mode: "image" })).toEqual({ mode: "image" });
     });
 });

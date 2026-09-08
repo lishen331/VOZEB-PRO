@@ -80,7 +80,7 @@ function toClaudeRequest(payload: Record<string, unknown>) {
     return {
         model: modelName(payload.model),
         max_tokens: number(payload.max_tokens, 4096),
-        messages: messages.filter((item) => object(item)?.role !== "system").map((item) => ({ role: object(item)?.role === "assistant" ? "assistant" : "user", content: contentText(object(item)?.content) })),
+        messages: messages.filter((item) => object(item)?.role !== "system").map((item) => ({ role: object(item)?.role === "assistant" ? "assistant" : "user", content: claudeContent(object(item)?.content) })),
         ...(systemText ? { system: systemText } : {}),
         ...(tools.length ? { tools } : {}),
         ...(text(functionChoice?.name) ? { tool_choice: { type: "tool", name: text(functionChoice?.name) } } : {}),
@@ -139,9 +139,24 @@ function contentParts(value: unknown) {
     const content = Array.isArray(value) ? value : [{ type: "text", text: contentText(value) }];
     return content.map((item) => {
         const record = object(item) || {};
-        if (record.type === "image_url") return { fileData: { fileUri: text(object(record.image_url)?.url) || text(record.image_url), mimeType: "image/png" } };
-        if (record.type === "video_url") return { fileData: { fileUri: text(object(record.video_url)?.url) || text(record.video_url), mimeType: "video/mp4" } };
+        if (record.type === "image_url" || record.type === "video_url") {
+            const url = text(object(record[record.type])?.url) || text(record[record.type]);
+            const inline = /^data:([^;]+);base64,(.+)$/.exec(url);
+            return inline ? { inlineData: { mimeType: inline[1], data: inline[2] } } : { fileData: { fileUri: url, mimeType: record.type === "image_url" ? "image/png" : "video/mp4" } };
+        }
         return { text: text(record.text) || contentText(record) };
+    });
+}
+
+function claudeContent(value: unknown) {
+    if (!Array.isArray(value)) return contentText(value);
+    return value.map((part) => {
+        const item = object(part) || {};
+        if (item.type === "video_url") throw new Error("当前 Claude 原生协议不支持视频输入，不能忽略视频后继续分析");
+        if (item.type !== "image_url") return { type: "text", text: text(item.text) };
+        const url = text(object(item.image_url)?.url) || text(item.image_url);
+        const inline = /^data:([^;]+);base64,(.+)$/.exec(url);
+        return { type: "image", source: inline ? { type: "base64", media_type: inline[1], data: inline[2] } : { type: "url", url } };
     });
 }
 

@@ -1,3 +1,4 @@
+import { dramaLabStyleContext } from "@/lib/drama-lab-style-prompt";
 import type { DramaProject, DramaShot, DramaShotFrameType } from "@/lib/drama-project-contract";
 import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
@@ -29,7 +30,7 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
     );
     const userPrompt = JSON.stringify({
         task: `${input.frameType} frame prompt planning`,
-        project: { id: input.project.id, title: input.project.title, style: input.project.style, ratio: input.project.ratio },
+        project: { id: input.project.id, title: input.project.title, style: input.project.style, ...dramaLabStyleContext(input.project.style), ratio: input.project.ratio },
         episode: { title: episode.title },
         shot: { ...shot },
         boundAssets: references.map((reference) => ({ id: reference.id, label: reference.label, url: reference.url })),
