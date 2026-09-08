@@ -153,6 +153,9 @@ Files: Canvas compact snapshot / assistant-panel、Canvas 专属媒体解析、�
 - 画布历史保留 Agent 操作/确认回执，撤销只恢复图内容，不能使已处理的待确认方案再次执行。
 - 分组核对完成：普通 Canvas 无通用分组容器或分组 CRUD；`imageLayer.groupId` 只是图片分层字段，本阶段不伪造分组能力。
 
+### 代码检查点
+- Git提交：`78c0af34 feat(canvas-agent): add destructive operation confirmation`。
+
 ### 验证
 - 定向新增验证：破坏性纯函数、预览组件、Agent 解析/执行器、SSE、恢复、历史共 51 项；此前布局与可靠性回归 175 项。最新关键定向回归 **148 项通过**。
 - 类型检查：本次新增代码无错误；全项目仍仅学校模块缺 `papaparse` 及两处关联隐式 any。
