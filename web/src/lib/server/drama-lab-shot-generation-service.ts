@@ -1,3 +1,4 @@
+import { resolveDramaLabStylePrompt } from "@/lib/drama-lab-style-prompt";
 import type { DramaAssetReference, DramaEpisode, DramaProject, DramaShot, DramaShotFrameSource, DramaShotFrameType, DramaShotGenerationHistory, DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
 import { dramaAssetPrimaryReference, dramaShotAssetReferences } from "@/lib/drama-asset-references";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
@@ -326,6 +327,8 @@ function shotGenerationContext(project: DramaProject, episode: DramaEpisode, sho
         `项目：${project.title}`,
         `剧集：${episode.title}`,
         `统一风格：${project.style || "未设置"}`,
+        `风格正文（中文）：${resolveDramaLabStylePrompt(project.style).zh}`,
+        `风格正文（英文）：${resolveDramaLabStylePrompt(project.style).en}`,
         `画幅比例：${project.ratio}`,
         `分镜：${shot.title}`,
         `镜头内容：${shot.description || shot.sourceText}`,

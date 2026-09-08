@@ -1,3 +1,4 @@
+import { dramaLabStyleContext } from "@/lib/drama-lab-style-prompt";
 import { nanoid } from "nanoid";
 import { jsonrepair } from "jsonrepair";
 
@@ -107,7 +108,7 @@ export async function extractDramaLabStoryboards(input: StoryboardExtractionInpu
     );
     const userPrompt = JSON.stringify({
         task: "从当前集剧本拆解可执行的结构化分镜",
-        project: { title: input.project.title, style: input.project.style, aspectRatio: input.project.ratio },
+        project: { title: input.project.title, style: input.project.style, ...dramaLabStyleContext(input.project.style), aspectRatio: input.project.ratio },
         episode: { id: episode.id, title: episode.title, script },
         availableAssets: {
             characters: input.project.characters.map((asset) => ({ id: asset.id, name: asset.name, description: asset.description || "", visualIdentity: asset.profile?.visualIdentity || "", styling: asset.profile?.styling || "" })),

@@ -1,3 +1,4 @@
+import { dramaLabStyleContext } from "@/lib/drama-lab-style-prompt";
 import { nanoid } from "nanoid";
 
 import type { DramaCharacter, DramaProject, DramaProp, DramaScene } from "@/lib/drama-project-contract";
@@ -43,7 +44,7 @@ export async function extractDramaLabAssets(input: { userId: string; origin: str
     );
     const userPrompt = JSON.stringify({
         task: `从当前集剧本提取${assetLabel(input.assetType)}`,
-        project: { title: input.project.title, style: input.project.style, aspectRatio: input.project.ratio },
+        project: { title: input.project.title, style: input.project.style, ...dramaLabStyleContext(input.project.style), aspectRatio: input.project.ratio },
         episode: { id: episode.id, title: episode.title, script },
         existingAssets: existing.map((item) => ({ name: assetName(item), description: item.description || "" })),
     });
