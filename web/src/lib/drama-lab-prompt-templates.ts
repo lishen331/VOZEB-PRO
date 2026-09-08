@@ -1,3 +1,5 @@
+import productionFrameDefaults from "./drama-lab-production-frame-defaults.json";
+
 export const DRAMA_LAB_PROMPT_KEYS = ["story_expansion_system", "character_extraction", "scene_extraction", "prop_extraction", "storyboard_system", "storyboard_user_suffix", "first_frame_prompt", "key_frame_prompt", "last_frame_prompt"] as const;
 
 export type DramaLabCanonicalPromptKey = (typeof DRAMA_LAB_PROMPT_KEYS)[number];
@@ -104,11 +106,7 @@ sceneId 只能引用 availableAssets.scenes 内真实 ID；characterIds 和 prop
         name: "首帧图像提示词",
         category: "image",
         description: "控制如何为分镜生成动作开始前的静态首帧提示词。",
-        template: `你是一个专业的电影分镜图像生成提示词专家。首帧是动作发生前的完全静态画面。
-
-仅允许 CONTEXT 中“本分镜允许出场的角色”名单内人物；角色只能写“角色名（参考图中的人物形象）”加位置、姿态和表情，禁止抄写或脑补外貌。场景/环境句严禁人物外貌。仅描述实际出现、符合时代的道具，所有道具遵循真实物理尺度和透视，且为次要环境元素；古代/古装禁止现代物品。
-
-prompt 按五层组织：镜头设计；光线；内容焦点（角色、背景、道具真实尺度）；氛围；电影写实、电影分镜质感、画幅比例。返回 JSON 对象：{ "prompt": "完整中文图片提示词", "description": "一句话中文描述" }，不要 Markdown 或其他文字。`,
+        template: productionFrameDefaults.first_frame_prompt,
         variables: ["镜头信息", "角色资产", "场景资产", "项目风格", "画幅比例"],
     },
     {
@@ -116,11 +114,7 @@ prompt 按五层组织：镜头设计；光线；内容焦点（角色、背景�
         name: "关键帧图像提示词",
         category: "image",
         description: "控制如何为分镜生成动作或情绪高潮的关键帧提示词。",
-        template: `你是一个专业的电影分镜图像生成提示词专家。关键帧捕捉动作最激烈、信息量最大或情绪最饱满的瞬间。
-
-仅允许 CONTEXT 中本分镜的角色名单；角色只能写“角色名（参考图中的人物形象）”加高潮姿态和情绪，禁止外貌脑补。场景句不得出现人物外貌。只描述实际绑定的道具，严格遵循所属时代真实物理尺度、透视和次要环境比例，不引入未绑定资产。
-
-prompt 按镜头设计、光线、内容焦点（含真实尺度）、氛围、电影视觉风格组织。返回 JSON 对象：{ "prompt": "完整中文图片提示词", "description": "一句话中文描述" }，不要 Markdown 或其他文字。`,
+        template: productionFrameDefaults.key_frame_prompt,
         variables: ["镜头信息", "角色资产", "场景资产", "项目风格", "画幅比例"],
     },
     {
@@ -128,11 +122,7 @@ prompt 按镜头设计、光线、内容焦点（含真实尺度）、氛围、�
         name: "尾帧图像提示词",
         category: "image",
         description: "控制如何为分镜生成动作结束后的静态尾帧提示词。",
-        template: `你是一个专业的电影分镜图像生成提示词专家。尾帧是动作完成后的静态最终状态，展示可见结果、人物最终站位和情绪余韵。
-
-仅允许本分镜角色名单；角色只能写“角色名（参考图中的人物形象）”加最终姿态和表情，禁止外貌脑补。必须保持首帧参考图/布局锚点中的核心站位、真实物理尺度、透视和基本空间关系，同时根据 declared movement 产生有意义的取景演化（缓推更紧、横摇自然偏移、手持轻微漂移），不得左右互换角色或夸大道具。
-
-返回 JSON 对象：{ "prompt": "完整中文图片提示词", "description": "一句话中文描述" }，不要 Markdown 或其他文字。`,
+        template: productionFrameDefaults.last_frame_prompt,
         variables: ["镜头信息", "角色资产", "场景资产", "项目风格", "画幅比例"],
     },
 ] as const;

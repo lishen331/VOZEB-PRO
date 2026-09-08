@@ -11,3 +11,9 @@ export function dramaLabStyleContext(value: string | undefined) {
     const { zh, en } = resolveDramaLabStylePrompt(value);
     return { stylePromptZh: zh, stylePromptEn: en };
 }
+
+/** Replace only the declared frame variables in one pass; user text is never evaluated. */
+export function renderDramaLabFrameTemplate(template: string, project: { style: string; ratio: string }) {
+    const variables = { ...dramaLabStyleContext(project.style), aspectRatio: project.ratio };
+    return template.replace(/\{\{(stylePromptZh|stylePromptEn|aspectRatio)\}\}/g, (_, key: keyof typeof variables) => variables[key]);
+}
