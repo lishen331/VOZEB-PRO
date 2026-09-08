@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { fileTypeFromBuffer } from "file-type";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { CREATIVE_UPLOAD_MAX_BYTES, isCreativeUploadMimeType } from "@/lib/creative-upload";
+import { creativeUploadLimitMessage, creativeUploadMaxBytes, isCreativeUploadMimeType } from "@/lib/creative-upload";
 import { writePersistentMediaDataUrl, writeReferenceMediaDataUrl } from "@/lib/server/reference-asset-store";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { createSignedReferenceAssetUrl } from "@/lib/server/reference-asset-access";
@@ -11,7 +11,7 @@ import { readRequestBodyBytes, RequestBodyTooLargeError } from "@/lib/server/req
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const MAX_MULTIPART_BYTES = CREATIVE_UPLOAD_MAX_BYTES + 64 * 1024;
+const MAX_MULTIPART_BYTES = 800 * 1024 * 1024 + 64 * 1024;
 
 type UploadInput = { dataUrl: string; type: "image" | "video" | "audio"; persistent: boolean; originalName?: string };
 
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
             ownerUserId: currentUser.id,
             source: "user-upload",
             originalName: input.originalName,
-            maxBytes: CREATIVE_UPLOAD_MAX_BYTES,
+            maxBytes: creativeUploadMaxBytes(input.type),
         };
         const asset = input.persistent ? await writePersistentMediaDataUrl(input.dataUrl, input.type, context) : await writeReferenceMediaDataUrl(input.dataUrl, input.type, context);
         const origin = resolvePublicRequestOrigin(request);
@@ -56,12 +56,13 @@ async function readUploadInput(request: Request): Promise<UploadInput> {
             const bytes = await readRequestBodyBytes(request, MAX_MULTIPART_BYTES);
             form = await new Request(request.url, { method: "POST", headers: { "content-type": contentType }, body: bytes }).formData();
         } catch (error) {
-            if (error instanceof RequestBodyTooLargeError) throw new RequestBodyTooLargeError("单个文件不能超过 20MB");
+            if (error instanceof RequestBodyTooLargeError) throw new RequestBodyTooLargeError("上传文件超过 800MB");
             throw new UploadInputError("上传内容格式不正确");
         }
         const file = form.get("file");
         if (!(file instanceof File) || !file.size) throw new UploadInputError("缺少参考素材");
-        if (file.size > CREATIVE_UPLOAD_MAX_BYTES) throw new RequestBodyTooLargeError("单个文件不能超过 20MB");
+        const fileType = mediaType(form.get("type"));
+        if (file.size > creativeUploadMaxBytes(fileType)) throw new RequestBodyTooLargeError(creativeUploadLimitMessage(fileType));
         const type = mediaType(form.get("type"));
         const bytes = Buffer.from(await file.arrayBuffer());
         const mimeType = await resolveMultipartMimeType(bytes, type, file.type);

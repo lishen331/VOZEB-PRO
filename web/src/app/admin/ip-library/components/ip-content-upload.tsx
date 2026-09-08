@@ -16,6 +16,17 @@ const ACCEPT: Record<IpAssetKind, string> = {
     video: ".mp4,.webm,.mov,video/mp4,video/webm,video/quicktime",
 };
 
+const IP_CONTENT_FILE_MAX_BYTES: Record<IpAssetKind, number> = {
+    text: 20 * 1024 * 1024,
+    image: 20 * 1024 * 1024,
+    audio: 30 * 1024 * 1024,
+    video: 800 * 1024 * 1024,
+};
+
+function maxBytesLabel(kind: IpAssetKind) {
+    return `${Math.floor(IP_CONTENT_FILE_MAX_BYTES[kind] / 1024 / 1024)}MB`;
+}
+
 export function IpContentUpload({
     variant = "default",
     ipId,
@@ -88,6 +99,10 @@ export function IpContentUpload({
                     showUploadList={false}
                     disabled={disabled}
                     beforeUpload={(file) => {
+                        if (file.size > IP_CONTENT_FILE_MAX_BYTES[kind]) {
+                            message.error(kind === "video" ? "单个视频文件不能超过 800MB" : `单个${kind === "audio" ? "音频" : kind === "image" ? "图片" : "文本"}文件不能超过 ${maxBytesLabel(kind)}`);
+                            return Upload.LIST_IGNORE;
+                        }
                         void upload(file);
                         return Upload.LIST_IGNORE;
                     }}
@@ -97,6 +112,7 @@ export function IpContentUpload({
                     </Button>
                 </Upload>
             </div>
+            <p className="text-xs text-zinc-500">各类型上限：文本/图片 20MB，音频 30MB，视频 800MB</p>
             {kind === "text" ? (
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                     <Input.TextArea value={manualText} rows={3} placeholder="手工录入正文" onChange={(event) => setManualText(event.target.value)} />

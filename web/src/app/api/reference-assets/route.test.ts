@@ -21,7 +21,7 @@ describe("reference asset upload boundary", () => {
         mocks.createSignedUrl.mockReturnValue("https://drama.example/api/reference-assets/permanent/asset.mp4?expires=1&signature=test");
     });
 
-    it("always applies the 20MB user upload limit even when persistent is requested", async () => {
+    it("applies the type-aware video upload limit when persistent is requested", async () => {
         const response = await POST(
             new Request("http://localhost/api/reference-assets", {
                 method: "POST",
@@ -34,7 +34,7 @@ describe("reference asset upload boundary", () => {
             ownerUserId: "user-one",
             source: "user-upload",
             originalName: "产品展示.mp4",
-            maxBytes: 20 * 1024 * 1024,
+            maxBytes: 800 * 1024 * 1024,
         });
     });
 

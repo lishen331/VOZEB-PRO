@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
+import { creativeUploadLimitMessage } from "@/lib/creative-upload";
 import { CreativeRuntimeServiceError, referenceAssetForUser, uploadAssetForUser } from "@/lib/server/creative-runtime-service";
 import { readRequestBodyBytes, RequestBodyTooLargeError } from "@/lib/server/request-body-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_UPLOAD_REQUEST_BYTES = CREATIVE_UPLOAD_MAX_BYTES + 64 * 1024;
+const MAX_UPLOAD_REQUEST_BYTES = 800 * 1024 * 1024 + 64 * 1024;
 const MAX_REFERENCE_ASSET_REQUEST_BYTES = 64 * 1024;
 
 export async function POST(request: Request) {
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         const asset = await uploadAssetForUser(user.id, conversationId, file);
         return NextResponse.json({ code: 0, data: { asset }, msg: "素材已上传" });
     } catch (error) {
-        if (error instanceof RequestBodyTooLargeError) return NextResponse.json({ code: error.status, data: null, msg: "单个素材不能超过 20MB" }, { status: error.status });
+        if (error instanceof RequestBodyTooLargeError) return NextResponse.json({ code: error.status, data: null, msg: "上传素材超过 800MB" }, { status: error.status });
         if (error instanceof CreativeRuntimeServiceError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });
         throw error;
     }
