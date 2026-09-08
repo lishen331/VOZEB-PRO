@@ -42,6 +42,37 @@ function run(patch: Partial<AgentRun> = {}): AgentRun {
     };
 }
 describe("Canvas durable result recovery", () => {
+    it("does not replace a live media alternative with a duplicate output on entry", () => {
+        const r = run();
+        r.tasks[0].type = "image";
+        r.tasks[0].result = { serverUrl: "/image.png" };
+        const p = project();
+        p.nodes.push({ ...p.nodes[0], id: "canvas-conflict-run-output-run-0-0", type: CanvasNodeType.Image, metadata: { content: "/reviewed.png", agentRunId: "run" } });
+        p.chatSessions = [
+            { id: "s", title: "chat", conversationId: r.conversationId, createdAt: p.createdAt, updatedAt: p.updatedAt, messages: [{ id: "a", role: "assistant", runId: r.id, text: "done", detail: { nodeIds: ["canvas-conflict-run-output-run-0-0"] } }] },
+        ];
+        expect(recoverCanvasAgentResults(p, [r], "owner").nodes).toEqual(p.nodes);
+    });
+
+    it("does not replay a live edit or recreate a deleted live conflict alternative", () => {
+        const r = run();
+        r.tasks[0].targetNodeId = "original";
+        const p = project();
+        p.nodes[0].metadata = { content: "user correction" };
+        p.chatSessions = [
+            {
+                id: "s",
+                conversationId: r.conversationId,
+                title: "chat",
+                createdAt: p.createdAt,
+                updatedAt: p.updatedAt,
+                messages: [{ id: "a", role: "assistant", runId: r.id, text: "done", detail: { nodeIds: ["original", "canvas-conflict-run-original"] } }],
+            },
+        ];
+        const next = recoverCanvasAgentResults(p, [r], "owner");
+        expect(next.nodes).toEqual(p.nodes);
+    });
+
     it("does not overwrite a target converted to another node type while generation runs", () => {
         const r = run();
         r.tasks[0].targetNodeId = "original";

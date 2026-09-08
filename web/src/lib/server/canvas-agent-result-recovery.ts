@@ -70,6 +70,7 @@ export function recoverCanvasAgentResults(project: CanvasRecoveryProject, runs: 
                 if ((op.type === "add_node" || op.type === "update_node") && op.id?.startsWith(`output-${run.id}-`)) {
                     // A task can retry only one child: successful siblings must
                     // remain applied even when the parent result fingerprint changes.
+                    if (liveDelivered.has(`canvas-conflict-${run.id}-${op.id}`)) continue;
                     const key = `output:${op.id}`;
                     const digest = createHash("sha256")
                         .update(JSON.stringify({ content: op.metadata?.content, status: op.metadata?.status }))
@@ -87,6 +88,9 @@ export function recoverCanvasAgentResults(project: CanvasRecoveryProject, runs: 
                 let effective = op;
                 if (op.type === "update_node" && op.id === task.targetNodeId) {
                     const target = nodes.find((n) => n.id === op.id);
+                    // A delivered live conflict must not be duplicated or resurrected on entry.
+                    if (liveDelivered.has(`canvas-conflict-${run.id}-${op.id}`) || liveDelivered.has(`recovered-${run.id}-${task.id}-0`)) continue;
+                    if (liveDelivered.has(op.id) && (!target || target.metadata?.agentRunId === run.id)) continue;
                     const content = op.metadata?.content;
                     if (target?.metadata?.content === content && target?.metadata?.agentRunId === run.id) continue;
                     const original = snapshotText(run, op.id);

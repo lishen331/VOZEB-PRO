@@ -16,6 +16,9 @@ import { useUserStore } from "@/stores/use-user-store";
 import { CREATIVE_RUN_MODEL_LIMIT, type CreativeGenerationPreferences } from "@/lib/creative-runtime-contract";
 import { CreativeAgentControls, CreativeAgentSkillCard, type CreativeAgentModelOption } from "@/components/agent/creative-agent-controls";
 import { useCreativeAgentOptions } from "@/hooks/use-creative-agent-options";
+import { createCanvasAgentLiveGuard, type CanvasAgentLiveGuard } from "../utils/canvas-agent-live-results";
+import { persistCanvasAgentResult } from "../utils/canvas-agent-result-save";
+import { useCanvasStore } from "../stores/use-canvas-store";
 import { watchCanvasAgentRun } from "./canvas-agent-run-client";
 import { withCanvasAgentRunWatch } from "./canvas-agent-run-watch-guard";
 import type { CanvasAgentRunStage } from "./canvas-agent-progress";
@@ -45,7 +48,7 @@ type CanvasAssistantPanelProps = {
     activeSessionId: string | null;
     onSelectNodeIds: (ids: Set<string>) => void;
     onSessionsChange: (sessions: CanvasAssistantSession[], activeSessionId: string | null) => void;
-    onApplyOps: (ops?: CanvasAgentOp[]) => CanvasAgentSnapshot;
+    onApplyOps: (ops?: CanvasAgentOp[], guard?: CanvasAgentLiveGuard) => CanvasAgentSnapshot;
     onLocateNode: (nodeId: string) => void;
     onPasteImage: (file: File) => Promise<string>;
     closing: boolean;
@@ -74,6 +77,7 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
     const [localSessions, setLocalSessions] = useState<CanvasAssistantSession[]>(sessions);
     const [localActiveSessionId, setLocalActiveSessionId] = useState<string | null>(activeSessionId);
     const snapshotRef = useRef(snapshot);
+    const liveGuardsRef = useRef(new Map<string, CanvasAgentLiveGuard>());
     const localSessionsRef = useRef(localSessions);
     const localActiveSessionIdRef = useRef(localActiveSessionId);
     const restoredProjectRef = useRef("");
@@ -249,7 +253,8 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
 
         const refs = savedReferences || selectedReferences;
         const submittedReferenceIds = new Set(refs.map((item) => item.id));
-        const runSnapshot = compactSnapshot(snapshotRef.current);
+        const originalSnapshot = snapshotRef.current;
+        const runSnapshot = compactSnapshot(originalSnapshot);
         const userMessage: CanvasAssistantMessage = { id: nanoid(), role: "user", text, references: refs };
         const assistantId = nanoid();
         const planningStage = { key: "planning" as const, text: "正在理解你的需求" };
@@ -277,6 +282,7 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
             });
             const run = payload.run;
             createdRunId = run.id;
+            liveGuardsRef.current.set(run.id, createCanvasAgentLiveGuard(run.id, originalSnapshot));
             restoredRunIdsRef.current.add(run.id);
             updateSession(session.id, (current) => ({ ...current, conversationId: run.conversationId }));
             upsertMessage(session.id, { id: assistantId, runId: run.id, role: "assistant", text: submittedReferenceIds.size ? "收到，我会基于当前选中素材处理这次创作需求。" : "收到，我会结合当前画布处理这次创作需求。" });
@@ -298,12 +304,18 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
         await withCanvasAgentRunWatch(watchingRunIdsRef.current, runId, async () => {
             const controller = new AbortController();
             runWatchControllersRef.current.set(runId, controller);
+            const projectId = snapshotRef.current.projectId;
+            const guard = liveGuardsRef.current.get(runId) || createCanvasAgentLiveGuard(runId);
+            liveGuardsRef.current.set(runId, guard);
+            const applyOps = (ops: CanvasAgentOp[]) => {
+                onApplyOps(ops, guard);
+            };
             try {
                 await watchCanvasAgentRun(
                     runId,
                     {
                         onPlan: (ops, reply) => {
-                            onApplyOps(ops);
+                            applyOps(ops);
                             upsertMessage(sessionId, { id: assistantId, role: "assistant", text: reply });
                         },
                         onAssistant: (text, detail) => {
@@ -314,14 +326,47 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                                 else appendMessage(sessionId, failure);
                                 return;
                             }
-                            upsertMessage(sessionId, { id: assistantId, role: detail?.runId ? "error" : "assistant", title: detail?.title, text, ...(detail?.nodeIds?.length || detail?.runId ? { detail } : {}) });
+                            upsertMessage(sessionId, {
+                                id: assistantId,
+                                runId,
+                                role: detail?.runId ? "error" : "assistant",
+                                title: detail?.title,
+                                text,
+                                ...(detail?.nodeIds?.length || detail?.runId || guard.outputNodeIds.size ? { detail: { ...detail, nodeIds: Array.from(new Set([...(detail?.nodeIds || []), ...guard.outputNodeIds])) } } : {}),
+                            });
                         },
                         onStage: (stage) => updateSessionRun(sessionId, runId, { stage }),
                         onPaused: (paused) => updateSessionRun(sessionId, runId, { paused }),
-                        onOps: onApplyOps,
+                        onOps: applyOps,
                     },
                     { signal: controller.signal },
                 );
+                if (controller.signal.aborted || snapshotRef.current.projectId !== projectId) return;
+                if (guard.conflictNodeIds.size) {
+                    const nodeIds = Array.from(guard.conflictNodeIds);
+                    upsertMessage(sessionId, { id: `conflict-${runId}`, runId, role: "assistant", text: "生成期间目标已修改、删除，或原文无法确认；没有覆盖当前内容，生成内容已放在「待确认结果」节点，请确认后自行采用。", detail: { nodeIds } });
+                }
+                // Read refs synchronously after the last SSE op, then save conversation + graph together.
+                const latestSnapshot = onApplyOps([]);
+                updateSession(sessionId, (current) => ({
+                    ...current,
+                    messages: current.messages.map((item) => (item.id === assistantId ? { ...item, runId, detail: { ...(item.detail && typeof item.detail === "object" ? item.detail : {}), nodeIds: Array.from(guard.outputNodeIds) } } : item)),
+                }));
+                updateSessionRun(sessionId, runId, { stage: { key: "finalizing", text: "生成已结束，正在确认画布保存" } });
+                const saved = await persistCanvasAgentResult(latestSnapshot, localSessionsRef.current, localActiveSessionIdRef.current, useCanvasStore.getState);
+                if (controller.signal.aborted || snapshotRef.current.projectId !== projectId) return;
+                if (saved.status !== "saved") {
+                    appendMessage(sessionId, {
+                        id: nanoid(),
+                        runId,
+                        role: "error",
+                        title: saved.status === "conflict" ? "画布版本冲突" : "画布保存尚未确认",
+                        text:
+                            saved.status === "conflict"
+                                ? "其他页面已经更新画布。当前内容和生成结果仍保留在本页，未覆盖远端版本；请先保留本页修改，再处理版本冲突。"
+                                : `生成已结束，但画布尚未确认保存。${saved.message || "请查看画布保存状态并重试保存，不必重新生成。"}`,
+                    });
+                }
             } finally {
                 if (runWatchControllersRef.current.get(runId) === controller) runWatchControllersRef.current.delete(runId);
                 if (!controller.signal.aborted) {

@@ -370,4 +370,4 @@ flowchart LR
 
 普通画布进入时由客户端 `getCanvasProject` 发起 `POST /api/canvas/projects/[id]/recover-agent-results`，复用现有任务/事件持久记录，通过 `canvas-agent-recovery-service` 与 `canvas-agent-result-recovery` 生成差异。`mutateCanvasProjectForRecovery` 在 PostgreSQL 行锁事务或文件锁下合并，结果、对话与服务器私有回执同次保存。现有 GET 保持只读，主 Agent 与短剧专属画布不使用该路径。
 
-恢复回执存于既有 `project_json.__canvasAgentReceipts`，无表结构迁移；公共返回剥离，普通保存保留服务器值，导入不能伪造。当前实现为**进入时补齐**，不是生成完成时主动落入画布；未使用定时轮询。版本冲突保护适用于此恢复入口，不代表正在打开页面的旧 SSE 写入已整体改造。生成记录的现有保留期限仍约束可恢复范围。
+恢复回执存于既有 `project_json.__canvasAgentReceipts`，无表结构迁移；公共返回剥离，普通保存保留服务器值，导入不能伪造。当前实现为**进入时补齐**，不是生成完成时主动落入画布；未使用定时轮询。实时 SSE 路径由 `canvas-agent-live-results` 在最新节点引用上比较原文/类型，保护手工修改并保留待确认结果；`canvas-agent-result-save` 在终态等待既有保存队列并区分 409/失败/已保存。复用原有项目版本契约，不强制刷新、不新增轮询。真实 PostgreSQL 跨设备并发和完整线上交互仍待验收。生成记录的现有保留期限仍约束可恢复范围。

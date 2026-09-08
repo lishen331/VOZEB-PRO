@@ -7,6 +7,7 @@ import { buildNodeGenerationInputs, type NodeGenerationInput } from "../componen
 import { CanvasNodeType, type CanvasNodeData, type ConnectionHandle } from "../types";
 import { useCanvasLocalAgentBridge } from "../use-canvas-local-agent-bridge";
 import { applyCanvasAgentOps, type CanvasAgentOp, type CanvasAgentSnapshot } from "../utils/canvas-agent-ops";
+import { guardCanvasAgentLiveOps, type CanvasAgentLiveGuard } from "../utils/canvas-agent-live-results";
 import { createCanvasResourceReferenceIndex, type CanvasResourceReferenceIndex } from "../utils/canvas-resource-references";
 
 import { PendingConnectionCreate, type CanvasCreatableNodeType, createCanvasNode } from "./canvas-page-elements";
@@ -215,7 +216,7 @@ export function useCanvasInteractionCore({ state }: { state: CanvasPageState }) 
         [connections, currentProject?.title, effectiveConfig.size, nodes, projectId, selectedNodeIds, viewport],
     );
     const applyAgentOps = useCallback(
-        (ops?: CanvasAgentOp[]) => {
+        (ops?: CanvasAgentOp[], guard?: CanvasAgentLiveGuard) => {
             const safeOps = Array.isArray(ops) ? ops.filter((op) => op?.type) : [];
             const before = {
                 projectId,
@@ -226,10 +227,11 @@ export function useCanvasInteractionCore({ state }: { state: CanvasPageState }) 
                 selectedNodeIds: Array.from(selectedNodeIdsRef.current),
                 viewport: viewportRef.current,
             };
-            const generationOps = safeOps.filter((op): op is Extract<CanvasAgentOp, { type: "run_generation" }> => op.type === "run_generation" && Boolean(op.nodeId));
+            const guardedOps = guard ? guardCanvasAgentLiveOps(before, safeOps, guard) : safeOps;
+            const generationOps = guardedOps.filter((op): op is Extract<CanvasAgentOp, { type: "run_generation" }> => op.type === "run_generation" && Boolean(op.nodeId));
             const next = applyCanvasAgentOps(
                 before,
-                safeOps.filter((op) => op.type !== "run_generation"),
+                guardedOps.filter((op) => op.type !== "run_generation"),
             );
             nodesRef.current = next.nodes;
             connectionsRef.current = next.connections;
