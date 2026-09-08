@@ -2,16 +2,16 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { extname, resolve } from "node:path";
 import { fileTypeFromBuffer } from "file-type";
-import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
+import { creativeUploadMaxBytes } from "@/lib/creative-upload";
 
 import { resolveServerDataPath } from "@/lib/server/data-dir";
 
 export type LoginPageMediaKind = "heroVideoUrl" | "heroPosterUrl" | "jointBrandUrl";
 
 const RULES: Record<LoginPageMediaKind, { maxBytes: number; mimeTypes: Record<string, string> }> = {
-    heroVideoUrl: { maxBytes: CREATIVE_UPLOAD_MAX_BYTES, mimeTypes: { "video/mp4": ".mp4", "video/webm": ".webm" } },
-    heroPosterUrl: { maxBytes: CREATIVE_UPLOAD_MAX_BYTES, mimeTypes: { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp" } },
-    jointBrandUrl: { maxBytes: CREATIVE_UPLOAD_MAX_BYTES, mimeTypes: { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp" } },
+    heroVideoUrl: { maxBytes: creativeUploadMaxBytes("video"), mimeTypes: { "video/mp4": ".mp4", "video/webm": ".webm" } },
+    heroPosterUrl: { maxBytes: creativeUploadMaxBytes("image"), mimeTypes: { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp" } },
+    jointBrandUrl: { maxBytes: creativeUploadMaxBytes("image"), mimeTypes: { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp" } },
 };
 
 export class LoginPageMediaError extends Error {

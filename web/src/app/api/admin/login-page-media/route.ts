@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
 import { hasAdminPermission } from "@/lib/admin-permissions";
-import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
+import { creativeUploadMaxBytes } from "@/lib/creative-upload";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readRequestBodyBytes, RequestBodyTooLargeError } from "@/lib/server/request-body-limit";
 import { LoginPageMediaError, writeLoginPageMedia } from "@/lib/server/login-page-media";
 
 export const runtime = "nodejs";
-const MAX_LOGIN_PAGE_MEDIA_REQUEST_BYTES = CREATIVE_UPLOAD_MAX_BYTES + 64 * 1024;
+const MAX_LOGIN_PAGE_MEDIA_REQUEST_BYTES = creativeUploadMaxBytes("video") + 64 * 1024;
 
 export async function POST(request: Request) {
     const user = await getCurrentUser();
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
         const result = await writeLoginPageMedia(String(form.get("kind") || ""), file);
         return NextResponse.json({ url: result.url });
     } catch (error) {
-        if (error instanceof RequestBodyTooLargeError) return NextResponse.json({ error: "登录页物料文件不能超过 20MB" }, { status: error.status });
+        if (error instanceof RequestBodyTooLargeError) return NextResponse.json({ error: "登录页视频物料不能超过 800MB" }, { status: error.status });
         if (error instanceof LoginPageMediaError) return NextResponse.json({ error: error.message }, { status: error.status });
         console.error("Login page media upload failed", error);
         return NextResponse.json({ error: "登录页物料上传失败" }, { status: 500 });

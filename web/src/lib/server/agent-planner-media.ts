@@ -1,6 +1,6 @@
 import { signReferenceAssetInputUrl, signGenerationAssetInputUrl } from "./reference-asset-access";
 import type { CreativeAsset } from "@/lib/creative-runtime-contract";
-import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
+import { creativeUploadLimitMessage, creativeUploadMaxBytes } from "@/lib/creative-upload";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
@@ -47,11 +47,12 @@ export async function prepareAgentPlannerMedia(
             await response.body?.cancel();
             throw new Error("引用素材未返回匹配的媒体内容，不能按已读取继续执行");
         }
-        if (Number(response.headers.get("content-length")) > CREATIVE_UPLOAD_MAX_BYTES) {
+        const maxBytes = creativeUploadMaxBytes(asset.type);
+        if (Number(response.headers.get("content-length")) > maxBytes) {
             await response.body?.cancel();
-            throw new Error("引用素材超过上传大小限制");
+            throw new Error(creativeUploadLimitMessage(asset.type));
         }
-        const bytes = Buffer.from(await new Response(limitMediaResponseBody(response.body, CREATIVE_UPLOAD_MAX_BYTES)).arrayBuffer());
+        const bytes = Buffer.from(await new Response(limitMediaResponseBody(response.body, maxBytes)).arrayBuffer());
         if (!bytes.length) throw new Error("引用媒体为空");
         const url = `data:${mime};base64,${bytes.toString("base64")}`;
         total += Buffer.byteLength(url);

@@ -5,7 +5,7 @@ import { createDefaultChannelAdvancedConfig } from "@/components/admin/admin-sys
 import { toNumberOrOne, toNumberOrZero, uniqueList } from "@/components/admin/admin-values";
 import { channelProtocolDefinition, channelSupportsModelCatalog, normalizeStrictProtocolModelConfig } from "@/lib/channel-protocol-registry";
 import { nanoid } from "nanoid";
-import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
+import { creativeUploadLimitMessage, creativeUploadMaxBytes, creativeUploadTypeFromMime } from "@/lib/creative-upload";
 import type { ReactNode } from "react";
 
 import type { AuthSettings, PublicUser, PublicUserSummary, SiteFriendLink, SiteSocialKey, SystemChannelAdvancedConfig, SystemModelChannel } from "@/lib/auth/store";
@@ -241,8 +241,9 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
             message.warning(`${label} 格式不支持`);
             return;
         }
-        if (file.size > CREATIVE_UPLOAD_MAX_BYTES) {
-            message.warning(`${label} 文件过大`);
+        const type = creativeUploadTypeFromMime(file.type);
+        if (type && file.size > creativeUploadMaxBytes(type)) {
+            message.warning(`${label}：${creativeUploadLimitMessage(type)}`);
             return;
         }
         const form = new FormData();
