@@ -1,3 +1,4 @@
+import { isOfficialWorkflowQueryPath, queryRunningHubTask } from "./runninghub-provider";
 import { generationTaskShouldConsumePoints } from "@/lib/server/generation-execution-policy";
 import { fileTypeFromBuffer } from "file-type";
 import { mediaTaskSource } from "@/lib/media-management-contract";
@@ -124,6 +125,20 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
 
 export async function queryAudioTaskUpstreamStep(task: AudioTask, origin: string, cookie = "", workerUserId = ""): Promise<AudioUpstreamStep> {
     if (!task.upstream?.id) return { state: "failed", status: "missing_upstream_id", error: "音频任务缺少上游任务 ID" };
+    if (task.config.advancedConfig?.protocol === "runninghub" && isOfficialWorkflowQueryPath(task.config.advancedConfig.queryPath || "")) {
+        const workflow = workflowConfigForTask(task);
+        const result = await queryRunningHubTask({
+            baseUrl: new URL(task.config.baseUrl, origin).href,
+            apiKey: task.config.apiKey,
+            taskId: task.upstream.id,
+            config: { ...task.config.advancedConfig, outputMappings: workflow?.outputMappings, timeoutSeconds: workflow?.timeoutSeconds },
+            fetchImpl: (_url, init = {}) => providerFetch(task, origin, cookie, workerUserId, task.config.advancedConfig!.queryPath!, init),
+        });
+        if (FAILED.has(result.status.toLowerCase())) return { state: "failed", status: result.status, error: result.querySummary?.upstreamError || readProviderError(result.raw) || "RunningHub 音频生成失败" };
+        if (result.resultUrl) return { state: "result_ready", status: result.status, resultUrl: result.resultUrl };
+        if (["success", "succeeded", "completed"].includes(result.status.toLowerCase())) return { state: "failed", status: result.status, error: "RunningHub 已完成，但输出节点未返回音频" };
+        return { state: "pending", status: result.status, upstreamTaskId: task.upstream.id, createPath: task.upstream.createPath };
+    }
     let lastError = "";
     for (const path of providerQueryPaths(task.config.advancedConfig, task.upstream.id, [`${task.upstream.createPath.replace(/\/+$/, "")}/${encodeURIComponent(task.upstream.id)}`])) {
         const workflow = workflowConfigForTask(task);

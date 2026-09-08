@@ -44,7 +44,13 @@ export function PracticePromptEditor({
         setBusy(true);
         const current = revision.current;
         try {
-            const prompt = await optimizePrompt({ requestId: crypto.randomUUID(), prompt: brief.trim() || value.trim(), mode });
+            const prompt = await optimizePrompt({
+                requestId: crypto.randomUUID(),
+                prompt: [`创作任务：${label}。`, brief.trim() ? `${briefLabel}：${brief.trim()}` : "", value.trim() ? `当前提示词（保留用户修改）：${value.trim()}` : "", "输出可直接生成的提示词，不解释，不添加未要求的人物或情节。"]
+                    .filter(Boolean)
+                    .join("\n"),
+                mode,
+            });
             if (revision.current === current) onChange(prompt);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "生成提示词失败");

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "antd";
+import { Button, Popconfirm } from "antd";
 import { AudioLines, FileText, Film, Image as ImageIcon, RotateCcw, Trash2 } from "lucide-react";
 
 import type { PracticeSession } from "@/services/api/practice";
@@ -30,6 +30,7 @@ export default function PracticeSessionHistory({
                             <span className="block truncate text-sm font-medium">{session.title}</span>
                             <span className="mt-1 block text-xs text-muted-foreground">{practiceSessionStatusLabel(session)}</span>
                             <span className="mt-2 block truncate text-xs text-muted-foreground">{session.errorMessage || practiceSessionPreview(session)}</span>
+                            <time className="mt-1 block text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleString()}</time>
                         </span>
                     </button>
                     {practiceSessionCanRetry(session) && onRetry ? (
@@ -38,9 +39,11 @@ export default function PracticeSessionHistory({
                         </Button>
                     ) : null}
                     {onDelete ? (
-                        <Button type="text" size="small" icon={<Trash2 className="size-3.5" />} onClick={() => onDelete(session)} className="!mt-2 !ml-2" danger>
-                            删除
-                        </Button>
+                        <Popconfirm title="删除这条练习记录？" description="只删除本地练习记录，不取消上游任务。" onConfirm={() => onDelete(session)} okText="删除" cancelText="取消">
+                            <Button type="text" size="small" icon={<Trash2 className="size-3.5" />} className="!mt-2 !ml-2" danger>
+                                删除
+                            </Button>
+                        </Popconfirm>
                     ) : null}
                 </article>
             ))}

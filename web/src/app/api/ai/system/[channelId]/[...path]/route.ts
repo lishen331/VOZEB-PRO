@@ -277,7 +277,7 @@ function isJsonResponse(response: Response) {
 }
 
 function injectRunningHubWorkflowApiKey(body: BodyInit | undefined, path: string[], protocol: string | undefined, apiKey: string) {
-    if (protocol !== "runninghub" || path.join("/").replace(/^\/+|\/+$/g, "") !== "task/openapi/create" || !(body instanceof ArrayBuffer)) return body;
+    if (protocol !== "runninghub" || !["task/openapi/create", "openapi/v2/query", "task/openapi/status"].includes(path.join("/").replace(/^\/+|\/+$/g, "")) || !(body instanceof ArrayBuffer)) return body;
     try {
         const parsed = JSON.parse(new TextDecoder().decode(body)) as unknown;
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return body;
