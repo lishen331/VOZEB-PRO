@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SystemChannelAdvancedConfig, SystemModelChannel } from "@/lib/auth/store";
-import { fetchInternalApi } from "@/lib/server/internal-origin";
+import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { getTextPlanningRuntime, isStructuredTextFailure, rankTextPlanningCandidates, requestStructuredText, resetTextPlanningRuntime, type TextPlanningCandidate } from "./text-planning-runtime";
 
-vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: vi.fn() }));
+vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: vi.fn(), resolveInternalOrigin: vi.fn(() => "http://127.0.0.1:3000") }));
 vi.mock("@/lib/server/channel-runtime-health", () => ({ recordChannelRuntimeFailure: vi.fn(), recordChannelRuntimeSuccess: vi.fn() }));
 vi.mock("@/lib/server/maintenance-auth", () => ({ maintenanceWorkerContextHeaders: vi.fn(() => null) }));
 
 const mockedFetch = vi.mocked(fetchInternalApi);
+const mockedResolveInternalOrigin = vi.mocked(resolveInternalOrigin);
 const mockedWorkerHeaders = vi.mocked(maintenanceWorkerContextHeaders);
 const tool = { name: "make_plan", description: "创建计划", parameters: { type: "object", properties: { result: { type: "string" } } } };
 
@@ -17,10 +18,19 @@ describe("text planning runtime protocol matrix", () => {
     beforeEach(() => {
         resetTextPlanningRuntime();
         mockedFetch.mockReset();
+        mockedResolveInternalOrigin.mockReset().mockReturnValue("http://127.0.0.1:3000");
         mockedWorkerHeaders.mockReset().mockReturnValue(null);
         vi.useRealTimers();
     });
 
+    it("routes public HTTPS origins through the configured internal callback origin", async () => {
+        mockedFetch.mockResolvedValue(chatJsonResponse());
+
+        await requestStructuredText({ ...requestInput(candidate("newapi")), origin: "https://gammatv.gammablue-x.com" });
+
+        expect(mockedResolveInternalOrigin).toHaveBeenCalledWith("https://gammatv.gammablue-x.com");
+        expect(String(mockedFetch.mock.calls[0]?.[0])).toBe("http://127.0.0.1:3000/api/ai/system/newapi-channel/chat/completions");
+    });
     it("keeps video content as a video part, not an image or text URL", async () => {
         mockedFetch.mockResolvedValue(chatJsonResponse());
         await requestStructuredText({ ...requestInput(candidate("newapi")), mediaInputs: [{ type: "video", url: "data:video/mp4;base64,aGVsbG8=" }] });
