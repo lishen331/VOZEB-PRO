@@ -310,3 +310,7 @@ Chat 规划可以返回 Canvas 或短剧 `projectHandoff`。服务端使用 `han
 后台 Agent Skill 保存在 `app_settings.agent_skills` JSONB 字段中，包含名称、用途、执行规则、启用状态和触发关键词。系统默认内置并启用“电商生图”Skill，管理员可在模型渠道设置页修改、停用、删除或新增 Skill。
 
 Skill 还可记录 `sourceUrl`、`sourceVersion` 和 `license`。默认电商生图 Skill 来源为 `buluslan/gpt-image2-ecommerce` v0.1.0（MIT），项目仅适配其工作流与模板匹配规则，不使用其 Codex CLI/Shell 执行链。
+
+## 课程封面存储
+
+课程封面使用既有 `platform_courses.content.coverStorageKey` JSON 字段保存永久媒体键，无新增表/列或旧表迁移。服务端保存时校验图片类型、永久状态与上传者归属，引用计数包含该字段，防止课程引用中的封面被媒体清理删除。学校封面读取按当前学校的课程分配和发布状态鉴权，不直接开放管理员私有媒体路径。

@@ -49,7 +49,7 @@ describe("school administration", () => {
         expect(source).not.toContain("while (true)");
         expect(source).toContain("coursesApi.createCourseOffering");
         expect(source).toContain("平台课程内容只读");
-        expect(source).toContain("课程已停用，不能创建新的教学安排");
+        expect(source).toContain("<SchoolCourseCovers");
         expect(source).toContain('size="min(640px, 100vw)"');
         expect(source).toContain("afterOpenChange");
         expect(source).toContain("课程附件");

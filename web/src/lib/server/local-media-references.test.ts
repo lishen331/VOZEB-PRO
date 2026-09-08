@@ -51,6 +51,7 @@ describe("countLocalMediaReferences", () => {
             "generation_log_assets",
             "generation_tasks",
             "published_work_assets",
+            "platform_courses",
         ])
             expect(sql).toContain(table);
     });

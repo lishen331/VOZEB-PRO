@@ -56,6 +56,7 @@ export async function getPlatformCourse(actorId: string, courseId: string) {
 
 export async function createPlatformCourse(actorId: string, input: PlatformCourseInput): Promise<PlatformCourse> {
     await requireEducationAdmin(actorId);
+    await validateCourseCover(actorId, input.content);
     const now = new Date().toISOString();
     const record: PlatformCourseRecord = {
         id: randomUUID(),
@@ -76,6 +77,7 @@ export async function updatePlatformCourse(actorId: string, courseId: string, in
     const repository = createSchoolDomainRepository();
     const existing = await repository.getPlatformCourse(courseId);
     if (!existing) throw new SchoolServiceError(404, "课程不存在");
+    if (input.content !== undefined) await validateCourseCover(actorId, input.content, existing.content);
     if (existing.status === "disabled" && input.status === "published") throw new SchoolServiceError(409, "停用课程请使用恢复操作");
     const patch = {
         ...(input.title === undefined ? {} : { title: requiredText(input.title, "课程标题", 160) }),
@@ -676,6 +678,16 @@ function isDuplicateCourseOfferingError(error: unknown) {
     if (!error || typeof error !== "object") return false;
     const candidate = error as { code?: unknown };
     return candidate.code === "23505";
+}
+
+async function validateCourseCover(actorId: string, content: unknown, existing?: unknown) {
+    const key = (content as { coverStorageKey?: unknown } | null)?.coverStorageKey;
+    if (key === undefined || key === "") return;
+    if (typeof key !== "string" || !key.startsWith("permanent/") || key.includes("..") || key.includes("\\")) throw new SchoolServiceError(400, "课程封面无效");
+    const previousKey = (existing as { coverStorageKey?: unknown } | null)?.coverStorageKey;
+    const registrations = await getLocalMediaRegistrations([key]);
+    const media = registrations.find((item) => item.storageKey === key);
+    if (!media || media.storageClass !== "permanent" || media.type !== "image" || (key !== previousKey && media.ownerUserId !== actorId)) throw new SchoolServiceError(400, "请选择当前管理员上传的永久图片封面");
 }
 
 function toPlatformCourse(record: PlatformCourseRecord): PlatformCourse {

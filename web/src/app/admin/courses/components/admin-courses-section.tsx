@@ -31,6 +31,37 @@ export function AdminCoursesSection() {
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<PlatformCourse | null>(null);
     const [editorOpen, setEditorOpen] = useState(false);
+    const [coverKey, setCoverKey] = useState("");
+    const [uploadingCover, setUploadingCover] = useState(false);
+    const coverUploads = useRef<string[]>([]);
+    const coverInput = useRef<HTMLInputElement>(null);
+    const cleanupCovers = async (keep = "") => {
+        const unused = coverUploads.current.filter((key) => key !== keep);
+        if (unused.length) await coursesApi.deletePlatformCourseAttachments(unused);
+        coverUploads.current = [];
+    };
+    const closeEditor = async () => {
+        if (saving || uploadingCover) return;
+        try {
+            await cleanupCovers();
+            setEditorOpen(false);
+        } catch (error) {
+            message.error(errorMessage(error, "清理封面失败，请重试"));
+        }
+    };
+    const uploadCover = async (file?: File) => {
+        if (!file || uploadingCover) return;
+        setUploadingCover(true);
+        try {
+            const uploaded = await coursesApi.uploadPlatformCourseCover(file);
+            coverUploads.current.push(uploaded.storageKey);
+            setCoverKey(uploaded.storageKey);
+        } catch (error) {
+            message.error(errorMessage(error, "封面上传失败"));
+        } finally {
+            setUploadingCover(false);
+        }
+    };
     const [treeCourse, setTreeCourse] = useState<PlatformCourse | null>(null);
     const [assigning, setAssigning] = useState<PlatformCourse | null>(null);
     const [schools, setSchools] = useState<SchoolSummary[]>([]);
@@ -56,16 +87,24 @@ export function AdminCoursesSection() {
 
     const openEditor = (course?: PlatformCourse) => {
         setEditing(course || null);
+        setCoverKey(textField(course?.content, "coverStorageKey"));
+        coverUploads.current = [];
         form.setFieldsValue({ title: course?.title || "", summary: course?.summary || "", body: textField(course?.content, "body") });
         setEditorOpen(true);
     };
 
     const save = async (values: CourseForm) => {
+        if (uploadingCover || saving) return;
         setSaving(true);
         try {
-            const input: PlatformCourseInput = { title: values.title.trim(), summary: values.summary?.trim() || "", content: { body: values.body?.trim() || "" } };
+            const input: PlatformCourseInput = { title: values.title.trim(), summary: values.summary?.trim() || "", content: { ...editing?.content, body: values.body?.trim() || "", coverStorageKey: coverKey } };
             if (editing) await coursesApi.updatePlatformCourse(editing.id, input);
             else await coursesApi.createPlatformCourse(input);
+            try {
+                await cleanupCovers(coverKey);
+            } catch {
+                message.warning("课程已保存，未使用的封面清理失败");
+            }
             message.success(editing ? "课程已更新" : "课程草稿已创建");
             setEditorOpen(false);
             setEditing(null);
@@ -282,9 +321,33 @@ export function AdminCoursesSection() {
                 cancelText="取消"
                 confirmLoading={saving}
                 onOk={() => form.submit()}
-                onCancel={() => setEditorOpen(false)}
+                onCancel={() => void closeEditor()}
+                okButtonProps={{ disabled: uploadingCover }}
+                cancelButtonProps={{ disabled: uploadingCover || saving }}
+                closable={!uploadingCover && !saving}
+                mask={{ closable: !uploadingCover && !saving }}
             >
                 <Form form={form} layout="vertical" requiredMark={false} preserve={false} onFinish={(values) => void save(values)}>
+                    <Form.Item label="课程封面">
+                        <div className="space-y-3">
+                            {coverKey ? <img src={`/api/reference-assets/${coverKey.split("/").map(encodeURIComponent).join("/")}`} alt="课程封面预览" className="max-h-48 max-w-full rounded-lg object-contain" /> : null}
+                            <input
+                                ref={coverInput}
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="hidden"
+                                aria-label="选择本地课程封面"
+                                onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    event.target.value = "";
+                                    void uploadCover(file);
+                                }}
+                            />
+                            <Button loading={uploadingCover} disabled={saving} onClick={() => coverInput.current?.click()}>
+                                {coverKey ? "替换封面" : "上传封面"}
+                            </Button>
+                        </div>
+                    </Form.Item>
                     <Form.Item label="课程标题" name="title" rules={[{ required: true, message: "请填写课程标题" }]}>
                         <Input maxLength={160} />
                     </Form.Item>

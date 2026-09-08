@@ -12,6 +12,10 @@ describe("admin courses section", () => {
         expect(source).toContain("coursesApi.assignCourseToSchools");
         expect(source).toContain("adminEducationApi.listSchools");
         expect(source).toContain("创建课程");
+        expect(source).toContain("coursesApi.uploadPlatformCourseCover");
+        expect(source).toContain('type="file"');
+        expect(source).toContain("coverStorageKey: coverKey");
+        expect(source).toContain("...editing?.content");
         expect(source).toContain("发布");
         expect(source).toContain("停用");
         expect(source).toContain("分配学校");
