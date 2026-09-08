@@ -1,6 +1,6 @@
 import type { SystemModelChannel } from "@/lib/auth/store";
 import { recordChannelRuntimeFailure, recordChannelRuntimeSuccess } from "@/lib/server/channel-runtime-health";
-import { fetchInternalApi } from "@/lib/server/internal-origin";
+import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { buildProviderRequest, isProviderBusinessError, readProviderError, readProviderString, readProviderValue } from "@/lib/server/provider-task-config";
 import { extractJsonObjectText } from "@/lib/server/structured-model-output";
@@ -289,7 +289,7 @@ function attachPlanningMedia(request: ProtocolRequest, media: TextPlanningMediaI
 
 async function requestTextProtocol(input: StructuredTextRequest, request: ProtocolRequest) {
     attachPlanningMedia(request, input.mediaInputs);
-    const base = `${input.origin}/api/ai/system/${encodeURIComponent(input.candidate.channelId)}`;
+    const base = `${resolveInternalOrigin(input.origin)}/api/ai/system/${encodeURIComponent(input.candidate.channelId)}`;
     const headers = request.variant === "repair" ? repairRequestHeaders(input) : new Headers(request.variant !== "tool" && input.fallbackHeaders ? input.fallbackHeaders : input.headers);
     headers.set("content-type", "application/json");
     if (input.cookie) headers.set("cookie", input.cookie);
