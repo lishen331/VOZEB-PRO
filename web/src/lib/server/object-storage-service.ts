@@ -3,6 +3,7 @@ import { basename, resolve, sep } from "node:path";
 
 import sharp from "sharp";
 
+import { creativeUploadMaxBytes, creativeUploadTypeFromMime } from "@/lib/creative-upload";
 import { classifyManagedMediaType, isManagedMediaType, isMediaSourceGroup, mediaSourceGroup } from "@/lib/media-management-contract";
 import { normalizeImagePreviewWidth } from "@/lib/media-image-variant";
 import type { ExternalStorageFilesPayload, ObjectStorageDeleteResult, ObjectStorageMigrationResult, ObjectStoragePreviewCleanupResult } from "@/lib/object-storage-contract";
@@ -77,7 +78,7 @@ export async function createExternalMediaReadUrl(request: Request, registration:
 export async function readRegisteredMediaBytes(registration: LocalMediaRegistration, maxBytes: number) {
     const limit = Math.max(1, Math.floor(maxBytes));
     if (registration.bytes <= 0) throw new Error("媒体文件为空");
-    if (registration.bytes > limit) throw new Error("单个素材不能超过 20MB");
+    if (registration.bytes > limit) throw new Error(`单个素材不能超过 ${Math.floor(limit / 1024 / 1024)}MB`);
     let bytes: Buffer;
     if (registration.storageProvider === "object") {
         if (!registration.externalObjectKey) throw new Error("外部存储文件不存在");
@@ -90,7 +91,7 @@ export async function readRegisteredMediaBytes(registration: LocalMediaRegistrat
         bytes = await readFile(filePath);
     }
     if (!bytes.length) throw new Error("媒体文件为空");
-    if (bytes.length > limit) throw new Error("单个素材不能超过 20MB");
+    if (bytes.length > limit) throw new Error(`单个素材不能超过 ${Math.floor(limit / 1024 / 1024)}MB`);
     return bytes;
 }
 

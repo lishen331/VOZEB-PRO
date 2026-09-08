@@ -1,6 +1,7 @@
 "use client";
 
 import { App, Button, Drawer, Input, Select, Switch, Tag } from "antd";
+import { creativeUploadLimitMessage, creativeUploadMaxBytes, creativeUploadTypeFromMime } from "@/lib/creative-upload";
 import { ArrowDown, ArrowUp, ImagePlus, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { createOfficialWork, deleteOfficialWorkMedia, publishOfficialWork, updateOfficialWork, uploadOfficialWorkMedia, type OfficialWorkDraftInput, type OfficialWorkMedia, type WorkPublication } from "@/services/api/work-publications";
@@ -168,6 +169,11 @@ export function AdminOfficialWorkEditor({ open, work, onClose, onSaved }: { open
                                     const file = e.target.files?.[0];
                                     e.target.value = "";
                                     if (!file) return;
+                                    const type = creativeUploadTypeFromMime(file.type);
+                                    if (type && file.size > creativeUploadMaxBytes(type)) {
+                                        message.error(creativeUploadLimitMessage(type));
+                                        return;
+                                    }
                                     const asset = await uploadOfficialWorkMedia(file);
                                     setUploaded((c) => [...c, asset.storageKey]);
                                     add(asset);

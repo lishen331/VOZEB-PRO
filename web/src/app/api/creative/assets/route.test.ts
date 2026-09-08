@@ -90,13 +90,13 @@ describe("POST /api/creative/assets", () => {
         const response = await POST(
             new Request("http://localhost/api/creative/assets", {
                 method: "POST",
-                headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(20 * 1024 * 1024 + 64 * 1024 + 1) },
+                headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(800 * 1024 * 1024 + 64 * 1024 + 1) },
                 body: "--test--",
             }),
         );
 
         expect(response.status).toBe(413);
-        expect((await response.json()).msg).toBe("单个素材不能超过 20MB");
+        expect((await response.json()).msg).toBe("上传素材超过 800MB");
         expect(mocks.uploadAssetForUser).not.toHaveBeenCalled();
     });
 });

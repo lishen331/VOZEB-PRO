@@ -67,15 +67,23 @@ async function toUserDetail(record: IpDetailRecord): Promise<IpDetail> {
         record.subIps.map(async (subIp) => {
             const files = await Promise.all(subIp.items.map((item) => repository.getIpContentFile(record.id, item.fileId, subIp.id)));
             const { createdByUserId: _creator, items, ...publicSubIp } = subIp;
+            const readyItems = items.flatMap((item, index) => {
+                const file = files[index];
+                if (!file || file.status !== "ready" || file.kind !== item.kind) return [];
+                const { fileId: _fileId, ...publicItem } = item;
+                return [
+                    {
+                        ...publicItem,
+                        ...(file.kind === "text" && file.extractedText ? { textContent: file.extractedText } : {}),
+                        ...(file.kind !== "text" ? { previewUrl: itemPreview(record.id, subIp.id, item.id) } : {}),
+                    },
+                ];
+            });
             return {
                 ...publicSubIp,
                 isExclusive: subIp.grantMode === "exclusive",
                 ...(subIp.coverFileId ? { coverPreviewUrl: coverPreview(record.id, subIp.id) } : {}),
-                items: items.map(({ fileId: _fileId, ...item }, index) => ({
-                    ...item,
-                    ...(files[index]?.kind === "text" && files[index]?.extractedText ? { textContent: files[index]!.extractedText } : {}),
-                    ...(files[index]?.status === "ready" && files[index]?.kind !== "text" ? { previewUrl: itemPreview(record.id, subIp.id, item.id) } : {}),
-                })),
+                items: readyItems,
             };
         }),
     );

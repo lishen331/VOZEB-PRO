@@ -6,7 +6,7 @@ import { ChevronsDown, Clapperboard, FolderOpen, History, Play, Plus, ScanFace, 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { CREATIVE_UPLOAD_ACCEPT, CREATIVE_UPLOAD_MAX_BYTES, isCreativeUploadMimeType } from "@/lib/creative-upload";
+import { CREATIVE_UPLOAD_ACCEPT, creativeUploadLimitMessage, creativeUploadMaxBytes, creativeUploadTypeFromMime, isCreativeUploadMimeType } from "@/lib/creative-upload";
 import type { CreateOverviewAsset } from "@/lib/create-workbench-overview";
 import type { CreativeAsset, CreativeGenerationMode, CreativeGenerationPreferences, CreativeMessage } from "@/lib/creative-runtime-contract";
 import { reconcileCreativeGenerationPreferences } from "@/lib/creative-model-capabilities";
@@ -253,9 +253,12 @@ export default function CreatePage() {
             message.error(`${unsupported.name} 不是支持的图片、视频或音频格式`);
             return [] as CreativeAsset[];
         }
-        const oversized = files.find((file) => file.size > CREATIVE_UPLOAD_MAX_BYTES);
+        const oversized = files.find((file) => {
+            const type = creativeUploadTypeFromMime(file.type);
+            return type ? file.size > creativeUploadMaxBytes(type) : false;
+        });
         if (oversized) {
-            message.error(`${oversized.name} 超过 20MB`);
+            message.error(`${oversized.name}：${creativeUploadLimitMessage(creativeUploadTypeFromMime(oversized.type) || "image")}`);
             return [] as CreativeAsset[];
         }
         try {

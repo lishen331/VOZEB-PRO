@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
     getPublicUsersByIds: vi.fn(),
     getIpPackage: vi.fn(),
     getIpPackageBySlug: vi.fn(),
+    updateIpPackage: vi.fn(),
     deleteIpPackage: vi.fn(),
     createIpPackage: vi.fn(),
     createIpSubIp: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock("./ip-library-access-service", () => ({
     createIpLibraryRepository: () => ({
         getIpPackage: mocks.getIpPackage,
         getIpPackageBySlug: mocks.getIpPackageBySlug,
+        updateIpPackage: mocks.updateIpPackage,
         deleteIpPackage: mocks.deleteIpPackage,
         createIpPackage: mocks.createIpPackage,
         createIpSubIp: mocks.createIpSubIp,
@@ -49,7 +51,7 @@ vi.mock("./ip-library-access-service", () => ({
 vi.mock("./school-domain-repository", () => ({ createSchoolDomainRepository: () => ({ listSchoolsByIds: vi.fn() }) }));
 vi.mock("@/lib/server/ip-library-file-storage", () => ({ deleteStoredIpContentFile: mocks.deleteStoredIpContentFile, readIpContentFile: mocks.readIpContentFile, writeIpContentFile: mocks.writeIpContentFile }));
 
-import { createAdminIp, createAdminIpGrant, createAdminIpGrants, createAdminIpSubIp, deleteAdminIp, updateAdminIpGrant, updateAdminIpSubIp, uploadAdminIpFile } from "./ip-library-admin-service";
+import { createAdminIp, createAdminIpGrant, createAdminIpGrants, createAdminIpSubIp, deleteAdminIp, updateAdminIp, updateAdminIpGrant, updateAdminIpSubIp, uploadAdminIpFile } from "./ip-library-admin-service";
 
 const now = "2026-09-07T00:00:00.000Z";
 const packageRecord = { id: "ip-one", title: "星海计划", slug: "star-sea", summary: "简介", visibility: "school" as const, status: "enabled" as const, createdByUserId: "content-admin", createdAt: now, updatedAt: now };
@@ -62,6 +64,7 @@ describe("IP library administration service", () => {
         mocks.getPublicUsersByIds.mockImplementation(async (ids: string[]) => ids.map((id) => ({ id, role: "admin", status: "active", adminPermissions: id === "education-admin" ? ["education.manage"] : ["content.manage"] })));
         mocks.getIpPackage.mockResolvedValue(packageRecord);
         mocks.getIpPackageBySlug.mockResolvedValue(null);
+        mocks.updateIpPackage.mockImplementation(async (_id, patch) => ({ ...packageRecord, ...patch }));
         mocks.deleteIpPackage.mockResolvedValue([]);
         mocks.createIpPackage.mockImplementation(async (input) => ({ ...input, createdAt: now, updatedAt: now }));
         mocks.createIpSubIp.mockImplementation(async (_ipId, input) => ({ ...input, sortOrder: input.sortOrder ?? 0, createdAt: now, updatedAt: now, items: [] }));
@@ -83,6 +86,19 @@ describe("IP library administration service", () => {
 
         expect(created).toMatchObject({ title: "星海计划", slug: "star-sea", status: "enabled", visibility: "school" });
         expect(mocks.createIpSubIp).toHaveBeenCalledWith(created.id, expect.objectContaining({ ipId: created.id, title: "星海计划", createdByUserId: "content-admin", tags: [] }));
+    });
+
+    it("limits IP and child names to 20 characters and summaries to 100 characters", async () => {
+        const name = "名".repeat(20);
+        const summary = "简".repeat(100);
+        await expect(createAdminIp("content-admin", { title: name, summary, visibility: "public" })).resolves.toMatchObject({ title: name, summary });
+        await expect(createAdminIp("content-admin", { title: "名".repeat(21), visibility: "public" })).rejects.toMatchObject({ status: 400, message: "IP 名称不能超过 20 个字" });
+        await expect(updateAdminIp("content-admin", "ip-one", { title: name, summary })).resolves.toBeDefined();
+        await expect(updateAdminIp("content-admin", "ip-one", { summary: "简".repeat(101) })).rejects.toMatchObject({ status: 400, message: "IP 简介不能超过 100 个字" });
+        await expect(createAdminIpSubIp("content-admin", "ip-one", { title: name, summary })).resolves.toBeDefined();
+        await expect(createAdminIpSubIp("content-admin", "ip-one", { title: "名".repeat(21) })).rejects.toMatchObject({ status: 400, message: "子 IP 名称不能超过 20 个字" });
+        await expect(updateAdminIpSubIp("content-admin", "ip-one", "child-one", { title: name, summary })).resolves.toBeDefined();
+        await expect(updateAdminIpSubIp("content-admin", "ip-one", "child-one", { title: name, summary: "简".repeat(101) })).rejects.toMatchObject({ status: 400, message: "子 IP 简介不能超过 100 个字" });
     });
 
     it("does not allow a new child to adopt another child's cover or items", async () => {

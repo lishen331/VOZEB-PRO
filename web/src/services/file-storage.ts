@@ -11,7 +11,7 @@ export async function uploadMediaFile(input: string | Blob, prefix = "file"): Pr
 }
 
 export async function uploadGeneratedMediaFile(input: string | Blob, type: Exclude<ServerMediaType, "image">): Promise<UploadedFile> {
-    const stored = await uploadServerMedia(input, type, type === "video" ? 200 * 1024 * 1024 : 30 * 1024 * 1024);
+    const stored = await uploadServerMedia(input, type, type === "video" ? 800 * 1024 * 1024 : 30 * 1024 * 1024);
     return withMediaMeta(stored, type);
 }
 

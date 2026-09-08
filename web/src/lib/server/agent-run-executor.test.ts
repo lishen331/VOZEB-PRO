@@ -27,7 +27,7 @@ vi.mock("@/lib/auth/store", () => ({
     getAuthSettings: mocks.getAuthSettings,
 }));
 vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refundGenerationCharge }));
-vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi }));
+vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi, resolveInternalOrigin: vi.fn((origin: string) => origin) }));
 vi.mock("@/lib/server/creative-runtime-store", () => ({
     getCreativeAssetsByIds: mocks.getCreativeAssetsByIds,
     getCreativeConversationContext: mocks.getCreativeConversationContext,

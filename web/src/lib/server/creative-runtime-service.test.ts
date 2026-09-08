@@ -75,7 +75,7 @@ describe("创作会话素材上传", () => {
         expect(mocks.writePersistentMediaDataUrl).toHaveBeenCalledWith(
             expect.stringMatching(/^data:video\/mp4;base64,/),
             "video",
-            expect.objectContaining({ ownerUserId: "user-one", conversationId: "conversation-one", originalName: "clip.mp4", maxBytes: 20 * 1024 * 1024 }),
+            expect.objectContaining({ ownerUserId: "user-one", conversationId: "conversation-one", originalName: "clip.mp4", maxBytes: 800 * 1024 * 1024 }),
         );
         expect(asset).toMatchObject({ id: "asset-one", type: "video", serverUrl: "/api/reference-assets/persistent-one.mp4", storageKey: "persistent-one.mp4" });
         expect(JSON.stringify(mocks.registerCreativeAssets.mock.calls[0][0])).not.toContain("base64");
@@ -123,7 +123,7 @@ describe("创作会话素材上传", () => {
         await expect(uploadAssetForUser("user-one", "conversation-one", file("notes.pdf", "application/pdf"))).rejects.toMatchObject({ status: 400 });
         await expect(uploadAssetForUser("user-one", "conversation-one", file("vector.svg", "image/svg+xml"))).rejects.toMatchObject({ status: 400 });
         await expect(uploadAssetForUser("user-one", "conversation-one", file("limit.mp4", "video/mp4", 20 * 1024 * 1024))).resolves.toMatchObject({ id: "asset-one" });
-        await expect(uploadAssetForUser("user-one", "conversation-one", file("large.mp4", "video/mp4", 20 * 1024 * 1024 + 1))).rejects.toMatchObject({ status: 413 });
+        await expect(uploadAssetForUser("user-one", "conversation-one", file("large.mp4", "video/mp4", 800 * 1024 * 1024 + 1))).rejects.toMatchObject({ status: 413 });
         mocks.getCreativeConversation.mockResolvedValueOnce({ id: "conversation-one", userId: "user-two", status: "active" });
         await expect(uploadAssetForUser("user-one", "conversation-one", file("image.png", "image/png"))).rejects.toMatchObject({ status: 404 });
     });
