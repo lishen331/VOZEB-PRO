@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { readJsonBody } from "@/lib/auth/request";
+import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { getCurrentUser } from "@/lib/auth/session";
 import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { extractDramaLabAssets, isDramaLabAssetType, DramaLabAssetExtractionError } from "@/lib/server/drama-lab-asset-extraction-service";
@@ -30,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
         const result = await extractDramaLabAssets({
             userId: user.id,
-            origin: new URL(request.url).origin,
+            origin: resolveInternalOrigin(new URL(request.url).origin),
             cookie: request.headers.get("cookie") || "",
             requestId,
             project,
