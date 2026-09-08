@@ -73,3 +73,13 @@ The approved defect fixes are deployed and the two highest-risk flows have onlin
 - 2026-09-09 Agent 混合流程与结果回写补充验证：服务端 planner/media、intent guard、结果项持久化、recheck、direct execution 共 6 个测试文件 38 tests 全部通过。
 - 线上 create overview 可读取最近双模型两项图片资产及两个仍暂停的历史任务；任务列表与资产列表数据均可回写，未发现成功资产被任务列表隐藏。
 - 线上页面仍有头像 404（/api/public/users/laoshi1/avatar），不影响 Agent 任务链路，未在本轮修改无关头像回退。
+- 2026-09-09 五个 Skill / 混合流程集中验收汇总：
+  - 电商生图：此前线上双参考图路径已成功生成并回写资产；本轮 Skill 目录与选择入口确认存在。
+  - 自然美颜精修：无参考图正确拦截；有参考图的生成路径已具备服务端 requiresReference 校验。
+  - 角色设定：线上正向 image 生成通过。
+  - 图片动效：此前线上 image-motion 实际生成视频并可播放，视频资产已回写。
+  - 短剧策划：线上文字-only 生成通过，未创建媒体任务。
+  - Skill 选择与 workspace 策略、输入意图保护、媒体规划、结果回写、恢复与取消相关自动化测试共 105 tests 全部通过。
+- 混合任务边界：已覆盖服务端部分成功、待确认、取消、重试、结果保留；无上游任务 ID 的提交继续禁止自动重新生成。
+- 音频：仍无正式生产模型配置，按约定不伪造通过结果。
+- 本轮未修改业务代码，仅补充验收记录。
