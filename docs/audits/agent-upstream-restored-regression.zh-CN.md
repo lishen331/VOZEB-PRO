@@ -54,3 +54,9 @@
 ## Current acceptance boundary
 
 The approved defect fixes are deployed and the two highest-risk flows have online evidence. The retry flow still requires a currently available vision model for a successful final answer; this run cannot be declared content-successful solely because the old billing conflict disappeared. Drama planning text-only, beauty-without-reference, mobile layout, audio, and full five-Skill matrix remain separate acceptance cases.
+
+## 2026-09-09 线上继续验收
+
+- 短剧策划 Skill 文字-only 正向流程：通过。输入“只输出文字脚本，不生图、不生视频、不创建项目”，服务端生成并持久化完整 3 镜头文字脚本；消息状态为 completed，产生 1 个文本任务，无图片/视频/音频任务。
+- 页面流程：发送后自动进入新会话，助手消息在约 40 秒内回写；未出现“Skill 不支持当前输入与输出组合”。
+- 目前仍未执行自然美颜无参考图、角色设定正向、全成功双模型、音频和移动端矩阵；这些作为下一批验收项，不能以本次文字 Skill 结果替代。
