@@ -26,6 +26,11 @@ describe("IP library detail contract", () => {
     it("keeps the explicit child route title when the API returns one child", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/(user)/ip-library/components/ip-library-detail.tsx"), "utf8");
         expect(source).toContain("{subIpId ? selected.title : detail.title}");
+        expect(source).not.toContain("CalendarClock");
+        expect(source).not.toContain("更新于");
+        expect(source).not.toContain("selected.items.length");
+        expect(source).not.toContain('{subIpId ? <p className="mt-1 text-sm text-muted-foreground">{detail.title}</p> : null}');
+        expect(source).toContain("{grouped.imageCount ? (");
     });
 });
 

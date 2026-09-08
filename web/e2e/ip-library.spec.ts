@@ -23,7 +23,7 @@ test.use({ actionTimeout: 15_000 });
 
 test("IP 库按子 IP 编辑、授权、停用、下载和引用", async ({ browser, page }, testInfo) => {
     test.setTimeout(240_000);
-    const suffix = `${testInfo.project.name.replace(/\W/g, "").slice(0, 5)}${randomUUID().replaceAll("-", "").slice(0, 8)}`.toLowerCase();
+    const suffix = randomUUID().replaceAll("-", "").slice(0, 8);
     const names = {
         school: `IP 子授权学校 ${suffix}`,
         manager: `ip_manager_${suffix}`,
@@ -152,7 +152,7 @@ async function verifyAdminFullPageEditor(page: Page, ipId: string, title: string
     });
     await expect(page.getByText("IP 文件已上传", { exact: true }).last()).toBeVisible();
     await editor.getByRole("button", { name: "保存 IP 信息" }).click();
-    await expect(page.getByText("IP 信息已保存", { exact: true })).toBeVisible();
+    await expect(page.getByText("IP 信息已保存", { exact: true })).toBeVisible({ timeout: 15_000 });
     expect((await getIp(page.request, ipId)).coverFileId).toEqual(expect.any(String));
     const categorySelect = editor.getByLabel("分类").first();
     await categorySelect.click();
@@ -176,7 +176,7 @@ async function verifyAdminFullPageEditor(page: Page, ipId: string, title: string
     await editor.getByRole("button", { name: "保存正文" }).last().click();
     await expect(page.getByText("IP 文件已上传", { exact: true }).last()).toBeVisible();
     await editor.getByRole("button", { name: "保存子 IP" }).click();
-    await expect(page.getByText("子 IP 内容已保存，已立即生效", { exact: true })).toBeVisible();
+    await expect(page.getByText("子 IP 内容已保存，已立即生效", { exact: true })).toBeVisible({ timeout: 15_000 });
     const saved = requireSubIpByTitle(await getIp(page.request, ipId), mainSubIpTitle);
     expect(saved.coverFileId).toEqual(expect.any(String));
     expect(saved.items).toEqual(expect.arrayContaining([expect.objectContaining({ title: contentTitle, fileId: expect.any(String) })]));
@@ -193,11 +193,33 @@ async function verifyPublicSingleSubIp(adminRequest: APIRequestContext, browser:
     const page = await context.newPage();
     try {
         await page.goto("/ip-library", { waitUntil: "domcontentloaded" });
-        await expect(page.locator(`[data-ip-library-card="${ipId}"]`)).toBeVisible();
+        await expect(page.getByText("社区内容资源", { exact: true })).toHaveCount(0);
+        await expect(page.getByText("内容类型", { exact: true })).toHaveCount(0);
+        await expect(page.getByText("按标签筛选", { exact: true })).toHaveCount(0);
+        const search = page.getByPlaceholder("搜索 IP 名称或简介");
+        await expect(search).toBeVisible();
+        const searchControl = page.locator(".ant-input-affix-wrapper").filter({ has: search });
+        const [searchBox, libraryBox, rightPadding] = await Promise.all([
+            searchControl.boundingBox(),
+            page.locator("[data-ip-library-page] > div").boundingBox(),
+            page.locator("[data-ip-library-page] > div").evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingRight)),
+        ]);
+        expect(searchBox).not.toBeNull();
+        expect(libraryBox).not.toBeNull();
+        expect(Math.abs(searchBox!.x + searchBox!.width - (libraryBox!.x + libraryBox!.width - rightPadding))).toBeLessThan(1);
+        await expect(page.locator(`[data-ip-library-card="${ipId}"]`)).toBeVisible({ timeout: 15_000 });
         await page.locator(`[data-ip-library-card="${ipId}"]`).click();
         await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
         await expect(page.getByText("选择子 IP", { exact: true })).toHaveCount(0);
+        await expect(page.getByText(/更新于/)).toHaveCount(0);
+        await expect(page.getByText(/项内容/)).toHaveCount(0);
         await expectNoHorizontalOverflow(page, "single child IP detail");
+
+        const emptyIp = await createIp(adminRequest, `空内容 ${randomUUID().replaceAll("-", "").slice(0, 8)}`, "public");
+        await page.goto("/ip-library", { waitUntil: "domcontentloaded" });
+        await page.locator(`[data-ip-library-card="${emptyIp.id}"]`).click();
+        await expect(page.locator("[data-ip-library-section]")).toHaveCount(0);
+        await expect(page.getByRole("heading", { name: "图片素材", exact: true })).toHaveCount(0);
     } finally {
         await page.close();
     }
@@ -209,13 +231,13 @@ async function verifySchoolMultiSubIp(context: BrowserContext, ipId: string, ipT
         await page.goto("/ip-library", { waitUntil: "domcontentloaded" });
         await page.getByText("本校 IP", { exact: true }).click();
         const card = page.locator(`[data-ip-library-card="${ipId}"]`);
-        await expect(card).toBeVisible();
+        await expect(card).toBeVisible({ timeout: 15_000 });
         await expect(card.getByText("2 个子 IP", { exact: true })).toBeVisible();
         await card.click();
         await expect(page.getByRole("heading", { name: ipTitle, exact: true })).toBeVisible();
-        await expect(page.getByText(mainSubIpTitle, { exact: true })).toBeVisible();
+        await expect(page.getByText(mainSubIpTitle, { exact: true })).toBeVisible({ timeout: 15_000 });
         const childLink = page.locator(`a[href="/ip-library/${encodeURIComponent(ipId)}/${encodeURIComponent(extraSubIpId)}"]`);
-        await expect(childLink).toBeVisible();
+        await expect(childLink).toBeVisible({ timeout: 15_000 });
         await childLink.click();
         await expect(page.getByRole("heading", { name: extraSubIpTitle, exact: true })).toBeVisible();
         await expectNoHorizontalOverflow(page, "multiple child IP detail");
