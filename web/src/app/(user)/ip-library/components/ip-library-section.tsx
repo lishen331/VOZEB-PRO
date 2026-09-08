@@ -20,6 +20,7 @@ export function IpLibrarySection<T extends { id: string }>({
     layout?: "grid" | "list";
 }) {
     const [expanded, setExpanded] = useState(false);
+    if (!items.length) return null;
     const visible = expanded ? items : items.slice(0, initialCount);
     return (
         <section className="border-t border-border py-5 sm:py-7" data-ip-library-section={title}>
@@ -34,11 +35,7 @@ export function IpLibrarySection<T extends { id: string }>({
                     </Button>
                 ) : null}
             </div>
-            {visible.length ? (
-                <div className={layout === "list" ? "mt-3 grid min-w-0 gap-3" : "mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}>{visible.map(renderItem)}</div>
-            ) : (
-                <p className="mt-3 border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">暂无内容</p>
-            )}
+            <div className={layout === "list" ? "mt-3 grid min-w-0 gap-3" : "mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}>{visible.map(renderItem)}</div>
         </section>
     );
 }
