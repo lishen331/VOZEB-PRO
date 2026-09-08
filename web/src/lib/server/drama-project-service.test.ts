@@ -1,3 +1,4 @@
+import { buildDramaLabAssetImagePrompt } from "@/lib/drama-lab-asset-image-prompt";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DramaProject } from "@/lib/drama-project-contract";
@@ -78,6 +79,23 @@ import { createDramaProjectForUser, createDramaProjectVersionForUser, deleteDram
 import { DramaProjectStoreError } from "./drama-project-store";
 
 describe("drama project service updates", () => {
+    it("keeps lab extraction fields after save normalization and JSON roundtrip", () => {
+        const current = project("2026-07-19T08:00:00.000Z", "test");
+        const input = {
+            ...current,
+            characters: [{ id: "c1", name: "林薇", description: "主角", appearance: "短发红衣", role: "main", imagePrompt: "角色设定图" }],
+            scenes: [{ id: "s1", name: "古宅", description: "旧宅", time: "黄昏", imagePrompt: "纯背景，无人物" }],
+            props: [{ id: "p1", name: "铜灯", description: "线索", type: "证物", imagePrompt: "单一铜灯，纯色底" }],
+        };
+        const saved = normalizeProject(input, current);
+        const restored = normalizeProject(JSON.parse(JSON.stringify(saved)), saved);
+        expect(restored.characters[0]).toMatchObject(input.characters[0]);
+        expect(restored.scenes[0]).toMatchObject(input.scenes[0]);
+        expect(restored.props[0]).toMatchObject(input.props[0]);
+        expect(buildDramaLabAssetImagePrompt({ style: restored.style, aspectRatio: restored.ratio }, restored.characters[0], "characters")).toContain("短发红衣");
+        expect(buildDramaLabAssetImagePrompt({ style: restored.style }, restored.props[0], "props")).toContain("单一铜灯，纯色底");
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.updateDramaProject.mockImplementation(async (_userId: string, value: DramaProject) => value);

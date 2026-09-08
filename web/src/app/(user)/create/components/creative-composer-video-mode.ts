@@ -6,5 +6,7 @@ export function shouldShowVideoFrameControls(creationMode: "agent" | CreativeGen
 }
 
 export function applyAgentGenerationCapability(creationMode: "agent" | CreativeGenerationMode, capability: CreativeGenerationMode, preferences: CreativeGenerationPreferences) {
-    return creationMode === "agent" ? { ...preferences, mode: capability } : preferences;
+    if (creationMode !== "agent") return preferences;
+    const { mode: _mode, ...parameters } = preferences;
+    return parameters;
 }

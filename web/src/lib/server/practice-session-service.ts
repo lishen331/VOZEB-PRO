@@ -364,7 +364,7 @@ async function reconcileUnknownSubmission(session: PracticeSessionRecord, store?
 }
 
 async function findDurableTaskReference(userId: string, clientRequestId: string, module: PracticeModuleKind) {
-    const taskType = module === "script" ? "text" : module === "storyboard-image" ? "image" : module === "storyboard-video" ? "video" : "audio";
+    const taskType = module === "script" ? "text" : ["character", "scene", "prop", "storyboard-image"].includes(module) ? "image" : module === "storyboard-video" ? "video" : "audio";
     const task = await getStoredGenerationTaskByRequest<{ id?: unknown }>(taskType, userId, clientRequestId);
     return task && typeof task.id === "string" && task.id.trim() ? { taskId: task.id, taskType } : null;
 }
@@ -407,7 +407,8 @@ export function normalizePracticeModuleInput(module: PracticeModuleKind, input: 
     const normalizedReferences = normalizeReferences(references);
     const prompt = text(input.prompt);
     const value = module === "dubbing" ? text(input.text) : prompt;
-    if (!["script"].includes(module) && !value) throw new PracticeServiceError("练习内容不能为空", 400, "PRACTICE_INPUT_INVALID");
+    if (module !== "script" && !(module === "character" && workflow?.workflowCode === "character_multi_view" && !workflow.inputSchema.some((field) => field.key === "prompt" && field.required)) && !value)
+        throw new PracticeServiceError("练习内容不能为空", 400, "PRACTICE_INPUT_INVALID");
     if (module === "character" && input.workflowCode === "character_multi_view") {
         const hasReference = normalizedReferences.some((reference) => reference.type === "asset");
         if (!hasReference) throw new PracticeServiceError("角色多视图需要一张主形象参考图", 400, "PRACTICE_REFERENCE_INVALID");

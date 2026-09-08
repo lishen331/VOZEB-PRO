@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const MAX_UPLOAD_REQUEST_BYTES = 200 * 1024 * 1024 + 64 * 1024;
+const MAX_UPLOAD_REQUEST_BYTES = 800 * 1024 * 1024 + 64 * 1024;
 
 export async function GET(request: Request) {
     const user = await getCurrentUser();

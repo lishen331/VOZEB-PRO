@@ -94,7 +94,7 @@ describe("practice module workbench contract", () => {
 
     it("exposes emotion controls for structured dialogue lines", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/components/practice-dubbing-panel.tsx"), "utf8");
-        expect(source).toContain("InputNumber");
+        expect(source).toContain("Slider");
         expect(source).toContain("happy");
         expect(source).toContain("surprise");
     });
@@ -114,4 +114,31 @@ describe("practice module workbench contract", () => {
         expect(source).toContain("practiceSessionCanRetry(target)");
         expect(source).toContain("onRetry={(session) => void retry(session)}");
     });
+});
+
+it("isolates character schemas, dimensions and public defaults by selected workflow", async () => {
+    const { capabilityForWorkflow } = await import("./practice-panel-types");
+    const capability = {
+        module: "character",
+        available: true,
+        models: [],
+        inputSchema: [],
+        workflowOptions: [
+            { code: "character_main_view", label: "主形象", inputSchema: [{ key: "width", label: "宽", type: "number", required: true, defaultValue: 720 }] },
+            {
+                code: "character_multi_view",
+                label: "多视图",
+                inputSchema: [
+                    { key: "width", label: "合并图宽", type: "number", required: false, defaultValue: 1350 },
+                    { key: "frontPrompt", label: "正视图", type: "text", required: false },
+                ],
+            },
+        ],
+    } as never;
+    const main = capabilityForWorkflow(capability, "character_main_view");
+    const multi = capabilityForWorkflow(capability, "character_multi_view");
+    expect(workflowFieldDefaults(main)).toEqual({ width: 720 });
+    expect(workflowFieldDefaults(multi)).toEqual({ width: 1350 });
+    expect(workflowFormFields(main).map((field) => field.key)).not.toContain("frontPrompt");
+    expect(workflowFormFields(multi).map((field) => field.key)).toContain("frontPrompt");
 });

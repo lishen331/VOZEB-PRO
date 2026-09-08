@@ -297,9 +297,9 @@ async function processAgentLease(lease: GenerationTaskLease, workerId: string, o
         });
         return "completed";
     }
-    if (!run || run.status === "completed" || run.status === "failed" || run.status === "cancelled" || run.status === "paused") {
+    if (!run || run.status === "completed" || run.status === "partial_success" || run.status === "failed" || run.status === "cancelled" || run.status === "paused") {
         await releaseGenerationTaskLease("agent", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: run?.status || "missing" });
-        return run?.status === "completed" ? "completed" : "failed";
+        return run?.status === "completed" || run?.status === "partial_success" ? "completed" : "failed";
     }
     try {
         const childTaskIds = pendingAgentChildTaskIds(run);
@@ -328,9 +328,9 @@ async function processAgentLease(lease: GenerationTaskLease, workerId: string, o
         }
         await executeAgentRun(run, origin, cookie || maintenanceWorkerContext(run.userId));
         const latest = await getAgentRun(run.id);
-        if (!latest || latest.status === "completed" || latest.status === "failed" || latest.status === "cancelled" || latest.status === "paused") {
+        if (!latest || latest.status === "completed" || latest.status === "partial_success" || latest.status === "failed" || latest.status === "cancelled" || latest.status === "paused") {
             await releaseGenerationTaskLease("agent", run.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastUpstreamStatus: latest?.status || "missing" });
-            return latest?.status === "completed" ? "completed" : "failed";
+            return latest?.status === "completed" || latest?.status === "partial_success" ? "completed" : "failed";
         }
         await releaseGenerationTaskLease("agent", run.id, workerId, {
             executionPhase: "polling",

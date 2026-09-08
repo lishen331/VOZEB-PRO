@@ -1,3 +1,4 @@
+import { resolveDramaLabStylePrompt, renderDramaLabFrameTemplate } from "@/lib/drama-lab-style-prompt";
 import type { DramaAssetReference, DramaEpisode, DramaProject, DramaShot, DramaShotFrameSource, DramaShotFrameType, DramaShotGenerationHistory, DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
 import { dramaAssetPrimaryReference, dramaShotAssetReferences } from "@/lib/drama-asset-references";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
@@ -51,7 +52,7 @@ export async function prepareDramaLabStoryboardImage(project: DramaProject, epis
     const references = shotReferences(project, context.shot);
     return {
         prompt: withDramaLabPromptContract(
-            `${template.template}\n\n${shotGenerationContext(project, context.episode, context.shot)}`,
+            `${renderDramaLabFrameTemplate(template.template, project)}\n\n${shotGenerationContext(project, context.episode, context.shot)}`,
             "这是关键帧图像生成任务。只呈现当前镜头已绑定的场景、角色和道具；不得加入未绑定角色、未绑定道具、文字、水印或项目外主体。参考图只用于保持已绑定资产的身份、外观、比例和空间关系，不得改变其归属。",
         ),
         references,
@@ -326,6 +327,8 @@ function shotGenerationContext(project: DramaProject, episode: DramaEpisode, sho
         `项目：${project.title}`,
         `剧集：${episode.title}`,
         `统一风格：${project.style || "未设置"}`,
+        `风格正文（中文）：${resolveDramaLabStylePrompt(project.style).zh}`,
+        `风格正文（英文）：${resolveDramaLabStylePrompt(project.style).en}`,
         `画幅比例：${project.ratio}`,
         `分镜：${shot.title}`,
         `镜头内容：${shot.description || shot.sourceText}`,

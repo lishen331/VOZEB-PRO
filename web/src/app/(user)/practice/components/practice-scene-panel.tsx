@@ -1,6 +1,7 @@
 "use client";
+import { PracticePromptEditor } from "./practice-prompt-editor";
 
-import { Button, Input } from "antd";
+import { App, Button } from "antd";
 import { ImagePlus } from "lucide-react";
 import { useState } from "react";
 import { practiceApi } from "@/services/api/practice";
@@ -8,6 +9,7 @@ import { WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps 
 import { ModelField } from "./practice-storyboard-image-panel";
 
 export default function PracticeScenePanel({ capability, onCreated }: PracticePanelProps) {
+    const { message } = App.useApp();
     const [prompt, setPrompt] = useState("");
     const [model, setModel] = useState(capability.models[0]?.id);
     const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => workflowFieldDefaults(capability));
@@ -29,6 +31,8 @@ export default function PracticeScenePanel({ capability, onCreated }: PracticePa
                     })
                 ).session,
             );
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "操作失败，请重试");
         } finally {
             setBusy(false);
         }
@@ -36,12 +40,9 @@ export default function PracticeScenePanel({ capability, onCreated }: PracticePa
     return (
         <div className="space-y-4">
             <ModelField capability={capability} value={model} onChange={setModel} />
-            <label className="block text-sm font-medium">
-                场景描述
-                <Input.TextArea value={prompt} onChange={(event) => setPrompt(event.target.value)} autoSize={{ minRows: 5, maxRows: 10 }} className="!mt-2" placeholder="描述空间结构、时间、光线和氛围" />
-            </label>
+            <PracticePromptEditor briefLabel="场景设定" label="场景描述" value={prompt} onChange={setPrompt} disabled={busy} mode="image" />
             <WorkflowOptionalFields capability={capability} value={workflowInput} onChange={(key, value) => setWorkflowInput((current) => ({ ...current, [key]: value }))} />
-            <Button type="primary" icon={<ImagePlus className="size-4" />} loading={busy} disabled={!capability.available || !model || !prompt.trim()} onClick={() => void submit()}>
+            <Button type="primary" block size="large" icon={<ImagePlus className="size-4" />} loading={busy} disabled={!capability.available || !model || !prompt.trim()} onClick={() => void submit()}>
                 生成场景图
             </Button>
         </div>

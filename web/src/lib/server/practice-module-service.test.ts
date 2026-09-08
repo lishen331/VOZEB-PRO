@@ -134,11 +134,14 @@ describe("practice module capabilities", () => {
             ],
         };
         const capabilities = await listPracticeModuleCapabilities({ id: "teacher-one" }, { settings: current });
-        expect(capabilities.find((item) => item.module === "character")?.workflowOptions).toEqual([
+        expect(capabilities.find((item) => item.module === "character")?.workflowOptions).toMatchObject([
             { code: "character_main_view", label: "角色主形象图" },
             { code: "character_multi_view", label: "角色多视图" },
         ]);
-        expect(capabilities.find((item) => item.module === "character")?.inputSchema).toEqual(expect.arrayContaining([{ key: "frontPrompt", label: "正视图", type: "text", required: false }]));
+        const character = capabilities.find((item) => item.module === "character")!;
+        expect(character.inputSchema.map((field) => field.key)).not.toContain("frontPrompt");
+        expect(character.workflowOptions?.find((option) => option.code === "character_multi_view")).toMatchObject({ inputSchema: expect.arrayContaining([{ key: "frontPrompt", label: "正视图", type: "text", required: false }]) });
+        expect(new Set(character.inputSchema.map((field) => field.key)).size).toBe(character.inputSchema.length);
         expect(JSON.stringify(capabilities)).not.toContain("workflow-internal");
         expect(JSON.stringify(capabilities)).not.toContain("workflowKey");
     });

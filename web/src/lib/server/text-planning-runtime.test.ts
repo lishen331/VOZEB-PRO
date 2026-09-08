@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SystemChannelAdvancedConfig, SystemModelChannel } from "@/lib/auth/store";
-import { fetchInternalApi } from "@/lib/server/internal-origin";
+import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import type { TextPlanningMessageContent } from "./text-planning-runtime";
 import { getTextPlanningRuntime, isStructuredTextFailure, rankTextPlanningCandidates, requestStructuredText, resetTextPlanningRuntime, type TextPlanningCandidate } from "./text-planning-runtime";
 
-vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: vi.fn() }));
+vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: vi.fn(), resolveInternalOrigin: vi.fn(() => "http://127.0.0.1:3000") }));
 vi.mock("@/lib/server/channel-runtime-health", () => ({ recordChannelRuntimeFailure: vi.fn(), recordChannelRuntimeSuccess: vi.fn() }));
 vi.mock("@/lib/server/maintenance-auth", () => ({ maintenanceWorkerContextHeaders: vi.fn(() => null) }));
 
 const mockedFetch = vi.mocked(fetchInternalApi);
+const mockedResolveInternalOrigin = vi.mocked(resolveInternalOrigin);
 const mockedWorkerHeaders = vi.mocked(maintenanceWorkerContextHeaders);
 const tool = { name: "make_plan", description: "创建计划", parameters: { type: "object", properties: { result: { type: "string" } } } };
 
@@ -34,8 +35,74 @@ describe("text planning runtime protocol matrix", () => {
     beforeEach(() => {
         resetTextPlanningRuntime();
         mockedFetch.mockReset();
+        mockedResolveInternalOrigin.mockReset().mockReturnValue("http://127.0.0.1:3000");
         mockedWorkerHeaders.mockReset().mockReturnValue(null);
         vi.useRealTimers();
+    });
+
+    it("routes public HTTPS origins through the configured internal callback origin", async () => {
+        mockedFetch.mockResolvedValue(chatJsonResponse());
+
+        await requestStructuredText({ ...requestInput(candidate("newapi")), origin: "https://gammatv.gammablue-x.com" });
+
+        expect(mockedResolveInternalOrigin).toHaveBeenCalledWith("https://gammatv.gammablue-x.com");
+        expect(String(mockedFetch.mock.calls[0]?.[0])).toBe("http://127.0.0.1:3000/api/ai/system/newapi-channel/chat/completions");
+    });
+    it("keeps video content as a video part, not an image or text URL", async () => {
+        mockedFetch.mockResolvedValue(chatJsonResponse());
+        await requestStructuredText({ ...requestInput(candidate("newapi")), mediaInputs: [{ type: "video", url: "data:video/mp4;base64,aGVsbG8=" }] });
+        expect(requestBody()).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: "user", content: expect.arrayContaining([{ type: "video_url", video_url: { url: "data:video/mp4;base64,aGVsbG8=" } }]) })]) });
+    });
+
+    it("rejects unconfigured custom multimodal transport instead of dropping media", async () => {
+        const configured = candidate("custom", { createPath: "/plan", requestTemplate: '{"prompt":"{{prompt}}"}', resultField: "result" });
+        await expect(requestStructuredText({ ...requestInput(configured), mediaInputs: [{ type: "image", url: "data:image/png;base64,aGVsbG8=" }] })).rejects.toThrow();
+        expect(mockedFetch).not.toHaveBeenCalled();
+    });
+
+    it("sends real image parts to Chat instead of a URL in JSON text", async () => {
+        mockedFetch.mockResolvedValue(chatJsonResponse());
+        await requestStructuredText({ ...requestInput(candidate("newapi")), mediaInputs: [{ type: "image", url: "data:image/png;base64,aGVsbG8=" }] });
+        expect(requestBody()).toMatchObject({
+            messages: expect.arrayContaining([
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: "test" },
+                        { type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } },
+                    ],
+                },
+            ]),
+        });
+    });
+
+    it("preserves media during structured repair", async () => {
+        mockedFetch.mockResolvedValueOnce(Response.json({ choices: [{ message: { content: "invalid" } }] })).mockResolvedValueOnce(chatJsonResponse());
+        await requestStructuredText({ ...requestInput(candidate("newapi")), mediaInputs: [{ type: "image", url: "data:image/png;base64,aGVsbG8=" }] });
+        expect(mockedFetch).toHaveBeenCalledTimes(2);
+        expect(requestBody()).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: "user", content: expect.arrayContaining([{ type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } }]) })]) });
+    });
+
+    it("sends native media parts for Responses", async () => {
+        mockedFetch.mockResolvedValue(Response.json({ output_text: "{}" }));
+        await requestStructuredText({ ...requestInput(candidate("compatible", { createPath: "/responses" })), mediaInputs: [{ type: "image", url: "data:image/png;base64,aGVsbG8=" }] });
+        expect(requestBody()).toMatchObject({
+            input: expect.arrayContaining([
+                {
+                    role: "user",
+                    content: [
+                        { type: "input_text", text: "test" },
+                        { type: "input_image", image_url: "data:image/png;base64,aGVsbG8=" },
+                    ],
+                },
+            ]),
+        });
+    });
+
+    it("sends Gemini inline media with MIME type", async () => {
+        mockedFetch.mockResolvedValue(Response.json({ candidates: [{ content: { parts: [{ text: "{}" }] } }] }));
+        await requestStructuredText({ ...requestInput(candidate("compatible", { apiFormat: "gemini" })), mediaInputs: [{ type: "image", url: "data:image/png;base64,aGVsbG8=" }] });
+        expect(requestBody()).toMatchObject({ contents: [{ role: "user", parts: [{ text: "test" }, { inlineData: { mimeType: "image/png", data: "aGVsbG8=" } }] }] });
     });
 
     it("forwards signed worker context as proxy authentication headers", async () => {

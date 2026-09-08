@@ -54,7 +54,7 @@ describe("POST /api/drama-lab/projects/:id/extract-storyboards", () => {
             updatedAt: "2026-08-22T00:00:00.000Z",
         };
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
-        mocks.readJsonBody.mockResolvedValue({ episodeId: "episode-one", requestId: "request-one" });
+        mocks.readJsonBody.mockResolvedValue({ episodeId: "episode-one", requestId: "request-one", storyboardOptions: { shotCount: 12, totalDuration: 90.5, creationMode: "universal", generateNarration: true } });
         mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project, ownerUserId: "user-one" });
         mocks.startDramaLabWorkflow.mockResolvedValue({ id: "workflow-one" });
         mocks.advanceDramaLabWorkflow.mockResolvedValue(undefined);
@@ -63,7 +63,26 @@ describe("POST /api/drama-lab/projects/:id/extract-storyboards", () => {
         const response = await POST(new Request("http://localhost/api/drama-lab/projects/project-one/extract-storyboards", { method: "POST" }), { params: Promise.resolve({ id: "project-one" }) });
 
         expect(response.status).toBe(202);
-        expect(mocks.startDramaLabWorkflow).toHaveBeenCalledWith(expect.objectContaining({ projectId: "project-one", sourceEpisodeId: "episode-one", requestId: "request-one", options: { mode: "storyboard_extract", scope: "current" } }));
+        expect(mocks.startDramaLabWorkflow).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectId: "project-one",
+                sourceEpisodeId: "episode-one",
+                requestId: "request-one",
+                options: { mode: "storyboard_extract", scope: "current", storyboardOptions: { shotCount: 12, totalDuration: 90.5, creationMode: "universal", generateNarration: true } },
+            }),
+        );
         await expect(response.json()).resolves.toMatchObject({ code: 0, data: { taskId: "workflow-one", task: { mode: "storyboard_extract" } } });
+    });
+});
+
+describe("extraction parameter validation", () => {
+    it("returns 400 before task creation on fractional shot count", async () => {
+        vi.clearAllMocks();
+        mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
+        mocks.readJsonBody.mockResolvedValue({ episodeId: "episode-one", storyboardOptions: { shotCount: 1.5 } });
+        mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project: { id: "project-one" } });
+        const response = await POST(new Request("http://localhost/api/drama-lab/projects/project-one/extract-storyboards", { method: "POST" }), { params: Promise.resolve({ id: "project-one" }) });
+        expect(response.status).toBe(400);
+        expect(mocks.startDramaLabWorkflow).not.toHaveBeenCalled();
     });
 });

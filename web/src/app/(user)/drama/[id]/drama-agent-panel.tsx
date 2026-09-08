@@ -15,7 +15,7 @@ import { formatAgentMessageText, friendlyAgentError } from "@/components/agent/a
 import { AgentMediaPreview } from "@/components/agent/agent-media-preview";
 import { clipboardImageFiles } from "@/lib/clipboard-image-files";
 import type { CreativeAsset, CreativeConversation, CreativeMessage } from "@/lib/creative-runtime-contract";
-import { CREATIVE_UPLOAD_MAX_BYTES, isCreativeUploadMimeType } from "@/lib/creative-upload";
+import { creativeUploadLimitMessage, creativeUploadMaxBytes, creativeUploadTypeFromMime, isCreativeUploadMimeType } from "@/lib/creative-upload";
 import type { DramaAssetReference, DramaEpisode, DramaNamedAsset, DramaProject } from "@/lib/drama-project-contract";
 import { imageReferenceLabel } from "@/lib/image-reference-prompt";
 import { useCreativeAgentOptions } from "@/hooks/use-creative-agent-options";
@@ -280,8 +280,14 @@ function DramaAgentContent({
     const uploadImages = async (files: File[]) => {
         const unsupported = files.find((file) => !isCreativeUploadMimeType(file.type) || !file.type.startsWith("image/"));
         if (unsupported) return message.error(`${unsupported.name} 不是支持的图片格式`);
-        const oversized = files.find((file) => file.size > CREATIVE_UPLOAD_MAX_BYTES);
-        if (oversized) return message.error(`${oversized.name} 超过 20MB`);
+        const oversized = files.find((file) => {
+            const type = creativeUploadTypeFromMime(file.type);
+            return type ? file.size > creativeUploadMaxBytes(type) : false;
+        });
+        if (oversized) {
+            const type = creativeUploadTypeFromMime(oversized.type) || "image";
+            return message.error(`${oversized.name}：${creativeUploadLimitMessage(type)}`);
+        }
         if (!files.length || uploading || loading) return;
         setUploading(true);
         try {

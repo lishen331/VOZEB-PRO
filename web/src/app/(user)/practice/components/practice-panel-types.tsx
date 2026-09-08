@@ -13,11 +13,12 @@ export type PracticePanelProps = {
 export type PracticePanelModule = PracticeModuleKind;
 
 export function workflowFieldDefaults(capability: PracticeModuleCapability) {
-    return Object.fromEntries(capability.inputSchema.filter((field) => field.defaultValue !== undefined && !isDialogueSlotField(field.key)).map((field) => [field.key, field.defaultValue]));
+    return Object.fromEntries(capability.inputSchema.filter((field) => field.defaultValue !== undefined && !["prompt", "text"].includes(field.key) && !isDialogueSlotField(field.key)).map((field) => [field.key, field.defaultValue]));
 }
 
 export function workflowFormFields(capability: PracticeModuleCapability) {
-    return capability.inputSchema.filter((field) => {
+    return capability.inputSchema.filter((field, index, fields) => {
+        if (fields.findIndex((item) => item.key === field.key) !== index) return false;
         if (["prompt", "text", "referenceImage", "sceneImage", "characterPropImage1", "characterPropImage2", "characterPropImage3", "image", "audio"].includes(field.key)) return false;
         if (/^s\d+_/.test(field.key)) return false;
         return field.required || field.type === "text" || field.type === "textarea";
@@ -37,7 +38,7 @@ export function WorkflowFormFields({ capability, value, onChange }: { capability
 }
 
 export function WorkflowOptionalFields({ capability, value, onChange }: { capability: PracticeModuleCapability; value: Record<string, unknown>; onChange: (key: string, next: unknown) => void }) {
-    const fields = capability.inputSchema.filter((field) => !field.required && !isDialogueSlotField(field.key) && ["number", "enum", "boolean"].includes(field.type));
+    const fields = capability.inputSchema.filter((field, index, fields) => fields.findIndex((item) => item.key === field.key) === index && !field.required && !isDialogueSlotField(field.key) && ["number", "enum", "boolean"].includes(field.type));
     if (!fields.length) return null;
     return (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -82,4 +83,10 @@ function WorkflowField({ field, value, onChange }: { field: PracticeModuleInputF
 
 function isDialogueSlotField(key: string) {
     return /^s\d+_/.test(key);
+}
+
+export function capabilityForWorkflow(capability: PracticeModuleCapability, code: string, modelId?: string): PracticeModuleCapability {
+    const options = capability.models.find((model) => model.id === modelId)?.workflowOptions || capability.workflowOptions;
+    const workflow = options?.find((option) => option.code === code);
+    return { ...capability, available: capability.available && (!options?.length || Boolean(workflow)), inputSchema: workflow?.inputSchema || capability.inputSchema };
 }

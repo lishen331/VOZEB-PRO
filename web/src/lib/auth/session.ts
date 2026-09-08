@@ -173,6 +173,7 @@ export function serializePublicSettings(settings: AuthSettings) {
                 models: channel.models,
                 enabled: channel.enabled,
                 hasApiKey: Boolean(channel.apiKey),
+                purpose: channel.purpose || "shared",
             })),
     };
 }

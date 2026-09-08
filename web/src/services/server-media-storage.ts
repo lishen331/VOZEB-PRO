@@ -1,7 +1,7 @@
 "use client";
 
 import { browserReadableMediaUrl } from "@/lib/browser-media-url";
-import { CREATIVE_UPLOAD_MAX_BYTES, isCreativeUploadMimeType } from "@/lib/creative-upload";
+import { creativeUploadLimitMessage, creativeUploadMaxBytes, isCreativeUploadMimeType } from "@/lib/creative-upload";
 
 export type ServerMediaType = "image" | "video" | "audio";
 export type StoredServerMedia = { url: string; storageKey: string; bytes: number; mimeType: string };
@@ -12,14 +12,15 @@ const SERVER_MEDIA_ROUTES = [
     { prefix: "/api/reference-assets/", scope: "reference" as const },
 ];
 
-export async function uploadServerMedia(input: string | Blob, type: ServerMediaType, maxBytes = CREATIVE_UPLOAD_MAX_BYTES): Promise<StoredServerMedia> {
+export async function uploadServerMedia(input: string | Blob, type: ServerMediaType, maxBytes?: number): Promise<StoredServerMedia> {
     const existing = typeof input === "string" ? parseServerMediaUrl(input) : null;
     if (existing?.storageKey.startsWith("permanent/")) return readExistingServerMedia(existing, type);
 
     const blob = typeof input === "string" ? await fetchMediaBlob(input) : input;
+    const effectiveMaxBytes = maxBytes ?? creativeUploadMaxBytes(type);
     const originalName = input instanceof File ? input.name.trim() : "";
     if (!blob.size) throw new Error("上传文件为空");
-    if (blob.size > maxBytes) throw new Error(maxBytes === CREATIVE_UPLOAD_MAX_BYTES ? "单个文件不能超过 20MB" : "生成媒体文件过大");
+    if (blob.size > effectiveMaxBytes) throw new Error(maxBytes === undefined ? creativeUploadLimitMessage(type) : "生成媒体文件过大");
     const declaredMimeType = blob.type.split(";", 1)[0]?.trim().toLowerCase() || "";
     const unknownMimeType = !declaredMimeType || declaredMimeType === "application/octet-stream";
     if (!unknownMimeType && (!isCreativeUploadMimeType(declaredMimeType) || !declaredMimeType.startsWith(`${type}/`))) throw new Error(`仅支持${type === "image" ? "图片" : type === "video" ? "视频" : "音频"}格式`);

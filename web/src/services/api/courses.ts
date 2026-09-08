@@ -19,6 +19,9 @@ import type {
 import { serializeApiParams } from "@/services/api/request";
 
 export const coursesApi = {
+    uploadPlatformCourseCover(file: File) {
+        return request<{ storageKey: string; previewUrl: string }>("/api/admin/course-covers", { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+    },
     listPlatformCourses(input: { page?: number; pageSize?: number; keyword?: string; status?: PlatformCourse["status"] } = {}) {
         return request<PageResult<PlatformCourse>>(`/api/admin/courses${query(input)}`);
     },

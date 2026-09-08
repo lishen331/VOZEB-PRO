@@ -26,9 +26,12 @@ vi.mock("@/lib/server/object-storage-client", () => ({
 }));
 vi.mock("@/lib/server/object-storage-service", () => ({ createExternalStorageImagePreviewUrl: mocks.createImagePreviewUrl }));
 
-import { deleteStoredIpContentFile, readIpContentFile, writeIpContentFile } from "./ip-library-file-storage";
+import { deleteStoredIpContentFile, IP_CONTENT_FILE_MAX_BYTES, readIpContentFile, writeIpContentFile } from "./ip-library-file-storage";
 
 describe("IP library source file storage", () => {
+    it("allows a single IP library video up to 800MB", () => {
+        expect(IP_CONTENT_FILE_MAX_BYTES.video).toBe(800 * 1024 * 1024);
+    });
     let dataDir: string;
 
     beforeEach(async () => {

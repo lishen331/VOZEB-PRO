@@ -6,7 +6,7 @@ import { ChevronsDown, Clapperboard, FolderOpen, History, Play, Plus, ScanFace, 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { CREATIVE_UPLOAD_ACCEPT, CREATIVE_UPLOAD_MAX_BYTES, isCreativeUploadMimeType } from "@/lib/creative-upload";
+import { CREATIVE_UPLOAD_ACCEPT, creativeUploadLimitMessage, creativeUploadMaxBytes, creativeUploadTypeFromMime, isCreativeUploadMimeType } from "@/lib/creative-upload";
 import type { CreateOverviewAsset } from "@/lib/create-workbench-overview";
 import type { CreativeAsset, CreativeGenerationMode, CreativeGenerationPreferences, CreativeMessage } from "@/lib/creative-runtime-contract";
 import { reconcileCreativeGenerationPreferences } from "@/lib/creative-model-capabilities";
@@ -209,7 +209,8 @@ export default function CreatePage() {
         }
         promptRevisionRef.current += 1;
         try {
-            const preferences = { ...generationPreferences, ...(creationMode !== "agent" ? { mode: creationMode } : {}) };
+            const parameters = applyAgentGenerationCapability(creationMode, generationPreferences.mode || "image", generationPreferences);
+            const preferences = { ...parameters, ...(creationMode !== "agent" ? { mode: creationMode } : {}) };
             if (
                 await agent.submit(prompt, {
                     publicPrompt: publicCreativeAssetPrompt(prompt),
@@ -252,9 +253,12 @@ export default function CreatePage() {
             message.error(`${unsupported.name} 不是支持的图片、视频或音频格式`);
             return [] as CreativeAsset[];
         }
-        const oversized = files.find((file) => file.size > CREATIVE_UPLOAD_MAX_BYTES);
+        const oversized = files.find((file) => {
+            const type = creativeUploadTypeFromMime(file.type);
+            return type ? file.size > creativeUploadMaxBytes(type) : false;
+        });
         if (oversized) {
-            message.error(`${oversized.name} 超过 20MB`);
+            message.error(`${oversized.name}：${creativeUploadLimitMessage(creativeUploadTypeFromMime(oversized.type) || "image")}`);
             return [] as CreativeAsset[];
         }
         try {
@@ -367,13 +371,16 @@ export default function CreatePage() {
 
     const changeGenerationCapability = (capability: CreativeGenerationMode) => {
         setGenerationPreferences((current) => {
-            const next = { ...current, mode: capability };
+            const next = applyAgentGenerationCapability(creationMode, capability, current);
             if (capability === "video" || !current.video) return next;
             return { ...next, video: { ...current.video, referenceMode: "reference", firstFrameAssetId: undefined, lastFrameAssetId: undefined } };
         });
     };
 
     const changeGenerationPreference = (capability: "image" | "video" | "audio", patch: Record<string, string | number | boolean>) => {
+        // Selecting frame roles is an explicit video action, unlike browsing
+        // parameter tabs. Reflect it in the visible mode selector as well.
+        if (capability === "video" && (patch.referenceMode === "first_frame" || patch.referenceMode === "first_last")) setCreationMode("video");
         setGenerationPreferences((current) => {
             const activePreferences = applyAgentGenerationCapability(creationMode, capability, current);
             if (capability !== "video") return { ...activePreferences, [capability]: { ...activePreferences[capability], ...patch } };
@@ -699,6 +706,7 @@ export default function CreatePage() {
                                 materializingProjectId={agent.materializingProjectId}
                                 onMaterializeProject={agent.materializeProject}
                                 onRetryMessage={retryRound}
+                                onControlRun={agent.controlRun}
                                 selectedAssetIds={agent.selectedAssetIds}
                                 onToggleAsset={toggleReferencedAsset}
                                 hasOlder={agent.hasOlderMessages}

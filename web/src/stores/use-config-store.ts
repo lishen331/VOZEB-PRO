@@ -60,6 +60,7 @@ type SystemChannelAdvancedConfig = {
 };
 
 type ModelChannel = {
+    purpose?: "production" | "open-source-practice" | "shared";
     id: string;
     name: string;
     baseUrl: string;
@@ -235,7 +236,7 @@ function isAiConfigReady(config: AiConfig, model: string) {
 
 export function applyPublicSystemSettings(config: AiConfig, settings?: PublicSystemSettings | null): AiConfig {
     const channels = (settings?.systemChannels || [])
-        .filter((channel) => channel.enabled !== false && channel.hasApiKey !== false && channel.models?.length)
+        .filter((channel) => channel.enabled !== false && channel.hasApiKey !== false && channel.purpose !== "open-source-practice" && channel.models?.length)
         .map((channel) => ({
             id: channel.id,
             name: channel.name,

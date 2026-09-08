@@ -48,6 +48,17 @@ describe("video task upstream reconciliation", () => {
         vi.unstubAllEnvs();
     });
 
+    it("uses the official POST contract and root results for RunningHub video", async () => {
+        const task = videoTask();
+        task.config.advancedConfig = { ...task.config.advancedConfig!, protocol: "runninghub", queryPath: "/openapi/v2/query", statusField: "data.status", resultField: "data.result" };
+        mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ status: "SUCCESS", results: [{ url: "https://cdn.example/result.mp4", fileType: "mp4", nodeId: "75" }] }));
+        await expect(queryVideoTaskUpstream(task, "http://localhost")).resolves.toMatchObject({ state: "result_ready", resultUrl: "https://cdn.example/result.mp4" });
+        const [url, init] = mocks.fetchInternalApi.mock.calls[0];
+        expect(url).toBe("http://localhost/api/ai/system/channel/openapi/v2/query");
+        expect(init.method).toBe("POST");
+        expect(JSON.parse(init.body).taskId).toBe(task.upstream.id);
+    });
+
     it("forwards the maintenance worker identity when polling the internal system proxy", async () => {
         const token = "maintenance-token-used-by-generation-worker";
         const task = videoTask();

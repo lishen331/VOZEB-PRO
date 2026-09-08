@@ -31,6 +31,7 @@ import { useSchoolContextStore } from "@/stores/use-school-context-store";
 import { parseSchoolMemberCsv } from "./school-csv";
 import { ProductionGroupsPanel } from "./components/production-groups-panel";
 import { SchoolIpAccessPanel } from "./components/school-ip-access-panel";
+import { SchoolCourseCovers } from "./school-course-covers";
 import { SchoolCourseTree } from "@/components/school/school-course-tree";
 
 const PAGE_SIZE = 12;
@@ -776,38 +777,6 @@ function CoursesPanel() {
         }
     };
 
-    const actions = (assignment: SchoolCourseAssignment) => {
-        const available = assignment.status === "active" && assignment.course.status === "published";
-        return (
-            <div className="flex flex-wrap justify-end gap-1">
-                <Button type="text" size="small" icon={<Eye className="size-3.5" />} onClick={() => void openDetails(assignment)}>
-                    内容与安排
-                </Button>
-                {available ? (
-                    <Button type="text" size="small" icon={<Plus className="size-3.5" />} onClick={() => void openArrange(assignment)}>
-                        创建教学安排
-                    </Button>
-                ) : null}
-            </div>
-        );
-    };
-
-    const columns: TableColumnsType<SchoolCourseAssignment> = [
-        {
-            title: "课程",
-            render: (_, assignment) => (
-                <div className="min-w-0">
-                    <div className="truncate font-medium text-zinc-950 dark:text-zinc-100">{assignment.course.title}</div>
-                    <div className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{assignment.course.summary || "暂无摘要"}</div>
-                    {assignment.status !== "active" || assignment.course.status !== "published" ? <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">课程已停用，不能创建新的教学安排</div> : null}
-                </div>
-            ),
-        },
-        { title: "章节/课时", width: 110, render: (_, assignment) => `${assignment.course.chapterCount}/${assignment.course.lessonCount}` },
-        { title: "状态", width: 110, render: (_, assignment) => <CourseAssignmentStatus assignment={assignment} /> },
-        { title: "操作", width: 260, align: "right", render: (_, assignment) => actions(assignment) },
-    ];
-
     return (
         <section className="space-y-3 py-2">
             <div className="flex items-center justify-between gap-3 border-b border-zinc-200 pb-3 dark:border-zinc-800">
@@ -818,28 +787,7 @@ function CoursesPanel() {
                 <Button icon={<RefreshCw className="size-4" />} aria-label="刷新学校课程" loading={loading} onClick={() => void load()} />
             </div>
 
-            <div className="hidden md:block">
-                <Table rowKey="id" columns={columns} dataSource={items} loading={loading} pagination={false} scroll={{ x: 760 }} />
-            </div>
-            <div className="space-y-2 md:hidden" aria-busy={loading}>
-                {items.map((assignment) => {
-                    const available = assignment.status === "active" && assignment.course.status === "published";
-                    return (
-                        <article key={assignment.id} className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                    <h3 className="truncate text-sm font-medium">{assignment.course.title}</h3>
-                                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-500">{assignment.course.summary || "暂无摘要"}</p>
-                                </div>
-                                <CourseAssignmentStatus assignment={assignment} />
-                            </div>
-                            {!available ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">课程已停用，不能创建新的教学安排</p> : null}
-                            <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">{actions(assignment)}</div>
-                        </article>
-                    );
-                })}
-                {!loading && !items.length ? <EmptyText text="暂无已分配课程" /> : null}
-            </div>
+            <SchoolCourseCovers items={items} loading={loading} onOpen={(assignment) => void openDetails(assignment)} />
             <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
 
             <Drawer
@@ -1368,10 +1316,6 @@ function mergeOptions(selected: SelectOption[], loaded: SelectOption[]) {
 }
 
 type CourseOfferingForm = CourseOfferingInput;
-
-function CourseAssignmentStatus({ assignment }: { assignment: SchoolCourseAssignment }) {
-    return assignment.status === "active" && assignment.course.status === "published" ? <Tag color="green">可安排</Tag> : <Tag>已停用</Tag>;
-}
 
 function ResourceList({ values, emptyText }: { values: unknown[]; emptyText: string }) {
     return (

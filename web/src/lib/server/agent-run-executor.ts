@@ -3,6 +3,7 @@ import { planCanvasAgentLayout } from "@/lib/canvas-agent-layout";
 import { agentRunCanvasSnapshot } from "./agent-run-canvas-snapshot";
 import { getCanvasProjectForRecovery } from "./canvas-project-store";
 import { isDramaLabCanvasProject } from "@/lib/drama-lab-canvas-contract";
+import { prepareAgentPlannerMedia } from "./agent-planner-media";
 import { getAuthSettings } from "@/lib/auth/store";
 import { nanoid } from "nanoid";
 import { resolveLogicalModelCandidates, resolveVisionModelCandidates } from "@/lib/server/logical-model-router";
@@ -141,7 +142,8 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
         const plannerContext = buildAgentPlannerInput(claimed, conversationContext, referencedAssets, referenceSource, skillOptions, availableModels, settings);
         if (!(await updateAgentRunById(run.id, { plannerContext: plannerContext.summary }, { type: "skills.selected", data: { skills: skills.map((skill) => ({ id: skill.id, name: skill.name })) } }, ["running"], executionId))) return;
         const plannerRequest = buildAgentRequest(claimed, plannerContext.input);
-        const plannerUserContent = plannerMessageContent(plannerRequest, claimed.surface);
+        const mediaInputs = await prepareAgentPlannerMedia(referencedAssets, origin, cookie, controller.signal);
+        const plannerUserContent = serializeAgentRequest(plannerRequest);
         const planningInput = [
             {
                 role: "system" as const,
@@ -183,10 +185,11 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
                     run.userId,
                     model,
                     false,
-                    systemAiIdempotencyKey("agent-plan", run.userId, run.id, candidate.channel.id, candidate.upstreamModel),
+                    systemAiIdempotencyKey("agent-plan", run.userId, run.id, String(claimed.planningAttempt || 0), candidate.channel.id, candidate.upstreamModel),
                     undefined,
                     undefined,
                     claimed.billingContext,
+                    mediaInputs,
                 );
                 plan = await parseAgentPlanCall(planCall, () => refundFunctionCall(claimed.userId, model, planCall), undefined, {
                     allowCanvasOperation: claimed.surface === "canvas",

@@ -9,6 +9,7 @@ import { canvasPlan, canvasSettings, conversationPlan, creativeImageAsset, disab
 const mocks = vi.hoisted(() => ({
     getCanvasProjectForRecovery: vi.fn(),
     fetchInternalApi: vi.fn(),
+    prepareAgentPlannerMedia: vi.fn(),
     getAuthSettings: vi.fn(),
     refundGenerationCharge: vi.fn(async () => ({ refunded: true })),
     getCreativeAssetsByIds: vi.fn(async (_ids: string[] = []): Promise<Array<Record<string, unknown>>> => []),
@@ -25,11 +26,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./canvas-project-store", () => ({ getCanvasProjectForRecovery: mocks.getCanvasProjectForRecovery }));
+vi.mock("@/lib/server/agent-planner-media", () => ({ prepareAgentPlannerMedia: mocks.prepareAgentPlannerMedia }));
 vi.mock("@/lib/auth/store", () => ({
     getAuthSettings: mocks.getAuthSettings,
 }));
 vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refundGenerationCharge }));
-vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi }));
+vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi, resolveInternalOrigin: vi.fn((origin: string) => origin) }));
 vi.mock("@/lib/server/creative-runtime-store", () => ({
     getCreativeAssetsByIds: mocks.getCreativeAssetsByIds,
     getCreativeConversationContext: mocks.getCreativeConversationContext,
@@ -58,6 +60,7 @@ describe("executeAgentRun backend settings", () => {
         vi.clearAllMocks();
         resetTextPlanningRuntime();
         mocks.events = [];
+        mocks.prepareAgentPlannerMedia.mockResolvedValue([]);
         mocks.getCreativeAssetsByIds.mockResolvedValue([]);
         mocks.listRecentCreativeMediaAssets.mockResolvedValue([]);
         mocks.getCreativeConversationContext.mockResolvedValue({ summary: "", summaryThroughSequence: 0, recentMessages: [] });
@@ -146,6 +149,78 @@ describe("executeAgentRun backend settings", () => {
         expect(mocks.events.find((e) => e.type === "run.completed")).toMatchObject({ data: { ops: [{ type: "layout_nodes" }] } });
         expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/image-tasks") || String(url).includes("/api/video-tasks"))).toBe(false);
         expect(mocks.getCanvasProjectForRecovery).toHaveBeenCalledWith(mocks.run?.projectId, "user");
+    it("blocks a reference-required skill when the planner omits actual task references", async () => {
+        mocks.run = runWithTasks([{ ...imageTask("retouch"), references: [] }]);
+        mocks.run.plannerAudit = {
+            schemaVersion: 2,
+            mode: "model",
+            skills: [{ id: "retouch", name: "retouch", description: "", plannerSummary: "", instructions: "", enabled: true, keywords: [], workspaces: ["image"], action: "edit", requiresReference: true, defaultConfig: {} }],
+        };
+        mocks.getAuthSettings.mockResolvedValue(settings("image-model", "image-channel"));
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+        expect(mocks.run?.status).toBe("failed");
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+    });
+
+    it("uses a stable billing identity within a planning attempt and a new one on explicit retry", async () => {
+        const keys: string[] = [];
+        mocks.getAuthSettings.mockResolvedValue(settings("image-model", "image-channel"));
+        mocks.fetchInternalApi.mockImplementation(async (_url, init) => {
+            keys.push(new Headers(init?.headers).get("x-vozeb-pro-points-idempotency-key") || "");
+            return Response.json({ choices: [{ message: { content: JSON.stringify(conversationPlan("planner", "hello")) } }] });
+        });
+        for (const planningAttempt of [0, 0, 1]) {
+            mocks.run = runFixture({ surface: "chat", planningAttempt, prompt: "hello" });
+            await executeAgentRun(mocks.run, "http://localhost", "session=test");
+        }
+        expect(keys).toHaveLength(3);
+        expect(keys[0]).toBe(keys[1]);
+        expect(keys[2]).not.toBe(keys[1]);
+    });
+
+    it("does not pause healthy siblings when another model needs review", async () => {
+        mocks.run = runWithTasks([imageTask("unknown"), imageTask("healthy")]);
+        mocks.getAuthSettings.mockResolvedValue(settings("image-model", "image-channel"));
+        let created = 0;
+        let polls = 0;
+        mocks.fetchInternalApi.mockImplementation(async (url: string, init?: RequestInit) => {
+            if (init?.method === "POST" && url.endsWith("/api/image-tasks")) return Response.json({ task: { id: ++created === 1 ? "unknown-child" : "healthy-child" } });
+            if (url.endsWith("/unknown-child")) return Response.json({ task: { status: "running", needsReview: true } });
+            if (url.endsWith("/healthy-child")) return Response.json({ task: ++polls === 1 ? { status: "running" } : { status: "success", result: { url: "https://cdn.example.com/ok.png" } } });
+            throw new Error("unexpected request");
+        });
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+        expect(mocks.run?.status).toBe("running");
+        await executeAgentRun(mocks.run!, "http://localhost", "session=test");
+        expect(mocks.run?.tasks.find((t) => t.id === "healthy")?.status).toBe("completed");
+        expect(mocks.run?.status).toBe("paused");
+        expect(created).toBe(2);
+        expect(mocks.fetchInternalApi.mock.calls.filter(([url]) => String(url).endsWith("/unknown-child"))).toHaveLength(1);
+    });
+
+    it("uses loaded image content in the visual planner request", async () => {
+        mocks.run = runFixture({ surface: "chat", projectId: undefined, prompt: "Read the error in the attached screenshot", referencedAssetIds: ["asset-first"] });
+        mocks.getCreativeAssetsByIds.mockResolvedValue([creativeImageAsset("asset-first", "input.png", "https://cdn.example.com/first.png")]);
+        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
+        mocks.prepareAgentPlannerMedia.mockResolvedValue([{ type: "image", url: "data:image/png;base64,aGVsbG8=" }]);
+        mocks.fetchInternalApi.mockResolvedValue(Response.json({ choices: [{ message: { content: JSON.stringify(conversationPlan("planner", "HTTP 403: access denied")) } }] }));
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+        expect(mocks.prepareAgentPlannerMedia).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ id: "asset-first" })]), "http://localhost", "session=test", expect.any(AbortSignal));
+        const call = mocks.fetchInternalApi.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
+        const body = JSON.parse(String(call?.[1]?.body));
+        expect(body.messages[1].content).toContainEqual({ type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } });
+        expect(mocks.run).toMatchObject({ status: "completed", tasks: [] });
+        expect(mocks.events).toContainEqual(expect.objectContaining({ type: "run.completed", data: expect.objectContaining({ reply: "HTTP 403: access denied" }) }));
+    });
+
+    it("fails before calling the planner when referenced media cannot be loaded", async () => {
+        mocks.run = runFixture({ surface: "chat", projectId: undefined, prompt: "Read screenshot", referencedAssetIds: ["asset-first"] });
+        mocks.getCreativeAssetsByIds.mockResolvedValue([creativeImageAsset("asset-first", "input.png", "https://cdn.example.com/first.png")]);
+        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
+        mocks.prepareAgentPlannerMedia.mockRejectedValue(new Error("Reference image access denied"));
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+        expect(mocks.run?.status).toBe("failed");
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
     });
 
     it("preserves generated media dimensions in canvas output ops", () => {
@@ -523,11 +598,11 @@ describe("executeAgentRun backend settings", () => {
         expect(mocks.events.some((event) => event.type === "task.needs_review")).toBe(true);
         expect(mocks.events.some((event) => event.type === "run.paused")).toBe(true);
 
-        mocks.run = { ...mocks.run!, status: "running" };
+        mocks.run = { ...mocks.run!, status: "running", tasks: mocks.run!.tasks.map((task) => ({ ...task, status: task.status === "needs_review" ? ("running" as const) : task.status })) };
         await executeAgentRun(mocks.run, "http://localhost", "session=test");
 
         expect(mocks.fetchInternalApi.mock.calls.filter((call) => call[1]?.method === "POST" && String(call[0]).endsWith("/api/image-tasks"))).toHaveLength(1);
-        expect(mocks.fetchInternalApi.mock.calls.filter((call) => call[1]?.method === "POST" && String(call[0]).endsWith("/api/image-tasks/child-review"))).toHaveLength(1);
+        expect(mocks.fetchInternalApi.mock.calls.filter((call) => call[1]?.method === "POST" && String(call[0]).endsWith("/api/image-tasks/child-review"))).toHaveLength(0);
         expect(polls).toBe(2);
         expect(mocks.run?.status).toBe("completed");
     });

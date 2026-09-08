@@ -1,9 +1,10 @@
 "use client";
+import styles from "./practice-workbench.module.css";
 
 import { App, Button, Empty, Input, Spin } from "antd";
 import { ArrowLeft, BookOpen, Box, Film, Image, Mic2, Music2, PanelsTopLeft, RefreshCw, UserRound, type LucideIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ipReferenceFromQuery } from "@/components/ip-library/ip-reference-picker";
 import type { IpReference } from "@/lib/ip-library-domain";
@@ -62,7 +63,11 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
     const router = useRouter();
     const searchParams = useSearchParams();
     const { message } = App.useApp();
+    const [draftVersion, setDraftVersion] = useState(0);
     const [capability, setCapability] = useState<PracticeModuleCapability>();
+    const [historyPage, setHistoryPage] = useState(1);
+    const [historyTotal, setHistoryTotal] = useState(0);
+    const [historyBusy, setHistoryBusy] = useState(false);
     const [sessions, setSessions] = useState<PracticeSession[]>([]);
     const [current, setCurrent] = useState<PracticeSession>();
     const [loading, setLoading] = useState(true);
@@ -72,19 +77,32 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
     const Icon = ICONS[module];
     const sessionId = searchParams.get("sessionId") || "";
 
+    const selectedId = useRef(sessionId);
+    selectedId.current = sessionId;
+    const routeSelection = useRef(0);
+    const pollBusy = useRef(false);
+    const activeTaskId = current && ["queued", "running"].includes(current.status) ? current.id : "";
+    const ipId = searchParams.get("ipId") || "";
+    const subIpId = searchParams.get("subIpId") || "";
     useEffect(() => {
-        const reference = ipReferenceFromQuery(searchParams);
+        const reference = ipReferenceFromQuery(new URLSearchParams({ ipId, subIpId }));
         setIpReferences(reference ? [reference] : []);
+    }, [ipId, subIpId]);
+    useEffect(() => {
         let active = true;
         setLoading(true);
+        setCurrent(undefined);
         void Promise.all([practiceApi.listModules(), practiceApi.listSessions({ module, pageSize: 24 })])
-            .then(async ([modules, history]) => {
+            .then(([modules, history]) => {
                 if (!active) return;
                 setCapability(modules.modules.find((item) => item.module === module));
                 setSessions(history.sessions);
-                if (sessionId) {
-                    const item = history.sessions.find((entry) => entry.id === sessionId);
-                    setCurrent(item || (await practiceApi.getSession(sessionId)).session);
+                setHistoryPage(1);
+                setHistoryTotal(history.total);
+                if (!selectedId.current && history.sessions.length) {
+                    const recent = history.sessions.find((item) => ["queued", "running"].includes(item.status)) || history.sessions[0];
+                    setCurrent(recent);
+                    router.replace(practiceSessionPath(module, new URLSearchParams(window.location.search), recent.id));
                 }
             })
             .catch((error) => active && message.error(error instanceof Error ? error.message : "练习记录加载失败"))
@@ -92,63 +110,72 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
         return () => {
             active = false;
         };
-    }, [message, module, searchParams, sessionId]);
+    }, [message, module, router]);
     useEffect(() => {
+        const version = ++routeSelection.current;
         if (!sessionId) return;
-        let active = true;
-        const loadSession = () => {
-            void practiceApi
-                .getSession(sessionId)
-                .then(({ session }) => {
-                    if (!active) return;
-                    setCurrent(session);
-                    setSessions((items) => items.map((item) => (item.id === session.id ? session : item)));
-                })
-                .catch((error) => active && message.error(error instanceof Error ? error.message : "状态刷新失败"));
+        const read = async () => {
+            try {
+                const { session } = await practiceApi.getSession(sessionId);
+                if (routeSelection.current !== version) return;
+                setCurrent(session);
+                setSessions((items) => (items.some((item) => item.id === session.id) ? items.map((item) => (item.id === session.id ? session : item)) : [session, ...items]));
+            } catch (error) {
+                if (routeSelection.current === version) message.error(error instanceof Error ? error.message : "状态刷新失败");
+            }
         };
-        window.addEventListener("focus", loadSession);
+        void read();
+        window.addEventListener("focus", read);
         return () => {
-            active = false;
-            window.removeEventListener("focus", loadSession);
+            routeSelection.current += 1;
+            window.removeEventListener("focus", read);
         };
     }, [message, sessionId]);
     useEffect(() => {
-        if (!current) return;
-        const isPolling = current.status === "queued" || current.status === "running" || current.result?.status === "pending" || current.result?.status === "running";
-        if (!isPolling) return;
+        if (!activeTaskId) return;
         let active = true;
-        let pollCount = 0;
-        const poll = () => {
+        let timer: ReturnType<typeof setTimeout>;
+        const poll = async () => {
             if (!active) return;
-            void practiceApi
-                .getSession(current.id)
-                .then(({ session }) => {
-                    if (!active) return;
-                    setCurrent(session);
-                    setSessions((items) => items.map((item) => (item.id === session.id ? session : item)));
-                    const stillPolling = session.status === "queued" || session.status === "running" || session.result?.status === "pending" || session.result?.status === "running";
-                    if (stillPolling && active) {
-                        pollCount += 1;
-                        const delay = Math.min(2000 + pollCount * 1000, 8000);
-                        setTimeout(poll, delay);
-                    }
-                })
-                .catch(() => {
-                    if (active) {
-                        pollCount += 1;
-                        const delay = Math.min(2000 + pollCount * 1000, 8000);
-                        setTimeout(poll, delay);
-                    }
-                });
+            if (pollBusy.current) {
+                timer = setTimeout(poll, 2000);
+                return;
+            }
+            pollBusy.current = true;
+            try {
+                const { session } = await practiceApi.getSession(activeTaskId);
+                if (!active) return;
+                setCurrent((item) => (item?.id === activeTaskId ? session : item));
+                setSessions((items) => items.map((item) => (item.id === session.id ? session : item)));
+                if (["queued", "running"].includes(session.status)) timer = setTimeout(poll, 2000);
+            } catch (error) {
+                if (active) message.error(error instanceof Error ? error.message : "状态查询失败，请点击刷新状态");
+            } finally {
+                pollBusy.current = false;
+            }
         };
-        const initialDelay = 2000;
-        const timer = setTimeout(poll, initialDelay);
+        timer = setTimeout(poll, 2000);
         return () => {
             active = false;
             clearTimeout(timer);
         };
-    }, [current, message]);
+    }, [activeTaskId, message]);
+    const loadMoreHistory = async () => {
+        if (historyBusy) return;
+        setHistoryBusy(true);
+        try {
+            const history = await practiceApi.listSessions({ module, page: historyPage + 1, pageSize: 24 });
+            setSessions((items) => [...items, ...history.sessions.filter((item) => !items.some((existing) => existing.id === item.id))]);
+            setHistoryPage(history.page);
+            setHistoryTotal(history.total);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "历史读取失败");
+        } finally {
+            setHistoryBusy(false);
+        }
+    };
     const onCreated = (session: PracticeSession) => {
+        setHistoryTotal((total) => total + (sessions.some((item) => item.id === session.id) ? 0 : 1));
         setCurrent(session);
         setSessions((items) => [session, ...items.filter((item) => item.id !== session.id)]);
         router.replace(practiceSessionPath(module, searchParams, session.id));
@@ -159,7 +186,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
         setRefreshing(true);
         try {
             const result = await practiceApi.getSession(current.id);
-            setCurrent(result.session);
+            setCurrent((item) => (item?.id === result.session.id ? result.session : item));
             setSessions((items) => items.map((item) => (item.id === result.session.id ? result.session : item)));
         } catch (error) {
             message.error(error instanceof Error ? error.message : "状态刷新失败");
@@ -184,6 +211,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
         try {
             await practiceApi.deleteSession(target.id);
             setSessions((items) => items.filter((item) => item.id !== target.id));
+            setHistoryTotal((total) => Math.max(0, total - 1));
             if (current?.id === target.id) {
                 setCurrent(undefined);
                 router.replace(`/practice/${module}`);
@@ -218,13 +246,25 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
             );
     }
     return (
-        <main className="h-full min-h-0 overflow-y-auto bg-background text-foreground" data-practice-workbench={module}>
-            <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6 sm:py-8">
+        <main className={`${styles.workbench} h-full min-h-0 overflow-y-auto bg-background text-foreground`} data-practice-workbench={module}>
+            <div className="mx-auto w-full max-w-[1440px] px-3 py-4 sm:px-6 sm:py-6">
                 <button type="button" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" onClick={() => router.push("/practice")}>
                     <ArrowLeft className="size-4" />
                     返回无限练习
                 </button>
-                <header className="mt-5 border-b border-border pb-4 sm:mt-7 sm:pb-6">
+                <Button
+                    className="!ml-3"
+                    size="small"
+                    onClick={() => {
+                        setDraftVersion((value) => value + 1);
+                        setCurrent(undefined);
+                        routeSelection.current += 1;
+                        router.replace(`/practice/${module}`);
+                    }}
+                >
+                    新建练习
+                </Button>
+                <header className="mt-4 flex items-center justify-between border-b border-border pb-4">
                     <div className="flex items-start gap-3">
                         <Icon className="mt-0.5 size-6 shrink-0" />
                         <div>
@@ -233,27 +273,34 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                         </div>
                     </div>
                 </header>
-                <section className="mt-5 border border-border bg-card p-3 sm:mt-7 sm:p-5" aria-label="练习工具">
-                    {loading ? (
-                        <div className="grid min-h-40 place-items-center">
-                            <Spin />
+                <div className={styles.grid}>
+                    <section className={`${styles.input} rounded-xl border border-border bg-card p-4 sm:p-6`} aria-label="练习工具">
+                        <div className="mb-5 flex items-center gap-2 border-b border-border pb-3">
+                            <Icon className="size-4 text-primary" />
+                            <h2 className="text-sm font-semibold">创作输入</h2>
+                            <span className="ml-auto text-xs text-muted-foreground">素材与生成参数</span>
                         </div>
-                    ) : capability ? (
-                        <>
-                            {!capability.available ? <p className="mb-4 border border-dashed border-border p-3 text-sm text-muted-foreground">{capability.unavailableReason}</p> : null}
-                            {panel}
-                        </>
-                    ) : (
-                        <Empty description="当前模块不可用" />
-                    )}
-                </section>
-                <section className="mt-5 border border-border bg-card p-3 sm:p-5" aria-label="当前结果">
-                    <div className="flex items-center justify-between gap-3">
-                        <h2 className="text-base font-semibold">练习结果</h2>
-                        <Button type="text" size="small" icon={<RefreshCw className="size-4" />} loading={refreshing} onClick={() => void refresh()} aria-label="刷新练习状态" />
-                    </div>
-                    <SessionResult module={module} session={current} onRetry={() => void retry()} onRefresh={() => void refresh()} />
-                </section>
+                        {loading ? (
+                            <div className="grid min-h-40 place-items-center">
+                                <Spin />
+                            </div>
+                        ) : capability ? (
+                            <>
+                                {!capability.available ? <p className="mb-4 border border-dashed border-border p-3 text-sm text-muted-foreground">{capability.unavailableReason}</p> : null}
+                                <div key={draftVersion}>{panel}</div>
+                            </>
+                        ) : (
+                            <Empty description="当前模块不可用" />
+                        )}
+                    </section>
+                    <section className={`${styles.result} rounded-xl border border-border bg-card p-4 sm:p-6`} aria-label="当前结果">
+                        <div className="flex items-center justify-between gap-3">
+                            <h2 className="text-base font-semibold">练习结果</h2>
+                            <Button type="text" size="small" icon={<RefreshCw className="size-4" />} loading={refreshing} onClick={() => void refresh()} aria-label="刷新练习状态" />
+                        </div>
+                        <SessionResult module={module} session={current} onRetry={() => void retry()} onRefresh={() => void refresh()} />
+                    </section>
+                </div>
                 <section className="mt-7 border-t border-border pt-5" aria-labelledby="practice-module-history">
                     <h2 id="practice-module-history" className="text-base font-semibold">
                         历史练习
@@ -274,6 +321,11 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                     ) : (
                         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="提交第一次练习后，结果会显示在这里" className="!my-5" />
                     )}
+                    {sessions.length < historyTotal ? (
+                        <Button className="!mt-3" loading={historyBusy} onClick={() => void loadMoreHistory()}>
+                            加载更多历史
+                        </Button>
+                    ) : null}
                 </section>
             </div>
         </main>

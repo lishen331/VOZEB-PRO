@@ -100,6 +100,17 @@ const project = {
 };
 
 describe("drama lab shot generation service", () => {
+    it("expands style presets in prepared image and video prompts without changing references", async () => {
+        const styled = { ...project, style: "cinematic" };
+        const image = await prepareDramaLabStoryboardImage(styled, "episode-one", "shot-one");
+        expect(image.prompt).toContain("anamorphic lens");
+        expect(image.prompt).toContain("伦勃朗式戏剧性布光");
+        const videoProject = { ...styled, episodes: styled.episodes.map((episode) => ({ ...episode, shots: episode.shots.map((shot) => ({ ...shot, storyboardImageUrl: "/reference.png" })) })) };
+        expect(prepareDramaLabStoryboardVideo(videoProject, "episode-one", "shot-one").prompt).toContain("anamorphic lens");
+        expect(styled.style).toBe("cinematic");
+        expect(image.references.map((item) => item.id)).toEqual(["scene-ref", "character-ref", "prop-ref"]);
+    });
+
     it("uses the editable frame template with the project's real bound asset references", async () => {
         const prepared = await prepareDramaLabStoryboardImage(project, "episode-one", "shot-one");
 

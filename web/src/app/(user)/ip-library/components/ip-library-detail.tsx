@@ -1,7 +1,7 @@
 "use client";
 
 import { App, Button, Image as AntImage, Modal, Spin, Tag } from "antd";
-import { BookOpen, Boxes, CalendarClock, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
+import { BookOpen, Boxes, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -117,15 +117,7 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
                                     {subIpId || !detail.singleSubIp ? <Tag className="!m-0">子 IP</Tag> : null}
                                 </div>
                                 <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">{subIpId ? selected.title : detail.title}</h1>
-                                {subIpId ? <p className="mt-1 text-sm text-muted-foreground">{detail.title}</p> : null}
                                 <p className="mt-2 text-sm leading-6 text-muted-foreground">{selected.summary || detail.summary || "暂无简介"}</p>
-                                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                    <span className="inline-flex items-center gap-1">
-                                        <CalendarClock className="size-3.5" />
-                                        更新于 {formatDate(selected.updatedAt)}
-                                    </span>
-                                    <span>{selected.items.length} 项内容</span>
-                                </div>
                                 {selected.tags.length ? (
                                     <div className="mt-3 flex flex-wrap gap-1.5">
                                         {selected.tags.map((tag) => (
@@ -158,14 +150,14 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
                             initialCount={3}
                             renderItem={(item) => <TextItem key={item.id} item={item} onDownload={() => void download({ itemId: item.id })} loading={downloading === item.id} />}
                         />
-                        <section className="border-t border-border py-5 sm:py-7" aria-labelledby="ip-images-heading">
-                            <div>
-                                <h2 id="ip-images-heading" className="text-base font-semibold sm:text-lg">
-                                    图片素材
-                                </h2>
-                                <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">按角色、场景、道具、特效和风格参考分类。</p>
-                            </div>
-                            {grouped.imageCount ? (
+                        {grouped.imageCount ? (
+                            <section className="border-t border-border py-5 sm:py-7" aria-labelledby="ip-images-heading">
+                                <div>
+                                    <h2 id="ip-images-heading" className="text-base font-semibold sm:text-lg">
+                                        图片素材
+                                    </h2>
+                                    <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">按角色、场景、道具、特效和风格参考分类。</p>
+                                </div>
                                 <AntImage.PreviewGroup>
                                     <div className="mt-4 grid gap-6">
                                         {IP_IMAGE_CATEGORIES.filter((category) => grouped.images[category.value].length).map((category) => (
@@ -180,10 +172,8 @@ export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIp
                                         ))}
                                     </div>
                                 </AntImage.PreviewGroup>
-                            ) : (
-                                <p className="mt-3 border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">暂无内容</p>
-                            )}
-                        </section>
+                            </section>
+                        ) : null}
                         <IpLibrarySection
                             title="音乐与声音"
                             description="背景音乐、主题音乐、角色声音、旁白和音效。"
@@ -225,9 +215,6 @@ function IpOverview({ detail, downloading, onDownload, onDownloadSubIp }: { deta
                         </div>
                         <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">{detail.title}</h1>
                         <p className="mt-2 text-sm leading-6 text-muted-foreground">{detail.summary || "暂无简介"}</p>
-                        <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
-                            <CalendarClock className="size-3.5" /> 更新于 {formatDate(detail.updatedAt)}
-                        </div>
                         <div className="mt-5 border-t border-border pt-4">
                             <Button type="primary" icon={<Download className="size-4" />} loading={downloading === "ip"} onClick={onDownload}>
                                 下载此 IP 内容包
@@ -258,7 +245,6 @@ function IpOverview({ detail, downloading, onDownload, onDownloadSubIp }: { deta
                                 <div className="min-w-0 p-3">
                                     <h3 className="truncate text-sm font-semibold">{subIp.title}</h3>
                                     <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{subIp.summary || "暂无简介"}</p>
-                                    <p className="mt-3 text-xs text-muted-foreground">{subIp.items.length} 项内容</p>
                                 </div>
                             </Link>
                             <div className="border-t border-border px-3 py-2">
@@ -375,8 +361,4 @@ function saveBlob(blob: Blob, fileName: string) {
     link.download = fileName;
     link.click();
     URL.revokeObjectURL(url);
-}
-function formatDate(value: string) {
-    const date = new Date(value);
-    return Number.isFinite(date.getTime()) ? date.toLocaleString("zh-CN", { hour12: false }) : "未知";
 }

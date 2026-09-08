@@ -1,5 +1,11 @@
 "use client";
 
+import { normalizeDramaLabStoryboardOptions } from "@/lib/drama-lab-storyboard-options";
+import { DramaLabStoryboardConstraints, type StoryboardConstraintDraft } from "./drama-lab-storyboard-constraints";
+
+import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
+import { readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
+
 import { Alert, Button, Drawer, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Radio, QRCode } from "antd";
 import {
     ArrowLeft,
@@ -194,7 +200,7 @@ export interface Episode {
     status?: string;
 }
 
-export interface Character {
+export interface Character extends DramaAssetVisualDetails {
     id: string;
     name: string;
     description?: string;
@@ -206,7 +212,7 @@ export interface Character {
     profile?: DramaLabAssetProfile;
 }
 
-export interface Scene {
+export interface Scene extends DramaAssetVisualDetails {
     id: string;
     location: string;
     name?: string;
@@ -220,7 +226,7 @@ export interface Scene {
     profile?: DramaLabAssetProfile;
 }
 
-export interface Prop {
+export interface Prop extends DramaAssetVisualDetails {
     id: string;
     name: string;
     description?: string;
@@ -458,6 +464,7 @@ function normalizeScenes(value: unknown): Scene[] {
         if (!id || !location) return [];
         return [
             {
+                ...readDramaLabAssetVisualDetails(scene),
                 id,
                 location,
                 name: typeof scene.name === "string" ? scene.name : location,
@@ -3983,6 +3990,8 @@ function StoryboardPanel({
     const [modalVisible, setModalVisible] = useState(false);
     const [editingShot, setEditingShot] = useState<Shot | null>(null);
     const [extracting, setExtracting] = useState(false);
+    const [constraintDrafts, setConstraintDrafts] = useState<Record<string, StoryboardConstraintDraft>>({});
+    const constraintDraft = constraintDrafts[episode?.id || ""] || { shotCount: "", totalDuration: "", creationMode: "classic" as const, generateNarration: false };
     const lastExtractionCheckpointRef = useRef(0);
     const [startingKeys, setStartingKeys] = useState<Set<string>>(() => new Set());
     const startingKeysRef = useRef(new Set<string>());
@@ -4474,12 +4483,13 @@ function StoryboardPanel({
         extractionAbortRef.current = controller;
         try {
             setExtracting(true);
+            const storyboardOptions = normalizeDramaLabStoryboardOptions(constraintDraft);
             lastExtractionCheckpointRef.current = episodeShots.length;
             messageApi.loading({ content: "正在从剧本提取分镜...", key: "extract-storyboards", duration: 0 });
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/extract-storyboards`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ episodeId: episode.id, requestId: createDramaLabClientRequestId() }),
+                body: JSON.stringify({ episodeId: episode.id, requestId: createDramaLabClientRequestId(), storyboardOptions }),
                 signal: controller.signal,
             });
             await assertJsonApiResponse(response);
@@ -5242,6 +5252,8 @@ function StoryboardPanel({
                     </Button>
                 </div>
             </div>
+
+            <DramaLabStoryboardConstraints value={constraintDraft} disabled={extracting} onChange={(value) => setConstraintDrafts((current) => ({ ...current, [episode.id]: value }))} />
 
             <div className="space-y-4">
                 {episodeShots.map((shot) => (

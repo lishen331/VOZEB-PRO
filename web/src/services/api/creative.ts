@@ -105,7 +105,7 @@ export function createCreativeAgentRun(input: CreativeRunRequest) {
     return request<{ run: CreativeAgentRun; conversation?: CreativeConversation; created: boolean }>("/api/agent/runs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
 }
 
-export function controlCreativeAgentRun(runId: string, action: "cancel" | "pause" | "resume" | "retry", expectedConversationId?: string) {
+export function controlCreativeAgentRun(runId: string, action: "cancel" | "pause" | "resume" | "retry" | "recheck", expectedConversationId?: string) {
     return request<{ run: CreativeAgentRun }>(`/api/agent/runs/${encodeURIComponent(runId)}/${action}`, {
         method: "POST",
         ...(expectedConversationId ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId: expectedConversationId }) } : {}),
@@ -208,7 +208,7 @@ export function watchCreativeAgentRun(runId: string, handlers: CreativeRunHandle
             const run = await getCreativeAgentRun(runId);
             if (settled) return;
             handlers.onStatus?.(run.status);
-            if (run.status === "completed") return finish("completed");
+            if (run.status === "completed" || run.status === "partial_success") return finish("completed");
             if (run.status === "failed") return finish("failed", run.tasks.find((task) => task.status === "failed")?.error || "Agent 执行失败");
             if (run.status === "cancelled") return finish("cancelled", "任务已取消");
             handlers.onProgress(run.status === "paused" ? "任务仍在后台保存，当前处于暂停状态" : "任务仍在后台运行，正在恢复连接");
@@ -245,6 +245,7 @@ export function watchCreativeAgentRun(runId: string, handlers: CreativeRunHandle
         handlers.onTaskCompleted?.(progress);
     });
     listen("task.child.failed", ({ data }) => handlers.onProgress(taskProgressText(taskProgress(data))));
+    listen("task.child.restored", () => handlers.onTaskCompleted?.());
     listen("task.completed", ({ data }) => {
         void refreshUserPointsIfSystem("system");
         handlers.onProgress(text(data?.message) || `「${text(data?.title) || "创作任务"}」已完成`);
@@ -264,15 +265,25 @@ export function watchCreativeAgentRun(runId: string, handlers: CreativeRunHandle
     });
     listen("run.cancel.requested", () => handlers.onProgress("正在取消任务，等待子任务确认"));
     listen("run.cancel.pending", () => handlers.onProgress("部分子任务取消状态尚未确认，可稍后再次取消"));
+    listen("run.partial_success", ({ data }) => finish("completed", text(data?.reply)));
+    listen("run.paused", ({ data }) => {
+        handlers.onStatus?.("paused");
+        handlers.onProgress(text(data?.message) || "任务已暂停");
+        handlers.onTaskCompleted?.();
+    });
+    listen("task.needs_review", () => handlers.onTaskCompleted?.());
     listen("run.completed", ({ data }) => finish("completed", text(data?.reply)));
     listen("run.failed", ({ data }) => finish("failed", text(data?.message) || "Agent 执行失败"));
     listen("run.cancelled", () => finish("cancelled", "任务已取消"));
     listen("run.snapshot", (payload) => {
-        if (payload.status && ["planning", "running", "paused", "completed", "failed", "cancelled"].includes(payload.status)) handlers.onStatus?.(payload.status as CreativeAgentRun["status"]);
-        if (payload.status === "completed") finish("completed");
+        if (payload.status && ["planning", "running", "paused", "completed", "partial_success", "failed", "cancelled"].includes(payload.status)) handlers.onStatus?.(payload.status as CreativeAgentRun["status"]);
+        if (payload.status === "completed" || payload.status === "partial_success") finish("completed");
         if (payload.status === "failed") finish("failed", "Agent 执行失败");
         if (payload.status === "cancelled") finish("cancelled", "任务已取消");
-        if (payload.status === "paused") handlers.onProgress("任务已暂停，当前进度已经为你保存");
+        if (payload.status === "paused") {
+            handlers.onProgress("任务已暂停，当前进度已经为你保存");
+            handlers.onTaskCompleted?.();
+        }
     });
     source.onopen = () => {
         if (connectionInterrupted && !settled) handlers.onProgress("连接已恢复，任务继续运行");

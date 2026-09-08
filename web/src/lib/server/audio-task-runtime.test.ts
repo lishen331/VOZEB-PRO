@@ -59,6 +59,18 @@ describe("audio task runtime submission safety", () => {
         vi.unstubAllGlobals();
     });
 
+    it("uses the official POST contract and nested results for RunningHub audio", async () => {
+        const task = audioTask();
+        task.config = { ...task.config, baseUrl: "/api/ai/system/rh", advancedConfig: { ...emptyAdvancedConfig(), protocol: "runninghub", queryPath: "/openapi/v2/query", statusField: "data.status", resultField: "data.result" } };
+        task.upstream = { id: "existing-audio", createPath: "/task/openapi/create" };
+        mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ code: 0, data: { status: "SUCCESS", results: [{ fileUrl: "https://cdn.example/result.wav", fileType: "wav", nodeId: "90" }] } }));
+        await expect(queryAudioTaskUpstreamStep(task, "http://localhost")).resolves.toMatchObject({ state: "result_ready", resultUrl: "https://cdn.example/result.wav" });
+        const [url, init] = mocks.fetchInternalApi.mock.calls[0];
+        expect(url).toBe("http://localhost/api/ai/system/rh/openapi/v2/query");
+        expect(init.method).toBe("POST");
+        expect(JSON.parse(init.body).taskId).toBe("existing-audio");
+    });
+
     it("switches to the next channel after a deterministic 422 rejection", async () => {
         const fetchMock = vi
             .fn()

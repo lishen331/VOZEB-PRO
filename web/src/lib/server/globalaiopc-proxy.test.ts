@@ -3,6 +3,25 @@ import { describe, expect, it } from "vitest";
 import { adaptGlobalAiOpcTextRequest, adaptGlobalAiOpcTextResponse, isGlobalAiOpcChannel } from "./globalaiopc-proxy";
 
 describe("GlobalAiOpc native text proxy", () => {
+    it("preserves inline images in Gemini and Claude adapters", () => {
+        const request = JSON.stringify({
+            model: "model",
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: "read image" },
+                        { type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } },
+                    ],
+                },
+            ],
+        });
+        const gemini = adaptGlobalAiOpcTextRequest({ protocol: "globalaiopc", globalAiOpcPreset: "text-gemini-native" } as never, ["chat", "completions"], request);
+        expect(JSON.parse((gemini as { body: string }).body).contents[0].parts).toContainEqual({ inlineData: { mimeType: "image/png", data: "aGVsbG8=" } });
+        const claude = adaptGlobalAiOpcTextRequest({ protocol: "globalaiopc", globalAiOpcPreset: "text-claude-native" } as never, ["chat", "completions"], request);
+        expect(JSON.parse((claude as { body: string }).body).messages[0].content).toContainEqual({ type: "image", source: { type: "base64", media_type: "image/png", data: "aGVsbG8=" } });
+    });
+
     it("converts canonical Chat tool calls to Gemini native requests", () => {
         const adapted = adaptGlobalAiOpcTextRequest(
             { protocol: "globalaiopc", globalAiOpcPreset: "text-gemini-native" } as never,

@@ -1,3 +1,4 @@
+import { isOfficialWorkflowQueryPath, queryRunningHubTask } from "@/lib/server/runninghub-provider";
 import type { ImageTask } from "@/lib/server/image-task-store";
 import { GenerationSubmissionSafeFailure, GenerationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
 import { buildProviderRequest, isProviderBusinessError, readProviderError, readProviderString, readProviderValue } from "@/lib/server/provider-task-config";
@@ -104,6 +105,25 @@ export function resolveDeclarativeImageSize(config: Pick<ImageTask["config"], "q
 
 export async function pollCustomImageTask(task: ImageTask, taskId: string, mediaBaseUrl: string, pollBaseUrl: string, cookie: string, singleStep = false) {
     const config = task.config;
+    if (config.advancedConfig?.protocol === "runninghub" && isOfficialWorkflowQueryPath(config.advancedConfig.queryPath || "")) {
+        const workflow = workflowConfigForTask(task);
+        const result = await queryRunningHubTask({
+            baseUrl: new URL(config.baseUrl, pollBaseUrl).href.replace(/\/$/, ""),
+            apiKey: config.apiKey,
+            taskId,
+            config: { ...config.advancedConfig, outputMappings: workflow?.outputMappings, timeoutSeconds: workflow?.timeoutSeconds },
+            fetchImpl: (url, init = {}) => {
+                const headers = taskHeaders(config, cookie, practiceImagePollRequestId(task), task.billingContext);
+                headers.set("content-type", "application/json");
+                return taskFetch(config, String(url), { ...init, headers });
+            },
+        });
+        if (["failed", "failure", "error", "cancelled", "canceled"].includes(result.status.toLowerCase())) throw new ImageUpstreamTerminalError(result.querySummary?.upstreamError || readProviderError(result.raw) || "RunningHub 图片生成失败");
+        const images = findImageResults(result.resultUrls || (result.resultUrl ? [result.resultUrl] : []), mediaBaseUrl, config);
+        if (images.length) return { ...images[0], results: images };
+        if (["success", "succeeded", "completed"].includes(result.status.toLowerCase())) throw new ImageUpstreamTerminalError("RunningHub 已完成，但输出节点未返回图片，请检查输出映射");
+        return { dataUrl: "", pending: { id: taskId, mediaBaseUrl, pollBaseUrl } };
+    }
     let lastError = "";
     for (let attempt = 0; attempt < (singleStep ? 1 : imageTaskPollAttempts(config)); attempt += 1) {
         for (const url of imageTaskPollUrls(config, pollBaseUrl, taskId)) {

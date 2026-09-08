@@ -1,3 +1,4 @@
+import { normalizeDramaLabStoryboardOptions, DramaLabStoryboardOptionsError } from "@/lib/drama-lab-storyboard-options";
 import { randomUUID } from "node:crypto";
 
 import type { DramaCharacter, DramaProject, DramaProp, DramaScene, DramaShot } from "@/lib/drama-project-contract";
@@ -73,12 +74,18 @@ export async function startDramaLabWorkflow(input: StartDramaLabWorkflowInput) {
     if (existing?.workflow?.projectId === projectId) return existing;
     if (existing) throw new DramaLabWorkflowError("Request id is already used by another workflow", 409);
 
-    const options = normalizeOptions(input.options, project);
+    let options: DramaLabWorkflowOptions;
+    try {
+        options = normalizeOptions(input.options, project);
+    } catch (error) {
+        if (error instanceof DramaLabStoryboardOptionsError) throw new DramaLabWorkflowError(error.message, 400);
+        throw error;
+    }
     const active = await queryWorkflowTasksForProject(input.userId, projectId, ownerUserId);
     const activeTask = active.find((task) => task.workflow?.projectId === projectId && ["pending", "running"].includes(task.status));
     if (activeTask) {
         const sameRequestShape = activeTask.workflow.options.mode === options.mode && activeTask.workflow.sourceEpisodeId === sourceEpisodeId && activeTask.workflow.options.scope === options.scope;
-        if (sameRequestShape) return activeTask;
+        if (sameRequestShape && JSON.stringify(normalizeDramaLabStoryboardOptions(activeTask.workflow.options.storyboardOptions)) === JSON.stringify(options.storyboardOptions || {})) return activeTask;
         throw new DramaLabWorkflowError("当前项目已有其他任务正在执行，请等待完成或取消后再试", 409);
     }
     const episodeIds = options.scope === "all" ? project.episodes.map((episode) => episode.id) : [sourceEpisodeId];
@@ -350,6 +357,7 @@ async function executeStoryboardStep(task: DramaLabWorkflowTask, step: DramaLabW
             requestId: `${task.id}:storyboard:${episodeId}:attempt:${step.attempts}`,
             project,
             episodeId,
+            options: task.workflow.options.storyboardOptions,
             resumeShots: project.episodes.find((item) => item.id === episodeId)?.shots || [],
             onPartial: async (shots, meta) => {
                 latest = await persistEpisodeShots(ownerUserId, latest, episodeId, shots);
@@ -813,6 +821,7 @@ function createSteps(mode: DramaLabWorkflowMode, autoExport: boolean): DramaLabW
 }
 
 function normalizeOptions(value: Partial<DramaLabWorkflowOptions>, project: DramaProject): DramaLabWorkflowOptions {
+    const storyboardOptions = normalizeDramaLabStoryboardOptions(value.storyboardOptions);
     const mode = value.mode === "assets" || value.mode === "storyboard_extract" || value.mode === "storyboard" || value.mode === "video" ? value.mode : "video";
     const scope = value.scope === "all" ? "all" : "current";
     return {
@@ -823,6 +832,7 @@ function normalizeOptions(value: Partial<DramaLabWorkflowOptions>, project: Dram
         language: text(value.language, "中文"),
         visualStyle: text(value.visualStyle, project.style || ""),
         autoExport: mode === "video" && value.autoExport === true,
+        ...(Object.keys(storyboardOptions).length ? { storyboardOptions } : {}),
     };
 }
 

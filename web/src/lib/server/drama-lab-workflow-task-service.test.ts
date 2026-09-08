@@ -145,6 +145,24 @@ describe("drama lab workflow task service", () => {
 
     afterAll(() => vi.unstubAllGlobals());
 
+    it("persists extraction constraints and rejects a conflicting active request", async () => {
+        const first = await startDramaLabWorkflow(startInput({ options: { mode: "storyboard_extract", scope: "current", storyboardOptions: { shotCount: 12, totalDuration: 90.5 } } }));
+        expect(first.workflow.options).toMatchObject({ storyboardOptions: { shotCount: 12, totalDuration: 90.5 } });
+        const stored = await getDramaLabWorkflowTask(first.id, "user-one");
+        expect(stored?.workflow.options).toMatchObject({ storyboardOptions: { shotCount: 12, totalDuration: 90.5 } });
+        await expect(startDramaLabWorkflow(startInput({ requestId: "different", options: { mode: "storyboard_extract", scope: "current", storyboardOptions: { shotCount: 2 } } }))).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("forwards stored constraints when advancing or resuming an extraction", async () => {
+        const task = await startDramaLabWorkflow(startInput({ options: { mode: "storyboard_extract", scope: "current", storyboardOptions: { shotCount: 12, totalDuration: 90.5, creationMode: "universal", generateNarration: true } } }));
+        await advanceDramaLabWorkflow({ userId: "user-one", taskId: task.id });
+        expect(mocks.extractDramaLabStoryboards).toHaveBeenCalledWith(expect.objectContaining({ options: { shotCount: 12, totalDuration: 90.5, creationMode: "universal", generateNarration: true } }));
+        const cancelled = await cancelDramaLabWorkflow(task, "user-one");
+        expect(cancelled).not.toBeNull();
+        const resumed = await resumeDramaLabWorkflow(cancelled!, "user-one");
+        expect(resumed?.workflow.options.storyboardOptions).toEqual({ shotCount: 12, totalDuration: 90.5, creationMode: "universal", generateNarration: true });
+    });
+
     it("is idempotent for the same client request id", async () => {
         const first = await startDramaLabWorkflow(startInput({ requestId: "request-one" }));
         const second = await startDramaLabWorkflow(startInput({ requestId: "request-one" }));

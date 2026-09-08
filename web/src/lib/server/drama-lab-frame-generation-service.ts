@@ -1,3 +1,4 @@
+import { dramaLabStyleContext, renderDramaLabFrameTemplate } from "@/lib/drama-lab-style-prompt";
 import type { DramaProject, DramaShot, DramaShotFrameType } from "@/lib/drama-project-contract";
 import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
@@ -24,12 +25,12 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
     const references = buildDramaLabFrameReferences(input.project, shot, input.frameType, previousShot);
     const context = frameContext(input.project, episode.title, shot, input.frameType, previousShot);
     const systemPrompt = withDramaLabPromptContract(
-        `${template.template}\n\n${context}`,
+        `${renderDramaLabFrameTemplate(template.template, input.project)}\n\n${context}`,
         `只返回 JSON 对象，字段严格为 prompt 和 description。prompt 必须是可直接交给图片模型的中文提示词。只允许本镜 characterIds 中角色，不得引入未绑定资产；角色外貌只能引用参考图；场景必须是纯空间描述；道具必须符合时代真实尺度。${input.frameType === "last" ? "尾帧必须读取首帧布局并根据 declared movement 做自然取景演化。" : ""}`,
     );
     const userPrompt = JSON.stringify({
         task: `${input.frameType} frame prompt planning`,
-        project: { id: input.project.id, title: input.project.title, style: input.project.style, ratio: input.project.ratio },
+        project: { id: input.project.id, title: input.project.title, style: input.project.style, ...dramaLabStyleContext(input.project.style), ratio: input.project.ratio },
         episode: { title: episode.title },
         shot: { ...shot },
         boundAssets: references.map((reference) => ({ id: reference.id, label: reference.label, url: reference.url })),

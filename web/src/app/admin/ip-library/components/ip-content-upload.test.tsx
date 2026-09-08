@@ -10,5 +10,8 @@ describe("IP content upload", () => {
         expect(source).toContain("onDeleted?.(selected.id)");
         expect(source).toContain('aria-label="删除未引用原文件"');
         expect(source).toContain('aria-label="取消选择当前文件"');
+        expect(source).toContain("单个视频文件不能超过 800MB");
+        expect(source).toContain("file.size > IP_CONTENT_FILE_MAX_BYTES[kind]");
+        expect(source).toContain("各类型上限：文本/图片 20MB，音频 30MB，视频 800MB");
     });
 });
