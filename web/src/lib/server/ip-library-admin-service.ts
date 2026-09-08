@@ -34,15 +34,14 @@ export async function getAdminIp(actorId: string, ipId: string) {
 export async function createAdminIp(actorId: string, input: AdminIpCreateInput) {
     await requireContentDuty(actorId);
     const repository = createIpLibraryRepository();
-    const title = required(input.title, "请填写 IP 名称");
+    const title = limitedRequired(input.title, "请填写 IP 名称", 20, "IP 名称");
+    const summary = limitedOptional(input.summary, 100, "IP 简介");
     let slug = input.slug ? slugValue(input.slug) : generatedSlug(title);
     if (await repository.getIpPackageBySlug(slug)) {
         if (input.slug) throw new SchoolServiceError(409, "IP 标识已存在，请更换 slug", { field: "slug", reason: "duplicate" });
         slug = `${slug.slice(0, 70)}-${randomUUID().slice(0, 8)}`;
     }
-    const record = await translateConflict("slug", () =>
-        repository.createIpPackage({ id: randomUUID(), title, slug, summary: optional(input.summary), visibility: enumValue(input.visibility, IP_VISIBILITIES, "IP 可见范围无效"), status: "enabled", createdByUserId: actorId }),
-    );
+    const record = await translateConflict("slug", () => repository.createIpPackage({ id: randomUUID(), title, slug, summary, visibility: enumValue(input.visibility, IP_VISIBILITIES, "IP 可见范围无效"), status: "enabled", createdByUserId: actorId }));
     // A new IP starts with one child so its content can be edited as a flat page.
     await repository.createIpSubIp(record.id, { id: randomUUID(), ipId: record.id, title, summary: record.summary, tags: [], createdByUserId: actorId });
     return record;
@@ -54,12 +53,12 @@ export async function updateAdminIp(actorId: string, ipId: string, input: AdminI
     const repository = createIpLibraryRepository();
     await getExistingPackage(id);
     const patch: IpPackagePatch = {};
-    if (input.title !== undefined) patch.title = required(input.title, "请填写 IP 名称");
+    if (input.title !== undefined) patch.title = limitedRequired(input.title, "请填写 IP 名称", 20, "IP 名称");
     if (input.slug !== undefined) {
         patch.slug = slugValue(input.slug);
         if (await repository.getIpPackageBySlug(patch.slug, id)) throw new SchoolServiceError(409, "IP 标识已存在，请更换 slug", { field: "slug", reason: "duplicate" });
     }
-    if (input.summary !== undefined) patch.summary = optional(input.summary);
+    if (input.summary !== undefined) patch.summary = limitedOptional(input.summary, 100, "IP 简介");
     if (input.visibility !== undefined) patch.visibility = enumValue(input.visibility, IP_VISIBILITIES, "IP 可见范围无效");
     if (input.status !== undefined) patch.status = enumValue(input.status, IP_STATUSES, "IP 状态无效");
     if (input.coverFileId !== undefined) {
@@ -93,8 +92,8 @@ export async function createAdminIpSubIp(actorId: string, ipId: string, input: A
     const subIp = await repository.createIpSubIp(id, {
         id: randomUUID(),
         ipId: id,
-        title: required(input.title, "请填写子 IP 名称"),
-        summary: optional(input.summary),
+        title: limitedRequired(input.title, "请填写子 IP 名称", 20, "子 IP 名称"),
+        summary: limitedOptional(input.summary, 100, "子 IP 简介"),
         tags: normalizeTags(input.tags),
         sortOrder: validSortOrder(input.sortOrder),
         createdByUserId: actorId,
@@ -110,8 +109,8 @@ export async function updateAdminIpSubIp(actorId: string, ipId: string, subIpId:
     const current = await repository.getIpSubIp(id, childId);
     if (!current) throw new SchoolServiceError(404, "子 IP 不存在");
     const patch = {
-        ...(input.title !== undefined ? { title: required(input.title, "请填写子 IP 名称") } : {}),
-        ...(input.summary !== undefined ? { summary: optional(input.summary) } : {}),
+        ...(input.title !== undefined ? { title: limitedRequired(input.title, "请填写子 IP 名称", 20, "子 IP 名称") } : {}),
+        ...(input.summary !== undefined ? { summary: limitedOptional(input.summary, 100, "子 IP 简介") } : {}),
         ...(input.coverFileId !== undefined ? { coverFileId: optional(input.coverFileId) || null } : {}),
         ...(input.tags !== undefined ? { tags: normalizeTags(input.tags) } : {}),
         ...(input.sortOrder !== undefined ? { sortOrder: validSortOrder(input.sortOrder) } : {}),
@@ -353,8 +352,21 @@ function required(value: unknown, message: string) {
     if (!text) throw new SchoolServiceError(400, message);
     return text;
 }
+function limitedRequired(value: unknown, message: string, maxLength: number, label: string) {
+    const text = required(value, message);
+    assertMaxLength(text, maxLength, label);
+    return text;
+}
 function optional(value: unknown) {
     return typeof value === "string" ? value.trim() : "";
+}
+function limitedOptional(value: unknown, maxLength: number, label: string) {
+    const text = optional(value);
+    assertMaxLength(text, maxLength, label);
+    return text;
+}
+function assertMaxLength(value: string, maxLength: number, label: string) {
+    if (Array.from(value).length > maxLength) throw new SchoolServiceError(400, `${label}不能超过 ${maxLength} 个字`);
 }
 function normalizeTags(value: unknown) {
     if (value === undefined) return [];

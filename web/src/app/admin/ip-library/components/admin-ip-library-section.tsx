@@ -224,14 +224,21 @@ function IpList({ canManageContent, canManageEducation, onOpen }: { canManageCon
             <Pagination current={page} pageSize={PAGE_SIZE} total={total} hideOnSinglePage showSizeChanger={false} responsive onChange={setPage} />
             <Modal title="新建 IP" open={createOpen} onCancel={() => setCreateOpen(false)} onOk={() => void create()} confirmLoading={saving} okText="创建并编辑" cancelText="取消" destroyOnHidden>
                 <Form form={form} layout="vertical">
-                    <Form.Item name="title" label="IP 名称" rules={[{ required: true, message: "请填写 IP 名称" }]}>
-                        <Input autoFocus />
+                    <Form.Item
+                        name="title"
+                        label="IP 名称"
+                        rules={[
+                            { required: true, message: "请填写 IP 名称" },
+                            { max: 20, message: "IP 名称不能超过 20 个字" },
+                        ]}
+                    >
+                        <Input autoFocus maxLength={20} showCount />
                     </Form.Item>
                     <Form.Item name="visibility" label="可见范围" rules={[{ required: true }]}>
                         <Select options={IP_VISIBILITIES.map((value) => ({ value, label: value === "school" ? "本校 IP" : "公共 IP" }))} />
                     </Form.Item>
-                    <Form.Item name="summary" label="简介">
-                        <Input.TextArea autoSize={{ minRows: 3, maxRows: 5 }} />
+                    <Form.Item name="summary" label="简介" rules={[{ max: 100, message: "IP 简介不能超过 100 个字" }]}>
+                        <Input.TextArea autoSize={{ minRows: 3, maxRows: 5 }} maxLength={100} showCount />
                     </Form.Item>
                 </Form>
             </Modal>
@@ -495,8 +502,8 @@ function IpDetailEditor({
             <div className="border-b border-zinc-200 pb-4 dark:border-zinc-800">
                 <Form form={ipForm} layout="vertical">
                     <div className="grid gap-x-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <Form.Item name="title" label="IP 名称" rules={[{ required: true }]}>
-                            <Input disabled={!canManageContent} />
+                        <Form.Item name="title" label="IP 名称" rules={[{ required: true }, { max: 20, message: "IP 名称不能超过 20 个字" }]}>
+                            <Input disabled={!canManageContent} maxLength={20} showCount />
                         </Form.Item>
                         <Form.Item name="visibility" label="可见范围">
                             <Select disabled={!canManageContent} options={IP_VISIBILITIES.map((value) => ({ value, label: value === "school" ? "本校 IP" : "公共 IP" }))} />
@@ -509,8 +516,8 @@ function IpDetailEditor({
                             ) : null}
                         </div>
                     </div>
-                    <Form.Item name="summary" label="简介" className="!mb-0">
-                        <Input.TextArea disabled={!canManageContent} autoSize={{ minRows: 2, maxRows: 4 }} />
+                    <Form.Item name="summary" label="简介" className="!mb-0" rules={[{ max: 100, message: "IP 简介不能超过 100 个字" }]}>
+                        <Input.TextArea disabled={!canManageContent} autoSize={{ minRows: 2, maxRows: 4 }} maxLength={100} showCount />
                     </Form.Item>
                     {detail.subIps[0] ? (
                         <Form.Item name="coverFileId" label="IP 封面" className="!mb-0 mt-4">
@@ -598,14 +605,14 @@ function SubIpEditor({
                 <span className="text-xs text-zinc-500">修改后在详细内容末尾保存</span>
             </div>
             <div className="mt-4 grid gap-x-4 sm:grid-cols-2">
-                <Form.Item name="title" label="子 IP 名称" rules={[{ required: true }]}>
-                    <Input disabled={disabled} />
+                <Form.Item name="title" label="子 IP 名称" rules={[{ required: true }, { max: 20, message: "子 IP 名称不能超过 20 个字" }]}>
+                    <Input disabled={disabled} maxLength={20} showCount />
                 </Form.Item>
                 <Form.Item name="tags" label="标签">
                     <Select disabled={disabled} mode="tags" tokenSeparators={[",", "，"]} />
                 </Form.Item>
-                <Form.Item name="summary" label="简介">
-                    <Input.TextArea disabled={disabled} autoSize={{ minRows: 2, maxRows: 4 }} />
+                <Form.Item name="summary" label="简介" rules={[{ max: 100, message: "子 IP 简介不能超过 100 个字" }]}>
+                    <Input.TextArea disabled={disabled} autoSize={{ minRows: 2, maxRows: 4 }} maxLength={100} showCount />
                 </Form.Item>
                 <Form.Item name="coverFileId" label="封面">
                     <IpContentUpload variant="cover" ipId={ipId} subIpId={subIp.id} kind="image" files={files} disabled={disabled || loadingFiles} onUploaded={onFileUploaded} onDeleted={onFileDeleted} />
