@@ -85,6 +85,15 @@ describe("school course service", () => {
         mocks.requireActiveSchoolContext.mockResolvedValue(context("teacher-a", "teacher"));
     });
 
+    it("rejects foreign covers and keeps a valid cover in the persisted course content", async () => {
+        const input = { title: "封面课程", summary: "", content: { body: "保留内容", coverStorageKey: "permanent/cover.webp" } };
+        mocks.getLocalMediaRegistrations.mockResolvedValueOnce([{ storageKey: "permanent/cover.webp", ownerUserId: "other", storageClass: "permanent", type: "image" }]);
+        await expect(createPlatformCourse("admin-a", input)).rejects.toMatchObject({ status: 400 });
+        mocks.getLocalMediaRegistrations.mockResolvedValueOnce([{ storageKey: "permanent/cover.webp", ownerUserId: "admin-a", storageClass: "permanent", type: "image" }]);
+        mocks.repository.insertPlatformCourse.mockImplementation(async (record) => record);
+        expect(await createPlatformCourse("admin-a", input)).toMatchObject({ content: input.content });
+    });
+
     it("rejects draft distribution and keeps published multi-school distribution idempotent", async () => {
         mocks.repository.getPlatformCourse.mockResolvedValueOnce(course("draft")).mockResolvedValueOnce(course("published"));
         await expect(assignCourseToSchools("admin-a", "course-a", ["school-a"])).rejects.toThrow("已发布");

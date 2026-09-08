@@ -384,9 +384,8 @@ async function createCourseOfferingInBrowser(context: BrowserContext, courseTitl
     try {
         await page.goto("/school", { waitUntil: "domcontentloaded" });
         await selectTab(page, "课程安排", hasTouch);
-        const row = businessRow(page, courseTitle);
-        await expect(row).toBeVisible();
-        await row.getByRole("button", { name: "创建教学安排", exact: true }).click();
+        await page.getByRole("button", { name: `打开课程：${courseTitle}`, exact: true }).click();
+        await page.getByRole("button", { name: "新建安排", exact: true }).click();
         const modal = page.getByRole("dialog", { name: new RegExp(`^创建教学安排.*${courseTitle}`) });
         await expect(modal).toBeVisible();
         await expectAnimationsFinished(modal);
