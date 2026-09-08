@@ -22,3 +22,13 @@ describe("storyboard constraints", () => {
         expect(source).toContain('constraintDrafts[episode?.id || ""]');
     });
 });
+
+describe("storyboard mode controls", () => {
+    it("renders the selected mode and enabled narration", () => {
+        const html = renderToStaticMarkup(<DramaLabStoryboardConstraints value={{ shotCount: "", totalDuration: "", creationMode: "universal", generateNarration: true }} onChange={() => {}} disabled={false} />);
+        expect(html).toContain("经典分镜");
+        expect(html).toContain("全能分镜");
+        expect(html).toContain("生成解说旁白");
+        expect(html.match(/checked=""/g)).toHaveLength(2);
+    });
+});

@@ -54,7 +54,7 @@ describe("POST /api/drama-lab/projects/:id/extract-storyboards", () => {
             updatedAt: "2026-08-22T00:00:00.000Z",
         };
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
-        mocks.readJsonBody.mockResolvedValue({ episodeId: "episode-one", requestId: "request-one", storyboardOptions: { shotCount: 12, totalDuration: 90.5 } });
+        mocks.readJsonBody.mockResolvedValue({ episodeId: "episode-one", requestId: "request-one", storyboardOptions: { shotCount: 12, totalDuration: 90.5, creationMode: "universal", generateNarration: true } });
         mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project, ownerUserId: "user-one" });
         mocks.startDramaLabWorkflow.mockResolvedValue({ id: "workflow-one" });
         mocks.advanceDramaLabWorkflow.mockResolvedValue(undefined);
@@ -64,7 +64,12 @@ describe("POST /api/drama-lab/projects/:id/extract-storyboards", () => {
 
         expect(response.status).toBe(202);
         expect(mocks.startDramaLabWorkflow).toHaveBeenCalledWith(
-            expect.objectContaining({ projectId: "project-one", sourceEpisodeId: "episode-one", requestId: "request-one", options: { mode: "storyboard_extract", scope: "current", storyboardOptions: { shotCount: 12, totalDuration: 90.5 } } }),
+            expect.objectContaining({
+                projectId: "project-one",
+                sourceEpisodeId: "episode-one",
+                requestId: "request-one",
+                options: { mode: "storyboard_extract", scope: "current", storyboardOptions: { shotCount: 12, totalDuration: 90.5, creationMode: "universal", generateNarration: true } },
+            }),
         );
         await expect(response.json()).resolves.toMatchObject({ code: 0, data: { taskId: "workflow-one", task: { mode: "storyboard_extract" } } });
     });

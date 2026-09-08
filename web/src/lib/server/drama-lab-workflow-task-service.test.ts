@@ -154,13 +154,13 @@ describe("drama lab workflow task service", () => {
     });
 
     it("forwards stored constraints when advancing or resuming an extraction", async () => {
-        const task = await startDramaLabWorkflow(startInput({ options: { mode: "storyboard_extract", scope: "current", storyboardOptions: { shotCount: 12, totalDuration: 90.5 } } }));
+        const task = await startDramaLabWorkflow(startInput({ options: { mode: "storyboard_extract", scope: "current", storyboardOptions: { shotCount: 12, totalDuration: 90.5, creationMode: "universal", generateNarration: true } } }));
         await advanceDramaLabWorkflow({ userId: "user-one", taskId: task.id });
-        expect(mocks.extractDramaLabStoryboards).toHaveBeenCalledWith(expect.objectContaining({ options: { shotCount: 12, totalDuration: 90.5 } }));
+        expect(mocks.extractDramaLabStoryboards).toHaveBeenCalledWith(expect.objectContaining({ options: { shotCount: 12, totalDuration: 90.5, creationMode: "universal", generateNarration: true } }));
         const cancelled = await cancelDramaLabWorkflow(task, "user-one");
         expect(cancelled).not.toBeNull();
         const resumed = await resumeDramaLabWorkflow(cancelled!, "user-one");
-        expect(resumed?.workflow.options.storyboardOptions).toEqual({ shotCount: 12, totalDuration: 90.5 });
+        expect(resumed?.workflow.options.storyboardOptions).toEqual({ shotCount: 12, totalDuration: 90.5, creationMode: "universal", generateNarration: true });
     });
 
     it("is idempotent for the same client request id", async () => {

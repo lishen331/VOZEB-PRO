@@ -17,3 +17,13 @@ describe("production storyboard count and duration", () => {
         expect(() => normalizeDramaLabStoryboardOptions(options)).toThrow();
     });
 });
+
+describe("storyboard modes", () => {
+    it("keeps explicit mode and narration intent", () => {
+        expect(normalizeDramaLabStoryboardOptions({ creationMode: "universal", generateNarration: true })).toEqual({ creationMode: "universal", generateNarration: true });
+        expect(normalizeDramaLabStoryboardOptions({ creationMode: "classic", generateNarration: false })).toEqual({ creationMode: "classic", generateNarration: false });
+    });
+    it.each([{ creationMode: "other" }, { generateNarration: "false" }, { generateNarration: 1 }])("rejects ambiguous values: %j", (value) => {
+        expect(() => normalizeDramaLabStoryboardOptions(value)).toThrow();
+    });
+});

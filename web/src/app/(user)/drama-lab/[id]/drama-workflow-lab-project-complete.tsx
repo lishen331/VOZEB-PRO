@@ -3991,7 +3991,7 @@ function StoryboardPanel({
     const [editingShot, setEditingShot] = useState<Shot | null>(null);
     const [extracting, setExtracting] = useState(false);
     const [constraintDrafts, setConstraintDrafts] = useState<Record<string, StoryboardConstraintDraft>>({});
-    const constraintDraft = constraintDrafts[episode?.id || ""] || { shotCount: "", totalDuration: "" };
+    const constraintDraft = constraintDrafts[episode?.id || ""] || { shotCount: "", totalDuration: "", creationMode: "classic" as const, generateNarration: false };
     const lastExtractionCheckpointRef = useRef(0);
     const [startingKeys, setStartingKeys] = useState<Set<string>>(() => new Set());
     const startingKeysRef = useRef(new Set<string>());

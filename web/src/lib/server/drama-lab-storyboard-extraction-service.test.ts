@@ -62,6 +62,7 @@ const validShot = {
 describe("drama lab storyboard extraction", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.requestStructuredText.mockReset();
         mocks.getAuthSettings.mockResolvedValue({ defaultModels: { textModel: "writer" } });
         const candidate = { channelId: "channel", upstreamModel: "writer-vendor", channel: {} };
         mocks.resolveLogicalModelCandidates.mockReturnValue([candidate]);
@@ -150,6 +151,45 @@ describe("drama lab storyboard extraction", () => {
         expect(request.messages[0].content).toContain("12 个左右（允许±20%）");
         expect(request.messages[0].content).toContain("90.5 秒左右（允许±10%）");
         expect(JSON.parse(request.messages[1].content).options).toEqual({ shotCount: 12, totalDuration: 90.5 });
+    });
+
+    it("rejects a classic result when universal mode was requested before writing any checkpoint", async () => {
+        const onPartial = vi.fn();
+        await expect(extractDramaLabStoryboards({ userId: "user-one", origin: "http://localhost", cookie: "", requestId: "mode", episodeId: "episode-one", project, options: { creationMode: "universal" }, onPartial })).rejects.toThrow("全能");
+        expect(onPartial).not.toHaveBeenCalled();
+    });
+    it("rejects an empty narration when enabled", async () => {
+        await expect(extractDramaLabStoryboards({ userId: "user-one", origin: "http://localhost", cookie: "", requestId: "narration", episodeId: "episode-one", project, options: { generateNarration: true } })).rejects.toThrow("旁白");
+    });
+    it("sends L mode suffixes and preserves a valid multi-beat result", async () => {
+        const universalSegmentText = "画面风格和类型: 写实\n生成一个由以下2个分镜组成的视频。\n环境参考 @图片1。\n分镜1： 1秒: 缓推再横移，@图片2 看向前方。\n分镜2： 2秒: 跟拍后拉回，旁白（画面无声）：夜色降临。";
+        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify({ shots: [{ ...validShot, creationMode: "universal", universalSegmentText, narration: "夜色降临。" }] }), headers: new Headers(), elapsedMs: 1 });
+        const result = await extractDramaLabStoryboards({ userId: "user-one", origin: "http://localhost", cookie: "", requestId: "both", episodeId: "episode-one", project, options: { creationMode: "universal", generateNarration: true } });
+        const request = mocks.requestStructuredText.mock.calls[0][0];
+        expect(request.messages[0].content).toContain("多子分镜段落");
+        expect(request.messages[0].content).toContain("开场解说");
+        expect(result.shots[0]).toMatchObject({ creationMode: "universal", universalSegmentText, narration: "夜色降临。" });
+    });
+
+    it("keeps script narration when automatic extra narration is disabled", async () => {
+        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify({ shots: [{ ...validShot, creationMode: "classic", narration: "剧本原有旁白" }] }), headers: new Headers(), elapsedMs: 1 });
+        const result = await extractDramaLabStoryboards({ userId: "user-one", origin: "http://localhost", cookie: "", requestId: "original", episodeId: "episode-one", project, options: { creationMode: "classic", generateNarration: false } });
+        expect(result.shots[0].narration).toBe("剧本原有旁白");
+        expect(mocks.requestStructuredText.mock.calls[0][0].messages[0].content).toContain("仅保留剧本原有的旁白");
+    });
+    it("does not write a streamed checkpoint containing the wrong mode", async () => {
+        const onPartial = vi.fn();
+        mocks.requestStructuredText.mockImplementation(async (request) => {
+            const invalid = JSON.stringify({ shots: [{ ...validShot, creationMode: "classic" }] });
+            await request.onStreamDelta?.(invalid);
+            return { arguments: invalid, headers: new Headers(), elapsedMs: 1 };
+        });
+        await expect(extractDramaLabStoryboards({ userId: "user-one", origin: "http://localhost", cookie: "", requestId: "stream-mode", episodeId: "episode-one", project, options: { creationMode: "universal" }, onPartial })).rejects.toThrow("全能");
+        expect(onPartial).not.toHaveBeenCalled();
+    });
+    it("rejects a single-line universal prompt rather than treating it as the production format", async () => {
+        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify({ shots: [{ ...validShot, creationMode: "universal", universalSegmentText: "主体：人物，叙事动态：缓推" }] }), headers: new Headers(), elapsedMs: 1 });
+        await expect(extractDramaLabStoryboards({ userId: "user-one", origin: "http://localhost", cookie: "", requestId: "old-format", episodeId: "episode-one", project, options: { creationMode: "universal" } })).rejects.toThrow("多行");
     });
 
     it("rejects invalid asset IDs instead of mapping them by name", () => {
