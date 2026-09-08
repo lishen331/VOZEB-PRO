@@ -2,7 +2,7 @@
 
 import type { TableColumnsType } from "antd";
 import { App, Button, Input, Modal, Pagination, Segmented, Select, Table, Tag, Tooltip } from "antd";
-import { Ban, Check, Eye, Film, GalleryVerticalEnd, RefreshCw, Search, Star, Trash2, X } from "lucide-react";
+import { Ban, Check, Eye, Film, GalleryVerticalEnd, Pencil, Plus, RefreshCw, RotateCcw, Search, Star, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -14,14 +14,17 @@ import { setAdminWorkFeatured, setAdminWorkPullFilm, type AdminWorkPullFilmState
 import {
     deleteAdminWorkPublication,
     listAdminWorkPublications,
+    relistOfficialWork,
     reviewAdminWorkPublication,
     takeDownAdminWorkPublication,
     type WorkPublication,
     type WorkPublicationLifecycleStatus,
     type WorkPublicationModerationStatus,
+    type WorkPublicationOrigin,
     type WorkPublicationVisibility,
 } from "@/services/api/work-publications";
 import { AdminWorkCasesSection } from "./admin-work-cases-section";
+import { AdminOfficialWorkEditor } from "./admin-official-work-editor";
 
 const PAGE_SIZE = 12;
 const STATUS_OPTIONS: Array<{ value: WorkPublicationModerationStatus | "all"; label: string }> = [
@@ -59,6 +62,7 @@ function AdminWorkReviewSection() {
     const [page, setPage] = useState(1);
     const [status, setStatus] = useState<WorkPublicationModerationStatus | "all">("all");
     const [lifecycleStatus, setLifecycleStatus] = useState<WorkPublicationLifecycleStatus | "all">("all");
+    const [origin, setOrigin] = useState<WorkPublicationOrigin | "all">("all");
     const [keyword, setKeyword] = useState("");
     const [debouncedKeyword, setDebouncedKeyword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -67,6 +71,8 @@ function AdminWorkReviewSection() {
     const [reasonAction, setReasonAction] = useState<{ work: WorkPublication; kind: "reject" | "take-down" }>();
     const [reason, setReason] = useState("");
     const [viewingWork, setViewingWork] = useState<WorkPublication>();
+    const [editingOfficialWork, setEditingOfficialWork] = useState<WorkPublication | null>();
+    const [officialEditorOpen, setOfficialEditorOpen] = useState(false);
 
     useEffect(() => {
         const timer = window.setTimeout(() => setDebouncedKeyword(keyword.trim()), 300);
@@ -83,6 +89,7 @@ function AdminWorkReviewSection() {
                 pageSize: PAGE_SIZE,
                 status: status === "all" ? undefined : status,
                 lifecycleStatus: lifecycleStatus === "all" ? undefined : lifecycleStatus,
+                origin: origin === "all" ? undefined : origin,
                 keyword: debouncedKeyword || undefined,
             });
             if (requestId !== requestIdRef.current) return;
@@ -96,7 +103,7 @@ function AdminWorkReviewSection() {
         } finally {
             if (requestId === requestIdRef.current) setLoading(false);
         }
-    }, [debouncedKeyword, lifecycleStatus, page, status]);
+    }, [debouncedKeyword, lifecycleStatus, origin, page, status]);
 
     useEffect(() => {
         void load();
@@ -199,9 +206,23 @@ function AdminWorkReviewSection() {
         });
     };
 
+    const relist = async (work: WorkPublication) => {
+        setActionId(work.id);
+        try {
+            await relistOfficialWork(work.id);
+            message.success("官方作品已重新上架");
+            await load();
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "重新上架失败");
+        } finally {
+            setActionId("");
+        }
+    };
+
     const clearFilters = () => {
         setStatus("all");
         setLifecycleStatus("all");
+        setOrigin("all");
         setKeyword("");
         setPage(1);
     };
@@ -241,7 +262,25 @@ function AdminWorkReviewSection() {
                         <Button type="text" size="small" aria-label={pullFilmEnabled ? "取消拉片" : "设为拉片"} icon={<Film className={`size-3.5 ${pullFilmEnabled ? "fill-current" : ""}`} />} onClick={() => void togglePullFilm(work)} loading={busy} />
                     </Tooltip>
                 ) : null}
-                {pending ? (
+                {work.publicationOrigin === "official" ? (
+                    <Button
+                        type="link"
+                        size="small"
+                        icon={<Pencil className="size-3.5" />}
+                        onClick={() => {
+                            setEditingOfficialWork(work);
+                            setOfficialEditorOpen(true);
+                        }}
+                    >
+                        编辑
+                    </Button>
+                ) : null}
+                {work.publicationOrigin === "official" && work.lifecycleStatus === "revoked" ? (
+                    <Button type="link" size="small" icon={<RotateCcw className="size-3.5" />} loading={busy} onClick={() => void relist(work)}>
+                        重新上架
+                    </Button>
+                ) : null}
+                {work.publicationOrigin !== "official" && pending ? (
                     <>
                         <Button
                             type="link"
@@ -305,6 +344,12 @@ function AdminWorkReviewSection() {
             render: (_, work) => <AdminUserIdentity displayName={work.ownerDisplayName} username={work.ownerUsername} accountId={work.ownerAccountId} fallback="用户信息不可用" />,
         },
         {
+            title: "发布来源",
+            dataIndex: "publicationOrigin",
+            width: 100,
+            render: (value: WorkPublication["publicationOrigin"]) => (value === "official" ? <Tag color="blue">官方</Tag> : <Tag>用户投稿</Tag>),
+        },
+        {
             title: "来源",
             dataIndex: "sourceType",
             width: 100,
@@ -349,9 +394,24 @@ function AdminWorkReviewSection() {
 
     return (
         <Panel>
-            <PanelHeader title="作品审核" description="按用户、来源和审核状态集中查看作品；驳回不影响旧线上版本，下架会立即关闭公开访问。" />
+            <PanelHeader
+                title="作品管理"
+                description="管理用户投稿审核与平台官方作品；官方作品确认发布后立即进入广场。"
+                actions={
+                    <Button
+                        type="primary"
+                        icon={<Plus className="size-4" />}
+                        onClick={() => {
+                            setEditingOfficialWork(null);
+                            setOfficialEditorOpen(true);
+                        }}
+                    >
+                        发布官方作品
+                    </Button>
+                }
+            />
             <div className="min-w-0 space-y-3 p-3 sm:p-5">
-                <div className="grid min-w-0 grid-cols-2 gap-2.5 md:grid-cols-[minmax(180px,1fr)_minmax(110px,130px)_minmax(120px,140px)_auto_auto_auto] md:items-center" data-testid="admin-work-filters">
+                <div className="grid min-w-0 grid-cols-2 gap-2.5 md:grid-cols-[minmax(180px,1fr)_repeat(3,minmax(110px,140px))_auto_auto_auto] md:items-center" data-testid="admin-work-filters">
                     <Input
                         className="col-span-2 min-w-0 md:col-span-1"
                         allowClear
@@ -383,6 +443,19 @@ function AdminWorkReviewSection() {
                         ]}
                         onChange={(value) => {
                             setLifecycleStatus(value);
+                            setPage(1);
+                        }}
+                    />
+                    <Select
+                        className="min-w-0"
+                        value={origin}
+                        options={[
+                            { value: "all", label: "全部来源" },
+                            { value: "user_submission", label: "用户投稿" },
+                            { value: "official", label: "官方作品" },
+                        ]}
+                        onChange={(value) => {
+                            setOrigin(value);
                             setPage(1);
                         }}
                     />
@@ -455,6 +528,18 @@ function AdminWorkReviewSection() {
                     onChange={(event) => setReason(event.target.value)}
                 />
             </Modal>
+            <AdminOfficialWorkEditor
+                open={officialEditorOpen}
+                work={editingOfficialWork || undefined}
+                onClose={() => {
+                    setOfficialEditorOpen(false);
+                    setEditingOfficialWork(null);
+                }}
+                onSaved={(work) => {
+                    setEditingOfficialWork(work);
+                    void load();
+                }}
+            />
             <Modal title="作品详情" open={Boolean(viewingWork)} width={760} footer={null} destroyOnHidden onCancel={() => setViewingWork(undefined)}>
                 {viewingWork ? <AdminWorkDetail work={viewingWork} busy={actionId === viewingWork.id} onTogglePullFilm={() => void togglePullFilm(viewingWork)} /> : null}
             </Modal>

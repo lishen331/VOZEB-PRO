@@ -1,12 +1,13 @@
 "use client";
 
-import { use, useState, useEffect, useCallback } from "react";
-import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, List, Spin } from "antd";
-import { ArrowLeft, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig } from "lucide-react";
+import { use, useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
+import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, List, Spin, Upload as AntUpload, Steps, Table } from "antd";
+import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import type { Asset } from "@/lib/library-asset-contract";
+import styleGroups from "@/lib/drama-lab-style-options.json";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -14,10 +15,12 @@ const { Option } = Select;
 interface Episode {
     id: string;
     title: string;
-    number: number;
+    number?: number;
+    episodeNumber?: number;
     script: string;
     status?: string;
     storyboardCount?: number;
+    shots?: unknown[];
 }
 
 interface Character {
@@ -25,14 +28,27 @@ interface Character {
     name: string;
     description?: string;
     imageUrl?: string;
+    referenceImageUrl?: string;
+    referenceStorageKey?: string;
+    references?: Array<{ id?: string; url?: string; storageKey?: string; role?: string }>;
+    category?: string;
+    tags?: string[];
+    prompt?: string;
 }
 
 interface Scene {
     id: string;
+    name?: string;
     location: string;
     time?: string;
     description?: string;
     imageUrl?: string;
+    referenceImageUrl?: string;
+    referenceStorageKey?: string;
+    references?: Array<{ id?: string; url?: string; storageKey?: string; role?: string }>;
+    category?: string;
+    tags?: string[];
+    prompt?: string;
 }
 
 interface Prop {
@@ -40,7 +56,29 @@ interface Prop {
     name: string;
     description?: string;
     imageUrl?: string;
+    referenceImageUrl?: string;
+    referenceStorageKey?: string;
+    references?: Array<{ id?: string; url?: string; storageKey?: string; role?: string }>;
+    category?: string;
+    tags?: string[];
+    prompt?: string;
 }
+
+type LooseAssetData = { storageKey?: string; serverUrl?: string; remoteUrl?: string; dataUrl?: string; content?: string; url?: string };
+type LooseAssetReference = { role?: string; url?: string };
+type LooseAsset = {
+    referenceImageUrl?: string;
+    imageUrl?: string;
+    coverUrl?: string;
+    location?: string;
+    name?: string;
+    data?: LooseAssetData;
+    references?: LooseAssetReference[];
+    note?: string;
+    tags?: string[];
+    metadata?: Record<string, unknown>;
+};
+type LooseEpisode = Partial<Episode> & { script_content?: unknown; reviewStatus?: unknown; shotCount?: unknown; status?: unknown };
 
 interface Project {
     id: string;
@@ -52,6 +90,67 @@ interface Project {
     characters: Character[];
     scenes: Scene[];
     props: Prop[];
+    clues: unknown[];
+    defaultVideoMode?: string;
+}
+
+type StyleOption = { label: string; value: string; prompt?: string; promptEn?: string; thumb?: string };
+type StyleGroup = { label: string; options: StyleOption[] };
+const STYLE_GROUPS = styleGroups as StyleGroup[];
+
+function assetImageUrl(asset: LooseAsset | Asset | null | undefined): string | undefined {
+    if (!asset || typeof asset !== "object") return undefined;
+    const source = asset as LooseAsset;
+    const references = Array.isArray(source.references) ? source.references : [];
+    const data = source.data && typeof source.data === "object" ? source.data : {};
+    return source.referenceImageUrl || source.imageUrl || data.serverUrl || data.remoteUrl || data.dataUrl || source.coverUrl || references.find((reference) => reference?.role === "primary")?.url || references[0]?.url || undefined;
+}
+
+function normalizeEpisode(value: LooseEpisode, index: number): Episode {
+    const shots = Array.isArray(value?.shots) ? value.shots : [];
+    const number = Number(value?.episodeNumber || value?.number || index + 1);
+    return {
+        id: typeof value.id === "string" ? value.id : `episode_${crypto.randomUUID()}`,
+        title: typeof value.title === "string" ? value.title : `第 ${number} 集`,
+        number,
+        episodeNumber: number,
+        script: typeof value?.script === "string" ? value.script : typeof value?.script_content === "string" ? value.script_content : "",
+        status: typeof value?.status === "string" ? value.status : typeof value?.reviewStatus === "string" ? value.reviewStatus : "draft",
+        storyboardCount: Number(value?.storyboardCount ?? value?.shotCount ?? shots.length ?? 0),
+        shots,
+    };
+}
+function parseChapters(text: string, pattern: string) {
+    const normalized = text.replace(/\r\n/g, "\n").trim();
+    if (!normalized) return [];
+    let regex: RegExp;
+    try {
+        regex = new RegExp(pattern.trim(), "gm");
+    } catch {
+        throw new Error("章节正则格式不正确");
+    }
+    const matches = [...normalized.matchAll(regex)];
+    if (!matches.length) throw new Error("未匹配到章节，请调整章节正则");
+    return matches.map((match, index) => {
+        const title = String(match[1] || match[0] || `第${index + 1}章`).trim();
+        const start = match.index || 0;
+        const contentStart = start + String(match[0] || "").length;
+        const end = index + 1 < matches.length ? matches[index + 1].index || normalized.length : normalized.length;
+        return { title, content: normalized.slice(contentStart, end).trim() };
+    });
+}
+
+function groupChapters(chapters: Array<{ title: string; content: string }>, perEpisode: number, startNumber: number) {
+    const size = Math.max(1, Math.floor(perEpisode || 1));
+    return Array.from({ length: Math.ceil(chapters.length / size) }, (_, index) => {
+        const chunk = chapters.slice(index * size, index * size + size);
+        return {
+            episodeNumber: startNumber + index,
+            title: chunk.length === 1 ? chunk[0].title : `第${startNumber + index}集`,
+            script: chunk.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n\n"),
+            chapterTitles: chunk.map((chapter) => chapter.title),
+        };
+    });
 }
 
 export default function ProjectOutlinePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
@@ -62,15 +161,27 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [form] = Form.useForm();
+    const autoSaveTimerRef = useRef<number | undefined>(undefined);
     const [activeTab, setActiveTab] = useState("characters");
     const [batchImportOpen, setBatchImportOpen] = useState(false);
     const [batchImportText, setBatchImportText] = useState("");
+    const [batchImportTab, setBatchImportTab] = useState<"config" | "preview">("config");
+    const [selectedStyle, setSelectedStyle] = useState("");
+    const [batchFileName, setBatchFileName] = useState("");
+    const [batchRawText, setBatchRawText] = useState("");
+    const [chapterPattern, setChapterPattern] = useState("^\\s*(第[0-9０-９零一二三四五六七八九十百千万]+[章回节][^\\n\\r]*)");
+    const [chaptersPerEpisode, setChaptersPerEpisode] = useState(1);
+    const [previewChapters, setPreviewChapters] = useState<Array<{ title: string; content: string }>>([]);
+    const [previewEpisodes, setPreviewEpisodes] = useState<Array<{ episodeNumber: number; title: string; script: string; chapterTitles: string[] }>>([]);
+    const [stylePickerOpen, setStylePickerOpen] = useState(false);
+    const [styleSearch, setStyleSearch] = useState("");
     const [resourceImportOpen, setResourceImportOpen] = useState(false);
     const [resourceImportTarget, setResourceImportTarget] = useState("characters");
     const [libraryAssets, setLibraryAssets] = useState<Asset[]>([]);
     const [libraryKeyword, setLibraryKeyword] = useState("");
     const [libraryLoading, setLibraryLoading] = useState(false);
     const [resourceImporting, setResourceImporting] = useState(false);
+    const selectedStyleOption = STYLE_GROUPS.flatMap((group) => group.options).find((option) => option.value === selectedStyle || option.label === selectedStyle);
 
     // 加载项目
     const loadProject = useCallback(async () => {
@@ -90,13 +201,16 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 description: proj.summary || "",
                 style: proj.style || "",
                 aspectRatio: proj.ratio || "16:9",
-                episodes: proj.episodes || [],
-                characters: proj.characters || [],
-                scenes: proj.scenes || [],
-                props: proj.props || [],
+                episodes: (proj.episodes || []).map(normalizeEpisode),
+                characters: (proj.characters || []).map((asset: Character) => ({ ...asset, imageUrl: assetImageUrl(asset) })),
+                scenes: (proj.scenes || []).map((asset: Scene) => ({ ...asset, location: asset.location || asset.name || "未命名场景", imageUrl: assetImageUrl(asset) })),
+                props: (proj.props || []).map((asset: Prop) => ({ ...asset, imageUrl: assetImageUrl(asset) })),
+                clues: proj.clues || [],
+                defaultVideoMode: proj.defaultVideoMode,
             };
 
             setProject(projectData);
+            setSelectedStyle(projectData.style || "");
             form.setFieldsValue({
                 title: projectData.title,
                 description: projectData.description,
@@ -130,6 +244,8 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 characters: next.characters,
                 scenes: next.scenes,
                 props: next.props,
+                clues: next.clues,
+                defaultVideoMode: next.defaultVideoMode || "first_last",
             }),
         });
         if (!res.ok) throw new Error("保存失败");
@@ -139,28 +255,54 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
 
     const handleBatchImport = async () => {
         if (!project) return;
-        const lines = batchImportText
-            .split(/\r?\n/)
-            .map((line) => line.trim())
-            .filter(Boolean);
-        if (!lines.length) {
-            message.warning("请先输入要导入的分集内容");
-            return;
-        }
-        const episodes = lines.map((line, index) => {
-            const [titlePart, scriptPart] = line.split(/\s*\|\s*/, 2);
-            return {
-                id: `ep_${Date.now()}_${index}`,
-                title: titlePart.trim() || `第 ${project.episodes.length + index + 1} 集`,
-                number: project.episodes.length + index + 1,
-                script: scriptPart?.trim() || "",
-                status: "draft",
-                storyboardCount: 0,
-            };
-        });
         try {
+            const source = (batchRawText || batchImportText).trim();
+            if (!source) {
+                message.warning("请先选择 TXT 文件或输入剧集内容");
+                return;
+            }
+            const chapters =
+                !source.includes("|") && /第|章|回|节/.test(source) && chapterPattern.trim()
+                    ? parseChapters(source, chapterPattern)
+                    : source
+                          .split(/\r?\n/)
+                          .map((line) => line.trim())
+                          .filter(Boolean)
+                          .map((line) => {
+                              const [title, ...rest] = line.split(/\s*\|\s*/);
+                              return { title: title || "未命名剧集", content: rest.join(" | ") };
+                          });
+            setPreviewChapters(chapters);
+            setPreviewEpisodes(groupChapters(chapters, chaptersPerEpisode, project.episodes.length + 1));
+            setBatchImportTab("preview");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "剧本解析失败");
+        }
+    };
+
+    const confirmBatchImport = async () => {
+        if (!project || !previewEpisodes.length) return;
+        try {
+            const episodes = previewEpisodes.map((episode, index) =>
+                normalizeEpisode(
+                    {
+                        id: `ep_${Date.now()}_${index}`,
+                        title: episode.title,
+                        episodeNumber: episode.episodeNumber,
+                        script: episode.script,
+                        status: "draft",
+                        shots: [],
+                    },
+                    project.episodes.length + index,
+                ),
+            );
             await persistProject({ episodes: [...project.episodes, ...episodes] });
             setBatchImportText("");
+            setBatchRawText("");
+            setBatchFileName("");
+            setPreviewEpisodes([]);
+            setPreviewChapters([]);
+            setBatchImportTab("config");
             setBatchImportOpen(false);
             message.success(`已导入 ${episodes.length} 集`);
         } catch (error) {
@@ -171,9 +313,11 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const openResourceImport = async (target: string) => {
         setResourceImportTarget(target);
         setResourceImportOpen(true);
+        setLibraryKeyword("");
         setLibraryLoading(true);
         try {
-            const result = await listLibraryAssetPage({ page: 1, pageSize: 100 });
+            const type = target === "characters" ? "character" : target === "scenes" ? "scene" : "prop";
+            const result = await listLibraryAssetPage({ page: 1, pageSize: 100, kind: "image", dramaAssetType: type });
             setLibraryAssets(result.assets);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "素材加载失败");
@@ -184,16 +328,23 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
 
     const handleResourceImport = async (asset: Asset) => {
         if (!project) return;
-        const imageUrl = asset.kind === "image" ? asset.data.serverUrl || asset.data.remoteUrl || asset.data.dataUrl || asset.coverUrl : asset.coverUrl;
+        const source = asset as unknown as LooseAsset;
+        const imageUrl = assetImageUrl(source);
+        const common = {
+            description: asset.note || "",
+            imageUrl,
+            referenceImageUrl: imageUrl,
+            referenceStorageKey: source.data?.storageKey,
+            references: imageUrl ? [{ id: `ref_${Date.now()}`, url: imageUrl, storageKey: source.data?.storageKey, role: "primary" }] : [],
+            category: typeof asset.metadata?.category === "string" ? asset.metadata.category : "",
+            tags: asset.tags || [],
+            prompt: typeof asset.metadata?.prompt === "string" ? asset.metadata.prompt : "",
+        };
         setResourceImporting(true);
         try {
-            if (resourceImportTarget === "characters") {
-                await persistProject({ characters: [...project.characters, { id: `character_${Date.now()}`, name: asset.title, description: asset.note || (asset.kind === "text" ? asset.data.content : ""), imageUrl }] });
-            } else if (resourceImportTarget === "scenes") {
-                await persistProject({ scenes: [...project.scenes, { id: `scene_${Date.now()}`, location: asset.title, time: "", description: asset.note || (asset.kind === "text" ? asset.data.content : ""), imageUrl }] });
-            } else {
-                await persistProject({ props: [...project.props, { id: `prop_${Date.now()}`, name: asset.title, description: asset.note || (asset.kind === "text" ? asset.data.content : ""), imageUrl }] });
-            }
+            if (resourceImportTarget === "characters") await persistProject({ characters: [...project.characters, { id: `character_${Date.now()}`, name: asset.title, ...common }] });
+            else if (resourceImportTarget === "scenes") await persistProject({ scenes: [...project.scenes, { id: `scene_${Date.now()}`, name: asset.title, location: asset.title, time: "", ...common } as Scene] });
+            else await persistProject({ props: [...project.props, { id: `prop_${Date.now()}`, name: asset.title, ...common }] });
             message.success(`已导入素材：${asset.title}`);
             setResourceImportOpen(false);
         } catch (error) {
@@ -209,7 +360,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     });
 
     // 保存项目信息
-    const saveProjectInfo = async () => {
+    const saveProjectInfo = async (silent = false) => {
         if (!project) return;
 
         setSaving(true);
@@ -227,6 +378,8 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                     characters: project.characters,
                     scenes: project.scenes,
                     props: project.props,
+                    clues: project.clues,
+                    defaultVideoMode: project.defaultVideoMode || "first_last",
                 }),
             });
 
@@ -237,17 +390,32 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 ...project,
                 title: values.title,
                 description: values.description,
-                style: values.style,
+                style: selectedStyle || values.style,
                 aspectRatio: values.aspectRatio,
             });
 
-            message.success("保存成功");
+            if (!silent) message.success("保存成功");
         } catch (err) {
             message.error(err instanceof Error ? err.message : "保存失败");
         } finally {
             setSaving(false);
         }
     };
+
+    const scheduleProjectSettingsSave = () => {
+        if (autoSaveTimerRef.current !== undefined) window.clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = window.setTimeout(() => {
+            autoSaveTimerRef.current = undefined;
+            void saveProjectInfo(true);
+        }, 700);
+    };
+
+    useEffect(
+        () => () => {
+            if (autoSaveTimerRef.current !== undefined) window.clearTimeout(autoSaveTimerRef.current);
+        },
+        [],
+    );
 
     // 添加分集
     const handleAddEpisode = async () => {
@@ -269,10 +437,16 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    title: project.title,
+                    summary: project.description,
+                    style: project.style,
+                    ratio: project.aspectRatio,
                     episodes: updatedEpisodes,
                     characters: project.characters,
                     scenes: project.scenes,
                     props: project.props,
+                    clues: project.clues,
+                    defaultVideoMode: project.defaultVideoMode || "first_last",
                 }),
             });
 
@@ -350,11 +524,9 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                         <span className="text-muted-foreground">›</span>
                         <h1 className="text-lg font-semibold">{project.title}</h1>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button onClick={saveProjectInfo} loading={saving}>
-                            保存设置
-                        </Button>
-                    </div>
+                    <Button type="primary" icon={<Play className="size-4" />} onClick={() => project.episodes[0] && goToCreate(project.episodes[0].id)} disabled={!project.episodes.length}>
+                        进入制作
+                    </Button>
                 </div>
             </header>
 
@@ -362,10 +534,24 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
             <main className="mx-auto max-w-7xl space-y-6 p-6">
                 {/* 剧集信息 */}
                 <Card title="剧集信息">
-                    <Form form={form} layout="vertical" onValuesChange={saveProjectInfo}>
-                        <div className="grid grid-cols-2 gap-4">
+                    <Form form={form} layout="vertical" onValuesChange={scheduleProjectSettingsSave}>
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
                             <Form.Item label="标题" name="title" rules={[{ required: true }]}>
                                 <Input placeholder="剧集标题" />
+                            </Form.Item>
+                            <Form.Item label="图片/视频风格">
+                                <button
+                                    type="button"
+                                    aria-label="选择图片或视频风格"
+                                    className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-2 text-left text-sm shadow-xs transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                                    onClick={() => setStylePickerOpen(true)}
+                                >
+                                    <span className="grid size-6 shrink-0 overflow-hidden rounded-sm bg-muted">
+                                        {selectedStyleOption?.thumb ? <img src={selectedStyleOption.thumb} alt="" className="size-full object-cover" /> : <span className="size-full bg-gradient-to-br from-violet-300 via-primary/60 to-slate-700" />}
+                                    </span>
+                                    <span className={selectedStyle ? "min-w-0 flex-1 truncate text-foreground" : "min-w-0 flex-1 truncate text-muted-foreground"}>{selectedStyleOption?.label || selectedStyle || "选择生成风格"}</span>
+                                    <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" aria-hidden />
+                                </button>
                             </Form.Item>
                             <Form.Item label="画面比例" name="aspectRatio">
                                 <Select>
@@ -378,12 +564,10 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                 </Select>
                             </Form.Item>
                         </div>
-                        <Form.Item label="图片/视频风格" name="style">
-                            <Input placeholder="例如：写实、动漫、科幻、水墨" />
-                        </Form.Item>
                         <Form.Item label="故事梗概" name="description">
                             <TextArea rows={3} placeholder="一句话描述故事梗概" />
                         </Form.Item>
+                        <p className="-mt-2 text-xs text-muted-foreground">设置会在停止输入后自动保存。</p>
                     </Form>
                 </Card>
 
@@ -412,13 +596,13 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                             {project.episodes.map((ep) => (
                                 <div key={ep.id} className="group cursor-pointer rounded-lg border border-border p-4 transition-all hover:border-primary hover:shadow-md" onClick={() => goToCreate(ep.id)}>
                                     <div className="mb-2 flex items-center justify-between">
-                                        <span className="text-sm text-muted-foreground">第 {ep.number} 集</span>
+                                        <span className="text-sm text-muted-foreground">第 {ep.episodeNumber || ep.number || 0} 集</span>
                                         <Button
                                             type="text"
                                             size="small"
                                             danger
                                             icon={<Trash2 className="size-3" />}
-                                            onClick={(e) => {
+                                            onClick={(e: MouseEvent<HTMLButtonElement>) => {
                                                 e.stopPropagation();
                                                 handleDeleteEpisode(ep.id);
                                             }}
@@ -427,7 +611,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                     <h3 className="mb-2 text-base font-semibold">{ep.title}</h3>
                                     <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">{ep.script ? ep.script.slice(0, 50) + "..." : "暂无剧本"}</p>
                                     <div className="mb-3 flex items-center gap-4 text-xs text-muted-foreground">
-                                        <span>{ep.storyboardCount || 0} 分镜</span>
+                                        <span>{ep.storyboardCount ?? ep.shots?.length ?? 0} 分镜</span>
                                         <span className="rounded bg-muted px-2 py-0.5">{ep.status === "draft" ? "草稿" : "进行中"}</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm text-primary opacity-0 transition-opacity group-hover:opacity-100">
@@ -445,7 +629,14 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                     title="本剧资源库"
                     extra={
                         <div className="flex items-center gap-2">
-                            <Input allowClear prefix={<Search className="size-4 text-muted-foreground" />} placeholder="搜索本剧资源" className="w-52" value={libraryKeyword} onChange={(event) => setLibraryKeyword(event.target.value)} />
+                            <Input
+                                allowClear
+                                prefix={<Search className="size-4 text-muted-foreground" />}
+                                placeholder="搜索本剧资源"
+                                className="w-52"
+                                value={libraryKeyword}
+                                onChange={(event: ChangeEvent<HTMLInputElement>) => setLibraryKeyword(event.target.value)}
+                            />
                             <Button icon={<LibraryBig className="size-4" />} onClick={() => void openResourceImport(activeTab)}>
                                 从素材库导入
                             </Button>
@@ -474,9 +665,18 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                             project.characters
                                                 .filter((char) => !libraryKeyword.trim() || char.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
                                                 .map((char) => (
-                                                    <div key={char.id} className="rounded-lg border border-border p-3">
-                                                        <div className="mb-2 text-sm font-semibold">{char.name}</div>
-                                                        <div className="text-xs text-muted-foreground">{char.description || "暂无描述"}</div>
+                                                    <div key={char.id} className="overflow-hidden rounded-lg border border-border">
+                                                        <div className="aspect-video bg-muted">
+                                                            {char.imageUrl ? (
+                                                                <img src={char.imageUrl} alt={char.name} className="size-full object-cover" />
+                                                            ) : (
+                                                                <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
+                                                            )}
+                                                        </div>
+                                                        <div className="p-3">
+                                                            <div className="mb-2 text-sm font-semibold">{char.name}</div>
+                                                            <div className="text-xs text-muted-foreground">{char.description || "暂无描述"}</div>
+                                                        </div>
                                                     </div>
                                                 ))
                                         )}
@@ -501,9 +701,18 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                             project.scenes
                                                 .filter((scene) => !libraryKeyword.trim() || scene.location.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
                                                 .map((scene) => (
-                                                    <div key={scene.id} className="rounded-lg border border-border p-3">
-                                                        <div className="mb-2 text-sm font-semibold">{scene.location}</div>
-                                                        <div className="text-xs text-muted-foreground">{scene.time || "未设置时间"}</div>
+                                                    <div key={scene.id} className="overflow-hidden rounded-lg border border-border">
+                                                        <div className="aspect-video bg-muted">
+                                                            {scene.imageUrl ? (
+                                                                <img src={scene.imageUrl} alt={scene.location} className="size-full object-cover" />
+                                                            ) : (
+                                                                <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
+                                                            )}
+                                                        </div>
+                                                        <div className="p-3">
+                                                            <div className="mb-2 text-sm font-semibold">{scene.location}</div>
+                                                            <div className="text-xs text-muted-foreground">{scene.time || "未设置时间"}</div>
+                                                        </div>
                                                     </div>
                                                 ))
                                         )}
@@ -528,9 +737,18 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                             project.props
                                                 .filter((prop) => !libraryKeyword.trim() || prop.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
                                                 .map((prop) => (
-                                                    <div key={prop.id} className="rounded-lg border border-border p-3">
-                                                        <div className="mb-2 text-sm font-semibold">{prop.name}</div>
-                                                        <div className="text-xs text-muted-foreground">{prop.description || "暂无描述"}</div>
+                                                    <div key={prop.id} className="overflow-hidden rounded-lg border border-border">
+                                                        <div className="aspect-video bg-muted">
+                                                            {prop.imageUrl ? (
+                                                                <img src={prop.imageUrl} alt={prop.name} className="size-full object-cover" />
+                                                            ) : (
+                                                                <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
+                                                            )}
+                                                        </div>
+                                                        <div className="p-3">
+                                                            <div className="mb-2 text-sm font-semibold">{prop.name}</div>
+                                                            <div className="text-xs text-muted-foreground">{prop.description || "暂无描述"}</div>
+                                                        </div>
                                                     </div>
                                                 ))
                                         )}
@@ -542,9 +760,127 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 </Card>
             </main>
 
-            <Modal open={batchImportOpen} title="批量导入剧集" okText="导入剧集" cancelText="取消" onCancel={() => setBatchImportOpen(false)} onOk={() => void handleBatchImport()}>
-                <p className="mb-3 text-sm text-muted-foreground">每行一集，可用“标题 | 剧本内容”格式填写。</p>
-                <Input.TextArea rows={8} value={batchImportText} onChange={(event) => setBatchImportText(event.target.value)} placeholder={"第 1 集 | 雨夜里，主角收到一封神秘来信。\n第 2 集 | 他沿着线索来到旧车站。"} />
+            <Modal open={batchImportOpen} title="批量导入剧集" width={900} footer={null} onCancel={() => setBatchImportOpen(false)}>
+                <Steps current={batchImportTab === "config" ? 0 : 1} items={[{ title: "导入设置" }, { title: "预览确认" }]} className="mb-5" />
+                {batchImportTab === "config" ? (
+                    <div className="grid gap-4">
+                        <AntUpload
+                            beforeUpload={(file: File) => {
+                                setBatchFileName(file.name);
+                                const reader = new FileReader();
+                                reader.onload = (event) => setBatchRawText(String(event.target?.result || ""));
+                                reader.readAsText(file, "utf-8");
+                                return false;
+                            }}
+                            showUploadList={false}
+                            accept=".txt,.md"
+                        >
+                            <Button icon={<Upload className="size-4" />}>选择 TXT/MD 文件</Button>
+                        </AntUpload>
+                        <div className="text-sm text-muted-foreground">{batchFileName || "未选择文件，也可以直接粘贴文本"}</div>
+                        <Input value={chapterPattern} onChange={(event: ChangeEvent<HTMLInputElement>) => setChapterPattern(event.target.value)} addonBefore="章节正则" />
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm">每集章节数</span>
+                            <Select value={chaptersPerEpisode} onChange={setChaptersPerEpisode} options={[1, 2, 3, 4, 5].map((value) => ({ label: String(value), value }))} />
+                        </div>
+                        <Input.TextArea
+                            rows={8}
+                            value={batchRawText || batchImportText}
+                            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                                setBatchRawText(event.target.value);
+                                setBatchImportText(event.target.value);
+                            }}
+                            placeholder={"第1集 | 雨夜里，主角收到一封神秘来信。\\n第2集 | 他沿着线索来到旧车站。"}
+                        />
+                        <div className="flex justify-end">
+                            <Button type="primary" onClick={() => void handleBatchImport()}>
+                                解析并预览
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid gap-4">
+                        <div className="text-sm text-muted-foreground">
+                            共识别 {previewChapters.length} 个章节，预计导入 {previewEpisodes.length} 集
+                        </div>
+                        <Table
+                            rowKey="episodeNumber"
+                            size="small"
+                            pagination={false}
+                            dataSource={previewEpisodes}
+                            columns={[
+                                { title: "集数", dataIndex: "episodeNumber", width: 80 },
+                                { title: "标题", dataIndex: "title" },
+                                { title: "章节", render: (_: unknown, row: (typeof previewEpisodes)[number]) => row.chapterTitles.join("、") },
+                                { title: "剧本预览", render: (_: unknown, row: (typeof previewEpisodes)[number]) => row.script.slice(0, 100) },
+                            ]}
+                            scroll={{ y: 360 }}
+                        />
+                        <div className="flex justify-end gap-2">
+                            <Button onClick={() => setBatchImportTab("config")}>返回设置</Button>
+                            <Button type="primary" onClick={() => void confirmBatchImport()}>
+                                确认导入集数
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+            <Modal open={stylePickerOpen} title="选择生成风格" width={900} footer={<Button onClick={() => setStylePickerOpen(false)}>完成</Button>} onCancel={() => setStylePickerOpen(false)}>
+                <div className="mb-4 flex items-center gap-3">
+                    <Input.Search allowClear placeholder="搜索风格名称" value={styleSearch} onChange={(event: ChangeEvent<HTMLInputElement>) => setStyleSearch(event.target.value)} />
+                    <span className="shrink-0 text-sm text-muted-foreground">已选：{form.getFieldValue("style") || "未选择"}</span>
+                </div>
+                <div className="max-h-[60vh] space-y-5 overflow-y-auto pr-1">
+                    {STYLE_GROUPS.map((group) => {
+                        const options = group.options.filter((option) => !styleSearch.trim() || option.label.toLowerCase().includes(styleSearch.trim().toLowerCase()) || option.value.toLowerCase().includes(styleSearch.trim().toLowerCase()));
+                        if (!options.length) return null;
+                        return (
+                            <section key={group.label}>
+                                <h3 className="mb-2 text-sm font-semibold">{group.label}</h3>
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                    {options.map((option) => {
+                                        const selected = form.getFieldValue("style") === option.value;
+                                        return (
+                                            <button
+                                                type="button"
+                                                key={option.value}
+                                                className={`overflow-hidden rounded-lg border text-left transition ${selected ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/60"}`}
+                                                onClick={() => {
+                                                    form.setFieldValue("style", option.value);
+                                                    setStylePickerOpen(false);
+                                                }}
+                                            >
+                                                <div className="aspect-[4/3] bg-muted">
+                                                    {option.thumb ? (
+                                                        <img src={option.thumb} alt={option.label} className="size-full object-cover" />
+                                                    ) : (
+                                                        <div className="grid size-full place-items-center text-xs text-muted-foreground">{option.label.slice(0, 2)}</div>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center justify-between p-2 text-sm">
+                                                    <span>{option.label}</span>
+                                                    {selected ? <span className="text-primary">✓</span> : null}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+                        );
+                    })}
+                    <section>
+                        <h3 className="mb-2 text-sm font-semibold">其他</h3>
+                        <Input
+                            placeholder="自定义风格描述，输入后保存"
+                            value={selectedStyle && !STYLE_GROUPS.some((group) => group.options.some((option) => option.value === selectedStyle)) ? selectedStyle : ""}
+                            onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                                form.setFieldValue("style", event.target.value);
+                                setSelectedStyle(event.target.value);
+                                scheduleProjectSettingsSave();
+                            }}
+                        />
+                    </section>
+                </div>
             </Modal>
 
             <Modal open={resourceImportOpen} title={`从素材库导入${resourceImportTarget === "characters" ? "角色" : resourceImportTarget === "scenes" ? "场景" : "道具"}`} footer={null} onCancel={() => setResourceImportOpen(false)}>
@@ -555,7 +891,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 ) : filteredLibraryAssets.length ? (
                     <List
                         dataSource={filteredLibraryAssets}
-                        renderItem={(asset) => (
+                        renderItem={(asset: Asset) => (
                             <List.Item
                                 actions={[
                                     <Button key="import" type="link" loading={resourceImporting} onClick={() => void handleResourceImport(asset)}>
@@ -565,9 +901,13 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                             >
                                 <List.Item.Meta
                                     avatar={
-                                        <div className="grid size-9 place-items-center rounded bg-muted">
-                                            <LibraryBig className="size-4" />
-                                        </div>
+                                        assetImageUrl(asset as unknown as LooseAsset) ? (
+                                            <img src={assetImageUrl(asset as unknown as LooseAsset)} alt={asset.title} className="size-9 rounded object-cover" />
+                                        ) : (
+                                            <div className="grid size-9 place-items-center rounded bg-muted">
+                                                <LibraryBig className="size-4" />
+                                            </div>
+                                        )
                                     }
                                     title={asset.title}
                                     description={`${asset.kind} · ${asset.note || asset.tags.join("、") || "暂无描述"}`}

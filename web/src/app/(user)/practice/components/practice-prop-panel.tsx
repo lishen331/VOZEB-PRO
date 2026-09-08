@@ -1,14 +1,17 @@
 "use client";
+import { PracticePromptEditor } from "./practice-prompt-editor";
 
-import { Button, Input } from "antd";
+import { App, Button } from "antd";
 import { Box } from "lucide-react";
 import { useState } from "react";
 import { practiceApi } from "@/services/api/practice";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
 import { WorkflowFormFields, WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
+import { PracticeMediaInput } from "./practice-media-input";
 import { ModelField } from "./practice-storyboard-image-panel";
 
 export default function PracticePropPanel({ capability, onCreated }: PracticePanelProps) {
+    const { message } = App.useApp();
     const [prompt, setPrompt] = useState("");
     const [model, setModel] = useState(capability.models[0]?.id);
     const [image, setImage] = useState<UploadedImage>();
@@ -20,6 +23,8 @@ export default function PracticePropPanel({ capability, onCreated }: PracticePan
         setUploading(true);
         try {
             setImage(await uploadImage(file));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "操作失败，请重试");
         } finally {
             setUploading(false);
         }
@@ -42,6 +47,8 @@ export default function PracticePropPanel({ capability, onCreated }: PracticePan
                     })
                 ).session,
             );
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "操作失败，请重试");
         } finally {
             setBusy(false);
         }
@@ -49,18 +56,12 @@ export default function PracticePropPanel({ capability, onCreated }: PracticePan
     return (
         <div className="space-y-4">
             <ModelField capability={capability} value={model} onChange={setModel} />
-            <label className="block text-sm font-medium">
-                道具参考图（可选）
-                <input type="file" accept="image/*" disabled={uploading} onChange={(event) => void chooseImage(event.target.files?.[0])} className="mt-2 block w-full text-sm" />
-                {image ? <img src={image.url} alt="已选择的道具参考图" className="mt-2 max-h-48 w-full object-contain" /> : null}
-            </label>
-            <label className="block text-sm font-medium">
-                道具描述
-                <Input.TextArea value={prompt} onChange={(event) => setPrompt(event.target.value)} autoSize={{ minRows: 5, maxRows: 10 }} className="!mt-2" placeholder="描述材质、结构、用途和外观" />
-            </label>
+            <PracticePromptEditor briefLabel="道具设定" label="道具描述" value={prompt} onChange={setPrompt} disabled={busy} mode="image">
+                <PracticeMediaInput label="道具参考图（可选）" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={image?.url} onRemove={() => setImage(undefined)} />
+            </PracticePromptEditor>
             <WorkflowFormFields capability={capability} value={workflowInput} onChange={(key, value) => setWorkflowInput((current) => ({ ...current, [key]: value }))} />
             <WorkflowOptionalFields capability={capability} value={workflowInput} onChange={(key, value) => setWorkflowInput((current) => ({ ...current, [key]: value }))} />
-            <Button type="primary" icon={<Box className="size-4" />} loading={busy || uploading} disabled={!capability.available || !model || !prompt.trim()} onClick={() => void submit()}>
+            <Button type="primary" block size="large" icon={<Box className="size-4" />} loading={busy || uploading} disabled={!capability.available || !model || !prompt.trim()} onClick={() => void submit()}>
                 生成道具图
             </Button>
         </div>

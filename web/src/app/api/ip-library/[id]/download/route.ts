@@ -18,11 +18,14 @@ export async function POST(request: Request, context: RouteContext) {
     if (typeof packageMode !== "boolean") return schoolApiError(400, "下载类型无效");
     const itemIds = body.itemIds;
     const subIpId = body.subIpId;
+    const packageScope = body.packageScope;
     if (subIpId !== undefined && typeof subIpId !== "string") return schoolApiError(400, "子 IP 标识无效");
     if (itemIds !== undefined && (!Array.isArray(itemIds) || itemIds.some((item) => typeof item !== "string"))) return schoolApiError(400, "IP 内容项无效");
+    if (packageScope !== undefined && packageScope !== "ip" && packageScope !== "sub_ip") return schoolApiError(400, "下载内容范围无效");
+    if (!packageMode && packageScope !== undefined) return schoolApiError(400, "下载内容范围无效");
     const { id } = await context.params;
     try {
-        const result = await downloadIpForUser(user.id, request, id, { package: packageMode, subIpId, itemIds: itemIds as string[] | undefined } satisfies IpDownloadInput);
+        const result = await downloadIpForUser(user.id, request, id, { package: packageMode, subIpId, itemIds: itemIds as string[] | undefined, ...(packageScope ? { packageScope } : {}) } satisfies IpDownloadInput);
         if (result.kind === "redirect") {
             const response = schoolApiOk({ url: result.url, fileName: result.fileName, downloadId: result.downloadId });
             response.headers.set("Cache-Control", "private, no-store, max-age=0");

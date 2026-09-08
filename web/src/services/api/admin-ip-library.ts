@@ -1,6 +1,6 @@
 import type { IpStatus, IpVisibility } from "@/lib/ip-library-domain";
 import type { IpContentFileRecord, IpDetailRecord, IpDownloadRecord, IpDownloadResult, IpDownloadType, IpPackageRecord, IpSchoolGrantRecord, IpSubIpDetailRecord, PageResult } from "@/lib/server/database/repository-types";
-import type { AdminIpCreateInput, AdminIpGrantInput, AdminIpGrantPatchInput, AdminIpPatchInput, AdminIpSubIpInput } from "@/lib/server/ip-library-admin-service";
+import type { AdminIpCreateInput, AdminIpGrantBatchInput, AdminIpGrantInput, AdminIpGrantPatchInput, AdminIpPatchInput, AdminIpSubIpInput } from "@/lib/server/ip-library-admin-service";
 import { serializeApiParams } from "@/services/api/request";
 
 export const adminIpLibraryApi = {
@@ -28,8 +28,9 @@ export const adminIpLibraryApi = {
     deleteSubIp(id: string, subIpId: string) {
         return request<{ deleted: boolean }>(`${ipPath(id)}/sub-ips/${encodeURIComponent(subIpId)}`, { method: "DELETE" });
     },
-    listFiles(id: string, subIpId: string) {
-        return request<IpContentFileRecord[]>(`${ipPath(id)}/files?${serializeApiParams({ subIpId }).toString()}`);
+    listFiles(id: string, subIpId?: string) {
+        const query = serializeApiParams({ subIpId });
+        return request<IpContentFileRecord[]>(`${ipPath(id)}/files${query.size ? `?${query.toString()}` : ""}`);
     },
     uploadFile(id: string, subIpId: string, kind: IpContentFileRecord["kind"], file: File) {
         const body = new FormData();
@@ -50,6 +51,9 @@ export const adminIpLibraryApi = {
     },
     createGrant(id: string, input: AdminIpGrantInput) {
         return request<IpSchoolGrantRecord>(`${ipPath(id)}/schools`, jsonRequest("POST", input));
+    },
+    createGrants(id: string, input: AdminIpGrantBatchInput) {
+        return request<IpSchoolGrantRecord[]>(`${ipPath(id)}/schools`, jsonRequest("POST", input));
     },
     updateGrant(id: string, grantId: string, input: AdminIpGrantPatchInput) {
         return request<IpSchoolGrantRecord>(`${ipPath(id)}/schools/${encodeURIComponent(grantId)}`, jsonRequest("PATCH", input));
@@ -74,6 +78,9 @@ export function isConfirmedAdminIpLibraryFailure(error: unknown): error is Admin
 }
 
 export type AdminIpUsageItem = Omit<IpDownloadRecord, "userId"> & {
+    ip?: { id: string; title: string };
+    subIp?: { id: string; title: string };
+    item?: { id: string; title: string };
     user?: { accountId: string; username: string; displayName: string; email?: string };
     school?: { id: string; name: string };
 };

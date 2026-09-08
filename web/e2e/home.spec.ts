@@ -80,8 +80,10 @@ test("public homepage is functional for signed-out visitors", async ({ browser }
             .locator("header")
             .getByRole("button", { name: /立即体验/ })
             .click();
-        await expect(page.getByRole("dialog")).toBeVisible();
-        await page.getByRole("button", { name: "Close" }).click();
+        await expect(page).toHaveURL(/\/login(?:\?.*)?$/);
+        expect(new URL(page.url()).searchParams.get("next")).toBe("/create");
+        await page.goBack();
+        await expect(page).toHaveURL(/\/$/);
 
         const navGlass = page.getByTestId("home-nav-glass");
         const firstNavItem = headerNavigation.getByRole("button", { name: "创作 Agent" });
@@ -154,14 +156,11 @@ test("public homepage is functional for signed-out visitors", async ({ browser }
     }
     for (const action of ["开始创作", "进入创作页添加参考素材"]) {
         await page.getByRole("button", { name: action }).click();
-        const dialog = page.getByRole("dialog");
-        const closeButton = dialog.getByRole("button", { name: "Close" });
-        await expect(dialog).toBeVisible();
-        await expect(dialog.getByRole("heading", { name: "登录后回到刚才的位置" })).toBeVisible();
-        await expect(dialog.getByText("登录后将继续刚才的创作操作，输入内容不会丢失。")).toHaveCount(0);
-        await expect(closeButton).toBeVisible();
-        await closeButton.click();
-        await expect(dialog).toBeHidden();
+        await expect(page).toHaveURL(/\/login(?:\?.*)?$/);
+        const next = new URL(page.url()).searchParams.get("next");
+        expect(next?.startsWith("/create")).toBe(true);
+        await page.goBack();
+        await expect(page).toHaveURL(/\/$/);
     }
 
     await expect(page.getByRole("heading", { name: "简单四步，创意即刻落地" })).toBeVisible();

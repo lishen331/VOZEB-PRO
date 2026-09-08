@@ -9,7 +9,7 @@ export type IpListInput = { scope: "public" | "school"; page?: number; pageSize?
 export type IpPublicItem = Omit<IpItemRecord, "fileId"> & { textContent?: string; previewUrl?: string };
 export type IpPublicSubIp = Omit<IpSubIpDetailRecord, "items" | "createdByUserId"> & { items: IpPublicItem[]; isExclusive: boolean; coverPreviewUrl?: string };
 export type IpSummary = Omit<IpSummaryRecord, "createdByUserId" | "coverFileId"> & { coverPreviewUrl?: string };
-export type IpDetail = Omit<IpDetailRecord, "createdByUserId" | "subIps"> & { subIps: IpPublicSubIp[]; singleSubIp: boolean };
+export type IpDetail = Omit<IpDetailRecord, "createdByUserId" | "coverFileId" | "subIps"> & { coverPreviewUrl?: string; subIps: IpPublicSubIp[]; singleSubIp: boolean };
 export type IpUsageInput = { ipId: string; subIpId?: string; itemIds?: string[]; action: IpUsageAction; targetType: IpUsageTargetType; targetId: string };
 
 export async function listIpLibraryForUser(userId: string, input: IpListInput): Promise<PageResult<IpSummary>> {
@@ -59,7 +59,7 @@ function referenceUsageId(userId: string, ipId: string, subIpId: string, itemIds
 }
 function toUserSummary(record: IpSummaryRecord): IpSummary {
     const { createdByUserId: _creator, coverFileId, ...summary } = record;
-    return { ...summary, ...(coverFileId && record.coverSubIpId ? { coverPreviewUrl: coverPreview(record.id, record.coverSubIpId) } : {}) };
+    return { ...summary, ...(coverFileId ? { coverPreviewUrl: coverPreview(record.id) } : {}) };
 }
 async function toUserDetail(record: IpDetailRecord): Promise<IpDetail> {
     const repository = createIpLibraryRepository();
@@ -79,11 +79,12 @@ async function toUserDetail(record: IpDetailRecord): Promise<IpDetail> {
             };
         }),
     );
-    const { createdByUserId: _creator, ...detail } = record;
-    return { ...detail, subIps, singleSubIp: subIps.length === 1 };
+    const { createdByUserId: _creator, coverFileId, ...detail } = record;
+    return { ...detail, ...(coverFileId ? { coverPreviewUrl: coverPreview(record.id) } : {}), subIps, singleSubIp: subIps.length === 1 };
 }
-function coverPreview(ipId: string, subIpId: string) {
-    return `/api/ip-library/${encodeURIComponent(ipId)}/cover?subIpId=${encodeURIComponent(subIpId)}`;
+function coverPreview(ipId: string, subIpId?: string) {
+    const query = subIpId ? `?subIpId=${encodeURIComponent(subIpId)}` : "";
+    return `/api/ip-library/${encodeURIComponent(ipId)}/cover${query}`;
 }
 function itemPreview(ipId: string, subIpId: string, itemId: string) {
     return `/api/ip-library/${encodeURIComponent(ipId)}/items/${encodeURIComponent(itemId)}/media?subIpId=${encodeURIComponent(subIpId)}`;

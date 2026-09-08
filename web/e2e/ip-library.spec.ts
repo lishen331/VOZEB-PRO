@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { expect, test, type APIRequestContext, type APIResponse, type BrowserContext, type Page } from "@playwright/test";
+import { unzipSync } from "fflate";
 
 import { expectNoHorizontalOverflow, expectVisibleControlsWithinViewport } from "./responsive-helpers";
 import { createAuthenticatedE2EContext, e2eProjectContextOptions } from "./support";
@@ -43,7 +44,7 @@ test("IP 库按子 IP 编辑、授权、停用、下载和引用", async ({ brow
         const teacher = await authenticatedContext(browser, contexts, names.teacher, contextOptions);
         const student = await authenticatedContext(browser, contexts, names.student, contextOptions);
 
-        const schoolIp = await createIp(page.request, names.schoolIp, `school-${suffix}`, "school");
+        const schoolIp = await createIp(page.request, names.schoolIp, "school");
         const initial = await getIp(page.request, schoolIp.id);
         const mainSubIp = initial.subIps[0];
         const extraSubIp = await createSubIp(page.request, schoolIp.id, names.extraSubIp);
@@ -54,17 +55,17 @@ test("IP 库按子 IP 编辑、授权、停用、下载和引用", async ({ brow
         const configuredExtra = requireSubIp(detail, extraSubIp.id);
         expect(detail.subIps).toHaveLength(2);
 
-        const grants = await Promise.all([configuredMain, configuredExtra].map((subIp) => createGrant(page.request, schoolIp.id, subIp.id, school.id)));
+        const grants = await createGrants(page.request, schoolIp.id, [configuredMain.id, configuredExtra.id], [school.id]);
         expect(new Set(grants.map((grant) => grant.subIpId))).toEqual(new Set([configuredMain.id, configuredExtra.id]));
 
-        const publicIp = await createIp(page.request, names.publicIp, `public-${suffix}`, "public");
+        const publicIp = await createIp(page.request, names.publicIp, "public");
         const publicInitial = (await getIp(page.request, publicIp.id)).subIps[0];
         await replaceSubIpText(page.request, publicIp.id, publicInitial.id, names.publicIp, `公共 IP 正文 ${suffix}`);
 
         await verifyAdminFullPageEditor(page, schoolIp.id, names.schoolIp, names.mainSubIp, names.extraSubIp);
         await verifyPublicSingleSubIp(page.request, browser, contexts, contextOptions, publicIp.id, names.publicIp);
-        await verifySchoolMultiSubIp(teacher, schoolIp.id, names.mainSubIp, names.extraSubIp);
-        await verifySchoolMultiSubIp(student, schoolIp.id, names.mainSubIp, names.extraSubIp);
+        await verifySchoolMultiSubIp(teacher, schoolIp.id, names.schoolIp, names.mainSubIp, configuredExtra.id, names.extraSubIp);
+        await verifySchoolMultiSubIp(student, schoolIp.id, names.schoolIp, names.mainSubIp, configuredExtra.id, names.extraSubIp);
 
         const downloaded = await teacher.request.post(`/api/ip-library/${schoolIp.id}/download`, {
             data: { subIpId: configuredExtra.id, itemIds: [configuredExtra.items[0].id], package: false },
@@ -72,6 +73,11 @@ test("IP 库按子 IP 编辑、授权、停用、下载和引用", async ({ brow
         expect(downloaded.ok(), await downloaded.text()).toBe(true);
         expect(downloaded.headers()["content-disposition"]).toContain("attachment");
         expect((await downloaded.body()).toString("utf8")).toContain(`扩展剧本正文 ${suffix}`);
+
+        const packageDownloaded = await teacher.request.post(`/api/ip-library/${schoolIp.id}/download`, { data: { package: true, packageScope: "ip" } });
+        expect(packageDownloaded.ok(), await packageDownloaded.text()).toBe(true);
+        expect(packageDownloaded.headers()["content-disposition"]).toContain(".zip");
+        expect(Object.keys(unzipSync(await packageDownloaded.body()))).toEqual(expect.arrayContaining([`${names.mainSubIp}.zip`, `${names.extraSubIp}.zip`, "manifest.json", "README.md"]));
 
         const reference = await teacher.request.post("/api/practice/projects", {
             data: {
@@ -82,12 +88,22 @@ test("IP 库按子 IP 编辑、授权、停用、下载和引用", async ({ brow
         });
         expect(reference.ok(), await reference.text()).toBe(true);
 
-        const usage = await apiData<PageResult<{ ipId: string; subIpId: string; itemId?: string; downloadType: string }>>(await page.request.get(`/api/admin/ip-library/usage?ipId=${schoolIp.id}`));
+        const usage = await apiData<PageResult<{ ipId: string; subIpId?: string; itemId?: string; downloadType: string; packageScope?: string }>>(await page.request.get(`/api/admin/ip-library/usage?ipId=${schoolIp.id}`));
         expect(usage.items).toEqual(expect.arrayContaining([expect.objectContaining({ ipId: schoolIp.id, subIpId: configuredExtra.id, itemId: configuredExtra.items[0].id, downloadType: "item" })]));
+        expect(usage.items).toEqual(expect.arrayContaining([expect.objectContaining({ ipId: schoolIp.id, downloadType: "package", packageScope: "ip" })]));
 
         await apiData(await page.request.patch(`/api/admin/ip-library/${schoolIp.id}`, { data: { status: "disabled" } }));
-        const managerLedger = await apiData<PageResult<{ ipId: string; subIpId: string; ipStatus: string; effective: boolean }>>(await manager.request.get("/api/school/ip-library"));
-        expect(managerLedger.items).toEqual(expect.arrayContaining([expect.objectContaining({ ipId: schoolIp.id, subIpId: configuredMain.id, ipStatus: "disabled", effective: false })]));
+        const managerLedger = await apiData<PageResult<{ id: string; ipStatus: string; effective: boolean; subIps: Array<{ id: string; effective: boolean }> }>>(await manager.request.get("/api/school/ip-library"));
+        expect(managerLedger.items).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: schoolIp.id,
+                    ipStatus: "disabled",
+                    effective: false,
+                    subIps: expect.arrayContaining([expect.objectContaining({ id: configuredMain.id, effective: false }), expect.objectContaining({ id: configuredExtra.id, effective: false })]),
+                }),
+            ]),
+        );
         expect((await teacher.request.get(`/api/ip-library/${schoolIp.id}`)).status()).toBe(404);
         expect((await student.request.get(`/api/ip-library/${schoolIp.id}`)).status()).toBe(404);
         const deleted = await page.request.delete(`/api/admin/ip-library/${schoolIp.id}`);
@@ -124,6 +140,20 @@ async function verifyAdminFullPageEditor(page: Page, ipId: string, title: string
     await expect(editor.getByRole("heading", { name: mainSubIpTitle, exact: true })).toBeVisible();
     await expect(editor.getByRole("button", { name: extraSubIpTitle, exact: false })).toBeVisible();
     await expect(editor.getByRole("button", { name: "保存子 IP" })).toBeVisible();
+    const ipCoverField = editor
+        .locator(".ant-form-item")
+        .filter({ has: page.getByText("IP 封面", { exact: true }) })
+        .first();
+    await expect(ipCoverField.getByRole("button", { name: "上传原文件" })).toBeVisible();
+    await ipCoverField.locator('input[type="file"]').setInputFiles({
+        name: "ip-cover.png",
+        mimeType: "image/png",
+        buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+3MxR9wAAAABJRU5ErkJggg==", "base64"),
+    });
+    await expect(page.getByText("IP 文件已上传", { exact: true }).last()).toBeVisible();
+    await editor.getByRole("button", { name: "保存 IP 信息" }).click();
+    await expect(page.getByText("IP 信息已保存", { exact: true })).toBeVisible();
+    expect((await getIp(page.request, ipId)).coverFileId).toEqual(expect.any(String));
     const categorySelect = editor.getByLabel("分类").first();
     await categorySelect.click();
     await expect(page.locator('[role="option"][aria-label="故事梗概"]')).toHaveCount(1);
@@ -138,13 +168,13 @@ async function verifyAdminFullPageEditor(page: Page, ipId: string, title: string
         mimeType: "image/png",
         buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+3MxR9wAAAABJRU5ErkJggg==", "base64"),
     });
-    await expect(page.getByText("IP 文件已上传", { exact: true })).toBeVisible();
+    await expect(page.getByText("IP 文件已上传", { exact: true }).last()).toBeVisible();
     await editor.getByRole("button", { name: "添加内容" }).click();
     const contentTitle = `${mainSubIpTitle} 新增正文`;
     await editor.getByLabel("标题").last().fill(contentTitle);
     await editor.getByPlaceholder("手工录入正文").last().fill(`${contentTitle} 内容`);
     await editor.getByRole("button", { name: "保存正文" }).last().click();
-    await expect(page.getByText("IP 文件已上传", { exact: true })).toBeVisible();
+    await expect(page.getByText("IP 文件已上传", { exact: true }).last()).toBeVisible();
     await editor.getByRole("button", { name: "保存子 IP" }).click();
     await expect(page.getByText("子 IP 内容已保存，已立即生效", { exact: true })).toBeVisible();
     const saved = requireSubIpByTitle(await getIp(page.request, ipId), mainSubIpTitle);
@@ -173,7 +203,7 @@ async function verifyPublicSingleSubIp(adminRequest: APIRequestContext, browser:
     }
 }
 
-async function verifySchoolMultiSubIp(context: BrowserContext, ipId: string, mainSubIpTitle: string, extraSubIpTitle: string) {
+async function verifySchoolMultiSubIp(context: BrowserContext, ipId: string, ipTitle: string, mainSubIpTitle: string, extraSubIpId: string, extraSubIpTitle: string) {
     const page = await context.newPage();
     try {
         await page.goto("/ip-library", { waitUntil: "domcontentloaded" });
@@ -182,9 +212,11 @@ async function verifySchoolMultiSubIp(context: BrowserContext, ipId: string, mai
         await expect(card).toBeVisible();
         await expect(card.getByText("2 个子 IP", { exact: true })).toBeVisible();
         await card.click();
-        await expect(page.getByText("选择子 IP", { exact: true })).toBeVisible();
-        await expect(page.getByRole("heading", { name: mainSubIpTitle, exact: true })).toBeVisible();
-        await page.getByText(extraSubIpTitle, { exact: true }).last().click();
+        await expect(page.getByRole("heading", { name: ipTitle, exact: true })).toBeVisible();
+        await expect(page.getByText(mainSubIpTitle, { exact: true })).toBeVisible();
+        const childLink = page.locator(`a[href="/ip-library/${encodeURIComponent(ipId)}/${encodeURIComponent(extraSubIpId)}"]`);
+        await expect(childLink).toBeVisible();
+        await childLink.click();
         await expect(page.getByRole("heading", { name: extraSubIpTitle, exact: true })).toBeVisible();
         await expectNoHorizontalOverflow(page, "multiple child IP detail");
         await expectVisibleControlsWithinViewport(page, "multiple child IP detail");
@@ -217,8 +249,8 @@ async function createOrdinaryUser(request: APIRequestContext, username: string) 
     expect(JSON.parse(body)).toMatchObject({ user: { username } });
 }
 
-async function createIp(request: APIRequestContext, title: string, slug: string, visibility: "public" | "school"): Promise<IpPackage> {
-    return apiData(await request.post("/api/admin/ip-library", { data: { title, slug, summary: `${title} 简介`, visibility } }));
+async function createIp(request: APIRequestContext, title: string, visibility: "public" | "school"): Promise<IpPackage> {
+    return apiData(await request.post("/api/admin/ip-library", { data: { title, summary: `${title} 简介`, visibility } }));
 }
 
 async function getIp(request: APIRequestContext, ipId: string): Promise<IpDetail> {
@@ -226,7 +258,7 @@ async function getIp(request: APIRequestContext, ipId: string): Promise<IpDetail
 }
 
 async function createSubIp(request: APIRequestContext, ipId: string, title: string): Promise<IpSubIp> {
-    return apiData(await request.post(`/api/admin/ip-library/${ipId}/sub-ips`, { data: { title, summary: `${title} 简介`, tags: ["E2E"], sourceNote: "测试授权" } }));
+    return apiData(await request.post(`/api/admin/ip-library/${ipId}/sub-ips`, { data: { title, summary: `${title} 简介`, tags: ["E2E"] } }));
 }
 
 async function replaceSubIpText(request: APIRequestContext, ipId: string, subIpId: string, title: string, content: string) {
@@ -234,13 +266,13 @@ async function replaceSubIpText(request: APIRequestContext, ipId: string, subIpI
     expect(file.status).toBe("ready");
     return apiData<IpSubIp>(
         await request.patch(`/api/admin/ip-library/${ipId}/sub-ips/${subIpId}`, {
-            data: { title, summary: `${title} 简介`, tags: ["E2E", "子IP"], sourceNote: "测试授权", items: [{ kind: "text", category: "story_summary", title: `${title} 正文`, summary: "用于端到端验收", fileId: file.id, sortOrder: 0 }] },
+            data: { title, summary: `${title} 简介`, tags: ["E2E", "子IP"], items: [{ kind: "text", category: "story_summary", title: `${title} 正文`, summary: "用于端到端验收", fileId: file.id, sortOrder: 0 }] },
         }),
     );
 }
 
-async function createGrant(request: APIRequestContext, ipId: string, subIpId: string, schoolId: string): Promise<IpGrant> {
-    return apiData(await request.post(`/api/admin/ip-library/${ipId}/schools`, { data: { subIpId, schoolId, mode: "multi_school", startsAt: new Date(Date.now() - 60_000).toISOString(), note: "子 IP E2E 授权" } }));
+async function createGrants(request: APIRequestContext, ipId: string, subIpIds: string[], schoolIds: string[]): Promise<IpGrant[]> {
+    return apiData(await request.post(`/api/admin/ip-library/${ipId}/schools`, { data: { subIpIds, schoolIds, mode: "multi_school", startsAt: new Date(Date.now() - 60_000).toISOString(), note: "子 IP E2E 授权" } }));
 }
 
 async function authenticatedContext(browser: Parameters<typeof createAuthenticatedE2EContext>[0], contexts: BrowserContext[], username: string, options: ReturnType<typeof e2eProjectContextOptions>) {

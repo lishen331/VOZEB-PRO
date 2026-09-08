@@ -303,6 +303,11 @@ describe("channel protocol registry", () => {
             requestTemplate: expect.stringContaining("{{seconds_string}}"),
             resultField: "metadata.url",
         });
+        const template = resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0")?.requestTemplate || "";
+        expect(template).toContain('"duration":"{{duration}}"');
+        expect(template).toContain('"aspect_ratio":"{{aspect_ratio}}"');
+        expect(template).toContain('"input_reference":"{{image}}"');
+        expect(template).toContain('"content":"{{content}}"');
         expect(resolveChannelModelConfig(configured.advancedConfig, "doubao-seedance-2-0-fast")).toMatchObject({ protocol: "newapi", createPath: "/video/generations" });
         expect(resolveChannelModelConfig(configured.advancedConfig, "kling-v3")).toMatchObject({ protocol: "newapi", createPath: "/videos" });
     });

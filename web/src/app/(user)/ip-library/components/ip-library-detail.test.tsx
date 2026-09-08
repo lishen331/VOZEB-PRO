@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -19,6 +21,11 @@ describe("IP library detail contract", () => {
         expect(grouped.audio).toHaveLength(1);
         expect(grouped.video).toHaveLength(1);
         expect(visibleIpDetailCommands()).toEqual(["download-package"]);
+    });
+
+    it("keeps the explicit child route title when the API returns one child", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/ip-library/components/ip-library-detail.tsx"), "utf8");
+        expect(source).toContain("{subIpId ? selected.title : detail.title}");
     });
 });
 

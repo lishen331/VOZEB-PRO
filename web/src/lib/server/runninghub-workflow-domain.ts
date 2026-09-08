@@ -148,7 +148,6 @@ export function validateRunningHubWorkflowConfig(value: unknown, siblings: reado
     const evidenceRequired = input.testRequired === true || Boolean(text(input.workflowJsonFingerprint, 128) || text(input.lastTestConfigFingerprint, 128));
     if (input.enabled && evidenceRequired) {
         if (!normalized.inputSchema.length || !normalized.nodeMappings.length || !normalized.outputMappings.length) errors.push("启用前必须确认至少一个输入映射、节点映射和输出映射");
-        if (input.lastTestResult !== "success" || text(input.lastTestConfigFingerprint, 128) !== runningHubWorkflowConfigFingerprint(input)) errors.push("启用前必须存在当前配置对应的成功测试证据");
     }
     const duplicateEnabled = siblings.filter((sibling) => {
         const candidate = normalizeRunningHubWorkflowConfig(sibling);
@@ -172,7 +171,7 @@ export function nextWorkflowVersion(configs: readonly unknown[], channelId: stri
 export function resolveEnabledWorkflow(configs: readonly unknown[], channelId: string, businessCode: RunningHubWorkflowBusinessCode) {
     return configs
         .map(normalizeRunningHubWorkflowConfig)
-        .filter((config) => config.enabled && config.channelId === channelId && config.businessCode === businessCode && !workflowRequiresRetest(config))
+        .filter((config) => config.enabled && config.channelId === channelId && config.businessCode === businessCode)
         .sort((left, right) => right.version - left.version)[0];
 }
 

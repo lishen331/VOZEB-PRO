@@ -23,6 +23,7 @@ export type IpUsageTargetType = "canvas" | "drama" | "practice" | "download";
 export type IpContentFileStatus = "processing" | "ready" | "failed" | "deleting";
 export type IpStorageProvider = "local" | "object";
 export type IpDownloadType = "item" | "package";
+export type IpPackageDownloadScope = "ip" | "sub_ip";
 export type IpDownloadResult = "succeeded" | "failed";
 
 export type IpPackageRecord = {
@@ -57,7 +58,6 @@ export type IpSubIpRecord = {
     summary: string;
     coverFileId?: string;
     tags: string[];
-    sourceNote: string;
     createdByUserId?: string;
     createdAt: string;
     updatedAt: string;
@@ -67,7 +67,7 @@ export type IpSubIpRecord = {
 export type IpPackageCreateInput = Omit<IpPackageRecord, "createdAt" | "updatedAt">;
 export type IpPackagePatch = Partial<Pick<IpPackageRecord, "title" | "slug" | "summary" | "visibility" | "status">> & { coverFileId?: string | null };
 export type IpSubIpCreateInput = Omit<IpSubIpRecord, "createdAt" | "updatedAt" | "sortOrder"> & { sortOrder?: number };
-export type IpSubIpPatch = Partial<Pick<IpSubIpRecord, "title" | "summary" | "tags" | "sourceNote" | "sortOrder">> & { coverFileId?: string | null };
+export type IpSubIpPatch = Partial<Pick<IpSubIpRecord, "title" | "summary" | "tags" | "sortOrder">> & { coverFileId?: string | null };
 export type IpItemInput = Omit<IpItemRecord, "subIpId" | "createdAt">;
 export type IpSummaryRecord = IpPackageRecord & { subIpCount: number; accessibleSubIpCount?: number; coverSubIpId?: string; coverFileId?: string };
 export type IpSubIpDetailRecord = IpSubIpRecord & { items: IpItemRecord[]; grantMode?: IpAuthorizationMode };
@@ -82,11 +82,13 @@ export type IpSchoolGrantRecord = {
     status: IpSchoolGrantStatus;
     startsAt: string;
     endsAt?: string;
+    revokedAt?: string;
     note: string;
     createdByUserId?: string;
     createdAt: string;
     updatedAt: string;
 };
+export type IpSchoolGrantPackageRecord = IpPackageRecord & { subIps: IpSubIpRecord[]; grants: IpSchoolGrantRecord[] };
 
 export type IpSchoolGrantCreateInput = Omit<IpSchoolGrantRecord, "createdAt" | "updatedAt">;
 export type IpSchoolGrantUpdateInput = Partial<Pick<IpSchoolGrantRecord, "status" | "note">> & { endsAt?: string | null; updatedAt: string };
@@ -139,11 +141,12 @@ export type IpUsageCreateInput = Omit<IpUsageRecord, "createdAt">;
 export type IpDownloadRecord = {
     id: string;
     ipId: string;
-    subIpId: string;
+    subIpId?: string;
     itemId?: string;
     schoolId?: string;
     userId: string;
     downloadType: IpDownloadType;
+    packageScope?: IpPackageDownloadScope;
     result: IpDownloadResult;
     createdAt: string;
 };
@@ -269,6 +272,7 @@ export type AppSettingsRecord = {
     defaultModels: JsonValue;
     practiceDefaultModels: JsonValue;
     practiceWorkflowModels: JsonValue;
+    practiceModuleVisibility: JsonValue;
     agentSkills: JsonValue;
     featureModules: JsonValue;
     createdAt: string;
@@ -814,6 +818,7 @@ export type BillingSummaryRecord = {
 };
 
 export type PublishedWorkSourceType = "media" | "canvas" | "drama";
+export type PublishedWorkOrigin = "user_submission" | "official";
 export type PublishedWorkLifecycleStatus = "active" | "revoked";
 export type PublishedWorkVisibility = "private" | "unlisted" | "public";
 export type PublishedWorkModerationStatus = "draft" | "pending" | "approved" | "rejected" | "taken_down";
@@ -830,6 +835,7 @@ export type PublishedWorkRecord = {
     slug: string;
     sourceType: PublishedWorkSourceType;
     sourceId: string;
+    publicationOrigin: PublishedWorkOrigin;
     lifecycleStatus: PublishedWorkLifecycleStatus;
     currentVersionId?: string;
     publishedVersionId?: string;
@@ -951,6 +957,7 @@ export type PublishedGalleryItemRecord = {
     authorUserId: string;
     slug: string;
     sourceType: PublishedWorkSourceType;
+    publicationOrigin: PublishedWorkOrigin;
     viewCount: number;
     likeCount: number;
     isFeatured: boolean;

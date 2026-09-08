@@ -58,6 +58,20 @@ describe("file IP library repository", () => {
         await expect(repository.listSchoolGrants({ schoolId: "school-a" })).resolves.toMatchObject({ items: [{ subIpId: "school-child" }] });
     });
 
+    it("lists a school's grants as one IP package with its granted children", async () => {
+        const repository = createFileIpLibraryRepository();
+        await repository.createIpPackage(packageInput("grouped-ip", "school"));
+        await repository.createIpSubIp("grouped-ip", childInput("grouped-child-a", "grouped-ip"));
+        await repository.createIpSubIp("grouped-ip", childInput("grouped-child-b", "grouped-ip"));
+        await repository.createSchoolGrant({ id: "grouped-grant-a", ipId: "grouped-ip", subIpId: "grouped-child-a", schoolId: "school-a", mode: "multi_school", status: "active", startsAt: now, note: "", createdByUserId: "admin" });
+        await repository.createSchoolGrant({ id: "grouped-grant-b", ipId: "grouped-ip", subIpId: "grouped-child-b", schoolId: "school-a", mode: "exclusive", status: "active", startsAt: now, note: "", createdByUserId: "admin" });
+
+        const result = await repository.listSchoolGrantPackages({ schoolId: "school-a" });
+        expect(result).toMatchObject({ total: 1, items: [{ id: "grouped-ip" }] });
+        expect(result.items[0].subIps.map((item) => item.id)).toEqual(expect.arrayContaining(["grouped-child-a", "grouped-child-b"]));
+        expect(result.items[0].grants.map((item) => item.id)).toEqual(expect.arrayContaining(["grouped-grant-a", "grouped-grant-b"]));
+    });
+
     it("queues files when a parent is deleted and resets legacy version data", async () => {
         const repository = createFileIpLibraryRepository();
         await repository.createIpPackage(packageInput("delete-ip", "public"));
@@ -69,6 +83,23 @@ describe("file IP library repository", () => {
         data.set("ip-library.json", { version: 2, files: [fileInput("legacy-file", "legacy-ip", "legacy-child")] });
         await expect(repository.listIpFileCleanupQueue()).resolves.toMatchObject([{ id: "legacy-file" }]);
         await expect(repository.listIpPackages()).resolves.toMatchObject({ total: 0 });
+    });
+
+    it("strips the removed source note from legacy child records", async () => {
+        data.set("ip-library.json", {
+            version: 3,
+            packages: [packageInput("legacy-ip", "public")],
+            subIps: [{ ...childInput("legacy-child", "legacy-ip"), sourceNote: "旧字段" }],
+            items: [],
+            files: [],
+            grants: [],
+            usages: [],
+            downloads: [],
+            cleanup: [],
+        });
+
+        const detail = await createFileIpLibraryRepository().getIpDetail("legacy-ip");
+        expect(detail?.subIps[0]).not.toHaveProperty("sourceNote");
     });
 
     it("does not delete an IP that has a current or historical school grant", async () => {
@@ -94,11 +125,35 @@ describe("file IP library repository", () => {
         await expect(repository.getIpDetail("single-child-ip")).resolves.toMatchObject({ subIps: [{ id: "only-child" }] });
     });
 
+    it("moves a package cover to a remaining child before deleting its current child", async () => {
+        const repository = createFileIpLibraryRepository();
+        await repository.createIpPackage(packageInput("cover-ip", "public"));
+        await repository.createIpSubIp("cover-ip", childInput("cover-child-a", "cover-ip"));
+        await repository.createIpSubIp("cover-ip", childInput("cover-child-b", "cover-ip"));
+        await repository.createIpContentFile(imageFileInput("cover-file-a", "cover-ip", "cover-child-a"));
+        await repository.createIpContentFile(imageFileInput("cover-file-b", "cover-ip", "cover-child-b"));
+        await repository.updateIpSubIp("cover-ip", "cover-child-a", { coverFileId: "cover-file-a" });
+        await repository.updateIpSubIp("cover-ip", "cover-child-b", { coverFileId: "cover-file-b" });
+        await repository.updateIpPackage("cover-ip", { coverFileId: "cover-file-a" });
+
+        await expect(repository.deleteIpSubIp("cover-ip", "cover-child-a")).resolves.toHaveLength(1);
+        await expect(repository.getIpPackage("cover-ip")).resolves.toMatchObject({ coverFileId: "cover-file-b" });
+    });
+
     it("requires every file to belong to an existing child IP", async () => {
         const repository = createFileIpLibraryRepository();
         await repository.createIpPackage(packageInput("file-owner-ip", "public"));
 
         await expect(repository.createIpContentFile(fileInput("orphan-file", "file-owner-ip", ""))).rejects.toThrow("IP 或子 IP 不存在");
+    });
+
+    it("records an IP-level package download without assigning it to a child", async () => {
+        const repository = createFileIpLibraryRepository();
+        await repository.createIpPackage(packageInput("download-ip", "public"));
+
+        const record = await repository.recordIpDownload({ id: "download-ip-package", ipId: "download-ip", userId: "teacher", downloadType: "package", packageScope: "ip", result: "succeeded" });
+        expect(record).toMatchObject({ ipId: "download-ip", packageScope: "ip" });
+        expect(record).not.toHaveProperty("subIpId");
     });
 });
 
@@ -106,7 +161,7 @@ function packageInput(id: string, visibility: "public" | "school") {
     return { id, title: id, slug: id, summary: "", visibility, status: "enabled" as const, createdByUserId: "admin" };
 }
 function childInput(id: string, ipId: string) {
-    return { id, ipId, title: id, summary: "", tags: [], sourceNote: "", createdByUserId: "admin" };
+    return { id, ipId, title: id, summary: "", tags: [], createdByUserId: "admin" };
 }
 function fileInput(id: string, ipId: string, subIpId: string) {
     return {
@@ -126,4 +181,7 @@ function fileInput(id: string, ipId: string, subIpId: string) {
         status: "ready" as const,
         uploadedByUserId: "admin",
     };
+}
+function imageFileInput(id: string, ipId: string, subIpId: string) {
+    return { ...fileInput(id, ipId, subIpId), kind: "image" as const, originalName: `${id}.png`, extension: ".png", mimeType: "image/png" };
 }

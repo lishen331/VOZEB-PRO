@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { App, Button, Empty, Spin } from "antd";
-import { BookOpen, Box, Clapperboard, Film, Image, Maximize2, Mic2, Music2, PanelsTopLeft, Plus, UserRound, type LucideIcon } from "lucide-react";
+import { Box, Clapperboard, Film, Image, Maximize2, Mic2, PanelsTopLeft, Plus, UserRound, type LucideIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-domain";
@@ -17,19 +17,13 @@ export const PRACTICE_PROJECT_CARDS: Array<{ kind: PracticeProjectKind; title: s
 ];
 
 export const PRACTICE_MODULES: Array<{ module: PracticeModuleKind; title: string; description: string; icon: LucideIcon }> = [
-    { module: "script", title: "剧本练习", description: "把一个想法展开成可拍的场景。", icon: BookOpen },
-    { module: "storyboard-image", title: "分镜图练习", description: "练习画面构图、镜头和视觉重点。", icon: Image },
-    { module: "storyboard-video", title: "分镜视频练习", description: "把静态镜头推进到动态画面。", icon: Film },
-    { module: "dubbing", title: "配音练习", description: "为角色和旁白找到合适的声音。", icon: Mic2 },
-    { module: "music", title: "音乐练习", description: "为一段情绪或场景尝试配乐。", icon: Music2 },
+    { module: "character", title: "角色", description: "生成角色主体图，并继续扩展多视角设定。", icon: UserRound },
+    { module: "scene", title: "场景", description: "建立空间、光线和环境氛围。", icon: PanelsTopLeft },
+    { module: "prop", title: "道具", description: "把关键物件设定成可用素材。", icon: Box },
+    { module: "storyboard-image", title: "分镜图", description: "组合场景、角色和道具完成镜头画面。", icon: Image },
+    { module: "storyboard-video", title: "分镜视频", description: "让静态分镜进入动态镜头。", icon: Film },
+    { module: "dubbing", title: "音频", description: "为台词和旁白生成情绪化配音。", icon: Mic2 },
 ];
-
-export const PRACTICE_ASSET_MODULES: Array<{ module: PracticeModuleKind; title: string; description: string; icon: LucideIcon }> = [
-    { module: "character", title: "角色练习", description: "从角色设定生成主形象或多视图。", icon: UserRound },
-    { module: "scene", title: "场景练习", description: "练习空间、光线和环境氛围。", icon: PanelsTopLeft },
-    { module: "prop", title: "道具练习", description: "把关键物件设定成可用素材。", icon: Box },
-];
-
 export function practiceProjectPath(kind: PracticeProjectKind, id: string) {
     return `/${kind}/${encodeURIComponent(id)}`;
 }
@@ -54,6 +48,8 @@ export default function PracticeHome() {
     const [canvasProjects, setCanvasProjects] = useState<PracticeProjectSummary[]>([]);
     const [dramaProjects, setDramaProjects] = useState<PracticeProjectSummary[]>([]);
     const [sessions, setSessions] = useState<PracticeSession[]>([]);
+    const [visibleModules, setVisibleModules] = useState<PracticeModuleKind[]>([]);
+    const [visibleProjects, setVisibleProjects] = useState<Record<PracticeProjectKind, boolean>>({ canvas: false, drama: false });
     const [loading, setLoading] = useState(true);
     const [creatingKind, setCreatingKind] = useState<PracticeProjectKind | null>(null);
     const copyProjectId = searchParams.get("projectId");
@@ -63,9 +59,17 @@ export default function PracticeHome() {
     useEffect(() => {
         let active = true;
         setLoading(true);
-        void Promise.all([practiceApi.listProjects({ kind: "canvas", pageSize: 6 }), practiceApi.listProjects({ kind: "drama", pageSize: 6 }), practiceApi.listSessions({ pageSize: 6 })])
-            .then(([canvas, drama, recent]) => {
+        void practiceApi
+            .listModules()
+            .then(async (configuration) => {
+                const [canvas, drama, recent] = await Promise.all([
+                    configuration.projects.canvas ? practiceApi.listProjects({ kind: "canvas", pageSize: 6 }) : Promise.resolve({ projects: [] }),
+                    configuration.projects.drama ? practiceApi.listProjects({ kind: "drama", pageSize: 6 }) : Promise.resolve({ projects: [] }),
+                    practiceApi.listSessions({ pageSize: 6 }),
+                ]);
                 if (!active) return;
+                setVisibleModules(configuration.modules.map((item) => item.module));
+                setVisibleProjects(configuration.projects);
                 setCanvasProjects(canvas.projects);
                 setDramaProjects(drama.projects);
                 setSessions(recent.sessions);
@@ -107,6 +111,9 @@ export default function PracticeHome() {
         }
     };
 
+    const projectCards = PRACTICE_PROJECT_CARDS.filter((card) => visibleProjects[card.kind]);
+    const moduleCards = PRACTICE_MODULES.filter((card) => visibleModules.includes(card.module));
+
     return (
         <main className="h-full min-h-0 overflow-y-auto bg-background text-foreground" data-practice-home>
             <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-8">
@@ -116,54 +123,53 @@ export default function PracticeHome() {
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">用独立的练习项目反复尝试，不影响正式项目和课程作业。</p>
                 </header>
 
-                <section className="mt-5 sm:mt-8" aria-labelledby="practice-projects-heading">
-                    <div className="flex items-center justify-between gap-3">
+                {projectCards.length ? (
+                    <section className="mt-5 sm:mt-8" aria-labelledby="practice-projects-heading">
                         <h2 id="practice-projects-heading" className="text-base font-semibold sm:text-lg">
                             练习项目
                         </h2>
-                        <span className="text-xs text-muted-foreground">画布与短剧</span>
-                    </div>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:gap-5">
-                        {PRACTICE_PROJECT_CARDS.map((card) => {
-                            const Icon = card.icon;
-                            const projects = card.kind === "canvas" ? canvasProjects : dramaProjects;
-                            return (
-                                <article key={card.kind} className="min-w-0 border border-border bg-card p-4 shadow-sm sm:p-5" data-practice-project-card={card.kind}>
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="grid size-10 shrink-0 place-items-center border border-border bg-muted/50 text-foreground sm:size-12">
-                                            <Icon className="size-5 sm:size-6" />
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:gap-5">
+                            {projectCards.map((card) => {
+                                const Icon = card.icon;
+                                const projects = card.kind === "canvas" ? canvasProjects : dramaProjects;
+                                return (
+                                    <article key={card.kind} className="min-w-0 border border-border bg-card p-4 shadow-sm sm:p-5" data-practice-project-card={card.kind}>
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="grid size-10 shrink-0 place-items-center border border-border bg-muted/50 text-foreground sm:size-12">
+                                                <Icon className="size-5 sm:size-6" />
+                                            </div>
+                                            <Button type="primary" size="small" loading={creatingKind === card.kind} icon={<Plus className="size-3.5" />} onClick={() => void createProject(card.kind)}>
+                                                新建
+                                            </Button>
                                         </div>
-                                        <Button type="primary" size="small" loading={creatingKind === card.kind} icon={<Plus className="size-3.5" />} onClick={() => void createProject(card.kind)}>
-                                            新建
-                                        </Button>
-                                    </div>
-                                    <h3 className="mt-4 text-lg font-semibold">{card.title}</h3>
-                                    <p className="mt-1.5 min-h-10 text-sm leading-5 text-muted-foreground">{card.description}</p>
-                                    <div className="mt-4 border-t border-border pt-3">
-                                        <p className="text-xs font-medium text-muted-foreground">最近练习</p>
-                                        {loading ? (
-                                            <Spin size="small" className="mt-3" />
-                                        ) : projects.length ? (
-                                            <ProjectList kind={card.kind} projects={projects.slice(0, 3)} onOpen={(id) => router.push(practiceProjectPath(card.kind, id))} />
-                                        ) : (
-                                            <p className="mt-2 text-sm text-muted-foreground">还没有练习项目</p>
-                                        )}
-                                    </div>
-                                </article>
-                            );
-                        })}
-                    </div>
-                </section>
+                                        <h3 className="mt-4 text-lg font-semibold">{card.title}</h3>
+                                        <p className="mt-1.5 min-h-10 text-sm leading-5 text-muted-foreground">{card.description}</p>
+                                        <div className="mt-4 border-t border-border pt-3">
+                                            <p className="text-xs font-medium text-muted-foreground">最近练习</p>
+                                            {loading ? (
+                                                <Spin size="small" className="mt-3" />
+                                            ) : projects.length ? (
+                                                <ProjectList kind={card.kind} projects={projects.slice(0, 3)} onOpen={(id) => router.push(practiceProjectPath(card.kind, id))} />
+                                            ) : (
+                                                <p className="mt-2 text-sm text-muted-foreground">还没有练习项目</p>
+                                            )}
+                                        </div>
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    </section>
+                ) : null}
 
-                <section className="mt-7 sm:mt-10" aria-labelledby="practice-modules-heading">
+                <section className="mt-5 sm:mt-8" aria-labelledby="practice-modules-heading">
                     <div className="flex items-center justify-between gap-3">
                         <h2 id="practice-modules-heading" className="text-base font-semibold sm:text-lg">
-                            单项练习
+                            创作模块
                         </h2>
-                        <span className="text-xs text-muted-foreground">从一个能力开始</span>
+                        <span className="text-xs text-muted-foreground">6 个模块 · 7 条工作流</span>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
-                        {PRACTICE_MODULES.map((item) => {
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+                        {moduleCards.map((item) => {
                             const Icon = item.icon;
                             return (
                                 <button
@@ -174,33 +180,6 @@ export default function PracticeHome() {
                                     data-practice-module={item.module}
                                 >
                                     <Icon className="size-5 text-foreground" />
-                                    <span className="mt-3 block truncate text-sm font-medium">{item.title}</span>
-                                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </section>
-
-                <section className="mt-7 sm:mt-10" aria-labelledby="practice-assets-heading">
-                    <div className="flex items-center justify-between gap-3">
-                        <h2 id="practice-assets-heading" className="text-base font-semibold sm:text-lg">
-                            创作资产练习
-                        </h2>
-                        <span className="text-xs text-muted-foreground">角色、场景与道具</span>
-                    </div>
-                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
-                        {PRACTICE_ASSET_MODULES.map((item) => {
-                            const Icon = item.icon;
-                            return (
-                                <button
-                                    key={item.module}
-                                    type="button"
-                                    className="min-w-0 border border-border bg-card p-3 text-left transition hover:border-foreground/40 hover:bg-muted/30 sm:p-4"
-                                    onClick={() => router.push(practiceModulePath(item.module, ipReference))}
-                                    data-practice-asset-module={item.module}
-                                >
-                                    <Icon className="size-5 text-foreground" />
                                     <span className="mt-3 block text-sm font-medium">{item.title}</span>
                                     <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span>
                                 </button>
@@ -208,7 +187,6 @@ export default function PracticeHome() {
                         })}
                     </div>
                 </section>
-
                 <section className="mt-7 border-t border-border pt-5 sm:mt-10 sm:pt-6" aria-labelledby="practice-history-heading">
                     <h2 id="practice-history-heading" className="text-base font-semibold sm:text-lg">
                         最近记录

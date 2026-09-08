@@ -103,6 +103,15 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(mocks.query.mock.calls[3]?.[0]).toBe("COMMIT");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_schema_migrations");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_generation_worker_heartbeats");
+        const publicationOriginColumn = "ALTER TABLE vozeb_pro_published_works ADD COLUMN IF NOT EXISTS publication_origin text NOT NULL DEFAULT 'user_submission'";
+        const publicationOriginConstraint = "ADD CONSTRAINT published_works_publication_origin CHECK (publication_origin IN ('user_submission', 'official'))";
+        const publicationOriginIndex = "CREATE INDEX IF NOT EXISTS vozeb_pro_published_works_origin_updated_idx";
+        expect(ddl).toContain(publicationOriginColumn);
+        expect(ddl).toContain(publicationOriginConstraint);
+        expect(ddl).toContain(publicationOriginIndex);
+        expect(ddl.indexOf(publicationOriginColumn)).toBeLessThan(ddl.indexOf(publicationOriginConstraint));
+        expect(ddl.indexOf(publicationOriginConstraint)).toBeLessThan(ddl.indexOf(publicationOriginIndex));
+        expect(ddl).toContain("20260908_official_work_publication");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_code text");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_version integer");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_config_fingerprint text");
@@ -139,6 +148,8 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_ip_file_cleanup_queue");
         expect(ddl).toContain("20260906_ip_library_sub_ip_reset");
         expect(ddl).toContain("20260907_ip_library_file_integrity");
+        expect(ddl).toContain("20260908_ip_library_remove_sub_ip_source_note");
+        expect(ddl).not.toContain("source_note text NOT NULL DEFAULT ''");
         expect(ddl).toContain("DROP TABLE IF EXISTS vozeb_pro_ip_versions CASCADE");
         expect(ddl).toContain("IF to_regclass('vozeb_pro_ip_items') IS NOT NULL THEN");
         expect(ddl).toContain("DELETE FROM vozeb_pro_ip_items WHERE file_id IN (SELECT id FROM vozeb_pro_ip_content_files WHERE sub_ip_id IS NULL)");

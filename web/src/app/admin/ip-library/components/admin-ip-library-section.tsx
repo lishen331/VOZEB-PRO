@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormInstance, TableColumnsType } from "antd";
-import { App, Button, Empty, Form, Input, Modal, Pagination, Popconfirm, Select, Space, Table, Tabs, Tag, Tooltip } from "antd";
+import { App, Button, Checkbox, Empty, Form, Input, Modal, Pagination, Popconfirm, Select, Space, Table, Tabs, Tag, Tooltip } from "antd";
 import { ArrowLeft, Ban, Building2, Eye, FilePlus2, FolderPlus, Pause, Pencil, Plus, RefreshCw, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -28,10 +28,10 @@ import { IpContentUpload } from "./ip-content-upload";
 
 const PAGE_SIZE = 12;
 type AdminIp = IpPackageRecord & { subIpCount: number };
-type IpForm = { title: string; slug: string; summary?: string; visibility: IpVisibility };
+type IpForm = { title: string; summary?: string; visibility: IpVisibility; coverFileId?: string };
 type SubIpItemForm = { kind: IpAssetKind; category: IpItemCategory; title: string; summary?: string; fileId: string; sortOrder?: number };
-type SubIpForm = { title: string; summary?: string; coverFileId?: string; tags?: string[]; sourceNote?: string; sortOrder?: number; items: SubIpItemForm[] };
-type GrantForm = { subIpId: string; schoolId: string; mode: IpAuthorizationMode; startsAt: string; endsAt?: string; note?: string };
+type SubIpForm = { title: string; summary?: string; coverFileId?: string; tags?: string[]; sortOrder?: number; items: SubIpItemForm[] };
+type GrantForm = { subIpIds: string[]; schoolIds: string[]; mode: IpAuthorizationMode; startsAt: string; endsAt?: string; note?: string };
 type GrantPatchForm = { status: IpSchoolGrantStatus; endsAt?: string; note?: string };
 type DetailTab = "content" | "grants" | "usage";
 type DetailOpenIntent = { tab?: DetailTab; openGrant?: boolean };
@@ -131,7 +131,7 @@ function IpList({ canManageContent, canManageEducation, onOpen }: { canManageCon
             render: (_, item) => (
                 <div className="min-w-0 text-left">
                     <div className="truncate font-medium text-zinc-900 dark:text-zinc-100">{item.title}</div>
-                    <div className="mt-1 max-w-[34rem] truncate text-xs text-zinc-500">{item.summary || item.slug}</div>
+                    <div className="mt-1 max-w-[34rem] truncate text-xs text-zinc-500">{item.summary || "暂无简介"}</div>
                 </div>
             ),
         },
@@ -188,7 +188,7 @@ function IpList({ canManageContent, canManageEducation, onOpen }: { canManageCon
             <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_130px_auto]">
                 <Input.Search
                     allowClear
-                    placeholder="搜索名称、简介或标识"
+                    placeholder="搜索名称或简介"
                     value={keyword}
                     onChange={(event) => {
                         setPage(1);
@@ -227,9 +227,6 @@ function IpList({ canManageContent, canManageEducation, onOpen }: { canManageCon
                     <Form.Item name="title" label="IP 名称" rules={[{ required: true, message: "请填写 IP 名称" }]}>
                         <Input autoFocus />
                     </Form.Item>
-                    <Form.Item name="slug" label="IP 标识" rules={[{ required: true, message: "请填写 IP 标识" }]}>
-                        <Input placeholder="例如 star-sea" />
-                    </Form.Item>
                     <Form.Item name="visibility" label="可见范围" rules={[{ required: true }]}>
                         <Select options={IP_VISIBILITIES.map((value) => ({ value, label: value === "school" ? "本校 IP" : "公共 IP" }))} />
                     </Form.Item>
@@ -265,6 +262,7 @@ function IpDetailEditor({
     const [grantForm] = Form.useForm<GrantForm>();
     const [selectedSubIpId, setSelectedSubIpId] = useState<string | undefined>(detail.subIps[0]?.id);
     const [files, setFiles] = useState<IpContentFileRecord[]>([]);
+    const [ipCoverFiles, setIpCoverFiles] = useState<IpContentFileRecord[]>([]);
     const [loadingFiles, setLoadingFiles] = useState(false);
     const [saving, setSaving] = useState(false);
     const [grantOpen, setGrantOpen] = useState(false);
@@ -282,11 +280,21 @@ function IpDetailEditor({
         }
     }, [detail.id, message, onReload]);
     useEffect(() => {
-        ipForm.setFieldsValue({ title: detail.title, slug: detail.slug, summary: detail.summary, visibility: detail.visibility });
+        ipForm.setFieldsValue({ title: detail.title, summary: detail.summary, visibility: detail.visibility, coverFileId: detail.coverFileId });
     }, [detail, ipForm]);
     useEffect(() => {
+        let active = true;
+        void adminIpLibraryApi
+            .listFiles(detail.id)
+            .then((value) => active && setIpCoverFiles(value))
+            .catch((error) => active && message.error(errorMessage(error, "IP 封面文件加载失败")));
+        return () => {
+            active = false;
+        };
+    }, [detail.id, message]);
+    useEffect(() => {
         if (!selected) return;
-        subForm.setFieldsValue({ title: selected.title, summary: selected.summary, coverFileId: selected.coverFileId, tags: selected.tags, sourceNote: selected.sourceNote, sortOrder: selected.sortOrder, items: selected.items.map(itemForm) });
+        subForm.setFieldsValue({ title: selected.title, summary: selected.summary, coverFileId: selected.coverFileId, tags: selected.tags, sortOrder: selected.sortOrder, items: selected.items.map(itemForm) });
         setFiles([]);
         setLoadingFiles(true);
         void adminIpLibraryApi
@@ -298,16 +306,25 @@ function IpDetailEditor({
     const addFile = useCallback((file: IpContentFileRecord) => {
         setFiles((current) => (current.some((item) => item.id === file.id) ? current : [...current, file]));
     }, []);
+    const addIpCoverFile = useCallback(
+        (file: IpContentFileRecord) => {
+            setIpCoverFiles((current) => (current.some((item) => item.id === file.id) ? current : [...current, file]));
+            if (file.subIpId === selected?.id) addFile(file);
+        },
+        [addFile, selected?.id],
+    );
     const removeFile = useCallback(
         (fileId: string) => {
             setFiles((current) => current.filter((file) => file.id !== fileId));
+            setIpCoverFiles((current) => current.filter((file) => file.id !== fileId));
+            if (ipForm.getFieldValue("coverFileId") === fileId) ipForm.setFieldValue("coverFileId", undefined);
             if (subForm.getFieldValue("coverFileId") === fileId) subForm.setFieldValue("coverFileId", undefined);
             const items = subForm.getFieldValue("items") as SubIpItemForm[] | undefined;
             items?.forEach((item, index) => {
                 if (item?.fileId === fileId) subForm.setFieldValue(["items", index, "fileId"], undefined);
             });
         },
-        [subForm],
+        [ipForm, subForm],
     );
     const saveIp = async () => {
         try {
@@ -337,7 +354,7 @@ function IpDetailEditor({
     const addSubIp = async () => {
         const name = `子 IP ${detail.subIps.length + 1}`;
         try {
-            const subIp = await adminIpLibraryApi.createSubIp(detail.id, { title: name, summary: "", tags: [], sourceNote: "" });
+            const subIp = await adminIpLibraryApi.createSubIp(detail.id, { title: name, summary: "", tags: [] });
             setSelectedSubIpId(subIp.id);
             message.success("子 IP 已添加");
             await reload();
@@ -378,12 +395,12 @@ function IpDetailEditor({
         try {
             const result = await adminEducationApi.listSchools({ pageSize: 100, status: "active" });
             setSchools(result.items);
-            grantForm.setFieldsValue({ subIpId: selected?.id, mode: "multi_school", startsAt: new Date().toISOString() });
+            grantForm.setFieldsValue({ subIpIds: detail.subIps.map((item) => item.id), schoolIds: [], mode: "multi_school", startsAt: new Date().toISOString() });
             setGrantOpen(true);
         } catch (error) {
             message.error(errorMessage(error, "学校列表加载失败"));
         }
-    }, [grantForm, message, selected?.id]);
+    }, [detail.subIps, grantForm, message]);
     useEffect(() => {
         if (initialTab === "grants") void loadGrants();
     }, [initialTab, loadGrants]);
@@ -394,9 +411,9 @@ function IpDetailEditor({
     }, [grantIntentPending, openGrant]);
     const createGrant = async () => {
         try {
-            await adminIpLibraryApi.createGrant(detail.id, await grantForm.validateFields());
+            const grants = await adminIpLibraryApi.createGrants(detail.id, await grantForm.validateFields());
             setGrantOpen(false);
-            message.success("学校授权已生效");
+            message.success(`已创建 ${grants.length} 项学校授权`);
             await loadGrants();
         } catch (error) {
             message.error(errorMessage(error, "创建学校授权失败"));
@@ -453,9 +470,7 @@ function IpDetailEditor({
                 <Empty description="暂无子 IP" />
             ),
         },
-        ...(canManageEducation && detail.visibility === "school"
-            ? [{ key: "grants", label: "学校授权", children: <GrantPanel detail={detail} grants={grants} selectedSubIpId={selected?.id} onLoad={loadGrants} onCreate={openGrant} onUpdate={updateGrant} /> }]
-            : []),
+        ...(canManageEducation && detail.visibility === "school" ? [{ key: "grants", label: "学校授权", children: <GrantPanel detail={detail} grants={grants} onLoad={loadGrants} onCreate={openGrant} onUpdate={updateGrant} /> }] : []),
         { key: "usage", label: "下载记录", children: <UsagePanel usage={usage} onLoad={loadUsage} /> },
     ];
     return (
@@ -483,9 +498,6 @@ function IpDetailEditor({
                         <Form.Item name="title" label="IP 名称" rules={[{ required: true }]}>
                             <Input disabled={!canManageContent} />
                         </Form.Item>
-                        <Form.Item name="slug" label="IP 标识" rules={[{ required: true }]}>
-                            <Input disabled={!canManageContent} />
-                        </Form.Item>
                         <Form.Item name="visibility" label="可见范围">
                             <Select disabled={!canManageContent} options={IP_VISIBILITIES.map((value) => ({ value, label: value === "school" ? "本校 IP" : "公共 IP" }))} />
                         </Form.Item>
@@ -500,6 +512,13 @@ function IpDetailEditor({
                     <Form.Item name="summary" label="简介" className="!mb-0">
                         <Input.TextArea disabled={!canManageContent} autoSize={{ minRows: 2, maxRows: 4 }} />
                     </Form.Item>
+                    {detail.subIps[0] ? (
+                        <Form.Item name="coverFileId" label="IP 封面" className="!mb-0 mt-4">
+                            <IpContentUpload variant="cover" ipId={detail.id} subIpId={detail.subIps[0].id} kind="image" files={ipCoverFiles} disabled={!canManageContent} onUploaded={addIpCoverFile} onDeleted={removeFile} />
+                        </Form.Item>
+                    ) : (
+                        <p className="mt-4 text-sm text-zinc-500">暂无子 IP，无法上传 IP 封面。</p>
+                    )}
                 </Form>
             </div>
             <Tabs
@@ -514,11 +533,19 @@ function IpDetailEditor({
             />
             <Modal title="授权给学校" open={grantOpen} onCancel={() => setGrantOpen(false)} onOk={() => void createGrant()} okText="确认授权" cancelText="取消" destroyOnHidden>
                 <Form form={grantForm} layout="vertical">
-                    <Form.Item name="subIpId" label="子 IP" rules={[{ required: true }]}>
-                        <Select options={detail.subIps.map((item) => ({ value: item.id, label: item.title }))} />
-                    </Form.Item>
-                    <Form.Item name="schoolId" label="学校" rules={[{ required: true }]}>
-                        <Select showSearch optionFilterProp="label" options={schools.map((item) => ({ value: item.id, label: item.name }))} />
+                    <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+                        <p className="text-sm font-medium">当前 IP：{detail.title}</p>
+                        <p className="mt-1 text-xs text-zinc-500">选择要授权的子 IP；默认已全选。</p>
+                        {detail.subIps.length ? (
+                            <Form.Item name="subIpIds" noStyle rules={[{ type: "array", min: 1, message: "请选择至少一个子 IP" }]}>
+                                <Checkbox.Group className="mt-3 grid gap-2" options={detail.subIps.map((item) => ({ value: item.id, label: `${item.title}${item.summary ? ` - ${item.summary}` : ""}` }))} />
+                            </Form.Item>
+                        ) : (
+                            <p className="mt-3 text-sm text-zinc-500">无子 IP</p>
+                        )}
+                    </div>
+                    <Form.Item name="schoolIds" label="学校" rules={[{ type: "array", min: 1, message: "请选择至少一所学校" }]} className="mt-4">
+                        <Select mode="multiple" showSearch optionFilterProp="label" placeholder="可一次选择多所学校" options={schools.map((item) => ({ value: item.id, label: item.name }))} />
                     </Form.Item>
                     <Form.Item name="mode" label="授权方式" rules={[{ required: true }]}>
                         <Select options={IP_AUTHORIZATION_MODES.map((value) => ({ value, label: ipAuthorizationLabel(value) }))} />
@@ -568,11 +595,7 @@ function SubIpEditor({
                     <h3 className="truncate text-base font-semibold">{subIp.title}</h3>
                     <p className="mt-1 text-xs text-zinc-500">编辑完成点击保存，即刻更新此子 IP 内容。</p>
                 </div>
-                {!disabled ? (
-                    <Button type="primary" icon={<Save className="size-4" />} loading={saving} onClick={() => void onSave()}>
-                        保存子 IP
-                    </Button>
-                ) : null}
+                <span className="text-xs text-zinc-500">修改后在详细内容末尾保存</span>
             </div>
             <div className="mt-4 grid gap-x-4 sm:grid-cols-2">
                 <Form.Item name="title" label="子 IP 名称" rules={[{ required: true }]}>
@@ -584,11 +607,8 @@ function SubIpEditor({
                 <Form.Item name="summary" label="简介">
                     <Input.TextArea disabled={disabled} autoSize={{ minRows: 2, maxRows: 4 }} />
                 </Form.Item>
-                <Form.Item name="sourceNote" label="来源说明">
-                    <Input.TextArea disabled={disabled} autoSize={{ minRows: 2, maxRows: 4 }} />
-                </Form.Item>
                 <Form.Item name="coverFileId" label="封面">
-                    <IpContentUpload ipId={ipId} subIpId={subIp.id} kind="image" files={files} disabled={disabled || loadingFiles} onUploaded={onFileUploaded} onDeleted={onFileDeleted} />
+                    <IpContentUpload variant="cover" ipId={ipId} subIpId={subIp.id} kind="image" files={files} disabled={disabled || loadingFiles} onUploaded={onFileUploaded} onDeleted={onFileDeleted} />
                 </Form.Item>
             </div>
             <Form.List name="items">
@@ -649,6 +669,11 @@ function SubIpEditor({
                                 </div>
                             ))}
                         </div>
+                        {!disabled ? (
+                            <Button type="primary" className="mt-4 h-10 w-full" icon={<Save className="size-4" />} loading={saving} onClick={() => void onSave()}>
+                                保存子 IP
+                            </Button>
+                        ) : null}
                     </div>
                 )}
             </Form.List>
@@ -659,21 +684,18 @@ function SubIpEditor({
 function GrantPanel({
     detail,
     grants,
-    selectedSubIpId,
     onLoad,
     onCreate,
     onUpdate,
 }: {
     detail: IpDetailRecord;
     grants: AdminIpGrantItem[];
-    selectedSubIpId?: string;
     onLoad: () => Promise<void>;
     onCreate: () => Promise<void>;
     onUpdate: (grant: AdminIpGrantItem, input: { status: IpSchoolGrantStatus; endsAt?: string | null; note?: string }) => Promise<boolean>;
 }) {
     const [form] = Form.useForm<GrantPatchForm>();
     const [editing, setEditing] = useState<AdminIpGrantItem>();
-    const visible = selectedSubIpId ? grants.filter((item) => item.subIpId === selectedSubIpId) : grants;
     const save = async () => {
         if (!editing) return;
         const values = await form.validateFields();
@@ -696,13 +718,14 @@ function GrantPanel({
                 size="small"
                 rowKey="id"
                 pagination={false}
-                dataSource={visible}
+                dataSource={grants}
                 columns={[
                     { title: "学校", render: (_, item) => item.school?.name || item.schoolId },
                     { title: "子 IP", render: (_, item) => item.subIp?.title || detail.subIps.find((subIp) => subIp.id === item.subIpId)?.title || item.subIpId },
                     { title: "方式", render: (_, item) => ipAuthorizationLabel(item.mode) },
                     { title: "状态", render: (_, item) => <Tag color={item.status === "active" ? "green" : item.status === "suspended" ? "gold" : "default"}>{grantStatusLabel(item.status)}</Tag> },
                     { title: "有效期", render: (_, item) => `${formatTime(item.startsAt)} - ${item.endsAt ? formatTime(item.endsAt) : "长期"}` },
+                    { title: "撤销授权时间", render: (_, item) => (item.revokedAt ? formatTime(item.revokedAt) : "-") },
                     {
                         title: "操作",
                         width: 128,
@@ -740,7 +763,7 @@ function GrantPanel({
                         ),
                     },
                 ]}
-                scroll={{ x: 860 }}
+                scroll={{ x: 1000 }}
             />
             <Modal title="编辑学校授权" open={Boolean(editing)} onCancel={() => setEditing(undefined)} onOk={() => void save()} okText="保存" cancelText="取消" destroyOnHidden>
                 <Form form={form} layout="vertical">
@@ -768,6 +791,12 @@ function GrantPanel({
 function grantStatusLabel(status: IpSchoolGrantStatus) {
     return status === "active" ? "生效" : status === "suspended" ? "暂停" : status === "revoked" ? "已撤销" : "已到期";
 }
+function downloadRecordLabel(item: AdminIpUsageItem) {
+    const ipTitle = item.ip?.title || "IP";
+    if (item.downloadType === "item") return `内容原文件：${item.subIp?.title || "子 IP"} / ${item.item?.title || "内容项"}`;
+    if (item.packageScope === "ip") return `IP 内容包：${ipTitle}（含全部子 IP 内容包）`;
+    return `子 IP 内容包：${item.subIp?.title || "子 IP"}`;
+}
 function UsagePanel({ usage, onLoad }: { usage: AdminIpUsageItem[]; onLoad: () => Promise<void> }) {
     return (
         <div className="space-y-3">
@@ -784,11 +813,11 @@ function UsagePanel({ usage, onLoad }: { usage: AdminIpUsageItem[]; onLoad: () =
                 columns={[
                     { title: "用户", render: (_, item) => item.user?.displayName || "已删除用户" },
                     { title: "学校", render: (_, item) => item.school?.name || "-" },
-                    { title: "类型", dataIndex: "downloadType" },
+                    { title: "下载内容", render: (_, item) => downloadRecordLabel(item) },
                     { title: "结果", render: (_, item) => <Tag color={item.result === "succeeded" ? "green" : "red"}>{item.result === "succeeded" ? "成功" : "失败"}</Tag> },
                     { title: "时间", render: (_, item) => formatTime(item.createdAt) },
                 ]}
-                scroll={{ x: 620 }}
+                scroll={{ x: 760 }}
             />
         </div>
     );

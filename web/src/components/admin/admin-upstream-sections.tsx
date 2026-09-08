@@ -3,13 +3,35 @@
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
 import { AgentSkillCreateModal } from "@/components/admin/agent-skill-create-modal";
 import { AdminChannelWorkspace } from "@/components/admin/channels/admin-channel-workspace";
-import type { AgentSkill } from "@/lib/auth/store";
+import type { AgentSkill, PracticeModuleVisibility } from "@/lib/auth/store";
 import { FEATURE_MODULES, type FeatureModuleId } from "@/lib/feature-modules";
 import { Button, Input, InputNumber, Select, Switch, Tag } from "antd";
 import { ChevronDown, Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";
+
+const DEFAULT_PRACTICE_MODULE_VISIBILITY: PracticeModuleVisibility = {
+    canvas: false,
+    drama: false,
+    character: true,
+    scene: true,
+    prop: true,
+    "storyboard-image": true,
+    "storyboard-video": true,
+    dubbing: true,
+};
+
+const PRACTICE_VISIBILITY_FIELDS = [
+    ["canvas", "无限画布", "暂未开放的节点式创作入口"],
+    ["drama", "无限短剧", "暂未开放的短剧生产入口"],
+    ["character", "角色", "角色主视图与多视图"],
+    ["scene", "场景", "场景设定图"],
+    ["prop", "道具", "道具主视图"],
+    ["storyboard-image", "分镜图", "静态分镜画面"],
+    ["storyboard-video", "分镜视频", "动态分镜镜头"],
+    ["dubbing", "音频", "对白与旁白配音"],
+] as const satisfies ReadonlyArray<readonly [keyof PracticeModuleVisibility, string, string]>;
 
 export function AdminChannelsSection({ controller }: { controller: AdminDashboardController }) {
     const { settings, setSettings, settingsLoading, fetchingModelId, activeSection, saveSettings, deleteChannel, fetchModelsForChannel, fetchAllModels } = controller;
@@ -290,6 +312,45 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
     return (
         <Panel>
             <PanelHeader title="插件市场" description="启停已发布的前台模块。停用后会隐藏导航和跨模块入口，并阻止新建、写入和生成；历史数据与运行中任务会保留。" />
+            <section className="mx-3 mt-3 border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40 sm:mx-5">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                        <h2 className="font-semibold text-stone-950 dark:text-stone-100">无限练习模块</h2>
+                        <p className="mt-1 text-xs leading-5 text-stone-500">控制无限练习首页的入口显示。隐藏只影响新入口，历史记录不会被删除。</p>
+                    </div>
+                    <Tag color="processing">6 个模块 · 7 条工作流</Tag>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {PRACTICE_VISIBILITY_FIELDS.map(([key, label, description]) => {
+                        const enabled = (settings.practiceModuleVisibility || DEFAULT_PRACTICE_MODULE_VISIBILITY)[key];
+                        return (
+                            <div key={key} className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-stone-200 bg-white px-3 py-2.5 dark:border-stone-800 dark:bg-stone-950">
+                                <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium">{label}</div>
+                                    <div className="truncate text-xs text-stone-500">{description}</div>
+                                </div>
+                                <Switch
+                                    checked={enabled}
+                                    loading={settingsLoading}
+                                    aria-label={`${label}显示状态`}
+                                    onChange={(next) =>
+                                        void saveSettings(
+                                            (current) => ({
+                                                practiceModuleVisibility: {
+                                                    ...DEFAULT_PRACTICE_MODULE_VISIBILITY,
+                                                    ...current.practiceModuleVisibility,
+                                                    [key]: next,
+                                                },
+                                            }),
+                                            `${label}${next ? "已显示" : "已隐藏"}`,
+                                        )
+                                    }
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            </section>
             <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-5 xl:grid-cols-3">
                 {FEATURE_MODULES.map((plugin) => {
                     const Icon = plugin.icon;

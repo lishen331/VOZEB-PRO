@@ -55,6 +55,16 @@ export type RunningHubGenerationSizeOption = {
     disabled?: boolean;
 };
 export type PracticeWorkflowModelBindings = Partial<Record<RunningHubWorkflowBusinessCode, string[]>>;
+export type PracticeModuleVisibility = {
+    canvas: boolean;
+    drama: boolean;
+    character: boolean;
+    scene: boolean;
+    prop: boolean;
+    "storyboard-image": boolean;
+    "storyboard-video": boolean;
+    dubbing: boolean;
+};
 export type RunningHubWorkflowInputField = {
     key: string;
     label: string;
@@ -408,6 +418,17 @@ export type AnnouncementPage = {
     pageSize: number;
 };
 
+export type LoginPageSettings = {
+    heroVideoUrl: string;
+    heroPosterUrl: string;
+    jointBrandUrl: string;
+    slogan: string;
+    platformName: string;
+    footerOrganization: string;
+    servicePhone: string;
+    serviceHours: string;
+};
+
 export type SiteSettings = {
     title: string;
     logoUrl: string;
@@ -420,6 +441,7 @@ export type SiteSettings = {
     termsVersion: string;
     privacyUrl: string;
     privacyVersion: string;
+    loginPage: LoginPageSettings;
     friendLinks: SiteFriendLink[];
     socials: SiteSocialSettings;
 };
@@ -592,6 +614,7 @@ export type AuthSettings = {
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
     practiceWorkflowModels: PracticeWorkflowModelBindings;
+    practiceModuleVisibility?: PracticeModuleVisibility;
     agentSkills: AgentSkill[];
     /** Global enablement for built-in user-facing modules. */
     featureModules: FeatureModuleSettings;

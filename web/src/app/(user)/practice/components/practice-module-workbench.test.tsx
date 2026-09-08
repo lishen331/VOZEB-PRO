@@ -12,7 +12,7 @@ import { workflowFieldDefaults, workflowFormFields } from "./practice-panel-type
 describe("practice module workbench contract", () => {
     it("sends only user content, public references and a fresh request id", () => {
         const input = buildPracticeSessionInput("script", "一场雨中的重逢", ["asset-1"]);
-        expect(input).toMatchObject({ module: "script", title: "剧本练习", input: { prompt: "一场雨中的重逢" }, references: [{ type: "asset", id: "asset-1" }] });
+        expect(input).toMatchObject({ module: "script", title: "单项练习", input: { prompt: "一场雨中的重逢" }, references: [{ type: "asset", id: "asset-1" }] });
         expect(input.clientRequestId).toMatch(/^[0-9a-f-]{36}$/i);
         expect(JSON.stringify(input)).not.toMatch(/provider|model|points|executionProfile|channel/i);
     });
@@ -35,8 +35,8 @@ describe("practice module workbench contract", () => {
         expect(publicPracticeResult({ status: "error", taskId: "secret-task", error: "失败" })).toEqual({ status: "error", error: "失败" });
     });
 
-    it("keeps all five modules in the same workbench contract", () => {
-        expect(PRACTICE_MODULES).toHaveLength(5);
+    it("keeps all six modules in the same workbench contract", () => {
+        expect(PRACTICE_MODULES).toHaveLength(6);
     });
 
     it("routes asset modules to their dedicated panels", async () => {
@@ -114,4 +114,31 @@ describe("practice module workbench contract", () => {
         expect(source).toContain("practiceSessionCanRetry(target)");
         expect(source).toContain("onRetry={(session) => void retry(session)}");
     });
+});
+
+it("isolates character schemas, dimensions and public defaults by selected workflow", async () => {
+    const { capabilityForWorkflow } = await import("./practice-panel-types");
+    const capability = {
+        module: "character",
+        available: true,
+        models: [],
+        inputSchema: [],
+        workflowOptions: [
+            { code: "character_main_view", label: "主形象", inputSchema: [{ key: "width", label: "宽", type: "number", required: true, defaultValue: 720 }] },
+            {
+                code: "character_multi_view",
+                label: "多视图",
+                inputSchema: [
+                    { key: "width", label: "合并图宽", type: "number", required: false, defaultValue: 1350 },
+                    { key: "frontPrompt", label: "正视图", type: "text", required: false },
+                ],
+            },
+        ],
+    } as never;
+    const main = capabilityForWorkflow(capability, "character_main_view");
+    const multi = capabilityForWorkflow(capability, "character_multi_view");
+    expect(workflowFieldDefaults(main)).toEqual({ width: 720 });
+    expect(workflowFieldDefaults(multi)).toEqual({ width: 1350 });
+    expect(workflowFormFields(main).map((field) => field.key)).not.toContain("frontPrompt");
+    expect(workflowFormFields(multi).map((field) => field.key)).toContain("frontPrompt");
 });

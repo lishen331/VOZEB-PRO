@@ -29,6 +29,7 @@ export type WorkGovernanceCase = {
 export type PublicGalleryItem = {
     slug: string;
     sourceType: "media" | "canvas" | "drama";
+    publicationOrigin: "user_submission" | "official";
     viewCount: number;
     likeCount: number;
     isFeatured: boolean;

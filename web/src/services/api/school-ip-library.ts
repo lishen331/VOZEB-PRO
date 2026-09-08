@@ -4,16 +4,29 @@ import { serializeApiParams } from "./request";
 
 export type SchoolIpAccessItem = {
     id: string;
-    ipId: string;
-    subIpId: string;
     title: string;
-    subIpTitle: string;
     summary: string;
+    ipStatus: IpStatus;
+    effective: boolean;
+    updatedAt: string;
+    subIps: SchoolIpAccessSubIp[];
+};
+
+export type SchoolIpAccessSubIp = {
+    id: string;
+    title: string;
+    summary: string;
+    effective: boolean;
+    grants: SchoolIpAccessGrant[];
+};
+
+export type SchoolIpAccessGrant = {
+    id: string;
     mode: IpAuthorizationMode;
     status: IpSchoolGrantStatus;
-    ipStatus: IpStatus;
     startsAt: string;
     endsAt?: string;
+    revokedAt?: string;
     effective: boolean;
     updatedAt: string;
 };

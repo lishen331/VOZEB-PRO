@@ -6,6 +6,7 @@ import type {
     PublishedWorkAssetRecord,
     PublishedWorkLifecycleStatus,
     PublishedWorkModerationStatus,
+    PublishedWorkOrigin,
     PublishedWorkRecord,
     PublishedWorkSourceType,
     PublishedWorkSummaryRecord,
@@ -26,9 +27,9 @@ export class WorkPublicationRepository {
     async createWork(work: PublishedWorkRecord) {
         const result = await this.db.query(
             `INSERT INTO published_works (
-                id, owner_user_id, slug, source_type, source_id, lifecycle_status, current_version_id,
+                id, owner_user_id, slug, source_type, source_id, publication_origin, lifecycle_status, current_version_id,
                 published_version_id, view_count, last_viewed_at, revoked_at, created_at, updated_at
-             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
              RETURNING *`,
             [
                 work.id,
@@ -36,6 +37,7 @@ export class WorkPublicationRepository {
                 work.slug,
                 work.sourceType,
                 work.sourceId,
+                work.publicationOrigin,
                 work.lifecycleStatus,
                 work.currentVersionId || null,
                 work.publishedVersionId || null,
@@ -81,7 +83,7 @@ export class WorkPublicationRepository {
     }
 
     async listWorks(
-        input: PageInput & { ownerUserId?: string; moderationStatus?: PublishedWorkModerationStatus; lifecycleStatus?: PublishedWorkLifecycleStatus; userStatus?: "taken_down"; keyword?: string } = {},
+        input: PageInput & { ownerUserId?: string; moderationStatus?: PublishedWorkModerationStatus; lifecycleStatus?: PublishedWorkLifecycleStatus; publicationOrigin?: PublishedWorkOrigin; userStatus?: "taken_down"; keyword?: string } = {},
     ): Promise<PageResult<PublishedWorkSummaryRecord>> {
         const page = normalizePage(input.page);
         const pageSize = normalizePageSize(input.pageSize);
@@ -109,11 +111,12 @@ export class WorkPublicationRepository {
              WHERE ($1::text IS NULL OR work.owner_user_id = $1)
                AND ($2::text IS NULL OR current_version.moderation_status = $2)
                AND ($3::text IS NULL OR work.lifecycle_status = $3)
-               AND ($4 = '' OR lower(current_version.title) LIKE $5 OR lower(owner.username) LIKE $5 OR lower(owner.display_name) LIKE $5 OR lpad(owner.account_id::text, 4, '0') LIKE $5 OR lower(work.slug) LIKE $5)
-               AND ($6::text IS NULL OR ($6 = 'taken_down' AND (work.lifecycle_status = 'revoked' OR current_version.moderation_status = 'taken_down')))
+               AND ($4::text IS NULL OR work.publication_origin = $4)
+               AND ($5 = '' OR lower(current_version.title) LIKE $6 OR lower(owner.username) LIKE $6 OR lower(owner.display_name) LIKE $6 OR lpad(owner.account_id::text, 4, '0') LIKE $6 OR lower(work.slug) LIKE $6)
+               AND ($7::text IS NULL OR ($7 = 'taken_down' AND (work.lifecycle_status = 'revoked' OR current_version.moderation_status = 'taken_down')))
              ORDER BY work.updated_at DESC, work.id DESC
-             LIMIT $7 OFFSET $8`,
-            [input.ownerUserId || null, input.moderationStatus || null, input.lifecycleStatus || null, keyword, `%${keyword}%`, input.userStatus || null, pageSize, (page - 1) * pageSize],
+             LIMIT $8 OFFSET $9`,
+            [input.ownerUserId || null, input.moderationStatus || null, input.lifecycleStatus || null, input.publicationOrigin || null, keyword, `%${keyword}%`, input.userStatus || null, pageSize, (page - 1) * pageSize],
         );
         return pageResult(result.rows.map(mapPublishedWorkSummary), numberValue(result.rows[0]?.total_count), page, pageSize);
     }
@@ -208,6 +211,16 @@ export class WorkPublicationRepository {
         return result.rows[0] ? mapPublishedWorkVersion(result.rows[0]) : null;
     }
 
+    async approveOfficialVersion(id: string, input: { reviewedAt: string; reviewedByUserId: string }) {
+        const result = await this.db.query(
+            `UPDATE published_work_versions SET moderation_status = 'approved', rejection_reason = NULL, submitted_at = $2, reviewed_at = $2, reviewed_by_user_id = $3
+             WHERE id = $1 AND moderation_status = 'draft'
+             RETURNING *`,
+            [id, input.reviewedAt, input.reviewedByUserId],
+        );
+        return result.rows[0] ? mapPublishedWorkVersion(result.rows[0]) : null;
+    }
+
     async reviewVersion(id: string, input: { status: "approved" | "rejected" | "taken_down"; reason?: string; reviewedAt: string; reviewedByUserId: string }) {
         const result = await this.db.query(
             `UPDATE published_work_versions SET moderation_status = $2, rejection_reason = $3, reviewed_at = $4, reviewed_by_user_id = $5,
@@ -271,6 +284,16 @@ export class WorkPublicationRepository {
                )
              RETURNING *`,
             [workId, versionId],
+        );
+        return result.rows[0] ? mapPublishedWork(result.rows[0]) : null;
+    }
+
+    async takeDownOfficialWork(workId: string, revokedAt: string) {
+        const result = await this.db.query(
+            `UPDATE published_works SET lifecycle_status = 'revoked', published_version_id = NULL, is_featured = false, featured_at = NULL, featured_by_user_id = NULL, revoked_at = $2
+             WHERE id = $1 AND publication_origin = 'official' AND published_version_id IS NOT NULL
+             RETURNING *`,
+            [workId, revokedAt],
         );
         return result.rows[0] ? mapPublishedWork(result.rows[0]) : null;
     }

@@ -320,6 +320,7 @@ CREATE TABLE IF NOT EXISTS published_works (
     slug text NOT NULL,
     source_type text NOT NULL,
     source_id text NOT NULL,
+    publication_origin text NOT NULL DEFAULT 'user_submission',
     lifecycle_status text NOT NULL DEFAULT 'active',
     current_version_id text,
     published_version_id text,
@@ -333,11 +334,13 @@ CREATE TABLE IF NOT EXISTS published_works (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT published_works_source_type CHECK (source_type IN ('media', 'canvas', 'drama')),
+    CONSTRAINT published_works_publication_origin CHECK (publication_origin IN ('user_submission', 'official')),
     CONSTRAINT published_works_lifecycle CHECK (lifecycle_status IN ('active', 'revoked')),
     CONSTRAINT published_works_views CHECK (view_count >= 0),
     CONSTRAINT published_works_community_counts CHECK (like_count >= 0)
 );
 
+ALTER TABLE published_works ADD COLUMN IF NOT EXISTS publication_origin text NOT NULL DEFAULT 'user_submission';
 ALTER TABLE published_works ADD COLUMN IF NOT EXISTS is_featured boolean NOT NULL DEFAULT false;
 ALTER TABLE published_works ADD COLUMN IF NOT EXISTS featured_at timestamptz;
 ALTER TABLE published_works ADD COLUMN IF NOT EXISTS featured_by_user_id text REFERENCES users(id) ON DELETE SET NULL;
@@ -345,12 +348,16 @@ ALTER TABLE published_works ADD COLUMN IF NOT EXISTS like_count bigint NOT NULL 
 
 DO $$
 BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'published_works_publication_origin') THEN
+        ALTER TABLE published_works ADD CONSTRAINT published_works_publication_origin CHECK (publication_origin IN ('user_submission', 'official'));
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'published_works_community_counts') THEN
         ALTER TABLE published_works ADD CONSTRAINT published_works_community_counts CHECK (like_count >= 0);
     END IF;
 END;
 $$;
 
+CREATE INDEX IF NOT EXISTS published_works_origin_updated_idx ON published_works (publication_origin, updated_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS published_works_slug_idx ON published_works (lower(slug));
 CREATE INDEX IF NOT EXISTS published_works_owner_updated_idx ON published_works (owner_user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS published_works_lifecycle_idx ON published_works (lifecycle_status, updated_at DESC);

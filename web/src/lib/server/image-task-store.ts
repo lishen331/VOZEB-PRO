@@ -66,7 +66,7 @@ export type ImageTask = GenerationTaskContext & {
     prompt: string;
     upstreamPrompt?: string;
     references: ImageTaskReference[];
-    referenceRoles?: Record<string, "original" | "identity" | "clothing" | "skin">;
+    referenceRoles?: Record<string, ("original" | "identity" | "clothing" | "skin" | "style" | "pose" | "composition" | "scene" | "lighting" | "product" | "prop")[]>;
     mask?: ImageTaskReference;
     result?: StoredImageTaskMediaResult & { results?: StoredImageTaskMediaResult[] };
     upstream?: { id: string; mediaBaseUrl: string; pollBaseUrl: string; explicitPollUrl?: string };

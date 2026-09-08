@@ -243,7 +243,7 @@ export class WorkCommunityRepository {
     async listPublicCreatorWorks(username: string, input: { limit: number; after?: PublicCreatorWorkCursor }) {
         const limit = Math.max(1, Math.min(36, Math.floor(input.limit || 18)));
         const result = await this.db.query(
-            `SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.view_count, work.like_count, work.is_featured, work.featured_at,
+            `SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.publication_origin, work.view_count, work.like_count, work.is_featured, work.featured_at,
                     version.id AS version_id, coalesce(version.reviewed_at, version.updated_at) AS published_at,
                     version.title, version.description, version.public_prompt, version.category, version.tags, version.author_display, version.author_name,
                     owner.username AS author_username, owner.avatar_storage_key AS owner_avatar_storage_key, owner.updated_at AS owner_avatar_updated_at,
@@ -280,7 +280,7 @@ export class WorkCommunityRepository {
         const limit = Math.max(1, Math.min(48, Math.floor(input.limit || 12)));
         const result = await this.db.query(
             `WITH eligible_work AS (
-                SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.view_count,
+                SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.publication_origin, work.view_count,
                        work.like_count, work.is_featured, work.featured_at,
                        version.id AS version_id, coalesce(version.reviewed_at, version.updated_at) AS published_at,
                        version.title, version.description, version.public_prompt, version.category, version.tags, version.author_display, version.author_name,
@@ -385,7 +385,7 @@ export class WorkCommunityRepository {
         const page = normalizePage(input.page);
         const pageSize = normalizePageSize(input.pageSize);
         const result = await this.db.query(
-            `SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.view_count, work.like_count, work.is_featured, work.featured_at,
+            `SELECT work.id AS work_id, work.owner_user_id AS author_user_id, work.slug, work.source_type, work.publication_origin, work.view_count, work.like_count, work.is_featured, work.featured_at,
                     version.id AS version_id, coalesce(version.reviewed_at, version.updated_at) AS published_at,
                     version.title, version.description, version.public_prompt, version.category, version.tags, version.author_display,
                     CASE WHEN version.author_display = 'hidden' THEN NULL ELSE version.author_name END AS author_name,

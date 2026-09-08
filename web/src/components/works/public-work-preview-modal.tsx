@@ -105,15 +105,20 @@ export function PublicWorkPreviewModal({
         }
     };
 
-    const contentAssets = useMemo(() => work?.assets.filter((asset) => asset.role === "content" && (asset.mediaType === "image" || asset.mediaType === "video")).sort((left, right) => left.sortOrder - right.sortOrder) || [], [work]);
+    const contentAssets = useMemo(
+        () => work?.assets.filter((asset) => asset.role === "content" && (asset.mediaType === "image" || asset.mediaType === "video" || asset.mediaType === "audio")).sort((left, right) => left.sortOrder - right.sortOrder) || [],
+        [work],
+    );
+    const hasPublicPrompt = Boolean(work?.publicPrompt.trim());
     const remixHref = createAgentPromptHref(work?.publicPrompt || "");
-    const authorUsername = work?.authorUsername;
+    const official = work?.publicationOrigin === "official";
+    const authorUsername = official ? undefined : work?.authorUsername;
     const authorIdentity = work ? (
         <>
             <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-foreground text-[11px] font-semibold text-background" aria-hidden="true">
                 {work.authorAvatarUrl ? <img src={work.authorAvatarUrl} alt="" className="size-full object-cover" /> : userAvatarFallback(work.authorName || "匿名作者")}
             </span>
-            <span className="flex h-8 min-w-0 flex-1 items-center truncate text-sm font-semibold leading-none">{work.authorName || "匿名作者"}</span>
+            <span className="flex h-8 min-w-0 flex-1 items-center truncate text-sm font-semibold leading-none">{official ? work.authorName || "平台官方" : work.authorName || "匿名作者"}</span>
         </>
     ) : null;
 
@@ -239,8 +244,10 @@ export function PublicWorkPreviewModal({
 
                             <section className="mt-3.5">
                                 <h3 className="text-xs font-semibold">作品提示词</h3>
-                                <pre className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2.5 font-sans text-[13px] leading-5 text-foreground">{work.publicPrompt || "该作品暂无可公开提示词。"}</pre>
-                                {work.publicPrompt ? (
+                                <pre className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2.5 font-sans text-[13px] leading-5 text-foreground">
+                                    {hasPublicPrompt ? work.publicPrompt : "该作品暂无可公开提示词"}
+                                </pre>
+                                {hasPublicPrompt ? (
                                     <div className="mt-2.5">
                                         <div className="flex justify-end gap-1">
                                             <Tooltip title="复制提示词">

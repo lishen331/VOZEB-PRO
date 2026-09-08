@@ -1,5 +1,7 @@
 "use client";
 
+import { canvasReadableImageUrl } from "@/lib/browser-media-url";
+
 import type { CanvasImageDecomposition, CanvasImageLayerBox, CanvasImageLayerCandidate } from "@/lib/canvas-image-decomposition";
 import { originalImageDownloadUrl } from "@/lib/media-image-url";
 import { renderCanvasPromptedSubjectLayers, renderCanvasSubjectLayers, type CanvasSubjectLayerResult, type CanvasSubjectMask } from "./canvas-subject-segmentation";
@@ -492,7 +494,8 @@ function loadImage(dataUrl: string) {
         const image = new Image();
         image.onload = () => resolve(image);
         image.onerror = () => reject(new Error("图片读取失败，无法处理图像"));
-        image.src = dataUrl;
+        image.crossOrigin = "anonymous";
+        image.src = canvasReadableImageUrl(dataUrl);
     });
 }
 

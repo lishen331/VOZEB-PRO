@@ -17,6 +17,8 @@ describe("admin works table layout", () => {
         expect(markup).toContain("grid-cols-2");
         expect(markup).toContain("md:grid-cols-[minmax(180px,1fr)");
         expect(markup.match(/>全部</g)).toHaveLength(2);
+        expect(markup).toContain("发布官方作品");
+        expect(markup).toContain("全部来源");
         expect(markup).toContain("admin-work-table");
         expect(markup).toContain("作品审核");
         expect(markup).toContain("举报申诉");

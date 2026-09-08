@@ -5,6 +5,7 @@ import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy"
 import { buildProviderRequest, isProviderBusinessError, readProviderError, readProviderString, readProviderValue } from "@/lib/server/provider-task-config";
 import { extractJsonObjectText } from "@/lib/server/structured-model-output";
 import { SYSTEM_AI_LOGICAL_MODEL_HEADER, SYSTEM_AI_POINTS_IDEMPOTENCY_HEADER, SYSTEM_AI_UPSTREAM_MODEL_HEADER, systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
+import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { interpolateModelPath, resolveTextProtocol } from "@/lib/server/text-protocol-resolver";
 import { resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
 
@@ -257,6 +258,11 @@ async function requestTextProtocol(input: StructuredTextRequest, request: Protoc
     const headers = request.variant === "repair" ? repairRequestHeaders(input) : new Headers(request.variant !== "tool" && input.fallbackHeaders ? input.fallbackHeaders : input.headers);
     headers.set("content-type", "application/json");
     if (input.cookie) headers.set("cookie", input.cookie);
+    // Worker recovery carries a signed internal context rather than a browser
+    // session. Convert it to the proxy's worker headers so resumed text work
+    // keeps its original user identity.
+    const workerHeaders = input.cookie ? maintenanceWorkerContextHeaders(input.cookie) : null;
+    if (workerHeaders) for (const [name, value] of Object.entries(workerHeaders)) headers.set(name, value);
     scopeProtocolIdempotency(headers, request.protocol, request.variant, request.stream);
     const timeoutSignal = AbortSignal.timeout(resolveModelRequestTimeoutMs(input.candidate, "text"));
     const signal = input.signal ? AbortSignal.any([input.signal, timeoutSignal]) : timeoutSignal;

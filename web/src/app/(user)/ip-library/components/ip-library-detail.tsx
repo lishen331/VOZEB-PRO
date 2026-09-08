@@ -1,7 +1,8 @@
 "use client";
 
-import { App, Button, Image as AntImage, Modal, Segmented, Spin, Tag } from "antd";
+import { App, Button, Image as AntImage, Modal, Spin, Tag } from "antd";
 import { BookOpen, Boxes, CalendarClock, ChevronRight, Clapperboard, Download, Image as ImageIcon, Maximize2, Music2, Sparkles, Video } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -28,10 +29,9 @@ export function visibleIpDetailCommands() {
     return IP_REFERENCE_ENTRY_VISIBLE ? (["reference", "download-package"] as const) : (["download-package"] as const);
 }
 
-export default function IpLibraryDetail({ ipId }: { ipId: string }) {
+export default function IpLibraryDetail({ ipId, subIpId }: { ipId: string; subIpId?: string }) {
     const { message } = App.useApp();
     const [detail, setDetail] = useState<IpDetail | null>(null);
-    const [selectedSubIpId, setSelectedSubIpId] = useState("");
     const [loading, setLoading] = useState(true);
     const [downloading, setDownloading] = useState("");
 
@@ -39,26 +39,31 @@ export default function IpLibraryDetail({ ipId }: { ipId: string }) {
         let active = true;
         setLoading(true);
         void ipLibraryApi
-            .get(ipId)
+            .get(ipId, subIpId)
             .then((value) => {
                 if (!active) return;
                 setDetail(value);
-                setSelectedSubIpId(value.subIps[0]?.id || "");
             })
             .catch((error) => active && message.error(error instanceof Error ? error.message : "IP 详情加载失败"))
             .finally(() => active && setLoading(false));
         return () => {
             active = false;
         };
-    }, [ipId, message]);
+    }, [ipId, message, subIpId]);
 
-    const selected = detail?.subIps.find((item) => item.id === selectedSubIpId) || detail?.subIps[0];
+    const selected = detail?.subIps[0];
     const grouped = useMemo(() => groupIpLibraryItems(selected?.items || []), [selected]);
-    const download = async (itemId?: string) => {
+    const download = async (input: { subIpId?: string; itemId?: string; packageScope?: "ip" | "sub_ip" } = {}) => {
         if (!detail || !selected || downloading) return;
-        setDownloading(itemId || "package");
+        const downloadKey = input.itemId || (input.packageScope === "sub_ip" && input.subIpId ? `sub-ip-${input.subIpId}` : input.packageScope || "package");
+        setDownloading(downloadKey);
         try {
-            const result = await ipLibraryApi.download(detail.id, { subIpId: selected.id, itemIds: itemId ? [itemId] : undefined, package: !itemId });
+            const result = await ipLibraryApi.download(detail.id, {
+                ...(input.packageScope === "ip" ? {} : { subIpId: input.subIpId || selected.id }),
+                itemIds: input.itemId ? [input.itemId] : undefined,
+                package: !input.itemId,
+                packageScope: input.packageScope,
+            });
             if ("url" in result) window.location.assign(result.url);
             else saveBlob(result.blob, result.fileName);
         } catch (error) {
@@ -75,121 +80,197 @@ export default function IpLibraryDetail({ ipId }: { ipId: string }) {
             </main>
         );
     if (!detail || !selected) return <main className="grid h-full min-h-0 place-items-center px-4 text-sm text-muted-foreground">IP 不存在或当前无权查看</main>;
+    const showSubIpDetail = Boolean(subIpId) || detail.singleSubIp;
 
     return (
         <main className="h-full min-h-0 overflow-y-auto bg-background text-foreground" data-ip-library-detail>
             <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-8">
-                <header className="border-b border-border pb-5 sm:pb-8">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span>IP 库</span>
-                        <ChevronRight className="size-3.5" />
-                        <span className="truncate">{detail.title}</span>
-                        {detail.subIps.length > 1 ? (
-                            <>
-                                <ChevronRight className="size-3.5" />
-                                <span className="truncate">{selected.title}</span>
-                            </>
-                        ) : null}
-                    </div>
-                    <div className="mt-4 grid min-w-0 gap-4 sm:grid-cols-[minmax(180px,320px)_minmax(0,1fr)] sm:gap-7">
-                        <div className="flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden bg-muted/50">
-                            {selected.coverPreviewUrl ? <img src={selected.coverPreviewUrl} alt={selected.title} className="max-h-full max-w-full object-contain" /> : <BookOpen className="size-12 text-muted-foreground/40" />}
-                        </div>
-                        <div className="flex min-w-0 flex-col justify-center">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Tag color={detail.visibility === "public" ? "blue" : "green"} className="!m-0">
-                                    {detail.visibility === "public" ? "公共 IP" : "本校 IP"}
-                                </Tag>
-                                {selected.isExclusive ? (
-                                    <Tag color="gold" className="!m-0">
-                                        独家授权
-                                    </Tag>
-                                ) : null}
-                                {detail.subIps.length > 1 ? <Tag className="!m-0">{detail.subIps.length} 个子 IP</Tag> : null}
-                            </div>
-                            <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">{detail.subIps.length > 1 ? selected.title : detail.title}</h1>
-                            {detail.subIps.length > 1 ? <p className="mt-1 text-sm text-muted-foreground">{detail.title}</p> : null}
-                            <p className="mt-2 text-sm leading-6 text-muted-foreground">{selected.summary || detail.summary || "暂无简介"}</p>
-                            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                <span className="inline-flex items-center gap-1">
-                                    <CalendarClock className="size-3.5" />
-                                    更新于 {formatDate(selected.updatedAt)}
-                                </span>
-                                <span>{selected.items.length} 项内容</span>
-                            </div>
-                            {selected.tags.length ? (
-                                <div className="mt-3 flex flex-wrap gap-1.5">
-                                    {selected.tags.map((tag) => (
-                                        <Tag key={tag} className="!m-0">
-                                            {tag}
-                                        </Tag>
-                                    ))}
-                                </div>
+                {showSubIpDetail ? (
+                    <header className="border-b border-border pb-5 sm:pb-8">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span>IP 库</span>
+                            <ChevronRight className="size-3.5" />
+                            <Link href={`/ip-library/${encodeURIComponent(detail.id)}`} className="truncate hover:text-foreground">
+                                {detail.title}
+                            </Link>
+                            {subIpId ? (
+                                <>
+                                    <ChevronRight className="size-3.5" />
+                                    <span className="truncate">{selected.title}</span>
+                                </>
                             ) : null}
-                            <div className="mt-5 flex flex-wrap gap-2">
-                                {IP_REFERENCE_ENTRY_VISIBLE ? <DormantReferenceActions detail={detail} subIpId={selected.id} /> : null}
-                                <Button icon={<Download className="size-4" />} loading={downloading === "package"} onClick={() => void download()}>
-                                    下载此子 IP 内容包
-                                </Button>
+                        </div>
+                        <div className="mt-5 grid min-w-0 gap-5 sm:grid-cols-[minmax(180px,300px)_minmax(0,1fr)] sm:gap-8">
+                            <div className="mx-auto flex aspect-[4/3] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-xl border border-border bg-card p-2 shadow-sm">
+                                {selected.coverPreviewUrl ? <img src={selected.coverPreviewUrl} alt={selected.title} className="max-h-full max-w-full object-contain" /> : <BookOpen className="size-12 text-muted-foreground/40" />}
                             </div>
-                        </div>
-                    </div>
-                    {detail.subIps.length > 1 ? (
-                        <div className="mt-5 border-t border-border pt-4">
-                            <p className="mb-2 text-xs font-medium text-muted-foreground">选择子 IP</p>
-                            <Segmented block value={selected.id} options={detail.subIps.map((item) => ({ value: item.id, label: item.title }))} onChange={(value) => setSelectedSubIpId(String(value))} />
-                        </div>
-                    ) : null}
-                </header>
-
-                <IpLibrarySection
-                    title="文本"
-                    description="世界观、人物小传、剧本与创作说明。"
-                    items={grouped.text}
-                    layout="list"
-                    initialCount={3}
-                    renderItem={(item) => <TextItem key={item.id} item={item} onDownload={() => void download(item.id)} loading={downloading === item.id} />}
-                />
-                <section className="border-t border-border py-5 sm:py-7" aria-labelledby="ip-images-heading">
-                    <div>
-                        <h2 id="ip-images-heading" className="text-base font-semibold sm:text-lg">
-                            图片素材
-                        </h2>
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">按角色、场景、道具、特效和风格参考分类。</p>
-                    </div>
-                    {grouped.imageCount ? (
-                        <AntImage.PreviewGroup>
-                            <div className="mt-4 grid gap-6">
-                                {IP_IMAGE_CATEGORIES.filter((category) => grouped.images[category.value].length).map((category) => (
-                                    <div key={category.value} className="min-w-0">
-                                        <h3 className="text-sm font-medium">{category.label}</h3>
-                                        <div className="mt-2 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                            {grouped.images[category.value].map((item) => (
-                                                <MediaItem key={item.id} item={item} onDownload={() => void download(item.id)} loading={downloading === item.id} />
-                                            ))}
-                                        </div>
+                            <div className="flex min-w-0 flex-col justify-center rounded-xl border border-border bg-card p-4 sm:p-6">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Tag color={detail.visibility === "public" ? "blue" : "green"} className="!m-0">
+                                        {detail.visibility === "public" ? "公共 IP" : "本校 IP"}
+                                    </Tag>
+                                    {selected.isExclusive ? (
+                                        <Tag color="gold" className="!m-0">
+                                            独家授权
+                                        </Tag>
+                                    ) : null}
+                                    {subIpId || !detail.singleSubIp ? <Tag className="!m-0">子 IP</Tag> : null}
+                                </div>
+                                <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">{subIpId ? selected.title : detail.title}</h1>
+                                {subIpId ? <p className="mt-1 text-sm text-muted-foreground">{detail.title}</p> : null}
+                                <p className="mt-2 text-sm leading-6 text-muted-foreground">{selected.summary || detail.summary || "暂无简介"}</p>
+                                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                    <span className="inline-flex items-center gap-1">
+                                        <CalendarClock className="size-3.5" />
+                                        更新于 {formatDate(selected.updatedAt)}
+                                    </span>
+                                    <span>{selected.items.length} 项内容</span>
+                                </div>
+                                {selected.tags.length ? (
+                                    <div className="mt-3 flex flex-wrap gap-1.5">
+                                        {selected.tags.map((tag) => (
+                                            <Tag key={tag} className="!m-0">
+                                                {tag}
+                                            </Tag>
+                                        ))}
                                     </div>
-                                ))}
+                                ) : null}
+                                <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
+                                    {IP_REFERENCE_ENTRY_VISIBLE ? <DormantReferenceActions detail={detail} subIpId={selected.id} /> : null}
+                                    <Button icon={<Download className="size-4" />} loading={downloading === "sub_ip"} onClick={() => void download({ packageScope: "sub_ip" })}>
+                                        下载此子 IP 内容包
+                                    </Button>
+                                </div>
                             </div>
-                        </AntImage.PreviewGroup>
-                    ) : (
-                        <p className="mt-3 border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">暂无内容</p>
-                    )}
-                </section>
-                <IpLibrarySection
-                    title="音乐与声音"
-                    description="背景音乐、主题音乐、角色声音、旁白和音效。"
-                    items={grouped.audio}
-                    renderItem={(item) => <MediaItem key={item.id} item={item} onDownload={() => void download(item.id)} loading={downloading === item.id} />}
-                />
-                <IpLibrarySection
-                    title="视频参考"
-                    description="预告、动作、表演、镜头与片段参考。"
-                    items={grouped.video}
-                    renderItem={(item) => <MediaItem key={item.id} item={item} onDownload={() => void download(item.id)} loading={downloading === item.id} />}
-                />
+                        </div>
+                    </header>
+                ) : (
+                    <IpOverview detail={detail} downloading={downloading} onDownload={() => void download({ packageScope: "ip" })} onDownloadSubIp={(id) => void download({ subIpId: id, packageScope: "sub_ip" })} />
+                )}
+
+                {showSubIpDetail ? (
+                    <>
+                        <IpLibrarySection
+                            title="文本"
+                            description="世界观、人物小传、剧本与创作说明。"
+                            items={grouped.text}
+                            layout="list"
+                            initialCount={3}
+                            renderItem={(item) => <TextItem key={item.id} item={item} onDownload={() => void download({ itemId: item.id })} loading={downloading === item.id} />}
+                        />
+                        <section className="border-t border-border py-5 sm:py-7" aria-labelledby="ip-images-heading">
+                            <div>
+                                <h2 id="ip-images-heading" className="text-base font-semibold sm:text-lg">
+                                    图片素材
+                                </h2>
+                                <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">按角色、场景、道具、特效和风格参考分类。</p>
+                            </div>
+                            {grouped.imageCount ? (
+                                <AntImage.PreviewGroup>
+                                    <div className="mt-4 grid gap-6">
+                                        {IP_IMAGE_CATEGORIES.filter((category) => grouped.images[category.value].length).map((category) => (
+                                            <div key={category.value} className="min-w-0">
+                                                <h3 className="text-sm font-medium">{category.label}</h3>
+                                                <div className="mt-2 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                                    {grouped.images[category.value].map((item) => (
+                                                        <MediaItem key={item.id} item={item} onDownload={() => void download({ itemId: item.id })} loading={downloading === item.id} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </AntImage.PreviewGroup>
+                            ) : (
+                                <p className="mt-3 border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">暂无内容</p>
+                            )}
+                        </section>
+                        <IpLibrarySection
+                            title="音乐与声音"
+                            description="背景音乐、主题音乐、角色声音、旁白和音效。"
+                            items={grouped.audio}
+                            renderItem={(item) => <MediaItem key={item.id} item={item} onDownload={() => void download({ itemId: item.id })} loading={downloading === item.id} />}
+                        />
+                        <IpLibrarySection
+                            title="视频参考"
+                            description="预告、动作、表演、镜头与片段参考。"
+                            items={grouped.video}
+                            renderItem={(item) => <MediaItem key={item.id} item={item} onDownload={() => void download({ itemId: item.id })} loading={downloading === item.id} />}
+                        />
+                    </>
+                ) : null}
             </div>
         </main>
+    );
+}
+
+function IpOverview({ detail, downloading, onDownload, onDownloadSubIp }: { detail: IpDetail; downloading: string; onDownload: () => void; onDownloadSubIp: (subIpId: string) => void }) {
+    return (
+        <>
+            <header className="border-b border-border pb-5 sm:pb-8">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>IP 库</span>
+                    <ChevronRight className="size-3.5" />
+                    <span className="truncate">{detail.title}</span>
+                </div>
+                <div className="mt-5 grid min-w-0 gap-5 sm:grid-cols-[minmax(180px,300px)_minmax(0,1fr)] sm:gap-8">
+                    <div className="mx-auto flex aspect-[4/3] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-xl border border-border bg-card p-2 shadow-sm">
+                        {detail.coverPreviewUrl ? <img src={detail.coverPreviewUrl} alt={detail.title} className="max-h-full max-w-full object-contain" /> : <BookOpen className="size-12 text-muted-foreground/40" />}
+                    </div>
+                    <div className="flex min-w-0 flex-col justify-center rounded-xl border border-border bg-card p-4 sm:p-6">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Tag color={detail.visibility === "public" ? "blue" : "green"} className="!m-0">
+                                {detail.visibility === "public" ? "公共 IP" : "本校 IP"}
+                            </Tag>
+                            <Tag className="!m-0">{detail.subIps.length} 个子 IP</Tag>
+                        </div>
+                        <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">{detail.title}</h1>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{detail.summary || "暂无简介"}</p>
+                        <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
+                            <CalendarClock className="size-3.5" /> 更新于 {formatDate(detail.updatedAt)}
+                        </div>
+                        <div className="mt-5 border-t border-border pt-4">
+                            <Button type="primary" icon={<Download className="size-4" />} loading={downloading === "ip"} onClick={onDownload}>
+                                下载此 IP 内容包
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <section className="border-b border-border py-6 sm:py-8">
+                <div className="flex items-end justify-between gap-3">
+                    <div>
+                        <h2 className="text-base font-semibold sm:text-lg">子 IP</h2>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">选择一个子 IP 查看完整内容。</p>
+                    </div>
+                    <span className="text-xs tabular-nums text-muted-foreground">{detail.subIps.length} 个</span>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {detail.subIps.map((subIp) => (
+                        <article key={subIp.id} className="group overflow-hidden rounded-xl border border-border bg-card text-foreground transition hover:border-foreground/30 hover:shadow-sm">
+                            <Link href={`/ip-library/${encodeURIComponent(detail.id)}/${encodeURIComponent(subIp.id)}`} className="block">
+                                <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-muted/50">
+                                    {subIp.coverPreviewUrl ? (
+                                        <img src={subIp.coverPreviewUrl} alt={subIp.title} className="size-full object-cover transition duration-300 group-hover:scale-[1.02]" />
+                                    ) : (
+                                        <BookOpen className="size-8 text-muted-foreground/40" />
+                                    )}
+                                </div>
+                                <div className="min-w-0 p-3">
+                                    <h3 className="truncate text-sm font-semibold">{subIp.title}</h3>
+                                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{subIp.summary || "暂无简介"}</p>
+                                    <p className="mt-3 text-xs text-muted-foreground">{subIp.items.length} 项内容</p>
+                                </div>
+                            </Link>
+                            <div className="border-t border-border px-3 py-2">
+                                <Button type="text" size="small" icon={<Download className="size-4" />} loading={downloading === `sub-ip-${subIp.id}`} onClick={() => onDownloadSubIp(subIp.id)}>
+                                    下载子 IP 内容包
+                                </Button>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            </section>
+        </>
     );
 }
 
@@ -207,7 +288,7 @@ export function groupIpLibraryItems(items: IpPublicItem[]) {
 
 function TextItem({ item, onDownload, loading }: { item: IpPublicItem; onDownload: () => void; loading: boolean }) {
     return (
-        <article className="min-w-0 border border-border bg-card p-3 sm:p-4">
+        <article className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
             <div className="flex items-start justify-between gap-2">
                 <BookOpen className="size-5 shrink-0" />
                 <Button type="text" size="small" aria-label={`下载${item.title}`} icon={<Download className="size-4" />} loading={loading} onClick={onDownload} />
@@ -221,8 +302,16 @@ function TextItem({ item, onDownload, loading }: { item: IpPublicItem; onDownloa
 
 function MediaItem({ item, onDownload, loading }: { item: IpPublicItem; onDownload: () => void; loading: boolean }) {
     return (
-        <article className="min-w-0 overflow-hidden border border-border bg-card">
-            <div className={item.kind === "audio" ? "flex min-h-28 min-w-0 flex-col items-center justify-center gap-3 bg-muted/50 px-3 py-4" : "flex aspect-video min-w-0 items-center justify-center overflow-hidden bg-muted/50"}>
+        <article className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+            <div
+                className={
+                    item.kind === "audio"
+                        ? "flex min-h-28 min-w-0 flex-col items-center justify-center gap-3 bg-muted/50 px-3 py-4"
+                        : item.kind === "image"
+                          ? "flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden bg-muted/50 p-2"
+                          : "flex aspect-video min-w-0 items-center justify-center overflow-hidden bg-muted/50"
+                }
+            >
                 {item.kind === "image" && item.previewUrl ? (
                     <AntImage src={item.previewUrl} alt={item.title} rootClassName="flex size-full items-center justify-center" className="!max-h-full !max-w-full !object-contain" />
                 ) : item.kind === "video" && item.previewUrl ? (

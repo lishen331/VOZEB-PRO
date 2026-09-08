@@ -2,10 +2,11 @@ import type { PublishedGalleryItemRecord } from "@/lib/server/database";
 import { userAvatarUrl } from "@/lib/user-avatar";
 
 export function publicGalleryItem(item: PublishedGalleryItemRecord) {
-    const profileAuthor = item.authorDisplay === "profile";
+    const profileAuthor = item.publicationOrigin !== "official" && item.authorDisplay === "profile";
     return {
         slug: item.slug,
         sourceType: item.sourceType,
+        publicationOrigin: item.publicationOrigin,
         viewCount: item.viewCount,
         likeCount: item.likeCount,
         isFeatured: item.isFeatured,

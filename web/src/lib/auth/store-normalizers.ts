@@ -6,6 +6,7 @@ import { ECOMMERCE_IMAGE_SKILL } from "@/lib/server/agent-skills/ecommerce-image
 import { YANAI_BEAUTY_SKILL } from "@/lib/server/agent-skills/yanai-beauty";
 import { DEFAULT_CREATIVE_SHORTCUT_SKILLS } from "@/lib/server/agent-skills/creative-shortcuts";
 import { normalizeFeatureModuleSettings } from "@/lib/feature-modules";
+import { deriveRunningHubPracticeRouting } from "./runninghub-practice-routing";
 import { deriveLogicalModelsConfig, normalizeDefaultModelsConfig, normalizeLogicalModelsConfig } from "@/lib/model-routing-config";
 import { applyChannelProtocol } from "@/lib/channel-protocol-registry";
 import { resolveConfiguredModelPointCost } from "@/lib/model-point-cost";
@@ -239,8 +240,14 @@ export function countActiveFullAdmins(db: AuthDatabase, excludingUserId?: string
 }
 
 export function normalizeSettings(settings: AuthSettings): AuthSettings {
-    const systemChannels = Array.isArray(settings.systemChannels) ? settings.systemChannels.map(normalizeSystemChannel).filter((channel) => channel.name || channel.baseUrl || channel.models.length) : [];
-    const logicalModels = normalizeLogicalModels(settings.logicalModels, systemChannels);
+    const normalizedChannels = Array.isArray(settings.systemChannels) ? settings.systemChannels.map(normalizeSystemChannel).filter((channel) => channel.name || channel.baseUrl || channel.models.length) : [];
+    const routing = deriveRunningHubPracticeRouting({
+        systemChannels: normalizedChannels,
+        logicalModels: Array.isArray(settings.logicalModels) ? settings.logicalModels : [],
+        practiceWorkflowModels: normalizePracticeWorkflowModels(settings.practiceWorkflowModels),
+    });
+    const systemChannels = routing.systemChannels;
+    const logicalModels = normalizeLogicalModels(routing.logicalModels, systemChannels);
     const site = normalizeSiteSettings(settings.site);
     return {
         site,
@@ -261,12 +268,26 @@ export function normalizeSettings(settings: AuthSettings): AuthSettings {
         logicalModels,
         defaultModels: normalizeDefaultModelsConfig(settings.defaultModels, logicalModels, systemChannels),
         practiceDefaultModels: normalizeDefaultModelsConfig(settings.practiceDefaultModels, logicalModels, systemChannels, "open-source-practice", { allowFallback: false }),
-        practiceWorkflowModels: normalizePracticeWorkflowModels(settings.practiceWorkflowModels),
+        practiceWorkflowModels: routing.practiceWorkflowModels,
+        practiceModuleVisibility: normalizePracticeModuleVisibility(settings.practiceModuleVisibility),
         agentSkills: normalizeAgentSkills(settings.agentSkills),
         featureModules: normalizeFeatureModuleSettings(settings.featureModules),
     };
 }
 
+export function normalizePracticeModuleVisibility(value: unknown): NonNullable<AuthSettings["practiceModuleVisibility"]> {
+    const input = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+    return {
+        canvas: input.canvas === true,
+        drama: input.drama === true,
+        character: input.character !== false,
+        scene: input.scene !== false,
+        prop: input.prop !== false,
+        "storyboard-image": input["storyboard-image"] !== false,
+        "storyboard-video": input["storyboard-video"] !== false,
+        dubbing: input.dubbing !== false,
+    };
+}
 export function normalizePracticeWorkflowModels(value: unknown): PracticeWorkflowModelBindings {
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const allowed = new Set<RunningHubWorkflowBusinessCode>(["script", "storyboard-image", "storyboard-video", "dubbing", "music", "canvas", "drama"]);
@@ -509,9 +530,35 @@ export function normalizeSiteSettings(settings: Partial<SiteSettings> | undefine
         termsVersion: normalizeText(settings?.termsVersion, DEFAULT_SITE_SETTINGS.termsVersion, 80),
         privacyUrl: normalizeLinkUrl(settings?.privacyUrl, DEFAULT_SITE_SETTINGS.privacyUrl),
         privacyVersion: normalizeText(settings?.privacyVersion, DEFAULT_SITE_SETTINGS.privacyVersion, 80),
+        loginPage: normalizeLoginPageSettings(settings?.loginPage),
         friendLinks: normalizeSiteFriendLinks(settings?.friendLinks, title),
         socials: normalizeSiteSocials(settings?.socials),
     };
+}
+
+export function normalizeLoginPageSettings(settings: Partial<SiteSettings["loginPage"]> | undefined): SiteSettings["loginPage"] {
+    const fallback = DEFAULT_SITE_SETTINGS.loginPage;
+    return {
+        heroVideoUrl: normalizeLoginMediaUrl(settings?.heroVideoUrl, fallback.heroVideoUrl),
+        heroPosterUrl: normalizeLoginMediaUrl(settings?.heroPosterUrl, fallback.heroPosterUrl),
+        jointBrandUrl: normalizeLoginMediaUrl(settings?.jointBrandUrl, fallback.jointBrandUrl),
+        slogan: normalizeText(settings?.slogan, fallback.slogan, 40),
+        platformName: normalizeText(settings?.platformName, fallback.platformName, 80),
+        footerOrganization: normalizeOptionalSiteText(settings?.footerOrganization, 120),
+        servicePhone: normalizeOptionalSiteText(settings?.servicePhone, 40),
+        serviceHours: normalizeOptionalSiteText(settings?.serviceHours, 80),
+    };
+}
+
+export function normalizeLoginMediaUrl(value: unknown, fallback: string) {
+    const url = typeof value === "string" ? value.trim() : "";
+    if (url.startsWith("/") && !url.startsWith("//")) return url.slice(0, 2000);
+    if (url.startsWith("https://")) return url.slice(0, 2000);
+    return fallback;
+}
+
+function normalizeOptionalSiteText(value: unknown, maxLength: number) {
+    return (typeof value === "string" ? repairKnownMojibakeText(value.trim()) : "").slice(0, maxLength);
 }
 
 function normalizeBrandDefault(value: unknown, defaultValue: string, siteTitle: string, fallback: string, maxLength: number) {

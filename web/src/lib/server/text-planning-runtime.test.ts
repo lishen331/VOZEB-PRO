@@ -2,19 +2,35 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SystemChannelAdvancedConfig, SystemModelChannel } from "@/lib/auth/store";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
+import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { getTextPlanningRuntime, isStructuredTextFailure, rankTextPlanningCandidates, requestStructuredText, resetTextPlanningRuntime, type TextPlanningCandidate } from "./text-planning-runtime";
 
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: vi.fn() }));
 vi.mock("@/lib/server/channel-runtime-health", () => ({ recordChannelRuntimeFailure: vi.fn(), recordChannelRuntimeSuccess: vi.fn() }));
+vi.mock("@/lib/server/maintenance-auth", () => ({ maintenanceWorkerContextHeaders: vi.fn(() => null) }));
 
 const mockedFetch = vi.mocked(fetchInternalApi);
+const mockedWorkerHeaders = vi.mocked(maintenanceWorkerContextHeaders);
 const tool = { name: "make_plan", description: "创建计划", parameters: { type: "object", properties: { result: { type: "string" } } } };
 
 describe("text planning runtime protocol matrix", () => {
     beforeEach(() => {
         resetTextPlanningRuntime();
         mockedFetch.mockReset();
+        mockedWorkerHeaders.mockReset().mockReturnValue(null);
         vi.useRealTimers();
+    });
+
+    it("forwards signed worker context as proxy authentication headers", async () => {
+        mockedFetch.mockResolvedValue(chatJsonResponse());
+        mockedWorkerHeaders.mockReturnValue({ authorization: "Bearer worker-token", "x-vozeb-pro-worker-user-id": "user-one" });
+
+        await requestStructuredText({ ...requestInput(candidate("newapi")), cookie: "vozeb-worker-v1.context.signature" });
+
+        const headers = new Headers(mockedFetch.mock.calls[0]?.[1]?.headers);
+        expect(headers.get("cookie")).toBe("vozeb-worker-v1.context.signature");
+        expect(headers.get("authorization")).toBe("Bearer worker-token");
+        expect(headers.get("x-vozeb-pro-worker-user-id")).toBe("user-one");
     });
 
     it.each(["openai", "sub2api", "newapi"] as const)("%s 严格预设直接使用基础 Chat", async (protocol) => {

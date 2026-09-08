@@ -17,6 +17,7 @@ const ACCEPT: Record<IpAssetKind, string> = {
 };
 
 export function IpContentUpload({
+    variant = "default",
     ipId,
     subIpId,
     kind,
@@ -27,6 +28,7 @@ export function IpContentUpload({
     onDeleted,
     disabled = false,
 }: {
+    variant?: "default" | "cover";
     ipId: string;
     subIpId: string;
     kind: IpAssetKind;
@@ -70,7 +72,7 @@ export function IpContentUpload({
         }
     };
     return (
-        <div className="space-y-2">
+        <div className={variant === "cover" ? "w-full max-w-[30rem] space-y-3" : "space-y-2"}>
             <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <Select
                     allowClear
@@ -118,7 +120,9 @@ export function IpContentUpload({
                             </Tooltip>
                         </div>
                     </div>
-                    <IpContentPreview ipId={ipId} file={selected} compact />
+                    <div className={variant === "cover" && selected.kind === "image" ? "flex aspect-[4/3] w-full max-w-[22rem] items-center justify-center overflow-hidden rounded-lg bg-zinc-50 p-2 dark:bg-zinc-900" : undefined}>
+                        <IpContentPreview ipId={ipId} file={selected} compact />
+                    </div>
                 </div>
             ) : null}
         </div>

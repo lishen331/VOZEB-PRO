@@ -1,6 +1,7 @@
 import type { PublicProcessSnapshot } from "@/lib/practice-domain";
 
 export type WorkPublicationSourceType = "media" | "canvas" | "drama";
+export type WorkPublicationOrigin = "user_submission" | "official";
 export type WorkPublicationLifecycleStatus = "active" | "revoked";
 export type WorkPublicationVisibility = "private" | "unlisted" | "public";
 export type WorkPublicationModerationStatus = "draft" | "pending" | "approved" | "rejected" | "taken_down";
@@ -56,6 +57,7 @@ export type WorkPublication = {
     slug: string;
     sourceType: WorkPublicationSourceType;
     sourceId: string;
+    publicationOrigin: WorkPublicationOrigin;
     lifecycleStatus: WorkPublicationLifecycleStatus;
     currentVersionId?: string;
     publishedVersionId?: string;
@@ -106,6 +108,27 @@ export type WorkPublicationSource = {
     candidates: WorkPublicationMediaCandidate[];
 };
 
+export type OfficialWorkDraftInput = {
+    title: string;
+    description: string;
+    publicPrompt: string;
+    category: string;
+    tags: string[];
+    authorDisplay: "custom" | "hidden";
+    authorName?: string;
+    coverStorageKey?: string;
+    assetStorageKeys: string[];
+};
+
+export type OfficialWorkMedia = {
+    storageKey: string;
+    mediaType: WorkPublicationMediaType;
+    mimeType: string;
+    originalName: string;
+    bytes: number;
+    previewUrl: string;
+};
+
 export type WorkPublicationDraftInput = {
     sourceType: WorkPublicationSourceType;
     sourceId: string;
@@ -132,6 +155,7 @@ export type PublicWorkPublication = {
     id: string;
     slug: string;
     sourceType: WorkPublicationSourceType;
+    publicationOrigin: WorkPublicationOrigin;
     viewCount: number;
     likeCount: number;
     publishedAt: string;
@@ -216,8 +240,42 @@ export function deleteWorkPublication(id: string) {
     return requestWorkPublication<{ deletedId: string }>(`/api/works/${encodeURIComponent(id)}`, { method: "DELETE" }).then((data) => data.deletedId);
 }
 
-export function listAdminWorkPublications(input: { page?: number; pageSize?: number; status?: WorkPublicationModerationStatus; lifecycleStatus?: WorkPublicationLifecycleStatus; keyword?: string } = {}) {
+export function listAdminWorkPublications(input: { page?: number; pageSize?: number; status?: WorkPublicationModerationStatus; lifecycleStatus?: WorkPublicationLifecycleStatus; origin?: WorkPublicationOrigin; keyword?: string } = {}) {
     return requestWorkPublication<WorkPublicationPage>(`/api/admin/works?${searchParams(input)}`);
+}
+
+export function createOfficialWork(input: OfficialWorkDraftInput) {
+    return requestWorkPublication<{ work: WorkPublication }>("/api/admin/works", jsonRequest("POST", input)).then((data) => data.work);
+}
+
+export function updateOfficialWork(id: string, input: OfficialWorkDraftInput) {
+    return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}`, jsonRequest("PATCH", input)).then((data) => data.work);
+}
+
+export function publishOfficialWork(id: string, versionId: string) {
+    return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}/publish`, jsonRequest("POST", { versionId })).then((data) => data.work);
+}
+
+export function relistOfficialWork(id: string) {
+    return requestWorkPublication<{ work: WorkPublication }>(`/api/admin/works/${encodeURIComponent(id)}/relist`, { method: "POST" }).then((data) => data.work);
+}
+
+export function listOfficialWorkMedia(input: { page?: number; pageSize?: number; type?: WorkPublicationMediaType; keyword?: string } = {}) {
+    return requestWorkPublication<{ items: OfficialWorkMedia[]; total: number; page: number; pageSize: number }>(`/api/admin/works/media?${searchParams(input)}`);
+}
+
+export function uploadOfficialWorkMedia(file: File) {
+    const form = new FormData();
+    form.set("file", file);
+    return requestWorkPublication<OfficialWorkMedia>("/api/admin/works/media", { method: "POST", body: form });
+}
+
+export function deleteOfficialWorkMedia(storageKeys: string[]) {
+    return requestWorkPublication<{ deletedFiles: number; blocked: Array<{ storageKey: string; referenceCount: number }> }>("/api/admin/works/media", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storageKeys }),
+    });
 }
 
 export function reviewAdminWorkPublication(id: string, input: { versionId: string; decision: "approved" | "rejected"; reason?: string }) {

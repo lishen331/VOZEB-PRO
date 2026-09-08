@@ -1,3 +1,4 @@
+import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
@@ -7,7 +8,7 @@ import { acquireMediaConcurrency, withMediaConcurrency } from "@/lib/server/medi
 import { verifyReferenceAssetSignature } from "@/lib/server/reference-asset-access";
 import { createLocalMediaResponse, createMediaHeadResponse, mediaContentDisposition } from "@/lib/server/local-media-response";
 import { getLocalMediaRegistration, isLocalMediaRegistrationExpired, type LocalMediaRegistration } from "@/lib/server/local-media-registry";
-import { createExternalMediaReadUrl } from "@/lib/server/object-storage-service";
+import { createExternalMediaReadUrl, readRegisteredMediaBytes } from "@/lib/server/object-storage-service";
 import { isReferenceAssetPath, readReferenceAsset } from "@/lib/server/reference-asset-store";
 import { checkLocalMediaRateLimit, rateLimitHeaders } from "@/lib/server/security";
 
@@ -72,6 +73,13 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
     if (!permit) return NextResponse.json({ code: 429, data: null, msg: "媒体并发访问过多，请稍后重试" }, { status: 429, headers: { "Retry-After": "2" } });
     if (registration.storageProvider === "object") {
         try {
+            // WebGL/canvas pixel reads require an origin-clean response. Normal
+            // display still redirects to OSS; only explicit canvas reads use bytes.
+            if (url.searchParams.get("render") === "canvas" && registration.mimeType.startsWith("image/")) {
+                const bytes = await readRegisteredMediaBytes(registration, CREATIVE_UPLOAD_MAX_BYTES);
+                const response = new Response(new Uint8Array(bytes), { headers: { "Content-Type": registration.mimeType, "Content-Length": String(bytes.length), "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
+                return withMediaConcurrency(response, permit, request.signal);
+            }
             const externalUrl = await createExternalMediaReadUrl(request, registration);
             permit.release();
             return externalUrl ? externalMediaRedirect(externalUrl) : NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });

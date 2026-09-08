@@ -30,7 +30,7 @@ export default defineConfig({
         {
             name: "chromium",
             testMatch: [
-                /(?:admin-runninghub-workflow(?:-test|-discovery)?|admin-school-member-points|all-pages|canvas|commerce|core|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-module-workbenches|infinite-practice-runninghub-workflow|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
+                /(?:admin-official-work-publishing|admin-runninghub-workflow(?:-test|-discovery)?|admin-school-member-points|all-pages|canvas|commerce|core|creative-video-result|drama-lab-phase4|home|infinite-practice|infinite-practice-module-workbenches|infinite-practice-runninghub-workflow|ip-library|responsive|school-compute|school-education)\.spec\.ts/,
             ],
             dependencies: ["setup"],
             use: { ...devices["Desktop Chrome"], storageState },

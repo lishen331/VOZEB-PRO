@@ -7,6 +7,7 @@ export function proxy(request: NextRequest) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
     requestHeaders.set("content-security-policy", contentSecurityPolicy);
+    if (!request.nextUrl.pathname.startsWith("/api/")) requestHeaders.set("x-vozeb-login-next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
 
     if (!request.nextUrl.pathname.startsWith("/api/") || request.nextUrl.pathname.startsWith("/api/billing/webhooks/") || ["GET", "HEAD", "OPTIONS"].includes(request.method)) {
         return securedNextResponse(requestHeaders, contentSecurityPolicy);

@@ -94,6 +94,16 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     termsVersion: "1.0",
     privacyUrl: "/privacy",
     privacyVersion: "1.0",
+    loginPage: {
+        heroVideoUrl: "/login/hero.mp4",
+        heroPosterUrl: "/login/hero-poster.webp",
+        jointBrandUrl: "/login/joint-brand.webp",
+        slogan: "以热爱，燃未来",
+        platformName: "AIGC 智能影像教学平台",
+        footerOrganization: "",
+        servicePhone: "",
+        serviceHours: "",
+    },
     friendLinks: DEFAULT_SITE_FRIEND_LINKS,
     socials: DEFAULT_SITE_SOCIALS,
 };
@@ -176,6 +186,16 @@ export const DEFAULT_SETTINGS: AuthSettings = {
     defaultModels: { imageModel: "", videoModel: "", textModel: "", visionModel: "", audioModel: "" },
     practiceDefaultModels: { imageModel: "", videoModel: "", textModel: "", visionModel: "", audioModel: "" },
     practiceWorkflowModels: {},
+    practiceModuleVisibility: {
+        canvas: false,
+        drama: false,
+        character: true,
+        scene: true,
+        prop: true,
+        "storyboard-image": true,
+        "storyboard-video": true,
+        dubbing: true,
+    },
     agentSkills: [
         { ...ECOMMERCE_IMAGE_SKILL, keywords: [...ECOMMERCE_IMAGE_SKILL.keywords], workspaces: [...ECOMMERCE_IMAGE_SKILL.workspaces] },
         { ...YANAI_BEAUTY_SKILL, keywords: [...YANAI_BEAUTY_SKILL.keywords], workspaces: [...YANAI_BEAUTY_SKILL.workspaces] },

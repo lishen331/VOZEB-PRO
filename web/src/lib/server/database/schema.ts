@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
     default_models jsonb NOT NULL DEFAULT '{}'::jsonb,
     practice_default_models jsonb NOT NULL DEFAULT '{}'::jsonb,
     practice_workflow_models jsonb NOT NULL DEFAULT '{}'::jsonb,
+    practice_module_visibility jsonb NOT NULL DEFAULT '{"canvas":false,"drama":false,"character":true,"scene":true,"prop":true,"storyboard-image":true,"storyboard-video":true,"dubbing":true}'::jsonb,
     agent_skills jsonb NOT NULL DEFAULT '[{"id":"ecommerce-image","name":"电商生图","description":"为商品主图、场景图和详情页视觉生成结构化方案。","instructions":"识别商品卖点、目标人群、平台与画幅。优先规划白底主图、核心卖点场景图、细节特写和详情页横幅；保持商品外观、材质、颜色、Logo 与包装一致。提示词必须写清主体、构图、光线、背景、镜头、商业质感、尺寸比例与禁止变形要求。","enabled":true,"keywords":["电商","商品","主图","详情页","淘宝","京东","亚马逊"]}]'::jsonb,
     feature_modules jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -109,6 +110,7 @@ ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS generation_cost_control jsonb 
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS data_lifecycle jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_default_models jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_workflow_models jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_module_visibility jsonb NOT NULL DEFAULT '{"canvas":false,"drama":false,"character":true,"scene":true,"prop":true,"storyboard-image":true,"storyboard-video":true,"dubbing":true}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS feature_modules jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS system_model_channels (
@@ -1122,6 +1124,6 @@ ${POSTGRESQL_TRIGGER_SCHEMA_SQL}
 ${DRAMA_LAB_SCHEMA_SQL}
 
 INSERT INTO schema_migrations (version)
-VALUES ('20260709_postgresql_commercial_base'), ('20260709_billing_foundation'), ('20260709_billing_checkout'), ('20260709_commercial_seed_products'), ('20260709_vozeb_pro_table_prefix'), ('20260711_generation_tasks'), ('20260716_billing_reconciliation'), ('20260725_account_deletion_requests'), ('20260726_promotion_coupon_commerce'), ('20260727_referral_growth_rewards'), ('20260727_work_publications'), ('20260727_work_community'), ('20260728_user_blocks'), ('20260820_drama_lab_integration')
+VALUES ('20260709_postgresql_commercial_base'), ('20260709_billing_foundation'), ('20260709_billing_checkout'), ('20260709_commercial_seed_products'), ('20260709_vozeb_pro_table_prefix'), ('20260711_generation_tasks'), ('20260716_billing_reconciliation'), ('20260725_account_deletion_requests'), ('20260726_promotion_coupon_commerce'), ('20260727_referral_growth_rewards'), ('20260727_work_publications'), ('20260727_work_community'), ('20260728_user_blocks'), ('20260820_drama_lab_integration'), ('20260908_official_work_publication')
 ON CONFLICT (version) DO NOTHING;
 `;

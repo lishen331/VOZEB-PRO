@@ -479,9 +479,38 @@ describe("video generation candidate failover", () => {
         expect(response.status).toBe(200);
         expect(upstreamBody).toMatchObject({ model: "video-one", duration: 10, ratio: "9:16", image: "https://cdn.example.com/reference.jpg" });
         expect(upstreamBody.prompt).toContain("A test video");
-        expect(upstreamBody.prompt).toContain("将参考图作为首帧、主体身份、外观和场景的主要依据");
+        expect(upstreamBody.prompt).toContain("作为主体身份、外观和场景的参考依据");
         expect(upstreamBody.prompt).toContain("禁止替换主体");
         expect(upstreamBody.images).toEqual(["https://cdn.example.com/reference.jpg"]);
+    });
+
+    it("sends New API storyboard references, duration and ratio without dropping them", async () => {
+        const configured = publicUrlCompatibleSettings();
+        const model = "video-one";
+        configured.logicalModels[0].bindings = [{ ...configured.logicalModels[0].bindings[0], upstreamModel: model }];
+        configured.systemChannels[0].advancedConfig = {
+            ...configured.systemChannels[0].advancedConfig,
+            protocol: "newapi",
+            requestTemplate:
+                '{"model":"{{model}}","prompt":"{{prompt}}","duration":"{{duration}}","seconds":"{{seconds_string}}","ratio":"{{ratio}}","aspect_ratio":"{{aspect_ratio}}","image":"{{image}}","input_reference":"{{image}}","images":"{{images}}","content":"{{content}}","metadata":{"ratio":"{{ratio}}","aspect_ratio":"{{aspect_ratio}}","duration":"{{duration}}","resolution":"{{resolution}}","generate_audio":"{{generate_audio}}","watermark":"{{watermark}}"}}',
+        };
+        mocks.getAuthSettings.mockResolvedValue(configured);
+        mocks.fetchInternalApi.mockResolvedValue(json({ id: "storyboard-video", status: "queued" }));
+        const response = await POST(request({ model: "video", videoSeconds: "10", size: "16:9", vquality: "720" }, [{ type: "image", role: "reference", url: "https://cdn.example.com/storyboard.png" }]));
+        expect(response.status).toBe(200);
+        const body = JSON.parse(String(mocks.fetchInternalApi.mock.calls[0][1].body));
+        expect(body).toMatchObject({
+            seconds: "10",
+            duration: 10,
+            ratio: "16:9",
+            aspect_ratio: "16:9",
+            image: "https://cdn.example.com/storyboard.png",
+            input_reference: "https://cdn.example.com/storyboard.png",
+            images: ["https://cdn.example.com/storyboard.png"],
+            metadata: { ratio: "16:9", aspect_ratio: "16:9", duration: 10, resolution: "720p" },
+        });
+        expect(body.prompt).toContain("A test video");
+        expect(body.prompt).not.toContain("作为首帧");
     });
 
     it("sends a compatible text-to-video request without empty reference fields", async () => {

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
     disposition: vi.fn(),
     rate: vi.fn(),
     externalRead: vi.fn(),
+    readBytes: vi.fn(),
     acquire: vi.fn(),
     wrap: vi.fn(),
     head: vi.fn(),
@@ -27,7 +28,7 @@ vi.mock("@/lib/server/local-media-response", () => ({
 }));
 vi.mock("@/lib/server/media-concurrency", () => ({ acquireMediaConcurrency: mocks.acquire, withMediaConcurrency: mocks.wrap }));
 vi.mock("@/lib/server/security", () => ({ checkLocalMediaRateLimit: mocks.rate, rateLimitHeaders: vi.fn(() => ({ "Retry-After": "60" })) }));
-vi.mock("@/lib/server/object-storage-service", () => ({ createExternalMediaReadUrl: mocks.externalRead }));
+vi.mock("@/lib/server/object-storage-service", () => ({ createExternalMediaReadUrl: mocks.externalRead, readRegisteredMediaBytes: mocks.readBytes }));
 vi.mock("@/lib/server/reference-asset-access", () => ({ verifyGenerationAssetSignature: mocks.verify }));
 
 import { GET, HEAD } from "./route";
@@ -49,6 +50,19 @@ describe("generation log asset access", () => {
         mocks.acquire.mockReturnValue({ release: mocks.release });
         mocks.wrap.mockImplementation((response: Response) => response);
         mocks.head.mockReturnValue(new Response(null, { status: 200, headers: { "Content-Type": "image/png", "Content-Length": "5" } }));
+    });
+
+    it("serves object images without a cross-origin redirect for canvas reads", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "owner", role: "user" });
+        mocks.registration.mockResolvedValue({ ownerUserId: "owner", originalName: "file.png", mimeType: "image/png", storageProvider: "object", bytes: 4 });
+        mocks.readBytes.mockResolvedValue(Buffer.from([137, 80, 78, 71]));
+        const response = await GET(new Request("http://localhost/api/generation-log-assets/permanent/2026/07/20/images/file.png?render=canvas"), context);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("location")).toBeNull();
+        expect(response.headers.get("content-type")).toBe("image/png");
+        expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([137, 80, 78, 71]));
+        expect(mocks.externalRead).not.toHaveBeenCalled();
+        expect(mocks.readBytes).toHaveBeenCalledWith(expect.objectContaining({ storageProvider: "object" }), 20 * 1024 * 1024);
     });
 
     it("redirects an allowed object-backed asset", async () => {

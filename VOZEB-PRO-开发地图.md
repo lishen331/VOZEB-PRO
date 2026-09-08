@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-09-07，`develop` 分支。当前源码包含 51 个 `page.tsx` 页面入口、335 个 API Route 文件和 117 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-09-08，`develop` 分支。当前源码包含 52 个 `page.tsx` 页面入口、341 个 API Route 文件和 117 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -365,3 +365,11 @@ flowchart LR
 - [项目结构与流程](docs/content/docs/overview/project-structure.mdx)：上游维护的结构说明。
 - [配置说明](docs/content/docs/overview/configuration.mdx)：环境变量和后台配置。
 - [Docker 部署](docs/content/docs/overview/docker.mdx)：官方 Compose 部署说明。
+
+
+### 无限练习工作台（2026-09-08）
+
+- `web/src/app/(user)/practice/components/practice-module-workbench.tsx`：六模块共用桌面输入/结果双栏，窄屏上下排列，使用平台主题。
+- `practice-character-panel.tsx`：主形象/多视图按选中模型和 workflowCode 独立选择参数及默认尺寸，不合并两条 Schema。
+- `practice-media-input.tsx`、`practice-prompt-editor.tsx`：复用真实素材上传与后台默认文本模型提示词优化；优化结果可编辑，不自动提交生成。
+- `/api/practice/modules`：workflowOptions 携带对应工作流的公开 inputSchema；角色模型选项携带自身工作流列表；自动内部模型展示渠道与能力名称，不冒充某一工作流。
