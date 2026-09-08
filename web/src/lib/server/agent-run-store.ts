@@ -394,7 +394,7 @@ function assistantUpdate(run: AgentRun, event?: { type: string; data?: unknown }
     if (event?.type.startsWith("run.review.")) return undefined;
     if (event?.type === "run.retry.requested") return { status: "running" as const, content: "正在重新分析并执行这次请求…" };
     if (run.status === "running" && event?.type === "task.retry.requested") return { status: "running" as const, content: "正在重新生成失败任务…" };
-    if (run.status === "completed") {
+    if (run.status === "completed" || run.status === "partial_success") {
         return {
             status: "completed" as const,
             content: typeof data.reply === "string" && data.reply.trim() ? data.reply.trim() : "创作任务已完成。",
