@@ -193,7 +193,7 @@ describe("runninghub workflow service", () => {
         expect(channel?.models).toContain(logicalModelId);
         expect(channel?.advancedConfig?.modelCapabilities?.[logicalModelId!]).toBe(candidate.capability);
         expect(channel && runningHubChannelValidationErrors(channel)).toEqual([]);
-        expect(resolvePracticeModuleModelOptions({ ...current, ...patch } as AuthSettings, "storyboard-image")).toEqual([{ id: logicalModelId, label: candidate.workflowName }]);
+        expect(resolvePracticeModuleModelOptions({ ...current, ...patch } as AuthSettings, "storyboard-image")).toEqual([{ id: logicalModelId, label: "练习 RunningHub · 图片" }]);
         expect(patch.logicalModels).toContainEqual(
             expect.objectContaining({
                 id: logicalModelId,

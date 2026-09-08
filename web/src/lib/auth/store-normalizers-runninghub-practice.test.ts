@@ -72,7 +72,7 @@ describe("legacy RunningHub practice workflow routing", () => {
         expect(normalized.practiceWorkflowModels["storyboard-image"]).toEqual([modelId]);
         expect(normalized.systemChannels[0].models).toContain(modelId);
         expect(normalized.logicalModels).toContainEqual(expect.objectContaining({ id: modelId, capability: "image", enabled: true }));
-        expect(resolvePracticeModuleModelOptions(normalized, "prop")).toEqual([{ id: modelId, label: "道具主视图 v1" }]);
+        expect(resolvePracticeModuleModelOptions(normalized, "prop")).toEqual([{ id: modelId, label: "RunningHub 无限练习 · 图片" }]);
         expect(resolvePracticeModelFromSettings(normalized, "prop", modelId, "prop_main_view")).toMatchObject({ logicalModelId: modelId, capability: "image", workflow: { workflowCode: "prop_main_view" } });
     });
 });

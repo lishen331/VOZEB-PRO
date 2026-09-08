@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ fetchInternalApi: vi.fn() }));
 
@@ -10,9 +10,19 @@ vi.mock("@/lib/server/internal-origin", () => ({
 import { emptyAdvancedConfig } from "@/lib/channel-protocol-registry";
 import type { ImageTask } from "@/lib/server/image-task-store";
 import { readVerifiedSystemAiBusinessRequestId } from "@/lib/server/system-ai-billing";
-import { pollCustomImageTask, resolveDeclarativeImageSize } from "./image-task-custom";
+import { runCustomImageTask, pollCustomImageTask, resolveDeclarativeImageSize } from "./image-task-custom";
+
+import { sanitizeAdvancedConfig } from "./image-task-support";
 
 describe("declarative image request size", () => {
+    beforeEach(() => vi.clearAllMocks());
+    it("preserves the RunningHub task ID field through sanitization before submission", async () => {
+        const advancedConfig = sanitizeAdvancedConfig({ ...emptyAdvancedConfig(), protocol: "runninghub", createPath: "/create", queryPath: "/query", taskIdField: "data.taskId", resultField: "data.results", statusField: "data.status" });
+        expect(advancedConfig).toMatchObject({ taskIdField: "data.taskId" });
+        mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ code: 0, data: { taskId: "same-upstream-task", status: "RUNNING" } }));
+        const task = { id: "rh-submit", userId: "user", kind: "generation", prompt: "test", references: [], config: { baseUrl: "/api/ai/system/rh", apiKey: "system", apiFormat: "openai", model: "rh-image", advancedConfig } } as unknown as ImageTask;
+        await expect(runCustomImageTask(task, "http://localhost", "http://localhost", "", true)).resolves.toMatchObject({ pending: { id: "same-upstream-task" } });
+    });
     it("does not turn Stable Diffusion intelligent requests into a square size", () => {
         expect(resolveDeclarativeImageSize({ quality: "auto", size: "auto", advancedConfig: { ...emptyAdvancedConfig(), protocol: "stable-diffusion" } })).toBe("");
     });

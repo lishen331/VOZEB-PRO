@@ -107,6 +107,7 @@ describe("practice sessions", () => {
 
     it("accepts Demo asset modules and blocks character multi-view without a source image", () => {
         const workflow = { workflowCode: "character_multi_view", inputSchema: [{ key: "referenceImage", label: "参考图", type: "image", required: true }] } as never;
+        expect(normalizePracticeModuleInput("character", { prompt: "", workflowCode: "character_multi_view" }, [{ type: "asset", id: "asset-main" }], workflow)).toMatchObject({ input: { prompt: "" } });
         expect(() => normalizePracticeModuleInput("character", { prompt: "角色", workflowCode: "character_multi_view" }, [], workflow)).toThrow("参考图");
         expect(normalizePracticeModuleInput("character", { prompt: "角色", workflowCode: "character_multi_view" }, [{ type: "asset", id: "asset-main" }], workflow)).toMatchObject({ input: { prompt: "角色", workflowCode: "character_multi_view" } });
     });
