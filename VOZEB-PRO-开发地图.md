@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-09-08，`develop` 分支。当前源码包含 52 个 `page.tsx` 页面入口、337 个 API Route 文件和 117 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-09-08，`develop` 分支。当前源码包含 52 个 `page.tsx` 页面入口、342 个 API Route 文件和 117 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -365,3 +365,9 @@ flowchart LR
 - [项目结构与流程](docs/content/docs/overview/project-structure.mdx)：上游维护的结构说明。
 - [配置说明](docs/content/docs/overview/configuration.mdx)：环境变量和后台配置。
 - [Docker 部署](docs/content/docs/overview/docker.mdx)：官方 Compose 部署说明。
+
+## 普通画布 Agent 结果恢复（开发分支）
+
+普通画布进入时由客户端 `getCanvasProject` 发起 `POST /api/canvas/projects/[id]/recover-agent-results`，复用现有任务/事件持久记录，通过 `canvas-agent-recovery-service` 与 `canvas-agent-result-recovery` 生成差异。`mutateCanvasProjectForRecovery` 在 PostgreSQL 行锁事务或文件锁下合并，结果、对话与服务器私有回执同次保存。现有 GET 保持只读，主 Agent 与短剧专属画布不使用该路径。
+
+恢复回执存于既有 `project_json.__canvasAgentReceipts`，无表结构迁移；公共返回剥离，普通保存保留服务器值，导入不能伪造。当前实现为**进入时补齐**，不是生成完成时主动落入画布；未使用定时轮询。版本冲突保护适用于此恢复入口，不代表正在打开页面的旧 SSE 写入已整体改造。生成记录的现有保留期限仍约束可恢复范围。
