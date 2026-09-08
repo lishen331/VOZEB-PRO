@@ -275,7 +275,7 @@ Schema 初始化在 [schema.ts](web/src/lib/server/database/schema.ts)、[schema
 | --- | --- | --- | --- | --- | --- |
 | 安装与健康 | `/install` | `/api/install`、`/api/health` | `install-status`、数据库初始化 | PostgreSQL、安装令牌 | 安装状态、live/ready |
 | 认证与账户 | 登录、注册、Profile | `/api/auth` | `lib/auth`、Profile/Deletion Service | 用户、Session、SMTP | 注册登录、Cookie、并发修改 |
-| 创建工作台 | `/create` | `/api/create`、`/api/agent` | Agent Executor、Creative Runtime、`agent-planner-media.ts`（授权媒体读取及多模态输入） | 生成任务、模型上游 | Agent run、事件流、重试 |
+| 创建工作台 | `/create` | `/api/create`、`/api/agent` | Agent Executor、Creative Runtime、`agent-planner-media.ts`（授权媒体读取及多模态输入） | 生成任务、模型上游 | Agent run、事件流、重试；`agent-run-recheck.ts` 仅恢复原子任务，未知提交不重新生成 |
 | 图像/视频/音频/文本 | `/image`、`/video` | `/*-tasks`、`/video-generation-tasks` | 各类型 config/runtime/store/refund | 积分、Worker、模型、媒体 | 创建、轮询、取消、退款 |
 | Canvas | `/canvas` | `/api/canvas` | Canvas Project Service/Store | `canvas_projects` | 普通画布 CRUD、所有权、短剧专属画布隔离 |
 | 短剧 | `/drama`、`/drama-lab`、`/drama-canvas/[id]` | `/api/drama`、`/api/drama-lab` | Drama Project、Episode Canvas、Analysis、Render、Jianying | `drama_projects`、按集隔离的 `canvas_projects`、FFmpeg、生成任务 | 分析、版本、一集一画布、剧集切换、渲染、导出 |

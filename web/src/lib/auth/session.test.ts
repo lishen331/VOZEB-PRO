@@ -98,6 +98,7 @@ describe("serializePublicSettings", () => {
                 models: ["vendor-image"],
                 enabled: true,
                 hasApiKey: true,
+                purpose: "shared",
             },
         ]);
         expect(result.logicalModels[0]?.bindings[0]).toEqual({ id: "binding-one", channelId: "channel-one", upstreamModel: "vendor-image", enabled: true, priority: 1 });

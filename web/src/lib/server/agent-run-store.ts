@@ -94,6 +94,8 @@ export type AgentRun = {
     assetIds: string[];
     status: AgentRunStatus;
     executionId?: string;
+    /** Explicit planning retries; worker redelivery keeps the same attempt. */
+    planningAttempt?: number;
     tasks: AgentRunTask[];
     foundation?: CreativeFoundation;
     projectHandoff?: CreativeProjectHandoffPlan;
@@ -302,7 +304,9 @@ export async function updateAgentRunById(
         id,
         TTL,
         (current) => {
-            const next = { ...current, ...patch, status: patch.status || current.status };
+            if (event?.type === "run.recheck.requested" && (current.status !== "paused" || current.cancellation)) return null;
+            if (event?.type === "run.retry.requested" && (current.status !== "failed" || current.tasks.length)) return null;
+            const next = { ...current, ...patch, status: patch.status || current.status, ...(event?.type === "run.retry.requested" ? { planningAttempt: (current.planningAttempt || 0) + 1 } : {}) };
             return { run: next, event, assistant: assistantUpdate(next, event) };
         },
         allowedStatuses,

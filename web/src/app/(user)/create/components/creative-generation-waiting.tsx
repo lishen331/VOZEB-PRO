@@ -22,7 +22,7 @@ export function CreativeGenerationWaiting({ run, message }: { run?: CreativeAgen
     }, [startedAt]);
 
     const elapsedSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
-    const copy = creativeGenerationWaitingCopy({ mode: creativeRunMode(run), runStatus: run?.status, progressText: message.content, elapsedSeconds });
+    const copy = creativeGenerationWaitingCopy({ mode: creativeRunMode(run), runStatus: run?.status, progressText: run?.tasks.some((task) => task.status === "needs_review") ? "上游结果待确认" : message.content, elapsedSeconds });
 
     return (
         <div data-testid="creative-generation-waiting" className="mb-3 max-w-[520px] py-1 text-[#667085] dark:text-[#a0a9b4]">
@@ -43,6 +43,7 @@ export function CreativeGenerationWaiting({ run, message }: { run?: CreativeAgen
 
 export function creativeGenerationWaitingCopy({ mode, runStatus, progressText, elapsedSeconds }: { mode?: "text" | "image" | "video" | "audio"; runStatus?: CreativeAgentRun["status"]; progressText: string; elapsedSeconds: number }) {
     const progress = progressText.trim();
+    if (progress.includes("上游结果待确认")) return "部分上游结果待确认，已完成产物已保留。请使用上方的重新检查入口，不要重复生成。";
     if (runStatus === "paused" || /任务已暂停/.test(progress)) return "主人，任务已经替你暂停，进度好好保存着，想继续时叫我就好。";
     if (/连接暂时中断|无法确认实时状态/.test(progress)) return "主人，连接刚刚有些不稳，不过任务仍在后台继续，我正在替你确认。";
     if (/连接已恢复|恢复连接/.test(progress)) return "主人，连接恢复啦，我会继续守着这次创作。";

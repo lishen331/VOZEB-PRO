@@ -151,7 +151,7 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
                     run.userId,
                     model,
                     false,
-                    systemAiIdempotencyKey("agent-plan", run.userId, run.id, candidate.channel.id, candidate.upstreamModel),
+                    systemAiIdempotencyKey("agent-plan", run.userId, run.id, String(claimed.planningAttempt || 0), candidate.channel.id, candidate.upstreamModel),
                     undefined,
                     undefined,
                     claimed.billingContext,

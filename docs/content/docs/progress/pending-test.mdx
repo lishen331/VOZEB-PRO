@@ -416,3 +416,5 @@ description: VOZEB PRO 当前版本需要人工或真实环境确认的事项
 - Agent修复已部署测试环境f24ebb12：原“浏览视频参数后纯文字变视频”线上回归通过；指定gpt-image-2-all单图及执行中刷新恢复通过。截图识别、参考图电商生成被上游测试令牌额度阻断；音频唯一候选仅属于练习渠道，已登记TODO。其他Skill、多模型、视频、取消/成功重试未完成，不能记为全能力通过。详见 [修复验收记录](../../../audits/agent-priority-fixes-verification.zh-CN.md)。
 
 - Agent真实上游续测记录见 [恢复后回归](../../../audits/agent-upstream-restored-regression.zh-CN.md)：截图识别原失败样例已通过，5秒图片动效视频可播放并可离页恢复，双参考图电商产物已生成。其余Skill、音频、双模型全成功、成功重试尚未完成；发现的问题转TODO，不能记全量验收通过。
+
+- Agent续测缺陷修复待验收：显式规划重试原子递增planningAttempt参与计费身份；Skill支持文字策划、必需参考在生成前及最终任务提交前校验；needs_review不再阻断其他已提交子项同步。页面增加原任务重新检查/取消入口、逐项状态，partial_success在SSE与Worker均视为终态；公开渠道用途用于排除正式工作台中的练习专用候选。新增检查复用旧子任务ID，无上游ID不重新生成或退款。代码测试不替代部署后原失败任务回归，见 [修复计划](../../../testing/agent-followup-fixes-plan.zh-CN.md)。

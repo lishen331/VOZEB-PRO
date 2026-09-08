@@ -703,6 +703,7 @@ export default function CreatePage() {
                                 materializingProjectId={agent.materializingProjectId}
                                 onMaterializeProject={agent.materializeProject}
                                 onRetryMessage={retryRound}
+                                onControlRun={agent.controlRun}
                                 selectedAssetIds={agent.selectedAssetIds}
                                 onToggleAsset={toggleReferencedAsset}
                                 hasOlder={agent.hasOlderMessages}

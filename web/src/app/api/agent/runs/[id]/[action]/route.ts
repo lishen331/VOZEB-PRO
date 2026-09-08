@@ -1,3 +1,4 @@
+import { recheckAgentRun } from "@/lib/server/agent-run-recheck";
 import { after, NextResponse } from "next/server";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -24,48 +25,57 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const expectedConversationId = typeof body?.conversationId === "string" ? body.conversationId.trim() : "";
     if (body?.conversationId !== undefined && !expectedConversationId) return NextResponse.json({ code: 400, data: null, msg: "对话标识无效" }, { status: 400 });
     const status = actions[action];
-    if (!status && action !== "retry" && action !== "cancel") return NextResponse.json({ code: 400, data: null, msg: "不支持的 Agent 操作" }, { status: 400 });
+    if (!status && action !== "retry" && action !== "cancel" && action !== "recheck") return NextResponse.json({ code: 400, data: null, msg: "不支持的 Agent 操作" }, { status: 400 });
     const run = await getAgentRun(id);
     if (!run || (run.userId !== user.id && user.role !== "admin")) return NextResponse.json({ code: 404, data: null, msg: "Agent 任务不存在" }, { status: 404 });
     if (expectedConversationId && run.conversationId !== expectedConversationId) return NextResponse.json({ code: 409, data: null, msg: "当前对话与 Agent 任务不匹配" }, { status: 409 });
     if (action === "retry" && (run.status !== "failed" || run.tasks.length)) return NextResponse.json({ code: 409, data: null, msg: "只有规划阶段失败的任务可以整体重试" }, { status: 409 });
+    if (action === "recheck" && (run.status !== "paused" || run.cancellation)) return NextResponse.json({ code: 409, data: null, msg: "当前任务不能重新检查" }, { status: 409 });
     if (action === "pause" && !["planning", "running"].includes(run.status)) return NextResponse.json({ code: 409, data: null, msg: "当前任务无法暂停" }, { status: 409 });
     if (action === "resume" && (run.status !== "paused" || run.cancellation)) return NextResponse.json({ code: 409, data: null, msg: run.cancellation ? "任务正在取消，无法恢复" : "只有暂停中的任务可以恢复" }, { status: 409 });
-    const limit = action === "resume" || action === "retry" ? (await getAuthSettings()).generationConcurrency.agent : 0;
-    if (action === "cancel" && ["completed", "failed", "cancelled"].includes(run.status)) return NextResponse.json({ code: 409, data: null, msg: "当前任务无法取消" }, { status: 409 });
+    const limit = action === "resume" || action === "retry" || action === "recheck" ? (await getAuthSettings()).generationConcurrency.agent : 0;
+    if (action === "cancel" && ["completed", "partial_success", "failed", "cancelled"].includes(run.status)) return NextResponse.json({ code: 409, data: null, msg: "当前任务无法取消" }, { status: 409 });
     if (action === "cancel") return cancelAgentRun(request, run);
     if (action !== "resume") abortAgentRun(run.id);
     const mutate = async () => ({
         updated:
-            action === "retry"
-                ? await updateAgentRunById(
-                      run.id,
-                      {
-                          status: "planning",
-                          executionId: undefined,
-                          tasks: [],
-                          foundation: undefined,
-                          projectHandoff: undefined,
-                          projectHandoffEmitted: undefined,
-                          review: undefined,
-                          reviewed: false,
-                          assetIds: [],
-                          failure: undefined,
-                          failureStage: undefined,
-                          candidateFailures: undefined,
-                      },
-                      { type: "run.retry.requested" },
-                      ["failed"],
-                  )
-                : await setAgentRunStatus(run, status!),
+            action === "recheck" || (action === "resume" && run.tasks.some((task) => task.status === "needs_review"))
+                ? await recheckAgentRun(run)
+                : action === "retry"
+                  ? await updateAgentRunById(
+                        run.id,
+                        {
+                            status: "planning",
+                            executionId: undefined,
+                            tasks: [],
+                            foundation: undefined,
+                            projectHandoff: undefined,
+                            projectHandoffEmitted: undefined,
+                            review: undefined,
+                            reviewed: false,
+                            assetIds: [],
+                            failure: undefined,
+                            failureStage: undefined,
+                            candidateFailures: undefined,
+                        },
+                        { type: "run.retry.requested" },
+                        ["failed"],
+                    )
+                  : await setAgentRunStatus(run, status!),
     });
-    const result = action === "resume" || action === "retry" ? await withGenerationConcurrencyLimit(run.userId, "agent", 10 * 60 * 1000, limit, mutate, run.id) : await mutate();
+    let result: Awaited<ReturnType<typeof mutate>> | null;
+    try {
+        result = action === "resume" || action === "retry" || action === "recheck" ? await withGenerationConcurrencyLimit(run.userId, "agent", 10 * 60 * 1000, limit, mutate, run.id) : await mutate();
+    } catch (error) {
+        if (action !== "recheck" && action !== "resume") throw error;
+        return NextResponse.json({ code: 409, data: null, msg: error instanceof Error ? error.message : "无法检查原任务" }, { status: 409 });
+    }
     if (result === null) return NextResponse.json({ code: 429, data: null, msg: `当前最多同时运行 ${limit} 个 Agent 任务` }, { status: 429 });
     const { updated } = result;
     if (!updated) return NextResponse.json({ code: 409, data: null, msg: "Agent 状态已变化，请刷新后重试" }, { status: 409 });
     const origin = resolveInternalOrigin(new URL(request.url).origin);
     const cookie = request.headers.get("cookie") || "";
-    if (action === "resume" || action === "retry") {
+    if ((action === "resume" || action === "retry" || action === "recheck") && updated.status !== "paused") {
         await scheduleGenerationTask("agent", updated.id, { executionPhase: "created", nextPollAt: Date.now(), lastUpstreamStatus: action });
         after(() => runGenerationTaskRecoveryBatch({ origin, cookie, limit: 1, taskIds: [updated.id] }));
     } else {
