@@ -1,3 +1,4 @@
+import { planCanvasAgentLayout, canvasLayoutGeometry } from "@/lib/canvas-agent-layout";
 import { describe, expect, it } from "vitest";
 import { CanvasNodeType } from "../types";
 import { applyCanvasAgentOps, type CanvasAgentSnapshot, type CanvasAgentOp } from "./canvas-agent-ops";
@@ -15,6 +16,14 @@ function apply(current: CanvasAgentSnapshot, guard: ReturnType<typeof createCanv
     return applyCanvasAgentOps(current, guardCanvasAgentLiveOps(current, ops, guard));
 }
 describe("live Canvas Agent result guard", () => {
+    it("does not reapply a layout event after the user undoes it", () => {
+        const guard = createCanvasAgentLiveGuard("run", original);
+        const operation = planCanvasAgentLayout("run", { type: "layout", scope: "all" }, { nodes: canvasLayoutGeometry(original.nodes), connections: [], selectedNodeIds: [] }, original.nodes);
+        const ops: CanvasAgentOp[] = [{ type: "layout_nodes", operation }];
+        expect(apply(original, guard, ops).nodes[0].position).not.toEqual(original.nodes[0].position);
+        expect(apply(original, guard, ops).nodes).toEqual(original.nodes);
+    });
+
     it("preserves each distinct retried conflict result instead of silently dropping it", () => {
         const guard = createCanvasAgentLiveGuard("run", original);
         const first = apply({ ...original, nodes: [] }, guard);

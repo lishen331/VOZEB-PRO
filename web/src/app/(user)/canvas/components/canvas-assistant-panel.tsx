@@ -5,6 +5,7 @@ import { ArrowDown, ArrowRight, Bot, Files, History, ImagePlus, Layers3, LayoutP
 import { App, Button, Modal, Tooltip } from "antd";
 import { motion } from "motion/react";
 
+import { canvasLayoutGeometry } from "@/lib/canvas-agent-layout";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { nanoid } from "nanoid";
 import { controlCreativeAgentRun, createCreativeAgentRun, listCreativeAgentRuns, retryCreativeAgentTask } from "@/services/api/creative";
@@ -274,7 +275,11 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                 conversationId: session.conversationId,
                 projectId: snapshotRef.current.projectId,
                 prompt: text,
-                snapshot: { ...runSnapshot, selectedNodeIds: canvasRunSelectedNodeIds(snapshotRef.current, submittedReferenceIds) },
+                snapshot: {
+                    ...runSnapshot,
+                    layout: { nodes: canvasLayoutGeometry(originalSnapshot.nodes), connections: originalSnapshot.connections, selectedNodeIds: originalSnapshot.selectedNodeIds },
+                    selectedNodeIds: canvasRunSelectedNodeIds(snapshotRef.current, submittedReferenceIds),
+                },
                 assetIds: [],
                 skillIds: selectedSkillId ? [selectedSkillId] : [],
                 modelIds: smartPlanning ? [] : selectedModelIds,
@@ -342,6 +347,16 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                     { signal: controller.signal },
                 );
                 if (controller.signal.aborted || snapshotRef.current.projectId !== projectId) return;
+                if (guard.layoutResults.size) {
+                    const [layoutOperationId, status] = Array.from(guard.layoutResults).at(-1)!;
+                    upsertMessage(sessionId, {
+                        id: assistantId,
+                        runId,
+                        role: "assistant",
+                        text: status === "conflict" ? "规划期间节点位置或尺寸已改变，未覆盖当前布局，请重新提交整理。" : status === "applied" ? "已整理画布，正文和连线保持不变，可使用画布撤销恢复位置；正在确认保存。" : "当前布局无需变更。",
+                        detail: { layoutOperationId },
+                    });
+                }
                 if (guard.conflictNodeIds.size) {
                     const nodeIds = Array.from(guard.conflictNodeIds);
                     upsertMessage(sessionId, { id: `conflict-${runId}`, runId, role: "assistant", text: "生成期间目标已修改、删除，或原文无法确认；没有覆盖当前内容，生成内容已放在「待确认结果」节点，请确认后自行采用。", detail: { nodeIds } });

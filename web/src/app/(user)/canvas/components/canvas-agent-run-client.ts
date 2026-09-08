@@ -1,3 +1,4 @@
+import type { CanvasLayoutOperation } from "@/lib/canvas-agent-layout";
 import type { CanvasAgentOp } from "../utils/canvas-agent-ops";
 import type { CanvasAgentRunStage, CanvasAgentStableStageKey } from "./canvas-agent-progress";
 import { getCreativeAgentRun } from "@/services/api/creative";
@@ -63,6 +64,7 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
                     return;
                 }
                 if (run.status === "completed") {
+                    if (run.canvasLayoutOperation) handlers.onOps([{ type: "layout_nodes", operation: run.canvasLayoutOperation }]);
                     handlers.onAssistant("Agent 任务已完成，结果已经返回。", latestOutput);
                     finish();
                     return;
@@ -161,7 +163,8 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
             finish();
         });
         listen("run.completed", (event) => {
-            const payload = read<{ data?: { reply?: string } }>(event);
+            const payload = read<{ data?: { reply?: string; ops?: CanvasAgentOp[] } }>(event);
+            if (payload.data?.ops?.length) handlers.onOps(payload.data.ops);
             handlers.onAssistant(payload.data?.reply || "创作计划与后台生成任务已全部完成。", latestOutput);
             finish();
         });
@@ -185,7 +188,7 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
             reportStage({ key: "executing", text: "欢迎回来，正在从刚才的进度继续…" });
         });
         listen("run.snapshot", (event) => {
-            const payload = read<{ status?: string; tasks?: Array<{ id?: string; title?: string; status?: string; error?: string }> }>(event);
+            const payload = read<{ status?: string; canvasLayoutOperation?: CanvasLayoutOperation; tasks?: Array<{ id?: string; title?: string; status?: string; error?: string }> }>(event);
             if (payload.status === "cancelled") {
                 handlers.onAssistant("Agent 任务已取消。");
                 finish();
@@ -195,6 +198,7 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
                 finish();
             }
             if (payload.status === "completed") {
+                if (payload.canvasLayoutOperation) handlers.onOps([{ type: "layout_nodes", operation: payload.canvasLayoutOperation }]);
                 handlers.onAssistant("Agent 任务已完成，结果已经返回。");
                 finish();
             }

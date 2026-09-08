@@ -1,3 +1,4 @@
+import { applyCanvasAgentLayout } from "@/lib/canvas-agent-layout";
 import { CanvasNodeType, type CanvasNodeData } from "../types";
 import { applyCanvasAgentOps, type CanvasAgentOp, type CanvasAgentSnapshot } from "./canvas-agent-ops";
 
@@ -7,6 +8,7 @@ export function createCanvasAgentLiveGuard(runId: string, original?: CanvasAgent
         runId,
         expected: new Map(original?.nodes.map((node) => [node.id, node])),
         seen: new Set<string>(),
+        layoutResults: new Map<string, "applied" | "unchanged" | "conflict">(),
         completed: new Map<string, string>(),
         conflictCounts: new Map<string, number>(),
         conflictNodeIds: new Set<string>(),
@@ -23,6 +25,16 @@ export function guardCanvasAgentLiveOps(snapshot: CanvasAgentSnapshot, ops: Canv
     let current = snapshot;
     const accepted: CanvasAgentOp[] = [];
     for (const op of ops) {
+        if (op.type === "layout_nodes") {
+            if (guard.layoutResults.has(op.operation.id)) continue;
+            const result = applyCanvasAgentLayout(current.nodes, op.operation);
+            guard.layoutResults.set(op.operation.id, result.status);
+            if (result.status === "applied") {
+                accepted.push(op);
+                current = { ...current, nodes: result.nodes };
+            }
+            continue;
+        }
         if (op.type !== "add_node" && op.type !== "update_node") {
             // Background results must not steal the user's current selection or viewport.
             if (op.type !== "select_nodes" && op.type !== "set_viewport") accepted.push(op);

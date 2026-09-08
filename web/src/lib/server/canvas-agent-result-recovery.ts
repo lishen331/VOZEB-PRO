@@ -1,3 +1,4 @@
+import { applyCanvasAgentLayout } from "@/lib/canvas-agent-layout";
 import { createHash } from "node:crypto";
 import type { CanvasProject } from "@/lib/canvas-project-contract";
 import { CanvasNodeType, type CanvasAssistantMessage, type CanvasAssistantSession, type CanvasNodeData } from "@/app/(user)/canvas/types";
@@ -14,7 +15,9 @@ const terminalStatuses = new Set(["completed", "partial_success", "failed", "can
 export function canvasAgentResultFingerprint(run: AgentRun) {
     // Review/heartbeat timestamps are not new deliveries. A new attempt or result is.
     return createHash("sha256")
-        .update(JSON.stringify({ status: run.status, tasks: run.tasks.map((t) => ({ id: t.id, status: t.status, attempts: t.attempts, target: t.targetNodeId, result: t.result, children: t.childTasks, error: t.error })) }))
+        .update(
+            JSON.stringify({ status: run.status, layout: run.canvasLayoutOperation, tasks: run.tasks.map((t) => ({ id: t.id, status: t.status, attempts: t.attempts, target: t.targetNodeId, result: t.result, children: t.childTasks, error: t.error })) }),
+        )
         .digest("hex");
 }
 
@@ -37,6 +40,19 @@ export function recoverCanvasAgentResults(project: CanvasRecoveryProject, runs: 
             ),
         );
         let nodes = current.nodes;
+        let layoutReply: string | undefined;
+        if (run.canvasLayoutOperation) {
+            const operation = run.canvasLayoutOperation;
+            const delivered = current.chatSessions
+                .flatMap((session) => session.messages)
+                .find((message) => message.runId === run.id && message.detail && typeof message.detail === "object" && "layoutOperationId" in message.detail && message.detail.layoutOperationId === operation.id);
+            if (delivered) layoutReply = delivered.text;
+            if (!delivered) {
+                const applied = applyCanvasAgentLayout(nodes, operation);
+                nodes = applied.nodes;
+                layoutReply = applied.status === "conflict" ? "画布布局已改变，未覆盖当前位置，请重新提交整理。" : applied.status === "applied" ? "画布已整理，正文和连线保持不变。" : "画布布局无需变更。";
+            }
+        }
         let connections = current.connections;
         for (const [index, task] of run.tasks.entries()) {
             const receiptKey = `task:${run.id}:${task.id}`;
@@ -139,7 +155,7 @@ export function recoverCanvasAgentResults(project: CanvasRecoveryProject, runs: 
         }
         const reply = conflicts.length
             ? `生成结果已保留，但 ${conflicts.length} 个目标已被修改或删除，未覆盖当前内容。请查看待确认结果：${conflicts.join("、")}`
-            : replies.get(run.id) || (run.status === "completed" && !run.tasks.length ? "" : completionReply(run));
+            : layoutReply || replies.get(run.id) || (run.status === "completed" && !run.tasks.length ? "" : completionReply(run));
         current = { ...current, nodes, connections, chatSessions: recoverConversation(current, run, reply), __canvasAgentReceipts: { ...receipts, [run.id]: fingerprint } };
     }
     return current;

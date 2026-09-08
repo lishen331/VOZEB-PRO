@@ -1,3 +1,7 @@
+import { planCanvasAgentLayout } from "@/lib/canvas-agent-layout";
+import { agentRunCanvasSnapshot } from "./agent-run-canvas-snapshot";
+import { getCanvasProjectForRecovery } from "./canvas-project-store";
+import { isDramaLabCanvasProject } from "@/lib/drama-lab-canvas-contract";
 import { getAuthSettings } from "@/lib/auth/store";
 import { nanoid } from "nanoid";
 import { resolveLogicalModelCandidates, resolveVisionModelCandidates } from "@/lib/server/logical-model-router";
@@ -29,6 +33,8 @@ const canvasAgentPlanTool = {
         ...agentPlanTool.parameters,
         properties: {
             ...agentPlanTool.parameters.properties,
+            intent: { type: "string", enum: ["conversation", "generation", "canvas_operation"] },
+            canvasOperation: { type: "object", properties: { type: { type: "string", enum: ["layout"] }, scope: { type: "string", enum: ["all", "selected"] } }, required: ["type", "scope"], additionalProperties: false },
             deliverables: {
                 ...agentPlanTool.parameters.properties.deliverables,
                 items: {
@@ -176,6 +182,7 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
                     claimed.billingContext,
                 );
                 plan = await parseAgentPlanCall(planCall, () => refundFunctionCall(claimed.userId, model, planCall), undefined, {
+                    allowCanvasOperation: claimed.surface === "canvas",
                     allowProjectHandoff: claimed.surface === "chat" && isExplicitProjectHandoffRequest(claimed.prompt),
                     requiredGenerationMode: claimed.generationPreferences?.mode,
                 });
@@ -203,6 +210,34 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
         });
         if (!(await canContinue(run.id, executionId))) {
             await refundAcceptedPlan();
+            return;
+        }
+        if (claimed.surface === "canvas" && plan.intent === "canvas_operation" && plan.canvasOperation) {
+            const project = claimed.projectId ? await getCanvasProjectForRecovery(claimed.projectId, claimed.userId) : null;
+            if (!project || isDramaLabCanvasProject(project)) throw new Error("画布不存在或无权整理");
+            const layout = agentRunCanvasSnapshot(claimed.snapshot).layout;
+            if (!layout) throw new Error("本次请求缺少布局快照，请刷新画布后重新提交");
+            const operation = planCanvasAgentLayout(run.id, plan.canvasOperation, layout, project.nodes);
+            const completed = await updateAgentRunById(
+                run.id,
+                {
+                    status: "completed",
+                    tasks: [],
+                    reviewed: true,
+                    plannerAudit,
+                    canvasLayoutOperation: operation,
+                    executionId: undefined,
+                    timings: { ...(claimed.timings || { requestAcceptedAt: claimed.createdAt }), planningCompletedAt: Date.now(), allResultsReadyAt: Date.now(), runCompletedAt: Date.now() },
+                },
+                { type: "run.completed", data: { reply: "布局方案已准备，正在应用并确认画布保存。", ops: [{ type: "layout_nodes", operation }] } },
+                ["running"],
+                executionId,
+            );
+            if (!completed) {
+                await refundAcceptedPlan();
+                return;
+            }
+            planningPersisted = true;
             return;
         }
         if (plan.intent === "conversation") {

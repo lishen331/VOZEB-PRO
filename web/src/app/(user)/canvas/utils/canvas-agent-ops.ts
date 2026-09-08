@@ -1,3 +1,4 @@
+import { applyCanvasAgentLayout, type CanvasLayoutOperation } from "@/lib/canvas-agent-layout";
 import { nanoid } from "nanoid";
 
 import { getNodeSpec } from "../constants";
@@ -5,6 +6,7 @@ import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type Canvas
 import { fitNodeAspectRatio, nodeSizeFromRatio } from "./canvas-node-size";
 
 export type CanvasAgentOp =
+    | { type: "layout_nodes"; operation: CanvasLayoutOperation }
     | { type: "add_node"; id?: string; nodeType?: CanvasNodeType; title?: string; position?: { x: number; y: number }; x?: number; y?: number; width?: number; height?: number; metadata?: CanvasNodeMetadata }
     | { type: "update_node"; id: string; patch?: Partial<CanvasNodeData>; metadata?: CanvasNodeMetadata }
     | { type: "delete_node"; id?: string; ids?: string[]; nodeType?: CanvasNodeType }
@@ -32,6 +34,7 @@ export function applyCanvasAgentOps(snapshot: CanvasAgentSnapshot, ops?: CanvasA
 
     (Array.isArray(ops) ? ops : []).forEach((op, index) => {
         if (!op?.type) return;
+        if (op.type === "layout_nodes") nodes = applyCanvasAgentLayout(nodes, op.operation).nodes;
         if (op.type === "add_node") {
             const nodeType = Object.values(CanvasNodeType).includes(op.nodeType as CanvasNodeType) ? op.nodeType! : CanvasNodeType.Text;
             const spec = getNodeSpec(nodeType);

@@ -3,6 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import { parseAgentPlanCall, parseReviewCall } from "./agent-function-call";
 
 describe("Agent Function Call parsing refunds", () => {
+    it("accepts layout only with explicit Canvas allowance and no fake deliverables", async () => {
+        const plan = { intent: "canvas_operation", objective: "整理画布", canvasOperation: { type: "layout", scope: "all" }, deliverables: [] };
+        await expect(parseAgentPlanCall({ arguments: JSON.stringify(plan) }, vi.fn(), undefined, { allowCanvasOperation: true })).resolves.toMatchObject(plan);
+        await expect(parseAgentPlanCall({ arguments: JSON.stringify(plan) }, vi.fn())).rejects.toThrow();
+        await expect(parseAgentPlanCall({ arguments: JSON.stringify({ ...plan, deliverables: [{ type: "text", title: "fake", prompt: "fake" }] }) }, vi.fn(), undefined, { allowCanvasOperation: true })).rejects.toThrow();
+    });
+
     it("refunds malformed planning JSON", async () => {
         const refund = vi.fn().mockResolvedValue(undefined);
 

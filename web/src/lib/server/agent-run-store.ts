@@ -87,6 +87,7 @@ export type AgentRun = {
     prompt: string;
     publicPrompt?: string;
     snapshot?: unknown;
+    canvasLayoutOperation?: import("@/lib/canvas-agent-layout").CanvasLayoutOperation;
     referencedAssetIds: string[];
     selectedSkillIds?: string[];
     requestedModelIds?: string[];
@@ -274,6 +275,7 @@ export async function updateAgentRunById(
             | "executionId"
             | "tasks"
             | "foundation"
+            | "canvasLayoutOperation"
             | "projectHandoff"
             | "projectHandoffEmitted"
             | "review"

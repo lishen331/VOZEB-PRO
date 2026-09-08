@@ -1,3 +1,4 @@
+import { planCanvasAgentLayout, canvasLayoutGeometry } from "@/lib/canvas-agent-layout";
 import { describe, expect, it } from "vitest";
 import type { CanvasProject } from "@/lib/canvas-project-contract";
 import type { AgentRun } from "./agent-run-store";
@@ -42,6 +43,29 @@ function run(patch: Partial<AgentRun> = {}): AgentRun {
     };
 }
 describe("Canvas durable result recovery", () => {
+    it("preserves live layout acknowledgement after undo and reopen", () => {
+        const p = project();
+        const operation = planCanvasAgentLayout("run", { type: "layout", scope: "all" }, { nodes: canvasLayoutGeometry(p.nodes), selectedNodeIds: [], connections: [] }, p.nodes);
+        const r = run({ tasks: [], canvasLayoutOperation: operation });
+        p.chatSessions = [
+            { id: "s", title: "chat", conversationId: r.conversationId, createdAt: p.createdAt, updatedAt: p.updatedAt, messages: [{ id: "a", role: "assistant", runId: r.id, text: "已整理，可撤销", detail: { layoutOperationId: operation.id } }] },
+        ];
+        const next = recoverCanvasAgentResults(p, [r], "owner", new Map([[r.id, "布局方案已准备"]]));
+        expect(next.nodes).toEqual(p.nodes);
+        expect(next.chatSessions[0].messages.at(-1)?.text).toBe("已整理，可撤销");
+    });
+
+    it("restores durable layout without generated text and does not undo a later manual move", () => {
+        const p = project();
+        const operation = planCanvasAgentLayout("run", { type: "layout", scope: "all" }, { nodes: canvasLayoutGeometry(p.nodes), selectedNodeIds: [], connections: [] }, p.nodes);
+        const r = run({ tasks: [], canvasLayoutOperation: operation });
+        const next = recoverCanvasAgentResults(p, [r], "owner");
+        expect(next.nodes[0].position).toEqual(operation.after[0].position);
+        expect(next.nodes).toHaveLength(1);
+        const moved = { ...next, nodes: next.nodes.map((n) => ({ ...n, position: { x: 777, y: 999 } })) };
+        expect(recoverCanvasAgentResults(moved, [r], "owner").nodes).toEqual(moved.nodes);
+    });
+
     it("does not replace a live media alternative with a duplicate output on entry", () => {
         const r = run();
         r.tasks[0].type = "image";

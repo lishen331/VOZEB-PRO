@@ -371,3 +371,10 @@ flowchart LR
 普通画布进入时由客户端 `getCanvasProject` 发起 `POST /api/canvas/projects/[id]/recover-agent-results`，复用现有任务/事件持久记录，通过 `canvas-agent-recovery-service` 与 `canvas-agent-result-recovery` 生成差异。`mutateCanvasProjectForRecovery` 在 PostgreSQL 行锁事务或文件锁下合并，结果、对话与服务器私有回执同次保存。现有 GET 保持只读，主 Agent 与短剧专属画布不使用该路径。
 
 恢复回执存于既有 `project_json.__canvasAgentReceipts`，无表结构迁移；公共返回剥离，普通保存保留服务器值，导入不能伪造。当前实现为**进入时补齐**，不是生成完成时主动落入画布；未使用定时轮询。实时 SSE 路径由 `canvas-agent-live-results` 在最新节点引用上比较原文/类型，保护手工修改并保留待确认结果；`canvas-agent-result-save` 在终态等待既有保存队列并区分 409/失败/已保存。复用原有项目版本契约，不强制刷新、不新增轮询。真实 PostgreSQL 跨设备并发和完整线上交互仍待验收。生成记录的现有保留期限仍约束可恢复范围。
+
+## 普通画布 Agent 布局结构操作（开发分支）
+
+- 入口仍为既有 `/api/agent/runs`。仅 `surface=canvas` 的模型工具接受 `intent=canvas_operation` 和 `canvasOperation={type:layout,scope:all|selected}`；主 Agent 不开放此契约。
+- `agent-run-canvas-snapshot` 将全画布几何信息与选中内容范围分离，剥离几何字段内的正文。`agent-run-executor` 检查项目所有权与真实节点ID，经 `canvas-agent-layout` 复用现有自动排版生成只改position的操作。
+- 操作及before/after/context几何持久化在既有任务JSON `canvasLayoutOperation`，无需新增表；终态SSE和授权任务快照均可交付。`canvas-agent-live-results` 防重放并拒绝覆盖规划期间改变的几何；进入恢复复用同一操作和回执。
+- 不新增周期轮询或生成任务；已规划、已应用、保存确认分开。未开放删除、断线、分组等破坏性结构操作。完整Canvas UI历史联动和线上模型自然语言识别仍待验收。

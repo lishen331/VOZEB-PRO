@@ -151,6 +151,7 @@ export function agentSurfaceImageSize(surface: AgentRun["surface"], snapshot: un
 }
 
 export function normalizeCanvasPlanForSelection(plan: AgentPlan, snapshot: unknown, requestPrompt: string): AgentPlan {
+    if (plan.intent === "canvas_operation") return plan;
     const nodes = canvasSnapshotNodes(snapshot);
     const selectedEntries = selectedCanvasNodeIds(snapshot).map((id) => [id, nodes.get(id)] as const);
     const selectedTexts = selectedEntries.filter((entry): entry is readonly [string, CanvasTaskReferenceNode] => entry[1]?.type === "text");

@@ -37,6 +37,24 @@ describe("Canvas Agent 事件流", () => {
     });
     afterEach(() => vi.unstubAllGlobals());
 
+    it("recovers layout operation on reconnect snapshot before reporting completion", async () => {
+        vi.stubGlobal("EventSource", FakeEventSource);
+        const order: string[] = [];
+        const promise = watchCanvasAgentRun("run", { onPlan: () => {}, onAssistant: () => order.push("reply"), onStage: () => {}, onPaused: () => {}, onOps: () => order.push("ops") });
+        FakeEventSource.instance.emit("run.snapshot", { status: "completed", canvasLayoutOperation: { id: "layout-run" } });
+        await promise;
+        expect(order).toEqual(["ops", "reply"]);
+    });
+
+    it("applies durable layout ops from terminal event before reporting completion", async () => {
+        vi.stubGlobal("EventSource", FakeEventSource);
+        const order: string[] = [];
+        const promise = watchCanvasAgentRun("run", { onPlan: () => {}, onAssistant: () => order.push("reply"), onStage: () => {}, onPaused: () => {}, onOps: () => order.push("ops") });
+        FakeEventSource.instance.emit("run.completed", { data: { reply: "layout ready", ops: [{ type: "layout_nodes", operation: { id: "layout-run" } }] } });
+        await promise;
+        expect(order).toEqual(["ops", "reply"]);
+    });
+
     it.each(["run.partial_success", "run.snapshot"])("closes on partial success via %s and reports incomplete work", async (type) => {
         vi.stubGlobal("EventSource", FakeEventSource);
         const messages: string[] = [];

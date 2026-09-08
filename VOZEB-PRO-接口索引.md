@@ -598,3 +598,6 @@
 4. 权限必须从代码证据更新；新增 Helper 时同步扩展清单脚本的认证标记。
 
 返回 [VOZEB PRO 开发地图](VOZEB-PRO-开发地图.md)。
+
+### 普通画布布局契约补充（2026-09-08，开发分支）
+现有 Agent Run 创建、GET详情和SSE接口在 `surface=canvas` 时支持布局操作：请求快照可带不含正文的 `layout` 几何信息；授权响应可带 `canvasLayoutOperation`，完成事件携带 `layout_nodes` 操作。请求模型计划仅允许 layout/all或selected，项目权限与节点ID由服务端核验。没有新增Route，主Agent不开放布局计划。

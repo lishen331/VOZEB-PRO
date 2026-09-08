@@ -1,3 +1,5 @@
+import { canvasLayoutGeometry } from "@/lib/canvas-agent-layout";
+import { CanvasNodeType } from "@/app/(user)/canvas/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CreativeConversationContext } from "@/lib/creative-runtime-contract";
 import { AGENT_PLAN_SCHEMA_VERSION } from "./agent-run-audit";
@@ -5,6 +7,7 @@ import type { AgentRun, AgentRunTask } from "./agent-run-store";
 import { canvasPlan, canvasSettings, conversationPlan, creativeImageAsset, disabledSettings, imageTask, plannerFailoverSettings, planningRun, runFixture, runWithTasks, settings } from "./agent-run-executor.test-fixtures";
 
 const mocks = vi.hoisted(() => ({
+    getCanvasProjectForRecovery: vi.fn(),
     fetchInternalApi: vi.fn(),
     getAuthSettings: vi.fn(),
     refundGenerationCharge: vi.fn(async () => ({ refunded: true })),
@@ -21,6 +24,7 @@ const mocks = vi.hoisted(() => ({
     scheduleGenerationTask: vi.fn(async () => undefined),
 }));
 
+vi.mock("./canvas-project-store", () => ({ getCanvasProjectForRecovery: mocks.getCanvasProjectForRecovery }));
 vi.mock("@/lib/auth/store", () => ({
     getAuthSettings: mocks.getAuthSettings,
 }));
@@ -97,6 +101,35 @@ describe("executeAgentRun backend settings", () => {
             if (url.includes("/api/image-tasks/")) return Response.json({ task: { status: "success", result: { url: "https://cdn.example.com/output.png" } } });
             throw new Error(`unexpected request: ${url}`);
         });
+    });
+
+    it("rejects layout when the project is not owned by the run user", async () => {
+        mocks.run = { ...planningRun("整理画布"), snapshot: { layout: { nodes: [], connections: [], selectedNodeIds: [] } } };
+        mocks.getCanvasProjectForRecovery.mockResolvedValue(null);
+        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
+        mocks.fetchInternalApi.mockResolvedValue(
+            Response.json({ output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify({ intent: "canvas_operation", objective: "整理画布", canvasOperation: { type: "layout", scope: "all" }, deliverables: [] }) }] }),
+        );
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+        expect(mocks.run?.status).toBe("failed");
+        expect(mocks.run?.canvasLayoutOperation).toBeUndefined();
+    });
+
+    it("persists a real layout operation without dispatching generation tasks", async () => {
+        const nodes = [{ id: "n", type: CanvasNodeType.Text, title: "Text", position: { x: 0, y: 0 }, width: 300, height: 200, metadata: { content: "retain" } }];
+        mocks.run = { ...planningRun("整理全部画布"), snapshot: { nodes, layout: { nodes: canvasLayoutGeometry(nodes), connections: [], selectedNodeIds: [] } } };
+        mocks.getCanvasProjectForRecovery.mockResolvedValue({ id: mocks.run.projectId, nodes });
+        mocks.getAuthSettings.mockResolvedValue(canvasSettings("image-default", "image-default-channel"));
+        mocks.fetchInternalApi.mockResolvedValue(
+            Response.json({ output: [{ type: "function_call", name: "create_agent_plan", arguments: JSON.stringify({ intent: "canvas_operation", objective: "整理画布", canvasOperation: { type: "layout", scope: "all" }, deliverables: [] }) }] }),
+        );
+        await executeAgentRun(mocks.run, "http://localhost", "session=test");
+        expect(mocks.run?.status).toBe("completed");
+        expect(mocks.run?.tasks).toEqual([]);
+        expect(mocks.run?.canvasLayoutOperation?.after[0].position).toEqual({ x: 96, y: 96 });
+        expect(mocks.events.find((e) => e.type === "run.completed")).toMatchObject({ data: { ops: [{ type: "layout_nodes" }] } });
+        expect(mocks.fetchInternalApi.mock.calls.some(([url]) => String(url).includes("/api/image-tasks") || String(url).includes("/api/video-tasks"))).toBe(false);
+        expect(mocks.getCanvasProjectForRecovery).toHaveBeenCalledWith(mocks.run?.projectId, "user");
     });
 
     it("preserves generated media dimensions in canvas output ops", () => {
