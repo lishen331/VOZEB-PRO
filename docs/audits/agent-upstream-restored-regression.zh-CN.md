@@ -63,3 +63,4 @@ The approved defect fixes are deployed and the two highest-risk flows have onlin
 
 - 2026-09-09 自然美颜 Skill 无参考图逆向流程：通过。真实线上新会话中未上传/引用素材，发送精修请求后助手明确返回“当前 Skill 需要参考素材，请先上传或引用素材后再生成”；消息为 failed，未创建图片任务。
 - 2026-09-09 角色设定 Skill 正向流程：通过。线上生成成年女性短发邮差角色设定图，任务类型为 image，模型 gpt-image-2-all，任务与资产均 completed；optimizedPrompt 保留“不要视频”等约束，未携带参考图时仍按该 Skill 的无参考图正向路径生成。
+- 2026-09-09 全成功双模型生成：通过。关闭智能规划后手动选择 gpt-image-2-all 与 gemini-3.1-flash-image，提交“两个模型各生成一张”请求；两项任务均完成，助手消息 completed，持久化 2 个 taskId 与 2 个 assetId，未进入待确认。
