@@ -19,6 +19,8 @@ import type { CanvasPageState } from "./use-canvas-page-state";
 
 import type { CanvasFileActions } from "./use-canvas-file-actions";
 
+const CANVAS_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
+
 export function useCanvasMediaSessionActions({ state, interactions, files }: { state: CanvasPageState; interactions: CanvasInteractions; files: CanvasFileActions }) {
     const {
         message,
@@ -58,6 +60,13 @@ export function useCanvasMediaSessionActions({ state, interactions, files }: { s
                 uploadTargetRef.current = null;
                 event.target.value = "";
                 message.error("请选择图片、视频、MP3 或 WAV 文件");
+                return;
+            }
+
+            if (file.size > CANVAS_UPLOAD_MAX_BYTES) {
+                uploadTargetRef.current = null;
+                event.target.value = "";
+                message.error("画布单个文件不能超过 20MB");
                 return;
             }
 
@@ -157,6 +166,10 @@ export function useCanvasMediaSessionActions({ state, interactions, files }: { s
             if (!preventFileDragEvent(event)) return;
             const files = droppedFiles(event, (item) => item.type.startsWith("image/") || item.type.startsWith("video/") || isAudioFile(item));
             if (!files.length) return;
+            if (files.some((file) => file.size > CANVAS_UPLOAD_MAX_BYTES)) {
+                message.error("画布单个文件不能超过 20MB");
+                return;
+            }
 
             const pos = screenToCanvas(event.clientX, event.clientY);
             setSelectedNodeIds(new Set());

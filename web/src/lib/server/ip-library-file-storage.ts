@@ -18,7 +18,7 @@ export const IP_CONTENT_FILE_MAX_BYTES: Record<IpAssetKind, number> = {
     text: 20 * 1024 * 1024,
     image: 20 * 1024 * 1024,
     audio: 30 * 1024 * 1024,
-    video: 200 * 1024 * 1024,
+    video: 800 * 1024 * 1024,
 };
 
 type WriteInput = {
