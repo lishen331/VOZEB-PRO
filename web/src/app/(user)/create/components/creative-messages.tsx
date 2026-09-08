@@ -25,6 +25,7 @@ import { usePublicSessionStore } from "@/stores/use-public-session-store";
 
 import { creativeAssetLayout } from "./creative-asset-layout";
 import { creativeConversationEntries, isMediaCreativeRound, type CreativeConversationEntry } from "./creative-conversation-rounds";
+import { CreativeTaskAttention } from "./creative-task-attention";
 import { CreativeGenerationWaiting } from "./creative-generation-waiting";
 import { CreativeMediaResult } from "./creative-media-result";
 import { formatCreativeMessageTime } from "./creative-result-presentation";
@@ -41,6 +42,7 @@ export function CreativeMessages({
     materializingProjectId,
     onMaterializeProject,
     onRetryMessage,
+    onControlRun,
     selectedAssetIds,
     onToggleAsset,
     hasOlder,
@@ -57,6 +59,7 @@ export function CreativeMessages({
     materializingProjectId?: string;
     onMaterializeProject: (handoff: CreativeProjectHandoff) => Promise<MaterializedCreativeProject>;
     onRetryMessage: (message: CreativeMessage, run?: CreativeAgentRun) => Promise<boolean | void>;
+    onControlRun?: (runId: string, action: "recheck" | "resume" | "cancel") => Promise<void>;
     selectedAssetIds: string[];
     onToggleAsset: (id: string) => void;
     hasOlder?: boolean;
@@ -119,6 +122,11 @@ export function CreativeMessages({
                     </Button>
                 </div>
             ) : null}
+            {Object.values(runDetails)
+                .filter((run) => run.status === "paused" || run.tasks.some((task) => task.status === "needs_review"))
+                .map((run) => (
+                    <CreativeTaskAttention key={run.id} run={run} onControl={onControlRun} />
+                ))}
             {messages.map((item) => {
                 const mediaRound = mediaRounds.byUserMessage.get(item.id);
                 if (mediaRound) {

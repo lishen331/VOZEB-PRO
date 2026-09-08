@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     countActive: vi.fn(),
+    recheck: vi.fn(),
     runGenerationTaskRecoveryBatch: vi.fn(),
     scheduleGenerationTask: vi.fn(),
     getAuthSettings: vi.fn(),
@@ -15,6 +16,7 @@ vi.mock("next/server", async (importOriginal) => {
     const actual = await importOriginal<typeof import("next/server")>();
     return { ...actual, after: vi.fn((callback: () => unknown) => callback()) };
 });
+vi.mock("@/lib/server/agent-run-recheck", () => ({ recheckAgentRun: mocks.recheck }));
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: vi.fn(async () => ({ id: "user" })) }));
 vi.mock("@/lib/auth/store", () => ({ getAuthSettings: mocks.getAuthSettings }));
 vi.mock("@/lib/server/agent-run-executor", () => ({ abortAgentRun: vi.fn() }));
@@ -34,6 +36,25 @@ describe("Agent Run resume concurrency", () => {
         mocks.setAgentRunStatus.mockResolvedValue({ ...run, status: "running" });
         mocks.countActive.mockResolvedValue(1);
         mocks.getAuthSettings.mockResolvedValueOnce({ generationConcurrency: { agent: 2 } }).mockResolvedValueOnce({ generationConcurrency: { agent: 1 } });
+    });
+
+    it("rechecks an unresolved task without rescheduling generation when no upstream identity exists", async () => {
+        const run = { id: "run", userId: "user", status: "paused", tasks: [{ id: "child", status: "needs_review" }] };
+        mocks.getAgentRun.mockResolvedValue(run);
+        mocks.recheck.mockResolvedValue(run);
+        const response = await POST(new Request("http://localhost/api/agent/runs/run/recheck", { method: "POST" }), { params: Promise.resolve({ id: "run", action: "recheck" }) });
+        expect(response.status).toBe(200);
+        expect(mocks.recheck).toHaveBeenCalledWith(run);
+        expect(mocks.runGenerationTaskRecoveryBatch).not.toHaveBeenCalled();
+        expect(mocks.scheduleGenerationTask).not.toHaveBeenCalledWith("agent", "run", expect.objectContaining({ executionPhase: "created" }));
+    });
+    it("returns a conflict when recheck authorization or state validation fails", async () => {
+        mocks.getAgentRun.mockResolvedValue({ id: "run", userId: "user", status: "paused", tasks: [] });
+        mocks.countActive.mockResolvedValue(0);
+        mocks.recheck.mockRejectedValue(new Error("Original child is not owned"));
+        const response = await POST(new Request("http://localhost/api/agent/runs/run/recheck", { method: "POST" }), { params: Promise.resolve({ id: "run", action: "recheck" }) });
+        expect(response.status).toBe(409);
+        expect(mocks.scheduleGenerationTask).not.toHaveBeenCalled();
     });
 
     it("reads the latest backend concurrency limit on every resume request", async () => {

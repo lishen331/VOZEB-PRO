@@ -4,6 +4,12 @@ import { creativeAgentModelsFromConfig } from "@/hooks/use-creative-agent-option
 import { applyPublicSystemSettings, defaultConfig, type PublicSystemSettings } from "@/stores/use-config-store";
 
 describe("creative Agent public model catalog", () => {
+    it("does not advertise practice-only channels as production Agent models", () => {
+        const source = publicSettings();
+        source.systemChannels![0] = { ...source.systemChannels![0], purpose: "open-source-practice" };
+        expect(creativeAgentModelsFromConfig(applyPublicSystemSettings(defaultConfig, source))).toEqual([]);
+    });
+
     it("uses the same resolved capability lists as image, video, audio and Canvas workbenches", () => {
         const config = applyPublicSystemSettings(defaultConfig, publicSettings());
 

@@ -258,6 +258,7 @@ export function normalizeTasks(
             attempts: 0,
         };
     });
+    if (skills.some((skill) => skill.requiresReference) && tasks.some((task) => task.type !== "text" && !task.references?.length && !task.dependencies.length)) throw new Error("当前 Skill 需要实际参考素材，模型未绑定参考，不能继续生成");
     tasks.forEach((task) => assertAgentTaskCapabilities(settings, task));
     return tasks;
 }
@@ -447,8 +448,12 @@ export async function executeTasks(runId: string, origin: string, cookie: string
         const run = await getAgentRun(runId);
         if (!run) return;
         const completed = new Set(run.tasks.filter((task) => task.status === "completed").map((task) => task.id));
-        const ready = run.tasks.filter((task) => (task.status === "ready" || task.status === "running" || task.status === "needs_review") && task.dependencies.every((id) => completed.has(id))).slice(0, settings.generationConcurrency.agent);
+        const ready = run.tasks.filter((task) => (task.status === "ready" || task.status === "running") && task.dependencies.every((id) => completed.has(id))).slice(0, settings.generationConcurrency.agent);
         if (!ready.length) {
+            if (run.tasks.some((task) => task.status === "needs_review")) {
+                await updateAgentRunById(runId, { status: "paused", executionId: undefined }, { type: "run.paused", data: { message: "部分上游任务结果待确认，已完成产物已保留。请重新检查原任务，不要重复生成。" } }, ["running"], executionId);
+                return;
+            }
             if (run.tasks.every((task) => task.status === "completed")) {
                 if (!run.reviewed && shouldBlockOnReview(run)) {
                     const review = await reviewCompletedTasks(run, origin, cookie);
@@ -512,10 +517,12 @@ export async function executeTasks(runId: string, origin: string, cookie: string
         const results = await Promise.all(ready.map((task) => runTaskWithRetry(runId, task, origin, cookie, executionId, settings)));
         if (results.some((result) => result === "needs_review")) {
             const latest = await getAgentRun(runId);
-            if (latest?.status === "running") {
-                await updateAgentRunById(runId, { status: "paused", executionId: undefined }, { type: "run.paused", data: { message: "上游创建结果待确认，任务已暂停并保留原任务身份" } }, ["running"], executionId);
+            const actionable = latest?.tasks.some((task) => (task.status === "ready" || task.status === "running") && task.dependencies.every((id) => latest.tasks.some((parent) => parent.id === id && parent.status === "completed")));
+            if (!actionable && latest?.status === "running") {
+                await updateAgentRunById(runId, { status: "paused", executionId: undefined }, { type: "run.paused", data: { message: "部分上游任务结果待确认，已完成产物已保留。请重新检查原任务，不要重复生成。" } }, ["running"], executionId);
+                return;
             }
-            return;
+            if (actionable) return;
         }
         if (results.some((result) => result === "deferred")) return;
     }
@@ -667,6 +674,7 @@ export async function runTaskWithRetry(runId: string, task: AgentRunTask, origin
         if (!activeRun || activeRun.executionId !== executionId) return;
         const currentTask = activeRun.tasks.find((item) => item.id === task.id) || task;
         const executableTask = await withDependencyContext(runId, currentTask);
+        if (!resumeExisting && activeRun.plannerAudit?.skills.some((skill) => skill.requiresReference) && executableTask.type !== "text" && !taskReferences(executableTask).length) throw new Error("当前 Skill 缺少实际参考素材，停止提交以避免无参考生成");
         const dispatched = await dispatchTask(executableTask, origin, cookie, settings || (await getAuthSettings()), activeRun, executionId, attempt);
         const result = dispatched.result;
         validateAgentTaskResult(task.type, result);
@@ -853,7 +861,7 @@ export async function dispatchTask(task: AgentRunTask, origin: string, cookie: s
                 await patchTask(run.id, task.id, { assetIds }, "task.child.restored", executionId);
                 return { index, result: child.result, taskId, assetIds };
             }
-            const result = await pollTask(origin, task.type === "video" ? "/api/video-tasks" : path, taskId, cookie, run.id, task.type, executionId, child?.status === "needs_review");
+            const result = await pollTask(origin, task.type === "video" ? "/api/video-tasks" : path, taskId, cookie, run.id, task.type, executionId, false);
             const persistStartTime = Date.now();
             console.log("Result persisting started", { runId: run.id, taskId });
             const registered = await registerAgentTaskAssets(run, { ...task, title: copies > 1 ? `${task.title} ${index + 1}` : task.title, count: 1, attempts: attempt, result }, result, [taskId]);
@@ -951,7 +959,7 @@ export async function pollTask(origin: string, path: string, taskId: string, coo
         if ([408, 425, 429].includes(response.status) || response.status >= 500) throw new AgentChildTaskDeferredError("生成任务查询暂时不可用");
         throw new AgentChildTaskTerminalError((await response.text()) || "生成任务查询失败");
     }
-    let payload: { task?: { status?: string; result?: unknown; error?: string; needsReview?: boolean } };
+    let payload: { task?: { status?: string; result?: unknown; error?: string; needsReview?: boolean; reviewReason?: string } };
     try {
         payload = (await response.json()) as typeof payload;
     } catch {
@@ -961,7 +969,7 @@ export async function pollTask(origin: string, path: string, taskId: string, coo
     }
     const pollElapsed = Date.now() - pollStartTime;
     console.log("Upstream poll completed", { runId, taskId, status: payload.task?.status, elapsed: pollElapsed });
-    if (payload.task?.needsReview) throw new AgentChildTaskDeferredError("上游创建状态待确认", true);
+    if (payload.task?.needsReview) throw new AgentChildTaskDeferredError(payload.task.reviewReason || "上游创建状态待确认", true);
     const terminal = agentChildTaskTerminal(payload.task?.status);
     if (terminal === "success") return payload.task?.result;
     if (terminal === "error") throw new AgentChildTaskTerminalError(payload.task?.error || "生成任务失败");

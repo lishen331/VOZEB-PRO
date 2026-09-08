@@ -1,3 +1,4 @@
+import { renderDramaLabStoryTemplate, dramaLabStyleContext } from "@/lib/drama-lab-style-prompt";
 import { randomUUID } from "node:crypto";
 
 import type { AiTextMessage } from "@/types/ai";
@@ -112,18 +113,18 @@ export async function startDramaLabStoryGeneration(input: StartDramaLabStoryGene
 
     const prompt = await resolveDramaLabPrompt("story_generation");
     const contract = [
-        "只返回一个 JSON 对象，不要 Markdown、解释或代码围栏。",
+        "只返回一个 JSON 对象，不要 Markdown、解释或代码围栏。正文中顶层数组的格式示例在 V 中放入 episodes 字段，保持各集内容要求不变。",
         `对象必须包含 episodes 数组，数组长度必须为 ${episodeCount}。`,
         "每个元素必须是 {episode:number,title:string,content:string}，episode 从 1 开始连续递增。",
         "content 必须是该集可直接编辑的中文剧本文字，不要把多集内容合并到同一元素。",
     ].join("\n");
     const messages: AiTextMessage[] = [
-        { role: "system", content: withDramaLabPromptContract(prompt.template, contract) },
+        { role: "system", content: withDramaLabPromptContract(renderDramaLabStoryTemplate(prompt.template, episodeCount), contract) },
         {
             role: "user",
             content: JSON.stringify({
                 task: "根据故事梗概生成短剧完整多集剧本",
-                project: { id: project.id, title: project.title, summary: project.summary, style: project.style, ratio: project.ratio },
+                project: { id: project.id, title: project.title, summary: project.summary, style: project.style, ...dramaLabStyleContext(project.style), ratio: project.ratio },
                 storyOutline,
                 storyStyle: storyBatch.storyStyle,
                 scriptType: storyBatch.scriptType,

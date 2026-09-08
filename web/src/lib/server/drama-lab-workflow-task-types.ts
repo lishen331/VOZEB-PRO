@@ -1,3 +1,4 @@
+import type { DramaLabStoryboardOptions } from "@/lib/drama-lab-storyboard-options";
 import type { DramaProject, DramaShot } from "@/lib/drama-project-contract";
 import type { GenerationTaskContext } from "@/lib/server/generation-task-store";
 
@@ -9,6 +10,7 @@ export type DramaLabWorkflowStepStatus = "pending" | "running" | "success" | "er
 export type DramaLabWorkflowStepKey = "script" | "assets" | "storyboard" | "video" | "review" | "export";
 
 export type DramaLabWorkflowOptions = {
+    storyboardOptions?: DramaLabStoryboardOptions;
     mode: DramaLabWorkflowMode;
     scope: DramaLabWorkflowScope;
     ratio: string;

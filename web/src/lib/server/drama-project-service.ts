@@ -486,6 +486,12 @@ function normalizeNamedAssets(value: unknown, prefix: string, character = false)
                 id,
                 name: cleanText(input.name),
                 description: cleanText(input.description),
+                ...Object.fromEntries(
+                    ["appearance", "imagePrompt", "role", "type", "time"].flatMap((key) => {
+                        const value = optionalText(input[key]);
+                        return value ? [[key, value]] : [];
+                    }),
+                ),
                 profile: normalizeAssetProfile(input.profile),
                 references,
                 primaryReferenceId,

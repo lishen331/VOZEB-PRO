@@ -402,7 +402,13 @@ export function useCreateAgent() {
                     if (generation === conversationGenerationRef.current && activeConversationRef.current === run.conversationId) setActiveRunStatus(status);
                 },
                 onTaskCompleted: () => {
-                    if (generation === conversationGenerationRef.current && activeConversationRef.current === run.conversationId) void refreshAssets(run.conversationId, generation).catch(() => undefined);
+                    if (generation === conversationGenerationRef.current && activeConversationRef.current === run.conversationId)
+                        void Promise.all([
+                            refreshAssets(run.conversationId, generation),
+                            getCreativeAgentRun(run.id).then((latest) => {
+                                if (isCurrentConversation(run.conversationId, generation)) setRunDetails((current) => ({ ...current, [run.id]: latest }));
+                            }),
+                        ]).catch(() => undefined);
                 },
                 onTerminal: (status, text) => {
                     if (generation !== conversationGenerationRef.current || activeConversationRef.current !== run.conversationId) return;
@@ -623,6 +629,19 @@ export function useCreateAgent() {
         [isCurrentConversation, messages, updateAssistant, watchRun],
     );
 
+    const controlRun = useCallback(
+        async (runId: string, action: "recheck" | "resume" | "cancel") => {
+            const expected = activeConversationRef.current;
+            const generation = conversationGenerationRef.current;
+            if (!expected) return;
+            const { run } = await controlCreativeAgentRun(runId, action, expected);
+            if (!isCurrentConversation(expected, generation) || run.conversationId !== expected) return;
+            await refreshConversation(expected, generation);
+            if (["running", "planning"].includes(run.status)) watchRun(run, run.assistantMessageId, generation);
+        },
+        [isCurrentConversation, refreshConversation, watchRun],
+    );
+
     const retryRun = useCallback(
         async (runId: string) => {
             const expectedConversationId = activeConversationRef.current;
@@ -678,6 +697,7 @@ export function useCreateAgent() {
         retryTask,
         retryTasks,
         retryRun,
+        controlRun,
         retrySubmission,
         openConversation,
         newConversation,

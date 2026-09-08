@@ -19,3 +19,12 @@ describe("drama lab visual assets", () => {
         expect(source).toContain("return replaceAssets((current) => current.map((asset) => (asset.id === assetId ? { ...asset, ...patch } : asset)))");
     });
 });
+
+describe("extraction detail wiring", () => {
+    it("retains extracted visual fields in the persisted UI asset", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/drama-lab-visual-assets-panel.tsx"), "utf8");
+        expect(source).toContain("...readDramaLabAssetVisualDetails(asset)");
+        expect(source).toContain("buildDramaLabAssetImagePrompt(project, asset, kind)");
+        expect(source).toContain("...readDramaLabAssetVisualDetails(libraryAsset.metadata)");
+    });
+});

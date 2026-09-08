@@ -1,10 +1,10 @@
+import { normalizeDramaLabStoryboardOptions, DramaLabStoryboardOptionsError } from "@/lib/drama-lab-storyboard-options";
 import { isDramaLabCollaborationError } from "@/lib/server/drama-lab-collaboration-error";
 import { randomUUID } from "node:crypto";
 
 import { after, NextResponse } from "next/server";
 
 import { readJsonBody } from "@/lib/auth/request";
-import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { getCurrentUser } from "@/lib/auth/session";
 import { resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
 import { DramaLabWorkflowError, advanceDramaLabWorkflow, dramaLabWorkflowTaskView, startDramaLabWorkflow } from "@/lib/server/drama-lab-workflow-task-service";
@@ -33,18 +33,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             projectId: id,
             sourceEpisodeId: episodeId,
             requestId,
-            options: { mode: "storyboard_extract", scope: "current" },
-            origin: resolveInternalOrigin(new URL(request.url).origin),
+            options: { mode: "storyboard_extract", scope: "current", storyboardOptions: normalizeDramaLabStoryboardOptions(body.storyboardOptions) },
+            origin: new URL(request.url).origin,
             cookie: request.headers.get("cookie") || "",
         });
-        after(() =>
-            advanceDramaLabWorkflow({ userId: user.id, taskId: task.id, origin: resolveInternalOrigin(new URL(request.url).origin), cookie: request.headers.get("cookie") || "" }).catch((error) =>
-                console.warn("Drama storyboard extraction advance deferred", error),
-            ),
-        );
+        after(() => advanceDramaLabWorkflow({ userId: user.id, taskId: task.id, origin: new URL(request.url).origin, cookie: request.headers.get("cookie") || "" }).catch((error) => console.warn("Drama storyboard extraction advance deferred", error)));
         return NextResponse.json({ code: 0, data: { taskId: task.id, task: dramaLabWorkflowTaskView(task) }, msg: "分镜提取任务已创建" }, { status: 202 });
     } catch (error) {
-        const status = error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabWorkflowError || isDramaLabCollaborationError(error) ? error.status : 500;
+        const status = error instanceof DramaLabStoryboardOptionsError ? 400 : error instanceof FeatureModuleDisabledError ? 403 : error instanceof DramaLabWorkflowError || isDramaLabCollaborationError(error) ? error.status : 500;
         return NextResponse.json({ code: status, data: null, msg: error instanceof Error ? error.message : "分镜提取失败" }, { status });
     }
 }

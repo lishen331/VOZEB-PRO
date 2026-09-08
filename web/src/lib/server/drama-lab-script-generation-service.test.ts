@@ -1,3 +1,4 @@
+import { dramaLabPromptDefinition } from "@/lib/drama-lab-prompt-templates";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -25,12 +26,33 @@ import { generateDramaLabScript } from "./drama-lab-script-generation-service";
 
 describe("drama lab script generation", () => {
     beforeEach(() => {
+        vi.clearAllMocks();
         const candidate = { channelId: "channel", upstreamModel: "writer-vendor", channel: {} };
         mocks.getAuthSettings.mockResolvedValue({ defaultModels: { textModel: "writer" } });
         mocks.resolveLogicalModelCandidates.mockReturnValue([candidate]);
         mocks.rankTextPlanningCandidates.mockReturnValue([candidate]);
         mocks.resolveDramaLabPrompt.mockResolvedValue({ key: "story_generation", template: "CUSTOM STORY TEMPLATE" });
         mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify({ script: "第一集剧本正文" }), headers: new Headers() });
+    });
+
+    it("keeps the current-episode endpoint at one episode even in a multi-episode project", async () => {
+        mocks.resolveDramaLabPrompt.mockResolvedValue(dramaLabPromptDefinition("story_generation"));
+        await generateDramaLabScript({
+            userId: "user-one",
+            origin: "http://localhost",
+            cookie: "",
+            projectId: "project-one",
+            episodeId: "episode-one",
+            requestId: "single",
+            storyOutline: "雨夜来信",
+            storyStyle: "悬疑",
+            scriptType: "短剧",
+            episodeCount: "12",
+        });
+        const system = mocks.requestStructuredText.mock.calls[0][0].messages[0].content;
+        expect(system).toContain("创作 1 集");
+        expect(system).not.toContain("{{episodeCount}}");
+        expect(system).toContain("script 必须是当前一集完整中文剧本文字");
     });
 
     it("injects the configured story template and returns only the generated episode script", async () => {

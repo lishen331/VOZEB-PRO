@@ -105,3 +105,35 @@ describe("Drama Lab story materialization", () => {
         expect(mocks.mutateStoredGenerationTask).toHaveBeenCalledTimes(2);
     });
 });
+
+describe("story submission prompt", () => {
+    it("uses the requested count throughout the production template before creating the task", async () => {
+        const { getAuthSettings } = await import("@/lib/auth/store");
+        const { resolveLogicalModelCandidates } = await import("./logical-model-router");
+        const { toSystemGenerationChannel } = await import("./generation-channel");
+        const { resolveDramaLabPrompt, withDramaLabPromptContract } = await import("./drama-lab-prompt-template-service");
+        const { dramaLabPromptDefinition } = await import("@/lib/drama-lab-prompt-templates");
+        const { getDramaLabCollaborationForUser } = await import("./drama-lab-collaboration-service");
+        const { getStoredGenerationTaskByRequest, queryStoredGenerationTasks, withGenerationConcurrencyLimit } = await import("./generation-task-store");
+        const { createTextTask } = await import("./text-task-store");
+        mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ ownerUserId: "user-one", project: { id: "project-one", title: "story", style: "realistic", ratio: "9:16", episodes: [{ id: "episode-one", title: "one", script: "" }] } });
+        vi.mocked(getDramaLabCollaborationForUser).mockResolvedValue({ members: [] } as never);
+        vi.mocked(getStoredGenerationTaskByRequest).mockResolvedValue(null);
+        vi.mocked(queryStoredGenerationTasks).mockResolvedValue([]);
+        vi.mocked(getAuthSettings).mockResolvedValue({ defaultModels: { textModel: "fixture" }, generationConcurrency: { text: 1 } } as never);
+        vi.mocked(resolveLogicalModelCandidates).mockReturnValue([{}] as never);
+        vi.mocked(toSystemGenerationChannel).mockReturnValue({ model: "fixture" } as never);
+        vi.mocked(resolveDramaLabPrompt).mockResolvedValue({ ...dramaLabPromptDefinition("story_generation"), customized: false });
+        vi.mocked(withDramaLabPromptContract).mockImplementation((body, contract) => `${body}\n${contract}`);
+        vi.mocked(withGenerationConcurrencyLimit).mockImplementation(async (_user, _type, _ttl, _limit, run) => run());
+        vi.mocked(createTextTask).mockImplementation(async (input) => ({ ...input, id: "fixture-task" }) as never);
+        const { startDramaLabStoryGeneration } = await import("./drama-lab-story-generation-service");
+        await startDramaLabStoryGeneration({ userId: "user-one", projectId: "project-one", sourceEpisodeId: "episode-one", requestId: "count", storyOutline: "故事梗概", storyStyle: "现代", scriptType: "剧情", episodeCount: 3 });
+        const request = vi.mocked(createTextTask).mock.calls.at(-1)![0];
+        const system = request.messages[0].content;
+        expect(system).toContain("创作 3 集");
+        expect(system).not.toContain("{{episodeCount}}");
+        expect(system).toContain("数组长度必须为 3");
+        expect(request.storyBatch?.episodeCount).toBe(3);
+    });
+});

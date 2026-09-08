@@ -1,7 +1,17 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { assertAgentPlanSkillCompatibility, defaultSkillCapabilities, type AgentSkillCapability } from "./agent-skill-capabilities";
 
 describe("agent skill capability contract", () => {
+    it("allows legacy drama planning to produce a text script", () => {
+        expect(() => assertAgentPlanSkillCompatibility({ deliverables: [{ type: "text", title: "script", prompt: "three shots" }] }, [{ workspaces: ["image", "video", "drama"] }], [])).not.toThrow();
+    });
+    it("requires actual media for reference-required generation", () => {
+        expect(() => assertAgentPlanSkillCompatibility({ deliverables: [{ type: "image", title: "retouch", prompt: "wait for image" }] }, [{ requiresReference: true, workspaces: ["image"] }], [])).toThrow();
+    });
+    it("allows clarification without media even when an edit skill is selected", () => {
+        expect(() => assertAgentPlanSkillCompatibility({ deliverables: [] }, [{ requiresReference: true, workspaces: ["image"] }], [])).not.toThrow();
+    });
+
     it("accepts a skill that explicitly supports text plus image to image", () => {
         const skills: Array<{ capabilities: AgentSkillCapability[] }> = [{ capabilities: [{ inputs: ["text", "image"], outputs: ["image"] }] }];
         expect(() => assertAgentPlanSkillCompatibility({ deliverables: [{ type: "image", title: "商品图", prompt: "生成商品图" }] }, skills, ["image"])).not.toThrow();

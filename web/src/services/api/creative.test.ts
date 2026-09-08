@@ -41,6 +41,19 @@ describe("统一创作 Agent 事件流", () => {
     });
     afterEach(() => vi.unstubAllGlobals());
 
+    it("finishes partial success and reconciles paused snapshots", () => {
+        vi.stubGlobal("EventSource", FakeEventSource);
+        const terminal = vi.fn();
+        const changed = vi.fn();
+        const status = vi.fn();
+        watchCreativeAgentRun("run", { onProgress: vi.fn(), onTerminal: terminal, onConnectionError: vi.fn(), onTaskCompleted: changed, onStatus: status });
+        FakeEventSource.instance.emit("run.snapshot", { status: "paused" });
+        expect(changed).toHaveBeenCalled();
+        FakeEventSource.instance.emit("run.partial_success", { data: { reply: "one done, one failed" } });
+        expect(terminal).toHaveBeenCalledWith("completed", "one done, one failed");
+        expect(FakeEventSource.instance.closed).toBe(true);
+    });
+
     it("returns planning, task and final replies to one conversation", () => {
         vi.stubGlobal("EventSource", FakeEventSource);
         const progress: string[] = [];

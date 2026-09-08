@@ -21,6 +21,25 @@ describe("createAgentRun video frames", () => {
         mocks.createCreativeRunBundle.mockImplementation(async (_userId, input) => input.run);
     });
 
+    it("persists partial success as a finished assistant message with retained assets", async () => {
+        const run = { ...canvasRun(), status: "running" as const, assetIds: ["result-one"] };
+        let assistant: unknown;
+        mocks.mutateCreativeRun.mockImplementation(async (_id, _ttl, mutate) => {
+            const next = mutate(run);
+            assistant = next.assistant;
+            return next.run;
+        });
+        await updateAgentRunById(run.id, { status: "partial_success" }, { type: "run.partial_success", data: { reply: "One completed, one failed" } }, ["running"]);
+        expect(assistant).toMatchObject({ status: "completed", content: "One completed, one failed", metadata: { assetIds: ["result-one"] } });
+    });
+
+    it("increments planning identity atomically only on an accepted explicit retry", async () => {
+        const run = { ...canvasRun(), status: "failed" as const, planningAttempt: 2, tasks: [] };
+        mocks.mutateCreativeRun.mockImplementation(async (_id, _ttl, mutate) => mutate(run).run);
+        const retried = await updateAgentRunById(run.id, { status: "planning" }, { type: "run.retry.requested" }, ["failed"]);
+        expect(retried?.planningAttempt).toBe(3);
+    });
+
     it("accepts ready image frames owned by the current user", async () => {
         mocks.getCreativeAssetsByIds.mockResolvedValue([
             { id: "first-image", userId: "user", type: "image", status: "ready" },
