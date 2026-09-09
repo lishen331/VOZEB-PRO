@@ -169,3 +169,7 @@
   - 参数页签场景已使用新对话、先浏览视频再回到图片/关闭参数后发送纯文字请求；run `agent-GYVjxcuxUq2i3F4X4foUj` completed，tasks=[]，助手准确回复“语义验收通过”。未出现 video task，P0-01 通过。
   - 图片盲测使用页面上传的 `input-a.png` 并要求直接读取图中错误码；服务端确实绑定了资产 `asset-8ieap-DumffcEdVPGh8cz`，但运行在选择的 `gpt-5.5` 视觉模型下，助手失败：`No available channel for model gpt-5.5 under group default (distributor)`。这是模型/渠道配置阻断，不能判为视觉输入链路通过或失败；请求未降级为空承诺，P0-02 仍待使用已配置可用的视觉模型复测。
   - 页面唯一控制台错误为测试账号头像接口 404，不影响本次 Agent 请求。
+- 2026-09-09 P0 线上回归结论：使用测试账号 `laoshi1` 和既有线上地址，无需用户补充信息。
+- P0-01（参数页签污染）已通过真实新建对话复测：先浏览视频参数，再回到图片/关闭参数，发送纯文字请求；run `agent-GYVjxcuxUq2i3F4X4foUj` completed，tasks=[]，回复“语义验收通过”。
+- P0-02（视觉输入/空交付）本次未能完成有效回归：上传图片后系统选择了当前默认 `gpt-5.5`，线上返回 `No available channel for model gpt-5.5 under group default (distributor)`。这是当前模型/渠道路由配置阻断，不是代码空交付证据。已确认请求绑定真实资产 `asset-8ieap-DumffcEdVPGh8cz`，未降级成承诺式完成。
+- 因此没有需要用户操作的事项；若继续闭环，只需后台把正式 `visionModel` 指向已有可用多模态模型（如之前成功使用的模型），再复测同一盲测图。当前不能自行修改生产模型配置，也不能把 gpt-5.5 无渠道错误误判为功能缺陷。
