@@ -262,3 +262,38 @@ describe("agentPlannerInput", () => {
         expect(plannerAgentSkills(DEFAULT_SETTINGS, { surface: "chat", selectedSkillIds: ["image-motion", "character-design"] }).map((skill) => skill.id)).toEqual(["image-motion", "character-design"]);
     });
 });
+
+describe("Canvas multimodal context", () => {
+    it("keeps selected image in current-turn selection and does not turn other text into edit scope", () => {
+        const run = {
+            id: "r",
+            conversationId: "c",
+            surface: "canvas",
+            prompt: "分析这张图",
+            projectId: "p",
+            referencedAssetIds: [],
+            selectedSkillIds: [],
+            requestedModelIds: [],
+            snapshot: {
+                selectedNodeIds: ["image"],
+                nodes: [
+                    { id: "image", type: "image", title: "参考", metadata: { url: "/api/reference-assets/ref.png" } },
+                    { id: "text", type: "text", title: "正文", metadata: { content: "do not edit" } },
+                ],
+                connections: [],
+            },
+        } as never;
+        const result = buildAgentPlannerInput(run, { summary: "", recentMessages: [] } as never, [], "none", [], [], { defaultModels: {}, generationDefaults: {}, agentSkills: [] } as never);
+        expect(result.input.currentTurnSelection).toMatchObject({ selectedNodeIds: ["image"] });
+        expect(JSON.stringify(result.input.canvasSnapshot)).toContain("/api/reference-assets/ref.png");
+        expect(JSON.stringify(result.input.canvasSnapshot)).not.toContain("do not edit");
+    });
+});
+
+describe("audio planning instructions", () => {
+    it("separates spoken text from voice instructions instead of requiring visual constraints for TTS", () => {
+        const prompt = agentPlannerSystemPrompt("chat", "{}", "Test");
+        expect(prompt).toContain("音频配音任务的 prompt 只填写实际需要朗读的正文");
+        expect(prompt).toContain("不得把配音要求、视觉方向或制作说明写入朗读正文");
+    });
+});

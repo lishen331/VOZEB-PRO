@@ -26,7 +26,7 @@ export async function writeDramaLabWorkflowExportArtifact(input: { taskId: strin
     const ownerUserId = cleanId(input.ownerUserId);
     if (!taskId || !projectId || !ownerUserId) throw new Error("导出产物缺少任务或项目归属");
     if (input.data.byteLength <= 0 || input.data.byteLength > MAX_ARTIFACT_BYTES) throw new Error("导出产物超过大小限制");
-    const fileName = safeFileName(input.fileName) || "短剧项目-短剧实验室.zip";
+    const fileName = safeFileName(input.fileName) || "短剧项目-创作工坊.zip";
     const artifactId = taskId;
     const path = artifactPath(artifactId);
     await mkdir(dirname(path), { recursive: true });

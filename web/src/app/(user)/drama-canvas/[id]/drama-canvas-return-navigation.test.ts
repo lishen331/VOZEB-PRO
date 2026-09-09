@@ -26,7 +26,7 @@ describe("drama canvas return navigation", () => {
         expect(workbench).toContain("initialStep?: StepKey");
         expect(workbench).toContain('useState<StepKey>(initialStep || "script")');
         expect(workbench).toContain("window.location.hash.match(/^#storyboard-shot-(.+)$/)");
-        expect(workbench).toContain("document.getElementById(`storyboard-shot-${pendingStoryboardShotId.current}`)?.scrollIntoView");
+        expect(workbench).toContain("focusDramaLabShot(pendingStoryboardShotId.current)");
     });
 
     it("keeps the copied Canvas workbench action inside Drama Lab", async () => {

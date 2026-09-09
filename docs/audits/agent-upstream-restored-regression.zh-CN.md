@@ -54,3 +54,34 @@
 ## Current acceptance boundary
 
 The approved defect fixes are deployed and the two highest-risk flows have online evidence. The retry flow still requires a currently available vision model for a successful final answer; this run cannot be declared content-successful solely because the old billing conflict disappeared. Drama planning text-only, beauty-without-reference, mobile layout, audio, and full five-Skill matrix remain separate acceptance cases.
+
+## 2026-09-09 线上继续验收
+
+- 短剧策划 Skill 文字-only 正向流程：通过。输入“只输出文字脚本，不生图、不生视频、不创建项目”，服务端生成并持久化完整 3 镜头文字脚本；消息状态为 completed，产生 1 个文本任务，无图片/视频/音频任务。
+- 页面流程：发送后自动进入新会话，助手消息在约 40 秒内回写；未出现“Skill 不支持当前输入与输出组合”。
+- 目前仍未执行自然美颜无参考图、角色设定正向、全成功双模型、音频和移动端矩阵；这些作为下一批验收项，不能以本次文字 Skill 结果替代。
+
+- 2026-09-09 自然美颜 Skill 无参考图逆向流程：通过。真实线上新会话中未上传/引用素材，发送精修请求后助手明确返回“当前 Skill 需要参考素材，请先上传或引用素材后再生成”；消息为 failed，未创建图片任务。
+- 2026-09-09 角色设定 Skill 正向流程：通过。线上生成成年女性短发邮差角色设定图，任务类型为 image，模型 gpt-image-2-all，任务与资产均 completed；optimizedPrompt 保留“不要视频”等约束，未携带参考图时仍按该 Skill 的无参考图正向路径生成。
+- 2026-09-09 全成功双模型生成：通过。关闭智能规划后手动选择 gpt-image-2-all 与 gemini-3.1-flash-image，提交“两个模型各生成一张”请求；两项任务均完成，助手消息 completed，持久化 2 个 taskId 与 2 个 assetId，未进入待确认。
+- 2026-09-09 继续验收：音频外部免费服务注册成本过高，按原计划不引入新的真实渠道；音频能力保留为环境配置阻断，不修改练习渠道。
+- 移动端 390×844：旧多模型待确认会话能正常显示“部分上游任务结果待确认”、任务状态列表、“重新检查原任务”和“取消未完成任务”按钮，内容未被横向截断；移动布局验收通过（功能可见性层面）。
+- 2026-09-09 取消流程线上验收：通过。移动端 390×844 打开旧待确认多模型运行，点击“取消未完成任务”后页面即时显示“Agent 任务已取消”，未重复生成。
+- 2026-09-09 任务恢复/取消/重试矩阵补充：服务端路由测试通过（19 tests），事件流与客户端状态同步测试通过（23 tests）。覆盖 whole-run retry、child retry、并发保护、取消保留已完成子任务、partial_success 终态与事件游标。
+- 当前线上可继续证明：暂停运行重新检查不会创建新任务；取消会将未完成子任务置为 cancelled 并保留已完成结果。
+- 音频仍为环境阻断：未配置生产音频模型，未执行虚假成功测试。
+- 2026-09-09 Agent 混合流程与结果回写补充验证：服务端 planner/media、intent guard、结果项持久化、recheck、direct execution 共 6 个测试文件 38 tests 全部通过。
+- 线上 create overview 可读取最近双模型两项图片资产及两个仍暂停的历史任务；任务列表与资产列表数据均可回写，未发现成功资产被任务列表隐藏。
+- 线上页面仍有头像 404（/api/public/users/laoshi1/avatar），不影响 Agent 任务链路，未在本轮修改无关头像回退。
+- 2026-09-09 五个 Skill / 混合流程集中验收汇总：
+  - 电商生图：此前线上双参考图路径已成功生成并回写资产；本轮 Skill 目录与选择入口确认存在。
+  - 自然美颜精修：无参考图正确拦截；有参考图的生成路径已具备服务端 requiresReference 校验。
+  - 角色设定：线上正向 image 生成通过。
+  - 图片动效：此前线上 image-motion 实际生成视频并可播放，视频资产已回写。
+  - 短剧策划：线上文字-only 生成通过，未创建媒体任务。
+  - Skill 选择与 workspace 策略、输入意图保护、媒体规划、结果回写、恢复与取消相关自动化测试共 105 tests 全部通过。
+- 混合任务边界：已覆盖服务端部分成功、待确认、取消、重试、结果保留；无上游任务 ID 的提交继续禁止自动重新生成。
+- 音频：仍无正式生产模型配置，按约定不伪造通过结果。
+- 本轮未修改业务代码，仅补充验收记录。
+- 2026-09-09 P0 线上复测记录补充：测试账号与地址已沿用历史配置，无需用户重新提供。尝试从 `/create` 参数页签进入复测时，页面自动恢复已有会话 `conversation-HHSKmAENRdSJxYw0qXJkz`，未成功建立隔离新会话；因此本次操作未作为 P0 回归证据，避免把旧会话的“蓝宝是我们刚才的ip不是这个”任务误判为本次纯文字请求。
+- 当前代码层 P0 修复仍由 986e0c0d 提供，针对性多模态/模式隔离测试已通过；线上复测必须先通过“新建对话”确认 URL、空消息、模型和 Skill，再发送，防止历史会话自动恢复污染测试。

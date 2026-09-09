@@ -248,7 +248,22 @@ function CreativeMediaRound({
     const showAssistantText = Boolean(displayContent.trim()) && !(assistantMessage.status === "completed" && (mediaOutputs.length || textOutputs.length));
     const mode = creativeRunMode(run);
     const taskTitle = run?.tasks.find((task) => task.type === mode)?.title.trim();
-    const resultTitle = taskTitle?.startsWith("生成") ? `已为你${taskTitle}` : mode === "video" ? "已为你生成视频" : mode === "audio" ? "已为你生成音频" : "已为你生成图片";
+    const resultTitle =
+        assistantMessage.status === "cancelled" || run?.status === "cancelled"
+            ? "创作已取消"
+            : assistantMessage.status === "failed" || run?.status === "failed"
+              ? "创作失败"
+              : run?.status === "partial_success"
+                ? "部分创作已完成"
+                : !mediaOutputs.some((asset) => asset.status === "ready")
+                  ? "创作结果待确认"
+                  : taskTitle?.startsWith("生成")
+                    ? `已为你${taskTitle}`
+                    : mode === "video"
+                      ? "已为你生成视频"
+                      : mode === "audio"
+                        ? "已为你生成音频"
+                        : "已为你生成图片";
     const renderRoundActions = (activeAsset: CreativeAsset) =>
         activeAsset.status === "ready" ? <CreativeRoundActions outputAssets={outputAssets} activeAsset={activeAsset} run={run} selectedAssetIds={selectedAssetIds} onToggleAsset={onToggleAsset} /> : null;
 
@@ -782,15 +797,17 @@ function assetUrl(asset: CreativeAsset) {
 function agentAssetDownloads(assets: CreativeAsset[]): AgentMediaDownload[] {
     return assets.flatMap((asset) => {
         const url = assetUrl(asset);
-        return url && (asset.type === "image" || asset.type === "video") ? [{ type: asset.type, url, title: asset.title || (asset.type === "video" ? "生成视频" : "生成图片"), mimeType: asset.mimeType }] : [];
+        return url && (asset.type === "image" || asset.type === "video" || asset.type === "audio")
+            ? [{ type: asset.type, url, title: asset.title || (asset.type === "video" ? "生成视频" : asset.type === "audio" ? "生成音频" : "生成图片"), mimeType: asset.mimeType }]
+            : [];
     });
 }
 
 function agentAssetDownload(asset: CreativeAsset): AgentMediaDownload {
     return {
-        type: asset.type === "video" ? "video" : "image",
+        type: asset.type === "video" ? "video" : asset.type === "audio" ? "audio" : "image",
         url: assetUrl(asset)!,
-        title: asset.title || (asset.type === "video" ? "生成视频" : "生成图片"),
+        title: asset.title || (asset.type === "video" ? "生成视频" : asset.type === "audio" ? "生成音频" : "生成图片"),
         mimeType: asset.mimeType,
     };
 }

@@ -12,8 +12,27 @@ export type PracticePanelProps = {
 
 export type PracticePanelModule = PracticeModuleKind;
 
+/** 与 Demo 一致：有尺寸预设时用“尺寸比例”下拉，默认选中与工作流默认宽高一致的预设，否则选第一项。 */
 export function workflowFieldDefaults(capability: PracticeModuleCapability) {
-    return Object.fromEntries(capability.inputSchema.filter((field) => field.defaultValue !== undefined && !["prompt", "text"].includes(field.key) && !isDialogueSlotField(field.key)).map((field) => [field.key, field.defaultValue]));
+    const defaults = Object.fromEntries(capability.inputSchema.filter((field) => field.defaultValue !== undefined && !["prompt", "text"].includes(field.key) && !isDialogueSlotField(field.key)).map((field) => [field.key, field.defaultValue]));
+    const size = defaultSizeOption(capability, defaults);
+    if (size) Object.assign(defaults, { width: size.width, height: size.height });
+    const durations = capability.durationOptions || [];
+    if (durations.length) defaults.duration = typeof defaults.duration === "number" && durations.includes(defaults.duration) ? defaults.duration : durations[0];
+    return defaults;
+}
+
+export function defaultSizeOption(capability: Pick<PracticeModuleCapability, "sizeOptions">, current: Record<string, unknown>) {
+    const options = capability.sizeOptions || [];
+    if (!options.length) return undefined;
+    return options.find((option) => option.width === current.width && option.height === current.height) || options[0];
+}
+
+/** 由尺寸/时长下拉接管的字段，不再渲染成裸数字框。 */
+function isPresetManagedField(capability: PracticeModuleCapability, key: string) {
+    if ((key === "width" || key === "height") && capability.sizeOptions?.length) return true;
+    if (key === "duration" && capability.durationOptions?.length) return true;
+    return false;
 }
 
 export function workflowFormFields(capability: PracticeModuleCapability) {
@@ -21,8 +40,42 @@ export function workflowFormFields(capability: PracticeModuleCapability) {
         if (fields.findIndex((item) => item.key === field.key) !== index) return false;
         if (["prompt", "text", "referenceImage", "sceneImage", "characterPropImage1", "characterPropImage2", "characterPropImage3", "image", "audio"].includes(field.key)) return false;
         if (/^s\d+_/.test(field.key)) return false;
+        if (isPresetManagedField(capability, field.key)) return false;
         return field.required || field.type === "text" || field.type === "textarea";
     });
+}
+
+export function PracticeSizeField({ capability, value, onChange, label = "尺寸比例" }: { capability: PracticeModuleCapability; value: Record<string, unknown>; onChange: (patch: { width: number; height: number }) => void; label?: string }) {
+    const options = capability.sizeOptions || [];
+    if (!options.length) return null;
+    const selected = defaultSizeOption(capability, value);
+    return (
+        <label className="block text-sm font-medium">
+            {label}
+            <Select
+                aria-label={label}
+                value={selected?.key}
+                onChange={(key) => {
+                    const option = options.find((item) => item.key === key);
+                    if (option) onChange({ width: option.width, height: option.height });
+                }}
+                options={options.map((option) => ({ value: option.key, label: option.label }))}
+                className="!mt-2 !w-full"
+            />
+        </label>
+    );
+}
+
+export function PracticeDurationField({ capability, value, onChange, label = "视频时长" }: { capability: PracticeModuleCapability; value: Record<string, unknown>; onChange: (duration: number) => void; label?: string }) {
+    const options = capability.durationOptions || [];
+    if (!options.length) return null;
+    const current = typeof value.duration === "number" && options.includes(value.duration) ? value.duration : options[0];
+    return (
+        <label className="block text-sm font-medium">
+            {label}
+            <Select aria-label={label} value={current} onChange={(next) => onChange(Number(next))} options={options.map((seconds) => ({ value: seconds, label: `${seconds} 秒` }))} className="!mt-2 !w-full" />
+        </label>
+    );
 }
 
 export function WorkflowFormFields({ capability, value, onChange }: { capability: PracticeModuleCapability; value: Record<string, unknown>; onChange: (key: string, next: unknown) => void }) {
@@ -38,7 +91,9 @@ export function WorkflowFormFields({ capability, value, onChange }: { capability
 }
 
 export function WorkflowOptionalFields({ capability, value, onChange }: { capability: PracticeModuleCapability; value: Record<string, unknown>; onChange: (key: string, next: unknown) => void }) {
-    const fields = capability.inputSchema.filter((field, index, fields) => fields.findIndex((item) => item.key === field.key) === index && !field.required && !isDialogueSlotField(field.key) && ["number", "enum", "boolean"].includes(field.type));
+    const fields = capability.inputSchema.filter(
+        (field, index, fields) => fields.findIndex((item) => item.key === field.key) === index && !field.required && !isDialogueSlotField(field.key) && !isPresetManagedField(capability, field.key) && ["number", "enum", "boolean"].includes(field.type),
+    );
     if (!fields.length) return null;
     return (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -88,5 +143,11 @@ function isDialogueSlotField(key: string) {
 export function capabilityForWorkflow(capability: PracticeModuleCapability, code: string, modelId?: string): PracticeModuleCapability {
     const options = capability.models.find((model) => model.id === modelId)?.workflowOptions || capability.workflowOptions;
     const workflow = options?.find((option) => option.code === code);
-    return { ...capability, available: capability.available && (!options?.length || Boolean(workflow)), inputSchema: workflow?.inputSchema || capability.inputSchema };
+    return {
+        ...capability,
+        available: capability.available && (!options?.length || Boolean(workflow)),
+        inputSchema: workflow?.inputSchema || capability.inputSchema,
+        sizeOptions: workflow ? workflow.sizeOptions : capability.sizeOptions,
+        durationOptions: workflow ? workflow.durationOptions : capability.durationOptions,
+    };
 }

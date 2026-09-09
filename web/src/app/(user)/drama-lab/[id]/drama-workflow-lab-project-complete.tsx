@@ -1,5 +1,9 @@
 "use client";
 
+import { DRAMA_LAB_SHOT_FOCUS, focusDramaLabShot } from "@/lib/drama-lab-shot-focus";
+import { DramaLabShotAssetPicker } from "./drama-lab-shot-asset-picker";
+import { groupStoryboardShots } from "@/lib/drama-lab-storyboard-groups";
+import { DramaLabSegmentHeader } from "./drama-lab-segment-header";
 import { normalizeDramaLabStoryboardOptions } from "@/lib/drama-lab-storyboard-options";
 import { DramaLabStoryboardConstraints, type StoryboardConstraintDraft } from "./drama-lab-storyboard-constraints";
 
@@ -986,6 +990,8 @@ function stableAudioSourceUrl(value: unknown) {
     return url && !url.startsWith("data:") && !url.startsWith("blob:") ? url : "";
 }
 
+const dramaLabRecoveryStarted = new Set<string>();
+
 function isDramaLabExecutionActive(phase: DramaLabVideoBatchExecutionPhase | undefined, taskId?: string) {
     return Boolean(taskId?.trim()) && (phase === "created" || phase === "submitting" || phase === "submitted" || phase === "polling" || phase === "result_ready" || phase === "persisting" || phase === "cancel_requested" || phase === "cancel_polling");
 }
@@ -1211,7 +1217,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
 
     useEffect(() => {
         if (activeStep !== "storyboard" || !pendingStoryboardShotId.current) return;
-        document.getElementById(`storyboard-shot-${pendingStoryboardShotId.current}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        focusDramaLabShot(pendingStoryboardShotId.current);
         pendingStoryboardShotId.current = undefined;
     }, [activeEpisodeId, activeStep]);
 
@@ -1231,7 +1237,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         pendingStoryboardShotId.current = shotId;
         requestAnimationFrame(() => {
             const target = document.getElementById(`storyboard-shot-${shotId}`);
-            target?.scrollIntoView({ behavior: "smooth", block: "center" });
+            if (target) focusDramaLabShot(shotId);
             if (target) initialStoryboardHashHandledRef.current = true;
             pendingStoryboardShotId.current = undefined;
         });
@@ -1333,6 +1339,10 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     const activeEpisode = project?.episodes.find((ep) => ep.id === activeEpisodeId);
     const locateStoryboardShot = (episodeId: string, shotId: string) => {
         pendingStoryboardShotId.current = shotId;
+        if (activeStep === "storyboard" && activeEpisodeId === episodeId) {
+            focusDramaLabShot(shotId);
+            pendingStoryboardShotId.current = undefined;
+        }
         setActiveEpisodeId(episodeId);
         setActiveStep("storyboard");
     };
@@ -1749,16 +1759,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                                                         key={shot.id}
                                                         type="button"
                                                         className="block w-full truncate rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                                                        onClick={() => {
-                                                            setActiveEpisodeId(ep.id);
-                                                            setActiveStep("storyboard");
-                                                            setTimeout(() => {
-                                                                document.getElementById(`storyboard-shot-${shot.id}`)?.scrollIntoView({
-                                                                    behavior: "smooth",
-                                                                    block: "center",
-                                                                });
-                                                            }, 100);
-                                                        }}
+                                                        onClick={() => locateStoryboardShot(ep.id, shot.id)}
                                                     >
                                                         镜头 {shot.shotNumber}: {shot.script?.slice(0, 20) || "未命名"}
                                                     </button>
@@ -3991,6 +3992,20 @@ function StoryboardPanel({
     const [editingShot, setEditingShot] = useState<Shot | null>(null);
     const [extracting, setExtracting] = useState(false);
     const [constraintDrafts, setConstraintDrafts] = useState<Record<string, StoryboardConstraintDraft>>({});
+    const [segmentCollapsed, setSegmentCollapsed] = useState<Record<string, boolean>>({});
+    const [collapsedShots, setCollapsedShots] = useState<Record<string, boolean>>({});
+    useEffect(() => {
+        const reveal = (event: Event) => {
+            const shotId = (event as CustomEvent<{ shotId?: string }>).detail?.shotId;
+            if (!shotId) return;
+            const group = groupStoryboardShots(latestProjectRef.current.shots.filter((shot) => shot.episodeId === currentEpisodeIdRef.current).sort((a, b) => a.shotNumber - b.shotNumber)).find((item) => item.shots.some((shot) => shot.id === shotId));
+            if (!group) return;
+            setCollapsedShots((current) => ({ ...current, [shotId]: false }));
+            setSegmentCollapsed((current) => ({ ...current, [group.id]: false }));
+        };
+        window.addEventListener(DRAMA_LAB_SHOT_FOCUS, reveal);
+        return () => window.removeEventListener(DRAMA_LAB_SHOT_FOCUS, reveal);
+    }, []);
     const constraintDraft = constraintDrafts[episode?.id || ""] || { shotCount: "", totalDuration: "", creationMode: "classic" as const, generateNarration: false };
     const lastExtractionCheckpointRef = useRef(0);
     const [startingKeys, setStartingKeys] = useState<Set<string>>(() => new Set());
@@ -4042,7 +4057,12 @@ function StoryboardPanel({
     const recoveryAttemptedRef = useRef(new Set<string>());
     const recoveryInFlightRef = useRef(new Map<string, Promise<boolean>>());
     const recoveryStateRef = useRef(new Map<string, "pending" | "ready" | "failed">());
+    const recoveryStartedRef = useRef(new Set<string>());
     const recoveryAbortRef = useRef<AbortController | null>(null);
+    const recoveryReloadRef = useRef(onReload);
+    recoveryReloadRef.current = onReload;
+    const recoveryMessageRef = useRef(messageApi);
+    recoveryMessageRef.current = messageApi;
 
     const updateShot = async (shotId: string, patch: Partial<Shot>, options: SaveOptions = { silent: true }) => {
         const saved = await onSave(
@@ -4405,7 +4425,9 @@ function StoryboardPanel({
         if (!episodeId) return;
         const recoveryKey = `${project.id}:${episodeId}`;
         const previousState = recoveryStateRef.current.get(recoveryKey);
-        if (previousState === "pending" || previousState === "ready" || recoveryAttemptedRef.current.has(recoveryKey)) return;
+        if (dramaLabRecoveryStarted.has(recoveryKey) || recoveryStartedRef.current.has(recoveryKey) || previousState === "pending" || previousState === "ready" || recoveryAttemptedRef.current.has(recoveryKey)) return;
+        dramaLabRecoveryStarted.add(recoveryKey);
+        recoveryStartedRef.current.add(recoveryKey);
         let disposed = false;
         const controller = new AbortController();
         recoveryAbortRef.current?.abort();
@@ -4426,10 +4448,10 @@ function StoryboardPanel({
                 const result = data.data as { tasks?: Array<{ binding?: string }>; syncedShotIds?: string[]; syncErrors?: unknown[] } | undefined;
                 const discovered = Boolean(result?.tasks?.some((task) => task.binding === "discovered"));
                 const changed = discovered || Boolean(result?.syncedShotIds?.length);
-                if (changed) await onReload();
+                if (changed) await recoveryReloadRef.current();
                 if (disposed || controller.signal.aborted) return false;
                 if (result?.syncErrors?.length) {
-                    messageApi.warning({ key: `drama-lab-recovery:${episodeId}`, content: "部分分镜视频任务未能自动恢复，请在对应分镜卡片中手动同步。", duration: 6 });
+                    recoveryMessageRef.current.warning({ key: `drama-lab-recovery:${episodeId}`, content: "部分分镜视频任务未能自动恢复，请在对应分镜卡片中手动同步。", duration: 6 });
                 }
                 recoveryAttemptedRef.current.add(recoveryKey);
                 recoveryStateRef.current.set(recoveryKey, "ready");
@@ -4458,9 +4480,8 @@ function StoryboardPanel({
             controller.abort();
             if (recoveryAbortRef.current === controller) recoveryAbortRef.current = null;
             if (recoveryInFlightRef.current.get(recoveryKey) === pending) recoveryInFlightRef.current.delete(recoveryKey);
-            if (recoveryStateRef.current.get(recoveryKey) === "pending") recoveryStateRef.current.delete(recoveryKey);
         };
-    }, [episodeId, messageApi, onReload, project.id]);
+    }, [episodeId, project.id]);
 
     const handleAdd = () => {
         setEditingShot(null);
@@ -4554,6 +4575,7 @@ function StoryboardPanel({
             .then(async (values) => {
                 const details = {
                     ...values,
+                    segmentIndex: values.segmentIndex === "" || values.segmentIndex === undefined ? undefined : Number(values.segmentIndex),
                     shotNumber: Math.max(1, Number(values.shotNumber) || 1),
                     duration: Math.max(1, Number(values.duration) || 3),
                     script: values.description || "",
@@ -4564,7 +4586,8 @@ function StoryboardPanel({
                     await updateShot(editingShot.id, details);
                 } else {
                     const newShot: Shot = {
-                        id: `shot_${Date.now()}`,
+                        ...details,
+                        id: `shot_${crypto.randomUUID()}`,
                         episodeId: episode?.id || "",
                         sceneId: details.sceneId,
                         characterIds: details.characterIds || [],
@@ -4585,7 +4608,7 @@ function StoryboardPanel({
                         storyboardStatus: "idle",
                         generationStatus: "idle",
                     };
-                    const saved = await onSave({ shots: [...project.shots, newShot] });
+                    const saved = await onSave((current) => ({ shots: [...current.shots.map((shot) => (shot.episodeId === newShot.episodeId && shot.shotNumber >= newShot.shotNumber ? { ...shot, shotNumber: shot.shotNumber + 1 } : shot)), newShot] }));
                     if (!saved) throw new Error("保存分镜失败");
                 }
                 setModalVisible(false);
@@ -4614,7 +4637,7 @@ function StoryboardPanel({
             messageApi.warning("当前视频任务待检查，请先点击“检查状态”，不会重复提交生成任务。");
             return undefined;
         }
-        if (kind === "video" && !shot.frames?.key?.url && !shot.storyboardImageUrl) {
+        if (kind === "video" && shot.creationMode !== "universal" && !shot.frames?.key?.url && !shot.storyboardImageUrl) {
             Modal.warning({
                 title: "无法生成分镜视频",
                 content: "请先生成当前镜头的关键帧或分镜图，再提交视频生成任务。",
@@ -4925,15 +4948,26 @@ function StoryboardPanel({
             const candidates = sourceShots.filter((shot) =>
                 kind === "image"
                     ? !shot.storyboardImageUrl && !isDramaLabTaskActive(shot.storyboardStatus)
-                    : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) && !shot.videoUrl && !requiresDramaLabVideoTaskCheck(shot) && !isDramaLabVideoTaskActive(shot),
+                    : (shot.creationMode === "universal" || Boolean(shot.frames?.key?.url || shot.storyboardImageUrl)) && !shot.videoUrl && !requiresDramaLabVideoTaskCheck(shot) && !isDramaLabVideoTaskActive(shot),
             );
             if (!candidates.length) {
                 if (!disposedRef.current) messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
                 return;
             }
+            const missingByShot = candidates.map((shot) => ({ shot, missing: missingShotAssetLabels(sourceProject, shot) })).filter((item) => item.missing.length);
+            const executableCandidates = candidates.filter((shot) => !missingByShot.some((item) => item.shot.id === shot.id));
+            if (missingByShot.length && !disposedRef.current && !abortController.signal.aborted) {
+                const details = missingByShot
+                    .slice(0, 8)
+                    .map((item) => `镜头 ${item.shot.shotNumber}：${item.missing.join("、")}`)
+                    .join("；");
+                const suffix = missingByShot.length > 8 ? `；另有 ${missingByShot.length - 8} 个镜头缺少资产参考图` : "";
+                messageApi.warning({ content: `已跳过 ${missingByShot.length} 个缺少资产参考图的镜头：${details}${suffix}`, key: "drama-batch-missing-assets", duration: 8 });
+            }
+            if (!executableCandidates.length) return;
             const targets: Array<{ shotId: string; taskId: string }> = [];
             const submissionFailures: Array<{ shotId: string; error: string }> = [];
-            for (const shot of candidates) {
+            for (const shot of executableCandidates) {
                 if (abortController.signal.aborted || disposedRef.current) return;
                 let observedShot = shot;
                 if (kind === "video" && shot.generationTaskId) {
@@ -5014,7 +5048,9 @@ function StoryboardPanel({
                 messageApi[summary.allSucceeded ? "success" : "warning"]({ content: `视频批量任务已结束：${detail}`, key: "drama-video-batch", duration: 6 });
             }
         } catch (error) {
-            if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason !== "aborted") {
+            if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason === "aborted") {
+                messageApi.info({ content: "批量任务已停止，已经提交的任务仍会继续同步。", key: "drama-video-batch", duration: 5 });
+            } else if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason !== "aborted") {
                 messageApi.warning({ content: `视频批量仍有 ${error.progress.pendingCount} 个任务未结束，已保留任务状态，可稍后继续同步。`, key: "drama-video-batch", duration: 8 });
             } else if (!disposedRef.current && !(error instanceof DOMException && error.name === "AbortError")) {
                 messageApi.error({ content: error instanceof Error ? error.message : "批量视频任务等待失败", key: "drama-video-batch", duration: 8 });
@@ -5026,6 +5062,33 @@ function StoryboardPanel({
                 if (!disposedRef.current) setBatchRunning("");
             }
             if (abortController.signal.aborted || disposedRef.current) messageApi.destroy("drama-video-batch");
+        }
+    };
+
+    const exportStoryboard = async (kind: "xlsx" | "srt") => {
+        if (!episode) return;
+        try {
+            const { buildStoryboardNarrationSrt, buildStoryboardXlsx, storyboardExportFilename } = await import("@/lib/drama-lab-storyboard-export");
+            const input = { projectTitle: project.title, episode: { id: episode?.id || "", number: episode?.number }, shots: episodeShots, scenes: project.scenes, characters: project.characters, props: project.props };
+            if (kind === "srt") {
+                const blob = new Blob([buildStoryboardNarrationSrt(input)], { type: "text/plain;charset=utf-8" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = storyboardExportFilename(input, "srt");
+                a.click();
+                URL.revokeObjectURL(a.href);
+            } else {
+                const bytes = await buildStoryboardXlsx(input);
+                const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = storyboardExportFilename(input, "xlsx");
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }
+            messageApi.success(kind === "srt" ? "解说 SRT 已导出" : "分镜表 Excel 已导出");
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "导出失败");
         }
     };
 
@@ -5231,62 +5294,88 @@ function StoryboardPanel({
     }
 
     return (
-        <div className="mx-auto max-w-[1440px]">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h2 className="text-lg font-semibold">分镜工作台</h2>
-                    <p className="text-sm text-muted-foreground">当前集 {episodeShots.length} 个分镜，资产勾选会作为本镜生图和视频生成的参考依据。</p>
+        <div className="mx-auto max-w-[1440px]" aria-label="分镜工作台模块">
+            <section className="mb-5 space-y-4 rounded-xl border border-border bg-card p-4">
+                <h2 className="text-lg font-semibold">
+                    分镜生成 <span className="text-sm font-normal text-muted-foreground">根据剧本、角色、场景生成分镜头脚本</span>
+                </h2>
+                <DramaLabStoryboardConstraints
+                    value={constraintDraft}
+                    disabled={extracting}
+                    onChange={(value) => setConstraintDrafts((current) => ({ ...current, [episode.id]: value }))}
+                    onExportXlsx={() => void exportStoryboard("xlsx")}
+                    onExportSrt={() => void exportStoryboard("srt")}
+                />
+                <div className="flex flex-wrap items-center justify-between gap-3" aria-label="分镜操作">
+                    <div className="flex flex-wrap gap-2">
+                        <Button type="primary" icon={<Sparkles className="size-4" />} loading={extracting} onClick={handleExtract}>
+                            {episodeShots.length ? "重新生成分镜" : "AI 生成分镜"}
+                        </Button>
+                        <Button icon={<Plus className="size-4" />} onClick={handleAdd}>
+                            添加一个分镜
+                        </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <Button loading={batchRunning === "image"} disabled={Boolean(batchRunning)} icon={<Sparkles className="size-4" />} onClick={() => void runBatch("image")}>
+                            批量生成分镜图
+                        </Button>
+                        <Button loading={batchRunning === "video"} disabled={Boolean(batchRunning)} icon={<Film className="size-4" />} onClick={() => void runBatch("video")}>
+                            批量生成分镜视频
+                        </Button>
+                        {batchRunning === "image" || batchRunning === "video" ? (
+                            <Button danger aria-label="取消批量任务" onClick={() => batchAbortRef.current?.abort()}>
+                                {batchRunning === "image" ? "停止图片" : "停止视频"}
+                            </Button>
+                        ) : null}
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button loading={batchRunning === "image"} disabled={Boolean(batchRunning)} icon={<Sparkles className="size-4" />} onClick={() => void runBatch("image")}>
-                        批量生成分镜图
-                    </Button>
-                    <Button loading={batchRunning === "video"} disabled={Boolean(batchRunning)} icon={<Film className="size-4" />} onClick={() => void runBatch("video")}>
-                        批量生成分镜视频
-                    </Button>
-                    <Button type="primary" icon={<Sparkles className="size-4" />} loading={extracting} onClick={handleExtract}>
-                        从剧本提取分镜
-                    </Button>
-                    <Button icon={<Plus className="size-4" />} onClick={handleAdd}>
-                        添加分镜
-                    </Button>
-                </div>
-            </div>
-
-            <DramaLabStoryboardConstraints value={constraintDraft} disabled={extracting} onChange={(value) => setConstraintDrafts((current) => ({ ...current, [episode.id]: value }))} />
+            </section>
 
             <div className="space-y-4">
-                {episodeShots.map((shot) => (
-                    <StoryboardWorkbenchCard
-                        key={shot.id}
-                        shot={shot}
-                        project={project}
-                        busyKeys={startingKeys}
-                        onStartGeneration={startGeneration}
-                        onCheckVideoStatus={checkVideoStatus}
-                        onStartFrame={startFrame}
-                        onExtractTailFrame={extractTailFrame}
-                        onAcceptFirstFrameCandidate={acceptFirstFrameCandidate}
-                        onKeepFirstFrameCandidate={() => messageApi.info("候选首帧已保留，未覆盖当前首帧")}
-                        onToggleFrameLock={toggleFrameLock}
-                        onUploadFrame={uploadFrame}
-                        onStartAudio={startAudioGeneration}
-                        onSyncAudio={syncAudioManually}
-                        onRecoverAudio={recoverAudioManually}
-                        onPreviewAudioSplit={previewAudioSplit}
-                        onApplyAudioSplit={applyAudioSplit}
-                        audioSplitPlan={audioSplitPlans[shot.id]}
-                        onSync={() => void syncShotManually(shot).catch((error) => messageApi.error(error instanceof Error ? error.message : "任务状态同步失败"))}
-                        onUpdate={(patch) => void updateShot(shot.id, patch).catch((error) => messageApi.error(error instanceof Error ? error.message : "保存分镜失败"))}
-                        onEdit={() => handleEdit(shot)}
-                        onDelete={() => handleDelete(shot.id)}
-                    />
+                {groupStoryboardShots(episodeShots).map((group) => (
+                    <section key={group.id} aria-label={group.label}>
+                        <DramaLabSegmentHeader group={group} expanded={!segmentCollapsed[group.id]} controlsId={`segment-${group.id}`} onToggle={() => setSegmentCollapsed((current) => ({ ...current, [group.id]: !current[group.id] }))} />
+                        <div id={`segment-${group.id}`} hidden={segmentCollapsed[group.id]} style={segmentCollapsed[group.id] ? { display: "none" } : undefined} className="space-y-4 pt-3">
+                            {group.shots.map((shot) => (
+                                <StoryboardWorkbenchCard
+                                    key={shot.id}
+                                    shot={shot}
+                                    project={project}
+                                    busyKeys={startingKeys}
+                                    collapsed={Boolean(collapsedShots[shot.id])}
+                                    onToggleCollapse={() => setCollapsedShots((current) => ({ ...current, [shot.id]: !current[shot.id] }))}
+                                    onStartGeneration={startGeneration}
+                                    onCheckVideoStatus={checkVideoStatus}
+                                    onStartFrame={startFrame}
+                                    onExtractTailFrame={extractTailFrame}
+                                    onAcceptFirstFrameCandidate={acceptFirstFrameCandidate}
+                                    onKeepFirstFrameCandidate={() => messageApi.info("候选首帧已保留，未覆盖当前首帧")}
+                                    onToggleFrameLock={toggleFrameLock}
+                                    onUploadFrame={uploadFrame}
+                                    onStartAudio={startAudioGeneration}
+                                    onSyncAudio={syncAudioManually}
+                                    onRecoverAudio={recoverAudioManually}
+                                    onPreviewAudioSplit={previewAudioSplit}
+                                    onApplyAudioSplit={applyAudioSplit}
+                                    audioSplitPlan={audioSplitPlans[shot.id]}
+                                    onSync={() => void syncShotManually(shot).catch((error) => messageApi.error(error instanceof Error ? error.message : "任务状态同步失败"))}
+                                    onUpdate={(patch) => void updateShot(shot.id, patch).catch((error) => messageApi.error(error instanceof Error ? error.message : "保存分镜失败"))}
+                                    onEdit={() => handleEdit(shot)}
+                                    onDelete={() => handleDelete(shot.id)}
+                                    onInsertBefore={() => {
+                                        handleAdd();
+                                        form.setFieldsValue({ shotNumber: shot.shotNumber, segmentIndex: shot.segmentIndex, segmentTitle: shot.segmentTitle });
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    </section>
                 ))}
 
                 {episodeShots.length === 0 && <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">暂无分镜，点击“从剧本提取分镜”开始拆解，也可手工添加</div>}
             </div>
 
-            <Modal title={editingShot ? "编辑分镜" : "添加分镜"} open={modalVisible} onOk={handleSave} onCancel={() => setModalVisible(false)} width={600}>
+            <Modal title={editingShot ? "分镜配置" : "添加分镜"} open={modalVisible} onOk={handleSave} onCancel={() => setModalVisible(false)} width={800}>
                 <Form form={form} layout="vertical">
                     <Form.Item name="episodeId" hidden>
                         <Input />
@@ -5363,6 +5452,48 @@ function StoryboardPanel({
                     <Form.Item label="视频提示词" name="videoPrompt">
                         <TextArea rows={3} placeholder="用于 AI 生成视频的动态提示词（可选）" />
                     </Form.Item>
+                    <div className="grid gap-x-4 sm:grid-cols-2" aria-label="分镜摄影与段落配置">
+                        {(
+                            [
+                                ["segmentTitle", "幕 / 段落标题"],
+                                ["location", "场景地点"],
+                                ["time", "场景时间"],
+                                ["shotType", "景别"],
+                                ["cameraMotion", "运镜方式"],
+                                ["atmosphere", "氛围 / 情绪"],
+                                ["lightingStyle", "灯光"],
+                                ["depthOfField", "景深"],
+                                ["angleH", "水平方向"],
+                                ["angleV", "俯仰角度"],
+                                ["angleS", "画面景别"],
+                            ] as const
+                        ).map(([name, label]) => (
+                            <Form.Item key={name} name={name} label={label}>
+                                <Input />
+                            </Form.Item>
+                        ))}
+                        <Form.Item
+                            name="segmentIndex"
+                            label="幕索引（从 0 开始）"
+                            rules={[{ validator: (_, value) => (value === undefined || value === "" || (Number.isInteger(Number(value)) && Number(value) >= 0) ? Promise.resolve() : Promise.reject(new Error("幕索引必须为非负整数"))) }]}
+                        >
+                            <Input type="number" step="1" />
+                        </Form.Item>
+                    </div>
+                    {(
+                        [
+                            ["layoutDescription", "构图与人物站位"],
+                            ["action", "动作"],
+                            ["result", "动作结束结果"],
+                            ["startFramePrompt", "起始状态 / 首帧提示词"],
+                            ["endFramePrompt", "结束状态 / 尾帧提示词"],
+                            ["universalSegmentText", "全能片段提示词"],
+                        ] as const
+                    ).map(([name, label]) => (
+                        <Form.Item key={name} name={name} label={label}>
+                            <TextArea rows={3} />
+                        </Form.Item>
+                    ))}
                 </Form>
             </Modal>
         </div>
@@ -5385,6 +5516,9 @@ function StoryboardWorkbenchCard({
     onUpdate,
     onEdit,
     onDelete,
+    onInsertBefore,
+    collapsed,
+    onToggleCollapse,
     onStartFrame,
     onExtractTailFrame,
     onAcceptFirstFrameCandidate,
@@ -5413,6 +5547,9 @@ function StoryboardWorkbenchCard({
     onUpdate: (patch: Partial<Shot>) => void;
     onEdit: () => void;
     onDelete: () => void;
+    onInsertBefore: () => void;
+    collapsed: boolean;
+    onToggleCollapse: () => void;
 }) {
     const imageBusy = busyKeys.has(`image:${shot.id}`) || isDramaLabTaskActive(shot.storyboardStatus);
     const videoBusy = busyKeys.has(`video:${shot.id}`) || isDramaLabVideoTaskActive(shot);
@@ -5444,20 +5581,36 @@ function StoryboardWorkbenchCard({
                         {shot.cameraMotion ? ` · ${shot.cameraMotion}` : ""}
                     </p>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1">
+                    <Button
+                        size="small"
+                        aria-label={`${collapsed ? "展开分镜" : "收起分镜"} ${shot.shotNumber}`}
+                        aria-expanded={!collapsed}
+                        aria-controls={`storyboard-content-${shot.id}`}
+                        onClick={onToggleCollapse}
+                        icon={collapsed ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
+                    >
+                        {collapsed ? "展开" : "收起"}
+                    </Button>
                     <Button type="text" size="small" title="在画布中打开此分镜" aria-label="在画布中打开此分镜" href={dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)} icon={<PanelsTopLeft className="size-4" />} />
                     <Button type="text" size="small" title="同步任务状态" aria-label="同步任务状态" icon={<LoaderCircle className="size-4" />} onClick={onSync} />
-                    <Button type="text" size="small" title="编辑分镜" aria-label="编辑分镜" icon={<Edit2 className="size-4" />} onClick={onEdit} />
+                    <Button type="text" size="small" title="编辑分镜" aria-label="编辑分镜" icon={<Edit2 className="size-4" />} onClick={onEdit}>
+                        分镜配置
+                    </Button>
+                    <Button size="small" onClick={() => onUpdate({ creationMode: shot.creationMode === "universal" ? "classic" : "universal" })}>
+                        {shot.creationMode === "universal" ? "经典分镜" : "全能模式"}
+                    </Button>
+                    <Button size="small" onClick={onInsertBefore}>
+                        ＋ 新增
+                    </Button>
                     <Button type="text" danger size="small" title="删除分镜" aria-label="删除分镜" icon={<Trash2 className="size-4" />} onClick={onDelete} />
                 </div>
             </header>
-            <div className="grid divide-y divide-border xl:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)] xl:divide-x xl:divide-y-0">
+            <div id={`storyboard-content-${shot.id}`} hidden={collapsed} style={collapsed ? { display: "none" } : undefined} className="grid divide-y divide-border xl:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)] xl:divide-x xl:divide-y-0">
                 <section className="space-y-4 p-4" aria-label={`分镜 ${shot.shotNumber} 资产关联`}>
-                    <AssetBindingGroup label="场景" assets={project.scenes} selectedIds={shot.sceneId ? [shot.sceneId] : []} single onChange={(ids) => onUpdate({ sceneId: ids[0] })} />
-                    <AssetBindingGroup label="角色" assets={project.characters} selectedIds={shot.characterIds} onChange={(characterIds) => onUpdate({ characterIds })} />
-                    <AssetBindingGroup label="道具" assets={project.props} selectedIds={shot.propIds} onChange={(propIds) => onUpdate({ propIds })} />
-                </section>
-                <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 画面`}>
+                    <DramaLabShotAssetPicker label="场景" assets={project.scenes} selectedIds={shot.sceneId ? [shot.sceneId] : []} single onChange={(ids) => onUpdate({ sceneId: ids[0] })} />
+                    <DramaLabShotAssetPicker label="角色" assets={project.characters} selectedIds={shot.characterIds} onChange={(characterIds) => onUpdate({ characterIds })} />
+                    <DramaLabShotAssetPicker label="道具" assets={project.props} selectedIds={shot.propIds} onChange={(propIds) => onUpdate({ propIds })} />
                     <TextArea
                         defaultValue={shot.description}
                         autoSize={{ minRows: 3, maxRows: 8 }}
@@ -5467,6 +5620,8 @@ function StoryboardWorkbenchCard({
                             if (description && description !== shot.description) onUpdate({ description, script: description, sourceText: shot.sourceText || description });
                         }}
                     />
+                </section>
+                <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 画面`}>
                     <TextArea defaultValue={shot.imagePrompt} autoSize={{ minRows: 2, maxRows: 5 }} placeholder="画面补充（可选）" aria-label="画面补充" onBlur={(event) => onUpdate({ imagePrompt: event.target.value.trim() })} />
                     {shot.storyboardError ? <Alert type="error" showIcon message={shot.storyboardError} /> : null}
                     <div className="flex flex-wrap items-center gap-2">
@@ -5654,7 +5809,17 @@ function StoryboardWorkbenchCard({
                             </div>
                         ) : null}
                     </section>
-                    <TextArea defaultValue={shot.videoPrompt} autoSize={{ minRows: 3, maxRows: 7 }} placeholder="镜头动作与动态补充（可选）" aria-label="视频提示词" onBlur={(event) => onUpdate({ videoPrompt: event.target.value.trim() })} />
+                    {shot.creationMode === "universal" ? (
+                        <TextArea
+                            defaultValue={shot.universalSegmentText}
+                            autoSize={{ minRows: 4, maxRows: 10 }}
+                            placeholder="全能模式分镜提示词（需包含连续子分镜与 @图片N）"
+                            aria-label="全能模式视频提示词"
+                            onBlur={(event) => onUpdate({ universalSegmentText: event.target.value.trim() })}
+                        />
+                    ) : (
+                        <TextArea defaultValue={shot.videoPrompt} autoSize={{ minRows: 3, maxRows: 7 }} placeholder="镜头动作与动态补充（可选）" aria-label="视频提示词" onBlur={(event) => onUpdate({ videoPrompt: event.target.value.trim() })} />
+                    )}
                     {videoNeedsCheck ? <Alert type="warning" showIcon message="视频结果待检查" description={dramaLabVideoTaskReviewDescription(shot)} /> : null}
                     {shot.generationError && !videoNeedsCheck ? <Alert type="error" showIcon message={shot.generationError} /> : null}
                     <div className="flex flex-wrap items-center gap-2">
@@ -5671,48 +5836,13 @@ function StoryboardWorkbenchCard({
                     {shot.videoUrl ? (
                         <video src={shot.videoUrl} controls className="max-h-[460px] w-full rounded border border-border" />
                     ) : (
-                        <div className="grid min-h-40 place-items-center border border-dashed border-border text-sm text-muted-foreground">生成关键帧或分镜图后可生成视频</div>
+                        <div className="grid min-h-40 place-items-center border border-dashed border-border text-sm text-muted-foreground">
+                            {shot.creationMode === "universal" ? "绑定资产参考图并完善全能提示词后可生成视频" : "生成关键帧或分镜图后可生成视频"}
+                        </div>
                     )}
                 </section>
             </div>
         </article>
-    );
-}
-
-function AssetBindingGroup({ label, assets, selectedIds, single = false, onChange }: { label: string; assets: Array<Character | Scene | Prop>; selectedIds: string[]; single?: boolean; onChange: (ids: string[]) => void }) {
-    return (
-        <div>
-            <div className="mb-2 text-sm font-medium">{label}</div>
-            <div className="space-y-1.5">
-                {assets.length ? (
-                    assets.map((asset) => {
-                        const selected = selectedIds.includes(asset.id);
-                        const imageUrl = asset.referenceImageUrl || asset.imageUrl || asset.references?.find((reference) => reference.id === asset.primaryReferenceId)?.url || asset.references?.[0]?.url;
-                        const name = "location" in asset ? asset.location : asset.name;
-                        return (
-                            <label key={asset.id} className={cn("flex cursor-pointer items-center gap-2 border p-1.5 text-sm transition-colors", selected ? "border-primary bg-primary/5" : "border-border hover:bg-muted")}>
-                                <input
-                                    type={single ? "radio" : "checkbox"}
-                                    name={single ? `scene-${label}` : undefined}
-                                    checked={selected}
-                                    onChange={() => onChange(single ? (selected ? [] : [asset.id]) : selected ? selectedIds.filter((id) => id !== asset.id) : [...selectedIds, asset.id])}
-                                />
-                                {imageUrl ? (
-                                    <img src={imageUrl} alt="" className="size-9 shrink-0 object-cover" />
-                                ) : (
-                                    <div className="grid size-9 shrink-0 place-items-center bg-muted text-muted-foreground">
-                                        <Package className="size-4" />
-                                    </div>
-                                )}
-                                <span className="min-w-0 truncate">{name}</span>
-                            </label>
-                        );
-                    })
-                ) : (
-                    <p className="text-xs text-muted-foreground">暂无{label}资产</p>
-                )}
-            </div>
-        </div>
     );
 }
 

@@ -328,6 +328,18 @@ describe("drama lab workflow task service", () => {
         expect(mocks.extractDramaLabStoryboards).toHaveBeenCalledWith(expect.objectContaining({ requestId: `${task.id}:storyboard:episode-one:attempt:2` }));
     });
 
+    it("submits universal video without a storyboard image through the normal task route", async () => {
+        const task = workflowTask({ status: "running", workflow: workflowState({ currentStepIndex: 0, steps: [step("video", "running")] }) });
+        mocks.tasks.set(`render:${task.id}`, task);
+        Object.assign(project.episodes[0].shots[0], { creationMode: "universal", storyboardImageUrl: undefined, frames: undefined });
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 0, data: { task: { id: "universal-video" } } }), { status: 200 }));
+        vi.stubGlobal("fetch", fetchMock);
+        mocks.getVideoTask.mockResolvedValue({ id: "universal-video", userId: "user-one", status: "running", surface: "drama", projectId: project.id, episodeId: "episode-one", shotId: "shot-one" });
+        const result = await advanceDramaLabWorkflow({ userId: "user-one", taskId: task.id, origin: "http://workflow.test" });
+        expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/generate-video?episodeId=episode-one"))).toBe(true);
+        expect(result?.status).toBe("running");
+    });
+
     it("aggregates an external child failure onto the parent step and task", async () => {
         const task = workflowTask({
             status: "running",

@@ -76,9 +76,9 @@ describe("RunningHub workflow domain", () => {
         expect(errors.join("\n")).toEqual(expect.stringContaining("outputMappings[1].assetType"));
     });
 
-    it("normalizes an empty/legacy workflow config without mutating unknown legacy model fields", () => {
+    it("removes retired legacy model routing while retaining normalized workflow configs", () => {
         expect(normalizeSettings({ ...DEFAULT_SETTINGS, practiceWorkflowModels: undefined as never }).practiceWorkflowModels).toEqual({});
-        expect(normalizeSettings({ ...DEFAULT_SETTINGS, practiceWorkflowModels: { script: "  logical-script ", unknown: "ignored", canvas: 42 } as never }).practiceWorkflowModels).toEqual({ script: ["logical-script"] });
+        expect(normalizeSettings({ ...DEFAULT_SETTINGS, practiceWorkflowModels: { script: "  logical-script ", unknown: "ignored", canvas: 42 } as never }).practiceWorkflowModels).toEqual({});
 
         const normalized = normalizeRunningHubWorkflowConfig({
             ...baseConfig,
@@ -110,7 +110,8 @@ describe("RunningHub workflow domain", () => {
         } satisfies SystemChannelAdvancedConfig;
         const channel = normalizeSettings({ ...DEFAULT_SETTINGS, systemChannels: [{ id: "legacy", name: "legacy", baseUrl: "https://example.test", apiKey: "", apiFormat: "openai", models: ["legacy-image"], enabled: true, advancedConfig: oldChannel }] })
             .systemChannels[0];
-        expect(channel.advancedConfig?.modelConfigs?.["legacy-image"]).toMatchObject({ capability: "image", createPath: "/create" });
+        expect(channel.advancedConfig?.modelConfigs?.["legacy-image"]).toBeUndefined();
+        expect(channel.models).toEqual([]);
         expect(channel.advancedConfig?.workflowConfigs).toEqual({});
     });
 

@@ -1,4 +1,4 @@
-import { normalizeDramaLabStoryboardOptions, DramaLabStoryboardOptionsError } from "@/lib/drama-lab-storyboard-options";
+﻿import { normalizeDramaLabStoryboardOptions, DramaLabStoryboardOptionsError } from "@/lib/drama-lab-storyboard-options";
 import { randomUUID } from "node:crypto";
 
 import type { DramaCharacter, DramaProject, DramaProp, DramaScene, DramaShot } from "@/lib/drama-project-contract";
@@ -520,7 +520,7 @@ async function ensureVideoTask(task: DramaLabWorkflowTask, step: DramaLabWorkflo
         taskId = "";
     }
     if (!taskId) {
-        if (!shot.storyboardImageUrl && !shot.frames?.key?.url) throw new DramaLabWorkflowError(`Shot ${shot.id} has no storyboard image`, 422);
+        if (shot.creationMode !== "universal" && !shot.storyboardImageUrl && !shot.frames?.key?.url) throw new DramaLabWorkflowError(`Shot ${shot.id} has no storyboard image`, 422);
         const response = await internalJson(input, `/api/drama-lab/projects/${encodeURIComponent(task.workflow.projectId)}/shots/${encodeURIComponent(shot.id)}/generate-video?episodeId=${encodeURIComponent(episodeId)}`, "POST", { parentTaskId: task.id });
         taskId = stringValue(response?.data?.task?.id || response?.task?.id);
         if (!taskId) throw new DramaLabWorkflowError("Video task was not created", 502);

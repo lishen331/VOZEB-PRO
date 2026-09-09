@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     getCreativeConversation: vi.fn(),
+    listCreativeAssets: vi.fn(),
+    getCreativeAsset: vi.fn(),
     getCreativeConversationsByIds: vi.fn(),
     registerCreativeAssets: vi.fn(),
     writePersistentMediaDataUrl: vi.fn(),
@@ -13,22 +15,22 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/server/creative-runtime-store", () => ({
     createCreativeConversation: vi.fn(),
-    getCreativeAsset: vi.fn(),
+    getCreativeAsset: mocks.getCreativeAsset,
     getCreativeConversation: mocks.getCreativeConversation,
     getCreativeConversationsByIds: mocks.getCreativeConversationsByIds,
-    listCreativeAssets: vi.fn(),
+    listCreativeAssets: mocks.listCreativeAssets,
     listCreativeConversations: vi.fn(),
     listCreativeMessages: vi.fn(),
     registerCreativeAssets: mocks.registerCreativeAssets,
     updateCreativeConversation: vi.fn(),
 }));
-vi.mock("@/lib/server/reference-asset-store", () => ({ writePersistentMediaDataUrl: mocks.writePersistentMediaDataUrl }));
+vi.mock("@/lib/server/reference-asset-store", async (importOriginal) => ({ ...(await importOriginal<typeof import("./reference-asset-store")>()), writePersistentMediaDataUrl: mocks.writePersistentMediaDataUrl }));
 vi.mock("@/lib/server/creative-entity-deletion-store", () => ({ deleteCreativeConversationAggregates: mocks.deleteCreativeConversationAggregates }));
 vi.mock("@/lib/server/user-media-deletion-service", () => ({ deleteUserMediaAssetsCascade: mocks.deleteUserMediaAssetsCascade }));
 vi.mock("@/lib/server/local-media-registry", () => ({ getLocalMediaRegistration: mocks.getLocalMediaRegistration, isLocalMediaRegistrationExpired: vi.fn(() => false) }));
 vi.mock("@/lib/server/object-storage-service", () => ({ readRegisteredMediaBytes: mocks.readRegisteredMediaBytes }));
 
-import { deleteConversationsForUser, referenceAssetForUser, registerGenerationTaskAssetsForUser, uploadAssetForUser } from "./creative-runtime-service";
+import { listAssetsForUser, getAssetForUser, deleteConversationsForUser, referenceAssetForUser, registerGenerationTaskAssetsForUser, uploadAssetForUser } from "./creative-runtime-service";
 
 function file(name: string, type: string, size = 4): File {
     return { name, type, size, arrayBuffer: async () => new Uint8Array(Math.min(size, 4)).buffer } as File;
@@ -53,6 +55,25 @@ describe("创作会话素材上传", () => {
         });
         mocks.readRegisteredMediaBytes.mockReset().mockResolvedValue(Buffer.from("image"));
         mocks.registerCreativeAssets.mockReset().mockImplementation(async ([input]) => [{ ...input, id: "asset-one", status: "ready", metadata: input.metadata || {}, createdAt: 1, updatedAt: 1 }]);
+    });
+
+    it("serves previously saved loopback audio through the authenticated same-origin route", async () => {
+        const path = "/api/reference-assets/permanent/2026/09/09/audio/20260909-101704-fe5a15f4-9f72-4a73-9e01-dd2adcbbbab2.mp3";
+        const asset = { id: "audio-one", userId: "user-one", status: "ready", type: "audio", remoteUrl: "http://127.0.0.1:3000" + path };
+        mocks.listCreativeAssets.mockResolvedValue([asset]);
+        mocks.getCreativeAsset.mockResolvedValue(asset);
+        expect(await listAssetsForUser("user-one", "conversation-one")).toEqual([expect.objectContaining({ serverUrl: path, remoteUrl: undefined })]);
+        expect(await getAssetForUser("user-one", "audio-one")).toMatchObject({ serverUrl: path, remoteUrl: undefined });
+        expect(asset.remoteUrl).toContain("127.0.0.1");
+    });
+
+    it("does not rewrite external audio or arbitrary loopback URLs as local assets", async () => {
+        const assets = [
+            { type: "audio", remoteUrl: "https://cdn.example/audio.mp3" },
+            { type: "audio", remoteUrl: "http://127.0.0.1:3000/api/admin/settings" },
+        ];
+        mocks.listCreativeAssets.mockResolvedValue(assets);
+        expect(await listAssetsForUser("user-one", "conversation-one")).toEqual(assets);
     });
 
     it("hard-deletes conversations before reclaiming only their candidate media", async () => {

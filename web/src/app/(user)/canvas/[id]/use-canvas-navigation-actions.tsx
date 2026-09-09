@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
 import { useCanvasStore } from "../stores/use-canvas-store";
+import { preserveCanvasAgentDecisions } from "../utils/canvas-agent-history";
 import { autoLayoutCanvas, isAgentInternalNode } from "../utils/canvas-auto-layout";
 
 import { CanvasHistoryEntry } from "./canvas-page-elements";
@@ -81,9 +82,11 @@ export function useCanvasNavigationActions({ state }: { state: CanvasPageState }
             historyCommitTimerRef.current = null;
         }
         applyingHistoryRef.current = true;
+        nodesRef.current = entry.nodes;
+        state.connectionsRef.current = entry.connections;
         setNodes(entry.nodes);
         setConnections(entry.connections);
-        setChatSessions(entry.chatSessions);
+        setChatSessions((current) => preserveCanvasAgentDecisions(current, entry.chatSessions));
         setActiveChatId(entry.activeChatId);
         setBackgroundMode(entry.backgroundMode);
         setShowImageInfo(entry.showImageInfo);

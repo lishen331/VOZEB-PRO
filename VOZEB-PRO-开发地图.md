@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-09-08，`develop` 分支。当前源码包含 52 个 `page.tsx` 页面入口、343 个 API Route 文件和 117 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-09-10，`develop` 分支。当前源码包含 52 个 `page.tsx` 页面入口、344 个 API Route 文件和 117 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -265,7 +265,7 @@ flowchart TD
 | 创作 | `creative_*`、`canvas_projects`、`drama_projects`、`drama_project_versions`、`library_assets` | 对应领域 Service/Store |
 | 商业化 | `billing_*`、`payment_*`、`coupon_*`、`promotion_*`、`cdk_*` | Billing/Coupon/Promotion Service |
 | 社区作品 | `published_works`、`published_work_*`、`user_follows`、`user_blocks`、`user_notifications` | Work Publication/Governance/Community Service |
-| 媒体与配置 | `local_media_assets`、`object_storage_settings`、`app_settings`、`system_model_channels` | Media Registry、Object Storage Repository、Settings Store；RunningHub 工作流版本保存在渠道 `advancedConfig.workflowConfigs`，练习绑定保存在 `app_settings.practice_workflow_models` |
+| 媒体与配置 | `local_media_assets`、`object_storage_settings`、`app_settings`、`system_model_channels` | Media Registry、Object Storage Repository、Settings Store；RunningHub 工作流版本保存在渠道 `advancedConfig.workflowConfigs`，无限练习按 `workflowCode` 直接调用工作流；`app_settings.practice_workflow_models` 已退役，归一化后恒为空对象，仅作为迁移残留列保留 |
 
 Schema 初始化在 [schema.ts](web/src/lib/server/database/schema.ts)、[schema-commercial-features.ts](web/src/lib/server/database/schema-commercial-features.ts) 和 [schema-triggers.ts](web/src/lib/server/database/schema-triggers.ts)。不要只加 TypeScript 类型而不更新 Schema，也不要把破坏性 SQL 塞进普通请求路径。
 
@@ -279,11 +279,11 @@ Schema 初始化在 [schema.ts](web/src/lib/server/database/schema.ts)、[schema
 | 图像/视频/音频/文本 | `/image`、`/video` | `/*-tasks`、`/video-generation-tasks` | 各类型 config/runtime/store/refund | 积分、Worker、模型、媒体 | 创建、轮询、取消、退款 |
 | Canvas | `/canvas` | `/api/canvas` | Canvas Project Service/Store | `canvas_projects` | 普通画布 CRUD、所有权、短剧专属画布隔离 |
 | 短剧 | `/drama`、`/drama-lab`、`/drama-canvas/[id]` | `/api/drama`、`/api/drama-lab` | Drama Project、Episode Canvas、Analysis、Render、Jianying | `drama_projects`、按集隔离的 `canvas_projects`、FFmpeg、生成任务 | 分析、版本、一集一画布、剧集切换、渲染、导出 |
-| 素材与媒体 | `/assets` | `/api/library-assets`、`/api/reference-assets`、`/api/media-*` | Library/Reference/Media Service | 本地卷、对象存储 | 上传、读取、删除引用保护 |
+| 素材与媒体 | `/assets` | `/api/library-assets`、`/api/reference-assets`、`/api/media-*` | Library/Reference/Media Service、School Domain Repository | 本地卷、对象存储、课程资料关系 | 上传、读取、删除引用保护；课程效果中的已发布课程资料按学校分配、授课关系和班级成员关系授权读取，历史资料缺少媒体登记时仍安全回读 |
 | 提示词 | `/prompts`、`/my-prompts` | `/api/prompts`、`/api/my-prompts` | Auth Store/Prompt 数据 | PostgreSQL | 公开筛选、用户 CRUD |
 | 作品与社区 | `/works`、`/gallery`、分享页 | `/api/works`、`/api/public`、`/api/community` | Publication/Governance/Community | 作品版本、互动、媒体授权 | 发布、审核、互动、匿名读取 |
 | 计费与增长 | `/billing` | `/api/billing`、`/api/cdk`、`/api/referrals` | Billing/Coupon/Promotion/Referral | 支付上游、积分事务 | 下单、回调、退款、幂等 |
-| 管理后台 | `/admin`（上游配置 / RunningHub 工作流） | `/api/admin`、`/api/admin/runninghub/workflows` | RunningHub Workflow Service/Test Service、各管理 Service | 渠道配置、generation_tasks、审计日志、RunningHub | 版本启停、业务 code 绑定、独立测试 origin、敏感字段脱敏 |
+| 管理后台 | `/admin`（上游配置 / RunningHub 工作流） | `/api/admin`、`/api/admin/runninghub/workflows` | RunningHub Workflow Service/Test Service、各管理 Service | 渠道配置、generation_tasks、审计日志、RunningHub | 渠道只存凭据且固定无限练习用途；工作流按 workflowCode 直连；启用硬门槛（JSON + 映射 + 当前指纹测试成功 + 渠道启用）；独立测试 origin、敏感字段脱敏 |
 | 后台维护 | 无用户页面 | `/api/maintenance` | Recovery、Refund、Lifecycle | Worker/维护 Token | 未授权拒绝、领取幂等、心跳 |
 | 上游代理 | 创作页面间接使用 | `/api/ai/system`、`/api/generation-webhooks` | Channel Router、Proxy Policy | 模型渠道、Webhook | SSRF、凭据隔离、签名 |
 
@@ -374,6 +374,22 @@ flowchart LR
 - `practice-media-input.tsx`、`practice-prompt-editor.tsx`：复用真实素材上传与后台默认文本模型提示词优化；优化结果可编辑，不自动提交生成。
 - `/api/practice/modules`：workflowOptions 携带对应工作流的公开 inputSchema；角色模型选项携带自身工作流列表；自动内部模型展示渠道与能力名称，不冒充某一工作流。
 
+
+### RunningHub 无限练习最小闭环（2026-09-10）
+
+- RunningHub 只服务无限练习：渠道归一化固定 `purpose=open-source-practice`、`models=[]`，不再有上游模型目录、逻辑模型绑定或 `practiceWorkflowModels`；`runninghub-practice-routing.ts` 已删除，`/api/admin/settings` 忽略客户端提交的旧绑定字段。
+- 后台减法：渠道表单只有名称、Base URL、API Key、启用；工作流编辑器不再展示创建/查询路径、任务 ID/状态/结果字段和请求模板，这些由 `normalizeRunningHubWorkflowConfig` 按 Demo 固定协议填充。
+- 启用硬门槛：`setWorkflowEnabled` 要求渠道已启用、已拉取 API JSON、输入/节点/输出映射非空、最近测试成功且 fingerprint 与当前配置一致；`copyWorkflowVersion` 拒绝 `activateVersion`，新版本必须重新测试。
+- 运行链路：`resolvePracticeGenerationCandidates`（[runninghub-workflow-runtime.ts](web/src/lib/server/runninghub-workflow-runtime.ts)）是图片/视频/音频/文本任务 Route 的统一候选入口——正式生产走逻辑模型；练习图片/视频/音频只按精确 `workflowCode` 选启用工作流，不回退普通模型；练习文本（剧本）继续走练习用途逻辑模型。`/api/practice/modules` 的 `models` 只是由启用工作流即时投影的兼容 DTO。
+- 系统代理：`/api/ai/system/[channelId]` 对练习工作流按 workflowKey/workflowCode 解析固定端点并放行，不再要求 `channel.models` 或逻辑模型绑定，但仍校验请求能力与工作流能力一致。
+- 回归：`runninghub-workflow-runtime.test.ts` 覆盖七条 Demo 工作流按 workflowCode 精确路由；`runninghub-demo-workflow-e2e-contract.test.ts` 断言 Workflow ID、nodeInfoList 与输出类型；e2e `admin-runninghub-workflow-discovery.spec.ts` 覆盖“拉取 → 测试 → 启用 → 修改后 409”。
+
+### 无限练习参数与 Demo 页面对齐（2026-09-10）
+
+- `/api/practice/modules` 新增 `sizeOptions`（`{ key, label, width, height }`，label 如 `16:9 · 1280×720`）和 `durationOptions`（视频 5/8/10 秒）：优先使用工作流 `generationSizeOptions`（跳过 disabled），没有时沿用 Demo `index.html` 的“尺寸比例”默认项；场景 `outputPreset` 投影为 enum（`2048 x 1024` / `4096 x 2048`）。规则见 [practice-module-service.ts](web/src/lib/server/practice-module-service.ts) 的 `practiceSizeOptions`。
+- 练习前端 `practice-panel-types.tsx` 提供 `PracticeSizeField` / `PracticeDurationField`，角色/道具/分镜图/分镜视频面板用下拉代替裸 `width/height/duration` 数字框；没有预设时保持原数字框。
+- 练习会话派发时图片/视频任务也携带 `input`（工作流参数）；`image-tasks` 只对受信任练习请求接收并持久化为 `ImageTask.workflowInput`，提交 RunningHub 时并入 `businessInput`；`video-generation-tasks` 把练习 `input` 合并进 `raw` 后再构造工作流 payload。此前图片/视频任务会丢弃练习选择的尺寸，始终使用工作流默认宽高。
+- 提示词优化（`/api/agent/prompt-optimization`）在没有正式生产默认文本模型时回退到无限练习默认文本模型；两者都缺失才返回 503。
 
 ### 无限练习查询与历史恢复（2026-09-08）
 

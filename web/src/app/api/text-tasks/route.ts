@@ -5,13 +5,12 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
-import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeLogicalModel, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
+import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeGenerationCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
 import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
-import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { hasHealthyRuntimeCandidate } from "@/lib/server/channel-runtime-health";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
@@ -108,8 +107,8 @@ function sanitizeConfigs(
     executionProfile: "production" | "open-source-practice" = "production",
     context?: import("@/lib/server/generation-task-types").GenerationTaskContext,
 ): Array<TextTaskConfig & { channelId: string }> {
-    const requestedModel = executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "text", context?.businessCode || "script", config?.model) : config?.model || settings.defaultModels.textModel;
-    return resolveLogicalModelCandidates(settings, "text", requestedModel, "", executionProfile)
+    const requestedModel = config?.model || settings.defaultModels.textModel;
+    return resolvePracticeGenerationCandidates(settings, "text", requestedModel, { ...(context || {}), executionProfile })
         .map((resolved) => ({
             ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {}),
             channelId: resolved.channelId,

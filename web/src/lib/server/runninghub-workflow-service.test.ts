@@ -14,8 +14,6 @@ vi.mock("./runninghub-provider", () => ({ fetchRunningHubWorkflowJson: mocks.fet
 
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store-types";
-import { runningHubChannelValidationErrors } from "./admin-channel-config";
-import { resolvePracticeModuleModelOptions } from "./practice-module-service";
 import { runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
 import {
     RunningHubWorkflowError,
@@ -50,6 +48,9 @@ const workflow = {
     inputSchema: [{ key: "prompt", label: "提示词", type: "textarea", required: true }],
     nodeMappings: [{ paramKey: "prompt", nodeId: "87", fieldName: "text", valueType: "STRING", source: "INPUT", inputKey: "prompt" }],
     outputMappings: [{ key: "image", label: "图片", nodeId: "90", assetType: "IMAGE", required: true, primary: true }],
+    workflowApiJson: "{}",
+    workflowJsonFingerprint: "test-json",
+    lastTestConfigFingerprint: "",
     lastTestAt: "2026-09-01T00:00:00.000Z",
     lastTestResult: "success",
 } satisfies RunningHubWorkflowConfig;
@@ -142,11 +143,26 @@ describe("runninghub workflow service", () => {
         expect(result.items[0].requestTemplate).toBeUndefined();
     });
 
-    it("allows a complete copied version to activate while exposing retest risk", async () => {
-        const result = await copyWorkflowVersion(workflow.workflowKey, { activateVersion: true });
+    it("copies a new disabled version and refuses to activate it before a fresh test", async () => {
+        await expect(copyWorkflowVersion(workflow.workflowKey, { activateVersion: true })).rejects.toMatchObject({ status: 409 });
+        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
 
-        expect(result).toMatchObject({ enabled: true, requiresRetest: true });
+        const result = await copyWorkflowVersion(workflow.workflowKey);
+
+        expect(result).toMatchObject({ enabled: false, version: 2, requiresRetest: true });
+        expect(result.lastTestConfigFingerprint).toBeUndefined();
         expect(mocks.setAuthSettings).toHaveBeenCalled();
+    });
+
+    it("refuses to enable a tested workflow while its RunningHub channel is disabled", async () => {
+        const candidate = { ...workflow, enabled: false, workflowJsonFingerprint: "json-fingerprint" };
+        candidate.lastTestConfigFingerprint = runningHubWorkflowConfigFingerprint(candidate);
+        const current = settingsWith(candidate);
+        current.systemChannels[0].enabled = false;
+        mocks.getFreshAuthSettings.mockResolvedValue(current);
+
+        await expect(setWorkflowEnabled(candidate.workflowKey, true)).rejects.toMatchObject({ status: 409, message: expect.stringContaining("渠道未启用") });
+        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
     });
 
     it("activates a workflow after successful evidence even when testRequired remains set", async () => {
@@ -161,48 +177,41 @@ describe("runninghub workflow service", () => {
     });
 
     it("keeps different Demo workflow codes enabled within the same image business group", async () => {
-        const storyboard = { ...workflow, workflowKey: "storyboard", workflowCode: "storyboard_shot" as const, enabled: true, inputSchema: [...workflow.inputSchema, { key: "sceneImage", label: "场景图", type: "image" as const, required: true }] };
+        const storyboard = { ...workflow, workflowKey: "storyboard", workflowCode: "storyboard_shot" as const, enabled: true };
         const prop: RunningHubWorkflowConfig = { ...workflow, workflowKey: "prop", workflowCode: "prop_main_view", workflowName: "道具主视图", enabled: false };
         prop.lastTestConfigFingerprint = runningHubWorkflowConfigFingerprint(prop);
         const current = settingsWith(storyboard, prop);
         mocks.getFreshAuthSettings.mockResolvedValue(current);
         mocks.setAuthSettings.mockImplementation(async (patch: Partial<AuthSettings>) => ({ ...current, ...patch }));
-
         await setWorkflowEnabled(prop.workflowKey, true);
-
         const patch = mocks.setAuthSettings.mock.calls.at(-1)?.[0] as Partial<AuthSettings>;
         expect(patch.systemChannels?.[0]?.advancedConfig?.workflowConfigs?.storyboard?.enabled).toBe(true);
         expect(patch.systemChannels?.[0]?.advancedConfig?.workflowConfigs?.prop?.enabled).toBe(true);
-        const generatedModel = patch.practiceWorkflowModels?.[prop.businessCode]?.[0];
-        expect(patch.systemChannels?.[0]?.advancedConfig?.modelConfigs?.[generatedModel!]?.supportsReferenceImage).toBe(true);
+        expect(patch.practiceWorkflowModels).toEqual({});
+        expect(patch.logicalModels).toBeUndefined();
     });
-    it("creates the internal practice model binding when a tested workflow is enabled", async () => {
-        const candidate = { ...workflow, enabled: false, workflowCode: "storyboard_shot" as const, lastTestConfigFingerprint: runningHubWorkflowConfigFingerprint({ ...workflow, enabled: false, workflowCode: "storyboard_shot" }) };
+
+    it("does not create a pseudo model binding when a tested workflow is enabled", async () => {
+        const candidate = {
+            ...workflow,
+            enabled: false,
+            workflowCode: "storyboard_shot" as const,
+            workflowApiJson: "{}",
+            workflowJsonFingerprint: "json-fingerprint",
+            lastTestConfigFingerprint: runningHubWorkflowConfigFingerprint({ ...workflow, workflowCode: "storyboard_shot", workflowApiJson: "{}", workflowJsonFingerprint: "json-fingerprint" }),
+        };
         const current = settingsWith(candidate);
         current.logicalModels = [];
         current.practiceWorkflowModels = {};
         mocks.getFreshAuthSettings.mockResolvedValue(current);
         mocks.setAuthSettings.mockImplementation(async (patch: Partial<AuthSettings>) => ({ ...current, ...patch }));
-
         await setWorkflowEnabled(candidate.workflowKey, true);
-
         const patch = mocks.setAuthSettings.mock.calls.at(-1)?.[0] as Partial<AuthSettings>;
         const channel = patch.systemChannels?.find((item) => item.id === candidate.channelId);
-        const logicalModelId = patch.practiceWorkflowModels?.[candidate.businessCode]?.[0];
-        expect(logicalModelId).toBeTruthy();
-        expect(channel?.models).toContain(logicalModelId);
-        expect(channel?.advancedConfig?.modelCapabilities?.[logicalModelId!]).toBe(candidate.capability);
-        expect(channel && runningHubChannelValidationErrors(channel)).toEqual([]);
-        expect(resolvePracticeModuleModelOptions({ ...current, ...patch } as AuthSettings, "storyboard-image")).toEqual([{ id: logicalModelId, label: "练习 RunningHub · 图片" }]);
-        expect(patch.logicalModels).toContainEqual(
-            expect.objectContaining({
-                id: logicalModelId,
-                name: candidate.workflowName,
-                capability: candidate.capability,
-                enabled: true,
-                bindings: [expect.objectContaining({ channelId: candidate.channelId, upstreamModel: logicalModelId, enabled: true })],
-            }),
-        );
+        expect(patch.practiceWorkflowModels).toEqual({});
+        expect(patch.systemChannels?.[0]?.models).toEqual([]);
+        expect(patch.logicalModels).toBeUndefined();
+        expect(channel?.advancedConfig?.workflowConfigs?.[candidate.workflowKey]).toMatchObject({ workflowCode: "storyboard_shot", enabled: true });
     });
     it("rejects edits to an enabled version and only changes activation through version operations", async () => {
         await expect(updateWorkflow(workflow.workflowKey, { workflowName: "新的名称" })).rejects.toMatchObject({ status: 409 });

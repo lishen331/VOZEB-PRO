@@ -141,12 +141,12 @@ describe("admin settings model routing", () => {
         expect(response.status).toBe(200);
         expect(mocks.setAuthSettings).toHaveBeenCalledWith({ practiceModuleVisibility });
     });
-    it("persists practice workflow model bindings under the upstream duty", async () => {
+    it("ignores retired practice workflow model bindings submitted by old clients", async () => {
         const practiceWorkflowModels = { script: "practice-script", "storyboard-image": "practice-image" };
         const response = await PATCH(request({ practiceWorkflowModels }));
 
-        expect(response.status).toBe(200);
-        expect(mocks.setAuthSettings).toHaveBeenCalledWith({ practiceWorkflowModels });
+        expect(response.status).toBe(400);
+        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
     });
 
     it("accepts common social address formats without silently deleting them", async () => {
@@ -317,5 +317,6 @@ describe("admin settings model routing", () => {
 });
 
 function request(body: unknown) {
-    return new Request("http://localhost/api/admin/settings", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const payload = body && typeof body === "object" && !Array.isArray(body) ? { ...(body as Record<string, unknown>), settingsRevision: (body as Record<string, unknown>).settingsRevision ?? 1 } : body;
+    return new Request("http://localhost/api/admin/settings", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
 }

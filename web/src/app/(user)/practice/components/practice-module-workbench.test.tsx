@@ -82,6 +82,34 @@ describe("practice module workbench contract", () => {
         expect(workflowFormFields({ ...capability, inputSchema: [...capability.inputSchema, { key: "duration", label: "时长", type: "number", required: false }] } as never).map((field) => field.key)).not.toContain("duration");
     });
 
+    it("replaces raw width/height/duration inputs with Demo-style presets when the capability provides them", async () => {
+        const { defaultSizeOption } = await import("./practice-panel-types");
+        const capability = {
+            module: "storyboard-video",
+            mode: "workflow",
+            available: true,
+            models: [],
+            outputType: "video",
+            inputSchema: [
+                { key: "prompt", label: "描述", type: "textarea", required: true },
+                { key: "width", label: "宽", type: "number", required: false, defaultValue: 1280 },
+                { key: "height", label: "高", type: "number", required: false, defaultValue: 720 },
+                { key: "duration", label: "时长", type: "number", required: false, defaultValue: 6 },
+                { key: "audioEnabled", label: "启用台词音频", type: "boolean", required: false, defaultValue: false },
+            ],
+            sizeOptions: [
+                { key: "720x1280", label: "9:16 · 720×1280", width: 720, height: 1280 },
+                { key: "1280x720", label: "16:9 · 1280×720", width: 1280, height: 720 },
+            ],
+            durationOptions: [5, 8, 10],
+        } as never;
+        // 默认值优先匹配工作流默认宽高；时长默认 6 不在预设里时回退到第一个预设
+        expect(workflowFieldDefaults(capability)).toEqual({ width: 1280, height: 720, duration: 5, audioEnabled: false });
+        expect(defaultSizeOption(capability, { width: 720, height: 1280 })?.key).toBe("720x1280");
+        expect(defaultSizeOption(capability, { width: 1, height: 1 })?.key).toBe("720x1280");
+        expect(workflowFormFields(capability).map((field) => field.key)).toEqual([]);
+    });
+
     it("keeps internal dialogue slots out of public form defaults", () => {
         const capability = {
             inputSchema: [
@@ -139,6 +167,21 @@ it("isolates character schemas, dimensions and public defaults by selected workf
     const multi = capabilityForWorkflow(capability, "character_multi_view");
     expect(workflowFieldDefaults(main)).toEqual({ width: 720 });
     expect(workflowFieldDefaults(multi)).toEqual({ width: 1350 });
+    const sized = capabilityForWorkflow(
+        {
+            module: "character",
+            available: true,
+            models: [],
+            inputSchema: [],
+            workflowOptions: [
+                { code: "character_main_view", label: "主形象", inputSchema: [{ key: "width", label: "宽", type: "number", required: true, defaultValue: 720 }], sizeOptions: [{ key: "720x1280", label: "9:16 · 720×1280", width: 720, height: 1280 }] },
+            ],
+        } as never,
+        "character_main_view",
+    );
+    expect(sized.sizeOptions?.map((option) => option.key)).toEqual(["720x1280"]);
+    expect(workflowFormFields(sized).map((field) => field.key)).not.toContain("width");
+    expect(capabilityForWorkflow({ module: "character", available: true, models: [], inputSchema: [], workflowOptions: [] } as never, "character_main_view").sizeOptions).toBeUndefined();
     expect(workflowFormFields(main).map((field) => field.key)).not.toContain("frontPrompt");
     expect(workflowFormFields(multi).map((field) => field.key)).toContain("frontPrompt");
 });

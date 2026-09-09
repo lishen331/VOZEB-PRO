@@ -29,6 +29,16 @@ describe("updatePostgresAuthSettings", () => {
         mocks.removeEntitlementPlansNotIn.mockResolvedValue([]);
     });
 
+    it("rejects a stale settings revision before writing", async () => {
+        const current = structuredClone(DEFAULT_SETTINGS);
+        current.settingsRevision = 7;
+        mocks.readSettings.mockResolvedValue(current);
+
+        await expect(updatePostgresAuthSettings({ site: current.site }, 6)).rejects.toMatchObject({ status: 409 });
+        expect(mocks.updateSettings).not.toHaveBeenCalled();
+        expect(mocks.upsertSystemModelChannel).not.toHaveBeenCalled();
+    });
+
     it("updates site settings without rewriting plans or channels", async () => {
         const site = {
             ...DEFAULT_SETTINGS.site,
@@ -43,7 +53,7 @@ describe("updatePostgresAuthSettings", () => {
 
         const settings = await updatePostgresAuthSettings({ site });
 
-        expect(mocks.updateSettings).toHaveBeenCalledWith({ site: expect.objectContaining({ title: "新站点", socials: site.socials }) });
+        expect(mocks.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ site: expect.objectContaining({ title: "新站点", socials: site.socials }), settingsRevision: 2 }));
         expect(settings.site.socials).toEqual(site.socials);
         expect(mocks.upsertEntitlementPlan).not.toHaveBeenCalled();
         expect(mocks.removeEntitlementPlansNotIn).not.toHaveBeenCalled();
@@ -56,7 +66,7 @@ describe("updatePostgresAuthSettings", () => {
 
         await updatePostgresAuthSettings({ entitlements });
 
-        expect(mocks.updateSettings).toHaveBeenCalledWith({ entitlementsEnabled: entitlements.enabled, defaultPlanId: entitlements.defaultPlanId });
+        expect(mocks.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ entitlementsEnabled: entitlements.enabled, defaultPlanId: entitlements.defaultPlanId, settingsRevision: 2 }));
         expect(mocks.upsertEntitlementPlan).toHaveBeenCalledTimes(entitlements.plans.length);
         expect(mocks.removeEntitlementPlansNotIn).toHaveBeenCalledWith(entitlements.plans.map((plan) => plan.id));
         expect(mocks.upsertSystemModelChannel).not.toHaveBeenCalled();
@@ -78,7 +88,7 @@ describe("updatePostgresAuthSettings", () => {
 
         await updatePostgresAuthSettings({ systemChannels });
 
-        expect(mocks.updateSettings).not.toHaveBeenCalled();
+        expect(mocks.updateSettings).toHaveBeenCalledWith({ settingsRevision: 2 });
         expect(mocks.upsertSystemModelChannel).toHaveBeenCalledTimes(1);
         expect(mocks.upsertSystemModelChannel).toHaveBeenCalledWith(expect.objectContaining({ purpose: "shared" }));
         expect(mocks.deleteSystemModelChannelsNotIn).toHaveBeenCalledWith(["channel-one"]);
@@ -91,7 +101,7 @@ describe("updatePostgresAuthSettings", () => {
 
         await updatePostgresAuthSettings({ practiceDefaultModels });
 
-        expect(mocks.updateSettings).toHaveBeenCalledWith({ practiceDefaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" } });
+        expect(mocks.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ practiceDefaultModels: { textModel: "", visionModel: "", imageModel: "", videoModel: "", audioModel: "" }, settingsRevision: 2 }));
         expect(mocks.upsertSystemModelChannel).not.toHaveBeenCalled();
     });
 
@@ -108,9 +118,12 @@ describe("updatePostgresAuthSettings", () => {
 
         expect(settings.generationConcurrency).toEqual({ agent: 9, image: 2, video: 7, audio: 6, text: 5, render: 4 });
         expect(settings.generationDefaults).toMatchObject({ imageCount: 3, dramaMaxBatchSize: 20 });
-        expect(mocks.updateSettings).toHaveBeenCalledWith({
-            generationConcurrency: settings.generationConcurrency,
-            generationDefaults: settings.generationDefaults,
-        });
+        expect(mocks.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({
+                generationConcurrency: settings.generationConcurrency,
+                generationDefaults: settings.generationDefaults,
+                settingsRevision: 2,
+            }),
+        );
     });
 });

@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-08。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **343** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-09-09。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **344** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,9 +23,9 @@
 
 ## 接口总览
 
-- Route 文件：**343**
-- 方法出现次数：DELETE 55、GET 184、HEAD 6、PATCH 54、POST 187、PUT 12
-- 一级域：`admin` 122、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 45、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 5、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**344**
+- 方法出现次数：DELETE 55、GET 184、HEAD 6、PATCH 54、POST 188、PUT 12
+- 一级域：`admin` 122、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 45、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 5、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
@@ -222,7 +222,7 @@
 | POST | `/api/billing/quotes` | 用户 | [route.ts](web/src/app/api/billing/quotes/route.ts) | [billing-commerce-service](web/src/lib/server/billing-commerce-service.ts) | PostgreSQL、积分/商业事务 | 计费 / 报价：提交/执行 |
 | POST | `/api/billing/webhooks/[provider]` | Webhook | [route.ts](web/src/app/api/billing/webhooks/[provider]/route.ts) | [billing-service](web/src/lib/server/billing-service.ts)<br>[payment-webhook-service](web/src/lib/server/payment-webhook-service.ts) | 外部回调、签名校验、PostgreSQL 幂等记录 | 计费 / 支付回调 / 指定支付渠道：提交/执行 |
 
-### `canvas`（4）
+### `canvas`（5）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -230,6 +230,7 @@
 | DELETE, GET, POST | `/api/canvas/projects` | 用户 | [route.ts](web/src/app/api/canvas/projects/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts)<br>[feature-module-access](web/src/lib/server/feature-module-access.ts) | PostgreSQL、创作数据 | 画布 / 项目：查询、删除、提交/执行 |
 | GET, PATCH | `/api/canvas/projects/[id]` | 用户 | [route.ts](web/src/app/api/canvas/projects/[id]/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts) | PostgreSQL、创作数据 | 画布 / 项目 / 单项：查询、更新 |
 | DELETE | `/api/canvas/projects/[id]/assistant-conversations` | 混合 | [route.ts](web/src/app/api/canvas/projects/[id]/assistant-conversations/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts) | PostgreSQL、创作数据 | 画布 / 项目 / 单项 / 助手对话：删除 |
+| POST | `/api/canvas/projects/[id]/recover-agent-results` | 用户 | [route.ts](web/src/app/api/canvas/projects/[id]/recover-agent-results/route.ts) | [canvas-agent-recovery-service](web/src/lib/server/canvas-agent-recovery-service.ts) | PostgreSQL、创作数据 | 画布 / 项目 / 单项 / recover-agent-results：提交/执行 |
 
 ### `cdk`（1）
 

@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CanvasProject } from "@/lib/canvas-project-contract";
 
-const mocks = vi.hoisted(() => ({ files: new Map<string, unknown>(), provider: "file", postgresQuery: vi.fn() }));
+const mocks = vi.hoisted(() => ({ transaction: vi.fn(), files: new Map<string, unknown>(), provider: "file", postgresQuery: vi.fn() }));
 
-vi.mock("@/lib/server/database", () => ({ ensurePostgresSchema: vi.fn(), getDatabaseProvider: vi.fn(() => mocks.provider), postgresQuery: mocks.postgresQuery }));
+vi.mock("@/lib/server/database", () => ({ ensurePostgresSchema: vi.fn(), getDatabaseProvider: vi.fn(() => mocks.provider), postgresQuery: mocks.postgresQuery, withPostgresTransaction: mocks.transaction }));
 vi.mock("@/lib/server/data-adapter", () => ({
     readJsonDataFile: vi.fn(async (name: string, fallback: unknown) => structuredClone(mocks.files.has(name) ? mocks.files.get(name) : fallback)),
     withJsonDataFileLock: vi.fn(async (_name: string, callback: () => Promise<unknown>) => callback()),
@@ -12,6 +12,7 @@ vi.mock("@/lib/server/data-adapter", () => ({
 }));
 
 import {
+    mutateCanvasProjectForRecovery,
     createCanvasProject,
     getCanvasProject,
     getLatestCanvasProjectOverview,
@@ -28,6 +29,60 @@ describe("canvas project file provider", () => {
         mocks.files.clear();
         mocks.provider = "file";
         mocks.postgresQuery.mockReset();
+    });
+
+    it("atomically persists recovered outputs with hidden server receipts", async () => {
+        await createCanvasProject("user-one", project("one", "Canvas"));
+        const initial = await getCanvasProject("one", "user-one");
+        const recovered = await mutateCanvasProjectForRecovery("user-one", "one", async (current) => ({ ...current, title: "Recovered", __canvasAgentReceipts: { run: "hash" } }));
+        expect(recovered?.title).toBe("Recovered");
+        expect(recovered?.updatedAt).not.toBe(initial?.updatedAt);
+        expect(recovered).not.toHaveProperty("__canvasAgentReceipts");
+        const before = structuredClone(mocks.files.get("canvas-projects.json"));
+        await expect(
+            mutateCanvasProjectForRecovery("user-one", "one", async () => {
+                throw new Error("save failed");
+            }),
+        ).rejects.toThrow("save failed");
+        expect(mocks.files.get("canvas-projects.json")).toEqual(before);
+        expect(await mutateCanvasProjectForRecovery("other", "one", async (p) => ({ ...p, title: "forged" }))).toBeNull();
+        const unchanged = await mutateCanvasProjectForRecovery("user-one", "one", async (p) => p);
+        expect(unchanged?.updatedAt).toBe(recovered?.updatedAt);
+        await updateCanvasProject("user-one", { ...recovered!, title: "Manual edit", updatedAt: new Date(Date.now() + 1000).toISOString() }, recovered!.updatedAt);
+        await mutateCanvasProjectForRecovery("user-one", "one", async (p) => {
+            expect(p.__canvasAgentReceipts).toEqual({ run: "hash" });
+            return p;
+        });
+    });
+    it("locks the PostgreSQL project before recovering and commits receipts with content", async () => {
+        mocks.provider = "postgres";
+        const query = vi
+            .fn()
+            .mockResolvedValueOnce({ rows: [{ project_json: project("one", "Canvas"), execution_profile: "production" }] })
+            .mockResolvedValue({ rows: [], rowCount: 1 });
+        mocks.transaction.mockImplementation(async (work) => work({ query }));
+        const recovered = await mutateCanvasProjectForRecovery("user-one", "one", async (p) => ({ ...p, title: "Recovered", __canvasAgentReceipts: { run: "hash" } }));
+        expect(query.mock.calls[0][0]).toContain("FOR UPDATE");
+        expect(query.mock.calls[0][1]).toEqual(["one", "user-one"]);
+        expect(query.mock.calls[1][0]).toContain("UPDATE canvas_projects");
+        expect(JSON.parse(query.mock.calls[1][1][2])).toMatchObject({ title: "Recovered", __canvasAgentReceipts: { run: "hash" } });
+        expect(recovered).not.toHaveProperty("__canvasAgentReceipts");
+    });
+
+    it("does not accept forged recovery receipts on create, full save or compact save", async () => {
+        await createCanvasProject("user-one", { ...project("one", "Canvas"), __canvasAgentReceipts: { forged: "hash" } } as CanvasProject);
+        await mutateCanvasProjectForRecovery("user-one", "one", async (current) => {
+            expect(current.__canvasAgentReceipts).toBeUndefined();
+            return { ...current, __canvasAgentReceipts: { real: "hash" } };
+        });
+        const saved = await getCanvasProject("one", "user-one");
+        await updateCanvasProjectMutation("user-one", { ...saved!, updatedAt: new Date(Date.now() + 1000).toISOString(), __canvasAgentReceipts: { forged: "value" } } as CanvasProject, saved!.updatedAt, "full-save");
+        const latest = await getCanvasProject("one", "user-one");
+        await updateCanvasProjectMutationPatch("user-one", "one", { mutationId: "compact", baseUpdatedAt: latest!.updatedAt, title: "Manual" });
+        await mutateCanvasProjectForRecovery("user-one", "one", async (current) => {
+            expect(current.__canvasAgentReceipts).toEqual({ real: "hash" });
+            return current;
+        });
     });
 
     it("persists the complete project snapshot and isolates users", async () => {

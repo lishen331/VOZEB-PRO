@@ -1,5 +1,4 @@
 import type { LogicalModelCapability, SystemDefaultModels, SystemModelChannel } from "@/lib/auth/store";
-import type { PracticeWorkflowModelBindings } from "@/lib/auth/store-types";
 import { channelDetectedCapabilities, normalizeDefaultModelsConfig } from "@/lib/model-routing-config";
 import { channelProtocolDefinition } from "@/lib/channel-protocol-registry";
 
@@ -8,7 +7,6 @@ export type ChannelWorkspaceSettings = {
     logicalModels: import("@/lib/auth/store").LogicalModel[];
     defaultModels: SystemDefaultModels;
     practiceDefaultModels: SystemDefaultModels;
-    practiceWorkflowModels?: PracticeWorkflowModelBindings;
 };
 
 export type ChannelWorkspaceStatus = "enabled" | "draft" | "disabled";
@@ -29,6 +27,7 @@ export function channelWorkspaceStatusColor(status: ChannelWorkspaceStatus) {
 }
 
 export function channelCapabilityLabels(channel: SystemModelChannel) {
+    if (channel.advancedConfig?.protocol === "runninghub") return ["工作流"];
     return Array.from(channelDetectedCapabilities(channel)).map((capability) => capabilityLabels[capability]);
 }
 
@@ -45,16 +44,6 @@ export function removeChannelFromWorkspace(settings: ChannelWorkspaceSettings, c
         logicalModels,
         defaultModels: Object.fromEntries(Object.entries(settings.defaultModels).map(([key, value]) => [key, liveIds.has(value) ? value : ""])) as SystemDefaultModels,
         practiceDefaultModels: Object.fromEntries(Object.entries(settings.practiceDefaultModels).map(([key, value]) => [key, liveIds.has(value) ? value : ""])) as SystemDefaultModels,
-        ...(settings.practiceWorkflowModels
-            ? {
-                  practiceWorkflowModels: Object.fromEntries(
-                      Object.entries(settings.practiceWorkflowModels).flatMap(([key, values]) => {
-                          const next = (Array.isArray(values) ? values : [values]).filter((value) => liveIds.has(value));
-                          return next.length ? [[key, next]] : [];
-                      }),
-                  ) as PracticeWorkflowModelBindings,
-              }
-            : {}),
     };
 }
 
@@ -65,7 +54,6 @@ export function updateChannelInWorkspace(settings: ChannelWorkspaceSettings, cha
         systemChannels,
         defaultModels: normalizeDefaultModelsConfig(settings.defaultModels, settings.logicalModels, systemChannels),
         practiceDefaultModels: normalizeDefaultModelsConfig(settings.practiceDefaultModels, settings.logicalModels, systemChannels, "open-source-practice", { allowFallback: false }),
-        practiceWorkflowModels: settings.practiceWorkflowModels,
     };
 }
 

@@ -595,6 +595,7 @@ export type StoredEmailCode = {
 };
 
 export type AuthSettings = {
+    settingsRevision?: number;
     site: SiteSettings;
     registrationEnabled: boolean;
     emailRegistrationEnabled: boolean;

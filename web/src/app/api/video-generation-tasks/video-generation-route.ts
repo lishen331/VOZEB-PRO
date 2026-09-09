@@ -5,7 +5,6 @@ import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { finishGenerationAttempt, startGenerationAttempt, type GenerationAttempt } from "@/lib/server/generation-attempt";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
-import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { hasHealthyRuntimeCandidate } from "@/lib/server/channel-runtime-health";
 import { assertReferenceCapabilities, assertReferenceUrls, assertVideoReferenceRoles, buildVideoProviderRequest, isProviderBusinessError, readProviderError, readProviderString, resolvedProviderCreatePaths } from "@/lib/server/provider-task-config";
 import { buildGlobalAiOpcVideoRequest, resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
@@ -45,7 +44,7 @@ import {
     attachPracticeWorkflowToChannel,
     buildRunningHubWorkflowPayload,
     generationBusinessCode,
-    resolvePracticeLogicalModel,
+    resolvePracticeGenerationCandidates,
     type RunningHubWorkflowConfig,
     workflowConfigForTask,
     workflowTaskContextForChannel,
@@ -55,7 +54,7 @@ import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
-type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext };
+type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext; input?: Record<string, unknown> };
 
 export async function POST(request: Request) {
     const user = await getCurrentUser(request);
@@ -117,12 +116,8 @@ export async function POST(request: Request) {
                 if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
                 throw error;
             }
-            const requestedModel = practiceRequest
-                ? resolvePracticeLogicalModel(settings, "video", trustedContext.businessCode || "storyboard-video", typeof body.config?.model === "string" ? body.config.model : undefined)
-                : typeof body.config?.model === "string" && body.config.model.trim()
-                  ? body.config.model
-                  : settings.defaultModels.videoModel;
-            const allChannels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile)
+            const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : settings.defaultModels.videoModel;
+            const allChannels = resolvePracticeGenerationCandidates(settings, "video", requestedModel, trustedContext)
                 .map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }))
                 .filter((channel): channel is typeof channel & { channelId: string } => typeof channel.channelId === "string");
             const prompt = String(body.prompt || "").trim();
@@ -252,7 +247,8 @@ export async function POST(request: Request) {
                         cookie,
                         channel,
                         providerPrompt,
-                        parameters,
+                        // 受信任的练习请求可携带工作流参数（尺寸比例、时长等），并入 RunningHub businessInput
+                        trustedPractice && body.input && typeof body.input === "object" && !Array.isArray(body.input) ? { ...parameters, ...body.input } : parameters,
                         references,
                         settings.generationPointMultipliers,
                         billingRequestId,

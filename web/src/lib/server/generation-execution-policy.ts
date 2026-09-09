@@ -50,6 +50,9 @@ export function sanitizeGenerationContext(value: unknown, preserveWorkflow: bool
         delete context.upstreamWorkflowId;
         delete context.businessCode;
         delete context.taskOrigin;
+        delete context.workflowCode;
+        delete context.workflowConfigFingerprint;
+        delete context.workflowAdapterVersion;
     }
     return context;
 }

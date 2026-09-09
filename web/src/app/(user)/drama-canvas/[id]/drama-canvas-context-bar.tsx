@@ -76,7 +76,7 @@ export function DramaCanvasContextBar() {
                     <Button type="text" icon={<ArrowLeft className="size-4" />} aria-label="返回短剧分镜工作台" onClick={() => router.push(returnTarget)} />
                 </Tooltip>
                 <span className="hidden max-w-40 truncate text-xs text-neutral-500 sm:block" title={project?.title || dramaProjectId}>
-                    {project?.title || "短剧实验室"}
+                    {project?.title || "创作工坊"}
                 </span>
                 <Select
                     aria-label="切换剧集"
@@ -87,7 +87,7 @@ export function DramaCanvasContextBar() {
                     options={episodes.map((episode, index) => ({ value: episode.id, label: episode.title || `第 ${episode.episodeNumber ?? index + 1} 集` }))}
                     onChange={(value) => void openEpisodeCanvas(value)}
                 />
-                <Tooltip title={error || "从短剧实验室同步当前集"}>
+                <Tooltip title={error || "从创作工坊同步当前集"}>
                     <Button type="text" danger={Boolean(error)} loading={loading} icon={<RefreshCw className="size-4" />} aria-label="同步当前集" onClick={() => void openEpisodeCanvas(episodeId, true)} />
                 </Tooltip>
                 <span className="hidden text-[11px] text-neutral-400 md:inline">画布 {params.id.slice(-8)}</span>

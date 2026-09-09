@@ -6,7 +6,6 @@ import { ECOMMERCE_IMAGE_SKILL } from "@/lib/server/agent-skills/ecommerce-image
 import { YANAI_BEAUTY_SKILL } from "@/lib/server/agent-skills/yanai-beauty";
 import { DEFAULT_CREATIVE_SHORTCUT_SKILLS } from "@/lib/server/agent-skills/creative-shortcuts";
 import { normalizeFeatureModuleSettings } from "@/lib/feature-modules";
-import { deriveRunningHubPracticeRouting } from "./runninghub-practice-routing";
 import { deriveLogicalModelsConfig, normalizeDefaultModelsConfig, normalizeLogicalModelsConfig } from "@/lib/model-routing-config";
 import { applyChannelProtocol } from "@/lib/channel-protocol-registry";
 import { resolveConfiguredModelPointCost } from "@/lib/model-point-cost";
@@ -241,15 +240,15 @@ export function countActiveFullAdmins(db: AuthDatabase, excludingUserId?: string
 
 export function normalizeSettings(settings: AuthSettings): AuthSettings {
     const normalizedChannels = Array.isArray(settings.systemChannels) ? settings.systemChannels.map(normalizeSystemChannel).filter((channel) => channel.name || channel.baseUrl || channel.models.length) : [];
-    const routing = deriveRunningHubPracticeRouting({
-        systemChannels: normalizedChannels,
-        logicalModels: Array.isArray(settings.logicalModels) ? settings.logicalModels : [],
-        practiceWorkflowModels: normalizePracticeWorkflowModels(settings.practiceWorkflowModels),
-    });
-    const systemChannels = routing.systemChannels;
-    const logicalModels = normalizeLogicalModels(routing.logicalModels, systemChannels);
+    const systemChannels = normalizedChannels.map(normalizeRunningHubChannelForPractice);
+    const runningHubChannelIds = new Set(systemChannels.filter((channel) => channel.advancedConfig?.protocol === "runninghub").map((channel) => channel.id));
+    const logicalModels = normalizeLogicalModels(
+        (Array.isArray(settings.logicalModels) ? settings.logicalModels : []).map((model) => ({ ...model, bindings: model.bindings.filter((binding) => !runningHubChannelIds.has(binding.channelId)) })).filter((model) => model.bindings.length > 0),
+        systemChannels,
+    );
     const site = normalizeSiteSettings(settings.site);
     return {
+        settingsRevision: settings.settingsRevision ?? 1,
         site,
         registrationEnabled: Boolean(settings.registrationEnabled),
         emailRegistrationEnabled: Boolean(settings.emailRegistrationEnabled),
@@ -268,11 +267,17 @@ export function normalizeSettings(settings: AuthSettings): AuthSettings {
         logicalModels,
         defaultModels: normalizeDefaultModelsConfig(settings.defaultModels, logicalModels, systemChannels),
         practiceDefaultModels: normalizeDefaultModelsConfig(settings.practiceDefaultModels, logicalModels, systemChannels, "open-source-practice", { allowFallback: false }),
-        practiceWorkflowModels: routing.practiceWorkflowModels,
+        practiceWorkflowModels: {},
         practiceModuleVisibility: normalizePracticeModuleVisibility(settings.practiceModuleVisibility),
         agentSkills: normalizeAgentSkills(settings.agentSkills),
         featureModules: normalizeFeatureModuleSettings(settings.featureModules),
     };
+}
+
+function normalizeRunningHubChannelForPractice(channel: SystemModelChannel) {
+    if (channel.advancedConfig?.protocol !== "runninghub") return channel;
+    const advancedConfig = channel.advancedConfig ? { ...channel.advancedConfig, modelCapabilities: undefined, modelConfigs: undefined, operationConfigs: undefined } : channel.advancedConfig;
+    return { ...channel, purpose: "open-source-practice" as const, models: [], advancedConfig };
 }
 
 export function normalizePracticeModuleVisibility(value: unknown): NonNullable<AuthSettings["practiceModuleVisibility"]> {

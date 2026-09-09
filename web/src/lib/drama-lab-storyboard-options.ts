@@ -1,4 +1,6 @@
 import productionModes from "./drama-lab-production-storyboard-modes.json";
+/** Image-stage layout, deliberately separate from extraction options and first/last frame mode. */
+export type DramaLabStoryboardSequenceMode = "single" | "quad_grid" | "nine_grid";
 export type DramaLabStoryboardOptions = { shotCount?: number; totalDuration?: number; creationMode?: "classic" | "universal"; generateNarration?: boolean };
 export class DramaLabStoryboardOptionsError extends Error {
     readonly status = 400;

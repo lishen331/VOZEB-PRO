@@ -12,8 +12,9 @@ describe("login navigation", () => {
     it("uses role defaults and only lets administrators enter admin paths", () => {
         expect(defaultLoginDestination("admin")).toBe("/admin");
         expect(defaultLoginDestination("user")).toBe("/create");
+        expect(defaultLoginDestination("user", { "creative-agent": false })).toBe("/practice");
         expect(resolveLoginDestination({ role: "admin" }, undefined)).toBe("/admin");
-        expect(resolveLoginDestination({ role: "user" }, "/admin?section=site")).toBe("/create?auth=forbidden");
+        expect(resolveLoginDestination({ role: "user" }, "/admin?section=site", { "creative-agent": false })).toBe("/practice?auth=forbidden");
         expect(resolveLoginDestination({ role: "admin" }, "/admin?section=site")).toBe("/admin?section=site");
     });
 

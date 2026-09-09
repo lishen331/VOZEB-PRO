@@ -250,7 +250,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
             <div className="mx-auto w-full max-w-[1440px] px-3 py-4 sm:px-6 sm:py-6">
                 <button type="button" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" onClick={() => router.push("/practice")}>
                     <ArrowLeft className="size-4" />
-                    返回无限练习
+                    返回练习
                 </button>
                 <Button
                     className="!ml-3"

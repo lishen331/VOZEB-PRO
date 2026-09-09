@@ -68,5 +68,5 @@ export async function POST(request: NextRequest) {
     if ("response" in auth) return auth.response;
 
     void request;
-    return legacyReadOnly("短剧实验室只支持编辑或恢复九套系统模板，不支持新增未绑定模板");
+    return legacyReadOnly("创作工坊只支持编辑或恢复九套系统模板，不支持新增未绑定模板");
 }

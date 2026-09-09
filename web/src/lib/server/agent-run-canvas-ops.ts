@@ -12,7 +12,7 @@ const ROW_GAP = 300;
 
 export function planToOps(plan: AgentPlan, tasks: AgentRunTask[], runId: string, snapshot: unknown) {
     const snapshotNodeMap = canvasSnapshotNodes(snapshot);
-    if (tasks.length === 1 && tasks[0]?.type === "text" && tasks[0].targetNodeId && snapshotNodeMap.get(tasks[0].targetNodeId)?.type === "text") return [];
+    if (tasks.length > 0 && tasks.every((task) => task.type === "text" && task.targetNodeId && snapshotNodeMap.get(task.targetNodeId)?.type === "text")) return [];
     const briefId = `brief-${runId}`;
     const brandId = `brand-${runId}`;
     const ops: Array<Record<string, unknown>> = [

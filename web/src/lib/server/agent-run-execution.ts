@@ -6,7 +6,7 @@ import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveLogicalModel, resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { reviewCreativeOutputs } from "@/lib/server/creative-review-service";
-import { requestStructuredText, type TextPlanningCandidate, type TextPlanningMediaInput } from "@/lib/server/text-planning-runtime";
+import { requestStructuredText, type TextPlanningCandidate, type TextPlanningMediaInput, type TextPlanningMessageContent } from "@/lib/server/text-planning-runtime";
 import { registerAgentTaskAssets } from "@/lib/server/agent-run-assets";
 import { buildAgentProjectHandoff } from "@/lib/server/agent-run-project-handoff";
 import { getAgentRun, updateAgentRunById, updateAgentRunTaskById, type AgentRun, type AgentRunChildTask, type AgentRunReference, type AgentRunTask } from "@/lib/server/agent-run-store";
@@ -217,6 +217,7 @@ export function normalizeTasks(
         return {
             id: item.id?.trim() || `task-${index}`,
             targetNodeId: target ? targetNodeId : undefined,
+            ...(surface === "canvas" && item.type === "text" && typeof item.literalContent === "string" ? { literalContent: item.literalContent } : {}),
             referenceAssetId: selectedAssets[0]?.id,
             referenceUrl: primaryReference?.url,
             referenceType: primaryReference?.type,
@@ -225,7 +226,10 @@ export function normalizeTasks(
             type: item.type,
             model: resolvePlannedModel(settings, item.type, item.model),
             optimizedPrompt,
-            prompt: `${withCreativeFoundation(optimizedPrompt, plan.foundation)}${skillInstructions ? `\n\n执行以下已选 Skill 约束：\n${skillInstructions}` : ""}${textConstraintInstruction(requestPrompt, item.type)}${target ? `\n\n基于画布已有节点进行局部修改：${target.summary}` : ""}${selectedCanvasContext ? `\n\n使用本轮画布引用：\n${selectedCanvasContext}` : ""}${referenceContext ? `\n\n使用已引用创作资产：${referenceContext}` : ""}`,
+            prompt:
+                item.type === "audio"
+                    ? optimizedPrompt
+                    : `${withCreativeFoundation(optimizedPrompt, plan.foundation)}${skillInstructions ? `\n\n执行以下已选 Skill 约束：\n${skillInstructions}` : ""}${textConstraintInstruction(requestPrompt, item.type)}${target ? `\n\n基于画布已有节点进行局部修改：${target.summary}` : ""}${selectedCanvasContext ? `\n\n使用本轮画布引用：\n${selectedCanvasContext}` : ""}${referenceContext ? `\n\n使用已引用创作资产：${referenceContext}` : ""}`,
             count: resolveAgentTaskCount(
                 item.type,
                 item.type === "image" ? generationPreferences?.image?.count || item.count : item.type === "video" ? generationPreferences?.video?.count || item.count : item.count,
@@ -579,7 +583,7 @@ export async function requestFunctionCall(
     origin: string,
     cookie: string,
     candidate: TextPlanningCandidate,
-    input: Array<{ role: string; content: string }>,
+    input: Array<{ role: string; content: TextPlanningMessageContent }>,
     tool: typeof agentPlanTool,
     name: string,
     signal: AbortSignal,
@@ -748,7 +752,7 @@ export async function withDependencyContext(runId: string, task: AgentRunTask): 
         .filter((item) => item.length > 4)
         .join("\n");
     const assetContext = dependencyAssets.map((asset) => creativeAssetContext(asset)).join("\n");
-    const context = [taskContext, assetContext].filter(Boolean).join("\n");
+    const context = task.type === "audio" ? "" : [taskContext, assetContext].filter(Boolean).join("\n");
     const primaryReference = references[0];
     return {
         ...task,
@@ -926,15 +930,9 @@ export function linkAgentChildTask(run: AgentRun, task: AgentRunTask, taskId: st
 }
 
 export function directCanvasTextContent(task: AgentRunTask) {
-    if (task.type !== "text") return null;
-    const prompt = task.prompt.split(/\n\n(?:严格输出要求|基于画布已有节点|请保持与以下已完成产物一致)：/u)[0]?.trim() || "";
-    if (!/(?:文字|文本|内容|文案|标题).{0,16}(?:节点|卡片|便签)|(?:节点|卡片|便签).{0,16}(?:文字|文本|内容|文案|标题)|画布/u.test(prompt)) return null;
-    const quoted = prompt.match(/(?:内容|文字|文本|文案|标题)[^“"「『'`]{0,18}(?:写(?:着|成)?|写为|为|是|设置为|设为|改为|改成|填(?:写)?为)[:：\s]*[“"「『'`]([^”"」』'`]{1,500})[”"」』'`]/u);
-    if (quoted?.[1]?.trim()) return quoted[1].trim();
-    const displayed = prompt.match(/(?:写着|写有|显示|展示)[:：\s]*[“"「『'`]([^”"」』'`]{1,500})[”"」』'`]/u);
-    if (displayed?.[1]?.trim()) return displayed[1].trim();
-    const plain = prompt.match(/(?:内容|文字|文本|文案|标题)[^，。；;\n]{0,18}(?:写(?:成)?|写为|为|是|设置为|设为|改为|改成|填(?:写)?为)[:：\s]*([^，。；;\n]{1,160})/u);
-    return plain?.[1]?.trim() || null;
+    // Only an explicit structured value is safe to write without a model call.
+    // Never infer literal content from prompts, originals or internal objectives.
+    return task.type === "text" && typeof task.literalContent === "string" && task.literalContent.trim() ? task.literalContent : null;
 }
 
 export async function pollTask(origin: string, path: string, taskId: string, cookie: string, runId: string, type: AgentRunTask["type"], executionId: string, recoverNeedsReview = false) {

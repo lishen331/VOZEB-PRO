@@ -10,7 +10,8 @@ import { requirePracticeAccess, type PracticeActor } from "./practice-access-ser
 import { getTextTask } from "@/lib/server/text-task-store";
 import { getImageTask } from "@/lib/server/image-task-store";
 import { getVideoTask } from "@/lib/server/video-task-store";
-import { getAudioTask } from "@/lib/server/audio-task-store";
+import { getAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
+import { ensurePracticeAudioGenerationLog } from "@/lib/server/audio-task-runtime";
 import { getStoredGenerationTaskByRequest } from "@/lib/server/generation-task-store";
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "./ip-library-reference-service";
@@ -322,7 +323,10 @@ async function publicTaskResult(session: PracticeSessionRecord) {
     if (!task || task.userId !== session.userId) return undefined;
     if (task.status === "pending" || task.status === "running") return { status: task.status } as const;
     if (task.status === "needs_review") return { status: "error" as const, error: (task as { error?: string }).error || "视频任务已超过自动查询时间，请联系管理员检查上游状态" };
-    if (task.status === "error") return { status: "error" as const, error: task.error || "练习失败" };
+    if (task.status === "error") {
+        if (taskType === "audio") await ensurePracticeAudioGenerationLog(task as AudioTask, "failed", task.error || "练习失败");
+        return { status: "error" as const, error: task.error || "练习失败" };
+    }
     if (task.status === "cancelled") return { status: "cancelled" as const, error: task.error };
     const result = task && typeof task === "object" && task.result && typeof task.result === "object" ? (task.result as Record<string, unknown>) : {};
     if (taskType === "text") return { status: "success" as const, text: typeof result.content === "string" ? result.content : undefined };
@@ -334,7 +338,17 @@ async function publicTaskResult(session: PracticeSessionRecord) {
         const url = typeof result.url === "string" ? result.url : typeof result.remoteUrl === "string" ? result.remoteUrl : undefined;
         return { status: "success" as const, media: url ? { kind: "video" as const, url, durationMs: typeof result.durationMs === "number" ? result.durationMs : undefined } : undefined };
     }
-    return { status: "success" as const, media: typeof result.url === "string" ? { kind: "audio" as const, url: result.url } : undefined };
+    await ensurePracticeAudioGenerationLog(task as AudioTask, "success");
+    const url = typeof result.url === "string" ? normalizePracticeAudioUrl(result.url) : undefined;
+    return { status: "success" as const, media: url ? { kind: "audio" as const, url } : undefined };
+}
+
+function normalizePracticeAudioUrl(value: string) {
+    try {
+        const parsed = new URL(value);
+        if (["127.0.0.1", "localhost"].includes(parsed.hostname) && parsed.pathname.startsWith("/api/")) return `${parsed.pathname}${parsed.search}`;
+    } catch {}
+    return value;
 }
 
 async function synchronizePracticeSessionLifecycle(store: PracticeSessionStore, session: PracticeSessionRecord) {
@@ -376,25 +390,21 @@ async function defaultResolveModel(module: PracticeModuleKind, requestedLogicalM
 
 export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<typeof getAuthSettings>>, module: PracticeModuleKind, requestedLogicalModelId?: string, requestedWorkflowCode?: string): PracticeModelResolution {
     const capability = module === "script" ? "text" : module === "storyboard-video" ? "video" : module === "dubbing" || module === "music" ? "audio" : "image";
-    const key = `${capability}Model` as "textModel" | "imageModel" | "videoModel" | "audioModel";
-    const legacyBindingKey = module === "character" || module === "scene" || module === "prop" ? "storyboard-image" : module;
-    const rawBindings: unknown = settings.practiceWorkflowModels[legacyBindingKey];
-    const boundModels = Array.isArray(rawBindings) ? rawBindings.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : typeof rawBindings === "string" && rawBindings.trim().length > 0 ? [rawBindings] : [];
-    if (module !== "script" && boundModels.length) {
-        const requested = requestedLogicalModelId?.trim();
-        if (requested && !boundModels.some((id) => id.toLowerCase() === requested.toLowerCase())) throw new PracticeServiceError("所选练习模型不可用", 400, "PRACTICE_MODEL_UNAVAILABLE");
-        const candidates = requested ? [requested] : boundModels;
-        let hadModel = false;
-        for (const candidate of candidates) {
-            const model = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, candidate, "", "open-source-practice");
-            if (!model) continue;
-            hadModel = true;
-            const workflow = resolvePracticeWorkflow(Object.values(model.channel.advancedConfig?.workflowConfigs || {}), model.channel.id, module, requestedWorkflowCode);
-            if (workflow) return { logicalModelId: model.logicalModelId, capability, workflow };
-        }
-        throw new PracticeServiceError(hadModel ? "当前练习模块没有可用工作流" : "当前练习模块没有可用的开源模型", 503, hadModel ? "PRACTICE_WORKFLOW_UNAVAILABLE" : "PRACTICE_MODEL_UNAVAILABLE");
+    const expectedCode =
+        requestedWorkflowCode ||
+        ({ character: "character_main_view", scene: "scene_main_view", prop: "prop_main_view", "storyboard-image": "storyboard_shot", "storyboard-video": "storyboard_shot_video", dubbing: "storyboard_dialogue_audio" } as Record<string, string>)[module];
+    if (module !== "script") {
+        const workflowCandidates = settings.systemChannels
+            .filter((channel) => channel.enabled && channel.advancedConfig?.protocol === "runninghub" && channel.purpose === "open-source-practice")
+            .flatMap((channel) => Object.values(channel.advancedConfig?.workflowConfigs || {}).map((raw) => ({ channel, workflow: normalizeWorkflow(raw) })))
+            .filter(({ workflow }) => workflow.enabled && workflow.capability === capability && workflow.workflowCode === expectedCode)
+            .sort((left, right) => right.workflow.version - left.workflow.version);
+        const selected = workflowCandidates[0];
+        if (selected) return { logicalModelId: requestedLogicalModelId?.trim() || "", capability, workflow: selected.workflow };
+        if (settings.systemChannels.some((channel) => channel.advancedConfig?.protocol === "runninghub")) throw new PracticeServiceError("当前练习模块没有可用工作流", 503, "PRACTICE_WORKFLOW_UNAVAILABLE");
     }
-    const requestedModel = requestedLogicalModelId?.trim() || boundModels[0] || settings.practiceDefaultModels[key];
+    const key = `${capability}Model` as "textModel" | "imageModel" | "videoModel" | "audioModel";
+    const requestedModel = requestedLogicalModelId?.trim() || settings.practiceDefaultModels[key] || "";
     const model = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, requestedModel, "", "open-source-practice");
     if (!model || !model.channel || !["open-source-practice", "shared"].includes(model.channel.purpose || "shared")) throw new PracticeServiceError("当前练习模块没有可用的开源模型", 503, "PRACTICE_MODEL_UNAVAILABLE");
     if (module === "script") return { logicalModelId: model.logicalModelId, capability };

@@ -12,7 +12,6 @@ import { resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
-import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
 import { assertReferenceCapabilities, readProviderString } from "@/lib/server/provider-task-config";
 import { countActiveImageTasksForUser, createImageTask, getImageTask, touchImageTask, transitionImageTask, type ImageTask, type ImageTaskConfig, type ImageTaskReference, updateImageTask } from "@/lib/server/image-task-store";
@@ -25,7 +24,7 @@ import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { resolveModelPollingAttempts, resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
-import { attachPracticeWorkflowToChannel, resolvePracticeLogicalModel } from "@/lib/server/runninghub-workflow-runtime";
+import { attachPracticeWorkflowToChannel, resolvePracticeGenerationCandidates } from "@/lib/server/runninghub-workflow-runtime";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
@@ -72,8 +71,9 @@ export function publicTask(task: ImageTask) {
 }
 
 export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: Awaited<ReturnType<typeof getAuthSettings>>, executionProfile: "production" | "open-source-practice" = "production", context?: GenerationTaskContext): ImageTaskConfig[] {
-    const requestedModel = executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "image", context?.businessCode || "canvas", config?.model) : config?.model || settings.defaultModels.imageModel;
-    return resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile).map((resolved) => {
+    const requestedModel = config?.model || settings.defaultModels.imageModel;
+    const candidates = resolvePracticeGenerationCandidates(settings, "image", requestedModel, { ...(context || {}), executionProfile });
+    return candidates.map((resolved) => {
         const channel = attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {});
         return {
             ...channel,

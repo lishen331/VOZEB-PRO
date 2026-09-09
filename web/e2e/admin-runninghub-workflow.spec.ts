@@ -49,7 +49,7 @@ test("管理员可以维护 RunningHub 工作流版本和练习绑定", async ({
     };
     const channels = [...current.systemChannels.filter((item: { id: string }) => item.id !== channel.id), channel];
     const saved = await page.request.patch("/api/admin/settings", {
-        data: { systemChannels: channels, logicalModels: current.logicalModels, defaultModels: current.defaultModels, practiceDefaultModels: current.practiceDefaultModels, practiceWorkflowModels: current.practiceWorkflowModels },
+        data: { systemChannels: channels, logicalModels: current.logicalModels, defaultModels: current.defaultModels, practiceDefaultModels: current.practiceDefaultModels },
     });
     expect(saved.ok(), await saved.text()).toBe(true);
 
@@ -99,6 +99,9 @@ test("管理员可以维护 RunningHub 工作流版本和练习绑定", async ({
     await expect(page.getByText("独立管理员测试", { exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "编辑", exact: true }).click();
-    for (const tab of ["基础配置", "识别结果", "高级配置", "节点与出参高级信息", "测试运行"]) await expect(page.getByRole("tab", { name: tab })).toBeVisible();
+    for (const tab of ["基础配置", "识别结果", "节点与出参高级信息", "测试运行"]) await expect(page.getByRole("tab", { name: tab })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "高级配置" })).toHaveCount(0);
+    await expect(page.getByText("创建路径", { exact: true })).toHaveCount(0);
     await page.keyboard.press("Escape");
+    await expect(page.getByRole("tab", { name: "上游模型", exact: false })).toHaveCount(0);
 });

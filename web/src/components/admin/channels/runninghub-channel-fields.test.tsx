@@ -33,21 +33,19 @@ const channel = {
 } satisfies SystemModelChannel;
 
 describe("runninghub channel fields", () => {
-    it("renders purpose, official docs, and per-model async contract controls", () => {
+    it("renders the fixed practice-channel notice without generic async contract controls", () => {
         const markup = renderToStaticMarkup(
             <>
                 <ChannelPurposeControl channel={channel} onChange={vi.fn()} />
                 <RunningHubChannelFields channel={channel} onChange={vi.fn()} />
             </>,
         );
-        expect(markup).toContain("渠道用途");
         expect(markup).toContain("无限练习");
+        expect(markup).toContain("RunningHub 无限练习渠道");
         expect(markup).toContain("RunningHub 官方文档");
-        expect(markup).toContain("创建路径");
-        expect(markup).toContain("查询路径");
-        expect(markup).toContain("请求模板");
-        expect(markup).toContain("任务 ID 字段");
-        expect(markup).toContain("结果字段");
-        expect(markup).toContain("状态字段");
+        expect(markup).not.toContain("创建路径");
+        expect(markup).not.toContain("查询路径");
+        expect(markup).not.toContain("请求模板");
+        expect(markup).not.toContain("任务 ID 字段");
     });
 });

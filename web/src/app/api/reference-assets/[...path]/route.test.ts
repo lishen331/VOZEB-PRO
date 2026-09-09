@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
     head: vi.fn(),
     release: vi.fn(),
     libraryReference: vi.fn(),
+    readableCourseMaterial: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -32,6 +33,7 @@ vi.mock("@/lib/server/media-concurrency", () => ({ acquireMediaConcurrency: mock
 vi.mock("@/lib/server/security", () => ({ checkLocalMediaRateLimit: mocks.rate, rateLimitHeaders: vi.fn(() => ({ "Retry-After": "60" })) }));
 vi.mock("@/lib/server/object-storage-service", () => ({ createExternalMediaReadUrl: mocks.externalRead, readRegisteredMediaBytes: mocks.readBytes }));
 vi.mock("@/lib/server/library-asset-store", () => ({ hasLibraryAssetMediaReference: mocks.libraryReference }));
+vi.mock("@/lib/server/school-domain-repository", () => ({ createSchoolDomainRepository: () => ({ getReadableCourseMaterial: mocks.readableCourseMaterial }) }));
 
 import { GET, HEAD } from "./route";
 
@@ -53,6 +55,7 @@ describe("reference asset access", () => {
         mocks.wrap.mockImplementation((response: Response) => response);
         mocks.head.mockReturnValue(new Response(null, { status: 200, headers: { "Content-Type": "image/png", "Content-Length": "5" } }));
         mocks.libraryReference.mockResolvedValue(false);
+        mocks.readableCourseMaterial.mockResolvedValue(null);
     });
 
     it("serves object images without a cross-origin redirect for canvas reads", async () => {
@@ -75,6 +78,30 @@ describe("reference asset access", () => {
         expect(mocks.read).not.toHaveBeenCalled();
     });
 
+    it("reads a legacy course attachment when its media registration is missing", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "student", role: "user" });
+        mocks.registration.mockResolvedValue(null);
+        mocks.readableCourseMaterial.mockResolvedValue({ storageKey: "permanent/2026/07/20/images/file.png", fileName: "课件.png", mimeType: "image/png", bytes: 5, title: "课件" });
+        expect((await GET(new Request("http://localhost/api/reference-assets/permanent/2026/07/20/images/file.png"), context)).status).toBe(200);
+        expect(mocks.readableCourseMaterial).toHaveBeenCalledWith("student", "permanent/2026/07/20/images/file.png");
+        expect(mocks.read).toHaveBeenCalledWith("permanent/2026/07/20/images/file.png");
+    });
+
+    it("allows a visible course member to read platform-owned course media", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "student", role: "user" });
+        mocks.registration.mockResolvedValue({ ownerUserId: "platform-admin", source: "course-attachment", mimeType: "image/png" });
+        mocks.readableCourseMaterial.mockResolvedValue({ storageKey: "permanent/2026/07/20/images/file.png", fileName: "课件.png", mimeType: "image/png", bytes: 5, title: "课件" });
+        expect((await GET(new Request("http://localhost/api/reference-assets/permanent/2026/07/20/images/file.png"), context)).status).toBe(200);
+        expect(mocks.readableCourseMaterial).toHaveBeenCalledWith("student", "permanent/2026/07/20/images/file.png");
+    });
+
+    it("does not query course authorization for ordinary registered media", async () => {
+        mocks.getCurrentUser.mockResolvedValue({ id: "owner", role: "user" });
+        mocks.registration.mockResolvedValue({ ownerUserId: "owner", source: "creative-upload", mimeType: "image/png" });
+        const response = await GET(new Request("http://localhost/api/reference-assets/permanent/2026/07/20/images/file.png"), context);
+        expect(response.status).toBe(200);
+        expect(mocks.readableCourseMaterial).not.toHaveBeenCalled();
+    });
     it("allows media referenced by the requesting user's own library asset", async () => {
         mocks.getCurrentUser.mockResolvedValue({ id: "library-owner", role: "user" });
         mocks.libraryReference.mockResolvedValue(true);

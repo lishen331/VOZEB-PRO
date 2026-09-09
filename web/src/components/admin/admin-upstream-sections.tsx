@@ -55,7 +55,6 @@ export function AdminChannelsSection({ controller }: { controller: AdminDashboar
                                     logicalModels: settings.logicalModels,
                                     defaultModels: settings.defaultModels,
                                     practiceDefaultModels: settings.practiceDefaultModels,
-                                    practiceWorkflowModels: settings.practiceWorkflowModels,
                                 },
                                 "模型渠道配置已保存",
                             )
@@ -72,7 +71,6 @@ export function AdminChannelsSection({ controller }: { controller: AdminDashboar
                         logicalModels: settings.logicalModels,
                         defaultModels: settings.defaultModels,
                         practiceDefaultModels: settings.practiceDefaultModels,
-                        practiceWorkflowModels: settings.practiceWorkflowModels,
                     }}
                     fetchingModelId={fetchingModelId}
                     saving={settingsLoading}
@@ -315,8 +313,8 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
             <section className="mx-3 mt-3 border border-stone-200 bg-stone-50/70 p-4 dark:border-stone-800 dark:bg-stone-900/40 sm:mx-5">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                        <h2 className="font-semibold text-stone-950 dark:text-stone-100">无限练习模块</h2>
-                        <p className="mt-1 text-xs leading-5 text-stone-500">控制无限练习首页的入口显示。隐藏只影响新入口，历史记录不会被删除。</p>
+                        <h2 className="font-semibold text-stone-950 dark:text-stone-100">练习模块</h2>
+                        <p className="mt-1 text-xs leading-5 text-stone-500">控制练习首页的入口显示。隐藏只影响新入口，历史记录不会被删除。</p>
                     </div>
                     <Tag color="processing">6 个模块 · 7 条工作流</Tag>
                 </div>

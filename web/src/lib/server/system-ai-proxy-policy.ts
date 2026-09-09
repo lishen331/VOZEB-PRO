@@ -14,6 +14,8 @@ type ProxyPolicyInput = {
     upstreamModel: string;
     preferredLogicalModelId?: string;
     logicalModels: LogicalModel[];
+    workflowCapability?: LogicalModelCapability;
+    workflowModel?: boolean;
     apiFormat: "openai" | "gemini";
     pointsUsageKind?: PointUsageKind;
     upstreamTaskIdHint?: string;
@@ -34,7 +36,9 @@ export function authorizeSystemAiProxyRequest(input: ProxyPolicyInput): SystemAi
 
     const upstreamModel = normalizeModel(input.upstreamModel);
     if (!upstreamModel) return denied(400, "系统模型代理缺少上游模型标识");
-    const logical = resolveBoundLogicalModel(input.logicalModels, input.channelId, upstreamModel, input.preferredLogicalModelId);
+    const logical =
+        resolveBoundLogicalModel(input.logicalModels, input.channelId, upstreamModel, input.preferredLogicalModelId) ||
+        (input.workflowCapability && input.workflowModel ? { id: input.preferredLogicalModelId?.trim() || upstreamModel, capability: input.workflowCapability, name: upstreamModel, enabled: true, bindings: [] } : null);
     if (!logical) return denied(403, "该上游模型未绑定可用逻辑模型");
 
     const candidates = requestPathCandidates(input.path, input.search);
@@ -68,6 +72,11 @@ export function authorizeSystemAiProxyRequest(input: ProxyPolicyInput): SystemAi
 
     const createPaths = [...(input.paths?.create || []), ...standardCreatePaths(logical.capability, input.apiFormat)];
     if (method === "POST" && createPaths.some((path) => pathMatchesAny(candidates, path, upstreamModel))) {
+        if (input.workflowModel) {
+            // 无限练习工作流不计费，但请求能力仍必须与工作流能力一致。
+            if (input.pointsUsageKind && input.pointsUsageKind !== "api" && input.pointsUsageKind !== logical.capability) return denied(403, "请求能力与练习工作流不匹配");
+            return allowed(logical, "create");
+        }
         if (!input.pointsUsageKind || input.pointsUsageKind === "api") return denied(400, "系统模型创建请求无法确定计费类型");
         if (input.pointsUsageKind !== logical.capability) return denied(403, "请求能力与逻辑模型不匹配");
         return allowed(logical, "create");

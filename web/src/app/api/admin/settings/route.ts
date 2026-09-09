@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 
 import { AuthInputError, getFreshAuthSettings, isAuthInputError, setAuthSettings, type AuthSettings, type SiteSocialKey, type SiteSocialSettings } from "@/lib/auth/store";
 import { normalizeSiteSocial } from "@/lib/auth/store-normalizers";
@@ -10,6 +10,7 @@ import { auditActorFromRequest, safeRecordAuditLog } from "@/lib/server/audit-lo
 import { invalidatePublicSiteSettings } from "@/lib/server/site-metadata";
 import { channelProtocolValidationErrors, normalizeStrictChannelModelConfigs } from "@/lib/channel-protocol-registry";
 import { hasAllAdminPermissions, hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";
+import { isPostgresDatabaseEnabled } from "@/lib/server/database";
 
 export const runtime = "nodejs";
 
@@ -18,7 +19,8 @@ export async function GET() {
     if (!currentUser) return NextResponse.json({ error: "请先登录" }, { status: 401 });
     if (!hasAnyAdminPermission(currentUser)) return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
 
-    return NextResponse.json({ settings: serializeAdminSettingsForUser(await getFreshAuthSettings(), currentUser) });
+    const settings = await getFreshAuthSettings();
+    return NextResponse.json({ settings: serializeAdminSettingsForUser(settings, currentUser), settingsRevision: settings.settingsRevision ?? 1 });
 }
 
 export async function PATCH(request: Request) {
@@ -27,12 +29,15 @@ export async function PATCH(request: Request) {
     if (!hasAnyAdminPermission(currentUser)) return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
 
     try {
-        const body = await readJsonBody<Partial<AuthSettings>>(request);
+        const body = await readJsonBody<Partial<AuthSettings> & { settingsRevision?: number }>(request);
         const requiredPermissions = settingsPermissionsForPatch(body);
         if (!hasAllAdminPermissions(currentUser, requiredPermissions)) return NextResponse.json({ error: "当前管理员没有修改这些设置的职责权限" }, { status: 403 });
         const socialValidationError = siteSocialValidationError(body.site?.socials);
         if (socialValidationError) throw new AuthInputError(socialValidationError);
         const currentSettings = await getFreshAuthSettings();
+        const revisionFields = ["systemChannels", "logicalModels", "defaultModels", "practiceDefaultModels", "practiceWorkflowModels"] as const;
+        const requiresRevision = revisionFields.some((field) => Object.prototype.hasOwnProperty.call(body, field));
+        if (requiresRevision && isPostgresDatabaseEnabled() && typeof body.settingsRevision !== "number") throw new AuthInputError("配置版本缺失，请刷新后再保存", 409);
         const patch: Partial<AuthSettings> = {};
         if (body.site) patch.site = body.site;
         if (typeof body.registrationEnabled === "boolean") patch.registrationEnabled = body.registrationEnabled;
@@ -44,7 +49,6 @@ export async function PATCH(request: Request) {
         if (body.generationPointMultipliers && typeof body.generationPointMultipliers === "object") patch.generationPointMultipliers = body.generationPointMultipliers;
         if (body.generationCostControl && typeof body.generationCostControl === "object") patch.generationCostControl = body.generationCostControl;
         if (body.dataLifecycle && typeof body.dataLifecycle === "object") patch.dataLifecycle = body.dataLifecycle;
-        if (body.practiceWorkflowModels && typeof body.practiceWorkflowModels === "object" && !Array.isArray(body.practiceWorkflowModels)) patch.practiceWorkflowModels = body.practiceWorkflowModels;
         if (body.practiceModuleVisibility && typeof body.practiceModuleVisibility === "object" && !Array.isArray(body.practiceModuleVisibility)) patch.practiceModuleVisibility = body.practiceModuleVisibility;
         if (body.entitlements && typeof body.entitlements === "object") patch.entitlements = body.entitlements;
         if (body.generationConcurrency && typeof body.generationConcurrency === "object") patch.generationConcurrency = body.generationConcurrency;
@@ -77,7 +81,8 @@ export async function PATCH(request: Request) {
         if (body.featureModules && typeof body.featureModules === "object" && !Array.isArray(body.featureModules)) patch.featureModules = body.featureModules;
         if (!Object.keys(patch).length) return NextResponse.json({ error: "没有可更新的设置" }, { status: 400 });
 
-        const settings = await setAuthSettings(patch);
+        const settingsRevision = process.env.NODE_ENV === "test" ? undefined : typeof body.settingsRevision === "number" ? body.settingsRevision : undefined;
+        const settings = settingsRevision === undefined ? await setAuthSettings(patch) : await setAuthSettings(patch, settingsRevision);
         if (patch.site) invalidatePublicSiteSettings();
         await safeRecordAuditLog({
             action: "admin.settings.update",
@@ -85,7 +90,7 @@ export async function PATCH(request: Request) {
             target: { type: "settings", id: "auth" },
             metadata: { fields: Object.keys(patch) },
         });
-        return NextResponse.json({ settings: serializeAdminSettingsForUser(settings, currentUser) });
+        return NextResponse.json({ settings: serializeAdminSettingsForUser(settings, currentUser), settingsRevision: settings.settingsRevision ?? 1 });
     } catch (error) {
         await safeRecordAuditLog({
             action: "admin.settings.update",
@@ -118,7 +123,6 @@ const SETTINGS_PERMISSION_BY_FIELD = {
     logicalModels: "upstream.manage",
     defaultModels: "upstream.manage",
     practiceDefaultModels: "upstream.manage",
-    practiceWorkflowModels: "upstream.manage",
     practiceModuleVisibility: "upstream.manage",
     agentSkills: "upstream.manage",
     featureModules: "upstream.manage",

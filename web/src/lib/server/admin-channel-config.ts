@@ -69,8 +69,8 @@ export function systemChannelWebhookSecretValidationError(channel: SystemModelCh
 
 export function runningHubChannelValidationErrors(channel: SystemModelChannel) {
     if (channel.advancedConfig?.protocol !== "runninghub") return [];
-    const errors: string[] = [];
     const label = channel.name || channel.id || "RunningHub 渠道";
+    const errors: string[] = [];
     if (!channel.baseUrl.trim()) errors.push(`${label} 必须填写 Base URL`);
     else {
         try {
@@ -80,32 +80,8 @@ export function runningHubChannelValidationErrors(channel: SystemModelChannel) {
             errors.push(`${label} 的 Base URL 无效`);
         }
     }
-    if (channel.purpose !== "production" && channel.purpose !== "open-source-practice" && channel.purpose !== "shared") errors.push(`${label} 渠道用途必须选择正式生产、无限练习或共享`);
+    if (channel.purpose !== "open-source-practice") errors.push(`${label} 渠道用途必须固定为无限练习`);
     if (!isUsableAdminChannelApiKey(channel.apiKey)) errors.push(`${label} 必须填写 API Key`);
-    const configs = channel.advancedConfig.modelConfigs || {};
-    for (const model of channel.models) {
-        const config = configs[normalizeModelId(model)];
-        if (!config) {
-            errors.push(`${model} 缺少 RunningHub 模型任务配置`);
-            continue;
-        }
-        for (const [field, title] of [
-            [config.createPath, "创建路径"],
-            [config.queryPath, "查询路径"],
-            [config.requestTemplate, "请求模板"],
-            [config.taskIdField, "任务 ID 字段"],
-            [config.resultField, "结果字段"],
-            [config.statusField, "状态字段"],
-        ] as const) {
-            if (!field?.trim()) errors.push(`${model} 缺少 RunningHub ${title}`);
-        }
-        if (config.protocol && config.protocol !== "runninghub") errors.push(`${model} 的模型协议必须为 RunningHub`);
-    }
-    const workflowConfigs = channel.advancedConfig.workflowConfigs || {};
-    const workflowValues = Object.values(workflowConfigs);
-    for (const [workflowKey, workflowConfig] of Object.entries(workflowConfigs)) {
-        for (const error of validateRunningHubWorkflowConfig(workflowConfig, workflowValues)) errors.push(`${workflowKey}：${error}`);
-    }
     return errors;
 }
 
