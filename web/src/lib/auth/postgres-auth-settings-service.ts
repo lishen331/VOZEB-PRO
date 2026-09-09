@@ -5,6 +5,7 @@ import { AuthInputError } from "./store-foundation";
 import { encryptAuthSettingsSecrets, normalizeSettings } from "./store-normalizers";
 import { readPostgresAuthSettings } from "./store-repository";
 import type { AuthSettings } from "./store-types";
+import { publishSettingsUpdated } from "@/lib/server/settings-events";
 
 export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>, expectedRevision?: number) {
     await ensurePostgresSchema();
@@ -62,7 +63,9 @@ export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>, e
             }
             await settingsRepository.deleteSystemModelChannelsNotIn(encrypted.systemChannels.map((channel) => channel.id));
         }
-        return { ...settings, settingsRevision: currentRevision + 1 };
+        const result = { ...settings, settingsRevision: currentRevision + 1 };
+        publishSettingsUpdated(currentRevision + 1);
+        return result;
     });
 }
 
