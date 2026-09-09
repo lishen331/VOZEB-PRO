@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+﻿import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -13,6 +13,12 @@ describe("drama lab storyboard frame controls", () => {
         expect(source).toContain("firstFrameCandidate");
     });
 
+    it("exposes a visible batch cancellation action while image/video batches run", async () => {
+        const source = await readFile(workbenchPath, "utf8");
+        expect(source).toContain("batchAbortRef.current?.abort()");
+        expect(source).toContain("取消批量任务");
+        expect(source).toContain('batchRunning === "image" || batchRunning === "video"');
+    });
     it("renders per-frame upload and lock controls with independent busy keys", async () => {
         const source = await readFile(workbenchPath, "utf8");
         expect(source).toContain("/frames/upload?episodeId=");

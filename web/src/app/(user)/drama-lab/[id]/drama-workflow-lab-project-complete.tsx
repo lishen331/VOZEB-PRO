@@ -5014,7 +5014,9 @@ function StoryboardPanel({
                 messageApi[summary.allSucceeded ? "success" : "warning"]({ content: `视频批量任务已结束：${detail}`, key: "drama-video-batch", duration: 6 });
             }
         } catch (error) {
-            if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason !== "aborted") {
+            if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason === "aborted") {
+                messageApi.info({ content: "批量任务已停止，已经提交的任务仍会继续同步。", key: "drama-video-batch", duration: 5 });
+            } else if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason !== "aborted") {
                 messageApi.warning({ content: `视频批量仍有 ${error.progress.pendingCount} 个任务未结束，已保留任务状态，可稍后继续同步。`, key: "drama-video-batch", duration: 8 });
             } else if (!disposedRef.current && !(error instanceof DOMException && error.name === "AbortError")) {
                 messageApi.error({ content: error instanceof Error ? error.message : "批量视频任务等待失败", key: "drama-video-batch", duration: 8 });
@@ -5244,6 +5246,11 @@ function StoryboardPanel({
                     <Button loading={batchRunning === "video"} disabled={Boolean(batchRunning)} icon={<Film className="size-4" />} onClick={() => void runBatch("video")}>
                         批量生成分镜视频
                     </Button>
+                    {batchRunning === "image" || batchRunning === "video" ? (
+                        <Button danger onClick={() => batchAbortRef.current?.abort()}>
+                            取消批量任务
+                        </Button>
+                    ) : null}
                     <Button type="primary" icon={<Sparkles className="size-4" />} loading={extracting} onClick={handleExtract}>
                         从剧本提取分镜
                     </Button>
