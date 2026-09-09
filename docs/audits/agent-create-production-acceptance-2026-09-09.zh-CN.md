@@ -43,3 +43,9 @@ P0-02 多模态图片盲测：已修复并线上通过（gemini-3.1-flash-image-
   - 文生图：run `agent-tnoPdxv8NBhgWQlcaEQ0x` completed，image/gpt-image-2-all，资产 `asset-STEOm3FaeJHCYDTKI6P2Z`，通过。
   - 文生视频：run `agent-Q7d0qXbSJxCFGJpa-WJl2`，video/doubao-seedance-2-0，当前仍 running（上游处理中），暂不判定失败；需继续查询最终状态。
 - 执行方式：每轮批量启动多个独立新会话，不再逐项汇报；最终统一整理产品缺陷、根因、修复方案。
+- 2026-09-09 首批批量真实线上矩阵最终状态：
+  - 文字-only `agent-cIRbnbkUG41fOqwu-u-ML`：completed，tasks=[]。
+  - 文生图 `agent-tnoPdxv8NBhgWQlcaEQ0x`：completed，image/gpt-image-2-all，asset `asset-STEOm3FaeJHCYDTKI6P2Z`。
+  - 文生视频 `agent-Q7d0qXbSJxCFGJpa-WJl2`：先经历 running/上游处理中，最终 completed，video/doubao-seedance-2-0，asset `asset-4VTZsHQpBKXajHZKtzyAE`。
+- 该批次证明文本、图片、视频三条基础正向链路可以在真实线上环境完成；视频异步等待期间任务状态保持 running，最终正确回写 completed。
+- 全量矩阵仍在继续，尚未对上传竞态、图生图/首尾帧、五 Skill 冲突、提示词/历史复用、移动 430px、普通账号计费等未执行项做最终结论。
