@@ -986,6 +986,8 @@ function stableAudioSourceUrl(value: unknown) {
     return url && !url.startsWith("data:") && !url.startsWith("blob:") ? url : "";
 }
 
+const dramaLabRecoveryStarted = new Set<string>();
+
 function isDramaLabExecutionActive(phase: DramaLabVideoBatchExecutionPhase | undefined, taskId?: string) {
     return Boolean(taskId?.trim()) && (phase === "created" || phase === "submitting" || phase === "submitted" || phase === "polling" || phase === "result_ready" || phase === "persisting" || phase === "cancel_requested" || phase === "cancel_polling");
 }
@@ -4042,7 +4044,12 @@ function StoryboardPanel({
     const recoveryAttemptedRef = useRef(new Set<string>());
     const recoveryInFlightRef = useRef(new Map<string, Promise<boolean>>());
     const recoveryStateRef = useRef(new Map<string, "pending" | "ready" | "failed">());
+    const recoveryStartedRef = useRef(new Set<string>());
     const recoveryAbortRef = useRef<AbortController | null>(null);
+    const recoveryReloadRef = useRef(onReload);
+    recoveryReloadRef.current = onReload;
+    const recoveryMessageRef = useRef(messageApi);
+    recoveryMessageRef.current = messageApi;
 
     const updateShot = async (shotId: string, patch: Partial<Shot>, options: SaveOptions = { silent: true }) => {
         const saved = await onSave(
@@ -4405,7 +4412,9 @@ function StoryboardPanel({
         if (!episodeId) return;
         const recoveryKey = `${project.id}:${episodeId}`;
         const previousState = recoveryStateRef.current.get(recoveryKey);
-        if (previousState === "pending" || previousState === "ready" || recoveryAttemptedRef.current.has(recoveryKey)) return;
+        if (dramaLabRecoveryStarted.has(recoveryKey) || recoveryStartedRef.current.has(recoveryKey) || previousState === "pending" || previousState === "ready" || recoveryAttemptedRef.current.has(recoveryKey)) return;
+        dramaLabRecoveryStarted.add(recoveryKey);
+        recoveryStartedRef.current.add(recoveryKey);
         let disposed = false;
         const controller = new AbortController();
         recoveryAbortRef.current?.abort();
@@ -4426,10 +4435,10 @@ function StoryboardPanel({
                 const result = data.data as { tasks?: Array<{ binding?: string }>; syncedShotIds?: string[]; syncErrors?: unknown[] } | undefined;
                 const discovered = Boolean(result?.tasks?.some((task) => task.binding === "discovered"));
                 const changed = discovered || Boolean(result?.syncedShotIds?.length);
-                if (changed) await onReload();
+                if (changed) await recoveryReloadRef.current();
                 if (disposed || controller.signal.aborted) return false;
                 if (result?.syncErrors?.length) {
-                    messageApi.warning({ key: `drama-lab-recovery:${episodeId}`, content: "部分分镜视频任务未能自动恢复，请在对应分镜卡片中手动同步。", duration: 6 });
+                    recoveryMessageRef.current.warning({ key: `drama-lab-recovery:${episodeId}`, content: "部分分镜视频任务未能自动恢复，请在对应分镜卡片中手动同步。", duration: 6 });
                 }
                 recoveryAttemptedRef.current.add(recoveryKey);
                 recoveryStateRef.current.set(recoveryKey, "ready");
@@ -4458,9 +4467,8 @@ function StoryboardPanel({
             controller.abort();
             if (recoveryAbortRef.current === controller) recoveryAbortRef.current = null;
             if (recoveryInFlightRef.current.get(recoveryKey) === pending) recoveryInFlightRef.current.delete(recoveryKey);
-            if (recoveryStateRef.current.get(recoveryKey) === "pending") recoveryStateRef.current.delete(recoveryKey);
         };
-    }, [episodeId, messageApi, onReload, project.id]);
+    }, [episodeId, project.id]);
 
     const handleAdd = () => {
         setEditingShot(null);
@@ -4931,9 +4939,20 @@ function StoryboardPanel({
                 if (!disposedRef.current) messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
                 return;
             }
+            const missingByShot = candidates.map((shot) => ({ shot, missing: missingShotAssetLabels(sourceProject, shot) })).filter((item) => item.missing.length);
+            const executableCandidates = candidates.filter((shot) => !missingByShot.some((item) => item.shot.id === shot.id));
+            if (missingByShot.length && !disposedRef.current && !abortController.signal.aborted) {
+                const details = missingByShot
+                    .slice(0, 8)
+                    .map((item) => `镜头 ${item.shot.shotNumber}：${item.missing.join("、")}`)
+                    .join("；");
+                const suffix = missingByShot.length > 8 ? `；另有 ${missingByShot.length - 8} 个镜头缺少资产参考图` : "";
+                messageApi.warning({ content: `已跳过 ${missingByShot.length} 个缺少资产参考图的镜头：${details}${suffix}`, key: "drama-batch-missing-assets", duration: 8 });
+            }
+            if (!executableCandidates.length) return;
             const targets: Array<{ shotId: string; taskId: string }> = [];
             const submissionFailures: Array<{ shotId: string; error: string }> = [];
-            for (const shot of candidates) {
+            for (const shot of executableCandidates) {
                 if (abortController.signal.aborted || disposedRef.current) return;
                 let observedShot = shot;
                 if (kind === "video" && shot.generationTaskId) {
@@ -5014,7 +5033,9 @@ function StoryboardPanel({
                 messageApi[summary.allSucceeded ? "success" : "warning"]({ content: `视频批量任务已结束：${detail}`, key: "drama-video-batch", duration: 6 });
             }
         } catch (error) {
-            if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason !== "aborted") {
+            if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason === "aborted") {
+                messageApi.info({ content: "批量任务已停止，已经提交的任务仍会继续同步。", key: "drama-video-batch", duration: 5 });
+            } else if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason !== "aborted") {
                 messageApi.warning({ content: `视频批量仍有 ${error.progress.pendingCount} 个任务未结束，已保留任务状态，可稍后继续同步。`, key: "drama-video-batch", duration: 8 });
             } else if (!disposedRef.current && !(error instanceof DOMException && error.name === "AbortError")) {
                 messageApi.error({ content: error instanceof Error ? error.message : "批量视频任务等待失败", key: "drama-video-batch", duration: 8 });
@@ -5244,6 +5265,11 @@ function StoryboardPanel({
                     <Button loading={batchRunning === "video"} disabled={Boolean(batchRunning)} icon={<Film className="size-4" />} onClick={() => void runBatch("video")}>
                         批量生成分镜视频
                     </Button>
+                    {batchRunning === "image" || batchRunning === "video" ? (
+                        <Button danger onClick={() => batchAbortRef.current?.abort()}>
+                            取消批量任务
+                        </Button>
+                    ) : null}
                     <Button type="primary" icon={<Sparkles className="size-4" />} loading={extracting} onClick={handleExtract}>
                         从剧本提取分镜
                     </Button>
