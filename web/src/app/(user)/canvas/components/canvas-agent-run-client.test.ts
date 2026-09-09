@@ -37,6 +37,82 @@ describe("Canvas Agent 事件流", () => {
     });
     afterEach(() => vi.unstubAllGlobals());
 
+    it("recovers layout operation on reconnect snapshot before reporting completion", async () => {
+        vi.stubGlobal("EventSource", FakeEventSource);
+        const order: string[] = [];
+        const promise = watchCanvasAgentRun("run", { onPlan: () => {}, onAssistant: () => order.push("reply"), onStage: () => {}, onPaused: () => {}, onOps: () => order.push("ops") });
+        FakeEventSource.instance.emit("run.snapshot", { status: "completed", canvasLayoutOperation: { id: "layout-run" } });
+        await promise;
+        expect(order).toEqual(["ops", "reply"]);
+    });
+
+    it("delivers destructive proposals only to confirmation handler, never onOps", async () => {
+        vi.stubGlobal("EventSource", FakeEventSource);
+        const onOps = vi.fn(),
+            onProposal = vi.fn();
+        const promise = watchCanvasAgentRun("run", { onPlan: () => {}, onAssistant: () => {}, onStage: () => {}, onPaused: () => {}, onOps, onProposal });
+        FakeEventSource.instance.emit("run.completed", { data: { reply: "请确认", canvasDestructiveProposal: { id: "confirm-run", runId: "run", type: "delete_nodes", ids: ["n"] } } });
+        await promise;
+        expect(onProposal).toHaveBeenCalledOnce();
+        expect(onOps).not.toHaveBeenCalled();
+    });
+
+    it("applies durable layout ops from terminal event before reporting completion", async () => {
+        vi.stubGlobal("EventSource", FakeEventSource);
+        const order: string[] = [];
+        const promise = watchCanvasAgentRun("run", { onPlan: () => {}, onAssistant: () => order.push("reply"), onStage: () => {}, onPaused: () => {}, onOps: () => order.push("ops") });
+        FakeEventSource.instance.emit("run.completed", { data: { reply: "layout ready", ops: [{ type: "layout_nodes", operation: { id: "layout-run" } }] } });
+        await promise;
+        expect(order).toEqual(["ops", "reply"]);
+    });
+
+    it.each(["run.partial_success", "run.snapshot"])("closes on partial success via %s and reports incomplete work", async (type) => {
+        vi.stubGlobal("EventSource", FakeEventSource);
+        const messages: string[] = [];
+        const controller = new AbortController();
+        const promise = watchCanvasAgentRun("run", { onPlan: () => {}, onAssistant: (text) => messages.push(text), onStage: () => {}, onPaused: () => {}, onOps: () => {} }, { signal: controller.signal });
+        const source = FakeEventSource.instance;
+        source.emit(
+            type,
+            type === "run.partial_success"
+                ? { data: { reply: "一项完成，一项失败" } }
+                : {
+                      status: "partial_success",
+                      tasks: [
+                          { id: "one", title: "One", status: "completed" },
+                          { id: "two", title: "Two", status: "failed", error: "上游失败" },
+                      ],
+                  },
+        );
+        const closed = source.closed;
+        controller.abort();
+        await promise;
+        expect(closed).toBe(true);
+        expect(messages.join(" ")).toMatch(/失败|部分/);
+    });
+    it("settles partial success after a connection interruption", async () => {
+        vi.stubGlobal("EventSource", FakeEventSource);
+        mocks.getCreativeAgentRun.mockResolvedValue({
+            status: "partial_success",
+            tasks: [
+                { id: "one", status: "completed" },
+                { id: "two", title: "Two", status: "failed", error: "上游失败" },
+            ],
+        });
+        const controller = new AbortController();
+        const messages: string[] = [];
+        const promise = watchCanvasAgentRun("run", { onPlan: () => {}, onAssistant: (text) => messages.push(text), onStage: () => {}, onPaused: () => {}, onOps: () => {} }, { signal: controller.signal });
+        FakeEventSource.instance.onerror?.();
+        await vi.waitFor(() => expect(mocks.getCreativeAgentRun).toHaveBeenCalled());
+        await Promise.resolve();
+        await Promise.resolve();
+        const closed = FakeEventSource.instance.closed;
+        controller.abort();
+        await promise;
+        expect(closed).toBe(true);
+        expect(messages.join(" ")).toContain("部分");
+    });
+
     it("reports thinking stages and the final returned message", async () => {
         vi.stubGlobal("EventSource", FakeEventSource);
         const stages: CanvasAgentRunStage[] = [];

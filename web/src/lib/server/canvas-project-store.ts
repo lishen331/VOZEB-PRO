@@ -1,17 +1,18 @@
+import type { CanvasRecoveryProject } from "./canvas-agent-result-recovery";
 import type { CanvasProject, CanvasProjectMutation, CanvasProjectSaveAck, CanvasProjectSummary, CanvasProjectSummaryPage } from "@/lib/canvas-project-contract";
 import { applyCanvasProjectMutation } from "@/lib/canvas-project-mutation";
 import { summarizeCanvasProjectRecord } from "@/lib/canvas-project-summary";
 import { summarizeCanvasProject, type CreateOverviewMedia, type CreateOverviewProject } from "@/lib/create-workbench-overview";
 import { dramaLabCanvasProjectHandoffPrefix, isDramaLabCanvasProject, parseDramaLabEpisodeCanvasHandoffId } from "@/lib/drama-lab-canvas-contract";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
-import { ensurePostgresSchema, getDatabaseProvider, postgresQuery } from "@/lib/server/database";
+import { ensurePostgresSchema, getDatabaseProvider, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import type { PracticeExecutionProfile, PracticeSource } from "@/lib/practice-domain";
 
 export type CanvasProjectIdentityInput = { executionProfile?: PracticeExecutionProfile; practiceSource?: PracticeSource };
 export type CanvasProjectIdentityView = { executionProfile: PracticeExecutionProfile; practiceSource: PracticeSource };
 type CanvasProjectRecord = { userId: string; project: CanvasProject; executionProfile?: PracticeExecutionProfile; practiceSourceWorkId?: string; practiceSourceVersionId?: string };
 type CanvasProjectDatabase = { version: 1; projects: CanvasProjectRecord[] };
-type StoredCanvasProject = CanvasProject & { __canvasLastMutationId?: string };
+type StoredCanvasProject = CanvasRecoveryProject & { __canvasLastMutationId?: string };
 export type CanvasProjectPage = { items: CanvasProject[]; total: number; page: number; pageSize: number };
 
 const FILE_NAME = "canvas-projects.json";
@@ -194,16 +195,30 @@ export async function getLatestCanvasProjectOverview(userId: string): Promise<Cr
 }
 
 export async function getCanvasProject(id: string, userId: string) {
+    return readCanvasProject(id, userId, false);
+}
+
+/** Server-only read: do not return these receipts from a public API. */
+export async function getCanvasProjectForRecovery(id: string, userId: string) {
+    return readCanvasProject(id, userId, true);
+}
+
+async function readCanvasProject(id: string, userId: string, includeReceipts: boolean): Promise<CanvasRecoveryProject | null> {
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<{ project_json: CanvasProject; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }>(
             "SELECT project_json, execution_profile, practice_source_work_id, practice_source_version_id FROM canvas_projects WHERE id = $1 AND user_id = $2",
             [id, userId],
         );
-        return result.rows[0] ? toPublicProject(result.rows[0].project_json as StoredCanvasProject, result.rows[0]) : null;
+        const row = result.rows[0];
+        if (!row) return null;
+        const publicProject = toPublicProject(row.project_json as StoredCanvasProject, row);
+        return includeReceipts ? { ...publicProject, __canvasAgentReceipts: (row.project_json as StoredCanvasProject).__canvasAgentReceipts } : publicProject;
     }
     const record = (await readDatabase()).projects.find((item) => item.userId === userId && item.project.id === id);
-    return record ? toPublicProject(record.project as StoredCanvasProject, record) : null;
+    if (!record) return null;
+    const publicProject = toPublicProject(record.project as StoredCanvasProject, record);
+    return includeReceipts ? { ...publicProject, __canvasAgentReceipts: (record.project as StoredCanvasProject).__canvasAgentReceipts } : publicProject;
 }
 
 /** Internal lookup used after a Drama Lab collaboration membership check. */
@@ -221,6 +236,36 @@ export async function getCanvasProjectWithOwner(id: string) {
     }
     const record = (await readDatabase()).projects.find((item) => item.project.id === projectId);
     return record ? { project: toPublicProject(record.project as StoredCanvasProject, record), ownerUserId: record.userId } : null;
+}
+
+/** Serialize result application with normal project writes; receipts and content commit together. */
+export async function mutateCanvasProjectForRecovery(userId: string, projectId: string, mutate: (project: CanvasRecoveryProject) => Promise<CanvasRecoveryProject>) {
+    if (getDatabaseProvider() === "postgres") {
+        await ensurePostgresSchema();
+        return withPostgresTransaction(async (client) => {
+            const rows = await client.query<{ project_json: StoredCanvasProject; execution_profile?: string }>(
+                "SELECT project_json, execution_profile, practice_source_work_id, practice_source_version_id FROM canvas_projects WHERE id = $1 AND user_id = $2 FOR UPDATE",
+                [projectId, userId],
+            );
+            const row = rows.rows[0];
+            if (!row || isDramaLabCanvasProject(row.project_json)) return null;
+            const next = await mutate(row.project_json);
+            if (next === row.project_json) return toPublicProject(row.project_json, row);
+            const updated = { ...next, id: projectId, updatedAt: nextProjectVersion(row.project_json.updatedAt) };
+            await client.query("UPDATE canvas_projects SET project_json = $3::jsonb, updated_at = $4 WHERE id = $1 AND user_id = $2", [projectId, userId, JSON.stringify(updated), new Date(updated.updatedAt)]);
+            return toPublicProject(updated, row);
+        });
+    }
+    return withJsonDataFileLock(FILE_NAME, async () => {
+        const db = await readDatabase();
+        const record = db.projects.find((record) => record.userId === userId && record.project.id === projectId);
+        if (!record || isDramaLabCanvasProject(record.project)) return null;
+        const next = await mutate(record.project as StoredCanvasProject);
+        if (next === record.project) return toPublicProject(record.project as StoredCanvasProject, record);
+        const updated = { ...next, id: projectId, updatedAt: nextProjectVersion(record.project.updatedAt) };
+        await writeJsonDataFile(FILE_NAME, { ...db, projects: db.projects.map((item) => (item === record ? { ...record, project: updated } : item)) });
+        return toPublicProject(updated, record);
+    });
 }
 
 export async function createCanvasProject(userId: string, project: CanvasProject, identity: CanvasProjectIdentityInput = {}) {
@@ -247,7 +292,7 @@ export async function updateCanvasProject(userId: string, project: CanvasProject
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery(
-            `UPDATE canvas_projects SET title = $3, project_json = $4::jsonb, updated_at = $5
+            `UPDATE canvas_projects SET title = $3, project_json = $4::jsonb || CASE WHEN project_json ? '__canvasAgentReceipts' THEN jsonb_build_object('__canvasAgentReceipts', project_json->'__canvasAgentReceipts') ELSE '{}'::jsonb END, updated_at = $5
              WHERE id = $1 AND user_id = $2 AND project_json->>'updatedAt' = $6
              RETURNING id`,
             [project.id, userId, project.title, JSON.stringify(storedProject), new Date(project.updatedAt), expectedUpdatedAt],
@@ -265,7 +310,7 @@ export async function updateCanvasProject(userId: string, project: CanvasProject
             if (record.userId !== userId || record.project.id !== project.id) return record;
             found = true;
             if (record.project.updatedAt !== expectedUpdatedAt) throw new CanvasProjectStoreError("画布项目已在其他页面更新，请刷新后重试", 409);
-            return { ...record, project: storedProject };
+            return { ...record, project: { ...storedProject, ...((record.project as StoredCanvasProject).__canvasAgentReceipts ? { __canvasAgentReceipts: (record.project as StoredCanvasProject).__canvasAgentReceipts } : {}) } };
         }),
     }));
     if (!found) throw new CanvasProjectStoreError("画布项目不存在", 404);
@@ -277,7 +322,7 @@ export async function updateCanvasProjectMutation(userId: string, project: Canva
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const result = await postgresQuery<{ project_json: StoredCanvasProject }>(
-            `UPDATE canvas_projects SET title = $3, project_json = $4::jsonb, updated_at = $5
+            `UPDATE canvas_projects SET title = $3, project_json = $4::jsonb || CASE WHEN project_json ? '__canvasAgentReceipts' THEN jsonb_build_object('__canvasAgentReceipts', project_json->'__canvasAgentReceipts') ELSE '{}'::jsonb END, updated_at = $5
              WHERE id = $1 AND user_id = $2
                AND project_json->>'updatedAt' = $6
              RETURNING project_json`,
@@ -303,7 +348,7 @@ export async function updateCanvasProjectMutation(userId: string, project: Canva
             }
             if (current.updatedAt !== expectedUpdatedAt) throw new CanvasProjectStoreError("画布项目已在其他页面更新，请刷新后重试", 409);
             saved = project;
-            return { ...record, project: storedProject };
+            return { ...record, project: { ...storedProject, ...((record.project as StoredCanvasProject).__canvasAgentReceipts ? { __canvasAgentReceipts: (record.project as StoredCanvasProject).__canvasAgentReceipts } : {}) } };
         }),
     }));
     if (!found) throw new CanvasProjectStoreError("画布项目不存在", 404);
@@ -330,7 +375,7 @@ export async function updateCanvasProjectMutationPatch(userId: string, projectId
             const updatedAt = nextProjectVersion(current.updatedAt);
             const next = applyCanvasProjectMutation(current, mutation, updatedAt);
             ack = { projectId, updatedAt, mutationId: mutation.mutationId };
-            return { ...record, project: withMutationId(next, mutation.mutationId) };
+            return { ...record, project: { ...withMutationId(next, mutation.mutationId), ...(current.__canvasAgentReceipts ? { __canvasAgentReceipts: current.__canvasAgentReceipts } : {}) } };
         }),
     }));
     if (!found) throw new CanvasProjectStoreError("画布项目不存在", 404);
@@ -462,7 +507,7 @@ function identityView(source: Partial<StoredProjectIdentity> & { execution_profi
 
 function stripProjectIdentity(project: CanvasProject) {
     const value = project as CanvasProject & Partial<CanvasProjectIdentityView>;
-    const { executionProfile: _executionProfile, practiceSource: _practiceSource, ...stored } = value;
+    const { executionProfile: _executionProfile, practiceSource: _practiceSource, __canvasAgentReceipts: _untrustedReceipts, ...stored } = value as StoredCanvasProject;
     return stored;
 }
 
@@ -471,7 +516,7 @@ function withMutationId(project: CanvasProject, mutationId: string): StoredCanva
 }
 
 function toPublicProject(project: StoredCanvasProject, identity?: Partial<StoredProjectIdentity> & { execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }): CanvasProject & CanvasProjectIdentityView {
-    const { __canvasLastMutationId: _mutationId, ...publicProject } = project;
+    const { __canvasLastMutationId: _mutationId, __canvasAgentReceipts: _receipts, ...publicProject } = project;
     return { ...publicProject, ...identityView(identity || {}) };
 }
 

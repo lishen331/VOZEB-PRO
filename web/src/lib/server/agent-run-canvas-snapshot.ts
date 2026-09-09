@@ -1,3 +1,4 @@
+import { canvasLayoutGeometry, validateCanvasLayoutSnapshot, type CanvasLayoutSnapshot } from "@/lib/canvas-agent-layout";
 const CANVAS_SNAPSHOT_VERSION = 1 as const;
 
 export type AgentRunCanvasSnapshotNode = {
@@ -23,6 +24,7 @@ export type AgentRunCanvasSnapshotConnection = {
 
 export type AgentRunCanvasSnapshot = {
     canvasSnapshotVersion: typeof CANVAS_SNAPSHOT_VERSION;
+    layout?: CanvasLayoutSnapshot;
     projectId: string;
     title: string;
     imageSize: string;
@@ -37,6 +39,7 @@ export type AgentRunCanvasSnapshot = {
 
 export function normalizeAgentRunCanvasSnapshot(snapshot: unknown, authoritativeProjectId?: string): AgentRunCanvasSnapshot {
     const source = record(snapshot);
+    if (source.layout !== undefined) validateCanvasLayoutSnapshot(source.layout);
     const selectedNodeIds = uniqueStrings(source.selectedNodeIds);
     const selected = new Set(selectedNodeIds);
     const retainedNodeIds = new Set(selectedNodeIds);
@@ -71,6 +74,15 @@ export function normalizeAgentRunCanvasSnapshot(snapshot: unknown, authoritative
 
     return {
         canvasSnapshotVersion: CANVAS_SNAPSHOT_VERSION,
+        ...(source.layout
+            ? {
+                  layout: {
+                      nodes: canvasLayoutGeometry((source.layout as CanvasLayoutSnapshot).nodes.map((n) => ({ ...n, title: "" }))),
+                      connections: (source.layout as CanvasLayoutSnapshot).connections.map(({ id, fromNodeId, toNodeId }) => ({ id, fromNodeId, toNodeId })),
+                      selectedNodeIds: [...(source.layout as CanvasLayoutSnapshot).selectedNodeIds],
+                  },
+              }
+            : {}),
         projectId: text(authoritativeProjectId) || text(source.projectId),
         title: text(source.title),
         imageSize: text(source.imageSize),
@@ -88,6 +100,7 @@ export function agentRunCanvasSnapshot(snapshot: unknown): AgentRunCanvasSnapsho
 export function canvasSnapshotPlannerView(snapshot: unknown) {
     const normalized = agentRunCanvasSnapshot(snapshot);
     return {
+        ...(normalized.layout ? { layout: normalized.layout } : {}),
         projectId: normalized.projectId,
         title: normalized.title,
         imageSize: normalized.imageSize,
