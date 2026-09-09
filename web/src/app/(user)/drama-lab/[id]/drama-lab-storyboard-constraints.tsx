@@ -100,7 +100,9 @@ export function DramaLabStoryboardConstraints({ value, onChange, disabled, story
                     </label>
                 )}
                 <fieldset className="flex items-center gap-3" disabled={disabled}>
-                    <legend className="sr-only">分镜模式</legend>
+                    <legend className="sr-only" style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}>
+                        分镜模式
+                    </legend>
                     <label className="flex items-center gap-1 text-sm">
                         <input type="radio" name="storyboard-creation-mode" checked={(value.creationMode || "classic") === "classic"} disabled={disabled} onChange={() => onChange({ ...value, creationMode: "classic" })} />
                         经典分镜
