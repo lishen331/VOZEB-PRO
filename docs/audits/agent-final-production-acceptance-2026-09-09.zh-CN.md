@@ -55,3 +55,8 @@
 - 捕获请求在旧服务器版本中仍只有 surface=drama、projectId=drama-lab-*；为兼容旧任务，服务端现在根据 projectId 中的 `drama-lab` 标记回退识别模块，避免历史任务缺字段时命中短剧开关。
 - 新增回退识别测试 4/4；短剧实验室生成路由/任务测试 59 项通过。服务端 TypeScript 通过。
 - 已发现并修复的具体范围：共享 image/video/audio 任务入口及任务持久化/恢复的模块归属；未改短剧页面和用户权限体系。
+- 2026-09-10 真实线上最终复测：测试环境关闭“短剧”、开启“短剧实验室”，服务器版本 `sha-30e8a333c78332fd809db38b60136e7b307c1f7e`。
+- 从短剧实验室 `/drama-lab/drama-lab-1788493614414-xni9ra7/create?episode=...` 进入资产准备，点击角色“AI 生图”。共享 `POST /api/image-tasks` 返回 200，创建任务 `6be63e86-e113-4fed-aaed-3e4d88cbc843`，模型 `gpt-image-2.5-sunburst`，任务最终 `success/completed`，结果阶段 `persisted`。
+- 该真实点击不再出现“短剧暂未启用”，证明在关闭短剧开关时短剧实验室的新生图执行链路可用。
+- 数据库记录显示该历史任务的顶层 context featureModule 为空，但 project_id 为 `drama-lab-*`；服务端兼容回退按项目 ID 判定为 drama-lab，避免旧/中间转发链路丢字段后再次命中短剧开关。
+- App/Worker 健康检查通过；模块隔离代码已推送 GitHub。后续还需在相同部署版本下点击分镜视频、分镜音频，并做反向组合（短剧开、短剧实验室关），再宣布三组合全部通过。
