@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 import { createClientSessionEpoch, type ClientSessionStamp } from "@/lib/client-session-epoch";
 import type { CanvasProject, CanvasProjectSummary } from "@/lib/canvas-project-contract";
 import type { IpReference } from "@/lib/ip-library-domain";
-import { applyCanvasProjectMutation, createCanvasProjectMutation, hasCanvasProjectMutationChanges } from "@/lib/canvas-project-mutation";
+import { applyCanvasProjectMutation, createCanvasProjectMutation, hasCanvasProjectMutationChanges, rebaseCanvasProjectMutation } from "@/lib/canvas-project-mutation";
 import { summarizeCanvasProjectRecord } from "@/lib/canvas-project-summary";
 import { CanvasProjectRequestError, createCanvasProject, deleteCanvasProjects as deleteCanvasProjectsRequest, getCanvasProject, listCanvasProjectSummaries, saveCanvasProjectMutation } from "@/services/api/canvas-projects";
 import { useUserStore } from "@/stores/use-user-store";
@@ -247,18 +247,38 @@ function startProjectSave(session: ClientSessionStamp, project: CanvasProject, k
     const operation = previous.then(async () => {
         if (!sessionEpoch.isCurrent(session)) return;
         try {
-            const base = persistedProjectSnapshots.get(key);
+            let base = persistedProjectSnapshots.get(key);
             if (!base) throw new Error("画布项目版本尚未加载，请刷新后重试");
             const mutationKey = `${project.id}:${project.updatedAt}`;
             const mutationId = mutationIdsByVersion.get(mutationKey) || nanoid();
             mutationIdsByVersion.set(mutationKey, mutationId);
-            const mutation = createCanvasProjectMutation(base, project, mutationId);
+            let mutation = createCanvasProjectMutation(base, project, mutationId);
             if (!hasCanvasProjectMutationChanges(mutation)) {
                 if (mutationIdsByVersion.get(mutationKey) === mutationId) mutationIdsByVersion.delete(mutationKey);
                 acknowledgeProjectSnapshot(project, base);
                 return;
             }
-            const saved = await saveProjectMutationWithRetry(session, project.id, mutation, keepalive);
+            let saved: Awaited<ReturnType<typeof saveCanvasProjectMutation>> | null = null;
+            for (let conflictAttempt = 0; ; conflictAttempt += 1) {
+                try {
+                    saved = await saveProjectMutationWithRetry(session, project.id, mutation, keepalive);
+                    break;
+                } catch (error) {
+                    if (keepalive || !(error instanceof CanvasProjectRequestError) || error.status !== 409 || conflictAttempt >= MAX_CONFLICT_RETRIES) throw error;
+                    setProjectSaveState(project.id, { status: "saving", message: "检测到其他页面更新，正在合并本地修改" });
+                    const latest = await getCanvasProject(project.id);
+                    assertCurrent(session);
+                    base = latest;
+                    persistedProjectSnapshots.set(key, latest);
+                    latestProjectTimes.set(key, Date.parse(latest.updatedAt) || Date.now());
+                    mutation = rebaseCanvasProjectMutation(latest, mutation);
+                    if (!hasCanvasProjectMutationChanges(mutation)) {
+                        if (mutationIdsByVersion.get(mutationKey) === mutationId) mutationIdsByVersion.delete(mutationKey);
+                        acknowledgeProjectSnapshot(project, latest);
+                        return;
+                    }
+                }
+            }
             if (!saved) return;
             if (!sessionEpoch.isCurrent(session)) return;
             const acknowledged = applyCanvasProjectMutation(base, mutation, saved.updatedAt);
@@ -384,6 +404,7 @@ function invalidateSession() {
 }
 
 const SAVE_RETRY_DELAYS = [1_000, 2_500, 5_000] as const;
+const MAX_CONFLICT_RETRIES = 3;
 
 function upsertSummary(summaries: CanvasProjectSummary[], project: CanvasProject) {
     const summary = summarizeCanvasProjectRecord(project);
