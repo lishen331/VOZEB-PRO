@@ -131,8 +131,13 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
             return;
         }
         // Select the planner capability from the final references sent to the model.
-        const referencedAssets = usesMemoryCandidates ? memoryAssets : explicitAssets;
-        const referenceSource = claimed.referencedAssetIds.length ? "current-turn-explicit" : usesMemoryCandidates && referencedAssets.length ? "conversation-memory-candidates" : "none";
+        // Canvas media selected in the current turn is an explicit reference even
+        // when it is not registered as a CreativeAsset (for example, a node loaded
+        // from the project JSON). Keep it in the planner input only; task target
+        // and editable scope remain governed by the normalized Canvas snapshot.
+        const selectedCanvasMedia = claimed.surface === "canvas" ? selectedCanvasPlannerMedia(claimed.snapshot, claimed.userId) : [];
+        const referencedAssets = [...(usesMemoryCandidates ? memoryAssets : explicitAssets), ...selectedCanvasMedia];
+        const referenceSource = claimed.referencedAssetIds.length || selectedCanvasMedia.length ? "current-turn-explicit" : usesMemoryCandidates && referencedAssets.length ? "conversation-memory-candidates" : "none";
         const requiresMultimodal = referencedAssets.some((asset) => asset.type === "image" || asset.type === "video");
         const model = (requiresMultimodal ? settings.defaultModels.visionModel : settings.defaultModels.textModel)?.trim() || "";
         if (!model) throw new Error(requiresMultimodal ? "当前请求包含图片或视频，需要先配置多模态图片/视频理解模型" : "后台尚未配置可用的默认文本模型");
@@ -339,6 +344,35 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
     } finally {
         if (controllers.get(run.id) === controller) controllers.delete(run.id);
     }
+}
+
+function selectedCanvasPlannerMedia(snapshot: unknown, userId: string): import("@/lib/creative-runtime-contract").CreativeAsset[] {
+    const source = snapshot && typeof snapshot === "object" ? (snapshot as { nodes?: unknown[]; selectedNodeIds?: unknown[] }) : {};
+    const selected = new Set(Array.isArray(source.selectedNodeIds) ? source.selectedNodeIds.filter((id): id is string => typeof id === "string") : []);
+    return (Array.isArray(source.nodes) ? source.nodes : []).flatMap((value) => {
+        if (!value || typeof value !== "object") return [];
+        const node = value as { id?: unknown; type?: unknown; metadata?: unknown };
+        if (typeof node.id !== "string" || !selected.has(node.id) || !(node.type === "image" || node.type === "panorama" || node.type === "video")) return [];
+        const metadata = node.metadata && typeof node.metadata === "object" ? (node.metadata as Record<string, unknown>) : {};
+        const url = [metadata.serverUrl, metadata.remoteUrl, metadata.url].find((item): item is string => typeof item === "string" && (item.startsWith("/api/reference-assets/") || item.startsWith("/api/generation-log-assets/")));
+        return url
+            ? [
+                  {
+                      id: `canvas-node-${node.id}`,
+                      userId,
+                      type: node.type === "panorama" ? ("image" as const) : (node.type as "image" | "video"),
+                      title: String((value as { title?: unknown }).title || node.id),
+                      serverUrl: url,
+                      metadata: {},
+                      conversationId: "canvas",
+                      ordinal: 0,
+                      status: "ready",
+                      createdAt: Date.now(),
+                      updatedAt: Date.now(),
+                  },
+              ]
+            : [];
+    });
 }
 
 function plannerMessageContent(request: ReturnType<typeof buildAgentRequest>, surface: AgentRun["surface"]) {
