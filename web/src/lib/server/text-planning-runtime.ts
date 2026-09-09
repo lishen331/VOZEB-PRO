@@ -1,4 +1,4 @@
-import type { SystemModelChannel } from "@/lib/auth/store";
+﻿import type { SystemModelChannel } from "@/lib/auth/store";
 import { recordChannelRuntimeFailure, recordChannelRuntimeSuccess } from "@/lib/server/channel-runtime-health";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
@@ -33,6 +33,7 @@ type RuntimeState = {
 };
 
 export type TextPlanningMediaInput = { type: "image" | "video"; url: string };
+export type TextPlanningMessageContent = any;
 
 export type StructuredTextRequest = {
     mediaInputs?: TextPlanningMediaInput[];
