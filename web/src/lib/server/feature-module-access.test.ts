@@ -1,8 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { featureModuleForGenerationContext } from "./feature-module-access";
-describe("generation feature module mapping", () => {
-    it("keeps ordinary drama tasks on drama", () => expect(featureModuleForGenerationContext({ surface: "drama" })).toBe("drama"));
-    it("maps explicit Drama Lab task context to drama-lab", () => expect(featureModuleForGenerationContext({ surface: "drama", featureModule: "drama-lab" })).toBe("drama-lab"));
-    it("recognizes legacy Drama Lab project IDs when context was created before the module field", () => expect(featureModuleForGenerationContext({ surface: "drama", projectId: "drama-lab-1788493614414-xni9ra7" })).toBe("drama-lab"));
-    it("keeps ordinary drama project IDs on drama", () => expect(featureModuleForGenerationContext({ surface: "drama", projectId: "drama-project-ordinary-1" })).toBe("drama"));
+﻿import { describe, expect, it } from "vitest";
+import { requireFeatureModuleEnabled } from "./feature-module-access";
+
+describe("feature module display switches", () => {
+    it("never block server business operations when a display module is disabled", async () => {
+        const original = process.env.NODE_ENV;
+        process.env.NODE_ENV = "production";
+        try {
+            await expect(requireFeatureModuleEnabled("drama")).resolves.toBeUndefined();
+            await expect(requireFeatureModuleEnabled("drama-lab")).resolves.toBeUndefined();
+        } finally {
+            process.env.NODE_ENV = original;
+        }
+    });
 });
