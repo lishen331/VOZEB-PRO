@@ -165,3 +165,7 @@
 - 自制测试图：output/agent-audit/input-a.png。
 - 没有把其他协作者的canvas审查截图或报告当成本次自己的证据。
 - 本次没有业务代码/接口/数据库变更；无需刷新开发地图。本次没有Git推送或部署，也没有宣称远端质量门禁通过。
+- 2026-09-09 线上 P0 回归结果：
+  - 参数页签场景已使用新对话、先浏览视频再回到图片/关闭参数后发送纯文字请求；run `agent-GYVjxcuxUq2i3F4X4foUj` completed，tasks=[]，助手准确回复“语义验收通过”。未出现 video task，P0-01 通过。
+  - 图片盲测使用页面上传的 `input-a.png` 并要求直接读取图中错误码；服务端确实绑定了资产 `asset-8ieap-DumffcEdVPGh8cz`，但运行在选择的 `gpt-5.5` 视觉模型下，助手失败：`No available channel for model gpt-5.5 under group default (distributor)`。这是模型/渠道配置阻断，不能判为视觉输入链路通过或失败；请求未降级为空承诺，P0-02 仍待使用已配置可用的视觉模型复测。
+  - 页面唯一控制台错误为测试账号头像接口 404，不影响本次 Agent 请求。
