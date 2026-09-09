@@ -52,7 +52,9 @@ test("initialization rejects a wrong token and creates the first administrator o
     expect(registration.ok()).toBe(true);
     expect(await registration.json()).toMatchObject({ user: { username: E2E_ADMIN.username, role: "admin" } });
 
-    const settings = await request.patch("/api/admin/settings", { data: e2eSettingsPatch() });
+    const currentSettings = await request.get("/api/admin/settings");
+    const { settingsRevision } = (await currentSettings.json()) as { settingsRevision?: number };
+    const settings = await request.patch("/api/admin/settings", { data: e2eSettingsPatch(settingsRevision) });
     expect(settings.ok(), await settings.text()).toBe(true);
     expect(await settings.json()).toMatchObject({ settings: { defaultModels: { textModel: "e2e-text", imageModel: "e2e-image", videoModel: "e2e-video", audioModel: "e2e-audio" } } });
 
