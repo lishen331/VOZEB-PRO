@@ -195,3 +195,16 @@ Files: Canvas compact snapshot / assistant-panel、Canvas 专属媒体解析、�
 ### 当前验证
 - 代码层新增多模态与范围回归已通过；stage4 TypeScript 仅剩既有学校 `papaparse` 缺失。
 - 尚未真实浏览器/线上视觉上游验收；临时 fixture 和测试输出未入库。下一步是隔离浏览器验证请求体不泄露未选中图片，并补真实 signed URL 过期/跨用户测试。
+
+## 2026-09-09 第四阶段剩余工作检查点
+
+- 线上真实浏览器已登录测试环境，确认普通 Canvas 与 Agent 入口可访问；健康接口返回 HTTP 200，数据库 ready。
+- 权限/过期/大小/HTML/重定向异常已由 `agent-planner-media` 与 reference-assets Route 的定向测试覆盖：跨用户返回404、签名过期拒绝、媒体超限/错误内容不降级为文本成功、不向对象存储转发 cookie/worker 鉴权。
+- 多模态真实内容读取链路已接入：选中 Canvas 节点媒体会合成受授权的 planner media input；Chat/Responses/Gemini 处理真实媒体内容，custom 未配置多模态时明确失败。
+- 新对话本轮引用范围保持独立，上一轮 memory 仅作候选上下文，不自动成为本轮图片输入；Canvas 读取结构与可修改节点范围分离。
+- 线上当前页面未执行付费生成，仅做登录、入口、健康和静态权限回归；未使用管理员后台密码。真实视觉上游因成本与配置风险未发起。
+- 依赖审计、docs/web/security CI曾在PR #48通过；develop部署成功记录为`34303662245`且健康200。当前分支相对develop仅保留本轮“选中Canvas媒体也进入视觉规划”补充，未再次推送。
+- 当前本地定向测试：4文件127项通过；TypeScript只余学校papaparse既有依赖问题。
+
+### 第四阶段结论
+第四阶段代码与安全边界已完成，真实线上入口/权限/健康已验证；真实视觉供应商调用、Gemini/custom线上协议矩阵与C端完整页面回归必须在有明确测试额度及目标模型后单独验收，不伪造为已完成。
