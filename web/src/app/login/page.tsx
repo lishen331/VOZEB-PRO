@@ -18,7 +18,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     if (!install.ready) redirect("/install");
     if (user) redirect(resolveLoginDestination(user, nextPath, settings?.featureModules));
 
-    return <AuthForm mode="login" presentation="education-login" nextPath={nextPath || undefined} initialSite={settings ? serializePublicSettings(settings).site : DEFAULT_SITE_SETTINGS} initialFeatureModules={settings?.featureModules} authError={authError} />;
+    return (
+        <AuthForm
+            mode="login"
+            presentation="education-login"
+            nextPath={nextPath || undefined}
+            initialSite={settings ? serializePublicSettings(settings).site : DEFAULT_SITE_SETTINGS}
+            initialFeatureModules={settings?.featureModules}
+            authError={authError}
+        />
+    );
 }
 
 function firstValue(value: string | string[] | undefined) {

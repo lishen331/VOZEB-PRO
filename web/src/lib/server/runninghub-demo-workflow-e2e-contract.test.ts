@@ -19,8 +19,23 @@ describe("RunningHub Demo local fixture contract", () => {
         fixture = spawn(process.execPath, [resolve(process.cwd(), "scripts/runninghub-workflow-fixture.mjs")], { env: { ...process.env, VOZEB_PRO_RUNNINGHUB_FIXTURE_PORT: String(port) } });
         await waitForFixture(fixture);
 
-        for (const workflow of demoRunningHubWorkflowCatalog()) {
+        const catalog = demoRunningHubWorkflowCatalog();
+        expect(catalog.map((workflow) => workflow.workflowCode).sort()).toEqual(["character_main_view", "character_multi_view", "prop_main_view", "scene_main_view", "storyboard_dialogue_audio", "storyboard_shot", "storyboard_shot_video"]);
+        expect(new Set(catalog.map((workflow) => workflow.workflowId)).size).toBe(7);
+        for (const workflow of catalog) {
+            expect(workflow.workflowId).toMatch(/^\d+$/);
+            expect(workflow).toMatchObject({ createPath: "/task/openapi/create", queryPath: "/openapi/v2/query", providerType: "runninghub", enabled: false, testRequired: true });
+            expect(workflow.inputSchema.length).toBeGreaterThan(0);
+            expect(workflow.nodeMappings.length).toBeGreaterThan(0);
+            expect(workflow.outputMappings.length).toBeGreaterThan(0);
+            const primaryOutput = workflow.outputMappings.find((mapping) => mapping.primary) || workflow.outputMappings[0];
+            expect(primaryOutput.assetType).toBe(workflow.capability.toUpperCase());
             const execution = prepareRunningHubWorkflowExecution({ config: workflow, businessInput: sampleInput(workflow.workflowCode || ""), references: [] });
+            expect(execution.payload.workflowId).toBe(workflow.workflowId);
+            const mappedNodeIds = new Set(workflow.nodeMappings.map((mapping) => mapping.nodeId));
+            const nodeInfoList = execution.payload.nodeInfoList as Array<{ nodeId: string; fieldName: string }>;
+            expect(nodeInfoList.length).toBeGreaterThan(0);
+            expect(nodeInfoList.every((node) => mappedNodeIds.has(node.nodeId))).toBe(true);
             const response = await fetch(`http://127.0.0.1:${port}/task/openapi/create`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(execution.payload) });
             expect(response.status).toBe(200);
             const body = (await response.json()) as { data?: { taskId?: string } };

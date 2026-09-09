@@ -5,7 +5,6 @@ import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { finishGenerationAttempt, startGenerationAttempt, type GenerationAttempt } from "@/lib/server/generation-attempt";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
-import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { hasHealthyRuntimeCandidate } from "@/lib/server/channel-runtime-health";
 import { assertReferenceCapabilities, assertReferenceUrls, assertVideoReferenceRoles, buildVideoProviderRequest, isProviderBusinessError, readProviderError, readProviderString, resolvedProviderCreatePaths } from "@/lib/server/provider-task-config";
 import { buildGlobalAiOpcVideoRequest, resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
@@ -45,7 +44,7 @@ import {
     attachPracticeWorkflowToChannel,
     buildRunningHubWorkflowPayload,
     generationBusinessCode,
-    resolvePracticeWorkflowCandidates,
+    resolvePracticeGenerationCandidates,
     type RunningHubWorkflowConfig,
     workflowConfigForTask,
     workflowTaskContextForChannel,
@@ -117,10 +116,8 @@ export async function POST(request: Request) {
                 if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
                 throw error;
             }
-            const requestedModel = practiceRequest ? "" : typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : settings.defaultModels.videoModel;
-            const allChannels = (
-                practiceRequest ? resolvePracticeWorkflowCandidates(settings, "video", trustedContext.businessCode || "storyboard-video", trustedContext.workflowCode) : resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile)
-            )
+            const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : settings.defaultModels.videoModel;
+            const allChannels = resolvePracticeGenerationCandidates(settings, "video", requestedModel, trustedContext)
                 .map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }))
                 .filter((channel): channel is typeof channel & { channelId: string } => typeof channel.channelId === "string");
             const prompt = String(body.prompt || "").trim();

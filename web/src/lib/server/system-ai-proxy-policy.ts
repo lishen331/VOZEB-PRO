@@ -72,7 +72,11 @@ export function authorizeSystemAiProxyRequest(input: ProxyPolicyInput): SystemAi
 
     const createPaths = [...(input.paths?.create || []), ...standardCreatePaths(logical.capability, input.apiFormat)];
     if (method === "POST" && createPaths.some((path) => pathMatchesAny(candidates, path, upstreamModel))) {
-        if (input.workflowModel) return allowed(logical, "create");
+        if (input.workflowModel) {
+            // 无限练习工作流不计费，但请求能力仍必须与工作流能力一致。
+            if (input.pointsUsageKind && input.pointsUsageKind !== "api" && input.pointsUsageKind !== logical.capability) return denied(403, "请求能力与练习工作流不匹配");
+            return allowed(logical, "create");
+        }
         if (!input.pointsUsageKind || input.pointsUsageKind === "api") return denied(400, "系统模型创建请求无法确定计费类型");
         if (input.pointsUsageKind !== logical.capability) return denied(403, "请求能力与逻辑模型不匹配");
         return allowed(logical, "create");

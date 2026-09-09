@@ -483,7 +483,6 @@ describe("practice sessions", () => {
                             workflowKey: "workflow",
                             workflowCode: "storyboard_shot",
                             workflowName: "分镜图",
-                            workflowCode: "storyboard_shot",
                             businessCode: "storyboard-image",
                             capability: "image",
                             providerType: "runninghub",

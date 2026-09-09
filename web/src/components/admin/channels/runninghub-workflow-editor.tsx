@@ -130,11 +130,7 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                 businessCode: draft.businessCode,
                 capability: draft.capability,
                 workflowId: String(draft.workflowId || "").trim(),
-                createPath: String(draft.createPath || "").trim(),
-                queryPath: String(draft.queryPath || "").trim(),
-                taskIdField: String(draft.taskIdField || "").trim(),
-                statusField: String(draft.statusField || "").trim(),
-                resultField: String(draft.resultField || "").trim(),
+                // 创建/查询路径、任务 ID/状态/结果字段和请求模板由服务端按 Demo 固定协议填充，不由运维人员提交
                 inputSchema: confirmedInputSchema,
                 nodeMappings: confirmedNodeMappings,
                 outputMappings: confirmedOutputMappings,
@@ -142,7 +138,6 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                 timeoutSeconds: draft.timeoutSeconds,
                 workflowJsonFingerprint: discovery?.workflowJsonFingerprint || workflow?.workflowJsonFingerprint,
             };
-            if (!workflow || !workflow.requestTemplateConfigured) payload.requestTemplate = String(draft.requestTemplate || "");
             const response = await fetch(workflow ? `/api/admin/runninghub/workflows/${encodeURIComponent(workflow.workflowKey)}` : "/api/admin/runninghub/workflows", {
                 method: workflow ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
@@ -367,39 +362,6 @@ export function RunningHubWorkflowEditor({ open, channelId, workflow, autoDiscov
                             </div>
                         ) : (
                             <div className="text-sm text-stone-500">先点击“读取工作流”获取输入、输出候选和默认文件风险。</div>
-                        ),
-                    },
-                    {
-                        key: "upstream",
-                        label: "高级配置",
-                        children: (
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <Field label="创建路径" error={errors.createPath}>
-                                    <Input value={String(draft.createPath || "")} placeholder="/openapi/v2/task/create" onChange={(event) => update({ createPath: event.target.value })} />
-                                </Field>
-                                <Field label="查询路径" error={errors.queryPath}>
-                                    <Input value={String(draft.queryPath || "")} placeholder="/openapi/v2/task/query" onChange={(event) => update({ queryPath: event.target.value })} />
-                                </Field>
-                                <Field label="任务 ID 字段" error={errors.taskIdField}>
-                                    <Input value={String(draft.taskIdField || "")} placeholder="data.taskId" onChange={(event) => update({ taskIdField: event.target.value })} />
-                                </Field>
-                                <Field label="状态字段" error={errors.statusField}>
-                                    <Input value={String(draft.statusField || "")} placeholder="data.status" onChange={(event) => update({ statusField: event.target.value })} />
-                                </Field>
-                                <Field label="结果字段" error={errors.resultField}>
-                                    <Input value={String(draft.resultField || "")} placeholder="data.result" onChange={(event) => update({ resultField: event.target.value })} />
-                                </Field>
-                                <div className="text-xs leading-5 text-stone-500 dark:text-stone-400">API Key 只在渠道详情保存，工作流编辑不会重复收集凭据。</div>
-                                {!workflow?.requestTemplateConfigured ? (
-                                    <div className="sm:col-span-2">
-                                        <Field label="请求模板">
-                                            <Input.TextArea rows={5} value={String(draft.requestTemplate || "")} placeholder='{"workflowId":"{{workflowId}}","prompt":"{{prompt}}"}' onChange={(event) => update({ requestTemplate: event.target.value })} />
-                                        </Field>
-                                    </div>
-                                ) : (
-                                    <div className="sm:col-span-2 text-xs text-stone-500">当前版本已配置高级请求模板，出于安全原因不会回显；如需调整，请复制新版本后重新粘贴。</div>
-                                )}
-                            </div>
                         ),
                     },
                     {

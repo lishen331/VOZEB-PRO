@@ -143,11 +143,26 @@ describe("runninghub workflow service", () => {
         expect(result.items[0].requestTemplate).toBeUndefined();
     });
 
-    it("allows a complete copied version to activate while exposing retest risk", async () => {
-        const result = await copyWorkflowVersion(workflow.workflowKey, { activateVersion: true });
+    it("copies a new disabled version and refuses to activate it before a fresh test", async () => {
+        await expect(copyWorkflowVersion(workflow.workflowKey, { activateVersion: true })).rejects.toMatchObject({ status: 409 });
+        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
 
-        expect(result).toMatchObject({ enabled: true, requiresRetest: true });
+        const result = await copyWorkflowVersion(workflow.workflowKey);
+
+        expect(result).toMatchObject({ enabled: false, version: 2, requiresRetest: true });
+        expect(result.lastTestConfigFingerprint).toBeUndefined();
         expect(mocks.setAuthSettings).toHaveBeenCalled();
+    });
+
+    it("refuses to enable a tested workflow while its RunningHub channel is disabled", async () => {
+        const candidate = { ...workflow, enabled: false, workflowJsonFingerprint: "json-fingerprint" };
+        candidate.lastTestConfigFingerprint = runningHubWorkflowConfigFingerprint(candidate);
+        const current = settingsWith(candidate);
+        current.systemChannels[0].enabled = false;
+        mocks.getFreshAuthSettings.mockResolvedValue(current);
+
+        await expect(setWorkflowEnabled(candidate.workflowKey, true)).rejects.toMatchObject({ status: 409, message: expect.stringContaining("渠道未启用") });
+        expect(mocks.setAuthSettings).not.toHaveBeenCalled();
     });
 
     it("activates a workflow after successful evidence even when testRequired remains set", async () => {

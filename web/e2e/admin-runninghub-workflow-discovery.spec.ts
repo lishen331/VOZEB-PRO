@@ -40,7 +40,6 @@ test("管理员可读取 RunningHub 工作流、测试并在当前指纹成功�
             logicalModels: current.logicalModels,
             defaultModels: current.defaultModels,
             practiceDefaultModels: current.practiceDefaultModels,
-            practiceWorkflowModels: current.practiceWorkflowModels,
         },
     });
     expect(saved.ok(), await saved.text()).toBe(true);
@@ -88,9 +87,24 @@ test("管理员可读取 RunningHub 工作流、测试并在当前指纹成功�
     expect(enabled.ok(), await enabled.text()).toBe(true);
     expect((await enabled.json()).data).toMatchObject({ enabled: true, requiresRetest: false });
 
+    // 启用只改变工作流本身：不生成伪模型、逻辑模型绑定或练习模型绑定
     const routedSettings = (await (await page.request.get("/api/admin/settings")).json()).settings;
-    const logicalModelId = routedSettings.practiceWorkflowModels[workflow.businessCode]?.[0];
-    expect(logicalModelId).toBeTruthy();
-    expect(routedSettings.systemChannels.find((item: { id: string }) => item.id === channel.id)?.models).toContain(logicalModelId);
-    expect(routedSettings.logicalModels).toContainEqual(expect.objectContaining({ id: logicalModelId, capability: workflow.capability, enabled: true }));
+    const savedChannel = routedSettings.systemChannels.find((item: { id: string }) => item.id === channel.id);
+    expect(savedChannel?.models).toEqual([]);
+    expect(savedChannel?.purpose).toBe("open-source-practice");
+    expect(savedChannel?.advancedConfig?.workflowConfigs?.[workflow.workflowKey]).toMatchObject({ enabled: true, workflowId: discovery.workflowId });
+    expect(routedSettings.practiceWorkflowModels).toEqual({});
+    expect(routedSettings.logicalModels.some((model: { bindings: Array<{ channelId: string }> }) => model.bindings.some((binding) => binding.channelId === channel.id))).toBe(false);
+    const listed = await page.request.get(`/api/admin/runninghub/workflows?channelId=${channel.id}&status=enabled`);
+    expect(listed.ok(), await listed.text()).toBe(true);
+    expect((await listed.json()).data.items).toContainEqual(expect.objectContaining({ workflowKey: workflow.workflowKey, enabled: true, requiresRetest: false }));
+
+    // 配置一旦变化，旧的测试证据失效，必须重新测试后才能再次启用
+    const disabled = await page.request.put(`/api/admin/runninghub/workflows/${workflow.workflowKey}`, { data: { enabled: false } });
+    expect(disabled.ok(), await disabled.text()).toBe(true);
+    const edited = await page.request.put(`/api/admin/runninghub/workflows/${workflow.workflowKey}`, { data: { remark: "changed after test" } });
+    expect(edited.ok(), await edited.text()).toBe(true);
+    expect((await edited.json()).data).toMatchObject({ enabled: false, requiresRetest: true });
+    const blocked = await page.request.put(`/api/admin/runninghub/workflows/${workflow.workflowKey}`, { data: { enabled: true } });
+    expect(blocked.status()).toBe(409);
 });

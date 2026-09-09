@@ -44,7 +44,6 @@ export async function PATCH(request: Request) {
         if (body.generationPointMultipliers && typeof body.generationPointMultipliers === "object") patch.generationPointMultipliers = body.generationPointMultipliers;
         if (body.generationCostControl && typeof body.generationCostControl === "object") patch.generationCostControl = body.generationCostControl;
         if (body.dataLifecycle && typeof body.dataLifecycle === "object") patch.dataLifecycle = body.dataLifecycle;
-        if (body.practiceWorkflowModels && typeof body.practiceWorkflowModels === "object" && !Array.isArray(body.practiceWorkflowModels)) patch.practiceWorkflowModels = body.practiceWorkflowModels;
         if (body.practiceModuleVisibility && typeof body.practiceModuleVisibility === "object" && !Array.isArray(body.practiceModuleVisibility)) patch.practiceModuleVisibility = body.practiceModuleVisibility;
         if (body.entitlements && typeof body.entitlements === "object") patch.entitlements = body.entitlements;
         if (body.generationConcurrency && typeof body.generationConcurrency === "object") patch.generationConcurrency = body.generationConcurrency;
@@ -118,7 +117,6 @@ const SETTINGS_PERMISSION_BY_FIELD = {
     logicalModels: "upstream.manage",
     defaultModels: "upstream.manage",
     practiceDefaultModels: "upstream.manage",
-    practiceWorkflowModels: "upstream.manage",
     practiceModuleVisibility: "upstream.manage",
     agentSkills: "upstream.manage",
     featureModules: "upstream.manage",
