@@ -29,6 +29,7 @@ export function publicAgentRun(run: AgentRun) {
         tasks: (run.tasks || []).map(publicAgentRunTask),
         cancellation: run.cancellation ? { pendingCount: run.cancellation.pendingChildTaskIds.length } : undefined,
         timings: run.timings,
+        stageProgress: run.stageProgress,
         createdAt: run.createdAt,
         updatedAt: run.updatedAt,
     };
@@ -44,6 +45,7 @@ export function publicAgentRunSnapshot(run: AgentRun) {
         tasks: value.tasks,
         cancellation: value.cancellation,
         timings: value.timings,
+        stageProgress: value.stageProgress,
         updatedAt: value.updatedAt,
     };
 }

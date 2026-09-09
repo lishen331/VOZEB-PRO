@@ -1,11 +1,13 @@
 export type CanvasAgentStableStageKey = "planning" | "skills" | "plan" | "executing" | "reviewing" | "finalizing" | "paused";
 export type CanvasAgentRunStageKey = CanvasAgentStableStageKey | "reconnecting";
 
+export type CanvasAgentStageRecord = { key: string; text: string; status: "completed" | "running"; startedAt: number; durationSeconds?: number };
 export type CanvasAgentRunStage = {
     key: CanvasAgentRunStageKey;
     text: string;
     resumeKey?: CanvasAgentStableStageKey;
     startedAt?: number;
+    progress?: CanvasAgentStageRecord[];
 };
 
 export type CanvasAgentProgressStep = {

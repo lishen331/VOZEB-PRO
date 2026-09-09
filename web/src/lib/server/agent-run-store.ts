@@ -119,6 +119,7 @@ export type AgentRun = {
     failureStage?: AgentRunFailureStage;
     candidateFailures?: AgentRunCandidateFailure[];
     timings?: AgentRunTimings;
+    stageProgress?: AgentRunStageRecord[];
     createdAt: number;
     updatedAt: number;
 };
@@ -132,6 +133,7 @@ export type AgentRunPlannerContextSummary = {
     kept: { modelIds: string[]; skillIds: string[]; assetIds: string[]; recentMessageSequences: number[] };
     omitted: { modelIds: string[]; skillIds: string[]; assetIds: string[]; recentMessageSequences: number[] };
 };
+export type AgentRunStageRecord = { key: string; text: string; status: "completed" | "running"; startedAt: number; durationSeconds?: number };
 export type AgentRunTimings = {
     requestAcceptedAt: number;
     planningStartedAt?: number;
@@ -312,7 +314,8 @@ export async function updateAgentRunById(
             if (event?.type === "run.recheck.requested" && (current.status !== "paused" || current.cancellation)) return null;
             if (event?.type === "run.retry.requested" && (current.status !== "failed" || current.tasks.length)) return null;
             const next = { ...current, ...patch, status: patch.status || current.status, ...(event?.type === "run.retry.requested" ? { planningAttempt: (current.planningAttempt || 0) + 1 } : {}) };
-            return { run: next, event, assistant: assistantUpdate(next, event) };
+            const staged = event ? appendAgentRunStage(next, event.type, Date.now()) : next;
+            return { run: staged, event, assistant: assistantUpdate(staged, event) };
         },
         allowedStatuses,
         expectedExecutionId,
@@ -341,8 +344,9 @@ export async function updateAgentRunTaskById(id: string, taskId: string, patch: 
                 ...((eventType === "task.completed" || eventType === "task.child.completed") && !current.timings?.firstResultReadyAt ? { firstResultReadyAt: now } : {}),
                 ...(eventType === "task.completed" && completed.length === tasks.length ? { allResultsReadyAt: now } : {}),
             };
+            const staged = appendAgentRunStage({ ...current, tasks, assetIds, timings }, eventType, now);
             return {
-                run: { ...current, tasks, assetIds, timings },
+                run: staged,
                 event: {
                     type: eventType,
                     data: {
@@ -392,6 +396,37 @@ function mergeChildTasks(current: AgentRunChildTask[], incoming: AgentRunChildTa
         if (!existing || existing.status === "pending" || child.status !== "pending") merged.set(child.id, child);
     }
     return Array.from(merged.values());
+}
+
+function appendAgentRunStage(run: AgentRun, eventType: string, now: number): AgentRun {
+    const labels: Record<string, [string, string]> = {
+        "run.planning": ["planning", "正在理解你的想法，并为你挑选合适的创作方式…"],
+        "run.planning.context_ready": ["context", "需要的内容已经准备好，正在为你整理创作思路…"],
+        "run.planning.model_connected": ["model", "创作思路已经理清，正在安排接下来的步骤…"],
+        "run.planning.validating": ["plan", "正在确认创作步骤，很快就可以开始…"],
+        "skills.selected": ["skills", "正在挑选更合适的创作方式…"],
+        "run.planned": ["plan", "方案已确定，正在创建任务"],
+        "task.created": ["executing", "正在准备生成任务"],
+        "task.running": ["executing", "正在执行生成任务"],
+        "task.completed": ["reviewing", "正在检查生成结果"],
+        "task.child.completed": ["reviewing", "正在检查生成结果"],
+        "run.completed": ["finalizing", "正在整理生成结果"],
+    };
+    const definition = labels[eventType];
+    if (!definition) return run;
+    const [key, text] = definition;
+    const history = [...(run.stageProgress || [])];
+    for (const stage of history)
+        if (stage.status === "running" && (stage.key !== key || eventType === "run.completed")) {
+            stage.status = "completed";
+            stage.durationSeconds = Math.max(0, Math.floor((now - stage.startedAt) / 1000));
+        }
+    const existing = history.find((stage) => stage.key === key);
+    if (existing) {
+        existing.text = text;
+        existing.status = "running";
+    } else history.push({ key, text, status: "running", startedAt: now });
+    return { ...run, stageProgress: history };
 }
 
 function assistantUpdate(run: AgentRun, event?: { type: string; data?: unknown }) {

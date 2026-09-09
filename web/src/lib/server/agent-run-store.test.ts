@@ -296,6 +296,31 @@ describe("setAgentRunStatus", () => {
         });
     });
 
+    it("persists public stage progress across run updates", async () => {
+        let current = { ...canvasRun(), status: "running" as const, tasks: [{ ...canvasRun().tasks[0], status: "running" as const }] };
+        const mutations: any[] = [];
+        mocks.mutateCreativeRun.mockImplementation(async (_id, _ttl, mutate) => {
+            const mutation = mutate(current);
+            if (!mutation) return null;
+            mutations.push(mutation);
+            current = mutation.run;
+            return current;
+        });
+        await updateAgentRunById("run", {}, { type: "run.planning", data: {} }, ["running"]);
+        await updateAgentRunById("run", {}, { type: "skills.selected", data: {} }, ["running"]);
+        await updateAgentRunTaskById("run", "image", { status: "running", attempts: 1 }, "task.running", "execution");
+        await updateAgentRunById("run", { status: "completed" }, { type: "run.completed", data: { reply: "完成" } }, ["running"]);
+        expect(current.stageProgress).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ key: "planning", status: "completed", durationSeconds: expect.any(Number) }),
+                expect.objectContaining({ key: "skills", status: "completed", durationSeconds: expect.any(Number) }),
+                expect.objectContaining({ key: "executing", status: "completed", durationSeconds: expect.any(Number) }),
+                expect.objectContaining({ key: "finalizing", status: "running" }),
+            ]),
+        );
+        expect(mutations.at(-1)?.assistant?.status).toBe("completed");
+    });
+
     it("keeps internal foundation and review out of the completed conversation message", async () => {
         const run = {
             ...canvasRun(),

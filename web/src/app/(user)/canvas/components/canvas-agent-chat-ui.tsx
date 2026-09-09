@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from "react";
 import { Button, Popover, Tooltip } from "antd";
-import { ArrowUp, Check, CheckCircle2, Circle, CircleAlert, Crosshair, LoaderCircle, Pause, Play, Plus, RotateCcw, Wrench, X, XCircle } from "lucide-react";
+import { ArrowUp, Check, CheckCircle2, ChevronDown, ChevronRight, Circle, CircleAlert, Crosshair, LoaderCircle, Pause, Play, Plus, RotateCcw, Wrench, X, XCircle } from "lucide-react";
 
 import { AgentMessageActions } from "@/components/agent/agent-message-actions";
 import { AgentMarkdown } from "@/components/agent/agent-markdown";
@@ -69,6 +69,8 @@ export function AgentChatMessage({
 }) {
     const isUser = item.role === "user";
     const isSystem = item.role === "system";
+    const [showStageHistory, setShowStageHistory] = useState(false);
+    const stageHistory = Array.isArray(objectField(item.detail, "stageProgress")) ? (objectField(item.detail, "stageProgress") as Array<{ key: string; text: string; status?: string; durationSeconds?: number }>) : [];
     const color = item.role === "error" ? "#dc2626" : item.role === "tool" ? "#2563eb" : theme.node.text;
     if (isSystem) {
         return (
@@ -144,6 +146,25 @@ export function AgentChatMessage({
                 ) : null}
                 {item.attachments?.length ? <AgentMessageAttachments attachments={item.attachments} /> : null}
                 {item.meta ? <div className="mt-1 text-[11px] opacity-45">{item.meta}</div> : null}
+                {stageHistory.length ? (
+                    <div className="mt-2">
+                        <button type="button" className="inline-flex items-center gap-1 text-xs font-medium opacity-65 transition hover:opacity-100" onClick={() => setShowStageHistory((value) => !value)} aria-expanded={showStageHistory}>
+                            {showStageHistory ? <ChevronDown className="size-3.5" aria-hidden /> : <ChevronRight className="size-3.5" aria-hidden />}
+                            {showStageHistory ? "收起执行过程" : "查看执行过程"}
+                        </button>
+                        {showStageHistory ? (
+                            <div className="mt-2 space-y-1 rounded-lg border px-3 py-2 text-xs" style={{ borderColor: theme.node.stroke, background: theme.node.fill }}>
+                                {stageHistory.map((stage) => (
+                                    <div key={`${stage.key}-${stage.text}`} className="flex items-center gap-1.5">
+                                        <Check className="size-3.5 shrink-0 text-emerald-500" aria-hidden />
+                                        <span className="min-w-0 flex-1 truncate">{stage.text}</span>
+                                        {stage.durationSeconds !== undefined ? <span className="shrink-0 opacity-60">{stage.durationSeconds} 秒</span> : null}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
                 <AgentMessageActions
                     text={item.text}
                     downloads={item.attachments?.map((attachment) => ({ type: attachment.type || "image", url: attachment.url, title: attachment.name }))}
