@@ -6,7 +6,7 @@ import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveLogicalModel, resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { reviewCreativeOutputs } from "@/lib/server/creative-review-service";
-import { requestStructuredText, type TextPlanningCandidate, type TextPlanningMediaInput } from "@/lib/server/text-planning-runtime";
+import { requestStructuredText, type TextPlanningCandidate, type TextPlanningMediaInput, type TextPlanningMessageContent } from "@/lib/server/text-planning-runtime";
 import { registerAgentTaskAssets } from "@/lib/server/agent-run-assets";
 import { buildAgentProjectHandoff } from "@/lib/server/agent-run-project-handoff";
 import { getAgentRun, updateAgentRunById, updateAgentRunTaskById, type AgentRun, type AgentRunChildTask, type AgentRunReference, type AgentRunTask } from "@/lib/server/agent-run-store";
@@ -580,7 +580,7 @@ export async function requestFunctionCall(
     origin: string,
     cookie: string,
     candidate: TextPlanningCandidate,
-    input: Array<{ role: string; content: string }>,
+    input: Array<{ role: string; content: TextPlanningMessageContent }>,
     tool: typeof agentPlanTool,
     name: string,
     signal: AbortSignal,
