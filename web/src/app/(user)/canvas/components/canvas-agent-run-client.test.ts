@@ -138,7 +138,7 @@ describe("Canvas Agent 事件流", () => {
         FakeEventSource.instance.emit("task.completed", { data: { message: "文案已经返回", outputNodeIds: ["output-run-0"], type: "text", ops: [{ type: "select_nodes", ids: ["output-run-0"] }] } });
         FakeEventSource.instance.emit("run.completed", { data: { reply: "全部任务已经完成" } });
         await promise;
-        expect(stages).toEqual([
+        expect(stages.map((stage) => ({ key: stage.key, text: stage.text }))).toEqual([
             { key: "planning", text: "正在理解你的想法，也在看看画布里的内容…" },
             { key: "planning", text: "画布内容已经准备好，正在为你整理创作思路…" },
             { key: "planning", text: "创作思路已经理清，正在安排接下来的步骤…" },
@@ -247,7 +247,7 @@ describe("Canvas Agent 事件流", () => {
             { type: "update_node", id: "output-run-0-0", metadata: { status: "success" } },
             { type: "update_node", id: "output-run-0-1", metadata: { status: "error" } },
         ]);
-        expect(stages).toEqual([
+        expect(stages.map((stage) => ({ key: stage.key, text: stage.text }))).toEqual([
             { key: "executing", text: "「角色图」已完成 1/2" },
             { key: "executing", text: "「角色图」已完成 1/2，失败 1" },
         ]);

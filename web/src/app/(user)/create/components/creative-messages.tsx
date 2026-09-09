@@ -1,7 +1,7 @@
 "use client";
 
 import { App, Button, Dropdown, Popover, Tooltip } from "antd";
-import { Check, Clapperboard, Clock3, Copy, Download, ExternalLink, FileAudio2, Film, Info, Link2, MoreHorizontal, PanelsTopLeft, RotateCw } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Clapperboard, Clock3, Copy, Download, ExternalLink, FileAudio2, Film, Info, Link2, MoreHorizontal, PanelsTopLeft, RotateCw } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -291,6 +291,7 @@ function CreativeMediaRound({
                                 <div className="mb-2 flex w-fit max-w-full flex-wrap items-baseline gap-x-3 gap-y-0.5">
                                     <h2 className="truncate text-[17px] font-semibold leading-7 text-[#1f2937] dark:text-[#f3f5f7]">{resultTitle}</h2>
                                     <CreativeRunTiming run={run} time={assistantMessage.createdAt} />
+                                    {run?.stageProgress?.length ? <CreativeStageHistory run={run} /> : null}
                                 </div>
                                 <CreativeRunSummary run={run} modelNames={modelNames} />
                             </>
@@ -476,6 +477,30 @@ function CreativeRunSummary({ run, modelNames }: { run?: CreativeAgentRun; model
                     </button>
                 </Popover>
             </div>
+        </div>
+    );
+}
+
+function CreativeStageHistory({ run }: { run: CreativeAgentRun }) {
+    const [expanded, setExpanded] = useState(false);
+    const stages = run.stageProgress || [];
+    return (
+        <div className="basis-full">
+            <button type="button" onClick={() => setExpanded((value) => !value)} className="inline-flex items-center gap-1 text-[11px] text-[#98a2b3] transition-colors hover:text-[#667085] dark:hover:text-[#d5dae0]" aria-expanded={expanded}>
+                {expanded ? <ChevronDown className="size-3.5" aria-hidden /> : <ChevronRight className="size-3.5" aria-hidden />}
+                {expanded ? "收起执行过程" : "查看执行过程"}
+            </button>
+            {expanded ? (
+                <div className="mt-2 w-full max-w-[560px] space-y-1.5 rounded-lg border border-[#edf0f3] bg-[#fafbfc] px-3 py-2 dark:border-[#343a43] dark:bg-[#1b1f24]" aria-label="本次 Agent 执行过程">
+                    {stages.map((stage) => (
+                        <div key={`${stage.key}-${stage.startedAt}`} className="flex items-center gap-1.5 text-xs leading-5 text-[#667085] dark:text-[#a0a9b4]">
+                            <Check className="size-3.5 shrink-0 text-emerald-500" aria-hidden />
+                            <span className="min-w-0 flex-1 truncate">{stage.text}</span>
+                            {stage.durationSeconds !== undefined ? <span className="shrink-0 tabular-nums text-[#98a2b3]">{stage.durationSeconds} 秒</span> : null}
+                        </div>
+                    ))}
+                </div>
+            ) : null}
         </div>
     );
 }
