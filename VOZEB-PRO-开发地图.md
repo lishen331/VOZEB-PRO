@@ -1,6 +1,6 @@
 # VOZEB PRO 开发地图
 
-> 基线：2026-09-08，`develop` 分支。当前源码包含 52 个 `page.tsx` 页面入口、342 个 API Route 文件和 117 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
+> 基线：2026-09-09，`develop` 分支。当前源码包含 52 个 `page.tsx` 页面入口、343 个 API Route 文件和 117 张 PostgreSQL 表。接口逐项说明见 [VOZEB-PRO 接口索引](VOZEB-PRO-接口索引.md)，发布操作见 [VOZEB-PRO 更新与部署流程](VOZEB-PRO-更新部署流程.md)。
 
 ## 如何使用这份地图
 
@@ -275,7 +275,7 @@ Schema 初始化在 [schema.ts](web/src/lib/server/database/schema.ts)、[schema
 | --- | --- | --- | --- | --- | --- |
 | 安装与健康 | `/install` | `/api/install`、`/api/health` | `install-status`、数据库初始化 | PostgreSQL、安装令牌 | 安装状态、live/ready |
 | 认证与账户 | 登录、注册、Profile | `/api/auth` | `lib/auth`、Profile/Deletion Service | 用户、Session、SMTP | 注册登录、Cookie、并发修改 |
-| 创建工作台 | `/create` | `/api/create`、`/api/agent` | Agent Executor、Creative Runtime | 生成任务、模型上游 | Agent run、事件流、重试 |
+| 创建工作台 | `/create` | `/api/create`、`/api/agent` | Agent Executor、Creative Runtime、`agent-planner-media.ts`（授权媒体读取及多模态输入） | 生成任务、模型上游 | Agent run、事件流、重试；`agent-run-recheck.ts` 仅恢复原子任务，未知提交不重新生成 |
 | 图像/视频/音频/文本 | `/image`、`/video` | `/*-tasks`、`/video-generation-tasks` | 各类型 config/runtime/store/refund | 积分、Worker、模型、媒体 | 创建、轮询、取消、退款 |
 | Canvas | `/canvas` | `/api/canvas` | Canvas Project Service/Store | `canvas_projects` | 普通画布 CRUD、所有权、短剧专属画布隔离 |
 | 短剧 | `/drama`、`/drama-lab`、`/drama-canvas/[id]` | `/api/drama`、`/api/drama-lab` | Drama Project、Episode Canvas、Analysis、Render、Jianying | `drama_projects`、按集隔离的 `canvas_projects`、FFmpeg、生成任务 | 分析、版本、一集一画布、剧集切换、渲染、导出 |
@@ -366,21 +366,17 @@ flowchart LR
 - [配置说明](docs/content/docs/overview/configuration.mdx)：环境变量和后台配置。
 - [Docker 部署](docs/content/docs/overview/docker.mdx)：官方 Compose 部署说明。
 
-## 普通画布 Agent 结果恢复（开发分支）
 
-普通画布进入时由客户端 `getCanvasProject` 发起 `POST /api/canvas/projects/[id]/recover-agent-results`，复用现有任务/事件持久记录，通过 `canvas-agent-recovery-service` 与 `canvas-agent-result-recovery` 生成差异。`mutateCanvasProjectForRecovery` 在 PostgreSQL 行锁事务或文件锁下合并，结果、对话与服务器私有回执同次保存。现有 GET 保持只读，主 Agent 与短剧专属画布不使用该路径。
+### 无限练习工作台（2026-09-08）
 
-恢复回执存于既有 `project_json.__canvasAgentReceipts`，无表结构迁移；公共返回剥离，普通保存保留服务器值，导入不能伪造。当前实现为**进入时补齐**，不是生成完成时主动落入画布；未使用定时轮询。实时 SSE 路径由 `canvas-agent-live-results` 在最新节点引用上比较原文/类型，保护手工修改并保留待确认结果；`canvas-agent-result-save` 在终态等待既有保存队列并区分 409/失败/已保存。复用原有项目版本契约，不强制刷新、不新增轮询。真实 PostgreSQL 跨设备并发和完整线上交互仍待验收。生成记录的现有保留期限仍约束可恢复范围。
+- `web/src/app/(user)/practice/components/practice-module-workbench.tsx`：六模块共用桌面输入/结果双栏，窄屏上下排列，使用平台主题。
+- `practice-character-panel.tsx`：主形象/多视图按选中模型和 workflowCode 独立选择参数及默认尺寸，不合并两条 Schema。
+- `practice-media-input.tsx`、`practice-prompt-editor.tsx`：复用真实素材上传与后台默认文本模型提示词优化；优化结果可编辑，不自动提交生成。
+- `/api/practice/modules`：workflowOptions 携带对应工作流的公开 inputSchema；角色模型选项携带自身工作流列表；自动内部模型展示渠道与能力名称，不冒充某一工作流。
 
-## 普通画布 Agent 布局结构操作（开发分支）
 
-- 入口仍为既有 `/api/agent/runs`。仅 `surface=canvas` 的模型工具接受 `intent=canvas_operation` 和 `canvasOperation={type:layout,scope:all|selected}`；主 Agent 不开放此契约。
-- `agent-run-canvas-snapshot` 将全画布几何信息与选中内容范围分离，剥离几何字段内的正文。`agent-run-executor` 检查项目所有权与真实节点ID，经 `canvas-agent-layout` 复用现有自动排版生成只改position的操作。
-- 操作及before/after/context几何持久化在既有任务JSON `canvasLayoutOperation`，无需新增表；终态SSE和授权任务快照均可交付。`canvas-agent-live-results` 防重放并拒绝覆盖规划期间改变的几何；进入恢复复用同一操作和回执。
-- 不新增周期轮询或生成任务；已规划、已应用、保存确认分开。未开放删除、断线、分组等破坏性结构操作。完整Canvas UI历史联动和线上模型自然语言识别仍待验收。
+### 无限练习查询与历史恢复（2026-09-08）
 
-## 普通画布 Agent 破坏性操作（开发分支）
-Canvas Agent 仅能提出 `delete_nodes` / `disconnect` 待确认方案，消息进入确认弹窗后才允许在本页应用；服务端在规划阶段校验真实 ID、所有权、选中范围和运行状态，确认前不修改项目。弹窗重新校验预览快照，冲突即拒绝。确认通过现有画布保存版本与历史机制写入；素材库文件不删除，普通 Canvas 无通用分组 CRUD。
-
-## 普通画布 Agent 破坏性操作（开发分支）
-Canvas Agent 仅能提出 `delete_nodes` / `disconnect` 待确认方案，消息进入确认弹窗后才允许在本页应用；服务端在规划阶段校验真实 ID、所有权、选中范围和运行状态，确认前不修改项目。弹窗重新校验预览快照，冲突即拒绝。确认通过现有画布保存版本与历史机制写入；素材库文件不删除，普通 Canvas 无通用分组 CRUD。
+- 图片 `image-task-custom.ts`、视频 `video-task-runtime.ts`、音频 `audio-task-runtime.ts` 的 RunningHub 官方查询复用 `queryRunningHubTask`，POST body 传 taskId，系统代理注入渠道 apiKey；继续原站内代理鉴权，不重新创建任务。
+- `practice-module-workbench.tsx` 分离目录/历史读取与选中任务查询；按稳定 sessionId 恢复结果，URL切换不卸载输入表单，历史支持加载更多。
+- 视频输入增加已完成配音选择及去配音入口；配音使用六维情绪滑杆，主文本对应首行的参考音色与情绪一起提交。

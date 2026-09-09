@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-08。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **342** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-09-09。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **343** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,13 +23,13 @@
 
 ## 接口总览
 
-- Route 文件：**342**
-- 方法出现次数：DELETE 55、GET 183、HEAD 6、PATCH 54、POST 188、PUT 11
-- 一级域：`admin` 121、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 45、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 5、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 27、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**343**
+- 方法出现次数：DELETE 55、GET 184、HEAD 6、PATCH 54、POST 187、PUT 12
+- 一级域：`admin` 122、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 4、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 45、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 5、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
-### `admin`（121）
+### `admin`（122）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -65,6 +65,7 @@
 | DELETE, PUT | `/api/admin/course-attachments` | 管理员 | [route.ts](web/src/app/api/admin/course-attachments/route.ts) | [course-attachment-service](web/src/lib/server/course-attachment-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-attachments：删除、替换 |
 | DELETE, PATCH | `/api/admin/course-chapters/[id]` | 管理员 | [route.ts](web/src/app/api/admin/course-chapters/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-chapters / 单项：更新、删除 |
 | POST | `/api/admin/course-chapters/[id]/lessons` | 管理员 | [route.ts](web/src/app/api/admin/course-chapters/[id]/lessons/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-chapters / 单项 / lessons：提交/执行 |
+| PUT | `/api/admin/course-covers` | 管理员 | [route.ts](web/src/app/api/admin/course-covers/route.ts) | [course-cover-service](web/src/lib/server/course-cover-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[creative-upload](web/src/lib/creative-upload.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-covers：替换 |
 | DELETE, PATCH | `/api/admin/course-lessons/[id]` | 管理员 | [route.ts](web/src/app/api/admin/course-lessons/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-lessons / 单项：更新、删除 |
 | DELETE, PATCH | `/api/admin/course-materials/[id]` | 管理员 | [route.ts](web/src/app/api/admin/course-materials/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / course-materials / 单项：更新、删除 |
 | GET, POST | `/api/admin/courses` | 管理员 | [route.ts](web/src/app/api/admin/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / courses：查询、提交/执行 |
@@ -107,6 +108,7 @@
 | GET | `/api/admin/ip-library/usage` | 管理员 | [route.ts](web/src/app/api/admin/ip-library/usage/route.ts) | [ip-library-admin-service](web/src/lib/server/ip-library-admin-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / ip-library / usage：查询 |
 | POST | `/api/admin/login-page-media` | 管理员 | [route.ts](web/src/app/api/admin/login-page-media/route.ts) | [login-page-media](web/src/lib/server/login-page-media.ts)<br>[creative-upload](web/src/lib/creative-upload.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / login-page-media：提交/执行 |
 | POST | `/api/admin/mail/test` | 管理员 | [route.ts](web/src/app/api/admin/mail/test/route.ts) | [store](web/src/lib/auth/store.ts)<br>[smtp](web/src/lib/mail/smtp.ts) | PostgreSQL、SMTP | 管理后台 / 邮件 / 测试：提交/执行 |
+| POST | `/api/admin/model-connection-test` | 管理员 | [route.ts](web/src/app/api/admin/model-connection-test/route.ts) | [admin-model-catalog](web/src/lib/server/admin-model-catalog.ts)<br>[safe-outbound-fetch](web/src/lib/server/safe-outbound-fetch.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / model-connection-test：提交/执行 |
 | POST | `/api/admin/models` | 管理员 | [route.ts](web/src/app/api/admin/models/route.ts) | [admin-channel-config](web/src/lib/server/admin-channel-config.ts)<br>[admin-model-catalog](web/src/lib/server/admin-model-catalog.ts)<br>[provider-task-config](web/src/lib/server/provider-task-config.ts) | PostgreSQL、加密渠道配置、模型上游 | 管理后台 / 模型目录：提交/执行 |
 | GET, PATCH, POST | `/api/admin/object-storage` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[object-storage-config](web/src/lib/server/object-storage-config.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储：查询、更新、提交/执行 |
 | DELETE, GET | `/api/admin/object-storage/files` | 管理员 | [route.ts](web/src/app/api/admin/object-storage/files/route.ts) | [object-storage-service](web/src/lib/server/object-storage-service.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 管理后台 / 对象存储 / 文件：查询、删除 |
@@ -144,20 +146,15 @@
 | DELETE, PATCH | `/api/admin/users/[id]` | 管理员 | [route.ts](web/src/app/api/admin/users/[id]/route.ts) | [admin-user-deletion-service](web/src/lib/server/admin-user-deletion-service.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 用户 / 单项：更新、删除 |
 | GET | `/api/admin/work-cases` | 管理员 | [route.ts](web/src/app/api/admin/work-cases/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 作品治理案件：查询 |
 | POST | `/api/admin/work-cases/[id]/resolve` | 管理员 | [route.ts](web/src/app/api/admin/work-cases/[id]/resolve/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、管理配置、审计日志 | 管理后台 / 作品治理案件 / 单项 / 处理：提交/执行 |
-| GET, POST | `/api/admin/works` | 管理员 | [route.ts](web/src/app/api/admin/works/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品：查询 |
-| DELETE, PATCH | `/api/admin/works/[id]` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项：删除 |
+| GET, POST | `/api/admin/works` | 管理员 | [route.ts](web/src/app/api/admin/works/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品：查询、提交/执行 |
+| DELETE, PATCH | `/api/admin/works/[id]` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项：更新、删除 |
 | POST | `/api/admin/works/[id]/feature` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/feature/route.ts) | [work-governance-service](web/src/lib/server/work-governance-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / 精选：提交/执行 |
+| POST | `/api/admin/works/[id]/publish` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/publish/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / publish：提交/执行 |
 | PATCH | `/api/admin/works/[id]/pull-film` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/pull-film/route.ts) | [public-work-process-service](web/src/lib/server/public-work-process-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / pull-film：更新 |
+| POST | `/api/admin/works/[id]/relist` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/relist/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / 重新上架：提交/执行 |
 | POST | `/api/admin/works/[id]/review` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/review/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / 审核：提交/执行 |
 | POST | `/api/admin/works/[id]/take-down` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/take-down/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 单项 / 下架：提交/执行 |
-
-| POST | `/api/admin/model-connection-test` | 管理员 | [route.ts](web/src/app/api/admin/model-connection-test/route.ts) | [logical-model-router](web/src/lib/server/logical-model-router.ts) | PostgreSQL/外部服务 | 当前基线已有接口，补齐索引；权限和行为以 Handler 为准 |
-
-| POST | `/api/admin/works/[id]/publish` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/publish/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL/外部服务 | 当前基线已有接口，补齐索引；权限和行为以 Handler 为准 |
-
-| POST | `/api/admin/works/[id]/relist` | 管理员 | [route.ts](web/src/app/api/admin/works/[id]/relist/route.ts) | [work-publication-service](web/src/lib/server/work-publication-service.ts) | PostgreSQL/外部服务 | 当前基线已有接口，补齐索引；权限和行为以 Handler 为准 |
-
-| DELETE, GET, POST | `/api/admin/works/media` | 管理员 | [route.ts](web/src/app/api/admin/works/media/route.ts) | [official-work-media-service](web/src/lib/server/official-work-media-service.ts) | PostgreSQL/外部服务 | 当前基线已有接口，补齐索引；权限和行为以 Handler 为准 |
+| DELETE, GET, POST | `/api/admin/works/media` | 管理员 | [route.ts](web/src/app/api/admin/works/media/route.ts) | [official-work-media-service](web/src/lib/server/official-work-media-service.ts) | PostgreSQL、作品与社区数据 | 管理后台 / 作品 / 媒体：查询、删除、提交/执行 |
 
 ### `agent`（8）
 
@@ -225,7 +222,7 @@
 | POST | `/api/billing/quotes` | 用户 | [route.ts](web/src/app/api/billing/quotes/route.ts) | [billing-commerce-service](web/src/lib/server/billing-commerce-service.ts) | PostgreSQL、积分/商业事务 | 计费 / 报价：提交/执行 |
 | POST | `/api/billing/webhooks/[provider]` | Webhook | [route.ts](web/src/app/api/billing/webhooks/[provider]/route.ts) | [billing-service](web/src/lib/server/billing-service.ts)<br>[payment-webhook-service](web/src/lib/server/payment-webhook-service.ts) | 外部回调、签名校验、PostgreSQL 幂等记录 | 计费 / 支付回调 / 指定支付渠道：提交/执行 |
 
-### `canvas`（5）
+### `canvas`（4）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -233,7 +230,6 @@
 | DELETE, GET, POST | `/api/canvas/projects` | 用户 | [route.ts](web/src/app/api/canvas/projects/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts)<br>[feature-module-access](web/src/lib/server/feature-module-access.ts) | PostgreSQL、创作数据 | 画布 / 项目：查询、删除、提交/执行 |
 | GET, PATCH | `/api/canvas/projects/[id]` | 用户 | [route.ts](web/src/app/api/canvas/projects/[id]/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts) | PostgreSQL、创作数据 | 画布 / 项目 / 单项：查询、更新 |
 | DELETE | `/api/canvas/projects/[id]/assistant-conversations` | 混合 | [route.ts](web/src/app/api/canvas/projects/[id]/assistant-conversations/route.ts) | [canvas-project-service](web/src/lib/server/canvas-project-service.ts) | PostgreSQL、创作数据 | 画布 / 项目 / 单项 / 助手对话：删除 |
-| POST | `/api/canvas/projects/[id]/recover-agent-results` | 用户 | [route.ts](web/src/app/api/canvas/projects/[id]/recover-agent-results/route.ts) | [canvas-agent-recovery-service](web/src/lib/server/canvas-agent-recovery-service.ts) | PostgreSQL/文件存储、任务及画布数据 | 进入普通画布时补齐已完成未应用的 Agent 结果、回复与恢复回执；不调用上游 |
 
 ### `cdk`（1）
 
@@ -499,7 +495,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/referrals` | 用户 | [route.ts](web/src/app/api/referrals/route.ts) | [referral-service](web/src/lib/server/referral-service.ts) | PostgreSQL、积分/商业事务 | 邀请返利：查询 |
 
-### `school`（27）
+### `school`（28）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -513,6 +509,7 @@
 | DELETE, PUT | `/api/school/course-material-uploads` | 混合 | [route.ts](web/src/app/api/school/course-material-uploads/route.ts) | [course-attachment-service](web/src/lib/server/course-attachment-service.ts)<br>[school-access-service](web/src/lib/server/school-access-service.ts) | PostgreSQL | school / course-material-uploads：删除、替换 |
 | DELETE, PATCH | `/api/school/course-materials/[id]` | 混合 | [route.ts](web/src/app/api/school/course-materials/[id]/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / course-materials / 单项：更新、删除 |
 | GET | `/api/school/courses` | 用户 | [route.ts](web/src/app/api/school/courses/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / courses：查询 |
+| GET | `/api/school/courses/[id]/cover` | 混合 | [route.ts](web/src/app/api/school/courses/[id]/cover/route.ts) | [course-cover-service](web/src/lib/server/course-cover-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / courses / 单项 / cover：查询 |
 | POST | `/api/school/courses/[id]/materials` | 用户 | [route.ts](web/src/app/api/school/courses/[id]/materials/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / courses / 单项 / materials：提交/执行 |
 | GET, POST | `/api/school/courses/[id]/offerings` | 用户 | [route.ts](web/src/app/api/school/courses/[id]/offerings/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts)<br>[school-domain](web/src/lib/school-domain.ts) | PostgreSQL | school / courses / 单项 / offerings：查询、提交/执行 |
 | GET | `/api/school/courses/[id]/tree` | 用户 | [route.ts](web/src/app/api/school/courses/[id]/tree/route.ts) | [school-course-service](web/src/lib/server/school-course-service.ts)<br>[school-api-response](web/src/lib/server/school-api-response.ts) | PostgreSQL | school / courses / 单项 / tree：查询 |
@@ -598,12 +595,3 @@
 4. 权限必须从代码证据更新；新增 Helper 时同步扩展清单脚本的认证标记。
 
 返回 [VOZEB PRO 开发地图](VOZEB-PRO-开发地图.md)。
-
-### 普通画布布局契约补充（2026-09-08，开发分支）
-现有 Agent Run 创建、GET详情和SSE接口在 `surface=canvas` 时支持布局操作：请求快照可带不含正文的 `layout` 几何信息；授权响应可带 `canvasLayoutOperation`，完成事件携带 `layout_nodes` 操作。请求模型计划仅允许 layout/all或selected，项目权限与节点ID由服务端核验。没有新增Route，主Agent不开放布局计划。
-
-## 普通画布 Agent 破坏性操作（开发分支）
-Canvas Agent 仅能提出 `delete_nodes` / `disconnect` 待确认方案，消息进入确认弹窗后才允许在本页应用；服务端在规划阶段校验真实 ID、所有权、选中范围和运行状态，确认前不修改项目。弹窗重新校验预览快照，冲突即拒绝。确认通过现有画布保存版本与历史机制写入；素材库文件不删除，普通 Canvas 无通用分组 CRUD。
-
-### 画布 Agent 破坏性操作补充（2026-09-08，开发分支）
-未新增 Route。既有 `/api/agent/runs`、Run 查询与 SSE 在 `surface=canvas` 时可交付待确认 `canvasDestructiveProposal`；确认由 Canvas 页面使用当前项目版本和现有 PATCH 保存链路完成，目标变化/409 时拒绝或报告冲突，不自动删除。

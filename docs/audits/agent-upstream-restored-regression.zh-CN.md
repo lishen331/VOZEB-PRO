@@ -54,3 +54,19 @@
 ## Current acceptance boundary
 
 The approved defect fixes are deployed and the two highest-risk flows have online evidence. The retry flow still requires a currently available vision model for a successful final answer; this run cannot be declared content-successful solely because the old billing conflict disappeared. Drama planning text-only, beauty-without-reference, mobile layout, audio, and full five-Skill matrix remain separate acceptance cases.
+
+## 2026-09-09 线上继续验收
+
+- 短剧策划 Skill 文字-only 正向流程：通过。输入“只输出文字脚本，不生图、不生视频、不创建项目”，服务端生成并持久化完整 3 镜头文字脚本；消息状态为 completed，产生 1 个文本任务，无图片/视频/音频任务。
+- 页面流程：发送后自动进入新会话，助手消息在约 40 秒内回写；未出现“Skill 不支持当前输入与输出组合”。
+- 目前仍未执行自然美颜无参考图、角色设定正向、全成功双模型、音频和移动端矩阵；这些作为下一批验收项，不能以本次文字 Skill 结果替代。
+
+- 2026-09-09 自然美颜 Skill 无参考图逆向流程：通过。真实线上新会话中未上传/引用素材，发送精修请求后助手明确返回“当前 Skill 需要参考素材，请先上传或引用素材后再生成”；消息为 failed，未创建图片任务。
+- 2026-09-09 角色设定 Skill 正向流程：通过。线上生成成年女性短发邮差角色设定图，任务类型为 image，模型 gpt-image-2-all，任务与资产均 completed；optimizedPrompt 保留“不要视频”等约束，未携带参考图时仍按该 Skill 的无参考图正向路径生成。
+- 2026-09-09 全成功双模型生成：通过。关闭智能规划后手动选择 gpt-image-2-all 与 gemini-3.1-flash-image，提交“两个模型各生成一张”请求；两项任务均完成，助手消息 completed，持久化 2 个 taskId 与 2 个 assetId，未进入待确认。
+- 2026-09-09 继续验收：音频外部免费服务注册成本过高，按原计划不引入新的真实渠道；音频能力保留为环境配置阻断，不修改练习渠道。
+- 移动端 390×844：旧多模型待确认会话能正常显示“部分上游任务结果待确认”、任务状态列表、“重新检查原任务”和“取消未完成任务”按钮，内容未被横向截断；移动布局验收通过（功能可见性层面）。
+- 2026-09-09 取消流程线上验收：通过。移动端 390×844 打开旧待确认多模型运行，点击“取消未完成任务”后页面即时显示“Agent 任务已取消”，未重复生成。
+- 2026-09-09 任务恢复/取消/重试矩阵补充：服务端路由测试通过（19 tests），事件流与客户端状态同步测试通过（23 tests）。覆盖 whole-run retry、child retry、并发保护、取消保留已完成子任务、partial_success 终态与事件游标。
+- 当前线上可继续证明：暂停运行重新检查不会创建新任务；取消会将未完成子任务置为 cancelled 并保留已完成结果。
+- 音频仍为环境阻断：未配置生产音频模型，未执行虚假成功测试。

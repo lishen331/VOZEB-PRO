@@ -4614,7 +4614,7 @@ function StoryboardPanel({
             messageApi.warning("当前视频任务待检查，请先点击“检查状态”，不会重复提交生成任务。");
             return undefined;
         }
-        if (kind === "video" && !shot.frames?.key?.url && !shot.storyboardImageUrl) {
+        if (kind === "video" && shot.creationMode !== "universal" && !shot.frames?.key?.url && !shot.storyboardImageUrl) {
             Modal.warning({
                 title: "无法生成分镜视频",
                 content: "请先生成当前镜头的关键帧或分镜图，再提交视频生成任务。",
@@ -4925,7 +4925,7 @@ function StoryboardPanel({
             const candidates = sourceShots.filter((shot) =>
                 kind === "image"
                     ? !shot.storyboardImageUrl && !isDramaLabTaskActive(shot.storyboardStatus)
-                    : Boolean(shot.frames?.key?.url || shot.storyboardImageUrl) && !shot.videoUrl && !requiresDramaLabVideoTaskCheck(shot) && !isDramaLabVideoTaskActive(shot),
+                    : (shot.creationMode === "universal" || Boolean(shot.frames?.key?.url || shot.storyboardImageUrl)) && !shot.videoUrl && !requiresDramaLabVideoTaskCheck(shot) && !isDramaLabVideoTaskActive(shot),
             );
             if (!candidates.length) {
                 if (!disposedRef.current) messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
@@ -5654,7 +5654,17 @@ function StoryboardWorkbenchCard({
                             </div>
                         ) : null}
                     </section>
-                    <TextArea defaultValue={shot.videoPrompt} autoSize={{ minRows: 3, maxRows: 7 }} placeholder="镜头动作与动态补充（可选）" aria-label="视频提示词" onBlur={(event) => onUpdate({ videoPrompt: event.target.value.trim() })} />
+                    {shot.creationMode === "universal" ? (
+                        <TextArea
+                            defaultValue={shot.universalSegmentText}
+                            autoSize={{ minRows: 4, maxRows: 10 }}
+                            placeholder="全能模式分镜提示词（需包含连续子分镜与 @图片N）"
+                            aria-label="全能模式视频提示词"
+                            onBlur={(event) => onUpdate({ universalSegmentText: event.target.value.trim() })}
+                        />
+                    ) : (
+                        <TextArea defaultValue={shot.videoPrompt} autoSize={{ minRows: 3, maxRows: 7 }} placeholder="镜头动作与动态补充（可选）" aria-label="视频提示词" onBlur={(event) => onUpdate({ videoPrompt: event.target.value.trim() })} />
+                    )}
                     {videoNeedsCheck ? <Alert type="warning" showIcon message="视频结果待检查" description={dramaLabVideoTaskReviewDescription(shot)} /> : null}
                     {shot.generationError && !videoNeedsCheck ? <Alert type="error" showIcon message={shot.generationError} /> : null}
                     <div className="flex flex-wrap items-center gap-2">
@@ -5671,7 +5681,9 @@ function StoryboardWorkbenchCard({
                     {shot.videoUrl ? (
                         <video src={shot.videoUrl} controls className="max-h-[460px] w-full rounded border border-border" />
                     ) : (
-                        <div className="grid min-h-40 place-items-center border border-dashed border-border text-sm text-muted-foreground">生成关键帧或分镜图后可生成视频</div>
+                        <div className="grid min-h-40 place-items-center border border-dashed border-border text-sm text-muted-foreground">
+                            {shot.creationMode === "universal" ? "绑定资产参考图并完善全能提示词后可生成视频" : "生成关键帧或分镜图后可生成视频"}
+                        </div>
                     )}
                 </section>
             </div>
