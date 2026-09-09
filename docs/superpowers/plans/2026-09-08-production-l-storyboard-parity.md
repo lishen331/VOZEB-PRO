@@ -232,3 +232,12 @@
 - 使用测试账号进入项目 `drama-03tgsyBr88SYFPAWX_Iz7` 第 1 集，点击“分镜工作台”后等待 5 秒，`recover-generation` 请求数为 **1**，不再出现之前 5 秒约 32–34 次的重复请求。
 - 页面正常显示分镜列表、任务状态、资产信息和生成控件；闪烁/反复刷新根因已验证消失。
 - 根因修复包括：模块级项目/剧集恢复去重、回调 ref 隔离、恢复 effect 依赖收敛。
+
+### 画布切换闭环阶段验收（2026-09-09）
+
+- 测试环境项目：`drama-03tgsyBr88SYFPAWX_Iz7`，第 1 集。
+- 从短剧分镜工作台打开本集画布后，服务端返回稳定画布 ID：`canvas-handoff-c2d99b4221d94d6449dede5b6cb30a32`；重复进入同集复用该 ID。
+- 分镜卡片“在画布中打开此分镜”携带 `episodeId` 与 `shotId`；画布 URL 同时携带 `dramaProjectId`、`episodeId`、`shotId`，顶部显示项目/剧集上下文。
+- 画布顶部“返回短剧分镜工作台”会返回 `/drama-lab/{projectId}/create?episode={episodeId}&stage=storyboard#storyboard-shot-{shotId}`；返回后 URL 保留剧集、分镜阶段和镜头 hash，目标镜头实际定位到视口内。
+- 画布顶部切换剧集使用 `episode-canvas` 服务解析/复用对应集画布，不直接复用其他集 ID；V 原生 Canvas runtime 仍保持独立。
+- 测试环境浏览器往返验证通过；未发现重复创建画布或返回丢失镜头定位。任务执行中切换的持久化链路沿用服务端任务 ID，仍列入最终综合验收复测。
