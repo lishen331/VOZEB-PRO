@@ -17,6 +17,7 @@ export type GenerationTaskContext = {
     conversationId?: string;
     runId?: string;
     surface?: "chat" | "canvas" | "drama";
+    featureModule?: "drama-lab";
     executionProfile?: PracticeExecutionProfile;
     projectId?: string;
     episodeId?: string;

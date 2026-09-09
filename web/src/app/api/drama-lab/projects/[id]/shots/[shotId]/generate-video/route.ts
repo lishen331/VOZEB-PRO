@@ -77,6 +77,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                 context: {
                     conversationId: project.creativeConversationId,
                     surface: "drama",
+                    featureModule: "drama-lab",
                     projectId: project.id,
                     episodeId,
                     shotId,
