@@ -78,7 +78,7 @@ const operations = {
     },
 } as const;
 
-export function e2eSettingsPatch() {
+export function e2eSettingsPatch(settingsRevision?: number) {
     const modelCapabilities = Object.fromEntries(models.map((model) => [model, model.includes("image") ? "image" : model.includes("video") ? "video" : model.includes("audio") ? "audio" : "text"]));
     const modelConfigs = Object.fromEntries(models.map((model) => [model, operations[modelCapabilities[model] as keyof typeof operations]]));
     return {
@@ -87,6 +87,7 @@ export function e2eSettingsPatch() {
         defaultModels: { textModel: "e2e-text", imageModel: "e2e-image", videoModel: "e2e-video", audioModel: "e2e-audio" },
         modelPointCosts: Object.fromEntries(models.map((model) => [model, 0])),
         generationConcurrency: { agent: 2, image: 2, video: 2, audio: 2, text: 2, render: 1 },
+        ...(settingsRevision !== undefined ? { settingsRevision } : {}),
     };
 }
 
