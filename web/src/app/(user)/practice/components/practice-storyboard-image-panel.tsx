@@ -7,7 +7,7 @@ import { useState } from "react";
 import { IpReferencePicker } from "@/components/ip-library/ip-reference-picker";
 import { IP_REFERENCE_ENTRY_VISIBLE } from "@/lib/ip-library-domain";
 import { practiceApi } from "@/services/api/practice";
-import { WorkflowFormFields, WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
+import { PracticeSizeField, WorkflowFormFields, WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
 
 export function buildStoryboardImageReferences(sceneId: string, assetIds: string[]) {
@@ -84,6 +84,7 @@ export default function PracticeStoryboardImagePanel({ capability, ipReferences,
                     />
                 ))}
             </div>
+            <PracticeSizeField capability={capability} value={workflowInput} onChange={(patch) => setWorkflowInput((current) => ({ ...current, ...patch }))} />
             <WorkflowFormFields capability={capability} value={workflowInput} onChange={(key, value) => setWorkflowInput((current) => ({ ...current, [key]: value }))} />
             <WorkflowOptionalFields capability={capability} value={workflowInput} onChange={(key, value) => setWorkflowInput((current) => ({ ...current, [key]: value }))} />
             {IP_REFERENCE_ENTRY_VISIBLE ? <IpReferencePicker compact value={ipReferences} onChange={onIpReferencesChange} /> : null}

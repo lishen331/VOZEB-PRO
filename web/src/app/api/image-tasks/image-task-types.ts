@@ -31,6 +31,8 @@ export type CreateImageTaskBody = {
     title?: string;
     context?: GenerationTaskContext;
     layerBatch?: CanvasImageLayerBatchRequest;
+    /** 无限练习工作流参数（width/height 等）；只有受信任的练习请求才会被采纳。 */
+    input?: Record<string, unknown>;
 };
 
 export type ImageApiResponse = {

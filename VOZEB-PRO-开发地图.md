@@ -384,6 +384,13 @@ flowchart LR
 - 系统代理：`/api/ai/system/[channelId]` 对练习工作流按 workflowKey/workflowCode 解析固定端点并放行，不再要求 `channel.models` 或逻辑模型绑定，但仍校验请求能力与工作流能力一致。
 - 回归：`runninghub-workflow-runtime.test.ts` 覆盖七条 Demo 工作流按 workflowCode 精确路由；`runninghub-demo-workflow-e2e-contract.test.ts` 断言 Workflow ID、nodeInfoList 与输出类型；e2e `admin-runninghub-workflow-discovery.spec.ts` 覆盖“拉取 → 测试 → 启用 → 修改后 409”。
 
+### 无限练习参数与 Demo 页面对齐（2026-09-10）
+
+- `/api/practice/modules` 新增 `sizeOptions`（`{ key, label, width, height }`，label 如 `16:9 · 1280×720`）和 `durationOptions`（视频 5/8/10 秒）：优先使用工作流 `generationSizeOptions`（跳过 disabled），没有时沿用 Demo `index.html` 的“尺寸比例”默认项；场景 `outputPreset` 投影为 enum（`2048 x 1024` / `4096 x 2048`）。规则见 [practice-module-service.ts](web/src/lib/server/practice-module-service.ts) 的 `practiceSizeOptions`。
+- 练习前端 `practice-panel-types.tsx` 提供 `PracticeSizeField` / `PracticeDurationField`，角色/道具/分镜图/分镜视频面板用下拉代替裸 `width/height/duration` 数字框；没有预设时保持原数字框。
+- 练习会话派发时图片/视频任务也携带 `input`（工作流参数）；`image-tasks` 只对受信任练习请求接收并持久化为 `ImageTask.workflowInput`，提交 RunningHub 时并入 `businessInput`；`video-generation-tasks` 把练习 `input` 合并进 `raw` 后再构造工作流 payload。此前图片/视频任务会丢弃练习选择的尺寸，始终使用工作流默认宽高。
+- 提示词优化（`/api/agent/prompt-optimization`）在没有正式生产默认文本模型时回退到无限练习默认文本模型；两者都缺失才返回 503。
+
 ### 无限练习查询与历史恢复（2026-09-08）
 
 - 图片 `image-task-custom.ts`、视频 `video-task-runtime.ts`、音频 `audio-task-runtime.ts` 的 RunningHub 官方查询复用 `queryRunningHubTask`，POST body 传 taskId，系统代理注入渠道 apiKey；继续原站内代理鉴权，不重新创建任务。

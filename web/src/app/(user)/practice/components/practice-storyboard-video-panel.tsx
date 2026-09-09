@@ -6,7 +6,7 @@ import { useState } from "react";
 import { practiceApi, type PracticeSession } from "@/services/api/practice";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
 import { uploadMediaFile, type UploadedFile } from "@/services/file-storage";
-import { WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
+import { PracticeDurationField, PracticeSizeField, WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
 import { PracticeMediaInput } from "./practice-media-input";
 import { ModelField } from "./practice-storyboard-image-panel";
 
@@ -154,6 +154,10 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated }: 
                     </>
                 ) : null}
             </section>
+            <div className="grid gap-3 sm:grid-cols-2">
+                <PracticeSizeField capability={capability} value={workflowInput} onChange={(patch) => setWorkflowInput((current) => ({ ...current, ...patch }))} />
+                <PracticeDurationField capability={capability} value={workflowInput} onChange={(duration) => setWorkflowInput((current) => ({ ...current, duration }))} />
+            </div>
             <WorkflowOptionalFields
                 capability={{ ...capability, inputSchema: capability.inputSchema.filter((field) => field.key !== "audioEnabled") }}
                 value={workflowInput}

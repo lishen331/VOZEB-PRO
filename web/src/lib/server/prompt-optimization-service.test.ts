@@ -59,6 +59,17 @@ describe("prompt optimization service", () => {
         expect(refundGenerationCharge).toHaveBeenCalledWith({ userId: "user-one", receiptId: "school:one", model: "planner", usageKind: "text", units: 1, idempotencyKey: "prompt-optimize-refund:school:one" });
     });
 
+    it("falls back to the practice default text model when no production text model is configured", async () => {
+        vi.mocked(getAuthSettings).mockResolvedValue({ site: { title: "星河创作" }, defaultModels: { textModel: "" }, practiceDefaultModels: { textModel: "practice-writer" } } as Awaited<ReturnType<typeof getAuthSettings>>);
+        vi.mocked(resolveLogicalModelCandidates).mockImplementation((_settings, _capability, model, _channel, profile) =>
+            model === "practice-writer" && profile === "open-source-practice" ? ([candidate] as ReturnType<typeof resolveLogicalModelCandidates>) : [],
+        );
+        vi.mocked(requestStructuredText).mockResolvedValue({ arguments: JSON.stringify({ optimizedPrompt: "练习提示词" }), headers: new Headers(), protocol: "chat", elapsedMs: 10 });
+
+        await expect(optimizeCreativePrompt({ origin: "http://localhost:3000", cookie: "", userId: "user-one", requestId: "request-one", prompt: "优化这句话", mode: "image" })).resolves.toBe("练习提示词");
+        expect(new Headers(vi.mocked(requestStructuredText).mock.calls[0]![0].headers).get("x-vozeb-pro-logical-model")).toBe("practice-writer");
+    });
+
     it("fails clearly when no default text binding is available", async () => {
         vi.mocked(resolveLogicalModelCandidates).mockReturnValue([]);
 

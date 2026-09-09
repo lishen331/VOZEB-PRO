@@ -79,9 +79,9 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
         input.capability === "text"
             ? { ...workflowInput, config: { model: input.logicalModelId }, messages: [{ role: "user", content: prompt }], context }
             : input.capability === "image"
-              ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
+              ? { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
               : input.capability === "video"
-                ? { ...workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
+                ? { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
                 : { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" };
     const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(input.userId, input.clientRequestId) });
     const cookie = request.headers.get("cookie");

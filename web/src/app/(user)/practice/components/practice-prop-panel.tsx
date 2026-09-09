@@ -6,7 +6,7 @@ import { Box } from "lucide-react";
 import { useState } from "react";
 import { practiceApi } from "@/services/api/practice";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
-import { WorkflowFormFields, WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
+import { PracticeSizeField, WorkflowFormFields, WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
 import { PracticeMediaInput } from "./practice-media-input";
 import { ModelField } from "./practice-storyboard-image-panel";
 
@@ -59,6 +59,7 @@ export default function PracticePropPanel({ capability, onCreated }: PracticePan
             <PracticePromptEditor briefLabel="道具设定" label="道具描述" value={prompt} onChange={setPrompt} disabled={busy} mode="image">
                 <PracticeMediaInput label="道具参考图（可选）" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={image?.url} onRemove={() => setImage(undefined)} />
             </PracticePromptEditor>
+            <PracticeSizeField capability={capability} value={workflowInput} onChange={(patch) => setWorkflowInput((current) => ({ ...current, ...patch }))} />
             <WorkflowFormFields capability={capability} value={workflowInput} onChange={(key, value) => setWorkflowInput((current) => ({ ...current, [key]: value }))} />
             <WorkflowOptionalFields capability={capability} value={workflowInput} onChange={(key, value) => setWorkflowInput((current) => ({ ...current, [key]: value }))} />
             <Button type="primary" block size="large" icon={<Box className="size-4" />} loading={busy || uploading} disabled={!capability.available || !model || !prompt.trim()} onClick={() => void submit()}>

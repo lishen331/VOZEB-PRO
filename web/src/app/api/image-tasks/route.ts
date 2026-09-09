@@ -251,6 +251,7 @@ export async function POST(request: Request) {
             candidateConfigs: compatibleConfigs.slice(1),
             prompt,
             references,
+            ...(executionProfile === "open-source-practice" && trustedPractice && resolvedBody.input && typeof resolvedBody.input === "object" && !Array.isArray(resolvedBody.input) ? { workflowInput: resolvedBody.input } : {}),
             referenceRoles: resolvedBody.referenceRoles,
             mask: resolvedBody.mask?.dataUrl || resolvedBody.mask?.url || resolvedBody.mask?.remoteUrl || resolvedBody.mask?.serverUrl ? resolvedBody.mask : undefined,
         });

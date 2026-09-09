@@ -54,7 +54,7 @@ import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 const CREATE_PATHS = ["/video/generations", "/videos/generations", "/videos/videos", "/videos"];
-type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext };
+type CreateVideoTaskBody = { config?: Record<string, unknown>; prompt?: string; references?: VideoGenerationReference[]; source?: string; context?: GenerationTaskContext; input?: Record<string, unknown> };
 
 export async function POST(request: Request) {
     const user = await getCurrentUser(request);
@@ -247,7 +247,8 @@ export async function POST(request: Request) {
                         cookie,
                         channel,
                         providerPrompt,
-                        parameters,
+                        // 受信任的练习请求可携带工作流参数（尺寸比例、时长等），并入 RunningHub businessInput
+                        trustedPractice && body.input && typeof body.input === "object" && !Array.isArray(body.input) ? { ...parameters, ...body.input } : parameters,
                         references,
                         settings.generationPointMultipliers,
                         billingRequestId,

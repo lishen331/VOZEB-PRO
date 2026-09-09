@@ -3,7 +3,9 @@ export type PracticeProjectKind = "canvas" | "drama";
 export type PracticeModuleKind = "script" | "character" | "scene" | "prop" | "storyboard-image" | "storyboard-video" | "dubbing" | "music";
 export type PracticeSessionMode = "manual" | "workflow";
 export type PracticeSessionPublicStatus = "draft" | "queued" | "running" | "success" | "failed" | "cancelled";
-export type PracticeWorkflowOption = { code: string; label: string; inputSchema?: PracticeModuleInputField[] };
+/** 与 Demo“尺寸比例”下拉一致：key 为 `${width}x${height}`，label 形如 `16:9 · 1280×720`。 */
+export type PracticeSizeOption = { key: string; label: string; width: number; height: number };
+export type PracticeWorkflowOption = { code: string; label: string; inputSchema?: PracticeModuleInputField[]; sizeOptions?: PracticeSizeOption[]; durationOptions?: number[] };
 export type PracticeModuleModelOption = { id: string; label: string; workflowOptions?: PracticeWorkflowOption[] };
 export type PracticeModuleInputField = {
     key: string;
@@ -22,6 +24,10 @@ export type PracticeModuleCapability = {
     inputSchema: PracticeModuleInputField[];
     outputType: "text" | "image" | "video" | "audio";
     workflowOptions?: PracticeWorkflowOption[];
+    /** 生成尺寸预设；存在时前端用“尺寸比例”下拉代替裸 width/height 数字框。 */
+    sizeOptions?: PracticeSizeOption[];
+    /** 视频时长预设（秒）；存在时前端用下拉代替裸 duration 数字框。 */
+    durationOptions?: number[];
 };
 export type SystemChannelPurpose = "production" | "open-source-practice" | "shared";
 export type PullFilmSourceType = "canvas" | "drama";

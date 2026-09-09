@@ -68,7 +68,8 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
     const payload = workflow
         ? buildRunningHubWorkflowPayload({
               config: workflow,
-              businessInput: { ...values, image: images[0] || "", images },
+              // 练习提交的工作流参数（尺寸比例等）优先于按模型配置推导的通用值
+              businessInput: { ...values, image: images[0] || "", images, ...(task.workflowInput || {}) },
               references: task.references.map((reference, index) => ({ type: "image", url: images[index] || "", ...(reference.inputKey ? { inputKey: reference.inputKey } : {}) })).filter((reference) => reference.url),
           })
         : advanced.protocol === "yumeng"
