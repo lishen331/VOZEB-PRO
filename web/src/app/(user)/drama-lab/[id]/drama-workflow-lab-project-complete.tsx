@@ -4042,6 +4042,7 @@ function StoryboardPanel({
     const recoveryAttemptedRef = useRef(new Set<string>());
     const recoveryInFlightRef = useRef(new Map<string, Promise<boolean>>());
     const recoveryStateRef = useRef(new Map<string, "pending" | "ready" | "failed">());
+    const recoveryStartedRef = useRef(new Set<string>());
     const recoveryAbortRef = useRef<AbortController | null>(null);
 
     const updateShot = async (shotId: string, patch: Partial<Shot>, options: SaveOptions = { silent: true }) => {
@@ -4405,7 +4406,8 @@ function StoryboardPanel({
         if (!episodeId) return;
         const recoveryKey = `${project.id}:${episodeId}`;
         const previousState = recoveryStateRef.current.get(recoveryKey);
-        if (previousState === "pending" || previousState === "ready" || recoveryAttemptedRef.current.has(recoveryKey)) return;
+        if (recoveryStartedRef.current.has(recoveryKey) || previousState === "pending" || previousState === "ready" || recoveryAttemptedRef.current.has(recoveryKey)) return;
+        recoveryStartedRef.current.add(recoveryKey);
         let disposed = false;
         const controller = new AbortController();
         recoveryAbortRef.current?.abort();
@@ -4458,7 +4460,6 @@ function StoryboardPanel({
             controller.abort();
             if (recoveryAbortRef.current === controller) recoveryAbortRef.current = null;
             if (recoveryInFlightRef.current.get(recoveryKey) === pending) recoveryInFlightRef.current.delete(recoveryKey);
-            if (recoveryStateRef.current.get(recoveryKey) === "pending") recoveryStateRef.current.delete(recoveryKey);
         };
     }, [episodeId, messageApi, onReload, project.id]);
 
