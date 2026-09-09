@@ -10,7 +10,6 @@ import { auditActorFromRequest, safeRecordAuditLog } from "@/lib/server/audit-lo
 import { invalidatePublicSiteSettings } from "@/lib/server/site-metadata";
 import { channelProtocolValidationErrors, normalizeStrictChannelModelConfigs } from "@/lib/channel-protocol-registry";
 import { hasAllAdminPermissions, hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";
-import { isPostgresDatabaseEnabled } from "@/lib/server/database";
 
 export const runtime = "nodejs";
 
@@ -37,7 +36,7 @@ export async function PATCH(request: Request) {
         const currentSettings = await getFreshAuthSettings();
         const revisionFields = ["systemChannels", "logicalModels", "defaultModels", "practiceDefaultModels", "practiceWorkflowModels"] as const;
         const requiresRevision = revisionFields.some((field) => Object.prototype.hasOwnProperty.call(body, field));
-        if (requiresRevision && isPostgresDatabaseEnabled() && typeof body.settingsRevision !== "number") throw new AuthInputError("配置版本缺失，请刷新后再保存", 409);
+        if (requiresRevision && typeof body.settingsRevision !== "number") throw new AuthInputError("配置版本缺失，请刷新后再保存", 409);
         const patch: Partial<AuthSettings> = {};
         if (body.site) patch.site = body.site;
         if (typeof body.registrationEnabled === "boolean") patch.registrationEnabled = body.registrationEnabled;

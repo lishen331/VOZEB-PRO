@@ -1,4 +1,4 @@
-﻿import { getDatabaseProvider, ensurePostgresSchema, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
+import { getDatabaseProvider, ensurePostgresSchema, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import { resolveGenerationReviewReason } from "@/lib/server/generation-task-review-reason";
 import { readJsonDataFile, withJsonDataFileLock, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { normalizeIpReference } from "@/lib/ip-library-domain";
@@ -1541,7 +1541,7 @@ function isTaskStatus(value: unknown): value is GenerationTaskStatus {
 }
 
 function isTaskSurface(value: unknown): value is NonNullable<GenerationTaskContext["surface"]> {
-    return value === "chat" || value === "canvas" || value === "drama" || value === "drama-lab";
+    return value === "chat" || value === "canvas" || value === "drama";
 }
 
 function isExecutionPhase(value: unknown): value is NonNullable<StoredGenerationTaskRecord["executionPhase"]> {

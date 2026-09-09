@@ -1,4 +1,4 @@
-﻿import type { GenerationTaskExecutionPhase } from "@/lib/server/generation-task-scheduler";
+import type { GenerationTaskExecutionPhase } from "@/lib/server/generation-task-scheduler";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import type { IpReference } from "@/lib/ip-library-domain";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
@@ -17,7 +17,6 @@ export type GenerationTaskContext = {
     conversationId?: string;
     runId?: string;
     surface?: "chat" | "canvas" | "drama";
-    featureModule?: "drama-lab";
     executionProfile?: PracticeExecutionProfile;
     projectId?: string;
     episodeId?: string;

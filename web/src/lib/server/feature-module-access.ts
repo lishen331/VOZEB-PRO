@@ -1,4 +1,4 @@
-﻿import type { FeatureModuleId } from "@/lib/feature-modules";
+import type { FeatureModuleId } from "@/lib/feature-modules";
 import { featureModuleDefinition } from "@/lib/feature-modules";
 import type { GenerationTaskContext } from "@/lib/server/generation-task-store";
 
@@ -29,7 +29,6 @@ export async function requireFeatureModuleEnabled(moduleId: FeatureModuleId) {
 
 /** Maps persisted task context back to the feature that initiated it. */
 export function featureModuleForGenerationContext(context: GenerationTaskContext | undefined): FeatureModuleId | undefined {
-    if (context?.featureModule === "drama-lab") return "drama-lab";
     switch (context?.surface) {
         case "canvas":
             return "canvas";
