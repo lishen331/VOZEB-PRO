@@ -609,6 +609,24 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         return offerings.some((item) => classIds.has(item.classId));
     }
 
+    async getReadableCourseMaterial(userId: string, storageKey: string) {
+        const state = await this.read();
+        const material = state.courseMaterials.find((item) => item.storageKey === storageKey && item.status === "active");
+        if (!material || !state.courses.some((course) => course.id === material.courseId && course.status === "published")) return null;
+        const memberships = state.memberships.filter((membership) => membership.userId === userId && membership.status === "active");
+        return memberships.some((membership) => {
+            const assignment = state.courseAssignments.find((item) => item.schoolId === membership.schoolId && item.courseId === material.courseId && item.status === "active" && (material.sourceScope === "platform" || material.schoolCourseAssignmentId === item.id));
+            if (!assignment) return false;
+            if (membership.role === "teacher" && membership.permissions.includes("school.manage")) return true;
+            const offerings = state.courseOfferings.filter((item) => item.schoolId === membership.schoolId && item.assignmentId === assignment.id && item.status === "active");
+            if (membership.role === "teacher") return offerings.some((item) => item.teacherMembershipId === membership.id);
+            const classIds = new Set(state.classMembers.filter((item) => item.schoolId === membership.schoolId && item.membershipId === membership.id).map((item) => item.classId));
+            return offerings.some((item) => classIds.has(item.classId));
+        })
+            ? structuredClone(material)
+            : null;
+    }
+
     async hasActiveOfferingForTeacher(schoolId: string, membershipId: string, assignmentId: string) {
         return this.hasVisibleCourseAssignment(schoolId, membershipId, "teacher", assignmentId);
     }

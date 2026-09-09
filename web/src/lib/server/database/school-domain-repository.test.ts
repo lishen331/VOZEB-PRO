@@ -37,9 +37,9 @@ describe("PostgreSQL school domain repository", () => {
     afterAll(async () => {
         if (process.env.VOZEB_PRO_RUN_POSTGRES_INTEGRATION !== "1") return;
         await postgresQuery("DELETE FROM commercial_orders WHERE id = ANY($1::text[])", [[id("order"), id("workflow-order")]]);
-        await postgresQuery("DELETE FROM schools WHERE id = ANY($1::text[])", [[id("school-a"), id("school-b"), id("rolled-back"), id("material-school-a"), id("material-school-b")]]);
-        await postgresQuery("DELETE FROM platform_courses WHERE id = ANY($1::text[])", [[id("course"), id("normalized-course")]]);
-        await postgresQuery("DELETE FROM users WHERE id IN ($1, $2, $3)", [id("teacher-user"), id("student-user"), id("other-user")]);
+        await postgresQuery("DELETE FROM schools WHERE id = ANY($1::text[])", [[id("school-a"), id("school-b"), id("rolled-back"), id("material-school-a"), id("material-school-b"), id("readable-school"), id("readable-other-school")]]);
+        await postgresQuery("DELETE FROM platform_courses WHERE id = ANY($1::text[])", [[id("course"), id("normalized-course"), id("readable-course")]]);
+        await postgresQuery("DELETE FROM users WHERE id = ANY($1::text[])", [[id("teacher-user"), id("student-user"), id("other-user"), id("readable-teacher-user"), id("readable-student-user"), id("readable-other-student-user")]]);
     });
 
     postgresIt("matches the tenant-scoped repository contract", async () => {
@@ -292,6 +292,41 @@ describe("PostgreSQL school domain repository", () => {
         await expect(repository.getPlatformCourseTree(courseId)).resolves.toBeNull();
     });
 
+    postgresIt("authorizes readable course materials by published assignment and membership", async () => {
+        const repository = createSchoolDomainRepository();
+        const courseId = id("readable-course");
+        const chapterId = id("readable-chapter");
+        const lessonId = id("readable-lesson");
+        const schoolId = id("readable-school");
+        const otherSchoolId = id("readable-other-school");
+        const assignmentId = id("readable-assignment");
+        const otherAssignmentId = id("readable-other-assignment");
+
+        await repository.insertSchool(school(schoolId, "可读学校"));
+        await repository.insertSchool(school(otherSchoolId, "其他学校"));
+        await repository.insertMembership(membership(id("readable-teacher"), schoolId, id("readable-teacher-user"), "teacher"));
+        await repository.insertMembership(membership(id("readable-student"), schoolId, id("readable-student-user"), "student"));
+        await repository.insertMembership(membership(id("readable-other-student"), otherSchoolId, id("readable-other-student-user"), "student"));
+        await repository.insertClass({ id: id("readable-class"), schoolId, name: "可读班级", description: "", status: "active", createdAt: now, updatedAt: now });
+        await repository.insertClass({ id: id("readable-other-class"), schoolId: otherSchoolId, name: "其他班级", description: "", status: "active", createdAt: now, updatedAt: now });
+        await repository.replaceClassMembers(schoolId, id("readable-class"), [id("readable-student")]);
+        await repository.insertPlatformCourse({ id: courseId, title: "资料课程", summary: "", content: {}, status: "published", createdAt: now, updatedAt: now });
+        await repository.insertCourseChapter({ id: chapterId, courseId, title: "章节", description: "", sortOrder: 1, createdAt: now, updatedAt: now });
+        await repository.insertCourseLesson({ id: lessonId, courseId, chapterId, title: "课时", description: "", sortOrder: 1, createdAt: now, updatedAt: now });
+        await repository.assignCourseToSchools(courseId, [
+            { id: assignmentId, schoolId, status: "active", createdAt: now, updatedAt: now },
+            { id: otherAssignmentId, schoolId: otherSchoolId, status: "active", createdAt: now, updatedAt: now },
+        ]);
+        await repository.insertCourseOffering({ id: id("readable-offering"), schoolId, assignmentId, classId: id("readable-class"), teacherMembershipId: id("readable-teacher"), status: "active", createdAt: now, updatedAt: now });
+        await repository.insertCourseMaterial(courseMaterial(id("readable-material"), courseId, lessonId, "platform"));
+        await repository.insertCourseMaterial(courseMaterial(id("readable-school-material"), courseId, lessonId, "school", assignmentId));
+
+        await expect(repository.getReadableCourseMaterial(id("readable-teacher-user"), id("readable-material"))).resolves.toMatchObject({ id: id("readable-material") });
+        await expect(repository.getReadableCourseMaterial(id("readable-student-user"), id("readable-material"))).resolves.toMatchObject({ id: id("readable-material") });
+        await expect(repository.getReadableCourseMaterial(id("readable-other-student-user"), id("readable-material"))).resolves.toBeNull();
+        await expect(repository.getReadableCourseMaterial(id("readable-student-user"), id("readable-school-material"))).resolves.toMatchObject({ id: id("readable-school-material") });
+        await expect(repository.getReadableCourseMaterial(id("readable-other-student-user"), id("readable-school-material"))).resolves.toBeNull();
+    });
     postgresIt("persists the commercial order workflow with targeted tenant queries", async () => {
         const repository = createSchoolDomainRepository();
         await repository.insertCommercialOrder(order(id("workflow-order"), undefined, "draft"));

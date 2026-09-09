@@ -36,6 +36,7 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
     const signature = url.searchParams.get("signature") || "";
     let registration: LocalMediaRegistration | null = null;
     if (signature) registration = await getLocalMediaRegistration(storagePath);
+    const schoolRepository = createSchoolDomainRepository();
     if (signature && (!registration || isLocalMediaRegistrationExpired(registration))) return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
     const signed = Boolean(registration && !isLocalMediaRegistrationExpired(registration) && verifyReferenceAssetSignature(storagePath, url.searchParams.get("purpose"), url.searchParams.get("expires"), signature, registration.ownerUserId));
     if (signed && url.searchParams.get("download") === "original") return NextResponse.json({ code: 403, data: null, msg: "上游读取签名不提供原件下载" }, { status: 403 });
@@ -49,43 +50,42 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
     const rate = await checkLocalMediaRateLimit(rateIdentity, request);
     if (!rate.allowed) return NextResponse.json({ code: 429, data: null, msg: "媒体访问过于频繁，请稍后重试" }, { status: 429, headers: rateLimitHeaders(rate) });
     registration ||= await getLocalMediaRegistration(storagePath);
-    if (!registration) return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
-    if (isLocalMediaRegistrationExpired(registration)) return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
-    if (currentUser && currentUser.role !== "admin" && registration.ownerUserId !== currentUser.id) {
-        // Drama Lab project media is shared only with active members of that
-        // exact project. Do not broaden the global media endpoint to arbitrary
-        // users or expose owner media that has no project scope.
-        const [member, libraryReference, courseMaterial] = await Promise.all([
-            registration.projectId ? getDramaLabMembership(currentUser.id, registration.projectId) : Promise.resolve(null),
-            hasLibraryAssetMediaReference(currentUser.id, storagePath),
-            registration.source === "course-attachment" ? createSchoolDomainRepository().canReadCourseMaterial(currentUser.id, storagePath) : Promise.resolve(false),
-        ]);
+    const courseMaterial = currentUser && (!registration || registration.source === "course-attachment") ? await schoolRepository.getReadableCourseMaterial(currentUser.id, storagePath) : null;
+    if (!registration && !courseMaterial) return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
+    if (registration && isLocalMediaRegistrationExpired(registration)) return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
+    if (currentUser && registration && currentUser.role !== "admin" && registration.ownerUserId !== currentUser.id) {
+        // Non-owner media remains private unless it is explicitly shared through
+        // a project, the user's library, or a visible course assignment.
+        const [member, libraryReference] = await Promise.all([registration.projectId ? getDramaLabMembership(currentUser.id, registration.projectId) : Promise.resolve(null), hasLibraryAssetMediaReference(currentUser.id, storagePath)]);
         if (!member && !libraryReference && !courseMaterial) return NextResponse.json({ code: 404, data: null, msg: "媒体文件不存在" }, { status: 404 });
     }
-    if (request.method === "HEAD" && registration.storageProvider === "object") {
-        return createMediaHeadResponse(registration.mimeType, registration.bytes, {
+    const mediaRegistration = registration;
+    const mediaMimeType = mediaRegistration?.mimeType || courseMaterial?.mimeType || "application/octet-stream";
+    const mediaName = mediaRegistration?.originalName || courseMaterial?.fileName || path.at(-1) || "media";
+    if (request.method === "HEAD" && mediaRegistration?.storageProvider === "object") {
+        return createMediaHeadResponse(mediaRegistration.mimeType, mediaRegistration.bytes, {
             "Cache-Control": storagePath.startsWith("permanent/") ? "private, max-age=86400" : "private, max-age=300",
             "Content-Disposition": mediaContentDisposition(
                 url.searchParams.get("download") === "original" ? "attachment" : "inline",
-                registration.originalName || path.at(-1) || "media",
-                registration.mimeType,
-                url.searchParams.get("download") === "original" ? registration.storageKey || storagePath : "",
+                mediaName,
+                mediaMimeType,
+                url.searchParams.get("download") === "original" ? mediaRegistration?.storageKey || storagePath : "",
             ),
         });
     }
 
     const permit = acquireMediaConcurrency("local", rateIdentity);
     if (!permit) return NextResponse.json({ code: 429, data: null, msg: "媒体并发访问过多，请稍后重试" }, { status: 429, headers: { "Retry-After": "2" } });
-    if (registration.storageProvider === "object") {
+    if (mediaRegistration?.storageProvider === "object") {
         try {
             // WebGL/canvas pixel reads require an origin-clean response. Normal
             // display still redirects to OSS; only explicit canvas reads use bytes.
-            if (url.searchParams.get("render") === "canvas" && registration.mimeType.startsWith("image/")) {
-                const bytes = await readRegisteredMediaBytes(registration, creativeUploadMaxBytes(creativeUploadTypeFromMime(registration.mimeType) || "image"));
-                const response = new Response(new Uint8Array(bytes), { headers: { "Content-Type": registration.mimeType, "Content-Length": String(bytes.length), "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
+            if (url.searchParams.get("render") === "canvas" && mediaRegistration.mimeType.startsWith("image/")) {
+                const bytes = await readRegisteredMediaBytes(mediaRegistration, creativeUploadMaxBytes(creativeUploadTypeFromMime(mediaRegistration.mimeType) || "image"));
+                const response = new Response(new Uint8Array(bytes), { headers: { "Content-Type": mediaRegistration.mimeType, "Content-Length": String(bytes.length), "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
                 return withMediaConcurrency(response, permit, request.signal);
             }
-            const externalUrl = await createExternalMediaReadUrl(request, registration);
+            const externalUrl = await createExternalMediaReadUrl(request, mediaRegistration);
             permit.release();
             return externalUrl ? externalMediaRedirect(externalUrl) : NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
         } catch (error) {
@@ -104,9 +104,9 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
             "Cache-Control": storagePath.startsWith("permanent/") ? "private, max-age=86400" : "private, max-age=300",
             "Content-Disposition": mediaContentDisposition(
                 url.searchParams.get("download") === "original" ? "attachment" : "inline",
-                registration.originalName || path.at(-1) || "media",
-                asset.mimeType,
-                url.searchParams.get("download") === "original" ? registration.storageKey : "",
+                mediaName,
+                asset.mimeType || mediaMimeType,
+                url.searchParams.get("download") === "original" ? mediaRegistration?.storageKey || storagePath : "",
             ),
         });
         if (!response) {

@@ -559,6 +559,14 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         return result.rows[0]?.present === true;
     }
 
+    async getReadableCourseMaterial(userId: string, storageKey: string) {
+        const result = await this.db.query(
+            `SELECT m.* FROM course_materials m JOIN school_course_assignments assignment ON assignment.course_id = m.course_id AND assignment.status = 'active' AND (m.source_scope = 'platform' OR m.school_course_assignment_id = assignment.id) JOIN school_memberships membership ON membership.school_id = assignment.school_id AND membership.user_id = $1 AND membership.status = 'active' LEFT JOIN school_course_offerings offering ON offering.school_id = assignment.school_id AND offering.assignment_id = assignment.id AND offering.status = 'active' LEFT JOIN school_class_members class_member ON class_member.school_id = offering.school_id AND class_member.class_id = offering.class_id AND class_member.membership_id = membership.id JOIN platform_courses course ON course.id = m.course_id AND course.status = 'published' WHERE m.storage_key = $2 AND m.status = 'active' AND (membership.role = 'teacher' AND membership.permissions @> '["school.manage"]'::jsonb OR offering.teacher_membership_id = membership.id OR class_member.membership_id = membership.id) LIMIT 1`,
+            [userId, storageKey],
+        );
+        return result.rows[0] ? mapCourseMaterial(result.rows[0]) : null;
+    }
+
     async hasActiveOfferingForTeacher(schoolId: string, membershipId: string, assignmentId: string) {
         const result = await this.db.query(
             `SELECT EXISTS (
