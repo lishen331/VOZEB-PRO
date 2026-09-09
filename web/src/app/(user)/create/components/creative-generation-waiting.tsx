@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Check, Circle, LoaderCircle, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { CreativeMessage } from "@/lib/creative-runtime-contract";
@@ -22,6 +22,9 @@ export function CreativeGenerationWaiting({ run, message }: { run?: CreativeAgen
     }, [startedAt]);
 
     const elapsedSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+    const stageProgress = run?.stageProgress || [];
+    const currentStage = run?.stage;
+    const currentStageSeconds = currentStage?.startedAt ? Math.max(0, Math.floor((now - currentStage.startedAt) / 1000)) : elapsedSeconds;
     const copy = creativeGenerationWaitingCopy({ mode: creativeRunMode(run), runStatus: run?.status, progressText: run?.tasks.some((task) => task.status === "needs_review") ? "上游结果待确认" : message.content, elapsedSeconds });
 
     return (
@@ -35,6 +38,23 @@ export function CreativeGenerationWaiting({ run, message }: { run?: CreativeAgen
                     <p data-testid="creative-generation-elapsed" className="mt-0.5 text-[11px] tabular-nums leading-4 text-[#98a2b3] dark:text-[#7f8996]">
                         已等待 {formatCreativeWaitingTime(elapsedSeconds)}
                     </p>
+                    {stageProgress.length ? (
+                        <div className="mt-3 space-y-1.5" aria-label="Agent 执行阶段">
+                            {stageProgress.map((stage) => (
+                                <div key={stage.key} className="flex items-center gap-1.5 text-[12px] leading-5 text-[#667085] dark:text-[#98a2b4]">
+                                    {stage.status === "completed" ? <Check className="size-3.5 shrink-0 text-emerald-500" aria-hidden /> : <LoaderCircle className="size-3.5 shrink-0 animate-spin text-sky-500" aria-hidden />}
+                                    <span>{stage.text}</span>
+                                    <span className="ml-auto tabular-nums text-[#98a2b3]">{stage.status === "completed" ? `${stage.durationSeconds || 0} 秒` : `${currentStageSeconds} 秒`}</span>
+                                </div>
+                            ))}
+                            {stageProgress.length < 6 ? (
+                                <div className="flex items-center gap-1.5 text-[12px] leading-5 text-[#b0b8c2]">
+                                    <Circle className="size-3.5 shrink-0" aria-hidden />
+                                    等待后续阶段
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </div>

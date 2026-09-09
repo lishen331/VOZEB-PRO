@@ -29,6 +29,8 @@ export type CreativeAgentRun = {
     execution?: { skills?: Array<{ id: string; name: string; workspaces?: string[]; action?: string }>; referenceAssetCount?: number };
     createdAt?: number;
     updatedAt?: number;
+    stage?: { key: string; text: string; startedAt: number };
+    stageProgress?: Array<{ key: string; text: string; status: "completed" | "running"; startedAt: number; durationSeconds?: number }>;
     assetIds: string[];
     tasks: Array<{
         id: string;
@@ -157,6 +159,7 @@ export function deleteCreativeConversations(conversationIds: string[]) {
 
 type CreativeRunHandlers = {
     onProgress: (text: string) => void;
+    onStage?: (stage: { key: string; text: string; startedAt: number; progress: Array<{ key: string; text: string; status: "completed" | "running"; startedAt: number; durationSeconds?: number }> }) => void;
     onTerminal: (status: "completed" | "failed" | "cancelled", text?: string) => void;
     onConnectionError: (message: string) => void;
     onProjectHandoff?: (handoff: CreativeProjectHandoff) => void;
@@ -221,22 +224,41 @@ export function watchCreativeAgentRun(runId: string, handlers: CreativeRunHandle
             handlers.onProgress("暂时无法确认实时状态，任务仍会在后台继续运行");
         }
     };
+    const stageStartedAt = new Map<string, number>();
+    const stageProgress: Array<{ key: string; text: string; status: "completed" | "running"; startedAt: number; durationSeconds?: number }> = [];
+    const emitStage = (key: string, text: string) => {
+        const now = Date.now();
+        const startedAt = stageStartedAt.get(key) || now;
+        stageStartedAt.set(key, startedAt);
+        for (const item of stageProgress)
+            if (item.status === "running" && item.key !== key) {
+                item.status = "completed";
+                item.durationSeconds = Math.max(0, Math.floor((now - item.startedAt) / 1000));
+            }
+        const current = stageProgress.find((item) => item.key === key);
+        if (current) {
+            current.text = text;
+            current.status = "running";
+        } else stageProgress.push({ key, text, status: "running", startedAt });
+        handlers.onStage?.({ key, text, startedAt, progress: stageProgress.map((item) => ({ ...item })) });
+        handlers.onProgress(text);
+    };
     const listen = (type: string, callback: (payload: { data?: Record<string, unknown>; status?: string }) => void) =>
         source.addEventListener(type, (event) => {
             const payload = read(event);
             if (payload) callback(payload);
         });
 
-    listen("run.planning", () => handlers.onProgress("正在理解你的想法，并为你挑选合适的创作方式…"));
-    listen("run.planning.context_ready", () => handlers.onProgress("需要的内容已经准备好，正在为你整理创作思路…"));
-    listen("run.planning.model_connected", () => handlers.onProgress("创作思路已经理清，正在安排接下来的步骤…"));
-    listen("run.planning.validating", () => handlers.onProgress("正在确认创作步骤，很快就可以开始…"));
-    listen("skills.selected", () => handlers.onProgress("正在挑选更合适的创作方式…"));
+    listen("run.planning", () => emitStage("planning", "正在理解你的想法，并为你挑选合适的创作方式…"));
+    listen("run.planning.context_ready", () => emitStage("context", "需要的内容已经准备好，正在为你整理创作思路…"));
+    listen("run.planning.model_connected", () => emitStage("model", "创作思路已经理清，正在安排接下来的步骤…"));
+    listen("run.planning.validating", () => emitStage("plan", "正在确认创作步骤，很快就可以开始…"));
+    listen("skills.selected", () => emitStage("skills", "正在挑选更合适的创作方式…"));
     listen("run.planned", ({ data }) => {
         void refreshUserPointsIfSystem("system");
-        handlers.onProgress(text(data?.reply) || "方案已确定，正在创建任务");
+        emitStage("plan", text(data?.reply) || "方案已确定，正在创建任务");
     });
-    listen("task.running", ({ data }) => handlers.onProgress(`正在处理「${text(data?.title) || "创作任务"}」`));
+    listen("task.running", ({ data }) => emitStage("executing", `正在处理「${text(data?.title) || "创作任务"}」`));
     listen("task.waiting", ({ data }) => handlers.onProgress(text(data?.error) || `「${text(data?.title) || "创作任务"}」仍在上游处理中，系统会继续恢复`));
     listen("task.child.completed", ({ data }) => {
         void refreshUserPointsIfSystem("system");

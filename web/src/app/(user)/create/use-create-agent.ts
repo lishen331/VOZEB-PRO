@@ -398,6 +398,9 @@ export function useCreateAgent() {
                 onProgress: (text) => {
                     if (generation === conversationGenerationRef.current && activeConversationRef.current === run.conversationId) updateAssistant(assistantMessageId, text);
                 },
+                onStage: (stage) => {
+                    if (generation === conversationGenerationRef.current && activeConversationRef.current === run.conversationId) setRunDetails((current) => ({ ...current, [run.id]: { ...current[run.id], ...run, stage, stageProgress: stage.progress } }));
+                },
                 onStatus: (status) => {
                     if (generation === conversationGenerationRef.current && activeConversationRef.current === run.conversationId) setActiveRunStatus(status);
                 },
