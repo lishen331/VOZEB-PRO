@@ -18,7 +18,7 @@ import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPra
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
-import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeLogicalModel, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
+import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeWorkflowCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
 import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
@@ -73,12 +73,10 @@ export async function POST(request: Request) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
-        const channels = resolveLogicalModelCandidates(
-            settings,
-            "audio",
-            practiceRequest ? resolvePracticeLogicalModel(settings, "audio", trustedContext.businessCode || "dubbing", body.config?.model) : body.config?.model || settings.defaultModels.audioModel,
-            "",
-            executionProfile,
+        const channels = (
+            practiceRequest
+                ? resolvePracticeWorkflowCandidates(settings, "audio", trustedContext.businessCode || "dubbing", trustedContext.workflowCode)
+                : resolveLogicalModelCandidates(settings, "audio", body.config?.model || settings.defaultModels.audioModel, "", executionProfile)
         ).map((resolved) => ({
             ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, trustedContext),
             channelId: resolved.channelId,

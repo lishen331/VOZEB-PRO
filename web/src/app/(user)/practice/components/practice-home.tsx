@@ -118,8 +118,8 @@ export default function PracticeHome() {
         <main className="h-full min-h-0 overflow-y-auto bg-background text-foreground" data-practice-home>
             <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-8">
                 <header className="border-b border-border pb-4 sm:pb-6">
-                    <p className="text-xs font-medium text-muted-foreground">学校创作空间</p>
-                    <h1 className="mt-1.5 text-2xl font-semibold tracking-normal sm:text-3xl">无限练习</h1>
+                    <p className="text-xs font-medium text-muted-foreground">免费创作空间</p>
+                    <h1 className="mt-1.5 text-2xl font-semibold tracking-normal sm:text-3xl">练习</h1>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">用独立的练习项目反复尝试，不影响正式项目和课程作业。</p>
                 </header>
 
@@ -164,7 +164,7 @@ export default function PracticeHome() {
                 <section className="mt-5 sm:mt-8" aria-labelledby="practice-modules-heading">
                     <div className="flex items-center justify-between gap-3">
                         <h2 id="practice-modules-heading" className="text-base font-semibold sm:text-lg">
-                            创作模块
+                            练习模块
                         </h2>
                         <span className="text-xs text-muted-foreground">6 个模块 · 7 条工作流</span>
                     </div>

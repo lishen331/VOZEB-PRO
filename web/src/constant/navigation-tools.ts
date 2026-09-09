@@ -4,6 +4,7 @@ import type { SchoolContext } from "@/lib/school-domain";
 import { featureModuleForNavigationSlug, type FeatureModuleSettings } from "@/lib/feature-modules";
 
 export const navigationGroups = [
+    { id: "practice", label: "练习" },
     { id: "create", label: "创作" },
     { id: "projects", label: "项目" },
     { id: "assets", label: "资产" },
@@ -92,15 +93,15 @@ export const navigationTools = [
 
 const practiceNavigationTool = {
     slug: "practice",
-    label: "无限练习",
-    description: "不扣积分的创作练习",
-    group: "projects",
+    label: "练习",
+    description: "免费的创作练习",
+    group: "practice",
     icon: Sparkles,
 } as const;
 
 const dramaWorkflowLabNavigationTool = {
     slug: "drama-lab",
-    label: "短剧实验室",
+    label: "创作工坊",
     description: "隔离验证短剧工作流",
     group: "projects",
     icon: FlaskConical,
@@ -174,8 +175,8 @@ export type NavigationGroupId = (typeof navigationGroups)[number]["id"];
 
 export function navigationToolsForContext(context: SchoolContext | null = null, options: { featureModules?: FeatureModuleSettings; includeDramaWorkflowLab?: boolean } = {}) {
     const schoolTools = schoolNavigationTools(context);
-    // 默认包含短剧实验室（如果环境变量启用）
-    const candidates = [...navigationTools, ...(options.includeDramaWorkflowLab === false ? [] : [dramaWorkflowLabNavigationTool]), ...(schoolTools.length ? [practiceNavigationTool] : []), ...schoolTools];
+    // 默认包含创作工坊（如果环境变量启用）
+    const candidates = [...(schoolTools.length ? [practiceNavigationTool] : []), ...navigationTools, ...(options.includeDramaWorkflowLab === false ? [] : [dramaWorkflowLabNavigationTool]), ...schoolTools];
     return candidates.filter((tool) => {
         const featureModule = featureModuleForNavigationSlug(tool.slug);
         return !featureModule || options.featureModules?.[featureModule] !== false;

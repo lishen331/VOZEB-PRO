@@ -139,7 +139,7 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
                 title: editor.title.trim(),
                 coverUrl: media?.url || current.coverUrl || current.data.serverUrl || current.data.dataUrl,
                 tags: Array.from(new Set(["短剧", label, ...customTags])),
-                source: current.source || "短剧实验室",
+                source: current.source || "创作工坊",
                 note: editor.note.trim(),
                 metadata: { ...current.metadata, source: "drama-lab", dramaAssetType: type, category: editor.category.trim() },
                 data: media ? { dataUrl: media.url, storageKey: media.storageKey, serverUrl: media.url, remoteUrl: media.remoteUrl, width: media.width, height: media.height, bytes: media.bytes, mimeType: media.mimeType } : current.data,

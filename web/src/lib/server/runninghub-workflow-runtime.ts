@@ -1,4 +1,6 @@
-import type { AuthSettings, RunningHubWorkflowConfig } from "@/lib/auth/store";
+import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store";
+import type { LogicalModelCapability } from "@/lib/auth/store";
+import type { ResolvedLogicalModel } from "./logical-model-router";
 
 import { prepareRunningHubWorkflowExecution } from "./runninghub-workflow-adapter";
 import { isRunningHubWorkflowBusinessCode, normalizeRunningHubWorkflowConfig, runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
@@ -57,30 +59,28 @@ export function workflowTaskContextForChannel(
     return workflow ? { ...recordWorkflowTaskContext(workflow), taskOrigin: "user" as const } : {};
 }
 
-export function resolvePracticeLogicalModel(
-    settings: { practiceWorkflowModels?: Record<string, string | string[] | undefined>; practiceDefaultModels?: Record<string, string | undefined> },
-    capability: "text" | "image" | "video" | "audio",
-    businessCode: string,
-    requestedModel?: string,
-) {
-    const rawBound = settings.practiceWorkflowModels?.[businessCode];
-    const bound = Array.isArray(rawBound) ? rawBound[0] : rawBound;
-    if (bound) return bound;
-    const key = `${capability}Model`;
-    return settings.practiceDefaultModels?.[key] || requestedModel || "";
+export function resolvePracticeWorkflowCandidates(settings: Pick<AuthSettings, "systemChannels">, capability: LogicalModelCapability, businessCode: string, workflowCode?: string): ResolvedLogicalModel[] {
+    const code = workflowCode || businessCode;
+    return settings.systemChannels
+        .filter((channel) => channel.enabled && channel.purpose === "open-source-practice" && channel.advancedConfig?.protocol === "runninghub")
+        .flatMap((channel) => Object.values(channel.advancedConfig?.workflowConfigs || {}).map((raw) => ({ channel, workflow: normalizeRunningHubWorkflowConfig(raw) })))
+        .filter(({ workflow }) => workflow.enabled && workflow.businessCode === businessCode && workflow.capability === capability && (workflow.workflowCode || workflow.workflowKey) === code)
+        .sort((left, right) => right.workflow.version - left.workflow.version)
+        .map(({ channel, workflow }) => ({
+            logicalModelId: workflow.workflowKey,
+            upstreamModel: workflow.workflowKey,
+            channelId: channel.id,
+            channel: { ...channel, models: [workflow.workflowKey] } as SystemModelChannel,
+        }));
 }
 
 export function attachPracticeWorkflowToChannel<T extends { channelId?: string; logicalModel?: string; advancedConfig?: import("@/lib/auth/store").SystemChannelAdvancedConfig }>(
     channel: T,
-    settings: Pick<AuthSettings, "practiceWorkflowModels" | "systemChannels">,
+    settings: Pick<AuthSettings, "systemChannels">,
     context: { executionProfile?: string; businessCode?: string; workflowKey?: string; workflowVersion?: number; workflowConfigFingerprint?: string },
 ): T {
     if (context.executionProfile !== "open-source-practice" || !context.businessCode) return channel;
     if (!isRunningHubWorkflowBusinessCode(context.businessCode)) throw new Error("练习工作流业务 code 无效");
-    const logicalModelId = channel.logicalModel || "";
-    const rawBoundModelId = settings.practiceWorkflowModels[context.businessCode];
-    const boundModelId = Array.isArray(rawBoundModelId) ? rawBoundModelId[0] : rawBoundModelId;
-    if (boundModelId && boundModelId !== logicalModelId) throw new Error("练习工作流与逻辑模型绑定不匹配");
     const sourceChannel = settings.systemChannels.find((item) => item.id === channel.channelId);
     if (!sourceChannel || sourceChannel.advancedConfig?.protocol !== "runninghub") throw new Error("练习工作流渠道不可用");
     const workflows = Object.values(sourceChannel.advancedConfig.workflowConfigs || {}).map(normalizeRunningHubWorkflowConfig);

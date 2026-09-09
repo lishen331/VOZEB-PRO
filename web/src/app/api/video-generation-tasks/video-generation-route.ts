@@ -45,7 +45,7 @@ import {
     attachPracticeWorkflowToChannel,
     buildRunningHubWorkflowPayload,
     generationBusinessCode,
-    resolvePracticeLogicalModel,
+    resolvePracticeWorkflowCandidates,
     type RunningHubWorkflowConfig,
     workflowConfigForTask,
     workflowTaskContextForChannel,
@@ -117,12 +117,10 @@ export async function POST(request: Request) {
                 if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
                 throw error;
             }
-            const requestedModel = practiceRequest
-                ? resolvePracticeLogicalModel(settings, "video", trustedContext.businessCode || "storyboard-video", typeof body.config?.model === "string" ? body.config.model : undefined)
-                : typeof body.config?.model === "string" && body.config.model.trim()
-                  ? body.config.model
-                  : settings.defaultModels.videoModel;
-            const allChannels = resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile)
+            const requestedModel = practiceRequest ? "" : typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : settings.defaultModels.videoModel;
+            const allChannels = (
+                practiceRequest ? resolvePracticeWorkflowCandidates(settings, "video", trustedContext.businessCode || "storyboard-video", trustedContext.workflowCode) : resolveLogicalModelCandidates(settings, "video", requestedModel, "", executionProfile)
+            )
                 .map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }))
                 .filter((channel): channel is typeof channel & { channelId: string } => typeof channel.channelId === "string");
             const prompt = String(body.prompt || "").trim();

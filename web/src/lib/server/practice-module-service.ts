@@ -2,7 +2,6 @@ import type { AuthSettings } from "@/lib/auth/store";
 import { getAuthSettings } from "@/lib/auth/store";
 import type { PracticeModuleCapability, PracticeModuleInputField, PracticeModuleKind, PracticeModuleModelOption } from "@/lib/practice-domain";
 import type { LogicalModelCapability, RunningHubWorkflowBusinessCode, RunningHubWorkflowInputField } from "@/lib/auth/store-types";
-import { resolveLogicalModel } from "./logical-model-router";
 import { resolveEnabledWorkflow } from "./runninghub-workflow-domain";
 import { requirePracticeAccess, type PracticeActor } from "./practice-access-service";
 
@@ -57,50 +56,39 @@ export async function listPracticeModuleCapabilities(actor: PracticeActor, deps:
 }
 
 export function resolvePracticeModuleModelOptions(settings: AuthSettings, module: Exclude<PracticeModuleKind, "script">): PracticeModuleModelOption[] {
-    const capability = capabilityForModule(module);
-    const bindingKey = module === "character" || module === "scene" || module === "prop" ? "storyboard-image" : module;
-    const bindings = settings.practiceWorkflowModels[bindingKey];
-    const boundIds = Array.isArray(bindings) ? bindings : typeof bindings === "string" ? [bindings] : [];
-    const key = `${capability}Model` as "imageModel" | "videoModel" | "audioModel";
-    const defaultModel = settings.practiceDefaultModels?.[key];
-    const ids = boundIds.length ? boundIds : defaultModel ? [defaultModel] : [];
-    const options: PracticeModuleModelOption[] = [];
-    const seen = new Set<string>();
-    for (const id of ids) {
-        const logical = settings.logicalModels.find((item) => item.id.toLowerCase() === id.trim().toLowerCase());
-        if (!logical || !logical.enabled || logical.capability !== capability || seen.has(logical.id.toLowerCase())) continue;
-        const resolved = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, logical.id, "", "open-source-practice");
-        if (!resolved) continue;
-        const workflow = workflowForModule(resolved.channel.advancedConfig?.workflowConfigs, resolved.channel.id, module);
-        if (!workflow) continue;
-        seen.add(logical.id.toLowerCase());
-        const generated = logical.id.startsWith("runninghub-workflow-");
-        options.push({
-            id: logical.id,
-            label: generated ? `${resolved.channel.name} · ${capability === "image" ? "图片" : capability === "video" ? "视频" : "音频"}` : logical.name || logical.id,
-            ...(module === "character" ? { workflowOptions: workflowOptions(resolved.channel.advancedConfig?.workflowConfigs, resolved.channel.id, module) } : {}),
-        });
-    }
-    return options;
+    const workflows = runningHubWorkflowsForModule(settings, module);
+    const first = workflows[0];
+    return first ? [{ id: first.workflowKey, label: first.workflowName || first.workflowCode || first.workflowKey, ...(module === "character" ? { workflowOptions: workflowOptionsForModule(workflows) } : {}) }] : [];
 }
 
 function describeModule(settings: AuthSettings, module: PracticeModuleKind): PracticeModuleCapability {
     const base = BASE_MODULES[module];
     if (module === "script") return { module, ...base, available: true, models: [] };
-    const models = resolvePracticeModuleModelOptions(settings, module);
-    if (!models.length) return { module, ...base, available: false, models: [], unavailableReason: "当前模块暂无可用开源模型" };
-    const first = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capabilityForModule(module), models[0].id, "", "open-source-practice");
-    if (!first) return { module, ...base, available: false, models: [], unavailableReason: "当前模块暂无可用开源模型" };
-    const workflow = workflowForModule(first.channel.advancedConfig?.workflowConfigs, first.channel.id, module);
-    if (!workflow) return { module, ...base, available: false, models: [], unavailableReason: "当前模块暂无可用工作流" };
+    const workflows = runningHubWorkflowsForModule(settings, module);
+    const first = workflows[0];
+    if (!first) return { module, ...base, available: false, models: [], unavailableReason: "当前模块暂无可用工作流" };
     return {
         module,
         ...base,
         available: true,
-        models,
-        workflowOptions: workflowOptions(first.channel.advancedConfig?.workflowConfigs, first.channel.id, module),
-        inputSchema: mergeOptionalWorkflowFields(base.inputSchema, workflow.inputSchema),
+        models: [{ id: first.workflowKey, label: first.workflowName || first.workflowCode || first.workflowKey, ...(module === "character" ? { workflowOptions: workflowOptionsForModule(workflows) } : {}) }],
+        workflowOptions: workflowOptionsForModule(workflows),
+        inputSchema: mergeOptionalWorkflowFields(base.inputSchema, first.inputSchema),
     };
+}
+
+function runningHubWorkflowsForModule(settings: AuthSettings, module: Exclude<PracticeModuleKind, "script">) {
+    const code = WORKFLOW_CODE_BY_MODULE[module as keyof typeof WORKFLOW_CODE_BY_MODULE];
+    const allowedCodes = module === "character" ? new Set(["character_main_view", "character_multi_view"]) : new Set(code ? [code] : []);
+    return settings.systemChannels
+        .filter((channel) => channel.enabled && channel.purpose === "open-source-practice" && channel.advancedConfig?.protocol === "runninghub")
+        .flatMap((channel) => Object.values(channel.advancedConfig?.workflowConfigs || {}).map(normalizeWorkflow))
+        .filter((workflow) => workflow.enabled && workflow.channelId && workflow.workflowCode && allowedCodes.has(workflow.workflowCode))
+        .sort((left, right) => right.version - left.version || (left.workflowCode || "").localeCompare(right.workflowCode || ""));
+}
+
+function workflowOptionsForModule(workflows: import("@/lib/auth/store-types").RunningHubWorkflowConfig[]) {
+    return workflows.map((workflow) => ({ code: workflow.workflowCode!, label: workflow.workflowName, inputSchema: mergeOptionalWorkflowFields([], workflow.inputSchema) }));
 }
 
 function mergeOptionalWorkflowFields(base: PracticeModuleInputField[], fields: RunningHubWorkflowInputField[]) {
@@ -131,34 +119,6 @@ function isDialogueSlotField(key: string) {
 
 function capabilityForModule(module: Exclude<PracticeModuleKind, "script">): LogicalModelCapability {
     return module === "storyboard-video" ? "video" : module === "dubbing" || module === "music" ? "audio" : "image";
-}
-
-function workflowForModule(configs: Record<string, unknown> | undefined, channelId: string, module: Exclude<PracticeModuleKind, "script">) {
-    return workflowsForModule(configs, channelId, module)[0] || resolveEnabledWorkflow(Object.values(configs || {}), channelId, legacyBusinessCode(module));
-}
-
-function workflowsForModule(configs: Record<string, unknown> | undefined, channelId: string, module: Exclude<PracticeModuleKind, "script">) {
-    const code = WORKFLOW_CODE_BY_MODULE[module as keyof typeof WORKFLOW_CODE_BY_MODULE];
-    const allowedCodes = module === "character" ? new Set(["character_main_view", "character_multi_view"]) : new Set(code ? [code] : []);
-    return Object.values(configs || {})
-        .map((item) => normalizeWorkflow(item))
-        .filter((item) => item.enabled && item.channelId === channelId && (!item.workflowCode ? false : allowedCodes.has(item.workflowCode)))
-        .sort((left, right) => (left.workflowCode || "").localeCompare(right.workflowCode || ""));
-}
-
-function workflowOptions(configs: Record<string, unknown> | undefined, channelId: string, module: Exclude<PracticeModuleKind, "script">) {
-    const code = WORKFLOW_CODE_BY_MODULE[module as keyof typeof WORKFLOW_CODE_BY_MODULE];
-    if (!code) return [];
-    const allowedCodes = module === "character" ? new Set(["character_main_view", "character_multi_view"]) : new Set([code]);
-    return Object.values(configs || {})
-        .map((item) => normalizeWorkflow(item))
-        .filter((item) => item.enabled && item.channelId === channelId && item.workflowCode && allowedCodes.has(item.workflowCode))
-        .sort((left, right) => (left.workflowCode || "").localeCompare(right.workflowCode || ""))
-        .map((item) => ({ code: item.workflowCode!, label: item.workflowName, inputSchema: mergeOptionalWorkflowFields([], item.inputSchema) }));
-}
-
-function legacyBusinessCode(module: Exclude<PracticeModuleKind, "script">) {
-    return module === "dubbing" ? "dubbing" : module === "music" ? "music" : module === "storyboard-video" ? "storyboard-video" : "storyboard-image";
 }
 
 function normalizeWorkflow(value: unknown) {

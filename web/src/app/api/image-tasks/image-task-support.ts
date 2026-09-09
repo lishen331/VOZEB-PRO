@@ -25,7 +25,7 @@ import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { resolveModelPollingAttempts, resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
-import { attachPracticeWorkflowToChannel, resolvePracticeLogicalModel } from "@/lib/server/runninghub-workflow-runtime";
+import { attachPracticeWorkflowToChannel, resolvePracticeWorkflowCandidates } from "@/lib/server/runninghub-workflow-runtime";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import type { SchoolComputeBillingContext } from "@/lib/school-compute-domain";
 import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
@@ -72,8 +72,12 @@ export function publicTask(task: ImageTask) {
 }
 
 export function sanitizeConfigs(config: ImageTaskConfig | undefined, settings: Awaited<ReturnType<typeof getAuthSettings>>, executionProfile: "production" | "open-source-practice" = "production", context?: GenerationTaskContext): ImageTaskConfig[] {
-    const requestedModel = executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "image", context?.businessCode || "canvas", config?.model) : config?.model || settings.defaultModels.imageModel;
-    return resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile).map((resolved) => {
+    const requestedModel = config?.model || settings.defaultModels.imageModel;
+    const candidates =
+        executionProfile === "open-source-practice" && context?.businessCode
+            ? resolvePracticeWorkflowCandidates(settings, "image", context.businessCode, context.workflowCode)
+            : resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile);
+    return candidates.map((resolved) => {
         const channel = attachPracticeWorkflowToChannel(toSystemGenerationChannel(resolved), settings, context || {});
         return {
             ...channel,

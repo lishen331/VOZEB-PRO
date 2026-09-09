@@ -279,7 +279,7 @@ function TaskRow({
                             {needsReview ? "待检查" : statusLabel}
                         </Tag>
                     </div>
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{[episodeLabel(task.episodeId, episodes), task.shotId ? `分镜 ${task.shotId}` : "", task.currentStep || ""].filter(Boolean).join(" · ") || "短剧实验室"}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{[episodeLabel(task.episodeId, episodes), task.shotId ? `分镜 ${task.shotId}` : "", task.currentStep || ""].filter(Boolean).join(" · ") || "创作工坊"}</p>
                     {needsReview ? (
                         <div className="mt-1.5 text-[11px] text-amber-700">待检查，不会继续轮询</div>
                     ) : task.progress === null ? (

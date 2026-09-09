@@ -90,7 +90,7 @@ export function DramaWorkflowLabHome() {
             const url = URL.createObjectURL(blob);
             const anchor = document.createElement("a");
             anchor.href = url;
-            anchor.download = decodeURIComponent(response.headers.get("content-disposition")?.match(/filename\*=UTF-8''([^;]+)/i)?.[1] || `${project.title}-短剧实验室.zip`);
+            anchor.download = decodeURIComponent(response.headers.get("content-disposition")?.match(/filename\*=UTF-8''([^;]+)/i)?.[1] || `${project.title}-创作工坊.zip`);
             document.body.appendChild(anchor);
             anchor.click();
             anchor.remove();

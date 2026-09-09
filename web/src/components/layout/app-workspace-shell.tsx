@@ -30,7 +30,7 @@ export function AppWorkspaceShell({ children, featureModules }: { children: Reac
     const publicSettings = usePublicSessionStore((state) => state.payload?.settings);
     const site = publicSettings?.site || { title: DEFAULT_SITE_TITLE, logoUrl: "/logo.svg" };
     const effectiveFeatureModules = publicSettings?.featureModules || featureModules;
-    const homePath = effectiveFeatureModules["creative-agent"] === false ? "/profile" : "/create";
+    const homePath = effectiveFeatureModules["creative-agent"] === false ? "/practice" : "/create";
     const siteTitle = resolveSiteTitle(site.title);
     const tool = navigationToolForPathname(
         pathname,

@@ -481,6 +481,7 @@ describe("practice sessions", () => {
                     workflowConfigs: {
                         workflow: {
                             workflowKey: "workflow",
+                            workflowCode: "storyboard_shot",
                             workflowName: "分镜图",
                             workflowCode: "storyboard_shot",
                             businessCode: "storyboard-image",
@@ -509,6 +510,7 @@ describe("practice sessions", () => {
         second.practiceWorkflowModels = { "storyboard-image": ["practice-image", "practice-image-b"] };
         second.logicalModels.push({ id: "practice-image-b", name: "练习图片 B", capability: "image", enabled: true, bindings: [{ id: "binding-b", channelId: "rh", upstreamModel: "rh-image", enabled: true, priority: 1 }] });
         expect(resolvePracticeModelFromSettings(second, "storyboard-image", "practice-image-b")).toMatchObject({ logicalModelId: "practice-image-b", capability: "image" });
+        expect(resolvePracticeModelFromSettings(second, "storyboard-image", "production-image")).toMatchObject({ logicalModelId: "production-image", capability: "image" });
         expect(() => resolvePracticeModelFromSettings(second, "storyboard-image", undefined, "scene_main_view")).toThrow("当前练习模块没有可用工作流");
     });
 

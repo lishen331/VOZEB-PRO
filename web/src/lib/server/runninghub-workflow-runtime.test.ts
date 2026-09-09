@@ -2,16 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RunningHubWorkflowConfig } from "@/lib/auth/store";
 
-import {
-    attachPracticeWorkflowToChannel,
-    buildRunningHubWorkflowPayload,
-    generationBusinessCode,
-    recordWorkflowTaskContext,
-    resolvePracticeLogicalModel,
-    workflowConfigForTask,
-    workflowTaskContextForChannel,
-    workflowTimeoutMs,
-} from "./runninghub-workflow-runtime";
+import { attachPracticeWorkflowToChannel, buildRunningHubWorkflowPayload, generationBusinessCode, recordWorkflowTaskContext, workflowConfigForTask, workflowTaskContextForChannel, workflowTimeoutMs } from "./runninghub-workflow-runtime";
 import { runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
 
 const config: RunningHubWorkflowConfig = {
@@ -108,7 +99,6 @@ describe("RunningHub workflow runtime", () => {
         const attached = attachPracticeWorkflowToChannel(
             channel,
             {
-                practiceWorkflowModels: { "storyboard-image": ["practice-image"] },
                 systemChannels: [
                     {
                         id: "rh-practice",
@@ -133,7 +123,6 @@ describe("RunningHub workflow runtime", () => {
         const attached = attachPracticeWorkflowToChannel(
             channel,
             {
-                practiceWorkflowModels: {},
                 systemChannels: [
                     {
                         id: "rh-practice",
@@ -281,10 +270,5 @@ describe("RunningHub workflow runtime", () => {
                 workflowConfigFingerprint: runningHubWorkflowConfigFingerprint(previous),
             }),
         ).toMatchObject({ workflowKey: previous.workflowKey, workflowVersion: 1, upstreamWorkflowId: previous.workflowId });
-    });
-
-    it("always chooses the server practice model binding for a practice task", () => {
-        expect(resolvePracticeLogicalModel({ practiceWorkflowModels: { script: ["practice-script"] }, practiceDefaultModels: { textModel: "practice-default" } } as never, "text", "script", "production-model")).toBe("practice-script");
-        expect(resolvePracticeLogicalModel({ practiceWorkflowModels: {}, practiceDefaultModels: { textModel: "practice-default" } } as never, "text", "script", "production-model")).toBe("practice-default");
     });
 });

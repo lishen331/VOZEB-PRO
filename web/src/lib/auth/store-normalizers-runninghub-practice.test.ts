@@ -73,7 +73,7 @@ describe("RunningHub practice workflow cleanup", () => {
         expect(normalized.systemChannels[0].advancedConfig?.workflowConfigs).toHaveProperty(workflow.workflowKey);
         expect(normalized.practiceWorkflowModels).toEqual({});
         expect(normalized.logicalModels).toEqual([]);
-        expect(resolvePracticeModuleModelOptions(normalized, "prop")).toEqual([]);
+        expect(resolvePracticeModuleModelOptions(normalized, "prop")).toEqual([{ id: workflow.workflowKey, label: workflow.workflowName }]);
         expect(() => resolvePracticeModelFromSettings(normalized, "prop", "ignored-model", "prop_main_view")).not.toThrow();
     });
 });

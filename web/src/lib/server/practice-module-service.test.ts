@@ -36,6 +36,7 @@ function settings(): AuthSettings {
                 ? {
                       current: {
                           workflowKey: "current",
+                          workflowCode: "storyboard_shot",
                           workflowName: "分镜图工作流",
                           businessCode: "storyboard-image" as const,
                           capability: "image" as const,
@@ -111,7 +112,7 @@ describe("practice module capabilities", () => {
     it("returns the six Demo modules with only enabled open-source workflow models", async () => {
         const capabilities = await listPracticeModuleCapabilities({ id: "teacher-one" }, { settings: settings() });
         expect(capabilities.map((item) => item.module)).toEqual(["character", "scene", "prop", "storyboard-image", "storyboard-video", "dubbing"]);
-        expect(capabilities.find((item) => item.module === "storyboard-image")?.models).toEqual([{ id: "practice-image-a", label: "分镜图模型 A" }]);
+        expect(capabilities.find((item) => item.module === "storyboard-image")?.models).toEqual([{ id: "current", label: "分镜图工作流" }]);
         expect(JSON.stringify(capabilities)).not.toContain("workflow-internal");
         expect(JSON.stringify(capabilities)).not.toContain("channelId");
     });
@@ -150,18 +151,21 @@ describe("practice module capabilities", () => {
         const current = settings();
         current.practiceWorkflowModels = { "storyboard-image": ["disabled"] };
         const image = (await listPracticeModuleCapabilities({ id: "teacher-one" }, { settings: current })).find((item) => item.module === "storyboard-image");
-        expect(image).toMatchObject({ available: false, models: [], unavailableReason: "当前模块暂无可用开源模型" });
+        expect(image).toMatchObject({ available: true, models: [{ id: "current" }] });
     });
 
-    it("resolves model options without exposing production-only bindings", () => {
-        expect(resolvePracticeModuleModelOptions(settings(), "storyboard-image")).toEqual([{ id: "practice-image-a", label: "分镜图模型 A" }]);
-    });
-
-    it("falls back to the configured practice default when no module binding exists", () => {
+    it("projects an enabled RunningHub workflow without reading logical model bindings", () => {
         const current = settings();
-        current.practiceWorkflowModels = {};
+        current.practiceWorkflowModels = { "storyboard-image": ["missing-model"] };
+        current.logicalModels = [];
+        expect(resolvePracticeModuleModelOptions(current, "storyboard-image")).toEqual([{ id: "current", label: "分镜图工作流" }]);
+    });
+
+    it("does not fall back to practice default models when no workflow is enabled", () => {
+        const current = settings();
         current.practiceDefaultModels = { ...current.practiceDefaultModels, imageModel: "practice-image-a" };
-        expect(resolvePracticeModuleModelOptions(current, "storyboard-image")).toEqual([{ id: "practice-image-a", label: "分镜图模型 A" }]);
+        current.systemChannels[0].advancedConfig!.workflowConfigs = {};
+        expect(resolvePracticeModuleModelOptions(current, "storyboard-image")).toEqual([]);
     });
 
     it("exposes declared scalar workflow fields needed by specialized practice forms", async () => {

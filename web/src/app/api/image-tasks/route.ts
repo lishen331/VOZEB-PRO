@@ -24,7 +24,7 @@ import { registerGenerationTaskAssetsForUser } from "@/lib/server/creative-runti
 import { createSignedReferenceAssetUrl, signReferenceAssetInputUrl } from "@/lib/server/reference-asset-access";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
-import { generationBusinessCode, workflowTaskContextForChannel, resolvePracticeLogicalModel } from "@/lib/server/runninghub-workflow-runtime";
+import { generationBusinessCode, resolvePracticeWorkflowCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
 import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { checkGenerationRateLimit, rateLimitHeaders } from "@/lib/server/security";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
@@ -204,8 +204,7 @@ export async function POST(request: Request) {
         if (!configs.length || !prompt) return NextResponse.json({ error: "任务参数不完整" }, { status: 400 });
 
         // 检查是否有健康的模型候选
-        const requestedModel =
-            executionProfile === "open-source-practice" ? resolvePracticeLogicalModel(settings, "image", trustedContext?.businessCode || "canvas", resolvedBody.config?.model) : resolvedBody.config?.model || settings.defaultModels.imageModel;
+        const requestedModel = resolvedBody.config?.model || settings.defaultModels.imageModel;
         const allCandidates = resolveLogicalModelCandidates(settings, "image", requestedModel, "", executionProfile).filter((candidate): candidate is typeof candidate & { channelId: string } => typeof candidate.channelId === "string");
         const hasHealthyModel = hasHealthyRuntimeCandidate(allCandidates, "image");
 

@@ -27,7 +27,7 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             const rolePage = await teacherContext.newPage();
             await installPracticeFixtures(rolePage, moduleFixtureCapabilities());
             await rolePage.goto("/practice", { waitUntil: "domcontentloaded" });
-            await expect(rolePage.getByRole("heading", { name: "无限练习", exact: true })).toBeVisible();
+            await expect(rolePage.getByRole("heading", { name: "练习", exact: true })).toBeVisible();
             await expect(rolePage.locator("[data-practice-module]")).toHaveCount(6);
             await expect(rolePage.locator('[data-practice-module="character"]')).toBeVisible();
             await expect(rolePage.locator('[data-practice-module="scene"]')).toBeVisible();

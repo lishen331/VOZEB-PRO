@@ -227,7 +227,7 @@ export const adminSectionGroups: AdminSectionGroup[] = [
     { title: "营销推广", items: sectionsFor(["promotions", "coupons", "referrals"]) },
     { title: "财务管理", items: sectionsFor(["points", "payments", "cdk", "wallet"]) },
     { title: "上游配置", items: sectionsFor(["channels", "skills", "plugins"]) },
-    { title: "短剧实验室配置", items: sectionsFor(["dramaLabConfig", "dramaLabPrompts", "dramaLabScenarios", "dramaLabGeneration", "dramaLabSd2"]) },
+    { title: "创作工坊配置", items: sectionsFor(["dramaLabConfig", "dramaLabPrompts", "dramaLabScenarios", "dramaLabGeneration", "dramaLabSd2"]) },
     { title: "系统管理", items: sectionsFor(["site", "settings", "roleOverview", "accountDeletion"]) },
     { title: "存储与备份", items: sectionsFor(["mediaStorage", "externalStorage", "backup"]) },
     { title: "内容运营", items: sectionsFor(["ipLibrary", "works", "announcements", "prompts"]) },

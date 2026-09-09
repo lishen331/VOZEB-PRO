@@ -26,6 +26,7 @@ import { authorizeGenerationMediaProxyRequest } from "@/lib/server/generation-me
 import { SYSTEM_PROXY_JSON_BODY_MAX_BYTES } from "@/lib/server/system-proxy-request-limits";
 import { userOwnsGenerationUpstreamTask } from "@/lib/server/generation-task-authorization";
 import { authorizeSystemAiProxyRequest } from "@/lib/server/system-ai-proxy-policy";
+import { normalizeRunningHubWorkflowConfig, workflowCapabilityForBusinessCode } from "@/lib/server/runninghub-workflow-domain";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -98,6 +99,7 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     }
     const upstreamModel = readRequestModel(readRequestBody(contentType, requestBody.pointsPayload)) || request.headers.get(SYSTEM_AI_UPSTREAM_MODEL_HEADER)?.trim() || readPathModel(path);
     const modelConfig = upstreamModel ? resolveChannelModelConfig(channel.advancedConfig, upstreamModel) : undefined;
+    const runningHubWorkflow = channel.advancedConfig?.protocol === "runninghub" ? runningHubWorkflowForModel(channel, upstreamModel) : undefined;
     const apiFormat = modelConfig?.apiFormat || channel.apiFormat;
     const globalChannel = isGlobalAiOpcChannel(channel.advancedConfig);
     const globalPreset = resolveGlobalAiOpcPreset(channel.advancedConfig, upstreamModel) || resolveGlobalAiOpcPathPreset(channel.advancedConfig, path);
@@ -111,12 +113,21 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
             contentType,
             requestBody.pointsPayload,
             channel.id,
-            [globalPreset?.createPath, modelConfig?.createPath, modelConfig?.editPath, modelConfig?.imageToVideoPath, channel.advancedConfig?.createPath, channel.advancedConfig?.editPath, channel.advancedConfig?.imageToVideoPath],
+            [
+                globalPreset?.createPath,
+                runningHubWorkflow?.createPath,
+                modelConfig?.createPath,
+                modelConfig?.editPath,
+                modelConfig?.imageToVideoPath,
+                channel.advancedConfig?.createPath,
+                channel.advancedConfig?.editPath,
+                channel.advancedConfig?.imageToVideoPath,
+            ],
             upstreamModel,
             settings.logicalModels,
             settings.generationPointMultipliers,
         );
-    if (pointsRequest?.model && !channelHasModel(channel.models, pointsRequest.model)) return NextResponse.json({ error: "该模型未在后台渠道中启用" }, { status: 403 });
+    if (pointsRequest?.model && executionProfile !== "open-source-practice" && !channelHasModel(channel.models, pointsRequest.model)) return NextResponse.json({ error: "该模型未在后台渠道中启用" }, { status: 403 });
     const access = authorizeSystemAiProxyRequest({
         method: request.method,
         path: globalAdaptation?.path || path,
@@ -125,12 +136,23 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
         upstreamModel,
         preferredLogicalModelId: request.headers.get(SYSTEM_AI_LOGICAL_MODEL_HEADER) || "",
         logicalModels: settings.logicalModels || [],
+        workflowCapability: executionProfile === "open-source-practice" && runningHubWorkflow ? workflowCapabilityForBusinessCode(runningHubWorkflow.businessCode) : undefined,
+        workflowModel: executionProfile === "open-source-practice" && Boolean(runningHubWorkflow),
         apiFormat: globalPreset?.apiFormat || apiFormat,
         pointsUsageKind: pointsRequest?.usageKind,
         upstreamTaskIdHint: readRequestTaskId(readRequestBody(contentType, requestBody.pointsPayload)),
         paths: {
-            create: [globalPreset?.createPath, modelConfig?.createPath, modelConfig?.editPath, modelConfig?.imageToVideoPath, channel.advancedConfig?.createPath, channel.advancedConfig?.editPath, channel.advancedConfig?.imageToVideoPath],
-            query: [globalPreset?.queryPath, modelConfig?.queryPath, channel.advancedConfig?.queryPath],
+            create: [
+                globalPreset?.createPath,
+                runningHubWorkflow?.createPath,
+                modelConfig?.createPath,
+                modelConfig?.editPath,
+                modelConfig?.imageToVideoPath,
+                channel.advancedConfig?.createPath,
+                channel.advancedConfig?.editPath,
+                channel.advancedConfig?.imageToVideoPath,
+            ],
+            query: [globalPreset?.queryPath, runningHubWorkflow?.queryPath, modelConfig?.queryPath, channel.advancedConfig?.queryPath],
             cancel: [
                 { path: modelConfig?.cancelPath, method: modelConfig?.cancelMethod },
                 { path: channel.advancedConfig?.cancelPath, method: channel.advancedConfig?.cancelMethod },
@@ -287,6 +309,13 @@ function injectRunningHubWorkflowApiKey(body: BodyInit | undefined, path: string
     } catch {
         return body;
     }
+}
+
+function runningHubWorkflowForModel(channel: { advancedConfig?: import("@/lib/auth/store").SystemChannelAdvancedConfig }, model: string) {
+    if (!model.trim()) return undefined;
+    return Object.values(channel.advancedConfig?.workflowConfigs || {})
+        .map(normalizeRunningHubWorkflowConfig)
+        .find((workflow) => workflow.workflowKey === model || workflow.workflowCode === model);
 }
 
 function channelHasModel(models: string[], requested: string) {

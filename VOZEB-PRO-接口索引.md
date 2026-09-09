@@ -488,7 +488,7 @@
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | POST | `/api/reference-assets` | 混合 | [route.ts](web/src/app/api/reference-assets/route.ts) | [reference-asset-store](web/src/lib/server/reference-asset-store.ts)<br>[reference-asset-access](web/src/lib/server/reference-asset-access.ts)<br>[creative-upload](web/src/lib/creative-upload.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 参考素材：提交/执行 |
-| GET, HEAD | `/api/reference-assets/[...path]` | 混合 | [route.ts](web/src/app/api/reference-assets/[...path]/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[library-asset-store](web/src/lib/server/library-asset-store.ts)<br>[school-domain-repository](web/src/lib/server/school-domain-repository.ts)<br>[object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 参考素材 / 指定路径：查询、读取元数据；已发布且已分配的课程资料按学校负责人、授课老师和对应班级学生关系授权读取，兼容缺少媒体登记的历史课程资料 |
+| GET, HEAD | `/api/reference-assets/[...path]` | 混合 | [route.ts](web/src/app/api/reference-assets/[...path]/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[library-asset-store](web/src/lib/server/library-asset-store.ts)<br>[object-storage-service](web/src/lib/server/object-storage-service.ts) | PostgreSQL、本地媒体、S3 兼容存储 | 参考素材 / 指定路径：查询、读取元数据 |
 
 ### `referrals`（1）
 

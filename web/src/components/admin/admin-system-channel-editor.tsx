@@ -42,7 +42,48 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
     const detectedCapabilities = channelDetectedCapabilities(channel);
     const selectedGlobalPresets = resolveGlobalAiOpcPresets(advanced);
     const multipleGlobalPresets = advanced.protocol === "globalaiopc" && selectedGlobalPresets.length > 1;
+    const displayedApiKey = channel.apiKey || revealedApiKey;
     const updateAdvanced = (patch: Partial<SystemChannelAdvancedConfig>) => onChange({ advancedConfig: { ...advanced, ...patch } });
+    if (advanced.protocol === "runninghub") {
+        return (
+            <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm shadow-stone-200/40 sm:p-4 dark:border-stone-800 dark:bg-stone-950 dark:shadow-black/20">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">RunningHub 无限练习渠道</div>
+                        <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">仅保存渠道名称、Base URL、API Key 和启用状态；工作流在“工作流”页管理。</div>
+                    </div>
+                    <Switch checkedChildren="启用" unCheckedChildren="停用" checked={channel.enabled} onChange={(enabled) => onChange({ enabled })} />
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <LabeledControl label="渠道名称">
+                        <Input value={channel.name} onChange={(event) => onChange({ name: event.target.value })} />
+                    </LabeledControl>
+                    <LabeledControl label="Base URL">
+                        <Input value={channel.baseUrl} placeholder="https://www.runninghub.cn" onChange={(event) => onChange({ baseUrl: event.target.value })} />
+                    </LabeledControl>
+                    <LabeledControl label="API Key">
+                        <Input
+                            type={apiKeyVisible ? "text" : "password"}
+                            value={displayedApiKey}
+                            placeholder={channel.hasApiKey ? "已安全保存，留空不修改" : "请输入 API Key"}
+                            autoComplete="off"
+                            onChange={(event) => {
+                                setRevealedApiKey(event.target.value);
+                                onChange({ apiKey: event.target.value, clearApiKey: false });
+                            }}
+                        />
+                    </LabeledControl>
+                </div>
+                <div className="mt-4 flex justify-end">
+                    <Popconfirm title="删除这个 RunningHub 渠道？" okText="删除" cancelText="取消" onConfirm={onDelete}>
+                        <Button size="small" danger icon={<Trash2 className="size-3.5" />}>
+                            删除渠道
+                        </Button>
+                    </Popconfirm>
+                </div>
+            </div>
+        );
+    }
     const applyGlobalAiOpcPresets = (values: string[]) => {
         const requested = values.includes(ALL_GLOBAL_AIOPC_PRESETS)
             ? (resolveGlobalAiOpcCatalogPresets(channel.baseUrl, { protocol: "auto" }).length ? resolveGlobalAiOpcCatalogPresets(channel.baseUrl, { protocol: "auto" }) : GLOBAL_AIOPC_PRESETS).map((preset) => preset.id)
@@ -114,7 +155,7 @@ export function SystemChannelEditor({ channel, fetching, onChange, onDelete, onF
         hideApiKey();
         onChange({ apiKey: "", hasApiKey: false, clearApiKey: true });
     };
-    const displayedApiKey = channel.apiKey || revealedApiKey;
+
     const requiresApiKey = channelRequiresApiKey(channel);
     return (
         <>

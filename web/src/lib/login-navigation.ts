@@ -6,13 +6,13 @@ export function safeLoginNextPath(value: string | null | undefined) {
     return path;
 }
 
-export function defaultLoginDestination(role: LoginUserRole) {
-    return role === "admin" ? "/admin" : "/create";
+export function defaultLoginDestination(role: LoginUserRole, featureModules?: { "creative-agent"?: boolean }) {
+    return role === "admin" ? "/admin" : featureModules?.["creative-agent"] === false ? "/practice" : "/create";
 }
 
-export function resolveLoginDestination(user: { role: LoginUserRole }, requestedPath: string | null | undefined) {
+export function resolveLoginDestination(user: { role: LoginUserRole }, requestedPath: string | null | undefined, featureModules?: { "creative-agent"?: boolean }) {
     const nextPath = safeLoginNextPath(requestedPath);
-    const fallback = defaultLoginDestination(user.role);
+    const fallback = defaultLoginDestination(user.role, featureModules);
     if (!nextPath) return fallback;
     if (nextPath === "/login" || nextPath.startsWith("/login?") || nextPath.startsWith("/login#")) return fallback;
     if (user.role !== "admin" && (nextPath === "/admin" || nextPath.startsWith("/admin/") || nextPath.startsWith("/admin?") || nextPath.startsWith("/admin#"))) return `${fallback}?auth=forbidden`;
