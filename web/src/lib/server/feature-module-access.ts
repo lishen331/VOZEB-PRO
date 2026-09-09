@@ -30,6 +30,7 @@ export async function requireFeatureModuleEnabled(moduleId: FeatureModuleId) {
 /** Maps persisted task context back to the feature that initiated it. */
 export function featureModuleForGenerationContext(context: GenerationTaskContext | undefined): FeatureModuleId | undefined {
     if (context?.featureModule === "drama-lab") return "drama-lab";
+    if (context?.surface === "drama" && typeof context.projectId === "string" && /(^|[-_:])drama-lab[-_:]/i.test(context.projectId)) return "drama-lab";
     switch (context?.surface) {
         case "canvas":
             return "canvas";

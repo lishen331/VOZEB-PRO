@@ -5,6 +5,7 @@ export type CanvasAgentRunStage = {
     key: CanvasAgentRunStageKey;
     text: string;
     resumeKey?: CanvasAgentStableStageKey;
+    startedAt?: number;
 };
 
 export type CanvasAgentProgressStep = {

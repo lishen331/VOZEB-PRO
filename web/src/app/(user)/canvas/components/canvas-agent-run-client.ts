@@ -48,6 +48,7 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
             handlers.onPaused(value);
         };
         const reportStage = (stage: CanvasAgentRunStage) => {
+            stage = { ...stage, startedAt: stage.startedAt || Date.now() };
             if (stage.key !== "reconnecting") latestStageKey = stage.key;
             handlers.onStage(stage);
         };
