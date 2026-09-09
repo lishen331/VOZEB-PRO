@@ -5,6 +5,7 @@ import { mediaTaskSource } from "@/lib/media-management-contract";
 import { audioTaskRefundIdempotencyKey, refundAudioTask } from "@/lib/server/audio-task-refund";
 import { getAudioTask, transitionAudioTask, updateAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
 import { generationModelId, systemGenerationChannelId } from "@/lib/server/generation-channel";
+import { getPublicUsersByIds } from "@/lib/auth/store";
 import { generationMediaProxyHeaders } from "@/lib/server/generation-media-authorization";
 import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { fetchInternalApi, isInternalApiBaseUrl } from "@/lib/server/internal-origin";
@@ -19,6 +20,8 @@ import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { refundGenerationCharge } from "@/lib/server/generation-charge-service";
 import { buildRunningHubWorkflowPayload, workflowConfigForTask, workflowTimeoutMs } from "@/lib/server/runninghub-workflow-runtime";
+import { recordGenerationTaskLogResult } from "@/lib/server/generation-log-task-service";
+import { getGenerationLogForUser } from "@/lib/server/generation-log-store";
 
 export type AudioUpstreamStep =
     | { state: "pending"; status: string; upstreamTaskId: string; createPath: string; pointsCost?: number; billingReceiptId?: string }
@@ -167,7 +170,7 @@ export async function queryAudioTaskUpstreamStep(task: AudioTask, origin: string
 export async function persistAudioTaskResult(task: AudioTask, origin: string, resultUrl: string, cookie = "", workerUserId = "") {
     if (/^data:audio\//i.test(resultUrl)) {
         const asset = await writePersistentMediaDataUrl(resultUrl, "audio", mediaContext(task));
-        return completeAudioTask(task, asset.url || `${origin}/api/reference-assets/${asset.token}`, resultUrl.slice(5, resultUrl.indexOf(";")) || mimeFromFormat(task.config.format || "mp3"));
+        return completeAudioTask(task, asset.url || `/api/reference-assets/${asset.token}`, resultUrl.slice(5, resultUrl.indexOf(";")) || mimeFromFormat(task.config.format || "mp3"));
     }
     const path = /^https?:\/\//i.test(resultUrl) ? `/_media?url=${encodeURIComponent(resultUrl)}` : `/${resultUrl.replace(/^\/+/, "")}`;
     const response = await providerFetch(task, origin, cookie, workerUserId, path, { signal: AbortSignal.timeout(workflowTimeoutMs(workflowConfigForTask(task), resolveModelRequestTimeoutMs(task.config, "audio"))) });
@@ -187,7 +190,9 @@ export async function markAudioTaskFailed(task: AudioTask, error: string) {
         return latest;
     }
     await updateAudioTask(current.id, { attempts, candidateConfigs: [], attemptNo: attempts.at(-1)?.attemptNo });
-    return refundAudioTask((await getAudioTask(current.id)) || failed);
+    const latest = (await getAudioTask(current.id)) || failed;
+    await ensurePracticeAudioGenerationLog(latest, "failed", error);
+    return refundAudioTask(latest);
 }
 
 async function createAudioUpstream(task: AudioTask, origin: string, cookie: string, workerUserId: string, payload: Record<string, unknown>, workflow?: ReturnType<typeof workflowConfigForTask>) {
@@ -233,7 +238,7 @@ async function persistAudioBytes(task: AudioTask, origin: string, bytes: Buffer,
     if (!detectedMime && (!declaredMime || looksLikeTextResponse(bytes))) throw new GenerationSubmissionSafeFailure("音频接口返回的不是有效音频文件");
     const mimeType = detectedMime || declaredMime || mimeFromFormat(task.config.format || "mp3");
     const asset = await writePersistentMediaDataUrl(`data:${mimeType};base64,${bytes.toString("base64")}`, "audio", mediaContext(task));
-    return completeAudioTask(task, asset.url || `${origin}/api/reference-assets/${asset.token}`, mimeType);
+    return completeAudioTask(task, asset.url || `/api/reference-assets/${asset.token}`, mimeType);
 }
 
 function looksLikeTextResponse(bytes: Buffer) {
@@ -247,19 +252,59 @@ async function completeAudioTask(task: AudioTask, url: string, mimeType: string)
         if (current?.status === "cancelled") await refundAudioTask(current);
         return current;
     }
-    const completed = await transitionAudioTask(current, ["pending", "running"], { status: "success", result: { url, mimeType }, config: { ...current.config, apiKey: "" }, billing: current.billing });
+    const publicUrl = normalizeAudioResultUrl(url);
+    const completed = await transitionAudioTask(current, ["pending", "running"], { status: "success", result: { url: publicUrl, mimeType }, config: { ...current.config, apiKey: "" }, billing: current.billing });
     if (!completed) {
         const latest = await getAudioTask(task.id);
         if (latest?.status === "cancelled") await refundAudioTask(latest);
         return latest;
     }
+    await ensurePracticeAudioGenerationLog(completed, "success");
     await registerGenerationTaskAssetsForUser(completed.userId, {
         ...completed,
         taskId: completed.id,
         title: completed.prompt.slice(0, 80) || "生成音频",
-        assets: [{ type: "audio", url, mimeType }],
+        assets: [{ type: "audio", url: publicUrl, mimeType }],
     }).catch((error) => console.error("Creative audio asset registration failed", error));
     return completed;
+}
+
+export async function ensurePracticeAudioGenerationLog(task: AudioTask, status: "success" | "failed", error?: string) {
+    if (task.executionProfile !== "open-source-practice" || task.businessCode !== "dubbing") return;
+    try {
+        if (await getGenerationLogForUser(task.userId, `audio-task:${task.id}`)) return;
+        const user = (await getPublicUsersByIds([task.userId]))[0];
+        if (!user) return;
+        await recordGenerationTaskLogResult({
+            taskId: task.id,
+            userId: task.userId,
+            username: user.username,
+            displayName: user.displayName,
+            kind: "audio",
+            source: "practice",
+            status,
+            title: task.prompt.slice(0, 80) || "配音练习",
+            prompt: task.prompt,
+            model: generationModelId(task.config),
+            summary: status === "success" ? "配音练习完成" : "配音练习失败",
+            durationMs: Math.max(0, task.updatedAt - task.createdAt),
+            asset: status === "success" && task.result ? { type: "audio", url: normalizeAudioResultUrl(task.result.url), mimeType: task.result.mimeType } : undefined,
+            error,
+            createdAt: task.createdAt,
+        });
+    } catch (logError) {
+        console.error("Practice audio generation log failed", { taskId: task.id, error: logError });
+    }
+}
+
+function normalizeAudioResultUrl(value: string) {
+    try {
+        const parsed = new URL(value);
+        if (["127.0.0.1", "localhost"].includes(parsed.hostname) && parsed.pathname.startsWith("/api/")) return `${parsed.pathname}${parsed.search}`;
+    } catch {
+        // Keep relative and public URLs unchanged.
+    }
+    return value;
 }
 
 async function markAudioAttemptSucceeded(task: AudioTask, billing: { pointsCost?: number; billingReceiptId?: string }) {

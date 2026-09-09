@@ -1053,13 +1053,13 @@ CREATE TABLE IF NOT EXISTS generation_logs (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     completed_at timestamptz,
-    CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video', 'text')),
+    CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video', 'audio', 'text')),
     CONSTRAINT generation_logs_status CHECK (status IN ('pending', 'success', 'failed'))
 );
 ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS conversation_id text REFERENCES creative_conversations(id) ON DELETE SET NULL;
 ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS request_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE generation_logs DROP CONSTRAINT IF EXISTS generation_logs_kind;
-ALTER TABLE generation_logs ADD CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video', 'text'));
+ALTER TABLE generation_logs ADD CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video', 'audio', 'text'));
 UPDATE creative_conversations AS conversation
 SET source = CASE WHEN log.source = 'video-workbench' THEN 'video-workbench' ELSE 'image-workbench' END
 FROM generation_logs AS log
@@ -1085,8 +1085,11 @@ CREATE TABLE IF NOT EXISTS generation_log_assets (
     height integer,
     bytes bigint,
     sort_order integer NOT NULL DEFAULT 0,
-    CONSTRAINT generation_log_assets_type CHECK (type IN ('image', 'video'))
+    CONSTRAINT generation_log_assets_type CHECK (type IN ('image', 'video', 'audio'))
 );
+
+ALTER TABLE generation_log_assets DROP CONSTRAINT IF EXISTS generation_log_assets_type;
+ALTER TABLE generation_log_assets ADD CONSTRAINT generation_log_assets_type CHECK (type IN ('image', 'video', 'audio'));
 
 CREATE INDEX IF NOT EXISTS generation_log_assets_log_idx ON generation_log_assets (generation_log_id, sort_order);
 

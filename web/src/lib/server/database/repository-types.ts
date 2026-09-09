@@ -157,7 +157,7 @@ export type UserRole = "admin" | "user";
 export type UserStatus = "active" | "disabled";
 export type PromptScope = "library" | "user";
 export type UsageKind = "api" | "image" | "video" | "audio" | "text";
-export type GenerationKind = "image" | "video" | "text";
+export type GenerationKind = "image" | "video" | "audio" | "text";
 export type GenerationStatus = "pending" | "success" | "failed";
 export type AuditStatus = "success" | "failure";
 export type BillingOrderStatus = "pending" | "paid" | "closed" | "canceled" | "refunding" | "refunded";
@@ -418,7 +418,7 @@ export type PromptRecord = {
 };
 
 export type GenerationLogAssetRecord = {
-    type: "image" | "video";
+    type: "image" | "video" | "audio";
     url: string;
     remoteUrl?: string;
     serverUrl?: string;

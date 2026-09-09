@@ -10,7 +10,8 @@ import { requirePracticeAccess, type PracticeActor } from "./practice-access-ser
 import { getTextTask } from "@/lib/server/text-task-store";
 import { getImageTask } from "@/lib/server/image-task-store";
 import { getVideoTask } from "@/lib/server/video-task-store";
-import { getAudioTask } from "@/lib/server/audio-task-store";
+import { getAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
+import { ensurePracticeAudioGenerationLog } from "@/lib/server/audio-task-runtime";
 import { getStoredGenerationTaskByRequest } from "@/lib/server/generation-task-store";
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "./ip-library-reference-service";
@@ -322,7 +323,10 @@ async function publicTaskResult(session: PracticeSessionRecord) {
     if (!task || task.userId !== session.userId) return undefined;
     if (task.status === "pending" || task.status === "running") return { status: task.status } as const;
     if (task.status === "needs_review") return { status: "error" as const, error: (task as { error?: string }).error || "视频任务已超过自动查询时间，请联系管理员检查上游状态" };
-    if (task.status === "error") return { status: "error" as const, error: task.error || "练习失败" };
+    if (task.status === "error") {
+        if (taskType === "audio") await ensurePracticeAudioGenerationLog(task as AudioTask, "failed", task.error || "练习失败");
+        return { status: "error" as const, error: task.error || "练习失败" };
+    }
     if (task.status === "cancelled") return { status: "cancelled" as const, error: task.error };
     const result = task && typeof task === "object" && task.result && typeof task.result === "object" ? (task.result as Record<string, unknown>) : {};
     if (taskType === "text") return { status: "success" as const, text: typeof result.content === "string" ? result.content : undefined };
@@ -334,7 +338,17 @@ async function publicTaskResult(session: PracticeSessionRecord) {
         const url = typeof result.url === "string" ? result.url : typeof result.remoteUrl === "string" ? result.remoteUrl : undefined;
         return { status: "success" as const, media: url ? { kind: "video" as const, url, durationMs: typeof result.durationMs === "number" ? result.durationMs : undefined } : undefined };
     }
-    return { status: "success" as const, media: typeof result.url === "string" ? { kind: "audio" as const, url: result.url } : undefined };
+    await ensurePracticeAudioGenerationLog(task as AudioTask, "success");
+    const url = typeof result.url === "string" ? normalizePracticeAudioUrl(result.url) : undefined;
+    return { status: "success" as const, media: url ? { kind: "audio" as const, url } : undefined };
+}
+
+function normalizePracticeAudioUrl(value: string) {
+    try {
+        const parsed = new URL(value);
+        if (["127.0.0.1", "localhost"].includes(parsed.hostname) && parsed.pathname.startsWith("/api/")) return `${parsed.pathname}${parsed.search}`;
+    } catch {}
+    return value;
 }
 
 async function synchronizePracticeSessionLifecycle(store: PracticeSessionStore, session: PracticeSessionRecord) {

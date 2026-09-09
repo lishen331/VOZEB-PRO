@@ -49,6 +49,7 @@ export function buildCreateGenerationOverview(logs: StoredGenerationLog[]): Pick
     for (const log of sorted) {
         if (log.status !== "success") continue;
         for (const [index, asset] of log.assets.entries()) {
+            if (asset.type === "audio") continue;
             const url = stableAssetUrl(asset).trim();
             if (!url || /^(data|blob):/i.test(url) || seen.has(url)) continue;
             seen.add(url);

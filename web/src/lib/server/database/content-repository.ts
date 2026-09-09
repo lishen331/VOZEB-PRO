@@ -289,6 +289,7 @@ export class GenerationLogsRepository {
                 JOIN generation_log_assets asset ON asset.generation_log_id = log.id
                 WHERE log.user_id = $1
                   AND log.status = 'success'
+                  AND asset.type IN ('image', 'video')
                   AND COALESCE(NULLIF(asset.server_url, ''), NULLIF(asset.url, ''), NULLIF(asset.remote_url, '')) IS NOT NULL
                   AND COALESCE(NULLIF(asset.server_url, ''), NULLIF(asset.url, ''), NULLIF(asset.remote_url, '')) !~* '^(data|blob):'
             ),
