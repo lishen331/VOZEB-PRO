@@ -4931,9 +4931,20 @@ function StoryboardPanel({
                 if (!disposedRef.current) messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
                 return;
             }
+            const missingByShot = candidates.map((shot) => ({ shot, missing: missingShotAssetLabels(sourceProject, shot) })).filter((item) => item.missing.length);
+            const executableCandidates = candidates.filter((shot) => !missingByShot.some((item) => item.shot.id === shot.id));
+            if (missingByShot.length && !disposedRef.current && !abortController.signal.aborted) {
+                const details = missingByShot
+                    .slice(0, 8)
+                    .map((item) => `镜头 ${item.shot.shotNumber}：${item.missing.join("、")}`)
+                    .join("；");
+                const suffix = missingByShot.length > 8 ? `；另有 ${missingByShot.length - 8} 个镜头缺少资产参考图` : "";
+                messageApi.warning({ content: `已跳过 ${missingByShot.length} 个缺少资产参考图的镜头：${details}${suffix}`, key: "drama-batch-missing-assets", duration: 8 });
+            }
+            if (!executableCandidates.length) return;
             const targets: Array<{ shotId: string; taskId: string }> = [];
             const submissionFailures: Array<{ shotId: string; error: string }> = [];
-            for (const shot of candidates) {
+            for (const shot of executableCandidates) {
                 if (abortController.signal.aborted || disposedRef.current) return;
                 let observedShot = shot;
                 if (kind === "video" && shot.generationTaskId) {

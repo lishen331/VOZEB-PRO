@@ -18,6 +18,8 @@ describe("drama lab storyboard frame controls", () => {
         expect(source).toContain("batchAbortRef.current?.abort()");
         expect(source).toContain("取消批量任务");
         expect(source).toContain('batchRunning === "image" || batchRunning === "video"');
+        expect(source).toContain("已跳过");
+        expect(source).toContain("executableCandidates");
     });
     it("renders per-frame upload and lock controls with independent busy keys", async () => {
         const source = await readFile(workbenchPath, "utf8");
