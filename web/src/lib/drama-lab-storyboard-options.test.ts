@@ -28,7 +28,7 @@ describe("storyboard modes", () => {
     });
 });
 
- describe("image-stage options are not extraction constraints", () => {
+describe("image-stage options are not extraction constraints", () => {
     it.each(["single", "quad_grid", "nine_grid", "first_last"])("does not persist or inject image mode %s into script extraction", (sequenceMode) => {
         const options = normalizeDramaLabStoryboardOptions({ sequenceMode, storyboardFrameMode: "first_last", shotCount: "12" });
         expect(options).toEqual({ shotCount: 12 });

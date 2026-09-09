@@ -9,7 +9,11 @@ function findControl(node: ReactNode, label: string): ReactElement<Record<string
     for (const child of Children.toArray(node)) {
         if (!isValidElement<Record<string, unknown>>(child)) continue;
         if (child.props["aria-label"] === label) return child;
-        try { return findControl(child.props.children as ReactNode, label); } catch { /* Search the next sibling. */ }
+        try {
+            return findControl(child.props.children as ReactNode, label);
+        } catch {
+            /* Search the next sibling. */
+        }
     }
     throw new Error(`Missing control: ${label}`);
 }
@@ -28,7 +32,15 @@ describe("storyboard constraints", () => {
         expect(html.indexOf('aria-label="视频总时长（秒）"')).toBeLessThan(html.indexOf('aria-label="分镜创作与旁白"'));
     });
     it("keeps explicit fractional duration visible and disables every actual control", () => {
-        const element = DramaLabStoryboardConstraints({ value: { shotCount: "12", totalDuration: "90.5" }, onChange: vi.fn(), disabled: true, storyboardFrameMode: "first_last", onStoryboardFrameModeChange: vi.fn(), sequenceMode: "single", onSequenceModeChange: vi.fn() });
+        const element = DramaLabStoryboardConstraints({
+            value: { shotCount: "12", totalDuration: "90.5" },
+            onChange: vi.fn(),
+            disabled: true,
+            storyboardFrameMode: "first_last",
+            onStoryboardFrameModeChange: vi.fn(),
+            sequenceMode: "single",
+            onSequenceModeChange: vi.fn(),
+        });
         const html = renderToStaticMarkup(element);
         expect(html).toContain('value="90.5"');
         const controls = html.match(/<(?:input|button|select)\b[^>]*>/g) || [];
@@ -94,7 +106,9 @@ describe("storyboard mode controls", () => {
         expect(onChange).not.toHaveBeenCalled();
     });
     it("disables sequence selection with first/last frames without rewriting its controlled value", () => {
-        const html = renderToStaticMarkup(<DramaLabStoryboardConstraints value={emptyDraft} onChange={() => {}} disabled={false} storyboardFrameMode="first_last" onStoryboardFrameModeChange={() => {}} sequenceMode="nine_grid" onSequenceModeChange={() => {}} />);
+        const html = renderToStaticMarkup(
+            <DramaLabStoryboardConstraints value={emptyDraft} onChange={() => {}} disabled={false} storyboardFrameMode="first_last" onStoryboardFrameModeChange={() => {}} sequenceMode="nine_grid" onSequenceModeChange={() => {}} />,
+        );
         expect(html).toMatch(/<select[^>]*aria-label="序列图模式"[^>]*disabled=""/);
         expect(html).toContain('<option value="nine_grid" selected="">');
     });
