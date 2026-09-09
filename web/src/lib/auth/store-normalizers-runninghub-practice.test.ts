@@ -7,8 +7,8 @@ import { DEFAULT_SETTINGS } from "./store-foundation";
 import { normalizeSettings } from "./store-normalizers";
 import type { AuthSettings, RunningHubWorkflowConfig } from "./store-types";
 
-describe("legacy RunningHub practice workflow routing", () => {
-    it("derives a practice model from an already enabled and tested workflow", () => {
+describe("RunningHub practice workflow cleanup", () => {
+    it("clears legacy pseudo-models while preserving the workflow configuration", () => {
         const workflow: RunningHubWorkflowConfig = {
             workflowKey: "runninghub-demo-prop_main_view",
             workflowCode: "prop_main_view",
@@ -68,11 +68,12 @@ describe("legacy RunningHub practice workflow routing", () => {
             practiceWorkflowModels: {},
         } as AuthSettings);
 
-        const modelId = "runninghub-workflow-image-rh-practice";
-        expect(normalized.practiceWorkflowModels["storyboard-image"]).toEqual([modelId]);
-        expect(normalized.systemChannels[0].models).toContain(modelId);
-        expect(normalized.logicalModels).toContainEqual(expect.objectContaining({ id: modelId, capability: "image", enabled: true }));
-        expect(resolvePracticeModuleModelOptions(normalized, "prop")).toEqual([{ id: modelId, label: "RunningHub 无限练习 · 图片" }]);
-        expect(resolvePracticeModelFromSettings(normalized, "prop", modelId, "prop_main_view")).toMatchObject({ logicalModelId: modelId, capability: "image", workflow: { workflowCode: "prop_main_view" } });
+        expect(normalized.systemChannels[0].purpose).toBe("open-source-practice");
+        expect(normalized.systemChannels[0].models).toEqual([]);
+        expect(normalized.systemChannels[0].advancedConfig?.workflowConfigs).toHaveProperty(workflow.workflowKey);
+        expect(normalized.practiceWorkflowModels).toEqual({});
+        expect(normalized.logicalModels).toEqual([]);
+        expect(resolvePracticeModuleModelOptions(normalized, "prop")).toEqual([]);
+        expect(() => resolvePracticeModelFromSettings(normalized, "prop", "ignored-model", "prop_main_view")).not.toThrow();
     });
 });

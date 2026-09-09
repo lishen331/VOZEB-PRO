@@ -390,25 +390,21 @@ async function defaultResolveModel(module: PracticeModuleKind, requestedLogicalM
 
 export function resolvePracticeModelFromSettings(settings: Awaited<ReturnType<typeof getAuthSettings>>, module: PracticeModuleKind, requestedLogicalModelId?: string, requestedWorkflowCode?: string): PracticeModelResolution {
     const capability = module === "script" ? "text" : module === "storyboard-video" ? "video" : module === "dubbing" || module === "music" ? "audio" : "image";
-    const key = `${capability}Model` as "textModel" | "imageModel" | "videoModel" | "audioModel";
-    const legacyBindingKey = module === "character" || module === "scene" || module === "prop" ? "storyboard-image" : module;
-    const rawBindings: unknown = settings.practiceWorkflowModels[legacyBindingKey];
-    const boundModels = Array.isArray(rawBindings) ? rawBindings.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : typeof rawBindings === "string" && rawBindings.trim().length > 0 ? [rawBindings] : [];
-    if (module !== "script" && boundModels.length) {
-        const requested = requestedLogicalModelId?.trim();
-        if (requested && !boundModels.some((id) => id.toLowerCase() === requested.toLowerCase())) throw new PracticeServiceError("所选练习模型不可用", 400, "PRACTICE_MODEL_UNAVAILABLE");
-        const candidates = requested ? [requested] : boundModels;
-        let hadModel = false;
-        for (const candidate of candidates) {
-            const model = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, candidate, "", "open-source-practice");
-            if (!model) continue;
-            hadModel = true;
-            const workflow = resolvePracticeWorkflow(Object.values(model.channel.advancedConfig?.workflowConfigs || {}), model.channel.id, module, requestedWorkflowCode);
-            if (workflow) return { logicalModelId: model.logicalModelId, capability, workflow };
-        }
-        throw new PracticeServiceError(hadModel ? "当前练习模块没有可用工作流" : "当前练习模块没有可用的开源模型", 503, hadModel ? "PRACTICE_WORKFLOW_UNAVAILABLE" : "PRACTICE_MODEL_UNAVAILABLE");
+    const expectedCode =
+        requestedWorkflowCode ||
+        ({ character: "character_main_view", scene: "scene_main_view", prop: "prop_main_view", "storyboard-image": "storyboard_shot", "storyboard-video": "storyboard_shot_video", dubbing: "storyboard_dialogue_audio" } as Record<string, string>)[module];
+    if (module !== "script") {
+        const workflowCandidates = settings.systemChannels
+            .filter((channel) => channel.enabled && channel.advancedConfig?.protocol === "runninghub" && channel.purpose === "open-source-practice")
+            .flatMap((channel) => Object.values(channel.advancedConfig?.workflowConfigs || {}).map((raw) => ({ channel, workflow: normalizeWorkflow(raw) })))
+            .filter(({ workflow }) => workflow.enabled && workflow.capability === capability && workflow.workflowCode === expectedCode)
+            .sort((left, right) => right.workflow.version - left.workflow.version);
+        const selected = workflowCandidates[0];
+        if (selected) return { logicalModelId: requestedLogicalModelId?.trim() || "", capability, workflow: selected.workflow };
+        if (settings.systemChannels.some((channel) => channel.advancedConfig?.protocol === "runninghub")) throw new PracticeServiceError("当前练习模块没有可用工作流", 503, "PRACTICE_WORKFLOW_UNAVAILABLE");
     }
-    const requestedModel = requestedLogicalModelId?.trim() || boundModels[0] || settings.practiceDefaultModels[key];
+    const key = `${capability}Model` as "textModel" | "imageModel" | "videoModel" | "audioModel";
+    const requestedModel = requestedLogicalModelId?.trim() || settings.practiceDefaultModels[key] || "";
     const model = resolveLogicalModel({ logicalModels: settings.logicalModels, systemChannels: settings.systemChannels }, capability, requestedModel, "", "open-source-practice");
     if (!model || !model.channel || !["open-source-practice", "shared"].includes(model.channel.purpose || "shared")) throw new PracticeServiceError("当前练习模块没有可用的开源模型", 503, "PRACTICE_MODEL_UNAVAILABLE");
     if (module === "script") return { logicalModelId: model.logicalModelId, capability };

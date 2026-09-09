@@ -279,7 +279,7 @@ Schema 初始化在 [schema.ts](web/src/lib/server/database/schema.ts)、[schema
 | 图像/视频/音频/文本 | `/image`、`/video` | `/*-tasks`、`/video-generation-tasks` | 各类型 config/runtime/store/refund | 积分、Worker、模型、媒体 | 创建、轮询、取消、退款 |
 | Canvas | `/canvas` | `/api/canvas` | Canvas Project Service/Store | `canvas_projects` | 普通画布 CRUD、所有权、短剧专属画布隔离 |
 | 短剧 | `/drama`、`/drama-lab`、`/drama-canvas/[id]` | `/api/drama`、`/api/drama-lab` | Drama Project、Episode Canvas、Analysis、Render、Jianying | `drama_projects`、按集隔离的 `canvas_projects`、FFmpeg、生成任务 | 分析、版本、一集一画布、剧集切换、渲染、导出 |
-| 素材与媒体 | `/assets` | `/api/library-assets`、`/api/reference-assets`、`/api/media-*` | Library/Reference/Media Service | 本地卷、对象存储 | 上传、读取、删除引用保护 |
+| 素材与媒体 | `/assets` | `/api/library-assets`、`/api/reference-assets`、`/api/media-*` | Library/Reference/Media Service、School Domain Repository | 本地卷、对象存储、课程资料关系 | 上传、读取、删除引用保护；课程效果中的已发布课程资料按学校分配、授课关系和班级成员关系授权读取，历史资料缺少媒体登记时仍安全回读 |
 | 提示词 | `/prompts`、`/my-prompts` | `/api/prompts`、`/api/my-prompts` | Auth Store/Prompt 数据 | PostgreSQL | 公开筛选、用户 CRUD |
 | 作品与社区 | `/works`、`/gallery`、分享页 | `/api/works`、`/api/public`、`/api/community` | Publication/Governance/Community | 作品版本、互动、媒体授权 | 发布、审核、互动、匿名读取 |
 | 计费与增长 | `/billing` | `/api/billing`、`/api/cdk`、`/api/referrals` | Billing/Coupon/Promotion/Referral | 支付上游、积分事务 | 下单、回调、退款、幂等 |

@@ -50,7 +50,7 @@ const workflow = {
     inputSchema: [{ key: "prompt", label: "提示词", type: "textarea", required: true }],
     nodeMappings: [{ paramKey: "prompt", nodeId: "87", fieldName: "text", valueType: "STRING", source: "INPUT", inputKey: "prompt" }],
     outputMappings: [{ key: "image", label: "图片", nodeId: "90", assetType: "IMAGE", required: true, primary: true }],
-    lastTestAt: "2026-09-01T00:00:00.000Z",
+    workflowApiJson: "{}",\n    workflowJsonFingerprint: "test-json",\n    lastTestConfigFingerprint: "",\n    lastTestAt: "2026-09-01T00:00:00.000Z",
     lastTestResult: "success",
 } satisfies RunningHubWorkflowConfig;
 
@@ -238,3 +238,4 @@ describe("runninghub workflow service", () => {
         await expect(getWorkflow("missing")).rejects.toMatchObject({ status: 404 });
     });
 });
+
