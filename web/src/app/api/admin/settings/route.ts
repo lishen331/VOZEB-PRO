@@ -9,7 +9,7 @@ import { mergeSystemChannelSecrets, practiceDefaultModelValidationErrors, runnin
 import { auditActorFromRequest, safeRecordAuditLog } from "@/lib/server/audit-log-store";
 import { invalidatePublicSiteSettings } from "@/lib/server/site-metadata";
 import { channelProtocolValidationErrors, normalizeStrictChannelModelConfigs } from "@/lib/channel-protocol-registry";
-import { hasAllAdminPermissions, hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";`nimport { isPostgresDatabaseEnabled } from "@/lib/server/database";
+import { hasAllAdminPermissions, hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";`r`nimport { isPostgresDatabaseEnabled } from "@/lib/server/database";
 
 export const runtime = "nodejs";
 
