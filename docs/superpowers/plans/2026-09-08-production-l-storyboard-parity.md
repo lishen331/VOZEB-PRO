@@ -210,3 +210,12 @@
 - 修复：新增 `recoveryStartedRef`，按 `projectId:episodeId` 记录恢复是否已启动；同一项目/剧集在当前挂载周期内只启动一次。清理时仅取消请求和清理 in-flight 引用，不删除启动标记。
 - 切换不同剧集使用不同 key；任务恢复失败仍保留分镜卡片手动同步入口，不进入无限自动重试。
 - 本地验证：相关分镜控制与批量测试 12/12 通过，TypeScript 通过，Prettier/diff 检查通过；部署后需在测试环境确认同一剧集点击分镜只发起一次恢复请求。
+
+### 分镜工作台闪烁根因修复（2026-09-09）
+
+- 测试环境复现：点击「xxx」项目制作页的「分镜工作台」后，5 秒内重复请求 `recover-generation` 约 34 次，并伴随项目/任务数据刷新。
+- 根因：恢复 effect 的依赖包含 `onReload`、`messageApi` 等父层回调引用；恢复后触发项目刷新，父组件重新创建回调，effect 清理并重新启动，形成恢复请求循环。
+- 修复：使用 `recoveryReloadRef` / `recoveryMessageRef` 保存最新回调，恢复 effect 只依赖 `project.id` 与 `episodeId`；结合 `recoveryStartedRef`，同一项目/剧集挂载周期只启动一次。
+- 恢复失败仍保留手动同步入口；切换到其他剧集使用新的 key，不影响不同剧集恢复。
+- 本地回归：分镜控制测试 4/4 通过，批量等待器测试 9/9 通过，TypeScript 和 Prettier 通过。
+- 本次修复需重新部署到测试环境后再确认重复请求已消失。

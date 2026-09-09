@@ -21,6 +21,13 @@ describe("drama lab storyboard frame controls", () => {
         expect(source).toContain("已跳过");
         expect(source).toContain("executableCandidates");
     });
+    it("scopes recovery to the project and episode instead of callback identity", async () => {
+        const source = await readFile(workbenchPath, "utf8");
+        expect(source).toContain("const recoveryReloadRef = useRef(onReload)");
+        expect(source).toContain("recoveryReloadRef.current = onReload");
+        expect(source).toContain("[episodeId, project.id]");
+    });
+
     it("renders per-frame upload and lock controls with independent busy keys", async () => {
         const source = await readFile(workbenchPath, "utf8");
         expect(source).toContain("/frames/upload?episodeId=");

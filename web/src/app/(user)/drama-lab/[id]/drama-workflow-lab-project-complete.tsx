@@ -4044,6 +4044,10 @@ function StoryboardPanel({
     const recoveryStateRef = useRef(new Map<string, "pending" | "ready" | "failed">());
     const recoveryStartedRef = useRef(new Set<string>());
     const recoveryAbortRef = useRef<AbortController | null>(null);
+    const recoveryReloadRef = useRef(onReload);
+    recoveryReloadRef.current = onReload;
+    const recoveryMessageRef = useRef(messageApi);
+    recoveryMessageRef.current = messageApi;
 
     const updateShot = async (shotId: string, patch: Partial<Shot>, options: SaveOptions = { silent: true }) => {
         const saved = await onSave(
@@ -4428,10 +4432,10 @@ function StoryboardPanel({
                 const result = data.data as { tasks?: Array<{ binding?: string }>; syncedShotIds?: string[]; syncErrors?: unknown[] } | undefined;
                 const discovered = Boolean(result?.tasks?.some((task) => task.binding === "discovered"));
                 const changed = discovered || Boolean(result?.syncedShotIds?.length);
-                if (changed) await onReload();
+                if (changed) await recoveryReloadRef.current();
                 if (disposed || controller.signal.aborted) return false;
                 if (result?.syncErrors?.length) {
-                    messageApi.warning({ key: `drama-lab-recovery:${episodeId}`, content: "部分分镜视频任务未能自动恢复，请在对应分镜卡片中手动同步。", duration: 6 });
+                    recoveryMessageRef.current.warning({ key: `drama-lab-recovery:${episodeId}`, content: "部分分镜视频任务未能自动恢复，请在对应分镜卡片中手动同步。", duration: 6 });
                 }
                 recoveryAttemptedRef.current.add(recoveryKey);
                 recoveryStateRef.current.set(recoveryKey, "ready");
@@ -4461,7 +4465,7 @@ function StoryboardPanel({
             if (recoveryAbortRef.current === controller) recoveryAbortRef.current = null;
             if (recoveryInFlightRef.current.get(recoveryKey) === pending) recoveryInFlightRef.current.delete(recoveryKey);
         };
-    }, [episodeId, messageApi, onReload, project.id]);
+    }, [episodeId, project.id]);
 
     const handleAdd = () => {
         setEditingShot(null);
