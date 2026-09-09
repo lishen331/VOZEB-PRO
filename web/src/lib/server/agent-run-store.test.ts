@@ -298,7 +298,7 @@ describe("setAgentRunStatus", () => {
 
     it("persists public stage progress across run updates", async () => {
         let current = { ...canvasRun(), status: "running" as const, tasks: [{ ...canvasRun().tasks[0], status: "running" as const }] };
-        const mutations: any[] = [];
+        const mutations: Array<{ assistant?: { status?: string }; run: unknown }> = [];
         mocks.mutateCreativeRun.mockImplementation(async (_id, _ttl, mutate) => {
             const mutation = mutate(current);
             if (!mutation) return null;
