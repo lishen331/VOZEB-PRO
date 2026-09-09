@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from "react";
 import { Button, Popover, Tooltip } from "antd";
 import { ArrowUp, Check, CheckCircle2, Circle, CircleAlert, Crosshair, LoaderCircle, Pause, Play, Plus, RotateCcw, Wrench, X, XCircle } from "lucide-react";
 
@@ -235,6 +235,22 @@ function AgentToolCard({ title, text, detail, theme }: { title: string; text: st
 }
 
 export function AgentWorkingMessage({ theme, stage }: { theme: (typeof canvasThemes)[keyof typeof canvasThemes]; stage: CanvasAgentRunStage }) {
+    const [now, setNow] = useState(() => Date.now());
+    const stageKey = `${stage.key}:${stage.resumeKey || ""}`;
+    const startedAtRef = useRef(Date.now());
+    const previousKeyRef = useRef(stageKey);
+    useEffect(() => {
+        if (previousKeyRef.current !== stageKey) {
+            previousKeyRef.current = stageKey;
+            startedAtRef.current = stage.startedAt || Date.now();
+            setNow(Date.now());
+        }
+    }, [stage.startedAt, stageKey]);
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(Date.now()), 1000);
+        return () => window.clearInterval(timer);
+    }, []);
+    const elapsedSeconds = Math.max(0, Math.floor((now - (stage.startedAt || startedAtRef.current)) / 1000));
     const steps = canvasAgentProgressSteps(stage);
     return (
         <div className="flex items-start gap-3" aria-live="polite">
@@ -245,10 +261,16 @@ export function AgentWorkingMessage({ theme, stage }: { theme: (typeof canvasThe
                     {steps.map((step) => (
                         <div key={step.key} className="flex items-center gap-2 text-xs" style={{ color: step.status === "pending" ? theme.node.muted : theme.node.text, opacity: step.status === "pending" ? 0.58 : 1 }}>
                             {step.status === "completed" ? <Check className="size-3.5 shrink-0 text-emerald-500" /> : null}
-                            {step.status === "running" ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-sky-500" /> : null}
+                            {step.status === "failed" ? <X className="size-3.5 shrink-0 text-red-500" /> : null}
+                            {step.status === "running" ? <Circle className="size-3.5 shrink-0 text-sky-500" /> : null}
                             {step.status === "paused" ? <Pause className="size-3.5 shrink-0 text-amber-500" /> : null}
                             {step.status === "pending" ? <Circle className="size-3.5 shrink-0" /> : null}
                             <span>{step.label}</span>
+                            {step.status === "running" ? (
+                                <span className="ml-auto tabular-nums" data-canvas-agent-elapsed>
+                                    {elapsedSeconds} 秒
+                                </span>
+                            ) : null}
                         </div>
                     ))}
                 </div>

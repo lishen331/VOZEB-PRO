@@ -5,12 +5,13 @@ export type CanvasAgentRunStage = {
     key: CanvasAgentRunStageKey;
     text: string;
     resumeKey?: CanvasAgentStableStageKey;
+    startedAt?: number;
 };
 
 export type CanvasAgentProgressStep = {
     key: "canvas" | "skills" | "plan" | "execute" | "review" | "deliver";
     label: string;
-    status: "pending" | "running" | "completed" | "paused";
+    status: "pending" | "running" | "completed" | "paused" | "failed";
 };
 
 const definitions: Array<Pick<CanvasAgentProgressStep, "key" | "label">> = [

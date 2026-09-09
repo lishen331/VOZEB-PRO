@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { watchCanvasAgentRun } from "./canvas-agent-run-client";
 import type { CanvasAgentRunStage } from "./canvas-agent-progress";
 
@@ -125,7 +125,7 @@ describe("Canvas Agent 事件流", () => {
                 messages.push(text);
                 details.push(detail);
             },
-            onStage: (stage) => stages.push(stage),
+            onStage: (stage) => stages.push({ key: stage.key, text: stage.text, ...(stage.resumeKey ? { resumeKey: stage.resumeKey } : {}) }),
             onPaused: () => undefined,
             onOps: (value) => ops.push(...value),
         });
@@ -213,7 +213,7 @@ describe("Canvas Agent 事件流", () => {
         const promise = watchCanvasAgentRun("run", {
             onPlan: () => undefined,
             onAssistant: (text, detail) => messages.push({ text, detail }),
-            onStage: (stage) => stages.push(stage),
+            onStage: (stage) => stages.push({ key: stage.key, text: stage.text, ...(stage.resumeKey ? { resumeKey: stage.resumeKey } : {}) }),
             onPaused: () => undefined,
             onOps: (value) => ops.push(...value),
         });
@@ -281,7 +281,7 @@ describe("Canvas Agent 事件流", () => {
         const promise = watchCanvasAgentRun("run", {
             onPlan: () => undefined,
             onAssistant: () => undefined,
-            onStage: (stage) => stages.push(stage),
+            onStage: (stage) => stages.push({ key: stage.key, text: stage.text, ...(stage.resumeKey ? { resumeKey: stage.resumeKey } : {}) }),
             onPaused: () => undefined,
             onOps: () => undefined,
         });
@@ -331,7 +331,7 @@ describe("Canvas Agent 事件流", () => {
             {
                 onPlan: () => undefined,
                 onAssistant: (text) => messages.push(text),
-                onStage: (stage) => stages.push(stage),
+                onStage: (stage) => stages.push({ key: stage.key, text: stage.text, ...(stage.resumeKey ? { resumeKey: stage.resumeKey } : {}) }),
                 onPaused: () => undefined,
                 onOps: () => undefined,
             },

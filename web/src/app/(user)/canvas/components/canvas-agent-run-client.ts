@@ -24,6 +24,7 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
         let settled = false;
         let paused: boolean | undefined;
         let latestStageKey: CanvasAgentStableStageKey = "planning";
+        let stageStartedAt = Date.now();
         let latestOutput: { nodeIds?: string[]; taskType?: "text" | "image" | "video" | "audio" } | undefined;
         const completedOutputNodeIds = new Set<string>();
         let latestFailedTask: { taskId: string; title?: string } | undefined;
@@ -48,8 +49,10 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
             handlers.onPaused(value);
         };
         const reportStage = (stage: CanvasAgentRunStage) => {
+            const stableKey = stage.key === "reconnecting" ? stage.resumeKey || latestStageKey : stage.key;
+            if (stableKey !== latestStageKey) stageStartedAt = Date.now();
             if (stage.key !== "reconnecting") latestStageKey = stage.key;
-            handlers.onStage(stage);
+            handlers.onStage({ ...stage, startedAt: stage.startedAt || stageStartedAt });
         };
         const reconcileRun = async () => {
             if (await stopIfClientSessionExpired()) {
