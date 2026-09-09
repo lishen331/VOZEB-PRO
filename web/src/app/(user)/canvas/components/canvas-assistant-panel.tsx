@@ -411,7 +411,10 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                                 ...(detail?.nodeIds?.length || detail?.runId || guard.outputNodeIds.size ? { detail: { ...detail, nodeIds: Array.from(new Set([...(detail?.nodeIds || []), ...guard.outputNodeIds])) } } : {}),
                             });
                         },
-                        onStage: (stage) => { latestStageProgress = stage.progress || latestStageProgress; updateSessionRun(sessionId, runId, { stage }); },
+                        onStage: (stage) => {
+                            latestStageProgress = stage.progress || latestStageProgress;
+                            updateSessionRun(sessionId, runId, { stage });
+                        },
                         onPaused: (paused) => updateSessionRun(sessionId, runId, { paused }),
                         onOps: applyOps,
                         onProposal: (proposal) => {
@@ -447,7 +450,11 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                 const latestSnapshot = onApplyOps([]);
                 updateSession(sessionId, (current) => ({
                     ...current,
-                    messages: current.messages.map((item) => (item.id === assistantId ? { ...item, runId, detail: { ...(item.detail && typeof item.detail === "object" ? item.detail : {}), nodeIds: Array.from(guard.outputNodeIds), ...(latestStageProgress.length ? { stageProgress: latestStageProgress } : {}) } } : item)),
+                    messages: current.messages.map((item) =>
+                        item.id === assistantId
+                            ? { ...item, runId, detail: { ...(item.detail && typeof item.detail === "object" ? item.detail : {}), nodeIds: Array.from(guard.outputNodeIds), ...(latestStageProgress.length ? { stageProgress: latestStageProgress } : {}) } }
+                            : item,
+                    ),
                 }));
                 updateSessionRun(sessionId, runId, { stage: { key: "finalizing", text: "生成已结束，正在确认画布保存" } });
                 const saved = await persistCanvasAgentResult(latestSnapshot, localSessionsRef.current, localActiveSessionIdRef.current, useCanvasStore.getState);

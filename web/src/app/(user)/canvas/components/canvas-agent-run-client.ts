@@ -54,7 +54,11 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
             stage = { ...stage, startedAt };
             if (stage.key !== "reconnecting") latestStageKey = stage.key;
             if (stage.key !== "reconnecting") {
-                for (const item of stageHistory) if (item.status === "running" && item.key !== stage.key) { item.status = "completed"; item.durationSeconds = Math.max(0, Math.floor((now - item.startedAt) / 1000)); }
+                for (const item of stageHistory)
+                    if (item.status === "running" && item.key !== stage.key) {
+                        item.status = "completed";
+                        item.durationSeconds = Math.max(0, Math.floor((now - item.startedAt) / 1000));
+                    }
                 const current = stageHistory.find((item) => item.key === stage.key);
                 if (current) current.text = stage.text;
                 else stageHistory.push({ key: stage.key, text: stage.text, status: "running", startedAt });
