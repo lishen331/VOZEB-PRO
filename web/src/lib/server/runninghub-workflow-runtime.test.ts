@@ -342,6 +342,29 @@ describe("RunningHub Demo workflow routing", () => {
         }
     });
 
+    it("declares reference capabilities from each Demo workflow's input schema so task routes accept uploads", () => {
+        const settings = demoSettings();
+        const expected: Record<string, { supportsReferenceImage: boolean; supportsReferenceVideo: boolean; supportsReferenceAudio: boolean }> = {
+            prop_main_view: { supportsReferenceImage: true, supportsReferenceVideo: false, supportsReferenceAudio: false },
+            storyboard_shot: { supportsReferenceImage: true, supportsReferenceVideo: false, supportsReferenceAudio: false },
+            storyboard_shot_video: { supportsReferenceImage: true, supportsReferenceVideo: false, supportsReferenceAudio: true },
+            storyboard_dialogue_audio: { supportsReferenceImage: false, supportsReferenceVideo: false, supportsReferenceAudio: true },
+            scene_main_view: { supportsReferenceImage: false, supportsReferenceVideo: false, supportsReferenceAudio: false },
+        };
+        for (const workflow of demoRunningHubWorkflowCatalog()) {
+            const support = expected[workflow.workflowCode || ""];
+            if (!support) continue;
+            const [candidate] = resolvePracticeWorkflowCandidates(settings, workflow.capability, workflow.businessCode, workflow.workflowCode);
+            expect(candidate.capabilityProfile).toMatchObject(support);
+            const attached = attachPracticeWorkflowToChannel({ channelId: DEMO_CHANNEL_ID } as { channelId?: string; advancedConfig?: import("@/lib/auth/store").SystemChannelAdvancedConfig }, settings, {
+                executionProfile: "open-source-practice",
+                businessCode: workflow.businessCode,
+                workflowCode: workflow.workflowCode,
+            });
+            expect(attached.advancedConfig).toMatchObject(support);
+        }
+    });
+
     it("never substitutes another image workflow for a missing or disabled workflowCode", () => {
         const settings = demoSettings();
         expect(resolvePracticeWorkflowCandidates(settings, "image", "storyboard-image", "unknown_workflow")).toEqual([]);

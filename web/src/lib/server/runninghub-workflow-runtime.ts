@@ -2,6 +2,7 @@ import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from 
 import type { LogicalModelCapability } from "@/lib/auth/store";
 import type { PracticeExecutionProfile } from "@/lib/practice-domain";
 import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "./logical-model-router";
+import { resolveLogicalModelCapabilityProfile } from "@/lib/model-routing-config";
 
 import { prepareRunningHubWorkflowExecution } from "./runninghub-workflow-adapter";
 import { isRunningHubWorkflowBusinessCode, normalizeRunningHubWorkflowConfig, runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
@@ -98,6 +99,19 @@ function selectEnabledWorkflowByCode(workflows: RunningHubWorkflowConfig[], cont
     return (fallbackCode ? enabled.find((item) => (item.workflowCode || item.workflowKey) === fallbackCode) : undefined) || enabled.find((item) => item.businessCode === context.businessCode);
 }
 
+/**
+ * 与 Demo 一致：工作流的参考素材能力由 inputSchema 里的 image/images/video/audio 字段决定，
+ * 不再依赖渠道或伪模型上的 supportsReference* 开关。
+ */
+export function workflowReferenceSupport(workflow: Pick<RunningHubWorkflowConfig, "inputSchema">) {
+    const types = new Set(workflow.inputSchema.map((field) => field.type));
+    return {
+        supportsReferenceImage: types.has("image") || types.has("images"),
+        supportsReferenceVideo: types.has("video"),
+        supportsReferenceAudio: types.has("audio"),
+    };
+}
+
 function runningHubPracticeChannels(settings: Pick<AuthSettings, "systemChannels">) {
     return settings.systemChannels.filter((channel) => channel.enabled && channel.purpose === "open-source-practice" && channel.advancedConfig?.protocol === "runninghub");
 }
@@ -121,6 +135,7 @@ export function resolvePracticeWorkflowCandidates(settings: Pick<AuthSettings, "
         upstreamModel: workflow.workflowKey,
         channelId: channel.id,
         channel: { ...channel, models: [workflow.workflowKey] } as SystemModelChannel,
+        capabilityProfile: resolveLogicalModelCapabilityProfile({ capabilityProfile: { ...workflowReferenceSupport(workflow), supportsAsync: true } }, capability, channel, workflow.workflowKey),
     }));
 }
 
@@ -167,6 +182,8 @@ export function attachPracticeWorkflowToChannel<T extends { channelId?: string; 
         statusField: workflow.statusField,
         resultField: workflow.resultField,
         requestTemplate: workflow.requestTemplate,
+        // 参考图/视频/音频能力按工作流输入定义声明，否则任务 Route 的 assertReferenceCapabilities 会拒绝带参考素材的练习请求
+        ...workflowReferenceSupport(workflow),
         workflowConfigs: { ...(channel.advancedConfig?.workflowConfigs || {}), [workflow.workflowKey]: workflow },
     };
     return { ...channel, advancedConfig };
