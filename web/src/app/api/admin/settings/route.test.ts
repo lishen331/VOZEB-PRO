@@ -317,5 +317,6 @@ describe("admin settings model routing", () => {
 });
 
 function request(body: unknown) {
-    return new Request("http://localhost/api/admin/settings", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const payload = body && typeof body === "object" && !Array.isArray(body) ? { ...(body as Record<string, unknown>), settingsRevision: (body as Record<string, unknown>).settingsRevision ?? 1 } : body;
+    return new Request("http://localhost/api/admin/settings", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
 }

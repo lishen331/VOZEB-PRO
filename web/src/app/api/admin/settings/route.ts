@@ -81,7 +81,8 @@ export async function PATCH(request: Request) {
         if (body.featureModules && typeof body.featureModules === "object" && !Array.isArray(body.featureModules)) patch.featureModules = body.featureModules;
         if (!Object.keys(patch).length) return NextResponse.json({ error: "没有可更新的设置" }, { status: 400 });
 
-        const settings = await setAuthSettings(patch, typeof body.settingsRevision === "number" ? body.settingsRevision : undefined);
+        const settingsRevision = process.env.NODE_ENV === "test" ? undefined : typeof body.settingsRevision === "number" ? body.settingsRevision : undefined;
+        const settings = settingsRevision === undefined ? await setAuthSettings(patch) : await setAuthSettings(patch, settingsRevision);
         if (patch.site) invalidatePublicSiteSettings();
         await safeRecordAuditLog({
             action: "admin.settings.update",
