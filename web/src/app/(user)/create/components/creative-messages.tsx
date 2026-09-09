@@ -797,15 +797,17 @@ function assetUrl(asset: CreativeAsset) {
 function agentAssetDownloads(assets: CreativeAsset[]): AgentMediaDownload[] {
     return assets.flatMap((asset) => {
         const url = assetUrl(asset);
-        return url && (asset.type === "image" || asset.type === "video") ? [{ type: asset.type, url, title: asset.title || (asset.type === "video" ? "生成视频" : "生成图片"), mimeType: asset.mimeType }] : [];
+        return url && (asset.type === "image" || asset.type === "video" || asset.type === "audio")
+            ? [{ type: asset.type, url, title: asset.title || (asset.type === "video" ? "生成视频" : asset.type === "audio" ? "生成音频" : "生成图片"), mimeType: asset.mimeType }]
+            : [];
     });
 }
 
 function agentAssetDownload(asset: CreativeAsset): AgentMediaDownload {
     return {
-        type: asset.type === "video" ? "video" : "image",
+        type: asset.type === "video" ? "video" : asset.type === "audio" ? "audio" : "image",
         url: assetUrl(asset)!,
-        title: asset.title || (asset.type === "video" ? "生成视频" : "生成图片"),
+        title: asset.title || (asset.type === "video" ? "生成视频" : asset.type === "audio" ? "生成音频" : "生成图片"),
         mimeType: asset.mimeType,
     };
 }

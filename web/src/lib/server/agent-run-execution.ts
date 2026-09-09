@@ -752,7 +752,7 @@ export async function withDependencyContext(runId: string, task: AgentRunTask): 
         .filter((item) => item.length > 4)
         .join("\n");
     const assetContext = dependencyAssets.map((asset) => creativeAssetContext(asset)).join("\n");
-    const context = [taskContext, assetContext].filter(Boolean).join("\n");
+    const context = task.type === "audio" ? "" : [taskContext, assetContext].filter(Boolean).join("\n");
     const primaryReference = references[0];
     return {
         ...task,
