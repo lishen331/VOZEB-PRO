@@ -182,13 +182,14 @@ class SettingsRepository {
         };
     }
 
-    async updateSettings(input: Partial<Omit<AppSettingsRecord, "id" | "createdAt" | "updatedAt">>) {
+    async updateSettings(input: Partial<Omit<AppSettingsRecord, "id" | "createdAt" | "updatedAt">> & { settingsRevision?: number }) {
         const assignments: string[] = [];
         const values: unknown[] = [];
         const add = (column: string, value: unknown) => {
             values.push(value);
             assignments.push(`${column} = $${values.length}`);
         };
+        if (input.settingsRevision !== undefined) add("settings_revision", input.settingsRevision);
         if (input.site !== undefined) add("site", jsonParam(input.site));
         if (input.registrationEnabled !== undefined) add("registration_enabled", input.registrationEnabled);
         if (input.emailRegistrationEnabled !== undefined) add("email_registration_enabled", input.emailRegistrationEnabled);
@@ -332,6 +333,7 @@ function mapSettings(row: Record<string, unknown>): AppSettingsRecord {
         featureModules: jsonValue(row.feature_modules),
         createdAt: isoValue(row.created_at),
         updatedAt: isoValue(row.updated_at),
+        settingsRevision: Number(row.settings_revision ?? 1),
     };
 }
 

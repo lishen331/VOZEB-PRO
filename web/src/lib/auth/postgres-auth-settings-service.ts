@@ -6,12 +6,16 @@ import { encryptAuthSettingsSecrets, normalizeSettings } from "./store-normalize
 import { readPostgresAuthSettings } from "./store-repository";
 import type { AuthSettings } from "./store-types";
 
-export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>) {
+export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>, expectedRevision?: number) {
     await ensurePostgresSchema();
     return withPostgresTransaction(async (client) => {
         const settingsRepository = createPostgresRepositories(client).settings;
         await settingsRepository.lock();
         const current = await readPostgresAuthSettings(client);
+        const currentRevision = current.settingsRevision ?? 1;
+        if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
+            throw new AuthInputError("配置已被其他管理员更新，请刷新后再保存", 409);
+        }
         const settings = normalizeSettings({
             ...current,
             ...patch,
@@ -37,6 +41,7 @@ export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>) {
         }
 
         const settingsPatch = postgresSettingsPatch(patch, encrypted);
+        settingsPatch.settingsRevision = currentRevision + 1;
         if (Object.keys(settingsPatch).length) await settingsRepository.updateSettings(settingsPatch);
 
         if (patch.systemChannels !== undefined) {
@@ -57,7 +62,7 @@ export async function updatePostgresAuthSettings(patch: Partial<AuthSettings>) {
             }
             await settingsRepository.deleteSystemModelChannelsNotIn(encrypted.systemChannels.map((channel) => channel.id));
         }
-        return settings;
+        return { ...settings, settingsRevision: currentRevision + 1 };
     });
 }
 

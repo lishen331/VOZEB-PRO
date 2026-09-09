@@ -277,6 +277,7 @@ export type AppSettingsRecord = {
     featureModules: JsonValue;
     createdAt: string;
     updatedAt: string;
+    settingsRevision: number;
 };
 
 export type SystemModelChannelRecord = {

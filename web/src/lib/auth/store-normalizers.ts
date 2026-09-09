@@ -248,6 +248,7 @@ export function normalizeSettings(settings: AuthSettings): AuthSettings {
     );
     const site = normalizeSiteSettings(settings.site);
     return {
+        settingsRevision: settings.settingsRevision ?? 1,
         site,
         registrationEnabled: Boolean(settings.registrationEnabled),
         emailRegistrationEnabled: Boolean(settings.emailRegistrationEnabled),
