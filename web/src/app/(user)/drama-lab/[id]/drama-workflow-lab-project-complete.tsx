@@ -1,5 +1,9 @@
 "use client";
 
+import { DramaLabShotAssetPicker } from "./drama-lab-shot-asset-picker";
+import { groupStoryboardShots } from "@/lib/drama-lab-storyboard-groups";
+import { DramaLabSegmentHeader } from "./drama-lab-segment-header";
+import { buildStoryboardNarrationSrt, buildStoryboardXlsx, storyboardExportFilename } from "@/lib/drama-lab-storyboard-export";
 import { normalizeDramaLabStoryboardOptions } from "@/lib/drama-lab-storyboard-options";
 import { DramaLabStoryboardConstraints, type StoryboardConstraintDraft } from "./drama-lab-storyboard-constraints";
 
@@ -3993,6 +3997,7 @@ function StoryboardPanel({
     const [editingShot, setEditingShot] = useState<Shot | null>(null);
     const [extracting, setExtracting] = useState(false);
     const [constraintDrafts, setConstraintDrafts] = useState<Record<string, StoryboardConstraintDraft>>({});
+    const [segmentCollapsed, setSegmentCollapsed] = useState<Record<string, boolean>>({});
     const constraintDraft = constraintDrafts[episode?.id || ""] || { shotCount: "", totalDuration: "", creationMode: "classic" as const, generateNarration: false };
     const lastExtractionCheckpointRef = useRef(0);
     const [startingKeys, setStartingKeys] = useState<Set<string>>(() => new Set());
@@ -4593,7 +4598,7 @@ function StoryboardPanel({
                         storyboardStatus: "idle",
                         generationStatus: "idle",
                     };
-                    const saved = await onSave({ shots: [...project.shots, newShot] });
+                    const saved = await onSave((current) => ({ shots: [...current.shots.map((shot) => (shot.episodeId === newShot.episodeId && shot.shotNumber >= newShot.shotNumber ? { ...shot, shotNumber: shot.shotNumber + 1 } : shot)), newShot] }));
                     if (!saved) throw new Error("保存分镜失败");
                 }
                 setModalVisible(false);
@@ -5050,6 +5055,31 @@ function StoryboardPanel({
         }
     };
 
+    const exportStoryboard = async (kind: "xlsx" | "srt") => {
+        try {
+            const input = { projectTitle: project.title, episode: { id: episode?.id || "", number: episode?.number }, shots: episodeShots as never, scenes: project.scenes as never, characters: project.characters as never, props: project.props as never };
+            if (kind === "srt") {
+                const blob = new Blob([buildStoryboardNarrationSrt(input)], { type: "text/plain;charset=utf-8" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = storyboardExportFilename(input, "srt");
+                a.click();
+                URL.revokeObjectURL(a.href);
+            } else {
+                const bytes = await buildStoryboardXlsx(input);
+                const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = storyboardExportFilename(input, "xlsx");
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }
+            messageApi.success(kind === "srt" ? "解说 SRT 已导出" : "分镜表 Excel 已导出");
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "导出失败");
+        }
+    };
+
     const startFrame = async (shot: Shot, frameType: "first" | "key" | "last") => {
         if (!episode) return;
         const missing = missingShotAssetLabels(project, shot);
@@ -5252,61 +5282,80 @@ function StoryboardPanel({
     }
 
     return (
-        <div className="mx-auto max-w-[1440px]">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h2 className="text-lg font-semibold">分镜工作台</h2>
-                    <p className="text-sm text-muted-foreground">当前集 {episodeShots.length} 个分镜，资产勾选会作为本镜生图和视频生成的参考依据。</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button loading={batchRunning === "image"} disabled={Boolean(batchRunning)} icon={<Sparkles className="size-4" />} onClick={() => void runBatch("image")}>
-                        批量生成分镜图
-                    </Button>
-                    <Button loading={batchRunning === "video"} disabled={Boolean(batchRunning)} icon={<Film className="size-4" />} onClick={() => void runBatch("video")}>
-                        批量生成分镜视频
-                    </Button>
-                    {batchRunning === "image" || batchRunning === "video" ? (
-                        <Button danger onClick={() => batchAbortRef.current?.abort()}>
-                            取消批量任务
+        <div className="mx-auto max-w-[1440px]" aria-label="分镜工作台模块">
+            <section className="mb-5 space-y-4 rounded-xl border border-border bg-card p-4">
+                <h2 className="text-lg font-semibold">
+                    分镜生成 <span className="text-sm font-normal text-muted-foreground">根据剧本、角色、场景生成分镜头脚本</span>
+                </h2>
+                <DramaLabStoryboardConstraints
+                    value={constraintDraft}
+                    disabled={extracting}
+                    onChange={(value) => setConstraintDrafts((current) => ({ ...current, [episode.id]: value }))}
+                    onExportXlsx={() => void exportStoryboard("xlsx")}
+                    onExportSrt={() => void exportStoryboard("srt")}
+                />
+                <div className="flex flex-wrap items-center justify-between gap-3" aria-label="分镜操作">
+                    <div className="flex flex-wrap gap-2">
+                        <Button type="primary" icon={<Sparkles className="size-4" />} loading={extracting} onClick={handleExtract}>
+                            {episodeShots.length ? "重新生成分镜" : "AI 生成分镜"}
                         </Button>
-                    ) : null}
-                    <Button type="primary" icon={<Sparkles className="size-4" />} loading={extracting} onClick={handleExtract}>
-                        从剧本提取分镜
-                    </Button>
-                    <Button icon={<Plus className="size-4" />} onClick={handleAdd}>
-                        添加分镜
-                    </Button>
+                        <Button icon={<Plus className="size-4" />} onClick={handleAdd}>
+                            添加一个分镜
+                        </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <Button loading={batchRunning === "image"} disabled={Boolean(batchRunning)} icon={<Sparkles className="size-4" />} onClick={() => void runBatch("image")}>
+                            批量生成分镜图
+                        </Button>
+                        <Button loading={batchRunning === "video"} disabled={Boolean(batchRunning)} icon={<Film className="size-4" />} onClick={() => void runBatch("video")}>
+                            批量生成分镜视频
+                        </Button>
+                        {batchRunning === "image" || batchRunning === "video" ? (
+                            <Button danger aria-label="取消批量任务" onClick={() => batchAbortRef.current?.abort()}>
+                                {batchRunning === "image" ? "停止图片" : "停止视频"}
+                            </Button>
+                        ) : null}
+                    </div>
                 </div>
-            </div>
-
-            <DramaLabStoryboardConstraints value={constraintDraft} disabled={extracting} onChange={(value) => setConstraintDrafts((current) => ({ ...current, [episode.id]: value }))} />
+            </section>
 
             <div className="space-y-4">
-                {episodeShots.map((shot) => (
-                    <StoryboardWorkbenchCard
-                        key={shot.id}
-                        shot={shot}
-                        project={project}
-                        busyKeys={startingKeys}
-                        onStartGeneration={startGeneration}
-                        onCheckVideoStatus={checkVideoStatus}
-                        onStartFrame={startFrame}
-                        onExtractTailFrame={extractTailFrame}
-                        onAcceptFirstFrameCandidate={acceptFirstFrameCandidate}
-                        onKeepFirstFrameCandidate={() => messageApi.info("候选首帧已保留，未覆盖当前首帧")}
-                        onToggleFrameLock={toggleFrameLock}
-                        onUploadFrame={uploadFrame}
-                        onStartAudio={startAudioGeneration}
-                        onSyncAudio={syncAudioManually}
-                        onRecoverAudio={recoverAudioManually}
-                        onPreviewAudioSplit={previewAudioSplit}
-                        onApplyAudioSplit={applyAudioSplit}
-                        audioSplitPlan={audioSplitPlans[shot.id]}
-                        onSync={() => void syncShotManually(shot).catch((error) => messageApi.error(error instanceof Error ? error.message : "任务状态同步失败"))}
-                        onUpdate={(patch) => void updateShot(shot.id, patch).catch((error) => messageApi.error(error instanceof Error ? error.message : "保存分镜失败"))}
-                        onEdit={() => handleEdit(shot)}
-                        onDelete={() => handleDelete(shot.id)}
-                    />
+                {groupStoryboardShots(episodeShots).map((group) => (
+                    <section key={group.id} aria-label={group.label}>
+                        <DramaLabSegmentHeader group={group} expanded={!segmentCollapsed[group.id]} controlsId={`segment-${group.id}`} onToggle={() => setSegmentCollapsed((current) => ({ ...current, [group.id]: !current[group.id] }))} />
+                        <div id={`segment-${group.id}`} hidden={segmentCollapsed[group.id]} className="space-y-4 pt-3">
+                            {group.shots.map((shot) => (
+                                <StoryboardWorkbenchCard
+                                    key={shot.id}
+                                    shot={shot}
+                                    project={project}
+                                    busyKeys={startingKeys}
+                                    onStartGeneration={startGeneration}
+                                    onCheckVideoStatus={checkVideoStatus}
+                                    onStartFrame={startFrame}
+                                    onExtractTailFrame={extractTailFrame}
+                                    onAcceptFirstFrameCandidate={acceptFirstFrameCandidate}
+                                    onKeepFirstFrameCandidate={() => messageApi.info("候选首帧已保留，未覆盖当前首帧")}
+                                    onToggleFrameLock={toggleFrameLock}
+                                    onUploadFrame={uploadFrame}
+                                    onStartAudio={startAudioGeneration}
+                                    onSyncAudio={syncAudioManually}
+                                    onRecoverAudio={recoverAudioManually}
+                                    onPreviewAudioSplit={previewAudioSplit}
+                                    onApplyAudioSplit={applyAudioSplit}
+                                    audioSplitPlan={audioSplitPlans[shot.id]}
+                                    onSync={() => void syncShotManually(shot).catch((error) => messageApi.error(error instanceof Error ? error.message : "任务状态同步失败"))}
+                                    onUpdate={(patch) => void updateShot(shot.id, patch).catch((error) => messageApi.error(error instanceof Error ? error.message : "保存分镜失败"))}
+                                    onEdit={() => handleEdit(shot)}
+                                    onDelete={() => handleDelete(shot.id)}
+                                    onInsertBefore={() => {
+                                        handleAdd();
+                                        form.setFieldsValue({ shotNumber: shot.shotNumber, segmentIndex: shot.segmentIndex, segmentTitle: shot.segmentTitle });
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    </section>
                 ))}
 
                 {episodeShots.length === 0 && <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">暂无分镜，点击“从剧本提取分镜”开始拆解，也可手工添加</div>}
@@ -5411,6 +5460,7 @@ function StoryboardWorkbenchCard({
     onUpdate,
     onEdit,
     onDelete,
+    onInsertBefore,
     onStartFrame,
     onExtractTailFrame,
     onAcceptFirstFrameCandidate,
@@ -5439,6 +5489,7 @@ function StoryboardWorkbenchCard({
     onUpdate: (patch: Partial<Shot>) => void;
     onEdit: () => void;
     onDelete: () => void;
+    onInsertBefore: () => void;
 }) {
     const imageBusy = busyKeys.has(`image:${shot.id}`) || isDramaLabTaskActive(shot.storyboardStatus);
     const videoBusy = busyKeys.has(`video:${shot.id}`) || isDramaLabVideoTaskActive(shot);
@@ -5473,17 +5524,23 @@ function StoryboardWorkbenchCard({
                 <div className="flex items-center gap-1">
                     <Button type="text" size="small" title="在画布中打开此分镜" aria-label="在画布中打开此分镜" href={dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)} icon={<PanelsTopLeft className="size-4" />} />
                     <Button type="text" size="small" title="同步任务状态" aria-label="同步任务状态" icon={<LoaderCircle className="size-4" />} onClick={onSync} />
-                    <Button type="text" size="small" title="编辑分镜" aria-label="编辑分镜" icon={<Edit2 className="size-4" />} onClick={onEdit} />
+                    <Button type="text" size="small" title="编辑分镜" aria-label="编辑分镜" icon={<Edit2 className="size-4" />} onClick={onEdit}>
+                        分镜配置
+                    </Button>
+                    <Button size="small" onClick={() => onUpdate({ creationMode: shot.creationMode === "universal" ? "classic" : "universal" })}>
+                        {shot.creationMode === "universal" ? "经典分镜" : "全能模式"}
+                    </Button>
+                    <Button size="small" onClick={onInsertBefore}>
+                        ＋ 新增
+                    </Button>
                     <Button type="text" danger size="small" title="删除分镜" aria-label="删除分镜" icon={<Trash2 className="size-4" />} onClick={onDelete} />
                 </div>
             </header>
             <div className="grid divide-y divide-border xl:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)] xl:divide-x xl:divide-y-0">
                 <section className="space-y-4 p-4" aria-label={`分镜 ${shot.shotNumber} 资产关联`}>
-                    <AssetBindingGroup label="场景" assets={project.scenes} selectedIds={shot.sceneId ? [shot.sceneId] : []} single onChange={(ids) => onUpdate({ sceneId: ids[0] })} />
-                    <AssetBindingGroup label="角色" assets={project.characters} selectedIds={shot.characterIds} onChange={(characterIds) => onUpdate({ characterIds })} />
-                    <AssetBindingGroup label="道具" assets={project.props} selectedIds={shot.propIds} onChange={(propIds) => onUpdate({ propIds })} />
-                </section>
-                <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 画面`}>
+                    <DramaLabShotAssetPicker label="场景" assets={project.scenes} selectedIds={shot.sceneId ? [shot.sceneId] : []} single onChange={(ids) => onUpdate({ sceneId: ids[0] })} />
+                    <DramaLabShotAssetPicker label="角色" assets={project.characters} selectedIds={shot.characterIds} onChange={(characterIds) => onUpdate({ characterIds })} />
+                    <DramaLabShotAssetPicker label="道具" assets={project.props} selectedIds={shot.propIds} onChange={(propIds) => onUpdate({ propIds })} />
                     <TextArea
                         defaultValue={shot.description}
                         autoSize={{ minRows: 3, maxRows: 8 }}
@@ -5493,6 +5550,8 @@ function StoryboardWorkbenchCard({
                             if (description && description !== shot.description) onUpdate({ description, script: description, sourceText: shot.sourceText || description });
                         }}
                     />
+                </section>
+                <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 画面`}>
                     <TextArea defaultValue={shot.imagePrompt} autoSize={{ minRows: 2, maxRows: 5 }} placeholder="画面补充（可选）" aria-label="画面补充" onBlur={(event) => onUpdate({ imagePrompt: event.target.value.trim() })} />
                     {shot.storyboardError ? <Alert type="error" showIcon message={shot.storyboardError} /> : null}
                     <div className="flex flex-wrap items-center gap-2">
@@ -5714,43 +5773,6 @@ function StoryboardWorkbenchCard({
                 </section>
             </div>
         </article>
-    );
-}
-
-function AssetBindingGroup({ label, assets, selectedIds, single = false, onChange }: { label: string; assets: Array<Character | Scene | Prop>; selectedIds: string[]; single?: boolean; onChange: (ids: string[]) => void }) {
-    return (
-        <div>
-            <div className="mb-2 text-sm font-medium">{label}</div>
-            <div className="space-y-1.5">
-                {assets.length ? (
-                    assets.map((asset) => {
-                        const selected = selectedIds.includes(asset.id);
-                        const imageUrl = asset.referenceImageUrl || asset.imageUrl || asset.references?.find((reference) => reference.id === asset.primaryReferenceId)?.url || asset.references?.[0]?.url;
-                        const name = "location" in asset ? asset.location : asset.name;
-                        return (
-                            <label key={asset.id} className={cn("flex cursor-pointer items-center gap-2 border p-1.5 text-sm transition-colors", selected ? "border-primary bg-primary/5" : "border-border hover:bg-muted")}>
-                                <input
-                                    type={single ? "radio" : "checkbox"}
-                                    name={single ? `scene-${label}` : undefined}
-                                    checked={selected}
-                                    onChange={() => onChange(single ? (selected ? [] : [asset.id]) : selected ? selectedIds.filter((id) => id !== asset.id) : [...selectedIds, asset.id])}
-                                />
-                                {imageUrl ? (
-                                    <img src={imageUrl} alt="" className="size-9 shrink-0 object-cover" />
-                                ) : (
-                                    <div className="grid size-9 shrink-0 place-items-center bg-muted text-muted-foreground">
-                                        <Package className="size-4" />
-                                    </div>
-                                )}
-                                <span className="min-w-0 truncate">{name}</span>
-                            </label>
-                        );
-                    })
-                ) : (
-                    <p className="text-xs text-muted-foreground">暂无{label}资产</p>
-                )}
-            </div>
-        </div>
     );
 }
 

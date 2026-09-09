@@ -47,6 +47,7 @@
         "copy-to-clipboard": "^4.0.2",
         "dayjs": "^1.11.20",
         "entities": "8.0.0",
+        "exceljs": "4.4.0",
         "fflate": "^0.8.3",
         "file-saver": "^2.0.5",
         "file-type": "^22.0.1",

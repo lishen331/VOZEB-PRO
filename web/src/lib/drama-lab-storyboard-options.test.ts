@@ -27,3 +27,16 @@ describe("storyboard modes", () => {
         expect(() => normalizeDramaLabStoryboardOptions(value)).toThrow();
     });
 });
+
+ describe("image-stage options are not extraction constraints", () => {
+    it.each(["single", "quad_grid", "nine_grid", "first_last"])("does not persist or inject image mode %s into script extraction", (sequenceMode) => {
+        const options = normalizeDramaLabStoryboardOptions({ sequenceMode, storyboardFrameMode: "first_last", shotCount: "12" });
+        expect(options).toEqual({ shotCount: 12 });
+        expect(dramaLabStoryboardConstraintText(options)).not.toContain("序列图");
+        expect(dramaLabStoryboardConstraintText({})).toBe("");
+    });
+    it("does not introduce L UI maxima or discard valid small fractional durations", () => {
+        expect(normalizeDramaLabStoryboardOptions({ shotCount: "201", totalDuration: "600.5" })).toEqual({ shotCount: 201, totalDuration: 600.5 });
+        expect(normalizeDramaLabStoryboardOptions({ totalDuration: "0.5" })).toEqual({ totalDuration: 0.5 });
+    });
+});
