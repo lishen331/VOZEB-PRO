@@ -438,6 +438,18 @@ export class PostgresSchoolDomainRepository implements SchoolDomainRepository {
         return pageResult(rows.rows.map(mapCourseMaterial), numberValue(count.rows[0]?.total), page, pageSize);
     }
 
+    async canReadCourseMaterial(userId: string, storageKey: string) {
+        const result = await this.db.query(
+            `SELECT 1 FROM course_materials m
+             LEFT JOIN school_course_assignments a ON a.id = m.school_course_assignment_id
+             LEFT JOIN school_memberships membership ON membership.school_id = a.school_id AND membership.user_id = $1 AND membership.status = 'active'
+             WHERE m.storage_key = $2 AND m.status = 'active' AND (m.source_scope = 'platform' OR membership.id IS NOT NULL)
+             LIMIT 1`,
+            [userId, storageKey],
+        );
+        return Boolean(result.rows[0]);
+    }
+
     async getCourseMaterial(materialId: string, schoolId?: string) {
         const result = await this.db.query(
             `SELECT m.* FROM course_materials m

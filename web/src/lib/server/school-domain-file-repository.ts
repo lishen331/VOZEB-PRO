@@ -487,6 +487,15 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         return { items: structuredClone(sorted.slice((page - 1) * pageSize, page * pageSize)), total: sorted.length, page, pageSize };
     }
 
+    async canReadCourseMaterial(userId: string, storageKey: string) {
+        const state = await this.read();
+        const material = state.courseMaterials.find((item) => item.storageKey === storageKey && item.status === "active");
+        if (!material) return false;
+        if (material.sourceScope === "platform") return true;
+        const assignment = state.courseAssignments.find((item) => item.id === material.schoolCourseAssignmentId);
+        return Boolean(assignment && state.memberships.some((membership) => membership.userId === userId && membership.schoolId === assignment.schoolId && membership.status === "active"));
+    }
+
     async getCourseMaterial(materialId: string, schoolId?: string) {
         const state = await this.read();
         const record = state.courseMaterials.find((item) => item.id === materialId);
