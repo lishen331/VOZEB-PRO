@@ -10,6 +10,22 @@ describe("production storyboard workbench layout wiring", () => {
         expect(source).toContain("<DramaLabShotAssetPicker");
         expect(source).not.toContain("function AssetBindingGroup(");
     });
+    it("supports per-shot collapse without removing task and canvas controls", async () => {
+        const source = await readFile(path, "utf8");
+        expect(source).toContain("collapsedShots");
+        expect(source).toContain("收起分镜");
+        expect(source).toContain("展开分镜");
+        expect(source).toContain("onToggleCollapse");
+        expect(source).toContain("hidden={collapsed}");
+        expect(source).toContain("aria-expanded={!collapsed}");
+        expect(source).not.toContain("{!collapsed ? (");
+        expect(source).toContain("window.addEventListener(DRAMA_LAB_SHOT_FOCUS, reveal)");
+    });
+    it("retains advanced shot fields when creating and editing", async () => {
+        const source = await readFile(path, "utf8");
+        for (const field of ["lightingStyle", "depthOfField", "segmentIndex", "segmentTitle", "layoutDescription", "action", "result", "startFramePrompt", "endFramePrompt", "universalSegmentText"]) expect(source).toContain(field);
+        expect(source).toMatch(/const newShot: Shot = \{\s*\.\.\.details,/);
+    });
     it("exposes named shot configuration and insertion without changing the canvas route", async () => {
         const source = await readFile(path, "utf8");
         expect(source).toContain("分镜配置");

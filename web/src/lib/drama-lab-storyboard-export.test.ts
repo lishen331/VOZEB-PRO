@@ -25,6 +25,7 @@ const input: StoryboardExportInput = {
             description: "画面描述",
             sourceText: "原文",
             dialogue: "中文对白",
+            cameraMotion: "缓慢推进",
             imagePrompt: "图片",
             polishedPrompt: "润色图片",
             videoPrompt: "视频",
@@ -73,7 +74,7 @@ describe("storyboard episode exports", () => {
         const bytes = await buildStoryboardXlsx(input);
         expect([...new Uint8Array(bytes).slice(0, 2)]).toEqual([0x50, 0x4b]);
         const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(Buffer.from(bytes) as never);
+        await workbook.xlsx.load(new Uint8Array(bytes).buffer);
         const sheet = workbook.getWorksheet("分镜表")!;
         expect(sheet.rowCount).toBe(4);
         expect(sheet.getCell("A2").value).toBe(1);
@@ -81,6 +82,7 @@ describe("storyboard episode exports", () => {
         expect(sheet.getCell("C2").value).toBe("=SUM(1,2)");
         expect(sheet.getCell("C2").type).toBe(ExcelJS.ValueType.String);
         expect(sheet.getCell("E2").value).toBe(1.001);
+        expect(sheet.getCell("G2").value).toBe("缓慢推进");
         expect(sheet.getCell("H2").value).toBe("客厅\n时间：夜\n描述：暖光");
         expect(sheet.getCell("I2").value).toBe("林\n描述：年轻女子");
         expect(sheet.getCell("J2").value).toBe("信\n描述：旧信封");

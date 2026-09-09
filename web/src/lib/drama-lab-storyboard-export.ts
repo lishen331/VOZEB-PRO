@@ -29,7 +29,8 @@ export type StoryboardShot = {
     videoPrompt?: string;
     universalSegmentText?: string;
     frames?: { first?: { prompt?: string }; last?: { prompt?: string } };
-    [key: string]: unknown;
+    script?: string;
+    cameraMotion?: string;
 };
 export type StoryboardAsset = { id: string; name?: string; location?: string; time?: string; description?: string; appearance?: string; personality?: string; type?: string; prompt?: string; polishedPrompt?: string };
 export type StoryboardExportInput = { projectTitle?: string; episode: { id: string; number?: number }; shots: StoryboardShot[]; scenes?: StoryboardAsset[]; characters?: StoryboardAsset[]; props?: StoryboardAsset[] };
@@ -113,7 +114,7 @@ function timestamp(ms: number) {
         z = ms % 1000;
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(z).padStart(3, "0")}`;
 }
-export async function buildStoryboardXlsx(input: StoryboardExportInput): Promise<Uint8Array> {
+export async function buildStoryboardXlsx(input: StoryboardExportInput): Promise<Uint8Array<ArrayBuffer>> {
     const shots = currentShots(input);
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("分镜表");
@@ -125,7 +126,7 @@ export async function buildStoryboardXlsx(input: StoryboardExportInput): Promise
         s.segmentTitle ? `第${(s.segmentIndex ?? 0) + 1}幕·${s.segmentTitle}` : s.segmentIndex == null ? "" : `第${s.segmentIndex + 1}幕`,
         duration(s),
         text(s.shotType),
-        text(s.movement),
+        text(s.cameraMotion || s.movement),
         assetBlock(
             input.scenes?.find((a) => a.id === s.sceneId),
             "scene",
