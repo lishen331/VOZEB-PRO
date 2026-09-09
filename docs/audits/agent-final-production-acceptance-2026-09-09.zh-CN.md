@@ -49,3 +49,5 @@
 - 复现证明问题发生在共享 `/api/image-tasks` 功能开关校验链路，而不是页面路由；该请求虽然来自 `/drama-lab`，当前 payload 中的上下文未被前端/中间调用完整传递 `featureModule=drama-lab`，服务端因此按 `surface=drama` 映射到短剧开关。
 - 本地已完成上下文契约与四个短剧实验室生成路由的隔离改动，并通过 59 项定向测试；但线上当前服务器仍为 `sha-c7d9c6cace2b2e3b17e3c183fd6bb67009451d57`，尚未包含后续修复提交，故 403 仍可复现。
 - 该证据用于关闭误判：必须部署包含 `featureModule` 透传/持久化的后续版本后，再在线上重复点击 AI 生图验证。
+- 2026-09-10 关闭短剧后的真实执行级回归（服务器当前 `sha-30e8a333c78332fd809db38b60136e7b307c1f7e`）：进入 `/drama-lab/.../create`，点击角色“AI 生图”。浏览器请求 `POST /api/image-tasks` 返回 `403 {"error":"短剧暂未启用"}`。本次确认页面可访问不能代表执行链路已解耦。
+- 捕获到共享接口收到的请求体 context 仍只有 `surface:"drama"`、projectId，没有 `featureModule:"drama-lab"`。因此共享接口按 `surface=drama` 命中已关闭的短剧开关。服务端专用路由源码虽包含 featureModule 字段，说明字段在实际运行的转发链路中被丢弃或请求未经过预期版本的专用路由；需继续检查部署产物/route 命中和中间层 body 构造，不能再把 ca6242 代码存在误报为线上已修复。
