@@ -1,9 +1,11 @@
+import { isCanvasDestructiveRequest, type CanvasDestructiveRequest } from "@/lib/canvas-agent-destructive";
 import type { CreativeFoundation } from "@/lib/creative-agent-contract";
 import type { CreativeGenerationMode, CreativeProjectHandoffPlan } from "@/lib/creative-runtime-contract";
 import { agentTaskResultItems } from "@/lib/server/agent-run-result-items";
 
 export type AgentPlan = {
-    intent?: "conversation" | "generation";
+    intent?: "conversation" | "generation" | "canvas_operation";
+    canvasOperation?: import("@/lib/canvas-agent-layout").CanvasLayoutRequest | CanvasDestructiveRequest;
     objective: string;
     audience?: string;
     reply?: string;
@@ -15,6 +17,7 @@ export type AgentPlan = {
     deliverables: Array<{
         id?: string;
         targetNodeId?: string;
+        literalContent?: string;
         title: string;
         type: "text" | "image" | "video" | "audio";
         model?: string;
@@ -33,10 +36,21 @@ export type AgentPlan = {
     }>;
 };
 
-export function validateAgentPlan(value: unknown): asserts value is AgentPlan {
+export function validateAgentPlan(value: unknown, options?: { allowCanvasOperation?: boolean }): asserts value is AgentPlan {
     const plan = value as AgentPlan;
     if (!plan?.objective?.trim() || !Array.isArray(plan.deliverables)) throw new Error("模型返回的创作计划无效");
     if (plan.skillIds !== undefined && (!Array.isArray(plan.skillIds) || plan.skillIds.some((id) => typeof id !== "string" || !id.trim()))) throw new Error("模型返回的技能选择无效");
+    if (plan.intent === "canvas_operation" || plan.canvasOperation !== undefined) {
+        if (
+            !options?.allowCanvasOperation ||
+            plan.intent !== "canvas_operation" ||
+            !(plan.canvasOperation?.type === "layout" ? ["all", "selected"].includes(plan.canvasOperation.scope) : isCanvasDestructiveRequest(plan.canvasOperation)) ||
+            plan.deliverables.length ||
+            plan.projectHandoff
+        )
+            throw new Error("模型返回的画布结构操作无效");
+        return;
+    }
     if (plan.intent === "conversation") {
         if (!plan.reply?.trim() || plan.deliverables.length || plan.projectHandoff) throw new Error("模型返回的对话结果无效");
         return;
@@ -55,6 +69,7 @@ export function validateAgentPlan(value: unknown): asserts value is AgentPlan {
             (item) =>
                 !item?.title?.trim() ||
                 !item?.prompt?.trim() ||
+                (item.literalContent !== undefined && (item.type !== "text" || typeof item.literalContent !== "string" || !item.literalContent.trim())) ||
                 !["text", "image", "video", "audio"].includes(item.type) ||
                 (item.count !== undefined && (!Number.isSafeInteger(Number(item.count)) || Number(item.count) <= 0)) ||
                 (item.seconds !== undefined && (!Number.isFinite(Number(item.seconds)) || Number(item.seconds) <= 0)) ||

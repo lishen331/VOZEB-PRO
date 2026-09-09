@@ -6,7 +6,7 @@ export function listCanvasProjectSummaries(input: { page: number; pageSize: numb
 }
 
 export function getCanvasProject(id: string) {
-    return request<{ project: CanvasProject }>(`/api/canvas/projects/${encodeURIComponent(id)}`, { cache: "no-store" }).then((data) => data.project);
+    return request<{ project: CanvasProject }>(`/api/canvas/projects/${encodeURIComponent(id)}/recover-agent-results`, { method: "POST", cache: "no-store" }).then((data) => data.project);
 }
 
 export function createCanvasProject(input: CreateCanvasProjectInput) {

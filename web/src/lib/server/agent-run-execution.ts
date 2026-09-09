@@ -6,7 +6,7 @@ import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveLogicalModel, resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { assertCapabilityConstraints } from "@/lib/server/capability-constraints";
 import { reviewCreativeOutputs } from "@/lib/server/creative-review-service";
-import { requestStructuredText, type TextPlanningCandidate, type TextPlanningMediaInput } from "@/lib/server/text-planning-runtime";
+import { requestStructuredText, type TextPlanningCandidate, type TextPlanningMediaInput, type TextPlanningMessageContent } from "@/lib/server/text-planning-runtime";
 import { registerAgentTaskAssets } from "@/lib/server/agent-run-assets";
 import { buildAgentProjectHandoff } from "@/lib/server/agent-run-project-handoff";
 import { getAgentRun, updateAgentRunById, updateAgentRunTaskById, type AgentRun, type AgentRunChildTask, type AgentRunReference, type AgentRunTask } from "@/lib/server/agent-run-store";
@@ -217,6 +217,7 @@ export function normalizeTasks(
         return {
             id: item.id?.trim() || `task-${index}`,
             targetNodeId: target ? targetNodeId : undefined,
+            ...(surface === "canvas" && item.type === "text" && typeof item.literalContent === "string" ? { literalContent: item.literalContent } : {}),
             referenceAssetId: selectedAssets[0]?.id,
             referenceUrl: primaryReference?.url,
             referenceType: primaryReference?.type,
@@ -579,7 +580,7 @@ export async function requestFunctionCall(
     origin: string,
     cookie: string,
     candidate: TextPlanningCandidate,
-    input: Array<{ role: string; content: string }>,
+    input: Array<{ role: string; content: TextPlanningMessageContent }>,
     tool: typeof agentPlanTool,
     name: string,
     signal: AbortSignal,
@@ -926,15 +927,9 @@ export function linkAgentChildTask(run: AgentRun, task: AgentRunTask, taskId: st
 }
 
 export function directCanvasTextContent(task: AgentRunTask) {
-    if (task.type !== "text") return null;
-    const prompt = task.prompt.split(/\n\n(?:严格输出要求|基于画布已有节点|请保持与以下已完成产物一致)：/u)[0]?.trim() || "";
-    if (!/(?:文字|文本|内容|文案|标题).{0,16}(?:节点|卡片|便签)|(?:节点|卡片|便签).{0,16}(?:文字|文本|内容|文案|标题)|画布/u.test(prompt)) return null;
-    const quoted = prompt.match(/(?:内容|文字|文本|文案|标题)[^“"「『'`]{0,18}(?:写(?:着|成)?|写为|为|是|设置为|设为|改为|改成|填(?:写)?为)[:：\s]*[“"「『'`]([^”"」』'`]{1,500})[”"」』'`]/u);
-    if (quoted?.[1]?.trim()) return quoted[1].trim();
-    const displayed = prompt.match(/(?:写着|写有|显示|展示)[:：\s]*[“"「『'`]([^”"」』'`]{1,500})[”"」』'`]/u);
-    if (displayed?.[1]?.trim()) return displayed[1].trim();
-    const plain = prompt.match(/(?:内容|文字|文本|文案|标题)[^，。；;\n]{0,18}(?:写(?:成)?|写为|为|是|设置为|设为|改为|改成|填(?:写)?为)[:：\s]*([^，。；;\n]{1,160})/u);
-    return plain?.[1]?.trim() || null;
+    // Only an explicit structured value is safe to write without a model call.
+    // Never infer literal content from prompts, originals or internal objectives.
+    return task.type === "text" && typeof task.literalContent === "string" && task.literalContent.trim() ? task.literalContent : null;
 }
 
 export async function pollTask(origin: string, path: string, taskId: string, cookie: string, runId: string, type: AgentRunTask["type"], executionId: string, recoverNeedsReview = false) {

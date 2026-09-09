@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CanvasNodeType } from "@/app/(user)/canvas/types";
 import type { CanvasProject, CanvasProjectSummary } from "@/lib/canvas-project-contract";
 import { summarizeCanvasProjectRecord } from "@/lib/canvas-project-summary";
 import type { DramaProject, DramaProjectSummary } from "@/lib/drama-project-contract";
@@ -63,6 +62,7 @@ vi.mock("@/services/api/drama-projects", () => ({
     restoreDramaProjectVersion: mocks.restoreDramaProjectVersion,
 }));
 
+import { persistCanvasAgentResult } from "@/app/(user)/canvas/utils/canvas-agent-result-save";
 import { useCanvasStore } from "@/app/(user)/canvas/stores/use-canvas-store";
 import { useDramaStore } from "@/app/(user)/drama/stores/use-drama-store";
 import { CanvasProjectRequestError } from "@/services/api/canvas-projects";
@@ -263,29 +263,42 @@ describe("client store session isolation", () => {
         }
     });
 
-    it("rebases a Canvas mutation after a version conflict without dropping remote nodes", async () => {
+    it("exposes a Canvas version conflict instead of retrying it as a network error", async () => {
         vi.useFakeTimers();
         try {
             const project = canvasProject("canvas-conflict", "并发冲突");
-            const latest = { ...project, updatedAt: "2026-08-05T12:00:01.000Z", nodes: [node("remote-node")] };
             useUserStore.getState().setUser(user("user-a"));
-            mocks.getCanvasProject.mockResolvedValueOnce(project).mockResolvedValueOnce(latest);
-            mocks.saveCanvasProjectMutation
-                .mockRejectedValueOnce(new CanvasProjectRequestError("画布项目已在其他页面更新，请刷新后重试", 409))
-                .mockResolvedValueOnce({ projectId: project.id, updatedAt: "2026-08-05T12:00:02.000Z", mutationId: "mutation-rebased" });
+            mocks.getCanvasProject.mockResolvedValue(project);
+            mocks.saveCanvasProjectMutation.mockRejectedValue(new CanvasProjectRequestError("画布项目已在其他页面更新，请刷新后重试", 409));
             await useCanvasStore.getState().loadProject(project.id);
 
-            useCanvasStore.getState().updateProject(project.id, { nodes: [node("local-node")] });
+            useCanvasStore.getState().updateProject(project.id, { showImageInfo: true });
             await vi.advanceTimersByTimeAsync(250);
 
-            expect(mocks.getCanvasProject).toHaveBeenCalledTimes(2);
-            expect(mocks.saveCanvasProjectMutation).toHaveBeenCalledTimes(2);
-            expect(mocks.saveCanvasProjectMutation.mock.calls[1][1]).toMatchObject({ baseUpdatedAt: latest.updatedAt, mutationId: expect.any(String), nodeUpserts: expect.arrayContaining([expect.objectContaining({ id: "local-node" })]) });
-            expect(useCanvasStore.getState().saveStateByProject[project.id]).toEqual({ status: "saved" });
+            expect(useCanvasStore.getState().saveStateByProject[project.id]).toEqual({ status: "conflict", message: "画布项目已在其他页面更新，请刷新后重试" });
         } finally {
             vi.useRealTimers();
         }
     });
+
+    it("keeps generated Canvas content locally when final save conflicts and does not force reload", async () => {
+        const project = canvasProject("canvas-agent-conflict", "Agent");
+        useUserStore.getState().setUser(user("user-a"));
+        mocks.getCanvasProject.mockResolvedValue(project);
+        mocks.saveCanvasProjectMutation.mockRejectedValue(new CanvasProjectRequestError("Other page changed", 409));
+        await useCanvasStore.getState().loadProject(project.id);
+        const result = await persistCanvasAgentResult(
+            { projectId: project.id, title: project.title, nodes: project.nodes, connections: project.connections, viewport: project.viewport, selectedNodeIds: [] },
+            [{ id: "chat", title: "Results", createdAt: project.createdAt, updatedAt: project.updatedAt, messages: [{ id: "a", role: "assistant", text: "generated" }] }],
+            "chat",
+            useCanvasStore.getState,
+        );
+        expect(result.status).toBe("conflict");
+        expect(mocks.getCanvasProject).toHaveBeenCalledTimes(1);
+        expect(mocks.saveCanvasProjectMutation).toHaveBeenCalledTimes(1);
+        expect(useCanvasStore.getState().projects[0].chatSessions[0].messages[0].text).toBe("generated");
+    });
+
     it("flushes the current Canvas snapshot with keepalive when the page is leaving", async () => {
         const project = canvasProject("canvas-keepalive", "离开前保存");
         useUserStore.getState().setUser(user("user-a"));
@@ -520,9 +533,6 @@ function textAsset(id: string, title: string): Asset {
     return { id, kind: "text", title, coverUrl: "", tags: [], data: { content: title }, createdAt: now, updatedAt: now };
 }
 
-function node(id: string): CanvasProject["nodes"][number] {
-    return { id, type: CanvasNodeType.Text, title: id, position: { x: 0, y: 0 }, width: 100, height: 100 };
-}
 function canvasProject(id: string, title: string): CanvasProject {
     const now = new Date().toISOString();
     return {

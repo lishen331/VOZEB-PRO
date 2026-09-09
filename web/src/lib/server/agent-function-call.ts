@@ -18,7 +18,7 @@ export async function parseAgentPlanCall(
     call: AgentFunctionCallResult,
     onInvalid: () => Promise<unknown>,
     conversationFallback?: { objective: string; reply?: string },
-    options?: { allowProjectHandoff?: boolean; requiredGenerationMode?: CreativeGenerationMode },
+    options?: { allowCanvasOperation?: boolean; allowProjectHandoff?: boolean; requiredGenerationMode?: CreativeGenerationMode },
 ): Promise<AgentPlan> {
     try {
         const raw = parsePlanArguments(call.arguments, conversationFallback);
@@ -39,7 +39,7 @@ export async function parseAgentPlanCall(
                 : {}),
             foundation: normalizeCreativeFoundation(raw.foundation, objective),
         };
-        validateAgentPlan(plan);
+        validateAgentPlan(plan, options);
         validateAgentPlanGenerationMode(plan, options?.requiredGenerationMode);
         return plan;
     } catch (error) {

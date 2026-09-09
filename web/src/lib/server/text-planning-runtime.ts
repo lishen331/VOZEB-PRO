@@ -1,4 +1,4 @@
-import type { SystemModelChannel } from "@/lib/auth/store";
+﻿import type { SystemModelChannel } from "@/lib/auth/store";
 import { recordChannelRuntimeFailure, recordChannelRuntimeSuccess } from "@/lib/server/channel-runtime-health";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
@@ -32,6 +32,7 @@ type RuntimeState = {
     lastSuccessAt?: number;
 };
 
+export type TextPlanningMessageContent = string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
 export type TextPlanningMediaInput = { type: "image" | "video"; url: string };
 
 export type StructuredTextRequest = {
@@ -39,7 +40,7 @@ export type StructuredTextRequest = {
     origin: string;
     cookie: string;
     candidate: TextPlanningCandidate;
-    messages: Array<{ role: string; content: string }>;
+    messages: Array<{ role: string; content: TextPlanningMessageContent }>;
     tool: TextPlanningTool;
     headers?: HeadersInit;
     fallbackHeaders?: HeadersInit;
@@ -132,7 +133,7 @@ export function resetTextPlanningRuntime() {
     states.clear();
 }
 
-function planningProtocolRequests(input: StructuredTextRequest, messages: Array<{ role: string; content: string }>) {
+function planningProtocolRequests(input: StructuredTextRequest, messages: Array<{ role: string; content: TextPlanningMessageContent }>) {
     const promptRequest = planningProtocolRequest(input.candidate, messages, "json", undefined, input.stream === true);
     if (input.allowRepair === false) {
         return input.preferNativeTools && promptRequest.protocol !== "custom" ? [planningProtocolRequest(input.candidate, messages, "tool", input.tool), promptRequest] : [promptRequest];
@@ -142,7 +143,7 @@ function planningProtocolRequests(input: StructuredTextRequest, messages: Array<
     return [planningProtocolRequest(input.candidate, messages, "tool", input.tool), promptRequest, recoveryRequest];
 }
 
-function planningProtocolRequest(candidate: TextPlanningCandidate, messages: Array<{ role: string; content: string }>, variant: ProtocolRequest["variant"], tool?: TextPlanningTool, requestedStream = false): ProtocolRequest {
+function planningProtocolRequest(candidate: TextPlanningCandidate, messages: Array<{ role: string; content: TextPlanningMessageContent }>, variant: ProtocolRequest["variant"], tool?: TextPlanningTool, requestedStream = false): ProtocolRequest {
     const resolved = resolveTextProtocol({
         model: candidate.upstreamModel,
         apiFormat: candidate.channel.apiFormat,
@@ -164,7 +165,7 @@ function planningProtocolRequest(candidate: TextPlanningCandidate, messages: Arr
 
 function chatRequest(
     model: string,
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: TextPlanningMessageContent }>,
     path = "/chat/completions",
     tool?: TextPlanningTool,
     variant: ProtocolRequest["variant"] = "json",
@@ -185,7 +186,7 @@ function chatRequest(
     };
 }
 
-function responsesRequest(model: string, messages: Array<{ role: string; content: string }>, path = "/responses", tool?: TextPlanningTool, variant: ProtocolRequest["variant"] = "json", stream = false): ProtocolRequest {
+function responsesRequest(model: string, messages: Array<{ role: string; content: TextPlanningMessageContent }>, path = "/responses", tool?: TextPlanningTool, variant: ProtocolRequest["variant"] = "json", stream = false): ProtocolRequest {
     return {
         protocol: "responses",
         variant,
@@ -202,7 +203,7 @@ function responsesRequest(model: string, messages: Array<{ role: string; content
 
 function geminiRequest(
     model: string,
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: TextPlanningMessageContent }>,
     configuredPath: string,
     tool?: TextPlanningTool,
     variant: ProtocolRequest["variant"] = "json",
@@ -219,7 +220,12 @@ function geminiRequest(
         variant,
         path,
         body: {
-            contents: messages.filter((message) => message.role !== "system").map((message) => ({ role: message.role === "assistant" ? "model" : "user", parts: [{ text: message.content }] })),
+            contents: messages
+                .filter((message) => message.role !== "system")
+                .map((message) => ({
+                    role: message.role === "assistant" ? "model" : "user",
+                    parts: [{ text: typeof message.content === "string" ? message.content : (message.content || []).map((part) => (part.type === "text" ? part.text : `[image:${part.image_url.url}]`)).join(" ") }],
+                })),
             ...(systemText ? { systemInstruction: { parts: [{ text: systemText }] } } : {}),
             ...(tool
                 ? { tools: [{ functionDeclarations: [tool] }], toolConfig: { functionCallingConfig: { mode: "ANY", allowedFunctionNames: [tool.name] } } }
@@ -237,13 +243,14 @@ function customRequest(
     configuredPath: string,
     requestTemplate: string,
     resultField: string,
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: TextPlanningMessageContent }>,
     variant: ProtocolRequest["variant"],
     stream = false,
     streamFormat: ProtocolRequest["streamFormat"] = "sse",
 ): ProtocolRequest {
     const prompt = messages.map((message) => `${message.role}: ${message.content}`).join("\n\n");
-    const promptJson = messages.find((message) => message.role === "user")?.content || "";
+    const promptJsonValue = messages.find((message) => message.role === "user")?.content || "";
+    const promptJson = typeof promptJsonValue === "string" ? promptJsonValue : promptJsonValue.map((part) => (part.type === "text" ? part.text : part.image_url.url)).join(" ");
     const values = { model, messages, prompt, input: prompt, text: prompt, prompt_json: parsePromptJsonValue(promptJson), stream };
     return { protocol: "custom", variant, path: configuredPath, body: buildProviderRequest(requestTemplate, values, values), resultField, ...(stream ? { stream: true, streamFormat } : {}) };
 }
@@ -262,13 +269,13 @@ function attachPlanningMedia(request: ProtocolRequest, media: TextPlanningMediaI
     if (!media.length) return;
     if (request.protocol === "custom") throw new TextPlanningRequestError("当前自定义文本协议尚未配置多模态输入，不能只发送素材地址代替图片", 422, false);
     const key = request.protocol === "responses" ? "input" : request.protocol === "gemini" ? "contents" : "messages";
-    const messages = request.body[key] as Array<Record<string, unknown>>;
+    const messages = request.body[key] as Array<{ role?: unknown; content?: TextPlanningMessageContent; parts?: unknown[] }>;
     const index = messages.findLastIndex((message) => message.role === "user");
     if (index < 0) throw new TextPlanningRequestError("多模态请求缺少用户消息", 422, false);
-    const message = messages[index];
+    const message = messages[index] as { role?: unknown; content?: TextPlanningMessageContent; parts?: unknown[] };
     if (request.protocol === "gemini") {
         message.parts = [
-            ...(message.parts as unknown[]),
+            ...(message.parts || []),
             ...media.map((item) => {
                 const match = /^data:((?:image|video)\/[^;]+);base64,(.+)$/.exec(item.url);
                 if (!match) throw new TextPlanningRequestError("Gemini 图片输入需要已读取的图片内容", 422, false);
@@ -280,7 +287,7 @@ function attachPlanningMedia(request: ProtocolRequest, media: TextPlanningMediaI
         // Requests can share the same original messages array. Copy before
         // attaching so protocol repair cannot duplicate attachments.
         const parts = [
-            { type: responses ? "input_text" : "text", text: message.content },
+            { type: responses ? "input_text" : "text", text: typeof message.content === "string" ? message.content : (message.content || []).map((part) => (part.type === "text" ? part.text : `[image:${part.image_url.url}]`)).join(" ") },
             ...media.map((item) => (responses ? { type: `input_${item.type}`, [`${item.type}_url`]: item.url } : { type: `${item.type}_url`, [`${item.type}_url`]: { url: item.url } })),
         ];
         request.body[key] = messages.map((item, i) => (i === index ? { ...item, content: parts } : item));
