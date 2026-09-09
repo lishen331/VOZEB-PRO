@@ -305,7 +305,8 @@ describe("client store session isolation", () => {
         expect(mocks.saveCanvasProjectMutation.mock.calls.length).toBeGreaterThanOrEqual(1);
         expect(useCanvasStore.getState().projects[0].chatSessions[0].messages[0].text).toBe("generated");
     });
-`r`n    it("flushes the current Canvas snapshot with keepalive when the page is leaving", async () => {
+
+    it("flushes the current Canvas snapshot with keepalive when the page is leaving", async () => {
         const project = canvasProject("canvas-keepalive", "离开前保存");
         useUserStore.getState().setUser(user("user-a"));
         mocks.getCanvasProject.mockResolvedValue(project);
