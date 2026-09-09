@@ -47,9 +47,23 @@ export function watchCanvasAgentRun(runId: string, handlers: RunHandlers, option
             paused = value;
             handlers.onPaused(value);
         };
+        const stageHistory: Array<import("./canvas-agent-progress").CanvasAgentStageRecord> = [];
         const reportStage = (stage: CanvasAgentRunStage) => {
-            stage = { ...stage, startedAt: stage.startedAt || Date.now() };
+            const now = Date.now();
+            const startedAt = stage.startedAt || now;
+            stage = { ...stage, startedAt };
             if (stage.key !== "reconnecting") latestStageKey = stage.key;
+            if (stage.key !== "reconnecting") {
+                for (const item of stageHistory)
+                    if (item.status === "running" && item.key !== stage.key) {
+                        item.status = "completed";
+                        item.durationSeconds = Math.max(0, Math.floor((now - item.startedAt) / 1000));
+                    }
+                const current = stageHistory.find((item) => item.key === stage.key);
+                if (current) current.text = stage.text;
+                else stageHistory.push({ key: stage.key, text: stage.text, status: "running", startedAt });
+                stage.progress = stageHistory.map((item) => ({ ...item }));
+            }
             handlers.onStage(stage);
         };
         const reconcileRun = async () => {
