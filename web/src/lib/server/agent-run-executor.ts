@@ -1,4 +1,4 @@
-﻿import { createCanvasDestructiveProposal } from "@/lib/canvas-agent-destructive";
+import { createCanvasDestructiveProposal } from "@/lib/canvas-agent-destructive";
 import { planCanvasAgentLayout } from "@/lib/canvas-agent-layout";
 import { agentRunCanvasSnapshot } from "./agent-run-canvas-snapshot";
 import { getCanvasProjectForRecovery } from "./canvas-project-store";
