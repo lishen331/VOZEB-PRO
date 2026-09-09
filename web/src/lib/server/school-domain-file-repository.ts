@@ -615,7 +615,9 @@ class FileSchoolDomainRepository implements SchoolDomainRepository {
         if (!material || !state.courses.some((course) => course.id === material.courseId && course.status === "published")) return null;
         const memberships = state.memberships.filter((membership) => membership.userId === userId && membership.status === "active");
         return memberships.some((membership) => {
-            const assignment = state.courseAssignments.find((item) => item.schoolId === membership.schoolId && item.courseId === material.courseId && item.status === "active" && (material.sourceScope === "platform" || material.schoolCourseAssignmentId === item.id));
+            const assignment = state.courseAssignments.find(
+                (item) => item.schoolId === membership.schoolId && item.courseId === material.courseId && item.status === "active" && (material.sourceScope === "platform" || material.schoolCourseAssignmentId === item.id),
+            );
             if (!assignment) return false;
             if (membership.role === "teacher" && membership.permissions.includes("school.manage")) return true;
             const offerings = state.courseOfferings.filter((item) => item.schoolId === membership.schoolId && item.assignmentId === assignment.id && item.status === "active");
