@@ -67,6 +67,15 @@ describe("audio task runtime submission safety", () => {
         vi.unstubAllGlobals();
     });
 
+    it("persists local audio as a same-origin path, never the worker origin", async () => {
+        mocks.writeMedia.mockResolvedValue({ token: "fixture-audio", storage: "local" });
+        const wav = Buffer.from("UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=", "base64");
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(wav, { headers: { "content-type": "audio/wav" } })));
+        await expect(createAudioTaskUpstreamStep(state, "http://127.0.0.1:3000")).resolves.toEqual({ state: "completed" });
+        expect(state.result?.url).toBe("/api/reference-assets/fixture-audio");
+        expect(mocks.register).toHaveBeenCalledWith("user-one", expect.objectContaining({ assets: [expect.objectContaining({ url: "/api/reference-assets/fixture-audio" })] }));
+    });
+
     it("uses the official POST contract and nested results for RunningHub audio", async () => {
         const task = audioTask();
         task.config = { ...task.config, baseUrl: "/api/ai/system/rh", advancedConfig: { ...emptyAdvancedConfig(), protocol: "runninghub", queryPath: "/openapi/v2/query", statusField: "data.status", resultField: "data.result" } };

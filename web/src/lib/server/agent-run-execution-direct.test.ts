@@ -4,6 +4,13 @@ import { directCanvasTextContent, directAgentPlan, directGenerationPreferences, 
 import { agentSurfaceImageSize, normalizeCanvasPlanForSelection, resolveAgentTaskRatio } from "./agent-run-task-input";
 
 describe("directAgentPlan", () => {
+    it("keeps audio speech literal without visual foundation text", () => {
+        const plan = directAgentPlan([{ id: "audio-pro", name: "Voice", capability: "audio" }], "你好，这是语音验收。", [], { mode: "audio" });
+        const tasks = normalizeTasks(plan, [], generationSettings() as never, undefined, "你好，这是语音验收。", "chat", []);
+        expect(tasks[0].prompt).toBe("你好，这是语音验收。");
+        expect(tasks[0].prompt).not.toContain("统一创作约束");
+    });
+
     it("only shortcuts an explicit literal value and preserves its whitespace", () => {
         expect(directCanvasTextContent({ type: "text", prompt: "ignored", literalContent: "  Final text\n" } as never)).toBe("  Final text\n");
         expect(directCanvasTextContent({ type: "text", prompt: "内容写为“legacy text”" } as never)).toBeNull();

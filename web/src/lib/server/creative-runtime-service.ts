@@ -1,4 +1,12 @@
-import { creativeConversationSourceForSurface, isCreativeConversationSourceCompatible, normalizeCreativeConversationSource, normalizeCreativeSurface, type CreativeAssetType, type CreativeConversationStatus } from "@/lib/creative-runtime-contract";
+import {
+    creativeConversationSourceForSurface,
+    isCreativeConversationSourceCompatible,
+    normalizeCreativeConversationSource,
+    normalizeCreativeSurface,
+    type CreativeAsset,
+    type CreativeAssetType,
+    type CreativeConversationStatus,
+} from "@/lib/creative-runtime-contract";
 import { creativeUploadLimitMessage, creativeUploadMaxBytes, isCreativeUploadMimeType } from "@/lib/creative-upload";
 import {
     createCreativeConversation,
@@ -11,7 +19,7 @@ import {
     registerCreativeAssets,
     updateCreativeConversation,
 } from "@/lib/server/creative-runtime-store";
-import { writePersistentMediaDataUrl } from "@/lib/server/reference-asset-store";
+import { isReferenceAssetPath, writePersistentMediaDataUrl } from "@/lib/server/reference-asset-store";
 import { deleteCreativeConversationAggregates } from "@/lib/server/creative-entity-deletion-store";
 import { getLocalMediaRegistration, isLocalMediaRegistrationExpired } from "@/lib/server/local-media-registry";
 import { localMediaStorageKeyFromValue } from "@/lib/server/local-media-references";
@@ -81,15 +89,31 @@ export async function listMessagesForUser(userId: string, id: string, afterSeque
     return listCreativeMessages(id, afterSequence, limit, beforeSequence);
 }
 
+/** Repair historical Worker-origin audio URLs at the authenticated read boundary. */
+function publicAudioAsset(asset: CreativeAsset): CreativeAsset {
+    if (asset.type !== "audio") return asset;
+    const source = asset.serverUrl || asset.remoteUrl;
+    if (!source) return asset;
+    try {
+        const url = new URL(source);
+        if (!["http:", "https:"].includes(url.protocol) || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || url.username || url.password) return asset;
+        const prefix = "/api/reference-assets/";
+        if (!url.pathname.startsWith(prefix) || !isReferenceAssetPath(url.pathname.slice(prefix.length))) return asset;
+        return { ...asset, serverUrl: url.pathname, remoteUrl: undefined };
+    } catch {
+        return asset;
+    }
+}
+
 export async function listAssetsForUser(userId: string, id: string) {
     await getConversationForUser(userId, id);
-    return listCreativeAssets(id, userId);
+    return (await listCreativeAssets(id, userId)).map(publicAudioAsset);
 }
 
 export async function getAssetForUser(userId: string, id: string) {
     const asset = await getCreativeAsset(id, userId);
     if (!asset || asset.userId !== userId || asset.status === "deleted") throw new CreativeRuntimeServiceError("创作资产不存在", 404);
-    return asset;
+    return publicAudioAsset(asset);
 }
 
 export async function uploadAssetForUser(userId: string, conversationId: string, file: File) {

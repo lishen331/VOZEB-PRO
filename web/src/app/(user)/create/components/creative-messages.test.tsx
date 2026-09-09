@@ -497,6 +497,68 @@ describe("CreativeMessages", () => {
         expect(markup).not.toContain("正在处理「图片生成」");
     });
 
+    it("does not announce success for a cancelled audio round without assets", () => {
+        const now = Date.now();
+        const userMessage: CreativeMessage = {
+            id: "waiting-user",
+            conversationId: "conversation-one",
+            runId: "waiting-run",
+            sequence: 1,
+            role: "user",
+            status: "completed",
+            content: "生成一张海边照片",
+            metadata: {},
+            createdAt: now,
+            updatedAt: now,
+        };
+        const assistantMessage: CreativeMessage = {
+            id: "waiting-assistant",
+            conversationId: "conversation-one",
+            runId: "waiting-run",
+            sequence: 2,
+            role: "assistant",
+            status: "cancelled",
+            content: "Agent 任务已取消。",
+            metadata: {},
+            createdAt: now,
+            updatedAt: now,
+        };
+        const markup = renderToStaticMarkup(
+            <App>
+                <CreativeMessages
+                    messages={[userMessage, assistantMessage]}
+                    assets={[]}
+                    loading={false}
+                    projectLinks={{}}
+                    projectErrors={{}}
+                    runDetails={{
+                        "waiting-run": {
+                            id: "waiting-run",
+                            conversationId: "conversation-one",
+                            inputMessageId: userMessage.id,
+                            assistantMessageId: assistantMessage.id,
+                            status: "cancelled",
+                            generationPreferences: { mode: "audio", image: { size: "1:1", quality: "high" } },
+                            assetIds: [],
+                            tasks: [{ id: "image-task", title: "图片生成", type: "audio", status: "cancelled" }],
+                            createdAt: now,
+                            updatedAt: now,
+                        },
+                    }}
+                    onMaterializeProject={async () => {
+                        throw new Error("not used");
+                    }}
+                    onRetryMessage={vi.fn()}
+                    selectedAssetIds={[]}
+                    onToggleAsset={vi.fn()}
+                />
+            </App>,
+        );
+
+        expect(markup).toContain("Agent 任务已取消。");
+        expect(markup).not.toContain("已为你生成音频");
+    });
+
     it("restores the original text before retrying an initial submission failure", () => {
         const userMessage: CreativeMessage = {
             id: "temporary-user",

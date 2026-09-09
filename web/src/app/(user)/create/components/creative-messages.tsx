@@ -248,7 +248,22 @@ function CreativeMediaRound({
     const showAssistantText = Boolean(displayContent.trim()) && !(assistantMessage.status === "completed" && (mediaOutputs.length || textOutputs.length));
     const mode = creativeRunMode(run);
     const taskTitle = run?.tasks.find((task) => task.type === mode)?.title.trim();
-    const resultTitle = taskTitle?.startsWith("生成") ? `已为你${taskTitle}` : mode === "video" ? "已为你生成视频" : mode === "audio" ? "已为你生成音频" : "已为你生成图片";
+    const resultTitle =
+        assistantMessage.status === "cancelled" || run?.status === "cancelled"
+            ? "创作已取消"
+            : assistantMessage.status === "failed" || run?.status === "failed"
+              ? "创作失败"
+              : run?.status === "partial_success"
+                ? "部分创作已完成"
+                : !mediaOutputs.some((asset) => asset.status === "ready")
+                  ? "创作结果待确认"
+                  : taskTitle?.startsWith("生成")
+                    ? `已为你${taskTitle}`
+                    : mode === "video"
+                      ? "已为你生成视频"
+                      : mode === "audio"
+                        ? "已为你生成音频"
+                        : "已为你生成图片";
     const renderRoundActions = (activeAsset: CreativeAsset) =>
         activeAsset.status === "ready" ? <CreativeRoundActions outputAssets={outputAssets} activeAsset={activeAsset} run={run} selectedAssetIds={selectedAssetIds} onToggleAsset={onToggleAsset} /> : null;
 

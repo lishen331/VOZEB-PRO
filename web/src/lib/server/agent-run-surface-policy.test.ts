@@ -289,3 +289,11 @@ describe("Canvas multimodal context", () => {
         expect(JSON.stringify(result.input.canvasSnapshot)).not.toContain("do not edit");
     });
 });
+
+describe("audio planning instructions", () => {
+    it("separates spoken text from voice instructions instead of requiring visual constraints for TTS", () => {
+        const prompt = agentPlannerSystemPrompt("chat", "{}", "Test");
+        expect(prompt).toContain("音频配音任务的 prompt 只填写实际需要朗读的正文");
+        expect(prompt).toContain("不得把配音要求、视觉方向或制作说明写入朗读正文");
+    });
+});
