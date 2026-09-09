@@ -1,8 +1,8 @@
 import type { GenerationLogRequestSnapshot } from "@/lib/generation-log-snapshot";
 
-export type GenerationLogKind = "image" | "video" | "text";
-export type GenerationLogAssetKind = "image" | "video";
-export type GenerationLogSource = "agent" | "image-workbench" | "video-workbench" | "canvas" | "drama" | "unknown";
+export type GenerationLogKind = "image" | "video" | "audio" | "text";
+export type GenerationLogAssetKind = "image" | "video" | "audio";
+export type GenerationLogSource = "agent" | "image-workbench" | "video-workbench" | "canvas" | "drama" | "practice" | "unknown";
 export type GenerationLogStatus = "pending" | "success" | "failed";
 
 export type GenerationLogAsset = {

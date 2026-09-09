@@ -42,6 +42,23 @@ describe("generation log asset normalization", () => {
         mocks.persistExternalMediaIfEnabled.mockResolvedValue({ storageKey: "permanent/result.png" });
     });
 
+    it("preserves audio logs and FLAC assets", () => {
+        const log = normalizeStoredLog({
+            ...storedLogWithAssets(1),
+            kind: "audio",
+            source: "practice",
+            summary: "",
+            assets: [{ type: "audio", url: "/api/reference-assets/permanent/audio/result.flac", mimeType: "audio/flac" }],
+        });
+
+        expect(log).toMatchObject({
+            kind: "audio",
+            source: "practice",
+            summary: "音频生成完成",
+            assets: [{ type: "audio", url: "/api/reference-assets/permanent/audio/result.flac", mimeType: "audio/flac" }],
+        });
+    });
+
     it("accepts a real image when the upstream declares a generic content type", async () => {
         mocks.fetchSafeOutbound.mockResolvedValue(new Response(PNG_BYTES, { headers: { "content-type": "application/octet-stream" } }));
 
