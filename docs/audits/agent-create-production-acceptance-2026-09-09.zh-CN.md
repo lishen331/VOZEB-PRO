@@ -80,3 +80,7 @@ P0-02 多模态图片盲测：已修复并线上通过（gemini-3.1-flash-image-
 - 430px：`scrollWidth=430`、`innerWidth=430`，无横向溢出。
 
 当前不是继续向用户索要配置，而是继续基于已恢复渠道完成剩余真实矩阵；所有失败会统一归类为产品缺陷、渠道/上游阻断或输入不完整。
+- 2026-09-09 测试环境音频渠道已重新配置后的集中复测：
+  - 显式音频生成仍失败：run `agent-MWZ57lN4KBSitqF_FOWST`，助手返回“文本模型规划响应超时，正在切换备用渠道”，无音频任务/资产。当前失败发生在 Agent 规划文本模型阶段，不是音频供应商 TTS 执行阶段；需结合测试环境文本规划渠道日志确认 HTTP 504/超时。
+  - 显式视频生成通过：run `agent-riaeE5NKFYy__ssOJljjx`，video/doubao-seedance-2-0 completed，资产 `asset-KqmZqdCE8w_572coFuPe_`。
+- 结论：渠道配置恢复后视频链路正常；音频仍未进入真正的 audio task，不能判音频功能通过，当前需要定位文本规划超时和音频模式计划契约的组合问题。
