@@ -66,9 +66,25 @@ export function useAdminDashboardEffects({ state, data, settingsActions }: { sta
         activeSection,
         setActiveSection,
         setAgentReadiness,
+        setSettings,
     } = state;
     const { loadBillingSummary, loadOperationsSummary, loadGenerationAssetStats, loadPrompts, loadGenerationLogs, loadPaymentConfig, loadCdkCodes, loadAnnouncements, loadUsers } = data;
     const {} = settingsActions;
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const source = new EventSource("/api/admin/settings/events");
+        const refresh = async () => {
+            const response = await fetch("/api/admin/settings", { cache: "no-store" });
+            if (!response.ok) return;
+            const payload = (await response.json()) as { settings?: AuthSettings; settingsRevision?: number };
+            if (payload.settings && (payload.settingsRevision ?? payload.settings.settingsRevision ?? 1) > (settings.settingsRevision ?? 1)) setSettings(payload.settings);
+        };
+        source.addEventListener("settings-updated", () => {
+            if (!settingsLoading) void refresh();
+        });
+        return () => source.close();
+    }, [settings.settingsRevision, settingsLoading]);
 
     useEffect(() => {
         if (activeSection !== "skills" || settingsLoading) return;

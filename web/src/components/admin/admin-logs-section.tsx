@@ -73,6 +73,7 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
                                 { label: "文本", value: "text" },
                                 { label: "图片", value: "image" },
                                 { label: "视频", value: "video" },
+                                { label: "音频", value: "audio" },
                             ]}
                         />
                         <Select
@@ -90,6 +91,7 @@ export function AdminLogsSection({ controller }: { controller: AdminDashboardCon
                                 { label: "短剧", value: "drama" },
                                 { label: "图片生成", value: "image-workbench" },
                                 { label: "视频生成", value: "video-workbench" },
+                                { label: "无限练习", value: "practice" },
                             ]}
                         />
                         <Select

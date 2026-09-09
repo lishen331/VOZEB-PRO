@@ -12,9 +12,14 @@ const mocks = vi.hoisted(() => ({
     register: vi.fn(),
     writeMedia: vi.fn(),
     refund: vi.fn(),
+    recordLog: vi.fn(),
+    getUsers: vi.fn(),
+    getLog: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/store", () => ({ getAuthSettings: vi.fn() }));
+vi.mock("@/lib/auth/store", () => ({ getAuthSettings: vi.fn(), getPublicUsersByIds: mocks.getUsers }));
+vi.mock("@/lib/server/generation-log-task-service", () => ({ recordGenerationTaskLogResult: mocks.recordLog }));
+vi.mock("@/lib/server/generation-log-store", () => ({ getGenerationLogForUser: mocks.getLog }));
 vi.mock("@/lib/server/generation-charge-service", () => ({ refundGenerationCharge: mocks.refund }));
 vi.mock("@/lib/server/audio-task-store", () => ({
     getAudioTask: mocks.getTask,
@@ -53,10 +58,22 @@ describe("audio task runtime submission safety", () => {
         });
         mocks.writeMedia.mockResolvedValue({ token: "fixture-audio", url: "/api/reference-assets/fixture-audio.wav" });
         mocks.register.mockResolvedValue(undefined);
+        mocks.recordLog.mockResolvedValue({});
+        mocks.getUsers.mockResolvedValue([{ id: "user-one", username: "student", displayName: "学生" }]);
+        mocks.getLog.mockResolvedValue(null);
     });
 
     afterEach(() => {
         vi.unstubAllGlobals();
+    });
+
+    it("persists local audio as a same-origin path, never the worker origin", async () => {
+        mocks.writeMedia.mockResolvedValue({ token: "fixture-audio", storage: "local" });
+        const wav = Buffer.from("UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=", "base64");
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(wav, { headers: { "content-type": "audio/wav" } })));
+        await expect(createAudioTaskUpstreamStep(state, "http://127.0.0.1:3000")).resolves.toEqual({ state: "completed" });
+        expect(state.result?.url).toBe("/api/reference-assets/fixture-audio");
+        expect(mocks.register).toHaveBeenCalledWith("user-one", expect.objectContaining({ assets: [expect.objectContaining({ url: "/api/reference-assets/fixture-audio" })] }));
     });
 
     it("uses the official POST contract and nested results for RunningHub audio", async () => {
@@ -183,6 +200,59 @@ describe("audio task runtime submission safety", () => {
         }
     });
 
+    it("records successful practice audio with its persistent browser URL", async () => {
+        state = { ...audioTask(), status: "running", executionProfile: "open-source-practice", businessCode: "dubbing" };
+        mocks.writeMedia.mockResolvedValueOnce({ token: "permanent/audio/result.flac", url: "/api/reference-assets/permanent/audio/result.flac" });
+        mocks.getUsers.mockResolvedValueOnce([{ id: "user-one", username: "student", displayName: "学生" }]);
+        mocks.fetchInternalApi.mockResolvedValueOnce(new Response(Buffer.from("fLaC"), { headers: { "content-type": "audio/flac" } }));
+
+        const { persistAudioTaskResult } = await import("./audio-task-runtime");
+        await expect(persistAudioTaskResult({ ...state, config: { ...state.config, baseUrl: "/api/ai/system/rh" } }, "http://127.0.0.1:3000", "https://cdn.example/result.flac")).resolves.toMatchObject({
+            status: "success",
+            result: { url: "/api/reference-assets/permanent/audio/result.flac", mimeType: "audio/flac" },
+        });
+        expect(mocks.recordLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                taskId: "audio-one",
+                userId: "user-one",
+                kind: "audio",
+                source: "practice",
+                status: "success",
+                asset: { type: "audio", url: "/api/reference-assets/permanent/audio/result.flac", mimeType: "audio/flac" },
+            }),
+        );
+    });
+
+    it("normalizes a legacy internal audio URL while backfilling its log", async () => {
+        const task = {
+            ...audioTask(),
+            status: "success" as const,
+            executionProfile: "open-source-practice" as const,
+            businessCode: "dubbing" as const,
+            result: { url: "http://127.0.0.1:3000/api/reference-assets/permanent/audio/result.flac", mimeType: "audio/flac" },
+        };
+
+        const { ensurePracticeAudioGenerationLog } = await import("./audio-task-runtime");
+        await ensurePracticeAudioGenerationLog(task, "success");
+
+        expect(mocks.recordLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                asset: { type: "audio", url: "/api/reference-assets/permanent/audio/result.flac", mimeType: "audio/flac" },
+            }),
+        );
+    });
+
+    it("does not rewrite an existing practice audio generation log", async () => {
+        const task = { ...audioTask(), status: "success" as const, executionProfile: "open-source-practice" as const, businessCode: "dubbing" as const, result: { url: "/api/reference-assets/audio.flac", mimeType: "audio/flac" } };
+        mocks.getLog.mockResolvedValueOnce({ id: "audio-task:audio-one" });
+
+        const { ensurePracticeAudioGenerationLog } = await import("./audio-task-runtime");
+        await ensurePracticeAudioGenerationLog(task, "success");
+
+        expect(mocks.recordLog).not.toHaveBeenCalled();
+        expect(mocks.getUsers).not.toHaveBeenCalled();
+    });
+
     it("keeps the original candidate when the request connection is interrupted", async () => {
         const fetchMock = vi.fn().mockRejectedValueOnce(new Error("socket closed"));
         vi.stubGlobal("fetch", fetchMock);
@@ -209,6 +279,26 @@ describe("audio task runtime submission safety", () => {
         expect(state.config.channelId).toBe("channel-one");
         expect(state.billing).toEqual({ pointsCost: 1.25, billingReceiptId: "audio-receipt-unknown", refunded: false });
         expect(mocks.refund).not.toHaveBeenCalled();
+    });
+
+    it("records a failed dubbing practice task without an audio asset", async () => {
+        state = { ...audioTask(), status: "running", executionProfile: "open-source-practice", businessCode: "dubbing" };
+        mocks.refund.mockImplementationOnce(async () => {
+            state = { ...state, billing: state.billing ? { ...state.billing, refunded: true } : undefined };
+            return state;
+        });
+
+        await expect(markAudioTaskFailed(state, "workflow failed")).resolves.toMatchObject({ status: "error" });
+        expect(mocks.recordLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                taskId: "audio-one",
+                kind: "audio",
+                source: "practice",
+                status: "failed",
+                error: "workflow failed",
+                asset: undefined,
+            }),
+        );
     });
 
     it("does not refund when audio success wins the failure transition race", async () => {

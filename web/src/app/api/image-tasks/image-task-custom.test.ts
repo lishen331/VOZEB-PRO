@@ -25,6 +25,74 @@ describe("declarative image request size", () => {
         const task = { id: "rh-submit", userId: "user", kind: "generation", prompt: "test", references: [], config: { baseUrl: "/api/ai/system/rh", apiKey: "system", apiFormat: "openai", model: "rh-image", advancedConfig } } as unknown as ImageTask;
         await expect(runCustomImageTask(task, "http://localhost", "http://localhost", "", true)).resolves.toMatchObject({ pending: { id: "same-upstream-task" } });
     });
+    it("forwards practice workflow input such as the chosen size into the RunningHub nodeInfoList", async () => {
+        const workflow = {
+            workflowKey: "runninghub-demo-prop_main_view",
+            workflowCode: "prop_main_view",
+            workflowName: "道具主视图",
+            businessCode: "storyboard-image",
+            capability: "image",
+            providerType: "runninghub",
+            channelId: "rh",
+            workflowId: "2090436220538150914",
+            version: 1,
+            enabled: true,
+            createPath: "/task/openapi/create",
+            queryPath: "/openapi/v2/query",
+            taskIdField: "data.taskId",
+            statusField: "data.status",
+            resultField: "data.result",
+            requestTemplate: "{}",
+            inputSchema: [
+                { key: "prompt", label: "描述词", type: "text", required: true },
+                { key: "width", label: "宽", type: "number", required: true, defaultValue: 1024 },
+                { key: "height", label: "高", type: "number", required: true, defaultValue: 1024 },
+            ],
+            nodeMappings: [
+                { paramKey: "prompt", nodeId: "1", fieldName: "text", valueType: "STRING", source: "INPUT", inputKey: "prompt" },
+                { paramKey: "width", nodeId: "2", fieldName: "width", valueType: "NUMBER", source: "INPUT", inputKey: "width" },
+                { paramKey: "height", nodeId: "2", fieldName: "height", valueType: "NUMBER", source: "INPUT", inputKey: "height" },
+            ],
+            outputMappings: [{ key: "image", label: "图片", nodeId: "9", assetType: "IMAGE", required: true, primary: true }],
+        } as const;
+        const advancedConfig = {
+            ...emptyAdvancedConfig(),
+            protocol: "runninghub" as const,
+            createPath: workflow.createPath,
+            queryPath: workflow.queryPath,
+            taskIdField: workflow.taskIdField,
+            resultField: workflow.resultField,
+            statusField: workflow.statusField,
+            workflowConfigs: { [workflow.workflowKey]: workflow },
+        };
+        mocks.fetchInternalApi.mockResolvedValueOnce(Response.json({ code: 0, data: { taskId: "sized-task", status: "RUNNING" } }));
+        const task = {
+            id: "rh-sized",
+            userId: "user",
+            kind: "generation",
+            prompt: "青铜短剑",
+            references: [],
+            executionProfile: "open-source-practice",
+            taskOrigin: "user",
+            workflowKey: workflow.workflowKey,
+            workflowVersion: 1,
+            businessCode: "storyboard-image",
+            workflowInput: { width: 768, height: 1024, workflowCode: "prop_main_view" },
+            config: { baseUrl: "/api/ai/system/rh", apiKey: "system", apiFormat: "openai", model: workflow.workflowKey, executionProfile: "open-source-practice", advancedConfig },
+        } as unknown as ImageTask;
+
+        await expect(runCustomImageTask(task, "http://localhost", "http://localhost", "", true)).resolves.toMatchObject({ pending: { id: "sized-task" } });
+
+        const body = JSON.parse(String((mocks.fetchInternalApi.mock.calls[0]?.[1] as RequestInit).body)) as { workflowId?: string; nodeInfoList?: Array<{ nodeId: string; fieldName: string; fieldValue: unknown }> };
+        expect(body.workflowId).toBe(workflow.workflowId);
+        expect(body.nodeInfoList).toEqual(
+            expect.arrayContaining([
+                { nodeId: "2", fieldName: "width", fieldValue: 768 },
+                { nodeId: "2", fieldName: "height", fieldValue: 1024 },
+            ]),
+        );
+    });
+
     it("does not turn Stable Diffusion intelligent requests into a square size", () => {
         expect(resolveDeclarativeImageSize({ quality: "auto", size: "auto", advancedConfig: { ...emptyAdvancedConfig(), protocol: "stable-diffusion" } })).toBe("");
     });

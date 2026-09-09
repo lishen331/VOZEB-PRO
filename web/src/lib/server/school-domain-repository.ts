@@ -246,6 +246,7 @@ export interface SchoolDomainRepository {
     permanentlyDeletePlatformCourse(courseId: string): Promise<{ storageKeys: string[] }>;
     getSchoolCourseAssignment(schoolId: string, assignmentId: string, forUpdate?: boolean): Promise<SchoolCourseAssignmentRecord | null>;
     hasVisibleCourseAssignment(schoolId: string, membershipId: string, role: SchoolMemberRole, assignmentId: string): Promise<boolean>;
+    getReadableCourseMaterial(userId: string, storageKey: string): Promise<CourseMaterialRecord | null>;
     hasActiveOfferingForTeacher(schoolId: string, membershipId: string, assignmentId: string): Promise<boolean>;
     listOfferingsForAssignment(schoolId: string, assignmentId: string, input: PageQuery): Promise<Page<SchoolCourseOfferingRecord>>;
     getCourseOffering(schoolId: string, offeringId: string, forUpdate?: boolean): Promise<SchoolCourseOfferingRecord | null>;

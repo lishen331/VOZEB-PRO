@@ -270,6 +270,59 @@ describe("file school domain repository", () => {
         await expect(repository.listTeachingSubmissionsForStudent("school-a", "student-a", { page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0, items: [] });
     });
 
+    it("authorizes course materials only for the assigned school manager, offering teacher, and class students", async () => {
+        const repository = createFileSchoolDomainRepository();
+        await seedTeachingDomain(repository);
+        await repository.insertMembership({ ...membership("manager-a", "school-a", "manager-user-a", "teacher"), permissions: ["school.manage"] });
+        await repository.insertCourseChapter({ id: "chapter-material", courseId: "course-a", title: "资料章节", description: "", sortOrder: 1, createdAt: now, updatedAt: now });
+        await repository.insertCourseLesson({ id: "lesson-material", courseId: "course-a", chapterId: "chapter-material", title: "资料课时", description: "", sortOrder: 1, createdAt: now, updatedAt: now });
+        await repository.insertCourseMaterial({
+            id: "platform-material-a",
+            courseId: "course-a",
+            lessonId: "lesson-material",
+            sourceScope: "platform",
+            title: "平台课程图片",
+            fileName: "platform.png",
+            mimeType: "image/png",
+            bytes: 10,
+            storageKey: "permanent/course/platform.png",
+            url: "/api/reference-assets/permanent/course/platform.png",
+            sortOrder: 1,
+            status: "active",
+            createdAt: now,
+            updatedAt: now,
+        });
+        await repository.insertCourseMaterial({
+            id: "school-material-a",
+            courseId: "course-a",
+            lessonId: "lesson-material",
+            sourceScope: "school",
+            schoolCourseAssignmentId: "course-assignment-a",
+            title: "甲学校课程图片",
+            fileName: "school-a.png",
+            mimeType: "image/png",
+            bytes: 10,
+            storageKey: "permanent/course/school-a.png",
+            url: "/api/reference-assets/permanent/course/school-a.png",
+            sortOrder: 2,
+            status: "active",
+            createdAt: now,
+            updatedAt: now,
+        });
+
+        await expect(repository.getReadableCourseMaterial("manager-user-a", "permanent/course/platform.png")).resolves.toMatchObject({ id: "platform-material-a" });
+        await expect(repository.getReadableCourseMaterial("teacher-user-a", "permanent/course/platform.png")).resolves.toMatchObject({ id: "platform-material-a" });
+        await expect(repository.getReadableCourseMaterial("student-user-a", "permanent/course/platform.png")).resolves.toMatchObject({ id: "platform-material-a" });
+        await expect(repository.getReadableCourseMaterial("student-user-b", "permanent/course/platform.png")).resolves.toBeNull();
+        await expect(repository.getReadableCourseMaterial("student-user-b", "permanent/course/school-a.png")).resolves.toBeNull();
+        await expect(repository.getReadableCourseMaterial("unknown-user", "permanent/course/platform.png")).resolves.toBeNull();
+
+        await repository.updateCourseMaterial("platform-material-a", { status: "disabled", updatedAt: now });
+        await expect(repository.getReadableCourseMaterial("student-user-a", "permanent/course/platform.png")).resolves.toBeNull();
+        await repository.updateCourseMaterial("platform-material-a", { status: "active", updatedAt: now });
+        await repository.disablePlatformCourse("course-a", { deletedAt: now, deletedByUserId: "admin", updatedAt: now });
+        await expect(repository.getReadableCourseMaterial("student-user-a", "permanent/course/platform.png")).resolves.toBeNull();
+    });
     it("mirrors schema checks and unique constraints", async () => {
         const repository = createFileSchoolDomainRepository();
         await seedTeachingDomain(repository);

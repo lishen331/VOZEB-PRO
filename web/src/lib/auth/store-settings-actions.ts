@@ -40,9 +40,9 @@ export async function getFreshAuthSettings() {
     return settings;
 }
 
-export async function setAuthSettings(patch: Partial<AuthSettings>) {
+export async function setAuthSettings(patch: Partial<AuthSettings>, expectedRevision?: number) {
     const settings = isPostgresDatabaseEnabled()
-        ? await updatePostgresAuthSettings(patch)
+        ? await updatePostgresAuthSettings(patch, expectedRevision)
         : await mutateAuthDb((db) => {
               db.settings = normalizeSettings(mergeNestedSettings(db.settings, patch));
               return db.settings;

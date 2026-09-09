@@ -165,3 +165,12 @@
 - 自制测试图：output/agent-audit/input-a.png。
 - 没有把其他协作者的canvas审查截图或报告当成本次自己的证据。
 - 本次没有业务代码/接口/数据库变更；无需刷新开发地图。本次没有Git推送或部署，也没有宣称远端质量门禁通过。
+- 2026-09-09 线上 P0 回归结果：
+  - 参数页签场景已使用新对话、先浏览视频再回到图片/关闭参数后发送纯文字请求；run `agent-GYVjxcuxUq2i3F4X4foUj` completed，tasks=[]，助手准确回复“语义验收通过”。未出现 video task，P0-01 通过。
+  - 图片盲测使用页面上传的 `input-a.png` 并要求直接读取图中错误码；服务端确实绑定了资产 `asset-8ieap-DumffcEdVPGh8cz`，但运行在选择的 `gpt-5.5` 视觉模型下，助手失败：`No available channel for model gpt-5.5 under group default (distributor)`。这是模型/渠道配置阻断，不能判为视觉输入链路通过或失败；请求未降级为空承诺，P0-02 仍待使用已配置可用的视觉模型复测。
+  - 页面唯一控制台错误为测试账号头像接口 404，不影响本次 Agent 请求。
+- 2026-09-09 P0 线上回归结论：使用测试账号 `laoshi1` 和既有线上地址，无需用户补充信息。
+- P0-01（参数页签污染）已通过真实新建对话复测：先浏览视频参数，再回到图片/关闭参数，发送纯文字请求；run `agent-GYVjxcuxUq2i3F4X4foUj` completed，tasks=[]，回复“语义验收通过”。
+- P0-02（视觉输入/空交付）本次未能完成有效回归：上传图片后系统选择了当前默认 `gpt-5.5`，线上返回 `No available channel for model gpt-5.5 under group default (distributor)`。这是当前模型/渠道路由配置阻断，不是代码空交付证据。已确认请求绑定真实资产 `asset-8ieap-DumffcEdVPGh8cz`，未降级成承诺式完成。
+- 因此没有需要用户操作的事项；若继续闭环，只需后台把正式 `visionModel` 指向已有可用多模态模型（如之前成功使用的模型），再复测同一盲测图。当前不能自行修改生产模型配置，也不能把 gpt-5.5 无渠道错误误判为功能缺陷。
+- 2026-09-09 P0-02 线上盲测最终通过：在全新对话中上传 `input-a.png`，手动选择 `gemini-3.1-flash-image-preview` 视觉模型，发送“直接写出错误码、英文错误信息和 Request ID”。助手成功返回：`HTTP 403`、`ERROR: TEST_PERMISSION_DENIED`、`QA-7429`，并解释 `Access to model group is denied`。消息状态 completed，未创建图片/视频/音频任务；图片资产真实绑定到本次 run。此前 gpt-5.5 无渠道属于配置阻断，切换到可用多模态模型后链路正常。

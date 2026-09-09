@@ -1,3 +1,8 @@
+import { createCanvasDestructiveProposal } from "@/lib/canvas-agent-destructive";
+import { planCanvasAgentLayout } from "@/lib/canvas-agent-layout";
+import { agentRunCanvasSnapshot } from "./agent-run-canvas-snapshot";
+import { getCanvasProjectForRecovery } from "./canvas-project-store";
+import { isDramaLabCanvasProject } from "@/lib/drama-lab-canvas-contract";
 import { prepareAgentPlannerMedia } from "./agent-planner-media";
 import { getAuthSettings } from "@/lib/auth/store";
 import { nanoid } from "nanoid";
@@ -22,6 +27,34 @@ import { assertAgentPlanSkillCompatibility } from "./agent-skill-capabilities";
 
 const globalAgentExecutors = globalThis as typeof globalThis & { __vozebProAgentRunControllers?: Map<string, AbortController> };
 const controllers = (globalAgentExecutors.__vozebProAgentRunControllers ??= new Map<string, AbortController>());
+
+// Keep Canvas literal writes out of the main Agent's planner contract.
+const canvasAgentPlanTool = {
+    ...agentPlanTool,
+    parameters: {
+        ...agentPlanTool.parameters,
+        properties: {
+            ...agentPlanTool.parameters.properties,
+            intent: { type: "string", enum: ["conversation", "generation", "canvas_operation"] },
+            canvasOperation: {
+                type: "object",
+                properties: { type: { type: "string", enum: ["layout", "delete_nodes", "disconnect"] }, scope: { type: "string", enum: ["all", "selected"] }, ids: { type: "array", items: { type: "string" }, minItems: 1 } },
+                required: ["type"],
+                additionalProperties: false,
+            },
+            deliverables: {
+                ...agentPlanTool.parameters.properties.deliverables,
+                items: {
+                    ...agentPlanTool.parameters.properties.deliverables.items,
+                    properties: {
+                        ...agentPlanTool.parameters.properties.deliverables.items.properties,
+                        literalContent: { type: "string", description: "仅用户明确给定最终原样写入正文时填写。翻译、改写、润色等需要创作时省略，禁止填操作说明或内部目标。" },
+                    },
+                },
+            },
+        },
+    },
+};
 
 export function abortAgentRun(id: string) {
     controllers.get(id)?.abort();
@@ -98,8 +131,13 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
             return;
         }
         // Select the planner capability from the final references sent to the model.
-        const referencedAssets = usesMemoryCandidates ? memoryAssets : explicitAssets;
-        const referenceSource = claimed.referencedAssetIds.length ? "current-turn-explicit" : usesMemoryCandidates && referencedAssets.length ? "conversation-memory-candidates" : "none";
+        // Canvas media selected in the current turn is an explicit reference even
+        // when it is not registered as a CreativeAsset (for example, a node loaded
+        // from the project JSON). Keep it in the planner input only; task target
+        // and editable scope remain governed by the normalized Canvas snapshot.
+        const selectedCanvasMedia = claimed.surface === "canvas" ? selectedCanvasPlannerMedia(claimed.snapshot, claimed.userId) : [];
+        const referencedAssets = [...(usesMemoryCandidates ? memoryAssets : explicitAssets), ...selectedCanvasMedia];
+        const referenceSource = claimed.referencedAssetIds.length || selectedCanvasMedia.length ? "current-turn-explicit" : usesMemoryCandidates && referencedAssets.length ? "conversation-memory-candidates" : "none";
         const requiresMultimodal = referencedAssets.some((asset) => asset.type === "image" || asset.type === "video");
         const model = (requiresMultimodal ? settings.defaultModels.visionModel : settings.defaultModels.textModel)?.trim() || "";
         if (!model) throw new Error(requiresMultimodal ? "当前请求包含图片或视频，需要先配置多模态图片/视频理解模型" : "后台尚未配置可用的默认文本模型");
@@ -110,14 +148,15 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
         if (!(await updateAgentRunById(run.id, { plannerContext: plannerContext.summary }, { type: "skills.selected", data: { skills: skills.map((skill) => ({ id: skill.id, name: skill.name })) } }, ["running"], executionId))) return;
         const plannerRequest = buildAgentRequest(claimed, plannerContext.input);
         const mediaInputs = await prepareAgentPlannerMedia(referencedAssets, origin, cookie, controller.signal);
+        const plannerUserContent = serializeAgentRequest(plannerRequest);
         const planningInput = [
             {
-                role: "system",
+                role: "system" as const,
                 content: agentPlannerSystemPrompt(claimed.surface, fallbackExample, settings.site.title),
             },
             {
-                role: "user",
-                content: serializeAgentRequest(plannerRequest),
+                role: "user" as const,
+                content: plannerUserContent,
             },
         ];
         if (
@@ -145,7 +184,7 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
                     cookie,
                     candidate,
                     planningInput,
-                    agentPlanTool,
+                    claimed.surface === "canvas" ? canvasAgentPlanTool : agentPlanTool,
                     "create_agent_plan",
                     controller.signal,
                     run.userId,
@@ -158,6 +197,7 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
                     mediaInputs,
                 );
                 plan = await parseAgentPlanCall(planCall, () => refundFunctionCall(claimed.userId, model, planCall), undefined, {
+                    allowCanvasOperation: claimed.surface === "canvas",
                     allowProjectHandoff: claimed.surface === "chat" && isExplicitProjectHandoffRequest(claimed.prompt),
                     requiredGenerationMode: claimed.generationPreferences?.mode,
                 });
@@ -185,6 +225,50 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
         });
         if (!(await canContinue(run.id, executionId))) {
             await refundAcceptedPlan();
+            return;
+        }
+        if (claimed.surface === "canvas" && plan.intent === "canvas_operation" && plan.canvasOperation) {
+            const project = claimed.projectId ? await getCanvasProjectForRecovery(claimed.projectId, claimed.userId) : null;
+            if (!project || isDramaLabCanvasProject(project)) throw new Error("画布不存在或无权整理");
+            const layout = agentRunCanvasSnapshot(claimed.snapshot).layout;
+            if (!layout) throw new Error("本次请求缺少布局快照，请刷新画布后重新提交");
+            if (plan.canvasOperation.type !== "layout") {
+                const proposal = createCanvasDestructiveProposal(run.id, plan.canvasOperation, project, layout.selectedNodeIds);
+                const completed = await updateAgentRunById(
+                    run.id,
+                    { status: "completed", tasks: [], reviewed: true, plannerAudit, canvasDestructiveProposal: proposal, executionId: undefined },
+                    { type: "run.completed", data: { reply: "操作方案已准备，尚未删除任何内容。请查看影响并确认执行。", canvasDestructiveProposal: proposal } },
+                    ["running"],
+                    executionId,
+                );
+                if (!completed) {
+                    await refundAcceptedPlan();
+                    return;
+                }
+                planningPersisted = true;
+                return;
+            }
+            const operation = planCanvasAgentLayout(run.id, plan.canvasOperation, layout, project.nodes);
+            const completed = await updateAgentRunById(
+                run.id,
+                {
+                    status: "completed",
+                    tasks: [],
+                    reviewed: true,
+                    plannerAudit,
+                    canvasLayoutOperation: operation,
+                    executionId: undefined,
+                    timings: { ...(claimed.timings || { requestAcceptedAt: claimed.createdAt }), planningCompletedAt: Date.now(), allResultsReadyAt: Date.now(), runCompletedAt: Date.now() },
+                },
+                { type: "run.completed", data: { reply: "布局方案已准备，正在应用并确认画布保存。", ops: [{ type: "layout_nodes", operation }] } },
+                ["running"],
+                executionId,
+            );
+            if (!completed) {
+                await refundAcceptedPlan();
+                return;
+            }
+            planningPersisted = true;
             return;
         }
         if (plan.intent === "conversation") {
@@ -260,4 +344,43 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
     } finally {
         if (controllers.get(run.id) === controller) controllers.delete(run.id);
     }
+}
+
+function selectedCanvasPlannerMedia(snapshot: unknown, userId: string): import("@/lib/creative-runtime-contract").CreativeAsset[] {
+    const source = snapshot && typeof snapshot === "object" ? (snapshot as { nodes?: unknown[]; selectedNodeIds?: unknown[] }) : {};
+    const selected = new Set(Array.isArray(source.selectedNodeIds) ? source.selectedNodeIds.filter((id): id is string => typeof id === "string") : []);
+    return (Array.isArray(source.nodes) ? source.nodes : []).flatMap((value) => {
+        if (!value || typeof value !== "object") return [];
+        const node = value as { id?: unknown; type?: unknown; metadata?: unknown };
+        if (typeof node.id !== "string" || !selected.has(node.id) || !(node.type === "image" || node.type === "panorama" || node.type === "video")) return [];
+        const metadata = node.metadata && typeof node.metadata === "object" ? (node.metadata as Record<string, unknown>) : {};
+        const url = [metadata.serverUrl, metadata.remoteUrl, metadata.url].find((item): item is string => typeof item === "string" && (item.startsWith("/api/reference-assets/") || item.startsWith("/api/generation-log-assets/")));
+        return url
+            ? [
+                  {
+                      id: `canvas-node-${node.id}`,
+                      userId,
+                      type: node.type === "panorama" ? ("image" as const) : (node.type as "image" | "video"),
+                      title: String((value as { title?: unknown }).title || node.id),
+                      serverUrl: url,
+                      metadata: {},
+                      conversationId: "canvas",
+                      ordinal: 0,
+                      status: "ready",
+                      createdAt: Date.now(),
+                      updatedAt: Date.now(),
+                  },
+              ]
+            : [];
+    });
+}
+
+function plannerMessageContent(request: ReturnType<typeof buildAgentRequest>, surface: AgentRun["surface"]) {
+    const json = serializeAgentRequest(request);
+    if (surface !== "canvas") return json;
+    const snapshot = request.canvasSnapshot as { nodes?: Array<{ id?: string; type?: string; metadata?: { url?: string } }> } | undefined;
+    const selected = new Set(request.references.selectedNodeIds);
+    const images = (snapshot?.nodes || []).filter((node) => selected.has(String(node.id)) && (node.type === "image" || node.type === "panorama") && node.metadata?.url);
+    if (!images.length) return json;
+    return [{ type: "text" as const, text: json }, ...images.map((node) => ({ type: "image_url" as const, image_url: { url: node.metadata!.url! } }))];
 }

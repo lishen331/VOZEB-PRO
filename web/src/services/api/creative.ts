@@ -12,6 +12,8 @@ import { refreshUserPointsIfSystem } from "@/services/api/points";
 import { ClientSessionExpiredError, stopIfClientSessionExpired, throwIfClientSessionExpired } from "@/services/api/session-expiration";
 
 export type CreativeAgentRun = {
+    canvasDestructiveProposal?: import("@/lib/canvas-agent-destructive").CanvasDestructiveProposal;
+    canvasLayoutOperation?: import("@/lib/canvas-agent-layout").CanvasLayoutOperation;
     id: string;
     conversationId: string;
     inputMessageId: string;

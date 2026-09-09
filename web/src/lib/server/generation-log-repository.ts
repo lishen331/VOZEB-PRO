@@ -29,19 +29,20 @@ export function sourceLabel(source: string) {
     if (source === "video-workbench") return "视频生成";
     if (source === "canvas") return "画布";
     if (source === "drama") return "短剧";
+    if (source === "practice") return "无限练习";
     return "未知入口";
 }
 
 export function kindLabel(kind: string) {
-    return kind === "video" ? "视频" : kind === "text" ? "文本" : "图片";
+    return kind === "video" ? "视频" : kind === "audio" ? "音频" : kind === "text" ? "文本" : "图片";
 }
 
 export function isGenerationKind(value?: string): value is GenerationLogKind {
-    return value === "image" || value === "video" || value === "text";
+    return value === "image" || value === "video" || value === "audio" || value === "text";
 }
 
 export function isGenerationSource(value?: string): value is GenerationLogSource {
-    return value === "agent" || value === "image-workbench" || value === "video-workbench" || value === "canvas" || value === "drama" || value === "unknown";
+    return value === "agent" || value === "image-workbench" || value === "video-workbench" || value === "canvas" || value === "drama" || value === "practice" || value === "unknown";
 }
 
 export function isGenerationStatus(value?: string): value is GenerationLogStatus {
@@ -54,7 +55,7 @@ export async function normalizeAssets(assets: Array<Partial<GenerationLogAsset> 
     const normalized: GenerationLogAsset[] = [];
     for (const [assetIndex, asset] of assets.entries()) {
         const assetContext = { ...context, targetSize: asset.targetSize, assetIndex, assetCount: assets.length };
-        const type = asset.type === "video" ? "video" : "image";
+        const type = asset.type === "video" ? "video" : asset.type === "audio" ? "audio" : "image";
         const sourceUrl = (asset.url || "").trim();
         const remoteUrl = normalizeRemoteUrl(asset.remoteUrl || (isRemoteAssetUrl(sourceUrl) ? sourceUrl : ""));
         const existingServerUrl = normalizeServerAssetUrl(asset.serverUrl || (isServerAssetUrl(sourceUrl) ? sourceUrl : ""));
@@ -91,7 +92,7 @@ export async function normalizeAssets(assets: Array<Partial<GenerationLogAsset> 
 export async function writeDataUrlAsset(dataUrl: string, type: GenerationLogAssetKind, context: GenerationAssetContext): Promise<GenerationLogAsset | null> {
     const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
     if (!match) return null;
-    const mimeType = match[1] || (type === "video" ? "video/mp4" : "image/png");
+    const mimeType = match[1] || (type === "video" ? "video/mp4" : type === "audio" ? "audio/mpeg" : "image/png");
     if (!mimeType.startsWith(`${type}/`)) return null;
     const bytes = Buffer.from(match[2], "base64");
     if (bytes.length > maxServerAssetBytes(type)) return null;
@@ -159,7 +160,7 @@ export async function writeAssetBytes(bytes: Buffer, mimeType: string, type: Gen
 }
 
 export function maxServerAssetBytes(type: GenerationLogAssetKind) {
-    return type === "video" ? MAX_SERVER_VIDEO_BYTES : MAX_SERVER_IMAGE_BYTES;
+    return type === "video" ? MAX_SERVER_VIDEO_BYTES : type === "audio" ? 30 * 1024 * 1024 : MAX_SERVER_IMAGE_BYTES;
 }
 
 export function isRemoteAssetUrl(value: string) {
@@ -401,7 +402,7 @@ export function mapPostgresGenerationLog(row: Record<string, unknown>, assets: G
         conversationId: dbOptionalText(row.conversation_id),
         username: dbText(row.username),
         displayName: dbText(row.display_name),
-        kind: row.kind === "video" ? "video" : row.kind === "text" ? "text" : "image",
+        kind: row.kind === "video" ? "video" : row.kind === "audio" ? "audio" : row.kind === "text" ? "text" : "image",
         source: isGenerationSource(dbText(row.source)) ? (dbText(row.source) as GenerationLogSource) : "unknown",
         status: row.status === "pending" || row.status === "failed" ? row.status : "success",
         title: dbText(row.title),
@@ -602,7 +603,7 @@ function normalizeSnapshotUrl(value: unknown) {
 
 export function normalizeStoredAsset(asset: Partial<GenerationLogAsset> | undefined): GenerationLogAsset | null {
     if (!asset) return null;
-    const type = asset.type === "video" ? "video" : "image";
+    const type = asset.type === "video" ? "video" : asset.type === "audio" ? "audio" : "image";
     const url = normalizeOptionalText(asset.url, undefined, 4000) || "";
     const remoteUrl = normalizeRemoteUrl(asset.remoteUrl || (isRemoteAssetUrl(url) ? url : ""));
     const serverUrl = normalizeServerAssetUrl(asset.serverUrl || (isServerAssetUrl(url) ? url : ""));
@@ -625,7 +626,7 @@ export function emptyDb(): GenerationLogDatabase {
 }
 
 export function defaultSummary(kind: GenerationLogKind, status: GenerationLogStatus) {
-    const type = kind === "video" ? "视频" : kind === "text" ? "文本" : "图片";
+    const type = kind === "video" ? "视频" : kind === "audio" ? "音频" : kind === "text" ? "文本" : "图片";
     if (status === "failed") return `${type}生成失败`;
     if (status === "pending") return `${type}生成中`;
     return `${type}生成完成`;
@@ -691,7 +692,7 @@ export function parseDateEnd(value?: string) {
 }
 
 export function extensionFromMime(mimeType: string, type: GenerationLogAssetKind) {
-    return `.${mediaFileExtension(mimeType, "", type === "video" ? "mp4" : "png")}`;
+    return `.${mediaFileExtension(mimeType, "", type === "video" ? "mp4" : type === "audio" ? "mp3" : "png")}`;
 }
 
 function generationAssetFileName(context: GenerationAssetContext, mimeType: string) {

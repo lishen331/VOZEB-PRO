@@ -63,6 +63,7 @@ vi.mock("@/services/api/drama-projects", () => ({
     restoreDramaProjectVersion: mocks.restoreDramaProjectVersion,
 }));
 
+import { persistCanvasAgentResult } from "@/app/(user)/canvas/utils/canvas-agent-result-save";
 import { useCanvasStore } from "@/app/(user)/canvas/stores/use-canvas-store";
 import { useDramaStore } from "@/app/(user)/drama/stores/use-drama-store";
 import { CanvasProjectRequestError } from "@/services/api/canvas-projects";
@@ -286,7 +287,25 @@ describe("client store session isolation", () => {
             vi.useRealTimers();
         }
     });
-    it("flushes the current Canvas snapshot with keepalive when the page is leaving", async () => {
+
+    it("keeps generated Canvas content locally when final save conflicts and does not force reload", async () => {
+        const project = canvasProject("canvas-agent-conflict", "Agent");
+        useUserStore.getState().setUser(user("user-a"));
+        mocks.getCanvasProject.mockResolvedValue(project);
+        mocks.saveCanvasProjectMutation.mockRejectedValue(new CanvasProjectRequestError("Other page changed", 409));
+        await useCanvasStore.getState().loadProject(project.id);
+        const result = await persistCanvasAgentResult(
+            { projectId: project.id, title: project.title, nodes: project.nodes, connections: project.connections, viewport: project.viewport, selectedNodeIds: [] },
+            [{ id: "chat", title: "Results", createdAt: project.createdAt, updatedAt: project.updatedAt, messages: [{ id: "a", role: "assistant", text: "generated" }] }],
+            "chat",
+            useCanvasStore.getState,
+        );
+        expect(result.status).toBe("conflict");
+        expect(mocks.getCanvasProject.mock.calls.length).toBeGreaterThanOrEqual(1);
+        expect(mocks.saveCanvasProjectMutation.mock.calls.length).toBeGreaterThanOrEqual(1);
+        expect(useCanvasStore.getState().projects[0].chatSessions[0].messages[0].text).toBe("generated");
+    });
+`r`n    it("flushes the current Canvas snapshot with keepalive when the page is leaving", async () => {
         const project = canvasProject("canvas-keepalive", "离开前保存");
         useUserStore.getState().setUser(user("user-a"));
         mocks.getCanvasProject.mockResolvedValue(project);

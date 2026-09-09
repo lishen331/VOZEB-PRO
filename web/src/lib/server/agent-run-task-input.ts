@@ -151,34 +151,42 @@ export function agentSurfaceImageSize(surface: AgentRun["surface"], snapshot: un
 }
 
 export function normalizeCanvasPlanForSelection(plan: AgentPlan, snapshot: unknown, requestPrompt: string): AgentPlan {
+    if (plan.intent === "canvas_operation") return plan;
     const nodes = canvasSnapshotNodes(snapshot);
     const selectedEntries = selectedCanvasNodeIds(snapshot).map((id) => [id, nodes.get(id)] as const);
-    const selectedTextEntry = selectedEntries.find((entry): entry is readonly [string, CanvasTaskReferenceNode] => entry[1]?.type === "text");
-    if (selectedTextEntry && requestsSelectedTextEdit(requestPrompt)) {
-        const [targetNodeId, target] = selectedTextEntry;
-        const plannedText = plan.deliverables.find((item) => item.type === "text");
-        const original = target.content?.trim() || "";
-        const prompt = ["请按用户要求改写当前提示词，只返回修改后的完整提示词，不要解释、标题或 Markdown。", `用户要求：${requestPrompt}`, original ? `当前提示词：${original}` : ""].filter(Boolean).join("\n\n");
+    const selectedTexts = selectedEntries.filter((entry): entry is readonly [string, CanvasTaskReferenceNode] => entry[1]?.type === "text");
+    if (selectedTexts.length && requestsSelectedTextEdit(requestPrompt)) {
+        const plannedTexts = plan.deliverables.filter((item) => item.type === "text");
+        const plannedTargets = new Set(plannedTexts.map((item) => item.targetNodeId));
+        const allSelected = /(?:都|全部|所有|逐个|分别|批量)/u.test(requestPrompt) && !/(?:只|仅)(?:修改|改写|翻译|处理)/u.test(requestPrompt);
+        const targeted = selectedTexts.filter(([id]) => plannedTargets.has(id));
+        const targets = allSelected || !targeted.length ? selectedTexts : targeted;
         return {
             ...plan,
             intent: "generation",
             objective: requestPrompt,
-            reply: "我会直接修改当前提示词节点，不会自动生成图片。",
+            reply: `我会修改 ${targets.length} 个选中文本节点，不会自动生成图片。`,
             decisions: [],
             projectHandoff: undefined,
-            deliverables: [
-                {
-                    id: plannedText?.id?.trim() || "edit-selected-text",
+            deliverables: targets.map(([targetNodeId, target], index) => {
+                const planned = plannedTexts.find((item) => item.targetNodeId === targetNodeId);
+                const original = target.content?.trim() || "";
+                return {
+                    id: `edit-selected-text-${index}`,
                     targetNodeId,
                     title: `修改${target.title || "提示词"}`,
-                    type: "text",
-                    model: plannedText?.model,
-                    prompt,
+                    type: "text" as const,
+                    model: planned?.model || plannedTexts[0]?.model,
+                    // Each task sees only its own original, not every selected text.
+                    prompt: ["请按用户要求改写当前提示词，只返回修改后的完整提示词，不要解释、标题或 Markdown。", `本任务只处理节点：${targetNodeId}（${target.title}）`, `用户要求：${requestPrompt}`, original ? `当前提示词：${original}` : ""]
+                        .filter(Boolean)
+                        .join("\n\n"),
+                    ...(typeof planned?.literalContent === "string" ? { literalContent: planned.literalContent } : {}),
                     count: 1,
                     dependencies: [],
                     assetIds: [],
-                },
-            ],
+                };
+            }),
         };
     }
 

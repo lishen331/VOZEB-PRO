@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CreativeConversationContext } from "@/lib/creative-runtime-contract";
 import { AGENT_PLAN_SCHEMA_VERSION } from "./agent-run-audit";
 import type { AgentRun, AgentRunTask } from "./agent-run-store";
@@ -583,6 +583,7 @@ describe("executeAgentRun backend settings", () => {
                 title: "欢迎文案",
                 type: "text",
                 prompt: "创建一个文字节点，内容写“欢迎使用 VOZEB PRO Agent”，放在画布中央，并选中它。\n\n严格输出要求：只输出最终文本，不要标题、Markdown、解释或列表。",
+                literalContent: "欢迎使用 VOZEB PRO Agent",
                 count: 1,
                 dependencies: [],
                 status: "ready",

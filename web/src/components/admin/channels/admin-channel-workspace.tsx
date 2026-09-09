@@ -45,7 +45,7 @@ export function AdminChannelWorkspace({ settings, fetchingModelId, saving, onCha
         [deferredQuery, protocolFilter, settings.systemChannels, statusFilter],
     );
     const enabledChannels = settings.systemChannels.filter((channel) => channel.enabled).length;
-    const synchronizedChannels = settings.systemChannels.filter((channel) => channel.models.length).length;
+    const synchronizedChannels = settings.systemChannels.filter((channel) => channel.models.length || channel.advancedConfig?.protocol === "runninghub").length;
     const protocolCount = new Set(settings.systemChannels.map((channel) => channel.advancedConfig?.protocol || "auto")).size;
     const readyDefaults = (["text", "image", "video", "audio"] as const).filter((capability) => {
         const key = capability === "text" ? "textModel" : capability === "image" ? "imageModel" : capability === "video" ? "videoModel" : "audioModel";
@@ -71,7 +71,7 @@ export function AdminChannelWorkspace({ settings, fetchingModelId, saving, onCha
             ),
         },
         { title: "协议", key: "protocol", width: 190, render: (_, channel) => <span className="text-sm">{channelProtocolLabel(channel)}</span> },
-        { title: "模型", key: "models", width: 90, align: "center", render: (_, channel) => channel.models.length },
+        { title: "模型/工作流", key: "models", width: 100, align: "center", render: (_, channel) => (channel.advancedConfig?.protocol === "runninghub" ? Object.keys(channel.advancedConfig.workflowConfigs || {}).length : channel.models.length) },
         { title: "能力", key: "capabilities", width: 170, render: (_, channel) => <span className="text-xs text-stone-600 dark:text-stone-300">{channelCapabilityLabels(channel).join("、") || "待识别"}</span> },
         { title: "绑定", key: "bindings", width: 80, align: "center", render: (_, channel) => channelBindingCount(channel.id, settings) },
         {
@@ -152,7 +152,6 @@ export function AdminChannelWorkspace({ settings, fetchingModelId, saving, onCha
                                 logicalModels={settings.logicalModels}
                                 defaultModels={settings.defaultModels}
                                 practiceDefaultModels={settings.practiceDefaultModels}
-                                practiceWorkflowModels={settings.practiceWorkflowModels}
                                 onChange={(routing) => onChange({ ...settings, ...routing })}
                             />
                         ),

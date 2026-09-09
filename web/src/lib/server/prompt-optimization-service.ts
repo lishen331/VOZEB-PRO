@@ -22,9 +22,16 @@ export class PromptOptimizationError extends Error {
 
 export async function optimizeCreativePrompt(input: { origin: string; cookie: string; userId: string; requestId: string; prompt: string; mode: PromptOptimizationMode }) {
     const settings = await getAuthSettings();
-    const model = settings.defaultModels.textModel;
-    const candidates = resolveLogicalModelCandidates(settings, "text", model);
-    if (!model || !candidates.length) throw new PromptOptimizationError("后台尚未配置可用的默认文本模型", 503);
+    // 优先使用正式生产默认文本模型；没有时回退到无限练习默认文本模型（练习环境常常只配置了练习渠道）
+    const resolved = [
+        { model: settings.defaultModels.textModel, profile: "production" as const },
+        { model: settings.practiceDefaultModels?.textModel, profile: "open-source-practice" as const },
+    ]
+        .filter((item) => Boolean(item.model))
+        .map((item) => ({ model: item.model as string, candidates: resolveLogicalModelCandidates(settings, "text", item.model as string, "", item.profile) }))
+        .find((item) => item.candidates.length);
+    if (!resolved) throw new PromptOptimizationError("后台尚未配置可用的默认文本模型（正式生产或无限练习）", 503);
+    const { model, candidates } = resolved;
 
     const rankedCandidates = rankTextPlanningCandidates(candidates);
     if (!rankedCandidates.length) throw new PromptOptimizationError("当前没有可用的文本模型渠道，请检查模型配置或稍后重试", 503);

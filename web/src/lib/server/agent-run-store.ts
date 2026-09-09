@@ -45,6 +45,7 @@ export type AgentRunTask = {
     type: "text" | "image" | "video" | "audio";
     model?: string;
     optimizedPrompt?: string;
+    literalContent?: string;
     prompt: string;
     count: number;
     ratio?: string;
@@ -86,6 +87,8 @@ export type AgentRun = {
     prompt: string;
     publicPrompt?: string;
     snapshot?: unknown;
+    canvasDestructiveProposal?: import("@/lib/canvas-agent-destructive").CanvasDestructiveProposal;
+    canvasLayoutOperation?: import("@/lib/canvas-agent-layout").CanvasLayoutOperation;
     referencedAssetIds: string[];
     selectedSkillIds?: string[];
     requestedModelIds?: string[];
@@ -275,6 +278,8 @@ export async function updateAgentRunById(
             | "executionId"
             | "tasks"
             | "foundation"
+            | "canvasLayoutOperation"
+            | "canvasDestructiveProposal"
             | "projectHandoff"
             | "projectHandoffEmitted"
             | "review"

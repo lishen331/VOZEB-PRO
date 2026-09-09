@@ -93,8 +93,8 @@ export default function AdminDramaLabConfigPage({ initialTab = "ai" }: { initial
         <div className="p-6">
             {contextHolder}
             <div className="mb-5">
-                <h1 className="text-2xl font-semibold">短剧实验室配置</h1>
-                <p className="mt-1 text-sm text-gray-500">管理短剧实验室的九套系统提示词；其他配置页仅用于迁移查看，运行时统一使用平台全局配置。</p>
+                <h1 className="text-2xl font-semibold">创作工坊配置</h1>
+                <p className="mt-1 text-sm text-gray-500">管理创作工坊的九套系统提示词；其他配置页仅用于迁移查看，运行时统一使用平台全局配置。</p>
             </div>
             <Tabs
                 activeKey={activeTab}
@@ -264,7 +264,7 @@ function PromptTemplatesTab({ messageApi }: { messageApi: MessageApi }) {
     ];
     return (
         <Card title="提示词模板管理" extra={<Tag color="blue">9 个系统模板</Tag>}>
-            <Alert className="mb-4" type="info" showIcon message="仅维护短剧实验室内部的 9 个系统模板。AI 调用由服务端注入项目上下文和不可编辑的结构化输出契约；模板覆盖是实验室全局配置，不按管理员账号分叉。" />
+            <Alert className="mb-4" type="info" showIcon message="仅维护创作工坊内部的 9 个系统模板。AI 调用由服务端注入项目上下文和不可编辑的结构化输出契约；模板覆盖是实验室全局配置，不按管理员账号分叉。" />
             <Table columns={columns} dataSource={items} rowKey="id" loading={loading} scroll={{ x: 900 }} />
             <Modal title="编辑系统模板" open={modalOpen} onOk={() => void save()} onCancel={() => setModalOpen(false)} width={760} okText="保存" cancelText="取消">
                 <Form form={form} layout="vertical" className="mt-4">

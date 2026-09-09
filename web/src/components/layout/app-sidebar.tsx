@@ -20,9 +20,9 @@ export function AppSidebar({ activeToolSlug, expanded, featureModules }: { activ
     const helpActive = pathname.startsWith("/help");
     const context = useSchoolContextStore((state) => state.context);
     const tools = navigationToolsForContext(context, { featureModules });
-    const homePath = featureModules["creative-agent"] === false ? "/profile" : "/create";
+    const homePath = featureModules["creative-agent"] === false ? "/practice" : "/create";
     const schoolTools = tools.filter((tool) => tool.group === "school");
-    const groups = schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups;
+    const groups = (schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups).filter((group) => tools.some((tool) => tool.group === group.id));
 
     return (
         <aside className={cn("hidden h-full shrink-0 flex-col border-r border-[#eaecf0] bg-white text-[#111827] transition-[width] duration-200 lg:flex dark:border-[#292d33] dark:bg-[#111316] dark:text-[#f3f5f7]", expanded ? "w-44" : "w-[72px]")}>

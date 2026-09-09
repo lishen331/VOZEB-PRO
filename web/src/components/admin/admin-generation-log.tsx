@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Checkbox, Popconfirm, Tag } from "antd";
-import { Eye, Film, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
+import { AudioLines, Eye, Film, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
 
 import { browserReadableMediaUrl } from "@/lib/browser-media-url";
 import { AdminAccountId } from "@/components/admin/admin-user-identity";
@@ -14,12 +14,19 @@ export function GenerationLogAssetPreview({ log }: { log: StoredGenerationLog })
     if (!assetUrl) {
         return (
             <div className="flex size-12 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-400 dark:border-stone-800 dark:bg-stone-900">
-                {log.kind === "video" ? <Film className="size-4" /> : log.kind === "text" ? <FileText className="size-4" /> : <ImageIcon className="size-4" />}
+                {log.kind === "video" ? <Film className="size-4" /> : log.kind === "audio" ? <AudioLines className="size-4" /> : log.kind === "text" ? <FileText className="size-4" /> : <ImageIcon className="size-4" />}
             </div>
         );
     }
     if (asset.type === "video") {
         return <video className="size-12 rounded-lg border border-stone-200 bg-stone-100 object-cover dark:border-stone-800 dark:bg-stone-900" src={assetUrl} muted playsInline preload="metadata" />;
+    }
+    if (asset.type === "audio") {
+        return (
+            <div className="flex size-12 items-center justify-center rounded-lg border border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-800 dark:bg-stone-900">
+                <AudioLines className="size-5" />
+            </div>
+        );
     }
     return <img className="size-12 rounded-lg border border-stone-200 bg-stone-100 object-cover dark:border-stone-800 dark:bg-stone-900" src={imagePreviewUrl(assetUrl, 256)} alt="" loading="lazy" referrerPolicy="no-referrer" />;
 }
@@ -96,10 +103,10 @@ function GenerationLogResultSection({ log }: { log: StoredGenerationLog }) {
         return (
             <div className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900/70">
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-stone-950 dark:text-stone-100">
-                    {log.kind === "video" ? <Film className="size-4" /> : log.kind === "text" ? <FileText className="size-4" /> : <ImageIcon className="size-4" />}
+                    {log.kind === "video" ? <Film className="size-4" /> : log.kind === "audio" ? <AudioLines className="size-4" /> : log.kind === "text" ? <FileText className="size-4" /> : <ImageIcon className="size-4" />}
                     生成结果
                 </div>
-                <div className="text-sm leading-6 text-stone-500 dark:text-stone-400">{log.status === "success" ? "这条日志没有可访问的媒体文件。" : "这条日志没有成功结果，暂无可预览的图片或视频。"}</div>
+                <div className="text-sm leading-6 text-stone-500 dark:text-stone-400">{log.status === "success" ? "这条日志没有可访问的媒体文件。" : "这条日志没有成功结果，暂无可预览的媒体。"}</div>
             </div>
         );
     }
@@ -119,19 +126,21 @@ function GenerationLogResultSection({ log }: { log: StoredGenerationLog }) {
                         <div key={`${asset.url}-${index}`} className="grid min-w-0 items-start gap-3 rounded-lg border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950/60 sm:grid-cols-[156px_minmax(0,1fr)]">
                             <div className="min-w-0">
                                 <div className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-stone-500 dark:text-stone-400">
-                                    <span>{asset.type === "video" ? `视频 ${index + 1}` : `图片 ${index + 1}`}</span>
+                                    <span>{asset.type === "video" ? `视频 ${index + 1}` : asset.type === "audio" ? `音频 ${index + 1}` : `图片 ${index + 1}`}</span>
                                     {asset.width || asset.height ? <span className="shrink-0 tabular-nums">{[asset.width, asset.height].filter(Boolean).join("x")}</span> : null}
                                 </div>
                                 <div className="flex h-32 items-center justify-center overflow-hidden rounded-md bg-stone-100 p-2 dark:bg-stone-900 sm:h-36">
                                     {asset.type === "video" ? (
                                         <video className="h-full w-full rounded bg-black object-contain" src={assetUrl} controls playsInline preload="metadata" />
+                                    ) : asset.type === "audio" ? (
+                                        <audio className="w-full" src={assetUrl} controls preload="metadata" />
                                     ) : (
                                         <img className="h-full w-full object-contain" src={imagePreviewUrl(assetUrl, 960)} alt="" referrerPolicy="no-referrer" loading="lazy" />
                                     )}
                                 </div>
                             </div>
                             <div className="min-w-0 self-center text-sm text-stone-500 dark:text-stone-400">
-                                <div>{asset.type === "video" ? "视频" : "图片"}</div>
+                                <div>{asset.type === "video" ? "视频" : asset.type === "audio" ? "音频" : "图片"}</div>
                                 <div className="mt-1 text-xs">{asset.bytes ? formatAssetBytes(asset.bytes) : "大小未记录"}</div>
                             </div>
                         </div>
@@ -175,6 +184,7 @@ export function formatAdminLogDuration(value: number) {
 
 export function generationKindLabel(value: string) {
     if (value === "text") return "文本";
+    if (value === "audio") return "音频";
     return value === "video" ? "视频" : "图片";
 }
 
@@ -184,6 +194,7 @@ export function generationSourceLabel(value: string) {
     if (value === "drama") return "短剧";
     if (value === "video-workbench") return "视频生成";
     if (value === "image-workbench") return "图片生成";
+    if (value === "practice") return "无限练习";
     return "未知入口";
 }
 

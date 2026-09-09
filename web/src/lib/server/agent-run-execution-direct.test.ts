@@ -1,9 +1,80 @@
 import { describe, expect, it } from "vitest";
 
-import { directAgentPlan, directGenerationPreferences, normalizeTasks, planToOps, readFunctionCallResult, taskResultOps } from "./agent-run-execution";
+import { directCanvasTextContent, directAgentPlan, directGenerationPreferences, normalizeTasks, planToOps, readFunctionCallResult, taskResultOps } from "./agent-run-execution";
 import { agentSurfaceImageSize, normalizeCanvasPlanForSelection, resolveAgentTaskRatio } from "./agent-run-task-input";
 
 describe("directAgentPlan", () => {
+    it("keeps audio speech literal without visual foundation text", () => {
+        const plan = directAgentPlan([{ id: "audio-pro", name: "Voice", capability: "audio" }], "你好，这是语音验收。", [], { mode: "audio" });
+        const tasks = normalizeTasks(plan, [], generationSettings() as never, undefined, "你好，这是语音验收。", "chat", []);
+        expect(tasks[0].prompt).toBe("你好，这是语音验收。");
+        expect(tasks[0].prompt).not.toContain("统一创作约束");
+    });
+
+    it("only shortcuts an explicit literal value and preserves its whitespace", () => {
+        expect(directCanvasTextContent({ type: "text", prompt: "ignored", literalContent: "  Final text\n" } as never)).toBe("  Final text\n");
+        expect(directCanvasTextContent({ type: "text", prompt: "内容写为“legacy text”" } as never)).toBeNull();
+        expect(directCanvasTextContent({ type: "text", prompt: "x", literalContent: "  " } as never)).toBeNull();
+        expect(directCanvasTextContent({ type: "image", prompt: "x", literalContent: "text" } as never)).toBeNull();
+    });
+    it("drops Canvas literal content outside the Canvas surface", () => {
+        const plan = {
+            intent: "generation",
+            objective: "test",
+            foundation: { complexity: "simple", brief: { objective: "test" }, direction: { summary: "test" } },
+            deliverables: [{ id: "one", title: "Text", type: "text", prompt: "Write text", literalContent: "literal" }],
+        };
+        const canvas = normalizeTasks(plan as never, [], generationSettings() as never, undefined, "Write text", "canvas", []);
+        const chat = normalizeTasks(plan as never, [], generationSettings() as never, undefined, "Write text", "chat", []);
+        expect(canvas[0].literalContent).toBe("literal");
+        expect(chat[0]).not.toHaveProperty("literalContent");
+    });
+
+    it("does not use an internal creation objective as literal node content", () => {
+        const content = directCanvasTextContent({
+            type: "text",
+            prompt: "请翻译当前文本节点，保留原意。\n\n当前提示词：The red cat passes a ball.\n\n统一创作约束：\n目标：将选中的文本内容转换为中文并原位保存\n\n基于画布已有节点进行局部修改：Story A",
+        } as never);
+        expect(content).toBeNull();
+    });
+    it("does not shortcut a translation of quoted source text", () => {
+        expect(directCanvasTextContent({ type: "text", prompt: "翻译这个文本节点，内容为“Hello world”，不要改变原意。" } as never)).toBeNull();
+    });
+    it("preserves every selected text target and keeps each original isolated", () => {
+        const plan = {
+            intent: "generation",
+            objective: "翻译两个节点",
+            foundation: { complexity: "simple", brief: { objective: "翻译" }, direction: { summary: "中文" } },
+            deliverables: [{ id: "one", title: "翻译", type: "text", targetNodeId: "a", prompt: "翻译为中文" }],
+        };
+        const snapshot = {
+            selectedNodeIds: ["a", "b"],
+            nodes: [
+                { id: "a", type: "text", title: "A", metadata: { content: "Hello cat" } },
+                { id: "b", type: "text", title: "B", metadata: { content: "Hello dog" } },
+            ],
+        };
+        const next = normalizeCanvasPlanForSelection(plan as never, snapshot, "把选中的两个文本节点都翻译成中文");
+        expect(next.deliverables.map((t) => t.targetNodeId)).toEqual(["a", "b"]);
+        expect(new Set(next.deliverables.map((t) => t.id)).size).toBe(2);
+        expect(next.deliverables[0].prompt).toContain("Hello cat");
+        expect(next.deliverables[0].prompt).not.toContain("Hello dog");
+        expect(next.deliverables[1].prompt).toContain("Hello dog");
+        const tasks = normalizeTasks(next, [], generationSettings() as never, snapshot, "把选中的两个文本节点都翻译成中文", "canvas", []);
+        expect(tasks.map((t) => t.targetNodeId)).toEqual(["a", "b"]);
+        expect(planToOps(next, tasks, "batch-edit", snapshot)).toEqual([]);
+    });
+    it("does not expand a specifically planned target into every selected text", () => {
+        const plan = {
+            intent: "generation",
+            objective: "只改A",
+            foundation: { complexity: "simple", brief: { objective: "只改A" }, direction: { summary: "中文" } },
+            deliverables: [{ id: "a-edit", title: "A", type: "text", targetNodeId: "a", prompt: "翻译A" }],
+        };
+        const snapshot = { selectedNodeIds: ["a", "b"], nodes: ["a", "b"].map((id) => ({ id, type: "text", title: id, metadata: { content: id } })) };
+        expect(normalizeCanvasPlanForSelection(plan as never, snapshot, "只翻译 A，B 仅作参考").deliverables.map((t) => t.targetNodeId)).toEqual(["a"]);
+    });
+
     it("使用用户指定的媒体模型创建单任务计划", () => {
         const plan = directAgentPlan([{ id: "image-pro", name: "专业图片模型", capability: "image", capabilityProfile: undefined }], "生成商品主图", ["asset-one"]);
 

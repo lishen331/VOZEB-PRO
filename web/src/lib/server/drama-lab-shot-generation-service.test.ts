@@ -100,6 +100,32 @@ const project = {
 };
 
 describe("drama lab shot generation service", () => {
+    it("uses universal text with scene, character, prop references without requiring a storyboard image", () => {
+        const universalSegmentText = "画面风格和类型: 写实\n生成一个由以下1个分镜组成的视频。\n环境参考 @图片1。\n分镜1： 3秒: 缓推 @图片2 手中的 @图片3，横移后拉回。";
+        const value = { ...project, episodes: project.episodes.map((episode) => ({ ...episode, shots: episode.shots.map((shot) => ({ ...shot, creationMode: "universal" as const, universalSegmentText })) })) };
+        const result = prepareDramaLabStoryboardVideo(value, "episode-one", "shot-one", { supportsReferenceImages: true, maxReferenceImages: 3 });
+        expect(result.visiblePrompt).toBe(universalSegmentText);
+        expect(result.references.map((ref) => ref.url)).toEqual(["/api/reference-assets/scene.png", "/api/reference-assets/character.png", "/api/reference-assets/phone.png"]);
+        expect(result.references.every((ref) => ref.role === "reference")).toBe(true);
+        expect(result.prompt).not.toContain("动态要求：镜头缓慢推进，林薇接起手机");
+        expect(() => prepareDramaLabStoryboardVideo(value, "episode-one", "shot-one", { supportsReferenceImages: true, maxReferenceImages: 2 })).toThrow("参考图");
+        expect(() => prepareDramaLabStoryboardVideo(value, "episode-one", "shot-one", { supportsReferenceImages: false })).toThrow("参考图");
+    });
+
+    it("appends the optional storyboard without replacing numbered asset slots", () => {
+        const value = updateDramaLabShot(project, "episode-one", "shot-one", {
+            creationMode: "universal",
+            storyboardImageUrl: "/storyboard.png",
+            universalSegmentText: "画面风格和类型: 写实\n生成一个由以下1个分镜组成的视频。\n环境参考 @图片1。\n分镜1： 3秒: 缓推 @图片2 手中的 @图片3，构图参考 @图片4。",
+        });
+        const result = prepareDramaLabStoryboardVideo(value, "episode-one", "shot-one", { supportsReferenceImages: true });
+        expect(result.references.map((ref) => ref.url)).toEqual(["/api/reference-assets/scene.png", "/api/reference-assets/character.png", "/api/reference-assets/phone.png", "/storyboard.png"]);
+        expect(result.frameSnapshot.references.map((ref) => ref.url)).toEqual(result.references.map((ref) => ref.url));
+        expect(result.prompt).toContain("@图片4：当前分镜图");
+        const missing = { ...value, props: value.props.map((prop) => ({ ...prop, references: [] })) };
+        expect(() => prepareDramaLabStoryboardVideo(missing, "episode-one", "shot-one", { supportsReferenceImages: true })).toThrow();
+    });
+
     it("expands style presets in prepared image and video prompts without changing references", async () => {
         const styled = { ...project, style: "cinematic" };
         const image = await prepareDramaLabStoryboardImage(styled, "episode-one", "shot-one");

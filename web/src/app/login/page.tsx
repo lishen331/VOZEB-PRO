@@ -16,9 +16,18 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     const authError = [authErrorMessage(firstValue(params.error)), firstValue(params.auth) === "forbidden" ? "当前账号无权访问原目标，已进入默认工作区。" : ""].filter(Boolean).join(" ");
     const [install, user, settings] = await Promise.all([getInstallStatus(), getCurrentUser(), getAuthSettings().catch(() => null)]);
     if (!install.ready) redirect("/install");
-    if (user) redirect(resolveLoginDestination(user, nextPath));
+    if (user) redirect(resolveLoginDestination(user, nextPath, settings?.featureModules));
 
-    return <AuthForm mode="login" presentation="education-login" nextPath={nextPath || undefined} initialSite={settings ? serializePublicSettings(settings).site : DEFAULT_SITE_SETTINGS} authError={authError} />;
+    return (
+        <AuthForm
+            mode="login"
+            presentation="education-login"
+            nextPath={nextPath || undefined}
+            initialSite={settings ? serializePublicSettings(settings).site : DEFAULT_SITE_SETTINGS}
+            initialFeatureModules={settings?.featureModules}
+            authError={authError}
+        />
+    );
 }
 
 function firstValue(value: string | string[] | undefined) {

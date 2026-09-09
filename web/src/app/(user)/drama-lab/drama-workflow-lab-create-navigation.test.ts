@@ -12,7 +12,7 @@ describe("drama create workspace navigation", () => {
         expect(source).toContain('aria-label={sidebarCollapsed ? "展开剧集侧栏" : "收起剧集侧栏"}');
         expect(source).toContain('aria-label="新增剧集"');
         expect(source).toContain('setActiveStep("storyboard")');
-        expect(source).toContain("document.getElementById(`storyboard-shot-${shot.id}`)?.scrollIntoView");
+        expect(source).toContain("locateStoryboardShot(ep.id, shot.id)");
         expect(source).toContain("id={`storyboard-shot-${shot.id}`}");
         expect(source).toContain("const persistedShots = nextProject.shots.map");
         expect(source).toContain("shots: persistedShots");

@@ -65,6 +65,8 @@ export type ImageTask = GenerationTaskContext & {
     config: ImageTaskConfig;
     prompt: string;
     upstreamPrompt?: string;
+    /** 无限练习工作流参数（width/height 等），提交 RunningHub 时并入 businessInput。 */
+    workflowInput?: Record<string, unknown>;
     references: ImageTaskReference[];
     referenceRoles?: Record<string, ("original" | "identity" | "clothing" | "skin" | "style" | "pose" | "composition" | "scene" | "lighting" | "product" | "prop")[]>;
     mask?: ImageTaskReference;

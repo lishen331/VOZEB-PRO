@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     fetchInternalApi: vi.fn(),
@@ -187,8 +187,31 @@ describe("POST /api/drama-lab/projects/:id/shots/:shotId/generate-video", () => 
             model: "video-logical",
             supportsFirstFrame: true,
             supportsLastFrame: false,
+            supportsReferenceImages: false,
             maxReferenceImages: 2,
         });
+    });
+
+    it("forwards universal slots and persists only the universal prompt field", async () => {
+        const urls = ["/scene.png", "/character.png", "/prop.png"];
+        const prepared = {
+            prompt: "universal multi-beat with numbered refs",
+            visiblePrompt: "universal multi-beat",
+            shot: { creationMode: "universal", duration: 3, videoPrompt: "keep classic prompt" },
+            references: urls.map((url) => ({ url, role: "reference" })),
+            frameSnapshot: { references: urls.map((url) => ({ url, role: "reference" })) },
+        };
+        mocks.prepareDramaLabStoryboardVideo.mockReturnValue(prepared);
+        const response = await POST(new Request("http://app.example.com/api/drama-lab/projects/project-one/shots/shot-one/generate-video?episodeId=episode-one", { method: "POST" }), context);
+        expect(response.status).toBe(200);
+        const body = JSON.parse(mocks.fetchInternalApi.mock.calls[0][1].body);
+        expect(body.prompt).toBe(prepared.prompt);
+        expect(body.config.videoSeconds).toBe(3);
+        expect(body.references).toEqual(urls.map((url) => ({ type: "image", role: "reference", url })));
+        expect(body.context.frameSnapshot).toEqual(prepared.frameSnapshot);
+        const patch = mocks.persistDramaLabShotUpdate.mock.calls[0][0].patch;
+        expect(patch.universalSegmentText).toBe(prepared.visiblePrompt);
+        expect(patch).not.toHaveProperty("videoPrompt");
     });
 
     it("does not submit a task when no default video model is configured", async () => {

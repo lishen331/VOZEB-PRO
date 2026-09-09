@@ -41,8 +41,7 @@ export function AdminChannelDetailDrawer({ open, channel, settings, fetching, on
                         label: "渠道配置",
                         children: (
                             <div className="space-y-3">
-                                <ChannelPurposeControl channel={channel} onChange={onChange} />
-                                <RunningHubChannelFields channel={channel} onChange={onChange} />
+                                {channel.advancedConfig?.protocol === "runninghub" ? <RunningHubChannelFields channel={channel} /> : <ChannelPurposeControl channel={channel} onChange={onChange} />}
                                 <SystemChannelEditor
                                     channel={channel}
                                     fetching={fetching}
@@ -55,7 +54,7 @@ export function AdminChannelDetailDrawer({ open, channel, settings, fetching, on
                             </div>
                         ),
                     },
-                    { key: "models", label: `上游模型 ${channel.models.length}`, children: <ChannelModels channel={channel} /> },
+                    ...(channel.advancedConfig?.protocol !== "runninghub" ? [{ key: "models", label: `上游模型 ${channel.models.length}`, children: <ChannelModels channel={channel} /> }] : []),
                     ...(channel.advancedConfig?.protocol === "runninghub" ? [{ key: "workflows", label: "工作流", children: <RunningHubWorkflowList channel={channel} /> }] : []),
                 ]}
             />
@@ -65,7 +64,8 @@ export function AdminChannelDetailDrawer({ open, channel, settings, fetching, on
 
 function ChannelOverview({ channel, settings, status, onFetchModels, fetching }: { channel: SystemModelChannel; settings: ChannelWorkspaceSettings; status: ReturnType<typeof channelWorkspaceStatus>; onFetchModels: () => void; fetching: boolean }) {
     const capabilities = channelCapabilityLabels(channel);
-    const canSync = channelSupportsModelCatalog(channel);
+    const runningHub = channel.advancedConfig?.protocol === "runninghub";
+    const canSync = !runningHub && channelSupportsModelCatalog(channel);
     return (
         <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-4 dark:border-stone-800">
@@ -91,26 +91,28 @@ function ChannelOverview({ channel, settings, status, onFetchModels, fetching }:
                 <OverviewValue label="凭据" value={channelRequiresApiKey(channel) ? (channel.apiKey || channel.hasApiKey ? "已安全保存" : "未配置") : "无需凭据"} />
                 <OverviewValue label="协议" value={channelProtocolLabel(channel)} />
                 <OverviewValue label="用途" value={channel.purpose === "open-source-practice" ? "无限练习" : channel.purpose === "production" ? "正式生产" : "共享"} />
-                <OverviewValue label="上游模型" value={`${channel.models.length} 个`} />
-                <OverviewValue label="逻辑绑定" value={`${channelBindingCount(channel.id, settings)} 个`} />
+                {!runningHub ? <OverviewValue label="上游模型" value={`${channel.models.length} 个`} /> : null}
+                {!runningHub ? <OverviewValue label="逻辑绑定" value={`${channelBindingCount(channel.id, settings)} 个`} /> : null}
                 <OverviewValue label="验证方式" value="用户工作台真实调用" />
             </div>
-            <div>
-                <div className="mb-2 text-sm font-semibold text-stone-950 dark:text-stone-100">逻辑模型绑定</div>
-                <div className="divide-y divide-stone-200 border-y border-stone-200 dark:divide-stone-800 dark:border-stone-800">
-                    {settings.logicalModels.flatMap((model) =>
-                        model.bindings
-                            .filter((binding) => binding.channelId === channel.id)
-                            .map((binding) => (
-                                <div key={binding.id} className="flex min-w-0 items-center justify-between gap-3 py-2.5 text-sm">
-                                    <span className="font-medium text-stone-900 dark:text-stone-100">{model.name}</span>
-                                    <span className="min-w-0 truncate text-stone-500 dark:text-stone-400">{binding.upstreamModel}</span>
-                                </div>
-                            )),
-                    )}
-                    {!channelBindingCount(channel.id, settings) ? <div className="py-8 text-center text-sm text-stone-500 dark:text-stone-400">尚未绑定逻辑模型</div> : null}
+            {!runningHub ? (
+                <div>
+                    <div className="mb-2 text-sm font-semibold text-stone-950 dark:text-stone-100">逻辑模型绑定</div>
+                    <div className="divide-y divide-stone-200 border-y border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+                        {settings.logicalModels.flatMap((model) =>
+                            model.bindings
+                                .filter((binding) => binding.channelId === channel.id)
+                                .map((binding) => (
+                                    <div key={binding.id} className="flex min-w-0 items-center justify-between gap-3 py-2.5 text-sm">
+                                        <span className="font-medium text-stone-900 dark:text-stone-100">{model.name}</span>
+                                        <span className="min-w-0 truncate text-stone-500 dark:text-stone-400">{binding.upstreamModel}</span>
+                                    </div>
+                                )),
+                        )}
+                        {!channelBindingCount(channel.id, settings) ? <div className="py-8 text-center text-sm text-stone-500 dark:text-stone-400">尚未绑定逻辑模型</div> : null}
+                    </div>
                 </div>
-            </div>
+            ) : null}
         </div>
     );
 }

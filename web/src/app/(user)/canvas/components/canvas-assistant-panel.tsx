@@ -1,13 +1,17 @@
 "use client";
 
+import { previewCanvasDestructiveProposal, type CanvasDestructivePreview, type CanvasDestructiveProposal } from "@/lib/canvas-agent-destructive";
+import { CanvasDestructiveConfirmation } from "./canvas-destructive-confirmation";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowRight, Bot, Files, History, ImagePlus, Layers3, LayoutPanelTop, PanelRightClose, Pause, PenLine, Play, Plus, Sparkles, Square, WandSparkles } from "lucide-react";
 import { App, Button, Modal, Tooltip } from "antd";
 import { motion } from "motion/react";
 
+import { canvasLayoutGeometry } from "@/lib/canvas-agent-layout";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { nanoid } from "nanoid";
-import { controlCreativeAgentRun, createCreativeAgentRun, listCreativeAgentRuns, retryCreativeAgentTask } from "@/services/api/creative";
+import { controlCreativeAgentRun, createCreativeAgentRun, getCreativeAgentRun, listCreativeAgentRuns, retryCreativeAgentTask } from "@/services/api/creative";
 import { updateCreativeConversation } from "@/services/api/creative";
 import { deleteCanvasAssistantConversations } from "@/services/api/canvas-projects";
 import { refreshUserPointsIfSystem } from "@/services/api/points";
@@ -16,6 +20,9 @@ import { useUserStore } from "@/stores/use-user-store";
 import { CREATIVE_RUN_MODEL_LIMIT, type CreativeGenerationPreferences } from "@/lib/creative-runtime-contract";
 import { CreativeAgentControls, CreativeAgentSkillCard, type CreativeAgentModelOption } from "@/components/agent/creative-agent-controls";
 import { useCreativeAgentOptions } from "@/hooks/use-creative-agent-options";
+import { createCanvasAgentLiveGuard, type CanvasAgentLiveGuard } from "../utils/canvas-agent-live-results";
+import { persistCanvasAgentResult } from "../utils/canvas-agent-result-save";
+import { useCanvasStore } from "../stores/use-canvas-store";
 import { watchCanvasAgentRun } from "./canvas-agent-run-client";
 import { withCanvasAgentRunWatch } from "./canvas-agent-run-watch-guard";
 import type { CanvasAgentRunStage } from "./canvas-agent-progress";
@@ -45,7 +52,7 @@ type CanvasAssistantPanelProps = {
     activeSessionId: string | null;
     onSelectNodeIds: (ids: Set<string>) => void;
     onSessionsChange: (sessions: CanvasAssistantSession[], activeSessionId: string | null) => void;
-    onApplyOps: (ops?: CanvasAgentOp[]) => CanvasAgentSnapshot;
+    onApplyOps: (ops?: CanvasAgentOp[], guard?: CanvasAgentLiveGuard) => CanvasAgentSnapshot;
     onLocateNode: (nodeId: string) => void;
     onPasteImage: (file: File) => Promise<string>;
     closing: boolean;
@@ -74,6 +81,11 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
     const [localSessions, setLocalSessions] = useState<CanvasAssistantSession[]>(sessions);
     const [localActiveSessionId, setLocalActiveSessionId] = useState<string | null>(activeSessionId);
     const snapshotRef = useRef(snapshot);
+    const [destructivePreview, setDestructivePreview] = useState<{ projectId: string; sessionId: string; messageId: string; proposal: CanvasDestructiveProposal; preview: CanvasDestructivePreview; error?: string } | null>(null);
+    const [destructiveBusy, setDestructiveBusy] = useState(false);
+    const destructiveBusyRef = useRef(false);
+    const handledProposalsRef = useRef(new Set<string>());
+    const liveGuardsRef = useRef(new Map<string, CanvasAgentLiveGuard>());
     const localSessionsRef = useRef(localSessions);
     const localActiveSessionIdRef = useRef(localActiveSessionId);
     const restoredProjectRef = useRef("");
@@ -249,7 +261,8 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
 
         const refs = savedReferences || selectedReferences;
         const submittedReferenceIds = new Set(refs.map((item) => item.id));
-        const runSnapshot = compactSnapshot(snapshotRef.current);
+        const originalSnapshot = snapshotRef.current;
+        const runSnapshot = compactSnapshot(originalSnapshot);
         const userMessage: CanvasAssistantMessage = { id: nanoid(), role: "user", text, references: refs };
         const assistantId = nanoid();
         const planningStage = { key: "planning" as const, text: "正在理解你的需求" };
@@ -269,7 +282,11 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                 conversationId: session.conversationId,
                 projectId: snapshotRef.current.projectId,
                 prompt: text,
-                snapshot: { ...runSnapshot, selectedNodeIds: canvasRunSelectedNodeIds(snapshotRef.current, submittedReferenceIds) },
+                snapshot: {
+                    ...runSnapshot,
+                    layout: { nodes: canvasLayoutGeometry(originalSnapshot.nodes), connections: originalSnapshot.connections, selectedNodeIds: originalSnapshot.selectedNodeIds },
+                    selectedNodeIds: canvasRunSelectedNodeIds(snapshotRef.current, submittedReferenceIds),
+                },
                 assetIds: [],
                 skillIds: selectedSkillId ? [selectedSkillId] : [],
                 modelIds: smartPlanning ? [] : selectedModelIds,
@@ -277,6 +294,7 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
             });
             const run = payload.run;
             createdRunId = run.id;
+            liveGuardsRef.current.set(run.id, createCanvasAgentLiveGuard(run.id, originalSnapshot));
             restoredRunIdsRef.current.add(run.id);
             updateSession(session.id, (current) => ({ ...current, conversationId: run.conversationId }));
             upsertMessage(session.id, { id: assistantId, runId: run.id, role: "assistant", text: submittedReferenceIds.size ? "收到，我会基于当前选中素材处理这次创作需求。" : "收到，我会结合当前画布处理这次创作需求。" });
@@ -294,16 +312,85 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
         }
     };
 
+    const openDestructivePreview = async (item: CanvasAssistantMessage) => {
+        if (!item.runId || destructiveBusyRef.current || !isPendingDestructive(item)) return;
+        const projectId = snapshotRef.current.projectId;
+        const sessionId = localSessionsRef.current.find((s) => s.messages.some((m) => m.id === item.id))?.id;
+        if (!sessionId) return;
+        destructiveBusyRef.current = true;
+        try {
+            const run = await getCreativeAgentRun(item.runId);
+            if (snapshotRef.current.projectId !== projectId) return;
+            const proposal = run.canvasDestructiveProposal;
+            if (
+                run.surface !== "canvas" ||
+                run.projectId !== projectId ||
+                run.status !== "completed" ||
+                run.conversationId !== localSessionsRef.current.find((s) => s.id === sessionId)?.conversationId ||
+                !proposal ||
+                handledProposalsRef.current.has(proposal.id)
+            )
+                throw new Error("操作不可用或已经处理");
+            const current = onApplyOps([]);
+            const preview = previewCanvasDestructiveProposal(current, proposal);
+            setDestructivePreview({ projectId, sessionId, messageId: item.id, proposal, preview });
+        } catch (error) {
+            message.error(friendlyAgentError(error, "无法读取待确认操作"));
+        } finally {
+            destructiveBusyRef.current = false;
+        }
+    };
+    const decideDestructive = async (confirm: boolean) => {
+        const pending = destructivePreview;
+        if (!pending || destructiveBusyRef.current || handledProposalsRef.current.has(pending.proposal.id)) return;
+        if (snapshotRef.current.projectId !== pending.projectId) {
+            setDestructivePreview(null);
+            return;
+        }
+        destructiveBusyRef.current = true;
+        setDestructiveBusy(true);
+        let applied = false;
+        try {
+            const current = onApplyOps(confirm ? [{ type: "confirmed_destructive", proposal: pending.proposal, preview: pending.preview }] : []);
+            applied = confirm;
+            handledProposalsRef.current.add(pending.proposal.id);
+            const detail = { destructiveProposalId: pending.proposal.id, destructiveDecision: confirm ? "applied" : "cancelled" };
+            upsertMessage(pending.sessionId, { id: pending.messageId, runId: pending.proposal.runId, role: "assistant", text: confirm ? "已执行确认的操作，可通过画布撤销恢复；正在确认保存。" : "已取消操作，未删除节点或连线。", detail });
+            const saved = await persistCanvasAgentResult(current, localSessionsRef.current, localActiveSessionIdRef.current, useCanvasStore.getState);
+            if (snapshotRef.current.projectId !== pending.projectId) return;
+            if (saved.status !== "saved") message.error(saved.status === "conflict" ? "操作仅在本页生效，远端版本冲突。请保留当前修改，再处理保存；不要重复执行。" : "操作已处理，但尚未确认保存，请重试画布保存，不要重复执行。");
+            else upsertMessage(pending.sessionId, { id: pending.messageId, runId: pending.proposal.runId, role: "assistant", text: confirm ? "已执行并保存，可通过画布撤销恢复。" : "已取消，未删除节点或连线。", detail });
+            setDestructivePreview(null);
+        } catch (error) {
+            const text = friendlyAgentError(error, "操作失败");
+            if (applied) {
+                message.error(`本页操作已执行，但保存未确认：${text}`);
+                setDestructivePreview(null);
+            } else setDestructivePreview((current) => (current ? { ...current, error: text } : current));
+        } finally {
+            destructiveBusyRef.current = false;
+            setDestructiveBusy(false);
+        }
+    };
+    const isPendingDestructive = (item: CanvasAssistantMessage) =>
+        Boolean(item.runId && item.detail && typeof item.detail === "object" && "destructiveProposalId" in item.detail && "destructiveDecision" in item.detail && item.detail.destructiveDecision === "pending");
+
     const waitForBackendAgent = async (runId: string, sessionId: string, assistantId: string, retryTaskId?: string, replaceFirstFailure = false) => {
         await withCanvasAgentRunWatch(watchingRunIdsRef.current, runId, async () => {
             const controller = new AbortController();
             runWatchControllersRef.current.set(runId, controller);
+            const projectId = snapshotRef.current.projectId;
+            const guard = liveGuardsRef.current.get(runId) || createCanvasAgentLiveGuard(runId);
+            liveGuardsRef.current.set(runId, guard);
+            const applyOps = (ops: CanvasAgentOp[]) => {
+                onApplyOps(ops, guard);
+            };
             try {
                 await watchCanvasAgentRun(
                     runId,
                     {
                         onPlan: (ops, reply) => {
-                            onApplyOps(ops);
+                            applyOps(ops);
                             upsertMessage(sessionId, { id: assistantId, role: "assistant", text: reply });
                         },
                         onAssistant: (text, detail) => {
@@ -314,14 +401,68 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                                 else appendMessage(sessionId, failure);
                                 return;
                             }
-                            upsertMessage(sessionId, { id: assistantId, role: detail?.runId ? "error" : "assistant", title: detail?.title, text, ...(detail?.nodeIds?.length || detail?.runId ? { detail } : {}) });
+                            upsertMessage(sessionId, {
+                                id: assistantId,
+                                runId,
+                                role: detail?.runId ? "error" : "assistant",
+                                title: detail?.title,
+                                text,
+                                ...(detail?.nodeIds?.length || detail?.runId || guard.outputNodeIds.size ? { detail: { ...detail, nodeIds: Array.from(new Set([...(detail?.nodeIds || []), ...guard.outputNodeIds])) } } : {}),
+                            });
                         },
                         onStage: (stage) => updateSessionRun(sessionId, runId, { stage }),
                         onPaused: (paused) => updateSessionRun(sessionId, runId, { paused }),
-                        onOps: onApplyOps,
+                        onOps: applyOps,
+                        onProposal: (proposal) => {
+                            const existing = localSessionsRef.current.find((s) => s.id === sessionId)?.messages.find((m) => m.id === assistantId);
+                            const detail = existing?.detail && typeof existing.detail === "object" ? existing.detail : {};
+                            upsertMessage(sessionId, {
+                                id: assistantId,
+                                runId,
+                                role: "assistant",
+                                text: "操作方案已准备，尚未执行。请查看影响并确认。",
+                                detail: { ...detail, destructiveProposalId: proposal.id, destructiveDecision: "destructiveDecision" in detail ? detail.destructiveDecision : "pending" },
+                            });
+                        },
                     },
                     { signal: controller.signal },
                 );
+                if (controller.signal.aborted || snapshotRef.current.projectId !== projectId) return;
+                if (guard.layoutResults.size) {
+                    const [layoutOperationId, status] = Array.from(guard.layoutResults).at(-1)!;
+                    upsertMessage(sessionId, {
+                        id: assistantId,
+                        runId,
+                        role: "assistant",
+                        text: status === "conflict" ? "规划期间节点位置或尺寸已改变，未覆盖当前布局，请重新提交整理。" : status === "applied" ? "已整理画布，正文和连线保持不变，可使用画布撤销恢复位置；正在确认保存。" : "当前布局无需变更。",
+                        detail: { layoutOperationId },
+                    });
+                }
+                if (guard.conflictNodeIds.size) {
+                    const nodeIds = Array.from(guard.conflictNodeIds);
+                    upsertMessage(sessionId, { id: `conflict-${runId}`, runId, role: "assistant", text: "生成期间目标已修改、删除，或原文无法确认；没有覆盖当前内容，生成内容已放在「待确认结果」节点，请确认后自行采用。", detail: { nodeIds } });
+                }
+                // Read refs synchronously after the last SSE op, then save conversation + graph together.
+                const latestSnapshot = onApplyOps([]);
+                updateSession(sessionId, (current) => ({
+                    ...current,
+                    messages: current.messages.map((item) => (item.id === assistantId ? { ...item, runId, detail: { ...(item.detail && typeof item.detail === "object" ? item.detail : {}), nodeIds: Array.from(guard.outputNodeIds) } } : item)),
+                }));
+                updateSessionRun(sessionId, runId, { stage: { key: "finalizing", text: "生成已结束，正在确认画布保存" } });
+                const saved = await persistCanvasAgentResult(latestSnapshot, localSessionsRef.current, localActiveSessionIdRef.current, useCanvasStore.getState);
+                if (controller.signal.aborted || snapshotRef.current.projectId !== projectId) return;
+                if (saved.status !== "saved") {
+                    appendMessage(sessionId, {
+                        id: nanoid(),
+                        runId,
+                        role: "error",
+                        title: saved.status === "conflict" ? "画布版本冲突" : "画布保存尚未确认",
+                        text:
+                            saved.status === "conflict"
+                                ? "其他页面已经更新画布。当前内容和生成结果仍保留在本页，未覆盖远端版本；请先保留本页修改，再处理版本冲突。"
+                                : `生成已结束，但画布尚未确认保存。${saved.message || "请查看画布保存状态并重试保存，不必重新生成。"}`,
+                    });
+                }
             } finally {
                 if (runWatchControllersRef.current.get(runId) === controller) runWatchControllersRef.current.delete(runId);
                 if (!controller.signal.aborted) {
@@ -567,6 +708,11 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                                             onSelectNodeIds(new Set((message.references || []).map((item) => item.id).filter((id) => nodes.some((node) => node.id === id))));
                                         }}
                                     />
+                                    {isPendingDestructive(message) ? (
+                                        <Button size="small" danger onClick={() => void openDestructivePreview(message)}>
+                                            查看影响并确认
+                                        </Button>
+                                    ) : null}
                                 </div>
                             ))}
                             {isRunning ? (
@@ -781,6 +927,27 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                 </header>
                 {onlineContent}
             </motion.aside>
+            <Modal
+                open={Boolean(destructivePreview)}
+                title="确认画布操作"
+                footer={null}
+                closable={!destructiveBusy}
+                maskClosable={false}
+                onCancel={() => {
+                    if (!destructiveBusy) setDestructivePreview(null);
+                }}
+            >
+                {destructivePreview ? (
+                    <CanvasDestructiveConfirmation
+                        proposal={destructivePreview.proposal}
+                        preview={destructivePreview.preview}
+                        busy={destructiveBusy}
+                        error={destructivePreview.error}
+                        onCancel={() => void decideDestructive(false)}
+                        onConfirm={() => void decideDestructive(true)}
+                    />
+                ) : null}
+            </Modal>
         </motion.div>
     );
 }

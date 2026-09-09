@@ -239,7 +239,7 @@ export function mapGenerationLog(row: Record<string, unknown>): GenerationLogRec
         conversationId: optionalString(row.conversation_id),
         username: stringValue(row.username),
         displayName: stringValue(row.display_name),
-        kind: row.kind === "video" ? "video" : row.kind === "text" ? "text" : "image",
+        kind: row.kind === "video" ? "video" : row.kind === "audio" ? "audio" : row.kind === "text" ? "text" : "image",
         source: stringValue(row.source),
         status: row.status === "pending" || row.status === "failed" ? row.status : "success",
         title: stringValue(row.title),
@@ -262,7 +262,7 @@ export function mapGenerationLog(row: Record<string, unknown>): GenerationLogRec
 
 export function mapGenerationLogAsset(row: Record<string, unknown>): GenerationLogAssetRecord {
     return {
-        type: row.type === "video" ? "video" : "image",
+        type: row.type === "video" ? "video" : row.type === "audio" ? "audio" : "image",
         url: stringValue(row.url),
         remoteUrl: optionalString(row.remote_url),
         serverUrl: optionalString(row.server_url),

@@ -7,12 +7,14 @@ import {
     buildRunningHubWorkflowPayload,
     generationBusinessCode,
     recordWorkflowTaskContext,
-    resolvePracticeLogicalModel,
+    resolvePracticeGenerationCandidates,
+    resolvePracticeWorkflowCandidates,
     workflowConfigForTask,
     workflowTaskContextForChannel,
     workflowTimeoutMs,
 } from "./runninghub-workflow-runtime";
 import { runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
+import { demoRunningHubWorkflowCatalog } from "./runninghub-demo-workflow-catalog";
 
 const config: RunningHubWorkflowConfig = {
     workflowKey: "practice-image",
@@ -108,7 +110,6 @@ describe("RunningHub workflow runtime", () => {
         const attached = attachPracticeWorkflowToChannel(
             channel,
             {
-                practiceWorkflowModels: { "storyboard-image": ["practice-image"] },
                 systemChannels: [
                     {
                         id: "rh-practice",
@@ -133,7 +134,6 @@ describe("RunningHub workflow runtime", () => {
         const attached = attachPracticeWorkflowToChannel(
             channel,
             {
-                practiceWorkflowModels: {},
                 systemChannels: [
                     {
                         id: "rh-practice",
@@ -282,9 +282,115 @@ describe("RunningHub workflow runtime", () => {
             }),
         ).toMatchObject({ workflowKey: previous.workflowKey, workflowVersion: 1, upstreamWorkflowId: previous.workflowId });
     });
+});
 
-    it("always chooses the server practice model binding for a practice task", () => {
-        expect(resolvePracticeLogicalModel({ practiceWorkflowModels: { script: ["practice-script"] }, practiceDefaultModels: { textModel: "practice-default" } } as never, "text", "script", "production-model")).toBe("practice-script");
-        expect(resolvePracticeLogicalModel({ practiceWorkflowModels: {}, practiceDefaultModels: { textModel: "practice-default" } } as never, "text", "script", "production-model")).toBe("practice-default");
+describe("RunningHub Demo workflow routing", () => {
+    const DEMO_CHANNEL_ID = "rh-demo";
+    const emptyAdvanced = {
+        textModel: "",
+        imageModel: "",
+        videoModel: "",
+        createPath: "",
+        queryPath: "",
+        requestTemplate: "",
+        resultField: "",
+        statusField: "",
+        durationRange: "",
+        referenceRule: "",
+        supportsReferenceImage: false,
+        supportsReferenceVideo: false,
+        supportsReferenceAudio: false,
+    };
+    function demoSettings(overrides: (workflow: RunningHubWorkflowConfig) => Partial<RunningHubWorkflowConfig> = () => ({})) {
+        const workflowConfigs = Object.fromEntries(demoRunningHubWorkflowCatalog().map((workflow) => [workflow.workflowKey, { ...workflow, channelId: DEMO_CHANNEL_ID, enabled: true, ...overrides(workflow) }]));
+        return {
+            logicalModels: [],
+            systemChannels: [
+                {
+                    id: DEMO_CHANNEL_ID,
+                    name: "Demo",
+                    baseUrl: "https://runninghub.example",
+                    apiKey: "",
+                    apiFormat: "openai" as const,
+                    models: [],
+                    enabled: true,
+                    purpose: "open-source-practice" as const,
+                    advancedConfig: { ...emptyAdvanced, protocol: "runninghub" as const, workflowConfigs },
+                },
+            ],
+        };
+    }
+
+    it("routes each of the seven Demo workflows by exact workflowCode without any model binding", () => {
+        const settings = demoSettings();
+        const catalog = demoRunningHubWorkflowCatalog();
+        expect(catalog.map((workflow) => workflow.workflowCode).sort()).toEqual(["character_main_view", "character_multi_view", "prop_main_view", "scene_main_view", "storyboard_dialogue_audio", "storyboard_shot", "storyboard_shot_video"]);
+        for (const workflow of catalog) {
+            const [candidate, ...rest] = resolvePracticeWorkflowCandidates(settings, workflow.capability, workflow.businessCode, workflow.workflowCode);
+            expect(rest).toHaveLength(0);
+            expect(candidate).toMatchObject({ logicalModelId: workflow.workflowKey, upstreamModel: workflow.workflowKey, channelId: DEMO_CHANNEL_ID });
+            const context = { executionProfile: "open-source-practice", businessCode: workflow.businessCode, workflowCode: workflow.workflowCode };
+            const attached = attachPracticeWorkflowToChannel({ channelId: DEMO_CHANNEL_ID } as { channelId?: string; advancedConfig?: import("@/lib/auth/store").SystemChannelAdvancedConfig }, settings, context);
+            expect(attached.advancedConfig?.workflowConfigs?.[workflow.workflowKey]).toMatchObject({ workflowCode: workflow.workflowCode, workflowId: workflow.workflowId });
+            expect(workflowTaskContextForChannel(attached, workflow.businessCode, { workflowCode: workflow.workflowCode })).toMatchObject({
+                workflowKey: workflow.workflowKey,
+                workflowCode: workflow.workflowCode,
+                upstreamWorkflowId: workflow.workflowId,
+                businessCode: workflow.businessCode,
+                taskOrigin: "user",
+            });
+        }
+    });
+
+    it("declares reference capabilities from each Demo workflow's input schema so task routes accept uploads", () => {
+        const settings = demoSettings();
+        const expected: Record<string, { supportsReferenceImage: boolean; supportsReferenceVideo: boolean; supportsReferenceAudio: boolean }> = {
+            prop_main_view: { supportsReferenceImage: true, supportsReferenceVideo: false, supportsReferenceAudio: false },
+            storyboard_shot: { supportsReferenceImage: true, supportsReferenceVideo: false, supportsReferenceAudio: false },
+            storyboard_shot_video: { supportsReferenceImage: true, supportsReferenceVideo: false, supportsReferenceAudio: true },
+            storyboard_dialogue_audio: { supportsReferenceImage: false, supportsReferenceVideo: false, supportsReferenceAudio: true },
+            scene_main_view: { supportsReferenceImage: false, supportsReferenceVideo: false, supportsReferenceAudio: false },
+        };
+        for (const workflow of demoRunningHubWorkflowCatalog()) {
+            const support = expected[workflow.workflowCode || ""];
+            if (!support) continue;
+            const [candidate] = resolvePracticeWorkflowCandidates(settings, workflow.capability, workflow.businessCode, workflow.workflowCode);
+            expect(candidate.capabilityProfile).toMatchObject(support);
+            const attached = attachPracticeWorkflowToChannel({ channelId: DEMO_CHANNEL_ID } as { channelId?: string; advancedConfig?: import("@/lib/auth/store").SystemChannelAdvancedConfig }, settings, {
+                executionProfile: "open-source-practice",
+                businessCode: workflow.businessCode,
+                workflowCode: workflow.workflowCode,
+            });
+            expect(attached.advancedConfig).toMatchObject(support);
+        }
+    });
+
+    it("never substitutes another image workflow for a missing or disabled workflowCode", () => {
+        const settings = demoSettings();
+        expect(resolvePracticeWorkflowCandidates(settings, "image", "storyboard-image", "unknown_workflow")).toEqual([]);
+        const disabledProp = demoSettings((workflow) => (workflow.workflowCode === "prop_main_view" ? { enabled: false } : {}));
+        expect(resolvePracticeWorkflowCandidates(disabledProp, "image", "storyboard-image", "prop_main_view")).toEqual([]);
+        expect(resolvePracticeGenerationCandidates(disabledProp, "image", "any-logical-model", { executionProfile: "open-source-practice", businessCode: "storyboard-image", workflowCode: "prop_main_view" })).toEqual([]);
+        expect(() => attachPracticeWorkflowToChannel({ channelId: DEMO_CHANNEL_ID } as never, disabledProp, { executionProfile: "open-source-practice", businessCode: "storyboard-image", workflowCode: "prop_main_view" })).toThrow("版本不存在或已停用");
+    });
+
+    it("falls back to the Demo storyboard workflows when a project practice context omits workflowCode", () => {
+        const settings = demoSettings();
+        expect(resolvePracticeWorkflowCandidates(settings, "image", "canvas")[0]).toMatchObject({ logicalModelId: "runninghub-demo-storyboard_shot" });
+        expect(resolvePracticeWorkflowCandidates(settings, "image", "storyboard-image")[0]).toMatchObject({ logicalModelId: "runninghub-demo-storyboard_shot" });
+        expect(resolvePracticeWorkflowCandidates(settings, "video", "storyboard-video")[0]).toMatchObject({ logicalModelId: "runninghub-demo-storyboard_shot_video" });
+        expect(resolvePracticeWorkflowCandidates(settings, "audio", "dubbing")[0]).toMatchObject({ logicalModelId: "runninghub-demo-storyboard_dialogue_audio" });
+        expect(resolvePracticeWorkflowCandidates(settings, "text", "script")).toEqual([]);
+    });
+
+    it("keeps practice script text on the normal practice logical model route and production on logical routing", () => {
+        const base = demoSettings();
+        const settings = {
+            ...base,
+            systemChannels: [...base.systemChannels, { id: "text-practice", name: "文本", baseUrl: "https://text.example", apiKey: "k", apiFormat: "openai" as const, models: ["gpt"], enabled: true, purpose: "open-source-practice" as const }],
+            logicalModels: [{ id: "practice-script", name: "剧本", capability: "text" as const, enabled: true, bindings: [{ id: "b", channelId: "text-practice", upstreamModel: "gpt", enabled: true, priority: 1 }] }],
+        } as never as Parameters<typeof resolvePracticeGenerationCandidates>[0];
+        expect(resolvePracticeGenerationCandidates(settings, "text", "practice-script", { executionProfile: "open-source-practice", businessCode: "script" })[0]).toMatchObject({ logicalModelId: "practice-script", channelId: "text-practice" });
+        expect(resolvePracticeGenerationCandidates(settings, "image", "runninghub-demo-storyboard_shot", { executionProfile: "production" })).toEqual([]);
     });
 });

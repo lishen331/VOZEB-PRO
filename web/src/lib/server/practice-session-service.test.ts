@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
     getVideoTask: vi.fn(),
     getAudioTask: vi.fn(),
     getStoredGenerationTaskByRequest: vi.fn(),
+    ensureAudioLog: vi.fn(),
 }));
 vi.mock("@/lib/server/practice-access-service", () => ({ requirePracticeAccess: mocks.requirePracticeAccess }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({
@@ -20,6 +21,7 @@ vi.mock("@/lib/server/text-task-store", () => ({ getTextTask: mocks.getTextTask 
 vi.mock("@/lib/server/image-task-store", () => ({ getImageTask: mocks.getImageTask }));
 vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask }));
 vi.mock("@/lib/server/audio-task-store", () => ({ getAudioTask: mocks.getAudioTask }));
+vi.mock("@/lib/server/audio-task-runtime", () => ({ ensurePracticeAudioGenerationLog: mocks.ensureAudioLog }));
 vi.mock("@/lib/server/generation-task-store", () => ({ getStoredGenerationTaskByRequest: mocks.getStoredGenerationTaskByRequest }));
 vi.mock("@/lib/server/database", () => ({ getDatabaseProvider: () => "file", createPostgresRepositories: vi.fn() }));
 
@@ -95,6 +97,7 @@ describe("practice sessions", () => {
         mocks.getVideoTask.mockResolvedValue(undefined);
         mocks.getAudioTask.mockResolvedValue(undefined);
         mocks.getStoredGenerationTaskByRequest.mockResolvedValue(null);
+        mocks.ensureAudioLog.mockResolvedValue(undefined);
     });
 
     it("validates module-specific workflow inputs", () => {
@@ -342,6 +345,37 @@ describe("practice sessions", () => {
         expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ capability: "audio", input: { text: "我们出发。" } }));
     });
 
+    it("returns a browser-readable URL for a persisted practice audio result", async () => {
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const store = memoryStore();
+        const session = await store.create({
+            id: "audio-result-session",
+            userId: "student-one",
+            projectKind: "canvas",
+            module: "dubbing",
+            mode: "workflow",
+            title: "配音练习",
+            clientRequestId: "audio-result",
+            executionProfile: "open-source-practice",
+            prompt: { text: "你好" },
+            input: { text: "你好" },
+            taskRefs: [{ taskId: "audio-task", taskType: "audio" }] as never,
+            selectedLogicalModelId: "practice-audio",
+            status: "success",
+        });
+        mocks.getAudioTask.mockResolvedValue({
+            id: "audio-task",
+            userId: "student-one",
+            status: "success",
+            result: { url: "http://127.0.0.1:3000/api/reference-assets/permanent/audio/result.flac", mimeType: "audio/flac" },
+        });
+
+        await expect(getPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store })).resolves.toMatchObject({
+            result: { status: "success", media: { kind: "audio", url: "/api/reference-assets/permanent/audio/result.flac" } },
+        });
+        expect(mocks.ensureAudioLog).toHaveBeenCalledWith(expect.objectContaining({ id: "audio-task" }), "success");
+    });
+
     it("persists terminal task failure before exposing a retryable session", async () => {
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
         const store = memoryStore();
@@ -447,6 +481,7 @@ describe("practice sessions", () => {
                     workflowConfigs: {
                         workflow: {
                             workflowKey: "workflow",
+                            workflowCode: "storyboard_shot",
                             workflowName: "分镜图",
                             businessCode: "storyboard-image",
                             capability: "image",
@@ -469,12 +504,13 @@ describe("practice sessions", () => {
                 },
             },
         ];
-        expect(resolvePracticeModelFromSettings(settings, "storyboard-image")).toMatchObject({ logicalModelId: "practice-image", capability: "image", workflow: { workflowKey: "workflow", version: 1, businessCode: "storyboard-image" } });
+        expect(resolvePracticeModelFromSettings(settings, "storyboard-image")).toMatchObject({ logicalModelId: "", capability: "image", workflow: { workflowKey: "workflow", version: 1, businessCode: "storyboard-image" } });
         const second = structuredClone(settings);
         second.practiceWorkflowModels = { "storyboard-image": ["practice-image", "practice-image-b"] };
         second.logicalModels.push({ id: "practice-image-b", name: "练习图片 B", capability: "image", enabled: true, bindings: [{ id: "binding-b", channelId: "rh", upstreamModel: "rh-image", enabled: true, priority: 1 }] });
         expect(resolvePracticeModelFromSettings(second, "storyboard-image", "practice-image-b")).toMatchObject({ logicalModelId: "practice-image-b", capability: "image" });
-        expect(() => resolvePracticeModelFromSettings(second, "storyboard-image", "production-image")).toThrow("所选练习模型不可用");
+        expect(resolvePracticeModelFromSettings(second, "storyboard-image", "production-image")).toMatchObject({ logicalModelId: "production-image", capability: "image" });
+        expect(() => resolvePracticeModelFromSettings(second, "storyboard-image", undefined, "scene_main_view")).toThrow("当前练习模块没有可用工作流");
     });
 
     it("dispatches once for an idempotent client request and keeps provider details private", async () => {

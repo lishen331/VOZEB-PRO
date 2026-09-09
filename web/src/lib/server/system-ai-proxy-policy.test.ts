@@ -124,6 +124,26 @@ describe("system AI proxy policy", () => {
         expect(authorizeSystemAiProxyRequest({ ...base, method: "GET", path: ["result"], search: "?id=task-one", upstreamTaskIdHint: "task-two" })).toMatchObject({ allowed: false, status: 400 });
     });
 
+    it("allows a practice workflow create request without billing but still enforces its capability", () => {
+        const base = {
+            method: "POST",
+            path: ["task", "openapi", "create"],
+            search: "",
+            channelId: "rh-practice",
+            upstreamModel: "runninghub-demo-storyboard_shot",
+            logicalModels,
+            workflowCapability: "image" as const,
+            workflowModel: true,
+            apiFormat: "openai" as const,
+            paths: { create: ["/task/openapi/create"], query: ["/openapi/v2/query"] },
+        };
+        expect(authorizeSystemAiProxyRequest(base)).toMatchObject({ allowed: true, operation: "create", capability: "image", logicalModelId: "runninghub-demo-storyboard_shot" });
+        expect(authorizeSystemAiProxyRequest({ ...base, pointsUsageKind: "image" })).toMatchObject({ allowed: true, operation: "create" });
+        expect(authorizeSystemAiProxyRequest({ ...base, pointsUsageKind: "video" })).toMatchObject({ allowed: false, status: 403 });
+        expect(authorizeSystemAiProxyRequest({ ...base, workflowModel: false })).toMatchObject({ allowed: false, status: 403 });
+        expect(authorizeSystemAiProxyRequest({ ...base, method: "POST", path: ["openapi", "v2", "query"], upstreamTaskIdHint: "task-1" })).toMatchObject({ allowed: true, operation: "query", upstreamTaskId: "task-1" });
+    });
+
     it("rejects unsupported methods and mismatched logical capabilities", () => {
         expect(
             authorizeSystemAiProxyRequest({

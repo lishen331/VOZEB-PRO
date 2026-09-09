@@ -2,8 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { getFreshAuthSettings, setAuthSettings, type AuthSettings, type SystemModelChannel } from "@/lib/auth/store";
 import type { RunningHubWorkflowConfig } from "@/lib/auth/store-types";
-import { deriveRunningHubPracticeRouting } from "@/lib/auth/runninghub-practice-routing";
-import { isRunningHubWorkflowBusinessCode, nextWorkflowVersion, normalizeRunningHubWorkflowConfig, validateRunningHubWorkflowConfig, workflowRequiresRetest } from "./runninghub-workflow-domain";
+import { isRunningHubWorkflowBusinessCode, nextWorkflowVersion, normalizeRunningHubWorkflowConfig, validateRunningHubWorkflowConfig, workflowRequiresRetest, runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
 import { analyzeRunningHubWorkflowJson, type RunningHubWorkflowDiscovery } from "./runninghub-workflow-discovery";
 import { fetchRunningHubWorkflowJson } from "./runninghub-provider";
 import { demoRunningHubWorkflowCatalog } from "./runninghub-demo-workflow-catalog";
@@ -218,6 +217,8 @@ export async function copyWorkflowVersion(workflowKey: string, input: { config?:
     const settings = await getFreshAuthSettings();
     const found = findWorkflow(settings, workflowKey);
     if (!found) throw new RunningHubWorkflowError("工作流不存在", 404);
+    // 新版本没有任何测试证据，不能在复制时直接启用；必须走“读取 JSON → 测试 → 启用”。
+    if (input.activateVersion === true) throw new RunningHubWorkflowError("新版本必须先完成成功测试后再启用", 409);
     const rawOverrides = asRecord(input.config);
     const version = nextWorkflowVersion(
         workflowEntries(settings).map((entry) => entry.config),
@@ -230,7 +231,7 @@ export async function copyWorkflowVersion(workflowKey: string, input: { config?:
         ...rawOverrides,
         workflowKey: nextKey,
         version,
-        enabled: input.activateVersion === true,
+        enabled: false,
         providerType: "runninghub",
         channelId: found.channel.id,
         businessCode: found.config.businessCode,
@@ -242,7 +243,6 @@ export async function copyWorkflowVersion(workflowKey: string, input: { config?:
         testRequired: true,
     });
     const all = workflowEntries(settings).map((entry) => entry.config);
-    if (candidate.enabled) for (const sibling of all) if (sibling.channelId === candidate.channelId && sibling.businessCode === candidate.businessCode) sibling.enabled = false;
     assertValid(
         candidate,
         all.filter((entry) => entry.workflowKey !== candidate.workflowKey),
@@ -265,19 +265,16 @@ export async function setWorkflowEnabled(workflowKey: string, enabled: boolean) 
     if (!found) throw new RunningHubWorkflowError("工作流不存在", 404);
     const configs = workflowConfigs(found.channel).map((config) => ({ ...config, enabled: config.workflowKey === workflowKey ? enabled : enabled && sameWorkflowIdentity(config, found.config) ? false : config.enabled }));
     const candidate = configs.find((config) => config.workflowKey === workflowKey) || found.config;
-    if (enabled) ensureEnableEvidence(candidate, found.config.enabled);
+    if (enabled && !found.channel.enabled) throw new RunningHubWorkflowError("所属 RunningHub 渠道未启用，不能启用工作流", 409);
+    if (enabled) ensureEnableEvidence(candidate);
     assertValid(
         candidate,
         configs.filter((config) => config.workflowKey !== workflowKey),
     );
     const nextChannels = replaceWorkflow(settings, found.channel.id, configs);
-    const routing: Partial<Pick<AuthSettings, "systemChannels" | "logicalModels" | "practiceWorkflowModels">> = enabled
-        ? deriveRunningHubPracticeRouting({ systemChannels: nextChannels, logicalModels: settings.logicalModels, practiceWorkflowModels: settings.practiceWorkflowModels })
-        : {};
     const saved = await setAuthSettings({
-        systemChannels: routing.systemChannels || nextChannels,
-        ...(routing.logicalModels ? { logicalModels: routing.logicalModels } : {}),
-        ...(routing.practiceWorkflowModels ? { practiceWorkflowModels: routing.practiceWorkflowModels } : {}),
+        systemChannels: nextChannels,
+        practiceWorkflowModels: {},
     });
     const persisted = findWorkflow(saved, workflowKey);
     return publicWorkflow(persisted?.config || candidate, persisted?.channel || found.channel);
@@ -338,7 +335,7 @@ function requireRunningHubChannel(settings: AuthSettings, channelId: string) {
     const channel = settings.systemChannels.find((item) => item.id === channelId);
     if (!channel) throw new RunningHubWorkflowError("RunningHub 渠道不存在", 404);
     if (channel.advancedConfig?.protocol !== "runninghub") throw new RunningHubWorkflowError("工作流只能绑定 RunningHub 渠道", 400);
-    if (channel.purpose !== "open-source-practice" && channel.purpose !== "shared") throw new RunningHubWorkflowError("工作流渠道用途必须为无限练习或共享", 400);
+    if (channel.purpose !== "open-source-practice") throw new RunningHubWorkflowError("工作流渠道用途必须为无限练习", 400);
     return channel;
 }
 
@@ -354,8 +351,12 @@ function sameWorkflowIdentity(left: RunningHubWorkflowConfig, right: RunningHubW
     const rightCode = right.workflowCode?.trim();
     return leftCode && rightCode ? leftCode === rightCode : left.businessCode === right.businessCode;
 }
-function ensureEnableEvidence(_candidate: RunningHubWorkflowConfig, _legacyEnabled = false) {
-    // Testing is advisory: the enable action may proceed after the UI warning.
+function ensureEnableEvidence(candidate: RunningHubWorkflowConfig) {
+    if (!candidate.workflowApiJson || !candidate.workflowJsonFingerprint) throw new RunningHubWorkflowError("工作流尚未读取 API JSON，不能启用", 409);
+    if (!candidate.inputSchema.length || !candidate.nodeMappings.length || !candidate.outputMappings.length) throw new RunningHubWorkflowError("工作流的输入、节点和输出映射不能为空", 409);
+    if (candidate.lastTestResult !== "success" || candidate.lastTestConfigFingerprint !== runningHubWorkflowConfigFingerprint(candidate)) {
+        throw new RunningHubWorkflowError("当前工作流尚未通过当前配置测试，不能启用", 409);
+    }
 }
 
 function publicWorkflow(config: RunningHubWorkflowConfig, channel: SystemModelChannel): PublicRunningHubWorkflow {

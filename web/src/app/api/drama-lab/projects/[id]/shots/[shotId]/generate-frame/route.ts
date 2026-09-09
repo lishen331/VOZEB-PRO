@@ -46,7 +46,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                 references: prepared.references.map((reference) => ({ id: reference.id, name: reference.label, type: "image/png", dataUrl: reference.url, url: reference.url, serverUrl: reference.url.startsWith("/") ? reference.url : undefined })),
                 source: "drama",
                 title: `${project.title} · ${shotId} · ${frameType}`,
-                context: { conversationId: project.creativeConversationId, surface: "drama", projectId: project.id, episodeId, shotId, frameType, attemptNo, clientRequestId: requestId },
+                context: { conversationId: project.creativeConversationId, surface: "drama", featureModule: "drama-lab", projectId: project.id, episodeId, shotId, frameType, attemptNo, clientRequestId: requestId },
             }),
         });
         const payload = (await response.json().catch(() => ({}))) as { task?: { id?: string; status?: string; model?: string }; error?: string };

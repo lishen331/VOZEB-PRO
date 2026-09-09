@@ -559,7 +559,7 @@ async function saveToLibrary(asset: VisualAsset, kind: AssetKind, label: string,
             title: assetName(asset),
             coverUrl: primary.url,
             tags: ["短剧", label],
-            source: "短剧实验室",
+            source: "创作工坊",
             note: asset.description || "",
             metadata: { ...readDramaLabAssetVisualDetails(asset), source: "drama-lab", dramaAssetType: kind === "characters" ? "character" : kind === "scenes" ? "scene" : "prop" },
             data: {

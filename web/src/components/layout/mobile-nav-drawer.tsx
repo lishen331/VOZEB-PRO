@@ -30,9 +30,9 @@ export function MobileNavDrawer({ open, activeToolSlug, featureModules, onClose 
     const helpActive = pathname.startsWith("/help");
     const context = useSchoolContextStore((state) => state.context);
     const tools = navigationToolsForContext(context, { featureModules });
-    const homePath = featureModules["creative-agent"] === false ? "/profile" : "/create";
+    const homePath = featureModules["creative-agent"] === false ? "/practice" : "/create";
     const schoolTools = tools.filter((tool) => tool.group === "school");
-    const groups = schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups;
+    const groups = (schoolTools.length ? [...navigationGroups, { id: "school" as const, label: "学校" }] : navigationGroups).filter((group) => tools.some((tool) => tool.group === group.id));
 
     useEffect(() => {
         if (previousPathnameRef.current === pathname) return;

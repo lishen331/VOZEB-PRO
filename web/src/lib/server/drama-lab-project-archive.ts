@@ -98,7 +98,7 @@ export async function exportDramaLabProjectForUser(input: ExportInput) {
     if (data.byteLength > MAX_ARCHIVE_BYTES) throw new DramaLabProjectArchiveError("项目归档超过 320MB 大小限制", 413);
     return {
         data,
-        fileName: `${safeFileName(project.title) || "短剧项目"}-短剧实验室.zip`,
+        fileName: `${safeFileName(project.title) || "短剧项目"}-创作工坊.zip`,
         projectId: project.id,
         mediaCount: media.files.length,
         omittedMediaCount: media.warnings.length,

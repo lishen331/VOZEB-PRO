@@ -41,13 +41,18 @@ export function runningHubWorkflowTestLabel(workflow: Pick<PublicRunningHubWorkf
     return "未测试";
 }
 
+export function runningHubWorkflowEnableBlocked(workflow: Pick<PublicRunningHubWorkflow, "enabled" | "requiresRetest">) {
+    return !workflow.enabled && workflow.requiresRetest;
+}
+
 export function runningHubWorkflowEnableConfirmation(workflow: Pick<PublicRunningHubWorkflow, "enabled" | "requiresRetest">) {
-    const riskyEnable = !workflow.enabled && workflow.requiresRetest;
+    const blocked = runningHubWorkflowEnableBlocked(workflow);
     return {
-        title: workflow.enabled ? "停用这个版本？" : riskyEnable ? "当前工作流尚未通过当前配置的成功测试，仍要启用吗？" : "启用这个版本？",
-        description: riskyEnable ? "启用后如果上游参数或素材不匹配，前端生成可能失败；建议先完成一次样例测试。" : undefined,
-        okText: riskyEnable ? "仍然启用" : "确定",
+        title: workflow.enabled ? "停用这个版本？" : blocked ? "当前工作流尚未通过当前配置测试，不能启用" : "启用这个版本？",
+        description: blocked ? "请先拉取 JSON 并完成一次成功测试；Workflow ID、JSON、映射或运行参数变化后必须重新测试。" : undefined,
+        okText: blocked ? "知道了" : "确定",
         cancelText: "取消",
+        okButtonProps: blocked ? { disabled: true } : undefined,
     };
 }
 
@@ -210,7 +215,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                     <Button size="small" icon={<TestTube className="size-3.5" />} onClick={() => setTestWorkflow(item)}>
                         测试
                     </Button>
-                    <Popconfirm {...runningHubWorkflowEnableConfirmation(item)} onConfirm={() => void mutate(item, item.enabled ? "disable" : "enable")}>
+                    <Popconfirm {...runningHubWorkflowEnableConfirmation(item)} onConfirm={() => (runningHubWorkflowEnableBlocked(item) ? undefined : void mutate(item, item.enabled ? "disable" : "enable"))}>
                         <Button size="small" icon={<ToggleLeft className="size-3.5" />}>
                             {item.enabled ? "停用" : "启用"}
                         </Button>
@@ -304,7 +309,7 @@ export function RunningHubWorkflowList({ channel }: { channel: SystemModelChanne
                             <Button size="small" onClick={() => setTestWorkflow(item)}>
                                 测试
                             </Button>
-                            <Popconfirm {...runningHubWorkflowEnableConfirmation(item)} onConfirm={() => void mutate(item, item.enabled ? "disable" : "enable")}>
+                            <Popconfirm {...runningHubWorkflowEnableConfirmation(item)} onConfirm={() => (runningHubWorkflowEnableBlocked(item) ? undefined : void mutate(item, item.enabled ? "disable" : "enable"))}>
                                 <Button size="small">{item.enabled ? "停用" : "启用"}</Button>
                             </Popconfirm>
                         </div>

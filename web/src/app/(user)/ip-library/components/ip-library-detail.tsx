@@ -339,7 +339,7 @@ function DormantReferenceActions({ detail, subIpId }: { detail: IpDetail; subIpI
                 <div className="grid gap-2 sm:grid-cols-3">
                     <UseTarget icon={<Maximize2 className="size-5" />} title="画布" onClick={() => router.push(ipUseTargetPath("canvas", detail, subIpId))} />
                     <UseTarget icon={<Clapperboard className="size-5" />} title="短剧" onClick={() => router.push(ipUseTargetPath("drama", detail, subIpId))} />
-                    {schoolContext ? <UseTarget icon={<Boxes className="size-5" />} title="无限练习" onClick={() => router.push(ipUseTargetPath("practice", detail, subIpId))} /> : null}
+                    {schoolContext ? <UseTarget icon={<Boxes className="size-5" />} title="练习" onClick={() => router.push(ipUseTargetPath("practice", detail, subIpId))} /> : null}
                 </div>
             </Modal>
         </>
