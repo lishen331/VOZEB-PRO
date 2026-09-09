@@ -986,6 +986,8 @@ function stableAudioSourceUrl(value: unknown) {
     return url && !url.startsWith("data:") && !url.startsWith("blob:") ? url : "";
 }
 
+const dramaLabRecoveryStarted = new Set<string>();
+
 function isDramaLabExecutionActive(phase: DramaLabVideoBatchExecutionPhase | undefined, taskId?: string) {
     return Boolean(taskId?.trim()) && (phase === "created" || phase === "submitting" || phase === "submitted" || phase === "polling" || phase === "result_ready" || phase === "persisting" || phase === "cancel_requested" || phase === "cancel_polling");
 }
@@ -4410,7 +4412,8 @@ function StoryboardPanel({
         if (!episodeId) return;
         const recoveryKey = `${project.id}:${episodeId}`;
         const previousState = recoveryStateRef.current.get(recoveryKey);
-        if (recoveryStartedRef.current.has(recoveryKey) || previousState === "pending" || previousState === "ready" || recoveryAttemptedRef.current.has(recoveryKey)) return;
+        if (dramaLabRecoveryStarted.has(recoveryKey) || recoveryStartedRef.current.has(recoveryKey) || previousState === "pending" || previousState === "ready" || recoveryAttemptedRef.current.has(recoveryKey)) return;
+        dramaLabRecoveryStarted.add(recoveryKey);
         recoveryStartedRef.current.add(recoveryKey);
         let disposed = false;
         const controller = new AbortController();
