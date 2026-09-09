@@ -482,6 +482,7 @@ describe("practice sessions", () => {
                         workflow: {
                             workflowKey: "workflow",
                             workflowName: "分镜图",
+                            workflowCode: "storyboard_shot",
                             businessCode: "storyboard-image",
                             capability: "image",
                             providerType: "runninghub",
@@ -503,12 +504,12 @@ describe("practice sessions", () => {
                 },
             },
         ];
-        expect(resolvePracticeModelFromSettings(settings, "storyboard-image")).toMatchObject({ logicalModelId: "practice-image", capability: "image", workflow: { workflowKey: "workflow", version: 1, businessCode: "storyboard-image" } });
+        expect(resolvePracticeModelFromSettings(settings, "storyboard-image")).toMatchObject({ logicalModelId: "", capability: "image", workflow: { workflowKey: "workflow", version: 1, businessCode: "storyboard-image" } });
         const second = structuredClone(settings);
         second.practiceWorkflowModels = { "storyboard-image": ["practice-image", "practice-image-b"] };
         second.logicalModels.push({ id: "practice-image-b", name: "练习图片 B", capability: "image", enabled: true, bindings: [{ id: "binding-b", channelId: "rh", upstreamModel: "rh-image", enabled: true, priority: 1 }] });
         expect(resolvePracticeModelFromSettings(second, "storyboard-image", "practice-image-b")).toMatchObject({ logicalModelId: "practice-image-b", capability: "image" });
-        expect(() => resolvePracticeModelFromSettings(second, "storyboard-image", "production-image")).toThrow("所选练习模型不可用");
+        expect(() => resolvePracticeModelFromSettings(second, "storyboard-image", undefined, "scene_main_view")).toThrow("当前练习模块没有可用工作流");
     });
 
     it("dispatches once for an idempotent client request and keeps provider details private", async () => {

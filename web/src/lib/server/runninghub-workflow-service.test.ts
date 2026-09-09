@@ -14,8 +14,6 @@ vi.mock("./runninghub-provider", () => ({ fetchRunningHubWorkflowJson: mocks.fet
 
 import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import type { AuthSettings, RunningHubWorkflowConfig, SystemModelChannel } from "@/lib/auth/store-types";
-import { runningHubChannelValidationErrors } from "./admin-channel-config";
-import { resolvePracticeModuleModelOptions } from "./practice-module-service";
 import { runningHubWorkflowConfigFingerprint } from "./runninghub-workflow-domain";
 import {
     RunningHubWorkflowError,
@@ -50,7 +48,10 @@ const workflow = {
     inputSchema: [{ key: "prompt", label: "提示词", type: "textarea", required: true }],
     nodeMappings: [{ paramKey: "prompt", nodeId: "87", fieldName: "text", valueType: "STRING", source: "INPUT", inputKey: "prompt" }],
     outputMappings: [{ key: "image", label: "图片", nodeId: "90", assetType: "IMAGE", required: true, primary: true }],
-    workflowApiJson: "{}",\n    workflowJsonFingerprint: "test-json",\n    lastTestConfigFingerprint: "",\n    lastTestAt: "2026-09-01T00:00:00.000Z",
+    workflowApiJson: "{}",
+    workflowJsonFingerprint: "test-json",
+    lastTestConfigFingerprint: "",
+    lastTestAt: "2026-09-01T00:00:00.000Z",
     lastTestResult: "success",
 } satisfies RunningHubWorkflowConfig;
 
@@ -173,10 +174,10 @@ describe("runninghub workflow service", () => {
         const patch = mocks.setAuthSettings.mock.calls.at(-1)?.[0] as Partial<AuthSettings>;
         expect(patch.systemChannels?.[0]?.advancedConfig?.workflowConfigs?.storyboard?.enabled).toBe(true);
         expect(patch.systemChannels?.[0]?.advancedConfig?.workflowConfigs?.prop?.enabled).toBe(true);
-        const generatedModel = patch.practiceWorkflowModels?.[prop.businessCode]?.[0];
-        expect(patch.systemChannels?.[0]?.advancedConfig?.modelConfigs?.[generatedModel!]?.supportsReferenceImage).toBe(true);
+        expect(patch.practiceWorkflowModels).toEqual({});
+        expect(patch.logicalModels).toBeUndefined();
     });
-    it("creates the internal practice model binding when a tested workflow is enabled", async () => {
+    it("enables the tested workflow without creating retired practice model bindings", async () => {
         const candidate = { ...workflow, enabled: false, workflowCode: "storyboard_shot" as const, lastTestConfigFingerprint: runningHubWorkflowConfigFingerprint({ ...workflow, enabled: false, workflowCode: "storyboard_shot" }) };
         const current = settingsWith(candidate);
         current.logicalModels = [];
@@ -188,21 +189,10 @@ describe("runninghub workflow service", () => {
 
         const patch = mocks.setAuthSettings.mock.calls.at(-1)?.[0] as Partial<AuthSettings>;
         const channel = patch.systemChannels?.find((item) => item.id === candidate.channelId);
-        const logicalModelId = patch.practiceWorkflowModels?.[candidate.businessCode]?.[0];
-        expect(logicalModelId).toBeTruthy();
-        expect(channel?.models).toContain(logicalModelId);
-        expect(channel?.advancedConfig?.modelCapabilities?.[logicalModelId!]).toBe(candidate.capability);
-        expect(channel && runningHubChannelValidationErrors(channel)).toEqual([]);
-        expect(resolvePracticeModuleModelOptions({ ...current, ...patch } as AuthSettings, "storyboard-image")).toEqual([{ id: logicalModelId, label: "练习 RunningHub · 图片" }]);
-        expect(patch.logicalModels).toContainEqual(
-            expect.objectContaining({
-                id: logicalModelId,
-                name: candidate.workflowName,
-                capability: candidate.capability,
-                enabled: true,
-                bindings: [expect.objectContaining({ channelId: candidate.channelId, upstreamModel: logicalModelId, enabled: true })],
-            }),
-        );
+        expect(patch.practiceWorkflowModels).toEqual({});
+        expect(patch.logicalModels).toBeUndefined();
+        expect(channel?.advancedConfig?.workflowConfigs?.[candidate.workflowKey]).toMatchObject({ workflowCode: "storyboard_shot", enabled: true });
+        expect(channel?.models).toEqual(current.systemChannels.find((item) => item.id === candidate.channelId)?.models);
     });
     it("rejects edits to an enabled version and only changes activation through version operations", async () => {
         await expect(updateWorkflow(workflow.workflowKey, { workflowName: "新的名称" })).rejects.toMatchObject({ status: 409 });
@@ -238,4 +228,3 @@ describe("runninghub workflow service", () => {
         await expect(getWorkflow("missing")).rejects.toMatchObject({ status: 404 });
     });
 });
-
