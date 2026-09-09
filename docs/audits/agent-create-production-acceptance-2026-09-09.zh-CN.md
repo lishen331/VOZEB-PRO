@@ -38,3 +38,8 @@ P0-02 多模态图片盲测：已修复并线上通过（gemini-3.1-flash-image-
   - 线上文生图：新会话输入红色陶瓷杯产品主图请求；run `agent-nBrl3O-Mch6JuOdLSl9c0` completed，任务 type=image、model=gpt-image-2-all、任务 completed，生成结果回写。
   - 线上 P0-01/P0-02 已在此前新会话中通过；不重复执行。
   - 本文档后续将统一追加剩余线上矩阵的真实证据、产品 Bug、根因及修复建议。
+- 2026-09-09 一次性线上批次执行（首批）
+  - 文字对话：run `agent-cIRbnbkUG41fOqwu-u-ML` completed，tasks=[]，通过。
+  - 文生图：run `agent-tnoPdxv8NBhgWQlcaEQ0x` completed，image/gpt-image-2-all，资产 `asset-STEOm3FaeJHCYDTKI6P2Z`，通过。
+  - 文生视频：run `agent-Q7d0qXbSJxCFGJpa-WJl2`，video/doubao-seedance-2-0，当前仍 running（上游处理中），暂不判定失败；需继续查询最终状态。
+- 执行方式：每轮批量启动多个独立新会话，不再逐项汇报；最终统一整理产品缺陷、根因、修复方案。
