@@ -5622,7 +5622,7 @@ function StoryboardWorkbenchCard({
         }
     };
     return (
-        <article id={`storyboard-shot-${shot.id}`} className="overflow-hidden rounded-lg border border-border bg-card">
+        <article id={`storyboard-shot-${shot.id}`} className="@container/storyboard min-w-0 overflow-hidden rounded-lg border border-border bg-card">
             <header className="flex flex-col gap-2 border-b border-border px-4 py-3">
                 <div className="order-1 min-w-0 w-full">
                     <div className="flex flex-wrap items-center gap-2">
@@ -5664,8 +5664,13 @@ function StoryboardWorkbenchCard({
                     </Button>
                 </div>
             </header>
-            <div id={`storyboard-content-${shot.id}`} hidden={collapsed} style={collapsed ? { display: "none" } : undefined} className="grid divide-y divide-border xl:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)] xl:divide-x xl:divide-y-0">
-                <section className="space-y-4 p-4" aria-label={`分镜 ${shot.shotNumber} 资产关联`}>
+            <div
+                id={`storyboard-content-${shot.id}`}
+                hidden={collapsed}
+                style={collapsed ? { display: "none" } : undefined}
+                className="grid min-w-0 divide-y divide-border @min-[60rem]/storyboard:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)] @min-[60rem]/storyboard:divide-x @min-[60rem]/storyboard:divide-y-0"
+            >
+                <section className="min-w-0 space-y-4 p-4" aria-label={`分镜 ${shot.shotNumber} 资产关联`}>
                     <DramaLabShotAssetPicker label="场景" assets={project.scenes} selectedIds={shot.sceneId ? [shot.sceneId] : []} single onChange={(ids) => onUpdate({ sceneId: ids[0] })} />
                     <DramaLabShotAssetPicker label="角色" assets={project.characters} selectedIds={shot.characterIds} onChange={(characterIds) => onUpdate({ characterIds })} />
                     <DramaLabShotAssetPicker label="道具" assets={project.props} selectedIds={shot.propIds} onChange={(propIds) => onUpdate({ propIds })} />

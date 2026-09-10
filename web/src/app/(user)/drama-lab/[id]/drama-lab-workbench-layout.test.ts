@@ -10,6 +10,13 @@ describe("production storyboard workbench layout wiring", () => {
         expect(source).toContain("<DramaLabShotAssetPicker");
         expect(source).not.toContain("function AssetBindingGroup(");
     });
+    it("uses available card width rather than viewport width for the three-column layout", async () => {
+        const source = await readFile(path, "utf8");
+        expect(source).toContain('className="@container/storyboard min-w-0');
+        expect(source).toContain("@min-[60rem]/storyboard:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)]");
+        expect(source).not.toContain("xl:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)]");
+        expect(source).toContain('className="min-w-0 space-y-4 p-4" aria-label={`分镜 ${shot.shotNumber} 资产关联`}');
+    });
     it("supports per-shot collapse without removing task and canvas controls", async () => {
         const source = await readFile(path, "utf8");
         expect(source).toContain("collapsedShots");
