@@ -118,6 +118,8 @@ function frameContext(project: DramaProject, episodeTitle: string, shot: DramaSh
         shot.time ? `时间：${shot.time}` : "",
         shot.action ? `动作：${shot.action}` : "",
         shot.result ? `结果：${shot.result}` : "",
+        frameType === "first" && shot.startFramePrompt ? `用户指定首帧提示词：${shot.startFramePrompt}` : "",
+        frameType === "last" && shot.endFramePrompt ? `用户指定尾帧提示词：${shot.endFramePrompt}` : "",
         shot.emotion ? `情绪：${shot.emotion}（${shot.emotionIntensity ?? 0}）` : "",
         shot.layoutDescription ? `空间布局锚点：${shot.layoutDescription}` : "",
         shot.dialogue ? `对白：${shot.dialogue}` : "",
