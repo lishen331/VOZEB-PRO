@@ -91,7 +91,7 @@ D:\Claude code programe\VOZEB-PRO\output\coordination\2026-09-10-drama-lab
 - [x] 用户确认角色与能力/成本分层。
 - [x] 生成总任务书。
 - [x] 分别发送四份首轮任务（CLI 均返回 queued；尚无接收方 ACK）。
-- [ ] 收齐接单回执并核对实际权限/工作区。
+- [x] 收齐首轮回执并核对实际权限/工作区（ASSET/EXPORT/EVIDENCE READY_FOR_REVIEW；REVIEW 受独立会话写权限限制但已返回评审内容）。
 - [ ] 核准模块方案与共享文件所有权，发送实现指令。
 - [ ] 独立检查交付、返工调度、按依赖集成。
 - [ ] 验证 CI、部署与浏览器结果，逐模块报告。
