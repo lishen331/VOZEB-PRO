@@ -34,7 +34,7 @@ describe("production storyboard workbench layout wiring", () => {
     });
     it("exposes universal prompt generation and polishing controls", async () => {
         const source = await readFile(path, "utf8");
-        expect(source).toContain("import { optimizePrompt } from \"@/services/api/prompt-optimization\"");
+        expect(source).toContain('import { optimizePrompt } from "@/services/api/prompt-optimization"');
         expect(source).toContain("handleUniversalPromptAction");
         expect(source).toContain("生成全能提示词");
         expect(source).toContain("润色全能提示词");
@@ -42,8 +42,8 @@ describe("production storyboard workbench layout wiring", () => {
     });
     it("keeps classic, first-last, and universal storyboard panels mutually exclusive", async () => {
         const source = await readFile(path, "utf8");
-        expect(source).toContain("const isUniversal = shot.creationMode === \"universal\"");
-        expect(source).toContain("const isFirstLast = !isUniversal && storyboardFrameMode === \"first_last\"");
+        expect(source).toContain('const isUniversal = shot.creationMode === "universal"');
+        expect(source).toContain('const isFirstLast = !isUniversal && storyboardFrameMode === "first_last"');
         expect(source).toContain("const isClassic = !isUniversal && !isFirstLast");
         expect(source).toContain("universalReferences");
         expect(source).not.toContain("segmentCollapsed");
