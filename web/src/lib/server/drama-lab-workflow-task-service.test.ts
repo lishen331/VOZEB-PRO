@@ -514,7 +514,7 @@ describe("drama lab workflow task service", () => {
         const first = await advanceDramaLabWorkflow({ userId: "user-one", taskId: task.id });
 
         expect(first).toMatchObject({ status: "success" });
-        expect(mocks.exportDramaLabProjectForUser).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-one", projectId: project.id, projectOwnerUserId: "user-one", includeMedia: true }));
+        expect(mocks.exportDramaLabProjectForUser).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-one", projectId: project.id, projectOwnerUserId: "user-one", episodeIds: task.workflow.episodeIds, includeMedia: true }));
         expect(mocks.writeDramaLabWorkflowExportArtifact).toHaveBeenCalledWith(expect.objectContaining({ taskId: task.id, projectId: project.id, ownerUserId: "user-one", data: exportData }));
         const storedAfterFirst = mocks.tasks.get(`render:${task.id}`)!;
         expect(storedAfterFirst.workflow.outputRefs).toEqual(expect.arrayContaining([expect.objectContaining({ artifactId: task.id, downloadUrl: expect.stringContaining(task.id) })]));
