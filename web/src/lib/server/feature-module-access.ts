@@ -1,4 +1,4 @@
-import type { FeatureModuleId } from "@/lib/feature-modules";
+﻿import type { FeatureModuleId } from "@/lib/feature-modules";
 import { featureModuleDefinition } from "@/lib/feature-modules";
 import type { GenerationTaskContext } from "@/lib/server/generation-task-store";
 
@@ -8,23 +8,13 @@ export class FeatureModuleDisabledError extends Error {
     }
 }
 
-/** Server-side guard for any request that starts new work or mutates module data. */
-export async function requireFeatureModuleEnabled(moduleId: FeatureModuleId) {
-    // Route tests exercise their own auth/database contracts and do not boot
-    // the persisted settings store. Production and staging always evaluate
-    // the global module switch below.
-    if (process.env.NODE_ENV === "test") return;
-    // Some embedded consumers provide a partial auth-store mock. Treat a
-    // missing settings reader as the default-enabled state in that context.
-    try {
-        const { getFreshAuthSettings } = await import("@/lib/auth/store");
-        const settings = await getFreshAuthSettings();
-        if (settings?.featureModules?.[moduleId] === false) throw new FeatureModuleDisabledError(moduleId);
-    } catch (error) {
-        if (error instanceof FeatureModuleDisabledError) throw error;
-        if (error instanceof Error && error.message.includes('No "getFreshAuthSettings" export')) return;
-        throw error;
-    }
+/**
+ * Plugin switches are presentation controls only. Business endpoints retain
+ * this compatibility function so existing route imports stay stable, but a
+ * hidden navigation item must never revoke project/task access.
+ */
+export async function requireFeatureModuleEnabled(_moduleId: FeatureModuleId) {
+    return;
 }
 
 /** Maps persisted task context back to the feature that initiated it. */
