@@ -631,38 +631,37 @@ function AssetEditorModal({
                 <div className="grid gap-3">
                     <div className="border-b border-border pb-3">
                         <div className="mb-2 text-xs text-muted-foreground">参考图</div>
-                        <div className="flex flex-wrap items-start gap-2">
-                            {references.map((reference) => {
-                                const isPrimary = reference.id === asset.primaryReferenceId || (!asset.primaryReferenceId && reference.id === primary?.id);
-                                return (
-                                    <div key={reference.id} className="group relative w-[88px]">
-                                        <Image src={imagePreviewUrl(reference.url, 180)} width={88} height={88} preview={{ src: reference.url }} alt={reference.label || "道具参考图"} className="rounded object-cover" />
-                                        <div className="mt-1 flex flex-col gap-1">
-                                            <Button size="small" type={isPrimary ? "primary" : "default"} onClick={() => onSetPrimary(reference)}>
-                                                {isPrimary ? "主参考图" : "设为主图"}
-                                            </Button>
-                                            <Button size="small" danger onClick={() => onRemoveReferenceById(reference.id)}>
-                                                移除
-                                            </Button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                        <div className="flex items-start gap-3">
                             <div
-                                className="grid h-[88px] w-[88px] cursor-pointer place-items-center rounded border border-dashed border-border bg-muted text-xs text-muted-foreground"
+                                data-prop-reference-frame="true"
+                                className="grid size-[88px] shrink-0 cursor-pointer place-items-center overflow-hidden rounded border border-dashed border-border bg-muted text-xs text-muted-foreground"
                                 onClick={onUpload}
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={handleDrop}
                                 title="点击或拖入参考图"
                             >
-                                + 上传
+                                {primary?.url ? (
+                                    <Image src={imagePreviewUrl(primary.url, 180)} width={88} height={88} preview={{ src: primary.url }} alt={primary.label || "道具参考图"} className="!size-full !object-contain" />
+                                ) : (
+                                    <span className="px-2 text-center">点击或拖入参考图</span>
+                                )}
+                            </div>
+                            <div className="flex flex-col items-start gap-1.5">
+                                {primary ? (
+                                    <>
+                                        <Button size="small" type="primary" onClick={() => onSetPrimary(primary)}>
+                                            主参考图
+                                        </Button>
+                                        <Button size="small" danger onClick={() => onRemoveReferenceById(primary.id)}>
+                                            移除
+                                        </Button>
+                                        <Button size="small" onClick={() => onAiAction("describe")} loading={busy}>
+                                            提取特征描述
+                                        </Button>
+                                    </>
+                                ) : null}
                             </div>
                         </div>
-                        {hasReference ? (
-                            <Button size="small" type="primary" className="mt-2" onClick={() => onAiAction("describe")} loading={busy}>
-                                提取特征描述
-                            </Button>
-                        ) : null}
                     </div>
                     <label className="grid gap-1.5 text-sm">
                         <span>名称</span>

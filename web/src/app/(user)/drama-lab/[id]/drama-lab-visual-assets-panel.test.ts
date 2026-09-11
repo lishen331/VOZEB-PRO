@@ -115,3 +115,17 @@ describe("L-style prop editor modal", () => {
         expect(propBranch).not.toContain("生成版式");
     });
 });
+
+describe("L-style prop reference placement", () => {
+    it("uses one uploadable reference frame and keeps actions to its right", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        const propStart = source.indexOf('if (editor.kind === "props")');
+        const propEnd = source.indexOf("return (", source.indexOf("    }", propStart) + 5);
+        const propBranch = source.slice(propStart, propEnd);
+
+        expect(propBranch).toContain('data-prop-reference-frame="true"');
+        expect(propBranch).toContain('className="flex flex-col items-start gap-1.5"');
+        expect(propBranch).not.toContain("+ 上传");
+        expect(propBranch).not.toContain("references.map");
+    });
+});
