@@ -13,6 +13,6 @@ describe("drama lab storyboard image preview", () => {
         expect(source).toContain('className="relative h-full min-h-0 min-w-0 overflow-hidden"');
         expect(source).toContain('className="relative min-h-0 min-w-0 flex-1 overflow-hidden"');
         expect(source).toContain('root: "absolute inset-0 block size-full overflow-hidden"');
-        expect(source).toContain('image: "block size-full object-contain"');
+        expect(source).toContain('image: "!block !size-full !object-contain"');
     });
 });

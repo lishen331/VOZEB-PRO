@@ -5759,8 +5759,8 @@ function StoryboardWorkbenchCard({
                                                         preview={{ src: shot.frames[frameType]?.url }}
                                                         src={shot.frames[frameType]?.url}
                                                         alt={frameLabel[frameType]}
-                                                        className="size-full object-contain"
-                                                        classNames={{ root: "absolute inset-0 block size-full overflow-hidden", image: "block size-full object-contain" }}
+                                                        className="!block !size-full !object-contain"
+                                                        classNames={{ root: "absolute inset-0 block size-full overflow-hidden", image: "!block !size-full !object-contain" }}
                                                     />
                                                 </div>
                                             ) : (
@@ -5775,8 +5775,8 @@ function StoryboardWorkbenchCard({
                                         preview={{ src: classicImageUrl }}
                                         src={classicImageUrl}
                                         alt={`分镜 ${shot.shotNumber} 图像`}
-                                        className="size-full object-contain"
-                                        classNames={{ root: "absolute inset-0 block size-full overflow-hidden", image: "block size-full object-contain" }}
+                                        className="!block !size-full !object-contain"
+                                        classNames={{ root: "absolute inset-0 block size-full overflow-hidden", image: "!block !size-full !object-contain" }}
                                     />
                                 </div>
                             ) : (
