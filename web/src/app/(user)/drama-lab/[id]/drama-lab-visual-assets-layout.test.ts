@@ -1,0 +1,28 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const path = resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/drama-lab-visual-assets-panel.tsx");
+
+describe("drama lab visual asset card layout", () => {
+    it("keeps every asset card and media area at a fixed height", async () => {
+        const source = await readFile(path, "utf8");
+
+        expect(source).toContain('className="flex h-[430px] flex-col overflow-hidden rounded-md border border-border bg-card"');
+        expect(source).toContain('className="relative grid h-44 shrink-0 place-items-center overflow-hidden bg-muted/50"');
+        expect(source).toContain("grid gap-3 sm:grid-cols-2 xl:grid-cols-3");
+    });
+
+    it("summarizes affected shots and opens a clickable detail modal without a locate button", async () => {
+        const source = await readFile(path, "utf8");
+
+        expect(source).toContain("const [impactModalAsset, setImpactModalAsset] = useState<VisualAsset>();");
+        expect(source).toContain("··· 更多");
+        expect(source).toContain("关联分镜的全部信息");
+        expect(source).toContain("onClick={() => setImpactModalAsset(asset)}");
+        expect(source).toContain("影响分镜");
+        expect(source).toContain("分镜图");
+        expect(source).toContain("onLocateShot(shot.episodeId, shot.id)");
+        expect(source).not.toContain(">定位</button>");
+    });
+});

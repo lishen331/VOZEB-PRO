@@ -56,6 +56,7 @@ export function DramaLabVisualAssetsPanel({
     const [editor, setEditor] = useState<EditorState>();
     const [libraryOpen, setLibraryOpen] = useState(false);
     const [busyKey, setBusyKey] = useState("");
+    const [impactModalAsset, setImpactModalAsset] = useState<VisualAsset>();
 
     const definition = ASSET_META[kind];
     const activeAsset = editor?.asset;
@@ -345,8 +346,8 @@ export function DramaLabVisualAssetsPanel({
                                         const meta = ASSET_META[assetKind];
                                         const Icon = meta.icon;
                                         return (
-                                            <article key={asset.id} className="overflow-hidden rounded-md border border-border bg-card" data-drama-lab-asset-card={asset.id}>
-                                                <div className={`relative grid ${meta.aspect} place-items-center overflow-hidden bg-muted/50`}>
+                                            <article key={asset.id} className="flex h-[430px] flex-col overflow-hidden rounded-md border border-border bg-card" data-drama-lab-asset-card={asset.id}>
+                                                <div className="relative grid h-44 shrink-0 place-items-center overflow-hidden bg-muted/50">
                                                     {primary?.url ? (
                                                         <Image
                                                             src={imagePreviewUrl(primary.url, 640)}
@@ -360,7 +361,7 @@ export function DramaLabVisualAssetsPanel({
                                                     )}
                                                     {!primary ? <span className="absolute bottom-2 rounded bg-background/90 px-2 py-1 text-xs text-muted-foreground">待补主参考图</span> : null}
                                                 </div>
-                                                <div className="p-3">
+                                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
                                                     <div className="flex min-w-0 items-center gap-2">
                                                         <Icon className="size-4 shrink-0 text-muted-foreground" />
                                                         <h3 className="min-w-0 flex-1 truncate font-medium" title={asset.name}>
@@ -412,29 +413,30 @@ export function DramaLabVisualAssetsPanel({
                                                             })}
                                                         </div>
                                                     ) : null}
-                                                    <div className="mt-3 border-t border-border pt-2.5">
+                                                    <div className="mt-auto border-t border-border pt-2.5">
                                                         <div className="mb-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                                                             <Video className="size-3.5" /> 影响分镜 {affected.length}
                                                         </div>
                                                         {affected.length ? (
-                                                            <div className="flex flex-wrap gap-1.5">
-                                                                {affected.map((shot) => (
-                                                                    <div key={shot.id} className="inline-flex max-w-full items-center rounded border border-border bg-muted/35 text-xs">
-                                                                        <button type="button" className="truncate px-2 py-1 hover:bg-muted" onClick={() => onLocateShot(shot.episodeId, shot.id)}>
+                                                            <Tooltip title={<span>关联分镜：{affected.map((shot) => `#${shot.shotNumber}`).join("、")}</span>} placement="topLeft">
+                                                                <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                                                                    {affected.slice(0, 3).map((shot) => (
+                                                                        <button
+                                                                            key={shot.id}
+                                                                            type="button"
+                                                                            className="shrink-0 rounded border border-border bg-muted/35 px-2 py-1 text-xs hover:bg-muted"
+                                                                            onClick={() => onLocateShot(shot.episodeId, shot.id)}
+                                                                        >
                                                                             #{shot.shotNumber}
                                                                         </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="border-l border-border px-1.5 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                                                            onClick={() => void regenerateShot(shot)}
-                                                                            disabled={busyKey === `shot:${shot.id}`}
-                                                                            aria-label={`重生成分镜 ${shot.shotNumber}`}
-                                                                        >
-                                                                            {busyKey === `shot:${shot.id}` ? <span className="text-[10px]">...</span> : <Sparkles className="size-3" />}
+                                                                    ))}
+                                                                    {affected.length > 3 ? (
+                                                                        <button type="button" className="shrink-0 px-1 py-1 text-xs text-primary hover:underline" onClick={() => setImpactModalAsset(asset)}>
+                                                                            ··· 更多（{affected.length - 3}）
                                                                         </button>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
+                                                                    ) : null}
+                                                                </div>
+                                                            </Tooltip>
                                                         ) : (
                                                             <span className="text-xs text-muted-foreground">尚未关联分镜</span>
                                                         )}
@@ -463,6 +465,39 @@ export function DramaLabVisualAssetsPanel({
                 onUploadFile={(file) => void uploadReference(file)}
             />
             {libraryOpen ? <DramaLabAssetLibraryPicker key={kind} kind={kind} label={definition.label} busyKey={busyKey} onClose={() => setLibraryOpen(false)} onImport={importLibraryAsset} /> : null}
+            {impactModalAsset ? (
+                <Modal open title={`${impactModalAsset.name} · 关联分镜（${(assetShots.get(impactModalAsset.id) || []).length}）`} footer={null} onCancel={() => setImpactModalAsset(undefined)} width={760}>
+                    <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">显示该资产关联分镜的全部信息。点击任意一项后关闭弹窗，并定位到分镜工作台对应镜头。</p>
+                        <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+                            {(assetShots.get(impactModalAsset.id) || []).map((shot) => {
+                                const imageUrl = shot.storyboardImageUrl || shot.imageUrl || shot.frames?.key?.url;
+                                return (
+                                    <button
+                                        key={shot.id}
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-md border border-border p-2 text-left transition-colors hover:bg-muted/50"
+                                        onClick={() => {
+                                            setImpactModalAsset(undefined);
+                                            onLocateShot(shot.episodeId, shot.id);
+                                        }}
+                                    >
+                                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded bg-muted/50 text-xs text-muted-foreground">
+                                            {imageUrl ? <img src={imagePreviewUrl(imageUrl, 160)} alt={`分镜 ${shot.shotNumber}`} className="size-full object-cover" /> : `分镜图 #${shot.shotNumber}`}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate text-sm font-medium">
+                                                #{shot.shotNumber} · {shot.title || shot.location || "未命名分镜"}
+                                            </div>
+                                            <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{shot.script || shot.description || "暂无分镜摘要"}</div>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </Modal>
+            ) : null}
         </div>
     );
 }
