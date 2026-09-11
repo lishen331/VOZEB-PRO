@@ -25,6 +25,7 @@ import { getAuthSettings } from "@/lib/auth/store";
 import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-reference-service";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { maintenanceWorkerContext } from "@/lib/server/maintenance-auth";
+import { executeDramaLabFinalVideoTask, DRAMA_LAB_FINAL_VIDEO_TASK_KIND } from "@/lib/server/drama-lab-final-video-service";
 
 type RecoveryResult = "pending" | "result_ready" | "completed" | "failed" | "needs_review" | "deferred";
 
@@ -56,12 +57,33 @@ async function processGenerationTaskLease(lease: GenerationTaskLease, workerId: 
     if (lease.type === "image") return processImageLease(lease, workerId, origin, publicOrigin, cookie, userRequested);
     if (lease.type === "audio") return processAudioLease(lease, workerId, origin, cookie, userRequested);
     if (lease.type === "agent") return processAgentLease(lease, workerId, origin, cookie);
-    if (lease.type === "render") return processDramaWorkflowLease(lease, workerId, origin, cookie);
+    if (lease.type === "render") {
+        if (lease.payload?.taskKind === DRAMA_LAB_FINAL_VIDEO_TASK_KIND) return processDramaLabFinalVideoLease(lease, workerId, origin, cookie);
+        return processDramaWorkflowLease(lease, workerId, origin, cookie);
+    }
     if (lease.type !== "video") {
         await releaseGenerationTaskLease(lease.type, lease.id, workerId, { executionPhase: "needs_review", nextPollAt: undefined, lastUpstreamStatus: "worker_handler_missing" });
         return "needs_review";
     }
     return processVideoLease(lease, workerId, origin, cookie, userRequested);
+}
+
+/** Execute the dedicated final-video snapshot through the same durable render lease. */
+async function processDramaLabFinalVideoLease(lease: GenerationTaskLease, workerId: string, origin: string, cookie: string): Promise<RecoveryResult> {
+    const now = Date.now();
+    try {
+        const task = await executeDramaLabFinalVideoTask(lease.id);
+        if (["success", "error", "cancelled", "needs_review"].includes(task.status)) {
+            await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: now, lastUpstreamStatus: `final_video_${task.status}` });
+            return task.status === "success" || task.status === "cancelled" ? "completed" : task.status === "needs_review" ? "needs_review" : "failed";
+        }
+        await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "polling", nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now }), lastPollAt: now, lastUpstreamStatus: `final_video_${task.status}` });
+        return "pending";
+    } catch (error) {
+        await releaseGenerationTaskLease("render", lease.id, workerId, { executionPhase: "polling", nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now }), lastPollAt: now, lastUpstreamStatus: "final_video_error" });
+        console.warn("Drama Lab final video recovery deferred", { taskId: lease.id, error: safeError(error) });
+        return "deferred";
+    }
 }
 
 /**
