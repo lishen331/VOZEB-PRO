@@ -60,6 +60,7 @@ import { recoverVideoGenerationTask } from "@/services/api/video-core";
 import { cn } from "@/lib/utils";
 import { DramaLabVisualAssetsPanel } from "./drama-lab-visual-assets-panel";
 import { DramaLabNovelImport } from "./drama-lab-novel-import";
+import { DramaLabFinalVideoPanel } from "./drama-lab-final-video-panel";
 import { DramaLabTaskPanel } from "./drama-lab-task-panel";
 import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } from "./drama-lab-video-task-recovery";
 import { DramaLabVideoBatchWaitError, waitForDramaLabVideoBatch, type DramaLabVideoBatchExecutionPhase } from "@/lib/drama-lab-video-batch";
@@ -5744,20 +5745,22 @@ function StoryboardWorkbenchCard({
                 <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 画面`}>
                     <h4 className="text-sm font-medium">{isFirstLast ? "首尾帧参考图" : isUniversal ? "全能片段与参考图" : "分镜图"}</h4>
                     {!isUniversal ? (
-                        <div data-storyboard-media="image" className="grid h-56 min-w-0 rounded border border-border bg-muted/30">
+                        <div data-storyboard-media="image" className="grid h-56 min-h-0 min-w-0 overflow-hidden rounded border border-border bg-muted/30">
                             {isFirstLast ? (
                                 <div className="grid min-h-0 grid-cols-2 divide-x divide-border">
                                     {(["first", "last"] as const).map((frameType) => (
                                         <div key={frameType} className="flex min-h-0 min-w-0 flex-col p-2">
                                             <span className="mb-1 text-xs text-muted-foreground">{frameLabel[frameType]}</span>
                                             {shot.frames?.[frameType]?.url ? (
-                                                <Image
-                                                    preview={{ src: shot.frames[frameType]?.url }}
-                                                    src={shot.frames[frameType]?.url}
-                                                    alt={frameLabel[frameType]}
-                                                    className="min-h-0 w-full flex-1 object-contain"
-                                                    classNames={{ root: "block min-h-0 size-full", image: "block size-full object-contain" }}
-                                                />
+                                                <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+                                                    <Image
+                                                        preview={{ src: shot.frames[frameType]?.url }}
+                                                        src={shot.frames[frameType]?.url}
+                                                        alt={frameLabel[frameType]}
+                                                        className="size-full object-contain"
+                                                        classNames={{ root: "absolute inset-0 block size-full overflow-hidden", image: "block size-full object-contain" }}
+                                                    />
+                                                </div>
                                             ) : (
                                                 <div className="grid flex-1 place-items-center text-xs text-muted-foreground">待生成 / 上传</div>
                                             )}
@@ -5765,13 +5768,15 @@ function StoryboardWorkbenchCard({
                                     ))}
                                 </div>
                             ) : classicImageUrl ? (
-                                <Image
-                                    preview={{ src: classicImageUrl }}
-                                    src={classicImageUrl}
-                                    alt={`分镜 ${shot.shotNumber} 图像`}
-                                    className="h-full min-h-0 w-full object-contain"
-                                    classNames={{ root: "block size-full", image: "block size-full object-contain" }}
-                                />
+                                <div className="relative h-full min-h-0 min-w-0 overflow-hidden">
+                                    <Image
+                                        preview={{ src: classicImageUrl }}
+                                        src={classicImageUrl}
+                                        alt={`分镜 ${shot.shotNumber} 图像`}
+                                        className="size-full object-contain"
+                                        classNames={{ root: "absolute inset-0 block size-full overflow-hidden", image: "block size-full object-contain" }}
+                                    />
+                                </div>
                             ) : (
                                 <div className="grid place-items-center text-sm text-muted-foreground">尚未生成分镜图</div>
                             )}
@@ -6294,6 +6299,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
 
     return (
         <div className="mx-auto max-w-4xl space-y-6 p-8">
+            <DramaLabFinalVideoPanel projectId={project.id} episodeId={episode.id} disabled={exportBlockedByApproval} totalShots={episodeShots.length} videoShots={videoShots.length} />
             <div className="space-y-2">
                 <h2 className="text-xl font-semibold">导出剪映草稿</h2>
                 <p className="text-sm text-muted-foreground">将当前剧集的所有分镜视频导出为剪映草稿，可直接在剪映中打开继续编辑</p>

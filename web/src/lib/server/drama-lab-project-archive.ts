@@ -66,10 +66,23 @@ type ExportInput = {
     origin?: string;
     cookie?: string;
     includeMedia?: boolean;
+    /** Omit for a full project archive; an explicit selection must be non-empty. */
+    episodeIds?: string[];
 };
 
+function selectArchiveEpisodes(project: DramaProject, episodeIds: string[] | undefined): DramaProject {
+    if (episodeIds === undefined) return project;
+    if (!episodeIds.length) throw new DramaLabProjectArchiveError("请至少选择一个导出剧集");
+    const selectedIds = new Set(episodeIds);
+    const episodes = project.episodes.filter((episode) => selectedIds.has(episode.id));
+    if (episodes.length !== selectedIds.size) throw new DramaLabProjectArchiveError("导出范围包含不存在的剧集");
+    // Assets and source material are project-scoped, including script assets not yet
+    // bound to a shot. Retain them so scoped archives remain independently editable.
+    return { ...project, episodes, activeEpisodeId: project.activeEpisodeId && selectedIds.has(project.activeEpisodeId) ? project.activeEpisodeId : episodes[0].id };
+}
 export async function exportDramaLabProjectForUser(input: ExportInput) {
-    const project = await getDramaProjectForUser(input.projectOwnerUserId || input.userId, input.projectId);
+    const source = await getDramaProjectForUser(input.projectOwnerUserId || input.userId, input.projectId);
+    const project = selectArchiveEpisodes(source, input.episodeIds);
     const includeMedia = input.includeMedia !== false;
     // Collaborators resolve the owner's project aggregate; its registrations
     // are owned by that same stable storage owner.
