@@ -68,16 +68,62 @@ export function DramaLabVisualAssetsPanel({
         return grouped;
     }, [project.shots]);
 
-    const replaceAssets = async (next: VisualAsset[] | ((current: VisualAsset[]) => VisualAsset[])) =>
+    const replaceAssetsFor = async (assetKind: AssetKind, next: VisualAsset[] | ((current: VisualAsset[]) => VisualAsset[])) =>
         onSave(
             (currentProject) =>
                 ({
-                    [kind]: typeof next === "function" ? next(currentProject[kind] as VisualAsset[]) : next,
+                    [assetKind]: typeof next === "function" ? next(currentProject[assetKind] as VisualAsset[]) : next,
                 }) as Partial<Project>,
         );
 
+    const replaceAssets = (next: VisualAsset[] | ((current: VisualAsset[]) => VisualAsset[])) => replaceAssetsFor(kind, next);
+
     const updateAsset = async (assetId: string, patch: Partial<VisualAsset>) => {
         return replaceAssets((current) => current.map((asset) => (asset.id === assetId ? { ...asset, ...patch } : asset)));
+    };
+
+    const extractAssetsForKind = async (assetKind: AssetKind) => {
+        if (!episode?.script.trim()) throw new Error("请先填写当前集剧本");
+
+        const resourceType = assetKind === "characters" ? "character" : assetKind === "scenes" ? "scene" : "prop";
+        const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/extract-assets`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ episodeId: episode.id, assetType: resourceType, requestId: `drama-lab-extract:${project.id}:${episode.id}:${resourceType}:${nanoid()}` }),
+        });
+        const payload = (await response.json()) as { code?: number; msg?: string; data?: { assets?: Array<DramaAssetVisualDetails & { id?: string; name?: string; description?: string; location?: string }> } };
+        if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "资产提取失败");
+
+        const extracted = (payload.data?.assets || []).flatMap((asset) => {
+            const name = asset.name?.trim() || "";
+            if (!name) return [];
+            return [
+                createAsset(assetKind, {
+                    ...readDramaLabAssetVisualDetails(asset),
+                    id: asset.id || `${assetKind}-${nanoid()}`,
+                    name,
+                    description: asset.description || "",
+                    ...(assetKind === "scenes" ? { location: asset.location || name, time: asset.time } : {}),
+                }),
+            ];
+        });
+
+        if (!extracted.length) return 0;
+
+        let addedCount = 0;
+        const saved = await replaceAssetsFor(assetKind, (current) => {
+            const names = new Set(current.map((asset) => assetName(asset).trim()));
+            const additions = extracted.filter((asset) => {
+                const name = assetName(asset).trim();
+                if (!name || names.has(name)) return false;
+                names.add(name);
+                return true;
+            });
+            addedCount = additions.length;
+            return [...current, ...additions];
+        });
+        if (!saved) throw new Error("项目保存失败");
+        return addedCount;
     };
 
     const extractFromScript = async () => {
@@ -85,35 +131,47 @@ export function DramaLabVisualAssetsPanel({
             messageApi.warning("请先填写当前集剧本");
             return;
         }
-        const resourceType = kind === "characters" ? "character" : kind === "scenes" ? "scene" : "prop";
         const requestKey = `extract:${kind}`;
         setBusyKey(requestKey);
         try {
-            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/extract-assets`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ episodeId: episode.id, assetType: resourceType, requestId: `drama-lab-extract:${project.id}:${episode.id}:${resourceType}:${nanoid()}` }),
-            });
-            const payload = (await response.json()) as { code?: number; msg?: string; data?: { assets?: Array<DramaAssetVisualDetails & { id?: string; name?: string; description?: string; location?: string }> } };
-            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "资产提取失败");
-            const current = project[kind] as VisualAsset[];
-            const names = new Set(current.map((asset) => assetName(asset).trim()));
-            const additions = (payload.data?.assets || []).flatMap((asset) => {
-                const name = asset.name?.trim() || "";
-                if (!name || names.has(name)) return [];
-                names.add(name);
-                return [
-                    createAsset(kind, { ...readDramaLabAssetVisualDetails(asset), id: asset.id || `${kind}-${nanoid()}`, name, description: asset.description || "", ...(kind === "scenes" ? { location: asset.location || name, time: asset.time } : {}) }),
-                ];
-            });
-            if (!additions.length) {
+            const addedCount = await extractAssetsForKind(kind);
+            if (!addedCount) {
                 messageApi.info(`没有发现需要新增的${definition.label}`);
                 return;
             }
-            if (!(await replaceAssets([...current, ...additions]))) throw new Error("项目保存失败");
-            messageApi.success(`已从剧本提取 ${additions.length} 个${definition.label}`);
+            messageApi.success(`已从剧本提取 ${addedCount} 个${definition.label}`);
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "资产提取失败");
+        } finally {
+            setBusyKey("");
+        }
+    };
+
+    const extractAllFromScript = async () => {
+        if (!episode?.script.trim()) {
+            messageApi.warning("请先填写当前集剧本");
+            return;
+        }
+        setBusyKey("extract:all");
+        const labels: Record<AssetKind, string> = { characters: "角色", scenes: "场景", props: "道具" };
+        const failed: string[] = [];
+        const completed: string[] = [];
+        let addedCount = 0;
+        try {
+            for (const assetKind of ["characters", "scenes", "props"] as const) {
+                try {
+                    addedCount += await extractAssetsForKind(assetKind);
+                    completed.push(labels[assetKind]);
+                } catch (error) {
+                    failed.push(`${labels[assetKind]}：${error instanceof Error ? error.message : "提取失败"}`);
+                }
+            }
+            if (failed.length) {
+                const succeeded = completed.length ? `已完成：${completed.join("、")}。` : "";
+                messageApi.error(`${succeeded}部分资产提取失败：${failed.join("；")}`);
+            } else {
+                messageApi.success(`一键提取完成，新增 ${addedCount} 个资产`);
+            }
         } finally {
             setBusyKey("");
         }
@@ -259,13 +317,16 @@ export function DramaLabVisualAssetsPanel({
                 onChange={(value) => setKind(value as AssetKind)}
                 tabBarExtraContent={
                     <div className="flex items-center gap-2">
-                        <Button icon={<Sparkles className="size-3.5" />} loading={busyKey === `extract:${kind}`} onClick={() => void extractFromScript()}>
-                            从剧本提取
+                        <Button type="primary" icon={<Sparkles className="size-3.5" />} loading={busyKey === "extract:all"} disabled={busyKey.startsWith("extract:")} onClick={() => void extractAllFromScript()}>
+                            一键提取
                         </Button>
-                        <Button icon={<LibraryBig className="size-3.5" />} onClick={() => setLibraryOpen(true)}>
+                        <Button icon={<Sparkles className="size-3.5" />} loading={busyKey === `extract:${kind}`} disabled={busyKey.startsWith("extract:")} onClick={() => void extractFromScript()}>
+                            提取{definition.label}
+                        </Button>
+                        <Button icon={<LibraryBig className="size-3.5" />} disabled={busyKey.startsWith("extract:")} onClick={() => setLibraryOpen(true)}>
                             从素材库添加
                         </Button>
-                        <Button type="primary" icon={<Plus className="size-3.5" />} onClick={addAsset}>
+                        <Button type="primary" icon={<Plus className="size-3.5" />} disabled={busyKey.startsWith("extract:")} onClick={addAsset}>
                             新增{definition.label}
                         </Button>
                     </div>
