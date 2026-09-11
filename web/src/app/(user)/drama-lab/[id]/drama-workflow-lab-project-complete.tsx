@@ -5582,11 +5582,27 @@ function StoryboardWorkbenchCard({
     const isUniversal = shot.creationMode === "universal";
     const isFirstLast = !isUniversal && storyboardFrameMode === "first_last";
     const isClassic = !isUniversal && !isFirstLast;
+    const classicImageUrl = shot.frames?.key?.url || shot.storyboardImageUrl;
     const [promptWrap, setPromptWrap] = useState(true);
+    const [promptEditor, setPromptEditor] = useState<"image" | "video" | "first" | "last" | null>(null);
+    const [promptDraft, setPromptDraft] = useState("");
     const [universalPromptAction, setUniversalPromptAction] = useState<"generate" | "polish" | null>(null);
     const [universalPromptError, setUniversalPromptError] = useState<string | null>(null);
     const uploadInputRefs = useRef<Partial<Record<"first" | "key" | "last", HTMLInputElement | null>>>({});
     const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
+    const openPromptEditor = (target: "image" | "video" | "first" | "last") => {
+        setPromptDraft(target === "image" ? shot.imagePrompt || "" : target === "video" ? shot.videoPrompt || "" : shot.frames?.[target]?.prompt || "");
+        setPromptEditor(target);
+    };
+    const savePromptEditor = () => {
+        if (!promptEditor) return;
+        const prompt = promptDraft.trim();
+        if (promptEditor === "image") onUpdate({ imagePrompt: prompt });
+        else if (promptEditor === "video") onUpdate({ videoPrompt: prompt });
+        else onUpdate({ frames: { ...shot.frames, [promptEditor]: { ...(shot.frames?.[promptEditor] || { prompt: "" }), prompt } } });
+        setPromptEditor(null);
+    };
+    const promptEditorTitle = promptEditor === "image" ? "编辑分镜图提示词" : promptEditor === "video" ? "编辑视频提示词" : promptEditor ? `编辑${frameLabel[promptEditor]}提示词` : "编辑提示词";
     const universalReferences = [
         shot.sceneId ? project.scenes.find((asset) => asset.id === shot.sceneId) : undefined,
         ...shot.characterIds.map((id) => project.characters.find((asset) => asset.id === id)),
@@ -5687,6 +5703,29 @@ function StoryboardWorkbenchCard({
                     />
                 </section>
                 <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 画面`}>
+                    <h4 className="text-sm font-medium">{isFirstLast ? "首尾帧参考图" : isUniversal ? "全能片段与参考图" : "分镜图"}</h4>
+                    {!isUniversal ? (
+                        <div data-storyboard-media="image" className="grid h-56 min-w-0 rounded border border-border bg-muted/30">
+                            {isFirstLast ? (
+                                <div className="grid min-h-0 grid-cols-2 divide-x divide-border">
+                                    {(["first", "last"] as const).map((frameType) => (
+                                        <div key={frameType} className="flex min-h-0 min-w-0 flex-col p-2">
+                                            <span className="mb-1 text-xs text-muted-foreground">{frameLabel[frameType]}</span>
+                                            {shot.frames?.[frameType]?.url ? (
+                                                <img src={shot.frames[frameType]?.url} alt={frameLabel[frameType]} className="min-h-0 w-full flex-1 object-contain" />
+                                            ) : (
+                                                <div className="grid flex-1 place-items-center text-xs text-muted-foreground">待生成 / 上传</div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : classicImageUrl ? (
+                                <img src={classicImageUrl} alt={`分镜 ${shot.shotNumber} 图像`} className="h-full min-h-0 w-full object-contain" />
+                            ) : (
+                                <div className="grid place-items-center text-sm text-muted-foreground">尚未生成分镜图</div>
+                            )}
+                        </div>
+                    ) : null}
                     {isUniversal ? (
                         <div className="space-y-3 rounded border border-primary/20 bg-primary/5 p-3" aria-label="全能模式片段与参考图">
                             <div className="flex items-center justify-between gap-2">
@@ -5741,19 +5780,7 @@ function StoryboardWorkbenchCard({
                             </div>
                         </div>
                     ) : null}
-                    {isClassic ? (
-                        <>
-                            <PromptTextToolbar value={shot.imagePrompt || ""} wrap={promptWrap} onWrapChange={setPromptWrap} />
-                            <TextArea
-                                defaultValue={shot.imagePrompt}
-                                autoSize={{ minRows: 2, maxRows: 5 }}
-                                wrap={promptWrap ? "soft" : "off"}
-                                placeholder="画面补充（可选）"
-                                aria-label="画面补充"
-                                onBlur={(event) => onUpdate({ imagePrompt: event.target.value.trim() })}
-                            />
-                        </>
-                    ) : null}
+                    {isClassic ? <PromptPreview label="分镜图提示词" value={shot.imagePrompt} editLabel="查看 / 编辑分镜图提示词" onEdit={() => openPromptEditor("image")} /> : null}
                     {shot.storyboardError ? <Alert type="error" showIcon message={shot.storyboardError} /> : null}
                     <div className="flex flex-wrap items-center gap-2">
                         {isFirstLast
@@ -5791,8 +5818,11 @@ function StoryboardWorkbenchCard({
                                               aria-label={`上传${frameLabel[frameType]}`}
                                               loading={busyKeys.has(`frame-upload:${frameType}:${shot.id}`)}
                                               icon={<Upload className="size-3.5" />}
+                                              disabled={Boolean(frame?.locked) || isDramaLabTaskActive(frame?.status)}
                                               onClick={() => uploadInputRefs.current[frameType]?.click()}
-                                          />
+                                          >
+                                              上传{frameLabel[frameType]}
+                                          </Button>
                                           {frame?.url ? (
                                               <Button
                                                   size="small"
@@ -5814,15 +5844,58 @@ function StoryboardWorkbenchCard({
                         ) : null}
                         {isClassic ? (
                             <Button type="primary" loading={imageBusy} icon={<Sparkles className="size-4" />} onClick={() => void onStartGeneration(shot, "image")}>
-                                {shot.storyboardImageUrl ? "重新生成分镜图" : "生成分镜图"}
+                                {classicImageUrl ? "重新生成分镜图" : "生成分镜图"}
                             </Button>
+                        ) : null}
+                        {isClassic ? (
+                            <>
+                                <input
+                                    ref={(node) => {
+                                        uploadInputRefs.current.key = node;
+                                    }}
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/webp,image/gif"
+                                    className="hidden"
+                                    aria-label="选择分镜图文件"
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0];
+                                        event.target.value = "";
+                                        if (file) void onUploadFrame(shot, "key", file);
+                                    }}
+                                />
+                                <Button
+                                    aria-label="上传分镜图"
+                                    loading={busyKeys.has(`frame-upload:key:${shot.id}`)}
+                                    disabled={imageBusy || Boolean(shot.frames?.key?.locked) || isDramaLabTaskActive(shot.frames?.key?.status)}
+                                    icon={<Upload className="size-4" />}
+                                    onClick={() => uploadInputRefs.current.key?.click()}
+                                >
+                                    上传分镜图
+                                </Button>
+                                {shot.frames?.key?.locked ? (
+                                    <Button size="small" onClick={() => void onToggleFrameLock(shot, "key")}>
+                                        解锁分镜图
+                                    </Button>
+                                ) : null}
+                            </>
                         ) : null}
                         {isClassic ? (
                             <GenerationHistory
                                 history={shot.storyboardHistory}
-                                activeUrl={shot.storyboardImageUrl}
+                                activeUrl={classicImageUrl}
                                 type="image"
-                                onRestore={(url) => onUpdate({ storyboardImageUrl: url, imageUrl: url, storyboardStatus: "success", storyboardError: undefined })}
+                                onRestore={(url) =>
+                                    onUpdate({
+                                        storyboardImageUrl: url,
+                                        imageUrl: url,
+                                        storyboardStatus: "success",
+                                        storyboardError: undefined,
+                                        frames: {
+                                            ...shot.frames,
+                                            key: { ...(shot.frames?.key || { prompt: "" }), url, status: "success", source: "restored", error: undefined },
+                                        },
+                                    })
+                                }
                             />
                         ) : null}
                     </div>
@@ -5835,23 +5908,7 @@ function StoryboardWorkbenchCard({
                                         <div className="text-xs font-medium text-muted-foreground">{frameLabel[frameType]}</div>
                                         <span className="text-[11px] text-muted-foreground">{frame?.status === "success" ? "已完成" : frame?.status === "running" ? "生成中" : "待生成"}</span>
                                     </div>
-                                    <PromptTextToolbar value={frame?.prompt || ""} wrap={promptWrap} onWrapChange={setPromptWrap} />
-                                    <TextArea
-                                        defaultValue={frame?.prompt}
-                                        autoSize={{ minRows: 2, maxRows: 5 }}
-                                        wrap={promptWrap ? "soft" : "off"}
-                                        placeholder={`请输入${frameLabel[frameType]}提示词`}
-                                        aria-label={`${frameLabel[frameType]}提示词`}
-                                        onBlur={(event) => {
-                                            const prompt = event.target.value.trim();
-                                            if (prompt !== (frame?.prompt || "")) onUpdate({ frames: { ...shot.frames, [frameType]: { ...(frame || { prompt: "" }), prompt } } });
-                                        }}
-                                    />
-                                    {frame?.url ? (
-                                        <img src={frame.url} alt={`${frameLabel[frameType]}参考`} className="aspect-video w-full rounded border border-border object-cover" />
-                                    ) : (
-                                        <div className="grid aspect-video place-items-center border border-dashed border-border text-xs text-muted-foreground">待生成</div>
-                                    )}
+                                    <PromptPreview label={`${frameLabel[frameType]}提示词`} value={frame?.prompt} editLabel={`查看 / 编辑${frameLabel[frameType]}提示词`} onEdit={() => openPromptEditor(frameType)} />
                                 </div>
                             );
                         })}
@@ -5873,13 +5930,16 @@ function StoryboardWorkbenchCard({
                             </div>
                         </div>
                     ) : null}
-                    {isClassic && shot.storyboardImageUrl ? (
-                        <img src={shot.storyboardImageUrl} alt={`分镜 ${shot.shotNumber} 图像`} className="max-h-[460px] w-full rounded border border-border object-contain" />
-                    ) : isClassic ? (
-                        <div className="grid min-h-40 place-items-center border border-dashed border-border text-sm text-muted-foreground">尚未生成分镜图</div>
-                    ) : null}
                 </section>
                 <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 视频`}>
+                    <h4 className="text-sm font-medium">分镜视频</h4>
+                    <div data-storyboard-media="video" className="grid h-56 min-w-0 rounded border border-border bg-muted/30">
+                        {shot.videoUrl ? (
+                            <video src={shot.videoUrl} controls className="h-full min-h-0 w-full object-contain" />
+                        ) : (
+                            <div className="grid place-items-center p-3 text-center text-sm text-muted-foreground">{isUniversal ? "绑定资产参考图并完善全能提示词后可生成视频" : "生成或上传分镜图后可生成视频"}</div>
+                        )}
+                    </div>
                     <section className="space-y-3 border-b border-border pb-3" aria-label={`分镜 ${shot.shotNumber} 音频`}>
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2 text-sm font-medium">
@@ -5963,19 +6023,7 @@ function StoryboardWorkbenchCard({
                             </div>
                         ) : null}
                     </section>
-                    {!isUniversal ? (
-                        <>
-                            <PromptTextToolbar value={shot.videoPrompt || ""} wrap={promptWrap} onWrapChange={setPromptWrap} />
-                            <TextArea
-                                defaultValue={shot.videoPrompt}
-                                autoSize={{ minRows: 3, maxRows: 7 }}
-                                wrap={promptWrap ? "soft" : "off"}
-                                placeholder="镜头动作与动态补充（可选）"
-                                aria-label="视频提示词"
-                                onBlur={(event) => onUpdate({ videoPrompt: event.target.value.trim() })}
-                            />
-                        </>
-                    ) : null}
+                    {!isUniversal ? <PromptPreview label="视频提示词" value={shot.videoPrompt} editLabel="查看 / 编辑视频提示词" onEdit={() => openPromptEditor("video")} /> : null}
                     {videoNeedsCheck ? <Alert type="warning" showIcon message="视频结果待检查" description={dramaLabVideoTaskReviewDescription(shot)} /> : null}
                     {shot.generationError && !videoNeedsCheck ? <Alert type="error" showIcon message={shot.generationError} /> : null}
                     <div className="flex flex-wrap items-center gap-2">
@@ -5989,16 +6037,30 @@ function StoryboardWorkbenchCard({
                         </Button>
                         <GenerationHistory history={shot.videoHistory} activeUrl={shot.videoUrl} type="video" onRestore={(url) => onUpdate({ videoUrl: url, generationStatus: "success", generationNeedsReview: undefined, generationError: undefined })} />
                     </div>
-                    {shot.videoUrl ? (
-                        <video src={shot.videoUrl} controls className="max-h-[460px] w-full rounded border border-border" />
-                    ) : (
-                        <div className="grid min-h-40 place-items-center border border-dashed border-border text-sm text-muted-foreground">
-                            {shot.creationMode === "universal" ? "绑定资产参考图并完善全能提示词后可生成视频" : "生成关键帧或分镜图后可生成视频"}
-                        </div>
-                    )}
                 </section>
             </div>
+            <Modal title={promptEditorTitle} open={Boolean(promptEditor)} okText="保存" cancelText="取消" destroyOnHidden onOk={savePromptEditor} onCancel={() => setPromptEditor(null)}>
+                <div className="space-y-2">
+                    <PromptTextToolbar value={promptDraft} wrap={promptWrap} onWrapChange={setPromptWrap} />
+                    <TextArea value={promptDraft} autoSize={{ minRows: 8, maxRows: 16 }} wrap={promptWrap ? "soft" : "off"} aria-label={promptEditorTitle} onChange={(event) => setPromptDraft(event.target.value)} />
+                </div>
+            </Modal>
         </article>
+    );
+}
+
+function PromptPreview({ label, value, editLabel, onEdit }: { label: string; value?: string; editLabel: string; onEdit: () => void }) {
+    const preview = value?.trim();
+    return (
+        <section className="min-w-0 space-y-1.5" aria-label={label}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-medium text-muted-foreground">{label}</span>
+                <Button size="small" type="text" aria-label={editLabel} onClick={onEdit}>
+                    {editLabel}
+                </Button>
+            </div>
+            <p className="min-h-10 whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground line-clamp-2">{preview || "暂未补充提示词"}</p>
+        </section>
     );
 }
 
