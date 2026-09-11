@@ -23,7 +23,33 @@ describe("configured script model runtime", () => {
             channelId: "local-script",
             channel: { id: "local-script", name: "本地剧本模型", baseUrl: "http://127.0.0.1:43210/v1", apiKey: "secret", apiFormat: "openai", models: ["qwen3"], enabled: true, purpose: "open-source-practice" },
         });
-        await expect(resolveConfiguredScriptModel()).resolves.toEqual({ modelId: "qwen3", endpointUrl: "http://127.0.0.1:43210/v1", apiKey: "secret", executionProfile: "open-source-practice" });
+        await expect(resolveConfiguredScriptModel()).resolves.toEqual({
+            modelId: "qwen3",
+            endpointUrl: "http://127.0.0.1:43210/v1",
+            apiKey: "secret",
+            executionProfile: "open-source-practice",
+            enabledSkills: [],
+            enabledTools: [
+                "read_script",
+                "read_outline",
+                "read_entities",
+                "read_scene",
+                "read_selection",
+                "rewrite_selection",
+                "expand_selection",
+                "polish_selection",
+                "create_scene",
+                "update_scene",
+                "create_character",
+                "update_character",
+                "create_location",
+                "update_location",
+                "create_beat",
+                "reorder_scenes",
+                "validate_script_structure",
+                "create_version",
+            ],
+        });
         expect(mocks.resolveLogicalModel).toHaveBeenCalledWith(expect.anything(), "text", "script-writer", "", "open-source-practice");
     });
 

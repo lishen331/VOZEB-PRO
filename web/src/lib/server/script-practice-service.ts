@@ -19,7 +19,7 @@ export async function getScriptProjectDetail(ownerUserId: string, projectId: str
     return {
         project,
         document: await repository.getCurrentScriptDocument(projectId, ownerUserId),
-        versions: await repository.listScriptVersions(projectId, ownerUserId),
+        versions: (await repository.listScriptVersions(projectId, ownerUserId)).items,
         entities: await repository.listScriptEntities(projectId, ownerUserId),
         stages: await repository.listScriptStages(projectId, ownerUserId),
     };

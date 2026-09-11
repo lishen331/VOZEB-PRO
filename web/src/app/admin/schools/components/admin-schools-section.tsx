@@ -11,7 +11,8 @@ import type { CreateSchoolInput, SchoolDetail, SchoolStatus, SchoolSummary, Upda
 import { adminEducationApi } from "@/services/api/admin-education";
 import { AdminSchoolMembersList } from "./admin-school-members-list";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const DEFAULT_PAGE_SIZE = PAGE_SIZE_OPTIONS[0];
 
 type SchoolForm = {
     name: string;
@@ -30,6 +31,7 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
     const [items, setItems] = useState<SchoolSummary[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
     const [keyword, setKeyword] = useState("");
     const [status, setStatus] = useState<SchoolStatus | undefined>();
     const [loading, setLoading] = useState(false);
@@ -46,7 +48,7 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
         setLoading(true);
         setError("");
         try {
-            const result = await adminEducationApi.listSchools({ page, pageSize: PAGE_SIZE, keyword: keyword.trim() || undefined, status });
+            const result = await adminEducationApi.listSchools({ page, pageSize, keyword: keyword.trim() || undefined, status });
             if (requestId !== requestSequence.current) return;
             setItems(result.items);
             setTotal(result.total);
@@ -58,7 +60,7 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
         } finally {
             if (requestId === requestSequence.current) setLoading(false);
         }
-    }, [keyword, page, status]);
+    }, [keyword, page, pageSize, status]);
 
     useEffect(() => {
         void load();
@@ -250,7 +252,26 @@ export function AdminSchoolsSection({ currentUser }: { currentUser: PublicUser }
                 ))}
                 {!loading && !items.length ? <div className="py-10 text-center text-sm text-zinc-500">暂无学校</div> : null}
             </div>
-            <Pagination current={page} pageSize={PAGE_SIZE} total={total} showSizeChanger={false} hideOnSinglePage onChange={setPage} />
+            <div className="overflow-x-auto">
+                <Pagination
+                    responsive
+                    current={page}
+                    pageSize={pageSize}
+                    total={total}
+                    showSizeChanger
+                    pageSizeOptions={PAGE_SIZE_OPTIONS}
+                    hideOnSinglePage={false}
+                    showTotal={(count, range) => `${range[0]}-${range[1]} / 共 ${count} 所学校`}
+                    onChange={(nextPage, nextPageSize) => {
+                        setPage(nextPageSize === pageSize ? nextPage : 1);
+                        if (nextPageSize !== pageSize) setPageSize(nextPageSize);
+                    }}
+                    onShowSizeChange={(_, nextPageSize) => {
+                        setPage(1);
+                        setPageSize(nextPageSize);
+                    }}
+                />
+            </div>
 
             {canManageEducation ? (
                 <Modal

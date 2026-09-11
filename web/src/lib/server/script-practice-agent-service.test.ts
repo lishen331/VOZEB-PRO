@@ -13,6 +13,35 @@ describe("script practice agent service", () => {
         expect(repository.getCurrentScriptDocument).not.toHaveBeenCalled();
     });
 
+    it("rejects an operation disabled by the practice script tool settings", async () => {
+        const repository = {
+            getScriptProject: vi.fn().mockResolvedValue({ id: "project-a", userId: "user-a", title: "剧本", currentVersionId: "version-1" }),
+            getCurrentScriptDocument: vi.fn().mockResolvedValue(document),
+            recordScriptAgentOperation: vi.fn(),
+        };
+        const runModel = vi.fn().mockResolvedValue({ structured: { proposedAfter: "新动作" } });
+        const service = createScriptAgentService({
+            repository: repository as never,
+            runModel,
+            resolveModel: vi.fn().mockResolvedValue({ modelId: "m", endpointUrl: "http://localhost", executionProfile: "open-source-practice", enabledSkills: [], enabledTools: ["read_selection"] }),
+        });
+        await expect(service.propose("user-a", "project-a", { operation: "rewrite_selection", baseVersionId: "version-1", targetBlockIds: ["b1"], instruction: "重写" })).rejects.toMatchObject({ status: 403 });
+        expect(runModel).not.toHaveBeenCalled();
+    });
+
+    it("uses the configured tool allowlist when the model is resolved by the server", async () => {
+        const repository = {
+            getScriptProject: vi.fn().mockResolvedValue({ id: "project-a", userId: "user-a", title: "剧本", currentVersionId: "version-1" }),
+            getCurrentScriptDocument: vi.fn().mockResolvedValue(document),
+            recordScriptAgentOperation: vi.fn(),
+        };
+        const runModel = vi.fn().mockResolvedValue({ structured: { proposedAfter: "新动作" } });
+        const resolveModel = vi.fn().mockResolvedValue({ modelId: "m", endpointUrl: "http://localhost", executionProfile: "open-source-practice", enabledSkills: [], enabledTools: ["rewrite_selection"] });
+        const service = createScriptAgentService({ repository: repository as never, runModel, resolveModel });
+        await expect(service.propose("user-a", "project-a", { operation: "rewrite_selection", baseVersionId: "version-1", targetBlockIds: ["b1"], instruction: "重写" })).resolves.toMatchObject({ proposedAfter: "新动作" });
+        expect(resolveModel).toHaveBeenCalledOnce();
+    });
+
     it("returns a bounded proposal and exposes no media task tools", async () => {
         const repository = {
             getScriptProject: vi.fn().mockResolvedValue({ id: "project-a", userId: "user-a", title: "剧本", currentVersionId: "version-1" }),

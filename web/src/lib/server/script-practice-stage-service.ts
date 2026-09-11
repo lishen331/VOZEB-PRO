@@ -32,9 +32,20 @@ async function generateScriptStage(deps: ScriptStageServiceDeps, ownerUserId: st
     }
     await deps.repository.setScriptStage(projectId, ownerUserId, { projectId, key: stage, status: "generating", updatedAt: new Date().toISOString() });
     try {
-        const model = deps.runModel ? { modelId: "test-script-model", endpointUrl: "http://127.0.0.1", executionProfile: "open-source-practice" as const } : await (deps.resolveModel || resolveConfiguredScriptModel)();
+        const model = deps.resolveModel
+            ? await deps.resolveModel()
+            : deps.runModel
+              ? { modelId: "test-script-model", endpointUrl: "http://127.0.0.1", apiKey: undefined, enabledSkills: [], executionProfile: "open-source-practice" as const }
+              : await resolveConfiguredScriptModel();
         const response = await (deps.runModel || runScriptModel)(
-            { modelId: model.modelId, operation, projectContext: { title: project.title, sourceType: project.sourceType }, stageInput: effectiveStageInput, publicInstructions: "生成当前剧本阶段的公开结果", responseSchema: stageResponseSchema(operation) },
+            {
+                modelId: model.modelId,
+                operation,
+                projectContext: { title: project.title, sourceType: project.sourceType, ...(Array.isArray(model.enabledSkills) ? { enabledSkills: model.enabledSkills } : {}) },
+                stageInput: effectiveStageInput,
+                publicInstructions: "生成当前剧本阶段的公开结果",
+                responseSchema: stageResponseSchema(operation),
+            },
             { endpointUrl: model.endpointUrl, apiKey: model.apiKey, executionProfile: model.executionProfile },
         );
         if (!response.structured) throw new Error("结构化结果为空");

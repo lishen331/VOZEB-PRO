@@ -1,4 +1,5 @@
 import type { PracticeScriptSettings } from "@/lib/auth/store-types";
+import { SCRIPT_AGENT_TOOL_NAMES } from "./script-practice-agent-tools";
 
 export const DEFAULT_PRACTICE_SCRIPT_SETTINGS: PracticeScriptSettings = {
     enabled: true,
@@ -8,7 +9,7 @@ export const DEFAULT_PRACTICE_SCRIPT_SETTINGS: PracticeScriptSettings = {
     defaultLanguage: "zh-CN",
     defaultFormat: "structured",
     enabledSkills: [],
-    enabledTools: [],
+    enabledTools: [...SCRIPT_AGENT_TOOL_NAMES],
     agentWorkflowVersion: 1,
     writeConfirmation: "always",
     creativeControlsEnabled: true,
@@ -24,7 +25,7 @@ export function normalizePracticeScriptSettings(value: unknown): PracticeScriptS
         defaultLanguage: text(input.defaultLanguage) || "zh-CN",
         defaultFormat: input.defaultFormat === "fountain" ? "fountain" : "structured",
         enabledSkills: strings(input.enabledSkills),
-        enabledTools: strings(input.enabledTools),
+        enabledTools: Array.isArray(input.enabledTools) ? strings(input.enabledTools).filter((tool) => SCRIPT_AGENT_TOOL_NAMES.includes(tool as (typeof SCRIPT_AGENT_TOOL_NAMES)[number])) : [...SCRIPT_AGENT_TOOL_NAMES],
         agentWorkflowVersion: Number.isSafeInteger(input.agentWorkflowVersion) && Number(input.agentWorkflowVersion) > 0 ? Number(input.agentWorkflowVersion) : 1,
         writeConfirmation: input.writeConfirmation === "high-risk-only" ? "high-risk-only" : "always",
         creativeControlsEnabled: input.creativeControlsEnabled !== false,

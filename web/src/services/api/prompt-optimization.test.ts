@@ -20,6 +20,13 @@ describe("prompt optimization API client", () => {
         expect(refreshUserPointsIfSystem).toHaveBeenCalledWith("system");
     });
 
+    it("marks practice optimization requests separately from paid creation", async () => {
+        vi.mocked(fetch).mockResolvedValue(Response.json({ code: 0, data: { prompt: "免费提示词" }, msg: "OK" }));
+
+        await expect(optimizePrompt({ requestId: "practice-request", prompt: "练习原文", mode: "image", practice: true })).resolves.toBe("免费提示词");
+        expect(fetch).toHaveBeenCalledWith("/api/practice/prompt-optimization", expect.objectContaining({ body: JSON.stringify({ requestId: "practice-request", prompt: "练习原文", mode: "image" }) }));
+    });
+
     it("surfaces the server message", async () => {
         vi.mocked(fetch).mockResolvedValue(Response.json({ code: 503, data: null, msg: "后台尚未配置可用的默认文本模型" }, { status: 503 }));
 

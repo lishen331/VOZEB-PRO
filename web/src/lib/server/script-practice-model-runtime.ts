@@ -2,6 +2,7 @@ import { extractJsonObjectText } from "./structured-model-output";
 import { getFreshAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModel } from "@/lib/server/logical-model-router";
 import type { ScriptAgentOperation } from "@/lib/script-practice-types";
+import { SCRIPT_AGENT_TOOL_NAMES } from "./script-practice-agent-tools";
 
 export type ScriptModelRequest = {
     modelId: string;
@@ -13,7 +14,7 @@ export type ScriptModelRequest = {
 };
 export type ScriptModelResponse = { publicText?: string; structured?: Record<string, unknown>; usage?: { inputTokens?: number; outputTokens?: number } };
 export type ScriptRuntimeContext = { endpointUrl: string; executionProfile: string; apiKey?: string; fetcher?: (input: string, init?: RequestInit) => Promise<Response>; signal?: AbortSignal };
-export type ConfiguredScriptModel = { modelId: string; endpointUrl: string; apiKey?: string; executionProfile: "open-source-practice" };
+export type ConfiguredScriptModel = { modelId: string; endpointUrl: string; apiKey?: string; executionProfile: "open-source-practice"; enabledSkills: string[]; enabledTools: string[] };
 
 export async function resolveConfiguredScriptModel(): Promise<ConfiguredScriptModel> {
     const settings = await getFreshAuthSettings();
@@ -21,7 +22,14 @@ export async function resolveConfiguredScriptModel(): Promise<ConfiguredScriptMo
     const modelIds = [scriptSettings.defaultModelId.trim(), scriptSettings.fallbackModelId?.trim() || "", settings.practiceDefaultModels.textModel.trim()].filter((value, index, values) => value && values.indexOf(value) === index);
     const candidate = modelIds.map((modelId) => resolveLogicalModel(settings, "text", modelId, scriptSettings.endpointId?.trim() || "", "open-source-practice")).find(Boolean);
     if (!candidate || candidate.channel.purpose === "production") throw new ScriptModelRuntimeError("剧本模型尚未配置", 503);
-    return { modelId: candidate.upstreamModel, endpointUrl: candidate.channel.baseUrl, ...(candidate.channel.apiKey ? { apiKey: candidate.channel.apiKey } : {}), executionProfile: "open-source-practice" };
+    return {
+        modelId: candidate.upstreamModel,
+        endpointUrl: candidate.channel.baseUrl,
+        ...(candidate.channel.apiKey ? { apiKey: candidate.channel.apiKey } : {}),
+        executionProfile: "open-source-practice",
+        enabledSkills: Array.isArray(scriptSettings.enabledSkills) ? [...scriptSettings.enabledSkills] : [],
+        enabledTools: Array.isArray(scriptSettings.enabledTools) ? [...scriptSettings.enabledTools] : [...SCRIPT_AGENT_TOOL_NAMES],
+    };
 }
 
 export async function runScriptModel(request: ScriptModelRequest, context: ScriptRuntimeContext): Promise<ScriptModelResponse> {

@@ -41,6 +41,7 @@ export function serializeAdminSettingsForUser(settings: AuthSettings, user: { ro
         serialized.systemChannels = serialized.systemChannels.map(channelSummaryWithoutConfiguration);
         serialized.practiceDefaultModels = { ...DEFAULT_SETTINGS.practiceDefaultModels };
         serialized.practiceWorkflowModels = {};
+        serialized.practiceScriptSettings = { ...DEFAULT_SETTINGS.practiceScriptSettings, enabledSkills: [], enabledTools: [] };
     }
     return serialized;
 }

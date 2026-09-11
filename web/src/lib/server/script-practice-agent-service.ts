@@ -8,7 +8,7 @@ export type ScriptAgentRequest = { operation: ScriptAgentOperation; baseVersionI
 export type ScriptAgentProposal = { id: string; projectId: string; baseVersionId: string; targetBlockIds: string[]; operation: ScriptAgentOperation; before: string; proposedAfter: string };
 type AgentRepository = Pick<ScriptPracticeRepository, "getScriptProject" | "getCurrentScriptDocument" | "recordScriptAgentOperation">;
 
-export function createScriptAgentService(deps: { repository: AgentRepository; runModel?: typeof runScriptModel }) {
+export function createScriptAgentService(deps: { repository: AgentRepository; runModel?: typeof runScriptModel; resolveModel?: typeof resolveConfiguredScriptModel }) {
     return {
         toolNames: () => [...SCRIPT_AGENT_TOOL_NAMES],
         propose: async (ownerUserId: string, projectId: string, input: ScriptAgentRequest): Promise<ScriptAgentProposal> => {
@@ -20,12 +20,17 @@ export function createScriptAgentService(deps: { repository: AgentRepository; ru
             const selected = document.blocks.filter((block) => input.targetBlockIds.includes(block.id));
             if (!selected.length || selected.length !== new Set(input.targetBlockIds).size) throw new ScriptAgentServiceError("剧本选择范围无效", 400);
             const before = selected.map((block) => block.text).join("\n\n");
-            const model = deps.runModel ? { modelId: "test-script-model", endpointUrl: "http://127.0.0.1", executionProfile: "open-source-practice" as const } : await resolveConfiguredScriptModel();
+            const model = deps.resolveModel
+                ? await deps.resolveModel()
+                : deps.runModel
+                  ? { modelId: "test-script-model", endpointUrl: "http://127.0.0.1", apiKey: undefined, enabledSkills: [], enabledTools: ["rewrite_selection"], executionProfile: "open-source-practice" as const }
+                  : await resolveConfiguredScriptModel();
+            if (!model.enabledTools.includes(input.operation)) throw new ScriptAgentServiceError("当前剧本 Tool 未启用", 403);
             const response = await (deps.runModel || runScriptModel)(
                 {
                     modelId: model.modelId,
                     operation: input.operation,
-                    projectContext: { title: project.title },
+                    projectContext: { title: project.title, ...(Array.isArray(model.enabledSkills) ? { enabledSkills: model.enabledSkills } : {}) },
                     stageInput: { selection: selected, instruction: input.instruction },
                     publicInstructions: "仅修改选中的剧本块并返回 proposedAfter",
                     responseSchema: { type: "object", properties: { proposedAfter: { type: "string" } }, required: ["proposedAfter"] },

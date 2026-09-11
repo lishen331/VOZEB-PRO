@@ -50,6 +50,7 @@ export function PracticePromptEditor({
                     .filter(Boolean)
                     .join("\n"),
                 mode,
+                practice: true,
             });
             if (revision.current === current) onChange(prompt);
         } catch (error) {

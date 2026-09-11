@@ -229,11 +229,6 @@ export default function ScriptPracticeWorkspace() {
                                 <Button icon={<History className="size-4" />} onClick={() => setVersionsOpen(true)}>
                                     版本
                                 </Button>
-                                {detail?.stages.find((item) => item.key === "synopsis")?.status !== "confirmed" ? (
-                                    <Button loading={stageBusy} onClick={() => void generateStage("generate_synopsis", { idea: detail.project.title })}>
-                                        生成梗概
-                                    </Button>
-                                ) : null}
                             </>
                         ) : null}
                     </div>
@@ -256,6 +251,27 @@ export default function ScriptPracticeWorkspace() {
                         );
                     })}
                 </div>
+                {detail ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3" aria-label="阶段生成操作">
+                        <span className="mr-1 text-xs text-muted-foreground">阶段生成</span>
+                        {STAGE_OPERATIONS.map((item) => {
+                            const saved = detail.stages.find((stage) => stage.key === item.key);
+                            const prerequisite = ({ outline: "synopsis", entities: "outline", scenes: "entities", screenplay: "scenes" } as Record<string, string>)[item.key];
+                            const locked = Boolean(prerequisite && !detail.stages.some((stage) => stage.key === prerequisite && stage.status === "confirmed"));
+                            return (
+                                <Button
+                                    key={item.key}
+                                    size="small"
+                                    loading={stageBusy}
+                                    disabled={locked}
+                                    onClick={() => void generateStage(item.operation, { idea: detail.project.title, current: document?.blocks.map((block) => block.text).join("\n\n") })}
+                                >
+                                    {saved?.status === "awaiting_review" ? "重新生成" : item.label}
+                                </Button>
+                            );
+                        })}
+                    </div>
+                ) : null}
                 {detail ? (
                     <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3" aria-label="阶段生成操作">
                         <span className="mr-1 text-xs text-muted-foreground">阶段生成</span>

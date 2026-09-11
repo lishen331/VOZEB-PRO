@@ -10,6 +10,7 @@ import { deriveLogicalModelsConfig, normalizeDefaultModelsConfig, normalizeLogic
 import { applyChannelProtocol } from "@/lib/channel-protocol-registry";
 import { resolveConfiguredModelPointCost } from "@/lib/model-point-cost";
 import { normalizeSystemChannelAdvancedConfig } from "./store-normalizers-channel";
+import { SCRIPT_AGENT_TOOL_NAMES } from "@/lib/server/script-practice-agent-tools";
 import type { SystemChannelPurpose } from "@/lib/practice-domain";
 import {
     type UserRole,
@@ -297,11 +298,15 @@ export function normalizePracticeScriptSettings(value: unknown): AuthSettings["p
                   .filter(Boolean)
             : [],
         enabledTools: Array.isArray(input.enabledTools)
-            ? input.enabledTools
-                  .filter((item): item is string => typeof item === "string")
-                  .map((item) => item.trim())
-                  .filter(Boolean)
-            : [],
+            ? Array.from(
+                  new Set(
+                      input.enabledTools
+                          .filter((item): item is string => typeof item === "string")
+                          .map((item) => item.trim())
+                          .filter((item): item is (typeof SCRIPT_AGENT_TOOL_NAMES)[number] => SCRIPT_AGENT_TOOL_NAMES.includes(item as (typeof SCRIPT_AGENT_TOOL_NAMES)[number])),
+                  ),
+              )
+            : [...SCRIPT_AGENT_TOOL_NAMES],
         agentWorkflowVersion: Number.isSafeInteger(input.agentWorkflowVersion) && Number(input.agentWorkflowVersion) > 0 ? Number(input.agentWorkflowVersion) : 1,
         writeConfirmation: input.writeConfirmation === "high-risk-only" ? "high-risk-only" : "always",
         creativeControlsEnabled: input.creativeControlsEnabled !== false,

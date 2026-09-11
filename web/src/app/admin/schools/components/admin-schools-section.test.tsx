@@ -19,5 +19,8 @@ describe("admin schools section", () => {
         expect(source).toContain("canManageEducation");
         expect(source).toContain("成员");
         expect(source).toContain("AdminSchoolMembersList");
+        expect(source).toContain("pageSizeOptions");
+        expect(source).toContain("showSizeChanger");
+        expect(source).toContain("onShowSizeChange");
     });
 });
