@@ -60,6 +60,7 @@ import { recoverVideoGenerationTask } from "@/services/api/video-core";
 import { cn } from "@/lib/utils";
 import { DramaLabVisualAssetsPanel } from "./drama-lab-visual-assets-panel";
 import { DramaLabNovelImport } from "./drama-lab-novel-import";
+import { DramaLabFinalVideoPanel } from "./drama-lab-final-video-panel";
 import { DramaLabTaskPanel } from "./drama-lab-task-panel";
 import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } from "./drama-lab-video-task-recovery";
 import { DramaLabVideoBatchWaitError, waitForDramaLabVideoBatch, type DramaLabVideoBatchExecutionPhase } from "@/lib/drama-lab-video-batch";
@@ -6166,6 +6167,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
 
     return (
         <div className="mx-auto max-w-4xl space-y-6 p-8">
+            <DramaLabFinalVideoPanel projectId={project.id} episodeId={episode.id} disabled={exportBlockedByApproval} totalShots={episodeShots.length} videoShots={videoShots.length} />
             <div className="space-y-2">
                 <h2 className="text-xl font-semibold">导出剪映草稿</h2>
                 <p className="text-sm text-muted-foreground">将当前剧集的所有分镜视频导出为剪映草稿，可直接在剪映中打开继续编辑</p>
