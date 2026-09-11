@@ -1896,8 +1896,8 @@ function ScriptEditor({
     const [generating, setGenerating] = useState(false);
     const [saveStatus, setSaveStatus] = useState<"idle" | "pending" | "saving" | "saved" | "error">("idle");
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const [storyStyle, setStoryStyle] = useState("modern");
-    const [scriptType, setScriptType] = useState("drama");
+    const [storyStyle, setStoryStyle] = useState("");
+    const [scriptType, setScriptType] = useState("");
     const [episodeCount, setEpisodeCount] = useState("1");
     const [scriptLibraryOpen, setScriptLibraryOpen] = useState(false);
     const [scriptLibraryLoading, setScriptLibraryLoading] = useState(false);
@@ -2033,8 +2033,8 @@ function ScriptEditor({
                 body: JSON.stringify({
                     episodeId: episode.id,
                     storyOutline,
-                    storyStyle,
-                    scriptType,
+                    ...(storyStyle ? { storyStyle } : {}),
+                    ...(scriptType ? { scriptType } : {}),
                     episodeCount,
                     requestId: `drama-script:${project.id}:${episode.id}:${Date.now()}`,
                 }),
@@ -2167,7 +2167,7 @@ function ScriptEditor({
                                         </Form>
 
                                         <div className="order-3 flex flex-wrap items-center gap-4">
-                                            <Select aria-label="故事风格" placeholder="故事风格" value={storyStyle} onChange={setStoryStyle} style={{ width: 140 }}>
+                                            <Select aria-label="剧本风格" placeholder="剧本风格" value={storyStyle} onChange={setStoryStyle} style={{ width: 140 }}>
                                                 <Option value="modern">现代</Option>
                                                 <Option value="ancient">古风</Option>
                                                 <Option value="fantasy">奇幻</Option>
