@@ -1,4 +1,4 @@
-﻿import { normalizeDramaLabStoryboardOptions, DramaLabStoryboardOptionsError } from "@/lib/drama-lab-storyboard-options";
+import { normalizeDramaLabStoryboardOptions, DramaLabStoryboardOptionsError } from "@/lib/drama-lab-storyboard-options";
 import { randomUUID } from "node:crypto";
 
 import type { DramaCharacter, DramaProject, DramaProp, DramaScene, DramaShot } from "@/lib/drama-project-contract";
@@ -457,7 +457,15 @@ async function executeExportStep(task: DramaLabWorkflowTask, step: DramaLabWorkf
         }
     }
     await updateChild(task.id, child.id, { status: "running", error: undefined });
-    const result = await exportDramaLabProjectForUser({ userId: input.userId, projectId: task.workflow.projectId, projectOwnerUserId: ownerUserId, origin: input.origin || "http://localhost", cookie: input.cookie || "", includeMedia: true });
+    const result = await exportDramaLabProjectForUser({
+        userId: input.userId,
+        projectId: task.workflow.projectId,
+        projectOwnerUserId: ownerUserId,
+        episodeIds: task.workflow.episodeIds,
+        origin: input.origin || "http://localhost",
+        cookie: input.cookie || "",
+        includeMedia: true,
+    });
     const artifact = await writeDramaLabWorkflowExportArtifact({ taskId: task.id, projectId: task.workflow.projectId, ownerUserId, fileName: result.fileName, data: result.data, mediaCount: result.mediaCount, omittedMediaCount: result.omittedMediaCount });
     const output = { ...artifact, downloadUrl: workflowExportDownloadPath(task.workflow.projectId, artifact.artifactId) };
     await updateChild(task.id, child.id, { status: "success", output });

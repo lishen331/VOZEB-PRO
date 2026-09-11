@@ -174,6 +174,65 @@ describe("drama lab project archive", () => {
         expect(result.project.episodes[0].shots[0].generationTaskId).toBeUndefined();
     });
 
+    it("exports only selected episodes and preserves shared assets through import", async () => {
+        const fixture = projectFixture();
+        const second = structuredClone(fixture.episodes[0]);
+        second.id = "episode-two";
+        second.episodeNumber = 2;
+        second.shots[0].id = "shot-two";
+        second.shots[0].generationTaskId = "task-selected";
+        fixture.sourceAssets = [{ id: "source-script", type: "text", title: "项目原始剧本", textContent: "包含其他集的项目级原始资料" }];
+        fixture.clues = [{ id: "clue-one", name: "线索", description: "关联线索", payoff: "揭晓" }];
+        second.shots[0].clueIds = ["clue-one"];
+        fixture.characters.push({ id: "character-unbound", name: "尚未绑定的角色", description: "剧本素材", references: [] });
+        fixture.episodes.push(second);
+        fixture.episodes[0].shots[0].videoUrl = "/api/generation-log-assets/permanent/2026/09/02/videos/unselected.mp4";
+        fixture.episodes[0].shots[0].audioUrl = "/api/generation-log-assets/permanent/2026/09/02/audio/unselected.mp3";
+        fixture.episodes[0].shots[0].storyboardEndImageUrl = "/api/generation-log-assets/permanent/2026/09/02/images/unselected-end.png";
+        mocks.getDramaProjectForUser.mockResolvedValue(fixture);
+
+        const exported = await exportDramaLabProjectForUser({ userId: "user-one", projectId: fixture.id, episodeIds: ["episode-two"], includeMedia: true });
+        const manifest = JSON.parse(new TextDecoder().decode(unzipSync(exported.data)[DRAMA_LAB_ARCHIVE_FILE]));
+        expect(manifest.project.episodes.map((episode: { id: string }) => episode.id)).toEqual(["episode-two"]);
+        expect(manifest.project.activeEpisodeId).toBe("episode-two");
+        expect(manifest.project.characters).toHaveLength(2);
+        expect(manifest.taskRefs).toEqual([expect.objectContaining({ taskId: "task-selected" })]);
+        expect(JSON.stringify(manifest)).not.toContain("unselected.mp4");
+        expect(JSON.stringify(manifest)).not.toContain("unselected-end.png");
+        expect(JSON.stringify(manifest)).not.toContain("unselected.mp3");
+        expect(manifest.project.sourceAssets).toEqual(fixture.sourceAssets);
+        expect(mocks.getLocalMediaRegistration.mock.calls.map(([key]) => key)).toEqual(["permanent/2026/09/02/images/ref.png"]);
+        expect(fixture.episodes).toHaveLength(2);
+        expect(fixture.activeEpisodeId).toBe("episode-one");
+
+        const imported = await importDramaLabProjectForUser({ userId: "user-two", archive: exported.data });
+        expect(imported.project.episodes).toHaveLength(1);
+        expect(imported.project.activeEpisodeId).toBe(imported.project.episodes[0].id);
+        expect(imported.project.episodes[0].episodeNumber).toBe(2);
+        expect(imported.project.episodes[0].shots[0].characterIds).toEqual([imported.project.characters[0].id]);
+        expect(imported.project.episodes[0].shots[0].sceneId).toBe(imported.project.scenes[0].id);
+        expect(imported.project.episodes[0].shots[0].propIds).toEqual([imported.project.props[0].id]);
+        expect(imported.project.episodes[0].shots[0].clueIds).toEqual([imported.project.clues[0].id]);
+        expect(imported.project.characters[1].name).toBe("尚未绑定的角色");
+    });
+
+    it.each([{ episodeIds: [] }, { episodeIds: ["unknown"] }, { episodeIds: ["episode-one", "unknown"] }, { episodeIds: [""] }])("rejects invalid explicit episode selection $episodeIds", async ({ episodeIds }) => {
+        await expect(exportDramaLabProjectForUser({ userId: "user-one", projectId: "project-one", episodeIds, includeMedia: false })).rejects.toBeInstanceOf(DramaLabProjectArchiveError);
+        expect(mocks.getLocalMediaRegistration).not.toHaveBeenCalled();
+    });
+
+    it("keeps project episode order, deduplicates selection and preserves a selected active episode", async () => {
+        const fixture = projectFixture();
+        fixture.episodes.push({ ...structuredClone(fixture.episodes[0]), id: "episode-two", episodeNumber: 2, shots: [] });
+        fixture.activeEpisodeId = "episode-two";
+        mocks.getDramaProjectForUser.mockResolvedValue(fixture);
+        for (const episodeIds of [undefined, ["episode-two", "episode-one", "episode-two"]]) {
+            const exported = await exportDramaLabProjectForUser({ userId: "user-one", projectId: fixture.id, episodeIds, includeMedia: false });
+            const manifest = JSON.parse(new TextDecoder().decode(unzipSync(exported.data)[DRAMA_LAB_ARCHIVE_FILE]));
+            expect(manifest.project.episodes.map((episode: { id: string }) => episode.id)).toEqual(["episode-one", "episode-two"]);
+            expect(manifest.project.activeEpisodeId).toBe("episode-two");
+        }
+    });
     it("rejects archive media paths that attempt traversal", async () => {
         const manifest = {
             format: DRAMA_LAB_ARCHIVE_FORMAT,

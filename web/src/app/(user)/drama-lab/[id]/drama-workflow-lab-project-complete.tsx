@@ -10,7 +10,7 @@ import { DramaLabStoryboardConstraints, type StoryboardConstraintDraft } from ".
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 
-import { Alert, Button, Drawer, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Radio, QRCode } from "antd";
+import { Alert, Button, Drawer, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Radio, QRCode, Image } from "antd";
 import {
     ArrowLeft,
     Plus,
@@ -60,6 +60,7 @@ import { recoverVideoGenerationTask } from "@/services/api/video-core";
 import { cn } from "@/lib/utils";
 import { DramaLabVisualAssetsPanel } from "./drama-lab-visual-assets-panel";
 import { DramaLabNovelImport } from "./drama-lab-novel-import";
+import { DramaLabFinalVideoPanel } from "./drama-lab-final-video-panel";
 import { DramaLabTaskPanel } from "./drama-lab-task-panel";
 import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } from "./drama-lab-video-task-recovery";
 import { DramaLabVideoBatchWaitError, waitForDramaLabVideoBatch, type DramaLabVideoBatchExecutionPhase } from "@/lib/drama-lab-video-batch";
@@ -5300,6 +5301,40 @@ function StoryboardPanel({
         }
     };
 
+    const uploadVideo = async (shot: Shot, file: File) => {
+        if (!episode) return;
+        const actionKey = `video-upload:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
+        const operationEpisodeId = episode.id;
+        const operationProjectId = project.id;
+        const controller = new AbortController();
+        const isStale = () => disposedRef.current || currentEpisodeIdRef.current !== operationEpisodeId || latestProjectRef.current.id !== operationProjectId;
+        operationAbortRef.current.set(actionKey, controller);
+        try {
+            setActionBusy(actionKey, true);
+            const formData = new FormData();
+            formData.set("file", file);
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/video/upload?episodeId=${encodeURIComponent(episode.id)}`, {
+                method: "POST",
+                body: formData,
+                signal: controller.signal,
+            });
+            await assertJsonApiResponse(response);
+            const data = await response.json();
+            if (!response.ok || data.code !== 0 || !data.data?.shot) throw new Error(data.msg || "分镜视频上传失败");
+            if (controller.signal.aborted || isStale()) return;
+            onShotSynced(episode.id, shot.id, data.data.shot);
+            messageApi.success({ content: "分镜视频已上传", key: actionKey, duration: 3 });
+        } catch (error) {
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "分镜视频上传失败", key: actionKey, duration: 6 });
+        } finally {
+            if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+            if (controller.signal.aborted || isStale()) messageApi.destroy(actionKey);
+        }
+    };
+
     if (!episode) {
         return <div className="text-center text-muted-foreground">请先选择一个剧集</div>;
     }
@@ -5366,6 +5401,7 @@ function StoryboardPanel({
                                     onKeepFirstFrameCandidate={() => messageApi.info("候选首帧已保留，未覆盖当前首帧")}
                                     onToggleFrameLock={toggleFrameLock}
                                     onUploadFrame={uploadFrame}
+                                    onUploadVideo={uploadVideo}
                                     onStartAudio={startAudioGeneration}
                                     onSyncAudio={syncAudioManually}
                                     onRecoverAudio={recoverAudioManually}
@@ -5540,6 +5576,7 @@ function StoryboardWorkbenchCard({
     onKeepFirstFrameCandidate,
     onToggleFrameLock,
     onUploadFrame,
+    onUploadVideo,
 }: {
     shot: Shot;
     project: Project;
@@ -5559,6 +5596,7 @@ function StoryboardWorkbenchCard({
     onKeepFirstFrameCandidate: (shot: Shot) => void;
     onToggleFrameLock: (shot: Shot, frameType: "first" | "key" | "last") => Promise<void>;
     onUploadFrame: (shot: Shot, frameType: "first" | "key" | "last", file: File) => Promise<void>;
+    onUploadVideo: (shot: Shot, file: File) => Promise<void>;
     onSync: () => void;
     onUpdate: (patch: Partial<Shot>) => void;
     onEdit: () => void;
@@ -5589,6 +5627,7 @@ function StoryboardWorkbenchCard({
     const [universalPromptAction, setUniversalPromptAction] = useState<"generate" | "polish" | null>(null);
     const [universalPromptError, setUniversalPromptError] = useState<string | null>(null);
     const uploadInputRefs = useRef<Partial<Record<"first" | "key" | "last", HTMLInputElement | null>>>({});
+    const videoUploadInputRef = useRef<HTMLInputElement>(null);
     const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
     const openPromptEditor = (target: "image" | "video" | "first" | "last") => {
         setPromptDraft(target === "image" ? shot.imagePrompt || "" : target === "video" ? shot.videoPrompt || "" : shot.frames?.[target]?.prompt || "");
@@ -5712,7 +5751,13 @@ function StoryboardWorkbenchCard({
                                         <div key={frameType} className="flex min-h-0 min-w-0 flex-col p-2">
                                             <span className="mb-1 text-xs text-muted-foreground">{frameLabel[frameType]}</span>
                                             {shot.frames?.[frameType]?.url ? (
-                                                <img src={shot.frames[frameType]?.url} alt={frameLabel[frameType]} className="min-h-0 w-full flex-1 object-contain" />
+                                                <Image
+                                                    preview={{ src: shot.frames[frameType]?.url }}
+                                                    src={shot.frames[frameType]?.url}
+                                                    alt={frameLabel[frameType]}
+                                                    className="min-h-0 w-full flex-1 object-contain"
+                                                    classNames={{ root: "block min-h-0 size-full", image: "block size-full object-contain" }}
+                                                />
                                             ) : (
                                                 <div className="grid flex-1 place-items-center text-xs text-muted-foreground">待生成 / 上传</div>
                                             )}
@@ -5720,7 +5765,13 @@ function StoryboardWorkbenchCard({
                                     ))}
                                 </div>
                             ) : classicImageUrl ? (
-                                <img src={classicImageUrl} alt={`分镜 ${shot.shotNumber} 图像`} className="h-full min-h-0 w-full object-contain" />
+                                <Image
+                                    preview={{ src: classicImageUrl }}
+                                    src={classicImageUrl}
+                                    alt={`分镜 ${shot.shotNumber} 图像`}
+                                    className="h-full min-h-0 w-full object-contain"
+                                    classNames={{ root: "block size-full", image: "block size-full object-contain" }}
+                                />
                             ) : (
                                 <div className="grid place-items-center text-sm text-muted-foreground">尚未生成分镜图</div>
                             )}
@@ -6035,6 +6086,21 @@ function StoryboardWorkbenchCard({
                         <Button type="primary" loading={videoBusy} disabled={videoBusy || checkingVideoStatus || videoNeedsCheck} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
                             {videoNeedsCheck ? "请先检查状态" : shot.videoUrl ? "重新生成视频" : "生成分镜视频"}
                         </Button>
+                        <input
+                            ref={videoUploadInputRef}
+                            type="file"
+                            accept="video/mp4,video/webm,video/quicktime"
+                            className="hidden"
+                            aria-label="选择分镜视频文件"
+                            onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                event.target.value = "";
+                                if (file) void onUploadVideo(shot, file);
+                            }}
+                        />
+                        <Button loading={busyKeys.has(`video-upload:${shot.id}`)} disabled={videoBusy || checkingVideoStatus || videoNeedsCheck} icon={<Upload className="size-4" />} onClick={() => videoUploadInputRef.current?.click()}>
+                            上传分镜视频
+                        </Button>
                         <GenerationHistory history={shot.videoHistory} activeUrl={shot.videoUrl} type="video" onRestore={(url) => onUpdate({ videoUrl: url, generationStatus: "success", generationNeedsReview: undefined, generationError: undefined })} />
                     </div>
                 </section>
@@ -6228,6 +6294,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
 
     return (
         <div className="mx-auto max-w-4xl space-y-6 p-8">
+            <DramaLabFinalVideoPanel projectId={project.id} episodeId={episode.id} disabled={exportBlockedByApproval} totalShots={episodeShots.length} videoShots={videoShots.length} />
             <div className="space-y-2">
                 <h2 className="text-xl font-semibold">导出剪映草稿</h2>
                 <p className="text-sm text-muted-foreground">将当前剧集的所有分镜视频导出为剪映草稿，可直接在剪映中打开继续编辑</p>
