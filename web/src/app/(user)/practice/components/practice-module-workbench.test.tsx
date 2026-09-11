@@ -51,7 +51,6 @@ describe("practice module workbench contract", () => {
             { type: "asset", id: "scene", inputKey: "sceneImage" },
             { type: "asset", id: "character", inputKey: "characterPropImage1" },
             { type: "asset", id: "prop", inputKey: "characterPropImage2" },
-            { type: "asset", id: "extra", inputKey: "characterPropImage3" },
         ]);
     });
 
