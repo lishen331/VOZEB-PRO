@@ -9,9 +9,10 @@ import { IP_REFERENCE_ENTRY_VISIBLE } from "@/lib/ip-library-domain";
 import { practiceApi } from "@/services/api/practice";
 import { PracticeSizeField, WorkflowFormFields, WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
+import { PracticeAssetPicker } from "./practice-asset-picker";
 
 export function buildStoryboardImageReferences(sceneId: string, assetIds: string[]) {
-    return [sceneId ? { type: "asset" as const, id: sceneId, inputKey: "sceneImage" } : null, ...assetIds.slice(0, 3).map((id, index) => (id ? { type: "asset" as const, id, inputKey: `characterPropImage${index + 1}` } : null))].filter(
+    return [sceneId ? { type: "asset" as const, id: sceneId, inputKey: "sceneImage" } : null, ...assetIds.slice(0, 2).map((id, index) => (id ? { type: "asset" as const, id, inputKey: `characterPropImage${index + 1}` } : null))].filter(
         (reference): reference is { type: "asset"; id: string; inputKey: string } => Boolean(reference),
     );
 }
@@ -71,9 +72,11 @@ export default function PracticeStoryboardImagePanel({ capability, ipReferences,
         <div className="space-y-4">
             <ModelField capability={capability} value={model} onChange={setModel} />
             <PracticePromptEditor briefLabel="分镜脚本" label="画面描述" value={prompt} onChange={setPrompt} disabled={busy} mode="image" />
-            <PracticeMediaInput label="主场景图（必需）" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={scene?.url} onRemove={() => setScene(undefined)} />
-            <div className="grid gap-3 sm:grid-cols-3">
-                {[0, 1, 2].map((index) => (
+            <PracticeMediaInput label="主场景图（必需）" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={scene?.url} onRemove={() => setScene(undefined)}>
+                <PracticeAssetPicker dramaAssetType="scene" disabled={uploading} onSelect={setScene} label="从资产库选（场景）" />
+            </PracticeMediaInput>
+            <div className="grid gap-3 sm:grid-cols-2">
+                {[0, 1].map((index) => (
                     <PracticeMediaInput
                         key={index}
                         label={`角色/道具图 ${index + 1}`}
@@ -81,7 +84,9 @@ export default function PracticeStoryboardImagePanel({ capability, ipReferences,
                         onChoose={(file) => void chooseImage(file, index)}
                         url={assets[index]?.url}
                         onRemove={() => setAssets((current) => current.map((item, i) => (i === index ? undefined : item)))}
-                    />
+                    >
+                        <PracticeAssetPicker disabled={uploading} onSelect={(img) => setAssets((current) => Object.assign([...current], { [index]: img }))} />
+                    </PracticeMediaInput>
                 ))}
             </div>
             <PracticeSizeField capability={capability} value={workflowInput} onChange={(patch) => setWorkflowInput((current) => ({ ...current, ...patch }))} />

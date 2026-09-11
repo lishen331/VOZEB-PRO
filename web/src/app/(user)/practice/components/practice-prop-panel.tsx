@@ -9,6 +9,7 @@ import { uploadImage, type UploadedImage } from "@/services/image-storage";
 import { PracticeSizeField, WorkflowFormFields, WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
 import { PracticeMediaInput } from "./practice-media-input";
 import { ModelField } from "./practice-storyboard-image-panel";
+import { PracticeAssetPicker } from "./practice-asset-picker";
 
 export default function PracticePropPanel({ capability, onCreated }: PracticePanelProps) {
     const { message } = App.useApp();
@@ -57,7 +58,9 @@ export default function PracticePropPanel({ capability, onCreated }: PracticePan
         <div className="space-y-4">
             <ModelField capability={capability} value={model} onChange={setModel} />
             <PracticePromptEditor briefLabel="道具设定" label="道具描述" value={prompt} onChange={setPrompt} disabled={busy} mode="image">
-                <PracticeMediaInput label="道具参考图（可选）" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={image?.url} onRemove={() => setImage(undefined)} />
+                <PracticeMediaInput label="道具参考图（可选）" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={image?.url} onRemove={() => setImage(undefined)}>
+                        <PracticeAssetPicker dramaAssetType="prop" disabled={uploading} onSelect={setImage} />
+                    </PracticeMediaInput>
             </PracticePromptEditor>
             <PracticeSizeField capability={capability} value={workflowInput} onChange={(patch) => setWorkflowInput((current) => ({ ...current, ...patch }))} />
             <WorkflowFormFields capability={capability} value={workflowInput} onChange={(key, value) => setWorkflowInput((current) => ({ ...current, [key]: value }))} />

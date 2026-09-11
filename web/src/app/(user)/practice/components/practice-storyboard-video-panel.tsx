@@ -9,6 +9,7 @@ import { uploadMediaFile, type UploadedFile } from "@/services/file-storage";
 import { PracticeDurationField, PracticeSizeField, WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
 import { PracticeMediaInput } from "./practice-media-input";
 import { ModelField } from "./practice-storyboard-image-panel";
+import { PracticeAssetPicker } from "./practice-asset-picker";
 
 export function buildStoryboardVideoReferences(imageId: string, audioEnabled: boolean, audioId?: string) {
     return [imageId ? { type: "asset" as const, id: imageId, inputKey: "image" } : null, audioEnabled && audioId ? { type: "asset" as const, id: audioId, inputKey: "audio" } : null].filter(
@@ -104,7 +105,9 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated }: 
         <div className="space-y-4">
             <ModelField capability={capability} value={model} onChange={setModel} />
             <PracticePromptEditor briefLabel="分镜脚本" label="视频提示词" value={prompt} onChange={setPrompt} disabled={busy} mode="video" />
-            <PracticeMediaInput label="参考图片" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={image?.url} onRemove={() => setImage(undefined)} />
+            <PracticeMediaInput label="参考图片" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={image?.url} onRemove={() => setImage(undefined)}>
+                <PracticeAssetPicker disabled={uploading} onSelect={setImage} label="从资产库选（分镜图）" />
+            </PracticeMediaInput>
             <section aria-label="音频信息" className="space-y-3 rounded-lg border border-border p-3">
                 <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">音频信息 / 台词配音</span>

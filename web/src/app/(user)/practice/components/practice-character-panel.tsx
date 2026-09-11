@@ -9,6 +9,7 @@ import { type PracticePanelProps, capabilityForWorkflow, PracticeSizeField, Work
 import { PracticeMediaInput } from "./practice-media-input";
 import { PracticePromptEditor } from "./practice-prompt-editor";
 import { ModelField } from "./practice-storyboard-image-panel";
+import { PracticeAssetPicker } from "./practice-asset-picker";
 
 export default function PracticeCharacterPanel({ capability, onCreated }: PracticePanelProps) {
     const [view, setView] = useState("character_main_view");
@@ -83,7 +84,9 @@ function CharacterForm({ capability, model, workflowCode, onCreated }: { capabil
         <div className="space-y-5">
             {multi ? (
                 <>
-                    <PracticeMediaInput label={`主形象参考图${multi ? "（必需）" : "（可选）"}`} url={image?.url} disabled={uploading || busy} onChoose={(file) => void chooseImage(file)} onRemove={() => setImage(undefined)} />
+                    <PracticeMediaInput label={`主形象参考图${multi ? "（必需）" : "（可选）"}`} url={image?.url} disabled={uploading || busy} onChoose={(file) => void chooseImage(file)} onRemove={() => setImage(undefined)}>
+                        <PracticeAssetPicker dramaAssetType="character" disabled={uploading || busy} onSelect={setImage} />
+                    </PracticeMediaInput>
                 </>
             ) : null}
             {multi ? (
@@ -93,7 +96,9 @@ function CharacterForm({ capability, model, workflowCode, onCreated }: { capabil
                 </label>
             ) : (
                 <PracticePromptEditor briefLabel="角色设定" label="角色描述" placeholder="描述外观、服装、气质和视觉风格" value={prompt} onChange={setPrompt} disabled={busy}>
-                    <PracticeMediaInput label={`主形象参考图${multi ? "（必需）" : "（可选）"}`} url={image?.url} disabled={uploading || busy} onChoose={(file) => void chooseImage(file)} onRemove={() => setImage(undefined)} />
+                    <PracticeMediaInput label={`主形象参考图${multi ? "（必需）" : "（可选）"}`} url={image?.url} disabled={uploading || busy} onChoose={(file) => void chooseImage(file)} onRemove={() => setImage(undefined)}>
+                        <PracticeAssetPicker dramaAssetType="character" disabled={uploading || busy} onSelect={setImage} />
+                    </PracticeMediaInput>
                 </PracticePromptEditor>
             )}
             <PracticeSizeField capability={capability} value={workflowInput} onChange={(patch) => setWorkflowInput((current) => ({ ...current, ...patch }))} />

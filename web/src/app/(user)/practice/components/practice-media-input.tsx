@@ -1,8 +1,9 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ImagePlus, Music2, X } from "lucide-react";
 
-export function PracticeMediaInput({ label, accept = "image/*", url, disabled, onChoose, onRemove }: { label: string; accept?: string; url?: string; disabled?: boolean; onChoose: (file?: File) => void; onRemove?: () => void }) {
+export function PracticeMediaInput({ label, accept = "image/*", url, disabled, onChoose, onRemove, children }: { label: string; accept?: string; url?: string; disabled?: boolean; onChoose: (file?: File) => void; onRemove?: () => void; children?: ReactNode }) {
     const audio = accept.startsWith("audio");
     const Icon = audio ? Music2 : ImagePlus;
     return (
@@ -39,6 +40,7 @@ export function PracticeMediaInput({ label, accept = "image/*", url, disabled, o
                 )}
             </label>
             {url && audio ? <audio controls src={url} className="h-9 w-full" /> : null}
+            {children ? <div className="flex flex-wrap gap-2">{children}</div> : null}
         </div>
     );
 }

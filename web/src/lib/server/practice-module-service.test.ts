@@ -260,6 +260,6 @@ describe("practice module capabilities", () => {
         expect(video?.durationOptions).toEqual([5, 8, 10]);
         const scene = capabilities.find((item) => item.module === "scene");
         expect(scene?.sizeOptions).toBeUndefined();
-        expect(scene?.inputSchema).toContainEqual({ key: "outputPreset", label: "输出尺寸预设", type: "enum", required: false, options: ["2048 x 1024", "4096 x 2048"], defaultValue: "2048 x 1024" });
+        expect(scene?.inputSchema).toContainEqual({ key: "outputPreset", label: "输出尺寸预设", type: "enum", required: false, options: ["2048 x 1024"], defaultValue: "2048 x 1024" });
     });
 });

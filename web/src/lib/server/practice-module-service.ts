@@ -46,7 +46,7 @@ const DEMO_SIZE_DEFAULTS: Record<string, Array<[number, number]>> = {
     ],
 };
 const DEMO_DURATION_DEFAULTS: Record<string, number[]> = { storyboard_shot_video: [5, 8, 10] };
-const DEMO_ENUM_DEFAULTS: Record<string, Record<string, string[]>> = { scene_main_view: { outputPreset: ["2048 x 1024", "4096 x 2048"] } };
+const DEMO_ENUM_DEFAULTS: Record<string, Record<string, string[]>> = { scene_main_view: { outputPreset: ["2048 x 1024"] } };
 
 export function practiceSizeOptions(workflow: Pick<RunningHubWorkflowConfig, "workflowCode" | "generationSizeOptions" | "inputSchema">): PracticeSizeOption[] {
     const supportsSize = workflow.inputSchema.some((field) => field.key === "width") && workflow.inputSchema.some((field) => field.key === "height");

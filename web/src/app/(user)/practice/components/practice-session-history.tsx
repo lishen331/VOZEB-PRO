@@ -4,7 +4,7 @@ import { Button, Popconfirm } from "antd";
 import { AudioLines, FileText, Film, Image as ImageIcon, RotateCcw, Trash2 } from "lucide-react";
 
 import type { PracticeSession } from "@/services/api/practice";
-import { practiceSessionCanRetry, practiceSessionPreview, practiceSessionStatusLabel } from "./practice-session-status";
+import { practiceSessionCanRetry, practiceSessionStatusLabel } from "./practice-session-status";
 
 export default function PracticeSessionHistory({
     sessions,
@@ -29,7 +29,7 @@ export default function PracticeSessionHistory({
                         <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-medium">{session.title}</span>
                             <span className="mt-1 block text-xs text-muted-foreground">{practiceSessionStatusLabel(session)}</span>
-                            <span className="mt-2 block truncate text-xs text-muted-foreground">{session.errorMessage || practiceSessionPreview(session)}</span>
+                            <SessionPrompt session={session} />
                             <time className="mt-1 block text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleString()}</time>
                         </span>
                     </button>
@@ -49,6 +49,14 @@ export default function PracticeSessionHistory({
             ))}
         </div>
     );
+}
+
+function SessionPrompt({ session }: { session: PracticeSession }) {
+    const input = session.input as Record<string, unknown> | undefined;
+    const prompt = typeof input?.prompt === "string" ? input.prompt : typeof input?.text === "string" ? input.text : typeof input?.content === "string" ? input.content : "";
+    if (session.errorMessage) return <span className="mt-2 block truncate text-xs text-red-500">{session.errorMessage}</span>;
+    if (!prompt) return null;
+    return <span className="mt-2 block truncate text-xs text-muted-foreground" title={prompt}>{prompt}</span>;
 }
 
 function Preview({ session }: { session: PracticeSession }) {
