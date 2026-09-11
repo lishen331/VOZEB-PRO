@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { DramaEpisode, DramaProject, DramaShot } from "@/lib/drama-project-contract";
 import { getDramaProjectForUser } from "@/lib/server/drama-project-service";
 import { assertDramaLabStageAllowed, resolveDramaLabProjectForRequest } from "@/lib/server/drama-lab-collaboration-service";
-import { createStoredGenerationTask, getStoredGenerationTask, getStoredGenerationTaskByRequest, updateStoredGenerationTask } from "@/lib/server/generation-task-store";
+import { createStoredGenerationTask, getStoredGenerationTask, getStoredGenerationTaskByRequest, transitionStoredGenerationTask } from "@/lib/server/generation-task-store";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -24,7 +24,7 @@ export class DramaLabFinalVideoError extends Error {
 }
 
 type FinalVideoInput = { userId: string; projectId: string; episodeId: string; clientRequestId?: string };
-type FinalVideoTaskStatus = "pending" | "running" | "success" | "error" | "cancelled";
+type FinalVideoTaskStatus = "pending" | "running" | "success" | "error" | "cancelled" | "needs_review";
 type FinalVideoShotSnapshot = {
     shotId: string;
     order: number;
@@ -65,6 +65,7 @@ export type DramaLabFinalVideoTask = {
     inputSnapshot: DramaLabFinalVideoSnapshot;
     error?: string;
     result?: { artifactId: string; url: string; mimeType: string };
+    attemptNo?: number;
 };
 
 export type FinalVideoExecutionDeps = {
@@ -98,9 +99,11 @@ export async function executeDramaLabFinalVideoTask(taskId: string, deps: FinalV
             if (latest?.status === "cancelled") return latest;
         }
         const concatFile = join(workdir, "inputs.txt");
-        await writeFile(concatFile, files.map((file) => `file '${file.replace(/'/g, "'\\''")}'`).join("\\n"), "utf8");
+        await writeFile(concatFile, files.map((file) => `file '${file.replace(/'/g, "'\\''")}'`).join("\n"), "utf8");
         const output = join(workdir, "final.mp4");
         await ffmpeg(["-y", "-f", "concat", "-safe", "0", "-i", concatFile, "-c", "copy", output], { cwd: workdir });
+        const afterFfmpeg = await getStoredGenerationTask<DramaLabFinalVideoTask>("render", taskId);
+        if (afterFfmpeg?.status === "cancelled") return afterFfmpeg;
         const probe = await ffprobe(["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_type,width,height", "-of", "json", output], { cwd: workdir });
         if (!probe.stdout.includes("video")) throw new DramaLabFinalVideoError("成片缺少视频流", 422);
         const stored = await writeArtifact(output, "video", "video/mp4", true, {
@@ -111,6 +114,8 @@ export async function executeDramaLabFinalVideoTask(taskId: string, deps: FinalV
             originalName: "短剧成片.mp4",
             conversationId: undefined,
         });
+        const beforePublish = await getStoredGenerationTask<DramaLabFinalVideoTask>("render", taskId);
+        if (beforePublish?.status === "cancelled") return beforePublish;
         return (await updateFinalVideoTask(current, { status: "success", result: { artifactId: stored.token, url: stored.url || `/api/reference-assets/${stored.token}`, mimeType: "video/mp4" } })) || current;
     } catch (error) {
         const latest = await getStoredGenerationTask<DramaLabFinalVideoTask>("render", taskId);
@@ -122,9 +127,72 @@ export async function executeDramaLabFinalVideoTask(taskId: string, deps: FinalV
 }
 
 async function updateFinalVideoTask(task: DramaLabFinalVideoTask, patch: Partial<DramaLabFinalVideoTask> & { status: FinalVideoTaskStatus }) {
-    return updateStoredGenerationTask("render", { ...task, ...patch, updatedAt: Date.now() } as DramaLabFinalVideoTask, TTL_MS);
+    return transitionStoredGenerationTask("render", task.id, task.userId, [task.status], patch, TTL_MS);
 }
 
+export async function getDramaLabFinalVideoTask(input: { userId: string; projectId: string; taskId: string; episodeId?: string; clientRequestId?: string }) {
+    const task = await getStoredGenerationTask<DramaLabFinalVideoTask>("render", input.taskId);
+    if (!task || task.taskKind !== DRAMA_LAB_FINAL_VIDEO_TASK_KIND || task.projectId !== input.projectId || (input.episodeId && task.episodeId !== input.episodeId)) throw new DramaLabFinalVideoError("成片任务不存在", 404);
+    await assertFinalVideoProjectAccess(input.userId, input.projectId, input.episodeId || task.episodeId);
+    return publicFinalVideoTask(task);
+}
+
+export async function cancelDramaLabFinalVideoTask(input: { userId: string; projectId: string; taskId: string; episodeId?: string; clientRequestId?: string }) {
+    const task = await getFinalVideoTaskForUser(input);
+    if (!["pending", "running"].includes(task.status)) throw new DramaLabFinalVideoError("当前成片任务无法取消", 409);
+    const cancelled = await updateFinalVideoTask(task, { status: "cancelled", error: "任务已取消" });
+    if (!cancelled) throw new DramaLabFinalVideoError("任务状态已变化，无法取消", 409);
+    return publicFinalVideoTask(cancelled);
+}
+
+export async function retryDramaLabFinalVideoTask(input: { userId: string; projectId: string; taskId: string; episodeId?: string; clientRequestId?: string }) {
+    const task = await getFinalVideoTaskForUser(input);
+    if (!["error", "cancelled", "needs_review"].includes(task.status)) throw new DramaLabFinalVideoError("当前成片任务不可重试", 409);
+    await assertFinalVideoProjectAccess(input.userId, input.projectId, input.episodeId || task.episodeId);
+    const now = Date.now();
+    const retry: DramaLabFinalVideoTask = {
+        ...task,
+        id: randomUUID(),
+        status: "pending",
+        createdAt: now,
+        updatedAt: now,
+        attemptNo: (task.attemptNo || 1) + 1,
+        error: undefined,
+        result: undefined,
+    };
+    const created = await createStoredGenerationTask("render", retry, TTL_MS);
+    return publicFinalVideoTask(created);
+}
+
+export function publicFinalVideoTask(task: DramaLabFinalVideoTask) {
+    return {
+        id: task.id,
+        projectId: task.projectId,
+        episodeId: task.episodeId,
+        status: task.status,
+        taskKind: task.taskKind,
+        attemptNo: task.attemptNo || 1,
+        clientRequestId: task.clientRequestId,
+        inputHash: task.inputSnapshot.inputHash,
+        shotIds: task.inputSnapshot.shotIds,
+        result: task.result,
+        error: task.status === "error" || task.status === "needs_review" ? "成片任务执行失败" : task.error === "任务已取消" ? task.error : undefined,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+    };
+}
+
+async function getFinalVideoTaskForUser(input: { userId: string; projectId: string; taskId: string; episodeId?: string; clientRequestId?: string }) {
+    const task = await getStoredGenerationTask<DramaLabFinalVideoTask>("render", input.taskId);
+    if (!task || task.taskKind !== DRAMA_LAB_FINAL_VIDEO_TASK_KIND || task.projectId !== input.projectId || (input.episodeId && task.episodeId !== input.episodeId)) throw new DramaLabFinalVideoError("成片任务不存在", 404);
+    await assertFinalVideoProjectAccess(input.userId, input.projectId, input.episodeId || task.episodeId);
+    return task;
+}
+
+async function assertFinalVideoProjectAccess(userId: string, projectId: string, episodeId: string) {
+    const resolved = await resolveDramaLabProjectForRequest(userId, projectId);
+    if (!resolved?.project?.episodes.some((episode) => episode.id === episodeId)) throw new DramaLabFinalVideoError("成片任务不存在", 404);
+}
 export async function createDramaLabFinalVideoTask(input: FinalVideoInput) {
     const projectResolution = await resolveDramaLabProjectForRequest(input.userId, input.projectId);
     const project = projectResolution?.project;
@@ -136,7 +204,12 @@ export async function createDramaLabFinalVideoTask(input: FinalVideoInput) {
     const requestId = input.clientRequestId?.trim() || undefined;
     if (requestId) {
         const existing = await getStoredGenerationTaskByRequest<DramaLabFinalVideoTask>("render", input.userId, requestId);
-        if (existing && existing.taskKind === DRAMA_LAB_FINAL_VIDEO_TASK_KIND) return existing;
+        if (existing && existing.taskKind === DRAMA_LAB_FINAL_VIDEO_TASK_KIND) {
+            if (existing.projectId !== input.projectId || existing.episodeId !== input.episodeId) throw new DramaLabFinalVideoError("请求标识已用于其他剧集", 409);
+            const nextSnapshot = buildFinalVideoSnapshot(project, episode, ownerUserId, input.userId);
+            if (existing.inputSnapshot.inputHash !== nextSnapshot.inputHash) throw new DramaLabFinalVideoError("当前请求的素材已变化，请重新提交", 409);
+            return existing;
+        }
     }
     const snapshot = buildFinalVideoSnapshot(project, episode, ownerUserId, input.userId);
     const now = Date.now();
@@ -151,10 +224,14 @@ export async function createDramaLabFinalVideoTask(input: FinalVideoInput) {
         projectId: project.id,
         episodeId: episode.id,
         clientRequestId: requestId,
+        attemptNo: 1,
         taskKind: DRAMA_LAB_FINAL_VIDEO_TASK_KIND,
         inputSnapshot: snapshot,
     };
-    return createStoredGenerationTask("render", task, TTL_MS);
+    const created = await createStoredGenerationTask("render", task, TTL_MS);
+    if (created.taskKind !== DRAMA_LAB_FINAL_VIDEO_TASK_KIND || created.projectId !== task.projectId || created.episodeId !== task.episodeId || created.inputSnapshot.inputHash !== task.inputSnapshot.inputHash)
+        throw new DramaLabFinalVideoError("成片任务请求标识发生冲突", 409);
+    return created;
 }
 
 function buildFinalVideoSnapshot(project: DramaProject, episode: DramaEpisode, ownerUserId: string, requesterUserId: string): DramaLabFinalVideoSnapshot {
@@ -164,7 +241,7 @@ function buildFinalVideoSnapshot(project: DramaProject, episode: DramaEpisode, o
             const videoUrl = shot.videoUrl?.trim();
             if (!videoUrl) throw new DramaLabFinalVideoError(`分镜 ${shot.id} 尚未完成视频`, 400);
             const audio = shot.audioMode === "mute" ? {} : { audioUrl: shot.audioUrl, dialogueAudioUrl: shot.dialogueAudio?.url, narrationAudioUrl: shot.narrationAudio?.url };
-            return { shotId: shot.id, order: shot.order, videoUrl, ...audio, subtitle: shot.subtitle, duration: shot.duration, sourceUpdatedAt: project.updatedAt, generationTaskId: shot.generationTaskId };
+            return { shotId: shot.id, order: shot.order, videoUrl, audioMode: shot.audioMode, ...audio, subtitle: shot.subtitle, duration: shot.duration, sourceUpdatedAt: project.updatedAt, generationTaskId: shot.generationTaskId };
         });
     if (!shots.length) throw new DramaLabFinalVideoError("当前剧集没有可合成的分镜", 400);
     const base = {
