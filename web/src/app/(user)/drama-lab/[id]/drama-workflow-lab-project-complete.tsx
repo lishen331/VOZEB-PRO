@@ -74,10 +74,12 @@ function announceDramaLabTaskCreated(projectId: string) {
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("drama-lab-task-created", { detail: { projectId } }));
 }
 
-export function dramaLabEpisodeCanvasHref(projectId: string, episodeId: string, shotId?: string) {
+export function dramaLabEpisodeCanvasHref(projectId: string, episodeId: string, shotId?: string, assetType?: "character" | "scene" | "prop", assetId?: string) {
     const params = new URLSearchParams();
     params.set("episodeId", episodeId);
     if (shotId) params.set("shotId", shotId);
+    if (assetType) params.set("assetType", assetType);
+    if (assetId) params.set("assetId", assetId);
     return `/drama-lab/${encodeURIComponent(projectId)}/canvas?${params.toString()}`;
 }
 
@@ -1752,15 +1754,6 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                                                 </>
                                             )}
                                         </button>
-                                        <Button
-                                            type="text"
-                                            size="small"
-                                            className="shrink-0"
-                                            href={dramaLabEpisodeCanvasHref(projectId, ep.id)}
-                                            aria-label={`打开${ep.title}画布`}
-                                            title={`打开${ep.title}画布`}
-                                            icon={<PanelsTopLeft className="size-3.5" />}
-                                        />
                                     </div>
 
                                     {!sidebarCollapsed && isExpanded && episodeShots.length > 0 && (
@@ -1806,7 +1799,17 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     />
                     {activeStep === "script" && <ScriptEditor project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onActiveEpisodeChange={setActiveEpisodeId} onStepChange={setActiveStep} messageApi={messageApi} />}
                     {activeStep === "review" && <ReviewPanel project={project} episode={activeEpisode} onStepChange={setActiveStep} messageApi={messageApi} />}
-                    {activeStep === "assets" && <DramaLabVisualAssetsPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onLocateShot={locateStoryboardShot} messageApi={messageApi} />}
+                    {activeStep === "assets" && (
+                        <DramaLabVisualAssetsPanel
+                            project={project}
+                            episode={activeEpisode}
+                            onSave={saveProject}
+                            onReload={loadProject}
+                            onLocateShot={locateStoryboardShot}
+                            onOpenCanvasHref={(assetType, assetId) => dramaLabEpisodeCanvasHref(project.id, activeEpisode?.id || project.episodes[0]?.id || "", undefined, assetType, assetId)}
+                            messageApi={messageApi}
+                        />
+                    )}
                     {activeStep === "storyboard" && (
                         <StoryboardPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onCheckpoint={applyStoryboardCheckpoint} onShotSynced={updateProjectShotFromSync} messageApi={messageApi} />
                     )}
@@ -2408,7 +2411,7 @@ function ScriptEditor({
                                 label: "选择剧本",
                                 children: (
                                     <div className="space-y-5">
-                                        <p className="text-sm text-muted-foreground">从剧本库选择后，仅把故事梗概与各集剧本文字写入当前项目，不会导入角色、场景、分镜、图片或视频。</p>
+                                        <p className="text-sm text-muted-foreground">从已有项目中选择剧本后，仅把故事梗概与各集剧本文字写入当前项目，不会导入角色、场景、分镜、图片或视频。</p>
                                         <Button
                                             type="primary"
                                             icon={<FileText className="size-4" />}
@@ -2418,7 +2421,7 @@ function ScriptEditor({
                                                 void loadScriptLibrary();
                                             }}
                                         >
-                                            从已有剧本中选择…
+                                            从已有项目中选择剧本
                                         </Button>
 
                                         {project.description || project.episodes.length ? (
@@ -2451,7 +2454,7 @@ function ScriptEditor({
                             },
                         ]}
                     />
-                    <Modal title="从剧本库导入" open={scriptLibraryOpen} onCancel={() => setScriptLibraryOpen(false)} footer={null} destroyOnHidden>
+                    <Modal title="从已有项目中选择剧本" open={scriptLibraryOpen} onCancel={() => setScriptLibraryOpen(false)} footer={null} destroyOnHidden>
                         <div className="space-y-2">
                             {scriptLibraryLoading ? (
                                 <div className="flex justify-center py-8">
@@ -2472,7 +2475,7 @@ function ScriptEditor({
                                     </button>
                                 ))
                             ) : (
-                                <div className="py-8 text-center text-muted-foreground">剧本库为空，请先创建包含剧本的项目</div>
+                                <div className="py-8 text-center text-muted-foreground">暂无可选择的已有项目</div>
                             )}
                         </div>
                     </Modal>
@@ -5879,7 +5882,7 @@ function StoryboardWorkbenchCard({
                     </p>
                 </div>
                 <div className="order-0 flex w-full flex-wrap items-center justify-end gap-1">
-                    <Button type="text" size="small" title="在画布中打开此分镜" aria-label="在画布中打开此分镜" href={dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)} icon={<PanelsTopLeft className="size-4" />} />
+                    <Button type="text" size="small" title="在画布查看" aria-label="在画布查看" href={dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)} icon={<PanelsTopLeft className="size-4" />} />
                     <Button type="text" size="small" title="同步任务状态" aria-label="同步任务状态" icon={<LoaderCircle className="size-4" />} onClick={onSync} />
                     <Button type="text" size="small" title="编辑分镜" aria-label="编辑分镜" icon={<Edit2 className="size-4" />} onClick={onEdit}>
                         分镜配置

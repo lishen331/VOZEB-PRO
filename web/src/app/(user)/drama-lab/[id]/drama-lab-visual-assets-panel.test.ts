@@ -34,6 +34,15 @@ describe("extraction detail wiring", () => {
         expect(source).toContain("buildDramaLabAssetImagePrompt(project, asset, kind)");
         expect(source).toContain("...readDramaLabAssetVisualDetails(libraryAsset.metadata)");
     });
+
+    it("offers a canvas entry for each asset without removing existing actions", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        expect(source).toContain("onOpenCanvasHref");
+        expect(source).toContain("在画布查看");
+        expect(source).toContain("PanelsTopLeft");
+        expect(source).toContain("AI 生图");
+        expect(source).toContain("加入素材库");
+    });
 });
 describe("drama lab visual asset extraction actions", () => {
     it("offers one-click extraction before the type-specific action", async () => {

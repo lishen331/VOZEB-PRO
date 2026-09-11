@@ -6,7 +6,7 @@ import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generatio
 
 import { Button, Image, Input, Modal, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
-import { Check, Edit2, ImagePlus, LibraryBig, MapPin, Package, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
+import { Check, Edit2, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useMemo, useRef, useState, type RefObject } from "react";
 
@@ -41,6 +41,7 @@ export function DramaLabVisualAssetsPanel({
     onSave,
     onReload,
     onLocateShot,
+    onOpenCanvasHref,
     messageApi,
 }: {
     project: Project;
@@ -48,6 +49,7 @@ export function DramaLabVisualAssetsPanel({
     onSave: (updates: ProjectUpdate) => Promise<boolean>;
     onReload: () => Promise<void>;
     onLocateShot: (episodeId: string, shotId: string) => void;
+    onOpenCanvasHref: (assetType: "character" | "scene" | "prop", assetId: string) => string;
     messageApi: MessageInstance;
 }) {
     const config = useEffectiveConfig();
@@ -434,6 +436,15 @@ export function DramaLabVisualAssetsPanel({
                                                         </Button>
                                                         <Button size="small" icon={<LibraryBig className="size-3.5" />} disabled={!primary} onClick={() => void saveToLibrary(asset, assetKind, meta.label, messageApi)}>
                                                             加入素材库
+                                                        </Button>
+                                                        <Button
+                                                            size="small"
+                                                            icon={<PanelsTopLeft className="size-3.5" />}
+                                                            href={onOpenCanvasHref(assetKind === "characters" ? "character" : assetKind === "scenes" ? "scene" : "prop", asset.id)}
+                                                            aria-label="在画布查看"
+                                                            title="在画布查看"
+                                                        >
+                                                            在画布查看
                                                         </Button>
                                                     </div>
                                                     {references.length ? (

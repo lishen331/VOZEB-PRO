@@ -49,7 +49,9 @@ function VozebProCanvasPage() {
     const controller = useCanvasPageController();
     const searchParams = useSearchParams();
     const focusShotId = searchParams.get("shotId") || "";
-    const focusedShotRef = useRef("");
+    const focusAssetType = searchParams.get("assetType") || "";
+    const focusAssetId = searchParams.get("assetId") || "";
+    const focusedTargetRef = useRef("");
     const hoverCommitHandleRef = useRef<number | null>(null);
     const queuedHoveredNodeIdRef = useRef<string | null>(null);
     const {
@@ -275,14 +277,15 @@ function VozebProCanvasPage() {
         closeAgent,
     } = controller;
     useEffect(() => {
-        if (!projectLoaded || !focusShotId || focusedShotRef.current === `${projectId}:${focusShotId}`) return;
-        const target = nodes.find((node) => node.id.endsWith(`:shot:${focusShotId}`));
+        const focusKey = focusShotId ? `${projectId}:shot:${focusShotId}` : focusAssetType && focusAssetId ? `${projectId}:${focusAssetType}:${focusAssetId}` : "";
+        if (!projectLoaded || !focusKey || focusedTargetRef.current === focusKey) return;
+        const target = focusShotId ? nodes.find((node) => node.id.endsWith(`:shot:${focusShotId}`)) : nodes.find((node) => node.id.endsWith(`:${focusAssetType}:${focusAssetId}`));
         if (!target) return;
         const k = Math.min(1, Math.max(0.45, viewport.k || 0.72));
         setSelectedNodeIds(new Set([target.id]));
         setViewport({ x: size.width / 2 - (target.position.x + target.width / 2) * k, y: size.height / 2 - (target.position.y + target.height / 2) * k, k });
-        focusedShotRef.current = `${projectId}:${focusShotId}`;
-    }, [focusShotId, nodes, projectId, projectLoaded, setSelectedNodeIds, setViewport, size.height, size.width, viewport.k]);
+        focusedTargetRef.current = focusKey;
+    }, [focusAssetId, focusAssetType, focusShotId, nodes, projectId, projectLoaded, setSelectedNodeIds, setViewport, size.height, size.width, viewport.k]);
     const scheduleHoveredNode = (nodeId: string | null) => {
         queuedHoveredNodeIdRef.current = nodeId;
         if (hoverCommitHandleRef.current !== null) return;

@@ -11,14 +11,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
 
-    const parsed = await readJsonBodyResult<{ episodeId?: unknown; shotId?: unknown }>(request);
+    const parsed = await readJsonBodyResult<{ episodeId?: unknown; shotId?: unknown; assetType?: unknown; assetId?: unknown }>(request);
     if (!parsed.ok) return NextResponse.json({ code: parsed.status, data: null, msg: parsed.message }, { status: parsed.status });
 
     try {
         const { id } = await params;
         const episodeId = typeof parsed.data.episodeId === "string" ? parsed.data.episodeId : "";
         const shotId = typeof parsed.data.shotId === "string" ? parsed.data.shotId : "";
-        const resolved = shotId ? await getOrCreateDramaLabEpisodeCanvasForUser(user.id, id, episodeId, shotId) : await getOrCreateDramaLabEpisodeCanvasForUser(user.id, id, episodeId);
+        const assetType = typeof parsed.data.assetType === "string" ? parsed.data.assetType : "";
+        const assetId = typeof parsed.data.assetId === "string" ? parsed.data.assetId : "";
+        const resolved = await getOrCreateDramaLabEpisodeCanvasForUser(user.id, id, episodeId, shotId, assetType, assetId);
         return NextResponse.json({ code: 0, data: { canvasId: resolved.project.id, project: resolved.project }, msg: "OK" });
     } catch (error) {
         if (error instanceof DramaLabEpisodeCanvasServiceError) return NextResponse.json({ code: error.status, data: null, msg: error.message }, { status: error.status });

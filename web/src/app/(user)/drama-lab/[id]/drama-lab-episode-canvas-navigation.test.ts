@@ -13,7 +13,10 @@ describe("drama lab episode canvas navigation", () => {
         expect(source).toContain('params.set("episodeId", episodeId)');
         expect(source).toContain('params.set("shotId", shotId)');
         expect(source).toContain("打开本集画布");
-        expect(source).toContain('title="在画布中打开此分镜"');
+        expect(source).toContain('title="在画布查看"');
+        expect(source).not.toContain("打开${ep.title}画布");
+        expect(source).toContain("assetType");
+        expect(source).toContain("assetId");
         expect(source).toContain("dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)");
     });
 

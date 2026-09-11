@@ -35,7 +35,7 @@ describe("POST /api/drama-lab/projects/:id/episode-canvas", () => {
     it("resolves the owned episode canvas and returns its stable id", async () => {
         const response = await POST(new Request("http://localhost/api/drama-lab/projects/drama-one/episode-canvas", { method: "POST" }), { params: Promise.resolve({ id: "drama-one" }) });
 
-        expect(mocks.resolveEpisodeCanvas).toHaveBeenCalledWith("user-one", "drama-one", "episode-one");
+        expect(mocks.resolveEpisodeCanvas).toHaveBeenCalledWith("user-one", "drama-one", "episode-one", "", "", "");
         expect(response.status).toBe(200);
         await expect(response.json()).resolves.toEqual({ code: 0, data: { canvasId: "canvas-one", project: { id: "canvas-one", sourceHandoffId: "drama-lab-canvas:drama-one:episode:episode-one" } }, msg: "OK" });
     });
@@ -46,7 +46,16 @@ describe("POST /api/drama-lab/projects/:id/episode-canvas", () => {
         const response = await POST(new Request("http://localhost/api/drama-lab/projects/drama-one/episode-canvas", { method: "POST" }), { params: Promise.resolve({ id: "drama-one" }) });
 
         expect(response.status).toBe(200);
-        expect(mocks.resolveEpisodeCanvas).toHaveBeenCalledWith("user-one", "drama-one", "episode-one", "shot-one");
+        expect(mocks.resolveEpisodeCanvas).toHaveBeenCalledWith("user-one", "drama-one", "episode-one", "shot-one", "", "");
+    });
+
+    it("forwards an asset focus for ownership validation and initial focus", async () => {
+        mocks.readJsonBodyResult.mockResolvedValueOnce({ ok: true, data: { episodeId: "episode-one", assetType: "character", assetId: "character-one" } });
+
+        const response = await POST(new Request("http://localhost/api/drama-lab/projects/drama-one/episode-canvas", { method: "POST" }), { params: Promise.resolve({ id: "drama-one" }) });
+
+        expect(response.status).toBe(200);
+        expect(mocks.resolveEpisodeCanvas).toHaveBeenCalledWith("user-one", "drama-one", "episode-one", "", "character", "character-one");
     });
 
     it("rejects unauthenticated and malformed requests before resolving a canvas", async () => {
