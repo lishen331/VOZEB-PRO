@@ -11,12 +11,12 @@ describe("drama lab story generation options", () => {
         for (const value of ["现代写实", "悬疑", "浪漫", "动作", "短剧", "电影"]) expect(source).not.toContain(`value="${value}"`);
     });
 
-    it("uses LocalMiniDrama-compatible defaults for new story generation", async () => {
+    it("leaves both options unselected by default and uses placeholders", async () => {
         const source = await readFile(path, "utf8");
-        expect(source).toContain('useState("modern")');
-        expect(source).toContain('useState("drama")');
-        expect(source).toContain("body: JSON.stringify({");
-        expect(source).toContain("storyStyle,");
-        expect(source).toContain("scriptType,");
+        expect(source).toContain('useState("")');
+        expect(source).toContain('placeholder="剧本风格"');
+        expect(source).toContain('placeholder="剧本类型"');
+        expect(source).toContain("...(storyStyle ? { storyStyle } : {})");
+        expect(source).toContain("...(scriptType ? { scriptType } : {})");
     });
 });

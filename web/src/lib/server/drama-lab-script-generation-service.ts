@@ -30,8 +30,8 @@ export async function generateDramaLabScript(input: { userId: string; origin: st
     const context = JSON.stringify({
         task: "生成当前短剧集的完整剧本",
         storyOutline: outline,
-        storyStyle: input.storyStyle.trim(),
-        scriptType: input.scriptType.trim(),
+        ...(input.storyStyle.trim() ? { storyStyle: input.storyStyle.trim() } : {}),
+        ...(input.scriptType.trim() ? { scriptType: input.scriptType.trim() } : {}),
         plannedEpisodeCount: input.episodeCount.trim(),
         currentEpisodeId: input.episodeId,
     });
