@@ -315,3 +315,15 @@ Skill 还可记录 `sourceUrl`、`sourceVersion` 和 `license`。默认电商生
 ## 课程封面存储
 
 课程封面使用既有 `platform_courses.content.coverStorageKey` JSON 字段保存永久媒体键，无新增表/列或旧表迁移。服务端保存时校验图片类型、永久状态与上传者归属，引用计数包含该字段，防止课程引用中的封面被媒体清理删除。学校封面读取按当前学校的课程分配和发布状态鉴权，不直接开放管理员私有媒体路径。
+
+## 无限练习剧本模块
+
+剧本练习使用独立的 `vozeb_pro_practice_script_*` 表，不写入商业生成任务、图片、视频或音频任务表。核心表包括：
+
+- `practice_script_projects`：单人剧本项目及 owner、来源、状态和当前版本。
+- `practice_script_versions`：结构化剧本文档快照、来源、操作和父版本。
+- `practice_script_entities`：项目内人物、地点、分集、场景和 Beat。
+- `practice_script_stages`：阶段草稿、确认结果和阶段状态。
+- `practice_script_agent_operations`：AI 建议、Patch、模型/Skill/Workflow 最小快照和结果状态。
+
+所有 Repository 查询按 `owner_user_id` 与项目 ID 定向过滤；版本使用 `(project_id, version)` 唯一约束，实体使用 `(project_id, id)` 主键。Schema 初始化包含幂等建表、补列和 owner/project 索引；剧本调用只允许由无限练习服务使用 `open-source-practice` 执行档案，第一期不创建媒体任务或多人协作记录。

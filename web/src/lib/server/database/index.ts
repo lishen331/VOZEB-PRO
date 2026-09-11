@@ -11,3 +11,4 @@ export type * from "../school-compute-repository";
 export type { BillingRefundJobRecord, BillingRefundJobStatus } from "./billing-refund-repository";
 export type { QueryExecutor } from "./postgres";
 export type * from "./repositories";
+export { ScriptPracticeRepository, createPostgresScriptPracticeRepository } from "./script-practice-repository";

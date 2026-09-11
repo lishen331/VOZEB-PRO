@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
     default_models jsonb NOT NULL DEFAULT '{}'::jsonb,
     practice_default_models jsonb NOT NULL DEFAULT '{}'::jsonb,
     practice_workflow_models jsonb NOT NULL DEFAULT '{}'::jsonb,
+    practice_script_settings jsonb NOT NULL DEFAULT '{}'::jsonb,
     practice_module_visibility jsonb NOT NULL DEFAULT '{"canvas":false,"drama":false,"character":true,"scene":true,"prop":true,"storyboard-image":true,"storyboard-video":true,"dubbing":true}'::jsonb,
     agent_skills jsonb NOT NULL DEFAULT '[{"id":"ecommerce-image","name":"电商生图","description":"为商品主图、场景图和详情页视觉生成结构化方案。","instructions":"识别商品卖点、目标人群、平台与画幅。优先规划白底主图、核心卖点场景图、细节特写和详情页横幅；保持商品外观、材质、颜色、Logo 与包装一致。提示词必须写清主体、构图、光线、背景、镜头、商业质感、尺寸比例与禁止变形要求。","enabled":true,"keywords":["电商","商品","主图","详情页","淘宝","京东","亚马逊"]}]'::jsonb,
     feature_modules jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -112,6 +113,7 @@ ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS generation_cost_control jsonb 
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS data_lifecycle jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_default_models jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_workflow_models jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_script_settings jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS practice_module_visibility jsonb NOT NULL DEFAULT '{"canvas":false,"drama":false,"character":true,"scene":true,"prop":true,"storyboard-image":true,"storyboard-video":true,"dubbing":true}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS feature_modules jsonb NOT NULL DEFAULT '{}'::jsonb;
 
@@ -1124,11 +1126,89 @@ ${POSTGRESQL_SCHOOL_COMPUTE_SCHEMA_SQL}
 
 ${POSTGRESQL_IP_LIBRARY_SCHEMA_SQL}
 
-${POSTGRESQL_TRIGGER_SCHEMA_SQL}
-
 ${DRAMA_LAB_SCHEMA_SQL}
 
+CREATE TABLE IF NOT EXISTS practice_script_projects (
+    id text PRIMARY KEY,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title text NOT NULL,
+    genre text,
+    logline text,
+    synopsis text,
+    status text NOT NULL DEFAULT 'draft',
+    source_type text NOT NULL DEFAULT 'idea',
+    current_version_id text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS practice_script_versions (
+    id text PRIMARY KEY,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    version integer NOT NULL,
+    document_json jsonb NOT NULL,
+    source text NOT NULL,
+    operation text,
+    parent_version_id text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (project_id, version)
+);
+CREATE TABLE IF NOT EXISTS practice_script_entities (
+    id text NOT NULL,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type text NOT NULL,
+    name text NOT NULL,
+    description text,
+    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (project_id, id)
+);
+CREATE TABLE IF NOT EXISTS practice_script_stages (
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    stage_key text NOT NULL,
+    status text NOT NULL,
+    draft_json jsonb,
+    confirmed_json jsonb,
+    error_message text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (project_id, stage_key)
+);
+CREATE TABLE IF NOT EXISTS practice_script_agent_operations (
+    id text PRIMARY KEY,
+    project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
+    owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    document_id text,
+    base_version_id text,
+    operation text NOT NULL,
+    model_snapshot jsonb,
+    skill_snapshot jsonb,
+    workflow_snapshot jsonb,
+    before_patch jsonb,
+    proposed_patch jsonb,
+    after_patch jsonb,
+    status text NOT NULL,
+    error_message text,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS practice_script_projects_owner_updated_idx ON practice_script_projects (owner_user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS practice_script_versions_project_created_idx ON practice_script_versions (owner_user_id, project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS practice_script_entities_project_type_idx ON practice_script_entities (owner_user_id, project_id, type, name);
+CREATE INDEX IF NOT EXISTS practice_script_stages_project_updated_idx ON practice_script_stages (owner_user_id, project_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS practice_script_agent_operations_project_created_idx ON practice_script_agent_operations (owner_user_id, project_id, created_at DESC);
+DROP TRIGGER IF EXISTS practice_script_projects_set_updated_at ON practice_script_projects;
+CREATE TRIGGER practice_script_projects_set_updated_at BEFORE UPDATE ON practice_script_projects FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
+DROP TRIGGER IF EXISTS practice_script_entities_set_updated_at ON practice_script_entities;
+CREATE TRIGGER practice_script_entities_set_updated_at BEFORE UPDATE ON practice_script_entities FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
+DROP TRIGGER IF EXISTS practice_script_stages_set_updated_at ON practice_script_stages;
+CREATE TRIGGER practice_script_stages_set_updated_at BEFORE UPDATE ON practice_script_stages FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
+
+${POSTGRESQL_TRIGGER_SCHEMA_SQL}
+
 INSERT INTO schema_migrations (version)
-VALUES ('20260709_postgresql_commercial_base'), ('20260709_billing_foundation'), ('20260709_billing_checkout'), ('20260709_commercial_seed_products'), ('20260709_vozeb_pro_table_prefix'), ('20260711_generation_tasks'), ('20260716_billing_reconciliation'), ('20260725_account_deletion_requests'), ('20260726_promotion_coupon_commerce'), ('20260727_referral_growth_rewards'), ('20260727_work_publications'), ('20260727_work_community'), ('20260728_user_blocks'), ('20260820_drama_lab_integration'), ('20260908_official_work_publication')
+VALUES ('20260709_postgresql_commercial_base'), ('20260709_billing_foundation'), ('20260709_billing_checkout'), ('20260709_commercial_seed_products'), ('20260709_vozeb_pro_table_prefix'), ('20260711_generation_tasks'), ('20260716_billing_reconciliation'), ('20260725_account_deletion_requests'), ('20260726_promotion_coupon_commerce'), ('20260727_referral_growth_rewards'), ('20260727_work_publications'), ('20260727_work_community'), ('20260728_user_blocks'), ('20260820_drama_lab_integration'), ('20260908_official_work_publication'), ('20260911_practice_script_module')
 ON CONFLICT (version) DO NOTHING;
 `;

@@ -1039,7 +1039,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
     const [collaborationEnabled, setCollaborationEnabled] = useState(true);
     const [collaborationMode, setCollaborationMode] = useState<"strict" | "parallel">("strict");
-    const [collaborationCollapsed, setCollaborationCollapsed] = useState(false);
+    const [collaborationCollapsed, setCollaborationCollapsed] = useState(true);
     const [collaborationDrawerOpen, setCollaborationDrawerOpen] = useState(false);
     const [approvalStages, setApprovalStages] = useState<Record<CollaborationStageKey, boolean>>({
         script: true,
@@ -1663,14 +1663,6 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                 <Button icon={<Sparkles className="size-4" />} onClick={() => setWorkflowModalOpen(true)}>
                     一键全流程
                 </Button>
-                <Button
-                    className="hidden lg:inline-flex"
-                    type="text"
-                    aria-label={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
-                    title={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
-                    icon={collaborationCollapsed ? <PanelRightOpen className="size-4" /> : <PanelRightClose className="size-4" />}
-                    onClick={() => setCollaborationCollapsed((current) => !current)}
-                />
                 <Button className="lg:hidden" type="text" aria-label="打开团队协作与审批" title="打开团队协作与审批" icon={<PanelRightOpen className="size-4" />} onClick={() => setCollaborationDrawerOpen(true)} />
                 <Button type="primary" icon={<Save className="size-4" />} loading={saving} onClick={() => void saveProject({})}>
                     保存草稿
@@ -1813,6 +1805,14 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                 <aside className={cn("hidden min-h-0 shrink-0 flex-col border-l border-border bg-card transition-[width] duration-200 lg:flex", collaborationCollapsed ? "w-14" : "w-[340px]")}>
                     <div className={cn("flex h-12 items-center border-b border-border", collaborationCollapsed ? "justify-center px-2" : "justify-between px-4")}>
                         {!collaborationCollapsed ? <span className="text-sm font-semibold">团队协作与审批</span> : null}
+                        <Button
+                            type="text"
+                            size="small"
+                            aria-label={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
+                            title={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
+                            icon={collaborationCollapsed ? <PanelRightOpen className="size-4" /> : <PanelRightClose className="size-4" />}
+                            onClick={() => setCollaborationCollapsed((current) => !current)}
+                        />
                     </div>
                     {!collaborationCollapsed ? (
                         <div className="min-h-0 flex-1 overflow-y-auto p-4">
@@ -2146,6 +2146,7 @@ function ScriptEditor({
                                                 projectId={project.id}
                                                 currentEpisodeCount={project.episodes.length}
                                                 messageApi={messageApi}
+                                                triggerContainerId="drama-lab-novel-import-actions"
                                                 onImported={async (episodeId) => {
                                                     await onReload();
                                                     if (episodeId) onActiveEpisodeChange(episodeId);
@@ -2182,6 +2183,7 @@ function ScriptEditor({
                                             <Button type="primary" icon={<Plus className="size-4" />} onClick={handleGenerateScript} loading={generating} disabled={generating}>
                                                 {generating ? "生成中..." : "生成剧本"}
                                             </Button>
+                                            <span id="drama-lab-novel-import-actions" className="inline-flex" />
 
                                             <div className="ml-auto flex min-h-5 items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
                                                 {saveStatus === "pending" ? (
@@ -5757,8 +5759,8 @@ function StoryboardWorkbenchCard({
                                                         preview={{ src: shot.frames[frameType]?.url }}
                                                         src={shot.frames[frameType]?.url}
                                                         alt={frameLabel[frameType]}
-                                                        className="size-full object-contain"
-                                                        classNames={{ root: "absolute inset-0 block size-full overflow-hidden", image: "block size-full object-contain" }}
+                                                        className="!block !size-full !object-contain"
+                                                        classNames={{ root: "absolute inset-0 block size-full overflow-hidden", image: "!block !size-full !object-contain" }}
                                                     />
                                                 </div>
                                             ) : (
@@ -5773,8 +5775,8 @@ function StoryboardWorkbenchCard({
                                         preview={{ src: classicImageUrl }}
                                         src={classicImageUrl}
                                         alt={`分镜 ${shot.shotNumber} 图像`}
-                                        className="size-full object-contain"
-                                        classNames={{ root: "absolute inset-0 block size-full overflow-hidden", image: "block size-full object-contain" }}
+                                        className="!block !size-full !object-contain"
+                                        classNames={{ root: "absolute inset-0 block size-full overflow-hidden", image: "!block !size-full !object-contain" }}
                                     />
                                 </div>
                             ) : (

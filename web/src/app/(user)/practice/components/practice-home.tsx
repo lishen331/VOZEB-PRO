@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { App, Button, Empty, Spin } from "antd";
-import { Box, Clapperboard, Film, Image, Maximize2, Mic2, PanelsTopLeft, Plus, UserRound, type LucideIcon } from "lucide-react";
+import { Box, Clapperboard, Film, Image, Maximize2, Mic2, PanelsTopLeft, Plus, ScrollText, UserRound, type LucideIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import type { PracticeModuleKind, PracticeProjectKind } from "@/lib/practice-domain";
@@ -15,6 +15,8 @@ export const PRACTICE_PROJECT_CARDS: Array<{ kind: PracticeProjectKind; title: s
     { kind: "canvas", title: "无限画布", description: "自由组合文字、图片、视频和音频，练习节点式创作。", icon: Maximize2 },
     { kind: "drama", title: "无限短剧", description: "从剧本、分镜到镜头，完整练习一条短剧制作流程。", icon: Clapperboard },
 ];
+
+export const PRACTICE_SCRIPT_ENTRY = { title: "剧本", description: "从创意到剧本文本的单人练习。", icon: ScrollText } as const;
 
 export const PRACTICE_MODULES: Array<{ module: PracticeModuleKind; title: string; description: string; icon: LucideIcon }> = [
     { module: "character", title: "角色", description: "生成角色主体图，并继续扩展多视角设定。", icon: UserRound },
@@ -49,6 +51,7 @@ export default function PracticeHome() {
     const [dramaProjects, setDramaProjects] = useState<PracticeProjectSummary[]>([]);
     const [sessions, setSessions] = useState<PracticeSession[]>([]);
     const [visibleModules, setVisibleModules] = useState<PracticeModuleKind[]>([]);
+    const [scriptEnabled, setScriptEnabled] = useState(true);
     const [visibleProjects, setVisibleProjects] = useState<Record<PracticeProjectKind, boolean>>({ canvas: false, drama: false });
     const [loading, setLoading] = useState(true);
     const [creatingKind, setCreatingKind] = useState<PracticeProjectKind | null>(null);
@@ -70,6 +73,7 @@ export default function PracticeHome() {
                 if (!active) return;
                 setVisibleModules(configuration.modules.map((item) => item.module));
                 setVisibleProjects(configuration.projects);
+                setScriptEnabled((configuration as typeof configuration & { script?: { enabled?: boolean } }).script?.enabled !== false);
                 setCanvasProjects(canvas.projects);
                 setDramaProjects(drama.projects);
                 setSessions(recent.sessions);
@@ -161,6 +165,28 @@ export default function PracticeHome() {
                     </section>
                 ) : null}
 
+                <section className="mt-5 sm:mt-8" aria-labelledby="practice-script-heading">
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 id="practice-script-heading" className="text-base font-semibold sm:text-lg">
+                            剧本练习
+                        </h2>
+                        <span className="text-xs text-muted-foreground">单人 · 文本</span>
+                    </div>
+                    <button
+                        type="button"
+                        className="mt-3 flex w-full items-center gap-3 border border-border bg-card p-3 text-left transition hover:border-foreground/40 hover:bg-muted/30 sm:p-4"
+                        onClick={() => router.push("/practice/scripts")}
+                        data-practice-script-entry
+                    >
+                        <span className="grid size-10 shrink-0 place-items-center border border-border bg-muted/50">
+                            <PRACTICE_SCRIPT_ENTRY.icon className="size-5" />
+                        </span>
+                        <span className="min-w-0">
+                            <span className="block text-sm font-medium">{PRACTICE_SCRIPT_ENTRY.title}</span>
+                            <span className="mt-1 block text-xs leading-5 text-muted-foreground">{PRACTICE_SCRIPT_ENTRY.description}</span>
+                        </span>
+                    </button>
+                </section>
                 <section className="mt-5 sm:mt-8" aria-labelledby="practice-modules-heading">
                     <div className="flex items-center justify-between gap-3">
                         <h2 id="practice-modules-heading" className="text-base font-semibold sm:text-lg">
