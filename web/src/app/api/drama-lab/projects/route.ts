@@ -85,8 +85,8 @@ export async function POST(request: Request) {
             title: title.trim(),
             summary: typeof summary === "string" ? summary.trim() : "",
             style: typeof style === "string" && style.trim() ? style.trim() : "电影感国漫",
-            storyStyle: typeof storyStyle === "string" ? storyStyle.trim() : "",
-            scriptType: typeof scriptType === "string" ? scriptType.trim() : "",
+            ...(typeof storyStyle === "string" && storyStyle.trim() ? { storyStyle: storyStyle.trim() } : {}),
+            ...(typeof scriptType === "string" && scriptType.trim() ? { scriptType: scriptType.trim() } : {}),
             ratio: typeof ratio === "string" && ratio.trim() ? ratio.trim() : "16:9",
         });
         await ensureDramaLabProjectGroup(created.id, user.id);

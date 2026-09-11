@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
 import { addDramaLabStoryOption, DramaLabStoryOptionError, listDramaLabStoryOptions, removeDramaLabStoryOption } from "@/lib/server/drama-lab-story-options-service";
 
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     try {
-        const body = (await request.json()) as { kind?: unknown; value?: unknown };
+        const body = await readJsonBody<{ kind?: unknown; value?: unknown }>(request, 16 * 1024);
         const option = await addDramaLabStoryOption(user.id, body.kind, body.value);
         return NextResponse.json({ code: 0, data: option, msg: "自定义选项已保存" }, { status: 201 });
     } catch (error) {
@@ -33,7 +34,7 @@ export async function DELETE(request: Request) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     try {
-        const body = (await request.json()) as { kind?: unknown; value?: unknown };
+        const body = await readJsonBody<{ kind?: unknown; value?: unknown }>(request, 16 * 1024);
         const removed = await removeDramaLabStoryOption(user.id, body.kind, body.value);
         return NextResponse.json({ code: 0, data: { removed }, msg: "自定义选项已删除" });
     } catch (error) {

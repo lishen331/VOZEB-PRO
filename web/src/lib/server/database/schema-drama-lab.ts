@@ -467,7 +467,7 @@ CREATE TABLE IF NOT EXISTS drama_lab_story_options (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS drama_lab_story_options_user_kind_value_idx
-    ON drama_lab_story_options (user_id, kind, lower(value));
+    ON drama_lab_story_options (user_id, kind, value);
 
 -- 后台配置：业务场景
 CREATE TABLE IF NOT EXISTS drama_lab_business_scenarios (
