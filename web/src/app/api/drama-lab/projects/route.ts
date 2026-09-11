@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     try {
         await requireFeatureModuleEnabled("drama-lab");
         const body = await readJsonBody<Record<string, unknown>>(request, 256 * 1024);
-        const { title, summary, style, ratio } = body;
+        const { title, summary, style, storyStyle, scriptType, ratio } = body;
 
         if (!title || typeof title !== "string" || !title.trim()) {
             return NextResponse.json({ code: 400, msg: "项目标题不能为空" }, { status: 400 });
@@ -85,6 +85,8 @@ export async function POST(request: Request) {
             title: title.trim(),
             summary: typeof summary === "string" ? summary.trim() : "",
             style: typeof style === "string" && style.trim() ? style.trim() : "电影感国漫",
+            storyStyle: typeof storyStyle === "string" ? storyStyle.trim() : "",
+            scriptType: typeof scriptType === "string" ? scriptType.trim() : "",
             ratio: typeof ratio === "string" && ratio.trim() ? ratio.trim() : "16:9",
         });
         await ensureDramaLabProjectGroup(created.id, user.id);

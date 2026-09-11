@@ -454,6 +454,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS drama_lab_prompt_templates_global_key_idx
     ON drama_lab_prompt_templates (template_key)
     WHERE deleted_at IS NULL AND template_key IS NOT NULL;
 
+-- 账号级剧本风格/类型自定义选项，供该账号的所有短剧项目复用
+CREATE TABLE IF NOT EXISTS drama_lab_story_options (
+    id text PRIMARY KEY,
+    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind text NOT NULL,
+    value varchar(120) NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT drama_lab_story_options_kind CHECK (kind IN ('style', 'type')),
+    CONSTRAINT drama_lab_story_options_value_nonempty CHECK (char_length(btrim(value)) BETWEEN 1 AND 120)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS drama_lab_story_options_user_kind_value_idx
+    ON drama_lab_story_options (user_id, kind, lower(value));
+
 -- 后台配置：业务场景
 CREATE TABLE IF NOT EXISTS drama_lab_business_scenarios (
     id text PRIMARY KEY,

@@ -126,6 +126,7 @@ const POSTGRES_TABLES = [
     "drama_lab_prompt_templates",
     "drama_lab_business_scenarios",
     "drama_lab_generation_settings",
+    "drama_lab_story_options",
     "drama_lab_sd2_assets",
     "drama_lab_project_groups",
     "drama_lab_project_members",

@@ -1,3 +1,4 @@
+import { dramaLabStoryOptionLabel } from "@/lib/drama-lab-story-options";
 import { renderDramaLabStoryTemplate } from "@/lib/drama-lab-style-prompt";
 import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
@@ -30,8 +31,8 @@ export async function generateDramaLabScript(input: { userId: string; origin: st
     const context = JSON.stringify({
         task: "生成当前短剧集的完整剧本",
         storyOutline: outline,
-        ...(input.storyStyle.trim() ? { storyStyle: input.storyStyle.trim() } : {}),
-        ...(input.scriptType.trim() ? { scriptType: input.scriptType.trim() } : {}),
+        ...(input.storyStyle.trim() ? { storyStyle: dramaLabStoryOptionLabel("style", input.storyStyle) } : {}),
+        ...(input.scriptType.trim() ? { scriptType: dramaLabStoryOptionLabel("type", input.scriptType) } : {}),
         plannedEpisodeCount: input.episodeCount.trim(),
         currentEpisodeId: input.episodeId,
     });

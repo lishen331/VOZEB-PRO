@@ -306,6 +306,8 @@ export type DramaProject = {
     title: string;
     summary: string;
     style: string;
+    storyStyle?: string;
+    scriptType?: string;
     ratio: string;
     status: "active" | "archived";
     creativeConversationId?: string;
@@ -343,6 +345,8 @@ export type DramaProjectSummaryPage = {
 };
 
 export type CreateDramaProjectInput = Pick<DramaProject, "title" | "summary" | "style" | "ratio"> & {
+    storyStyle?: string;
+    scriptType?: string;
     sourceHandoffId?: string;
     initialScript?: string;
     sourceAssets?: DramaSourceAsset[];

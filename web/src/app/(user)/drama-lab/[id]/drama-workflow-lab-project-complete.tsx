@@ -65,6 +65,7 @@ import { DramaLabTaskPanel } from "./drama-lab-task-panel";
 import { dramaLabVideoTaskReviewDescription, requiresDramaLabVideoTaskCheck } from "./drama-lab-video-task-recovery";
 import { DramaLabVideoBatchWaitError, waitForDramaLabVideoBatch, type DramaLabVideoBatchExecutionPhase } from "@/lib/drama-lab-video-batch";
 import { optimizePrompt } from "@/services/api/prompt-optimization";
+import { DRAMA_LAB_CUSTOM_OPTION_VALUE, DRAMA_LAB_SCRIPT_TYPE_PRESETS, DRAMA_LAB_STORY_STYLE_PRESETS, type DramaLabStoryOptionKind } from "@/lib/drama-lab-story-options";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -418,6 +419,8 @@ export interface Project {
     title: string;
     description?: string;
     style?: string;
+    storyStyle?: string;
+    scriptType?: string;
     aspectRatio?: string;
     episodes: Episode[];
     characters: Character[];
@@ -1898,6 +1901,10 @@ function ScriptEditor({
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [storyStyle, setStoryStyle] = useState("");
     const [scriptType, setScriptType] = useState("");
+    const [customStoryOptions, setCustomStoryOptions] = useState<{ styles: string[]; types: string[] }>({ styles: [], types: [] });
+    const [customOptionKind, setCustomOptionKind] = useState<DramaLabStoryOptionKind | null>(null);
+    const [customOptionDraft, setCustomOptionDraft] = useState("");
+    const [customOptionBusy, setCustomOptionBusy] = useState(false);
     const [episodeCount, setEpisodeCount] = useState("1");
     const [scriptLibraryOpen, setScriptLibraryOpen] = useState(false);
     const [scriptLibraryLoading, setScriptLibraryLoading] = useState(false);
@@ -1911,8 +1918,49 @@ function ScriptEditor({
             storyOutline: project.description || "",
         });
         scriptForm.setFieldsValue({ script: episode?.script || "" });
+        setStoryStyle(project.storyStyle || "");
+        setScriptType(project.scriptType || "");
         setPreviewEpisodeId((current) => (current && project.episodes.some((item) => item.id === current) ? current : project.episodes[0]?.id));
     }, [form, scriptForm, project, episode]);
+
+    useEffect(() => {
+        let disposed = false;
+        void fetch("/api/drama-lab/story-options", { cache: "no-store" })
+            .then(async (response) => {
+                const payload = await response.json();
+                if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "自定义选项加载失败");
+                if (!disposed) setCustomStoryOptions(payload.data || { styles: [], types: [] });
+            })
+            .catch(() => undefined);
+        return () => {
+            disposed = true;
+        };
+    }, []);
+
+    const openCustomOption = (kind: DramaLabStoryOptionKind) => {
+        setCustomOptionKind(kind);
+        setCustomOptionDraft("");
+    };
+
+    const saveCustomOption = async () => {
+        if (!customOptionKind || !customOptionDraft.trim()) return;
+        setCustomOptionBusy(true);
+        try {
+            const response = await fetch("/api/drama-lab/story-options", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: customOptionKind, value: customOptionDraft.trim() }) });
+            const payload = await response.json();
+            if (!response.ok || payload.code !== 0 || !payload.data?.value) throw new Error(payload.msg || "自定义选项保存失败");
+            const value = String(payload.data.value);
+            setCustomStoryOptions((current) => ({ ...current, [customOptionKind === "style" ? "styles" : "types"]: Array.from(new Set([...current[customOptionKind === "style" ? "styles" : "types"], value])) }));
+            if (customOptionKind === "style") setStoryStyle(value);
+            else setScriptType(value);
+            setCustomOptionKind(null);
+            scheduleSave();
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "自定义选项保存失败");
+        } finally {
+            setCustomOptionBusy(false);
+        }
+    };
 
     const saveNow = useCallback(
         (options: SaveOptions = {}) => {
@@ -1924,13 +1972,15 @@ function ScriptEditor({
                     {
                         description: values.storyOutline || "",
                         episodes: updatedEpisodes,
+                        storyStyle,
+                        scriptType,
                     },
                     options,
                 );
             }
             return Promise.resolve(false);
         },
-        [episode, form, onSave, project, scriptForm],
+        [episode, form, onSave, project, scriptForm, scriptType, storyStyle],
     );
 
     const scheduleSave = useCallback(() => {
@@ -2167,17 +2217,52 @@ function ScriptEditor({
                                         </Form>
 
                                         <div className="order-3 flex flex-wrap items-center gap-4">
-                                            <Select aria-label="剧本风格" placeholder="剧本风格" value={storyStyle} onChange={setStoryStyle} style={{ width: 140 }}>
-                                                <Option value="modern">现代</Option>
-                                                <Option value="ancient">古风</Option>
-                                                <Option value="fantasy">奇幻</Option>
-                                                <Option value="daily">日常</Option>
+                                            <Select
+                                                aria-label="剧本风格"
+                                                placeholder="剧本风格"
+                                                value={storyStyle || undefined}
+                                                onChange={(value) => {
+                                                    if (value === DRAMA_LAB_CUSTOM_OPTION_VALUE) return openCustomOption("style");
+                                                    setStoryStyle(value);
+                                                    scheduleSave();
+                                                }}
+                                                style={{ width: 160 }}
+                                            >
+                                                {DRAMA_LAB_STORY_STYLE_PRESETS.map((option) => (
+                                                    <Option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </Option>
+                                                ))}
+                                                {customStoryOptions.styles.map((value) => (
+                                                    <Option key={`custom-style-${value}`} value={value}>
+                                                        {value}
+                                                    </Option>
+                                                ))}
+                                                <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>＋ 自定义风格</Option>
                                             </Select>
 
-                                            <Select aria-label="剧本类型" placeholder="剧本类型" value={scriptType} onChange={setScriptType} style={{ width: 140 }}>
-                                                <Option value="drama">剧情</Option>
-                                                <Option value="comedy">喜剧</Option>
-                                                <Option value="adventure">冒险</Option>
+                                            <Select
+                                                aria-label="剧本类型"
+                                                placeholder="剧本类型"
+                                                value={scriptType || undefined}
+                                                onChange={(value) => {
+                                                    if (value === DRAMA_LAB_CUSTOM_OPTION_VALUE) return openCustomOption("type");
+                                                    setScriptType(value);
+                                                    scheduleSave();
+                                                }}
+                                                style={{ width: 160 }}
+                                            >
+                                                {DRAMA_LAB_SCRIPT_TYPE_PRESETS.map((option) => (
+                                                    <Option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </Option>
+                                                ))}
+                                                {customStoryOptions.types.map((value) => (
+                                                    <Option key={`custom-type-${value}`} value={value}>
+                                                        {value}
+                                                    </Option>
+                                                ))}
+                                                <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>＋ 自定义类型</Option>
                                             </Select>
 
                                             <Input value={episodeCount} onChange={(event) => setEpisodeCount(event.target.value)} placeholder="集数" style={{ width: 100 }} />
@@ -2210,6 +2295,25 @@ function ScriptEditor({
                                                 ) : null}
                                             </div>
                                         </div>
+                                        {customOptionKind ? (
+                                            <div className="order-3 flex flex-wrap items-center gap-2 rounded border border-border bg-muted/30 p-2" role="dialog" aria-label={customOptionKind === "style" ? "添加自定义剧本风格" : "添加自定义剧本类型"}>
+                                                <Input
+                                                    autoFocus
+                                                    value={customOptionDraft}
+                                                    onChange={(event) => setCustomOptionDraft(event.target.value)}
+                                                    onPressEnter={() => void saveCustomOption()}
+                                                    placeholder={customOptionKind === "style" ? "输入自定义剧本风格" : "输入自定义剧本类型"}
+                                                    maxLength={120}
+                                                    style={{ width: 240 }}
+                                                />
+                                                <Button type="primary" size="small" loading={customOptionBusy} onClick={() => void saveCustomOption()}>
+                                                    确定
+                                                </Button>
+                                                <Button size="small" disabled={customOptionBusy} onClick={() => setCustomOptionKind(null)}>
+                                                    取消
+                                                </Button>
+                                            </div>
+                                        ) : null}
                                         <div className="order-4 border-t border-border pt-4 text-sm text-muted-foreground">
                                             <span className="font-semibold">剧本</span>
                                             <span className="mx-2">·</span>

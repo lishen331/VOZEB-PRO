@@ -1,3 +1,4 @@
+import { dramaLabStoryOptionLabel } from "@/lib/drama-lab-story-options";
 import { renderDramaLabStoryTemplate, dramaLabStyleContext } from "@/lib/drama-lab-style-prompt";
 import { randomUUID } from "node:crypto";
 
@@ -126,8 +127,8 @@ export async function startDramaLabStoryGeneration(input: StartDramaLabStoryGene
                 task: "根据故事梗概生成短剧完整多集剧本",
                 project: { id: project.id, title: project.title, summary: project.summary, style: project.style, ...dramaLabStyleContext(project.style), ratio: project.ratio },
                 storyOutline,
-                ...(storyBatch.storyStyle ? { storyStyle: storyBatch.storyStyle } : {}),
-                ...(storyBatch.scriptType ? { scriptType: storyBatch.scriptType } : {}),
+                ...(storyBatch.storyStyle ? { storyStyle: dramaLabStoryOptionLabel("style", storyBatch.storyStyle) } : {}),
+                ...(storyBatch.scriptType ? { scriptType: dramaLabStoryOptionLabel("type", storyBatch.scriptType) } : {}),
                 episodeCount,
                 existingEpisodes: project.episodes.slice(0, sourceIndex).map((episode) => ({ title: episode.title, script: episode.script.slice(0, 8_000) })),
             }),
