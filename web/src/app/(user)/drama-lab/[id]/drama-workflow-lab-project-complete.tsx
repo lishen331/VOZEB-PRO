@@ -2146,6 +2146,7 @@ function ScriptEditor({
                                                 projectId={project.id}
                                                 currentEpisodeCount={project.episodes.length}
                                                 messageApi={messageApi}
+                                                triggerContainerId="drama-lab-novel-import-actions"
                                                 onImported={async (episodeId) => {
                                                     await onReload();
                                                     if (episodeId) onActiveEpisodeChange(episodeId);
@@ -2181,6 +2182,7 @@ function ScriptEditor({
                                             <Button type="primary" icon={<Plus className="size-4" />} onClick={handleGenerateScript} loading={generating} disabled={generating}>
                                                 {generating ? "生成中..." : "生成剧本"}
                                             </Button>
+                                            <span id="drama-lab-novel-import-actions" className="inline-flex" />
 
                                             <div className="ml-auto flex min-h-5 items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
                                                 {saveStatus === "pending" ? (

@@ -40,4 +40,12 @@ describe("DramaLabNovelImport", () => {
         expect(source).toContain("onDrop={handleDrop}");
         expect(source).toContain("requestNovelImport(projectId, { sourceText: content, fileName: file.name, commit: false })");
     });
+
+    it("can mount its existing picker in the story action bar without removing the drop zone", async () => {
+        const source = await import("node:fs/promises").then(({ readFile }) => readFile(new URL("./drama-lab-novel-import.tsx", import.meta.url), "utf8"));
+
+        expect(source).toContain("triggerContainerId?: string");
+        expect(source).toContain("createPortal(importTrigger, triggerContainer)");
+        expect(source).toContain("!triggerContainerId ? importTrigger : null");
+    });
 });
