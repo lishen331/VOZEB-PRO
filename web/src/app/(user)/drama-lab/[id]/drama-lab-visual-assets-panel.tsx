@@ -766,13 +766,13 @@ function AssetEditorModal({
                         <Input.TextArea rows={3} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value })} />
                     </label>
                     <label className="grid gap-1.5 text-sm">
-                        <span className="flex items-center justify-between gap-3">
-                            <span>图生提示词</span>
-                            <span className="text-xs font-normal text-muted-foreground">AI 润色后的图片提示词，生成图片时直接使用；可手动修改</span>
+                        <span className="flex min-w-0 items-center gap-2 whitespace-nowrap">
+                            <span className="shrink-0">图生提示词</span>
+                            <span className="min-w-0 flex-1 truncate text-xs font-normal text-muted-foreground">AI 润色后的图片提示词，生成图片时直接使用；可手动修改</span>
+                            <Button size="small" className="shrink-0" onClick={() => onAiAction("prompt")} loading={busy}>
+                                重新生成提示词
+                            </Button>
                         </span>
-                        <Button size="small" className="justify-self-end" onClick={() => onAiAction("prompt")} loading={busy}>
-                            重新生成提示词
-                        </Button>
                         <Input.TextArea rows={5} value={asset.polishedPrompt || asset.imagePrompt || ""} onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} />
                     </label>
                 </div>

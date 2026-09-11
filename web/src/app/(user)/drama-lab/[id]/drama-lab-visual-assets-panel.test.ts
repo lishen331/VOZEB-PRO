@@ -110,7 +110,7 @@ describe("L-style prop editor modal", () => {
         expect(source).toContain("<span>名称</span>");
         expect(source).toContain("<span>类型</span>");
         expect(source).toContain("<span>描述</span>");
-        expect(source).toContain("<span>图生提示词</span>");
+        expect(source).toContain("图生提示词");
         const propBranch = source.slice(source.indexOf('if (editor.kind === \\"props\\")'), source.indexOf("return (", source.indexOf('if (editor.kind === \\"props\\")')));
         expect(propBranch).not.toContain("生成版式");
     });
@@ -137,5 +137,19 @@ describe("L-style prop reference actions", () => {
         expect(prop.indexOf("提取特征描述")).toBeLessThan(prop.indexOf("移除"));
         expect(prop).not.toContain("主参考图");
         expect(prop).not.toContain("+ 上传");
+    });
+});
+
+describe("L-style prop prompt row", () => {
+    it("keeps the prompt label, AI note, and regenerate action on one row", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        const propStart = source.indexOf('if (editor.kind === "props")');
+        const promptStart = source.indexOf('<span className="flex min-w-0 items-center gap-2 whitespace-nowrap">', propStart);
+        const promptEnd = source.indexOf("<Input.TextArea rows={5}", promptStart);
+        const row = source.slice(promptStart, promptEnd);
+        expect(row).toContain("图生提示词");
+        expect(row).toContain("AI 润色后的图片提示词");
+        expect(row).toContain("重新生成提示词");
+        expect(row).toContain("whitespace-nowrap");
     });
 });
