@@ -43,7 +43,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 }
 
 async function readNovelImportRequest(request: Request) {
-    const contentType = request.headers.get("content-type")?.toLowerCase() || "";
+    const rawContentType = request.headers.get("content-type") || "";
+    const contentType = rawContentType.toLowerCase();
     if (!contentType.includes("multipart/form-data")) {
         const parsed = await readJsonBodyResult<Record<string, unknown>>(request, MAX_IMPORT_REQUEST_BYTES);
         if (!parsed.ok) return parsed;
@@ -63,7 +64,7 @@ async function readNovelImportRequest(request: Request) {
     let form: FormData;
     try {
         const bytes = await readRequestBodyBytes(request, MAX_IMPORT_REQUEST_BYTES + 256 * 1024);
-        form = await new Request(request.url, { method: "POST", headers: { "content-type": contentType }, body: bytes }).formData();
+        form = await new Request(request.url, { method: "POST", headers: { "content-type": rawContentType }, body: bytes }).formData();
     } catch (error) {
         if (error instanceof RequestBodyTooLargeError) return { ok: false as const, status: error.status, message: "小说文件请求超过大小限制" };
         return { ok: false as const, status: 400, message: "无法读取小说文件" };
