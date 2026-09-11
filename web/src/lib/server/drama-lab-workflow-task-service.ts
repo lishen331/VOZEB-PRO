@@ -1,4 +1,5 @@
 import { normalizeDramaLabStoryboardOptions, DramaLabStoryboardOptionsError } from "@/lib/drama-lab-storyboard-options";
+import { resolveDramaLabStylePrompt } from "@/lib/drama-lab-style-prompt";
 import { randomUUID } from "node:crypto";
 
 import type { DramaCharacter, DramaProject, DramaProp, DramaScene, DramaShot } from "@/lib/drama-project-contract";
@@ -84,11 +85,19 @@ export async function startDramaLabWorkflow(input: StartDramaLabWorkflowInput) {
     const active = await queryWorkflowTasksForProject(input.userId, projectId, ownerUserId);
     const activeTask = active.find((task) => task.workflow?.projectId === projectId && ["pending", "running"].includes(task.status));
     if (activeTask) {
-        const sameRequestShape = activeTask.workflow.options.mode === options.mode && activeTask.workflow.sourceEpisodeId === sourceEpisodeId && activeTask.workflow.options.scope === options.scope;
+        const sameRequestShape =
+            activeTask.workflow.options.mode === options.mode && activeTask.workflow.sourceEpisodeId === sourceEpisodeId && activeTask.workflow.options.scope === options.scope && activeTask.workflow.options.visualStyle === options.visualStyle;
         if (sameRequestShape && JSON.stringify(normalizeDramaLabStoryboardOptions(activeTask.workflow.options.storyboardOptions)) === JSON.stringify(options.storyboardOptions || {})) return activeTask;
         throw new DramaLabWorkflowError("当前项目已有其他任务正在执行，请等待完成或取消后再试", 409);
     }
-    const episodeIds = options.scope === "all" ? project.episodes.map((episode) => episode.id) : [sourceEpisodeId];
+    let workflowProject = project;
+    if (options.visualStyle && options.visualStyle !== project.style) {
+        const updatedAt = new Date().toISOString();
+        const styledProject = { ...project, style: options.visualStyle, updatedAt };
+        await updateDramaProject(ownerUserId, styledProject, project.updatedAt);
+        workflowProject = styledProject;
+    }
+    const episodeIds = options.scope === "all" ? workflowProject.episodes.map((episode) => episode.id) : [sourceEpisodeId];
     const steps = createSteps(options.mode, options.autoExport);
     const now = Date.now();
     const workflow: DramaLabWorkflowState = {
@@ -100,7 +109,7 @@ export async function startDramaLabWorkflow(input: StartDramaLabWorkflowInput) {
         steps,
         children: [],
         currentStepIndex: 0,
-        inputSnapshot: projectSnapshot(project, episodeIds),
+        inputSnapshot: projectSnapshot(workflowProject, episodeIds),
         outputRefs: [],
         startedAt: now,
     };
@@ -850,6 +859,10 @@ function projectSnapshot(project: DramaProject, episodeIds: string[]) {
         title: project.title,
         ratio: project.ratio,
         style: project.style,
+        ...(() => {
+            const stylePrompt = resolveDramaLabStylePrompt(project.style);
+            return { stylePromptZh: stylePrompt.zh, stylePromptEn: stylePrompt.en };
+        })(),
         episodeIds,
         episodes: project.episodes.filter((episode) => episodeIds.includes(episode.id)).map((episode) => ({ id: episode.id, title: episode.title, script: episode.script.slice(0, 12_000) })),
         assetCounts: { characters: project.characters.length, scenes: project.scenes.length, props: project.props.length },
@@ -886,7 +899,10 @@ function isConflictError(error: unknown): error is Error & { status: number } {
  * for every step so approved members can run and persist workflows safely. */
 async function resolveWorkflowProject(task: DramaLabWorkflowTask, userId = task.userId) {
     try {
-        return await resolveDramaLabProjectForRequest(userId, task.workflow.projectId);
+        const resolved = await resolveDramaLabProjectForRequest(userId, task.workflow.projectId);
+        const snapshotStyle = stringValue(task.workflow.inputSnapshot?.style);
+        if (!snapshotStyle || snapshotStyle === resolved.project.style) return resolved;
+        return { ...resolved, project: { ...resolved.project, style: snapshotStyle } };
     } catch (error) {
         if (error instanceof Error && "status" in error && (error as { status?: number }).status === 403) throw error;
         throw new DramaLabWorkflowError("Drama project not found", 404);
