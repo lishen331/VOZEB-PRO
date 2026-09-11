@@ -17,6 +17,31 @@ describe("production storyboard workbench layout wiring", () => {
         expect(source).not.toContain("xl:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)]");
         expect(source).toContain('className="min-w-0 space-y-4 p-4" aria-label={`分镜 ${shot.shotNumber} 资产关联`}');
     });
+    it("exposes classic upload via the existing key-frame flow and aligns media above editors", async () => {
+        const source = await readFile(path, "utf8");
+        expect(source).toContain('aria-label="上传分镜图"');
+        expect(source).toContain('onUploadFrame(shot, "key", file)');
+        expect(source).toContain("const classicImageUrl = shot.frames?.key?.url || shot.storyboardImageUrl");
+        expect(source).toContain('data-storyboard-media="image"');
+        expect(source).toContain('data-storyboard-media="video"');
+        expect(source).toContain("查看 / 编辑分镜图提示词");
+        expect(source).toContain("查看 / 编辑视频提示词");
+        expect(source).toContain("上传{frameLabel[frameType]}");
+        expect(source).toContain("const [promptEditor, setPromptEditor]");
+        expect(source).toContain("function PromptPreview(");
+        expect(source).not.toContain('<details open className="space-y-2">');
+        expect(source).toContain('key: { ...(shot.frames?.key || { prompt: "" }), url, status: "success", source: "restored"');
+        expect(source).toContain('{classicImageUrl ? "重新生成分镜图" : "生成分镜图"}');
+    });
+    it("keeps first-last controls scoped to first-last mode and media controls outside textareas", async () => {
+        const source = await readFile(path, "utf8");
+        expect(source).toContain("{isFirstLast\n                            ? ([");
+        expect(source).toContain("aria-label={`上传${frameLabel[frameType]}`}");
+        expect(source).toContain('aria-label="选择分镜图文件"');
+        expect(source).toContain("onClick={() => uploadInputRefs.current.key?.click()}");
+        expect(source).toContain('data-storyboard-media="image"');
+        expect(source).toContain('data-storyboard-media="video"');
+    });
     it("supports per-shot collapse without removing task and canvas controls", async () => {
         const source = await readFile(path, "utf8");
         expect(source).toContain("collapsedShots");
