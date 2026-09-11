@@ -1670,7 +1670,6 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                 <Button icon={<Sparkles className="size-4" />} onClick={() => setWorkflowModalOpen(true)}>
                     一键全流程
                 </Button>
-                <Button className="lg:hidden" type="text" aria-label="打开团队协作与审批" title="打开团队协作与审批" icon={<PanelRightOpen className="size-4" />} onClick={() => setCollaborationDrawerOpen(true)} />
                 <Button type="primary" icon={<Save className="size-4" />} loading={saving} onClick={() => void saveProject({})}>
                     保存草稿
                 </Button>
@@ -5882,7 +5881,9 @@ function StoryboardWorkbenchCard({
                     </p>
                 </div>
                 <div className="order-0 flex w-full flex-wrap items-center justify-end gap-1">
-                    <Button type="text" size="small" title="在画布查看" aria-label="在画布查看" href={dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)} icon={<PanelsTopLeft className="size-4" />} />
+                    <Button size="small" title="画布定位" aria-label="画布定位" href={dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)} icon={<PanelsTopLeft className="size-4" />}>
+                        画布定位
+                    </Button>
                     <Button type="text" size="small" title="同步任务状态" aria-label="同步任务状态" icon={<LoaderCircle className="size-4" />} onClick={onSync} />
                     <Button type="text" size="small" title="编辑分镜" aria-label="编辑分镜" icon={<Edit2 className="size-4" />} onClick={onEdit}>
                         分镜配置

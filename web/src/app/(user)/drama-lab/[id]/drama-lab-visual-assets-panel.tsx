@@ -422,9 +422,9 @@ export function DramaLabVisualAssetsPanel({
                                                         <h3 className="min-w-0 flex-1 truncate font-medium" title={asset.name}>
                                                             {asset.name}
                                                         </h3>
-                                                        <Tooltip title="编辑设定">
-                                                            <Button type="text" size="small" shape="circle" icon={<Edit2 className="size-3.5" />} onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })} aria-label={`编辑${meta.label}`} />
-                                                        </Tooltip>
+                                                        <Button size="small" icon={<Edit2 className="size-3.5" />} onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })} aria-label="编辑设定">
+                                                            编辑设定
+                                                        </Button>
                                                     </div>
                                                     <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">{asset.description || "未填写文字设定"}</p>
                                                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -441,10 +441,10 @@ export function DramaLabVisualAssetsPanel({
                                                             size="small"
                                                             icon={<PanelsTopLeft className="size-3.5" />}
                                                             href={onOpenCanvasHref(assetKind === "characters" ? "character" : assetKind === "scenes" ? "scene" : "prop", asset.id)}
-                                                            aria-label="在画布查看"
-                                                            title="在画布查看"
+                                                            aria-label="画布定位"
+                                                            title="画布定位"
                                                         >
-                                                            在画布查看
+                                                            画布定位
                                                         </Button>
                                                     </div>
                                                     {references.length ? (

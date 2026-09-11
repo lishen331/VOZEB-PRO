@@ -38,7 +38,7 @@ describe("extraction detail wiring", () => {
     it("offers a canvas entry for each asset without removing existing actions", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect(source).toContain("onOpenCanvasHref");
-        expect(source).toContain("在画布查看");
+        expect(source).toContain("画布定位");
         expect(source).toContain("PanelsTopLeft");
         expect(source).toContain("AI 生图");
         expect(source).toContain("加入素材库");
