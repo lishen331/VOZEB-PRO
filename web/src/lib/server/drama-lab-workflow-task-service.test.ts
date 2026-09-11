@@ -145,6 +145,13 @@ describe("drama lab workflow task service", () => {
 
     afterAll(() => vi.unstubAllGlobals());
 
+    it("persists a workflow visual style to the project before creating the workflow snapshot", async () => {
+        const started = await startDramaLabWorkflow(startInput({ options: { mode: "assets", scope: "current", visualStyle: "horror" } }));
+
+        expect(mocks.updateDramaProject).toHaveBeenCalledWith("user-one", expect.objectContaining({ id: project.id, style: "horror" }), project.updatedAt);
+        expect(started.workflow.options.visualStyle).toBe("horror");
+        expect(started.workflow.inputSnapshot).toMatchObject({ style: "horror", stylePromptZh: expect.stringContaining("恐怖") });
+    });
     it("persists extraction constraints and rejects a conflicting active request", async () => {
         const first = await startDramaLabWorkflow(startInput({ options: { mode: "storyboard_extract", scope: "current", storyboardOptions: { shotCount: 12, totalDuration: 90.5 } } }));
         expect(first.workflow.options).toMatchObject({ storyboardOptions: { shotCount: 12, totalDuration: 90.5 } });
