@@ -11,6 +11,16 @@ export function readDramaLabAssetVisualDetails(value: unknown): DramaAssetVisual
         if (typeof text === "string" && text.trim()) details[key] = text.trim();
     }
     if (input.generationLayout === "single" || input.generationLayout === "four_view") details.generationLayout = input.generationLayout;
+    if (Array.isArray(input.stages)) {
+        const stages = input.stages.flatMap((item) => {
+            if (!item || typeof item !== "object") return [];
+            const stage = item as Record<string, unknown>;
+            const range = Array.isArray(stage.episodeRange) ? stage.episodeRange.map(Number) : [];
+            const appearance = typeof stage.appearance === "string" ? stage.appearance.trim() : "";
+            return range.length === 2 && range.every((value) => Number.isFinite(value) && value >= 1) && appearance ? [{ episodeRange: [Math.floor(range[0]), Math.floor(range[1])] as [number, number], appearance }] : [];
+        });
+        if (stages.length) details.stages = stages;
+    }
     return details;
 }
 

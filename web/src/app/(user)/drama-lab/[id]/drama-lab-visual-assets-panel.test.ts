@@ -54,3 +54,14 @@ describe("drama lab visual asset extraction actions", () => {
         expect(source).toContain('busyKey === "extract:all"');
     });
 });
+
+describe("L-compatible character AI editor actions", () => {
+    it("renders reference extraction, prompt regeneration, anchor extraction, and stage generation actions", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        expect(source).toContain("AI 提取视觉特征");
+        expect(source).toContain("重新生成提示词");
+        expect(source).toContain("提炼视觉锚点");
+        expect(source).toContain("AI 生成造型");
+        expect(source).toContain("移除参考图");
+    });
+});

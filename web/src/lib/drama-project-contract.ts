@@ -117,6 +117,7 @@ export type DramaVoiceProfile = {
 
 /** Optional extraction fields retained by the short-drama lab in project_json. */
 export type DramaAssetGenerationLayout = "single" | "four_view";
+export type DramaAssetStage = { episodeRange: [number, number]; appearance: string };
 
 export type DramaAssetVisualDetails = {
     appearance?: string;
@@ -124,6 +125,7 @@ export type DramaAssetVisualDetails = {
     polishedPrompt?: string;
     singleImagePrompt?: string;
     generationLayout?: DramaAssetGenerationLayout;
+    stages?: DramaAssetStage[];
     role?: string;
     type?: string;
     time?: string;

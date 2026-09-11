@@ -487,12 +487,13 @@ function normalizeNamedAssets(value: unknown, prefix: string, character = false)
                 name: cleanText(input.name),
                 description: cleanText(input.description),
                 ...Object.fromEntries(
-                    ["appearance", "imagePrompt", "role", "type", "time"].flatMap((key) => {
+                    ["appearance", "imagePrompt", "polishedPrompt", "singleImagePrompt", "generationLayout", "role", "type", "time"].flatMap((key) => {
                         const value = optionalText(input[key]);
                         return value ? [[key, value]] : [];
                     }),
                 ),
                 profile: normalizeAssetProfile(input.profile),
+                stages: normalizeAssetStages(input.stages),
                 references,
                 primaryReferenceId,
                 referenceImageUrl: primaryReference?.url,
@@ -526,6 +527,19 @@ function normalizeClues(value: unknown) {
             },
         ];
     });
+}
+
+function normalizeAssetStages(value: unknown) {
+    if (!Array.isArray(value)) return undefined;
+    const stages = value.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const input = item as Record<string, unknown>;
+        const range = Array.isArray(input.episodeRange) ? input.episodeRange.map(Number) : [];
+        const appearance = typeof input.appearance === "string" ? input.appearance.trim() : "";
+        if (range.length !== 2 || !Number.isFinite(range[0]) || !Number.isFinite(range[1]) || range[0] < 1 || range[1] < range[0] || !appearance) return [];
+        return [{ episodeRange: [Math.floor(range[0]), Math.floor(range[1])] as [number, number], appearance: appearance.slice(0, 4000) }];
+    });
+    return stages.length ? stages : undefined;
 }
 
 function normalizeAssetProfile(value: unknown): DramaAssetProfile {

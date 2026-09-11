@@ -249,6 +249,15 @@ export function DramaLabVisualAssetsPanel({
         }
     };
 
+    const removeActiveReference = async () => {
+        if (!activeAsset) return;
+        const refs = dramaAssetReferences(activeAsset);
+        const primary = refs[0];
+        if (!primary) return;
+        await updateAsset(activeAsset.id, { references: refs.slice(1), primaryReferenceId: refs[1]?.id, referenceImageUrl: refs[1]?.url, referenceStorageKey: refs[1]?.storageKey });
+        setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, references: refs.slice(1), primaryReferenceId: refs[1]?.id, referenceImageUrl: refs[1]?.url, referenceStorageKey: refs[1]?.storageKey } } : current));
+    };
+
     const uploadReference = async (file?: File) => {
         if (!file || !activeAsset) return;
         const requestKey = `upload:${activeAsset.id}`;
@@ -276,6 +285,29 @@ export function DramaLabVisualAssetsPanel({
         const primary = references.find((reference) => reference.id === asset.primaryReferenceId) || references[0];
         if (!(await updateAsset(asset.id, { references, primaryReferenceId: primary?.id, referenceImageUrl: primary?.url, referenceStorageKey: primary?.storageKey, imageUrl: primary?.url }))) return;
         messageApi.success("参考图已移除");
+    };
+
+    const runAssetAiAction = async (action: "prompt" | "anchor" | "stages") => {
+        if (!activeAsset || !editor) return;
+        const key = `ai:${action}:${activeAsset.id || "new"}`;
+        setBusyKey(key);
+        try {
+            if (!activeAsset.id) throw new Error("请先保存资产，再使用 AI 操作");
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/assets/${encodeURIComponent(activeAsset.id)}/ai`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind: editor.kind, action, requestId: `drama-lab-asset-ai:${project.id}:${activeAsset.id}:${action}:${nanoid()}` }),
+            });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { polishedPrompt?: string; profile?: DramaLabAssetProfile; stages?: VisualAsset["stages"] } };
+            if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "资产 AI 操作失败");
+            const patch = action === "prompt" ? { polishedPrompt: payload.data.polishedPrompt || "" } : action === "anchor" ? { profile: { ...EMPTY_PROFILE, ...(payload.data.profile || {}) } } : { stages: payload.data.stages || [] };
+            setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, ...patch } } : current));
+            messageApi.success(action === "prompt" ? "最终生图提示词已生成" : action === "anchor" ? "视觉锚点已提炼" : "多阶段造型已生成");
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "资产 AI 操作失败");
+        } finally {
+            setBusyKey("");
+        }
     };
 
     const saveEditor = async () => {
@@ -456,13 +488,15 @@ export function DramaLabVisualAssetsPanel({
 
             <AssetEditorModal
                 editor={editor}
-                busy={busyKey.startsWith("upload:")}
+                busy={busyKey.startsWith("upload:") || busyKey.startsWith("ai:")}
                 uploadInputRef={uploadInputRef}
                 onClose={() => setEditor(undefined)}
                 onChange={(asset) => setEditor((current) => (current ? { ...current, asset } : current))}
                 onSave={() => void saveEditor()}
                 onUpload={() => uploadInputRef.current?.click()}
                 onUploadFile={(file) => void uploadReference(file)}
+                onAiAction={(action) => void runAssetAiAction(action)}
+                onRemoveReference={() => void removeActiveReference()}
             />
             {libraryOpen ? <DramaLabAssetLibraryPicker key={kind} kind={kind} label={definition.label} busyKey={busyKey} onClose={() => setLibraryOpen(false)} onImport={importLibraryAsset} /> : null}
             {impactModalAsset ? (
@@ -511,6 +545,8 @@ function AssetEditorModal({
     onSave,
     onUpload,
     onUploadFile,
+    onAiAction,
+    onRemoveReference,
 }: {
     editor?: EditorState;
     busy: boolean;
@@ -520,11 +556,14 @@ function AssetEditorModal({
     onSave: () => void;
     onUpload: () => void;
     onUploadFile: (file?: File) => void;
+    onAiAction: (action: "prompt" | "anchor" | "stages") => void;
+    onRemoveReference: () => void;
 }) {
     const asset = editor?.asset;
     const label = editor ? ASSET_META[editor.kind].label : "资产";
     if (!asset) return null;
     const profile = asset.profile || EMPTY_PROFILE;
+    const hasReference = dramaAssetReferences(asset).length > 0;
     return (
         <Modal
             title={asset.id ? `编辑${label}` : `新增${label}`}
@@ -546,6 +585,28 @@ function AssetEditorModal({
             destroyOnHidden
         >
             <div className="grid gap-3">
+                <div className="flex items-start gap-3 rounded-md border border-dashed border-border p-3">
+                    {hasReference ? (
+                        <Image src={imagePreviewUrl(dramaAssetPrimaryReference(asset)?.url || "", 180)} width={96} height={96} preview={{ src: dramaAssetPrimaryReference(asset)?.url }} alt={`${label}参考图`} />
+                    ) : (
+                        <div className="grid size-24 place-items-center bg-muted text-xs text-muted-foreground">参考图</div>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                        <Button size="small" onClick={onUpload}>
+                            上传参考图
+                        </Button>
+                        {hasReference ? (
+                            <Button size="small" onClick={onAiAction.bind(null, "anchor")} loading={busy}>
+                                AI 提取视觉特征
+                            </Button>
+                        ) : null}
+                        {hasReference ? (
+                            <Button size="small" danger onClick={onRemoveReference}>
+                                移除参考图
+                            </Button>
+                        ) : null}
+                    </div>
+                </div>
                 <label className="grid gap-1.5 text-sm">
                     <span>{label}名称</span>
                     <Input value={asset.name} onChange={(event) => onChange({ ...asset, name: event.target.value })} />
@@ -577,9 +638,20 @@ function AssetEditorModal({
                     <Input.TextArea rows={3} value={asset.imagePrompt || ""} onChange={(event) => onChange({ ...asset, imagePrompt: event.target.value })} />
                 </label>
                 <label className="grid gap-1.5 text-sm">
-                    <span>最终生图提示词</span>
+                    <span className="flex items-center justify-between">
+                        <span>最终生图提示词</span>
+                        <Button size="small" onClick={() => onAiAction("prompt")} loading={busy}>
+                            重新生成提示词
+                        </Button>
+                    </span>
                     <Input.TextArea rows={5} value={asset.polishedPrompt || ""} onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} placeholder="保存后可由第二阶段的格式化流程生成；也可以先手动填写" />
                 </label>
+                <div className="flex items-center justify-between text-sm">
+                    <span>视觉锚点</span>
+                    <Button size="small" onClick={() => onAiAction("anchor")} loading={busy}>
+                        提炼视觉锚点
+                    </Button>
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                     {(["visualIdentity", "styling", "colorPalette", "consistencyRules"] as const).map((key) => (
                         <label key={key} className="grid gap-1.5 text-sm">
@@ -588,6 +660,17 @@ function AssetEditorModal({
                         </label>
                     ))}
                 </div>
+                {editor?.kind === "characters" ? (
+                    <div className="grid gap-1.5 text-sm">
+                        <span className="flex items-center justify-between">
+                            <span>多阶段造型</span>
+                            <Button size="small" onClick={() => onAiAction("stages")} loading={busy}>
+                                AI 生成造型
+                            </Button>
+                        </span>
+                        <Input.TextArea rows={4} value={JSON.stringify(asset.stages || [], null, 2)} onChange={(event) => onChange({ ...asset, stages: parseStages(event.target.value) })} placeholder='[{"episodeRange":[1,3],"appearance":"..."}]' />
+                    </div>
+                ) : null}
             </div>
             <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" onChange={(event) => onUploadFile(event.target.files?.[0])} />
         </Modal>
@@ -658,4 +741,13 @@ function profileLabel(key: keyof DramaLabAssetProfile) {
 
 function assetName(asset: VisualAsset) {
     return asset.name || ("location" in asset ? asset.location : "");
+}
+
+function parseStages(value: string) {
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.filter((item) => Array.isArray(item?.episodeRange) && item.episodeRange.length === 2 && typeof item.appearance === "string") : [];
+    } catch {
+        return [];
+    }
 }
