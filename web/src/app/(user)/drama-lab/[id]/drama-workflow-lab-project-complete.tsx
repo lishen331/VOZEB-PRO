@@ -1893,8 +1893,8 @@ function ScriptEditor({
     const [generating, setGenerating] = useState(false);
     const [saveStatus, setSaveStatus] = useState<"idle" | "pending" | "saving" | "saved" | "error">("idle");
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const [storyStyle, setStoryStyle] = useState("现代写实");
-    const [scriptType, setScriptType] = useState("短剧");
+    const [storyStyle, setStoryStyle] = useState("modern");
+    const [scriptType, setScriptType] = useState("drama");
     const [episodeCount, setEpisodeCount] = useState("1");
     const [scriptLibraryOpen, setScriptLibraryOpen] = useState(false);
     const [scriptLibraryLoading, setScriptLibraryLoading] = useState(false);
@@ -2163,16 +2163,17 @@ function ScriptEditor({
                                         </Form>
 
                                         <div className="order-3 flex flex-wrap items-center gap-4">
-                                            <Select value={storyStyle} onChange={setStoryStyle} style={{ width: 140 }}>
-                                                <Option value="现代写实">现代写实</Option>
-                                                <Option value="悬疑">悬疑</Option>
-                                                <Option value="浪漫">浪漫</Option>
-                                                <Option value="动作">动作</Option>
+                                            <Select aria-label="故事风格" placeholder="故事风格" value={storyStyle} onChange={setStoryStyle} style={{ width: 140 }}>
+                                                <Option value="modern">现代</Option>
+                                                <Option value="ancient">古风</Option>
+                                                <Option value="fantasy">奇幻</Option>
+                                                <Option value="daily">日常</Option>
                                             </Select>
 
-                                            <Select value={scriptType} onChange={setScriptType} style={{ width: 140 }}>
-                                                <Option value="短剧">短剧</Option>
-                                                <Option value="电影">电影</Option>
+                                            <Select aria-label="剧本类型" placeholder="剧本类型" value={scriptType} onChange={setScriptType} style={{ width: 140 }}>
+                                                <Option value="drama">剧情</Option>
+                                                <Option value="comedy">喜剧</Option>
+                                                <Option value="adventure">冒险</Option>
                                             </Select>
 
                                             <Input value={episodeCount} onChange={(event) => setEpisodeCount(event.target.value)} placeholder="集数" style={{ width: 100 }} />

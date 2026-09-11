@@ -36,8 +36,8 @@ export async function POST(request: Request, { params }: RouteContext) {
             sourceEpisodeId: episodeId,
             requestId: typeof body.requestId === "string" && body.requestId.trim() ? body.requestId.trim().slice(0, 160) : randomUUID(),
             storyOutline: typeof body.storyOutline === "string" ? body.storyOutline : project.summary,
-            storyStyle: typeof body.storyStyle === "string" ? body.storyStyle : project.style,
-            scriptType: typeof body.scriptType === "string" ? body.scriptType : "短剧",
+            storyStyle: typeof body.storyStyle === "string" ? body.storyStyle : "modern",
+            scriptType: typeof body.scriptType === "string" ? body.scriptType : "drama",
             episodeCount: typeof body.episodeCount === "string" || typeof body.episodeCount === "number" ? body.episodeCount : 1,
             model: typeof body.model === "string" ? body.model : undefined,
         });

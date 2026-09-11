@@ -59,7 +59,9 @@ describe("Drama Lab story generation route", () => {
         );
         expect(response.status).toBe(202);
         expect(await response.json()).toMatchObject({ code: 0, data: { taskId: "task-one", episodeCount: 3 } });
-        expect(mocks.startDramaLabStoryGeneration).toHaveBeenCalledWith(expect.objectContaining({ projectId: "project-one", sourceEpisodeId: "episode-one", episodeCount: "3" }));
+        expect(mocks.startDramaLabStoryGeneration).toHaveBeenCalledWith(
+            expect.objectContaining({ projectId: "project-one", sourceEpisodeId: "episode-one", storyStyle: "modern", scriptType: "drama", episodeCount: "3" }),
+        );
     });
 
     it("only exposes a task belonging to the current project owner", async () => {
