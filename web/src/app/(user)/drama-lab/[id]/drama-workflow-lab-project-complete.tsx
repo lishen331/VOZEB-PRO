@@ -1272,6 +1272,8 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                         title: nextProject.title,
                         summary: nextProject.description,
                         style: nextProject.style,
+                        ...(nextProject.storyStyle ? { storyStyle: nextProject.storyStyle } : { storyStyle: "" }),
+                        ...(nextProject.scriptType ? { scriptType: nextProject.scriptType } : { scriptType: "" }),
                         ratio: nextProject.aspectRatio,
                         episodes: nextProject.episodes,
                         characters: nextProject.characters,
@@ -1942,6 +1944,30 @@ function ScriptEditor({
         setCustomOptionDraft("");
     };
 
+    const deleteCustomOption = async (kind: DramaLabStoryOptionKind, value: string) => {
+        const confirmed = typeof window === "undefined" ? true : window.confirm(`确定删除自定义${kind === "style" ? "剧本风格" : "剧本类型"}“${value}”吗？`);
+        if (!confirmed) return;
+        setCustomOptionBusy(true);
+        try {
+            const response = await fetch("/api/drama-lab/story-options", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, value }) });
+            const payload = await response.json();
+            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "删除自定义选项失败");
+            setCustomStoryOptions((current) => ({ ...current, [kind === "style" ? "styles" : "types"]: current[kind === "style" ? "styles" : "types"].filter((item) => item !== value) }));
+            if (kind === "style" && storyStyle === value) {
+                setStoryStyle("");
+                scheduleSave({ storyStyle: "" });
+            }
+            if (kind === "type" && scriptType === value) {
+                setScriptType("");
+                scheduleSave({ scriptType: "" });
+            }
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "删除自定义选项失败");
+        } finally {
+            setCustomOptionBusy(false);
+        }
+    };
+
     const saveCustomOption = async () => {
         if (!customOptionKind || !customOptionDraft.trim()) return;
         setCustomOptionBusy(true);
@@ -1951,10 +1977,14 @@ function ScriptEditor({
             if (!response.ok || payload.code !== 0 || !payload.data?.value) throw new Error(payload.msg || "自定义选项保存失败");
             const value = String(payload.data.value);
             setCustomStoryOptions((current) => ({ ...current, [customOptionKind === "style" ? "styles" : "types"]: Array.from(new Set([...current[customOptionKind === "style" ? "styles" : "types"], value])) }));
-            if (customOptionKind === "style") setStoryStyle(value);
-            else setScriptType(value);
+            if (customOptionKind === "style") {
+                setStoryStyle(value);
+                scheduleSave({ storyStyle: value });
+            } else {
+                setScriptType(value);
+                scheduleSave({ scriptType: value });
+            }
             setCustomOptionKind(null);
-            scheduleSave();
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "自定义选项保存失败");
         } finally {
@@ -1962,8 +1992,10 @@ function ScriptEditor({
         }
     };
 
+    type StoryOptionPatch = Partial<Pick<Project, "storyStyle" | "scriptType">>;
+
     const saveNow = useCallback(
-        (options: SaveOptions = {}) => {
+        (options: SaveOptions = {}, optionPatch: StoryOptionPatch = {}) => {
             const values = form.getFieldsValue();
             const script = scriptForm.getFieldValue("script") || "";
             if (episode) {
@@ -1972,8 +2004,8 @@ function ScriptEditor({
                     {
                         description: values.storyOutline || "",
                         episodes: updatedEpisodes,
-                        storyStyle,
-                        scriptType,
+                        storyStyle: optionPatch.storyStyle ?? storyStyle,
+                        scriptType: optionPatch.scriptType ?? scriptType,
                     },
                     options,
                 );
@@ -1983,22 +2015,25 @@ function ScriptEditor({
         [episode, form, onSave, project, scriptForm, scriptType, storyStyle],
     );
 
-    const scheduleSave = useCallback(() => {
-        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-        setSaveStatus("pending");
-        saveTimerRef.current = setTimeout(() => {
-            saveTimerRef.current = null;
-            setSaveStatus("saving");
-            void saveNow({ silent: true }).then((saved) => {
-                setSaveStatus(saved ? "saved" : "error");
-                if (saved) {
-                    messageApi.success({ content: "保存成功", key: "drama-autosave", duration: 1.5 });
-                } else {
-                    messageApi.error({ content: "自动保存失败", key: "drama-autosave", duration: 2 });
-                }
-            });
-        }, 800);
-    }, [messageApi, saveNow]);
+    const scheduleSave = useCallback(
+        (optionPatch: StoryOptionPatch = {}) => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+            setSaveStatus("pending");
+            saveTimerRef.current = setTimeout(() => {
+                saveTimerRef.current = null;
+                setSaveStatus("saving");
+                void saveNow({ silent: true }, optionPatch).then((saved) => {
+                    setSaveStatus(saved ? "saved" : "error");
+                    if (saved) {
+                        messageApi.success({ content: "保存成功", key: "drama-autosave", duration: 1.5 });
+                    } else {
+                        messageApi.error({ content: "自动保存失败", key: "drama-autosave", duration: 2 });
+                    }
+                });
+            }, 800);
+        },
+        [messageApi, saveNow],
+    );
 
     useEffect(
         () => () => {
@@ -2224,7 +2259,7 @@ function ScriptEditor({
                                                 onChange={(value) => {
                                                     if (value === DRAMA_LAB_CUSTOM_OPTION_VALUE) return openCustomOption("style");
                                                     setStoryStyle(value);
-                                                    scheduleSave();
+                                                    scheduleSave({ storyStyle: value });
                                                 }}
                                                 style={{ width: 160 }}
                                             >
@@ -2235,7 +2270,21 @@ function ScriptEditor({
                                                 ))}
                                                 {customStoryOptions.styles.map((value) => (
                                                     <Option key={`custom-style-${value}`} value={value}>
-                                                        {value}
+                                                        <span className="flex items-center justify-between gap-2">
+                                                            <span className="truncate">{value}</span>
+                                                            <button
+                                                                type="button"
+                                                                aria-label={`删除自定义选项 ${value}`}
+                                                                title="删除自定义选项"
+                                                                className="text-destructive hover:underline"
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    void deleteCustomOption("style", value);
+                                                                }}
+                                                            >
+                                                                删除
+                                                            </button>
+                                                        </span>
                                                     </Option>
                                                 ))}
                                                 <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>＋ 自定义风格</Option>
@@ -2248,7 +2297,7 @@ function ScriptEditor({
                                                 onChange={(value) => {
                                                     if (value === DRAMA_LAB_CUSTOM_OPTION_VALUE) return openCustomOption("type");
                                                     setScriptType(value);
-                                                    scheduleSave();
+                                                    scheduleSave({ scriptType: value });
                                                 }}
                                                 style={{ width: 160 }}
                                             >
@@ -2259,7 +2308,21 @@ function ScriptEditor({
                                                 ))}
                                                 {customStoryOptions.types.map((value) => (
                                                     <Option key={`custom-type-${value}`} value={value}>
-                                                        {value}
+                                                        <span className="flex items-center justify-between gap-2">
+                                                            <span className="truncate">{value}</span>
+                                                            <button
+                                                                type="button"
+                                                                aria-label={`删除自定义选项 ${value}`}
+                                                                title="删除自定义选项"
+                                                                className="text-destructive hover:underline"
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    void deleteCustomOption("type", value);
+                                                                }}
+                                                            >
+                                                                删除
+                                                            </button>
+                                                        </span>
                                                     </Option>
                                                 ))}
                                                 <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>＋ 自定义类型</Option>

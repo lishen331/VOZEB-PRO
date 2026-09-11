@@ -25,4 +25,14 @@ describe("drama lab story generation options", () => {
         expect(source).toContain("...(storyStyle ? { storyStyle } : {})");
         expect(source).toContain("...(scriptType ? { scriptType } : {})");
     });
+
+    it("persists selected project options during autosave and exposes custom option deletion", async () => {
+        const source = await readFile(path, "utf8");
+        expect(source).toContain("storyStyle: nextProject.storyStyle");
+        expect(source).toContain("scriptType: nextProject.scriptType");
+        expect(source).toContain('method: "DELETE"');
+        expect(source).toContain("删除自定义选项");
+        expect(source).toContain('setStoryStyle("")');
+        expect(source).toContain('setScriptType("")');
+    });
 });
