@@ -112,16 +112,16 @@ describe("drama lab shot generation service", () => {
         expect(() => prepareDramaLabStoryboardVideo(value, "episode-one", "shot-one", { supportsReferenceImages: false })).toThrow("参考图");
     });
 
-    it("appends the optional storyboard without replacing numbered asset slots", () => {
+    it("keeps universal numbered slots limited to bound scene, character, and prop assets", () => {
         const value = updateDramaLabShot(project, "episode-one", "shot-one", {
             creationMode: "universal",
             storyboardImageUrl: "/storyboard.png",
-            universalSegmentText: "画面风格和类型: 写实\n生成一个由以下1个分镜组成的视频。\n环境参考 @图片1。\n分镜1： 3秒: 缓推 @图片2 手中的 @图片3，构图参考 @图片4。",
+            universalSegmentText: "画面风格和类型: 写实\n生成一个由以下1个分镜组成的视频。\n环境参考 @图片1。\n分镜1： 3秒: 缓推 @图片2 手中的 @图片3。",
         });
         const result = prepareDramaLabStoryboardVideo(value, "episode-one", "shot-one", { supportsReferenceImages: true });
-        expect(result.references.map((ref) => ref.url)).toEqual(["/api/reference-assets/scene.png", "/api/reference-assets/character.png", "/api/reference-assets/phone.png", "/storyboard.png"]);
+        expect(result.references.map((ref) => ref.url)).toEqual(["/api/reference-assets/scene.png", "/api/reference-assets/character.png", "/api/reference-assets/phone.png"]);
         expect(result.frameSnapshot.references.map((ref) => ref.url)).toEqual(result.references.map((ref) => ref.url));
-        expect(result.prompt).toContain("@图片4：当前分镜图");
+        expect(result.prompt).not.toContain("当前分镜图");
         const missing = { ...value, props: value.props.map((prop) => ({ ...prop, references: [] })) };
         expect(() => prepareDramaLabStoryboardVideo(missing, "episode-one", "shot-one", { supportsReferenceImages: true })).toThrow();
     });

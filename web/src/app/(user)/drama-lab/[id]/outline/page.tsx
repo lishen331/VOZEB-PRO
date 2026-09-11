@@ -96,6 +96,7 @@ interface Project {
 
 type StyleOption = { label: string; value: string; prompt?: string; promptEn?: string; thumb?: string };
 type StyleGroup = { label: string; options: StyleOption[] };
+type ProjectSettingsFormValues = { title?: string; description?: string; style?: string; aspectRatio?: string };
 const STYLE_GROUPS = styleGroups as StyleGroup[];
 
 function assetImageUrl(asset: LooseAsset | Asset | null | undefined): string | undefined {
@@ -360,20 +361,26 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     });
 
     // 保存项目信息
-    const saveProjectInfo = async (silent = false) => {
+    const saveProjectInfo = async (silent = false, overrides: Partial<ProjectSettingsFormValues> = {}) => {
         if (!project) return;
 
         setSaving(true);
         try {
-            const values = form.getFieldsValue();
+            // `style` is driven by the visual picker instead of a named Form.Item,
+            // so read the complete form store and accept the just-picked value.
+            const values = form.getFieldsValue(true) as ProjectSettingsFormValues;
+            const title = (typeof overrides.title === "string" ? overrides.title : typeof values.title === "string" ? values.title : project.title).trim();
+            const description = typeof overrides.description === "string" ? overrides.description : typeof values.description === "string" ? values.description : project.description || "";
+            const style = (typeof overrides.style === "string" ? overrides.style : values.style || selectedStyle || project.style || "").trim();
+            const aspectRatio = (typeof overrides.aspectRatio === "string" ? overrides.aspectRatio : typeof values.aspectRatio === "string" ? values.aspectRatio : project.aspectRatio || "16:9").trim();
             const res = await fetch(`/api/drama-lab/projects/${projectId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    title: values.title,
-                    summary: values.description,
-                    style: values.style,
-                    ratio: values.aspectRatio,
+                    title,
+                    summary: description,
+                    style,
+                    ratio: aspectRatio,
                     episodes: project.episodes,
                     characters: project.characters,
                     scenes: project.scenes,
@@ -388,11 +395,12 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
 
             setProject({
                 ...project,
-                title: values.title,
-                description: values.description,
-                style: selectedStyle || values.style,
-                aspectRatio: values.aspectRatio,
+                title,
+                description,
+                style,
+                aspectRatio,
             });
+            setSelectedStyle(style);
 
             if (!silent) message.success("保存成功");
         } catch (err) {
@@ -402,12 +410,20 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
         }
     };
 
-    const scheduleProjectSettingsSave = () => {
+    const scheduleProjectSettingsSave = (overrides: Partial<ProjectSettingsFormValues> = {}) => {
         if (autoSaveTimerRef.current !== undefined) window.clearTimeout(autoSaveTimerRef.current);
         autoSaveTimerRef.current = window.setTimeout(() => {
             autoSaveTimerRef.current = undefined;
-            void saveProjectInfo(true);
+            void saveProjectInfo(true, overrides);
         }, 700);
+    };
+
+    const selectStyle = (style: string, closePicker = true) => {
+        const nextStyle = style.trim();
+        form.setFieldValue("style", nextStyle);
+        setSelectedStyle(nextStyle);
+        if (closePicker) setStylePickerOpen(false);
+        scheduleProjectSettingsSave({ style: nextStyle });
     };
 
     useEffect(
@@ -845,10 +861,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                                 type="button"
                                                 key={option.value}
                                                 className={`overflow-hidden rounded-lg border text-left transition ${selected ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/60"}`}
-                                                onClick={() => {
-                                                    form.setFieldValue("style", option.value);
-                                                    setStylePickerOpen(false);
-                                                }}
+                                                onClick={() => selectStyle(option.value)}
                                             >
                                                 <div className="aspect-[4/3] bg-muted">
                                                     {option.thumb ? (
@@ -874,9 +887,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                             placeholder="自定义风格描述，输入后保存"
                             value={selectedStyle && !STYLE_GROUPS.some((group) => group.options.some((option) => option.value === selectedStyle)) ? selectedStyle : ""}
                             onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                                form.setFieldValue("style", event.target.value);
-                                setSelectedStyle(event.target.value);
-                                scheduleProjectSettingsSave();
+                                selectStyle(event.target.value, false);
                             }}
                         />
                     </section>

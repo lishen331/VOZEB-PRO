@@ -67,9 +67,10 @@ export function prepareDramaLabStoryboardVideo(project: DramaProject, episodeId:
     const context = findShot(project, episodeId, shotId);
     assertProjectAssetBindings(project, context.shot);
     if (context.shot.creationMode === "universal") return prepareUniversalVideo(project, context, options);
-    const firstFrame = context.shot.frames?.first;
+    const firstLastEnabled = context.shot.storyboardFrameMode !== "single";
+    const firstFrame = firstLastEnabled ? context.shot.frames?.first : undefined;
     const keyFrame = context.shot.frames?.key;
-    const lastFrame = context.shot.frames?.last;
+    const lastFrame = firstLastEnabled ? context.shot.frames?.last : undefined;
     const visualSource = keyFrame?.url
         ? {
               id: `key-frame-${context.shot.id}`,
@@ -161,8 +162,6 @@ function prepareUniversalVideo(project: DramaProject, { episode, shot }: ShotCon
         seen.add(ref.url);
         references.push({ id: ref.id, url: ref.url, storageKey: ref.storageKey, label: asset.name, width: ref.width, height: ref.height, role: "reference" });
     }
-    const imageUrl = shot.frames?.key?.url || shot.storyboardImageUrl;
-    if (imageUrl && !seen.has(imageUrl)) references.push({ id: `storyboard-${shot.id}`, url: imageUrl, label: "当前分镜图", role: "reference", frameType: "key", taskId: shot.frames?.key?.taskId || shot.storyboardTaskId });
     if (!references.length) throw new DramaLabShotGenerationError("全能模式至少需要一张已绑定资产或分镜参考图");
     const limit = positiveReferenceLimit(options.maxReferenceImages);
     if (limit && references.length > limit) throw new DramaLabShotGenerationError(`当前视频模型最多接受 ${limit} 张参考图，但本镜需要 ${references.length} 张；不能截断导致图片编号错位`);
