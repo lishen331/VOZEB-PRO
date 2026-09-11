@@ -75,7 +75,8 @@ describe("drama lab novel import", () => {
     });
 
     it("rejects unsupported files and oversized source before project access", async () => {
-        expect(() => previewDramaLabNovelImport({ sourceText: "正文", fileName: "故事.docx" })).toThrowError(DramaLabNovelImportError);
+        expect(() => previewDramaLabNovelImport({ sourceText: "正文", fileName: "故事.pdf" })).toThrowError(DramaLabNovelImportError);
+        expect(previewDramaLabNovelImport({ sourceText: "正文", fileName: "故事.docx" }).fileName).toBe("故事.docx");
         expect(() => previewDramaLabNovelImport({ sourceText: "甲".repeat(2 * 1024 * 1024), fileName: "故事.txt" })).toThrowError(/2MB/iu);
         expect(mocks.getDramaProjectForUser).not.toHaveBeenCalled();
     });

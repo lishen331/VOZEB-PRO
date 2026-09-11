@@ -14,9 +14,9 @@ describe("DramaLabNovelImport", () => {
 
         expect(markup).toContain('data-drama-lab-novel-dropzone="true"');
         expect(markup).toContain('aria-label="小说文件导入区域"');
-        expect(markup).toContain('accept=".txt,.md,text/plain,text/markdown"');
+        expect(markup).toContain('accept=".txt,.md,.markdown,.docx,.doc,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"');
         expect(markup).toContain("导入小说");
-        expect(markup).toContain("或拖拽 TXT/MD 文件到这里");
+        expect(markup).toContain("或拖拽 TXT/MD/DOCX/DOC 文件到这里");
     });
 
     it("can host the script editor inside the drop zone", () => {
@@ -35,9 +35,10 @@ describe("DramaLabNovelImport", () => {
     it("keeps the shared preview request and byte decoder on the component path", async () => {
         const source = await import("node:fs/promises").then(({ readFile }) => readFile(new URL("./drama-lab-novel-import.tsx", import.meta.url), "utf8"));
 
-        expect(source).toContain("decodeDramaNovelBytes(await file.arrayBuffer())");
+        expect(source).toContain("new FormData()");
+        expect(source).toContain('form.append("file", file)');
         expect(source).toContain("readingRef.current || importingRef.current");
         expect(source).toContain("onDrop={handleDrop}");
-        expect(source).toContain("requestNovelImport(projectId, { sourceText: content, fileName: file.name, commit: false })");
+        expect(source).toContain("requestNovelImportFile(projectId, file, false)");
     });
 });

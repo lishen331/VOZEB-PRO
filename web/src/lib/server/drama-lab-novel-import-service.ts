@@ -105,7 +105,7 @@ function normalizeSourceText(value: unknown) {
 function normalizeFileName(value: unknown) {
     const fileName = typeof value === "string" ? value.replace(/[\r\n\\/]/gu, "_").trim() : "";
     if (!fileName) return "小说.txt";
-    if (!/\.(?:txt|md)$/iu.test(fileName)) throw new DramaLabNovelImportError("仅支持 TXT 或 MD 小说文件", 415);
+    if (!/\.(?:txt|md|markdown|docx|doc)$/iu.test(fileName)) throw new DramaLabNovelImportError("仅支持 TXT、MD、Markdown、DOCX 或 DOC 小说文件", 415);
     return fileName.slice(0, 160);
 }
 

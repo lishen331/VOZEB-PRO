@@ -87,6 +87,17 @@ describe("POST /api/drama-lab/projects/:id/import-novel", () => {
         await expect(response.json()).resolves.toMatchObject({ code: 415 });
     });
 
+    it("accepts a DOCX multipart file and extracts Word paragraphs on the server", async () => {
+        const documentXml = `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>第一章</w:t></w:r></w:p><w:p><w:r><w:t>中文正文 &amp; 继续</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>下一段</w:t></w:r></w:p></w:body></w:document>`;
+        const docx = new Uint8Array(await import("fflate").then(({ zipSync }) => zipSync({ "word/document.xml": new TextEncoder().encode(documentXml) })));
+        const form = new FormData();
+        form.append("file", new Blob([docx], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }), "故事.docx");
+
+        const response = await POST(new Request("http://localhost/api/drama-lab/projects/project-one/import-novel", { method: "POST", body: form }), context("project-one"));
+
+        expect(response.status).toBe(200);
+        expect(mocks.importDramaLabNovelForUser).toHaveBeenCalledWith(expect.objectContaining({ fileName: "故事.docx", sourceText: "第一章\n中文正文 & 继续\t下一段", commit: false }));
+    });
     it("returns domain errors with their status", async () => {
         mocks.importDramaLabNovelForUser.mockRejectedValue(new DramaLabNovelImportError("小说文件超过 2MB 限制", 413));
 
