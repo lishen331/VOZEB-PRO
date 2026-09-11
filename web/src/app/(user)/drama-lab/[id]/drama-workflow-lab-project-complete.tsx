@@ -1039,7 +1039,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
     const [collaborationEnabled, setCollaborationEnabled] = useState(true);
     const [collaborationMode, setCollaborationMode] = useState<"strict" | "parallel">("strict");
-    const [collaborationCollapsed, setCollaborationCollapsed] = useState(false);
+    const [collaborationCollapsed, setCollaborationCollapsed] = useState(true);
     const [collaborationDrawerOpen, setCollaborationDrawerOpen] = useState(false);
     const [approvalStages, setApprovalStages] = useState<Record<CollaborationStageKey, boolean>>({
         script: true,
@@ -1663,14 +1663,6 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                 <Button icon={<Sparkles className="size-4" />} onClick={() => setWorkflowModalOpen(true)}>
                     一键全流程
                 </Button>
-                <Button
-                    className="hidden lg:inline-flex"
-                    type="text"
-                    aria-label={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
-                    title={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
-                    icon={collaborationCollapsed ? <PanelRightOpen className="size-4" /> : <PanelRightClose className="size-4" />}
-                    onClick={() => setCollaborationCollapsed((current) => !current)}
-                />
                 <Button className="lg:hidden" type="text" aria-label="打开团队协作与审批" title="打开团队协作与审批" icon={<PanelRightOpen className="size-4" />} onClick={() => setCollaborationDrawerOpen(true)} />
                 <Button type="primary" icon={<Save className="size-4" />} loading={saving} onClick={() => void saveProject({})}>
                     保存草稿
@@ -1813,6 +1805,14 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                 <aside className={cn("hidden min-h-0 shrink-0 flex-col border-l border-border bg-card transition-[width] duration-200 lg:flex", collaborationCollapsed ? "w-14" : "w-[340px]")}>
                     <div className={cn("flex h-12 items-center border-b border-border", collaborationCollapsed ? "justify-center px-2" : "justify-between px-4")}>
                         {!collaborationCollapsed ? <span className="text-sm font-semibold">团队协作与审批</span> : null}
+                        <Button
+                            type="text"
+                            size="small"
+                            aria-label={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
+                            title={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
+                            icon={collaborationCollapsed ? <PanelRightOpen className="size-4" /> : <PanelRightClose className="size-4" />}
+                            onClick={() => setCollaborationCollapsed((current) => !current)}
+                        />
                     </div>
                     {!collaborationCollapsed ? (
                         <div className="min-h-0 flex-1 overflow-y-auto p-4">
