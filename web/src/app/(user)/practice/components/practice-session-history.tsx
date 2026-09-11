@@ -56,7 +56,11 @@ function SessionPrompt({ session }: { session: PracticeSession }) {
     const prompt = typeof input?.prompt === "string" ? input.prompt : typeof input?.text === "string" ? input.text : typeof input?.content === "string" ? input.content : "";
     if (session.errorMessage) return <span className="mt-2 block truncate text-xs text-red-500">{session.errorMessage}</span>;
     if (!prompt) return null;
-    return <span className="mt-2 block truncate text-xs text-muted-foreground" title={prompt}>{prompt}</span>;
+    return (
+        <span className="mt-2 block truncate text-xs text-muted-foreground" title={prompt}>
+            {prompt}
+        </span>
+    );
 }
 
 function Preview({ session }: { session: PracticeSession }) {

@@ -75,14 +75,8 @@ export function PracticeAssetPicker({ dramaAssetType, disabled, onSelect, label 
                                         setOpen(false);
                                     }}
                                 >
-                                    <img
-                                        src={asset.coverUrl || asset.data.serverUrl || asset.data.remoteUrl || asset.data.dataUrl}
-                                        alt={asset.title}
-                                        className="size-full object-cover"
-                                    />
-                                    <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100">
-                                        {asset.title}
-                                    </span>
+                                    <img src={asset.coverUrl || asset.data.serverUrl || asset.data.remoteUrl || asset.data.dataUrl} alt={asset.title} className="size-full object-cover" />
+                                    <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100">{asset.title}</span>
                                 </button>
                             ))}
                         </div>

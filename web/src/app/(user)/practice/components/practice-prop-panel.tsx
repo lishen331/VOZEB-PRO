@@ -59,8 +59,8 @@ export default function PracticePropPanel({ capability, onCreated }: PracticePan
             <ModelField capability={capability} value={model} onChange={setModel} />
             <PracticePromptEditor briefLabel="道具设定" label="道具描述" value={prompt} onChange={setPrompt} disabled={busy} mode="image">
                 <PracticeMediaInput label="道具参考图（可选）" accept="image/*" disabled={uploading} onChoose={(file) => void chooseImage(file)} url={image?.url} onRemove={() => setImage(undefined)}>
-                        <PracticeAssetPicker dramaAssetType="prop" disabled={uploading} onSelect={setImage} />
-                    </PracticeMediaInput>
+                    <PracticeAssetPicker dramaAssetType="prop" disabled={uploading} onSelect={setImage} />
+                </PracticeMediaInput>
             </PracticePromptEditor>
             <PracticeSizeField capability={capability} value={workflowInput} onChange={(patch) => setWorkflowInput((current) => ({ ...current, ...patch }))} />
             <WorkflowFormFields capability={capability} value={workflowInput} onChange={(key, value) => setWorkflowInput((current) => ({ ...current, [key]: value }))} />

@@ -3,7 +3,23 @@
 import type { ReactNode } from "react";
 import { ImagePlus, Music2, X } from "lucide-react";
 
-export function PracticeMediaInput({ label, accept = "image/*", url, disabled, onChoose, onRemove, children }: { label: string; accept?: string; url?: string; disabled?: boolean; onChoose: (file?: File) => void; onRemove?: () => void; children?: ReactNode }) {
+export function PracticeMediaInput({
+    label,
+    accept = "image/*",
+    url,
+    disabled,
+    onChoose,
+    onRemove,
+    children,
+}: {
+    label: string;
+    accept?: string;
+    url?: string;
+    disabled?: boolean;
+    onChoose: (file?: File) => void;
+    onRemove?: () => void;
+    children?: ReactNode;
+}) {
     const audio = accept.startsWith("audio");
     const Icon = audio ? Music2 : ImagePlus;
     return (
