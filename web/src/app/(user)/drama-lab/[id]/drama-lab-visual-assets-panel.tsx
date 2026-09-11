@@ -607,6 +607,101 @@ function AssetEditorModal({
         if (files.length) onUploadFile(files);
     };
     const descriptionLabel = editor.kind === "characters" ? "简介" : "文字设定";
+    if (editor.kind === "scenes") {
+        return (
+            <Modal
+                title={asset.id ? "编辑场景" : "新增场景"}
+                open
+                width="min(960px, calc(100vw - 32px))"
+                styles={{ body: { maxHeight: "calc(100vh - 160px)", overflowY: "auto", paddingRight: 8 } }}
+                footer={
+                    <div className="flex justify-end gap-2">
+                        <Button onClick={onClose}>取消</Button>
+                        <Button type="primary" onClick={onSave}>
+                            保存
+                        </Button>
+                    </div>
+                }
+                onCancel={onClose}
+                destroyOnHidden
+            >
+                <div className="grid gap-3">
+                    <div className="grid grid-cols-[112px_1fr] items-start gap-4 border-b border-border pb-4">
+                        <div
+                            className="grid size-28 cursor-pointer place-items-center overflow-hidden rounded border border-dashed border-border bg-muted text-xs text-muted-foreground hover:border-primary hover:text-primary"
+                            onClick={onUpload}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={handleDrop}
+                            title="点击或拖入参考图"
+                            aria-label="拖拽或点击上传场景参考图"
+                        >
+                            {primary?.url ? (
+                                <Image src={imagePreviewUrl(primary.url, 240)} alt="场景参考图" width={112} height={112} preview={{ src: primary.url }} className="!size-full !object-contain" />
+                            ) : (
+                                <>
+                                    参考图
+                                    <br />
+                                    <span>点击或拖入参考图</span>
+                                </>
+                            )}
+                        </div>
+                        <div className="flex flex-col items-start gap-2 pt-1">
+                            {hasReference ? (
+                                <Button size="small" className="!border-primary/40 !text-primary" onClick={() => onAiAction("describe")} loading={busy}>
+                                    提取特征描述
+                                </Button>
+                            ) : null}
+                            {hasReference ? (
+                                <Button size="small" danger onClick={onRemoveReference}>
+                                    移除
+                                </Button>
+                            ) : null}
+                        </div>
+                    </div>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>地点</span>
+                        <Input value={(asset as Scene).location || ""} onChange={(event) => onChange({ ...asset, location: event.target.value } as VisualAsset)} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>时间</span>
+                        <Input value={(asset as Scene).time || ""} onChange={(event) => onChange({ ...asset, time: event.target.value } as VisualAsset)} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>场景描述</span>
+                        <Input.TextArea rows={5} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value } as VisualAsset)} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span className="flex items-center justify-between">
+                            <span>
+                                单图提示词 <span className="text-xs font-normal text-muted-foreground">单图场景的完整图片提示词（不含四宫格布局），生图时直接使用；可手动修改</span>
+                            </span>
+                            <Button size="small" onClick={() => onAiAction("prompt")} loading={busy}>
+                                重新生成提示词
+                            </Button>
+                        </span>
+                        <Input.TextArea
+                            rows={5}
+                            value={asset.singleImagePrompt || ""}
+                            onChange={(event) => onChange({ ...asset, singleImagePrompt: event.target.value } as VisualAsset)}
+                            placeholder="单图场景提示词，点击场景列表的 AI 生成按钮后会自动生成"
+                        />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span className="flex items-center justify-between">
+                            <span>
+                                四视图提示词 <span className="text-xs font-normal text-muted-foreground">AI 生成的完整四视图图片提示词，生图时直接使用；可手动修改</span>
+                            </span>
+                            <Button size="small" onClick={() => onAiAction("prompt")} loading={busy}>
+                                重新生成提示词
+                            </Button>
+                        </span>
+                        <Input.TextArea rows={8} value={asset.polishedPrompt || ""} onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value } as VisualAsset)} />
+                    </label>
+                </div>
+                <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => onUploadFile(event.target.files || undefined)} />
+            </Modal>
+        );
+    }
     if (editor.kind === "props") {
         return (
             <Modal
@@ -878,5 +973,3 @@ function parseStages(value: string) {
         return [];
     }
 }
-
-
