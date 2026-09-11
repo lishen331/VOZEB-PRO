@@ -129,3 +129,13 @@ describe("L-style prop reference placement", () => {
         expect(propBranch).not.toContain("references.map");
     });
 });
+
+describe("L-style prop reference actions", () => {
+    it("keeps only extraction then remove beside the single frame", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        const prop = source.slice(source.indexOf('if (editor.kind === "props")'));
+        expect(prop.indexOf("提取特征描述")).toBeLessThan(prop.indexOf("移除"));
+        expect(prop).not.toContain("主参考图");
+        expect(prop).not.toContain("+ 上传");
+    });
+});

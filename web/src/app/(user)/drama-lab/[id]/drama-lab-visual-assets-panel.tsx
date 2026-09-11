@@ -529,7 +529,6 @@ export function DramaLabVisualAssetsPanel({
                 onUploadFile={(files) => void uploadReference(files)}
                 onAiAction={(action) => void runAssetAiAction(action)}
                 onRemoveReference={() => void removeActiveReference()}
-                onSetPrimary={(reference) => (activeAsset ? void setPrimary(activeAsset, reference) : undefined)}
                 onRemoveReferenceById={(referenceId) => (activeAsset ? void removeReference(activeAsset, referenceId) : undefined)}
             />
             {libraryOpen ? <DramaLabAssetLibraryPicker key={kind} kind={kind} label={definition.label} busyKey={busyKey} onClose={() => setLibraryOpen(false)} onImport={importLibraryAsset} /> : null}
@@ -581,7 +580,6 @@ function AssetEditorModal({
     onUploadFile,
     onAiAction,
     onRemoveReference,
-    onSetPrimary,
     onRemoveReferenceById,
 }: {
     editor?: EditorState;
@@ -594,7 +592,6 @@ function AssetEditorModal({
     onUploadFile: (files?: FileList | File[]) => void;
     onAiAction: (action: "describe" | "prompt" | "anchor" | "stages") => void;
     onRemoveReference: () => void;
-    onSetPrimary: (reference: DramaLabAssetReference) => void;
     onRemoveReferenceById: (referenceId: string) => void;
 }) {
     const asset = editor?.asset;
@@ -649,14 +646,11 @@ function AssetEditorModal({
                             <div className="flex flex-col items-start gap-1.5">
                                 {primary ? (
                                     <>
-                                        <Button size="small" type="primary" onClick={() => onSetPrimary(primary)}>
-                                            主参考图
+                                        <Button size="small" type="primary" onClick={() => onAiAction("describe")} loading={busy}>
+                                            提取特征描述
                                         </Button>
                                         <Button size="small" danger onClick={() => onRemoveReferenceById(primary.id)}>
                                             移除
-                                        </Button>
-                                        <Button size="small" onClick={() => onAiAction("describe")} loading={busy}>
-                                            提取特征描述
                                         </Button>
                                     </>
                                 ) : null}
@@ -884,3 +878,5 @@ function parseStages(value: string) {
         return [];
     }
 }
+
+
