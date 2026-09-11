@@ -2276,13 +2276,13 @@ function ScriptEditor({
                                                                 type="button"
                                                                 aria-label={`删除自定义选项 ${value}`}
                                                                 title="删除自定义选项"
-                                                                className="text-destructive hover:underline"
+                                                                className="inline-flex size-5 items-center justify-center rounded text-sm leading-none text-destructive hover:bg-destructive/10"
                                                                 onClick={(event) => {
                                                                     event.stopPropagation();
                                                                     void deleteCustomOption("style", value);
                                                                 }}
                                                             >
-                                                                删除
+                                                                ×
                                                             </button>
                                                         </span>
                                                     </Option>
@@ -2314,13 +2314,13 @@ function ScriptEditor({
                                                                 type="button"
                                                                 aria-label={`删除自定义选项 ${value}`}
                                                                 title="删除自定义选项"
-                                                                className="text-destructive hover:underline"
+                                                                className="inline-flex size-5 items-center justify-center rounded text-sm leading-none text-destructive hover:bg-destructive/10"
                                                                 onClick={(event) => {
                                                                     event.stopPropagation();
                                                                     void deleteCustomOption("type", value);
                                                                 }}
                                                             >
-                                                                删除
+                                                                ×
                                                             </button>
                                                         </span>
                                                     </Option>
