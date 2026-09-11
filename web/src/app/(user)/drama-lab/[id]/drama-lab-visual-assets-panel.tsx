@@ -3,7 +3,7 @@
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 
-import { Button, Image, Input, List, Modal, Tabs, Tooltip } from "antd";
+import { Button, Image, Input, Modal, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
 import { Check, Edit2, ImagePlus, Images, LibraryBig, MapPin, Package, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
@@ -13,11 +13,14 @@ import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-as
 import type { Asset } from "@/lib/library-asset-contract";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { createImageGenerationTask, waitForImageGenerationTask, type ImageGenerationResult } from "@/services/api/image";
-import { createLibraryAsset, listLibraryAssetPage } from "@/services/api/library-assets";
+import { createLibraryAsset } from "@/services/api/library-assets";
 import { uploadImage } from "@/services/image-storage";
 import { useEffectiveConfig } from "@/stores/use-config-store";
 
 import type { Character, DramaLabAssetProfile, DramaLabAssetReference, Episode, Project, Prop, Scene, Shot } from "./drama-workflow-lab-project-complete";
+
+import { DramaLabAssetLibraryPicker } from "./drama-lab-asset-library-picker";
+import { DramaLabAssetDetailFields } from "./drama-lab-asset-detail-fields";
 
 type AssetKind = "characters" | "scenes" | "props";
 type VisualAsset = Character | Scene | Prop;
@@ -51,9 +54,6 @@ export function DramaLabVisualAssetsPanel({
     const [kind, setKind] = useState<AssetKind>("characters");
     const [editor, setEditor] = useState<EditorState>();
     const [libraryOpen, setLibraryOpen] = useState(false);
-    const [libraryLoading, setLibraryLoading] = useState(false);
-    const [libraryAssets, setLibraryAssets] = useState<Asset[]>([]);
-    const [libraryKeyword, setLibraryKeyword] = useState("");
     const [busyKey, setBusyKey] = useState("");
 
     const assets = project[kind] as VisualAsset[];
@@ -78,19 +78,6 @@ export function DramaLabVisualAssetsPanel({
 
     const updateAsset = async (assetId: string, patch: Partial<VisualAsset>) => {
         return replaceAssets((current) => current.map((asset) => (asset.id === assetId ? { ...asset, ...patch } : asset)));
-    };
-
-    const openLibrary = async () => {
-        setLibraryOpen(true);
-        setLibraryLoading(true);
-        try {
-            const result = await listLibraryAssetPage({ page: 1, pageSize: 100, kind: "image", dramaAssetType: kind === "characters" ? "character" : kind === "scenes" ? "scene" : "prop" });
-            setLibraryAssets(result.assets);
-        } catch (error) {
-            messageApi.error(error instanceof Error ? error.message : "素材库加载失败");
-        } finally {
-            setLibraryLoading(false);
-        }
     };
 
     const extractFromScript = async () => {
@@ -275,7 +262,7 @@ export function DramaLabVisualAssetsPanel({
                         <Button icon={<Sparkles className="size-3.5" />} loading={busyKey === `extract:${kind}`} onClick={() => void extractFromScript()}>
                             从剧本提取
                         </Button>
-                        <Button icon={<LibraryBig className="size-3.5" />} onClick={() => void openLibrary()}>
+                        <Button icon={<LibraryBig className="size-3.5" />} onClick={() => setLibraryOpen(true)}>
                             从素材库添加
                         </Button>
                         <Button type="primary" icon={<Plus className="size-3.5" />} onClick={addAsset}>
@@ -414,33 +401,7 @@ export function DramaLabVisualAssetsPanel({
                 onUpload={() => uploadInputRef.current?.click()}
                 onUploadFile={(file) => void uploadReference(file)}
             />
-            <Modal title={`从素材库添加${definition.label}`} open={libraryOpen} footer={null} onCancel={() => setLibraryOpen(false)} width={720}>
-                <Input className="mb-3" allowClear placeholder="搜索图片素材" value={libraryKeyword} onChange={(event) => setLibraryKeyword(event.target.value)} />
-                <List
-                    loading={libraryLoading}
-                    dataSource={libraryAssets.filter((asset) => [asset.title, asset.note || "", asset.tags.join(" ")].join(" ").toLocaleLowerCase().includes(libraryKeyword.trim().toLocaleLowerCase()))}
-                    locale={{ emptyText: libraryKeyword ? "没有匹配的图片素材" : "素材库暂无图片素材" }}
-                    renderItem={(asset) => {
-                        const imageAsset = asset.kind === "image" ? asset : undefined;
-                        const url = imageAsset?.data.serverUrl || imageAsset?.data.remoteUrl || imageAsset?.data.dataUrl || asset.coverUrl;
-                        return (
-                            <List.Item
-                                actions={[
-                                    <Button key="add" type="link" loading={busyKey === `library:${asset.id}`} onClick={() => void importLibraryAsset(asset)}>
-                                        添加
-                                    </Button>,
-                                ]}
-                            >
-                                <List.Item.Meta
-                                    avatar={url ? <img src={imagePreviewUrl(url, 96)} alt="" className="size-10 rounded object-cover" /> : <Images className="size-5 text-muted-foreground" />}
-                                    title={asset.title}
-                                    description={asset.note || asset.tags.join("、") || "图片素材"}
-                                />
-                            </List.Item>
-                        );
-                    }}
-                />
-            </Modal>
+            {libraryOpen ? <DramaLabAssetLibraryPicker key={kind} kind={kind} label={definition.label} busyKey={busyKey} onClose={() => setLibraryOpen(false)} onImport={importLibraryAsset} /> : null}
         </div>
     );
 }
@@ -497,6 +458,7 @@ function AssetEditorModal({
                     <span>文字设定</span>
                     <Input.TextArea rows={3} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value })} />
                 </label>
+                {editor ? <DramaLabAssetDetailFields kind={editor.kind} asset={asset} onChange={onChange} /> : null}
                 {editor?.kind === "characters" ? (
                     <label className="grid gap-1.5 text-sm">
                         <span>人物外貌</span>

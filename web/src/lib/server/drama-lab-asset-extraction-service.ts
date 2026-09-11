@@ -119,13 +119,15 @@ function assetsForType(project: DramaProject, assetType: DramaLabAssetType): Ext
 export function normalizeExtractedDramaLabAssets(value: string, assetType: DramaLabAssetType, existing: ExtractableAsset[]) {
     const payload = jsonObject(value);
     if (!payload) throw new DramaLabAssetExtractionError("文本模型没有返回有效的资产提取结果");
-    const names = new Set(existing.map((item) => normalizedName(assetName(item))).filter(Boolean));
+    const identities = new Set(existing.map((item) => sceneIdentity(item, assetType)).filter(Boolean));
     return array(payload.items).flatMap((value) => {
         const item = object(value);
         if (!item) return [];
         const name = text(item.name, 120) || (assetType === "scene" ? text(item.location, 120) : "");
-        if (!name || names.has(normalizedName(name))) return [];
-        names.add(normalizedName(name));
+        const time = assetType === "scene" ? text(item.time, 120) : "";
+        const identity = sceneIdentity({ name, time }, assetType);
+        if (!name || identities.has(identity)) return [];
+        identities.add(identity);
         const description = text(item.description, 2_000);
         const appearance = typeof item.appearance === "string" ? item.appearance.trim() : "";
         const imagePrompt = [item.imagePrompt, item.image_prompt, item.prompt].find((value) => typeof value === "string" && value.trim());
@@ -141,7 +143,6 @@ export function normalizeExtractedDramaLabAssets(value: string, assetType: Drama
             ...(assetType === "prop" && type ? { type } : {}),
         };
         if (assetType === "scene") {
-            const time = text(item.time, 120);
             return [{ ...base, ...(time ? { time } : {}) }];
         }
         return [base];
@@ -153,11 +154,16 @@ function extractedItemCount(value: string) {
     return payload ? array(payload.items).length : 0;
 }
 
+function sceneIdentity(value: Partial<ExtractableAsset> & { time?: string; location?: string }, assetType: DramaLabAssetType) {
+    const name = normalizedName(assetName(value));
+    return assetType === "scene" ? `${name}\u0000${normalizedName(typeof value.time === "string" ? value.time : "")}` : name;
+}
+
 function normalizedName(value: string) {
     return value.trim().toLocaleLowerCase("zh-CN").replace(/\s+/g, " ");
 }
 
-function assetName(value: ExtractableAsset) {
+function assetName(value: Partial<ExtractableAsset> & { location?: unknown }) {
     const legacyLocation = (value as ExtractableAsset & { location?: unknown }).location;
     return typeof value.name === "string" && value.name.trim() ? value.name : typeof legacyLocation === "string" ? legacyLocation : "";
 }

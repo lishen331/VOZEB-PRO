@@ -1,4 +1,4 @@
-import { dramaLabPromptDefinition } from "@/lib/drama-lab-prompt-templates";
+﻿import { dramaLabPromptDefinition } from "@/lib/drama-lab-prompt-templates";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -134,6 +134,21 @@ describe("drama lab asset extraction", () => {
         expect(result.assets[0]).toMatchObject({ imagePrompt: "单一铜灯，纯色底，无人物", type: "线索" });
     });
 
+    it("keeps scenes with the same location when their times differ", () => {
+        const items = normalizeExtractedDramaLabAssets(
+            JSON.stringify({
+                items: [
+                    { name: "医院", time: "白天", description: "白天值守" },
+                    { name: "医院", time: "夜晚", description: "夜间值守" },
+                    { name: "医院", time: "夜晚", description: "重复夜景" },
+                ],
+            }),
+            "scene",
+            [],
+        );
+        expect(items).toHaveLength(2);
+        expect(items.map((item) => (item as { time?: string }).time)).toEqual(["白天", "夜晚"]);
+    });
     it("normalizes legacy scene locations when checking duplicate names", () => {
         const items = normalizeExtractedDramaLabAssets(
             JSON.stringify({
