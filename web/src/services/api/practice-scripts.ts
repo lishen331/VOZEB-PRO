@@ -1,0 +1,55 @@
+import type { ScriptDocument, ScriptPracticeProject, ScriptStage, ScriptVersion } from "@/lib/script-practice-types";
+
+type ApiEnvelope<T> = { code: number; data?: T; msg?: string };
+export type ScriptProjectDetail = { project: ScriptPracticeProject; document: ScriptDocument | null; versions: ScriptVersion[]; entities: Array<{ id: string; type: string; name: string; description?: string }>; stages: ScriptStage[] };
+
+export const practiceScriptsApi = {
+    list(input: { page?: number; pageSize?: number; keyword?: string; status?: string } = {}) {
+        return request<{ items: ScriptPracticeProject[]; total: number; page: number; pageSize: number }>(
+            `/api/practice/scripts?${new URLSearchParams(Object.entries(input).filter(([, value]) => value !== undefined && value !== "") as Array<[string, string]>).toString()}`,
+        );
+    },
+    create(input: { title: string; sourceType?: string; idea?: string }) {
+        return request<{ project: ScriptPracticeProject; document: ScriptDocument } | ScriptPracticeProject>("/api/practice/scripts", json("POST", input));
+    },
+    detail(id: string) {
+        return request<ScriptProjectDetail>(`/api/practice/scripts/${encodeURIComponent(id)}`);
+    },
+    update(id: string, patch: Record<string, unknown>) {
+        return request<ScriptPracticeProject>(`/api/practice/scripts/${encodeURIComponent(id)}`, json("PATCH", patch));
+    },
+    remove(id: string) {
+        return request<{ deleted: boolean }>(`/api/practice/scripts/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
+    import(input: { title: string; format: "fountain" | "fdx" | "text" | "markdown"; content: string; confirm?: boolean }) {
+        return request<{ preview?: boolean; format?: string; document?: ScriptDocument; project?: ScriptPracticeProject }>("/api/practice/scripts/import", json("POST", input));
+    },
+    saveVersion(id: string, document: ScriptDocument, parentVersionId?: string) {
+        return request<ScriptVersion>(`/api/practice/scripts/${encodeURIComponent(id)}/versions`, json("POST", { document, parentVersionId }));
+    },
+    propose(id: string, input: { operation: string; baseVersionId: string; targetBlockIds: string[]; instruction: string }) {
+        return request<{ id: string; projectId: string; baseVersionId: string; targetBlockIds: string[]; operation: string; before: string; proposedAfter: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/agent`, json("POST", input));
+    },
+    apply(id: string, operation: string, input: { baseVersionId: string; currentVersionId: string; targetBlockIds: string[]; before: string; proposedAfter: string }) {
+        return request<ScriptVersion>(`/api/practice/scripts/${encodeURIComponent(id)}/agent/${encodeURIComponent(operation)}/apply`, json("POST", input));
+    },
+    generateStage(id: string, operation: string, stageInput: unknown) {
+        return request<unknown>(`/api/practice/scripts/${encodeURIComponent(id)}/stages`, json("POST", { operation, stageInput }));
+    },
+    confirmStage(id: string, stage: string) {
+        return request<ScriptStage>(`/api/practice/scripts/${encodeURIComponent(id)}/stages`, json("POST", { confirm: true, stage }));
+    },
+    exportUrl(id: string, format: "text" | "fountain" | "fdx") {
+        return `/api/practice/scripts/${encodeURIComponent(id)}/export?format=${format}`;
+    },
+};
+
+async function request<T>(url: string, init?: RequestInit) {
+    const response = await fetch(url, { cache: "no-store", ...init });
+    const payload = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
+    if (!response.ok || !payload || payload.code !== 0 || payload.data === undefined) throw new Error(payload?.msg || "剧本请求失败");
+    return payload.data;
+}
+function json(method: "POST" | "PATCH", body: unknown): RequestInit {
+    return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+}

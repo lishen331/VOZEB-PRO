@@ -10,13 +10,13 @@ describe("/api/practice/modules", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.currentUser.mockResolvedValue({ id: "teacher-one", role: "user", status: "active" });
-        mocks.getConfiguration.mockResolvedValue({ modules: [{ module: "character", mode: "workflow", available: true, models: [], inputSchema: [], outputType: "image" }], projects: { canvas: false, drama: false } });
+        mocks.getConfiguration.mockResolvedValue({ modules: [{ module: "character", mode: "workflow", available: true, models: [], inputSchema: [], outputType: "image" }], projects: { canvas: false, drama: false }, script: { enabled: true } });
     });
 
     it("returns the public capability envelope for a school member", async () => {
         const response = await GET(new Request("http://localhost/api/practice/modules"));
         expect(response.status).toBe(200);
-        expect(await response.json()).toEqual({ code: 200, data: { modules: expect.any(Array), projects: { canvas: false, drama: false } }, msg: "ok" });
+        expect(await response.json()).toEqual({ code: 200, data: { modules: expect.any(Array), projects: { canvas: false, drama: false }, script: { enabled: true } }, msg: "ok" });
     });
 
     it("requires login and maps school access errors", async () => {

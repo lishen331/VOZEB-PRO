@@ -111,6 +111,20 @@ export function AdminSkillsSection({ controller }: { controller: AdminDashboardC
                         <div className="font-semibold">Agent 执行就绪检查</div>
                         <Tag color={agentReadiness.ready ? "success" : "warning"}>{agentReadiness.ready ? "四类能力已就绪" : "需要补充模型配置"}</Tag>
                     </div>
+                    <div className="mt-3 rounded-md border border-stone-200 bg-white px-3 py-3 dark:border-stone-800 dark:bg-stone-950">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <div className="text-sm font-medium">剧本练习</div>
+                                <div className="mt-1 text-xs text-stone-500">独立文本剧本能力，不创建图片、视频或音频任务。</div>
+                            </div>
+                            <Switch
+                                checked={settings.practiceScriptSettings?.enabled !== false}
+                                loading={settingsLoading}
+                                aria-label="剧本练习显示状态"
+                                onChange={(next) => void saveSettings((current) => ({ practiceScriptSettings: { ...current.practiceScriptSettings, enabled: next } }), `剧本练习${next ? "已启用" : "已停用"}`)}
+                            />
+                        </div>
+                    </div>{" "}
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         {agentReadiness.capabilities.map((item) => (
                             <div key={item.type} className="rounded-md border border-stone-200 bg-white px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-950">
@@ -318,6 +332,20 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                     </div>
                     <Tag color="processing">6 个模块 · 7 条工作流</Tag>
                 </div>
+                <div className="mt-3 rounded-md border border-stone-200 bg-white px-3 py-3 dark:border-stone-800 dark:bg-stone-950">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <div className="text-sm font-medium">剧本练习</div>
+                            <div className="mt-1 text-xs text-stone-500">独立文本剧本能力，不创建图片、视频或音频任务。</div>
+                        </div>
+                        <Switch
+                            checked={settings.practiceScriptSettings?.enabled !== false}
+                            loading={settingsLoading}
+                            aria-label="剧本练习显示状态"
+                            onChange={(next) => void saveSettings((current) => ({ practiceScriptSettings: { ...current.practiceScriptSettings, enabled: next } }), `剧本练习${next ? "已启用" : "已停用"}`)}
+                        />
+                    </div>
+                </div>{" "}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {PRACTICE_VISIBILITY_FIELDS.map(([key, label, description]) => {
                         const enabled = (settings.practiceModuleVisibility || DEFAULT_PRACTICE_MODULE_VISIBILITY)[key];

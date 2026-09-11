@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-11。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **348** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-09-11。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **354** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,9 +23,9 @@
 
 ## 接口总览
 
-- Route 文件：**348**
-- 方法出现次数：DELETE 55、GET 186、HEAD 6、PATCH 54、POST 190、PUT 12
-- 一级域：`admin` 123、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 48、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 5、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**354**
+- 方法出现次数：DELETE 56、GET 189、HEAD 6、PATCH 55、POST 195、PUT 12
+- 一级域：`admin` 123、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 48、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 13、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
@@ -450,13 +450,21 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/points` | 用户 | [route.ts](web/src/app/api/points/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 积分：查询 |
 
-### `practice`（5）
+### `practice`（13）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/practice/modules` | 混合 | [route.ts](web/src/app/api/practice/modules/route.ts) | [practice-module-service](web/src/lib/server/practice-module-service.ts) | PostgreSQL | practice / modules：查询 |
 | GET, POST | `/api/practice/projects` | 混合 | [route.ts](web/src/app/api/practice/projects/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts)<br>[feature-module-access](web/src/lib/server/feature-module-access.ts) | PostgreSQL | practice / 项目：查询、提交/执行 |
 | GET | `/api/practice/projects/[id]` | 混合 | [route.ts](web/src/app/api/practice/projects/[id]/route.ts) | [practice-project-service](web/src/lib/server/practice-project-service.ts) | PostgreSQL | practice / 项目 / 单项：查询 |
+| GET, POST | `/api/practice/scripts` | 混合 | [route.ts](web/src/app/api/practice/scripts/route.ts) | [practice-access-service](web/src/lib/server/practice-access-service.ts)<br>[script-practice-service](web/src/lib/server/script-practice-service.ts) | PostgreSQL | practice / scripts：查询、提交/执行 |
+| DELETE, GET, PATCH | `/api/practice/scripts/[id]` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/route.ts) | [practice-access-service](web/src/lib/server/practice-access-service.ts)<br>[script-practice-service](web/src/lib/server/script-practice-service.ts) | PostgreSQL | practice / scripts / 单项：查询、更新、删除 |
+| POST | `/api/practice/scripts/[id]/agent` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/agent/route.ts) | [practice-access-service](web/src/lib/server/practice-access-service.ts)<br>[script-practice-agent-service](web/src/lib/server/script-practice-agent-service.ts)<br>[script-practice-repository](web/src/lib/server/database/script-practice-repository.ts) | PostgreSQL | practice / scripts / 单项 / Agent：提交/执行 |
+| POST | `/api/practice/scripts/[id]/agent/[operation]/apply` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/agent/[operation]/apply/route.ts) | [practice-access-service](web/src/lib/server/practice-access-service.ts)<br>[script-practice-stage-service](web/src/lib/server/script-practice-stage-service.ts)<br>[script-practice-repository](web/src/lib/server/database/script-practice-repository.ts) | PostgreSQL | practice / scripts / 单项 / Agent / [operation] / apply：提交/执行 |
+| GET | `/api/practice/scripts/[id]/export` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/export/route.ts) | [practice-access-service](web/src/lib/server/practice-access-service.ts)<br>[script-practice-service](web/src/lib/server/script-practice-service.ts)<br>[script-practice-contract](web/src/lib/script-practice-contract.ts) | PostgreSQL | practice / scripts / 单项 / 导出：查询 |
+| POST | `/api/practice/scripts/[id]/stages` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/stages/route.ts) | [practice-access-service](web/src/lib/server/practice-access-service.ts)<br>[script-practice-stage-service](web/src/lib/server/script-practice-stage-service.ts)<br>[script-practice-repository](web/src/lib/server/database/script-practice-repository.ts) | PostgreSQL | practice / scripts / 单项 / stages：提交/执行 |
+| GET, POST | `/api/practice/scripts/[id]/versions` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/versions/route.ts) | [practice-access-service](web/src/lib/server/practice-access-service.ts)<br>[script-practice-repository](web/src/lib/server/database/script-practice-repository.ts)<br>[script-practice-contract](web/src/lib/script-practice-contract.ts) | PostgreSQL | practice / scripts / 单项 / 版本：查询、提交/执行 |
+| POST | `/api/practice/scripts/import` | 混合 | [route.ts](web/src/app/api/practice/scripts/import/route.ts) | [practice-access-service](web/src/lib/server/practice-access-service.ts)<br>[script-practice-service](web/src/lib/server/script-practice-service.ts) | PostgreSQL | practice / scripts / 导入：提交/执行 |
 | GET, POST | `/api/practice/sessions` | 混合 | [route.ts](web/src/app/api/practice/sessions/route.ts) | [practice-session-service](web/src/lib/server/practice-session-service.ts)<br>[generation-execution-policy](web/src/lib/server/generation-execution-policy.ts)<br>[runninghub-workflow-runtime](web/src/lib/server/runninghub-workflow-runtime.ts) | PostgreSQL | practice / sessions：查询、提交/执行 |
 | DELETE, GET, POST | `/api/practice/sessions/[id]` | 混合 | [route.ts](web/src/app/api/practice/sessions/[id]/route.ts) | [practice-session-service](web/src/lib/server/practice-session-service.ts)<br>[generation-execution-policy](web/src/lib/server/generation-execution-policy.ts)<br>[runninghub-workflow-runtime](web/src/lib/server/runninghub-workflow-runtime.ts) | PostgreSQL | practice / sessions / 单项：查询、删除、提交/执行 |
 
