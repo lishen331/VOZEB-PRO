@@ -67,6 +67,22 @@ describe("L-compatible character AI editor actions", () => {
         expect(source).not.toContain("profileLabel(key)");
     });
 
+    it("uses contain previews and accepts imageUrl-only legacy assets", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        expect(source).toContain("!object-contain");
+        const references = await readFile(resolve(process.cwd(), "src/lib/drama-asset-references.ts"), "utf8");
+        expect(references).toContain("asset.imageUrl?.trim()");
+    });
+
+    it("supports multi-file reference upload and immediate L-style actions after upload", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        expect(source).toContain("multiple");
+        expect(source).toContain("Promise.all");
+        expect(source).toContain("setEditor");
+        expect(source).toContain("从参考图提取描述");
+        expect(source).toContain("移除参考图");
+    });
+
     it("renders reference extraction, prompt regeneration, anchor extraction, and stage generation actions", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect(source).toContain("从参考图提取描述");

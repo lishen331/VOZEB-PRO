@@ -258,15 +258,26 @@ export function DramaLabVisualAssetsPanel({
         setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, references: refs.slice(1), primaryReferenceId: refs[1]?.id, referenceImageUrl: refs[1]?.url, referenceStorageKey: refs[1]?.storageKey } } : current));
     };
 
-    const uploadReference = async (file?: File) => {
-        if (!file || !activeAsset) return;
+    const uploadReference = async (files?: FileList | File[]) => {
+        if (!files || !activeAsset) return;
+        const selected = Array.from(files).filter((file) => file.type.startsWith("image/"));
+        if (!selected.length) return;
         const requestKey = `upload:${activeAsset.id}`;
         setBusyKey(requestKey);
         try {
-            const stored = await uploadImage(file);
-            const reference = referenceFromUrl(stored.serverUrl || stored.url, "upload", file.name, stored.storageKey, stored.width, stored.height);
-            if (!(await appendReferences(activeAsset, [reference]))) throw new Error("项目保存失败");
-            messageApi.success("参考图已上传并设为主参考图");
+            const uploaded = await Promise.all(
+                selected.map(async (file) => {
+                    const stored = await uploadImage(file);
+                    return referenceFromUrl(stored.serverUrl || stored.url, "upload", file.name, stored.storageKey, stored.width, stored.height);
+                }),
+            );
+            const currentReferences = dramaAssetReferences(activeAsset);
+            const nextReferences = [...currentReferences, ...uploaded];
+            const primary = currentReferences[0] || uploaded[0];
+            const patch = { references: nextReferences, primaryReferenceId: primary?.id, referenceImageUrl: primary?.url, referenceStorageKey: primary?.storageKey, imageUrl: primary?.url };
+            if (!(await updateAsset(activeAsset.id, patch))) throw new Error("项目保存失败");
+            setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, ...patch } } : current));
+            messageApi.success(`已上传 ${uploaded.length} 张参考图${primary ? "并显示主参考图" : ""}`);
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "参考图上传失败");
         } finally {
@@ -392,7 +403,7 @@ export function DramaLabVisualAssetsPanel({
                                                             src={imagePreviewUrl(primary.url, 640)}
                                                             alt={`${asset.name}主参考图`}
                                                             rootClassName="!block !size-full"
-                                                            className="!size-full !object-cover"
+                                                            className="!size-full !object-contain"
                                                             preview={{ src: imagePreviewUrl(primary.url, 1920) }}
                                                         />
                                                     ) : (
@@ -432,7 +443,7 @@ export function DramaLabVisualAssetsPanel({
                                                                         className={`group/reference relative size-11 shrink-0 overflow-hidden rounded border ${isPrimary ? "border-foreground ring-1 ring-foreground/20" : "border-border"}`}
                                                                     >
                                                                         <button type="button" className="block size-full" onClick={() => void setPrimary(asset, reference)} title={isPrimary ? "当前主参考图" : "设为主参考图"}>
-                                                                            <img src={imagePreviewUrl(reference.url, 128)} alt={reference.label} className="size-full object-cover" />
+                                                                            <img src={imagePreviewUrl(reference.url, 128)} alt={reference.label} className="size-full object-contain" />
                                                                         </button>
                                                                         {isPrimary ? (
                                                                             <span className="absolute left-0 top-0 grid size-4 place-items-center bg-foreground text-background">
@@ -501,7 +512,7 @@ export function DramaLabVisualAssetsPanel({
                 onChange={(asset) => setEditor((current) => (current ? { ...current, asset } : current))}
                 onSave={() => void saveEditor()}
                 onUpload={() => uploadInputRef.current?.click()}
-                onUploadFile={(file) => void uploadReference(file)}
+                onUploadFile={(files) => void uploadReference(files)}
                 onAiAction={(action) => void runAssetAiAction(action)}
                 onRemoveReference={() => void removeActiveReference()}
             />
@@ -562,7 +573,7 @@ function AssetEditorModal({
     onChange: (asset: VisualAsset) => void;
     onSave: () => void;
     onUpload: () => void;
-    onUploadFile: (file?: File) => void;
+    onUploadFile: (files?: FileList | File[]) => void;
     onAiAction: (action: "describe" | "prompt" | "anchor" | "stages") => void;
     onRemoveReference: () => void;
 }) {
@@ -576,7 +587,7 @@ function AssetEditorModal({
     const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
         const file = event.dataTransfer.files?.[0];
-        if (file) onUploadFile(file);
+        if (file) onUploadFile([file]);
     };
     const descriptionLabel = editor.kind === "characters" ? "简介" : "文字设定";
     if (editor.kind === "props") {
@@ -757,7 +768,7 @@ function AssetEditorModal({
                     </label>
                 ) : null}
             </div>
-            <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" onChange={(event) => onUploadFile(event.target.files?.[0])} />
+            <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => onUploadFile(event.target.files || undefined)} />
         </Modal>
     );
 }
