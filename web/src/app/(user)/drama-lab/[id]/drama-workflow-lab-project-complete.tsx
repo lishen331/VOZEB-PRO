@@ -10,7 +10,7 @@ import { DramaLabStoryboardConstraints, type StoryboardConstraintDraft } from ".
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 
-import { Alert, Button, Drawer, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Radio, QRCode } from "antd";
+import { Alert, Button, Drawer, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Radio, QRCode, Image } from "antd";
 import {
     ArrowLeft,
     Plus,
@@ -5750,7 +5750,7 @@ function StoryboardWorkbenchCard({
                                         <div key={frameType} className="flex min-h-0 min-w-0 flex-col p-2">
                                             <span className="mb-1 text-xs text-muted-foreground">{frameLabel[frameType]}</span>
                                             {shot.frames?.[frameType]?.url ? (
-                                                <img src={shot.frames[frameType]?.url} alt={frameLabel[frameType]} className="min-h-0 w-full flex-1 object-contain" />
+                                                <Image preview={{ src: shot.frames[frameType]?.url }} src={shot.frames[frameType]?.url} alt={frameLabel[frameType]} className="min-h-0 w-full flex-1 object-contain" />
                                             ) : (
                                                 <div className="grid flex-1 place-items-center text-xs text-muted-foreground">待生成 / 上传</div>
                                             )}
@@ -5758,7 +5758,7 @@ function StoryboardWorkbenchCard({
                                     ))}
                                 </div>
                             ) : classicImageUrl ? (
-                                <img src={classicImageUrl} alt={`分镜 ${shot.shotNumber} 图像`} className="h-full min-h-0 w-full object-contain" />
+                                <Image preview={{ src: classicImageUrl }} src={classicImageUrl} alt={`分镜 ${shot.shotNumber} 图像`} className="h-full min-h-0 w-full object-contain" />
                             ) : (
                                 <div className="grid place-items-center text-sm text-muted-foreground">尚未生成分镜图</div>
                             )}
