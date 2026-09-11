@@ -5,7 +5,7 @@ import { resolveVisionModelCandidates, resolveLogicalModelCandidates } from "@/l
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 import { systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 
-export type DramaLabAssetAiAction = "prompt" | "anchor" | "stages";
+export type DramaLabAssetAiAction = "describe" | "prompt" | "anchor" | "stages";
 export type DramaLabAssetAiInput = { userId: string; origin: string; cookie: string; requestId: string; project: DramaProject; assetId: string; kind: "characters" | "scenes" | "props"; action: DramaLabAssetAiAction };
 
 export class DramaLabAssetAiError extends Error {
@@ -23,7 +23,7 @@ export async function runDramaLabAssetAiAction(input: DramaLabAssetAiInput) {
     if (!asset) throw new DramaLabAssetAiError("资产不存在", 404);
     const settings = await getAuthSettings();
     const referenceUrl = asset.references?.find((reference) => reference.id === asset.primaryReferenceId)?.url || asset.references?.[0]?.url || asset.referenceImageUrl;
-    const needsVision = input.action === "anchor" && Boolean(referenceUrl);
+    const needsVision = (input.action === "anchor" || input.action === "describe") && Boolean(referenceUrl);
     const model = (needsVision ? settings.defaultModels.visionModel : settings.defaultModels.textModel)?.trim() || "";
     const candidates = needsVision ? resolveVisionModelCandidates(settings, model) : resolveLogicalModelCandidates(settings, "text", model);
     if (!model || !candidates.length) throw new DramaLabAssetAiError(needsVision ? "后台尚未配置可用的多模态视觉模型" : "后台尚未配置可用的默认文本模型", 503);
@@ -60,12 +60,19 @@ export async function runDramaLabAssetAiAction(input: DramaLabAssetAiInput) {
 }
 
 function actionInstruction(action: DramaLabAssetAiAction) {
+    if (action === "describe") return "你是短剧实验室资产描述分析师。根据参考图和已有文字设定，提炼纯视觉外貌描述；不得描述背景故事、摄影者身份或不可见信息。只返回工具 JSON。";
     if (action === "prompt") return "你是短剧实验室资产提示词编辑器。根据资产设定生成可直接用于图片模型的最终提示词。角色必须是固定版式的四视图参考板；场景/道具遵守当前资产类型和项目风格。只返回工具 JSON。";
     if (action === "anchor") return "你是视觉资产分析师。根据文字设定和参考图提炼可复用的视觉锚点，必须返回视觉识别、造型与材质、固定色彩、一致性规则。只返回工具 JSON。";
     return "你是角色造型设计师。根据角色设定生成分集阶段造型 JSON 数组，只返回工具 JSON。";
 }
 
 function actionTool(action: DramaLabAssetAiAction) {
+    if (action === "describe")
+        return {
+            name: "describe_asset_reference",
+            description: "提取参考图视觉外貌描述",
+            parameters: { type: "object", properties: { appearance: { type: "string", minLength: 1, maxLength: 4000 } }, required: ["appearance"], additionalProperties: false },
+        };
     if (action === "prompt")
         return {
             name: "generate_asset_prompt",
@@ -101,6 +108,7 @@ function actionTool(action: DramaLabAssetAiAction) {
 }
 
 function normalizeActionResult(action: DramaLabAssetAiAction, value: Record<string, unknown>) {
+    if (action === "describe") return { appearance: text(value.appearance) };
     if (action === "prompt") return { polishedPrompt: typeof value.polishedPrompt === "string" ? value.polishedPrompt.trim() : "" };
     if (action === "anchor") return { profile: { visualIdentity: text(value.visualIdentity), styling: text(value.styling), colorPalette: text(value.colorPalette), consistencyRules: text(value.consistencyRules) } satisfies DramaAssetProfile };
     const stages = Array.isArray(value.stages)

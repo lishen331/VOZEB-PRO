@@ -4,7 +4,7 @@ import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generation-contract";
 
-import { Button, Image, Input, Modal, Select, Tabs, Tooltip } from "antd";
+import { Button, Image, Input, Modal, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
 import { Check, Edit2, ImagePlus, LibraryBig, MapPin, Package, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
@@ -287,7 +287,7 @@ export function DramaLabVisualAssetsPanel({
         messageApi.success("参考图已移除");
     };
 
-    const runAssetAiAction = async (action: "prompt" | "anchor" | "stages") => {
+    const runAssetAiAction = async (action: "describe" | "prompt" | "anchor" | "stages") => {
         if (!activeAsset || !editor) return;
         const key = `ai:${action}:${activeAsset.id || "new"}`;
         setBusyKey(key);
@@ -298,11 +298,18 @@ export function DramaLabVisualAssetsPanel({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ kind: editor.kind, action, requestId: `drama-lab-asset-ai:${project.id}:${activeAsset.id}:${action}:${nanoid()}` }),
             });
-            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { polishedPrompt?: string; profile?: DramaLabAssetProfile; stages?: VisualAsset["stages"] } };
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { appearance?: string; polishedPrompt?: string; profile?: DramaLabAssetProfile; stages?: VisualAsset["stages"] } };
             if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "资产 AI 操作失败");
-            const patch = action === "prompt" ? { polishedPrompt: payload.data.polishedPrompt || "" } : action === "anchor" ? { profile: { ...EMPTY_PROFILE, ...(payload.data.profile || {}) } } : { stages: payload.data.stages || [] };
+            const patch =
+                action === "describe"
+                    ? { appearance: payload.data.appearance || "" }
+                    : action === "prompt"
+                      ? { polishedPrompt: payload.data.polishedPrompt || "" }
+                      : action === "anchor"
+                        ? { profile: { ...EMPTY_PROFILE, ...(payload.data.profile || {}) } }
+                        : { stages: payload.data.stages || [] };
             setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, ...patch } } : current));
-            messageApi.success(action === "prompt" ? "最终生图提示词已生成" : action === "anchor" ? "视觉锚点已提炼" : "多阶段造型已生成");
+            messageApi.success(action === "describe" ? "参考图描述已提取" : action === "prompt" ? "最终生图提示词已生成" : action === "anchor" ? "视觉锚点已提炼" : "多阶段造型已生成");
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "资产 AI 操作失败");
         } finally {
@@ -556,48 +563,62 @@ function AssetEditorModal({
     onSave: () => void;
     onUpload: () => void;
     onUploadFile: (file?: File) => void;
-    onAiAction: (action: "prompt" | "anchor" | "stages") => void;
+    onAiAction: (action: "describe" | "prompt" | "anchor" | "stages") => void;
     onRemoveReference: () => void;
 }) {
     const asset = editor?.asset;
     const label = editor ? ASSET_META[editor.kind].label : "资产";
     if (!asset) return null;
     const profile = asset.profile || EMPTY_PROFILE;
-    const hasReference = dramaAssetReferences(asset).length > 0;
+    const references = dramaAssetReferences(asset);
+    const hasReference = references.length > 0;
+    const primary = dramaAssetPrimaryReference(asset);
+    const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const file = event.dataTransfer.files?.[0];
+        if (file) onUploadFile(file);
+    };
+    const descriptionLabel = editor.kind === "characters" ? "简介" : "文字设定";
     return (
         <Modal
             title={asset.id ? `编辑${label}` : `新增${label}`}
             open
+            width="min(960px, calc(100vw - 32px))"
+            styles={{ body: { maxHeight: "calc(100vh - 160px)", overflowY: "auto", paddingRight: 8 } }}
             footer={
-                <div className="flex justify-between">
-                    <Button icon={<Upload className="size-3.5" />} loading={busy} onClick={onUpload}>
-                        上传参考图
+                <div className="flex justify-end gap-2">
+                    <Button onClick={onClose}>取消</Button>
+                    <Button type="primary" onClick={onSave}>
+                        保存
                     </Button>
-                    <div className="flex gap-2">
-                        <Button onClick={onClose}>取消</Button>
-                        <Button type="primary" onClick={onSave}>
-                            保存
-                        </Button>
-                    </div>
                 </div>
             }
             onCancel={onClose}
             destroyOnHidden
         >
             <div className="grid gap-3">
-                <div className="flex items-start gap-3 rounded-md border border-dashed border-border p-3">
-                    {hasReference ? (
-                        <Image src={imagePreviewUrl(dramaAssetPrimaryReference(asset)?.url || "", 180)} width={96} height={96} preview={{ src: dramaAssetPrimaryReference(asset)?.url }} alt={`${label}参考图`} />
-                    ) : (
-                        <div className="grid size-24 place-items-center bg-muted text-xs text-muted-foreground">参考图</div>
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                        <Button size="small" onClick={onUpload}>
-                            上传参考图
-                        </Button>
+                <div className="grid grid-cols-[112px_1fr] items-start gap-4 border-b border-border pb-4">
+                    <div
+                        className="grid size-28 cursor-pointer place-items-center overflow-hidden rounded border border-dashed border-border bg-muted text-xs text-muted-foreground hover:border-primary hover:text-primary"
+                        onClick={onUpload}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={handleDrop}
+                        title="点击或拖入参考图"
+                    >
+                        {primary?.url ? (
+                            <Image src={imagePreviewUrl(primary.url, 240)} alt={`${label}参考图`} width={112} height={112} preview={{ src: primary.url }} className="!size-full !object-cover" />
+                        ) : (
+                            <>
+                                参考图
+                                <br />
+                                <span>点击或拖入参考图</span>
+                            </>
+                        )}
+                    </div>
+                    <div className="flex flex-col items-start gap-2 pt-1">
                         {hasReference ? (
-                            <Button size="small" onClick={onAiAction.bind(null, "anchor")} loading={busy}>
-                                AI 提取视觉特征
+                            <Button size="small" className="!border-primary/40 !text-primary" onClick={() => onAiAction("describe")} loading={busy}>
+                                从参考图提取描述
                             </Button>
                         ) : null}
                         {hasReference ? (
@@ -608,68 +629,59 @@ function AssetEditorModal({
                     </div>
                 </div>
                 <label className="grid gap-1.5 text-sm">
-                    <span>{label}名称</span>
+                    <span>名称</span>
                     <Input value={asset.name} onChange={(event) => onChange({ ...asset, name: event.target.value })} />
-                </label>
-                <label className="grid gap-1.5 text-sm">
-                    <span>文字设定</span>
-                    <Input.TextArea rows={3} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value })} />
                 </label>
                 {editor ? <DramaLabAssetDetailFields kind={editor.kind} asset={asset} onChange={onChange} /> : null}
                 {editor?.kind === "characters" ? (
                     <label className="grid gap-1.5 text-sm">
-                        <span>人物外貌</span>
-                        <Input.TextArea rows={3} value={asset.appearance || ""} onChange={(event) => onChange({ ...asset, appearance: event.target.value })} />
+                        <span>外貌描述</span>
+                        <Input.TextArea rows={3} value={asset.appearance || ""} onChange={(event) => onChange({ ...asset, appearance: event.target.value })} placeholder="用于 AI 生成图像的外貌描述，尽量详细" />
                     </label>
                 ) : null}
                 <label className="grid gap-1.5 text-sm">
-                    <span>生成版式</span>
-                    <Select
-                        value={normalizeDramaAssetGenerationLayout(editor?.kind || "props", asset.generationLayout)}
-                        options={[
-                            { value: "single", label: "单图" },
-                            { value: "four_view", label: "四视图 / 四宫格（第一阶段字段）" },
-                        ]}
-                        onChange={(generationLayout) => onChange({ ...asset, generationLayout })}
-                    />
-                </label>
-                <label className="grid gap-1.5 text-sm">
-                    <span>原始图片提示词</span>
-                    <Input.TextArea rows={3} value={asset.imagePrompt || ""} onChange={(event) => onChange({ ...asset, imagePrompt: event.target.value })} />
+                    <span>{descriptionLabel}</span>
+                    <Input.TextArea rows={3} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value })} placeholder="角色背景简介，供剧本生成参考" />
                 </label>
                 <label className="grid gap-1.5 text-sm">
                     <span className="flex items-center justify-between">
-                        <span>最终生图提示词</span>
+                        <span>
+                            图生提示词 <span className="text-xs font-normal text-muted-foreground">AI 润色后的最终提示词，生成四视图图片时直接使用；可手动修改</span>
+                        </span>
                         <Button size="small" onClick={() => onAiAction("prompt")} loading={busy}>
                             重新生成提示词
                         </Button>
                     </span>
-                    <Input.TextArea rows={5} value={asset.polishedPrompt || ""} onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} placeholder="保存后可由第二阶段的格式化流程生成；也可以先手动填写" />
+                    <Input.TextArea rows={7} value={asset.polishedPrompt || ""} onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} placeholder="点击“重新生成提示词”由 AI 自动生成，或直接在此输入" />
                 </label>
-                <div className="flex items-center justify-between text-sm">
-                    <span>视觉锚点</span>
-                    <Button size="small" onClick={() => onAiAction("anchor")} loading={busy}>
-                        提炼视觉锚点
-                    </Button>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                    {(["visualIdentity", "styling", "colorPalette", "consistencyRules"] as const).map((key) => (
-                        <label key={key} className="grid gap-1.5 text-sm">
-                            <span>{profileLabel(key)}</span>
-                            <Input value={profile[key]} onChange={(event) => onChange({ ...asset, profile: { ...profile, [key]: event.target.value } })} />
-                        </label>
-                    ))}
-                </div>
+                <label className="grid gap-1.5 text-sm">
+                    <span className="flex items-center justify-between">
+                        <span>
+                            视觉锚点 <span className="text-xs font-normal text-muted-foreground">AI 从外貌描述/参考图提炼的视觉特征，用于保持生成图片角色一致性</span>
+                        </span>
+                        <Button size="small" onClick={() => onAiAction("anchor")} loading={busy}>
+                            提炼视觉锚点
+                        </Button>
+                    </span>
+                    <Input.TextArea
+                        rows={5}
+                        value={JSON.stringify(profile, null, 2)}
+                        onChange={(event) => onChange({ ...asset, profile: parseAnchorProfile(event.target.value, profile) })}
+                        placeholder='{"visualIdentity":"...","styling":"...","colorPalette":"...","consistencyRules":"..."}'
+                    />
+                </label>
                 {editor?.kind === "characters" ? (
-                    <div className="grid gap-1.5 text-sm">
+                    <label className="grid gap-1.5 text-sm">
                         <span className="flex items-center justify-between">
-                            <span>多阶段造型</span>
+                            <span>
+                                多阶段造型 <span className="text-xs font-normal text-muted-foreground">不同集次的角色造型变化，格式：JSON 数组</span>
+                            </span>
                             <Button size="small" onClick={() => onAiAction("stages")} loading={busy}>
                                 AI 生成造型
                             </Button>
                         </span>
-                        <Input.TextArea rows={4} value={JSON.stringify(asset.stages || [], null, 2)} onChange={(event) => onChange({ ...asset, stages: parseStages(event.target.value) })} placeholder='[{"episodeRange":[1,3],"appearance":"..."}]' />
-                    </div>
+                        <Input.TextArea rows={4} value={JSON.stringify(asset.stages || [], null, 2)} onChange={(event) => onChange({ ...asset, stages: parseStages(event.target.value) })} placeholder='[{"episode_range":[1,3],"appearance":"..."}]' />
+                    </label>
                 ) : null}
             </div>
             <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" onChange={(event) => onUploadFile(event.target.files?.[0])} />
@@ -735,12 +747,22 @@ async function saveToLibrary(asset: VisualAsset, kind: AssetKind, label: string,
     }
 }
 
-function profileLabel(key: keyof DramaLabAssetProfile) {
-    return { visualIdentity: "视觉识别", styling: "造型与材质", colorPalette: "固定色彩", consistencyRules: "一致性规则" }[key];
-}
-
 function assetName(asset: VisualAsset) {
     return asset.name || ("location" in asset ? asset.location : "");
+}
+
+function parseAnchorProfile(value: string, fallback: DramaLabAssetProfile): DramaLabAssetProfile {
+    try {
+        const parsed = JSON.parse(value) as Partial<DramaLabAssetProfile>;
+        return {
+            visualIdentity: typeof parsed.visualIdentity === "string" ? parsed.visualIdentity : fallback.visualIdentity,
+            styling: typeof parsed.styling === "string" ? parsed.styling : fallback.styling,
+            colorPalette: typeof parsed.colorPalette === "string" ? parsed.colorPalette : fallback.colorPalette,
+            consistencyRules: typeof parsed.consistencyRules === "string" ? parsed.consistencyRules : fallback.consistencyRules,
+        };
+    } catch {
+        return fallback;
+    }
 }
 
 function parseStages(value: string) {

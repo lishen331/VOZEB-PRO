@@ -23,7 +23,7 @@ describe("drama lab visual assets", () => {
 describe("extraction detail wiring", () => {
     it("exposes L-compatible layout and final prompt fields in the asset editor", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/drama-lab-visual-assets-panel.tsx"), "utf8");
-        expect(source).toContain("生成版式");
+        expect(source).not.toContain("<span>生成版式</span>");
         expect(source).toContain("最终生图提示词");
         expect(source).toContain("normalizeDramaAssetGenerationLayout");
     });
@@ -56,9 +56,20 @@ describe("drama lab visual asset extraction actions", () => {
 });
 
 describe("L-compatible character AI editor actions", () => {
+    it("matches L editor structure and keeps only the final prompt/anchor fields visible", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        expect(source).toContain('width="min(960px, calc(100vw - 32px))"');
+        expect(source).toContain('maxHeight: "calc(100vh - 160px)"');
+        expect(source).toContain('overflowY: "auto"');
+        expect(source).toContain("点击或拖入参考图");
+        expect(source).not.toContain("<span>原始图片提示词</span>");
+        expect(source).not.toContain("<span>生成版式</span>");
+        expect(source).not.toContain("profileLabel(key)");
+    });
+
     it("renders reference extraction, prompt regeneration, anchor extraction, and stage generation actions", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
-        expect(source).toContain("AI 提取视觉特征");
+        expect(source).toContain("从参考图提取描述");
         expect(source).toContain("重新生成提示词");
         expect(source).toContain("提炼视觉锚点");
         expect(source).toContain("AI 生成造型");
