@@ -409,6 +409,7 @@ export function DramaLabVisualAssetsPanel({
                                                             alt={`${asset.name}主参考图`}
                                                             rootClassName="!block !size-full"
                                                             className="!size-full !object-contain"
+                                                            style={{ objectFit: "contain" }}
                                                             preview={{ src: imagePreviewUrl(primary.url, 1920) }}
                                                         />
                                                     ) : (
@@ -733,7 +734,7 @@ function AssetEditorModal({
                                 title="点击或拖入参考图"
                             >
                                 {primary?.url ? (
-                                    <Image src={imagePreviewUrl(primary.url, 180)} width={88} height={88} preview={{ src: primary.url }} alt={primary.label || "道具参考图"} className="!size-full !object-contain" />
+                                    <Image src={imagePreviewUrl(primary.url, 180)} width={88} height={88} alt={primary.label || "道具参考图"} className="!size-full !object-contain" style={{ objectFit: "contain" }} />
                                 ) : (
                                     <span className="px-2 text-center">点击或拖入参考图</span>
                                 )}
@@ -806,7 +807,7 @@ function AssetEditorModal({
                         title="点击或拖入参考图"
                     >
                         {primary?.url ? (
-                            <Image src={imagePreviewUrl(primary.url, 240)} alt={`${label}参考图`} width={112} height={112} preview={{ src: primary.url }} className="!size-full !object-cover" />
+                            <Image src={imagePreviewUrl(primary.url, 240)} alt={`${label}参考图`} width={112} height={112} className="!size-full !object-contain" style={{ objectFit: "contain" }} />
                         ) : (
                             <>
                                 参考图
