@@ -138,7 +138,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
     const retryTasks = tasks.filter((task) => !isTaskActive(task) && !isTaskNeedsReview(task) && task.canRetry);
 
     return (
-        <section className={cn("border-b border-border bg-card", className)} data-testid="drama-lab-task-panel">
+        <section className={cn("border-b border-border bg-card", !compact && "flex min-h-0 flex-col", className)} data-testid="drama-lab-task-panel">
             {contextHolder}
             {collapsed ? (
                 <div className="flex items-center justify-center px-1 py-2">
@@ -169,7 +169,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
                 </div>
             )}
             {!collapsed ? (
-                <div id="drama-lab-task-panel-content" className="space-y-2 px-2 pb-2" aria-live="polite">
+                <div id="drama-lab-task-panel-content" className={cn("space-y-2 px-2 pb-2", !compact && "min-h-0 flex-1 overflow-y-auto")} aria-live="polite">
                     {error ? (
                         <Alert
                             type="error"
@@ -223,7 +223,7 @@ function TaskSection({
     return (
         <div className="space-y-1.5" data-testid={`drama-task-section-${title}`}>
             <div className="px-1 text-[11px] font-semibold text-muted-foreground">{title}</div>
-            <div className="max-h-56 space-y-1.5 overflow-y-auto overscroll-contain pr-1">
+            <div className="space-y-1.5">
                 {tasks.map((task) => (
                     <TaskRow
                         key={task.id}

@@ -1711,7 +1711,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                             onClick={() => setSidebarCollapsed((current) => !current)}
                         />
                     </div>
-                    <div className={cn("min-h-0 flex-1 overflow-y-auto p-2", sidebarCollapsed && "px-1")}>
+                    <div className={cn("min-h-0 overflow-y-auto p-2", sidebarCollapsed ? "flex-1 px-1" : "flex-1 basis-0")}>
                         {project.episodes.map((ep) => {
                             const isActive = ep.id === activeEpisodeId;
                             const episodeShots = project.shots.filter((shot) => shot.episodeId === ep.id);
@@ -1786,7 +1786,12 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                             {!sidebarCollapsed ? "新增一集" : null}
                         </Button>
                     </div>
-                    <DramaLabTaskPanel projectId={projectId} compact={sidebarCollapsed} episodes={project.episodes.map((episode) => ({ id: episode.id, title: episode.title, number: episode.number }))} />
+                    <DramaLabTaskPanel
+                        projectId={projectId}
+                        compact={sidebarCollapsed}
+                        className={!sidebarCollapsed ? "min-h-0 flex-1 basis-0 overflow-hidden" : undefined}
+                        episodes={project.episodes.map((episode) => ({ id: episode.id, title: episode.title, number: episode.number }))}
+                    />
                 </aside>
 
                 {/* 主编辑区域 */}
