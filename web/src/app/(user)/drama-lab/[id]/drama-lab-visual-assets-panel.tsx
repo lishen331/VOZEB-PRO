@@ -579,6 +579,79 @@ function AssetEditorModal({
         if (file) onUploadFile(file);
     };
     const descriptionLabel = editor.kind === "characters" ? "简介" : "文字设定";
+    if (editor.kind === "props") {
+        return (
+            <Modal
+                title={asset.id ? "编辑道具" : "新增道具"}
+                open
+                width={820}
+                styles={{ body: { maxHeight: "min(72vh, 680px)", overflowY: "auto", padding: "16px 20px 12px" } }}
+                footer={
+                    <div className="flex justify-end gap-2">
+                        <Button onClick={onClose}>取消</Button>
+                        <Button type="primary" onClick={onSave}>
+                            保存
+                        </Button>
+                    </div>
+                }
+                onCancel={onClose}
+                destroyOnHidden
+            >
+                <div className="grid gap-3">
+                    <div className="flex items-start gap-3 border-b border-border pb-3">
+                        <div
+                            className="grid size-[76px] cursor-pointer place-items-center overflow-hidden rounded border border-border bg-muted text-xs text-muted-foreground"
+                            onClick={onUpload}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={handleDrop}
+                            title="点击或拖入参考图"
+                        >
+                            {primary?.url ? <Image src={imagePreviewUrl(primary.url, 180)} width={76} height={76} preview={{ src: primary.url }} alt="道具参考图" /> : "参考图"}
+                        </div>
+                        <div className="flex flex-col items-start gap-1.5">
+                            {hasReference ? (
+                                <>
+                                    <Button size="small" type="primary" onClick={() => onAiAction("describe")} loading={busy}>
+                                        提取特征描述
+                                    </Button>
+                                    <Button size="small" onClick={onRemoveReference}>
+                                        移除
+                                    </Button>
+                                </>
+                            ) : (
+                                <Button size="small" onClick={onUpload} loading={busy}>
+                                    上传参考图
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>名称</span>
+                        <Input value={asset.name} onChange={(event) => onChange({ ...asset, name: event.target.value })} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>类型</span>
+                        <Input value={(asset as Prop).type || ""} onChange={(event) => onChange({ ...asset, type: event.target.value } as VisualAsset)} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span>描述</span>
+                        <Input.TextArea rows={3} value={asset.description || ""} onChange={(event) => onChange({ ...asset, description: event.target.value })} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm">
+                        <span className="flex items-center justify-between gap-3">
+                            <span>图生提示词</span>
+                            <span className="text-xs font-normal text-muted-foreground">AI 润色后的图片提示词，生成图片时直接使用；可手动修改</span>
+                        </span>
+                        <Button size="small" className="justify-self-end" onClick={() => onAiAction("prompt")} loading={busy}>
+                            重新生成提示词
+                        </Button>
+                        <Input.TextArea rows={5} value={asset.polishedPrompt || asset.imagePrompt || ""} onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} />
+                    </label>
+                </div>
+                <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" onChange={(event) => onUploadFile(event.target.files?.[0])} />
+            </Modal>
+        );
+    }
     return (
         <Modal
             title={asset.id ? `编辑${label}` : `新增${label}`}

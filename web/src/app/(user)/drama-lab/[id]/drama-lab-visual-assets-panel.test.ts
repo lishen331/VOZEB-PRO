@@ -76,3 +76,17 @@ describe("L-compatible character AI editor actions", () => {
         expect(source).toContain("移除参考图");
     });
 });
+
+describe("L-style prop editor modal", () => {
+    it("keeps the prop editor compact and limited to L-style fields", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        expect(source).toContain('title={asset.id ? "编辑道具" : "新增道具"}');
+        expect(source).toContain("提取特征描述");
+        expect(source).toContain("<span>名称</span>");
+        expect(source).toContain("<span>类型</span>");
+        expect(source).toContain("<span>描述</span>");
+        expect(source).toContain("<span>图生提示词</span>");
+        const propBranch = source.slice(source.indexOf('if (editor.kind === \\"props\\")'), source.indexOf("return (", source.indexOf('if (editor.kind === \\"props\\")')));
+        expect(propBranch).not.toContain("生成版式");
+    });
+});
