@@ -2,10 +2,11 @@
 
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
+import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generation-contract";
 
-import { Button, Image, Input, Modal, Tabs, Tooltip } from "antd";
+import { Button, Image, Input, Modal, Select, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
-import { Check, Edit2, ImagePlus, Images, LibraryBig, MapPin, Package, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
+import { Check, Edit2, ImagePlus, LibraryBig, MapPin, Package, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useMemo, useRef, useState, type RefObject } from "react";
 
@@ -56,7 +57,6 @@ export function DramaLabVisualAssetsPanel({
     const [libraryOpen, setLibraryOpen] = useState(false);
     const [busyKey, setBusyKey] = useState("");
 
-    const assets = project[kind] as VisualAsset[];
     const definition = ASSET_META[kind];
     const activeAsset = editor?.asset;
 
@@ -466,8 +466,23 @@ function AssetEditorModal({
                     </label>
                 ) : null}
                 <label className="grid gap-1.5 text-sm">
-                    <span>生图提示词</span>
+                    <span>生成版式</span>
+                    <Select
+                        value={normalizeDramaAssetGenerationLayout(editor?.kind || "props", asset.generationLayout)}
+                        options={[
+                            { value: "single", label: "单图" },
+                            { value: "four_view", label: "四视图 / 四宫格（第一阶段字段）" },
+                        ]}
+                        onChange={(generationLayout) => onChange({ ...asset, generationLayout })}
+                    />
+                </label>
+                <label className="grid gap-1.5 text-sm">
+                    <span>原始图片提示词</span>
                     <Input.TextArea rows={3} value={asset.imagePrompt || ""} onChange={(event) => onChange({ ...asset, imagePrompt: event.target.value })} />
+                </label>
+                <label className="grid gap-1.5 text-sm">
+                    <span>最终生图提示词</span>
+                    <Input.TextArea rows={5} value={asset.polishedPrompt || ""} onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} placeholder="保存后可由第二阶段的格式化流程生成；也可以先手动填写" />
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                     {(["visualIdentity", "styling", "colorPalette", "consistencyRules"] as const).map((key) => (
@@ -484,12 +499,12 @@ function AssetEditorModal({
 }
 
 function createAsset(kind: AssetKind, asset: Partial<VisualAsset> & { id: string; name: string; description: string }) {
-    const common = { ...asset, profile: asset.profile || { ...EMPTY_PROFILE } };
+    const common = { ...asset, profile: asset.profile || { ...EMPTY_PROFILE }, generationLayout: normalizeDramaAssetGenerationLayout(kind, asset.generationLayout) };
     return kind === "scenes" ? ({ ...common, location: (asset as Scene).location || asset.name } as Scene) : (common as Character | Prop);
 }
 
 function cloneAsset(asset: VisualAsset): VisualAsset {
-    return { ...asset, profile: asset.profile ? { ...asset.profile } : { ...EMPTY_PROFILE }, references: dramaAssetReferences(asset).map((reference) => ({ ...reference })) } as VisualAsset;
+    return { ...asset, profile: asset.profile ? { ...asset.profile } : { ...EMPTY_PROFILE }, references: dramaAssetReferences(asset).map((reference) => ({ ...reference })), generationLayout: asset.generationLayout } as VisualAsset;
 }
 
 function referenceFromUrl(url: string, source: DramaLabAssetReference["source"], label: string, storageKey?: string, width?: number, height?: number): DramaLabAssetReference {

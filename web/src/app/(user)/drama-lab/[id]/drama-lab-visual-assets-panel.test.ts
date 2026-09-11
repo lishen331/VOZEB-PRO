@@ -21,6 +21,13 @@ describe("drama lab visual assets", () => {
 });
 
 describe("extraction detail wiring", () => {
+    it("exposes L-compatible layout and final prompt fields in the asset editor", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/drama-lab-visual-assets-panel.tsx"), "utf8");
+        expect(source).toContain("生成版式");
+        expect(source).toContain("最终生图提示词");
+        expect(source).toContain("normalizeDramaAssetGenerationLayout");
+    });
+
     it("retains extracted visual fields in the persisted UI asset", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/drama-lab-visual-assets-panel.tsx"), "utf8");
         expect(source).toContain("...readDramaLabAssetVisualDetails(asset)");

@@ -13,7 +13,20 @@ describe("lab asset generation consumes preserved extraction fields", () => {
         expect(prompt).toContain("仅铜灯主体，无人物无手，纯色底");
         expect(prompt).not.toContain("林薇");
     });
+    it("uses a saved polished prompt as the final generation prompt", () => {
+        expect(buildDramaLabAssetImagePrompt(project, { name: "林薇", polishedPrompt: "固定四视图最终提示词" }, "characters")).toBe("固定四视图最终提示词");
+    });
+
+    it("uses the declared layout when a polished prompt is not available", () => {
+        const prompt = buildDramaLabAssetImagePrompt(project, { name: "林薇", generationLayout: "four_view" }, "characters");
+        expect(prompt).toContain("角色四视图设定板");
+    });
     it("reads only the declared visual metadata fields", () => {
-        expect(readDramaLabAssetVisualDetails({ appearance: "红衣", imagePrompt: "  单人  ", role: "main", arbitrary: "ignored", time: 123 })).toEqual({ appearance: "红衣", imagePrompt: "单人", role: "main" });
+        expect(readDramaLabAssetVisualDetails({ appearance: "红衣", imagePrompt: "  单人  ", role: "main", generationLayout: "four_view", arbitrary: "ignored", time: 123 })).toEqual({
+            appearance: "红衣",
+            imagePrompt: "单人",
+            generationLayout: "four_view",
+            role: "main",
+        });
     });
 });
