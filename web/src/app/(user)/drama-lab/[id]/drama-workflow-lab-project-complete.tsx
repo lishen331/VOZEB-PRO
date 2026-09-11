@@ -5300,6 +5300,40 @@ function StoryboardPanel({
         }
     };
 
+    const uploadVideo = async (shot: Shot, file: File) => {
+        if (!episode) return;
+        const actionKey = `video-upload:${shot.id}`;
+        if (startingKeysRef.current.has(actionKey)) return;
+        const operationEpisodeId = episode.id;
+        const operationProjectId = project.id;
+        const controller = new AbortController();
+        const isStale = () => disposedRef.current || currentEpisodeIdRef.current !== operationEpisodeId || latestProjectRef.current.id !== operationProjectId;
+        operationAbortRef.current.set(actionKey, controller);
+        try {
+            setActionBusy(actionKey, true);
+            const formData = new FormData();
+            formData.set("file", file);
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/video/upload?episodeId=${encodeURIComponent(episode.id)}`, {
+                method: "POST",
+                body: formData,
+                signal: controller.signal,
+            });
+            await assertJsonApiResponse(response);
+            const data = await response.json();
+            if (!response.ok || data.code !== 0 || !data.data?.shot) throw new Error(data.msg || "分镜视频上传失败");
+            if (controller.signal.aborted || isStale()) return;
+            onShotSynced(episode.id, shot.id, data.data.shot);
+            messageApi.success({ content: "分镜视频已上传", key: actionKey, duration: 3 });
+        } catch (error) {
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "分镜视频上传失败", key: actionKey, duration: 6 });
+        } finally {
+            if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
+            if (!disposedRef.current) setActionBusy(actionKey, false);
+            else startingKeysRef.current.delete(actionKey);
+            if (controller.signal.aborted || isStale()) messageApi.destroy(actionKey);
+        }
+    };
+
     if (!episode) {
         return <div className="text-center text-muted-foreground">请先选择一个剧集</div>;
     }
@@ -5366,6 +5400,7 @@ function StoryboardPanel({
                                     onKeepFirstFrameCandidate={() => messageApi.info("候选首帧已保留，未覆盖当前首帧")}
                                     onToggleFrameLock={toggleFrameLock}
                                     onUploadFrame={uploadFrame}
+                                    onUploadVideo={uploadVideo}
                                     onStartAudio={startAudioGeneration}
                                     onSyncAudio={syncAudioManually}
                                     onRecoverAudio={recoverAudioManually}
@@ -5540,6 +5575,7 @@ function StoryboardWorkbenchCard({
     onKeepFirstFrameCandidate,
     onToggleFrameLock,
     onUploadFrame,
+    onUploadVideo,
 }: {
     shot: Shot;
     project: Project;
@@ -5559,6 +5595,7 @@ function StoryboardWorkbenchCard({
     onKeepFirstFrameCandidate: (shot: Shot) => void;
     onToggleFrameLock: (shot: Shot, frameType: "first" | "key" | "last") => Promise<void>;
     onUploadFrame: (shot: Shot, frameType: "first" | "key" | "last", file: File) => Promise<void>;
+    onUploadVideo: (shot: Shot, file: File) => Promise<void>;
     onSync: () => void;
     onUpdate: (patch: Partial<Shot>) => void;
     onEdit: () => void;
@@ -5589,6 +5626,7 @@ function StoryboardWorkbenchCard({
     const [universalPromptAction, setUniversalPromptAction] = useState<"generate" | "polish" | null>(null);
     const [universalPromptError, setUniversalPromptError] = useState<string | null>(null);
     const uploadInputRefs = useRef<Partial<Record<"first" | "key" | "last", HTMLInputElement | null>>>({});
+    const videoUploadInputRef = useRef<HTMLInputElement>(null);
     const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
     const openPromptEditor = (target: "image" | "video" | "first" | "last") => {
         setPromptDraft(target === "image" ? shot.imagePrompt || "" : target === "video" ? shot.videoPrompt || "" : shot.frames?.[target]?.prompt || "");
@@ -6034,6 +6072,21 @@ function StoryboardWorkbenchCard({
                         ) : null}
                         <Button type="primary" loading={videoBusy} disabled={videoBusy || checkingVideoStatus || videoNeedsCheck} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
                             {videoNeedsCheck ? "请先检查状态" : shot.videoUrl ? "重新生成视频" : "生成分镜视频"}
+                        </Button>
+                        <input
+                            ref={videoUploadInputRef}
+                            type="file"
+                            accept="video/mp4,video/webm,video/quicktime"
+                            className="hidden"
+                            aria-label="选择分镜视频文件"
+                            onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                event.target.value = "";
+                                if (file) void onUploadVideo(shot, file);
+                            }}
+                        />
+                        <Button loading={busyKeys.has(`video-upload:${shot.id}`)} disabled={videoBusy || checkingVideoStatus || videoNeedsCheck} icon={<Upload className="size-4" />} onClick={() => videoUploadInputRef.current?.click()}>
+                            上传分镜视频
                         </Button>
                         <GenerationHistory history={shot.videoHistory} activeUrl={shot.videoUrl} type="video" onRestore={(url) => onUpdate({ videoUrl: url, generationStatus: "success", generationNeedsReview: undefined, generationError: undefined })} />
                     </div>
