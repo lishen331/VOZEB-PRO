@@ -16,7 +16,7 @@ describe("drama lab visual assets", () => {
 
         expect(projectSource).toContain("const saveQueueRef = useRef<Promise<boolean>>(Promise.resolve(true));");
         expect(projectSource).toContain('typeof updatesOrUpdater === "function" ? updatesOrUpdater(current) : updatesOrUpdater');
-        expect(source).toContain("return replaceAssets((current) => current.map((asset) => (asset.id === assetId ? { ...asset, ...patch } : asset)))");
+        expect(source).toContain("const updateAsset");
     });
 });
 

@@ -80,7 +80,9 @@ export function DramaLabVisualAssetsPanel({
     const replaceAssets = (next: VisualAsset[] | ((current: VisualAsset[]) => VisualAsset[])) => replaceAssetsFor(kind, next);
 
     const updateAsset = async (assetId: string, patch: Partial<VisualAsset>) => {
-        return replaceAssets((current) => current.map((asset) => (asset.id === assetId ? { ...asset, ...patch } : asset)));
+        const saved = await replaceAssets((current) => current.map((asset) => (asset.id === assetId ? { ...asset, ...patch } : asset)));
+        if (saved) setEditor((current) => (current?.asset?.id === assetId ? { ...current, asset: { ...current.asset, ...patch } } : current));
+        return saved;
     };
 
     const extractAssetsForKind = async (assetKind: AssetKind) => {
@@ -214,10 +216,11 @@ export function DramaLabVisualAssetsPanel({
     };
 
     const appendReferences = async (asset: VisualAsset, added: DramaLabAssetReference[]) => {
-        const primary = added[0];
-        if (!primary) return false;
+        if (!added.length) return false;
+        const currentReferences = dramaAssetReferences(asset);
+        const primary = currentReferences.length ? currentReferences[0] : added[0];
         return updateAsset(asset.id, {
-            references: [...dramaAssetReferences(asset), ...added],
+            references: [...currentReferences, ...added],
             primaryReferenceId: primary.id,
             referenceImageUrl: primary.url,
             referenceStorageKey: primary.storageKey,
@@ -515,6 +518,8 @@ export function DramaLabVisualAssetsPanel({
                 onUploadFile={(files) => void uploadReference(files)}
                 onAiAction={(action) => void runAssetAiAction(action)}
                 onRemoveReference={() => void removeActiveReference()}
+                onSetPrimary={(reference) => (activeAsset ? void setPrimary(activeAsset, reference) : undefined)}
+                onRemoveReferenceById={(referenceId) => (activeAsset ? void removeReference(activeAsset, referenceId) : undefined)}
             />
             {libraryOpen ? <DramaLabAssetLibraryPicker key={kind} kind={kind} label={definition.label} busyKey={busyKey} onClose={() => setLibraryOpen(false)} onImport={importLibraryAsset} /> : null}
             {impactModalAsset ? (
@@ -565,6 +570,8 @@ function AssetEditorModal({
     onUploadFile,
     onAiAction,
     onRemoveReference,
+    onSetPrimary,
+    onRemoveReferenceById,
 }: {
     editor?: EditorState;
     busy: boolean;
@@ -576,6 +583,8 @@ function AssetEditorModal({
     onUploadFile: (files?: FileList | File[]) => void;
     onAiAction: (action: "describe" | "prompt" | "anchor" | "stages") => void;
     onRemoveReference: () => void;
+    onSetPrimary: (reference: DramaLabAssetReference) => void;
+    onRemoveReferenceById: (referenceId: string) => void;
 }) {
     const asset = editor?.asset;
     const label = editor ? ASSET_META[editor.kind].label : "资产";
@@ -586,8 +595,8 @@ function AssetEditorModal({
     const primary = dramaAssetPrimaryReference(asset);
     const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
-        const file = event.dataTransfer.files?.[0];
-        if (file) onUploadFile([file]);
+        const files = Array.from(event.dataTransfer.files || []);
+        if (files.length) onUploadFile(files);
     };
     const descriptionLabel = editor.kind === "characters" ? "简介" : "文字设定";
     if (editor.kind === "props") {
@@ -609,32 +618,40 @@ function AssetEditorModal({
                 destroyOnHidden
             >
                 <div className="grid gap-3">
-                    <div className="flex items-start gap-3 border-b border-border pb-3">
-                        <div
-                            className="grid size-[76px] cursor-pointer place-items-center overflow-hidden rounded border border-border bg-muted text-xs text-muted-foreground"
-                            onClick={onUpload}
-                            onDragOver={(event) => event.preventDefault()}
-                            onDrop={handleDrop}
-                            title="点击或拖入参考图"
-                        >
-                            {primary?.url ? <Image src={imagePreviewUrl(primary.url, 180)} width={76} height={76} preview={{ src: primary.url }} alt="道具参考图" /> : "参考图"}
+                    <div className="border-b border-border pb-3">
+                        <div className="mb-2 text-xs text-muted-foreground">参考图</div>
+                        <div className="flex flex-wrap items-start gap-2">
+                            {references.map((reference) => {
+                                const isPrimary = reference.id === asset.primaryReferenceId || (!asset.primaryReferenceId && reference.id === primary?.id);
+                                return (
+                                    <div key={reference.id} className="group relative w-[88px]">
+                                        <Image src={imagePreviewUrl(reference.url, 180)} width={88} height={88} preview={{ src: reference.url }} alt={reference.label || "道具参考图"} className="rounded object-cover" />
+                                        <div className="mt-1 flex flex-col gap-1">
+                                            <Button size="small" type={isPrimary ? "primary" : "default"} onClick={() => onSetPrimary(reference)}>
+                                                {isPrimary ? "主参考图" : "设为主图"}
+                                            </Button>
+                                            <Button size="small" danger onClick={() => onRemoveReferenceById(reference.id)}>
+                                                移除
+                                            </Button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            <div
+                                className="grid h-[88px] w-[88px] cursor-pointer place-items-center rounded border border-dashed border-border bg-muted text-xs text-muted-foreground"
+                                onClick={onUpload}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={handleDrop}
+                                title="点击或拖入参考图"
+                            >
+                                + 上传
+                            </div>
                         </div>
-                        <div className="flex flex-col items-start gap-1.5">
-                            {hasReference ? (
-                                <>
-                                    <Button size="small" type="primary" onClick={() => onAiAction("describe")} loading={busy}>
-                                        提取特征描述
-                                    </Button>
-                                    <Button size="small" onClick={onRemoveReference}>
-                                        移除
-                                    </Button>
-                                </>
-                            ) : (
-                                <Button size="small" onClick={onUpload} loading={busy}>
-                                    上传参考图
-                                </Button>
-                            )}
-                        </div>
+                        {hasReference ? (
+                            <Button size="small" type="primary" className="mt-2" onClick={() => onAiAction("describe")} loading={busy}>
+                                提取特征描述
+                            </Button>
+                        ) : null}
                     </div>
                     <label className="grid gap-1.5 text-sm">
                         <span>名称</span>
@@ -659,7 +676,7 @@ function AssetEditorModal({
                         <Input.TextArea rows={5} value={asset.polishedPrompt || asset.imagePrompt || ""} onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} />
                     </label>
                 </div>
-                <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" onChange={(event) => onUploadFile(event.target.files?.[0])} />
+                <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => onUploadFile(Array.from(event.target.files || []))} />
             </Modal>
         );
     }
