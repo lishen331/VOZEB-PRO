@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Button, Input, Modal, Pagination } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
 import { BookOpenText, FileText, Search } from "lucide-react";
@@ -26,9 +27,11 @@ type DramaLabNovelImportProps = {
     messageApi: MessageInstance;
     onImported: (episodeId?: string) => Promise<void> | void;
     children?: ReactNode;
+    /** ID of a sibling toolbar element that should host the import action. */
+    triggerContainerId?: string;
 };
 
-export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi, onImported, children }: DramaLabNovelImportProps) {
+export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi, onImported, children, triggerContainerId }: DramaLabNovelImportProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const readingRef = useRef(false);
     const importingRef = useRef(false);
@@ -40,7 +43,18 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
     const [reading, setReading] = useState(false);
     const [importing, setImporting] = useState(false);
     const [dragging, setDragging] = useState(false);
+    const [triggerContainer, setTriggerContainer] = useState<HTMLElement | null>(null);
     const dragDepthRef = useRef(0);
+
+    useEffect(() => {
+        if (!triggerContainerId) {
+            setTriggerContainer(null);
+            return;
+        }
+
+        setTriggerContainer(document.getElementById(triggerContainerId));
+        return () => setTriggerContainer(null);
+    }, [triggerContainerId]);
     const filtered = useMemo(() => {
         const keyword = query.trim().toLocaleLowerCase("zh-CN");
         const drafts = preview?.drafts || [];
@@ -154,8 +168,15 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
         setDragging(false);
     };
 
+    const importTrigger = (
+        <Button icon={<BookOpenText className="size-4" />} loading={reading} disabled={importing} onClick={() => inputRef.current?.click()}>
+            导入小说
+        </Button>
+    );
+
     return (
         <>
+            {triggerContainer ? createPortal(importTrigger, triggerContainer) : null}
             <div
                 className={`${children ? "flex w-full flex-col gap-2 rounded-lg border border-dashed p-3" : "inline-flex items-center gap-2 rounded-lg border border-dashed px-1 py-1"} transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border"}`}
                 onDragEnter={handleDragEnter}
@@ -168,9 +189,7 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
                 data-dragging={dragging || undefined}
                 data-drama-lab-novel-dropzone
             >
-                <Button icon={<BookOpenText className="size-4" />} loading={reading} disabled={importing} onClick={() => inputRef.current?.click()}>
-                    导入小说
-                </Button>
+                {!triggerContainerId ? importTrigger : null}
                 {children}
                 <span className="hidden pr-2 text-xs text-muted-foreground sm:inline">或拖拽 TXT/MD 文件到这里</span>
             </div>
