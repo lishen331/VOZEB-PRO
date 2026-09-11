@@ -26,4 +26,13 @@ describe("drama create workspace navigation", () => {
 
         expect(source).toContain('<div className="h-full min-h-0 overflow-x-hidden overflow-y-auto bg-background">');
     });
+
+    it("replaces the script save action with a right-aligned next-step action", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/drama-workflow-lab-project-complete.tsx"), "utf8");
+
+        expect(source).toContain('onStepChange("assets")');
+        expect(source).toContain('aria-label="进入资产准备"');
+        expect(source).toContain("下一步");
+        expect(source).not.toContain("保存当前集");
+    });
 });

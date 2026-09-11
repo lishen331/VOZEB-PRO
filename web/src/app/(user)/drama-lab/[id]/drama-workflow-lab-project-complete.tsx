@@ -1794,7 +1794,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                         strictApprovalBlock={activeCollaborationStage ? stageApprovalBlock(activeCollaborationStage.key) : undefined}
                         onSubmit={submitForApproval}
                     />
-                    {activeStep === "script" && <ScriptEditor project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onActiveEpisodeChange={setActiveEpisodeId} messageApi={messageApi} />}
+                    {activeStep === "script" && <ScriptEditor project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onActiveEpisodeChange={setActiveEpisodeId} onStepChange={setActiveStep} messageApi={messageApi} />}
                     {activeStep === "review" && <ReviewPanel project={project} episode={activeEpisode} onStepChange={setActiveStep} messageApi={messageApi} />}
                     {activeStep === "assets" && <DramaLabVisualAssetsPanel project={project} episode={activeEpisode} onSave={saveProject} onReload={loadProject} onLocateShot={locateStoryboardShot} messageApi={messageApi} />}
                     {activeStep === "storyboard" && (
@@ -1879,6 +1879,7 @@ function ScriptEditor({
     onSave,
     onReload,
     onActiveEpisodeChange,
+    onStepChange,
     messageApi,
 }: {
     project: Project;
@@ -1887,6 +1888,7 @@ function ScriptEditor({
     onReload: () => Promise<void>;
     onActiveEpisodeChange: (episodeId: string) => void;
     messageApi: ReturnType<typeof message.useMessage>[0];
+    onStepChange: (step: StepKey) => void;
 }) {
     const [form] = Form.useForm();
     const [scriptForm] = Form.useForm();
@@ -2214,9 +2216,18 @@ function ScriptEditor({
                                             <span>{episode.script.length} 字</span>
                                         </div>
 
-                                        <Button className="order-6 self-start" onClick={() => void saveNow()}>
-                                            保存当前集
-                                        </Button>
+                                        <div className="order-6 flex justify-end border-t border-border pt-4">
+                                            <Button
+                                                type="primary"
+                                                aria-label="进入资产准备"
+                                                onClick={async () => {
+                                                    const saved = await saveNow();
+                                                    if (saved) onStepChange("assets");
+                                                }}
+                                            >
+                                                下一步
+                                            </Button>
+                                        </div>
                                     </div>
                                 ),
                             },
