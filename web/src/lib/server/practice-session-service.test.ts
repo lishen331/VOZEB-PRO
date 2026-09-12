@@ -134,6 +134,7 @@ describe("practice sessions", () => {
         const session = await store.create({
             id: "practice-session-delete",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas",
             module: "script",
             mode: "manual",
@@ -179,6 +180,7 @@ describe("practice sessions", () => {
         await store.create({
             id: "practice-session-revoked",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas",
             module: "script",
             mode: "manual",
@@ -446,6 +448,7 @@ describe("practice sessions", () => {
         const session = await store.create({
             id: "audio-result-session",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas",
             module: "dubbing",
             mode: "workflow",
@@ -461,6 +464,7 @@ describe("practice sessions", () => {
         mocks.getAudioTask.mockResolvedValue({
             id: "audio-task",
             userId: "student-one",
+            schoolId: "school-one",
             status: "success",
             result: { url: "http://127.0.0.1:3000/api/reference-assets/permanent/audio/result.flac", mimeType: "audio/flac" },
         });
@@ -477,6 +481,7 @@ describe("practice sessions", () => {
         const created = await store.create({
             id: "failed-task-session",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas",
             module: "storyboard-image",
             mode: "workflow",
@@ -502,6 +507,7 @@ describe("practice sessions", () => {
         const cancelled = await store.create({
             id: "disabled-retry",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas",
             module: "storyboard-image",
             mode: "workflow",
@@ -526,6 +532,7 @@ describe("practice sessions", () => {
         const cancelled = await store.create({
             id: "cancelled-session",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas",
             module: "storyboard-image",
             mode: "workflow",
@@ -550,6 +557,7 @@ describe("practice sessions", () => {
         const legacy = {
             id: "legacy-session",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas" as const,
             module: "storyboard-image" as const,
             mode: "workflow" as const,
@@ -767,6 +775,7 @@ describe("practice sessions", () => {
         const session = await store.create({
             id: "unknown-session",
             userId: "student-one",
+            schoolId: "school-one",
             projectKind: "canvas",
             module: "script",
             mode: "workflow",

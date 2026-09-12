@@ -43,7 +43,7 @@ export class DramaProjectServiceError extends Error {
     }
 }
 
-export function listDramaProjectSummariesForUser(userId: string, input: { page?: number; pageSize?: number; executionProfile?: "production" | "open-source-practice"; schoolId?: string } = {}) {
+export function listDramaProjectSummariesForUser(userId: string, input: { page?: number; pageSize?: number; schoolId?: string; executionProfile?: "production" | "open-source-practice" } = {}) {
     return listDramaProjectSummaries(userId, { ...input, executionProfile: input.executionProfile || "production" });
 }
 

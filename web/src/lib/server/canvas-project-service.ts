@@ -35,12 +35,12 @@ export class CanvasProjectServiceError extends Error {
     }
 }
 
-export function listCanvasProjectsForUser(userId: string, input: { page?: unknown; pageSize?: unknown; executionProfile?: "production" | "open-source-practice"; schoolId?: string } = {}) {
+export function listCanvasProjectsForUser(userId: string, input: { page?: unknown; pageSize?: unknown; schoolId?: string; executionProfile?: "production" | "open-source-practice" } = {}) {
     return listCanvasProjectSummaries(userId, {
         page: positiveInteger(input.page, 1, 1_000_000),
         pageSize: positiveInteger(input.pageSize, 12, 100),
         executionProfile: input.executionProfile || "production",
-        schoolId: input.schoolId,
+        ...(input.schoolId ? { schoolId: input.schoolId } : {}),
     });
 }
 
