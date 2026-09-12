@@ -12,7 +12,8 @@ import styleGroups from "@/lib/drama-lab-style-options.json";
 import { uploadImage } from "@/services/image-storage";
 import { createImageGenerationTask, waitForImageGenerationTask } from "@/services/api/image";
 import { useEffectiveConfig } from "@/stores/use-config-store";
-import { buildDramaLabAssetImagePrompt } from "@/lib/drama-lab-asset-image-prompt";
+import { buildResourceImageRequest, normalizeResourceGenerationReferences, setResourcePrimaryImage } from "./resource-image-generation";
+import type { ReferenceImage } from "@/types/image";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -182,6 +183,8 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const [resourceEditor, setResourceEditor] = useState<{ kind: "characters" | "scenes" | "props"; asset: Character | Scene | Prop }>();
     const [resourceBusy, setResourceBusy] = useState(false);
     const resourceFileInput = useRef<HTMLInputElement>(null);
+    const [resourcePreview, setResourcePreview] = useState<{ url: string; title: string }>();
+    const [resourceMentionOpen, setResourceMentionOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("characters");
     const [batchImportOpen, setBatchImportOpen] = useState(false);
     const [batchImportText, setBatchImportText] = useState("");
@@ -356,6 +359,69 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
         } catch (error) {
             message.error(error instanceof Error ? error.message : "素材导入失败");
             return false;
+        }
+    };
+
+    const updateResourceAsset = (update: (asset: Character | Scene | Prop) => Character | Scene | Prop) => setResourceEditor((current) => (current ? { ...current, asset: update(current.asset) } : current));
+
+    const uploadResourceReferences = async (files: File[]) => {
+        if (!resourceEditor || !files.length) return;
+        const existing = normalizeResourceGenerationReferences(resourceEditor.asset.references || []);
+        const accepted = files.filter((file) => file.type.startsWith("image/")).slice(0, Math.max(0, 9 - existing.length));
+        if (!accepted.length) {
+            message.warning(existing.length >= 9 ? "最多支持 9 张参考图" : "请选择图片文件");
+            return;
+        }
+        setResourceBusy(true);
+        try {
+            const uploaded = await Promise.all(accepted.map(uploadImage));
+            updateResourceAsset((asset) => ({
+                ...asset,
+                references: [...(asset.references || []), ...uploaded.map((stored, index) => ({ id: `reference-${Date.now()}-${index}`, url: stored.serverUrl || stored.url, storageKey: stored.storageKey, role: "reference" }))],
+            }));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "上传失败");
+        } finally {
+            setResourceBusy(false);
+            if (resourceFileInput.current) resourceFileInput.current.value = "";
+        }
+    };
+
+    const generateResourceImage = async () => {
+        if (!resourceEditor || !project) return;
+        setResourceBusy(true);
+        try {
+            const request = buildResourceImageRequest(resourceEditor.asset.description || "", resourceEditor.asset.references || []);
+            const references: ReferenceImage[] = request.references.map((reference, index) => ({
+                id: reference.id || `reference-${index + 1}`,
+                name: reference.label,
+                type: "image",
+                dataUrl: reference.url || "",
+                url: reference.url,
+                serverUrl: reference.url,
+                storageKey: reference.storageKey,
+            }));
+            const config = { ...imageConfig, model: imageConfig.imageModel || imageConfig.model, count: "1" };
+            const task = await createImageGenerationTask(config, request.prompt, references, undefined, {
+                surface: "drama",
+                projectId: project.id,
+                logSource: "drama",
+                logTitle: `${project.title} · 资源设定图`,
+            });
+            const results = await waitForImageGenerationTask(config, task);
+            const result = results.results?.[0] || results;
+            const url = result?.serverUrl || result?.remoteUrl || result?.dataUrl;
+            if (!url) throw new Error("生成未返回图片地址");
+            updateResourceAsset((asset) => ({
+                ...asset,
+                imageUrl: url,
+                referenceImageUrl: url,
+                references: [...(assetImageUrl(asset) ? [{ id: `history-${Date.now()}`, url: assetImageUrl(asset), role: "history" }] : []), ...(asset.references || []).filter((item) => item.role !== "primary")],
+            }));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "生成失败");
+        } finally {
+            setResourceBusy(false);
         }
     };
 
@@ -919,92 +985,141 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
             >
                 {resourceEditor ? (
                     <div className="max-h-[65vh] overflow-y-auto py-3">
-                        <div className="mb-4 flex items-start gap-4">
-                            <span className="w-12 shrink-0 pt-2">图片</span>
-                            <div className="flex h-32 w-40 items-center justify-center rounded border bg-muted">
-                                {assetImageUrl(resourceEditor.asset) ? <img src={assetImageUrl(resourceEditor.asset)} alt="参考图" className="max-h-full max-w-full object-contain" /> : "暂无参考图"}
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <Button disabled={resourceBusy} onClick={() => resourceFileInput.current?.click()}>
-                                    上传图片
-                                </Button>
-                                <Button
-                                    loading={resourceBusy}
-                                    onClick={async () => {
-                                        setResourceBusy(true);
-                                        try {
-                                            const config = { ...imageConfig, model: imageConfig.imageModel || imageConfig.model, count: "1" };
-                                            const task = await createImageGenerationTask(config, buildDramaLabAssetImagePrompt(project, resourceEditor.asset, resourceEditor.kind), [], undefined, {
-                                                surface: "drama",
-                                                projectId: project.id,
-                                                logSource: "drama",
-                                                logTitle: `${project.title} · 资源设定图`,
-                                            });
-                                            const results = await waitForImageGenerationTask(config, task);
-                                            const result = results.results?.[0] || results;
-                                            const url = result?.serverUrl || result?.remoteUrl || result?.dataUrl;
-                                            if (!url) throw new Error("生成未返回图片地址");
-                                            setResourceEditor((current) =>
-                                                current ? { ...current, asset: { ...current.asset, imageUrl: url, referenceImageUrl: url, references: [{ id: `reference-${Date.now()}`, url }, ...(current.asset.references || [])] } } : current,
-                                            );
-                                        } catch (error) {
-                                            message.error(error instanceof Error ? error.message : "生成失败");
-                                        } finally {
-                                            setResourceBusy(false);
-                                        }
-                                    }}
+                        <div className="mb-4 grid grid-cols-[3rem_minmax(0,1fr)] gap-4">
+                            <span className="pt-2">主图</span>
+                            <div className="flex min-w-0 gap-2">
+                                <button
+                                    type="button"
+                                    className="flex h-44 min-w-0 flex-1 items-center justify-center overflow-hidden rounded border bg-muted"
+                                    onClick={() => assetImageUrl(resourceEditor.asset) && setResourcePreview({ url: assetImageUrl(resourceEditor.asset) || "", title: "当前主图" })}
                                 >
-                                    AI 生成
-                                </Button>
+                                    {assetImageUrl(resourceEditor.asset) ? <img src={assetImageUrl(resourceEditor.asset)} alt="主图" className="max-h-full max-w-full object-contain" /> : "暂无主图"}
+                                </button>
+                                <div className="max-h-44 w-20 shrink-0 space-y-2 overflow-y-auto pr-1" aria-label="AI 生成历史图">
+                                    {(resourceEditor.asset.references || [])
+                                        .filter((reference) => reference.role === "history" && reference.url)
+                                        .map((reference, index) => (
+                                            <div key={reference.id || `${reference.url}-${index}`} className="group relative h-12 overflow-hidden rounded border">
+                                                <button
+                                                    type="button"
+                                                    className="size-full"
+                                                    aria-label="设为主图"
+                                                    onClick={() => {
+                                                        const result = setResourcePrimaryImage(assetImageUrl(resourceEditor.asset), resourceEditor.asset.references || [], reference);
+                                                        updateResourceAsset((asset) => ({ ...asset, imageUrl: result.primaryUrl, referenceImageUrl: result.primaryUrl, references: result.references }));
+                                                    }}
+                                                >
+                                                    <img src={reference.url} alt={`历史图 ${index + 1}`} className="size-full object-cover" />
+                                                </button>
+                                                <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/45 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+                                                    <button type="button" aria-label="放大历史图" className="rounded bg-white px-1.5 text-xs" onClick={() => setResourcePreview({ url: reference.url || "", title: `历史图 ${index + 1}` })}>
+                                                        ⌕
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        aria-label="删除历史图"
+                                                        className="rounded bg-white px-1.5 text-xs"
+                                                        onClick={() => updateResourceAsset((asset) => ({ ...asset, references: (asset.references || []).filter((item) => item.id !== reference.id) }))}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+
+                            <span className="pt-2">参考</span>
+                            <div
+                                className="rounded-lg border border-dashed p-2 transition-colors hover:border-primary"
+                                onDragOver={(event) => {
+                                    event.preventDefault();
+                                    event.dataTransfer.dropEffect = "copy";
+                                }}
+                                onDrop={(event) => {
+                                    event.preventDefault();
+                                    void uploadResourceReferences(Array.from(event.dataTransfer.files));
+                                }}
+                            >
+                                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>生成图片的参考图</span>
+                                    <span>{normalizeResourceGenerationReferences(resourceEditor.asset.references || []).length} / 9</span>
+                                </div>
+                                <div className="flex min-h-24 gap-2 overflow-x-auto pb-1">
+                                    {normalizeResourceGenerationReferences(resourceEditor.asset.references || []).map((reference, index) => (
+                                        <div key={reference.id} className="group relative h-24 w-20 shrink-0 overflow-hidden rounded border bg-muted">
+                                            <button type="button" className="size-full" aria-label={`预览${reference.label}`} onClick={() => setResourcePreview({ url: reference.url || "", title: reference.label })}>
+                                                <img src={reference.url} alt={reference.label} className="size-full object-cover" />
+                                                <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">{reference.label}</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                aria-label={`移除${reference.label}`}
+                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs"
+                                                onClick={() => updateResourceAsset((asset) => ({ ...asset, references: (asset.references || []).filter((item) => item.id !== reference.id) }))}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {normalizeResourceGenerationReferences(resourceEditor.asset.references || []).length < 9 ? (
+                                        <button type="button" className="grid h-24 w-20 shrink-0 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={() => resourceFileInput.current?.click()}>
+                                            <span>
+                                                <b className="block text-xl font-normal">＋</b>拖入或添加
+                                            </span>
+                                        </button>
+                                    ) : null}
+                                </div>
+                                <div className="mt-2 flex gap-2">
+                                    <Button disabled={resourceBusy} onClick={() => resourceFileInput.current?.click()}>
+                                        上传图片
+                                    </Button>
+                                    <Button loading={resourceBusy} onClick={() => void generateResourceImage()}>
+                                        AI 生成
+                                    </Button>
+                                </div>
                             </div>
                         </div>
-                        <input
-                            ref={resourceFileInput}
-                            type="file"
-                            accept="image/*"
-                            hidden
-                            onChange={async (event) => {
-                                const file = event.target.files?.[0];
-                                if (!file) return;
-                                setResourceBusy(true);
-                                try {
-                                    const stored = await uploadImage(file);
-                                    const url = stored.serverUrl || stored.url;
-                                    setResourceEditor((current) =>
-                                        current
-                                            ? {
-                                                  ...current,
-                                                  asset: {
-                                                      ...current.asset,
-                                                      imageUrl: url,
-                                                      referenceImageUrl: url,
-                                                      referenceStorageKey: stored.storageKey,
-                                                      references: [{ id: `reference-${Date.now()}`, url, storageKey: stored.storageKey }, ...(current.asset.references || [])],
-                                                  },
-                                              }
-                                            : current,
-                                    );
-                                } catch {
-                                    message.error("上传失败");
-                                } finally {
-                                    setResourceBusy(false);
-                                    if (resourceFileInput.current) resourceFileInput.current.value = "";
-                                }
-                            }}
-                        />
+                        <input ref={resourceFileInput} type="file" accept="image/*" multiple hidden onChange={(event) => void uploadResourceReferences(Array.from(event.target.files || []))} />
                         {(["name", "category", "description", "tags"] as const).map((field) => (
                             <div key={field} className="mb-4 flex items-start gap-4">
                                 <label className="w-12 shrink-0 pt-1" htmlFor={`resource-${field}`}>
                                     {{ name: "名称", category: "分类", description: "描述", tags: "标签" }[field]}
                                 </label>
                                 {field === "description" ? (
-                                    <Input.TextArea
-                                        id={`resource-${field}`}
-                                        disabled={resourceBusy}
-                                        rows={4}
-                                        value={resourceEditor.asset.description || ""}
-                                        onChange={(event) => setResourceEditor({ ...resourceEditor, asset: { ...resourceEditor.asset, description: event.target.value } })}
-                                    />
+                                    <div className="relative min-w-0 flex-1">
+                                        <Input.TextArea
+                                            id={`resource-${field}`}
+                                            disabled={resourceBusy}
+                                            rows={4}
+                                            placeholder="输入文本提示词。只有图片＝图生图；只有文字＝文生图；图片和文字＝文加图生图。输入 @ 可引用上方参考图，例如：保留 @图1 的脸，使用 @图2 的服装。"
+                                            value={resourceEditor.asset.description || ""}
+                                            onChange={(event) => {
+                                                const value = event.target.value;
+                                                setResourceMentionOpen(value.endsWith("@"));
+                                                setResourceEditor({ ...resourceEditor, asset: { ...resourceEditor.asset, description: value } });
+                                            }}
+                                        />
+                                        {resourceMentionOpen ? (
+                                            <div className="absolute bottom-2 left-2 z-10 w-52 rounded-md border bg-popover p-1 shadow-lg">
+                                                {normalizeResourceGenerationReferences(resourceEditor.asset.references || []).map((reference) => (
+                                                    <button
+                                                        key={reference.id}
+                                                        type="button"
+                                                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                                                        onClick={() => {
+                                                            const current = resourceEditor.asset.description || "";
+                                                            setResourceEditor({ ...resourceEditor, asset: { ...resourceEditor.asset, description: `${current.slice(0, -1)}@${reference.label} ` } });
+                                                            setResourceMentionOpen(false);
+                                                        }}
+                                                    >
+                                                        <img src={reference.url} alt="" className="size-8 rounded object-cover" />
+                                                        <span>@{reference.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                    </div>
                                 ) : (
                                     <Input
                                         id={`resource-${field}`}
@@ -1016,6 +1131,31 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                 )}
                             </div>
                         ))}
+                    </div>
+                ) : null}
+            </Modal>
+            <Modal open={Boolean(resourcePreview)} title={resourcePreview?.title || "图片预览"} footer={null} width={760} onCancel={() => setResourcePreview(undefined)}>
+                {resourcePreview ? (
+                    <div>
+                        <div className="flex max-h-[65vh] items-center justify-center overflow-hidden rounded border bg-muted">
+                            <img src={resourcePreview.url} alt={resourcePreview.title} className="max-h-[65vh] max-w-full object-contain" />
+                        </div>
+                        {resourcePreview.title.startsWith("历史图") ? (
+                            <div className="mt-3 flex justify-end">
+                                <Button
+                                    type="primary"
+                                    onClick={() => {
+                                        const reference = (resourceEditor?.asset.references || []).find((item) => item.url === resourcePreview.url);
+                                        if (!resourceEditor || !reference) return;
+                                        const result = setResourcePrimaryImage(assetImageUrl(resourceEditor.asset), resourceEditor.asset.references || [], reference);
+                                        updateResourceAsset((asset) => ({ ...asset, imageUrl: result.primaryUrl, referenceImageUrl: result.primaryUrl, references: result.references }));
+                                        setResourcePreview(undefined);
+                                    }}
+                                >
+                                    设为主图
+                                </Button>
+                            </div>
+                        ) : null}
                     </div>
                 ) : null}
             </Modal>
