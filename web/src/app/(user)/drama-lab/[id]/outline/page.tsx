@@ -12,7 +12,7 @@ import styleGroups from "@/lib/drama-lab-style-options.json";
 import { uploadImage } from "@/services/image-storage";
 import { createImageGenerationTask, waitForImageGenerationTask } from "@/services/api/image";
 import { useEffectiveConfig } from "@/stores/use-config-store";
-import { buildResourceImageRequest, insertResourceMention, normalizeResourceGenerationReferences, setResourcePrimaryImage } from "./resource-image-generation";
+import { buildResourceImageRequest, createGeneratedPrimaryImage, highlightResourceMentions, insertResourceMention, normalizeResourceGenerationReferences, setResourcePrimaryImage } from "./resource-image-generation";
 import type { ReferenceImage } from "@/types/image";
 import type { TextAreaRef } from "antd/es/input/TextArea";
 
@@ -37,6 +37,7 @@ interface Character {
     imageUrl?: string;
     referenceImageUrl?: string;
     referenceStorageKey?: string;
+    primaryReferenceId?: string;
     references?: Array<{ id?: string; url?: string; storageKey?: string; role?: string }>;
     category?: string;
     tags?: string[];
@@ -52,6 +53,7 @@ interface Scene {
     imageUrl?: string;
     referenceImageUrl?: string;
     referenceStorageKey?: string;
+    primaryReferenceId?: string;
     references?: Array<{ id?: string; url?: string; storageKey?: string; role?: string }>;
     category?: string;
     tags?: string[];
@@ -65,6 +67,7 @@ interface Prop {
     imageUrl?: string;
     referenceImageUrl?: string;
     referenceStorageKey?: string;
+    primaryReferenceId?: string;
     references?: Array<{ id?: string; url?: string; storageKey?: string; role?: string }>;
     category?: string;
     tags?: string[];
@@ -486,12 +489,10 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
             const result = results.results?.[0] || results;
             const url = result?.serverUrl || result?.remoteUrl || result?.dataUrl;
             if (!url) throw new Error("生成未返回图片地址");
-            updateResourceAsset((asset) => ({
-                ...asset,
-                imageUrl: url,
-                referenceImageUrl: url,
-                references: [...(assetImageUrl(asset) ? [{ id: `history-${Date.now()}`, url: assetImageUrl(asset), role: "history" }] : []), ...(asset.references || []).filter((item) => item.role !== "primary")],
-            }));
+            updateResourceAsset((asset) => {
+                const generated = createGeneratedPrimaryImage(assetImageUrl(asset), asset.primaryReferenceId, asset.references || [], { url });
+                return { ...asset, imageUrl: url, referenceImageUrl: url, referenceStorageKey: undefined, primaryReferenceId: generated.primaryReferenceId, references: generated.references };
+            });
         } catch (error) {
             message.error(error instanceof Error ? error.message : "生成失败");
         } finally {
@@ -1165,11 +1166,17 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                 </label>
                                 {field === "description" ? (
                                     <div className="relative min-w-0 flex-1">
+                                        <div
+                                            aria-hidden
+                                            className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-[11px] py-[7px] text-sm leading-[1.5715] text-transparent [&_mark]:rounded [&_mark]:bg-primary/15 [&_mark]:px-0.5 [&_mark]:text-primary"
+                                            dangerouslySetInnerHTML={{ __html: highlightResourceMentions(resourceEditor.asset.description || "") }}
+                                        />
                                         <Input.TextArea
                                             ref={resourceDescriptionRef}
                                             id={`resource-${field}`}
                                             disabled={resourceBusy}
                                             rows={4}
+                                            className="relative z-[1] !bg-transparent"
                                             placeholder="输入文本提示词。只有图片＝图生图；只有文字＝文生图；图片和文字＝文加图生图。输入 @ 可引用上方参考图，例如：保留 @图1 的脸，使用 @图2 的服装。"
                                             value={resourceEditor.asset.description || ""}
                                             onChange={(event) => {

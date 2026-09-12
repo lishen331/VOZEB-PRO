@@ -30,3 +30,26 @@ export function insertResourceMention(value: string, selectionStart: number, sel
     const token = `@${label} `;
     return { value: `${value.slice(0, start)}${token}${value.slice(end)}`, cursor: start + token.length };
 }
+
+export function createGeneratedPrimaryImage(currentUrl: string | undefined, currentPrimaryId: string | undefined, references: ResourceImageReference[], generated: { url: string; storageKey?: string }, now = Date.now()) {
+    const generatedId = `generated-${now}`;
+    const remaining = references.filter((item) => item.id !== currentPrimaryId && item.url !== generated.url);
+    return {
+        primaryReferenceId: generatedId,
+        references: [
+            { id: generatedId, url: generated.url, storageKey: generated.storageKey, role: "primary", source: "generated", label: "当前主图", createdAt: new Date(now).toISOString() },
+            ...(currentUrl && currentUrl !== generated.url ? [{ id: `history-${now}`, url: currentUrl, role: "history", source: "generated", label: "历史图", createdAt: new Date(now).toISOString() }] : []),
+            ...remaining,
+        ],
+    };
+}
+
+export function highlightResourceMentions(value: string) {
+    return escapeHtml(value)
+        .replace(/@图([1-9])/g, (_match, index) => `<mark data-mention="图${index}">@图${index}</mark>`)
+        .replace(/\n/g, "<br />");
+}
+
+function escapeHtml(value: string) {
+    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}

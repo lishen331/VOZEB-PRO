@@ -243,14 +243,15 @@ describe("drama project service updates", () => {
                     id: "character-one",
                     name: "主角",
                     description: "",
-                    references: [{ id: "reference-one", url: "/api/reference-assets/hero.png", source: "upload", label: "主角", width: 1080, height: 1920, createdAt: "2026-07-19T08:00:00.000Z" }],
+                    references: [{ id: "reference-one", url: "/api/reference-assets/hero.png", source: "generated", role: "primary", label: "主角", width: 1080, height: 1920, createdAt: "2026-07-19T08:00:00.000Z" }],
+                    primaryReferenceId: "reference-one",
                 },
             ],
         };
 
         const saved = await updateDramaProjectForUser("user-one", current.id, input);
 
-        expect(saved).toMatchObject({ ratio: "1080x1920", characters: [{ references: [{ width: 1080, height: 1920 }] }] });
+        expect(saved).toMatchObject({ ratio: "1080x1920", characters: [{ primaryReferenceId: "reference-one", references: [{ width: 1080, height: 1920, role: "primary", source: "generated" }] }] });
     });
 
     it("persists frame provenance and the next-shot first-frame candidate", () => {
