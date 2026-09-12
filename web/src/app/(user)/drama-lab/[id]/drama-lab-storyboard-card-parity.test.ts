@@ -8,7 +8,7 @@ describe("L-equivalent storyboard card", () => {
         expect(s).toContain("group/storyboard");
         expect(s).toContain("group-hover/storyboard:opacity-100");
         expect(s).toContain("ml-auto");
-        expect(s).toContain('className="flex flex-row flex-wrap items-center justify-between gap-2');
+        expect(s).toContain('className="flex flex-row flex-wrap items-start justify-between gap-2');
         expect(s).not.toContain('title="同步任务状态"');
     });
     it("opens one mode-aware prompt editor and keeps no inline summaries", async () => {
@@ -29,6 +29,8 @@ describe("L-equivalent storyboard card", () => {
         expect(s).not.toContain(">查看 / 编辑提示词</Button>");
         expect(s).toContain('data-universal-workspace="true"');
         expect(s).toContain('data-storyboard-media="video" className="grid h-80');
+        expect(s).toContain('aria-label="分镜图操作" className="flex h-10');
+        expect(s).toContain('aria-label="分镜视频操作" className="flex h-10');
     });
     it("uses L configuration fields", async () => {
         const s = await readFile(path, "utf8");

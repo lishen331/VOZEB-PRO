@@ -5921,7 +5921,7 @@ function StoryboardWorkbenchCard({
     };
     return (
         <article id={`storyboard-shot-${shot.id}`} aria-label="分镜卡片空白区域" className="group/storyboard @container/storyboard relative min-w-0 overflow-hidden rounded-lg border border-border bg-card" onClick={openPromptFromCardBlank}>
-            <header className="flex flex-row flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+            <header className="flex flex-row flex-wrap items-start justify-between gap-2 border-b border-border px-4 py-3">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-base font-semibold">
@@ -6184,7 +6184,7 @@ function StoryboardWorkbenchCard({
                             />
                         ) : null}
                     </div>
-                    <div className="flex items-center justify-end gap-2" aria-label="分镜图操作">
+                    <div aria-label="分镜图操作" className="flex h-10 items-center justify-end gap-2">
                         <Button icon={<Volume2 className="size-4" />} onClick={() => setAudioEditorOpen(true)}>
                             设置配音
                         </Button>
@@ -6232,7 +6232,7 @@ function StoryboardWorkbenchCard({
 
                     {videoNeedsCheck ? <Alert type="warning" showIcon message="视频结果待检查" description={dramaLabVideoTaskReviewDescription(shot)} /> : null}
                     {shot.generationError && !videoNeedsCheck ? <Alert type="error" showIcon message={shot.generationError} /> : null}
-                    <div className="flex flex-wrap items-center justify-between gap-2" aria-label="分镜视频操作">
+                    <div aria-label="分镜视频操作" className="flex h-10 flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2">
                             {videoNeedsCheck ? (
                                 <Button loading={checkingVideoStatus} disabled={checkingVideoStatus} icon={<LoaderCircle className="size-4" />} onClick={() => void onCheckVideoStatus(shot)}>
