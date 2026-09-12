@@ -28,17 +28,7 @@ const DRAMA_ASSET_TYPE: Partial<Record<PracticeModuleKind, DramaLibraryAssetType
     prop: "prop",
 };
 
-export function PracticeSessionResult({
-    module,
-    session,
-    onRetry,
-    onRefresh,
-}: {
-    module: PracticeModuleKind;
-    session?: PracticeSession | null;
-    onRetry: (session: PracticeSession) => void;
-    onRefresh: () => void;
-}) {
+export function PracticeSessionResult({ module, session, onRetry, onRefresh }: { module: PracticeModuleKind; session?: PracticeSession | null; onRetry: (session: PracticeSession) => void; onRefresh: () => void }) {
     const { message } = App.useApp();
     const [saving, setSaving] = useState(false);
 
@@ -53,11 +43,11 @@ export function PracticeSessionResult({
                 kind: "image",
                 title: target.title,
                 coverUrl: uploaded.serverUrl || uploaded.url,
-                tags: [],
+                tags: dramaAssetType ? ["短剧", dramaAssetType === "character" ? "角色" : dramaAssetType === "scene" ? "场景" : "道具"] : [],
                 source: "practice",
-                ...(dramaAssetType ? { dramaAssetType } : {}),
+                ...(dramaAssetType ? { metadata: { dramaAssetType } } : {}),
                 data: {
-                    dataUrl: uploaded.url,
+                    dataUrl: uploaded.serverUrl || uploaded.url,
                     serverUrl: uploaded.serverUrl || uploaded.url,
                     storageKey: uploaded.storageKey,
                     width: uploaded.width,
