@@ -155,6 +155,15 @@ export class ScriptAgentRepository {
         return result.rows;
     }
 
+    async listRuns(scope: PracticeTenantScope, projectId: string, statuses?: ScriptRunStatus[]) {
+        const result = await this.db.query(
+            `SELECT * FROM practice_script_runs WHERE school_id = $1 AND owner_user_id = $2 AND project_id = $3
+             AND ($4::text[] IS NULL OR status = ANY($4::text[])) ORDER BY created_at DESC LIMIT 50`,
+            [scope.schoolId, scope.ownerUserId, projectId, statuses?.length ? statuses : null],
+        );
+        return result.rows.map(mapRun);
+    }
+
     async createChatSession(scope: PracticeTenantScope, input: { id: string; projectId: string; title: string }) {
         const result = await this.db.query("INSERT INTO practice_script_chat_sessions (id, school_id, owner_user_id, project_id, title) VALUES ($1, $2, $3, $4, $5) RETURNING *", [input.id, scope.schoolId, scope.ownerUserId, input.projectId, input.title]);
         return result.rows[0] || null;

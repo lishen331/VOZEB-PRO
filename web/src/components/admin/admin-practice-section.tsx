@@ -6,6 +6,7 @@ import type { AuthSettings } from "@/lib/auth/store";
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";
 import { SCRIPT_AGENT_TOOL_NAMES } from "@/lib/server/script-practice-agent-tools";
 import { DEFAULT_PRACTICE_SCRIPT_SETTINGS } from "@/lib/server/practice-script-settings";
+import { AdminPracticeScriptAgent } from "./admin-practice-script-agent";
 
 const DEFAULT_PRACTICE_MODULE_VISIBILITY = {
     character: true,
@@ -141,6 +142,10 @@ export function AdminPracticeSection({ controller }: { controller: AdminDashboar
                         ))}
                     </div>
                 </div>
+            </div>
+            <div className="border-t border-zinc-200 p-5 dark:border-zinc-800">
+                <h3 className="mb-3 text-base font-semibold">多 Agent 独立模型配置</h3>
+                <AdminPracticeScriptAgent settings={settings} />
             </div>
             <div className="flex justify-end border-t border-zinc-200 px-5 py-4 dark:border-zinc-800">
                 <Button type="primary" loading={settingsLoading} onClick={() => void save()}>
