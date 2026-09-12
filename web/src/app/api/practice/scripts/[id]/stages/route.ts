@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { requirePracticeAccess } from "@/lib/server/practice-access-service";
@@ -27,7 +28,12 @@ export async function POST(request: Request, context: Context) {
             return ok(await confirmScriptStage(repository, user.id, projectId, parsed.data.stage));
         }
         if (!isGenerateOperation(parsed.data.operation)) return response(400, "剧本阶段生成操作无效");
-        return ok(await createScriptStageService({ repository }).generate(user.id, projectId, parsed.data.operation, parsed.data.stageInput));
+        return ok(
+            await createScriptStageService({ repository }).generate(user.id, projectId, parsed.data.operation, parsed.data.stageInput, {
+                origin: resolveInternalOrigin(new URL(request.url).origin),
+                cookie: request.headers.get("cookie") || "",
+            }),
+        );
     } catch (error) {
         return failure(error, "剧本阶段请求失败");
     }

@@ -1,6 +1,7 @@
 import type { ScriptAgentOperation, ScriptDocument, ScriptStage, ScriptStageKey } from "@/lib/script-practice-types";
 import type { ScriptPracticeRepository } from "./database/script-practice-repository";
-import { resolveConfiguredScriptModel, runScriptModel } from "./script-practice-model-runtime";
+import { randomUUID } from "node:crypto";
+import { resolveConfiguredScriptModel, runScriptModel, type ScriptRuntimeContext } from "./script-practice-model-runtime";
 import { normalizeScriptDocument, parseFountain } from "./script-practice-format";
 
 export type ScriptStageRepository = Pick<
@@ -8,6 +9,7 @@ export type ScriptStageRepository = Pick<
     "getScriptProject" | "getCurrentScriptDocument" | "getScriptStage" | "listScriptStages" | "setScriptStage" | "createScriptVersion" | "nextScriptVersionNumber" | "compareAndSetCurrentVersion" | "recordScriptAgentOperation"
 >;
 export type ScriptStageServiceDeps = { repository: ScriptStageRepository; runModel?: typeof runScriptModel; resolveModel?: typeof resolveConfiguredScriptModel };
+export type ScriptModelRequestContext = Pick<ScriptRuntimeContext, "origin" | "cookie">;
 export type ScriptStageProposal = { projectId: string; stage: ScriptStageKey; status: "awaiting_review"; result: Record<string, unknown> };
 export type ScriptPatch = { projectId: string; baseVersionId: string; currentVersionId: string; targetBlockIds: string[]; operation: ScriptAgentOperation; before: string; proposedAfter: string };
 
@@ -16,10 +18,12 @@ const PREREQUISITE_BY_STAGE: Partial<Record<ScriptStageKey, ScriptStageKey>> = {
 const STAGE_ORDER: ScriptStageKey[] = ["idea", "synopsis", "outline", "entities", "scenes", "screenplay", "revision"];
 
 export function createScriptStageService(deps: ScriptStageServiceDeps) {
-    return { generate: (ownerUserId: string, projectId: string, operation: ScriptAgentOperation, stageInput: unknown) => generateScriptStage(deps, ownerUserId, projectId, operation, stageInput) };
+    return {
+        generate: (ownerUserId: string, projectId: string, operation: ScriptAgentOperation, stageInput: unknown, requestContext?: ScriptModelRequestContext) => generateScriptStage(deps, ownerUserId, projectId, operation, stageInput, requestContext),
+    };
 }
 
-async function generateScriptStage(deps: ScriptStageServiceDeps, ownerUserId: string, projectId: string, operation: ScriptAgentOperation, stageInput: unknown): Promise<ScriptStageProposal> {
+async function generateScriptStage(deps: ScriptStageServiceDeps, ownerUserId: string, projectId: string, operation: ScriptAgentOperation, stageInput: unknown, requestContext?: ScriptModelRequestContext): Promise<ScriptStageProposal> {
     const stage = STAGE_BY_OPERATION[operation];
     if (!stage) throw new ScriptStageServiceError("该操作不是阶段生成操作", 400);
     const project = await deps.repository.getScriptProject(projectId, ownerUserId);
@@ -47,7 +51,12 @@ async function generateScriptStage(deps: ScriptStageServiceDeps, ownerUserId: st
                 publicInstructions: "生成当前剧本阶段的公开结果",
                 responseSchema: stageResponseSchema(operation),
             },
-            { endpointUrl: model.endpointUrl, apiKey: model.apiKey, executionProfile: model.executionProfile },
+            {
+                endpointUrl: model.endpointUrl,
+                apiKey: model.apiKey,
+                executionProfile: model.executionProfile,
+                ...(requestContext && "candidate" in model ? { origin: requestContext.origin, cookie: requestContext.cookie, userId: ownerUserId, requestId: randomUUID(), logicalModelId: model.candidate.logicalModelId, candidate: model.candidate } : {}),
+            },
         );
         if (!response.structured) throw new Error("结构化结果为空");
         const result = { projectId, stage, status: "awaiting_review" as const, result: response.structured };

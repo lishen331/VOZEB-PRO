@@ -3,6 +3,9 @@ import { getFreshAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModel } from "@/lib/server/logical-model-router";
 import type { ScriptAgentOperation } from "@/lib/script-practice-types";
 import { SCRIPT_AGENT_TOOL_NAMES } from "./script-practice-agent-tools";
+import { requestStructuredText } from "./text-planning-runtime";
+import { systemAiBillingHeaders, systemAiIdempotencyKey } from "./system-ai-billing";
+import type { ResolvedLogicalModel } from "./logical-model-router";
 
 export type ScriptModelRequest = {
     modelId: string;
@@ -13,8 +16,20 @@ export type ScriptModelRequest = {
     responseSchema: Record<string, unknown>;
 };
 export type ScriptModelResponse = { publicText?: string; structured?: Record<string, unknown>; usage?: { inputTokens?: number; outputTokens?: number } };
-export type ScriptRuntimeContext = { endpointUrl: string; executionProfile: string; apiKey?: string; fetcher?: (input: string, init?: RequestInit) => Promise<Response>; signal?: AbortSignal };
-export type ConfiguredScriptModel = { modelId: string; endpointUrl: string; apiKey?: string; executionProfile: "open-source-practice"; enabledSkills: string[]; enabledTools: string[] };
+export type ScriptRuntimeContext = {
+    endpointUrl: string;
+    executionProfile: string;
+    apiKey?: string;
+    fetcher?: (input: string, init?: RequestInit) => Promise<Response>;
+    signal?: AbortSignal;
+    origin?: string;
+    cookie?: string;
+    userId?: string;
+    requestId?: string;
+    logicalModelId?: string;
+    candidate?: ResolvedLogicalModel;
+};
+export type ConfiguredScriptModel = { modelId: string; endpointUrl: string; apiKey?: string; executionProfile: "open-source-practice"; enabledSkills: string[]; enabledTools: string[]; candidate: ResolvedLogicalModel };
 
 export async function resolveConfiguredScriptModel(): Promise<ConfiguredScriptModel> {
     const settings = await getFreshAuthSettings();
@@ -29,11 +44,13 @@ export async function resolveConfiguredScriptModel(): Promise<ConfiguredScriptMo
         executionProfile: "open-source-practice",
         enabledSkills: Array.isArray(scriptSettings.enabledSkills) ? [...scriptSettings.enabledSkills] : [],
         enabledTools: Array.isArray(scriptSettings.enabledTools) ? [...scriptSettings.enabledTools] : [...SCRIPT_AGENT_TOOL_NAMES],
+        candidate,
     };
 }
 
 export async function runScriptModel(request: ScriptModelRequest, context: ScriptRuntimeContext): Promise<ScriptModelResponse> {
     if (context.executionProfile !== "open-source-practice") throw new ScriptModelRuntimeError("剧本模型只能使用 open-source-practice 执行档案", 403);
+    if (context.candidate && context.origin && context.cookie && context.userId && context.requestId && context.logicalModelId) return runScriptModelThroughProxy(request, context);
     const fetcher = context.fetcher || fetch;
     const endpoint = context.endpointUrl.replace(/\/$/, "");
     const body = {
@@ -64,6 +81,41 @@ export async function runScriptModel(request: ScriptModelRequest, context: Scrip
     if (!matchesResponseSchema(clean, request.responseSchema)) throw new ScriptModelRuntimeError("剧本模型返回结果无法通过结构化结果校验", 502);
     const usage = readUsage(payload);
     return { structured: clean, ...(content.publicText && !extractJsonObjectText(content.publicText) ? { publicText: content.publicText } : {}), ...(usage ? { usage } : {}) };
+}
+
+async function runScriptModelThroughProxy(request: ScriptModelRequest, context: ScriptRuntimeContext): Promise<ScriptModelResponse> {
+    const candidate = context.candidate!;
+    const idempotencyKey = systemAiIdempotencyKey("script-practice-model", context.userId!, context.requestId!, request.operation, candidate.channelId, candidate.upstreamModel);
+    try {
+        const call = await requestStructuredText({
+            origin: context.origin!,
+            cookie: context.cookie!,
+            candidate,
+            messages: [
+                { role: "system", content: `${request.publicInstructions}\n只返回 JSON，不要返回思维链、分析过程或额外解释。输出 Schema：${JSON.stringify(request.responseSchema)}` },
+                { role: "user", content: JSON.stringify({ operation: request.operation, stageInput: request.stageInput, projectContext: publicContext(request.projectContext) }) },
+            ],
+            tool: { name: request.operation, description: request.publicInstructions, parameters: request.responseSchema },
+            headers: {
+                "Content-Type": "application/json",
+                "Idempotency-Key": idempotencyKey,
+                "X-Client-Request-Id": idempotencyKey,
+                ...systemAiBillingHeaders(context.logicalModelId!, idempotencyKey, candidate.upstreamModel, "open-source-practice"),
+            },
+            signal: context.signal,
+            allowNaturalLanguage: true,
+            preferNativeTools: true,
+        });
+        const structured = parseStructured({ value: call.arguments }, request.operation);
+        if (!structured) throw new ScriptModelRuntimeError("剧本模型返回结果无法通过结构校验", 502);
+        const clean = stripHiddenFields(structured);
+        if (!matchesResponseSchema(clean, request.responseSchema)) throw new ScriptModelRuntimeError("剧本模型返回结果无法通过结构化结果校验", 502);
+        return { structured: clean };
+    } catch (error) {
+        if (error instanceof ScriptModelRuntimeError) throw error;
+        const status = error && typeof error === "object" && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 502;
+        throw new ScriptModelRuntimeError(error instanceof Error ? error.message : "剧本模型服务暂时无法连接", status >= 400 && status < 600 ? status : 502);
+    }
 }
 
 export class ScriptModelRuntimeError extends Error {

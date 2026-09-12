@@ -29,6 +29,12 @@ describe("configured script model runtime", () => {
             apiKey: "secret",
             executionProfile: "open-source-practice",
             enabledSkills: [],
+            candidate: {
+                logicalModelId: "script-writer",
+                channelId: "local-script",
+                upstreamModel: "qwen3",
+                channel: { id: "local-script", name: "本地剧本模型", baseUrl: "http://127.0.0.1:43210/v1", apiKey: "secret", apiFormat: "openai", models: ["qwen3"], enabled: true, purpose: "open-source-practice" },
+            },
             enabledTools: [
                 "read_script",
                 "read_outline",

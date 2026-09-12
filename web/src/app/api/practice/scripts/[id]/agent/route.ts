@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { requirePracticeAccess } from "@/lib/server/practice-access-service";
@@ -27,7 +28,14 @@ export async function POST(request: Request, context: Context) {
             : [];
         if (!baseVersionId || !targetBlockIds.length) return response(400, "缺少剧本版本或选区");
         const service = createScriptAgentService({ repository: createScriptPracticeRepository() });
-        return ok(await service.propose(user.id, (await context.params).id, { operation: operation as never, baseVersionId, targetBlockIds, instruction: typeof parsed.data.instruction === "string" ? parsed.data.instruction.trim() : "" }));
+        return ok(
+            await service.propose(
+                user.id,
+                (await context.params).id,
+                { operation: operation as never, baseVersionId, targetBlockIds, instruction: typeof parsed.data.instruction === "string" ? parsed.data.instruction.trim() : "" },
+                { origin: resolveInternalOrigin(new URL(request.url).origin), cookie: request.headers.get("cookie") || "" },
+            ),
+        );
     } catch (error) {
         return failure(error, "剧本 Agent 请求失败");
     }

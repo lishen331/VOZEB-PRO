@@ -1,17 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { ScriptAgentOperation } from "@/lib/script-practice-types";
 import type { ScriptAgentOperationRecord, ScriptPracticeRepository } from "./database/script-practice-repository";
-import { resolveConfiguredScriptModel, runScriptModel } from "./script-practice-model-runtime";
+import { resolveConfiguredScriptModel, runScriptModel, type ScriptRuntimeContext } from "./script-practice-model-runtime";
 import { SCRIPT_AGENT_TOOL_NAMES } from "./script-practice-agent-tools";
 
 export type ScriptAgentRequest = { operation: ScriptAgentOperation; baseVersionId: string; targetBlockIds: string[]; instruction: string };
+export type ScriptAgentRequestContext = Pick<ScriptRuntimeContext, "origin" | "cookie">;
 export type ScriptAgentProposal = { id: string; projectId: string; baseVersionId: string; targetBlockIds: string[]; operation: ScriptAgentOperation; before: string; proposedAfter: string };
 type AgentRepository = Pick<ScriptPracticeRepository, "getScriptProject" | "getCurrentScriptDocument" | "recordScriptAgentOperation">;
 
 export function createScriptAgentService(deps: { repository: AgentRepository; runModel?: typeof runScriptModel; resolveModel?: typeof resolveConfiguredScriptModel }) {
     return {
         toolNames: () => [...SCRIPT_AGENT_TOOL_NAMES],
-        propose: async (ownerUserId: string, projectId: string, input: ScriptAgentRequest): Promise<ScriptAgentProposal> => {
+        propose: async (ownerUserId: string, projectId: string, input: ScriptAgentRequest, requestContext?: ScriptAgentRequestContext): Promise<ScriptAgentProposal> => {
             const project = await deps.repository.getScriptProject(projectId, ownerUserId);
             if (!project) throw new ScriptAgentServiceError("剧本项目不存在", 404);
             if (!project.currentVersionId || project.currentVersionId !== input.baseVersionId) throw new ScriptAgentServiceError("剧本版本已变化，请刷新后重试", 409);
@@ -35,7 +36,14 @@ export function createScriptAgentService(deps: { repository: AgentRepository; ru
                     publicInstructions: "仅修改选中的剧本块并返回 proposedAfter",
                     responseSchema: { type: "object", properties: { proposedAfter: { type: "string" } }, required: ["proposedAfter"] },
                 },
-                { endpointUrl: model.endpointUrl, apiKey: model.apiKey, executionProfile: model.executionProfile },
+                {
+                    endpointUrl: model.endpointUrl,
+                    apiKey: model.apiKey,
+                    executionProfile: model.executionProfile,
+                    ...(requestContext && "candidate" in model
+                        ? { origin: requestContext.origin, cookie: requestContext.cookie, userId: ownerUserId, requestId: randomUUID(), logicalModelId: model.candidate.logicalModelId, candidate: model.candidate }
+                        : {}),
+                },
             );
             const proposedAfter = typeof response.structured?.proposedAfter === "string" ? response.structured.proposedAfter.trim() : "";
             if (!proposedAfter) throw new ScriptAgentServiceError("剧本模型没有返回修改建议", 502);
