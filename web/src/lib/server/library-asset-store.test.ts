@@ -57,17 +57,18 @@ describe("library asset file provider", () => {
         await createLibraryAsset("user-one", { ...textAsset("lead", "主角甲"), metadata: { category: "主角" } });
         await createLibraryAsset("user-one", { ...textAsset("support", "配角乙"), metadata: { category: "配角" } });
 
-        await expect(listLibraryAssetPage("user-one", { page: 1, pageSize: 20, category: "主角" })).resolves.toMatchObject({ total: 1, items: [{ id: "lead" }] });
+        await expect(listLibraryAssetPage("user-one", { page: 1, pageSize: 20, category: "主角" })).resolves.toMatchObject({ total: 1, items: [{ id: "lead" }], categories: ["配角", "主角"] });
     });
     it("uses one bounded PostgreSQL query for a filtered page", async () => {
         mocks.provider = "postgres";
-        mocks.postgresQuery.mockResolvedValue({ rows: [{ assets: [textAsset("one", "品牌脚本")], total: "12" }] });
+        mocks.postgresQuery.mockResolvedValue({ rows: [{ assets: [textAsset("one", "品牌脚本")], total: "12", categories: ["配角", "主角"] }] });
 
-        await expect(listLibraryAssetPage("user-one", { page: 2, pageSize: 5, kind: "text", keyword: "品牌" })).resolves.toMatchObject({ total: 12, items: [{ id: "one" }] });
+        await expect(listLibraryAssetPage("user-one", { page: 2, pageSize: 5, kind: "text", keyword: "品牌" })).resolves.toMatchObject({ total: 12, items: [{ id: "one" }], categories: ["配角", "主角"] });
 
         expect(mocks.postgresQuery).toHaveBeenCalledTimes(1);
         const [statement, params] = mocks.postgresQuery.mock.calls[0] as [string, unknown[]];
-        expect(statement).toContain("WITH filtered AS");
+        expect(statement).toContain("WITH eligible AS");
+        expect(statement).toContain("filtered AS");
         expect(statement).toContain("WHERE user_id = $1");
         expect(statement).toContain("ORDER BY updated_at DESC, id ASC");
         expect(statement).toContain("LIMIT $5 OFFSET $6");

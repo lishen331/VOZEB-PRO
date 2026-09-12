@@ -7,7 +7,10 @@ describe("drama lab material library taxonomy", () => {
 
         expect(source).toContain('const [category, setCategory] = useState("")');
         expect(source).toContain("category, dramaAssetType: type");
+        expect(source).toContain("<Select");
         expect(source).toContain('placeholder="全部分类"');
+        expect(source).toContain("categoryOptions");
+        expect(source).not.toContain('<Input`r`n                        allowClear`r`n                        className="max-w-44"');
     });
 
     it("does not inject category into the image-generation prompt", async () => {

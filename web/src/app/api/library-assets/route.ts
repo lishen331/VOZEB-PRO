@@ -17,7 +17,7 @@ export async function GET(request: Request) {
         category: params.get("category"),
         dramaAssetType: params.get("dramaAssetType"),
     });
-    return NextResponse.json({ code: 0, data: { assets: page.items, total: page.total, page: page.page, pageSize: page.pageSize }, msg: "OK" });
+    return NextResponse.json({ code: 0, data: { assets: page.items, total: page.total, page: page.page, pageSize: page.pageSize, categories: page.categories }, msg: "OK" });
 }
 
 export async function POST(request: Request) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { App, Button, Empty, Image, Input, Modal, Pagination, Spin, Tag } from "antd";
+import { App, Button, Empty, Image, Input, Modal, Pagination, Select, Spin, Tag } from "antd";
 import { ImagePlus, Pencil, Sparkles, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -31,6 +31,7 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
     const [pageSize, setPageSize] = useState(20);
     const [keyword, setKeyword] = useState("");
     const [category, setCategory] = useState("");
+    const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [editor, setEditor] = useState<EditorDraft>();
     const [saving, setSaving] = useState(false);
@@ -47,6 +48,8 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
                     const result = await listLibraryAssetPage({ page, pageSize, kind: "image", keyword, category, dramaAssetType: type }, controller.signal);
                     setAssets(result.assets);
                     setTotal(result.total);
+                    setCategoryOptions(result.categories || []);
+                    setCategoryOptions(result.categories || []);
                 } catch (error) {
                     if (!controller.signal.aborted) message.error(error instanceof Error ? error.message : "素材库加载失败");
                 } finally {
@@ -65,6 +68,7 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
         setPage(1);
         setKeyword("");
         setCategory("");
+        setCategoryOptions([]);
         setEditor(undefined);
     }, [open, type]);
 
@@ -74,6 +78,7 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
             const result = await listLibraryAssetPage({ page, pageSize, kind: "image", keyword, category, dramaAssetType: type });
             setAssets(result.assets);
             setTotal(result.total);
+            setCategoryOptions(result.categories || []);
         } finally {
             setLoading(false);
         }
@@ -185,13 +190,14 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
                             setPage(1);
                         }}
                     />
-                    <Input
+                    <Select
                         allowClear
-                        className="max-w-44"
+                        className="w-44"
                         placeholder="全部分类"
-                        value={category}
-                        onChange={(event) => {
-                            setCategory(event.target.value);
+                        value={category || undefined}
+                        options={categoryOptions.map((value) => ({ label: value, value }))}
+                        onChange={(value) => {
+                            setCategory(value || "");
                             setPage(1);
                         }}
                     />
