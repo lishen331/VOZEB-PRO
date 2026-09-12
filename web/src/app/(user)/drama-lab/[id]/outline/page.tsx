@@ -1,11 +1,11 @@
 "use client";
 
 import { use, useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
-import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, List, Spin, Upload as AntUpload, Steps, Table } from "antd";
+import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, Upload as AntUpload, Steps, Table } from "antd";
 import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { listLibraryAssetPage } from "@/services/api/library-assets";
+import { DramaLabAssetLibraryPicker } from "../drama-lab-asset-library-picker";
 import type { Asset } from "@/lib/library-asset-contract";
 import styleGroups from "@/lib/drama-lab-style-options.json";
 
@@ -197,10 +197,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const [styleSearch, setStyleSearch] = useState("");
     const [resourceImportOpen, setResourceImportOpen] = useState(false);
     const [resourceImportTarget, setResourceImportTarget] = useState("characters");
-    const [libraryAssets, setLibraryAssets] = useState<Asset[]>([]);
     const [libraryKeyword, setLibraryKeyword] = useState("");
-    const [libraryLoading, setLibraryLoading] = useState(false);
-    const [resourceImporting, setResourceImporting] = useState(false);
     const selectedStyleOption = STYLE_GROUPS.flatMap((group) => group.options).find((option) => option.value === selectedStyle || option.label === selectedStyle);
 
     // 加载项目
@@ -330,24 +327,14 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
         }
     };
 
-    const openResourceImport = async (target: string) => {
+    const openResourceImport = (target: string) => {
         setResourceImportTarget(target);
-        setResourceImportOpen(true);
         setLibraryKeyword("");
-        setLibraryLoading(true);
-        try {
-            const type = target === "characters" ? "character" : target === "scenes" ? "scene" : "prop";
-            const result = await listLibraryAssetPage({ page: 1, pageSize: 100, kind: "image", dramaAssetType: type });
-            setLibraryAssets(result.assets);
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "素材加载失败");
-        } finally {
-            setLibraryLoading(false);
-        }
+        setResourceImportOpen(true);
     };
 
-    const handleResourceImport = async (asset: Asset) => {
-        if (!project) return;
+    const handleResourceImport = async (asset: Asset): Promise<boolean> => {
+        if (!project) return false;
         const source = asset as unknown as LooseAsset;
         const imageUrl = assetImageUrl(source);
         const common = {
@@ -360,24 +347,17 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
             tags: asset.tags || [],
             prompt: typeof asset.metadata?.prompt === "string" ? asset.metadata.prompt : "",
         };
-        setResourceImporting(true);
         try {
             if (resourceImportTarget === "characters") await persistProject({ characters: [...project.characters, { id: `character_${Date.now()}`, name: asset.title, ...common }] });
             else if (resourceImportTarget === "scenes") await persistProject({ scenes: [...project.scenes, { id: `scene_${Date.now()}`, name: asset.title, location: asset.title, time: "", ...common } as Scene] });
             else await persistProject({ props: [...project.props, { id: `prop_${Date.now()}`, name: asset.title, ...common }] });
             message.success(`已导入素材：${asset.title}`);
-            setResourceImportOpen(false);
+            return true;
         } catch (error) {
             message.error(error instanceof Error ? error.message : "素材导入失败");
-        } finally {
-            setResourceImporting(false);
+            return false;
         }
     };
-
-    const filteredLibraryAssets = libraryAssets.filter((asset) => {
-        const keyword = libraryKeyword.trim().toLowerCase();
-        return !keyword || asset.title.toLowerCase().includes(keyword) || asset.tags.some((tag) => tag.toLowerCase().includes(keyword));
-    });
 
     // 保存项目信息
     const saveProjectInfo = async (silent = false, overrides: Partial<ProjectSettingsFormValues> = {}) => {
@@ -1037,42 +1017,17 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                     </div>
                 ) : null}
             </Modal>
-            <Modal open={resourceImportOpen} title={`从素材库导入${resourceImportTarget === "characters" ? "角色" : resourceImportTarget === "scenes" ? "场景" : "道具"}`} footer={null} onCancel={() => setResourceImportOpen(false)}>
-                {libraryLoading ? (
-                    <div className="flex justify-center py-8">
-                        <Spin />
-                    </div>
-                ) : filteredLibraryAssets.length ? (
-                    <List
-                        dataSource={filteredLibraryAssets}
-                        renderItem={(asset: Asset) => (
-                            <List.Item
-                                actions={[
-                                    <Button key="import" type="link" loading={resourceImporting} onClick={() => void handleResourceImport(asset)}>
-                                        导入
-                                    </Button>,
-                                ]}
-                            >
-                                <List.Item.Meta
-                                    avatar={
-                                        assetImageUrl(asset as unknown as LooseAsset) ? (
-                                            <img src={assetImageUrl(asset as unknown as LooseAsset)} alt={asset.title} className="size-9 rounded object-cover" />
-                                        ) : (
-                                            <div className="grid size-9 place-items-center rounded bg-muted">
-                                                <LibraryBig className="size-4" />
-                                            </div>
-                                        )
-                                    }
-                                    title={asset.title}
-                                    description={`${asset.kind} · ${asset.note || asset.tags.join("、") || "暂无描述"}`}
-                                />
-                            </List.Item>
-                        )}
-                    />
-                ) : (
-                    <Empty description={libraryKeyword ? "没有匹配的素材" : "素材库暂无内容"} />
-                )}
-            </Modal>
+            {resourceImportOpen ? (
+                <DramaLabAssetLibraryPicker
+                    key={resourceImportTarget}
+                    kind={resourceImportTarget as "characters" | "scenes" | "props"}
+                    label={resourceImportTarget === "characters" ? "角色" : resourceImportTarget === "scenes" ? "场景" : "道具"}
+                    busyKey=""
+                    importedNames={project?.[resourceImportTarget as "characters" | "scenes" | "props"].map((asset) => ("name" in asset ? asset.name : asset.location)).filter((name): name is string => Boolean(name)) || []}
+                    onClose={() => setResourceImportOpen(false)}
+                    onImport={handleResourceImport}
+                />
+            ) : null}
         </div>
     );
 }

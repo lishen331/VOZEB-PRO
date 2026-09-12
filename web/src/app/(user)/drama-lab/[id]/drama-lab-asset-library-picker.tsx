@@ -30,12 +30,14 @@ function AssetLibraryPickerSession({ label, busyKey, importedNames = [], onClose
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [importedIds, setImportedIds] = useState<Set<string>>(new Set());
+    const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
     const composing = useRef(false);
 
     useEffect(() => {
         setPage(1);
         setKeyword("");
         setImportedIds(new Set());
+        setPendingIds(new Set());
     }, [label]);
 
     useEffect(() => {
@@ -123,10 +125,20 @@ function AssetLibraryPickerSession({ label, busyKey, importedNames = [], onClose
                                         <Button
                                             size="small"
                                             type={imported ? "default" : "primary"}
-                                            loading={busyKey === `library:${asset.id}`}
-                                            disabled={Boolean(busyKey) || imported}
+                                            loading={busyKey === `library:${asset.id}` || pendingIds.has(asset.id)}
+                                            disabled={Boolean(busyKey) || imported || pendingIds.has(asset.id)}
                                             onClick={async () => {
-                                                if (await onImport(asset)) setImportedIds((current) => new Set(current).add(asset.id));
+                                                if (imported || pendingIds.has(asset.id)) return;
+                                                setPendingIds((current) => new Set(current).add(asset.id));
+                                                try {
+                                                    if (await onImport(asset)) setImportedIds((current) => new Set(current).add(asset.id));
+                                                } finally {
+                                                    setPendingIds((current) => {
+                                                        const next = new Set(current);
+                                                        next.delete(asset.id);
+                                                        return next;
+                                                    });
+                                                }
                                             }}
                                         >
                                             {imported ? "已导入" : "导入"}
