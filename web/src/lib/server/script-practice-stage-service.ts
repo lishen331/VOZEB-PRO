@@ -135,14 +135,46 @@ async function materializeConfirmedScreenplay(
     if (!current) throw new ScriptStageServiceError("剧本文档不存在", 404);
     const source = draft && typeof draft === "object" && !Array.isArray(draft) ? (draft as Record<string, unknown>) : {};
     const screenplay = typeof source.screenplay === "string" ? source.screenplay : typeof source.text === "string" ? source.text : "";
+    const version = await nextScriptVersionNumber(projectId, ownerUserId);
+    const documentOptions = { projectId, documentId: current.id, version, now: new Date().toISOString() };
     const nextDocument = screenplay.trim()
-        ? parseFountain(screenplay, { projectId, documentId: current.id, version: await nextScriptVersionNumber(projectId, ownerUserId), now: new Date().toISOString() })
-        : normalizeScriptDocument(source.blocks ? { blocks: source.blocks } : { blocks: [] }, { projectId, documentId: current.id, version: await nextScriptVersionNumber(projectId, ownerUserId), now: new Date().toISOString() });
-    const version = await createScriptVersion(
+        ? parseFountain(screenplay, documentOptions)
+        : source.blocks
+          ? normalizeScriptDocument({ blocks: source.blocks }, documentOptions)
+          : normalizeScriptDocument({ blocks: screenplayBlocks(source.screenplay) }, documentOptions);
+    const createdVersion = await createScriptVersion(
         { id: crypto.randomUUID(), projectId, documentSnapshot: nextDocument, source: "ai", operation: "generate_screenplay", parentVersionId: project.currentVersionId, createdAt: new Date().toISOString() },
         ownerUserId,
     );
-    if (!version || !(await compareAndSetCurrentVersion(projectId, ownerUserId, project.currentVersionId, version.id))) throw new ScriptStageServiceError("剧本文档版本已变化，请刷新后重试", 409);
+    if (!createdVersion || !(await compareAndSetCurrentVersion(projectId, ownerUserId, project.currentVersionId, createdVersion.id))) throw new ScriptStageServiceError("剧本文档版本已变化，请刷新后重试", 409);
+}
+
+function screenplayBlocks(value: unknown) {
+    const screenplay = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+    const scenes = Array.isArray(screenplay.scenes) ? screenplay.scenes : [];
+    const blocks: Array<{ type: "scene-heading" | "action" | "character" | "dialogue"; text: string }> = [];
+    for (const scene of scenes) {
+        if (!scene || typeof scene !== "object" || Array.isArray(scene)) continue;
+        const item = scene as Record<string, unknown>;
+        const heading = firstText(item.title, item.locationTime);
+        if (heading) blocks.push({ type: "scene-heading", text: heading });
+        const action = firstText(item.action, item.description, item.purpose);
+        if (action) blocks.push({ type: "action", text: action });
+        const dialogue = Array.isArray(item.dialogueVO) ? item.dialogueVO : [];
+        for (const line of dialogue) {
+            if (!line || typeof line !== "object" || Array.isArray(line)) continue;
+            const entry = line as Record<string, unknown>;
+            const speaker = firstText(entry.speaker, entry.character);
+            const text = firstText(entry.line, entry.text);
+            if (speaker) blocks.push({ type: "character", text: speaker });
+            if (text) blocks.push({ type: "dialogue", text });
+        }
+    }
+    return blocks;
+}
+
+function firstText(...values: unknown[]) {
+    return values.find((value): value is string => typeof value === "string" && Boolean(value.trim()))?.trim() || "";
 }
 
 export async function applyScriptPatch(
