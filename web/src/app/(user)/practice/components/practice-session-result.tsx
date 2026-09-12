@@ -57,6 +57,7 @@ export function PracticeSessionResult({
                 source: "practice",
                 ...(dramaAssetType ? { dramaAssetType } : {}),
                 data: {
+                    dataUrl: uploaded.url,
                     serverUrl: uploaded.serverUrl || uploaded.url,
                     storageKey: uploaded.storageKey,
                     width: uploaded.width,
