@@ -100,6 +100,16 @@ const project = {
 };
 
 describe("drama lab shot generation service", () => {
+    it("uses the saved classic polished prompt and never leaks internal asset ids", async () => {
+        const polishedPrompt = "【主体与动作】林夏独自前行。\n【场景与空间】雨夜站台。\n【景别/机位/构图】中景平视。\n【光线与色调】冷蓝。\n【角色白名单】仅林夏。\n【一致性与禁止项】禁止额外人物。";
+        const value = { ...project, episodes: project.episodes.map((episode) => ({ ...episode, shots: episode.shots.map((shot) => ({ ...shot, polishedPrompt })) })) };
+        const prepared = await prepareDramaLabStoryboardImage(value, "episode-one", "shot-one");
+        expect(prepared.prompt).toContain(polishedPrompt);
+        expect(prepared.prompt).not.toContain("scene-station /");
+        expect(prepared.prompt).not.toContain("character-lin /");
+        expect(prepared.prompt).not.toContain("prop-phone /");
+    });
+
     it("uses universal text with scene, character, prop references without requiring a storyboard image", () => {
         const universalSegmentText = "画面风格和类型: 写实\n生成一个由以下1个分镜组成的视频。\n环境参考 @图片1。\n分镜1： 3秒: 缓推 @图片2 手中的 @图片3，横移后拉回。";
         const value = { ...project, episodes: project.episodes.map((episode) => ({ ...episode, shots: episode.shots.map((shot) => ({ ...shot, creationMode: "universal" as const, universalSegmentText })) })) };
@@ -142,9 +152,9 @@ describe("drama lab shot generation service", () => {
 
         expect(prepared.templateKey).toBe("key_frame_prompt");
         expect(prepared.prompt).toContain("KEY FRAME TEMPLATE");
-        expect(prepared.prompt).toContain("场景白名单：scene-station / 雨夜车站");
-        expect(prepared.prompt).toContain("角色白名单：character-lin / 林薇");
-        expect(prepared.prompt).toContain("道具白名单：prop-phone / 裂屏手机");
+        expect(prepared.prompt).toContain("场景白名单：雨夜车站");
+        expect(prepared.prompt).toContain("角色白名单：林薇");
+        expect(prepared.prompt).toContain("道具白名单：裂屏手机");
         expect(prepared.references.map((item) => item.id)).toEqual(["scene-ref", "character-ref", "prop-ref"]);
     });
 

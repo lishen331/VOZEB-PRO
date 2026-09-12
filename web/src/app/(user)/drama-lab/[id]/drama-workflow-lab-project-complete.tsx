@@ -5597,7 +5597,6 @@ function StoryboardPanel({
                                     onPreviewAudioSplit={previewAudioSplit}
                                     onApplyAudioSplit={applyAudioSplit}
                                     audioSplitPlan={audioSplitPlans[shot.id]}
-                                    onSync={() => void syncShotManually(shot).catch((error) => messageApi.error(error instanceof Error ? error.message : "任务状态同步失败"))}
                                     onUpdate={(patch) => void updateShot(shot.id, patch).catch((error) => messageApi.error(error instanceof Error ? error.message : "保存分镜失败"))}
                                     onEdit={() => handleEdit(shot)}
                                     onDelete={() => handleDelete(shot.id)}
@@ -5666,7 +5665,7 @@ function StoryboardPanel({
                         <TextArea rows={2} placeholder="可选" />
                     </Form.Item>
 
-                    <Form.Item label="旁白" name="narration">
+                    <Form.Item label="解说旁白" name="narration">
                         <TextArea rows={2} placeholder="可选" />
                     </Form.Item>
 
@@ -5702,7 +5701,7 @@ function StoryboardPanel({
                                 ["atmosphere", "氛围 / 情绪"],
                                 ["lightingStyle", "灯光"],
                                 ["depthOfField", "景深"],
-                                ["angleH", "水平方向"],
+                                ["angleH", "镜头视角 · 水平方向"],
                                 ["angleV", "俯仰角度"],
                                 ["angleS", "画面景别"],
                             ] as const
@@ -5721,9 +5720,9 @@ function StoryboardPanel({
                     </div>
                     {(
                         [
-                            ["layoutDescription", "构图与人物站位"],
+                            ["layoutDescription", "空间布局锚点（首尾帧人物站位合同）"],
                             ["action", "动作"],
-                            ["result", "动作结束结果"],
+                            ["result", "画面结果"],
                             ["startFramePrompt", "起始状态 / 首帧提示词"],
                             ["endFramePrompt", "结束状态 / 尾帧提示词"],
                             ["universalSegmentText", "全能片段提示词"],
@@ -5752,7 +5751,6 @@ function StoryboardWorkbenchCard({
     onApplyAudioSplit,
     audioSplitPlan,
     onCheckVideoStatus,
-    onSync,
     onUpdate,
     onEdit,
     onDelete,
@@ -5786,7 +5784,6 @@ function StoryboardWorkbenchCard({
     onToggleFrameLock: (shot: Shot, frameType: "first" | "key" | "last") => Promise<void>;
     onUploadFrame: (shot: Shot, frameType: "first" | "key" | "last", file: File) => Promise<void>;
     onUploadVideo: (shot: Shot, file: File) => Promise<void>;
-    onSync: () => void;
     onUpdate: (patch: Partial<Shot>) => void;
     onEdit: () => void;
     onDelete: () => void;
@@ -5811,26 +5808,42 @@ function StoryboardWorkbenchCard({
     const isClassic = !isUniversal && !isFirstLast;
     const classicImageUrl = shot.frames?.key?.url || shot.storyboardImageUrl;
     const [promptWrap, setPromptWrap] = useState(true);
-    const [promptEditor, setPromptEditor] = useState<"image" | "video" | "first" | "last" | null>(null);
-    const [promptDraft, setPromptDraft] = useState("");
-    const [universalPromptAction, setUniversalPromptAction] = useState<"generate" | "polish" | null>(null);
+    const [promptEditorOpen, setPromptEditorOpen] = useState(false);
+    const [audioEditorOpen, setAudioEditorOpen] = useState(false);
+    const [promptDraft, setPromptDraft] = useState({ imagePrompt: "", polishedPrompt: "", firstPrompt: "", lastPrompt: "", videoPrompt: "", universalPrompt: "" });
+    const [universalPromptAction, setUniversalPromptAction] = useState<"generate" | "generate-force" | "polish" | "polish-force" | null>(null);
+    const [promptFieldAction, setPromptFieldAction] = useState<"classic" | "first" | "last" | null>(null);
     const [universalPromptError, setUniversalPromptError] = useState<string | null>(null);
     const uploadInputRefs = useRef<Partial<Record<"first" | "key" | "last", HTMLInputElement | null>>>({});
     const videoUploadInputRef = useRef<HTMLInputElement>(null);
     const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
-    const openPromptEditor = (target: "image" | "video" | "first" | "last") => {
-        setPromptDraft(target === "image" ? shot.imagePrompt || "" : target === "video" ? shot.videoPrompt || "" : shot.frames?.[target]?.prompt || "");
-        setPromptEditor(target);
+    const openPromptEditor = () => {
+        setPromptDraft({
+            imagePrompt: shot.imagePrompt || "",
+            polishedPrompt: shot.polishedPrompt || "",
+            firstPrompt: shot.frames?.first?.prompt || shot.startFramePrompt || "",
+            lastPrompt: shot.frames?.last?.prompt || shot.endFramePrompt || "",
+            videoPrompt: shot.videoPrompt || "",
+            universalPrompt: shot.universalSegmentText || "",
+        });
+        setPromptEditorOpen(true);
     };
     const savePromptEditor = () => {
-        if (!promptEditor) return;
-        const prompt = promptDraft.trim();
-        if (promptEditor === "image") onUpdate({ imagePrompt: prompt });
-        else if (promptEditor === "video") onUpdate({ videoPrompt: prompt });
-        else onUpdate({ frames: { ...shot.frames, [promptEditor]: { ...(shot.frames?.[promptEditor] || { prompt: "" }), prompt } } });
-        setPromptEditor(null);
+        const patch: Partial<Shot> = { imagePrompt: promptDraft.imagePrompt.trim(), videoPrompt: promptDraft.videoPrompt.trim() };
+        if (isClassic) patch.polishedPrompt = promptDraft.polishedPrompt.trim();
+        if (isFirstLast) {
+            patch.startFramePrompt = promptDraft.firstPrompt.trim();
+            patch.endFramePrompt = promptDraft.lastPrompt.trim();
+            patch.frames = {
+                ...shot.frames,
+                first: { ...(shot.frames?.first || { prompt: "" }), prompt: promptDraft.firstPrompt.trim() },
+                last: { ...(shot.frames?.last || { prompt: "" }), prompt: promptDraft.lastPrompt.trim() },
+            };
+        }
+        if (isUniversal) patch.universalSegmentText = promptDraft.universalPrompt.trim();
+        onUpdate(patch);
+        setPromptEditorOpen(false);
     };
-    const promptEditorTitle = promptEditor === "image" ? "编辑分镜图提示词" : promptEditor === "video" ? "编辑视频提示词" : promptEditor ? `编辑${frameLabel[promptEditor]}提示词` : "编辑提示词";
     const universalReferences = [
         shot.sceneId ? project.scenes.find((asset) => asset.id === shot.sceneId) : undefined,
         ...shot.characterIds.map((id) => project.characters.find((asset) => asset.id === id)),
@@ -5840,15 +5853,20 @@ function StoryboardWorkbenchCard({
         const url = asset.referenceImageUrl || asset.imageUrl || asset.references?.find((reference) => reference.id === asset.primaryReferenceId)?.url || asset.references?.find((reference) => reference.url.trim())?.url;
         return url ? [{ label: "name" in asset ? asset.name : asset.location, url }] : [];
     });
-    const handleUniversalPromptAction = async (action: "generate" | "polish") => {
+    const handleUniversalPromptAction = async (action: "generate" | "generate-force" | "polish" | "polish-force") => {
         if (universalPromptAction) return;
         const currentPrompt = shot.universalSegmentText?.trim() || "";
-        if (action === "polish" && !currentPrompt) {
+        if (action.startsWith("polish") && !currentPrompt) {
             setUniversalPromptError("请先填写全能片段描述，再进行润色");
             return;
         }
         const references = universalReferences.map((reference, index) => `@图片${index + 1}：${reference.label}`).join("；");
-        const source = action === "polish" ? currentPrompt : [shot.description?.trim(), references ? `参考图引用：${references}` : ""].filter(Boolean).join("\n");
+        const force = action.endsWith("force");
+        if (!force && !universalReferences.length) {
+            setUniversalPromptError("请至少为场景、角色或道具准备一张主参考图；也可选择无参考图生成/润色");
+            return;
+        }
+        const source = action.startsWith("polish") ? currentPrompt : [shot.description?.trim(), references ? `参考图引用：${references}` : ""].filter(Boolean).join("\n");
         if (!source.trim()) {
             setUniversalPromptError("请先填写分镜描述或绑定资产，再生成全能提示词");
             return;
@@ -5858,15 +5876,46 @@ function StoryboardWorkbenchCard({
         try {
             const optimizedPrompt = await optimizePrompt({ requestId: `drama-lab-universal-${shot.id}-${Date.now()}`, prompt: source, mode: "video" });
             onUpdate({ universalSegmentText: optimizedPrompt });
-            message.success(action === "generate" ? "全能提示词已生成" : "全能提示词已润色");
+            setPromptDraft((current) => ({ ...current, universalPrompt: optimizedPrompt }));
+            message.success(action.startsWith("generate") ? (force ? "全能提示词已无参考图生成" : "全能提示词已生成") : force ? "全能提示词已无参考图润色" : "全能提示词已润色");
         } catch (error) {
             setUniversalPromptError(error instanceof Error ? error.message : "全能提示词处理失败，请稍后重试");
         } finally {
             setUniversalPromptAction(null);
         }
     };
+    const regeneratePromptField = async (target: "classic" | "first" | "last") => {
+        if (promptFieldAction) return;
+        setPromptFieldAction(target);
+        try {
+            const assetNames = universalReferences.map((item) => item.label).join("、");
+            const contract =
+                target === "classic"
+                    ? "请输出经典单张分镜图最终提示词，严格依次包含【主体与动作】【场景与空间】【景别/机位/构图】【光线与色调】【角色白名单】【一致性与禁止项】，不得输出内部资产ID。"
+                    : target === "first"
+                      ? "请输出首帧最终图片提示词：固定空间布局、人物初始站位、景别、轴线和动作起点；不得写运动过程。"
+                      : "请输出尾帧最终图片提示词：继承首帧空间、轴线、人物位置，仅演化动作结束状态；不得引入新人物。";
+            const base = [
+                contract,
+                `项目风格：${project.style || "未设置"}`,
+                `画幅：${project.aspectRatio}`,
+                `镜头：${shot.description || shot.sourceText}`,
+                shot.layoutDescription ? `空间布局锚点：${shot.layoutDescription}` : "",
+                assetNames ? `资产白名单：${assetNames}` : "",
+                target === "last" && promptDraft.firstPrompt ? `首帧提示词：${promptDraft.firstPrompt}` : "",
+            ]
+                .filter(Boolean)
+                .join("\n");
+            const value = await optimizePrompt({ requestId: `drama-lab-shot-prompt-${target}-${shot.id}-${Date.now()}`, prompt: base, mode: "image" });
+            setPromptDraft((current) => ({ ...current, [target === "classic" ? "polishedPrompt" : target === "first" ? "firstPrompt" : "lastPrompt"]: value }));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "提示词重新生成失败");
+        } finally {
+            setPromptFieldAction(null);
+        }
+    };
     return (
-        <article id={`storyboard-shot-${shot.id}`} className="@container/storyboard min-w-0 overflow-hidden rounded-lg border border-border bg-card">
+        <article id={`storyboard-shot-${shot.id}`} className="group/storyboard @container/storyboard relative min-w-0 overflow-hidden rounded-lg border border-border bg-card">
             <header className="flex flex-col gap-2 border-b border-border px-4 py-3">
                 <div className="order-1 min-w-0 w-full">
                     <div className="flex flex-wrap items-center gap-2">
@@ -5885,7 +5934,6 @@ function StoryboardWorkbenchCard({
                     <Button size="small" title="画布定位" aria-label="画布定位" href={dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)} icon={<PanelsTopLeft className="size-4" />}>
                         画布定位
                     </Button>
-                    <Button type="text" size="small" title="同步任务状态" aria-label="同步任务状态" icon={<LoaderCircle className="size-4" />} onClick={onSync} />
                     <Button type="text" size="small" title="编辑分镜" aria-label="编辑分镜" icon={<Edit2 className="size-4" />} onClick={onEdit}>
                         分镜配置
                     </Button>
@@ -5895,7 +5943,6 @@ function StoryboardWorkbenchCard({
                     <Button size="small" onClick={onInsertBefore}>
                         ＋ 新增
                     </Button>
-                    <Button type="text" danger size="small" title="删除分镜" aria-label="删除分镜" icon={<Trash2 className="size-4" />} onClick={onDelete} />
 
                     <Button
                         type="text"
@@ -5909,6 +5956,7 @@ function StoryboardWorkbenchCard({
                         {collapsed ? "展开" : "收起"}
                     </Button>
                 </div>
+                <Button type="text" danger size="small" className="absolute right-1 top-1 opacity-0 transition-opacity group-hover/storyboard:opacity-100" title="删除分镜" aria-label="删除分镜" icon={<Trash2 className="size-4" />} onClick={onDelete} />
             </header>
             <div
                 id={`storyboard-content-${shot.id}`}
@@ -5920,17 +5968,6 @@ function StoryboardWorkbenchCard({
                     <DramaLabShotAssetPicker label="场景" assets={project.scenes} selectedIds={shot.sceneId ? [shot.sceneId] : []} single onChange={(ids) => onUpdate({ sceneId: ids[0] })} />
                     <DramaLabShotAssetPicker label="角色" assets={project.characters} selectedIds={shot.characterIds} onChange={(characterIds) => onUpdate({ characterIds })} />
                     <DramaLabShotAssetPicker label="道具" assets={project.props} selectedIds={shot.propIds} onChange={(propIds) => onUpdate({ propIds })} />
-                    <PromptTextToolbar value={shot.description || ""} wrap={promptWrap} onWrapChange={setPromptWrap} />
-                    <TextArea
-                        defaultValue={shot.description}
-                        autoSize={{ minRows: 3, maxRows: 8 }}
-                        wrap={promptWrap ? "soft" : "off"}
-                        aria-label="分镜描述"
-                        onBlur={(event) => {
-                            const description = event.target.value.trim();
-                            if (description && description !== shot.description) onUpdate({ description, script: description, sourceText: shot.sourceText || description });
-                        }}
-                    />
                 </section>
                 <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 画面`}>
                     <h4 className="text-sm font-medium">{isFirstLast ? "首尾帧参考图" : isUniversal ? "全能片段与参考图" : "分镜图"}</h4>
@@ -6026,9 +6063,9 @@ function StoryboardWorkbenchCard({
                             </div>
                         </div>
                     ) : null}
-                    {isClassic ? <PromptPreview label="分镜图提示词" value={shot.imagePrompt} editLabel="查看 / 编辑分镜图提示词" onEdit={() => openPromptEditor("image")} /> : null}
+
                     {shot.storyboardError ? <Alert type="error" showIcon message={shot.storyboardError} /> : null}
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2" aria-label="分镜图生成上传">
                         {isFirstLast
                             ? (["first", "last"] as const).map((frameType) => {
                                   const frame = shot.frames?.[frameType];
@@ -6145,6 +6182,14 @@ function StoryboardWorkbenchCard({
                             />
                         ) : null}
                     </div>
+                    <div className="flex items-center justify-end gap-2" aria-label="分镜图操作">
+                        <Button type="link" onClick={openPromptEditor}>
+                            查看 / 编辑提示词
+                        </Button>
+                        <Button size="small" icon={<Volume2 className="size-4" />} onClick={() => setAudioEditorOpen(true)}>
+                            打开配音
+                        </Button>
+                    </div>
                     <div className={isFirstLast ? "grid grid-cols-2 gap-2" : "hidden"}>
                         {(["first", "last"] as const).map((frameType) => {
                             const frame = shot.frames?.[frameType];
@@ -6154,7 +6199,6 @@ function StoryboardWorkbenchCard({
                                         <div className="text-xs font-medium text-muted-foreground">{frameLabel[frameType]}</div>
                                         <span className="text-[11px] text-muted-foreground">{frame?.status === "success" ? "已完成" : frame?.status === "running" ? "生成中" : "待生成"}</span>
                                     </div>
-                                    <PromptPreview label={`${frameLabel[frameType]}提示词`} value={frame?.prompt} editLabel={`查看 / 编辑${frameLabel[frameType]}提示词`} onEdit={() => openPromptEditor(frameType)} />
                                 </div>
                             );
                         })}
@@ -6186,142 +6230,190 @@ function StoryboardWorkbenchCard({
                             <div className="grid place-items-center p-3 text-center text-sm text-muted-foreground">{isUniversal ? "绑定资产参考图并完善全能提示词后可生成视频" : "生成或上传分镜图后可生成视频"}</div>
                         )}
                     </div>
-                    <section className="space-y-3 border-b border-border pb-3" aria-label={`分镜 ${shot.shotNumber} 音频`}>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 text-sm font-medium">
-                                <Volume2 className="size-4" />
-                                <span>对白 / 旁白音频</span>
-                            </div>
-                            {splitEligible && !shot.audioSplitSourceShotId ? (
-                                <Button size="small" icon={<Scissors className="size-3.5" />} loading={splitPreviewBusy} onClick={() => void onPreviewAudioSplit(shot)}>
-                                    按音频拆镜
-                                </Button>
-                            ) : null}
-                        </div>
-                        {legacyAudioReviewReason ? <Alert type="warning" showIcon message="旧音频待复核" description={legacyAudioReviewReason} /> : null}
-                        {legacyAudioReviewReason && stableAudioSourceUrl(shot.audioUrl) ? (
-                            <div className="space-y-1 border border-amber-200 bg-amber-50/50 p-2">
-                                <div className="text-xs font-medium text-amber-900">旧音频（未自动归属）</div>
-                                <audio src={stableAudioSourceUrl(shot.audioUrl)} controls preload="metadata" className="h-9 w-full" />
-                            </div>
-                        ) : null}
-                        {(["dialogue", "narration"] as const).map((kind) => {
-                            const state = kind === "dialogue" ? dialogueAudio : narrationAudio;
-                            const label = kind === "dialogue" ? "对白" : "旁白";
-                            const text = audioTextForKind(shot, kind);
-                            const busy = kind === "dialogue" ? dialogueAudioBusy : narrationAudioBusy;
-                            const syncBusy = busyKeys.has(`audio-sync:${kind}:${shot.id}`);
-                            const recoverBusy = busyKeys.has(`audio-recover:${kind}:${shot.id}`);
-                            return (
-                                <div key={kind} className="space-y-2 border border-border p-2">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex min-w-0 items-center gap-2">
-                                            <span className="text-sm font-medium">{label}</span>
-                                            <StoryboardTaskTag status={state?.status} label="音频" />
-                                            {state?.speaker ? <span className="max-w-32 truncate text-xs text-muted-foreground">{state.speaker}</span> : null}
-                                        </div>
-                                        <div className="flex flex-wrap items-center gap-1">
-                                            <Button size="small" icon={<Sparkles className="size-3.5" />} loading={busyKeys.has(`audio:${kind}:${shot.id}`)} disabled={!text || busy} onClick={() => void onStartAudio(shot, kind)}>
-                                                {state?.url ? `重新生成${label}` : `生成${label}`}
-                                            </Button>
-                                            {state?.taskId ? (
-                                                <Button size="small" title={`同步${label}任务`} aria-label={`同步${label}任务`} loading={syncBusy} icon={<RefreshCw className="size-3.5" />} onClick={() => void onSyncAudio(shot, kind)} />
-                                            ) : null}
-                                            {state?.taskId && isDramaLabTaskActive(state.status) ? (
-                                                <Button size="small" title={`恢复${label}任务`} aria-label={`恢复${label}任务`} loading={recoverBusy} icon={<LoaderCircle className="size-3.5" />} onClick={() => void onRecoverAudio(shot, kind)} />
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                    {text ? <p className="line-clamp-2 text-xs text-muted-foreground">{text}</p> : <p className="text-xs text-muted-foreground">暂无{label}文本</p>}
-                                    {state?.error ? <Alert type="error" showIcon message={state.error} /> : null}
-                                    {state?.url ? <audio src={state.url} controls preload="metadata" className="h-9 w-full" /> : null}
-                                </div>
-                            );
-                        })}
-                        {audioSplitPlan ? (
-                            <div className="space-y-2 border border-sky-300 bg-sky-50/60 p-2" role="region" aria-label="音频拆镜预览">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="text-xs font-medium text-sky-900">
-                                        拆镜预览：{audioSplitPlan.segments.length} 段 · {Math.max(1, Math.round(audioSplitPlan.totalDurationMs / 1000))} 秒
-                                    </div>
-                                    <div className="flex gap-1">
-                                        <Button size="small" loading={splitApplyBusy} onClick={() => void onApplyAudioSplit(shot)}>
-                                            确认添加
-                                        </Button>
-                                        <Button size="small" loading={splitPreviewBusy} onClick={() => void onPreviewAudioSplit(shot)}>
-                                            重新预览
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div className="max-h-40 space-y-1 overflow-y-auto text-xs">
-                                    {audioSplitPlan.segments.map((segment) => (
-                                        <div key={`${segment.candidateId}-${segment.index}`} className="flex gap-2 border-b border-sky-200 pb-1 last:border-0">
-                                            <span className="w-8 shrink-0 text-sky-800">#{segment.index + 1}</span>
-                                            <span className="w-12 shrink-0 text-sky-800">{segment.kind === "dialogue" ? "对白" : "旁白"}</span>
-                                            <span className="min-w-0 flex-1 truncate">
-                                                {segment.speaker ? `${segment.speaker}：` : ""}
-                                                {segment.text}
-                                            </span>
-                                            <span className="shrink-0 text-muted-foreground">{segment.duration}s</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : null}
-                    </section>
-                    {!isUniversal ? <PromptPreview label="视频提示词" value={shot.videoPrompt} editLabel="查看 / 编辑视频提示词" onEdit={() => openPromptEditor("video")} /> : null}
+
                     {videoNeedsCheck ? <Alert type="warning" showIcon message="视频结果待检查" description={dramaLabVideoTaskReviewDescription(shot)} /> : null}
                     {shot.generationError && !videoNeedsCheck ? <Alert type="error" showIcon message={shot.generationError} /> : null}
-                    <div className="flex flex-wrap items-center gap-2">
-                        {videoNeedsCheck ? (
-                            <Button loading={checkingVideoStatus} disabled={checkingVideoStatus} icon={<LoaderCircle className="size-4" />} onClick={() => void onCheckVideoStatus(shot)}>
-                                检查状态
+                    <div className="flex flex-wrap items-center justify-between gap-2" aria-label="分镜视频操作">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {videoNeedsCheck ? (
+                                <Button loading={checkingVideoStatus} disabled={checkingVideoStatus} icon={<LoaderCircle className="size-4" />} onClick={() => void onCheckVideoStatus(shot)}>
+                                    检查状态
+                                </Button>
+                            ) : null}
+                            <Button type="primary" loading={videoBusy} disabled={videoBusy || checkingVideoStatus || videoNeedsCheck} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
+                                {videoNeedsCheck ? "请先检查状态" : shot.videoUrl ? "重新生成视频" : "生成分镜视频"}
+                            </Button>
+                            <input
+                                ref={videoUploadInputRef}
+                                type="file"
+                                accept="video/mp4,video/webm,video/quicktime"
+                                className="hidden"
+                                aria-label="选择分镜视频文件"
+                                onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    event.target.value = "";
+                                    if (file) void onUploadVideo(shot, file);
+                                }}
+                            />
+                            <Button loading={busyKeys.has(`video-upload:${shot.id}`)} disabled={videoBusy || checkingVideoStatus || videoNeedsCheck} icon={<Upload className="size-4" />} onClick={() => videoUploadInputRef.current?.click()}>
+                                上传分镜视频
+                            </Button>
+                            <GenerationHistory
+                                history={shot.videoHistory}
+                                activeUrl={shot.videoUrl}
+                                type="video"
+                                onRestore={(url) => onUpdate({ videoUrl: url, generationStatus: "success", generationNeedsReview: undefined, generationError: undefined })}
+                            />
+                        </div>
+                        {splitEligible && !shot.audioSplitSourceShotId ? (
+                            <Button size="small" icon={<Scissors className="size-3.5" />} loading={splitPreviewBusy} onClick={() => void onPreviewAudioSplit(shot)}>
+                                按音频拆镜
                             </Button>
                         ) : null}
-                        <Button type="primary" loading={videoBusy} disabled={videoBusy || checkingVideoStatus || videoNeedsCheck} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
-                            {videoNeedsCheck ? "请先检查状态" : shot.videoUrl ? "重新生成视频" : "生成分镜视频"}
-                        </Button>
-                        <input
-                            ref={videoUploadInputRef}
-                            type="file"
-                            accept="video/mp4,video/webm,video/quicktime"
-                            className="hidden"
-                            aria-label="选择分镜视频文件"
-                            onChange={(event) => {
-                                const file = event.target.files?.[0];
-                                event.target.value = "";
-                                if (file) void onUploadVideo(shot, file);
-                            }}
-                        />
-                        <Button loading={busyKeys.has(`video-upload:${shot.id}`)} disabled={videoBusy || checkingVideoStatus || videoNeedsCheck} icon={<Upload className="size-4" />} onClick={() => videoUploadInputRef.current?.click()}>
-                            上传分镜视频
-                        </Button>
-                        <GenerationHistory history={shot.videoHistory} activeUrl={shot.videoUrl} type="video" onRestore={(url) => onUpdate({ videoUrl: url, generationStatus: "success", generationNeedsReview: undefined, generationError: undefined })} />
                     </div>
                 </section>
             </div>
-            <Modal title={promptEditorTitle} open={Boolean(promptEditor)} okText="保存" cancelText="取消" destroyOnHidden onOk={savePromptEditor} onCancel={() => setPromptEditor(null)}>
-                <div className="space-y-2">
-                    <PromptTextToolbar value={promptDraft} wrap={promptWrap} onWrapChange={setPromptWrap} />
-                    <TextArea value={promptDraft} autoSize={{ minRows: 8, maxRows: 16 }} wrap={promptWrap ? "soft" : "off"} aria-label={promptEditorTitle} onChange={(event) => setPromptDraft(event.target.value)} />
+            <StoryboardPromptDialog
+                open={promptEditorOpen}
+                shot={shot}
+                isClassic={isClassic}
+                isFirstLast={isFirstLast}
+                isUniversal={isUniversal}
+                draft={promptDraft}
+                onDraftChange={setPromptDraft}
+                onUniversalAction={handleUniversalPromptAction}
+                universalBusy={universalPromptAction}
+                fieldBusy={promptFieldAction}
+                onRegenerateField={regeneratePromptField}
+                onCancel={() => setPromptEditorOpen(false)}
+                onSave={savePromptEditor}
+            />
+            <Modal title={`分镜 ${shot.shotNumber} · 配音`} open={audioEditorOpen} footer={null} onCancel={() => setAudioEditorOpen(false)}>
+                <div className="space-y-3">
+                    {(["dialogue", "narration"] as const).map((kind) => {
+                        const label = kind === "dialogue" ? "对白" : "旁白";
+                        const text = audioTextForKind(shot, kind);
+                        const state = audioStateForKind(shot, kind);
+                        return (
+                            <div key={kind} className="rounded border border-border p-3">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <b>{label}</b>
+                                        <p className="mt-1 text-xs text-muted-foreground">{text || `暂无${label}文本`}</p>
+                                    </div>
+                                    <Button icon={<Sparkles className="size-4" />} disabled={!text} loading={busyKeys.has(`audio:${kind}:${shot.id}`)} onClick={() => void onStartAudio(shot, kind)}>
+                                        {state?.url ? `重新生成${label}` : `生成${label}`}
+                                    </Button>
+                                </div>
+                                {state?.url ? <audio src={state.url} controls className="mt-2 w-full" /> : null}
+                            </div>
+                        );
+                    })}
                 </div>
             </Modal>
         </article>
     );
 }
 
-function PromptPreview({ label, value, editLabel, onEdit }: { label: string; value?: string; editLabel: string; onEdit: () => void }) {
-    const preview = value?.trim();
-    return (
-        <section className="min-w-0 space-y-1.5" aria-label={label}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-medium text-muted-foreground">{label}</span>
-                <Button size="small" type="text" aria-label={editLabel} onClick={onEdit}>
-                    {editLabel}
-                </Button>
+type StoryboardPromptDraft = { imagePrompt: string; polishedPrompt: string; firstPrompt: string; lastPrompt: string; videoPrompt: string; universalPrompt: string };
+function StoryboardPromptDialog({
+    open,
+    shot,
+    isClassic,
+    isFirstLast,
+    isUniversal,
+    draft,
+    onDraftChange,
+    onUniversalAction,
+    universalBusy,
+    fieldBusy,
+    onRegenerateField,
+    onCancel,
+    onSave,
+}: {
+    open: boolean;
+    shot: Shot;
+    isClassic: boolean;
+    isFirstLast: boolean;
+    isUniversal: boolean;
+    draft: StoryboardPromptDraft;
+    onDraftChange: (value: StoryboardPromptDraft) => void;
+    onUniversalAction: (action: "generate" | "generate-force" | "polish" | "polish-force") => void;
+    universalBusy: "generate" | "generate-force" | "polish" | "polish-force" | null;
+    fieldBusy: "classic" | "first" | "last" | null;
+    onRegenerateField: (target: "classic" | "first" | "last") => void;
+    onCancel: () => void;
+    onSave: () => void;
+}) {
+    const field = (key: keyof StoryboardPromptDraft, label: string, action?: ReactNode) => (
+        <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>{label}</span>
+                {action}
             </div>
-            <p className="min-h-10 whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground line-clamp-2">{preview || "暂未补充提示词"}</p>
-        </section>
+            <TextArea value={draft[key]} autoSize={{ minRows: 4, maxRows: 10 }} onChange={(event) => onDraftChange({ ...draft, [key]: event.target.value })} />
+        </div>
+    );
+    return (
+        <Modal title={`分镜 ${shot.shotNumber} · 编辑提示词`} open={open} width={760} okText="保存" cancelText="取消" destroyOnHidden onOk={onSave} onCancel={onCancel}>
+            <div className="space-y-5">
+                <section className="space-y-3">
+                    <h3 className="font-semibold">🖼 图片提示词</h3>
+                    {field("imagePrompt", "原始提示词（分镜拆解时写入，仅供参考）")}
+                    {isClassic
+                        ? field(
+                              "polishedPrompt",
+                              "通用优化提示词（经典单图最终使用）",
+                              <Button size="small" loading={fieldBusy === "classic"} onClick={() => onRegenerateField("classic")}>
+                                  {draft.polishedPrompt.trim() ? "重新生成" : "立即生成"}
+                              </Button>,
+                          )
+                        : null}
+                    {isFirstLast ? (
+                        <>
+                            {field(
+                                "firstPrompt",
+                                "首帧最终提示词",
+                                <Button size="small" loading={fieldBusy === "first"} onClick={() => onRegenerateField("first")}>
+                                    重新生成首帧提示词
+                                </Button>,
+                            )}
+                            {field(
+                                "lastPrompt",
+                                "尾帧最终提示词",
+                                <Button size="small" loading={fieldBusy === "last"} onClick={() => onRegenerateField("last")}>
+                                    重新生成尾帧提示词
+                                </Button>,
+                            )}
+                        </>
+                    ) : null}
+                </section>
+                <section className="space-y-3">
+                    <h3 className="font-semibold">🎬 视频提示词</h3>
+                    {field("videoPrompt", isUniversal ? "视频提示词（全能参考提示词为空时兜底）" : "视频提示词")}
+                    {isUniversal
+                        ? field(
+                              "universalPrompt",
+                              "全能参考提示词",
+                              <span className="flex flex-wrap gap-1">
+                                  <Button size="small" loading={universalBusy === "generate"} onClick={() => onUniversalAction("generate")}>
+                                      生成
+                                  </Button>
+                                  <Button size="small" loading={universalBusy === "generate-force"} onClick={() => onUniversalAction("generate-force")}>
+                                      无参考图生成
+                                  </Button>
+                                  <Button size="small" loading={universalBusy === "polish"} onClick={() => onUniversalAction("polish")}>
+                                      润色
+                                  </Button>
+                                  <Button size="small" loading={universalBusy === "polish-force"} onClick={() => onUniversalAction("polish-force")}>
+                                      无参考图润色
+                                  </Button>
+                              </span>,
+                          )
+                        : null}
+                </section>
+            </div>
+        </Modal>
     );
 }
 
