@@ -16,11 +16,11 @@ export function buildStoryboardVideoReferences(imageId: string, audioEnabled: bo
         (reference): reference is { type: "asset"; id: string; inputKey: string } => Boolean(reference),
     );
 }
-export default function PracticeStoryboardVideoPanel({ capability, onCreated }: PracticePanelProps) {
+export default function PracticeStoryboardVideoPanel({ capability, onCreated, defaultInput }: PracticePanelProps) {
     const { message } = App.useApp();
-    const [prompt, setPrompt] = useState("");
+    const [prompt, setPrompt] = useState(() => defaultInput?.prompt ?? "");
     const [model, setModel] = useState(capability.models[0]?.id);
-    const [image, setImage] = useState<UploadedImage>();
+    const [image, setImage] = useState<UploadedImage | undefined>(() => defaultInput?.images?.image);
     const [audio, setAudio] = useState<UploadedFile>();
     const [audioHistory, setAudioHistory] = useState<PracticeSession[]>([]);
     const [audioSource, setAudioSource] = useState<"upload" | "history">("upload");
@@ -52,7 +52,7 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated }: 
         }
     };
     const [audioEnabled, setAudioEnabled] = useState(false);
-    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => workflowFieldDefaults({ ...capability, inputSchema: capability.inputSchema.filter((field) => field.key !== "audioEnabled") }));
+    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => ({ ...workflowFieldDefaults({ ...capability, inputSchema: capability.inputSchema.filter((field) => field.key !== "audioEnabled") }), ...(defaultInput?.workflowInput ?? {}) }));
     const [uploading, setUploading] = useState(false);
     const [busy, setBusy] = useState(false);
     const chooseImage = async (file?: File) => {

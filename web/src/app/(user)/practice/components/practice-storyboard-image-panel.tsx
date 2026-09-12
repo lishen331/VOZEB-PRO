@@ -16,14 +16,14 @@ export function buildStoryboardImageReferences(sceneId: string, assetIds: string
         (reference): reference is { type: "asset"; id: string; inputKey: string } => Boolean(reference),
     );
 }
-export default function PracticeStoryboardImagePanel({ capability, ipReferences, onIpReferencesChange, onCreated }: PracticePanelProps) {
+export default function PracticeStoryboardImagePanel({ capability, ipReferences, onIpReferencesChange, onCreated, defaultInput }: PracticePanelProps) {
     const { message } = App.useApp();
-    const [prompt, setPrompt] = useState("");
+    const [prompt, setPrompt] = useState(() => defaultInput?.prompt ?? "");
     const [model, setModel] = useState(capability.models[0]?.id);
-    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => workflowFieldDefaults(capability));
+    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => ({ ...workflowFieldDefaults(capability), ...(defaultInput?.workflowInput ?? {}) }));
     const [busy, setBusy] = useState(false);
-    const [scene, setScene] = useState<UploadedImage>();
-    const [assets, setAssets] = useState<Array<UploadedImage | undefined>>([]);
+    const [scene, setScene] = useState<UploadedImage | undefined>(() => defaultInput?.images?.sceneImage);
+    const [assets, setAssets] = useState<Array<UploadedImage | undefined>>(() => [defaultInput?.images?.characterPropImage1, defaultInput?.images?.characterPropImage2]);
     const [uploading, setUploading] = useState(false);
     const chooseImage = async (file: File | undefined, index?: number) => {
         if (!file || !file.type.startsWith("image/")) return;

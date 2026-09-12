@@ -123,8 +123,8 @@ export default function PracticeHome() {
             <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-8">
                 <header className="border-b border-border pb-4 sm:pb-6">
                     <p className="text-xs font-medium text-muted-foreground">免费创作空间</p>
-                    <h1 className="mt-1.5 text-2xl font-semibold tracking-normal sm:text-3xl">练习</h1>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">用独立的练习项目反复尝试，不影响正式项目和课程作业。</p>
+                    <h1 className="mt-1.5 text-2xl font-semibold tracking-normal sm:text-3xl">无限练习</h1>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">每个模块是独立的单块练习，互不串联。你可以把生成的素材保存到资产库，再在其他模块中引用，但这里不是完整的漫剧创作流水线，只用于单块技能的专项训练。</p>
                 </header>
 
                 {projectCards.length ? (

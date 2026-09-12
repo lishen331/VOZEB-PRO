@@ -11,12 +11,12 @@ import { PracticeMediaInput } from "./practice-media-input";
 import { ModelField } from "./practice-storyboard-image-panel";
 import { PracticeAssetPicker } from "./practice-asset-picker";
 
-export default function PracticePropPanel({ capability, onCreated }: PracticePanelProps) {
+export default function PracticePropPanel({ capability, onCreated, defaultInput }: PracticePanelProps) {
     const { message } = App.useApp();
-    const [prompt, setPrompt] = useState("");
+    const [prompt, setPrompt] = useState(() => defaultInput?.prompt ?? "");
     const [model, setModel] = useState(capability.models[0]?.id);
-    const [image, setImage] = useState<UploadedImage>();
-    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => workflowFieldDefaults(capability));
+    const [image, setImage] = useState<UploadedImage | undefined>(() => defaultInput?.images?.referenceImage);
+    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => ({ ...workflowFieldDefaults(capability), ...(defaultInput?.workflowInput ?? {}) }));
     const [uploading, setUploading] = useState(false);
     const [busy, setBusy] = useState(false);
     const chooseImage = async (file?: File) => {

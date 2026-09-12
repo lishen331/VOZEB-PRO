@@ -2,12 +2,21 @@ import { Input, InputNumber, Select, Switch } from "antd";
 import type { PracticeModuleCapability, PracticeModuleInputField, PracticeModuleKind } from "@/lib/practice-domain";
 import type { IpReference } from "@/lib/ip-library-domain";
 import type { PracticeSession } from "@/services/api/practice";
+import type { UploadedImage } from "@/services/image-storage";
+
+export type PracticeDefaultInput = {
+    prompt?: string;
+    text?: string;
+    workflowInput?: Record<string, unknown>;
+    images?: Record<string, UploadedImage>;
+};
 
 export type PracticePanelProps = {
     capability: PracticeModuleCapability;
     ipReferences: IpReference[];
     onIpReferencesChange: (value: IpReference[]) => void;
     onCreated: (session: PracticeSession) => void;
+    defaultInput?: PracticeDefaultInput | null;
 };
 
 export type PracticePanelModule = PracticeModuleKind;

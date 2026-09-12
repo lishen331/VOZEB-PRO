@@ -19,6 +19,8 @@ export type GenerationTaskContext = {
     surface?: "chat" | "canvas" | "drama";
     featureModule?: "drama-lab";
     executionProfile?: PracticeExecutionProfile;
+    /** School scope for open-source-practice tasks; derived server-side. */
+    schoolId?: string;
     projectId?: string;
     episodeId?: string;
     shotId?: string;

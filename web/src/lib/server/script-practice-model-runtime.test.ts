@@ -38,4 +38,22 @@ describe("script practice model runtime", () => {
         const fetcher = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ outline: "错误字段" }) } }] }), { status: 200 }));
         await expect(runScriptModel(request, { endpointUrl: "http://127.0.0.1:43210", executionProfile: "open-source-practice", fetcher })).rejects.toThrow("结构化结果");
     });
+
+    it("accepts content arrays and direct result wrappers from compatible gateways", async () => {
+        const payloads = [{ choices: [{ message: { content: [{ type: "text", text: JSON.stringify({ synopsis: "数组梗概" }) }] } }] }, { result: { synopsis: "包装梗概" } }, { data: { synopsis: "数据梗概" } }];
+        for (const payload of payloads) {
+            const fetcher = vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 }));
+            await expect(runScriptModel(request, { endpointUrl: "http://127.0.0.1:43210", executionProfile: "open-source-practice", fetcher })).resolves.toMatchObject({ structured: { synopsis: expect.any(String) } });
+        }
+    });
+
+    it("wraps plain text into the requested stage field", async () => {
+        const fetcher = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: "这是模型返回的公开梗概。" } }] }), { status: 200 }));
+        await expect(runScriptModel(request, { endpointUrl: "http://127.0.0.1:43210", executionProfile: "open-source-practice", fetcher })).resolves.toMatchObject({ structured: { synopsis: "这是模型返回的公开梗概。" } });
+    });
+
+    it("reads structured arguments from a chat tool call", async () => {
+        const fetcher = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { tool_calls: [{ function: { name: "generate_synopsis", arguments: JSON.stringify({ synopsis: "工具梗概" }) } }] } }] }), { status: 200 }));
+        await expect(runScriptModel(request, { endpointUrl: "http://127.0.0.1:43210", executionProfile: "open-source-practice", fetcher })).resolves.toMatchObject({ structured: { synopsis: "工具梗概" } });
+    });
 });

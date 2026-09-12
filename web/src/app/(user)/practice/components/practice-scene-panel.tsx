@@ -8,11 +8,11 @@ import { practiceApi } from "@/services/api/practice";
 import { WorkflowOptionalFields, workflowFieldDefaults, type PracticePanelProps } from "./practice-panel-types";
 import { ModelField } from "./practice-storyboard-image-panel";
 
-export default function PracticeScenePanel({ capability, onCreated }: PracticePanelProps) {
+export default function PracticeScenePanel({ capability, onCreated, defaultInput }: PracticePanelProps) {
     const { message } = App.useApp();
-    const [prompt, setPrompt] = useState("");
+    const [prompt, setPrompt] = useState(() => defaultInput?.prompt ?? "");
     const [model, setModel] = useState(capability.models[0]?.id);
-    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => workflowFieldDefaults(capability));
+    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => ({ ...workflowFieldDefaults(capability), ...(defaultInput?.workflowInput ?? {}) }));
     const [busy, setBusy] = useState(false);
     const submit = async () => {
         if (!prompt.trim() || !model || busy) return;

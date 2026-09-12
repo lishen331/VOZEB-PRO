@@ -1,10 +1,15 @@
 "use client";
 
-import { Button, Spin } from "antd";
-import { Image, Film, AudioLines, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { App, Button, Image, Spin } from "antd";
+import { Film, AudioLines, Download, Image as ImageIcon } from "lucide-react";
 
 import type { PracticeModuleKind } from "@/lib/practice-domain";
 import type { PracticeSession } from "@/services/api/practice";
+import { uploadImage } from "@/services/image-storage";
+import { createLibraryAsset } from "@/services/api/library-assets";
+import type { DramaLibraryAssetType } from "@/lib/drama-lab-library-assets";
+import { PracticePanoramaViewer } from "./practice-panorama-viewer";
 
 const WAITING: Record<PracticeModuleKind, string> = {
     script: "等待保存剧本",
@@ -17,9 +22,59 @@ const WAITING: Record<PracticeModuleKind, string> = {
     music: "等待生成音乐",
 };
 
-export function PracticeSessionResult({ module, session, onRetry, onRefresh }: { module: PracticeModuleKind; session?: PracticeSession | null; onRetry: () => void; onRefresh: () => void }) {
+const DRAMA_ASSET_TYPE: Partial<Record<PracticeModuleKind, DramaLibraryAssetType>> = {
+    character: "character",
+    scene: "scene",
+    prop: "prop",
+};
+
+export function PracticeSessionResult({
+    module,
+    session,
+    onRetry,
+    onRefresh,
+}: {
+    module: PracticeModuleKind;
+    session?: PracticeSession | null;
+    onRetry: (session: PracticeSession) => void;
+    onRefresh: () => void;
+}) {
+    const { message } = App.useApp();
+    const [saving, setSaving] = useState(false);
+
+    const saveToLibrary = async (target: PracticeSession) => {
+        const url = target.result?.media?.url;
+        if (!url) return;
+        setSaving(true);
+        try {
+            const uploaded = await uploadImage(url);
+            const dramaAssetType = DRAMA_ASSET_TYPE[module];
+            await createLibraryAsset({
+                kind: "image",
+                title: target.title,
+                coverUrl: uploaded.serverUrl || uploaded.url,
+                tags: [],
+                source: "practice",
+                ...(dramaAssetType ? { dramaAssetType } : {}),
+                data: {
+                    serverUrl: uploaded.serverUrl || uploaded.url,
+                    storageKey: uploaded.storageKey,
+                    width: uploaded.width,
+                    height: uploaded.height,
+                    bytes: uploaded.bytes,
+                    mimeType: uploaded.mimeType,
+                },
+            });
+            message.success("已存入资产库");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "保存失败，请重试");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (!session) {
-        const Icon = module === "storyboard-video" ? Film : module === "dubbing" ? AudioLines : Image;
+        const Icon = module === "storyboard-video" ? Film : module === "dubbing" ? AudioLines : ImageIcon;
         return (
             <div className="flex min-h-52 flex-col items-center justify-center gap-3 text-center lg:min-h-80">
                 <div className="rounded-2xl bg-muted/60 p-5">
@@ -40,25 +95,58 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
         );
     if (session.status === "failed" || session.result?.status === "error")
         return (
-            <div className="mt-4 flex items-center justify-between gap-3 text-sm text-red-600 dark:text-red-300">
-                <span>{session.errorMessage || session.result?.error || "练习失败，请重试"}</span>
-                <Button size="small" onClick={onRetry}>
-                    重试
+            <div className="mt-4 space-y-2 text-sm text-red-600 dark:text-red-300">
+                <p>{session.errorMessage || session.result?.error || "练习失败，请重试"}</p>
+                <Button size="small" onClick={() => onRetry(session)}>
+                    载入重试
                 </Button>
             </div>
         );
     if (session.status === "cancelled" || session.result?.status === "cancelled")
         return (
-            <div className="mt-4 flex items-center justify-between gap-3 text-sm text-muted-foreground">
-                <span>练习已取消</span>
-                <Button size="small" onClick={onRetry}>
-                    重试
+            <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                <p>练习已取消</p>
+                <Button size="small" onClick={() => onRetry(session)}>
+                    载入重试
                 </Button>
             </div>
         );
     if (session.result?.text !== undefined) return <pre className="mt-4 whitespace-pre-wrap rounded border border-border bg-muted/20 p-3 text-sm leading-6">{session.result.text}</pre>;
-    if (session.result?.media?.kind === "image") return <img src={session.result.media.url} alt="练习结果" className="mt-4 max-h-[60vh] w-full object-contain" />;
-    if (session.result?.media?.kind === "video") return <video controls src={session.result.media.url} className="mt-4 max-h-[60vh] w-full" />;
-    if (session.result?.media?.kind === "audio") return <audio controls src={session.result.media.url} className="mt-4 w-full" />;
+    if (session.result?.media?.kind === "image") {
+        const imageUrl = session.result.media.url;
+        const isMultiView = session.workflowCode === "character_multi_view";
+        return (
+            <div className="mt-4 space-y-3">
+                <Image src={imageUrl} alt="练习结果" className="!max-h-[60vh] !w-full !object-contain" preview={{ src: imageUrl }} />
+                <div className="flex flex-wrap items-center gap-2">
+                    {isMultiView ? <PracticePanoramaViewer url={imageUrl} title="角色多视图 360°" /> : null}
+                    <Button size="small" icon={<Download className="size-3.5" />} loading={saving} onClick={() => void saveToLibrary(session)}>
+                        存入资产库
+                    </Button>
+                    <Button size="small" onClick={() => onRetry(session)}>
+                        载入重试
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+    if (session.result?.media?.kind === "video")
+        return (
+            <div className="mt-4 space-y-3">
+                <video controls src={session.result.media.url} className="max-h-[60vh] w-full" />
+                <Button size="small" onClick={() => onRetry(session)}>
+                    载入重试
+                </Button>
+            </div>
+        );
+    if (session.result?.media?.kind === "audio")
+        return (
+            <div className="mt-4 space-y-3">
+                <audio controls src={session.result.media.url} className="w-full" />
+                <Button size="small" onClick={() => onRetry(session)}>
+                    载入重试
+                </Button>
+            </div>
+        );
     return <p className="mt-4 text-sm text-muted-foreground">练习已完成，暂无可展示的结果。</p>;
 }
