@@ -60,6 +60,16 @@ export class ScriptAgentRepository {
         return result.rows[0] ? mapRun(result.rows[0]) : null;
     }
 
+    async claimRun(scope: PracticeTenantScope, projectId: string, runId: string) {
+        const result = await this.db.query("UPDATE practice_script_runs SET status = 'running', started_at = COALESCE(started_at, now()) WHERE id = $1 AND school_id = $2 AND owner_user_id = $3 AND project_id = $4 AND status = 'planning' RETURNING *", [
+            runId,
+            scope.schoolId,
+            scope.ownerUserId,
+            projectId,
+        ]);
+        return result.rows[0] ? mapRun(result.rows[0]) : null;
+    }
+
     async updateRun(scope: PracticeTenantScope, projectId: string, runId: string, patch: { status?: ScriptRunStatus; progress?: Record<string, unknown>; startedAt?: string; completedAt?: string; errorCode?: string; errorMessage?: string }) {
         const result = await this.db.query(
             `UPDATE practice_script_runs SET status = COALESCE($5, status), progress_json = COALESCE($6::jsonb, progress_json), started_at = COALESCE($7::timestamptz, started_at), completed_at = COALESCE($8::timestamptz, completed_at), error_code = $9, error_message = $10

@@ -39,6 +39,33 @@ export const practiceScriptsApi = {
     confirmStage(id: string, stage: string) {
         return request<ScriptStage>(`/api/practice/scripts/${encodeURIComponent(id)}/stages`, json("POST", { confirm: true, stage }));
     },
+    createRun(id: string, input: { runType: string; clientRequestId: string; chatSessionId?: string; stageKey?: string; input?: Record<string, unknown> }) {
+        return request<{ id: string; status: string; runType: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/runs`, json("POST", input));
+    },
+    run(id: string, runId: string) {
+        return request<{ id: string; status: string; runType: string; progress: Record<string, unknown>; errorMessage?: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}`);
+    },
+    runEventsUrl(id: string, runId: string, afterSequence = 0) {
+        return `/api/practice/scripts/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}/events?afterSequence=${afterSequence}`;
+    },
+    stopRun(id: string, runId: string) {
+        return request<unknown>(`/api/practice/scripts/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}/stop`, { method: "POST" });
+    },
+    retryFailed(id: string, runId: string) {
+        return request<unknown[]>(`/api/practice/scripts/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}/retry-failed`, { method: "POST" });
+    },
+    chatSessions(id: string) {
+        return request<Array<{ id: string; title: string }>>(`/api/practice/scripts/${encodeURIComponent(id)}/chat-sessions`);
+    },
+    createChatSession(id: string, title = "新对话") {
+        return request<{ id: string; title: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/chat-sessions`, json("POST", { title }));
+    },
+    chatMessages(id: string, sessionId: string) {
+        return request<Array<{ id: string; role: string; agent_key?: string; public_content: string }>>(`/api/practice/scripts/${encodeURIComponent(id)}/chat-sessions/${encodeURIComponent(sessionId)}/messages`);
+    },
+    sendChat(id: string, sessionId: string, content: string, clientRequestId: string) {
+        return request<{ id: string; status: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/chat-sessions/${encodeURIComponent(sessionId)}/messages`, json("POST", { content, clientRequestId }));
+    },
     exportUrl(id: string, format: "text" | "fountain" | "fdx") {
         return `/api/practice/scripts/${encodeURIComponent(id)}/export?format=${format}`;
     },
