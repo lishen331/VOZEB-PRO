@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import type { Asset } from "@/lib/library-asset-contract";
 import styleGroups from "@/lib/drama-lab-style-options.json";
+import { readDramaSourceFile } from "@/lib/drama-source-reader";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -152,6 +153,19 @@ function groupChapters(chapters: Array<{ title: string; content: string }>, perE
             chapterTitles: chunk.map((chapter) => chapter.title),
         };
     });
+}
+
+async function readBatchImportFile(projectId: string, file: File) {
+    if (/\.doc$/iu.test(file.name)) {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("commit", "false");
+        const response = await fetch(`/api/drama-lab/projects/${projectId}/import-novel`, { method: "POST", body: form });
+        const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { sourceText?: string } };
+        if (!response.ok || payload.code !== 0 || typeof payload.data?.sourceText !== "string") throw new Error(payload.msg || "DOC 文件解析失败");
+        return payload.data.sourceText;
+    }
+    return readDramaSourceFile(file);
 }
 
 export default function ProjectOutlinePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
@@ -780,34 +794,79 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 <Steps current={batchImportTab === "config" ? 0 : 1} items={[{ title: "导入设置" }, { title: "预览确认" }]} className="mb-5" />
                 {batchImportTab === "config" ? (
                     <div className="grid gap-4">
-                        <AntUpload
+                        <AntUpload.Dragger
                             beforeUpload={(file: File) => {
                                 setBatchFileName(file.name);
-                                const reader = new FileReader();
-                                reader.onload = (event) => setBatchRawText(String(event.target?.result || ""));
-                                reader.readAsText(file, "utf-8");
+                                void readBatchImportFile(projectId, file)
+                                    .then((content) => {
+                                        setBatchRawText(content);
+                                        setBatchImportText(content);
+                                    })
+                                    .catch((error) => message.error(error instanceof Error ? error.message : "文件解析失败"));
                                 return false;
                             }}
                             showUploadList={false}
-                            accept=".txt,.md"
+                            accept=".txt,.md,.markdown,.docx,.doc,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
                         >
-                            <Button icon={<Upload className="size-4" />}>选择 TXT/MD 文件</Button>
-                        </AntUpload>
-                        <div className="text-sm text-muted-foreground">{batchFileName || "未选择文件，也可以直接粘贴文本"}</div>
-                        <Input value={chapterPattern} onChange={(event: ChangeEvent<HTMLInputElement>) => setChapterPattern(event.target.value)} addonBefore="章节正则" />
-                        <div className="flex items-center gap-3">
-                            <span className="text-sm">每集章节数</span>
-                            <Select value={chaptersPerEpisode} onChange={setChaptersPerEpisode} options={[1, 2, 3, 4, 5].map((value) => ({ label: String(value), value }))} />
+                            <p className="ant-upload-drag-icon">
+                                <Upload className="mx-auto size-7 text-muted-foreground" />
+                            </p>
+                            <p className="ant-upload-text">点击或拖拽上传 TXT / MD / DOCX / DOC 文件</p>
+                            <p className="ant-upload-hint">支持小说原文或剧本文档，也可以直接在下面粘贴文本。</p>
+                        </AntUpload.Dragger>
+                        <div className="grid gap-3">
+                            <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">
+                                <span className="text-right text-sm">章节正则</span>
+                                <Input value={chapterPattern} onChange={(event: ChangeEvent<HTMLInputElement>) => setChapterPattern(event.target.value)} />
+                            </div>
+                            <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">
+                                <span className="text-right text-sm">每集章节数</span>
+                                <div className="flex items-center">
+                                    <Button size="small" onClick={() => setChaptersPerEpisode((value) => Math.max(1, value - 1))}>
+                                        −
+                                    </Button>
+                                    <span className="grid h-8 w-14 place-items-center border-y border-border text-sm">{chaptersPerEpisode}</span>
+                                    <Button size="small" onClick={() => setChaptersPerEpisode((value) => Math.min(100, value + 1))}>
+                                        ＋
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
-                        <Input.TextArea
-                            rows={8}
-                            value={batchRawText || batchImportText}
-                            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
-                                setBatchRawText(event.target.value);
-                                setBatchImportText(event.target.value);
+                        <div
+                            className="rounded-md border border-dashed border-border p-2"
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                                event.preventDefault();
+                                const file = event.dataTransfer.files?.[0];
+                                if (!file) return;
+                                setBatchFileName(file.name);
+                                void readBatchImportFile(projectId, file)
+                                    .then((content) => {
+                                        setBatchRawText(content);
+                                        setBatchImportText(content);
+                                    })
+                                    .catch((error) => message.error(error instanceof Error ? error.message : "文件解析失败"));
                             }}
-                            placeholder={"第1集 | 雨夜里，主角收到一封神秘来信。\\n第2集 | 他沿着线索来到旧车站。"}
-                        />
+                        >
+                            <Input.TextArea
+                                rows={8}
+                                value={batchRawText || batchImportText}
+                                onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                                    setBatchRawText(event.target.value);
+                                    setBatchImportText(event.target.value);
+                                }}
+                                placeholder={"第1章 雨夜里，主角收到一封神秘来信。\n\n第2章 他沿着线索来到旧车站。"}
+                            />
+                        </div>
+                        <div className="rounded-md bg-muted/40 p-3 text-xs leading-6 text-muted-foreground">
+                            <div>支持 TXT、MD、DOCX、DOC 小说原文或剧本文档，服务器会自动解析编码与 Word 内容。</div>
+                            <div>也可以直接粘贴文本，或将文件拖到弹窗、文件区、正文输入框。</div>
+                            <div>请输入可匹配章节标题的正则表达式；默认支持“第1章 / 第1集 / 第 一 章”等标题。</div>
+                            <div>
+                                示例：<code className="text-primary">^\s*(第\d+章[^\n]*)</code>、<code className="text-primary">^\s*(第\d+集[^\n]*)</code>
+                            </div>
+                            <div>每集章节数可自由设置；例如设置为 3，则每 3 个识别章节合并为 1 集。</div>
+                        </div>
                         <div className="flex justify-end">
                             <Button type="primary" onClick={() => void handleBatchImport()}>
                                 解析并预览
