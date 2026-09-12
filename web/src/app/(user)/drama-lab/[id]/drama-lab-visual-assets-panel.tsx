@@ -407,9 +407,8 @@ export function DramaLabVisualAssetsPanel({
                                                         <Image
                                                             src={imagePreviewUrl(primary.url, 640)}
                                                             alt={`${asset.name}主参考图`}
-                                                            rootClassName="!block !size-full"
-                                                            className="!size-full !object-contain"
-                                                            style={{ objectFit: "contain" }}
+                                                            rootClassName="!flex !size-full !items-center !justify-center"
+                                                            className="!h-auto !w-auto !max-h-full !max-w-full !object-contain"
                                                             preview={{ src: imagePreviewUrl(primary.url, 1920) }}
                                                         />
                                                     ) : (

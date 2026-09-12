@@ -163,6 +163,14 @@ describe("asset card and editor reference interactions", () => {
         expect(source).toContain("画布定位");
     });
 
+    it("renders the card thumbnail inside a fixed frame without forcing the image to fill it", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        const cardFrame = source.slice(source.indexOf("data-drama-lab-asset-card"), source.indexOf('<div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">'));
+        expect(cardFrame).toContain('rootClassName="!flex !size-full !items-center !justify-center"');
+        expect(cardFrame).toContain('className="!h-auto !w-auto !max-h-full !max-w-full !object-contain"');
+        expect(cardFrame).not.toContain('className="!size-full !object-contain"');
+    });
+
     it("labels reference upload frames on the left and disables nested image preview", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect((source.match(/<span className="shrink-0 text-sm">参考图<\/span>/g) || []).length).toBe(3);
