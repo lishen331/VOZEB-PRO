@@ -736,13 +736,13 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                             <p className="ant-upload-text">点击或拖拽上传 TXT / MD / DOCX / DOC 文件</p>
                             <p className="ant-upload-hint">支持小说原文或剧本文档，也可以直接在下面粘贴文本。</p>
                         </AntUpload.Dragger>
-                        <div className="grid gap-3">
+                        <div className="grid gap-3 px-2">
                             <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">
-                                <span className="text-right text-sm">章节正则</span>
+                                <span className="justify-self-start text-left text-sm">章节正则</span>
                                 <Input value={chapterPattern} onChange={(event: ChangeEvent<HTMLInputElement>) => setChapterPattern(event.target.value)} />
                             </div>
                             <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">
-                                <span className="text-right text-sm">每集章节数</span>
+                                <span className="justify-self-start text-left text-sm">每集章节数</span>
                                 <div className="flex items-center">
                                     <Button size="small" onClick={() => setChaptersPerEpisode((value) => Math.max(1, value - 1))}>
                                         −
