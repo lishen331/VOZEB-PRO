@@ -147,6 +147,67 @@ export class ScriptAgentRepository {
         return result.rows[0] || null;
     }
 
+    async replaceChapters(scope: PracticeTenantScope, projectId: string, runId: string, chapters: Array<{ chapterIndex: number; title: string; outline?: Record<string, unknown>; content?: string }>) {
+        for (const chapter of chapters)
+            await this.db.query(
+                `INSERT INTO practice_script_chapters (id, school_id, owner_user_id, project_id, chapter_index, chapter_title, outline_json, content_text, status, version, source_run_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, 'draft', COALESCE((SELECT MAX(version)+1 FROM practice_script_chapters WHERE project_id=$4 AND chapter_index=$5),1), $9)`,
+                [crypto.randomUUID(), scope.schoolId, scope.ownerUserId, projectId, chapter.chapterIndex, chapter.title, chapter.outline ? JSON.stringify(chapter.outline) : null, chapter.content || null, runId],
+            );
+    }
+
+    async replaceEpisodes(scope: PracticeTenantScope, projectId: string, runId: string, episodes: Array<{ episodeNumber: number; title: string; outline?: Record<string, unknown>; script?: Record<string, unknown> }>) {
+        for (const episode of episodes)
+            await this.db.query(
+                `INSERT INTO practice_script_episodes (id, school_id, owner_user_id, project_id, episode_number, title, outline_json, script_document_json, status, source_run_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,'draft',$9)`,
+                [crypto.randomUUID(), scope.schoolId, scope.ownerUserId, projectId, episode.episodeNumber, episode.title, episode.outline ? JSON.stringify(episode.outline) : null, episode.script ? JSON.stringify(episode.script) : null, runId],
+            );
+    }
+
+    async replaceShots(scope: PracticeTenantScope, projectId: string, runId: string, shots: Array<Record<string, unknown>>) {
+        for (const shot of shots)
+            await this.db.query(
+                `INSERT INTO practice_script_shots (id,school_id,owner_user_id,project_id,episode_id,scene_id,shot_number,visual_description,shot_size,camera_angle,composition,camera_movement,character_ids,action_text,emotion_text,dialogue_text,narration_text,sound_note,duration_seconds,continuity_note,character_asset_ids,location_asset_id,prop_asset_ids,status,source_run_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19::numeric,$20,$21::jsonb,$22,$23::jsonb,'draft',$24)`,
+                [
+                    String(shot.id || crypto.randomUUID()),
+                    scope.schoolId,
+                    scope.ownerUserId,
+                    projectId,
+                    shot.episodeId,
+                    shot.sceneId,
+                    shot.shotNumber,
+                    shot.visualDescription,
+                    shot.shotSize,
+                    shot.cameraAngle,
+                    shot.composition,
+                    shot.cameraMovement,
+                    JSON.stringify(shot.characterIds || []),
+                    shot.action,
+                    shot.emotion,
+                    shot.dialogue || null,
+                    shot.narration || null,
+                    shot.soundNote || null,
+                    shot.durationSeconds,
+                    shot.continuityNote || null,
+                    JSON.stringify(shot.characterAssetIds || []),
+                    shot.locationAssetId || null,
+                    JSON.stringify(shot.propAssetIds || []),
+                    runId,
+                ],
+            );
+    }
+
+    async upsertPromptAssets(scope: PracticeTenantScope, projectId: string, runId: string, assets: Array<{ assetType: string; canonicalName: string; basePrompt: string; aliases: string[]; variants: unknown[] }>) {
+        for (const asset of assets)
+            await this.db.query(
+                `INSERT INTO practice_script_prompt_assets (id,school_id,owner_user_id,project_id,asset_type,canonical_name,aliases,base_prompt,variants,status,source_run_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,'draft',$10)`,
+                [crypto.randomUUID(), scope.schoolId, scope.ownerUserId, projectId, asset.assetType, asset.canonicalName, JSON.stringify(asset.aliases), asset.basePrompt, JSON.stringify(asset.variants), runId],
+            );
+    }
+
     async listLatestArtifacts(scope: PracticeTenantScope, projectId: string) {
         const result = await this.db.query(
             `SELECT DISTINCT ON (artifact_type, artifact_key) * FROM practice_script_artifacts

@@ -15,8 +15,10 @@ export const SCRIPT_ARTIFACT_TYPES = [
     "story_skeleton",
     "adaptation_strategy",
     "episode_outlines",
+    "episode_scripts",
     "review_report",
     "director_plan",
+    "text_storyboard",
     "asset_prompts",
 ] as const;
 export type ScriptArtifactType = (typeof SCRIPT_ARTIFACT_TYPES)[number];

@@ -15,8 +15,10 @@ const LABELS: Record<string, string> = {
     story_skeleton: "故事骨架",
     adaptation_strategy: "改编策略",
     episode_outlines: "分集大纲",
+    episode_scripts: "分集剧本",
     review_report: "剧本审核",
     director_plan: "导演规划",
+    text_storyboard: "文字分镜",
     asset_prompts: "资产提示词",
 };
 export async function GET(request: Request, context: Context) {

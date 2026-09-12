@@ -5,6 +5,7 @@ import { systemAiBillingHeaders, systemAiIdempotencyKey } from "./system-ai-bill
 import { ScriptAgentProfileService, type ResolvedScriptAgentProfile } from "./script-agent-profiles";
 import type { PracticeTenantScope } from "./practice-tenant-scope";
 import type { ScriptAgentKey, ScriptArtifactType, ScriptRunEventType, ScriptRunType } from "./script-agent-domain";
+import { normalizePromptAssets, normalizeScriptShots } from "./script-agent-tools-v2";
 import { ScriptAgentRepository } from "./database/script-agent-repository";
 
 const EXECUTION: Record<ScriptRunType, { agent: ScriptAgentKey; artifact: ScriptArtifactType; key: string; confirmation: boolean }> = {
@@ -15,10 +16,10 @@ const EXECUTION: Record<ScriptRunType, { agent: ScriptAgentKey; artifact: Script
     novel_chapters: { agent: "novel_writer", artifact: "chapter_outlines", key: "selected", confirmation: false },
     chapter_analysis: { agent: "chapter_analyst", artifact: "chapter_outlines", key: "events", confirmation: false },
     adaptation_bundle: { agent: "adaptation_planner", artifact: "adaptation_strategy", key: "main", confirmation: true },
-    episode_scripts: { agent: "script_writer", artifact: "episode_outlines", key: "scripts", confirmation: false },
+    episode_scripts: { agent: "script_writer", artifact: "episode_scripts", key: "all", confirmation: false },
     script_review: { agent: "script_supervisor", artifact: "review_report", key: "main", confirmation: true },
     director_plan: { agent: "director_planner", artifact: "director_plan", key: "main", confirmation: false },
-    text_storyboard: { agent: "storyboard_writer", artifact: "asset_prompts", key: "storyboard", confirmation: false },
+    text_storyboard: { agent: "storyboard_writer", artifact: "text_storyboard", key: "all", confirmation: false },
     asset_prompts: { agent: "asset_prompt_writer", artifact: "asset_prompts", key: "library", confirmation: false },
 };
 export type ScriptExecutionInput = { projectId: string; runId: string; runType: ScriptRunType; input: Record<string, unknown>; origin: string; cookie: string };
@@ -29,6 +30,10 @@ type Deps = {
         scope: PracticeTenantScope,
         input: { id: string; projectId: string; artifactType: string; artifactKey: string; status: string; content: Record<string, unknown>; contentText?: string; sourceRunId: string },
     ) => Promise<{ id?: unknown } | null>;
+    replaceChapters?: ScriptAgentRepository["replaceChapters"];
+    replaceEpisodes?: ScriptAgentRepository["replaceEpisodes"];
+    replaceShots?: ScriptAgentRepository["replaceShots"];
+    upsertPromptAssets?: ScriptAgentRepository["upsertPromptAssets"];
     appendEvent: (scope: PracticeTenantScope, projectId: string, runId: string, type: ScriptRunEventType, data: Record<string, unknown>, eventId: string) => Promise<unknown>;
 };
 export class ScriptAgentExecutor {
@@ -49,6 +54,7 @@ export class ScriptAgentExecutor {
                 await this.deps.appendEvent(scope, task.projectId, task.runId, "artifact_delta", { artifactType: execution.artifact, artifactKey: execution.key, delta: value }, this.id());
             },
         });
+        await materializeStructuredRows(this.deps, scope, task, structured);
         const artifactId = this.id();
         const artifact = await this.deps.saveArtifact(scope, {
             id: artifactId,
@@ -74,6 +80,10 @@ export function createDefaultScriptAgentExecutor(repository: ScriptAgentReposito
         resolveProfile: (agent, skills) => profiles.resolve(agent, skills),
         callModel: callConfiguredModel,
         saveArtifact: (scope, input) => repository.saveArtifact(scope, input),
+        replaceChapters: (...args) => repository.replaceChapters(...args),
+        replaceEpisodes: (...args) => repository.replaceEpisodes(...args),
+        replaceShots: (...args) => repository.replaceShots(...args),
+        upsertPromptAssets: (...args) => repository.upsertPromptAssets(...args),
         appendEvent: (scope, projectId, runId, type, data, eventId) => repository.appendRunEvent(scope, projectId, runId, type, data, eventId),
     });
 }
@@ -103,4 +113,29 @@ async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile;
 function publicText(value: Record<string, unknown>) {
     for (const key of ["content", "text", "story", "screenplay", "outline", "report"]) if (typeof value[key] === "string") return value[key] as string;
     return undefined;
+}
+
+async function materializeStructuredRows(deps: Deps, scope: PracticeTenantScope, task: ScriptExecutionInput, structured: Record<string, unknown>) {
+    if ((task.runType === "novel_outlines" || task.runType === "novel_chapters") && Array.isArray(structured.chapters) && deps.replaceChapters) {
+        const chapters = structured.chapters.map((value, index) => {
+            const row = record(value);
+            return { chapterIndex: Number(row.chapterIndex || index + 1), title: String(row.title || `第${index + 1}章`), outline: record(row.outline), content: typeof row.content === "string" ? row.content : undefined };
+        });
+        await deps.replaceChapters(scope, task.projectId, task.runId, chapters);
+    }
+    if ((task.runType === "adaptation_bundle" || task.runType === "episode_scripts") && Array.isArray(structured.episodes) && deps.replaceEpisodes) {
+        const episodes = structured.episodes.map((value, index) => {
+            const row = record(value);
+            return { episodeNumber: Number(row.episodeNumber || row.episodeIndex || index + 1), title: String(row.title || `第${index + 1}集`), outline: record(row.outline), script: record(row.script || row.screenplay) };
+        });
+        await deps.replaceEpisodes(scope, task.projectId, task.runId, episodes);
+    }
+    if (task.runType === "text_storyboard" && Array.isArray(structured.shots) && deps.replaceShots) {
+        const episodeId = typeof structured.episodeId === "string" ? structured.episodeId : typeof task.input.episodeId === "string" ? task.input.episodeId : "";
+        await deps.replaceShots(scope, task.projectId, task.runId, normalizeScriptShots(episodeId, structured.shots) as unknown as Array<Record<string, unknown>>);
+    }
+    if (task.runType === "asset_prompts" && Array.isArray(structured.assets) && deps.upsertPromptAssets) await deps.upsertPromptAssets(scope, task.projectId, task.runId, normalizePromptAssets(structured.assets));
+}
+function record(value: unknown): Record<string, unknown> {
+    return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
