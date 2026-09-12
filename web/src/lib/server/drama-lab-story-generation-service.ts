@@ -83,7 +83,8 @@ export async function startDramaLabStoryGeneration(input: StartDramaLabStoryGene
     const requestedModel = input.model?.trim() || settings.defaultModels.textModel;
     const resolvedCandidates = resolveLogicalModelCandidates(settings, "text", requestedModel, "", "production");
     if (!requestedModel || !resolvedCandidates.length) throw new DramaLabStoryGenerationError("后台尚未配置可用的默认文本模型", 503);
-    const configs = resolvedCandidates.map((candidate) => ({ ...toSystemGenerationChannel(candidate), executionProfile: "production" as const }));
+    const maxOutputTokens = Math.max(2_000, episodeCount * 2_200);
+    const configs = resolvedCandidates.map((candidate) => ({ ...toSystemGenerationChannel(candidate), executionProfile: "production" as const, maxOutputTokens }));
 
     const context = {
         surface: "drama" as const,

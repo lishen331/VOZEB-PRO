@@ -23,6 +23,7 @@ export type TextTaskConfig = {
     capabilityProfile?: LogicalModelCapabilityProfile;
     advancedConfig?: SystemChannelAdvancedConfig;
     systemPrompt?: string;
+    maxOutputTokens?: number;
 };
 
 export type TextTask = GenerationTaskContext & {

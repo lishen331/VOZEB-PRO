@@ -135,5 +135,6 @@ describe("story submission prompt", () => {
         expect(system).not.toContain("{{episodeCount}}");
         expect(system).toContain("数组长度必须为 3");
         expect(request.storyBatch?.episodeCount).toBe(3);
+        expect(request.config.maxOutputTokens).toBe(6_600);
     });
 });

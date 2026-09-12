@@ -10,7 +10,7 @@ import { DramaLabStoryboardConstraints, type StoryboardConstraintDraft } from ".
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 
-import { Alert, Button, Drawer, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Radio, QRCode, Image } from "antd";
+import { Alert, Button, Drawer, Spin, Tabs, Input, InputNumber, Select, Form, List, Modal, message, Switch, Radio, QRCode, Image } from "antd";
 import {
     ArrowLeft,
     Plus,
@@ -1200,6 +1200,8 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     title: proj.title,
                     description: proj.summary ?? legacy.description ?? "",
                     style: proj.style ?? legacy.style ?? "",
+                    storyStyle: proj.storyStyle ?? legacy.storyStyle ?? "",
+                    scriptType: proj.scriptType ?? legacy.scriptType ?? "",
                     aspectRatio: proj.ratio ?? legacy.aspectRatio ?? "16:9",
                     episodes,
                     characters: (proj.characters ?? legacy.characters ?? []) as Character[],
@@ -1949,7 +1951,7 @@ function ScriptEditor({
     const [customOptionKind, setCustomOptionKind] = useState<DramaLabStoryOptionKind | null>(null);
     const [customOptionDraft, setCustomOptionDraft] = useState("");
     const [customOptionBusy, setCustomOptionBusy] = useState(false);
-    const [episodeCount, setEpisodeCount] = useState("1");
+    const [episodeCount, setEpisodeCount] = useState(1);
     const [scriptLibraryOpen, setScriptLibraryOpen] = useState(false);
     const [scriptLibraryLoading, setScriptLibraryLoading] = useState(false);
     const [scriptLibraryImporting, setScriptLibraryImporting] = useState(false);
@@ -2167,6 +2169,13 @@ function ScriptEditor({
 
         setGenerating(true);
         try {
+            if (saveTimerRef.current) {
+                clearTimeout(saveTimerRef.current);
+                saveTimerRef.current = null;
+            }
+            setSaveStatus("saving");
+            if (!(await saveNow({ silent: true }))) throw new Error("生成参数保存失败");
+            setSaveStatus("saved");
             messageApi.loading({ content: "AI 正在生成剧本...", key: "generate-script", duration: 0 });
 
             if (!episode) throw new Error("请先选择当前剧集");
@@ -2398,7 +2407,16 @@ function ScriptEditor({
                                                 <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>＋ 自定义类型</Option>
                                             </Select>
 
-                                            <Input value={episodeCount} onChange={(event) => setEpisodeCount(event.target.value)} placeholder="集数" style={{ width: 100 }} />
+                                            <InputNumber
+                                                addonBefore="集数"
+                                                aria-label="集数"
+                                                min={1}
+                                                max={100}
+                                                precision={0}
+                                                value={episodeCount}
+                                                onChange={(value) => setEpisodeCount(Math.max(1, Math.min(100, Math.floor(Number(value) || 1))))}
+                                                style={{ width: 130 }}
+                                            />
 
                                             <Button type="primary" icon={<Plus className="size-4" />} onClick={handleGenerateScript} loading={generating} disabled={generating}>
                                                 {generating ? "生成中..." : "生成剧本"}

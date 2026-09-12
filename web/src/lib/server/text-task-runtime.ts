@@ -124,7 +124,7 @@ async function runOpenAiResponsesTask(task: TextTask, origin: string, cookie: st
     const response = await submissionFetch(config, taskUrl(config, protocol.path, origin), {
         method: "POST",
         headers,
-        body: JSON.stringify({ model: config.model, input: toResponseInput(withSystemMessage(config, task.messages)) }),
+        body: JSON.stringify({ model: config.model, input: toResponseInput(withSystemMessage(config, task.messages)), ...(config.maxOutputTokens ? { max_output_tokens: config.maxOutputTokens } : {}) }),
         cache: "no-store",
     });
     if (!response.ok) {
@@ -157,7 +157,7 @@ async function createCustomTextTaskStep(task: TextTask, origin: string, cookie: 
         .map((message) => readMessageText(message.content))
         .filter(Boolean)
         .join("\n\n");
-    const values = { model: config.model, prompt, input: prompt, text: prompt, messages };
+    const values = { model: config.model, prompt, input: prompt, text: prompt, messages, ...(config.maxOutputTokens ? { max_tokens: config.maxOutputTokens, maxOutputTokens: config.maxOutputTokens } : {}) };
     let payload: Record<string, unknown>;
     try {
         payload = workflow ? buildRunningHubWorkflowPayload({ config: workflow, businessInput: values, references: [] }) : buildProviderRequest(protocol.requestTemplate!, values, values);
@@ -253,7 +253,7 @@ async function runOpenAiChatCompletionTask(task: TextTask, origin: string, cooki
     const response = await submissionFetch(config, taskUrl(config, protocol.path, origin), {
         method: "POST",
         headers,
-        body: JSON.stringify({ model: config.model, messages: toChatMessages(withSystemMessage(config, task.messages)) }),
+        body: JSON.stringify({ model: config.model, messages: toChatMessages(withSystemMessage(config, task.messages)), ...(config.maxOutputTokens ? { max_tokens: config.maxOutputTokens } : {}) }),
         cache: "no-store",
     });
     if (!response.ok) {
@@ -316,7 +316,7 @@ async function runClaudeTextTask(task: TextTask, origin: string, cookie: string,
         headers,
         body: JSON.stringify({
             model: config.model,
-            max_tokens: 4096,
+            max_tokens: config.maxOutputTokens || 4096,
             ...(system ? { system } : {}),
             messages: messages.filter((message) => message.role !== "system"),
         }),
@@ -436,6 +436,7 @@ function toGeminiBody(config: TextTaskConfig, messages: AiTextMessage[]) {
     return {
         contents: messages.filter((message) => message.role !== "system").map((message) => ({ role: message.role === "assistant" ? "model" : "user", parts: toGeminiParts(message.content) })),
         ...(systemText ? { systemInstruction: { parts: [{ text: systemText }] } } : {}),
+        ...(config.maxOutputTokens ? { generationConfig: { maxOutputTokens: config.maxOutputTokens } } : {}),
     };
 }
 

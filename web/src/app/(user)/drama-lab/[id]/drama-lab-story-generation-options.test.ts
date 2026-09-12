@@ -26,6 +26,17 @@ describe("drama lab story generation options", () => {
         expect(source).toContain("...(scriptType ? { scriptType } : {})");
     });
 
+    it("uses an editable numeric stepper and saves current options before starting generation", async () => {
+        const source = await readFile(path, "utf8");
+        expect(source).toContain("InputNumber");
+        expect(source).toContain('addonBefore="集数"');
+        expect(source).toContain("min={1}");
+        expect(source).toContain("max={100}");
+        expect(source).toContain("precision={0}");
+        expect(source).toContain("await saveNow({ silent: true })");
+        expect(source).toContain("storyStyle: proj.storyStyle");
+        expect(source).toContain("scriptType: proj.scriptType");
+    });
     it("persists selected project options during autosave and exposes custom option deletion", async () => {
         const source = await readFile(path, "utf8");
         expect(source).toContain("storyStyle: nextProject.storyStyle");
