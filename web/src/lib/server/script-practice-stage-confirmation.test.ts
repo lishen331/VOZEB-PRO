@@ -36,15 +36,13 @@ it("materializes a structured screenplay result into editable script blocks", as
     const document: ScriptDocument = { id: "doc", projectId: "p", format: "structured", blocks: [{ id: "old", type: "action", text: "旧内容" }], version: 1, schemaVersion: 1, createdAt: now, updatedAt: now };
     const repo = {
         getScriptProject: vi.fn().mockResolvedValue({ id: "p", userId: "u", currentVersionId: "v1", title: "剧本", sourceType: "idea" }),
-        getScriptStage: vi
-            .fn()
-            .mockResolvedValue({
-                projectId: "p",
-                key: "screenplay",
-                status: "awaiting_review",
-                draft: { screenplay: { projectTitle: "剧本", scenes: [{ title: "球场", action: "她投篮不中。", dialogueVO: [{ speaker: "她", line: "再来一次。" }] }] } },
-                updatedAt: now,
-            }),
+        getScriptStage: vi.fn().mockResolvedValue({
+            projectId: "p",
+            key: "screenplay",
+            status: "awaiting_review",
+            draft: { screenplay: { projectTitle: "剧本", scenes: [{ title: "球场", action: "她投篮不中。", dialogueVO: [{ speaker: "她", line: "再来一次。" }] }] } },
+            updatedAt: now,
+        }),
         listScriptStages: vi.fn().mockResolvedValue([]),
         setScriptStage: vi.fn().mockImplementation(async (_p: string, _u: string, stage: unknown) => stage),
         getCurrentScriptDocument: vi.fn().mockResolvedValue(document),
