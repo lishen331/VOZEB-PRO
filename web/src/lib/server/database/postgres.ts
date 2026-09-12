@@ -418,7 +418,7 @@ const POSTGRES_SCHEMA_OBJECTS = [
     "drama_lab_prompt_templates_user_key_idx",
     "drama_lab_prompt_templates_global_key_idx",
     "drama_lab_business_scenarios_user_updated_idx",
-    "drama_lab_story_options_user_kind_value_idx",
+    "vozeb_pro_drama_lab_story_options_user_kind_value_idx",
     "drama_lab_sd2_assets_user_type_idx",
     "drama_lab_project_groups_owner_idx",
     "drama_lab_project_members_group_status_idx",

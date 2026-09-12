@@ -893,6 +893,8 @@ export type PracticeSessionStatus = "draft" | "queued" | "running" | "success" |
 export type PracticeSessionRecord = {
     id: string;
     userId: string;
+    /** Derived from the active practice school; required for new practice rows. */
+    schoolId?: string;
     projectId?: string;
     projectKind: PracticeProjectKind;
     module: PracticeModuleKind;

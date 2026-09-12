@@ -58,11 +58,12 @@ export async function runScriptModel(request: ScriptModelRequest, context: Scrip
     if (!response.ok) throw new ScriptModelRuntimeError("剧本模型服务返回失败", response.status >= 400 && response.status < 500 ? response.status : 502);
     const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
     const content = readContent(payload);
-    const structured = parseStructured(content);
+    const structured = parseStructured(content, request.operation);
     if (!structured) throw new ScriptModelRuntimeError("剧本模型返回结果无法通过结构校验", 502);
     const clean = stripHiddenFields(structured);
     if (!matchesResponseSchema(clean, request.responseSchema)) throw new ScriptModelRuntimeError("剧本模型返回结果无法通过结构化结果校验", 502);
-    return { structured: clean, ...(typeof content === "string" && !content.trim().startsWith("{") ? { publicText: content.trim() } : {}), ...(readUsage(payload) ? { usage: readUsage(payload) } : {}) };
+    const usage = readUsage(payload);
+    return { structured: clean, ...(content.publicText && !extractJsonObjectText(content.publicText) ? { publicText: content.publicText } : {}), ...(usage ? { usage } : {}) };
 }
 
 export class ScriptModelRuntimeError extends Error {
@@ -77,19 +78,56 @@ export class ScriptModelRuntimeError extends Error {
 function publicContext(context: Record<string, unknown>) {
     return Object.fromEntries(Object.entries(context).filter(([key]) => !/^(?:userId|ownerUserId|hidden|reasoning|system|secret|token|credential)/i.test(key)));
 }
-function readContent(payload: Record<string, unknown> | null) {
-    const choice = Array.isArray(payload?.choices) ? payload.choices[0] : undefined;
+type ModelContent = { value?: unknown; publicText?: string };
+
+function readContent(payload: Record<string, unknown> | null): ModelContent {
+    if (!payload) return {};
+    const choice = Array.isArray(payload.choices) ? payload.choices[0] : undefined;
     const message = choice && typeof choice === "object" && !Array.isArray(choice) ? (choice as Record<string, unknown>).message : undefined;
-    return message && typeof message === "object" && !Array.isArray(message) ? String((message as Record<string, unknown>).content || "") : typeof payload?.output_text === "string" ? payload.output_text : "";
-}
-function parseStructured(content: string) {
-    try {
-        const parsed = JSON.parse(extractJsonObjectText(content) || content);
-        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
-    } catch {
-        return null;
+    if (message && typeof message === "object" && !Array.isArray(message)) {
+        const row = message as Record<string, unknown>;
+        const calls = Array.isArray(row.tool_calls) ? row.tool_calls : [];
+        const args = calls.find((call) => call && typeof call === "object" && !Array.isArray(call) && typeof (call as Record<string, unknown>).function === "object");
+        const functionArgs = args && typeof (args as Record<string, unknown>).function === "object" ? ((args as Record<string, unknown>).function as Record<string, unknown>).arguments : undefined;
+        if (functionArgs !== undefined) return { value: functionArgs };
+        return { value: row.content, publicText: plainText(row.content) };
     }
+    if (typeof payload.output_text === "string") return { value: payload.output_text, publicText: payload.output_text.trim() };
+    const output = Array.isArray(payload.output) ? payload.output : [];
+    const call = output.find((item) => item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).arguments === "string") as Record<string, unknown> | undefined;
+    if (call?.arguments !== undefined) return { value: call.arguments };
+    const outputText = output.map((item) => item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).text === "string" ? (item as Record<string, unknown>).text : "").join("").trim();
+    if (outputText) return { value: outputText, publicText: outputText };
+    for (const key of ["data", "result", "response"]) {
+        if (payload[key] !== undefined) return { value: payload[key] };
+    }
+    return { value: payload };
 }
+
+function plainText(value: unknown) {
+    if (typeof value === "string") return value.trim();
+    if (!Array.isArray(value)) return "";
+    return value.map((item) => item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).text === "string" ? (item as Record<string, unknown>).text : "").join("").trim();
+}
+
+function parseStructured(content: ModelContent, operation: ScriptAgentOperation) {
+    const value = content.value;
+    if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
+    const text = typeof value === "string" ? value.trim() : plainText(value);
+    if (!text) return null;
+    const jsonText = extractJsonObjectText(text);
+    if (jsonText) {
+        try {
+            const parsed = JSON.parse(jsonText);
+            return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+        } catch {
+            return null;
+        }
+    }
+    const field = { generate_synopsis: "synopsis", generate_outline: "outline", generate_entities: "entities", generate_scenes: "scenes", generate_screenplay: "screenplay", rewrite_selection: "proposedAfter", expand_selection: "proposedAfter", polish_selection: "proposedAfter", enhance_conflict: "proposedAfter", check_continuity: "proposedAfter", validate_format: "proposedAfter" }[operation];
+    return field ? { [field]: text } : null;
+}
+
 function stripHiddenFields(value: Record<string, unknown>): Record<string, unknown> {
     return Object.fromEntries(
         Object.entries(value)

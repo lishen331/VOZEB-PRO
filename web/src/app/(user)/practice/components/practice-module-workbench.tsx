@@ -220,6 +220,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
     };
     const retry = async (target: PracticeSession | undefined = current) => {
         if (!target || refreshing) return;
+        if (!practiceSessionCanRetry(target)) return;
         await loadIntoForm(target);
     };
     const deleteSession = async (target: PracticeSession) => {

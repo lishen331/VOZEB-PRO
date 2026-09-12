@@ -309,7 +309,7 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
     CONSTRAINT generation_tasks_status CHECK (status IN ('pending', 'running', 'success', 'error', 'paused', 'cancelled'))
 );
 
-CREATE INDEX IF NOT EXISTS generation_tasks_school_user_status_idx ON generation_tasks (school_id, user_id, task_type, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_generation_tasks_school_user_status_idx ON generation_tasks (school_id, user_id, task_type, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS generation_tasks_user_status_idx ON generation_tasks (user_id, task_type, status, updated_at DESC);
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_type;
 ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_type CHECK (task_type IN ('text', 'image', 'video', 'audio', 'agent', 'render'));
@@ -428,7 +428,7 @@ ALTER TABLE creative_conversations ADD COLUMN IF NOT EXISTS source text NOT NULL
 ALTER TABLE creative_conversations ADD COLUMN IF NOT EXISTS school_id text;
 UPDATE creative_conversations SET source = surface WHERE surface IN ('canvas', 'drama') AND source = 'agent';
 
-CREATE INDEX IF NOT EXISTS creative_conversations_school_user_updated_idx ON creative_conversations (school_id, user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_creative_conversations_school_user_updated_idx ON creative_conversations (school_id, user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS creative_conversations_user_updated_idx ON creative_conversations (user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS creative_conversations_user_source_idx ON creative_conversations (user_id, surface, source, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS creative_conversations_project_idx ON creative_conversations (user_id, surface, project_id, updated_at DESC) WHERE project_id IS NOT NULL;
@@ -688,9 +688,9 @@ ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS client_request_id text;
 UPDATE practice_sessions SET client_request_id = id WHERE client_request_id IS NULL;
 ALTER TABLE practice_sessions ALTER COLUMN client_request_id SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS practice_sessions_user_request_idx ON practice_sessions (user_id, client_request_id);
-CREATE INDEX IF NOT EXISTS practice_sessions_school_user_updated_idx ON practice_sessions (school_id, user_id, updated_at DESC, id);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_sessions_school_user_updated_idx ON practice_sessions (school_id, user_id, updated_at DESC, id);
 CREATE INDEX IF NOT EXISTS practice_sessions_user_updated_idx ON practice_sessions (user_id, updated_at DESC, id);
-CREATE INDEX IF NOT EXISTS practice_sessions_school_project_updated_idx ON practice_sessions (school_id, user_id, project_kind, project_id, updated_at DESC, id);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_sessions_school_project_updated_idx ON practice_sessions (school_id, user_id, project_kind, project_id, updated_at DESC, id);
 CREATE INDEX IF NOT EXISTS practice_sessions_project_updated_idx ON practice_sessions (user_id, project_kind, project_id, updated_at DESC, id);
 
 CREATE TABLE IF NOT EXISTS practice_copy_requests (
@@ -1080,7 +1080,7 @@ WHERE conversation.id = log.conversation_id
   AND conversation.source = 'agent'
   AND log.source IN ('image-workbench', 'video-workbench');
 
-CREATE INDEX IF NOT EXISTS generation_logs_school_user_created_idx ON generation_logs (school_id, user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_generation_logs_school_user_created_idx ON generation_logs (school_id, user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS generation_logs_user_created_idx ON generation_logs (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS generation_logs_created_idx ON generation_logs (created_at DESC);
 CREATE INDEX IF NOT EXISTS generation_logs_admin_filter_idx ON generation_logs (kind, source, status, created_at DESC);
@@ -1208,16 +1208,16 @@ CREATE TABLE IF NOT EXISTS practice_script_agent_operations (
     error_message text,
     created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS practice_script_projects_school_owner_updated_idx ON practice_script_projects (school_id, owner_user_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS practice_script_versions_school_project_created_idx ON practice_script_versions (school_id, owner_user_id, project_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS practice_script_entities_school_project_type_idx ON practice_script_entities (school_id, owner_user_id, project_id, type, name);
-CREATE INDEX IF NOT EXISTS practice_script_stages_school_project_updated_idx ON practice_script_stages (school_id, owner_user_id, project_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS practice_script_agent_operations_school_project_created_idx ON practice_script_agent_operations (school_id, owner_user_id, project_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS practice_script_projects_owner_updated_idx ON practice_script_projects (owner_user_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS practice_script_versions_project_created_idx ON practice_script_versions (owner_user_id, project_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS practice_script_entities_project_type_idx ON practice_script_entities (owner_user_id, project_id, type, name);
-CREATE INDEX IF NOT EXISTS practice_script_stages_project_updated_idx ON practice_script_stages (owner_user_id, project_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS practice_script_agent_operations_project_created_idx ON practice_script_agent_operations (owner_user_id, project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_projects_school_owner_updated_idx ON practice_script_projects (school_id, owner_user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_versions_school_project_created_idx ON practice_script_versions (school_id, owner_user_id, project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_entities_school_project_type_idx ON practice_script_entities (school_id, owner_user_id, project_id, type, name);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_stages_school_project_updated_idx ON practice_script_stages (school_id, owner_user_id, project_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_agent_operations_school_project_created_idx ON practice_script_agent_operations (school_id, owner_user_id, project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_projects_owner_updated_idx ON practice_script_projects (owner_user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_versions_project_created_idx ON practice_script_versions (owner_user_id, project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_entities_project_type_idx ON practice_script_entities (owner_user_id, project_id, type, name);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_stages_project_updated_idx ON practice_script_stages (owner_user_id, project_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_agent_operations_project_created_idx ON practice_script_agent_operations (owner_user_id, project_id, created_at DESC);
 DROP TRIGGER IF EXISTS practice_script_projects_set_updated_at ON practice_script_projects;
 CREATE TRIGGER practice_script_projects_set_updated_at BEFORE UPDATE ON practice_script_projects FOR EACH ROW EXECUTE FUNCTION vozeb_pro_set_updated_at();
 DROP TRIGGER IF EXISTS practice_script_entities_set_updated_at ON practice_script_entities;

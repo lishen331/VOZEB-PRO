@@ -466,7 +466,7 @@ CREATE TABLE IF NOT EXISTS drama_lab_story_options (
     CONSTRAINT drama_lab_story_options_value_nonempty CHECK (char_length(btrim(value)) BETWEEN 1 AND 120)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS drama_lab_story_options_user_kind_value_idx
+CREATE UNIQUE INDEX IF NOT EXISTS vozeb_pro_drama_lab_story_options_user_kind_value_idx
     ON drama_lab_story_options (user_id, kind, value);
 
 -- 后台配置：业务场景

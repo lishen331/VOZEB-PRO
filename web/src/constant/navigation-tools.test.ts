@@ -15,7 +15,7 @@ describe("user navigation order", () => {
     });
 
     it("keeps the unified Agent as the only generation entry in workspace navigation", () => {
-        expect(navigationGroups.map((group) => group.label)).toEqual(["练习", "创作", "项目", "资产", "社区"]);
+        expect(navigationGroups.map((group) => group.label)).toEqual(["无限练习", "创作", "项目", "资产", "社区"]);
         expect(navigationTools.map((tool) => tool.slug)).not.toContain("image");
         expect(navigationTools.map((tool) => tool.slug)).not.toContain("video");
     });
@@ -31,7 +31,7 @@ describe("user navigation order", () => {
         expect(schoolNavigationTools(context("student", false)).map((tool) => tool.slug)).toEqual(["learning"]);
         expect(schoolNavigationTools(context("teacher", false)).map((tool) => tool.slug)).toEqual(["teaching"]);
         expect(schoolNavigationTools(context("teacher", true)).map((tool) => tool.slug)).toEqual(["teaching", "school"]);
-        expect(navigationToolForPathname("/practice", context("student", false))).toMatchObject({ label: "练习", group: "practice" });
+        expect(navigationToolForPathname("/practice", context("student", false))).toMatchObject({ label: "无限练习", group: "practice" });
         expect(navigationToolForPathname("/practice", null)).toBeUndefined();
         expect(
             navigationToolsForContext(context("teacher", true))
@@ -63,7 +63,7 @@ describe("user navigation order", () => {
             "creator-home": false,
         });
         const tools = navigationToolsForContext(context("student", false), { featureModules });
-        expect(tools[0]).toMatchObject({ slug: "practice", label: "练习", group: "practice" });
+        expect(tools[0]).toMatchObject({ slug: "practice", label: "无限练习", group: "practice" });
         expect(tools.some((tool) => tool.group === "create")).toBe(false);
         expect(tools.some((tool) => tool.group === "community")).toBe(false);
     });
@@ -75,10 +75,10 @@ describe("user navigation order", () => {
     });
 
     it("exposes the same practice entry in role overview metadata", () => {
-        expect(roleNavigationOverview.teacher.items.map((item) => item.label)).toContain("练习");
-        expect(roleNavigationOverview.student.items.map((item) => item.label)).toContain("练习");
-        expect(roleNavigationOverview.schoolAdmin.items.map((item) => item.label)).toContain("练习");
-        expect(roleNavigationOverview.public.items.map((item) => item.label)).not.toContain("练习");
+        expect(roleNavigationOverview.teacher.items.map((item) => item.label)).toContain("无限练习");
+        expect(roleNavigationOverview.student.items.map((item) => item.label)).toContain("无限练习");
+        expect(roleNavigationOverview.schoolAdmin.items.map((item) => item.label)).toContain("无限练习");
+        expect(roleNavigationOverview.public.items.map((item) => item.label)).not.toContain("无限练习");
         expect(roleNavigationOverview.schoolAdmin.items.map((item) => item.label)).toEqual(expect.arrayContaining(["教学中心", "学校管理"]));
         expect(navigationToolForPathname("/school/classes", context("teacher", true))?.label).toBe("学校管理");
     });

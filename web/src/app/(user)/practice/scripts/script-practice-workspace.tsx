@@ -36,6 +36,7 @@ export default function ScriptPracticeWorkspace() {
     const [saving, setSaving] = useState(false);
     const [proposal, setProposal] = useState<{ operation: string; before: string; proposedAfter: string; targetBlockIds: string[]; baseVersionId: string } | null>(null);
     const [instruction, setInstruction] = useState("");
+    const [selectedBlockId, setSelectedBlockId] = useState("");
     const [stageBusy, setStageBusy] = useState(false);
 
     const loadProjects = async () => {
@@ -124,11 +125,14 @@ export default function ScriptPracticeWorkspace() {
     };
     const updateBlock = (id: string, text: string) =>
         setDetail((current) => (current?.document ? { ...current, document: { ...current.document, blocks: current.document.blocks.map((block) => (block.id === id ? { ...block, text } : block)) } } : current));
-    const propose = async (operation: string, block: ScriptBlock) => {
+    const propose = async (operation: string, block?: ScriptBlock) => {
+        const selectedBlock = block || detail?.document?.blocks.find((item) => item.id === selectedBlockId);
+        if (!selectedBlock) return message.error("请先点击或选择一个剧本块");
+        if (!instruction.trim()) return message.error("请先填写修改要求");
         if (!detail?.project.currentVersionId) return message.error("请先保存当前版本");
         setSaving(true);
         try {
-            const result = await practiceScriptsApi.propose(detail.project.id, { operation, baseVersionId: detail.project.currentVersionId, targetBlockIds: [block.id], instruction });
+            const result = await practiceScriptsApi.propose(detail.project.id, { operation, baseVersionId: detail.project.currentVersionId, targetBlockIds: [selectedBlock.id], instruction: instruction.trim() });
             setProposal({ operation: result.operation, before: result.before, proposedAfter: result.proposedAfter, targetBlockIds: result.targetBlockIds, baseVersionId: result.baseVersionId });
         } catch (error) {
             message.error(error instanceof Error ? error.message : "AI 建议生成失败");
@@ -252,6 +256,7 @@ export default function ScriptPracticeWorkspace() {
                     })}
                 </div>
                 {detail ? (
+                    <>
                     <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3" aria-label="阶段生成操作">
                         <span className="mr-1 text-xs text-muted-foreground">阶段生成</span>
                         {STAGE_OPERATIONS.map((item) => {
@@ -271,6 +276,16 @@ export default function ScriptPracticeWorkspace() {
                             );
                         })}
                     </div>
+                    {detail.stages.filter((stage) => stage.status === "awaiting_review" || stage.status === "failed").map((stage) => (
+                        <div key={stage.key} className="mt-3 rounded-lg border border-border bg-card p-3" aria-label={`${stage.key}阶段结果`}>
+                            <div className="flex items-center justify-between gap-2 text-xs">
+                                <span className="font-medium">{STAGES[["idea", "synopsis", "outline", "entities", "scenes", "screenplay", "revision"].indexOf(stage.key)] || stage.key}结果</span>
+                                <Tag color={stage.status === "failed" ? "error" : "processing"}>{stage.status === "failed" ? "失败" : "待确认"}</Tag>
+                            </div>
+                            <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded bg-muted p-3 text-xs leading-5">{JSON.stringify(stage.status === "failed" ? { error: stage.error } : stage.draft, null, 2)}</pre>
+                        </div>
+                    ))}
+                    </>
                 ) : null}
                 <div className="grid min-h-0 flex-1 gap-4 pt-4 lg:grid-cols-[220px_minmax(0,1fr)_280px]">
                     <aside className="rounded-lg border border-border bg-card p-3" aria-label="剧本项目">
@@ -304,7 +319,7 @@ export default function ScriptPracticeWorkspace() {
                         {document ? (
                             <div className="space-y-3">
                                 {document.blocks.map((block) => (
-                                    <div key={block.id} className="group rounded-md border border-border/70 p-2" data-script-block={block.type}>
+                                    <div key={block.id} className={`group rounded-md border p-2 ${selectedBlockId === block.id ? "border-primary/60 bg-primary/5" : "border-border/70"}`} data-script-block={block.type} onClick={() => setSelectedBlockId(block.id)}>
                                         <div className="mb-1 flex items-center justify-between gap-2">
                                             <span className="text-[11px] font-medium text-muted-foreground">{BLOCK_LABELS[block.type]}</span>
                                             {block.type !== "note" ? (
@@ -330,6 +345,10 @@ export default function ScriptPracticeWorkspace() {
                         </div>
                         <p className="mt-2 text-xs leading-5 text-muted-foreground">建议先保存版本，再选择剧本块生成修改建议。建议会在确认后写入。</p>
                         <Input.TextArea className="mt-3" value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="告诉助手想怎么改" autoSize={{ minRows: 3, maxRows: 6 }} />
+                        <Button className="mt-3" type="primary" block loading={saving} disabled={!document || !selectedBlockId || !instruction.trim() || !currentVersion} icon={<Sparkles className="size-4" />} onClick={() => void propose("rewrite_selection")}>
+                            生成修改建议
+                        </Button>
+                        <p className="mt-2 text-[11px] text-muted-foreground">{selectedBlockId ? "已选择一个剧本块" : "先点击中间的剧本块"}</p>
                         <a className="mt-4 inline-flex items-center gap-2 text-xs text-primary hover:underline" href={detail ? practiceScriptsApi.exportUrl(detail.project.id, "fountain") : undefined} download>
                             <Download className="size-3" />
                             导出 Fountain
