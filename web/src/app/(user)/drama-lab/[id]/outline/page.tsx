@@ -12,8 +12,9 @@ import styleGroups from "@/lib/drama-lab-style-options.json";
 import { uploadImage } from "@/services/image-storage";
 import { createImageGenerationTask, waitForImageGenerationTask } from "@/services/api/image";
 import { useEffectiveConfig } from "@/stores/use-config-store";
-import { buildResourceImageRequest, normalizeResourceGenerationReferences, setResourcePrimaryImage } from "./resource-image-generation";
+import { buildResourceImageRequest, insertResourceMention, normalizeResourceGenerationReferences, setResourcePrimaryImage } from "./resource-image-generation";
 import type { ReferenceImage } from "@/types/image";
+import type { TextAreaRef } from "antd/es/input/TextArea";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -175,6 +176,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const projectId = encodeURIComponent(params.id);
     const router = useRouter();
     const [project, setProject] = useState<Project | null>(null);
+    const projectRef = useRef<Project | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [form] = Form.useForm();
@@ -186,6 +188,10 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const resourcePrimaryFileInput = useRef<HTMLInputElement>(null);
     const [resourcePreview, setResourcePreview] = useState<{ url: string; title: string }>();
     const [resourceMentionOpen, setResourceMentionOpen] = useState(false);
+    const resourceDescriptionRef = useRef<TextAreaRef>(null);
+    const resourceMentionRangeRef = useRef({ start: 0, end: 0 });
+    const resourceAutoSaveTimerRef = useRef<number | undefined>(undefined);
+    const resourceSaveQueueRef = useRef(Promise.resolve());
     const [activeTab, setActiveTab] = useState("characters");
     const [batchImportOpen, setBatchImportOpen] = useState(false);
     const [batchImportText, setBatchImportText] = useState("");
@@ -230,6 +236,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 defaultVideoMode: proj.defaultVideoMode,
             };
 
+            projectRef.current = projectData;
             setProject(projectData);
             setSelectedStyle(projectData.style || "");
             form.setFieldsValue({
@@ -251,8 +258,9 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     }, [loadProject]);
 
     const persistProject = async (changes: Partial<Project>) => {
-        if (!project) return false;
-        const next = { ...project, ...changes };
+        const currentProject = projectRef.current || project;
+        if (!currentProject) return false;
+        const next = { ...currentProject, ...changes };
         const res = await fetch(`/api/drama-lab/projects/${projectId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -270,6 +278,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
             }),
         });
         if (!res.ok) throw new Error("保存失败");
+        projectRef.current = next;
         setProject(next);
         return true;
     };
@@ -363,7 +372,50 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
         }
     };
 
-    const updateResourceAsset = (update: (asset: Character | Scene | Prop) => Character | Scene | Prop) => setResourceEditor((current) => (current ? { ...current, asset: update(current.asset) } : current));
+    const persistResourceAsset = async (kind: "characters" | "scenes" | "props", asset: Character | Scene | Prop, showSuccess: boolean) => {
+        if (!asset.name?.trim()) {
+            if (showSuccess) message.error("请输入名称");
+            return false;
+        }
+        const save = async () => {
+            const currentProject = projectRef.current;
+            if (!currentProject) return false;
+            try {
+                await persistProject({ [kind]: currentProject[kind].map((item) => (item.id === asset.id ? { ...asset, ...(kind === "scenes" ? { location: asset.name } : {}) } : item)) });
+                if (showSuccess) message.success("保存成功");
+                return true;
+            } catch (error) {
+                message.error(error instanceof Error ? error.message : "自动保存失败，请重试");
+                return false;
+            }
+        };
+        const queued = resourceSaveQueueRef.current.then(save, save);
+        resourceSaveQueueRef.current = queued.then(
+            () => undefined,
+            () => undefined,
+        );
+        return queued;
+    };
+
+    const saveResourceEditor = async (showSuccess: boolean) => {
+        if (!resourceEditor) return false;
+        return persistResourceAsset(resourceEditor.kind, resourceEditor.asset, showSuccess);
+    };
+
+    const scheduleResourceAutoSave = (kind: "characters" | "scenes" | "props", asset: Character | Scene | Prop) => {
+        if (resourceAutoSaveTimerRef.current !== undefined) window.clearTimeout(resourceAutoSaveTimerRef.current);
+        resourceAutoSaveTimerRef.current = window.setTimeout(() => void persistResourceAsset(kind, asset, false), 800);
+    };
+
+    const updateResourceAsset = (update: (asset: Character | Scene | Prop) => Character | Scene | Prop, immediate = true) => {
+        setResourceEditor((current) => {
+            if (!current) return current;
+            const nextAsset = update(current.asset);
+            if (immediate) void persistResourceAsset(current.kind, nextAsset, false);
+            else scheduleResourceAutoSave(current.kind, nextAsset);
+            return { ...current, asset: nextAsset };
+        });
+    };
 
     const uploadResourcePrimaryImage = async (file?: File) => {
         if (!resourceEditor || !file || !file.type.startsWith("image/")) return;
@@ -983,21 +1035,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                             type="primary"
                             loading={resourceBusy}
                             onClick={async () => {
-                                if (!resourceEditor || !project) return;
-                                if (!resourceEditor.asset.name?.trim()) {
-                                    message.error("请输入名称");
-                                    return;
-                                }
-                                setResourceBusy(true);
-                                try {
-                                    const { kind, asset } = resourceEditor;
-                                    await persistProject({ [kind]: project[kind].map((item) => (item.id === asset.id ? { ...asset, ...(kind === "scenes" ? { location: asset.name } : {}) } : item)) });
-                                    setResourceEditor(undefined);
-                                } catch {
-                                    message.error("保存失败");
-                                } finally {
-                                    setResourceBusy(false);
-                                }
+                                if (await saveResourceEditor(true)) setResourceEditor(undefined);
                             }}
                         >
                             保存
@@ -1128,6 +1166,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                 {field === "description" ? (
                                     <div className="relative min-w-0 flex-1">
                                         <Input.TextArea
+                                            ref={resourceDescriptionRef}
                                             id={`resource-${field}`}
                                             disabled={resourceBusy}
                                             rows={4}
@@ -1135,8 +1174,12 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                             value={resourceEditor.asset.description || ""}
                                             onChange={(event) => {
                                                 const value = event.target.value;
-                                                setResourceMentionOpen(value.endsWith("@"));
-                                                setResourceEditor({ ...resourceEditor, asset: { ...resourceEditor.asset, description: value } });
+                                                const cursor = event.target.selectionStart ?? value.length;
+                                                const mentionStart = value.lastIndexOf("@", Math.max(0, cursor - 1));
+                                                const mentionText = mentionStart >= 0 ? value.slice(mentionStart + 1, cursor) : "";
+                                                resourceMentionRangeRef.current = { start: mentionStart >= 0 ? mentionStart : cursor, end: cursor };
+                                                setResourceMentionOpen(mentionStart >= 0 && !/\s/.test(mentionText));
+                                                updateResourceAsset((asset) => ({ ...asset, description: value }), false);
                                             }}
                                         />
                                         {resourceMentionOpen ? (
@@ -1148,8 +1191,13 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                                         className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
                                                         onClick={() => {
                                                             const current = resourceEditor.asset.description || "";
-                                                            setResourceEditor({ ...resourceEditor, asset: { ...resourceEditor.asset, description: `${current.slice(0, -1)}@${reference.label} ` } });
+                                                            const inserted = insertResourceMention(current, resourceMentionRangeRef.current.start, resourceMentionRangeRef.current.end, reference.label);
+                                                            updateResourceAsset((asset) => ({ ...asset, description: inserted.value }), false);
                                                             setResourceMentionOpen(false);
+                                                            window.requestAnimationFrame(() => {
+                                                                resourceDescriptionRef.current?.focus();
+                                                                resourceDescriptionRef.current?.resizableTextArea?.textArea.setSelectionRange(inserted.cursor, inserted.cursor);
+                                                            });
                                                         }}
                                                     >
                                                         <img src={reference.url} alt="" className="size-8 rounded object-cover" />
@@ -1165,7 +1213,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                         disabled={resourceBusy}
                                         placeholder={field === "tags" ? "逗号分隔" : field === "category" ? "可选" : ""}
                                         value={field === "tags" ? resourceEditor.asset.tags?.join(",") : resourceEditor.asset[field]}
-                                        onChange={(event) => setResourceEditor({ ...resourceEditor, asset: { ...resourceEditor.asset, [field]: field === "tags" ? event.target.value.split(/[,，]/) : event.target.value } })}
+                                        onChange={(event) => updateResourceAsset((asset) => ({ ...asset, [field]: field === "tags" ? event.target.value.split(/[,，]/) : event.target.value }), false)}
                                     />
                                 )}
                             </div>

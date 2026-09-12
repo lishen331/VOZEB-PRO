@@ -23,3 +23,10 @@ export function setResourcePrimaryImage(currentUrl: string | undefined, referenc
     if (currentUrl && currentUrl !== next.url) history.unshift({ id: `history-${Date.now()}`, url: currentUrl, role: "history" });
     return { primaryUrl: next.url || currentUrl || "", references: history };
 }
+
+export function insertResourceMention(value: string, selectionStart: number, selectionEnd: number, label: string) {
+    const start = Math.max(0, Math.min(value.length, selectionStart));
+    const end = Math.max(start, Math.min(value.length, selectionEnd));
+    const token = `@${label} `;
+    return { value: `${value.slice(0, start)}${token}${value.slice(end)}`, cursor: start + token.length };
+}
