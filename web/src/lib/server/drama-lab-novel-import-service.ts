@@ -22,6 +22,7 @@ export type DramaLabNovelImportPreview = {
     fileName: string;
     sourceCharacters: number;
     sourceBytes: number;
+    sourceText: string;
     drafts: DramaSourceEpisodeDraft[];
 };
 
@@ -52,7 +53,7 @@ export function previewDramaLabNovelImport(input: Pick<DramaLabNovelImportInput,
     const fileName = normalizeFileName(input.fileName);
     const drafts = splitDramaSource(sourceText, normalizeTargetCharacters(input.targetCharacters));
     if (!drafts.length || !drafts.some((draft) => draft.script.trim())) throw new DramaLabNovelImportError("导入文件没有可识别的文本内容", 400);
-    return { fileName, sourceCharacters: sourceText.length, sourceBytes, drafts };
+    return { fileName, sourceCharacters: sourceText.length, sourceBytes, sourceText, drafts };
 }
 
 /**

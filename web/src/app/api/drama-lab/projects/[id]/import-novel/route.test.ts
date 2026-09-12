@@ -33,7 +33,7 @@ describe("POST /api/drama-lab/projects/:id/import-novel", () => {
         mocks.getCurrentUser.mockResolvedValue({ id: "user-one" });
         mocks.resolveDramaLabProjectForRequest.mockResolvedValue({ project: { id: "project-one", episodes: [] }, ownerUserId: "user-one" });
         mocks.assertDramaLabStageAllowed.mockResolvedValue(undefined);
-        mocks.importDramaLabNovelForUser.mockResolvedValue({ committed: false, fileName: "故事.txt", sourceCharacters: 2, sourceBytes: 6, drafts: [{ title: "第 1 集", script: "正文", sourceRange: "全文分段 1" }] });
+        mocks.importDramaLabNovelForUser.mockResolvedValue({ committed: false, fileName: "故事.txt", sourceCharacters: 2, sourceBytes: 6, sourceText: "正文", drafts: [{ title: "第 1 集", script: "正文", sourceRange: "全文分段 1" }] });
     });
 
     it("requires authentication", async () => {
@@ -50,7 +50,7 @@ describe("POST /api/drama-lab/projects/:id/import-novel", () => {
 
         expect(response.status).toBe(200);
         expect(mocks.importDramaLabNovelForUser).toHaveBeenCalledWith({ userId: "user-one", projectId: "project-one", sourceText: "正文", fileName: "故事.md", targetCharacters: 100, commit: false });
-        await expect(response.json()).resolves.toMatchObject({ code: 0, data: { committed: false }, msg: "小说解析完成，请确认导入" });
+        await expect(response.json()).resolves.toMatchObject({ code: 0, data: { committed: false, sourceText: "正文" }, msg: "小说解析完成，请确认导入" });
     });
 
     it("accepts a multipart novel file and forwards its text metadata", async () => {
