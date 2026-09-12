@@ -1,12 +1,24 @@
 import { getAuthSettings } from "@/lib/auth/store";
 import { dramaLabStyleContext } from "@/lib/drama-lab-style-prompt";
+import { assetPromptPolishInstruction, buildDramaLabAssetFinalPrompt } from "@/lib/drama-lab-asset-prompt-contract";
+import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generation-contract";
 import type { DramaAssetProfile, DramaAssetStage, DramaProject } from "@/lib/drama-project-contract";
 import { resolveVisionModelCandidates, resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 import { systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 
 export type DramaLabAssetAiAction = "describe" | "prompt" | "anchor" | "stages";
-export type DramaLabAssetAiInput = { userId: string; origin: string; cookie: string; requestId: string; project: DramaProject; assetId: string; kind: "characters" | "scenes" | "props"; action: DramaLabAssetAiAction };
+export type DramaLabAssetAiInput = {
+    userId: string;
+    origin: string;
+    cookie: string;
+    requestId: string;
+    project: DramaProject;
+    assetId: string;
+    kind: "characters" | "scenes" | "props";
+    action: DramaLabAssetAiAction;
+    generationLayout?: "single" | "four_view";
+};
 
 export class DramaLabAssetAiError extends Error {
     constructor(
@@ -44,13 +56,20 @@ export async function runDramaLabAssetAiAction(input: DramaLabAssetAiInput) {
                 candidate,
                 mediaInputs,
                 messages: [
-                    { role: "system", content: actionInstruction(input.action) },
+                    { role: "system", content: actionInstruction(input.action, input) },
                     { role: "user", content: assetText },
                 ],
                 tool,
                 headers: { "Content-Type": "application/json", ...systemAiBillingHeaders(model, idempotencyKey, candidate.upstreamModel) },
             });
             const parsed = JSON.parse(call.arguments) as Record<string, unknown>;
+            if (input.action === "prompt") {
+                const description = typeof parsed.visualDescription === "string" ? parsed.visualDescription.trim() : typeof parsed.polishedPrompt === "string" ? parsed.polishedPrompt.trim() : "";
+                if (!description) throw new DramaLabAssetAiError("文本模型没有返回有效的资产视觉描述");
+                const layout = input.kind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(input.kind, input.generationLayout || asset.generationLayout);
+                const finalPrompt = buildDramaLabAssetFinalPrompt({ style: input.project.style, aspectRatio: input.project.ratio }, { ...asset, generationLayout: layout }, input.kind, description);
+                return input.kind === "scenes" && layout === "single" ? { singleImagePrompt: finalPrompt, polishedPrompt: asset.polishedPrompt || "" } : { polishedPrompt: finalPrompt, singleImagePrompt: asset.singleImagePrompt || "" };
+            }
             return normalizeActionResult(input.action, parsed);
         } catch (error) {
             latest = error;
@@ -59,9 +78,14 @@ export async function runDramaLabAssetAiAction(input: DramaLabAssetAiInput) {
     throw new DramaLabAssetAiError(latest instanceof Error ? latest.message : "资产 AI 操作失败");
 }
 
-function actionInstruction(action: DramaLabAssetAiAction) {
+function actionInstruction(action: DramaLabAssetAiAction, input?: Pick<DramaLabAssetAiInput, "kind" | "project" | "assetId" | "generationLayout">) {
     if (action === "describe") return "你是短剧实验室资产描述分析师。根据参考图和已有文字设定，提炼纯视觉外貌描述；不得描述背景故事、摄影者身份或不可见信息。只返回工具 JSON。";
-    if (action === "prompt") return "你是短剧实验室资产提示词编辑器。根据资产设定生成可直接用于图片模型的最终提示词。角色必须是固定版式的四视图参考板；场景/道具遵守当前资产类型和项目风格。只返回工具 JSON。";
+    if (action === "prompt" && input) {
+        const asset = input.project[input.kind].find((item) => item.id === input.assetId);
+        const layout = input.kind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(input.kind, input.generationLayout || asset?.generationLayout);
+        return `你是 LocalMiniDrama 资产视觉描述整理器。${assetPromptPolishInstruction(input.kind, layout)} 服务端会另行注入不可编辑版式合同；你只返回 visualDescription，不要复制版式、画风、JSON Schema、解释或 Markdown。`;
+    }
+    if (action === "prompt") return "你是 LocalMiniDrama 资产视觉描述整理器。只返回 visualDescription。";
     if (action === "anchor") return "你是视觉资产分析师。根据文字设定和参考图提炼可复用的视觉锚点，必须返回视觉识别、造型与材质、固定色彩、一致性规则。只返回工具 JSON。";
     return "你是角色造型设计师。根据角色设定生成分集阶段造型 JSON 数组，只返回工具 JSON。";
 }
@@ -76,8 +100,8 @@ function actionTool(action: DramaLabAssetAiAction) {
     if (action === "prompt")
         return {
             name: "generate_asset_prompt",
-            description: "生成最终资产生图提示词",
-            parameters: { type: "object", properties: { polishedPrompt: { type: "string", minLength: 1, maxLength: 12000 } }, required: ["polishedPrompt"], additionalProperties: false },
+            description: "整理资产可见视觉描述，由服务端组合固定版式合同",
+            parameters: { type: "object", properties: { visualDescription: { type: "string", minLength: 1, maxLength: 8000 } }, required: ["visualDescription"], additionalProperties: false },
         };
     if (action === "anchor")
         return {

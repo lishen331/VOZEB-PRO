@@ -31,7 +31,7 @@ describe("extraction detail wiring", () => {
     it("retains extracted visual fields in the persisted UI asset", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect(source).toContain("...readDramaLabAssetVisualDetails(asset)");
-        expect(source).toContain("buildDramaLabAssetImagePrompt(project, asset, kind)");
+        expect(source).toContain("buildDramaLabAssetImagePrompt(project, effectiveAsset, assetKind)");
         expect(source).toContain("...readDramaLabAssetVisualDetails(libraryAsset.metadata)");
     });
 
@@ -172,7 +172,7 @@ describe("asset card and editor reference interactions", () => {
         const card = source.slice(source.indexOf("data-drama-lab-asset-card"), source.indexOf("</article>", source.indexOf("data-drama-lab-asset-card")));
 
         expect(card).toContain("event.stopPropagation()");
-        expect(card).toContain("void generateAssetReference(asset)");
+        expect(card).toContain("void generateAssetReference(asset, assetKind)");
         expect(card).toContain("void saveToLibrary(asset, assetKind, meta.label, messageApi)");
         expect(card).toContain("void setPrimary(asset, reference)");
     });
@@ -200,5 +200,11 @@ describe("asset card and editor reference interactions", () => {
         expect(source).toContain('data-reference-upload-frame="prop"');
         expect(source).toContain('data-reference-upload-frame="character"');
         expect(source).not.toContain("preview={{ src: primary.url }}");
+        expect(source).toContain("生成四宫格场景（默认单图）");
+        expect(source).toContain("生成四视图道具（默认单图，纯色无缝背景）");
+        expect(source).toContain('action: "prompt"');
+        expect(source).toContain("storedPrompt");
+        expect(source).toContain("referenceRoles");
+        expect(source).toContain("appendReferences(effectiveAsset, references)");
     });
 });

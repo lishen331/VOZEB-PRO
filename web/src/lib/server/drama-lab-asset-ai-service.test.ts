@@ -43,10 +43,10 @@ describe("drama lab asset AI service", () => {
     });
 
     it("generates and normalizes the final polished prompt", async () => {
-        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify({ polishedPrompt: "固定四视图最终提示词" }) });
-        await expect(runDramaLabAssetAiAction({ userId: "user-one", origin: "http://app.test", cookie: "", requestId: "request-one", project, assetId: "character-one", kind: "characters", action: "prompt" })).resolves.toEqual({
-            polishedPrompt: "固定四视图最终提示词",
-        });
+        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify({ visualDescription: "短发红衣，纤细体型" }) });
+        const result = await runDramaLabAssetAiAction({ userId: "user-one", origin: "http://app.test", cookie: "", requestId: "request-one", project, assetId: "character-one", kind: "characters", action: "prompt" });
+        expect(result.polishedPrompt).toContain("FACE HERO CLOSE-UP");
+        expect(result.polishedPrompt).toContain("短发红衣，纤细体型");
     });
 
     it("normalizes AI-generated multi-stage appearances", async () => {

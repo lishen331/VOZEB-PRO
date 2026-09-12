@@ -4,11 +4,12 @@ import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generation-contract";
 
-import { Button, Image, Input, Modal, Tabs, Tooltip } from "antd";
+import { Button, Checkbox, Image, Input, Modal, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
 import { Check, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useMemo, useRef, useState, type RefObject } from "react";
+import type { ReferenceImage } from "@/types/image";
 
 import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
 import type { Asset } from "@/lib/library-asset-contract";
@@ -58,6 +59,7 @@ export function DramaLabVisualAssetsPanel({
     const [editor, setEditor] = useState<EditorState>();
     const [libraryOpen, setLibraryOpen] = useState(false);
     const [busyKey, setBusyKey] = useState("");
+    const [layoutDefaults, setLayoutDefaults] = useState<Record<AssetKind, "single" | "four_view">>({ characters: "four_view", scenes: "single", props: "single" });
     const [impactModalAsset, setImpactModalAsset] = useState<VisualAsset>();
     const [previewImage, setPreviewImage] = useState<{ url: string; alt: string }>();
 
@@ -108,6 +110,7 @@ export function DramaLabVisualAssetsPanel({
                     ...readDramaLabAssetVisualDetails(asset),
                     id: asset.id || `${assetKind}-${nanoid()}`,
                     name,
+                    generationLayout: assetKind === "characters" ? "four_view" : layoutDefaults[assetKind],
                     description: asset.description || "",
                     ...(assetKind === "scenes" ? { location: asset.location || name, time: asset.time } : {}),
                 }),
@@ -199,6 +202,7 @@ export function DramaLabVisualAssetsPanel({
         const next = createAsset(kind, {
             id: `${kind}-${nanoid()}`,
             name: libraryAsset.title,
+            generationLayout: kind === "characters" ? "four_view" : layoutDefaults[kind],
             ...readDramaLabAssetVisualDetails(libraryAsset.metadata),
             description: libraryAsset.note || libraryAsset.tags.join("、"),
             references: [reference],
@@ -232,23 +236,52 @@ export function DramaLabVisualAssetsPanel({
         });
     };
 
-    const generateAssetReference = async (asset: VisualAsset) => {
+    const generateAssetReference = async (asset: VisualAsset, assetKind: AssetKind) => {
         const requestKey = `asset:${asset.id}`;
         setBusyKey(requestKey);
         try {
-            const prompt = buildDramaLabAssetImagePrompt(project, asset, kind);
+            const layout = assetKind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(assetKind, asset.generationLayout);
+            let effectiveAsset = { ...asset, generationLayout: layout } as VisualAsset;
+            const storedPrompt = assetKind === "scenes" && layout === "single" ? effectiveAsset.singleImagePrompt?.trim() : effectiveAsset.polishedPrompt?.trim();
+            if (!storedPrompt) {
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/assets/${encodeURIComponent(asset.id)}/ai`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ kind: assetKind, action: "prompt", generationLayout: layout, requestId: `drama-lab-asset-prompt:${project.id}:${asset.id}:${layout}:${nanoid()}` }),
+                });
+                const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { polishedPrompt?: string; singleImagePrompt?: string } };
+                if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "最终生图提示词生成失败");
+                const promptPatch = { generationLayout: layout, polishedPrompt: payload.data.polishedPrompt || effectiveAsset.polishedPrompt, singleImagePrompt: payload.data.singleImagePrompt || effectiveAsset.singleImagePrompt };
+                if (!(await updateAsset(asset.id, promptPatch))) throw new Error("最终生图提示词保存失败");
+                effectiveAsset = { ...effectiveAsset, ...promptPatch } as VisualAsset;
+            }
+            const prompt = buildDramaLabAssetImagePrompt(project, effectiveAsset, assetKind);
             const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: project.aspectRatio || config.size, count: "1" };
-            const task = await createImageGenerationTask(imageConfig, prompt, [], undefined, {
+            const sourceReferences = dramaAssetPrimaryReference(effectiveAsset) ? [dramaAssetPrimaryReference(effectiveAsset)!] : [];
+            const imageReferences: ReferenceImage[] = sourceReferences.map((reference) => ({
+                id: reference.id,
+                name: reference.label || assetName(effectiveAsset),
+                type: "image",
+                dataUrl: reference.url,
+                url: reference.url,
+                serverUrl: reference.url.startsWith("/") ? reference.url : undefined,
+                remoteUrl: /^https?:\/\//i.test(reference.url) ? reference.url : undefined,
+                storageKey: reference.storageKey,
+                width: reference.width,
+                height: reference.height,
+            }));
+            const task = await createImageGenerationTask(imageConfig, prompt, imageReferences, undefined, {
                 logSource: "drama",
-                logTitle: `${project.title} · ${asset.name}${definition.label}设定图`,
+                logTitle: `${project.title} · ${assetName(effectiveAsset)}${ASSET_META[assetKind].label}设定图`,
                 surface: "drama",
                 projectId: project.id,
-                clientRequestId: `drama-lab-asset:${project.id}:${asset.id}:${nanoid()}`,
+                clientRequestId: `drama-lab-asset:${project.id}:${asset.id}:${layout}:${nanoid()}`,
+                referenceRoles: imageReferences.length ? { [imageReferences[0].id]: [assetKind === "characters" ? "identity" : assetKind === "scenes" ? "scene" : "prop"] } : undefined,
             });
             const references = imageResultsToReferences(await waitForImageGenerationTask(imageConfig, task));
             if (!references.length) throw new Error("生成结果没有可持久化图片地址");
-            if (!(await appendReferences(asset, references))) throw new Error("项目保存失败");
-            messageApi.success(references.length > 1 ? `已生成 ${references.length} 张候选图` : "候选图已生成并设为主参考图");
+            if (!(await appendReferences(effectiveAsset, references))) throw new Error("项目保存失败");
+            messageApi.success(references.length > 1 ? `已生成 ${references.length} 张候选图` : "候选图已生成并保留当前主参考图");
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "资产图片生成失败");
         } finally {
@@ -316,13 +349,13 @@ export function DramaLabVisualAssetsPanel({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ kind: editor.kind, action, requestId: `drama-lab-asset-ai:${project.id}:${activeAsset.id}:${action}:${nanoid()}` }),
             });
-            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { appearance?: string; polishedPrompt?: string; profile?: DramaLabAssetProfile; stages?: VisualAsset["stages"] } };
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { appearance?: string; polishedPrompt?: string; singleImagePrompt?: string; profile?: DramaLabAssetProfile; stages?: VisualAsset["stages"] } };
             if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "资产 AI 操作失败");
             const patch =
                 action === "describe"
                     ? { appearance: payload.data.appearance || "" }
                     : action === "prompt"
-                      ? { polishedPrompt: payload.data.polishedPrompt || "" }
+                      ? { polishedPrompt: payload.data.polishedPrompt || currentAssetPrompt(activeAsset, editor.kind, "four_view"), singleImagePrompt: payload.data.singleImagePrompt || activeAsset.singleImagePrompt }
                       : action === "anchor"
                         ? { profile: { ...EMPTY_PROFILE, ...(payload.data.profile || {}) } }
                         : { stages: payload.data.stages || [] };
@@ -349,7 +382,7 @@ export function DramaLabVisualAssetsPanel({
     };
 
     const addAsset = () => {
-        setEditor({ kind, asset: createAsset(kind, { id: "", name: "", description: "", profile: { ...EMPTY_PROFILE } }) });
+        setEditor({ kind, asset: createAsset(kind, { id: "", name: "", description: "", profile: { ...EMPTY_PROFILE }, generationLayout: kind === "characters" ? "four_view" : layoutDefaults[kind] }) });
     };
 
     const deleteAsset = (assetKind: AssetKind, asset: VisualAsset) => {
@@ -410,6 +443,20 @@ export function DramaLabVisualAssetsPanel({
                     label: `${ASSET_META[assetKind].label} (${project[assetKind].length})`,
                     children: (
                         <div className="pt-2">
+                            {assetKind !== "characters" ? (
+                                <div className="mb-3">
+                                    <Checkbox
+                                        checked={layoutDefaults[assetKind] === "four_view"}
+                                        onChange={(event) => {
+                                            const generationLayout = event.target.checked ? "four_view" : "single";
+                                            setLayoutDefaults((current) => ({ ...current, [assetKind]: generationLayout }));
+                                            void replaceAssetsFor(assetKind, (current) => current.map((asset) => ({ ...asset, generationLayout })));
+                                        }}
+                                    >
+                                        {assetKind === "scenes" ? "生成四宫格场景（默认单图）" : "生成四视图道具（默认单图，纯色无缝背景）"}
+                                    </Checkbox>
+                                </div>
+                            ) : null}
                             {(project[assetKind] as VisualAsset[]).length ? (
                                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                     {(project[assetKind] as VisualAsset[]).map((asset) => {
@@ -473,7 +520,7 @@ export function DramaLabVisualAssetsPanel({
                                                             loading={busyKey === `asset:${asset.id}`}
                                                             onClick={(event) => {
                                                                 event.stopPropagation();
-                                                                void generateAssetReference(asset);
+                                                                void generateAssetReference(asset, assetKind);
                                                             }}
                                                         >
                                                             AI 生图
@@ -1050,6 +1097,10 @@ async function saveToLibrary(asset: VisualAsset, kind: AssetKind, label: string,
     } catch (error) {
         messageApi.error(error instanceof Error ? error.message : "加入素材库失败");
     }
+}
+
+function currentAssetPrompt(asset: VisualAsset, kind: AssetKind, layout: "single" | "four_view") {
+    return kind === "scenes" && layout === "single" ? asset.singleImagePrompt || "" : asset.polishedPrompt || "";
 }
 
 function assetName(asset: VisualAsset) {

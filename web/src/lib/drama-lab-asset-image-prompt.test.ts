@@ -19,7 +19,7 @@ describe("lab asset generation consumes preserved extraction fields", () => {
 
     it("uses the declared layout when a polished prompt is not available", () => {
         const prompt = buildDramaLabAssetImagePrompt(project, { name: "林薇", generationLayout: "four_view" }, "characters");
-        expect(prompt).toContain("角色四视图设定板");
+        expect(prompt).toContain("FACE HERO CLOSE-UP");
     });
     it("reads only the declared visual metadata fields", () => {
         expect(readDramaLabAssetVisualDetails({ appearance: "红衣", imagePrompt: "  单人  ", role: "main", generationLayout: "four_view", arbitrary: "ignored", time: 123 })).toEqual({

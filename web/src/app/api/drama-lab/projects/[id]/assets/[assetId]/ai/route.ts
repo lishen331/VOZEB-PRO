@@ -31,6 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             assetId,
             kind,
             action,
+            generationLayout: body.generationLayout === "four_view" || body.generationLayout === "single" ? body.generationLayout : undefined,
         });
         return NextResponse.json({ code: 0, data: result, msg: "资产 AI 操作完成" });
     } catch (error) {
