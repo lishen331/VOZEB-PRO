@@ -183,6 +183,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const [resourceEditor, setResourceEditor] = useState<{ kind: "characters" | "scenes" | "props"; asset: Character | Scene | Prop }>();
     const [resourceBusy, setResourceBusy] = useState(false);
     const resourceFileInput = useRef<HTMLInputElement>(null);
+    const resourcePrimaryFileInput = useRef<HTMLInputElement>(null);
     const [resourcePreview, setResourcePreview] = useState<{ url: string; title: string }>();
     const [resourceMentionOpen, setResourceMentionOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("characters");
@@ -363,6 +364,27 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     };
 
     const updateResourceAsset = (update: (asset: Character | Scene | Prop) => Character | Scene | Prop) => setResourceEditor((current) => (current ? { ...current, asset: update(current.asset) } : current));
+
+    const uploadResourcePrimaryImage = async (file?: File) => {
+        if (!resourceEditor || !file || !file.type.startsWith("image/")) return;
+        setResourceBusy(true);
+        try {
+            const stored = await uploadImage(file);
+            const url = stored.serverUrl || stored.url;
+            updateResourceAsset((asset) => ({
+                ...asset,
+                imageUrl: url,
+                referenceImageUrl: url,
+                referenceStorageKey: stored.storageKey,
+                references: [...(assetImageUrl(asset) ? [{ id: `history-${Date.now()}`, url: assetImageUrl(asset), role: "history" }] : []), ...(asset.references || []).filter((item) => item.role !== "primary")],
+            }));
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "主图替换失败");
+        } finally {
+            setResourceBusy(false);
+            if (resourcePrimaryFileInput.current) resourcePrimaryFileInput.current.value = "";
+        }
+    };
 
     const uploadResourceReferences = async (files: File[]) => {
         if (!resourceEditor || !files.length) return;
@@ -988,13 +1010,32 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                         <div className="mb-4 grid grid-cols-[3rem_minmax(0,1fr)] gap-4">
                             <span className="pt-2">主图</span>
                             <div className="flex min-w-0 gap-2">
-                                <button
-                                    type="button"
-                                    className="flex h-44 min-w-0 flex-1 items-center justify-center overflow-hidden rounded border bg-muted"
-                                    onClick={() => assetImageUrl(resourceEditor.asset) && setResourcePreview({ url: assetImageUrl(resourceEditor.asset) || "", title: "当前主图" })}
+                                <div
+                                    className="group relative flex h-44 min-w-0 flex-1 items-center justify-center overflow-hidden rounded border bg-muted transition-colors hover:border-primary"
+                                    onDragOver={(event) => {
+                                        event.preventDefault();
+                                        event.dataTransfer.dropEffect = "copy";
+                                    }}
+                                    onDrop={(event) => {
+                                        event.preventDefault();
+                                        void uploadResourcePrimaryImage(event.dataTransfer.files?.[0]);
+                                    }}
                                 >
-                                    {assetImageUrl(resourceEditor.asset) ? <img src={assetImageUrl(resourceEditor.asset)} alt="主图" className="max-h-full max-w-full object-contain" /> : "暂无主图"}
-                                </button>
+                                    <button
+                                        type="button"
+                                        className="flex size-full items-center justify-center"
+                                        onClick={() => assetImageUrl(resourceEditor.asset) && setResourcePreview({ url: assetImageUrl(resourceEditor.asset) || "", title: "当前主图" })}
+                                    >
+                                        {assetImageUrl(resourceEditor.asset) ? <img src={assetImageUrl(resourceEditor.asset)} alt="主图" className="max-h-full max-w-full object-contain" /> : "暂无主图"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="absolute inset-x-3 bottom-3 rounded-md bg-black/70 px-3 py-2 text-sm text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                                        onClick={() => resourcePrimaryFileInput.current?.click()}
+                                    >
+                                        上传图片 / 替换主图
+                                    </button>
+                                </div>
                                 <div className="max-h-44 w-20 shrink-0 space-y-2 overflow-y-auto pr-1" aria-label="AI 生成历史图">
                                     {(resourceEditor.asset.references || [])
                                         .filter((reference) => reference.role === "history" && reference.url)
@@ -1070,10 +1111,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                         </button>
                                     ) : null}
                                 </div>
-                                <div className="mt-2 flex gap-2">
-                                    <Button disabled={resourceBusy} onClick={() => resourceFileInput.current?.click()}>
-                                        上传图片
-                                    </Button>
+                                <div className="mt-2 flex justify-end">
                                     <Button loading={resourceBusy} onClick={() => void generateResourceImage()}>
                                         AI 生成
                                     </Button>
@@ -1081,6 +1119,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                             </div>
                         </div>
                         <input ref={resourceFileInput} type="file" accept="image/*" multiple hidden onChange={(event) => void uploadResourceReferences(Array.from(event.target.files || []))} />
+                        <input ref={resourcePrimaryFileInput} type="file" accept="image/*" hidden onChange={(event) => void uploadResourcePrimaryImage(event.target.files?.[0])} />
                         {(["name", "category", "description", "tags"] as const).map((field) => (
                             <div key={field} className="mb-4 flex items-start gap-4">
                                 <label className="w-12 shrink-0 pt-1" htmlFor={`resource-${field}`}>
