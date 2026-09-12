@@ -595,13 +595,15 @@ CREATE TABLE IF NOT EXISTS canvas_projects (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS canvas_projects_user_updated_idx ON canvas_projects (user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_canvas_projects_user_updated_idx ON canvas_projects (user_id, updated_at DESC);
+ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS school_id text;
 ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS execution_profile text NOT NULL DEFAULT 'production';
 ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS practice_source_work_id text;
 ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS practice_source_version_id text;
 ALTER TABLE canvas_projects DROP CONSTRAINT IF EXISTS canvas_projects_execution_profile;
 ALTER TABLE canvas_projects ADD CONSTRAINT canvas_projects_execution_profile CHECK (execution_profile IN ('production', 'open-source-practice'));
-CREATE INDEX IF NOT EXISTS canvas_projects_user_profile_updated_idx ON canvas_projects (user_id, execution_profile, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_canvas_projects_school_user_profile_updated_idx ON canvas_projects (school_id, user_id, execution_profile, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_canvas_projects_user_profile_updated_idx ON canvas_projects (user_id, execution_profile, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS library_assets (
     id text PRIMARY KEY,
@@ -632,13 +634,15 @@ CREATE TABLE IF NOT EXISTS drama_projects (
     CONSTRAINT drama_projects_status CHECK (status IN ('active', 'archived'))
 );
 
-CREATE INDEX IF NOT EXISTS drama_projects_user_updated_idx ON drama_projects (user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_drama_projects_user_updated_idx ON drama_projects (user_id, updated_at DESC);
+ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS school_id text;
 ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS execution_profile text NOT NULL DEFAULT 'production';
 ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS practice_source_work_id text;
 ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS practice_source_version_id text;
 ALTER TABLE drama_projects DROP CONSTRAINT IF EXISTS drama_projects_execution_profile;
 ALTER TABLE drama_projects ADD CONSTRAINT drama_projects_execution_profile CHECK (execution_profile IN ('production', 'open-source-practice'));
-CREATE INDEX IF NOT EXISTS drama_projects_user_profile_updated_idx ON drama_projects (user_id, execution_profile, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_drama_projects_school_user_profile_updated_idx ON drama_projects (school_id, user_id, execution_profile, updated_at DESC);
+CREATE INDEX IF NOT EXISTS vozeb_pro_drama_projects_user_profile_updated_idx ON drama_projects (user_id, execution_profile, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS practice_sessions (
     id text PRIMARY KEY,
@@ -687,7 +691,8 @@ ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS title text NOT NULL DEFAU
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS client_request_id text;
 UPDATE practice_sessions SET client_request_id = id WHERE client_request_id IS NULL;
 ALTER TABLE practice_sessions ALTER COLUMN client_request_id SET NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS practice_sessions_user_request_idx ON practice_sessions (user_id, client_request_id);
+DROP INDEX IF EXISTS practice_sessions_user_request_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS practice_sessions_school_user_request_idx ON practice_sessions (school_id, user_id, client_request_id);
 CREATE INDEX IF NOT EXISTS vozeb_pro_practice_sessions_school_user_updated_idx ON practice_sessions (school_id, user_id, updated_at DESC, id);
 CREATE INDEX IF NOT EXISTS practice_sessions_user_updated_idx ON practice_sessions (user_id, updated_at DESC, id);
 CREATE INDEX IF NOT EXISTS vozeb_pro_practice_sessions_school_project_updated_idx ON practice_sessions (school_id, user_id, project_kind, project_id, updated_at DESC, id);

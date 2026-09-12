@@ -11,10 +11,18 @@ import { PracticeSizeField, WorkflowFormFields, WorkflowOptionalFields, workflow
 import { uploadImage, type UploadedImage } from "@/services/image-storage";
 import { PracticeAssetPicker } from "./practice-asset-picker";
 
+/**
+ * 角色/道具槽位固定为 2.Demo 页面虽然声明了 characterPropImage3→LoadImage(48)，
+ * 但 RunningHub 工作流图里第 3 路的下游节点（47/43/44/45）并不存在，节点 48 是孤立的，
+ * 传第 3 张会让适配器把 CFGGuider 重连到不存在的节点而报错.实际上限：1 场景 + 2 素材.
+ */
+export const STORYBOARD_CHARACTER_PROP_SLOTS = 2;
+
 export function buildStoryboardImageReferences(sceneId: string, assetIds: string[]) {
-    return [sceneId ? { type: "asset" as const, id: sceneId, inputKey: "sceneImage" } : null, ...assetIds.slice(0, 2).map((id, index) => (id ? { type: "asset" as const, id, inputKey: `characterPropImage${index + 1}` } : null))].filter(
-        (reference): reference is { type: "asset"; id: string; inputKey: string } => Boolean(reference),
-    );
+    return [
+        sceneId ? { type: "asset" as const, id: sceneId, inputKey: "sceneImage" } : null,
+        ...assetIds.slice(0, STORYBOARD_CHARACTER_PROP_SLOTS).map((id, index) => (id ? { type: "asset" as const, id, inputKey: `characterPropImage${index + 1}` } : null)),
+    ].filter((reference): reference is { type: "asset"; id: string; inputKey: string } => Boolean(reference));
 }
 export default function PracticeStoryboardImagePanel({ capability, ipReferences, onIpReferencesChange, onCreated, defaultInput }: PracticePanelProps) {
     const { message } = App.useApp();

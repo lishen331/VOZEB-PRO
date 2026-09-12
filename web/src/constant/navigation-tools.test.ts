@@ -15,7 +15,7 @@ describe("user navigation order", () => {
     });
 
     it("keeps the unified Agent as the only generation entry in workspace navigation", () => {
-        expect(navigationGroups.map((group) => group.label)).toEqual(["无限练习", "创作", "项目", "资产", "社区"]);
+        expect(navigationGroups.map((group) => group.label)).toEqual(["练习", "创作", "项目", "资产", "社区"]);
         expect(navigationTools.map((tool) => tool.slug)).not.toContain("image");
         expect(navigationTools.map((tool) => tool.slug)).not.toContain("video");
     });

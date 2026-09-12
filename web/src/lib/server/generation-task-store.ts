@@ -68,13 +68,13 @@ export async function cleanupExpiredStoredGenerationTasks(input: { limit: number
 export async function getStoredGenerationTask<T>(type: GenerationTaskType, id: string): Promise<(T & GenerationTaskExecutionState) | null> {
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<{ payload: T; user_id?: unknown; surface?: unknown; project_id?: unknown; execution_phase?: unknown; last_upstream_status?: unknown; result_payload?: unknown }>(
-            "SELECT payload, user_id, surface, project_id, execution_phase, last_upstream_status, result_payload FROM generation_tasks WHERE id = $1 AND task_type = $2 AND expires_at > now()",
+        const result = await postgresQuery<{ payload: T; user_id?: unknown; school_id?: unknown; surface?: unknown; project_id?: unknown; execution_phase?: unknown; last_upstream_status?: unknown; result_payload?: unknown }>(
+            "SELECT payload, user_id, school_id, surface, project_id, execution_phase, last_upstream_status, result_payload FROM generation_tasks WHERE id = $1 AND task_type = $2 AND expires_at > now()",
             [id, type],
         );
         const row = result.rows[0];
         if (!row?.payload) return null;
-        const hydrated = hydrateTaskPayload(row.payload, { userId: row.user_id, surface: row.surface, projectId: row.project_id });
+        const hydrated = hydrateTaskPayload(row.payload, { userId: row.user_id, schoolId: row.school_id, surface: row.surface, projectId: row.project_id });
         return withExecutionState(hydrated.payload, row.execution_phase, row.last_upstream_status, row.result_payload, hydrated.conflict);
     }
     const tasks = await readFileTasks();
@@ -115,22 +115,21 @@ export async function listStoredGenerationTaskRecordsByRunIds(runIds: string[], 
         .sort((left, right) => String(left.runId).localeCompare(String(right.runId)) || left.createdAt - right.createdAt || left.id.localeCompare(right.id));
 }
 
-export async function getStoredGenerationTaskByRequest<T>(type: GenerationTaskType, userId: string, clientRequestId: string, attemptNo?: number): Promise<T | null> {
+export async function getStoredGenerationTaskByRequest<T>(type: GenerationTaskType, userId: string, clientRequestId: string, attemptNo?: number, schoolId?: string): Promise<T | null> {
     const requestId = cleanContextText(clientRequestId);
     if (!requestId) return null;
     const attempt = normalizedAttemptNo(attemptNo);
+    const scopeSchoolId = cleanContextText(schoolId);
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<{ payload: T }>("SELECT payload FROM generation_tasks WHERE user_id = $1 AND task_type = $2 AND client_request_id = $3 AND COALESCE(attempt_no, 0) = $4 AND expires_at > now() LIMIT 1", [
-            userId,
-            type,
-            requestId,
-            attempt,
-        ]);
+        const result = await postgresQuery<{ payload: T }>(
+            "SELECT payload FROM generation_tasks WHERE user_id = $1 AND task_type = $2 AND client_request_id = $3 AND COALESCE(attempt_no, 0) = $4 AND ($5::text IS NULL OR school_id = $5) AND expires_at > now() LIMIT 1",
+            [userId, type, requestId, attempt, scopeSchoolId || null],
+        );
         return result.rows[0]?.payload || null;
     }
     const tasks = await readFileTasks();
-    return (tasks.find((task) => sameTaskRequest(task, type, userId, requestId, attempt) && task.expiresAt > Date.now())?.payload as T | undefined) || null;
+    return (tasks.find((task) => sameTaskRequest(task, type, userId, requestId, attempt, scopeSchoolId) && task.expiresAt > Date.now())?.payload as T | undefined) || null;
 }
 
 export async function getStoredGenerationTaskByUpstream(type: GenerationTaskType, userId: string, channelId: string, upstreamTaskId: string): Promise<StoredGenerationTaskRecord | null> {
@@ -968,10 +967,10 @@ async function upsertTask<T extends { id: string; userId: string; status: string
         await postgresQuery(
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
-                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
+                conversation_id, run_id, school_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
                 workflow_key, workflow_version, upstream_workflow_id, workflow_code, workflow_adapter_version, business_code, task_origin
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
              ON CONFLICT (id) DO UPDATE SET
                 status = EXCLUDED.status, payload = jsonb_set(EXCLUDED.payload, '{executionProfile}', to_jsonb(generation_tasks.execution_profile), true), updated_at = EXCLUDED.updated_at, expires_at = EXCLUDED.expires_at,
                 conversation_id = COALESCE(EXCLUDED.conversation_id, generation_tasks.conversation_id),
@@ -992,6 +991,7 @@ async function upsertTask<T extends { id: string; userId: string; status: string
                 new Date(task.updatedAt + ttlMs),
                 context.conversationId || null,
                 context.runId || null,
+                context.schoolId || null,
                 context.surface || null,
                 context.projectId || null,
                 context.parentTaskId || null,
@@ -1036,7 +1036,7 @@ async function insertTask<T extends { id: string; userId: string; status: string
         const inserted = await postgresQuery<{ payload: T }>(
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
-                conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
+                conversation_id, run_id, school_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
                 workflow_key, workflow_version, upstream_workflow_id, workflow_code, workflow_adapter_version, business_code, task_origin
              )
              VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
@@ -1045,12 +1045,12 @@ async function insertTask<T extends { id: string; userId: string; status: string
             values,
         );
         if (inserted.rows[0]?.payload) return inserted.rows[0].payload;
-        const existing = context.clientRequestId ? await getStoredGenerationTaskByRequest<T>(type, task.userId, context.clientRequestId, context.attemptNo) : await getStoredGenerationTask<T>(type, task.id);
+        const existing = context.clientRequestId ? await getStoredGenerationTaskByRequest<T>(type, task.userId, context.clientRequestId, context.attemptNo, context.schoolId) : await getStoredGenerationTask<T>(type, task.id);
         if (existing) return existing;
         throw new Error("生成任务写入冲突，请重试");
     }
     return withGenerationTaskFileMutation(async (tasks) => {
-        const duplicate = tasks.find((item) => item.id === task.id || (context.clientRequestId && sameTaskRequest(item, type, task.userId, context.clientRequestId, normalizedAttemptNo(context.attemptNo))));
+        const duplicate = tasks.find((item) => item.id === task.id || (context.clientRequestId && sameTaskRequest(item, type, task.userId, context.clientRequestId, normalizedAttemptNo(context.attemptNo), context.schoolId)));
         if (duplicate) return { tasks, result: duplicate.payload as T };
         const record: StoredGenerationTaskRecord = {
             id: task.id,
@@ -1081,6 +1081,7 @@ function taskValues<T extends { id: string; userId: string; createdAt: number; u
         context.conversationId || null,
         context.runId || null,
         context.surface || null,
+        context.schoolId || null,
         context.projectId || null,
         context.parentTaskId || null,
         context.attemptNo ?? null,
@@ -1120,6 +1121,7 @@ export function withGenerationTaskFileMutation<T>(mutator: (tasks: StoredGenerat
 }
 
 function normalizeGenerationTaskContext(context: GenerationTaskContext): GenerationTaskContext {
+    if (context.executionProfile === "open-source-practice" && !cleanContextText(context.schoolId)) throw new Error("练习任务缺少学校范围");
     const attempt = Number(context.attemptNo);
     const workflowVersion = Number(context.workflowVersion);
     const businessCode = isRunningHubWorkflowBusinessCode(context.businessCode) ? context.businessCode : undefined;
@@ -1129,6 +1131,7 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         surface: context.surface === "chat" || context.surface === "canvas" || context.surface === "drama" ? context.surface : undefined,
         featureModule: context.featureModule === "drama-lab" ? "drama-lab" : undefined,
         executionProfile: context.executionProfile === "open-source-practice" ? "open-source-practice" : "production",
+        schoolId: cleanContextText(context.schoolId),
         projectId: cleanContextText(context.projectId),
         episodeId: cleanContextText(context.episodeId),
         shotId: cleanContextText(context.shotId),
@@ -1184,6 +1187,7 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         businessCode: next.businessCode || previous?.businessCode,
         taskOrigin: next.taskOrigin || previous?.taskOrigin || "user",
         executionProfile: previous?.executionProfile || next.executionProfile || "production",
+        schoolId: next.schoolId || previous?.schoolId,
     };
 }
 
@@ -1244,8 +1248,9 @@ function normalizedAttemptNo(value: unknown) {
     return Number.isFinite(attempt) && attempt >= 0 ? Math.floor(attempt) : 0;
 }
 
-function sameTaskRequest(task: StoredGenerationTaskRecord, type: GenerationTaskType, userId: string, clientRequestId: string, attemptNo: number) {
-    return task.type === type && task.userId === userId && task.clientRequestId === clientRequestId && normalizedAttemptNo(task.attemptNo) === attemptNo;
+function sameTaskRequest(task: StoredGenerationTaskRecord, type: GenerationTaskType, userId: string, clientRequestId: string, attemptNo: number, schoolId?: string) {
+    const schoolMatches = !schoolId || (task.executionProfile === "open-source-practice" && task.schoolId === schoolId);
+    return schoolMatches && task.type === type && task.userId === userId && task.clientRequestId === clientRequestId && normalizedAttemptNo(task.attemptNo) === attemptNo;
 }
 
 function positiveContextNumber(value: unknown) {
@@ -1291,6 +1296,7 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         surface: isTaskSurface(durableSurface) ? durableSurface : undefined,
         featureModule: nested.featureModule === "drama-lab" || payload.featureModule === "drama-lab" ? "drama-lab" : undefined,
         executionProfile: row.execution_profile === "open-source-practice" ? "open-source-practice" : "production",
+        schoolId: cleanContextText(String(row.school_id || payload.schoolId || "")),
         projectId: cleanContextText(String(row.project_id || "")),
         episodeId: payloadContextText(payload, "episodeId"),
         shotId: payloadContextText(payload, "shotId"),
@@ -1650,6 +1656,7 @@ function markStoredTaskContextConflict<T extends object>(record: T): T {
 type TaskContextHydrationSource = {
     userId?: unknown;
     surface?: unknown;
+    schoolId?: unknown;
     projectId?: unknown;
     episodeId?: unknown;
     shotId?: unknown;
@@ -1667,7 +1674,7 @@ type TaskContextHydrationSource = {
 function hydrateTaskPayload<T>(payload: T, durable: TaskContextHydrationSource) {
     const source = recordObject(payload);
     const nested = recordObject(source.context);
-    const keys = ["userId", "surface", "projectId", "episodeId", "shotId", "frameType"] as const;
+    const keys = ["userId", "schoolId", "surface", "projectId", "episodeId", "shotId", "frameType"] as const;
     const hydrated = { ...source };
     let conflict = false;
     for (const key of keys) {

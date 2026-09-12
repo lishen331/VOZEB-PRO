@@ -426,7 +426,7 @@ async function reconcileUnknownSubmission(session: PracticeSessionRecord, store?
 
 async function findDurableTaskReference(userId: string, schoolId: string | undefined, clientRequestId: string, module: PracticeModuleKind) {
     const taskType = module === "script" ? "text" : ["character", "scene", "prop", "storyboard-image"].includes(module) ? "image" : module === "storyboard-video" ? "video" : "audio";
-    const task = await getStoredGenerationTaskByRequest<{ id?: unknown }>(taskType, userId, clientRequestId);
+    const task = await getStoredGenerationTaskByRequest<{ id?: unknown }>(taskType, userId, clientRequestId, undefined, schoolId);
     return task && typeof task.id === "string" && task.id.trim() ? { taskId: task.id, taskType } : null;
 }
 
@@ -550,15 +550,15 @@ function defaultPracticeSessionStore(): PracticeSessionStore & { list(scope: Pra
 function postgresSessionStore(): PracticeSessionStore & { list(scope: PracticeSessionScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
     const repository = createPostgresRepositories().practice;
     return {
-        getByRequest: (scope, clientRequestId) => repository.getPracticeSessionByClientRequest(scope, clientRequestId),
+        getByRequest: (scope, clientRequestId) => repository.getPracticeSessionByClientRequest(scopeValues(scope), clientRequestId),
         create: (input) => repository.createPracticeSession(input),
-        get: (scope, id) => repository.getPracticeSessionForUser(scope, id),
-        claimDispatch: (scope, id) => repository.claimPracticeSessionDispatch(scope, id),
-        resetForRetry: (scope, id) => repository.resetPracticeSessionForRetry(scope, id),
-        update: (scope, id, patch) => repository.updatePracticeSession(scope, id, patch),
-        delete: (scope, id) => repository.deletePracticeSession(scope, id),
+        get: (scope, id) => repository.getPracticeSessionForUser(scopeValues(scope), id),
+        claimDispatch: (scope, id) => repository.claimPracticeSessionDispatch(scopeValues(scope), id),
+        resetForRetry: (scope, id) => repository.resetPracticeSessionForRetry(scopeValues(scope), id),
+        update: (scope, id, patch) => repository.updatePracticeSession(scopeValues(scope), id, patch),
+        delete: (scope, id) => repository.deletePracticeSession(scopeValues(scope), id),
         async list(scope, input) {
-            return repository.listPracticeSessionsForUser(scope, input);
+            return repository.listPracticeSessionsForUser(scopeValues(scope), input);
         },
     };
 }

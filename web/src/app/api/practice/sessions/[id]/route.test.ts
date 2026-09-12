@@ -11,7 +11,7 @@ vi.mock("@/lib/auth/session", () => ({ getCurrentUser: mocks.currentUser }));
 vi.mock("@/lib/auth/request", () => ({ readJsonBodyResult: mocks.readJsonBodyResult }));
 vi.mock("@/lib/server/practice-session-service", () => ({ retryPracticeSessionForUser: mocks.retrySession }));
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: mocks.fetchInternalApi, resolveInternalOrigin: () => "http://internal.test" }));
-vi.mock("@/lib/server/generation-execution-policy", () => ({ trustedPracticeTaskHeaders: () => ({ "x-practice": "trusted" }) }));
+vi.mock("@/lib/server/generation-execution-policy", () => ({ trustedPracticeTaskHeaders: vi.fn((userId: string, schoolId: string, clientRequestId: string) => ({ "x-practice": `${userId}:${schoolId}:${clientRequestId}` })) }));
 vi.mock("@/lib/server/runninghub-workflow-runtime", () => ({ recordWorkflowTaskContext: () => ({ workflowCode: "storyboard_shot_video" }) }));
 
 import { POST } from "./route";
@@ -26,6 +26,7 @@ describe("POST /api/practice/sessions/[id] retry", () => {
             await deps.dispatch({
                 sessionId: "session-one",
                 userId: "student-one",
+                schoolId: "school-one",
                 module: "storyboard-video",
                 input: { prompt: "推进", audioEnabled: true, lines: [{ text: "台词", audio: "voice-one" }] },
                 references: [
@@ -47,11 +48,13 @@ describe("POST /api/practice/sessions/[id] retry", () => {
         expect(response.status).toBe(200);
         const [, init] = mocks.fetchInternalApi.mock.calls[0];
         expect(JSON.parse(String(init.body))).toMatchObject({
+            context: { schoolId: "school-one" },
             audioEnabled: true,
             references: [
                 { type: "image", inputKey: "image" },
                 { type: "audio", inputKey: "audio" },
             ],
         });
+        expect(init.headers.get("x-practice")).toBe("student-one:school-one:request-one");
     });
 });

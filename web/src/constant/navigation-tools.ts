@@ -4,7 +4,7 @@ import type { SchoolContext } from "@/lib/school-domain";
 import { featureModuleForNavigationSlug, type FeatureModuleSettings } from "@/lib/feature-modules";
 
 export const navigationGroups = [
-    { id: "practice", label: "无限练习" },
+    { id: "practice", label: "练习" },
     { id: "create", label: "创作" },
     { id: "projects", label: "项目" },
     { id: "assets", label: "资产" },

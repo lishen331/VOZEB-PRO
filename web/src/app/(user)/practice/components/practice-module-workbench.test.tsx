@@ -46,7 +46,7 @@ describe("practice module workbench contract", () => {
         expect(source).toContain("PracticePropPanel");
     });
 
-    it("maps storyboard assets to the Demo input slots", () => {
+    it("maps storyboard assets to the two wired Demo input slots and drops extras the workflow graph cannot accept", () => {
         expect(buildStoryboardImageReferences("scene", ["character", "prop", "extra"])).toEqual([
             { type: "asset", id: "scene", inputKey: "sceneImage" },
             { type: "asset", id: "character", inputKey: "characterPropImage1" },

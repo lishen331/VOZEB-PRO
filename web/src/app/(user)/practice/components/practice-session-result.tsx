@@ -105,12 +105,13 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
     if (session.result?.text !== undefined) return <pre className="mt-4 whitespace-pre-wrap rounded border border-border bg-muted/20 p-3 text-sm leading-6">{session.result.text}</pre>;
     if (session.result?.media?.kind === "image") {
         const imageUrl = session.result.media.url;
-        const isMultiView = session.workflowCode === "character_multi_view";
+        // Demo 只对场景工作流（scene_main_view，2:1 等距柱状全景）提供 360° 查看器；角色多视图是 2x2 拼接图，不是全景.
+        const isPanorama = module === "scene" || session.workflowCode === "scene_main_view";
         return (
             <div className="mt-4 space-y-3">
                 <Image src={imageUrl} alt="练习结果" className="!max-h-[60vh] !w-full !object-contain" preview={{ src: imageUrl }} />
                 <div className="flex flex-wrap items-center gap-2">
-                    {isMultiView ? <PracticePanoramaViewer url={imageUrl} title="角色多视图 360°" /> : null}
+                    {isPanorama ? <PracticePanoramaViewer url={imageUrl} title="场景 360° 全景" /> : null}
                     <Button size="small" icon={<Download className="size-3.5" />} loading={saving} onClick={() => void saveToLibrary(session)}>
                         存入资产库
                     </Button>

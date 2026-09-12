@@ -57,28 +57,30 @@ export function sanitizeGenerationContext(value: unknown, preserveWorkflow: bool
     return context;
 }
 
-export function trustedPracticeTaskHeaders(userId: string, clientRequestId: string) {
+export function trustedPracticeTaskHeaders(userId: string, schoolId: string, clientRequestId: string) {
     const user = userId.trim().slice(0, 160);
+    const school = schoolId.trim().slice(0, 160);
     const request = clientRequestId.trim().slice(0, 160);
-    if (!user || !request) throw new Error("练习任务上下文不完整");
-    return { [TRUSTED_PRACTICE_CONTEXT_HEADER]: signPracticeContext(user, request) };
+    if (!user || !school || !request) throw new Error("练习任务上下文不完整");
+    return { [TRUSTED_PRACTICE_CONTEXT_HEADER]: signPracticeContext(user, school, request) };
 }
 
 export function isTrustedPracticeTaskRequest(request: Request, userId: string, context: unknown) {
     if (!context || typeof context !== "object" || Array.isArray(context)) return false;
     const record = context as Record<string, unknown>;
     if (record.executionProfile !== "open-source-practice") return false;
+    const schoolId = typeof record.schoolId === "string" ? record.schoolId.trim().slice(0, 160) : "";
     const clientRequestId = typeof record.clientRequestId === "string" ? record.clientRequestId.trim().slice(0, 160) : "";
     const received = request.headers.get(TRUSTED_PRACTICE_CONTEXT_HEADER)?.trim() || "";
-    if (!clientRequestId || !received) return false;
-    const expected = signPracticeContext(userId.trim().slice(0, 160), clientRequestId);
+    if (!schoolId || !clientRequestId || !received) return false;
+    const expected = signPracticeContext(userId.trim().slice(0, 160), schoolId, clientRequestId);
     const receivedBytes = Buffer.from(received);
     const expectedBytes = Buffer.from(expected);
     return receivedBytes.length === expectedBytes.length && timingSafeEqual(receivedBytes, expectedBytes);
 }
 
-function signPracticeContext(userId: string, clientRequestId: string) {
-    return createHmac("sha256", practiceContextSecret()).update(`vozeb-practice-v1\0${userId}\0${clientRequestId}`).digest("base64url");
+function signPracticeContext(userId: string, schoolId: string, clientRequestId: string) {
+    return createHmac("sha256", practiceContextSecret()).update(`vozeb-practice-v2\0${userId}\0${schoolId}\0${clientRequestId}`).digest("base64url");
 }
 
 function practiceContextSecret() {

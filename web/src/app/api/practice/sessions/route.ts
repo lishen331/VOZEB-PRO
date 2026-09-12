@@ -5,6 +5,7 @@ import { readJsonBodyResult } from "@/lib/auth/request";
 import { createPracticeSessionForUser, listPracticeSessionsForUser } from "@/lib/server/practice-session-service";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { trustedPracticeTaskHeaders } from "@/lib/server/generation-execution-policy";
+import { practiceReferenceMediaUrl } from "@/lib/server/practice-reference-authorization";
 import { recordWorkflowTaskContext } from "@/lib/server/runninghub-workflow-runtime";
 
 export async function GET(request: Request) {
@@ -55,6 +56,7 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
     const context = {
         surface: input.projectKind === "drama" ? "drama" : "canvas",
         executionProfile: "open-source-practice" as const,
+        schoolId: input.schoolId,
         projectId: input.sessionId,
         clientRequestId: input.clientRequestId,
         ipReferences,
@@ -65,15 +67,17 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
               }
             : {}),
     };
-    const prompt = typeof input.input.prompt === "string" ? input.input.prompt : typeof input.input.text === "string" ? input.input.text : "练习任务";
-    const workflowInput = Object.fromEntries(Object.entries(input.input).filter(([key]) => key !== "prompt" && key !== "text" && key !== "references"));
+    const rawPrompt = typeof input.input.prompt === "string" ? input.input.prompt.trim() : typeof input.input.text === "string" ? input.input.text.trim() : "";
+    // 任务路由要求非空 prompt；角色多视图等允许空描述词的工作流用占位标题提交，并把空 prompt 显式写进工作流输入，避免占位文本注入节点.
+    const prompt = rawPrompt || "练习任务";
+    const workflowInput = { ...Object.fromEntries(Object.entries(input.input).filter(([key]) => key !== "prompt" && key !== "text" && key !== "references")), ...(rawPrompt ? {} : { prompt: "" }) };
     const references = input.references.flatMap((reference) => {
         if (!reference || typeof reference !== "object" || Array.isArray(reference)) return [];
-        const source = reference as { type?: unknown; id?: unknown; inputKey?: unknown };
+        const source = reference as { type?: unknown; id?: unknown; inputKey?: unknown; scope?: unknown };
         if (source.type !== "asset" || typeof source.id !== "string" || !source.id.trim()) return [];
         const inputKey = normalizePracticeReferenceInputKey(source.inputKey);
         const type = inputKey === "audio" ? "audio" : "image";
-        return [{ type, url: practiceReferenceUrl(source.id), ...(inputKey ? { inputKey } : {}) }];
+        return [{ type, url: practiceReferenceMediaUrl(source.id, source.scope), ...(inputKey ? { inputKey } : {}) }];
     });
     const body =
         input.capability === "text"
@@ -83,19 +87,13 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
               : input.capability === "video"
                 ? { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, references, context, source: "practice" }
                 : { ...workflowInput, input: workflowInput, config: { model: input.logicalModelId }, prompt, context, source: "practice" };
-    const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(input.userId, input.clientRequestId) });
+    const headers = new Headers({ "Content-Type": "application/json", ...trustedPracticeTaskHeaders(input.userId, input.schoolId, input.clientRequestId) });
     const cookie = request.headers.get("cookie");
     if (cookie) headers.set("cookie", cookie);
     const response = await fetchInternalApi(new URL(endpoint, resolveInternalOrigin(new URL(request.url).origin)), { method: "POST", headers, body: JSON.stringify(body) });
     const payload = (await response.json().catch(() => ({}))) as { task?: { id?: string; type?: string }; error?: string };
     if (!response.ok || !payload.task?.id) throw new Error(payload.error || "练习任务调度失败");
     return { taskId: payload.task.id, taskType: input.capability };
-}
-
-function practiceReferenceUrl(storageKey: string) {
-    const value = storageKey.trim();
-    if (!/^(?:temporary|permanent)\//.test(value)) throw new Error("练习参考素材无效");
-    return `/api/reference-assets/${value.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 function normalizePracticeReferenceInputKey(value: unknown) {

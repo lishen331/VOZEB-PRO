@@ -1,14 +1,13 @@
 import { requirePracticeAccess, type PracticeActor } from "./practice-access-service";
 import { getSchoolContextForUser } from "@/lib/server/school-access-service";
-import type { PracticeModuleKind } from "@/lib/practice-domain";
 
 export type PracticeTenantScope = {
     schoolId: string;
     ownerUserId: string;
 };
 
-export async function requirePracticeTenant(actor: PracticeActor, _module?: PracticeModuleKind): Promise<PracticeTenantScope> {
-    const access = await requirePracticeAccess(actor);
+export async function requirePracticeTenant(actor: PracticeActor, module?: import("@/lib/practice-domain").PracticeModuleKind): Promise<PracticeTenantScope> {
+    const access = await requirePracticeAccess(actor, module);
     return { schoolId: access.schoolId, ownerUserId: actor.id };
 }
 
