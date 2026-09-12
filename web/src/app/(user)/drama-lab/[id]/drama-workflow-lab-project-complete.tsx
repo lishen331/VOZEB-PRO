@@ -6017,25 +6017,23 @@ function StoryboardWorkbenchCard({
                             </div>
                             <PromptTextToolbar value={shot.universalSegmentText || ""} wrap={promptWrap} onWrapChange={setPromptWrap} />
                             <div className="flex flex-wrap items-center gap-2">
-                                <Button
-                                    size="small"
-                                    icon={<Sparkles className="size-3.5" />}
-                                    loading={universalPromptAction === "generate"}
-                                    disabled={Boolean(universalPromptAction)}
-                                    aria-label="生成全能提示词"
-                                    onClick={() => void handleUniversalPromptAction("generate")}
-                                >
+                                <Button size="small" icon={<Sparkles className="size-3.5" />} loading={universalPromptAction === "generate"} disabled={Boolean(universalPromptAction)} onClick={() => void handleUniversalPromptAction("generate")}>
                                     生成全能提示词
+                                </Button>
+                                <Button size="small" loading={universalPromptAction === "generate-force"} disabled={Boolean(universalPromptAction)} onClick={() => void handleUniversalPromptAction("generate-force")}>
+                                    无参考图生成
                                 </Button>
                                 <Button
                                     size="small"
                                     icon={<Sparkles className="size-3.5" />}
                                     loading={universalPromptAction === "polish"}
-                                    disabled={Boolean(universalPromptAction)}
-                                    aria-label="润色全能提示词"
+                                    disabled={Boolean(universalPromptAction) || !shot.universalSegmentText?.trim()}
                                     onClick={() => void handleUniversalPromptAction("polish")}
                                 >
                                     润色全能提示词
+                                </Button>
+                                <Button size="small" loading={universalPromptAction === "polish-force"} disabled={Boolean(universalPromptAction) || !shot.universalSegmentText?.trim()} onClick={() => void handleUniversalPromptAction("polish-force")}>
+                                    无参考图润色
                                 </Button>
                             </div>
                             {universalPromptError ? <Alert type="error" showIcon message={universalPromptError} /> : null}
