@@ -1,10 +1,10 @@
-import { dramaLabStyleContext, renderDramaLabFrameTemplate } from "@/lib/drama-lab-style-prompt";
+import { renderDramaLabFrameTemplate } from "@/lib/drama-lab-style-prompt";
 import { nanoid } from "nanoid";
 
 import type { DramaCharacter, DramaProject, DramaProp, DramaScene } from "@/lib/drama-project-contract";
 import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
-import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
+import { resolveDramaLabPrompt } from "@/lib/server/drama-lab-prompt-template-service";
 import { recordDramaLabTextGenerationLog } from "@/lib/server/drama-lab-text-generation-log";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
@@ -38,16 +38,8 @@ export async function extractDramaLabAssets(input: { userId: string; origin: str
     const promptKey = input.assetType === "character" ? "character_extraction" : input.assetType === "scene" ? "scene_extraction" : "prop_extraction";
     const prompt = await resolveDramaLabPrompt(promptKey);
     const existing = assetsForType(input.project, input.assetType);
-    const systemPrompt = withDramaLabPromptContract(
-        renderDramaLabFrameTemplate(prompt.template, input.project),
-        `只调用 extract_drama_assets 并返回 JSON 对象。items 必须是数组；每个项目包含 name、description。角色另填 role（main/supporting/minor）、appearance（纯人物外貌）；场景另填 time、imagePrompt（纯背景，无人物）；道具另填 type、imagePrompt（仅道具主体、纯色底、无人物无手、符合真实尺度）。模板中的 location 映射到 name；prompt、image_prompt 映射到 imagePrompt。不要把生图提示词并入背景故事 description。不要返回 Markdown、解释、图片链接、角色 ID 或任何未定义字段。名称必须来自当前剧本。`,
-    );
-    const userPrompt = JSON.stringify({
-        task: `从当前集剧本提取${assetLabel(input.assetType)}`,
-        project: { title: input.project.title, style: input.project.style, ...dramaLabStyleContext(input.project.style), aspectRatio: input.project.ratio },
-        episode: { id: episode.id, title: episode.title, script },
-        existingAssets: existing.map((item) => ({ name: assetName(item), description: item.description || "" })),
-    });
+    const systemPrompt = renderDramaLabFrameTemplate(prompt.template, input.project);
+    const userPrompt = lAssetExtractionUserPrompt(input.assetType, script);
 
     const settings = await getAuthSettings();
     const model = settings.defaultModels.textModel;
@@ -69,8 +61,10 @@ export async function extractDramaLabAssets(input: { userId: string; origin: str
                     { role: "system", content: systemPrompt },
                     { role: "user", content: userPrompt },
                 ],
-                tool: extractDramaAssetsTool,
+                tool: extractDramaAssetsTool(input.assetType),
                 headers: { "Content-Type": "application/json", ...systemAiBillingHeaders(model, idempotencyKey, candidate.upstreamModel) },
+                preferNativeTools: true,
+                allowRepair: false,
                 onInvalidResponse: (headers) => refundInvalidResponse(input.userId, model, headers),
             });
             try {
@@ -117,10 +111,11 @@ function assetsForType(project: DramaProject, assetType: DramaLabAssetType): Ext
 }
 
 export function normalizeExtractedDramaLabAssets(value: string, assetType: DramaLabAssetType, existing: ExtractableAsset[]) {
-    const payload = jsonObject(value);
-    if (!payload) throw new DramaLabAssetExtractionError("文本模型没有返回有效的资产提取结果");
+    const payload = jsonValue(value);
+    const items = Array.isArray(payload) ? payload : array(object(payload)?.items);
+    if (payload === null) throw new DramaLabAssetExtractionError("文本模型没有返回有效的资产提取结果");
     const identities = new Set(existing.map((item) => sceneIdentity(item, assetType)).filter(Boolean));
-    return array(payload.items).flatMap((value) => {
+    return items.flatMap((value) => {
         const item = object(value);
         if (!item) return [];
         const name = text(item.name, 120) || (assetType === "scene" ? text(item.location, 120) : "");
@@ -130,7 +125,7 @@ export function normalizeExtractedDramaLabAssets(value: string, assetType: Drama
         identities.add(identity);
         const description = text(item.description, 2_000);
         const appearance = typeof item.appearance === "string" ? item.appearance.trim() : "";
-        const imagePrompt = [item.imagePrompt, item.image_prompt, item.prompt].find((value) => typeof value === "string" && value.trim());
+        const imagePrompt = [item.image_prompt, item.prompt, item.imagePrompt].find((value) => typeof value === "string" && value.trim());
         const role = typeof item.role === "string" && ["main", "supporting", "minor"].includes(item.role) ? item.role : undefined;
         const type = typeof item.type === "string" ? item.type.trim() : "";
         const base = {
@@ -142,16 +137,14 @@ export function normalizeExtractedDramaLabAssets(value: string, assetType: Drama
             ...(typeof imagePrompt === "string" ? { imagePrompt: imagePrompt.trim() } : {}),
             ...(assetType === "prop" && type ? { type } : {}),
         };
-        if (assetType === "scene") {
-            return [{ ...base, ...(time ? { time } : {}) }];
-        }
+        if (assetType === "scene") return [{ ...base, ...(time ? { time } : {}) }];
         return [base];
     });
 }
 
 function extractedItemCount(value: string) {
-    const payload = jsonObject(value);
-    return payload ? array(payload.items).length : 0;
+    const payload = jsonValue(value);
+    return Array.isArray(payload) ? payload.length : array(object(payload)?.items).length;
 }
 
 function sceneIdentity(value: Partial<ExtractableAsset> & { time?: string; location?: string }, assetType: DramaLabAssetType) {
@@ -172,13 +165,16 @@ function assetLabel(assetType: DramaLabAssetType) {
     return assetType === "character" ? "角色" : assetType === "scene" ? "场景" : "道具";
 }
 
-function jsonObject(value: string) {
+function jsonValue(value: string): unknown {
     try {
-        const parsed = JSON.parse(value);
-        return object(parsed);
+        return JSON.parse(value);
     } catch {
         return null;
     }
+}
+
+export function lAssetExtractionUserPrompt(assetType: DramaLabAssetType, script: string) {
+    return assetType === "character" ? `剧本内容：\n${script}\n\n请提取剧本中所有有名字角色的设定。` : `【剧本内容】\n${script}`;
 }
 
 function object(value: unknown) {
@@ -198,31 +194,46 @@ async function refundInvalidResponse(userId: string, model: string, headers: Hea
     if (hasSystemAiCharge(billing)) await refundGenerationCharge({ userId, receiptId: billing.billingReceiptId, model, usageKind: "text", units: 1, idempotencyKey: `drama-lab-refund:${billing.billingReceiptId}` });
 }
 
-const extractDramaAssetsTool = {
-    name: "extract_drama_assets",
-    description: "从当前短剧集剧本提取指定类型的项目资产",
-    parameters: {
-        type: "object",
-        properties: {
-            items: {
-                type: "array",
-                items: {
+function extractDramaAssetsTool(assetType: DramaLabAssetType) {
+    const itemSchema =
+        assetType === "character"
+            ? {
+                  type: "object",
+                  properties: {
+                      name: { type: "string" },
+                      role: { type: "string", enum: ["main", "supporting", "minor"] },
+                      appearance: { type: "string" },
+                      description: { type: "string" },
+                  },
+                  required: ["name", "role", "appearance", "description"],
+                  additionalProperties: false,
+              }
+            : assetType === "scene"
+              ? {
+                    type: "object",
+                    properties: { location: { type: "string" }, time: { type: "string" }, prompt: { type: "string" } },
+                    required: ["location", "time", "prompt"],
+                    additionalProperties: false,
+                }
+              : {
                     type: "object",
                     properties: {
                         name: { type: "string" },
-                        description: { type: "string" },
-                        time: { type: "string" },
-                        appearance: { type: "string" },
-                        imagePrompt: { type: "string" },
-                        role: { type: "string", enum: ["main", "supporting", "minor"] },
                         type: { type: "string" },
+                        description: { type: "string" },
+                        image_prompt: { type: "string" },
                     },
-                    required: ["name", "description"],
+                    required: ["name", "type", "description", "image_prompt"],
                     additionalProperties: false,
-                },
-            },
+                };
+    return {
+        name: "extract_drama_assets",
+        description: "按 LocalMiniDrama 提取当前短剧集的指定资产",
+        parameters: {
+            type: "object",
+            properties: { items: { type: "array", items: itemSchema } },
+            required: ["items"],
+            additionalProperties: false,
         },
-        required: ["items"],
-        additionalProperties: false,
-    },
-} as const;
+    } as const;
+}
