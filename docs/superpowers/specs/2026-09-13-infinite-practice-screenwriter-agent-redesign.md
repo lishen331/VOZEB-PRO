@@ -4,7 +4,8 @@
 > 状态：产品范围、交互骨架、Agent/Skill/Tool 方向已由用户确认；本文作为后续实现的唯一设计入口
 > 范围：仅 VOZEB-PRO“无限练习—剧本”模块
 > 取代：`docs/superpowers/specs/2026-09-11-infinite-practice-script-module-design.md`
-> 后续要求：上下文重置、换 Agent 或恢复任务时，必须先阅读本文，再阅读基于本文生成的新实施计划；不得继续按 2026-09-11 旧设计扩展
+
+> 实施计划：`docs/superpowers/plans/2026-09-13-infinite-practice-screenwriter-agent-implementation.md`
 
 ## 1. 设计目标
 
