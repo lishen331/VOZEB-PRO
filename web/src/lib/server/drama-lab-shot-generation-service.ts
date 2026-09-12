@@ -54,7 +54,7 @@ export async function prepareDramaLabStoryboardImage(project: DramaProject, epis
     const references = shotReferences(project, context.shot);
     return {
         prompt: withDramaLabPromptContract(
-            `${renderDramaLabFrameTemplate(template.template, project)}\n\n${shotGenerationContext(project, context.episode, context.shot)}`,
+            `${renderDramaLabFrameTemplate(template.template, project)}\n\n${shotGenerationContext(project, context.episode, context.shot)}\n\n【经典单图最终提示词】\n${context.shot.polishedPrompt?.trim() || context.shot.imagePrompt?.trim() || context.shot.description || context.shot.sourceText}`,
             "这是关键帧图像生成任务。只呈现当前镜头已绑定的场景、角色和道具；不得加入未绑定角色、未绑定道具、文字、水印或项目外主体。参考图只用于保持已绑定资产的身份、外观、比例和空间关系，不得改变其归属。",
         ),
         references,
@@ -375,7 +375,7 @@ function shotGenerationContext(project: DramaProject, episode: DramaEpisode, sho
     const scene = project.scenes.find((asset) => asset.id === shot.sceneId);
     const characters = shot.characterIds.flatMap((id) => project.characters.find((asset) => asset.id === id) || []);
     const props = shot.propIds.flatMap((id) => project.props.find((asset) => asset.id === id) || []);
-    const asset = (item: { id: string; name: string; description: string }) => `${item.id} / ${item.name}${item.description ? `：${item.description}` : ""}`;
+    const asset = (item: { name: string; description: string }) => `${item.name}${item.description ? `：${item.description}` : ""}`;
     return [
         "【当前项目与镜头上下文】",
         `项目：${project.title}`,
@@ -397,7 +397,7 @@ function shotGenerationContext(project: DramaProject, episode: DramaEpisode, sho
         shot.narration ? `旁白：${shot.narration}` : "",
         shot.cameraMotion ? `运镜：${shot.cameraMotion}` : "",
         shot.continuity?.cameraAngle ? `机位：${shot.continuity.cameraAngle}` : "",
-        shot.imagePrompt ? `用户画面补充：${shot.imagePrompt}` : "",
+        shot.polishedPrompt ? "" : shot.imagePrompt ? `用户画面补充：${shot.imagePrompt}` : "",
         `场景白名单：${scene ? `${asset(scene)}；视觉锚点：${scene.profile?.visualIdentity || "无"}` : "无"}`,
         `角色白名单：${characters.length ? characters.map((item) => `${asset(item)}；视觉锚点：${item.profile?.visualIdentity || "无"}；造型：${item.profile?.styling || "无"}`).join("；") : "无"}`,
         `道具白名单：${props.length ? props.map((item) => `${asset(item)}；视觉锚点：${item.profile?.visualIdentity || "无"}`).join("；") : "无"}`,

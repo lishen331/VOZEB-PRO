@@ -12,7 +12,7 @@ describe("production storyboard workbench layout wiring", () => {
     });
     it("uses available card width rather than viewport width for the three-column layout", async () => {
         const source = await readFile(path, "utf8");
-        expect(source).toContain('className="@container/storyboard min-w-0');
+        expect(source).toContain('className="group/storyboard @container/storyboard relative min-w-0');
         expect(source).toContain("@min-[60rem]/storyboard:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)]");
         expect(source).not.toContain("xl:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)]");
         expect(source).toContain('className="min-w-0 space-y-4 p-4" aria-label={`分镜 ${shot.shotNumber} 资产关联`}');
@@ -24,11 +24,12 @@ describe("production storyboard workbench layout wiring", () => {
         expect(source).toContain("const classicImageUrl = shot.frames?.key?.url || shot.storyboardImageUrl");
         expect(source).toContain('data-storyboard-media="image"');
         expect(source).toContain('data-storyboard-media="video"');
-        expect(source).toContain("查看 / 编辑分镜图提示词");
-        expect(source).toContain("查看 / 编辑视频提示词");
+        expect(source).toContain('aria-label="分镜卡片空白区域"');
+        expect(source).not.toContain(">查看 / 编辑提示词</Button>");
+        expect(source).toContain("全能参考提示词");
         expect(source).toContain("上传{frameLabel[frameType]}");
-        expect(source).toContain("const [promptEditor, setPromptEditor]");
-        expect(source).toContain("function PromptPreview(");
+        expect(source).toContain("const [promptEditorOpen, setPromptEditorOpen]");
+        expect(source).toContain("function StoryboardPromptDialog(");
         expect(source).not.toContain('<details open className="space-y-2">');
         expect(source).toContain('key: { ...(shot.frames?.key || { prompt: "" }), url, status: "success", source: "restored"');
         expect(source).toContain('{classicImageUrl ? "重新生成分镜图" : "生成分镜图"}');
