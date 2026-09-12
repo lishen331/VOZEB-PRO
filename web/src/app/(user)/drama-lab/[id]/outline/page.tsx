@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import type { Asset } from "@/lib/library-asset-contract";
 import styleGroups from "@/lib/drama-lab-style-options.json";
-import { readDramaSourceFile } from "@/lib/drama-source-reader";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -156,16 +155,13 @@ function groupChapters(chapters: Array<{ title: string; content: string }>, perE
 }
 
 async function readBatchImportFile(projectId: string, file: File) {
-    if (/\.doc$/iu.test(file.name)) {
-        const form = new FormData();
-        form.append("file", file);
-        form.append("commit", "false");
-        const response = await fetch(`/api/drama-lab/projects/${projectId}/import-novel`, { method: "POST", body: form });
-        const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { sourceText?: string } };
-        if (!response.ok || payload.code !== 0 || typeof payload.data?.sourceText !== "string") throw new Error(payload.msg || "DOC 文件解析失败");
-        return payload.data.sourceText;
-    }
-    return readDramaSourceFile(file);
+    const form = new FormData();
+    form.append("file", file);
+    form.append("commit", "false");
+    const response = await fetch(`/api/drama-lab/projects/${projectId}/import-novel`, { method: "POST", body: form });
+    const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { sourceText?: string } };
+    if (!response.ok || payload.code !== 0 || typeof payload.data?.sourceText !== "string") throw new Error(payload.msg || "文件解析失败");
+    return payload.data.sourceText;
 }
 
 export default function ProjectOutlinePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {

@@ -44,6 +44,7 @@ describe("drama lab novel import", () => {
         const result = previewDramaLabNovelImport({ sourceText: "# 第一章 归来\n她推开门。\n\n## 第二章 真相\n门后没有人。", fileName: "故事.md" });
 
         expect(result.fileName).toBe("故事.md");
+        expect(result.sourceText).toBe("# 第一章 归来\n她推开门。\n\n## 第二章 真相\n门后没有人。");
         expect(result.drafts).toHaveLength(2);
         expect(result.drafts[0]).toMatchObject({ sourceRange: "第一章 归来", title: "第 1 集 · 第一章 归来" });
         expect(result.drafts[0]?.script).toContain("# 第一章 归来");
