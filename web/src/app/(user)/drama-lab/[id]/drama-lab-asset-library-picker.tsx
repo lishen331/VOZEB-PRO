@@ -14,7 +14,7 @@ type PickerProps = {
     busyKey: string;
     importedNames?: string[];
     onClose: () => void;
-    onImport: (asset: Asset) => Promise<void>;
+    onImport: (asset: Asset) => Promise<boolean>;
 };
 
 export function DramaLabAssetLibraryPicker(props: PickerProps) {
@@ -126,8 +126,7 @@ function AssetLibraryPickerSession({ label, busyKey, importedNames = [], onClose
                                             loading={busyKey === `library:${asset.id}`}
                                             disabled={Boolean(busyKey) || imported}
                                             onClick={async () => {
-                                                await onImport(asset);
-                                                setImportedIds((current) => new Set(current).add(asset.id));
+                                                if (await onImport(asset)) setImportedIds((current) => new Set(current).add(asset.id));
                                             }}
                                         >
                                             {imported ? "已导入" : "导入"}

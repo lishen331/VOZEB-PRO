@@ -182,17 +182,17 @@ export function DramaLabVisualAssetsPanel({
         }
     };
 
-    const importLibraryAsset = async (libraryAsset: Asset) => {
-        if (libraryAsset.kind !== "image") return;
+    const importLibraryAsset = async (libraryAsset: Asset): Promise<boolean> => {
+        if (libraryAsset.kind !== "image") return false;
         const current = project[kind] as VisualAsset[];
         if (current.some((asset) => assetName(asset).trim() === libraryAsset.title.trim())) {
             messageApi.warning(`本剧${definition.label}库已存在同名资产`);
-            return;
+            return true;
         }
         const url = libraryAsset.data.serverUrl || libraryAsset.data.remoteUrl || libraryAsset.data.dataUrl || libraryAsset.coverUrl;
         if (!url) {
             messageApi.warning("该素材没有可引用的图片");
-            return;
+            return false;
         }
         const reference = referenceFromUrl(url, "library", libraryAsset.title, libraryAsset.data.storageKey, libraryAsset.data.width, libraryAsset.data.height);
         const next = createAsset(kind, {
@@ -209,8 +209,10 @@ export function DramaLabVisualAssetsPanel({
         try {
             if (!(await replaceAssets([...current, next]))) throw new Error("项目保存失败");
             messageApi.success(`已从素材库添加${definition.label}：${libraryAsset.title}`);
+            return true;
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "素材导入失败");
+            return false;
         } finally {
             setBusyKey("");
         }
