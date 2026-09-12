@@ -78,8 +78,25 @@ export async function confirmScriptStage(
     const stage = await repository.getScriptStage(projectId, ownerUserId, key);
     if (!stage || stage.status !== "awaiting_review" || stage.draft === undefined) throw new ScriptStageServiceError("该阶段没有待确认的生成结果", 409);
     if (key === "screenplay") {
-        const versioning = { getCurrentScriptDocument: repository.getCurrentScriptDocument, createScriptVersion: repository.createScriptVersion, nextScriptVersionNumber: repository.nextScriptVersionNumber, compareAndSetCurrentVersion: repository.compareAndSetCurrentVersion };
-        if (versioning.getCurrentScriptDocument && versioning.createScriptVersion && versioning.nextScriptVersionNumber && versioning.compareAndSetCurrentVersion) await materializeConfirmedScreenplay({ getCurrentScriptDocument: versioning.getCurrentScriptDocument, createScriptVersion: versioning.createScriptVersion, nextScriptVersionNumber: versioning.nextScriptVersionNumber, compareAndSetCurrentVersion: versioning.compareAndSetCurrentVersion }, ownerUserId, projectId, project, stage.draft);
+        const versioning = {
+            getCurrentScriptDocument: repository.getCurrentScriptDocument,
+            createScriptVersion: repository.createScriptVersion,
+            nextScriptVersionNumber: repository.nextScriptVersionNumber,
+            compareAndSetCurrentVersion: repository.compareAndSetCurrentVersion,
+        };
+        if (versioning.getCurrentScriptDocument && versioning.createScriptVersion && versioning.nextScriptVersionNumber && versioning.compareAndSetCurrentVersion)
+            await materializeConfirmedScreenplay(
+                {
+                    getCurrentScriptDocument: versioning.getCurrentScriptDocument,
+                    createScriptVersion: versioning.createScriptVersion,
+                    nextScriptVersionNumber: versioning.nextScriptVersionNumber,
+                    compareAndSetCurrentVersion: versioning.compareAndSetCurrentVersion,
+                },
+                ownerUserId,
+                projectId,
+                project,
+                stage.draft,
+            );
         else throw new ScriptStageServiceError("剧本文档版本不可用，请先保存当前版本", 409);
     }
     const confirmed = await repository.setScriptStage(projectId, ownerUserId, { ...stage, status: "confirmed", confirmed: stage.draft, updatedAt: new Date().toISOString() });
@@ -112,10 +129,12 @@ async function materializeConfirmedScreenplay(
     const nextDocument = screenplay.trim()
         ? parseFountain(screenplay, { projectId, documentId: current.id, version: await nextScriptVersionNumber(projectId, ownerUserId), now: new Date().toISOString() })
         : normalizeScriptDocument(source.blocks ? { blocks: source.blocks } : { blocks: [] }, { projectId, documentId: current.id, version: await nextScriptVersionNumber(projectId, ownerUserId), now: new Date().toISOString() });
-    const version = await createScriptVersion({ id: crypto.randomUUID(), projectId, documentSnapshot: nextDocument, source: "ai", operation: "generate_screenplay", parentVersionId: project.currentVersionId, createdAt: new Date().toISOString() }, ownerUserId);
+    const version = await createScriptVersion(
+        { id: crypto.randomUUID(), projectId, documentSnapshot: nextDocument, source: "ai", operation: "generate_screenplay", parentVersionId: project.currentVersionId, createdAt: new Date().toISOString() },
+        ownerUserId,
+    );
     if (!version || !(await compareAndSetCurrentVersion(projectId, ownerUserId, project.currentVersionId, version.id))) throw new ScriptStageServiceError("剧本文档版本已变化，请刷新后重试", 409);
 }
-
 
 export async function applyScriptPatch(
     repository: Pick<ScriptPracticeRepository, "getScriptProject" | "getCurrentScriptDocument" | "createScriptVersion" | "nextScriptVersionNumber" | "compareAndSetCurrentVersion">,

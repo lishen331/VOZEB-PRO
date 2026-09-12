@@ -52,7 +52,10 @@ export default function PracticeStoryboardVideoPanel({ capability, onCreated, de
         }
     };
     const [audioEnabled, setAudioEnabled] = useState(false);
-    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => ({ ...workflowFieldDefaults({ ...capability, inputSchema: capability.inputSchema.filter((field) => field.key !== "audioEnabled") }), ...(defaultInput?.workflowInput ?? {}) }));
+    const [workflowInput, setWorkflowInput] = useState<Record<string, unknown>>(() => ({
+        ...workflowFieldDefaults({ ...capability, inputSchema: capability.inputSchema.filter((field) => field.key !== "audioEnabled") }),
+        ...(defaultInput?.workflowInput ?? {}),
+    }));
     const [uploading, setUploading] = useState(false);
     const [busy, setBusy] = useState(false);
     const chooseImage = async (file?: File) => {

@@ -36,7 +36,19 @@ export default function PracticeCharacterPanel({ capability, onCreated, defaultI
     );
 }
 
-function CharacterForm({ capability, model, workflowCode, onCreated, defaultInput }: { capability: PracticePanelProps["capability"]; model?: string; workflowCode: string; onCreated: PracticePanelProps["onCreated"]; defaultInput?: PracticeDefaultInput | null }) {
+function CharacterForm({
+    capability,
+    model,
+    workflowCode,
+    onCreated,
+    defaultInput,
+}: {
+    capability: PracticePanelProps["capability"];
+    model?: string;
+    workflowCode: string;
+    onCreated: PracticePanelProps["onCreated"];
+    defaultInput?: PracticeDefaultInput | null;
+}) {
     const multi = workflowCode === "character_multi_view";
     const [prompt, setPrompt] = useState(() => defaultInput?.prompt ?? "");
     const [image, setImage] = useState<UploadedImage | undefined>(() => defaultInput?.images?.referenceImage);

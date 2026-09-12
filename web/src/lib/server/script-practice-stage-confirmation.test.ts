@@ -32,7 +32,6 @@ describe("confirmScriptStage", () => {
     });
 });
 
-
 it("materializes a confirmed screenplay into the current document version", async () => {
     const document: ScriptDocument = { id: "doc", projectId: "p", format: "structured", blocks: [{ id: "old", type: "action", text: "旧内容" }], version: 1, schemaVersion: 1, createdAt: now, updatedAt: now };
     const repo = {
@@ -46,6 +45,9 @@ it("materializes a confirmed screenplay into the current document version", asyn
         compareAndSetCurrentVersion: vi.fn().mockResolvedValue(true),
     };
     await expect(confirmScriptStage(repo as never, "u", "p", "screenplay")).resolves.toMatchObject({ status: "confirmed" });
-    expect(repo.createScriptVersion).toHaveBeenCalledWith(expect.objectContaining({ source: "ai", parentVersionId: "v1", documentSnapshot: expect.objectContaining({ version: 2, blocks: expect.arrayContaining([expect.objectContaining({ type: "scene-heading", text: "INT. ROOM - DAY" })]) }) }), "u");
+    expect(repo.createScriptVersion).toHaveBeenCalledWith(
+        expect.objectContaining({ source: "ai", parentVersionId: "v1", documentSnapshot: expect.objectContaining({ version: 2, blocks: expect.arrayContaining([expect.objectContaining({ type: "scene-heading", text: "INT. ROOM - DAY" })]) }) }),
+        "u",
+    );
     expect(repo.compareAndSetCurrentVersion).toHaveBeenCalledWith("p", "u", "v1", expect.any(String));
 });

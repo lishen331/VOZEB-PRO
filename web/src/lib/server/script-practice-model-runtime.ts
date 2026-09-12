@@ -96,7 +96,10 @@ function readContent(payload: Record<string, unknown> | null): ModelContent {
     const output = Array.isArray(payload.output) ? payload.output : [];
     const call = output.find((item) => item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).arguments === "string") as Record<string, unknown> | undefined;
     if (call?.arguments !== undefined) return { value: call.arguments };
-    const outputText = output.map((item) => item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).text === "string" ? (item as Record<string, unknown>).text : "").join("").trim();
+    const outputText = output
+        .map((item) => (item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).text === "string" ? (item as Record<string, unknown>).text : ""))
+        .join("")
+        .trim();
     if (outputText) return { value: outputText, publicText: outputText };
     for (const key of ["data", "result", "response"]) {
         if (payload[key] !== undefined) return { value: payload[key] };
@@ -107,7 +110,10 @@ function readContent(payload: Record<string, unknown> | null): ModelContent {
 function plainText(value: unknown) {
     if (typeof value === "string") return value.trim();
     if (!Array.isArray(value)) return "";
-    return value.map((item) => item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).text === "string" ? (item as Record<string, unknown>).text : "").join("").trim();
+    return value
+        .map((item) => (item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).text === "string" ? (item as Record<string, unknown>).text : ""))
+        .join("")
+        .trim();
 }
 
 function parseStructured(content: ModelContent, operation: ScriptAgentOperation) {
@@ -124,7 +130,19 @@ function parseStructured(content: ModelContent, operation: ScriptAgentOperation)
             return null;
         }
     }
-    const field = { generate_synopsis: "synopsis", generate_outline: "outline", generate_entities: "entities", generate_scenes: "scenes", generate_screenplay: "screenplay", rewrite_selection: "proposedAfter", expand_selection: "proposedAfter", polish_selection: "proposedAfter", enhance_conflict: "proposedAfter", check_continuity: "proposedAfter", validate_format: "proposedAfter" }[operation];
+    const field = {
+        generate_synopsis: "synopsis",
+        generate_outline: "outline",
+        generate_entities: "entities",
+        generate_scenes: "scenes",
+        generate_screenplay: "screenplay",
+        rewrite_selection: "proposedAfter",
+        expand_selection: "proposedAfter",
+        polish_selection: "proposedAfter",
+        enhance_conflict: "proposedAfter",
+        check_continuity: "proposedAfter",
+        validate_format: "proposedAfter",
+    }[operation];
     return field ? { [field]: text } : null;
 }
 
