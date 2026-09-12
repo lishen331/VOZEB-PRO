@@ -206,7 +206,7 @@ export function DramaLabVisualAssetsPanel({
             name: libraryAsset.title,
             generationLayout: kind === "characters" ? "four_view" : layoutDefaults[kind],
             ...readDramaLabAssetVisualDetails(libraryAsset.metadata),
-            description: libraryAsset.note || libraryAsset.tags.join("、"),
+            description: libraryAsset.note || "",
             references: [reference],
             primaryReferenceId: reference.id,
             referenceImageUrl: reference.url,

@@ -30,6 +30,7 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
     const [keyword, setKeyword] = useState("");
+    const [category, setCategory] = useState("");
     const [loading, setLoading] = useState(false);
     const [editor, setEditor] = useState<EditorDraft>();
     const [saving, setSaving] = useState(false);
@@ -43,7 +44,7 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
             async () => {
                 setLoading(true);
                 try {
-                    const result = await listLibraryAssetPage({ page, pageSize, kind: "image", keyword, dramaAssetType: type }, controller.signal);
+                    const result = await listLibraryAssetPage({ page, pageSize, kind: "image", keyword, category, dramaAssetType: type }, controller.signal);
                     setAssets(result.assets);
                     setTotal(result.total);
                 } catch (error) {
@@ -58,18 +59,19 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
             window.clearTimeout(timer);
             controller.abort();
         };
-    }, [keyword, message, open, page, pageSize, type]);
+    }, [category, keyword, message, open, page, pageSize, type]);
 
     useEffect(() => {
         setPage(1);
         setKeyword("");
+        setCategory("");
         setEditor(undefined);
     }, [open, type]);
 
     const reload = async () => {
         setLoading(true);
         try {
-            const result = await listLibraryAssetPage({ page, pageSize, kind: "image", keyword, dramaAssetType: type });
+            const result = await listLibraryAssetPage({ page, pageSize, kind: "image", keyword, category, dramaAssetType: type });
             setAssets(result.assets);
             setTotal(result.total);
         } finally {
@@ -107,9 +109,7 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
         setGenerating(true);
         try {
             const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: "1:1", count: "1" };
-            const prompt = [`短剧${label}素材设定图`, `名称：${editor.title.trim()}`, editor.category.trim() ? `分类：${editor.category.trim()}` : "", editor.note.trim() ? `描述：${editor.note.trim()}` : "", "主体结构清晰，干净背景，不添加文字。"]
-                .filter(Boolean)
-                .join("\n");
+            const prompt = [`短剧${label}素材设定图`, `名称：${editor.title.trim()}`, editor.note.trim() ? `描述：${editor.note.trim()}` : "", "主体结构清晰，干净背景，不添加文字。"].filter(Boolean).join("\n");
             const task = await createImageGenerationTask(imageConfig, prompt, [], undefined, { logSource: "drama", logTitle: `${label}素材 · ${editor.title.trim()}`, surface: "drama" });
             const result = await waitForImageGenerationTask(imageConfig, task);
             const source = result.serverUrl || result.remoteUrl || result.dataUrl;
@@ -174,16 +174,28 @@ export function DramaLabMaterialLibraryModal({ open, type, onClose }: { open: bo
     return (
         <>
             <Modal title={`素材库 · ${label}`} open={open} onCancel={onClose} width={760} footer={<Button onClick={onClose}>关闭</Button>} destroyOnHidden>
-                <Input.Search
-                    allowClear
-                    className="mb-3 max-w-sm"
-                    placeholder={type === "scene" ? "搜索地点或描述" : "搜索名称或描述"}
-                    value={keyword}
-                    onChange={(event) => {
-                        setKeyword(event.target.value);
-                        setPage(1);
-                    }}
-                />
+                <div className="mb-3 flex gap-2">
+                    <Input.Search
+                        allowClear
+                        className="max-w-sm"
+                        placeholder={type === "scene" ? "搜索地点或描述" : "搜索名称或描述"}
+                        value={keyword}
+                        onChange={(event) => {
+                            setKeyword(event.target.value);
+                            setPage(1);
+                        }}
+                    />
+                    <Input
+                        allowClear
+                        className="max-w-44"
+                        placeholder="全部分类"
+                        value={category}
+                        onChange={(event) => {
+                            setCategory(event.target.value);
+                            setPage(1);
+                        }}
+                    />
+                </div>
                 <div className="min-h-64 max-h-[58vh] overflow-y-auto rounded-md border border-border p-2">
                     {loading ? (
                         <div className="grid min-h-60 place-items-center">

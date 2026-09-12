@@ -5,7 +5,7 @@ import { ensurePostgresSchema, getDatabaseProvider, postgresQuery } from "@/lib/
 
 type AssetRecord = { userId: string; asset: Asset };
 type AssetDatabase = { version: 1; assets: AssetRecord[] };
-export type LibraryAssetPageInput = { page: number; pageSize: number; kind?: Asset["kind"]; keyword?: string; dramaAssetType?: DramaLibraryAssetType };
+export type LibraryAssetPageInput = { page: number; pageSize: number; kind?: Asset["kind"]; keyword?: string; category?: string; dramaAssetType?: DramaLibraryAssetType };
 export type LibraryAssetPage = LibraryAssetPageInput & { items: Asset[]; total: number };
 
 const FILE_NAME = "library-assets.json";
@@ -34,6 +34,7 @@ export async function listLibraryAssetPage(userId: string, input: LibraryAssetPa
                    AND ($7::text IS NULL
                         OR asset_json->'metadata'->>'dramaAssetType' = $7
                         OR ((asset_json->'tags') ? '短剧' AND (asset_json->'tags') ? $8))
+                   AND ($9::text = '' OR asset_json->'metadata'->>'category' = $9)
              ), page_items AS (
                  SELECT id, updated_at, asset_json
                  FROM filtered
@@ -42,7 +43,7 @@ export async function listLibraryAssetPage(userId: string, input: LibraryAssetPa
              )
              SELECT (SELECT count(*) FROM filtered) AS total,
                     COALESCE((SELECT jsonb_agg(asset_json ORDER BY updated_at DESC, id ASC) FROM page_items), '[]'::jsonb) AS assets`,
-            [userId, input.kind || null, keyword, `%${keyword}%`, input.pageSize, offset, input.dramaAssetType || null, input.dramaAssetType ? DRAMA_LIBRARY_ASSET_LABELS[input.dramaAssetType] : null],
+            [userId, input.kind || null, keyword, `%${keyword}%`, input.pageSize, offset, input.dramaAssetType || null, input.dramaAssetType ? DRAMA_LIBRARY_ASSET_LABELS[input.dramaAssetType] : null, input.category?.trim() || ""],
         );
         const row = result.rows[0];
         return { ...input, items: Array.isArray(row?.assets) ? row.assets : [], total: Math.max(0, Number(row?.total) || 0) };
@@ -50,7 +51,13 @@ export async function listLibraryAssetPage(userId: string, input: LibraryAssetPa
     const filtered = (await readDatabase()).assets
         .filter((record) => record.userId === userId)
         .map((record) => record.asset)
-        .filter((asset) => (!input.kind || asset.kind === input.kind) && (!input.dramaAssetType || isDramaLibraryAsset(asset, input.dramaAssetType)) && (!keyword || assetSearchText(asset).includes(keyword)))
+        .filter(
+            (asset) =>
+                (!input.kind || asset.kind === input.kind) &&
+                (!input.dramaAssetType || isDramaLibraryAsset(asset, input.dramaAssetType)) &&
+                (!input.category?.trim() || asset.metadata?.category === input.category.trim()) &&
+                (!keyword || assetSearchText(asset).includes(keyword)),
+        )
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
     return { ...input, items: filtered.slice(offset, offset + input.pageSize), total: filtered.length };
 }

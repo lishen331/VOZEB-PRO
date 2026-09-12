@@ -53,6 +53,12 @@ describe("library asset file provider", () => {
         await expect(listLibraryAssetPage("user-one", { page: 1, pageSize: 20, dramaAssetType: "scene" })).resolves.toMatchObject({ total: 1, items: [{ id: "scene" }] });
     });
 
+    it("filters assets by their saved category", async () => {
+        await createLibraryAsset("user-one", { ...textAsset("lead", "主角甲"), metadata: { category: "主角" } });
+        await createLibraryAsset("user-one", { ...textAsset("support", "配角乙"), metadata: { category: "配角" } });
+
+        await expect(listLibraryAssetPage("user-one", { page: 1, pageSize: 20, category: "主角" })).resolves.toMatchObject({ total: 1, items: [{ id: "lead" }] });
+    });
     it("uses one bounded PostgreSQL query for a filtered page", async () => {
         mocks.provider = "postgres";
         mocks.postgresQuery.mockResolvedValue({ rows: [{ assets: [textAsset("one", "品牌脚本")], total: "12" }] });
@@ -65,7 +71,7 @@ describe("library asset file provider", () => {
         expect(statement).toContain("WHERE user_id = $1");
         expect(statement).toContain("ORDER BY updated_at DESC, id ASC");
         expect(statement).toContain("LIMIT $5 OFFSET $6");
-        expect(params).toEqual(["user-one", "text", "品牌", "%品牌%", 5, 5, null, null]);
+        expect(params).toEqual(["user-one", "text", "品牌", "%品牌%", 5, 5, null, null, ""]);
     });
 
     it("prevents the unbounded asset reader from querying PostgreSQL", async () => {

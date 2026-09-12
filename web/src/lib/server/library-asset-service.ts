@@ -14,13 +14,14 @@ export class LibraryAssetServiceError extends Error {
     }
 }
 
-export function listLibraryAssetPageForUser(userId: string, input: { page?: unknown; pageSize?: unknown; kind?: unknown; keyword?: unknown; dramaAssetType?: unknown }) {
+export function listLibraryAssetPageForUser(userId: string, input: { page?: unknown; pageSize?: unknown; kind?: unknown; keyword?: unknown; category?: unknown; dramaAssetType?: unknown }) {
     const kind = input.kind === "text" || input.kind === "image" || input.kind === "video" || input.kind === "audio" ? input.kind : undefined;
     return listLibraryAssetPage(userId, {
         page: positiveInteger(input.page, 1, 1_000_000),
         pageSize: positiveInteger(input.pageSize, 20, 100),
         kind,
         keyword: cleanText(input.keyword, 160),
+        category: cleanText(input.category, 160),
         dramaAssetType: normalizeDramaAssetType(input.dramaAssetType),
     });
 }
