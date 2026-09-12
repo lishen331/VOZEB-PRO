@@ -125,6 +125,55 @@ export class ScriptAgentRepository {
         return result.rows[0] ? mapItem(result.rows[0]) : null;
     }
 
+    async saveArtifact(scope: PracticeTenantScope, input: { id: string; projectId: string; artifactType: string; artifactKey: string; status: string; content: Record<string, unknown>; contentText?: string; sourceRunId: string }) {
+        const result = await this.db.query(
+            `INSERT INTO practice_script_artifacts (id, school_id, owner_user_id, project_id, artifact_type, artifact_key, status, version, content_json, content_text, source_run_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE((SELECT MAX(version) + 1 FROM practice_script_artifacts WHERE project_id = $4 AND artifact_type = $5 AND artifact_key = $6), 1), $8::jsonb, $9, $10)
+             RETURNING *`,
+            [input.id, scope.schoolId, scope.ownerUserId, input.projectId, input.artifactType, input.artifactKey, input.status, JSON.stringify(input.content), input.contentText || null, input.sourceRunId],
+        );
+        return result.rows[0] || null;
+    }
+
+    async listLatestArtifacts(scope: PracticeTenantScope, projectId: string) {
+        const result = await this.db.query(
+            `SELECT DISTINCT ON (artifact_type, artifact_key) * FROM practice_script_artifacts
+             WHERE school_id = $1 AND owner_user_id = $2 AND project_id = $3
+             ORDER BY artifact_type, artifact_key, version DESC`,
+            [scope.schoolId, scope.ownerUserId, projectId],
+        );
+        return result.rows;
+    }
+
+    async createChatSession(scope: PracticeTenantScope, input: { id: string; projectId: string; title: string }) {
+        const result = await this.db.query("INSERT INTO practice_script_chat_sessions (id, school_id, owner_user_id, project_id, title) VALUES ($1, $2, $3, $4, $5) RETURNING *", [input.id, scope.schoolId, scope.ownerUserId, input.projectId, input.title]);
+        return result.rows[0] || null;
+    }
+
+    async listChatSessions(scope: PracticeTenantScope, projectId: string) {
+        const result = await this.db.query("SELECT * FROM practice_script_chat_sessions WHERE school_id = $1 AND owner_user_id = $2 AND project_id = $3 AND deleted_at IS NULL ORDER BY updated_at DESC", [scope.schoolId, scope.ownerUserId, projectId]);
+        return result.rows;
+    }
+
+    async saveChatMessage(scope: PracticeTenantScope, input: { id: string; sessionId: string; projectId: string; role: "user" | "assistant"; agentKey?: ScriptAgentKey; publicContent: string; sourceRunId?: string }) {
+        const result = await this.db.query(
+            `INSERT INTO practice_script_chat_messages (id, session_id, project_id, role, agent_key, public_content, source_run_id)
+             SELECT $1, s.id, s.project_id, $5, $6, $7, $8 FROM practice_script_chat_sessions s
+             WHERE s.id = $2 AND s.project_id = $3 AND s.school_id = $4 AND s.owner_user_id = $9 RETURNING *`,
+            [input.id, input.sessionId, input.projectId, scope.schoolId, input.role, input.agentKey || null, input.publicContent, input.sourceRunId || null, scope.ownerUserId],
+        );
+        return result.rows[0] || null;
+    }
+
+    async listChatMessages(scope: PracticeTenantScope, projectId: string, sessionId: string) {
+        const result = await this.db.query(
+            `SELECT m.* FROM practice_script_chat_messages m JOIN practice_script_chat_sessions s ON s.id = m.session_id
+             WHERE m.session_id = $1 AND m.project_id = $2 AND s.school_id = $3 AND s.owner_user_id = $4 ORDER BY m.created_at ASC, m.id ASC`,
+            [sessionId, projectId, scope.schoolId, scope.ownerUserId],
+        );
+        return result.rows;
+    }
+
     async getAgentProfile(agentKey: ScriptAgentKey) {
         const result = await this.db.query("SELECT * FROM practice_script_agent_profiles WHERE agent_key = $1 AND enabled = true", [agentKey]);
         return result.rows[0] ? mapProfile(result.rows[0]) : null;
