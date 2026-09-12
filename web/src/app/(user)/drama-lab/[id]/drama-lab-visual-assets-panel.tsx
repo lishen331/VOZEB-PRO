@@ -209,7 +209,6 @@ export function DramaLabVisualAssetsPanel({
         try {
             if (!(await replaceAssets([...current, next]))) throw new Error("项目保存失败");
             messageApi.success(`已从素材库添加${definition.label}：${libraryAsset.title}`);
-            setLibraryOpen(false);
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "素材导入失败");
         } finally {
@@ -532,7 +531,17 @@ export function DramaLabVisualAssetsPanel({
                 onRemoveReference={() => void removeActiveReference()}
                 onRemoveReferenceById={(referenceId) => (activeAsset ? void removeReference(activeAsset, referenceId) : undefined)}
             />
-            {libraryOpen ? <DramaLabAssetLibraryPicker key={kind} kind={kind} label={definition.label} busyKey={busyKey} onClose={() => setLibraryOpen(false)} onImport={importLibraryAsset} /> : null}
+            {libraryOpen ? (
+                <DramaLabAssetLibraryPicker
+                    key={kind}
+                    kind={kind}
+                    label={definition.label}
+                    busyKey={busyKey}
+                    importedNames={(project[kind] as VisualAsset[]).map((asset) => assetName(asset))}
+                    onClose={() => setLibraryOpen(false)}
+                    onImport={importLibraryAsset}
+                />
+            ) : null}
             {impactModalAsset ? (
                 <Modal open title={`${impactModalAsset.name} · 关联分镜（${(assetShots.get(impactModalAsset.id) || []).length}）`} footer={null} onCancel={() => setImpactModalAsset(undefined)} width={760}>
                     <div className="space-y-3">
