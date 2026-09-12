@@ -9,7 +9,7 @@ describe("drama lab visual asset card layout", () => {
         const source = await readFile(path, "utf8");
 
         expect(source).toContain('className="flex h-[430px] flex-col overflow-hidden rounded-md border border-border bg-card"');
-        expect(source).toContain('className="relative grid h-44 shrink-0 place-items-center overflow-hidden bg-muted/50"');
+        expect(source).toContain('className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-muted/50"');
         expect(source).toContain("grid gap-3 sm:grid-cols-2 xl:grid-cols-3");
     });
 

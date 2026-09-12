@@ -59,6 +59,7 @@ export function DramaLabVisualAssetsPanel({
     const [libraryOpen, setLibraryOpen] = useState(false);
     const [busyKey, setBusyKey] = useState("");
     const [impactModalAsset, setImpactModalAsset] = useState<VisualAsset>();
+    const [previewImage, setPreviewImage] = useState<{ url: string; alt: string }>();
 
     const definition = ASSET_META[kind];
     const activeAsset = editor?.asset;
@@ -403,15 +404,16 @@ export function DramaLabVisualAssetsPanel({
                                         const Icon = meta.icon;
                                         return (
                                             <article key={asset.id} className="flex h-[430px] flex-col overflow-hidden rounded-md border border-border bg-card" data-drama-lab-asset-card={asset.id}>
-                                                <div className="relative grid h-44 shrink-0 place-items-center overflow-hidden bg-muted/50">
+                                                <div className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-muted/50">
                                                     {primary?.url ? (
-                                                        <Image
-                                                            src={imagePreviewUrl(primary.url, 640)}
-                                                            alt={`${asset.name}主参考图`}
-                                                            rootClassName="!flex !size-full !items-center !justify-center"
-                                                            className="!h-auto !w-auto !max-h-full !max-w-full !object-contain"
-                                                            preview={{ src: imagePreviewUrl(primary.url, 1920) }}
-                                                        />
+                                                        <button
+                                                            type="button"
+                                                            className="flex size-full items-center justify-center"
+                                                            onClick={() => setPreviewImage({ url: imagePreviewUrl(primary.url, 1920), alt: `${asset.name}主参考图` })}
+                                                            aria-label={`查看${asset.name}主参考图`}
+                                                        >
+                                                            <img src={imagePreviewUrl(primary.url, 640)} alt={`${asset.name}主参考图`} className="block max-h-full max-w-full object-contain" />
+                                                        </button>
                                                     ) : (
                                                         <ImagePlus className="size-7 text-muted-foreground" />
                                                     )}
@@ -543,6 +545,13 @@ export function DramaLabVisualAssetsPanel({
                     onClose={() => setLibraryOpen(false)}
                     onImport={importLibraryAsset}
                 />
+            ) : null}
+            {previewImage ? (
+                <Modal open title={previewImage.alt} footer={null} centered onCancel={() => setPreviewImage(undefined)} width="auto">
+                    <div className="flex max-h-[80vh] max-w-[90vw] items-center justify-center">
+                        <img src={previewImage.url} alt={previewImage.alt} className="max-h-[78vh] max-w-[88vw] object-contain" />
+                    </div>
+                </Modal>
             ) : null}
             {impactModalAsset ? (
                 <Modal open title={`${impactModalAsset.name} · 关联分镜（${(assetShots.get(impactModalAsset.id) || []).length}）`} footer={null} onCancel={() => setImpactModalAsset(undefined)} width={760}>

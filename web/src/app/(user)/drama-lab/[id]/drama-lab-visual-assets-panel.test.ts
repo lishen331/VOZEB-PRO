@@ -78,7 +78,7 @@ describe("L-compatible character AI editor actions", () => {
 
     it("uses contain previews and accepts imageUrl-only legacy assets", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
-        expect(source).toContain("!object-contain");
+        expect(source).toContain("object-contain");
         const references = await readFile(resolve(process.cwd(), "src/lib/drama-asset-references.ts"), "utf8");
         expect(references).toContain("asset.imageUrl?.trim()");
     });
@@ -166,9 +166,9 @@ describe("asset card and editor reference interactions", () => {
     it("renders the card thumbnail inside a fixed frame without forcing the image to fill it", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         const cardFrame = source.slice(source.indexOf("data-drama-lab-asset-card"), source.indexOf('<div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">'));
-        expect(cardFrame).toContain('rootClassName="!flex !size-full !items-center !justify-center"');
-        expect(cardFrame).toContain('className="!h-auto !w-auto !max-h-full !max-w-full !object-contain"');
-        expect(cardFrame).not.toContain('className="!size-full !object-contain"');
+        expect(cardFrame).toContain('className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-muted/50"');
+        expect(cardFrame).toContain('className="block max-h-full max-w-full object-contain"');
+        expect(cardFrame).toContain("setPreviewImage");
     });
 
     it("labels reference upload frames on the left and disables nested image preview", async () => {
