@@ -43,8 +43,13 @@ import type { PracticeSessionRecord } from "./database/repository-types";
 function memoryStore(): PracticeSessionStore {
     const records = new Map<string, PracticeSessionRecord>();
     const requests = new Map<string, string>();
+    const owner = (scope: unknown) => (typeof scope === "string" ? { schoolId: "", ownerUserId: scope } : (scope as { schoolId?: string; ownerUserId: string }));
+    const matches = (record: PracticeSessionRecord, scope: unknown) => {
+        const value = owner(scope);
+        return record.userId === value.ownerUserId && (!value.schoolId || record.schoolId === value.schoolId);
+    };
     return {
-        getByRequest: vi.fn(async (userId, clientRequestId) => records.get(requests.get(`${userId}:${clientRequestId}`) || "") || null),
+        getByRequest: vi.fn(async (userId, clientRequestId) => records.get(requests.get(`${owner(userId).ownerUserId}:${clientRequestId}`) || "") || null),
         create: vi.fn(async (input) => {
             const key = `${input.userId}:${input.clientRequestId}`;
             const existing = records.get(requests.get(key) || "");
@@ -56,33 +61,33 @@ function memoryStore(): PracticeSessionStore {
         }),
         get: vi.fn(async (userId, id) => {
             const record = records.get(id);
-            if (!record || record.userId !== userId) return null;
+            if (!record || !matches(record, userId)) return null;
             return record;
         }),
         claimDispatch: vi.fn(async (userId, id) => {
             const record = records.get(id);
-            if (!record || record.userId !== userId || record.status !== "queued" || (Array.isArray(record.taskRefs) && record.taskRefs.length)) return null;
+            if (!record || !matches(record, userId) || record.status !== "queued" || (Array.isArray(record.taskRefs) && record.taskRefs.length)) return null;
             const claimed = { ...record, status: "running" as const };
             records.set(id, claimed);
             return claimed;
         }),
         resetForRetry: vi.fn(async (userId, id) => {
             const record = records.get(id);
-            if (!record || record.userId !== userId || (record.status !== "failed" && record.status !== "cancelled" && !(record.status === "running" && (!Array.isArray(record.taskRefs) || !record.taskRefs.length)))) return null;
+            if (!record || !matches(record, userId) || (record.status !== "failed" && record.status !== "cancelled" && !(record.status === "running" && (!Array.isArray(record.taskRefs) || !record.taskRefs.length)))) return null;
             const reset = { ...record, status: "queued" as const, taskRefs: [] };
             records.set(id, reset);
             return reset;
         }),
         update: vi.fn(async (userId, id, patch) => {
             const record = records.get(id);
-            if (!record || record.userId !== userId) return null;
+            if (!record || !matches(record, userId)) return null;
             const updated = { ...record, ...patch };
             records.set(id, updated);
             return updated;
         }),
         delete: vi.fn(async (userId, id) => {
             const record = records.get(id);
-            if (!record || record.userId !== userId) return;
+            if (!record || !matches(record, userId)) return;
             records.delete(id);
         }),
     };
