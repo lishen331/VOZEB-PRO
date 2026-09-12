@@ -1,5 +1,7 @@
 # 无限练习独立剧本模块设计
 
+> **已取代：** 本设计已被 `docs/superpowers/specs/2026-09-13-infinite-practice-screenwriter-agent-redesign.md` 取代。后续开发不得继续以本文作为实现依据。
+
 > 日期：2026-09-11
 > 状态：已确认设计，待用户审阅
 > 范围：仅限 VOZEB-PRO 无限练习，不涉及商业闭源生成模块

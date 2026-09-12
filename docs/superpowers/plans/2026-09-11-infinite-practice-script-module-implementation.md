@@ -1,5 +1,8 @@
 # 无限练习独立剧本模块 Implementation Plan
 
+> **已取代：** 本实施计划对应旧版剧本模块，已被 `docs/superpowers/specs/2026-09-13-infinite-practice-screenwriter-agent-redesign.md` 取代。必须先基于新设计编写新的分阶段实施计划，禁止继续执行本文任务。
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在 VOZEB-PRO 的 `open-source-practice` 范围内，实现一个单人专业剧本练习模块，支持从创意或已有剧本开始、分阶段生成、结构化编辑、AI 局部修改、版本管理和标准格式导入导出。
