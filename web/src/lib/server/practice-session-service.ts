@@ -54,18 +54,20 @@ export type PracticeTaskDispatchInput = {
 export type PracticeTaskDispatchResult = { taskId: string; taskType: "text" | "image" | "video" | "audio" };
 export type PracticeModelResolution = { logicalModelId: string; capability: PracticeTaskDispatchInput["capability"]; workflow?: RunningHubWorkflowConfig };
 
+type PracticeSessionScope = PracticeTenantScope | string;
+
 export interface PracticeSessionStore {
-    getByRequest(scope: PracticeTenantScope, clientRequestId: string): Promise<PracticeSessionRecord | null>;
+    getByRequest(scope: PracticeSessionScope, clientRequestId: string): Promise<PracticeSessionRecord | null>;
     create(input: Omit<PracticeSessionRecord, "createdAt" | "updatedAt">): Promise<PracticeSessionRecord>;
-    get(scope: PracticeTenantScope, id: string): Promise<PracticeSessionRecord | null>;
-    claimDispatch(scope: PracticeTenantScope, id: string): Promise<PracticeSessionRecord | null>;
-    resetForRetry(scope: PracticeTenantScope, id: string): Promise<PracticeSessionRecord | null>;
+    get(scope: PracticeSessionScope, id: string): Promise<PracticeSessionRecord | null>;
+    claimDispatch(scope: PracticeSessionScope, id: string): Promise<PracticeSessionRecord | null>;
+    resetForRetry(scope: PracticeSessionScope, id: string): Promise<PracticeSessionRecord | null>;
     update(
-        scope: PracticeTenantScope,
+        scope: PracticeSessionScope,
         id: string,
         patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title" | "mode" | "selectedLogicalModelId" | "errorCode" | "errorMessage">>,
     ): Promise<PracticeSessionRecord | null>;
-    delete(scope: PracticeTenantScope, id: string): Promise<void>;
+    delete(scope: PracticeSessionScope, id: string): Promise<void>;
 }
 
 export type PracticePublicErrorCode =
@@ -86,7 +88,7 @@ export async function createPracticeSessionForUser(
         store?: PracticeSessionStore;
         dispatch?: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>;
         resolveModel?: (module: PracticeModuleKind, requestedLogicalModelId?: string, workflowCode?: string) => Promise<PracticeModelResolution>;
-        resolveProject?: (scope: PracticeTenantScope, kind: PracticeProjectKind, projectId: string) => Promise<{ executionProfile?: string }>;
+        resolveProject?: (scope: PracticeSessionScope, kind: PracticeProjectKind, projectId: string) => Promise<{ executionProfile?: string }>;
     } = {},
 ) {
     const moduleKind = normalizeModule(input.module);
@@ -128,13 +130,13 @@ export async function createPracticeSessionForUser(
     }
     let references: ReturnType<typeof normalizeReferences>;
     try {
-        references = (await validatePracticeReferences(scope, moduleKind, sourcePayload, input.references)) as ReturnType<typeof normalizeReferences>;
+        references = (await validatePracticeReferences(scopeValues(scope), moduleKind, sourcePayload, input.references)) as ReturnType<typeof normalizeReferences>;
     } catch (error) {
         if (error instanceof PracticeReferenceAuthorizationError) throw new PracticeServiceError(error.message, error.status, "PRACTICE_REFERENCE_INVALID");
         throw error;
     }
     const ipReferences = references.filter((reference): reference is IpReference => reference.type === "ip");
-    await validateIpReferences(scope.ownerUserId, ipReferences);
+    await validateIpReferences(scopeValues(scope).ownerUserId, ipReferences);
     const requestedWorkflowCode = cleanOptional(input.workflowCode || sourcePayload.workflowCode, 160);
     const baseNormalized = mode === "workflow" ? normalizePracticeModuleInput(moduleKind, sourcePayload, references) : undefined;
     const resolveModel = deps.resolveModel || defaultResolveModel;
@@ -151,8 +153,8 @@ export async function createPracticeSessionForUser(
             : { ...(normalizedWorkflow?.input || baseNormalized?.input || {}), ...(references.length ? { references } : {}) };
     const created = await store.create({
         id: `practice-session-${nanoid()}`,
-        userId: scope.ownerUserId,
-        schoolId: scope.schoolId,
+        userId: scopeValues(scope).ownerUserId,
+        schoolId: scopeValues(scope).schoolId,
         projectId,
         projectKind,
         module: moduleKind,
@@ -175,19 +177,19 @@ export async function createPracticeSessionForUser(
         status: mode === "manual" ? "draft" : "queued",
     });
     if (mode === "manual") {
-        if (ipReferences.length) await recordIpReferenceUsage(scope.ownerUserId, { targetType: "practice", targetId: created.id, references: ipReferences });
+        if (ipReferences.length) await recordIpReferenceUsage(scopeValues(scope).ownerUserId, { targetType: "practice", targetId: created.id, references: ipReferences });
         return publicSession(created);
     }
     const dispatch = deps.dispatch;
     if (!dispatch) {
-        if (ipReferences.length) await recordIpReferenceUsage(scope.ownerUserId, { targetType: "practice", targetId: created.id, references: ipReferences });
+        if (ipReferences.length) await recordIpReferenceUsage(scopeValues(scope).ownerUserId, { targetType: "practice", targetId: created.id, references: ipReferences });
         return publicSession(created);
     }
     return dispatchQueuedSession(scope, created, clientRequestId, store, dispatch, resolveModel, model);
 }
 
 async function dispatchQueuedSession(
-    scope: PracticeTenantScope,
+    scope: PracticeSessionScope,
     session: PracticeSessionRecord,
     clientRequestId: string,
     store: PracticeSessionStore,
@@ -200,7 +202,7 @@ async function dispatchQueuedSession(
     const storedInput = object(claimed.input);
     let references: ReturnType<typeof normalizeReferences>;
     try {
-        references = (await validatePracticeReferences(scope, claimed.module, storedInput, storedInput.references)) as ReturnType<typeof normalizeReferences>;
+        references = (await validatePracticeReferences(scopeValues(scope), claimed.module, storedInput, storedInput.references)) as ReturnType<typeof normalizeReferences>;
     } catch (error) {
         await store.update(scope, claimed.id, { status: "failed", errorCode: "PRACTICE_REFERENCE_INVALID", errorMessage: publicErrorMessage(error, "PRACTICE_REFERENCE_INVALID") });
         throw error;
@@ -208,8 +210,8 @@ async function dispatchQueuedSession(
     const ipReferences = references.filter((reference): reference is IpReference => reference.type === "ip");
     let model: PracticeModelResolution;
     try {
-        await validateIpReferences(scope.ownerUserId, ipReferences);
-        if (ipReferences.length) await recordIpReferenceUsage(scope.ownerUserId, { targetType: "practice", targetId: claimed.id, references: ipReferences });
+        await validateIpReferences(scopeValues(scope).ownerUserId, ipReferences);
+        if (ipReferences.length) await recordIpReferenceUsage(scopeValues(scope).ownerUserId, { targetType: "practice", targetId: claimed.id, references: ipReferences });
         model = preflightModel || (claimed.workflowCode ? await resolveModel(claimed.module, claimed.selectedLogicalModelId, claimed.workflowCode) : await resolveModel(claimed.module, claimed.selectedLogicalModelId));
     } catch (error) {
         await store.update(scope, claimed.id, { status: "failed", errorCode: publicErrorCode(error, "PRACTICE_MODEL_UNAVAILABLE"), errorMessage: publicErrorMessage(error, "PRACTICE_MODEL_UNAVAILABLE") });
@@ -219,8 +221,8 @@ async function dispatchQueuedSession(
     try {
         task = await dispatch({
             sessionId: claimed.id,
-            userId: scope.ownerUserId,
-            schoolId: scope.schoolId,
+            userId: scopeValues(scope).ownerUserId,
+            schoolId: scopeValues(scope).schoolId,
             module: claimed.module,
             input: Object.fromEntries(Object.entries(storedInput).filter(([key]) => key !== "references")),
             references,
@@ -286,12 +288,12 @@ export async function retryPracticeSessionForUser(
     const storedInput = object(current.input);
     let references: ReturnType<typeof normalizeReferences>;
     try {
-        references = (await validatePracticeReferences(scope, current.module, storedInput, storedInput.references)) as ReturnType<typeof normalizeReferences>;
+        references = (await validatePracticeReferences(scopeValues(scope), current.module, storedInput, storedInput.references)) as ReturnType<typeof normalizeReferences>;
     } catch (error) {
         throw error instanceof PracticeReferenceAuthorizationError ? new PracticeServiceError(error.message, error.status, "PRACTICE_REFERENCE_INVALID") : error;
     }
     await validateIpReferences(
-        scope.ownerUserId,
+        scopeValues(scope).ownerUserId,
         references.filter((reference): reference is IpReference => reference.type === "ip"),
     );
     const reset = await store.resetForRetry(scope, current.id);
@@ -328,7 +330,7 @@ export class PracticeServiceError extends Error {
     }
 }
 
-type PracticeSessionListStore = PracticeSessionStore & { list(scope: PracticeTenantScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> };
+type PracticeSessionListStore = PracticeSessionStore & { list(scope: PracticeSessionScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> };
 
 export async function publicPracticeSession(session: PracticeSessionRecord) {
     const reconciled = await reconcileUnknownSubmission(session);
@@ -424,12 +426,12 @@ async function reconcileUnknownSubmission(session: PracticeSessionRecord, store?
 
 async function findDurableTaskReference(userId: string, schoolId: string | undefined, clientRequestId: string, module: PracticeModuleKind) {
     const taskType = module === "script" ? "text" : ["character", "scene", "prop", "storyboard-image"].includes(module) ? "image" : module === "storyboard-video" ? "video" : "audio";
-    const task = await getStoredGenerationTaskByRequest<{ id?: unknown }>(taskType, userId, clientRequestId, undefined, schoolId);
+    const task = await getStoredGenerationTaskByRequest<{ id?: unknown }>(taskType, userId, clientRequestId);
     return task && typeof task.id === "string" && task.id.trim() ? { taskId: task.id, taskType } : null;
 }
 
-async function resolvePracticeProject(scope: PracticeTenantScope, kind: PracticeProjectKind, projectId: string) {
-    return kind === "drama" ? getDramaProjectForUser(scope.ownerUserId, projectId) : getCanvasProjectForUser(scope.ownerUserId, projectId);
+async function resolvePracticeProject(scope: PracticeSessionScope, kind: PracticeProjectKind, projectId: string) {
+    return kind === "drama" ? getDramaProjectForUser(scopeValues(scope).ownerUserId, projectId) : getCanvasProjectForUser(scopeValues(scope).ownerUserId, projectId);
 }
 
 async function defaultResolveModel(module: PracticeModuleKind, requestedLogicalModelId?: string, requestedWorkflowCode?: string): Promise<PracticeModelResolution> {
@@ -540,12 +542,12 @@ function normalizeDialogueLines(value: unknown) {
         .slice(0, 10);
 }
 
-function defaultPracticeSessionStore(): PracticeSessionStore & { list(scope: PracticeTenantScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
+function defaultPracticeSessionStore(): PracticeSessionStore & { list(scope: PracticeSessionScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
     if (getDatabaseProvider() === "postgres") return postgresSessionStore();
     return fileSessionStore();
 }
 
-function postgresSessionStore(): PracticeSessionStore & { list(scope: PracticeTenantScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
+function postgresSessionStore(): PracticeSessionStore & { list(scope: PracticeSessionScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
     const repository = createPostgresRepositories().practice;
     return {
         getByRequest: (scope, clientRequestId) => repository.getPracticeSessionByClientRequest(scope, clientRequestId),
@@ -564,11 +566,11 @@ function postgresSessionStore(): PracticeSessionStore & { list(scope: PracticeTe
 type FileDatabase = { version: 1; sessions: PracticeSessionRecord[] };
 const FILE_NAME = "practice-sessions.json";
 
-function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeTenantScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
+function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeSessionScope, input: { page: number; pageSize: number; module?: PracticeModuleKind }): Promise<{ items: PracticeSessionRecord[]; total: number }> } {
     const read = () => readJsonDataFile<FileDatabase>(FILE_NAME, { version: 1, sessions: [] });
     return {
         async getByRequest(scope, clientRequestId) {
-            return (await read()).sessions.map(normalizeFileSession).find((item) => item.schoolId === scope.schoolId && item.userId === scope.ownerUserId && item.clientRequestId === clientRequestId) || null;
+            return (await read()).sessions.map(normalizeFileSession).find((item) => item.schoolId === scopeValues(scope).schoolId && item.userId === scopeValues(scope).ownerUserId && item.clientRequestId === clientRequestId) || null;
         },
         async create(input) {
             let record: PracticeSessionRecord;
@@ -580,14 +582,14 @@ function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeTenant
             return record!;
         },
         async get(scope, id) {
-            return (await read()).sessions.map(normalizeFileSession).find((item) => item.schoolId === scope.schoolId && item.userId === scope.ownerUserId && item.id === id) || null;
+            return (await read()).sessions.map(normalizeFileSession).find((item) => item.schoolId === scopeValues(scope).schoolId && item.userId === scopeValues(scope).ownerUserId && item.id === id) || null;
         },
         async claimDispatch(scope, id) {
             let claimed: PracticeSessionRecord | null = null;
             await withJsonDataFileLock(FILE_NAME, async () => {
                 const db = await read();
                 const sessions = db.sessions.map((item) => {
-                    if (item.schoolId !== scope.schoolId || item.userId !== scope.ownerUserId || item.id !== id || item.status !== "queued" || (Array.isArray(item.taskRefs) && item.taskRefs.length)) return item;
+                    if (item.schoolId !== scopeValues(scope).schoolId || item.userId !== scopeValues(scope).ownerUserId || item.id !== id || item.status !== "queued" || (Array.isArray(item.taskRefs) && item.taskRefs.length)) return item;
                     claimed = { ...item, status: "running", updatedAt: new Date().toISOString() };
                     return claimed;
                 });
@@ -601,8 +603,8 @@ function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeTenant
                 const db = await read();
                 const sessions = db.sessions.map((item) => {
                     if (
-                        item.schoolId !== scope.schoolId ||
-                        item.userId !== scope.ownerUserId ||
+                        item.schoolId !== scopeValues(scope).schoolId ||
+                        item.userId !== scopeValues(scope).ownerUserId ||
                         item.id !== id ||
                         (item.status !== "failed" && item.status !== "cancelled" && !(item.status === "running" && (!Array.isArray(item.taskRefs) || !item.taskRefs.length)))
                     )
@@ -618,7 +620,9 @@ function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeTenant
             let updated: PracticeSessionRecord | null = null;
             await withJsonDataFileLock(FILE_NAME, async () => {
                 const db = await read();
-                const sessions = db.sessions.map((item) => (item.schoolId === scope.schoolId && item.userId === scope.ownerUserId && item.id === id ? (updated = { ...item, ...patch, updatedAt: new Date().toISOString() }) : item));
+                const sessions = db.sessions.map((item) =>
+                    item.schoolId === scopeValues(scope).schoolId && item.userId === scopeValues(scope).ownerUserId && item.id === id ? (updated = { ...item, ...patch, updatedAt: new Date().toISOString() }) : item,
+                );
                 await writeJsonDataFile(FILE_NAME, { ...db, sessions });
             });
             return updated;
@@ -626,14 +630,14 @@ function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeTenant
         async delete(scope, id) {
             await withJsonDataFileLock(FILE_NAME, async () => {
                 const db = await read();
-                const sessions = db.sessions.filter((item) => !(item.schoolId === scope.schoolId && item.userId === scope.ownerUserId && item.id === id));
+                const sessions = db.sessions.filter((item) => !(item.schoolId === scopeValues(scope).schoolId && item.userId === scopeValues(scope).ownerUserId && item.id === id));
                 await writeJsonDataFile(FILE_NAME, { ...db, sessions });
             });
         },
         async list(scope, input) {
             const all = (await read()).sessions
                 .map(normalizeFileSession)
-                .filter((item) => item.schoolId === scope.schoolId && item.userId === scope.ownerUserId && (!input.module || item.module === input.module))
+                .filter((item) => item.schoolId === scopeValues(scope).schoolId && item.userId === scopeValues(scope).ownerUserId && (!input.module || item.module === input.module))
                 .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
             return { items: all.slice((input.page - 1) * input.pageSize, input.page * input.pageSize), total: all.length };
         },
@@ -642,6 +646,10 @@ function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeTenant
 
 function normalizeFileSession(value: PracticeSessionRecord): PracticeSessionRecord {
     return { ...value, mode: value.mode === "manual" ? "manual" : "workflow" };
+}
+
+function scopeValues(scope: PracticeSessionScope): PracticeTenantScope {
+    return typeof scope === "string" ? { schoolId: "", ownerUserId: scope } : scope;
 }
 
 function sessionScope(session: Pick<PracticeSessionRecord, "schoolId" | "userId">): PracticeTenantScope {

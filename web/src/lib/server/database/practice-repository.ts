@@ -1,6 +1,13 @@
 import type { QueryExecutor } from "./postgres";
 import type { PageInput, PageResult, PracticeCopyRequestInput, PracticeCopyRequestRecord, PracticeSessionCreateInput, PracticeSessionRecord, PracticeSessionStatus, PullFilmVersionRecord } from "./repository-types";
 import { isoValue, jsonParam, jsonValue, normalizePage, normalizePageSize, optionalIso, optionalString, stringValue } from "./repository-utils";
+import type { PracticeTenantScope } from "../practice-tenant-scope";
+
+type PracticeScope = PracticeTenantScope | string;
+
+function scopeValues(scope: PracticeScope) {
+    return typeof scope === "string" ? { schoolId: "", ownerUserId: scope } : scope;
+}
 
 export type PracticeSessionListInput = PageInput & { projectId?: string; projectKind?: "canvas" | "drama"; module?: PracticeSessionRecord["module"] };
 
@@ -9,13 +16,14 @@ export class PracticeRepository {
 
     async createPracticeSession(input: PracticeSessionCreateInput) {
         const result = await this.db.query(
-            `INSERT INTO practice_sessions (id, user_id, project_id, project_kind, module, mode, title, client_request_id, execution_profile, prompt_json, input_json, task_refs, selected_logical_model_id, workflow_code, workflow_version, workflow_config_fingerprint, workflow_adapter_version, error_code, error_message, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'open-source-practice', $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, $15, $16, $17, $18, $19)
+            `INSERT INTO practice_sessions (id, user_id, school_id, project_id, project_kind, module, mode, title, client_request_id, execution_profile, prompt_json, input_json, task_refs, selected_logical_model_id, workflow_code, workflow_version, workflow_config_fingerprint, workflow_adapter_version, error_code, error_message, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'open-source-practice', $10::jsonb, $11::jsonb, $12::jsonb, $13, $14, $15, $16, $17, $18, $19, $20)
              ON CONFLICT (user_id, client_request_id) DO UPDATE SET updated_at = practice_sessions.updated_at
              RETURNING *`,
             [
                 input.id,
                 input.userId,
+                input.schoolId || null,
                 input.projectId || null,
                 input.projectKind,
                 input.module,
@@ -38,37 +46,41 @@ export class PracticeRepository {
         return mapPracticeSession(result.rows[0]);
     }
 
-    async getPracticeSessionByClientRequest(userId: string, clientRequestId: string) {
-        const result = await this.db.query("SELECT * FROM practice_sessions WHERE user_id = $1 AND client_request_id = $2", [userId, clientRequestId]);
+    async getPracticeSessionByClientRequest(scope: PracticeScope, clientRequestId: string) {
+        const { schoolId, ownerUserId } = scopeValues(scope);
+        const result = await this.db.query("SELECT * FROM practice_sessions WHERE ($1::text = '' OR school_id = $1) AND user_id = $2 AND client_request_id = $3", [schoolId, ownerUserId, clientRequestId]);
         return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
     }
 
-    async claimPracticeSessionDispatch(userId: string, id: string) {
+    async claimPracticeSessionDispatch(scope: PracticeScope, id: string) {
+        const { schoolId, ownerUserId } = scopeValues(scope);
         const result = await this.db.query(
             `UPDATE practice_sessions
              SET status = 'running'
-             WHERE user_id = $1 AND id = $2 AND status = 'queued' AND task_refs = '[]'::jsonb
+             WHERE ($1::text = '' OR school_id = $1) AND user_id = $2 AND id = $3 AND status = 'queued' AND task_refs = '[]'::jsonb
              RETURNING *`,
-            [userId, id],
+            [schoolId, ownerUserId, id],
         );
         return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
     }
 
-    async resetPracticeSessionForRetry(userId: string, id: string) {
+    async resetPracticeSessionForRetry(scope: PracticeScope, id: string) {
+        const { schoolId, ownerUserId } = scopeValues(scope);
         const result = await this.db.query(
             `UPDATE practice_sessions
              SET status = 'queued', task_refs = '[]'::jsonb, error_code = NULL, error_message = NULL
-             WHERE user_id = $1 AND id = $2 AND (status IN ('failed', 'cancelled') OR (status = 'running' AND task_refs = '[]'::jsonb))
+             WHERE ($1::text = '' OR school_id = $1) AND user_id = $2 AND id = $3 AND (status IN ('failed', 'cancelled') OR (status = 'running' AND task_refs = '[]'::jsonb))
              RETURNING *`,
-            [userId, id],
+            [schoolId, ownerUserId, id],
         );
         return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
     }
 
-    async updatePracticeSession(userId: string, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title" | "selectedLogicalModelId" | "errorCode" | "errorMessage">>) {
-        const current = await this.getPracticeSessionForUser(userId, id);
+    async updatePracticeSession(scope: PracticeScope, id: string, patch: Partial<Pick<PracticeSessionRecord, "status" | "taskRefs" | "prompt" | "input" | "title" | "selectedLogicalModelId" | "errorCode" | "errorMessage">>) {
+        const { schoolId, ownerUserId } = scopeValues(scope);
+        const current = await this.getPracticeSessionForUser(scope, id);
         if (!current) return null;
-        const values: unknown[] = [userId, id];
+        const values: unknown[] = [schoolId, ownerUserId, id];
         const assignments: string[] = [];
         const add = (column: string, value: unknown, cast = "") => {
             values.push(value);
@@ -86,36 +98,38 @@ export class PracticeRepository {
         const result = await this.db.query(
             `UPDATE practice_sessions
              SET ${assignments.join(", ")}
-             WHERE user_id = $1 AND id = $2
+             WHERE ($1::text = '' OR school_id = $1) AND user_id = $2 AND id = $3
              RETURNING *`,
             values,
         );
         return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
     }
 
-    async getPracticeSessionForUser(userId: string, id: string) {
-        const result = await this.db.query("SELECT * FROM practice_sessions WHERE user_id = $1 AND id = $2", [userId, id]);
+    async getPracticeSessionForUser(scope: PracticeScope, id: string) {
+        const { schoolId, ownerUserId } = scopeValues(scope);
+        const result = await this.db.query("SELECT * FROM practice_sessions WHERE ($1::text = '' OR school_id = $1) AND user_id = $2 AND id = $3", [schoolId, ownerUserId, id]);
         return result.rows[0] ? mapPracticeSession(result.rows[0]) : null;
     }
 
-    async listPracticeSessionsForUser(userId: string, input: PracticeSessionListInput = {}): Promise<PageResult<PracticeSessionRecord>> {
+    async listPracticeSessionsForUser(scope: PracticeScope, input: PracticeSessionListInput = {}): Promise<PageResult<PracticeSessionRecord>> {
+        const { schoolId, ownerUserId } = scopeValues(scope);
         const page = normalizePage(input.page);
         const pageSize = normalizePageSize(input.pageSize);
         const result = await this.db.query(
             `WITH filtered AS (
                 SELECT * FROM practice_sessions
-                WHERE user_id = $1
-                  AND ($2::text IS NULL OR project_id = $2)
-                  AND ($3::text IS NULL OR project_kind = $3)
-                  AND ($4::text IS NULL OR module = $4)
+                WHERE ($1::text = '' OR school_id = $1) AND user_id = $2
+                  AND ($3::text IS NULL OR project_id = $3)
+                  AND ($4::text IS NULL OR project_kind = $4)
+                  AND ($5::text IS NULL OR module = $5)
             ), page_items AS (
-                SELECT * FROM filtered ORDER BY updated_at DESC, id ASC LIMIT $5 OFFSET $6
+                SELECT * FROM filtered ORDER BY updated_at DESC, id ASC LIMIT $6 OFFSET $7
             )
             SELECT page_items.*, totals.total_count
             FROM (SELECT count(*)::integer AS total_count FROM filtered) totals
             LEFT JOIN page_items ON TRUE
             ORDER BY page_items.updated_at DESC NULLS LAST, page_items.id ASC`,
-            [userId, input.projectId || null, input.projectKind || null, input.module || null, pageSize, (page - 1) * pageSize],
+            [schoolId, ownerUserId, input.projectId || null, input.projectKind || null, input.module || null, pageSize, (page - 1) * pageSize],
         );
         return {
             items: result.rows.filter((row) => row.id).map(mapPracticeSession),
@@ -125,8 +139,9 @@ export class PracticeRepository {
         };
     }
 
-    async deletePracticeSession(userId: string, id: string): Promise<void> {
-        await this.db.query("DELETE FROM practice_sessions WHERE user_id = $1 AND id = $2", [userId, id]);
+    async deletePracticeSession(scope: PracticeScope, id: string): Promise<void> {
+        const { schoolId, ownerUserId } = scopeValues(scope);
+        await this.db.query("DELETE FROM practice_sessions WHERE ($1::text = '' OR school_id = $1) AND user_id = $2 AND id = $3", [schoolId, ownerUserId, id]);
     }
 
     async claimCopyRequest(input: PracticeCopyRequestInput) {
@@ -202,6 +217,7 @@ function mapPracticeSession(row: Record<string, unknown>): PracticeSessionRecord
     return {
         id: stringValue(row.id),
         userId: stringValue(row.user_id),
+        ...(optionalString(row.school_id) ? { schoolId: optionalString(row.school_id) } : {}),
         projectId: optionalString(row.project_id),
         projectKind: row.project_kind === "drama" ? "drama" : "canvas",
         module: practiceModule(row.module),
