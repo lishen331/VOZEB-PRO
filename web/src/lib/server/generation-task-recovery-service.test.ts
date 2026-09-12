@@ -39,6 +39,8 @@ const mocks = vi.hoisted(() => ({
     getAuthSettings: vi.fn(),
     validateGenerationContextIpReferences: vi.fn(),
     advanceDramaLabWorkflow: vi.fn(),
+    withGenerationConcurrencyLimit: vi.fn(),
+    generationCapacityRetryAfterSeconds: vi.fn(),
 }));
 
 vi.mock("@/lib/server/generation-task-scheduler", () => ({
@@ -47,6 +49,8 @@ vi.mock("@/lib/server/generation-task-scheduler", () => ({
     renewGenerationTaskLeases: mocks.renew,
     scheduleGenerationTask: mocks.schedule,
     generationTaskNextPollAt: vi.fn(() => 20_000),
+    withGenerationConcurrencyLimit: mocks.withGenerationConcurrencyLimit,
+    generationCapacityRetryAfterSeconds: mocks.generationCapacityRetryAfterSeconds,
 }));
 vi.mock("@/lib/server/agent-run-executor", () => ({ executeAgentRun: mocks.executeAgentRun }));
 vi.mock("@/lib/server/agent-run-execution", () => ({ processAgentRunReview: mocks.processAgentRunReview }));
@@ -94,7 +98,9 @@ describe("generation task recovery service", () => {
         vi.clearAllMocks();
         mocks.release.mockResolvedValue({});
         mocks.renew.mockResolvedValue(1);
-        mocks.getAuthSettings.mockResolvedValue({ dataLifecycle: { maintenanceBatchSize: 20 } });
+        mocks.getAuthSettings.mockResolvedValue({ dataLifecycle: { maintenanceBatchSize: 20 }, generationConcurrency: { image: 1, video: 1, audio: 1, text: 1 } });
+        mocks.withGenerationConcurrencyLimit.mockImplementation(async (_userId, _type, _staleMs, _limit, handler) => handler());
+        mocks.generationCapacityRetryAfterSeconds.mockResolvedValue(undefined);
         mocks.validateGenerationContextIpReferences.mockResolvedValue(undefined);
     });
 
@@ -103,6 +109,25 @@ describe("generation task recovery service", () => {
 
         await expect(runGenerationTaskRecoveryBatch({ origin: "http://internal" })).resolves.toEqual({ claimed: 0, pending: 0, resultReady: 0, completed: 0, failed: 0, needsReview: 0, deferred: 0 });
         expect(mocks.release).not.toHaveBeenCalled();
+    });
+
+    it("keeps a queued practice image task queued when image capacity is full", async () => {
+        const task = {
+            id: "queued-practice-image",
+            userId: "user-one",
+            status: "pending",
+            executionProfile: "open-source-practice",
+            config: { channelId: "channel-image", apiFormat: "openai", advancedConfig: { protocol: "runninghub" } },
+        };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: task.id, type: "image", status: "pending", executionProfile: "open-source-practice", executionPhase: "queued" }]);
+        mocks.getImageTask.mockResolvedValue(task);
+        mocks.withGenerationConcurrencyLimit.mockResolvedValueOnce(null);
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.createImageTaskUpstreamStep).not.toHaveBeenCalled();
+        expect(mocks.release).toHaveBeenCalledWith("image", task.id, "worker-one", expect.objectContaining({ executionPhase: "queued", nextPollAt: expect.any(Number), lastUpstreamStatus: "capacity_wait" }));
+        expect(result).toMatchObject({ claimed: 1, pending: 1, failed: 0 });
     });
 
     it("advances a durable Drama Lab workflow parent from the shared worker", async () => {

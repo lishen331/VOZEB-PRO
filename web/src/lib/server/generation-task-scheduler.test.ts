@@ -103,6 +103,18 @@ describe("generation task scheduler", () => {
         await expect(claimDueGenerationTasks({ workerId: "review-worker", now: 1_000 })).resolves.toEqual([expect.objectContaining({ id: "review", status: "success", executionPhase: "review_pending" })]);
     });
 
+    it("claims queued generation tasks in created order", async () => {
+        mocks.records = [
+            { ...record("queued-new", 900, "queued"), createdAt: 200 },
+            { ...record("queued-old", 900, "queued"), createdAt: 100 },
+        ];
+
+        await expect(claimDueGenerationTasks({ workerId: "worker-one", now: 1_000, limit: 2 })).resolves.toEqual([
+            expect.objectContaining({ id: "queued-old", executionPhase: "queued" }),
+            expect.objectContaining({ id: "queued-new", executionPhase: "queued" }),
+        ]);
+    });
+
     it("uses SKIP LOCKED and an owner-qualified release in PostgreSQL", async () => {
         mocks.provider = "postgres";
         mocks.transactionQuery.mockResolvedValueOnce({ rows: [] });
@@ -129,14 +141,14 @@ describe("generation task scheduler", () => {
     });
 });
 
-function record(id: string, nextPollAt: number) {
+function record(id: string, nextPollAt: number, executionPhase = "polling") {
     return {
         id,
         userId: "user-one",
         type: "image",
         status: "running",
         payload: {},
-        executionPhase: "polling",
+        executionPhase,
         nextPollAt,
         createdAt: 100,
         updatedAt: 100,

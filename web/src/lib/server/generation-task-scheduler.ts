@@ -1,7 +1,9 @@
 import { getDatabaseProvider, ensurePostgresSchema, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
-import { listStoredGenerationTaskRecords, withGenerationTaskFileMutation, type GenerationTaskType, type StoredGenerationTaskRecord } from "@/lib/server/generation-task-store";
+import { generationCapacityRetryAfterSeconds, listStoredGenerationTaskRecords, withGenerationConcurrencyLimit, withGenerationTaskFileMutation, type GenerationTaskType, type StoredGenerationTaskRecord } from "@/lib/server/generation-task-store";
+export { generationCapacityRetryAfterSeconds, withGenerationConcurrencyLimit };
 
-export type GenerationTaskExecutionPhase = "created" | "submitting" | "submitted" | "polling" | "result_ready" | "persisting" | "cancel_requested" | "cancel_polling" | "needs_review" | "review_pending" | "reviewing" | "review_unavailable" | "completed";
+export type GenerationTaskExecutionPhase =
+    "queued" | "created" | "submitting" | "submitted" | "polling" | "result_ready" | "persisting" | "cancel_requested" | "cancel_polling" | "needs_review" | "review_pending" | "reviewing" | "review_unavailable" | "completed";
 
 export type GenerationTaskLease = Pick<
     StoredGenerationTaskRecord,
@@ -33,7 +35,7 @@ type GenerationTaskScheduleOptions = { cancellation?: boolean; resetUpstreamIden
 // same lease/heartbeat machinery as media tasks, while their domain executor
 // advances deterministic child steps.
 const SCHEDULABLE_TYPES = new Set<GenerationTaskType>(["image", "video", "audio", "text", "agent", "render"]);
-const ACTIVE_PHASES = new Set<GenerationTaskExecutionPhase>(["created", "submitting", "submitted", "polling", "result_ready", "persisting"]);
+const ACTIVE_PHASES = new Set<GenerationTaskExecutionPhase>(["queued", "created", "submitting", "submitted", "polling", "result_ready", "persisting"]);
 const REVIEW_PHASES = new Set<GenerationTaskExecutionPhase>(["review_pending", "reviewing"]);
 const CANCELLATION_PHASES = new Set<GenerationTaskExecutionPhase>(["cancel_requested", "cancel_polling"]);
 
@@ -82,7 +84,7 @@ export async function claimDueGenerationTasks(input: { workerId: string; now?: n
                     SELECT id
                     FROM generation_tasks
                     WHERE ((status IN ('pending', 'running')
-                      AND execution_phase IN ('created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting'))
+                      AND execution_phase IN ('queued', 'created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting'))
                       OR (task_type = 'text' AND status = 'success' AND payload->'storyBatch'->>'status' IN ('pending', 'persisting'))
                       OR (task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing'))
                       OR (status = 'cancelled' AND execution_phase IN ('cancel_requested', 'cancel_polling')))
@@ -91,7 +93,7 @@ export async function claimDueGenerationTasks(input: { workerId: string; now?: n
                       AND next_poll_at IS NOT NULL AND next_poll_at <= $1
                       AND (lease_until IS NULL OR lease_until <= $1)
                       AND (cardinality($4::text[]) = 0 OR id = ANY($4::text[]))
-                    ORDER BY next_poll_at ASC, id ASC
+                    ORDER BY next_poll_at ASC, created_at ASC, id ASC
                     FOR UPDATE SKIP LOCKED
                     LIMIT $2
                  )
@@ -108,11 +110,11 @@ export async function claimDueGenerationTasks(input: { workerId: string; now?: n
     return withGenerationTaskFileMutation(async (tasks) => {
         const eligible = tasks
             .filter((task) => isDue(task, now, taskIds))
-            .sort((a, b) => Number(a.nextPollAt || 0) - Number(b.nextPollAt || 0) || a.id.localeCompare(b.id))
+            .sort((a, b) => Number(a.nextPollAt || 0) - Number(b.nextPollAt || 0) || a.createdAt - b.createdAt || a.id.localeCompare(b.id))
             .slice(0, limit);
         const claimedIds = new Set(eligible.map((task) => task.id));
         const next = tasks.map((task) => (claimedIds.has(task.id) ? { ...task, workerId, leaseUntil, lastHeartbeatAt: now } : task));
-        return { tasks: next, result: next.filter((task) => claimedIds.has(task.id)).map(toLease) };
+        return { tasks: next, result: eligible.map((task) => toLease(next.find((item) => item.id === task.id) || task)) };
     });
 }
 
@@ -123,7 +125,7 @@ export async function getNextGenerationTaskDueAt(now = Date.now()) {
             `SELECT min(GREATEST(next_poll_at, COALESCE(lease_until, next_poll_at))) AS next_due_at
              FROM generation_tasks
              WHERE ((status IN ('pending', 'running')
-                      AND execution_phase IN ('created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting'))
+                      AND execution_phase IN ('queued', 'created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting'))
                     OR (task_type = 'text' AND status = 'success' AND payload->'storyBatch'->>'status' IN ('pending', 'persisting'))
                     OR (task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing'))
                     OR (status = 'cancelled' AND execution_phase IN ('cancel_requested', 'cancel_polling')))
@@ -332,6 +334,7 @@ function databaseTime(value: unknown) {
 
 function isPhase(value: unknown): value is GenerationTaskExecutionPhase {
     return (
+        value === "queued" ||
         value === "created" ||
         value === "submitting" ||
         value === "submitted" ||

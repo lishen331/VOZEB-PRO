@@ -1555,6 +1555,7 @@ function isTaskSurface(value: unknown): value is NonNullable<GenerationTaskConte
 
 function isExecutionPhase(value: unknown): value is NonNullable<StoredGenerationTaskRecord["executionPhase"]> {
     return (
+        value === "queued" ||
         value === "created" ||
         value === "submitting" ||
         value === "submitted" ||

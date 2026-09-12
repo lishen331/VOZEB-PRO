@@ -19,6 +19,7 @@ vi.mock("@/lib/server/data-adapter", () => ({
 import { getDatabaseProvider, postgresQuery, withPostgresTransaction } from "@/lib/server/database";
 import {
     cleanupExpiredStoredGenerationTasks,
+    countActiveStoredGenerationTasks,
     createStoredGenerationTask,
     getStoredGenerationTask,
     getStoredGenerationTaskRecord,
@@ -181,6 +182,25 @@ describe("mutateStoredGenerationTask", () => {
         ).rejects.toThrow("upstream failed");
 
         expect(vi.mocked(postgresQuery)).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM generation_concurrency_reservations"), ["user", "video", "request-two"]);
+    });
+
+    it("does not count queued tasks toward active generation capacity", async () => {
+        const now = Date.now();
+        mocks.records = [
+            {
+                id: "image-queued",
+                userId: "user",
+                type: "image",
+                status: "pending",
+                executionPhase: "queued",
+                payload: {},
+                createdAt: now,
+                updatedAt: now,
+                expiresAt: now + 60_000,
+            },
+        ];
+
+        await expect(countActiveStoredGenerationTasks("user", "image", 60_000)).resolves.toBe(0);
     });
 
     it("does not let tasks awaiting manual review consume generation capacity", async () => {

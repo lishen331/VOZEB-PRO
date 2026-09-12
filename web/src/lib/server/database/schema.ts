@@ -346,7 +346,7 @@ ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS workflow_adapter_version i
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS business_code text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS task_origin text NOT NULL DEFAULT 'user';
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_execution_phase;
-ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_execution_phase CHECK (execution_phase IN ('created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting', 'cancel_requested', 'cancel_polling', 'needs_review', 'review_pending', 'reviewing', 'review_unavailable', 'completed'));
+ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_execution_phase CHECK (execution_phase IN ('queued', 'created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting', 'cancel_requested', 'cancel_polling', 'needs_review', 'review_pending', 'reviewing', 'review_unavailable', 'completed'));
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_execution_profile;
 ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_execution_profile CHECK (execution_profile IN ('production', 'open-source-practice'));
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_task_origin;
@@ -360,7 +360,7 @@ CREATE INDEX IF NOT EXISTS generation_tasks_run_idx ON generation_tasks (run_id,
 CREATE INDEX IF NOT EXISTS generation_tasks_workflow_idx ON generation_tasks (workflow_key, workflow_version, updated_at DESC) WHERE workflow_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS generation_tasks_user_project_idx ON generation_tasks (user_id, project_id, task_type, status) WHERE project_id IS NOT NULL;
 DROP INDEX IF EXISTS generation_tasks_recovery_due_idx;
-CREATE INDEX generation_tasks_recovery_due_idx ON generation_tasks (next_poll_at, lease_until, id) WHERE (status IN ('pending', 'running') AND execution_phase IN ('created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting')) OR (status = 'cancelled' AND execution_phase IN ('cancel_requested', 'cancel_polling')) OR (task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing'));
+CREATE INDEX generation_tasks_recovery_due_idx ON generation_tasks (next_poll_at, lease_until, id) WHERE (status IN ('pending', 'running') AND execution_phase IN ('queued', 'created', 'submitting', 'submitted', 'polling', 'result_ready', 'persisting')) OR (status = 'cancelled' AND execution_phase IN ('cancel_requested', 'cancel_polling')) OR (task_type = 'agent' AND status = 'success' AND execution_phase IN ('review_pending', 'reviewing'));
 
 CREATE TABLE IF NOT EXISTS generation_concurrency_reservations (
     user_id text NOT NULL,
