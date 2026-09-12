@@ -52,16 +52,40 @@ export async function runGenerationTaskRecoveryBatch(input: { origin: string; pu
 }
 
 async function processGenerationTaskLease(lease: GenerationTaskLease, workerId: string, origin: string, publicOrigin: string, cookie: string, userRequested: boolean): Promise<RecoveryResult> {
+    if (lease.status === "cancelled" && isCancellationExecutionPhase(lease.executionPhase)) return processCancelledLease(lease, workerId, origin);
     if (lease.executionProfile === "open-source-practice" && lease.executionPhase === "queued" && ["image", "video", "audio", "text"].includes(lease.type)) {
         const settings = await getAuthSettings();
         const limit = Number(settings.generationConcurrency?.[lease.type as "image" | "video" | "audio" | "text"] || 1);
-        const admitted = await withGenerationConcurrencyLimit(lease.userId, lease.type, 15 * 60_000, limit, async () => true, lease.id, `queue:${lease.id}`);
-        if (!admitted) {
-            await releaseGenerationTaskLease(lease.type, lease.id, workerId, { executionPhase: "queued", nextPollAt: generationTaskNextPollAt({ now: Date.now() }), lastUpstreamStatus: "capacity_wait" });
+        const admitted = await withGenerationConcurrencyLimit(
+            lease.userId,
+            lease.type,
+            practiceQueueStaleMs(lease.type),
+            limit,
+            () => processGenerationTaskLeaseCore(lease, workerId, origin, publicOrigin, cookie, userRequested),
+            lease.id,
+            "practice-queue:" + lease.id,
+        );
+        if (admitted === null) {
+            await releaseGenerationTaskLease(lease.type, lease.id, workerId, {
+                executionPhase: "queued",
+                nextPollAt: generationTaskNextPollAt({ now: Date.now() }),
+                lastPollAt: Date.now(),
+                lastUpstreamStatus: "capacity_wait",
+            });
             return "pending";
         }
+        return admitted;
     }
-    if (lease.status === "cancelled" && isCancellationExecutionPhase(lease.executionPhase)) return processCancelledLease(lease, workerId, origin);
+    return processGenerationTaskLeaseCore(lease, workerId, origin, publicOrigin, cookie, userRequested);
+}
+
+function practiceQueueStaleMs(type: GenerationTaskLease["type"]) {
+    if (type === "video") return 30 * 60_000;
+    if (type === "text") return 5 * 60_000;
+    return 10 * 60_000;
+}
+
+async function processGenerationTaskLeaseCore(lease: GenerationTaskLease, workerId: string, origin: string, publicOrigin: string, cookie: string, userRequested: boolean): Promise<RecoveryResult> {
     if (lease.type === "text") return processTextLease(lease, workerId, origin, cookie, userRequested);
     if (lease.type === "image") return processImageLease(lease, workerId, origin, publicOrigin, cookie, userRequested);
     if (lease.type === "audio") return processAudioLease(lease, workerId, origin, cookie, userRequested);
