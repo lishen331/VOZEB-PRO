@@ -21,7 +21,7 @@
 - 班级停用后历史业务允许只读，新增教学写入全部拒绝。
 - 不改变正式 production 项目的既有个人所有权和计费规则。
 - 无限练习页面不做视觉重做；只有为传递服务端学校作用域所需的最小请求字段或错误处理调整才允许修改调用方。
-- PostgreSQL 已部署环境使用有序幂等升级：已有表先 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`，再清理、回填、约束和索引；不得删库或重建数据卷。
+- PostgreSQL 已部署环境使用有序幂等升级：已有表先 `ALTER TABLE 每张现有表 ADD COLUMN IF NOT EXISTS`，再清理、回填、约束和索引；不得删库或重建数据卷。
 - 共享 PostgreSQL 测试文件使用 `--no-file-parallelism`。
 - 中文源码、脚本和文档保存为 UTF-8；不得覆盖无关未提交改动。
 
@@ -32,7 +32,7 @@
 - Modify: `web/src/lib/server/school-tenant-service.ts`
 - Modify: `web/src/lib/server/school-tenant-service.test.ts`
 - Modify: `web/src/app/api/school/members/[id]/route.ts`
-- Create: `web/src/app/api/school/members/[id]/route.test.ts`
+- Modify: `web/src/app/api/school/members/route.test.ts`
 - Modify: `web/src/lib/server/school-member-provisioning-service.ts`
 - Modify: `web/src/app/api/school/members/import/route.ts`
 - Modify: `web/src/app/api/school/members/import/route.test.ts`
@@ -63,6 +63,7 @@
 - Modify: `web/src/lib/server/ip-library-download-service.ts`
 - Modify: `web/src/lib/server/ip-library-service.ts`
 - Modify: `web/src/lib/server/ip-library-reference-service.ts`
+- Modify: `web/src/lib/server/ip-library-file-repository.test.ts`
 - Modify: `web/src/lib/server/database/ip-library-repository.ts`
 - Modify: `web/src/lib/server/ip-library-file-repository.test.ts`
 - Modify: `web/src/lib/server/school-ip-library-service.test.ts`
@@ -116,7 +117,7 @@
 - Modify: `web/src/lib/server/school-tenant-service.ts`
 - Modify: `web/src/lib/server/school-tenant-service.test.ts`
 - Modify: `web/src/app/api/school/members/[id]/route.ts`
-- Create: `web/src/app/api/school/members/[id]/route.test.ts`
+- Modify: `web/src/app/api/school/members/route.test.ts`
 - Modify: `web/src/app/(user)/school/school-administration.tsx`
 - Modify: `web/src/app/(user)/school/school-administration.test.tsx`
 
@@ -147,7 +148,7 @@ await expect(updateSchoolMember("user-a", "membership-a", { permissions: [], upd
 - [ ] **Step 2：运行失败测试**
 
 ```powershell
-pnpm --dir web exec vitest run --no-file-parallelism "src/lib/server/school-tenant-service.test.ts" "src/app/api/school/members/[id]/route.test.ts"
+pnpm --dir web exec vitest run --no-file-parallelism "src/lib/server/school-tenant-service.test.ts" "src/app/api/school/members/route.test.ts"
 ```
 
 Expected: 新增自我操作断言失败。
@@ -163,7 +164,7 @@ Expected: 新增自我操作断言失败。
 - [ ] **Step 5：运行验证**
 
 ```powershell
-pnpm --dir web exec vitest run --no-file-parallelism "src/lib/server/school-tenant-service.test.ts" "src/app/api/school/members/[id]/route.test.ts"
+pnpm --dir web exec vitest run --no-file-parallelism "src/lib/server/school-tenant-service.test.ts" "src/app/api/school/members/route.test.ts"
 pnpm --dir web exec vitest run "src/app/(user)/school/school-administration.test.tsx"
 ```
 
@@ -336,13 +337,16 @@ pnpm --dir web run typecheck
 - Modify: `web/src/lib/server/ip-library-download-service.test.ts`
 - Modify: `web/src/lib/server/ip-library-service.test.ts`
 - Modify: `web/src/lib/server/database/schema-ip-library.ts`
-- Modify: existing route tests under `web/src/app/api/ip-library/`
+- Modify: `web/src/app/api/ip-library/route.test.ts`
+- Modify: `web/src/app/api/ip-library/[id]/route.test.ts`
+- Modify: `web/src/app/api/ip-library/[id]/download/route.test.ts`
+- Modify: `web/src/app/api/ip-library/[id]/items/[itemId]/media/route.test.ts`
 
 **接口契约：**
 
 - `requireVisibleIp` 继续返回当前用户可见的子 IP 和当前学校上下文。
 - 学校用户请求 IP 包级封面时，不能无条件读取 `ip_packages.cover_file_id`。
-- 如果全局封面属于当前可见子 IP，继续返回该封面；否则按 `subIp.sortOrder, createdAt, id` 选择第一个可见子 IP 的 ready 图片封面；没有可见封面时返回默认占位。
+- 如果全局封面属于当前可见子 IP，继续返回该封面；否则按 `sortOrder, createdAt, id` 选择第一个可见子 IP 的 ready 图片封面；没有可见封面时返回默认占位。
 - 下载记录的 `schoolId` 由当前 active school context 推导；请求体和 query 的学校字段全部忽略。
 
 - [ ] **Step 1：写失败测试**
@@ -386,7 +390,7 @@ pnpm --dir web run typecheck
 **Files:**
 - Modify: `web/src/lib/server/ip-library-service.ts`
 - Modify: `web/src/lib/server/ip-library-reference-service.ts`
-- Modify: `web/src/lib/server/database/ip-library-repository.ts` only for narrow target lookup methods
+- Modify: `web/src/lib/server/database/ip-library-repository.ts` to add narrow target lookup methods
 - Modify: `web/src/lib/server/ip-library-service.test.ts`
 - Create: `web/src/lib/server/ip-library-reference-service.test.ts`
 
@@ -483,7 +487,7 @@ Expected: 当前 practice 主记录没有完整 school scope，读取条件主�
 
 - [ ] **Step 3：按顺序升级 Schema**
 
-对现有表先执行 `ALTER TABLE <existing_table> ADD COLUMN IF NOT EXISTS school_id text`，再执行 practice 存量清理、回填/约束、索引。需要覆盖：
+对下列每张现有表分别执行 `ALTER TABLE 表名 ADD COLUMN IF NOT EXISTS school_id text`，再执行 practice 存量清理、回填/约束和索引：
 
 ```text
 practice_sessions
@@ -539,6 +543,7 @@ git commit -m "fix(practice): persist school tenant scope"
 - Modify: `web/src/lib/server/local-media-registry.ts`
 - Modify: `web/src/lib/server/reference-asset-store.ts`
 - Modify: `web/src/lib/server/ip-library-reference-service.ts`
+- Modify: `web/src/lib/server/ip-library-file-repository.test.ts`
 - Modify: existing practice route/service tests
 
 **接口契约：**
