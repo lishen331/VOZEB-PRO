@@ -6,7 +6,7 @@ import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generatio
 
 import { Button, Image, Input, Modal, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
-import { Check, Edit2, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
+import { Check, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useMemo, useRef, useState, type RefObject } from "react";
 
@@ -352,6 +352,22 @@ export function DramaLabVisualAssetsPanel({
         setEditor({ kind, asset: createAsset(kind, { id: "", name: "", description: "", profile: { ...EMPTY_PROFILE } }) });
     };
 
+    const deleteAsset = (assetKind: AssetKind, asset: VisualAsset) => {
+        Modal.confirm({
+            title: "删除确认",
+            content: `确定删除「${assetName(asset)}」？`,
+            okText: "删除",
+            cancelText: "取消",
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                const saved = await replaceAssetsFor(assetKind, (current) => current.filter((item) => item.id !== asset.id));
+                if (!saved) throw new Error("项目保存失败");
+                if (editor?.asset?.id === asset.id) setEditor(undefined);
+                messageApi.success(`已删除${ASSET_META[assetKind].label}：${assetName(asset)}`);
+            },
+        });
+    };
+
     const regenerateShot = async (shot: Shot) => {
         const requestKey = `shot:${shot.id}`;
         setBusyKey(requestKey);
@@ -403,13 +419,35 @@ export function DramaLabVisualAssetsPanel({
                                         const meta = ASSET_META[assetKind];
                                         const Icon = meta.icon;
                                         return (
-                                            <article key={asset.id} className="flex h-[430px] flex-col overflow-hidden rounded-md border border-border bg-card" data-drama-lab-asset-card={asset.id}>
+                                            <article
+                                                key={asset.id}
+                                                className="group relative flex h-[430px] cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-card transition-colors hover:border-primary/50"
+                                                data-drama-lab-asset-card={asset.id}
+                                                onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })}
+                                            >
+                                                <Button
+                                                    type="text"
+                                                    danger
+                                                    size="small"
+                                                    shape="circle"
+                                                    className="absolute right-2 top-2 z-10 invisible bg-background/90 shadow-sm group-hover:visible"
+                                                    icon={<Trash2 className="size-4" />}
+                                                    aria-label={`删除${meta.label}`}
+                                                    title={`删除${meta.label}`}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        deleteAsset(assetKind, asset);
+                                                    }}
+                                                />
                                                 <div className="relative flex h-44 shrink-0 items-center justify-center overflow-hidden bg-muted/50">
                                                     {primary?.url ? (
                                                         <button
                                                             type="button"
                                                             className="flex size-full items-center justify-center"
-                                                            onClick={() => setPreviewImage({ url: imagePreviewUrl(primary.url, 1920), alt: `${asset.name}主参考图` })}
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                setPreviewImage({ url: imagePreviewUrl(primary.url, 1920), alt: `${asset.name}主参考图` });
+                                                            }}
                                                             aria-label={`查看${asset.name}主参考图`}
                                                         >
                                                             <img src={imagePreviewUrl(primary.url, 640)} alt={`${asset.name}主参考图`} className="block max-h-full max-w-full object-contain" />
@@ -425,19 +463,42 @@ export function DramaLabVisualAssetsPanel({
                                                         <h3 className="min-w-0 flex-1 truncate font-medium" title={asset.name}>
                                                             {asset.name}
                                                         </h3>
-                                                        <Button size="small" icon={<Edit2 className="size-3.5" />} onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })} aria-label="编辑设定">
-                                                            编辑设定
-                                                        </Button>
                                                     </div>
                                                     <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">{asset.description || "未填写文字设定"}</p>
                                                     <div className="mt-2 flex flex-nowrap items-center gap-1" aria-label="资产操作">
-                                                        <Button size="small" className="!px-2 !text-xs" icon={<Sparkles className="size-3.5" />} loading={busyKey === `asset:${asset.id}`} onClick={() => void generateAssetReference(asset)}>
+                                                        <Button
+                                                            size="small"
+                                                            className="!px-2 !text-xs"
+                                                            icon={<Sparkles className="size-3.5" />}
+                                                            loading={busyKey === `asset:${asset.id}`}
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                void generateAssetReference(asset);
+                                                            }}
+                                                        >
                                                             AI 生图
                                                         </Button>
-                                                        <Button size="small" className="!px-2 !text-xs" icon={<Upload className="size-3.5" />} onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })}>
+                                                        <Button
+                                                            size="small"
+                                                            className="!px-2 !text-xs"
+                                                            icon={<Upload className="size-3.5" />}
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                setEditor({ kind: assetKind, asset: cloneAsset(asset) });
+                                                            }}
+                                                        >
                                                             上传
                                                         </Button>
-                                                        <Button size="small" className="!px-2 !text-xs" icon={<LibraryBig className="size-3.5" />} disabled={!primary} onClick={() => void saveToLibrary(asset, assetKind, meta.label, messageApi)}>
+                                                        <Button
+                                                            size="small"
+                                                            className="!px-2 !text-xs"
+                                                            icon={<LibraryBig className="size-3.5" />}
+                                                            disabled={!primary}
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                void saveToLibrary(asset, assetKind, meta.label, messageApi);
+                                                            }}
+                                                        >
                                                             入素材库
                                                         </Button>
                                                         <Button
@@ -447,6 +508,7 @@ export function DramaLabVisualAssetsPanel({
                                                             href={onOpenCanvasHref(assetKind === "characters" ? "character" : assetKind === "scenes" ? "scene" : "prop", asset.id)}
                                                             aria-label="画布定位"
                                                             title="画布定位"
+                                                            onClick={(event) => event.stopPropagation()}
                                                         >
                                                             画布定位
                                                         </Button>
@@ -460,7 +522,15 @@ export function DramaLabVisualAssetsPanel({
                                                                         key={reference.id}
                                                                         className={`group/reference relative size-11 shrink-0 overflow-hidden rounded border ${isPrimary ? "border-foreground ring-1 ring-foreground/20" : "border-border"}`}
                                                                     >
-                                                                        <button type="button" className="block size-full" onClick={() => void setPrimary(asset, reference)} title={isPrimary ? "当前主参考图" : "设为主参考图"}>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="block size-full"
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                void setPrimary(asset, reference);
+                                                                            }}
+                                                                            title={isPrimary ? "当前主参考图" : "设为主参考图"}
+                                                                        >
                                                                             <img src={imagePreviewUrl(reference.url, 128)} alt={reference.label} className="size-full object-contain" />
                                                                         </button>
                                                                         {isPrimary ? (
@@ -471,7 +541,10 @@ export function DramaLabVisualAssetsPanel({
                                                                         <button
                                                                             type="button"
                                                                             className="absolute bottom-0 right-0 grid size-4 place-items-center bg-background/90 text-muted-foreground opacity-0 transition group-hover/reference:opacity-100 hover:text-rose-600"
-                                                                            onClick={() => void removeReference(asset, reference.id)}
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                void removeReference(asset, reference.id);
+                                                                            }}
                                                                             aria-label="删除参考图"
                                                                         >
                                                                             <Trash2 className="size-2.5" />
@@ -493,13 +566,23 @@ export function DramaLabVisualAssetsPanel({
                                                                             key={shot.id}
                                                                             type="button"
                                                                             className="shrink-0 rounded border border-border bg-muted/35 px-2 py-1 text-xs hover:bg-muted"
-                                                                            onClick={() => onLocateShot(shot.episodeId, shot.id)}
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                onLocateShot(shot.episodeId, shot.id);
+                                                                            }}
                                                                         >
                                                                             #{shot.shotNumber}
                                                                         </button>
                                                                     ))}
                                                                     {affected.length > 3 ? (
-                                                                        <button type="button" className="shrink-0 px-1 py-1 text-xs text-primary hover:underline" onClick={() => setImpactModalAsset(asset)}>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="shrink-0 px-1 py-1 text-xs text-primary hover:underline"
+                                                                            onClick={(event) => {
+                                                                                event.stopPropagation();
+                                                                                setImpactModalAsset(asset);
+                                                                            }}
+                                                                        >
                                                                             ··· 更多（{affected.length - 3}）
                                                                         </button>
                                                                     ) : null}

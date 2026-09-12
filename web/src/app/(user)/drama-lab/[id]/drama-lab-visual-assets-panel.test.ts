@@ -155,6 +155,28 @@ describe("L-style prop prompt row", () => {
 });
 
 describe("asset card and editor reference interactions", () => {
+    it("opens the editor from the card body and deletes an asset only through confirmation", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+
+        expect(source).toContain("const deleteAsset");
+        expect(source).toContain('title: "删除确认"');
+        expect(source).toContain("确定删除「${assetName(asset)}」？");
+        expect(source).toContain("current.filter((item) => item.id !== asset.id)");
+        expect(source).toContain("aria-label={`删除${meta.label}`}");
+        expect(source).toContain("onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })}");
+        expect(source).not.toContain('aria-label="编辑设定"');
+    });
+
+    it("prevents nested asset actions from opening the card editor", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        const card = source.slice(source.indexOf("data-drama-lab-asset-card"), source.indexOf("</article>", source.indexOf("data-drama-lab-asset-card")));
+
+        expect(card).toContain("event.stopPropagation()");
+        expect(card).toContain("void generateAssetReference(asset)");
+        expect(card).toContain("void saveToLibrary(asset, assetKind, meta.label, messageApi)");
+        expect(card).toContain("void setPrimary(asset, reference)");
+    });
+
     it("keeps the four asset actions on one compact row", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect(source).toContain('aria-label="资产操作"');
