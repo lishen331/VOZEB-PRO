@@ -112,6 +112,10 @@ describe("PostgreSQL schema lifecycle", () => {
         expect(ddl.indexOf(publicationOriginColumn)).toBeLessThan(ddl.indexOf(publicationOriginConstraint));
         expect(ddl.indexOf(publicationOriginConstraint)).toBeLessThan(ddl.indexOf(publicationOriginIndex));
         expect(ddl).toContain("20260908_official_work_publication");
+        expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_practice_script_runs");
+        expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_practice_script_run_events");
+        expect(ddl).toContain("20260913_practice_screenwriter_agent");
+        expect(ddl.indexOf("ALTER TABLE vozeb_pro_practice_script_projects ADD COLUMN IF NOT EXISTS mode text")).toBeLessThan(ddl.indexOf("CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_projects_school_owner_updated_idx"));
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_code text");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_version integer");
         expect(ddl).toContain("ALTER TABLE vozeb_pro_practice_sessions ADD COLUMN IF NOT EXISTS workflow_config_fingerprint text");

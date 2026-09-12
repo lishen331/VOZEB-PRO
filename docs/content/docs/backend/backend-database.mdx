@@ -327,3 +327,19 @@ Skill 还可记录 `sourceUrl`、`sourceVersion` 和 `license`。默认电商生
 - `practice_script_agent_operations`：AI 建议、Patch、模型/Skill/Workflow 最小快照和结果状态。
 
 所有 Repository 查询按 `owner_user_id` 与项目 ID 定向过滤；版本使用 `(project_id, version)` 唯一约束，实体使用 `(project_id, id)` 主键。Schema 初始化包含幂等建表、补列和 owner/project 索引；剧本调用只允许由无限练习服务使用 `open-source-practice` 执行档案，第一期不创建媒体任务或多人协作记录。
+
+### 剧本 Agent 重做扩展（2026-09-13）
+
+新版无限练习剧本 Agent 在原有项目、版本、实体、阶段和操作表之外新增以下持久化边界：
+
+- `practice_script_artifacts`：定位、世界观、总纲、故事骨架、改编策略、导演规划和审核报告等版本化成果。
+- `practice_script_chapters`、`practice_script_chapter_events`：长篇章纲、正文、摘要和事件索引；正文每次仅生成 1–5 章。
+- `practice_script_episodes`：分集大纲、完整剧本、审核和失败状态，每集独立保存但阶段统一确认。
+- `practice_script_shots`：一条镜头一行的纯文字分镜，不创建图片、视频或音频任务。
+- `practice_script_prompt_assets`、`practice_script_asset_occurrences`：项目级人物、场景、道具提示词与出现位置。
+- `practice_script_agent_profiles`、`practice_script_skills`、`practice_script_skill_versions`：各专项 Agent 的真实模型、Tool 白名单和不可变 Skill 版本。
+- `practice_script_chat_sessions`、`practice_script_chat_messages`：只保存公开对话，不保存思维链或内部提示词。
+- `practice_script_runs`、`practice_script_run_items`、`practice_script_run_events`：稳定 Run、失败项和有序 SSE 事件；断线按序列恢复，成功项不重复执行。
+- `practice_script_confirmations`：短故事正文、改编策划、剧本审核等重要确认门。
+
+所有内容表均按 `school_id + owner_user_id + project_id` 定向访问，运行档案固定为 `open-source-practice`。数据库迁移先为旧项目表补列，再创建索引；不依赖 `CREATE TABLE IF NOT EXISTS` 改变已部署旧表。
