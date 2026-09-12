@@ -2432,6 +2432,25 @@ function ScriptEditor({
                                             </Button>
                                             <span id="drama-lab-novel-import-actions" className="inline-flex" />
 
+                                            {customOptionKind ? (
+                                                <div className="order-3 flex flex-wrap items-center gap-2 rounded border border-border bg-muted/30 p-2" role="dialog" aria-label={customOptionKind === "style" ? "添加自定义剧本风格" : "添加自定义剧本类型"}>
+                                                    <Input
+                                                        autoFocus
+                                                        value={customOptionDraft}
+                                                        onChange={(event) => setCustomOptionDraft(event.target.value)}
+                                                        onPressEnter={() => void saveCustomOption()}
+                                                        placeholder={customOptionKind === "style" ? "输入自定义剧本风格" : "输入自定义剧本类型"}
+                                                        maxLength={120}
+                                                        style={{ width: 240 }}
+                                                    />
+                                                    <Button type="primary" size="small" loading={customOptionBusy} onClick={() => void saveCustomOption()}>
+                                                        确定
+                                                    </Button>
+                                                    <Button size="small" disabled={customOptionBusy} onClick={() => setCustomOptionKind(null)}>
+                                                        取消
+                                                    </Button>
+                                                </div>
+                                            ) : null}
                                             <div className="ml-auto flex min-h-5 items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
                                                 {saveStatus === "pending" ? (
                                                     <>
@@ -2455,25 +2474,6 @@ function ScriptEditor({
                                                 ) : null}
                                             </div>
                                         </div>
-                                        {customOptionKind ? (
-                                            <div className="order-3 flex flex-wrap items-center gap-2 rounded border border-border bg-muted/30 p-2" role="dialog" aria-label={customOptionKind === "style" ? "添加自定义剧本风格" : "添加自定义剧本类型"}>
-                                                <Input
-                                                    autoFocus
-                                                    value={customOptionDraft}
-                                                    onChange={(event) => setCustomOptionDraft(event.target.value)}
-                                                    onPressEnter={() => void saveCustomOption()}
-                                                    placeholder={customOptionKind === "style" ? "输入自定义剧本风格" : "输入自定义剧本类型"}
-                                                    maxLength={120}
-                                                    style={{ width: 240 }}
-                                                />
-                                                <Button type="primary" size="small" loading={customOptionBusy} onClick={() => void saveCustomOption()}>
-                                                    确定
-                                                </Button>
-                                                <Button size="small" disabled={customOptionBusy} onClick={() => setCustomOptionKind(null)}>
-                                                    取消
-                                                </Button>
-                                            </div>
-                                        ) : null}
                                         <div className="order-4 border-t border-border pt-4 text-sm text-muted-foreground">
                                             <span className="font-semibold">剧本</span>
                                             <span className="mx-2">·</span>
