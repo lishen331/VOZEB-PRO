@@ -77,8 +77,12 @@ export async function confirmScriptStage(
     if (!project) throw new ScriptStageServiceError("剧本项目不存在", 404);
     const stage = await repository.getScriptStage(projectId, ownerUserId, key);
     if (!stage || stage.status !== "awaiting_review" || stage.draft === undefined) throw new ScriptStageServiceError("该阶段没有待确认的生成结果", 409);
+    if (key === "screenplay") {
+        const versioning = { getCurrentScriptDocument: repository.getCurrentScriptDocument, createScriptVersion: repository.createScriptVersion, nextScriptVersionNumber: repository.nextScriptVersionNumber, compareAndSetCurrentVersion: repository.compareAndSetCurrentVersion };
+        if (versioning.getCurrentScriptDocument && versioning.createScriptVersion && versioning.nextScriptVersionNumber && versioning.compareAndSetCurrentVersion) await materializeConfirmedScreenplay({ getCurrentScriptDocument: versioning.getCurrentScriptDocument, createScriptVersion: versioning.createScriptVersion, nextScriptVersionNumber: versioning.nextScriptVersionNumber, compareAndSetCurrentVersion: versioning.compareAndSetCurrentVersion }, ownerUserId, projectId, project, stage.draft);
+        else throw new ScriptStageServiceError("剧本文档版本不可用，请先保存当前版本", 409);
+    }
     const confirmed = await repository.setScriptStage(projectId, ownerUserId, { ...stage, status: "confirmed", confirmed: stage.draft, updatedAt: new Date().toISOString() });
-    if (key === "screenplay") await materializeConfirmedScreenplay({ getCurrentScriptDocument: repository.getCurrentScriptDocument, createScriptVersion: repository.createScriptVersion, nextScriptVersionNumber: repository.nextScriptVersionNumber, compareAndSetCurrentVersion: repository.compareAndSetCurrentVersion }, ownerUserId, projectId, project, stage.draft);
     const index = STAGE_ORDER.indexOf(key);
     if (index >= 0) {
         const downstream = (await repository.listScriptStages(projectId, ownerUserId)).filter((item) => STAGE_ORDER.indexOf(item.key) > index && item.status !== "not_started");
@@ -88,7 +92,7 @@ export async function confirmScriptStage(
 }
 
 async function materializeConfirmedScreenplay(
-    repository: Pick<ScriptPracticeRepository, "getCurrentScriptDocument" | "createScriptVersion" | "nextScriptVersionNumber" | "compareAndSetCurrentVersion">,
+    repository: Partial<Pick<ScriptPracticeRepository, "getCurrentScriptDocument" | "createScriptVersion" | "nextScriptVersionNumber" | "compareAndSetCurrentVersion">>,
     ownerUserId: string,
     projectId: string,
     project: { currentVersionId?: string },
