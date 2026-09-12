@@ -570,7 +570,7 @@ function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeSessio
     const read = () => readJsonDataFile<FileDatabase>(FILE_NAME, { version: 1, sessions: [] });
     return {
         async getByRequest(scope, clientRequestId) {
-            return (await read()).sessions.map(normalizeFileSession).find((item) => item.schoolId === scopeValues(scope).schoolId && item.userId === scopeValues(scope).ownerUserId && item.clientRequestId === clientRequestId) || null;
+            return (await read()).sessions.map(normalizeFileSession).find((item) => (!scopeValues(scope).schoolId || item.schoolId === scopeValues(scope).schoolId) && item.userId === scopeValues(scope).ownerUserId && item.clientRequestId === clientRequestId) || null;
         },
         async create(input) {
             let record: PracticeSessionRecord;
@@ -582,14 +582,14 @@ function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeSessio
             return record!;
         },
         async get(scope, id) {
-            return (await read()).sessions.map(normalizeFileSession).find((item) => item.schoolId === scopeValues(scope).schoolId && item.userId === scopeValues(scope).ownerUserId && item.id === id) || null;
+            return (await read()).sessions.map(normalizeFileSession).find((item) => (!scopeValues(scope).schoolId || item.schoolId === scopeValues(scope).schoolId) && item.userId === scopeValues(scope).ownerUserId && item.id === id) || null;
         },
         async claimDispatch(scope, id) {
             let claimed: PracticeSessionRecord | null = null;
             await withJsonDataFileLock(FILE_NAME, async () => {
                 const db = await read();
                 const sessions = db.sessions.map((item) => {
-                    if (item.schoolId !== scopeValues(scope).schoolId || item.userId !== scopeValues(scope).ownerUserId || item.id !== id || item.status !== "queued" || (Array.isArray(item.taskRefs) && item.taskRefs.length)) return item;
+                    if ((scopeValues(scope).schoolId && item.schoolId !== scopeValues(scope).schoolId) || item.userId !== scopeValues(scope).ownerUserId || item.id !== id || item.status !== "queued" || (Array.isArray(item.taskRefs) && item.taskRefs.length)) return item;
                     claimed = { ...item, status: "running", updatedAt: new Date().toISOString() };
                     return claimed;
                 });
@@ -621,7 +621,7 @@ function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeSessio
             await withJsonDataFileLock(FILE_NAME, async () => {
                 const db = await read();
                 const sessions = db.sessions.map((item) =>
-                    item.schoolId === scopeValues(scope).schoolId && item.userId === scopeValues(scope).ownerUserId && item.id === id ? (updated = { ...item, ...patch, updatedAt: new Date().toISOString() }) : item,
+                    (!scopeValues(scope).schoolId || item.schoolId === scopeValues(scope).schoolId) && item.userId === scopeValues(scope).ownerUserId && item.id === id ? (updated = { ...item, ...patch, updatedAt: new Date().toISOString() }) : item,
                 );
                 await writeJsonDataFile(FILE_NAME, { ...db, sessions });
             });
@@ -630,14 +630,14 @@ function fileSessionStore(): PracticeSessionStore & { list(scope: PracticeSessio
         async delete(scope, id) {
             await withJsonDataFileLock(FILE_NAME, async () => {
                 const db = await read();
-                const sessions = db.sessions.filter((item) => !(item.schoolId === scopeValues(scope).schoolId && item.userId === scopeValues(scope).ownerUserId && item.id === id));
+                const sessions = db.sessions.filter((item) => !((!scopeValues(scope).schoolId || item.schoolId === scopeValues(scope).schoolId) && item.userId === scopeValues(scope).ownerUserId && item.id === id));
                 await writeJsonDataFile(FILE_NAME, { ...db, sessions });
             });
         },
         async list(scope, input) {
             const all = (await read()).sessions
                 .map(normalizeFileSession)
-                .filter((item) => item.schoolId === scopeValues(scope).schoolId && item.userId === scopeValues(scope).ownerUserId && (!input.module || item.module === input.module))
+                .filter((item) => (!scopeValues(scope).schoolId || item.schoolId === scopeValues(scope).schoolId) && item.userId === scopeValues(scope).ownerUserId && (!input.module || item.module === input.module))
                 .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
             return { items: all.slice((input.page - 1) * input.pageSize, input.page * input.pageSize), total: all.length };
         },
@@ -731,3 +731,4 @@ function publicErrorMessage(_error: unknown, code: PracticePublicErrorCode) {
     if (code === "PRACTICE_SUBMISSION_UNKNOWN") return "练习任务已提交，结果待确认";
     return "练习任务提交失败，请重试";
 }
+
