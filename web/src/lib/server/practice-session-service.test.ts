@@ -10,6 +10,10 @@ const mocks = vi.hoisted(() => ({
     getAudioTask: vi.fn(),
     getStoredGenerationTaskByRequest: vi.fn(),
     ensureAudioLog: vi.fn(),
+    getLocalMediaRegistration: vi.fn(),
+    isLocalMediaRegistrationExpired: vi.fn(),
+    getReadableCourseMaterial: vi.fn(),
+    createPostgresRepositories: vi.fn(),
 }));
 vi.mock("@/lib/server/practice-access-service", () => ({ requirePracticeAccess: mocks.requirePracticeAccess }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({
@@ -23,7 +27,11 @@ vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTa
 vi.mock("@/lib/server/audio-task-store", () => ({ getAudioTask: mocks.getAudioTask }));
 vi.mock("@/lib/server/audio-task-runtime", () => ({ ensurePracticeAudioGenerationLog: mocks.ensureAudioLog }));
 vi.mock("@/lib/server/generation-task-store", () => ({ getStoredGenerationTaskByRequest: mocks.getStoredGenerationTaskByRequest }));
-vi.mock("@/lib/server/database", () => ({ getDatabaseProvider: () => "file", createPostgresRepositories: vi.fn() }));
+vi.mock("@/lib/server/local-media-registry", () => ({
+    getLocalMediaRegistration: mocks.getLocalMediaRegistration,
+    isLocalMediaRegistrationExpired: mocks.isLocalMediaRegistrationExpired,
+}));
+vi.mock("@/lib/server/database", () => ({ getDatabaseProvider: () => "file", createPostgresRepositories: mocks.createPostgresRepositories }));
 
 import {
     createPracticeSessionForUser,
@@ -46,7 +54,7 @@ function memoryStore(): PracticeSessionStore {
     const owner = (scope: unknown) => (typeof scope === "string" ? { schoolId: "", ownerUserId: scope } : (scope as { schoolId?: string; ownerUserId: string }));
     const matches = (record: PracticeSessionRecord, scope: unknown) => {
         const value = owner(scope);
-        return record.userId === value.ownerUserId && (!value.schoolId || record.schoolId === value.schoolId);
+        return record.userId === value.ownerUserId && (!value.schoolId || !record.schoolId || record.schoolId === value.schoolId);
     };
     return {
         getByRequest: vi.fn(async (userId, clientRequestId) => records.get(requests.get(`${owner(userId).ownerUserId}:${clientRequestId}`) || "") || null),
@@ -54,7 +62,7 @@ function memoryStore(): PracticeSessionStore {
             const key = `${input.userId}:${input.clientRequestId}`;
             const existing = records.get(requests.get(key) || "");
             if (existing) return existing;
-            const record = { ...input, executionProfile: "open-source-practice", createdAt: "2026-08-18T00:00:00.000Z", updatedAt: "2026-08-18T00:00:00.000Z" };
+            const record = { ...input, schoolId: input.schoolId || "school-one", executionProfile: "open-source-practice", createdAt: "2026-08-18T00:00:00.000Z", updatedAt: "2026-08-18T00:00:00.000Z" };
             records.set(input.id, record);
             requests.set(key, input.id);
             return record;
@@ -104,6 +112,20 @@ describe("practice sessions", () => {
         mocks.getAudioTask.mockResolvedValue(undefined);
         mocks.getStoredGenerationTaskByRequest.mockResolvedValue(null);
         mocks.ensureAudioLog.mockResolvedValue(undefined);
+        mocks.createPostgresRepositories.mockReturnValue({ schoolDomain: { getReadableCourseMaterial: mocks.getReadableCourseMaterial } });
+        mocks.getReadableCourseMaterial.mockResolvedValue(null);
+        mocks.isLocalMediaRegistrationExpired.mockReturnValue(false);
+        mocks.getLocalMediaRegistration.mockImplementation(async (storageKey: string) => ({
+            storageKey,
+            scope: "reference",
+            storageClass: "permanent",
+            type: storageKey.includes("audio") ? "audio" : "image",
+            ownerUserId: "student-one",
+            mimeType: storageKey.includes("audio") ? "audio/mpeg" : "image/png",
+            bytes: 1,
+            source: "test",
+            createdAt: "2026-09-12T00:00:00.000Z",
+        }));
         mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
     });
 
@@ -127,7 +149,7 @@ describe("practice sessions", () => {
         await deletePracticeSession("student-one", ` ${session.id} `, { store });
 
         await expect(store.get("student-one", session.id)).resolves.toBeNull();
-        expect(store.delete).toHaveBeenCalledWith("student-one", session.id);
+        expect(store.delete).toHaveBeenCalledWith({ schoolId: "school-one", ownerUserId: "student-one" }, session.id);
     });
 
     it("rejects a hidden module before resolving or dispatching a task", async () => {
@@ -260,8 +282,8 @@ describe("practice sessions", () => {
                 title: "视频",
                 input: { prompt: "推进", audioEnabled: true },
                 references: [
-                    { type: "asset", id: "image-one", inputKey: "image" },
-                    { type: "asset", id: "audio-one", inputKey: "audio" },
+                    { type: "asset", id: "permanent/test/image-one.png", inputKey: "image" },
+                    { type: "asset", id: "permanent/test/audio-one.mp3", inputKey: "audio" },
                 ],
                 clientRequestId: "video-slots",
             },
@@ -270,8 +292,8 @@ describe("practice sessions", () => {
         expect(dispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 references: [
-                    { type: "asset", id: "image-one", inputKey: "image" },
-                    { type: "asset", id: "audio-one", inputKey: "audio" },
+                    expect.objectContaining({ type: "asset", id: "permanent/test/image-one.png", inputKey: "image", mediaType: "image" }),
+                    expect.objectContaining({ type: "asset", id: "permanent/test/audio-one.mp3", inputKey: "audio", mediaType: "audio" }),
                 ],
             }),
         );
@@ -283,15 +305,15 @@ describe("practice sessions", () => {
                 "storyboard-video",
                 { prompt: "推进", audioEnabled: true },
                 [
-                    { type: "asset", id: "image-one", inputKey: "image" },
-                    { type: "asset", id: "audio-one", inputKey: "audio" },
+                    { type: "asset", id: "permanent/test/image-one.png", inputKey: "image" },
+                    { type: "asset", id: "permanent/test/audio-one.mp3", inputKey: "audio" },
                 ],
                 { inputSchema: [] } as never,
             ),
         ).toMatchObject({
             references: [
-                { type: "asset", id: "image-one", inputKey: "image" },
-                { type: "asset", id: "audio-one", inputKey: "audio" },
+                { type: "asset", id: "permanent/test/image-one.png", inputKey: "image" },
+                { type: "asset", id: "permanent/test/audio-one.mp3", inputKey: "audio" },
             ],
         });
     });
@@ -673,9 +695,8 @@ describe("practice sessions", () => {
                     title: "镜头练习",
                     input: { prompt: " 雨夜车站 ", provider: "forged-provider", model: "forged-model" },
                     references: [
-                        { type: "asset", id: " asset-one ", storageKey: "private/key" },
-                        { type: "asset", id: "asset-one" },
-                        { type: "task", id: "private-task" },
+                        { type: "asset", id: " permanent/test/asset-one.png ", storageKey: "private/key", inputKey: "image" },
+                        { type: "asset", id: "permanent/test/asset-one.png", inputKey: "image" },
                     ],
                     clientRequestId: "request-three",
                 },
@@ -686,11 +707,20 @@ describe("practice sessions", () => {
         const session = await store.getByRequest("student-one", "request-three");
         expect(session).not.toBeNull();
         if (!session) throw new Error("练习会话未创建");
-        expect(session.input).toEqual({ prompt: "雨夜车站", references: [{ type: "asset", id: "asset-one" }] });
+        expect(session.input).toEqual({
+            prompt: "雨夜车站",
+            references: [expect.objectContaining({ type: "asset", id: "permanent/test/asset-one.png", inputKey: "image", mediaType: "image" })],
+        });
         expect(session).toMatchObject({ status: "failed", errorCode: "PRACTICE_DISPATCH_FAILED", errorMessage: "练习任务提交失败，请重试" });
 
         await retryPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store, dispatch: retryDispatch, resolveModel });
-        expect(retryDispatch).toHaveBeenCalledWith(expect.objectContaining({ input: { prompt: "雨夜车站" }, references: [{ type: "asset", id: "asset-one" }], clientRequestId: "request-three" }));
+        expect(retryDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                input: { prompt: "雨夜车站" },
+                references: [expect.objectContaining({ type: "asset", id: "permanent/test/asset-one.png", inputKey: "image", mediaType: "image" })],
+                clientRequestId: "request-three",
+            }),
+        );
     });
 
     it("keeps the accepted task reference when the first write-back fails", async () => {
@@ -753,7 +783,7 @@ describe("practice sessions", () => {
         mocks.getStoredGenerationTaskByRequest.mockResolvedValue({ id: "durable-task", userId: "student-one", status: "pending", clientRequestId: "unknown-request" });
 
         await expect(getPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store })).resolves.toMatchObject({ id: session.id, status: "running" });
-        expect(store.update).toHaveBeenCalledWith("student-one", session.id, expect.objectContaining({ taskRefs: [{ taskId: "durable-task", taskType: "text" }] }));
+        expect(store.update).toHaveBeenCalledWith({ schoolId: "school-one", ownerUserId: "student-one" }, session.id, expect.objectContaining({ taskRefs: [{ taskId: "durable-task", taskType: "text" }] }));
     });
 
     it("does not lose a task when both immediate reference writes fail", async () => {
@@ -778,7 +808,7 @@ describe("practice sessions", () => {
         expect(session).toMatchObject({ status: "running", errorCode: "PRACTICE_SUBMISSION_UNKNOWN", taskRefs: [] });
 
         await expect(getPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store })).resolves.toMatchObject({ status: "running" });
-        expect(mocks.getStoredGenerationTaskByRequest).toHaveBeenCalledWith("text", "student-one", "orphan-request");
+        expect(mocks.getStoredGenerationTaskByRequest).toHaveBeenCalledWith("text", "student-one", "orphan-request", undefined, "school-one");
         expect(dispatch).toHaveBeenCalledOnce();
     });
 
@@ -830,7 +860,7 @@ describe("practice sessions", () => {
         mocks.validateIpReferences.mockRejectedValueOnce(Object.assign(new Error("IP 授权已失效"), { status: 403 }));
         const retryDispatch = vi.fn();
 
-        await expect(retryPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store, dispatch: retryDispatch, resolveModel })).rejects.toMatchObject({ status: 403 });
+        await expect(retryPracticeSessionForUser({ id: "student-one", role: "user" }, session.id, { store, dispatch: retryDispatch, resolveModel })).rejects.toMatchObject({ status: 400, code: "PRACTICE_REFERENCE_INVALID" });
         expect(retryDispatch).not.toHaveBeenCalled();
         await expect(store.get("student-one", session.id)).resolves.toMatchObject({ status: "failed" });
     });
