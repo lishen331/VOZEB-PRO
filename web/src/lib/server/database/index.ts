@@ -12,3 +12,5 @@ export type { BillingRefundJobRecord, BillingRefundJobStatus } from "./billing-r
 export type { QueryExecutor } from "./postgres";
 export type * from "./repositories";
 export { ScriptPracticeRepository, createPostgresScriptPracticeRepository } from "./script-practice-repository";
+
+export { ScriptAgentRepository } from "./script-agent-repository";
