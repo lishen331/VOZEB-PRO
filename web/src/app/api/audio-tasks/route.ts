@@ -18,7 +18,7 @@ import { validateGenerationContextIpReferences } from "@/lib/server/ip-library-r
 import { resolveSchoolComputeBillingContext } from "@/lib/server/school-compute-billing-context";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeGenerationCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
-import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { FeatureModuleDisabledError, featureModuleForGenerationContext, requireFeatureModuleEnabled } from "@/lib/server/feature-module-access";
 
 export const runtime = "nodejs";
@@ -58,7 +58,17 @@ export async function POST(request: Request) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
-        const projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+        let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+
+        try {
+            projectProfile = await resolveProjectExecutionProfile(user.id, body.context || {});
+        } catch (error) {
+            const known = projectExecutionProfileError(error);
+
+            if (known) return NextResponse.json({ error: known.message }, { status: known.status });
+
+            throw error;
+        }
         const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
         if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
         const executionProfile: "production" | "open-source-practice" = practiceRequest ? "open-source-practice" : "production";

@@ -6,7 +6,7 @@ import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { hasUntrustedExecutionProfile, hasUntrustedWorkflowContext, isTrustedPracticeTaskRequest, sanitizeGenerationContext } from "@/lib/server/generation-execution-policy";
 import { attachPracticeWorkflowToChannel, generationBusinessCode, resolvePracticeGenerationCandidates, workflowTaskContextForChannel } from "@/lib/server/runninghub-workflow-runtime";
-import { resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
+import { projectExecutionProfileError, resolveProjectExecutionProfile } from "@/lib/server/generation-project-context";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { scheduleGenerationTask } from "@/lib/server/generation-task-scheduler";
 import { getStoredGenerationTaskByRequest, linkStoredGenerationTask, withGenerationConcurrencyLimit } from "@/lib/server/generation-task-store";
@@ -64,7 +64,17 @@ export async function POST(request: Request) {
             if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
             throw error;
         }
-        const projectProfile = await resolveProjectExecutionProfile(currentUser.id, body.context || {});
+        let projectProfile: Awaited<ReturnType<typeof resolveProjectExecutionProfile>>;
+
+        try {
+            projectProfile = await resolveProjectExecutionProfile(currentUser.id, body.context || {});
+        } catch (error) {
+            const known = projectExecutionProfileError(error);
+
+            if (known) return NextResponse.json({ error: known.message }, { status: known.status });
+
+            throw error;
+        }
         const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
         if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
         const executionProfile = practiceRequest ? "open-source-practice" : "production";

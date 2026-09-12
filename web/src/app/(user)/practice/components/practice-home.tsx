@@ -165,28 +165,30 @@ export default function PracticeHome() {
                     </section>
                 ) : null}
 
-                <section className="mt-5 sm:mt-8" aria-labelledby="practice-script-heading">
-                    <div className="flex items-center justify-between gap-3">
-                        <h2 id="practice-script-heading" className="text-base font-semibold sm:text-lg">
-                            剧本练习
-                        </h2>
-                        <span className="text-xs text-muted-foreground">单人 · 文本</span>
-                    </div>
-                    <button
-                        type="button"
-                        className="mt-3 flex w-full items-center gap-3 border border-border bg-card p-3 text-left transition hover:border-foreground/40 hover:bg-muted/30 sm:p-4"
-                        onClick={() => router.push("/practice/scripts")}
-                        data-practice-script-entry
-                    >
-                        <span className="grid size-10 shrink-0 place-items-center border border-border bg-muted/50">
-                            <PRACTICE_SCRIPT_ENTRY.icon className="size-5" />
-                        </span>
-                        <span className="min-w-0">
-                            <span className="block text-sm font-medium">{PRACTICE_SCRIPT_ENTRY.title}</span>
-                            <span className="mt-1 block text-xs leading-5 text-muted-foreground">{PRACTICE_SCRIPT_ENTRY.description}</span>
-                        </span>
-                    </button>
-                </section>
+                {scriptEnabled ? (
+                    <section className="mt-5 sm:mt-8" aria-labelledby="practice-script-heading">
+                        <div className="flex items-center justify-between gap-3">
+                            <h2 id="practice-script-heading" className="text-base font-semibold sm:text-lg">
+                                剧本练习
+                            </h2>
+                            <span className="text-xs text-muted-foreground">单人 · 文本</span>
+                        </div>
+                        <button
+                            type="button"
+                            className="mt-3 flex w-full items-center gap-3 border border-border bg-card p-3 text-left transition hover:border-foreground/40 hover:bg-muted/30 sm:p-4"
+                            onClick={() => router.push("/practice/scripts")}
+                            data-practice-script-entry
+                        >
+                            <span className="grid size-10 shrink-0 place-items-center border border-border bg-muted/50">
+                                <PRACTICE_SCRIPT_ENTRY.icon className="size-5" />
+                            </span>
+                            <span className="min-w-0">
+                                <span className="block text-sm font-medium">{PRACTICE_SCRIPT_ENTRY.title}</span>
+                                <span className="mt-1 block text-xs leading-5 text-muted-foreground">{PRACTICE_SCRIPT_ENTRY.description}</span>
+                            </span>
+                        </button>
+                    </section>
+                ) : null}
                 <section className="mt-5 sm:mt-8" aria-labelledby="practice-modules-heading">
                     <div className="flex items-center justify-between gap-3">
                         <h2 id="practice-modules-heading" className="text-base font-semibold sm:text-lg">

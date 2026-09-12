@@ -30,6 +30,7 @@ import type { DramaProjectIdentityInput } from "@/lib/server/drama-project-store
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "@/lib/server/ip-library-reference-service";
 import { deleteDramaLabEpisodeCanvasForUser, listDramaLabCanvasProjectsForUser } from "@/lib/server/canvas-project-service";
+import { requirePracticeAccess } from "@/lib/server/practice-access-service";
 
 const MAX_PROJECT_BYTES = 2 * 1024 * 1024;
 
@@ -49,6 +50,14 @@ export function listDramaProjectSummariesForUser(userId: string, input: { page?:
 export async function getDramaProjectForUser(userId: string, id: string) {
     const project = await getDramaProject(cleanText(id), userId);
     if (!project) throw new DramaProjectServiceError("短剧项目不存在", 404);
+    if ((project as DramaProject & { executionProfile?: string }).executionProfile === "open-source-practice") {
+        try {
+            await requirePracticeAccess({ id: userId });
+        } catch (error) {
+            const status = error && typeof error === "object" && "status" in error && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 403;
+            throw new DramaProjectServiceError(error instanceof Error ? error.message : "短剧练习权限已失效", status);
+        }
+    }
     return project;
 }
 
@@ -196,6 +205,7 @@ function dramaUsageTarget(project: DramaProject) {
 
 export async function deleteDramaProjectForUser(userId: string, id: string) {
     const projectId = cleanText(id);
+    await getDramaProjectForUser(userId, projectId);
     let result: Awaited<ReturnType<typeof deleteDramaProjectCanvasAggregates>>;
     try {
         result = await deleteDramaProjectCanvasAggregates(userId, projectId);

@@ -21,6 +21,7 @@ import { CreativeEntityDeletionConflict, deleteCanvasAssistantConversationAggreg
 import type { CanvasProjectIdentityInput } from "@/lib/server/canvas-project-store";
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "@/lib/server/ip-library-reference-service";
+import { requirePracticeAccess } from "@/lib/server/practice-access-service";
 
 const MAX_PROJECT_BYTES = 5 * 1024 * 1024;
 type CanvasProjectScope = "ordinary" | "drama-lab";
@@ -169,7 +170,15 @@ function canvasUsageTarget(project: CanvasProject | null) {
 
 export async function deleteCanvasProjectsForUser(userId: string, value: unknown) {
     const ids = Array.isArray(value) ? normalizeEntityDeletes(value) : [];
-    const projects = await Promise.all(ids.map((id) => getCanvasProject(id, userId)));
+    const projects = await Promise.all(
+        ids.map(async (id) => {
+            const project = await getCanvasProject(id, userId);
+            if (!project) return null;
+            const scoped = assertCanvasProjectScope(project, "ordinary");
+            if ((scoped as CanvasProject & { executionProfile?: string }).executionProfile === "open-source-practice") await requireCurrentPracticeAccess(userId, "画布");
+            return scoped;
+        }),
+    );
     if (projects.some((project) => project && isDramaLabCanvasProject(project))) throw canvasProjectNotFound();
     const result = await deleteCanvasProjectAggregates(userId, ids);
     await deleteUserMediaAssetsCascade(userId, result.mediaStorageKeys);
@@ -230,7 +239,18 @@ async function deleteScopedCanvasAssistantConversationsForUser(userId: string, p
 async function getScopedCanvasProjectForUser(userId: string, id: string, scope: CanvasProjectScope) {
     const project = await getCanvasProject(text(id, 160), userId);
     if (!project) throw canvasProjectNotFound();
-    return assertCanvasProjectScope(project, scope);
+    const scoped = assertCanvasProjectScope(project, scope);
+    if ((scoped as CanvasProject & { executionProfile?: string }).executionProfile === "open-source-practice") await requireCurrentPracticeAccess(userId, "画布");
+    return scoped;
+}
+
+async function requireCurrentPracticeAccess(userId: string, label: string) {
+    try {
+        await requirePracticeAccess({ id: userId });
+    } catch (error) {
+        const status = error && typeof error === "object" && "status" in error && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 403;
+        throw new CanvasProjectServiceError(error instanceof Error ? error.message : `${label}练习权限已失效`, status);
+    }
 }
 
 function assertCanvasProjectScope(project: CanvasProject, scope: CanvasProjectScope) {

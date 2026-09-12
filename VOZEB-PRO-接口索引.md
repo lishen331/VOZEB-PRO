@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-12。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **357** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-09-12。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **359** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,9 +23,9 @@
 
 ## 接口总览
 
-- Route 文件：**357**
-- 方法出现次数：DELETE 56、GET 190、HEAD 6、PATCH 55、POST 197、PUT 12
-- 一级域：`admin` 123、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 48、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 14、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**359**
+- 方法出现次数：DELETE 57、GET 191、HEAD 6、PATCH 55、POST 199、PUT 12
+- 一级域：`admin` 123、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 14、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
@@ -291,7 +291,7 @@
 | GET, PATCH | `/api/drama/render/[id]` | 用户 | [route.ts](web/src/app/api/drama/render/[id]/route.ts) | [drama-render-store](web/src/lib/server/drama-render-store.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 渲染 / 单项：查询、更新 |
 | POST | `/api/drama/review` | 用户 | [route.ts](web/src/app/api/drama/review/route.ts) | [creative-review-service](web/src/lib/server/creative-review-service.ts)<br>[drama-visual-review](web/src/lib/server/drama-visual-review.ts)<br>[store](web/src/lib/auth/store.ts) | PostgreSQL、生成任务、FFmpeg、媒体 | 短剧 / 审核：提交/执行 |
 
-### `drama-lab`（48）
+### `drama-lab`（50）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -302,6 +302,7 @@
 | GET, POST | `/api/drama-lab/invites/[token]` | 用户 | [route.ts](web/src/app/api/drama-lab/invites/[token]/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-collaboration-error](web/src/lib/server/drama-lab-collaboration-error.ts) | PostgreSQL | drama-lab / invites / [token]：查询、提交/执行 |
 | GET, POST | `/api/drama-lab/projects` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-project-service](web/src/lib/server/drama-project-service.ts)<br>[drama-project-store](web/src/lib/server/drama-project-store.ts) | PostgreSQL | drama-lab / 项目：查询、提交/执行 |
 | DELETE, GET, PUT | `/api/drama-lab/projects/[id]` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-project-service](web/src/lib/server/drama-project-service.ts)<br>[drama-lab-collaboration-error](web/src/lib/server/drama-lab-collaboration-error.ts) | PostgreSQL | drama-lab / 项目 / 单项：查询、删除、替换 |
+| POST | `/api/drama-lab/projects/[id]/assets/[assetId]/ai` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/assets/[assetId]/ai/route.ts) | [drama-lab-asset-ai-service](web/src/lib/server/drama-lab-asset-ai-service.ts)<br>[drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-collaboration-error](web/src/lib/server/drama-lab-collaboration-error.ts) | PostgreSQL | drama-lab / 项目 / 单项 / 资产 / 指定媒体 / 模型代理：提交/执行 |
 | GET, PUT | `/api/drama-lab/projects/[id]/collaboration` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/collaboration/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-collaboration-error](web/src/lib/server/drama-lab-collaboration-error.ts) | PostgreSQL | drama-lab / 项目 / 单项 / collaboration：查询、替换 |
 | GET, POST | `/api/drama-lab/projects/[id]/collaboration/approvals` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/collaboration/approvals/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-collaboration-error](web/src/lib/server/drama-lab-collaboration-error.ts) | PostgreSQL | drama-lab / 项目 / 单项 / collaboration / approvals：查询、提交/执行 |
 | GET, POST | `/api/drama-lab/projects/[id]/collaboration/approvals/[approvalId]` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/collaboration/approvals/[approvalId]/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-collaboration-error](web/src/lib/server/drama-lab-collaboration-error.ts) | PostgreSQL | drama-lab / 项目 / 单项 / collaboration / approvals / [approvalId]：查询、提交/执行 |
@@ -322,7 +323,7 @@
 | POST | `/api/drama-lab/projects/[id]/extract-assets` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/extract-assets/route.ts) | [drama-lab-asset-extraction-service](web/src/lib/server/drama-lab-asset-extraction-service.ts)<br>[drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-collaboration-error](web/src/lib/server/drama-lab-collaboration-error.ts) | PostgreSQL | drama-lab / 项目 / 单项 / extract-assets：提交/执行 |
 | POST | `/api/drama-lab/projects/[id]/extract-storyboards` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/extract-storyboards/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-workflow-task-service](web/src/lib/server/drama-lab-workflow-task-service.ts)<br>[drama-lab-collaboration-error](web/src/lib/server/drama-lab-collaboration-error.ts) | PostgreSQL | drama-lab / 项目 / 单项 / extract-storyboards：提交/执行 |
 | GET, PATCH, POST | `/api/drama-lab/projects/[id]/generate-script` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/generate-script/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-story-generation-service](web/src/lib/server/drama-lab-story-generation-service.ts)<br>[generation-task-recovery-service](web/src/lib/server/generation-task-recovery-service.ts) | PostgreSQL | drama-lab / 项目 / 单项 / generate-script：查询、更新、提交/执行 |
-| POST | `/api/drama-lab/projects/[id]/import-novel` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/import-novel/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-novel-import-service](web/src/lib/server/drama-lab-novel-import-service.ts)<br>[feature-module-access](web/src/lib/server/feature-module-access.ts) | PostgreSQL | drama-lab / 项目 / 单项 / import-novel：提交/执行 |
+| POST | `/api/drama-lab/projects/[id]/import-novel` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/[id]/import-novel/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-novel-import-service](web/src/lib/server/drama-lab-novel-import-service.ts)<br>[drama-lab-novel-file-parser](web/src/lib/server/drama-lab-novel-file-parser.ts) | PostgreSQL | drama-lab / 项目 / 单项 / import-novel：提交/执行 |
 | POST | `/api/drama-lab/projects/[id]/shots/[shotId]/accept-first-frame-candidate` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/accept-first-frame-candidate/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-tail-frame-service](web/src/lib/server/drama-lab-tail-frame-service.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / accept-first-frame-candidate：提交/执行 |
 | POST | `/api/drama-lab/projects/[id]/shots/[shotId]/extract-tail-frame` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/extract-tail-frame/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-tail-frame-service](web/src/lib/server/drama-lab-tail-frame-service.ts)<br>[feature-module-access](web/src/lib/server/feature-module-access.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / extract-tail-frame：提交/执行 |
 | POST | `/api/drama-lab/projects/[id]/shots/[shotId]/frames/[frameType]/lock` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/shots/[shotId]/frames/[frameType]/lock/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-shot-generation-service](web/src/lib/server/drama-lab-shot-generation-service.ts)<br>[drama-project-contract](web/src/lib/drama-project-contract.ts) | PostgreSQL | drama-lab / 项目 / 单项 / shots / [shotId] / frames / [frameType] / lock：提交/执行 |
@@ -343,6 +344,7 @@
 | GET, PATCH, POST | `/api/drama-lab/projects/[id]/workflow` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/workflow/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-workflow-task-service](web/src/lib/server/drama-lab-workflow-task-service.ts)<br>[drama-lab-collaboration-error](web/src/lib/server/drama-lab-collaboration-error.ts) | PostgreSQL | drama-lab / 项目 / 单项 / workflow：查询、更新、提交/执行 |
 | GET | `/api/drama-lab/projects/[id]/workflow/export/[artifactId]` | 混合 | [route.ts](web/src/app/api/drama-lab/projects/[id]/workflow/export/[artifactId]/route.ts) | [drama-lab-collaboration-service](web/src/lib/server/drama-lab-collaboration-service.ts)<br>[drama-lab-workflow-task-service](web/src/lib/server/drama-lab-workflow-task-service.ts)<br>[drama-lab-collaboration-error](web/src/lib/server/drama-lab-collaboration-error.ts) | PostgreSQL | drama-lab / 项目 / 单项 / workflow / 导出 / [artifactId]：查询 |
 | POST | `/api/drama-lab/projects/import` | 用户 | [route.ts](web/src/app/api/drama-lab/projects/import/route.ts) | [drama-lab-project-archive](web/src/lib/server/drama-lab-project-archive.ts) | PostgreSQL | drama-lab / 项目 / 导入：提交/执行 |
+| DELETE, GET, POST | `/api/drama-lab/story-options` | 用户 | [route.ts](web/src/app/api/drama-lab/story-options/route.ts) | [drama-lab-story-options-service](web/src/lib/server/drama-lab-story-options-service.ts) | PostgreSQL | drama-lab / story-options：查询、删除、提交/执行 |
 
 ### `generation-log-assets`（1）
 

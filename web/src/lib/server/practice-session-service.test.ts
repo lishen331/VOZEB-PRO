@@ -32,6 +32,7 @@ import {
     publicPracticeSession,
     resolvePracticeModelFromSettings,
     retryPracticeSessionForUser,
+    deletePracticeSession,
     type PracticeSessionStore,
     type PracticeTaskDispatchResult,
 } from "./practice-session-service";
@@ -98,6 +99,73 @@ describe("practice sessions", () => {
         mocks.getAudioTask.mockResolvedValue(undefined);
         mocks.getStoredGenerationTaskByRequest.mockResolvedValue(null);
         mocks.ensureAudioLog.mockResolvedValue(undefined);
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+    });
+
+    it("deletes a session using the normalized id", async () => {
+        const store = memoryStore();
+        const session = await store.create({
+            id: "practice-session-delete",
+            userId: "student-one",
+            projectKind: "canvas",
+            module: "script",
+            mode: "manual",
+            title: "待删除",
+            clientRequestId: "delete-request",
+            executionProfile: "open-source-practice",
+            prompt: "",
+            input: {},
+            taskRefs: [],
+            status: "draft",
+        });
+
+        await deletePracticeSession("student-one", ` ${session.id} `, { store });
+
+        await expect(store.get("student-one", session.id)).resolves.toBeNull();
+        expect(store.delete).toHaveBeenCalledWith("student-one", session.id);
+    });
+
+    it("rejects a hidden module before resolving or dispatching a task", async () => {
+        const store = memoryStore();
+        mocks.requirePracticeAccess.mockRejectedValueOnce(Object.assign(new Error("练习模块已停用"), { status: 404 }));
+        const resolveModel = vi.fn();
+        await expect(createPracticeSessionForUser({ id: "student-one" }, { module: "storyboard-image", title: "隐藏模块", input: { prompt: "测试" }, clientRequestId: "hidden-module" }, { store, resolveModel })).rejects.toMatchObject({ status: 404 });
+        expect(resolveModel).not.toHaveBeenCalled();
+    });
+
+    it("rejects an arbitrary or production project association", async () => {
+        const store = memoryStore();
+        mocks.requirePracticeAccess.mockResolvedValue({ schoolId: "school-one", membershipId: "student-one", role: "student" });
+        const resolveProject = vi.fn().mockResolvedValue({ id: "canvas-one", executionProfile: "production" });
+        await expect(
+            createPracticeSessionForUser(
+                { id: "student-one" },
+                { module: "script", mode: "manual", title: "测试剧本", projectId: "canvas-one", projectKind: "canvas", input: { title: "测试", content: "正文" }, clientRequestId: "bad-project" },
+                { store, resolveProject },
+            ),
+        ).rejects.toMatchObject({ status: 400 });
+        expect(store.create).not.toHaveBeenCalled();
+    });
+
+    it("requires current practice access before deleting a session", async () => {
+        const store = memoryStore();
+        await store.create({
+            id: "practice-session-revoked",
+            userId: "student-one",
+            projectKind: "canvas",
+            module: "script",
+            mode: "manual",
+            title: "待删除",
+            clientRequestId: "delete-revoked",
+            executionProfile: "open-source-practice",
+            prompt: "",
+            input: {},
+            taskRefs: [],
+            status: "draft",
+        });
+        mocks.requirePracticeAccess.mockRejectedValueOnce(Object.assign(new Error("当前账号没有可用学校身份"), { status: 403 }));
+        await expect(deletePracticeSession("student-one", "practice-session-revoked", { store })).rejects.toMatchObject({ status: 403 });
+        expect(store.delete).not.toHaveBeenCalled();
     });
 
     it("validates module-specific workflow inputs", () => {
@@ -400,6 +468,29 @@ describe("practice sessions", () => {
         const resolveModel = vi.fn(async (_module, requested) => ({ logicalModelId: requested || "practice-image-a", capability: "image" as const }));
         await expect(retryPracticeSessionForUser({ id: "student-one", role: "user" }, created.id, { store, dispatch: retryDispatch, resolveModel })).resolves.toMatchObject({ status: "running" });
         expect(resolveModel).toHaveBeenCalledWith("storyboard-image", "practice-image-b");
+    });
+
+    it("does not retry a session after its module is disabled", async () => {
+        const store = memoryStore();
+        const cancelled = await store.create({
+            id: "disabled-retry",
+            userId: "student-one",
+            projectKind: "canvas",
+            module: "storyboard-image",
+            mode: "workflow",
+            title: "已停用模块",
+            clientRequestId: "disabled-retry-request",
+            executionProfile: "open-source-practice",
+            prompt: { prompt: "雨夜" },
+            input: { prompt: "雨夜" },
+            taskRefs: [],
+            status: "cancelled",
+        });
+        mocks.requirePracticeAccess.mockResolvedValueOnce({ schoolId: "school-one", membershipId: "student-one", role: "student" }).mockRejectedValueOnce(Object.assign(new Error("练习模块已停用"), { status: 404 }));
+        const dispatch = vi.fn();
+        await expect(retryPracticeSessionForUser({ id: "student-one" }, cancelled.id, { store, dispatch })).rejects.toMatchObject({ status: 404 });
+        expect(mocks.requirePracticeAccess).toHaveBeenNthCalledWith(2, { id: "student-one" }, "storyboard-image");
+        expect(dispatch).not.toHaveBeenCalled();
     });
 
     it("retries a cancelled workflow session through the same dispatch path", async () => {

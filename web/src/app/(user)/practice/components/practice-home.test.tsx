@@ -12,6 +12,10 @@ describe("practice home contract", () => {
         expect(PRACTICE_SCRIPT_ENTRY.title).toBe("剧本");
         expect(PRACTICE_SCRIPT_ENTRY.description).toContain("单人");
     });
+    it("guards the script entry with the admin-controlled script flag", async () => {
+        const source = await (await import("node:fs/promises")).readFile(new URL("./practice-home.tsx", import.meta.url), "utf8");
+        expect(source).toContain("scriptEnabled ? (");
+    });
     it("routes project and module actions to stable workspaces", () => {
         expect(practiceProjectPath("canvas", "canvas-practice-1")).toBe("/canvas/canvas-practice-1");
         expect(practiceProjectPath("drama", "drama-practice-1")).toBe("/drama/drama-practice-1");

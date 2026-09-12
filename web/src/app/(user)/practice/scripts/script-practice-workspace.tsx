@@ -272,27 +272,6 @@ export default function ScriptPracticeWorkspace() {
                         })}
                     </div>
                 ) : null}
-                {detail ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3" aria-label="阶段生成操作">
-                        <span className="mr-1 text-xs text-muted-foreground">阶段生成</span>
-                        {STAGE_OPERATIONS.map((item) => {
-                            const saved = detail.stages.find((stage) => stage.key === item.key);
-                            const prerequisite = ({ outline: "synopsis", entities: "outline", scenes: "entities", screenplay: "scenes" } as Record<string, string>)[item.key];
-                            const locked = Boolean(prerequisite && !detail.stages.some((stage) => stage.key === prerequisite && stage.status === "confirmed"));
-                            return (
-                                <Button
-                                    key={item.key}
-                                    size="small"
-                                    loading={stageBusy}
-                                    disabled={locked}
-                                    onClick={() => void generateStage(item.operation, { idea: detail.project.title, current: document?.blocks.map((block) => block.text).join("\n\n") })}
-                                >
-                                    {saved?.status === "awaiting_review" ? "重新生成" : item.label}
-                                </Button>
-                            );
-                        })}
-                    </div>
-                ) : null}
                 <div className="grid min-h-0 flex-1 gap-4 pt-4 lg:grid-cols-[220px_minmax(0,1fr)_280px]">
                     <aside className="rounded-lg border border-border bg-card p-3" aria-label="剧本项目">
                         <h2 className="text-sm font-semibold">我的剧本</h2>

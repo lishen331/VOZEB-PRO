@@ -9,7 +9,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const user = await getCurrentUser(request);
     if (!user) return response(401, "请先登录");
     try {
-        await requirePracticeAccess(user);
+        await requirePracticeAccess(user, "script");
         const format = new URL(request.url).searchParams.get("format") || "text";
         if (format !== "text" && format !== "fountain" && format !== "fdx") return response(400, "不支持的导出格式");
         const detail = await getScriptProjectDetail(user.id, (await context.params).id);

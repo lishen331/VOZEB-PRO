@@ -12,7 +12,7 @@ export async function GET(request: Request, context: Context) {
     const user = await getCurrentUser(request);
     if (!user) return response(401, "请先登录");
     try {
-        await requirePracticeAccess(user);
+        await requirePracticeAccess(user, "script");
         const id = (await context.params).id;
         const repository = createScriptPracticeRepository();
         const project = await repository.getScriptProject(id, user.id);
@@ -28,7 +28,7 @@ export async function POST(request: Request, context: Context) {
     const parsed = await readJsonBodyResult<Record<string, unknown>>(request, 512 * 1024);
     if (!parsed.ok) return response(parsed.status, parsed.message);
     try {
-        await requirePracticeAccess(user);
+        await requirePracticeAccess(user, "script");
         const id = (await context.params).id;
         const repository = createScriptPracticeRepository();
         const project = await repository.getScriptProject(id, user.id);

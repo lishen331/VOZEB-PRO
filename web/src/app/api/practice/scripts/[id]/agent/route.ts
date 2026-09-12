@@ -14,7 +14,7 @@ export async function POST(request: Request, context: Context) {
     const parsed = await readJsonBodyResult<Record<string, unknown>>(request, 256 * 1024);
     if (!parsed.ok) return response(parsed.status, parsed.message);
     try {
-        await requirePracticeAccess(user);
+        await requirePracticeAccess(user, "script");
         if (!parsed.data || typeof parsed.data !== "object" || Array.isArray(parsed.data)) return response(400, "请求参数无效");
         const operation = parsed.data.operation;
         if (typeof operation !== "string" || !["rewrite_selection", "expand_selection", "polish_selection", "enhance_conflict", "check_continuity", "validate_format"].includes(operation)) return response(400, "剧本 Agent 操作无效");

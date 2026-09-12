@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const user = await getCurrentUser(request);
     if (!user) return response(401, "请先登录");
     try {
-        await requirePracticeAccess(user);
+        await requirePracticeAccess(user, "script");
         const params = new URL(request.url).searchParams;
         return ok(
             await listScriptProjects(user.id, {
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const parsed = await readJsonBodyResult<Record<string, unknown>>(request, 512 * 1024);
     if (!parsed.ok) return response(parsed.status, parsed.message);
     try {
-        await requirePracticeAccess(user);
+        await requirePracticeAccess(user, "script");
         if (!parsed.data || typeof parsed.data !== "object" || Array.isArray(parsed.data)) return response(400, "请求参数无效");
         const title = typeof parsed.data.title === "string" ? parsed.data.title.trim() : "";
         if (!title) return response(400, "请填写剧本标题");

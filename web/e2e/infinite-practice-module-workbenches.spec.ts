@@ -206,7 +206,7 @@ test("没有学校成员身份的账号不能访问无限练习", async ({ brows
 
 async function installPracticeFixtures(page: import("@playwright/test").Page, modules: ReturnType<typeof moduleFixtureCapabilities>) {
     const saved = new Map<string, Record<string, unknown>>();
-    await page.route("**/api/agent/prompt-optimization", (route) => route.fulfill({ json: { code: 200, data: { prompt: "可编辑的角色提示词" }, msg: "ok" } }));
+    await page.route("**/api/practice/prompt-optimization", (route) => route.fulfill({ json: { code: 200, data: { prompt: "可编辑的角色提示词" }, msg: "ok" } }));
     await page.route("**/api/practice/modules", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ code: 200, data: { modules, projects: { canvas: false, drama: false } }, msg: "ok" }) }));
     await page.route("**/api/practice/sessions**", async (route) => {
         const request = route.request();

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+    resolveProjectExecutionProfile: vi.fn(),
     createTextTask: vi.fn(),
     validateGenerationContextIpReferences: vi.fn(),
     getStoredGenerationTaskByRequest: vi.fn(),
@@ -36,13 +37,34 @@ vi.mock("@/lib/server/text-task-store", () => ({ createTextTask: mocks.createTex
 vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
 vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
+vi.mock("@/lib/server/generation-project-context", () => ({
+    resolveProjectExecutionProfile: mocks.resolveProjectExecutionProfile,
+    projectExecutionProfileError: (error: unknown) =>
+        error && typeof error === "object" && "status" in error && typeof (error as { status?: unknown }).status === "number"
+            ? { status: (error as { status: number }).status, message: error instanceof Error ? error.message : "项目访问权限已失效" }
+            : null,
+}));
 import { POST } from "./route";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 describe("text task IP authorization", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.resolveProjectExecutionProfile.mockResolvedValue(undefined);
         mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
+    });
+
+    it("returns the project access status before task creation", async () => {
+        mocks.resolveProjectExecutionProfile.mockRejectedValueOnce(Object.assign(new Error("当前账号没有可用的学校身份"), { status: 403 }));
+        const response = await POST(
+            new Request("http://localhost/api/text-tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ messages: [{ role: "user", content: "练习任务" }], context: { surface: "canvas", projectId: "practice-canvas" } }),
+            }),
+        );
+        expect(response.status).toBe(403);
+        expect(await response.json()).toEqual({ error: "当前账号没有可用的学校身份" });
     });
 
     it("rejects a new Canvas text task after its IP authorization is revoked", async () => {

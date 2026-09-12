@@ -25,3 +25,10 @@ function readProfile(project: unknown): ProjectExecutionProfile | undefined {
     if (!project || typeof project !== "object") return undefined;
     return (project as { executionProfile?: unknown }).executionProfile === "open-source-practice" ? "open-source-practice" : "production";
 }
+
+export function projectExecutionProfileError(error: unknown) {
+    if (!error || typeof error !== "object" || !("status" in error) || typeof (error as { status?: unknown }).status !== "number") return null;
+    const status = (error as { status: number }).status;
+    if (status < 400 || status > 499) return null;
+    return { status, message: error instanceof Error ? error.message : "项目访问权限已失效" };
+}

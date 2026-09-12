@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+    resolveProjectExecutionProfile: vi.fn(),
     after: vi.fn(),
     getAuthSettings: vi.fn(),
     getStoredGenerationTaskByRequest: vi.fn(),
@@ -35,17 +36,34 @@ vi.mock("@/lib/server/proxy-dispatcher", () => ({ configureServerProxyDispatcher
 vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
 vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
+vi.mock("@/lib/server/generation-project-context", () => ({
+    resolveProjectExecutionProfile: mocks.resolveProjectExecutionProfile,
+    projectExecutionProfileError: (error: unknown) =>
+        error && typeof error === "object" && "status" in error && typeof (error as { status?: unknown }).status === "number"
+            ? { status: (error as { status: number }).status, message: error instanceof Error ? error.message : "项目访问权限已失效" }
+            : null,
+}));
 import { maxDuration, POST } from "./route";
 import { SchoolServiceError } from "@/lib/server/school-access-service";
 
 describe("image task route", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.resolveProjectExecutionProfile.mockResolvedValue(undefined);
         mocks.getStoredGenerationTaskByRequest.mockResolvedValue(undefined);
         mocks.rate.mockResolvedValue({ allowed: true, remaining: 5, resetAt: Date.now() + 60_000 });
         mocks.validateGenerationContextIpReferences.mockResolvedValue(undefined);
         mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
         mocks.withGenerationConcurrencyLimit.mockImplementation(async (_userId, _type, _staleMs, _limit, handler) => handler());
+    });
+
+    it("returns the project access status before task creation", async () => {
+        mocks.resolveProjectExecutionProfile.mockRejectedValueOnce(Object.assign(new Error("当前账号没有可用的学校身份"), { status: 403 }));
+        const response = await POST(
+            new Request("http://localhost/api/image-tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: "练习任务", context: { surface: "canvas", projectId: "practice-canvas" } }) }),
+        );
+        expect(response.status).toBe(403);
+        expect(await response.json()).toEqual({ error: "当前账号没有可用的学校身份" });
     });
 
     it("keeps background image submission alive past the five minute route default", () => {

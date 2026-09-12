@@ -14,7 +14,7 @@ export async function PATCH(request: Request, context: Context) {
     return withUser(request, context, async (user, id) => {
         const parsed = await readJsonBodyResult<Record<string, unknown>>(request, 256 * 1024);
         if (!parsed.ok) return response(parsed.status, parsed.message);
-        await requirePracticeAccess(user);
+        await requirePracticeAccess(user, "script");
         return ok(
             await updateScriptProject(user.id, id, {
                 ...(typeof parsed.data.title === "string" ? { title: parsed.data.title.trim() } : {}),
@@ -28,7 +28,7 @@ export async function PATCH(request: Request, context: Context) {
 }
 export async function DELETE(request: Request, context: Context) {
     return withUser(request, context, async (user, id) => {
-        await requirePracticeAccess(user);
+        await requirePracticeAccess(user, "script");
         return ok(await deleteScriptProject(user.id, id));
     });
 }
@@ -36,7 +36,7 @@ async function withUser(request: Request, context: Context, action: (user: NonNu
     const user = await getCurrentUser(request);
     if (!user) return response(401, "请先登录");
     try {
-        await requirePracticeAccess(user);
+        await requirePracticeAccess(user, "script");
         return await action(user, (await context.params).id);
     } catch (error) {
         return failure(error, "剧本项目请求失败");

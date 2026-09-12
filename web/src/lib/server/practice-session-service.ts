@@ -12,6 +12,8 @@ import { getImageTask } from "@/lib/server/image-task-store";
 import { getVideoTask } from "@/lib/server/video-task-store";
 import { getAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
 import { ensurePracticeAudioGenerationLog } from "@/lib/server/audio-task-runtime";
+import { getCanvasProjectForUser } from "@/lib/server/canvas-project-service";
+import { getDramaProjectForUser } from "@/lib/server/drama-project-service";
 import { getStoredGenerationTaskByRequest } from "@/lib/server/generation-task-store";
 import type { IpReference } from "@/lib/ip-library-domain";
 import { normalizeIpReferences, recordIpReferenceUsage, validateIpReferences } from "./ip-library-reference-service";
@@ -77,9 +79,11 @@ export async function createPracticeSessionForUser(
         store?: PracticeSessionStore;
         dispatch?: (input: PracticeTaskDispatchInput) => Promise<PracticeTaskDispatchResult>;
         resolveModel?: (module: PracticeModuleKind, requestedLogicalModelId?: string, workflowCode?: string) => Promise<PracticeModelResolution>;
+        resolveProject?: (userId: string, kind: PracticeProjectKind, projectId: string) => Promise<{ executionProfile?: string }>;
     } = {},
 ) {
-    await requirePracticeAccess(actor);
+    const moduleKind = normalizeModule(input.module);
+    await requirePracticeAccess(actor, moduleKind);
     const store = deps.store || defaultPracticeSessionStore();
     const clientRequestId = clean(input.clientRequestId, 160);
     if (!clientRequestId) throw new PracticeServiceError("缺少练习请求标识", 400);
@@ -94,7 +98,6 @@ export async function createPracticeSessionForUser(
         }
         return publicSession(await synchronizePracticeSessionLifecycle(store, existing));
     }
-    const moduleKind = normalizeModule(input.module);
     const title = clean(input.title, 120) || "练习会话";
     const sourcePayload = object(input.input);
     const requestedMode = input.mode || (moduleKind === "script" && (text(sourcePayload.content) || text(sourcePayload.script) || text(sourcePayload.title)) ? "manual" : "workflow");
@@ -103,6 +106,17 @@ export async function createPracticeSessionForUser(
         if (!text(sourcePayload.title) || !text(sourcePayload.content)) throw new PracticeServiceError("剧本标题和正文不能为空", 400, "PRACTICE_INPUT_INVALID");
     } else if (!(moduleKind === "dubbing" ? text(sourcePayload.text) : text(sourcePayload.prompt))) {
         throw new PracticeServiceError("练习内容不能为空", 400, "PRACTICE_INPUT_INVALID");
+    }
+    const projectId = cleanOptional(input.projectId, 160);
+    const projectKind: PracticeProjectKind = input.projectKind === "drama" ? "drama" : "canvas";
+    if (projectId) {
+        try {
+            const project = await (deps.resolveProject || resolvePracticeProject)(actor.id, projectKind, projectId);
+            if (project.executionProfile !== "open-source-practice") throw new Error("not-practice");
+        } catch (error) {
+            if (error && typeof error === "object" && "status" in error && (error as { status?: unknown }).status === 403) throw error;
+            throw new PracticeServiceError("练习项目关联无效", 400, "PRACTICE_INPUT_INVALID");
+        }
     }
     const references = normalizeReferences(input.references);
     const ipReferences = references.filter((reference): reference is IpReference => reference.type === "ip");
@@ -124,8 +138,8 @@ export async function createPracticeSessionForUser(
     const created = await store.create({
         id: `practice-session-${nanoid()}`,
         userId: actor.id,
-        projectId: cleanOptional(input.projectId, 160),
-        projectKind: input.projectKind === "drama" ? "drama" : "canvas",
+        projectId,
+        projectKind,
         module: moduleKind,
         mode,
         title,
@@ -244,6 +258,7 @@ export async function retryPracticeSessionForUser(
     const loaded = await store.get(actor.id, clean(id, 160));
     const current = loaded ? await synchronizePracticeSessionLifecycle(store, loaded) : null;
     if (!current) throw new PracticeServiceError("练习会话不存在", 404);
+    await requirePracticeAccess(actor, current.module);
     const dispatchNotStarted = (current.status === "queued" || current.status === "running") && !hasTaskReference(current) && current.errorCode !== "PRACTICE_SUBMISSION_UNKNOWN";
     if (current.status !== "failed" && current.status !== "cancelled" && !dispatchNotStarted) throw new PracticeServiceError("当前练习无需重试", 409);
     const storedInput = object(current.input);
@@ -267,10 +282,12 @@ export async function retryPracticeSessionForUser(
 }
 
 export async function deletePracticeSession(userId: string, sessionId: string, deps: { store?: PracticeSessionStore } = {}) {
+    await requirePracticeAccess({ id: userId });
     const store = deps.store || defaultPracticeSessionStore();
-    const session = await store.get(userId, clean(sessionId, 160));
+    const normalizedSessionId = clean(sessionId, 160);
+    const session = await store.get(userId, normalizedSessionId);
     if (!session) throw new PracticeServiceError("练习会话不存在", 404);
-    await store.delete(userId, sessionId);
+    await store.delete(userId, normalizedSessionId);
 }
 
 export class PracticeServiceError extends Error {
@@ -381,6 +398,10 @@ async function findDurableTaskReference(userId: string, clientRequestId: string,
     const taskType = module === "script" ? "text" : ["character", "scene", "prop", "storyboard-image"].includes(module) ? "image" : module === "storyboard-video" ? "video" : "audio";
     const task = await getStoredGenerationTaskByRequest<{ id?: unknown }>(taskType, userId, clientRequestId);
     return task && typeof task.id === "string" && task.id.trim() ? { taskId: task.id, taskType } : null;
+}
+
+async function resolvePracticeProject(userId: string, kind: PracticeProjectKind, projectId: string) {
+    return kind === "drama" ? getDramaProjectForUser(userId, projectId) : getCanvasProjectForUser(userId, projectId);
 }
 
 async function defaultResolveModel(module: PracticeModuleKind, requestedLogicalModelId?: string, requestedWorkflowCode?: string): Promise<PracticeModelResolution> {
