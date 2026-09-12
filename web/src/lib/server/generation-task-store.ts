@@ -969,9 +969,9 @@ async function upsertTask<T extends { id: string; userId: string; status: string
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
                 conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
-                workflow_key, workflow_version, upstream_workflow_id, workflow_code, workflow_adapter_version, business_code, task_origin
+                workflow_key, workflow_version, upstream_workflow_id, workflow_code, workflow_adapter_version, business_code, task_origin, school_id
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
              ON CONFLICT (id) DO UPDATE SET
                 status = EXCLUDED.status, payload = jsonb_set(EXCLUDED.payload, '{executionProfile}', to_jsonb(generation_tasks.execution_profile), true), updated_at = EXCLUDED.updated_at, expires_at = EXCLUDED.expires_at,
                 conversation_id = COALESCE(EXCLUDED.conversation_id, generation_tasks.conversation_id),
@@ -1005,6 +1005,7 @@ async function upsertTask<T extends { id: string; userId: string; status: string
                 context.workflowAdapterVersion ?? null,
                 context.businessCode || null,
                 context.taskOrigin,
+                context.schoolId || null,
             ],
         );
         return;
@@ -1030,6 +1031,7 @@ async function upsertTask<T extends { id: string; userId: string; status: string
 async function insertTask<T extends { id: string; userId: string; status: string; createdAt: number; updatedAt: number }>(type: GenerationTaskType, task: T, ttlMs: number): Promise<T> {
     const status = normalizeGenerationTaskStatus(task.status);
     const context = normalizeGenerationTaskContext(task as GenerationTaskContext);
+    if (context.executionProfile === "open-source-practice" && !context.schoolId) throw new Error("练习任务缺少学校范围");
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         const values = taskValues(type, task, ttlMs, status, context);
@@ -1037,9 +1039,9 @@ async function insertTask<T extends { id: string; userId: string; status: string
             `INSERT INTO generation_tasks (
                 id, user_id, task_type, status, payload, created_at, updated_at, expires_at,
                 conversation_id, run_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
-                workflow_key, workflow_version, upstream_workflow_id, workflow_code, workflow_adapter_version, business_code, task_origin
+                workflow_key, workflow_version, upstream_workflow_id, workflow_code, workflow_adapter_version, business_code, task_origin, school_id
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
              ON CONFLICT DO NOTHING
              RETURNING payload`,
             values,
@@ -1093,6 +1095,7 @@ function taskValues<T extends { id: string; userId: string; createdAt: number; u
         context.workflowAdapterVersion ?? null,
         context.businessCode || null,
         context.taskOrigin,
+        context.schoolId || null,
     ];
 }
 
@@ -1128,6 +1131,7 @@ function normalizeGenerationTaskContext(context: GenerationTaskContext): Generat
         runId: cleanContextText(context.runId),
         surface: context.surface === "chat" || context.surface === "canvas" || context.surface === "drama" ? context.surface : undefined,
         featureModule: context.featureModule === "drama-lab" ? "drama-lab" : undefined,
+        schoolId: cleanContextText(context.schoolId),
         executionProfile: context.executionProfile === "open-source-practice" ? "open-source-practice" : "production",
         projectId: cleanContextText(context.projectId),
         episodeId: cleanContextText(context.episodeId),
@@ -1183,6 +1187,7 @@ function preserveTaskContext(previous: StoredGenerationTaskRecord | undefined, n
         workflowAdapterVersion: next.workflowAdapterVersion ?? previous?.workflowAdapterVersion,
         businessCode: next.businessCode || previous?.businessCode,
         taskOrigin: next.taskOrigin || previous?.taskOrigin || "user",
+        schoolId: previous?.schoolId || next.schoolId,
         executionProfile: previous?.executionProfile || next.executionProfile || "production",
     };
 }
@@ -1290,6 +1295,7 @@ function mapStoredTaskRecord(row: Record<string, unknown>): StoredGenerationTask
         runId: cleanContextText(String(row.run_id || "")),
         surface: isTaskSurface(durableSurface) ? durableSurface : undefined,
         featureModule: nested.featureModule === "drama-lab" || payload.featureModule === "drama-lab" ? "drama-lab" : undefined,
+        schoolId: cleanContextText(String(row.school_id || payload.schoolId || "")),
         executionProfile: row.execution_profile === "open-source-practice" ? "open-source-practice" : "production",
         projectId: cleanContextText(String(row.project_id || "")),
         episodeId: payloadContextText(payload, "episodeId"),
@@ -1340,6 +1346,7 @@ function withPayloadTaskContext(record: StoredGenerationTaskRecord): StoredGener
         ...record,
         userId: cleanContextText(record.userId) || taskContextText(payload, "userId") || taskContextText(nested, "userId") || "",
         surface,
+        schoolId: record.schoolId || taskContextText(payload, "schoolId"),
         projectId: taskContextText(record, "projectId") || taskContextText(payload, "projectId") || taskContextText(nested, "projectId") || taskContextText(workflow, "projectId") || taskContextText(storyBatch, "projectId"),
         episodeId: taskContextText(record, "episodeId") || payloadContextText(payload, "episodeId") || taskContextText(storyBatch, "sourceEpisodeId"),
         shotId: taskContextText(record, "shotId") || payloadContextText(payload, "shotId"),

@@ -7,8 +7,8 @@ export type PracticeTenantScope = {
     ownerUserId: string;
 };
 
-export async function requirePracticeTenant(actor: PracticeActor, _module?: PracticeModuleKind): Promise<PracticeTenantScope> {
-    const access = await requirePracticeAccess(actor);
+export async function requirePracticeTenant(actor: PracticeActor, module?: PracticeModuleKind): Promise<PracticeTenantScope> {
+    const access = await (module ? requirePracticeAccess(actor, module) : requirePracticeAccess(actor));
     return { schoolId: access.schoolId, ownerUserId: actor.id };
 }
 

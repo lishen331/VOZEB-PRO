@@ -54,6 +54,7 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
     const context = {
         surface: input.projectKind === "drama" ? "drama" : "canvas",
         executionProfile: "open-source-practice" as const,
+        schoolId: input.schoolId,
         projectId: input.sessionId,
         clientRequestId: input.clientRequestId,
         ...(input.workflow

@@ -5,16 +5,17 @@ import { readJsonDataFile, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { ensurePostgresSchema, getDatabaseProvider, postgresQuery } from "@/lib/server/database";
 import type { PracticeExecutionProfile, PracticeSource } from "@/lib/practice-domain";
 
-export type DramaProjectIdentityInput = { executionProfile?: PracticeExecutionProfile; practiceSource?: PracticeSource };
-export type DramaProjectIdentityView = { executionProfile: PracticeExecutionProfile; practiceSource: PracticeSource };
-type DramaProjectRecord = { userId: string; project: DramaProject; executionProfile?: PracticeExecutionProfile; practiceSourceWorkId?: string; practiceSourceVersionId?: string };
+export type DramaProjectIdentityInput = { schoolId?: string; executionProfile?: PracticeExecutionProfile; practiceSource?: PracticeSource };
+export type DramaProjectIdentityView = { schoolId?: string; executionProfile: PracticeExecutionProfile; practiceSource: PracticeSource };
+type DramaProjectRecord = { userId: string; project: DramaProject; schoolId?: string; executionProfile?: PracticeExecutionProfile; practiceSourceWorkId?: string; practiceSourceVersionId?: string };
 type DramaProjectDatabase = { version: 1; projects: DramaProjectRecord[] };
 
 const FILE_NAME = "drama-projects.json";
 
-export async function listDramaProjectSummaries(userId: string, input: { page?: number; pageSize?: number; executionProfile?: PracticeExecutionProfile } = {}): Promise<DramaProjectSummaryPage> {
+export async function listDramaProjectSummaries(userId: string, input: { page?: number; pageSize?: number; schoolId?: string; executionProfile?: PracticeExecutionProfile } = {}): Promise<DramaProjectSummaryPage> {
     const page = Math.max(1, Math.floor(Number(input.page) || 1));
     const pageSize = Math.max(1, Math.min(100, Math.floor(Number(input.pageSize) || 20)));
+    const schoolClause = input.schoolId ? ` AND (project.school_id = $${input.executionProfile ? 5 : 4} OR project.school_id IS NULL)` : "";
     const profileClause = input.executionProfile ? " AND project.execution_profile = $4" : "";
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
@@ -35,6 +36,7 @@ export async function listDramaProjectSummaries(userId: string, input: { page?: 
                 COUNT(*) OVER() AS total_count,
                 project.created_at,
                 project.updated_at,
+                project.school_id,
                 project.execution_profile,
                 project.practice_source_work_id,
                 project.practice_source_version_id
@@ -57,15 +59,15 @@ export async function listDramaProjectSummaries(userId: string, input: { page?: 
                 FROM jsonb_array_elements(COALESCE(project.project_json->'episodes', '[]'::jsonb)) episode
                 CROSS JOIN LATERAL jsonb_array_elements(COALESCE(episode->'shots', '[]'::jsonb)) shot
              ) tasks ON TRUE
-             WHERE project.user_id = $1${profileClause}
+             WHERE project.user_id = $1${profileClause}${schoolClause}
              ORDER BY project.updated_at DESC
              LIMIT $2 OFFSET $3`,
-            input.executionProfile ? [userId, pageSize, (page - 1) * pageSize, input.executionProfile] : [userId, pageSize, (page - 1) * pageSize],
+            [userId, pageSize, (page - 1) * pageSize, ...(input.executionProfile ? [input.executionProfile] : []), ...(input.schoolId ? [input.schoolId] : [])],
         );
         return { items: result.rows.map(summaryFromRow), total: Number(result.rows[0]?.total_count) || 0, page, pageSize };
     }
     const summaries = (await readDatabase()).projects
-        .filter((record) => record.userId === userId && (!input.executionProfile || record.executionProfile === input.executionProfile))
+        .filter((record) => (!input.schoolId || !record.schoolId || record.schoolId === input.schoolId) && record.userId === userId && (!input.executionProfile || record.executionProfile === input.executionProfile))
         .map((record) => ({ ...summarizeDramaProject(record.project), ...identityView(record) }))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return { items: summaries.slice((page - 1) * pageSize, page * pageSize), total: summaries.length, page, pageSize };
@@ -84,8 +86,8 @@ export async function findDramaProjectBySourceHandoffId(userId: string, sourceHa
 export async function getDramaProject(id: string, userId: string) {
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<{ project_json: DramaProject; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }>(
-            "SELECT project_json, execution_profile, practice_source_work_id, practice_source_version_id FROM drama_projects WHERE id = $1 AND user_id = $2",
+        const result = await postgresQuery<{ project_json: DramaProject; school_id?: string; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }>(
+            "SELECT project_json, school_id, execution_profile, practice_source_work_id, practice_source_version_id FROM drama_projects WHERE id = $1 AND user_id = $2",
             [id, userId],
         );
         return result.rows[0] ? toPublicProject(result.rows[0].project_json, result.rows[0]) : null;
@@ -106,8 +108,8 @@ export async function getDramaProjectWithOwner(id: string) {
     if (!projectId) return null;
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
-        const result = await postgresQuery<{ project_json: DramaProject; user_id: string; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }>(
-            "SELECT project_json, user_id, execution_profile, practice_source_work_id, practice_source_version_id FROM drama_projects WHERE id = $1",
+        const result = await postgresQuery<{ project_json: DramaProject; user_id: string; school_id?: string; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }>(
+            "SELECT project_json, user_id, school_id, execution_profile, practice_source_work_id, practice_source_version_id FROM drama_projects WHERE id = $1",
             [projectId],
         );
         const row = result.rows[0];
@@ -123,9 +125,21 @@ export async function createDramaProject(userId: string, project: DramaProject, 
     if (getDatabaseProvider() === "postgres") {
         await ensurePostgresSchema();
         await postgresQuery(
-            `INSERT INTO drama_projects (id, user_id, title, status, project_json, execution_profile, practice_source_work_id, practice_source_version_id, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10)`,
-            [project.id, userId, project.title, project.status, JSON.stringify(storedProject), metadata.executionProfile, metadata.practiceSourceWorkId, metadata.practiceSourceVersionId, new Date(project.createdAt), new Date(project.updatedAt)],
+            `INSERT INTO drama_projects (id, user_id, title, status, project_json, execution_profile, practice_source_work_id, practice_source_version_id, created_at, updated_at, school_id)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11)`,
+            [
+                project.id,
+                userId,
+                project.title,
+                project.status,
+                JSON.stringify(storedProject),
+                metadata.executionProfile,
+                metadata.practiceSourceWorkId,
+                metadata.practiceSourceVersionId,
+                new Date(project.createdAt),
+                new Date(project.updatedAt),
+                metadata.schoolId || null,
+            ],
         );
         return withIdentity(project, metadata);
     }
@@ -191,19 +205,19 @@ function readDatabase() {
     return readJsonDataFile<DramaProjectDatabase>(FILE_NAME, { version: 1, projects: [] });
 }
 
-type StoredProjectIdentity = { executionProfile: PracticeExecutionProfile; practiceSourceWorkId?: string; practiceSourceVersionId?: string };
+type StoredProjectIdentity = { schoolId?: string; executionProfile: PracticeExecutionProfile; practiceSourceWorkId?: string; practiceSourceVersionId?: string };
 
 function normalizeIdentity(input: DramaProjectIdentityInput): StoredProjectIdentity {
     const executionProfile = input.executionProfile === "open-source-practice" ? "open-source-practice" : "production";
     const source = input.practiceSource?.type === "published-work" ? input.practiceSource : undefined;
-    return { executionProfile, ...(source ? { practiceSourceWorkId: source.workId, practiceSourceVersionId: source.versionId } : {}) };
+    return { executionProfile, ...(input.schoolId ? { schoolId: input.schoolId } : {}), ...(source ? { practiceSourceWorkId: source.workId, practiceSourceVersionId: source.versionId } : {}) };
 }
 
-function identityView(source: Partial<StoredProjectIdentity> & { execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }): DramaProjectIdentityView {
+function identityView(source: Partial<StoredProjectIdentity> & { school_id?: string; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }): DramaProjectIdentityView {
     const executionProfile = source.execution_profile === "open-source-practice" || source.executionProfile === "open-source-practice" ? "open-source-practice" : "production";
     const workId = source.practice_source_work_id || source.practiceSourceWorkId;
     const versionId = source.practice_source_version_id || source.practiceSourceVersionId;
-    return { executionProfile, practiceSource: workId && versionId ? { type: "published-work", workId, versionId } : { type: "blank" } };
+    return { ...(source.school_id || source.schoolId ? { schoolId: source.school_id || source.schoolId } : {}), executionProfile, practiceSource: workId && versionId ? { type: "published-work", workId, versionId } : { type: "blank" } };
 }
 
 function withIdentity(project: DramaProject, identity: StoredProjectIdentity): DramaProject & DramaProjectIdentityView {
@@ -212,11 +226,14 @@ function withIdentity(project: DramaProject, identity: StoredProjectIdentity): D
 
 function stripProjectIdentity(project: DramaProject) {
     const value = project as DramaProject & Partial<DramaProjectIdentityView>;
-    const { executionProfile: _executionProfile, practiceSource: _practiceSource, ...stored } = value;
+    const { schoolId: _schoolId, executionProfile: _executionProfile, practiceSource: _practiceSource, ...stored } = value;
     return stored;
 }
 
-function toPublicProject(project: DramaProject, identity?: Partial<StoredProjectIdentity> & { execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string }): DramaProject & DramaProjectIdentityView {
+function toPublicProject(
+    project: DramaProject,
+    identity?: Partial<StoredProjectIdentity> & { school_id?: string; execution_profile?: string; practice_source_work_id?: string; practice_source_version_id?: string },
+): DramaProject & DramaProjectIdentityView {
     return { ...stripProjectIdentity(project), ...identityView(identity || {}) };
 }
 
@@ -256,6 +273,7 @@ type DramaProjectSummaryRow = {
     total_count: number;
     created_at: Date | string;
     updated_at: Date | string;
+    school_id?: string;
     execution_profile?: string;
     practice_source_work_id?: string;
     practice_source_version_id?: string;

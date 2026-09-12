@@ -618,6 +618,8 @@ ALTER TABLE library_assets ADD CONSTRAINT library_assets_kind CHECK (kind IN ('t
 
 CREATE INDEX IF NOT EXISTS library_assets_user_updated_idx ON library_assets (user_id, updated_at DESC);
 
+ALTER TABLE canvas_projects ADD COLUMN IF NOT EXISTS school_id text;
+
 CREATE TABLE IF NOT EXISTS drama_projects (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -639,6 +641,8 @@ ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS practice_source_version_id t
 ALTER TABLE drama_projects DROP CONSTRAINT IF EXISTS drama_projects_execution_profile;
 ALTER TABLE drama_projects ADD CONSTRAINT drama_projects_execution_profile CHECK (execution_profile IN ('production', 'open-source-practice'));
 CREATE INDEX IF NOT EXISTS drama_projects_user_profile_updated_idx ON drama_projects (user_id, execution_profile, updated_at DESC);
+
+ALTER TABLE drama_projects ADD COLUMN IF NOT EXISTS school_id text;
 
 CREATE TABLE IF NOT EXISTS practice_sessions (
     id text PRIMARY KEY,
