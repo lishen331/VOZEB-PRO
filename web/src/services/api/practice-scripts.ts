@@ -47,6 +47,9 @@ export const practiceScriptsApi = {
     artifact(id: string, artifactType: string, artifactKey: string) {
         return request<Record<string, unknown>>(`/api/practice/scripts/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactType)}/${encodeURIComponent(artifactKey)}`);
     },
+    confirmArtifact(id: string, artifactId: string, stageKey: string, runId?: string) {
+        return request<Record<string, unknown>>(`/api/practice/scripts/${encodeURIComponent(id)}/confirmations`, json("POST", { artifactId, stageKey, runId }));
+    },
     createRun(id: string, input: { runType: string; clientRequestId: string; chatSessionId?: string; stageKey?: string; input?: Record<string, unknown> }) {
         return request<{ id: string; status: string; runType: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/runs`, json("POST", input));
     },

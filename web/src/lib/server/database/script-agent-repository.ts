@@ -47,7 +47,8 @@ export class ScriptAgentRepository {
     async createRun(scope: PracticeTenantScope, input: { id: string; projectId: string; chatSessionId?: string; runType: ScriptRunType; stageKey?: string; clientRequestId: string; configSnapshot: Record<string, unknown> }) {
         const result = await this.db.query(
             `INSERT INTO practice_script_runs (id, school_id, owner_user_id, project_id, chat_session_id, run_type, stage_key, status, client_request_id, config_snapshot)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'planning', $8, $9::jsonb)
+             SELECT $1, $2, $3, project.id, $5, $6, $7, 'planning', $8, $9::jsonb
+             FROM practice_script_projects project WHERE project.id = $4 AND project.school_id = $2 AND project.owner_user_id = $3
              ON CONFLICT (school_id, owner_user_id, client_request_id) DO UPDATE SET client_request_id = EXCLUDED.client_request_id
              RETURNING *`,
             [input.id, scope.schoolId, scope.ownerUserId, input.projectId, input.chatSessionId || null, input.runType, input.stageKey || null, input.clientRequestId, JSON.stringify(input.configSnapshot)],
@@ -138,7 +139,8 @@ export class ScriptAgentRepository {
     async saveArtifact(scope: PracticeTenantScope, input: { id: string; projectId: string; artifactType: string; artifactKey: string; status: string; content: Record<string, unknown>; contentText?: string; sourceRunId: string }) {
         const result = await this.db.query(
             `INSERT INTO practice_script_artifacts (id, school_id, owner_user_id, project_id, artifact_type, artifact_key, status, version, content_json, content_text, source_run_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE((SELECT MAX(version) + 1 FROM practice_script_artifacts WHERE project_id = $4 AND artifact_type = $5 AND artifact_key = $6), 1), $8::jsonb, $9, $10)
+             SELECT $1, $2, $3, project.id, $5, $6, $7, COALESCE((SELECT MAX(version) + 1 FROM practice_script_artifacts WHERE project_id = $4 AND artifact_type = $5 AND artifact_key = $6), 1), $8::jsonb, $9, $10
+             FROM practice_script_projects project WHERE project.id = $4 AND project.school_id = $2 AND project.owner_user_id = $3
              RETURNING *`,
             [input.id, scope.schoolId, scope.ownerUserId, input.projectId, input.artifactType, input.artifactKey, input.status, JSON.stringify(input.content), input.contentText || null, input.sourceRunId],
         );
@@ -164,8 +166,26 @@ export class ScriptAgentRepository {
         return result.rows.map(mapRun);
     }
 
+    async confirmArtifact(scope: PracticeTenantScope, input: { id: string; projectId: string; artifactId: string; stageKey: string; sourceRunId?: string }) {
+        const result = await this.db.query(
+            `WITH confirmed AS (
+                UPDATE practice_script_artifacts SET status = 'confirmed', updated_at = now()
+                WHERE id = $4 AND school_id = $1 AND owner_user_id = $2 AND project_id = $3 AND status = 'awaiting_review'
+                RETURNING id, version
+             )
+             INSERT INTO practice_script_confirmations (id, school_id, owner_user_id, project_id, stage_key, artifact_versions, source_run_id)
+             SELECT $5, $1, $2, $3, $6, jsonb_build_array(jsonb_build_object('artifactId', id, 'version', version)), $7 FROM confirmed
+             RETURNING *`,
+            [scope.schoolId, scope.ownerUserId, input.projectId, input.artifactId, input.id, input.stageKey, input.sourceRunId || null],
+        );
+        return result.rows[0] || null;
+    }
+
     async createChatSession(scope: PracticeTenantScope, input: { id: string; projectId: string; title: string }) {
-        const result = await this.db.query("INSERT INTO practice_script_chat_sessions (id, school_id, owner_user_id, project_id, title) VALUES ($1, $2, $3, $4, $5) RETURNING *", [input.id, scope.schoolId, scope.ownerUserId, input.projectId, input.title]);
+        const result = await this.db.query(
+            `INSERT INTO practice_script_chat_sessions (id, school_id, owner_user_id, project_id, title) SELECT $1, $2, $3, project.id, $5 FROM practice_script_projects project WHERE project.id = $4 AND project.school_id = $2 AND project.owner_user_id = $3 RETURNING *`,
+            [input.id, scope.schoolId, scope.ownerUserId, input.projectId, input.title],
+        );
         return result.rows[0] || null;
     }
 

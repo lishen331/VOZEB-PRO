@@ -144,10 +144,14 @@ export default function ScriptPracticeWorkspace() {
         setNewOpen(false);
         await loadProjects();
         setSelectedId(project.id);
-        await start("project_planning", { mode, title: newTitle.trim(), idea: idea.trim() });
+        const run = await practiceScriptsApi.createRun(project.id, { runType: "project_planning", clientRequestId: crypto.randomUUID(), input: { mode, title: newTitle.trim(), idea: idea.trim() } });
+        setRunId(run.id);
+        await consumeEvents(project.id, run.id);
     };
     const selectedProject = projects.find((item) => item.id === selectedId);
     const visible = useMemo(() => artifactContent(artifact) || preview, [artifact, preview]);
+    const artifactStatus = typeof artifact?.status === "string" ? artifact.status : "";
+    const artifactId = typeof artifact?.id === "string" ? artifact.id : "";
     return (
         <main className="flex h-full min-h-0 flex-col bg-background text-foreground" data-script-practice-workspace>
             <header className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -195,7 +199,17 @@ export default function ScriptPracticeWorkspace() {
                                 <BookOpen className="size-5 text-primary" />
                                 <h2 className="font-semibold">{tree.find((i) => i.key === selectedKey)?.label || "正式创作成果"}</h2>
                             </div>
-                            {busy ? <Tag color="processing">SSE 写作中</Tag> : null}
+                            {busy ? (
+                                <Tag color="processing">SSE 写作中</Tag>
+                            ) : artifactStatus === "awaiting_review" ? (
+                                <Button
+                                    size="small"
+                                    type="primary"
+                                    onClick={() => selectedId && artifactId && void practiceScriptsApi.confirmArtifact(selectedId, artifactId, tree.find((i) => i.key === selectedKey)?.type || selectedKey, runId).then(() => loadTree(selectedId))}
+                                >
+                                    确认当前阶段
+                                </Button>
+                            ) : null}
                         </div>
                         {visible ? (
                             <article className="prose prose-sm max-w-none dark:prose-invert">
