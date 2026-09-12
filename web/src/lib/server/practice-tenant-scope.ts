@@ -1,5 +1,5 @@
-import type { PracticeActor } from "./practice-access-service";
-import { requireActiveSchoolContext } from "@/lib/server/school-access-service";
+import { requirePracticeAccess, type PracticeActor } from "./practice-access-service";
+import { getSchoolContextForUser } from "@/lib/server/school-access-service";
 
 export type PracticeTenantScope = {
     schoolId: string;
@@ -7,9 +7,15 @@ export type PracticeTenantScope = {
 };
 
 export async function requirePracticeTenant(actor: PracticeActor): Promise<PracticeTenantScope> {
-    const context = await requireActiveSchoolContext(actor.id);
-    if (context.membership.role !== "teacher" && context.membership.role !== "student") throw new PracticeTenantScopeError("当前账号不是老师或学生", 403);
-    return { schoolId: context.school.id, ownerUserId: actor.id };
+    const access = await requirePracticeAccess(actor);
+    return { schoolId: access.schoolId, ownerUserId: actor.id };
+}
+
+export async function getPracticeTenantIfActive(userId: string): Promise<PracticeTenantScope | null> {
+    const context = await getSchoolContextForUser(userId);
+    if (!context || context.school.status !== "active" || context.membership.status !== "active") return null;
+    if (context.membership.role !== "teacher" && context.membership.role !== "student") return null;
+    return { schoolId: context.school.id, ownerUserId: userId };
 }
 
 export function assertPracticeTenant(scope: PracticeTenantScope, value: Record<string, unknown>) {

@@ -309,6 +309,7 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
     CONSTRAINT generation_tasks_status CHECK (status IN ('pending', 'running', 'success', 'error', 'paused', 'cancelled'))
 );
 
+CREATE INDEX IF NOT EXISTS generation_tasks_school_user_status_idx ON generation_tasks (school_id, user_id, task_type, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS generation_tasks_user_status_idx ON generation_tasks (user_id, task_type, status, updated_at DESC);
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_type;
 ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_type CHECK (task_type IN ('text', 'image', 'video', 'audio', 'agent', 'render'));
@@ -323,6 +324,7 @@ ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS parent_task_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS attempt_no integer;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS client_request_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS execution_profile text NOT NULL DEFAULT 'production';
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS school_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS execution_phase text NOT NULL DEFAULT 'created';
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS upstream_task_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS channel_id text;
@@ -423,8 +425,10 @@ CREATE TABLE IF NOT EXISTS creative_conversations (
 ALTER TABLE creative_conversations ADD COLUMN IF NOT EXISTS context_summary text NOT NULL DEFAULT '';
 ALTER TABLE creative_conversations ADD COLUMN IF NOT EXISTS context_summary_through_sequence integer NOT NULL DEFAULT 0;
 ALTER TABLE creative_conversations ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'agent';
+ALTER TABLE creative_conversations ADD COLUMN IF NOT EXISTS school_id text;
 UPDATE creative_conversations SET source = surface WHERE surface IN ('canvas', 'drama') AND source = 'agent';
 
+CREATE INDEX IF NOT EXISTS creative_conversations_school_user_updated_idx ON creative_conversations (school_id, user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS creative_conversations_user_updated_idx ON creative_conversations (user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS creative_conversations_user_source_idx ON creative_conversations (user_id, surface, source, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS creative_conversations_project_idx ON creative_conversations (user_id, surface, project_id, updated_at DESC) WHERE project_id IS NOT NULL;
@@ -661,6 +665,7 @@ CREATE TABLE IF NOT EXISTS practice_sessions (
     CONSTRAINT practice_sessions_profile CHECK (execution_profile = 'open-source-practice'),
     CONSTRAINT practice_sessions_status CHECK (status IN ('draft', 'queued', 'running', 'success', 'failed', 'cancelled'))
 );
+ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS school_id text;
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS mode text;
 ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS selected_logical_model_id text;
     ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS error_code text;
@@ -683,7 +688,9 @@ ALTER TABLE practice_sessions ADD COLUMN IF NOT EXISTS client_request_id text;
 UPDATE practice_sessions SET client_request_id = id WHERE client_request_id IS NULL;
 ALTER TABLE practice_sessions ALTER COLUMN client_request_id SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS practice_sessions_user_request_idx ON practice_sessions (user_id, client_request_id);
+CREATE INDEX IF NOT EXISTS practice_sessions_school_user_updated_idx ON practice_sessions (school_id, user_id, updated_at DESC, id);
 CREATE INDEX IF NOT EXISTS practice_sessions_user_updated_idx ON practice_sessions (user_id, updated_at DESC, id);
+CREATE INDEX IF NOT EXISTS practice_sessions_school_project_updated_idx ON practice_sessions (school_id, user_id, project_kind, project_id, updated_at DESC, id);
 CREATE INDEX IF NOT EXISTS practice_sessions_project_updated_idx ON practice_sessions (user_id, project_kind, project_id, updated_at DESC, id);
 
 CREATE TABLE IF NOT EXISTS practice_copy_requests (
@@ -1061,6 +1068,7 @@ CREATE TABLE IF NOT EXISTS generation_logs (
     CONSTRAINT generation_logs_status CHECK (status IN ('pending', 'success', 'failed'))
 );
 ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS conversation_id text REFERENCES creative_conversations(id) ON DELETE SET NULL;
+ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS school_id text;
 ALTER TABLE generation_logs ADD COLUMN IF NOT EXISTS request_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE generation_logs DROP CONSTRAINT IF EXISTS generation_logs_kind;
 ALTER TABLE generation_logs ADD CONSTRAINT generation_logs_kind CHECK (kind IN ('image', 'video', 'audio', 'text'));
@@ -1072,6 +1080,7 @@ WHERE conversation.id = log.conversation_id
   AND conversation.source = 'agent'
   AND log.source IN ('image-workbench', 'video-workbench');
 
+CREATE INDEX IF NOT EXISTS generation_logs_school_user_created_idx ON generation_logs (school_id, user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS generation_logs_user_created_idx ON generation_logs (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS generation_logs_created_idx ON generation_logs (created_at DESC);
 CREATE INDEX IF NOT EXISTS generation_logs_admin_filter_idx ON generation_logs (kind, source, status, created_at DESC);
@@ -1129,6 +1138,7 @@ ${POSTGRESQL_IP_LIBRARY_SCHEMA_SQL}
 ${DRAMA_LAB_SCHEMA_SQL}
 
 CREATE TABLE IF NOT EXISTS practice_script_projects (
+    school_id text,
     id text PRIMARY KEY,
     owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title text NOT NULL,
@@ -1142,6 +1152,7 @@ CREATE TABLE IF NOT EXISTS practice_script_projects (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS practice_script_versions (
+    school_id text,
     id text PRIMARY KEY,
     project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
     owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1154,6 +1165,7 @@ CREATE TABLE IF NOT EXISTS practice_script_versions (
     UNIQUE (project_id, version)
 );
 CREATE TABLE IF NOT EXISTS practice_script_entities (
+    school_id text,
     id text NOT NULL,
     project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
     owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1166,6 +1178,7 @@ CREATE TABLE IF NOT EXISTS practice_script_entities (
     PRIMARY KEY (project_id, id)
 );
 CREATE TABLE IF NOT EXISTS practice_script_stages (
+    school_id text,
     project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
     owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     stage_key text NOT NULL,
@@ -1178,6 +1191,7 @@ CREATE TABLE IF NOT EXISTS practice_script_stages (
     PRIMARY KEY (project_id, stage_key)
 );
 CREATE TABLE IF NOT EXISTS practice_script_agent_operations (
+    school_id text,
     id text PRIMARY KEY,
     project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
     owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1194,6 +1208,11 @@ CREATE TABLE IF NOT EXISTS practice_script_agent_operations (
     error_message text,
     created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS practice_script_projects_school_owner_updated_idx ON practice_script_projects (school_id, owner_user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS practice_script_versions_school_project_created_idx ON practice_script_versions (school_id, owner_user_id, project_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS practice_script_entities_school_project_type_idx ON practice_script_entities (school_id, owner_user_id, project_id, type, name);
+CREATE INDEX IF NOT EXISTS practice_script_stages_school_project_updated_idx ON practice_script_stages (school_id, owner_user_id, project_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS practice_script_agent_operations_school_project_created_idx ON practice_script_agent_operations (school_id, owner_user_id, project_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS practice_script_projects_owner_updated_idx ON practice_script_projects (owner_user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS practice_script_versions_project_created_idx ON practice_script_versions (owner_user_id, project_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS practice_script_entities_project_type_idx ON practice_script_entities (owner_user_id, project_id, type, name);
