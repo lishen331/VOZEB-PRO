@@ -55,6 +55,7 @@ describe("PracticeRepository", () => {
         const row = {
             id: "session-one",
             user_id: "user-one",
+            school_id: "school-one",
             module: "storyboard-image",
             mode: "workflow",
             selected_logical_model_id: "practice-image",
@@ -97,6 +98,7 @@ describe("PracticeRepository", () => {
         expect(String(query.mock.calls[0]?.[0])).toContain("workflow_code");
         expect(query.mock.calls[0]?.[1]).toEqual(expect.arrayContaining(["storyboard-image", "workflow", "practice-image", "PRACTICE_DISPATCH_FAILED", "failed"]));
         await expect(repository.getPracticeSessionForUser({ schoolId: "school-one", ownerUserId: "user-one" }, "session-one")).resolves.toMatchObject({
+            schoolId: "school-one",
             mode: "workflow",
             selectedLogicalModelId: "practice-image",
             workflowCode: "storyboard_shot",

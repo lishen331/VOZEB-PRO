@@ -204,6 +204,7 @@ function mapPracticeSession(row: Record<string, unknown>): PracticeSessionRecord
     return {
         id: stringValue(row.id),
         userId: stringValue(row.user_id),
+        ...(optionalString(row.school_id) ? { schoolId: optionalString(row.school_id) } : {}),
         projectId: optionalString(row.project_id),
         projectKind: row.project_kind === "drama" ? "drama" : "canvas",
         module: practiceModule(row.module),
