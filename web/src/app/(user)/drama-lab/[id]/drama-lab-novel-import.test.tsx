@@ -16,6 +16,7 @@ describe("DramaLabNovelImport", () => {
         expect(markup).toContain('aria-label="小说文件导入区域"');
         expect(markup).toContain('accept=".txt,.md,.markdown,.docx,.doc,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"');
         expect(markup).toContain("导入小说");
+        expect(markup).toContain("hidden");
         expect(markup).toContain("或拖拽 TXT/MD/DOCX/DOC 文件到这里");
     });
 
