@@ -353,7 +353,7 @@ ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_task_ori
 ALTER TABLE generation_tasks ADD CONSTRAINT generation_tasks_task_origin CHECK (task_origin IN ('user', 'admin-workflow-test'));
 
 DROP INDEX IF EXISTS generation_tasks_user_client_request_idx;
-CREATE UNIQUE INDEX generation_tasks_user_client_request_idx ON generation_tasks (user_id, task_type, client_request_id, COALESCE(attempt_no, 0)) WHERE client_request_id IS NOT NULL AND client_request_id <> '';
+CREATE UNIQUE INDEX generation_tasks_user_client_request_idx ON generation_tasks (school_id, user_id, task_type, client_request_id, COALESCE(attempt_no, 0)) WHERE client_request_id IS NOT NULL AND client_request_id <> '';
 CREATE UNIQUE INDEX IF NOT EXISTS generation_tasks_channel_upstream_idx ON generation_tasks (channel_id, upstream_task_id) WHERE channel_id IS NOT NULL AND channel_id <> '' AND upstream_task_id IS NOT NULL AND upstream_task_id <> '';
 CREATE INDEX IF NOT EXISTS generation_tasks_conversation_idx ON generation_tasks (conversation_id, updated_at DESC) WHERE conversation_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS generation_tasks_run_idx ON generation_tasks (run_id, updated_at DESC) WHERE run_id IS NOT NULL;

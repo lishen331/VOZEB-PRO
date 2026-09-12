@@ -299,6 +299,16 @@ describe("mutateStoredGenerationTask", () => {
         expect(hasStoredGenerationTaskContextConflict(conflictRecord)).toBe(true);
     });
 
+    it("hydrates the PostgreSQL school scope column", async () => {
+        vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
+        vi.mocked(postgresQuery).mockResolvedValueOnce({
+            rows: [{ payload: { id: "postgres-practice", status: "running", executionProfile: "open-source-practice" }, user_id: "user", school_id: "school-a", execution_profile: "open-source-practice", execution_phase: "polling" }],
+        } as never);
+
+        await expect(getStoredGenerationTaskRecord("image", "postgres-practice")).resolves.toMatchObject({ schoolId: "school-a" });
+        vi.mocked(getDatabaseProvider).mockReturnValue("file");
+    });
+
     it("hydrates PostgreSQL durable owner, surface and project columns", async () => {
         vi.mocked(getDatabaseProvider).mockReturnValue("postgres");
         vi.mocked(postgresQuery).mockResolvedValueOnce({
@@ -326,6 +336,15 @@ describe("mutateStoredGenerationTask", () => {
         await expect(getStoredGenerationTaskByRequest<{ id: string }>("video", "user", "request-one", 3)).resolves.toBeNull();
     });
 
+    it("persists school scope for practice tasks and rejects an unscoped practice task", async () => {
+        mocks.records = [];
+        const now = Date.now();
+        await createStoredGenerationTask("image", { id: "scoped-practice", userId: "user", status: "pending", executionProfile: "open-source-practice", schoolId: "school-a", createdAt: now, updatedAt: now }, 60_000);
+
+        await expect(getStoredGenerationTaskRecord("image", "scoped-practice")).resolves.toMatchObject({ schoolId: "school-a", payload: { schoolId: "school-a" } });
+        await expect(createStoredGenerationTask("image", { id: "unscoped-practice", userId: "user", status: "pending", executionProfile: "open-source-practice", createdAt: now, updatedAt: now }, 60_000)).rejects.toThrow("练习任务缺少学校范围");
+    });
+
     it("persists the immutable execution profile and defaults legacy tasks to production", async () => {
         mocks.records = [];
         const now = Date.now();
@@ -337,6 +356,7 @@ describe("mutateStoredGenerationTask", () => {
                 status: "pending",
                 surface: "canvas",
                 executionProfile: "open-source-practice",
+                schoolId: "school-a",
                 ipReferences: [{ type: "ip", id: "ip-one", subIpId: "sub-ip-one", itemIds: ["item-one"] }],
                 createdAt: now,
                 updatedAt: now,

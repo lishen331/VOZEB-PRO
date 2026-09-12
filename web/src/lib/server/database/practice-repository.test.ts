@@ -96,7 +96,7 @@ describe("PracticeRepository", () => {
         expect(String(query.mock.calls[0]?.[0])).toContain("selected_logical_model_id");
         expect(String(query.mock.calls[0]?.[0])).toContain("workflow_code");
         expect(query.mock.calls[0]?.[1]).toEqual(expect.arrayContaining(["storyboard-image", "workflow", "practice-image", "PRACTICE_DISPATCH_FAILED", "failed"]));
-        await expect(repository.getPracticeSessionForUser("user-one", "session-one")).resolves.toMatchObject({
+        await expect(repository.getPracticeSessionForUser({ schoolId: "school-one", ownerUserId: "user-one" }, "session-one")).resolves.toMatchObject({
             mode: "workflow",
             selectedLogicalModelId: "practice-image",
             workflowCode: "storyboard_shot",
@@ -112,7 +112,7 @@ describe("PracticeRepository", () => {
         const { executor, query } = mockExecutor([[{ id: "session-one", user_id: "user-one", module: "script", status: "running", prompt_json: {}, input_json: {}, task_refs: [] }]]);
         const repository = new PracticeRepository(executor);
 
-        await expect(repository.claimPracticeSessionDispatch("user-one", "session-one")).resolves.toMatchObject({ id: "session-one", status: "running" });
+        await expect(repository.claimPracticeSessionDispatch({ schoolId: "school-one", ownerUserId: "user-one" }, "session-one")).resolves.toMatchObject({ id: "session-one", status: "running" });
 
         expect(String(query.mock.calls[0]?.[0])).toContain("status = 'queued'");
         expect(String(query.mock.calls[0]?.[0])).toContain("task_refs = '[]'::jsonb");
@@ -121,14 +121,14 @@ describe("PracticeRepository", () => {
 
     it("maps a legacy session without mode as workflow", async () => {
         const { executor } = mockExecutor([[{ id: "legacy", user_id: "user-one", module: "script", status: "success", prompt_json: {}, input_json: {}, task_refs: [{ taskId: "text-one" }] }]]);
-        await expect(new PracticeRepository(executor).getPracticeSessionForUser("user-one", "legacy")).resolves.toMatchObject({ mode: "workflow", status: "success" });
+        await expect(new PracticeRepository(executor).getPracticeSessionForUser({ schoolId: "school-one", ownerUserId: "user-one" }, "legacy")).resolves.toMatchObject({ mode: "workflow", status: "success" });
     });
 
     it("resets a failed or cancelled session with one conditional provider update", async () => {
         const { executor, query } = mockExecutor([[{ id: "session-one", user_id: "user-one", module: "script", status: "queued", prompt_json: {}, input_json: {}, task_refs: [] }]]);
         const repository = new PracticeRepository(executor);
 
-        await expect(repository.resetPracticeSessionForRetry("user-one", "session-one")).resolves.toMatchObject({ id: "session-one", status: "queued" });
+        await expect(repository.resetPracticeSessionForRetry({ schoolId: "school-one", ownerUserId: "user-one" }, "session-one")).resolves.toMatchObject({ id: "session-one", status: "queued" });
 
         expect(String(query.mock.calls[0]?.[0])).toContain("status IN ('failed', 'cancelled') OR");
         expect(String(query.mock.calls[0]?.[0])).toContain("task_refs = '[]'::jsonb");
@@ -143,7 +143,7 @@ describe("PracticeRepository", () => {
         ]);
         const repository = new PracticeRepository(executor);
 
-        await repository.updatePracticeSession("user-one", "session-one", { status: "success", errorCode: undefined, errorMessage: undefined });
+        await repository.updatePracticeSession({ schoolId: "school-one", ownerUserId: "user-one" }, "session-one", { status: "success", errorCode: undefined, errorMessage: undefined });
 
         expect(String(query.mock.calls[1]?.[0])).not.toContain("COALESCE");
         const values = query.mock.calls[1]?.[1] as unknown[] | undefined;
@@ -285,10 +285,10 @@ describe("PracticeRepository PostgreSQL", () => {
             status: "failed",
         });
 
-        const resets = await Promise.all([repository.resetPracticeSessionForRetry(userOne, sessionId), repository.resetPracticeSessionForRetry(userOne, sessionId)]);
+        const resets = await Promise.all([repository.resetPracticeSessionForRetry({ schoolId: "school-one", ownerUserId: userOne }, sessionId), repository.resetPracticeSessionForRetry({ schoolId: "school-one", ownerUserId: userOne }, sessionId)]);
         expect(resets.filter(Boolean)).toHaveLength(1);
 
-        const claims = await Promise.all([repository.claimPracticeSessionDispatch(userOne, sessionId), repository.claimPracticeSessionDispatch(userOne, sessionId)]);
+        const claims = await Promise.all([repository.claimPracticeSessionDispatch({ schoolId: "school-one", ownerUserId: userOne }, sessionId), repository.claimPracticeSessionDispatch({ schoolId: "school-one", ownerUserId: userOne }, sessionId)]);
         expect(claims.filter(Boolean)).toHaveLength(1);
     });
 });
