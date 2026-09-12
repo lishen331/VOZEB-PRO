@@ -3,6 +3,15 @@ import type { PracticeTenantScope } from "./practice-tenant-scope";
 import type { ScriptRunType } from "./script-agent-domain";
 import { ScriptAgentRepository } from "./database/script-agent-repository";
 
+const PREREQUISITE: Partial<Record<ScriptRunType, string[]>> = {
+    short_story: ["creative_positioning"],
+    adaptation_bundle: ["short_story", "chapter_outlines"],
+    episode_scripts: ["adaptation_strategy"],
+    script_review: ["episode_scripts"],
+    director_plan: ["review_report"],
+    text_storyboard: ["review_report"],
+    asset_prompts: ["text_storyboard"],
+};
 export class ScriptAgentRunService {
     constructor(
         private readonly repository: ScriptAgentRepository,
@@ -10,6 +19,12 @@ export class ScriptAgentRunService {
     ) {}
 
     async create(scope: PracticeTenantScope, input: { projectId: string; chatSessionId?: string; runType: ScriptRunType; stageKey?: string; clientRequestId: string; configSnapshot?: Record<string, unknown> }) {
+        const required = PREREQUISITE[input.runType];
+        if (required?.length && "listLatestArtifacts" in this.repository) {
+            const artifacts = await this.repository.listLatestArtifacts(scope, input.projectId);
+            const confirmed = new Set(artifacts.filter((row: Record<string, unknown>) => row.status === "confirmed").map((row: Record<string, unknown>) => String(row.artifact_type)));
+            if (!required.some((type) => confirmed.has(type))) throw new ScriptAgentRunError("请先确认上一重要阶段", 409);
+        }
         const run = await this.repository.createRun(scope, {
             id: this.id(),
             projectId: input.projectId,
