@@ -309,6 +309,7 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
     CONSTRAINT generation_tasks_status CHECK (status IN ('pending', 'running', 'success', 'error', 'paused', 'cancelled'))
 );
 
+ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS school_id text;
 CREATE INDEX IF NOT EXISTS vozeb_pro_generation_tasks_school_user_status_idx ON generation_tasks (school_id, user_id, task_type, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS generation_tasks_user_status_idx ON generation_tasks (user_id, task_type, status, updated_at DESC);
 ALTER TABLE generation_tasks DROP CONSTRAINT IF EXISTS generation_tasks_type;
@@ -324,7 +325,6 @@ ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS parent_task_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS attempt_no integer;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS client_request_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS execution_profile text NOT NULL DEFAULT 'production';
-ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS school_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS execution_phase text NOT NULL DEFAULT 'created';
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS upstream_task_id text;
 ALTER TABLE generation_tasks ADD COLUMN IF NOT EXISTS channel_id text;
@@ -1208,6 +1208,11 @@ CREATE TABLE IF NOT EXISTS practice_script_agent_operations (
     error_message text,
     created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS school_id text;
+ALTER TABLE practice_script_versions ADD COLUMN IF NOT EXISTS school_id text;
+ALTER TABLE practice_script_entities ADD COLUMN IF NOT EXISTS school_id text;
+ALTER TABLE practice_script_stages ADD COLUMN IF NOT EXISTS school_id text;
+ALTER TABLE practice_script_agent_operations ADD COLUMN IF NOT EXISTS school_id text;
 CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_projects_school_owner_updated_idx ON practice_script_projects (school_id, owner_user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_versions_school_project_created_idx ON practice_script_versions (school_id, owner_user_id, project_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS vozeb_pro_practice_script_entities_school_project_type_idx ON practice_script_entities (school_id, owner_user_id, project_id, type, name);
