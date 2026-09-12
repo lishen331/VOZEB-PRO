@@ -3,7 +3,7 @@ import { createScriptPracticeRepository } from "./database/script-practice-repos
 import { normalizeScriptDocument, parseFdx, parseFountain } from "@/lib/script-practice-contract";
 import type { ScriptDocument, ScriptSourceType } from "@/lib/script-practice-types";
 
-export async function createScriptProject(ownerUserId: string, input: { title: string; sourceType: ScriptSourceType; idea?: string }) {
+export async function createScriptProject(ownerUserId: string, input: { title: string; sourceType: ScriptSourceType; idea?: string; schoolId?: string; mode?: "short_story" | "long_novel"; projectParameters?: Record<string, unknown> }) {
     const document = normalizeScriptDocument({ blocks: input.idea ? [{ type: "action", text: input.idea }] : [] });
     return persistScriptProject(ownerUserId, input, document, "user");
 }
@@ -53,10 +53,15 @@ export async function importScriptProject(ownerUserId: string, input: { title: s
     return persistScriptProject(ownerUserId, { title: input.title, sourceType: input.format }, persistedDocument, "import");
 }
 
-async function persistScriptProject(ownerUserId: string, input: { title: string; sourceType: ScriptSourceType }, sourceDocument: ScriptDocument, source: "user" | "import") {
+async function persistScriptProject(
+    ownerUserId: string,
+    input: { title: string; sourceType: ScriptSourceType; schoolId?: string; mode?: "short_story" | "long_novel"; projectParameters?: Record<string, unknown> },
+    sourceDocument: ScriptDocument,
+    source: "user" | "import",
+) {
     const repository = createScriptPracticeRepository();
     const now = new Date().toISOString();
-    const project = await repository.createScriptProject({ id: randomUUID(), title: input.title, sourceType: input.sourceType, status: "draft" }, ownerUserId);
+    const project = await repository.createScriptProject({ id: randomUUID(), title: input.title, sourceType: input.sourceType, status: "draft", schoolId: input.schoolId, mode: input.mode, projectParameters: input.projectParameters }, ownerUserId);
     const document = normalizeScriptDocument({ ...sourceDocument, projectId: project.id }, { projectId: project.id, documentId: randomUUID(), version: 1, now });
     const version = await repository.createScriptVersion({ id: randomUUID(), projectId: project.id, documentSnapshot: document, source, createdAt: now }, ownerUserId);
     if (!version || !(await repository.compareAndSetCurrentVersion(project.id, ownerUserId, undefined, version.id))) throw new Error("剧本文档创建失败");

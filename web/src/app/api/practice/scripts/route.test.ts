@@ -49,7 +49,7 @@ describe("practice scripts collection routes", () => {
     it("passes the authenticated owner and bounded project input", async () => {
         const response = await POST(new Request("http://localhost/api/practice/scripts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: " 夜班车 ", sourceType: "idea", idea: "末班车上的乘客" }) }));
         expect(response.status).toBe(200);
-        expect(mocks.create).toHaveBeenCalledWith("user-a", { title: "夜班车", sourceType: "idea", idea: "末班车上的乘客" });
+        expect(mocks.create).toHaveBeenCalledWith("user-a", { title: "夜班车", sourceType: "idea", idea: "末班车上的乘客", schoolId: "school-a", mode: "short_story", projectParameters: {} });
         expect((await GET(new Request("http://localhost/api/practice/scripts?page=2&pageSize=10&keyword=悬疑"))).status).toBe(200);
         expect(mocks.list).toHaveBeenCalledWith("user-a", { page: 2, pageSize: 10, keyword: "悬疑", status: undefined });
     });

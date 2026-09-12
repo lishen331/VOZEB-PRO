@@ -29,16 +29,26 @@ export class ScriptPracticeRepository {
     constructor(private readonly db: QueryExecutor) {}
 
     async createScriptProject(input: ScriptProjectCreateInput, ownerUserId: string) {
-        const result = await this.db.query("INSERT INTO practice_script_projects (id, owner_user_id, title, genre, logline, synopsis, status, source_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *", [
-            input.id,
-            ownerUserId,
-            input.title,
-            input.genre || null,
-            input.logline || null,
-            input.synopsis || null,
-            input.status,
-            input.sourceType,
-        ]);
+        const result = await this.db.query(
+            "INSERT INTO practice_script_projects (id, owner_user_id, school_id, title, genre, logline, synopsis, status, source_type, mode, carrier_type, main_genre, secondary_genres, project_parameters, current_stage) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14::jsonb, $15) RETURNING *",
+            [
+                input.id,
+                ownerUserId,
+                input.schoolId || null,
+                input.title,
+                input.genre || null,
+                input.logline || null,
+                input.synopsis || null,
+                input.status,
+                input.sourceType,
+                input.mode || "short_story",
+                input.carrierType || null,
+                input.mainGenre || null,
+                JSON.stringify(input.secondaryGenres || []),
+                JSON.stringify(input.projectParameters || {}),
+                input.currentStage || "project_planning",
+            ],
+        );
         return mapProject(result.rows[0]);
     }
 
@@ -213,6 +223,13 @@ function mapProject(row: Record<string, unknown>): ScriptPracticeProject {
     return {
         id: stringValue(row.id),
         userId: stringValue(row.owner_user_id),
+        ...(optionalString(row.school_id) ? { schoolId: optionalString(row.school_id) } : {}),
+        mode: row.mode === "long_novel" ? "long_novel" : "short_story",
+        ...(optionalString(row.carrier_type) ? { carrierType: optionalString(row.carrier_type) } : {}),
+        ...(optionalString(row.main_genre) ? { mainGenre: optionalString(row.main_genre) } : {}),
+        secondaryGenres: Array.isArray(row.secondary_genres) ? row.secondary_genres.filter((item): item is string => typeof item === "string") : [],
+        projectParameters: jsonValue(row.project_parameters) as Record<string, unknown>,
+        currentStage: optionalString(row.current_stage) || "project_planning",
         title: stringValue(row.title),
         ...(optionalString(row.genre) ? { genre: optionalString(row.genre) } : {}),
         ...(optionalString(row.logline) ? { logline: optionalString(row.logline) } : {}),

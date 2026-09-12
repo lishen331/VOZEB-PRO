@@ -14,6 +14,13 @@ export type ScriptEntity = { id: string; projectId: string; type: ScriptEntityTy
 export type ScriptPracticeProject = {
     id: string;
     userId: string;
+    schoolId?: string;
+    mode?: "short_story" | "long_novel";
+    carrierType?: string;
+    mainGenre?: string;
+    secondaryGenres?: string[];
+    projectParameters?: Record<string, unknown>;
+    currentStage?: string;
     title: string;
     genre?: string;
     logline?: string;

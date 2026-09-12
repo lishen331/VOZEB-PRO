@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const parsed = await readJsonBodyResult<Record<string, unknown>>(request, 512 * 1024);
     if (!parsed.ok) return response(parsed.status, parsed.message);
     try {
-        await requirePracticeAccess(user, "script");
+        const access = await requirePracticeAccess(user, "script");
         if (!parsed.data || typeof parsed.data !== "object" || Array.isArray(parsed.data)) return response(400, "请求参数无效");
         const title = typeof parsed.data.title === "string" ? parsed.data.title.trim() : "";
         if (!title) return response(400, "请填写剧本标题");
@@ -41,6 +41,9 @@ export async function POST(request: Request) {
                 title,
                 sourceType: parsed.data.sourceType === "fountain" || parsed.data.sourceType === "fdx" || parsed.data.sourceType === "text" || parsed.data.sourceType === "markdown" ? parsed.data.sourceType : "idea",
                 ...(typeof parsed.data.idea === "string" ? { idea: parsed.data.idea } : {}),
+                schoolId: access.schoolId,
+                mode: parsed.data.mode === "long_novel" ? "long_novel" : "short_story",
+                projectParameters: parsed.data.projectParameters && typeof parsed.data.projectParameters === "object" && !Array.isArray(parsed.data.projectParameters) ? (parsed.data.projectParameters as Record<string, unknown>) : {},
             }),
         );
     } catch (error) {

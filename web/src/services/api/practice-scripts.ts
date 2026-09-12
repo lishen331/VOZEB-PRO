@@ -9,7 +9,7 @@ export const practiceScriptsApi = {
             `/api/practice/scripts?${new URLSearchParams(Object.entries(input).filter(([, value]) => value !== undefined && value !== "") as Array<[string, string]>).toString()}`,
         );
     },
-    create(input: { title: string; sourceType?: string; idea?: string }) {
+    create(input: { title: string; sourceType?: string; idea?: string; mode?: "short_story" | "long_novel"; projectParameters?: Record<string, unknown> }) {
         return request<{ project: ScriptPracticeProject; document: ScriptDocument } | ScriptPracticeProject>("/api/practice/scripts", json("POST", input));
     },
     detail(id: string) {
