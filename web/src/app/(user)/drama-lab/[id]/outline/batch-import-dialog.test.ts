@@ -13,10 +13,13 @@ describe("drama lab batch episode import dialog", () => {
         expect(source).not.toContain("未选择文件");
     });
 
-    it("keeps chapter controls aligned and uses the compact episode stepper", async () => {
+    it("left-aligns both chapter labels with the dialog content while sharing one control start line", async () => {
         const source = await readFile(path, "utf8");
 
+        expect(source).toContain('<div className="grid gap-3">');
+        expect(source).not.toContain("grid gap-3 px-2");
         expect(source).toContain("grid-cols-[92px_minmax(0,1fr)]");
+        expect(source).toContain("text-left text-sm");
         expect(source).toContain("Math.max(1, value - 1)");
         expect(source).toContain("Math.min(100, value + 1)");
         expect(source).toContain("place-items-center border-y border-border");
