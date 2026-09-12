@@ -7,6 +7,8 @@ describe("L-equivalent storyboard card", () => {
         expect(s).toContain('shot.creationMode === "universal" ? "经典分镜" : "全能模式"');
         expect(s).toContain("group/storyboard");
         expect(s).toContain("group-hover/storyboard:opacity-100");
+        expect(s).toContain("ml-auto");
+        expect(s).toContain('className="flex flex-row flex-wrap items-center justify-between gap-2');
         expect(s).not.toContain('title="同步任务状态"');
     });
     it("opens one mode-aware prompt editor and keeps no inline summaries", async () => {
@@ -22,7 +24,11 @@ describe("L-equivalent storyboard card", () => {
         expect(s).toContain('aria-label="分镜图操作"');
         expect(s).toContain('aria-label="分镜视频操作"');
         expect(s).toContain("按音频拆镜");
-        expect(s).toContain("打开配音");
+        expect(s).toContain("设置配音");
+        expect(s).toContain('aria-label="分镜卡片空白区域"');
+        expect(s).not.toContain(">查看 / 编辑提示词</Button>");
+        expect(s).toContain('data-universal-workspace="true"');
+        expect(s).toContain('data-storyboard-media="video" className="grid h-80');
     });
     it("uses L configuration fields", async () => {
         const s = await readFile(path, "utf8");

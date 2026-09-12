@@ -5914,10 +5914,15 @@ function StoryboardWorkbenchCard({
             setPromptFieldAction(null);
         }
     };
+    const openPromptFromCardBlank = (event: React.MouseEvent<HTMLElement>) => {
+        const target = event.target as HTMLElement;
+        if (target.closest("button,a,input,textarea,select,[role='button'],[role='combobox'],[data-no-prompt-editor='true']")) return;
+        openPromptEditor();
+    };
     return (
-        <article id={`storyboard-shot-${shot.id}`} className="group/storyboard @container/storyboard relative min-w-0 overflow-hidden rounded-lg border border-border bg-card">
-            <header className="flex flex-col gap-2 border-b border-border px-4 py-3">
-                <div className="order-1 min-w-0 w-full">
+        <article id={`storyboard-shot-${shot.id}`} aria-label="分镜卡片空白区域" className="group/storyboard @container/storyboard relative min-w-0 overflow-hidden rounded-lg border border-border bg-card" onClick={openPromptFromCardBlank}>
+            <header className="flex flex-row flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+                <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-base font-semibold">
                             分镜 {shot.shotNumber} · {shot.title}
@@ -5930,7 +5935,7 @@ function StoryboardWorkbenchCard({
                         {shot.cameraMotion ? ` · ${shot.cameraMotion}` : ""}
                     </p>
                 </div>
-                <div className="order-0 flex w-full flex-wrap items-center justify-end gap-1">
+                <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
                     <Button size="small" title="画布定位" aria-label="画布定位" href={dramaLabEpisodeCanvasHref(project.id, shot.episodeId, shot.id)} icon={<PanelsTopLeft className="size-4" />}>
                         画布定位
                     </Button>
@@ -5943,7 +5948,6 @@ function StoryboardWorkbenchCard({
                     <Button size="small" onClick={onInsertBefore}>
                         ＋ 新增
                     </Button>
-
                     <Button
                         type="text"
                         size="small"
@@ -5955,8 +5959,8 @@ function StoryboardWorkbenchCard({
                     >
                         {collapsed ? "展开" : "收起"}
                     </Button>
+                    <Button type="text" danger size="small" className="opacity-0 transition-opacity group-hover/storyboard:opacity-100" title="删除分镜" aria-label="删除分镜" icon={<Trash2 className="size-4" />} onClick={onDelete} />
                 </div>
-                <Button type="text" danger size="small" className="absolute right-1 top-1 opacity-0 transition-opacity group-hover/storyboard:opacity-100" title="删除分镜" aria-label="删除分镜" icon={<Trash2 className="size-4" />} onClick={onDelete} />
             </header>
             <div
                 id={`storyboard-content-${shot.id}`}
@@ -6010,7 +6014,7 @@ function StoryboardWorkbenchCard({
                         </div>
                     ) : null}
                     {isUniversal ? (
-                        <div className="space-y-3 rounded border border-primary/20 bg-primary/5 p-3" aria-label="全能模式片段与参考图">
+                        <div data-universal-workspace="true" className="h-80 space-y-3 overflow-y-auto rounded border border-primary/20 bg-primary/5 p-3" aria-label="全能模式片段与参考图">
                             <div className="flex items-center justify-between gap-2">
                                 <span className="text-sm font-medium">片段描述</span>
                                 <span className="text-xs text-muted-foreground">视频优先使用此字段</span>
@@ -6181,11 +6185,8 @@ function StoryboardWorkbenchCard({
                         ) : null}
                     </div>
                     <div className="flex items-center justify-end gap-2" aria-label="分镜图操作">
-                        <Button type="link" onClick={openPromptEditor}>
-                            查看 / 编辑提示词
-                        </Button>
-                        <Button size="small" icon={<Volume2 className="size-4" />} onClick={() => setAudioEditorOpen(true)}>
-                            打开配音
+                        <Button icon={<Volume2 className="size-4" />} onClick={() => setAudioEditorOpen(true)}>
+                            设置配音
                         </Button>
                     </div>
                     <div className={isFirstLast ? "grid grid-cols-2 gap-2" : "hidden"}>
@@ -6221,7 +6222,7 @@ function StoryboardWorkbenchCard({
                 </section>
                 <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 视频`}>
                     <h4 className="text-sm font-medium">分镜视频</h4>
-                    <div data-storyboard-media="video" className="grid h-56 min-w-0 rounded border border-border bg-muted/30">
+                    <div data-storyboard-media="video" className="grid h-80 min-w-0 rounded border border-border bg-muted/30">
                         {shot.videoUrl ? (
                             <video src={shot.videoUrl} controls className="h-full min-h-0 w-full object-contain" />
                         ) : (

@@ -24,7 +24,8 @@ describe("production storyboard workbench layout wiring", () => {
         expect(source).toContain("const classicImageUrl = shot.frames?.key?.url || shot.storyboardImageUrl");
         expect(source).toContain('data-storyboard-media="image"');
         expect(source).toContain('data-storyboard-media="video"');
-        expect(source).toContain("查看 / 编辑提示词");
+        expect(source).toContain('aria-label="分镜卡片空白区域"');
+        expect(source).not.toContain(">查看 / 编辑提示词</Button>");
         expect(source).toContain("全能参考提示词");
         expect(source).toContain("上传{frameLabel[frameType]}");
         expect(source).toContain("const [promptEditorOpen, setPromptEditorOpen]");
