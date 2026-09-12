@@ -6,7 +6,7 @@ import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generatio
 
 import { Button, Checkbox, Image, Input, Modal, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
-import { Check, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Sparkles, Trash2, Upload, Users, Video } from "lucide-react";
+import { Check, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Sparkles, Trash2, X, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useMemo, useRef, useState, type RefObject } from "react";
 import type { ReferenceImage } from "@/types/image";
@@ -60,6 +60,8 @@ export function DramaLabVisualAssetsPanel({
     const [libraryOpen, setLibraryOpen] = useState(false);
     const [busyKey, setBusyKey] = useState("");
     const [layoutDefaults, setLayoutDefaults] = useState<Record<AssetKind, "single" | "four_view">>({ characters: "four_view", scenes: "single", props: "single" });
+    const [historyAssetId, setHistoryAssetId] = useState<string>();
+    const historyAsset = (project[kind] as VisualAsset[]).find((asset) => asset.id === historyAssetId);
     const [impactModalAsset, setImpactModalAsset] = useState<VisualAsset>();
     const [previewImage, setPreviewImage] = useState<{ url: string; alt: string }>();
 
@@ -477,8 +479,8 @@ export function DramaLabVisualAssetsPanel({
                                                     danger
                                                     size="small"
                                                     shape="circle"
-                                                    className="absolute right-2 top-2 z-10 invisible bg-background/90 shadow-sm group-hover:visible"
-                                                    icon={<Trash2 className="size-4" />}
+                                                    className="!absolute !right-2 !top-2 z-10 invisible bg-background/90 shadow-sm group-hover:visible"
+                                                    icon={<X className="size-4" />}
                                                     aria-label={`删除${meta.label}`}
                                                     title={`删除${meta.label}`}
                                                     onClick={(event) => {
@@ -561,8 +563,8 @@ export function DramaLabVisualAssetsPanel({
                                                         </Button>
                                                     </div>
                                                     {references.length ? (
-                                                        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-0.5" aria-label="参考图候选">
-                                                            {references.map((reference) => {
+                                                        <div className="mt-2 flex h-12 shrink-0 items-center gap-1.5 overflow-hidden pb-0.5" aria-label="参考图候选">
+                                                            {references.slice(0, 3).map((reference) => {
                                                                 const isPrimary = reference.id === primary?.id;
                                                                 return (
                                                                     <div
@@ -599,6 +601,20 @@ export function DramaLabVisualAssetsPanel({
                                                                     </div>
                                                                 );
                                                             })}
+                                                            {references.length > 3 ? (
+                                                                <Button
+                                                                    type="text"
+                                                                    size="small"
+                                                                    className="shrink-0"
+                                                                    aria-label="更多历史参考图"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        setHistoryAssetId(asset.id);
+                                                                    }}
+                                                                >
+                                                                    ··· 更多
+                                                                </Button>
+                                                            ) : null}
                                                         </div>
                                                     ) : null}
                                                     <div className="mt-auto border-t border-border pt-2.5">
@@ -675,6 +691,32 @@ export function DramaLabVisualAssetsPanel({
                     onClose={() => setLibraryOpen(false)}
                     onImport={importLibraryAsset}
                 />
+            ) : null}
+            {historyAsset ? (
+                <Modal open title={`历史参考图 · ${historyAsset.name}`} footer={null} width={720} onCancel={() => setHistoryAssetId(undefined)}>
+                    <div className="grid max-h-[65vh] grid-cols-2 gap-3 overflow-y-auto p-1 sm:grid-cols-3" aria-label="全部历史参考图">
+                        {dramaAssetReferences(historyAsset).map((reference) => (
+                            <div key={reference.id} className="min-w-0 rounded border border-border p-2">
+                                <button
+                                    type="button"
+                                    className="flex h-36 w-full items-center justify-center bg-muted/40"
+                                    aria-label={`查看历史参考图 ${reference.label || reference.id}`}
+                                    onClick={() => setPreviewImage({ url: reference.url, alt: assetName(historyAsset) })}
+                                >
+                                    <img src={imagePreviewUrl(reference.url, 384)} alt={reference.label || historyAsset.name} className="max-h-full max-w-full object-contain" />
+                                </button>
+                                <div className="mt-2 flex flex-wrap items-center gap-1">
+                                    <Button size="small" disabled={reference.id === dramaAssetPrimaryReference(historyAsset)?.id} onClick={() => void setPrimary(historyAsset, reference)}>
+                                        {reference.id === dramaAssetPrimaryReference(historyAsset)?.id ? "当前主参考图" : "设为主参考图"}
+                                    </Button>
+                                    <Button size="small" danger onClick={() => void removeReference(historyAsset, reference.id)}>
+                                        删除
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Modal>
             ) : null}
             {previewImage ? (
                 <Modal open title={previewImage.alt} footer={null} centered onCancel={() => setPreviewImage(undefined)} width="auto">

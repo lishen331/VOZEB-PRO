@@ -2,12 +2,17 @@
 
 import { use, useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
 import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, List, Spin, Upload as AntUpload, Steps, Table } from "antd";
-import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig } from "lucide-react";
+import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import type { Asset } from "@/lib/library-asset-contract";
 import styleGroups from "@/lib/drama-lab-style-options.json";
+
+import { uploadImage } from "@/services/image-storage";
+import { createImageGenerationTask, waitForImageGenerationTask } from "@/services/api/image";
+import { useEffectiveConfig } from "@/stores/use-config-store";
+import { buildDramaLabAssetImagePrompt } from "@/lib/drama-lab-asset-image-prompt";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -173,6 +178,10 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const [saving, setSaving] = useState(false);
     const [form] = Form.useForm();
     const autoSaveTimerRef = useRef<number | undefined>(undefined);
+    const imageConfig = useEffectiveConfig();
+    const [resourceEditor, setResourceEditor] = useState<{ kind: "characters" | "scenes" | "props"; asset: Character | Scene | Prop }>();
+    const [resourceBusy, setResourceBusy] = useState(false);
+    const resourceFileInput = useRef<HTMLInputElement>(null);
     const [activeTab, setActiveTab] = useState("characters");
     const [batchImportOpen, setBatchImportOpen] = useState(false);
     const [batchImportText, setBatchImportText] = useState("");
@@ -672,116 +681,53 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                     <Tabs
                         activeKey={activeTab}
                         onChange={setActiveTab}
-                        items={[
-                            {
-                                key: "characters",
-                                label: (
-                                    <span className="flex items-center gap-2">
-                                        <Users className="size-4" />
-                                        角色 ({project.characters.length})
-                                    </span>
-                                ),
-                                children: (
-                                    <div className="grid grid-cols-4 gap-4">
-                                        {project.characters.filter((char) => !libraryKeyword.trim() || char.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase())).length === 0 ? (
-                                            <div className="col-span-4">
-                                                <Empty description="暂无角色，进入制作页面添加" />
-                                            </div>
-                                        ) : (
-                                            project.characters
-                                                .filter((char) => !libraryKeyword.trim() || char.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
-                                                .map((char) => (
-                                                    <div key={char.id} className="overflow-hidden rounded-lg border border-border">
-                                                        <div className="aspect-video bg-muted">
-                                                            {char.imageUrl ? (
-                                                                <img src={char.imageUrl} alt={char.name} className="size-full object-cover" />
-                                                            ) : (
-                                                                <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="p-3">
-                                                            <div className="mb-2 text-sm font-semibold">{char.name}</div>
-                                                            <div className="text-xs text-muted-foreground">{char.description || "暂无描述"}</div>
-                                                        </div>
+                        items={(["characters", "scenes", "props"] as const).map((kind) => ({
+                            key: kind,
+                            label: `${kind === "characters" ? "角色" : kind === "scenes" ? "场景" : "道具"} (${project[kind].length})`,
+                            children: (
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                    {project[kind]
+                                        .filter((asset) => !libraryKeyword.trim() || (asset.name || ("location" in asset ? asset.location : "")).includes(libraryKeyword.trim()))
+                                        .map((asset) => (
+                                            <div key={asset.id} className="group relative h-72 overflow-hidden rounded-lg border border-border" data-outline-resource-card={asset.id}>
+                                                <button type="button" className="flex h-full w-full flex-col text-left" onClick={() => setResourceEditor({ kind, asset: { ...asset } })}>
+                                                    <div className="h-40 w-full shrink-0 bg-muted">
+                                                        {assetImageUrl(asset) ? (
+                                                            <img src={assetImageUrl(asset)} alt={asset.name || "参考图"} className="size-full object-contain" />
+                                                        ) : (
+                                                            <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
+                                                        )}
                                                     </div>
-                                                ))
-                                        )}
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: "scenes",
-                                label: (
-                                    <span className="flex items-center gap-2">
-                                        <MapPin className="size-4" />
-                                        场景 ({project.scenes.length})
-                                    </span>
-                                ),
-                                children: (
-                                    <div className="grid grid-cols-4 gap-4">
-                                        {project.scenes.filter((scene) => !libraryKeyword.trim() || scene.location.toLowerCase().includes(libraryKeyword.trim().toLowerCase())).length === 0 ? (
-                                            <div className="col-span-4">
-                                                <Empty description="暂无场景，进入制作页面添加" />
-                                            </div>
-                                        ) : (
-                                            project.scenes
-                                                .filter((scene) => !libraryKeyword.trim() || scene.location.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
-                                                .map((scene) => (
-                                                    <div key={scene.id} className="overflow-hidden rounded-lg border border-border">
-                                                        <div className="aspect-video bg-muted">
-                                                            {scene.imageUrl ? (
-                                                                <img src={scene.imageUrl} alt={scene.location} className="size-full object-cover" />
-                                                            ) : (
-                                                                <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="p-3">
-                                                            <div className="mb-2 text-sm font-semibold">{scene.location}</div>
-                                                            <div className="text-xs text-muted-foreground">{scene.time || "未设置时间"}</div>
-                                                        </div>
+                                                    <div className="overflow-hidden p-3">
+                                                        <div className="mb-2 truncate font-semibold">{asset.name || ("location" in asset ? asset.location : "")}</div>
+                                                        <div className="line-clamp-3 text-xs text-muted-foreground">{asset.description || "暂无描述"}</div>
                                                     </div>
-                                                ))
-                                        )}
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: "props",
-                                label: (
-                                    <span className="flex items-center gap-2">
-                                        <Package className="size-4" />
-                                        道具 ({project.props.length})
-                                    </span>
-                                ),
-                                children: (
-                                    <div className="grid grid-cols-4 gap-4">
-                                        {project.props.filter((prop) => !libraryKeyword.trim() || prop.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase())).length === 0 ? (
-                                            <div className="col-span-4">
-                                                <Empty description="暂无道具，进入制作页面添加" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    aria-label="删除本剧资源"
+                                                    className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-background opacity-0 group-hover:opacity-100 focus:opacity-100 max-sm:opacity-100"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        Modal.confirm({
+                                                            title: "删除确认",
+                                                            content: `确定删除「${asset.name || "此资源"}」？`,
+                                                            okText: "删除",
+                                                            cancelText: "取消",
+                                                            okButtonProps: { danger: true },
+                                                            onOk: async () => {
+                                                                await persistProject({ [kind]: project[kind].filter((item) => item.id !== asset.id) });
+                                                            },
+                                                        });
+                                                    }}
+                                                >
+                                                    <X className="size-4" />
+                                                </button>
                                             </div>
-                                        ) : (
-                                            project.props
-                                                .filter((prop) => !libraryKeyword.trim() || prop.name.toLowerCase().includes(libraryKeyword.trim().toLowerCase()))
-                                                .map((prop) => (
-                                                    <div key={prop.id} className="overflow-hidden rounded-lg border border-border">
-                                                        <div className="aspect-video bg-muted">
-                                                            {prop.imageUrl ? (
-                                                                <img src={prop.imageUrl} alt={prop.name} className="size-full object-cover" />
-                                                            ) : (
-                                                                <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="p-3">
-                                                            <div className="mb-2 text-sm font-semibold">{prop.name}</div>
-                                                            <div className="text-xs text-muted-foreground">{prop.description || "暂无描述"}</div>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                        )}
-                                    </div>
-                                ),
-                            },
-                        ]}
+                                        ))}
+                                </div>
+                            ),
+                        }))}
                     />
                 </Card>
             </main>
@@ -949,6 +895,148 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                 </div>
             </Modal>
 
+            <Modal
+                open={Boolean(resourceEditor)}
+                title={`编辑${resourceEditor?.kind === "characters" ? "角色" : resourceEditor?.kind === "scenes" ? "场景" : "道具"}库`}
+                width={560}
+                maskClosable={!resourceBusy}
+                closable={!resourceBusy}
+                onCancel={() => {
+                    if (!resourceBusy) setResourceEditor(undefined);
+                }}
+                footer={
+                    <>
+                        <Button disabled={resourceBusy} onClick={() => setResourceEditor(undefined)}>
+                            取消
+                        </Button>
+                        <Button
+                            type="primary"
+                            loading={resourceBusy}
+                            onClick={async () => {
+                                if (!resourceEditor || !project) return;
+                                if (!resourceEditor.asset.name?.trim()) {
+                                    message.error("请输入名称");
+                                    return;
+                                }
+                                setResourceBusy(true);
+                                try {
+                                    const { kind, asset } = resourceEditor;
+                                    await persistProject({ [kind]: project[kind].map((item) => (item.id === asset.id ? { ...asset, ...(kind === "scenes" ? { location: asset.name } : {}) } : item)) });
+                                    setResourceEditor(undefined);
+                                } catch {
+                                    message.error("保存失败");
+                                } finally {
+                                    setResourceBusy(false);
+                                }
+                            }}
+                        >
+                            保存
+                        </Button>
+                    </>
+                }
+            >
+                {resourceEditor ? (
+                    <div className="max-h-[65vh] overflow-y-auto py-3">
+                        <div className="mb-4 flex items-start gap-4">
+                            <span className="w-12 shrink-0 pt-2">图片</span>
+                            <div className="flex h-32 w-40 items-center justify-center rounded border bg-muted">
+                                {assetImageUrl(resourceEditor.asset) ? <img src={assetImageUrl(resourceEditor.asset)} alt="参考图" className="max-h-full max-w-full object-contain" /> : "暂无参考图"}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Button disabled={resourceBusy} onClick={() => resourceFileInput.current?.click()}>
+                                    上传图片
+                                </Button>
+                                <Button
+                                    loading={resourceBusy}
+                                    onClick={async () => {
+                                        setResourceBusy(true);
+                                        try {
+                                            const config = { ...imageConfig, model: imageConfig.imageModel || imageConfig.model, count: "1" };
+                                            const task = await createImageGenerationTask(config, buildDramaLabAssetImagePrompt(project, resourceEditor.asset, resourceEditor.kind), [], undefined, {
+                                                surface: "drama",
+                                                projectId: project.id,
+                                                logSource: "drama",
+                                                logTitle: `${project.title} · 资源设定图`,
+                                            });
+                                            const results = await waitForImageGenerationTask(config, task);
+                                            const result = results.results?.[0] || results;
+                                            const url = result?.serverUrl || result?.remoteUrl || result?.dataUrl;
+                                            if (!url) throw new Error("生成未返回图片地址");
+                                            setResourceEditor((current) =>
+                                                current ? { ...current, asset: { ...current.asset, imageUrl: url, referenceImageUrl: url, references: [{ id: `reference-${Date.now()}`, url }, ...(current.asset.references || [])] } } : current,
+                                            );
+                                        } catch (error) {
+                                            message.error(error instanceof Error ? error.message : "生成失败");
+                                        } finally {
+                                            setResourceBusy(false);
+                                        }
+                                    }}
+                                >
+                                    AI 生成
+                                </Button>
+                            </div>
+                        </div>
+                        <input
+                            ref={resourceFileInput}
+                            type="file"
+                            accept="image/*"
+                            hidden
+                            onChange={async (event) => {
+                                const file = event.target.files?.[0];
+                                if (!file) return;
+                                setResourceBusy(true);
+                                try {
+                                    const stored = await uploadImage(file);
+                                    const url = stored.serverUrl || stored.url;
+                                    setResourceEditor((current) =>
+                                        current
+                                            ? {
+                                                  ...current,
+                                                  asset: {
+                                                      ...current.asset,
+                                                      imageUrl: url,
+                                                      referenceImageUrl: url,
+                                                      referenceStorageKey: stored.storageKey,
+                                                      references: [{ id: `reference-${Date.now()}`, url, storageKey: stored.storageKey }, ...(current.asset.references || [])],
+                                                  },
+                                              }
+                                            : current,
+                                    );
+                                } catch {
+                                    message.error("上传失败");
+                                } finally {
+                                    setResourceBusy(false);
+                                    if (resourceFileInput.current) resourceFileInput.current.value = "";
+                                }
+                            }}
+                        />
+                        {(["name", "category", "description", "tags"] as const).map((field) => (
+                            <div key={field} className="mb-4 flex items-start gap-4">
+                                <label className="w-12 shrink-0 pt-1" htmlFor={`resource-${field}`}>
+                                    {{ name: "名称", category: "分类", description: "描述", tags: "标签" }[field]}
+                                </label>
+                                {field === "description" ? (
+                                    <Input.TextArea
+                                        id={`resource-${field}`}
+                                        disabled={resourceBusy}
+                                        rows={4}
+                                        value={resourceEditor.asset.description || ""}
+                                        onChange={(event) => setResourceEditor({ ...resourceEditor, asset: { ...resourceEditor.asset, description: event.target.value } })}
+                                    />
+                                ) : (
+                                    <Input
+                                        id={`resource-${field}`}
+                                        disabled={resourceBusy}
+                                        placeholder={field === "tags" ? "逗号分隔" : field === "category" ? "可选" : ""}
+                                        value={field === "tags" ? resourceEditor.asset.tags?.join(",") : resourceEditor.asset[field]}
+                                        onChange={(event) => setResourceEditor({ ...resourceEditor, asset: { ...resourceEditor.asset, [field]: field === "tags" ? event.target.value.split(/[,，]/) : event.target.value } })}
+                                    />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+            </Modal>
             <Modal open={resourceImportOpen} title={`从素材库导入${resourceImportTarget === "characters" ? "角色" : resourceImportTarget === "scenes" ? "场景" : "道具"}`} footer={null} onCancel={() => setResourceImportOpen(false)}>
                 {libraryLoading ? (
                     <div className="flex justify-center py-8">
