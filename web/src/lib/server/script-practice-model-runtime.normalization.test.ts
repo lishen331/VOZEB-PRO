@@ -24,6 +24,11 @@ describe("script practice model runtime response normalization", () => {
     it("reads direct result wrappers", async () => {
         await expect(run({ result: { synopsis: "包装梗概" } })).resolves.toMatchObject({ structured: { synopsis: "包装梗概" } });
         await expect(run({ data: { synopsis: "数据梗概" } })).resolves.toMatchObject({ structured: { synopsis: "数据梗概" } });
+        await expect(run({ code: 200, data: { result: { data: { synopsis: "多层梗概" } } } })).resolves.toMatchObject({ structured: { synopsis: "多层梗概" } });
+    });
+    it("reads object content and nested response output", async () => {
+        await expect(run({ choices: [{ message: { content: { type: "text", text: JSON.stringify({ synopsis: "对象梗概" }) } } }] })).resolves.toMatchObject({ structured: { synopsis: "对象梗概" } });
+        await expect(run({ output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify({ synopsis: "嵌套梗概" }) }] }] })).resolves.toMatchObject({ structured: { synopsis: "嵌套梗概" } });
     });
     it("wraps plain public text for the requested operation", async () => {
         await expect(run({ choices: [{ message: { content: "这是模型返回的公开梗概。" } }] })).resolves.toMatchObject({ structured: { synopsis: "这是模型返回的公开梗概。" } });

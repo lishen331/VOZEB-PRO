@@ -60,7 +60,7 @@ export async function runScriptModel(request: ScriptModelRequest, context: Scrip
     const content = readContent(payload);
     const structured = parseStructured(content, request.operation);
     if (!structured) throw new ScriptModelRuntimeError("剧本模型返回结果无法通过结构校验", 502);
-    const clean = stripHiddenFields(structured);
+    const clean = stripHiddenFields(structured as Record<string, unknown>);
     if (!matchesResponseSchema(clean, request.responseSchema)) throw new ScriptModelRuntimeError("剧本模型返回结果无法通过结构化结果校验", 502);
     const usage = readUsage(payload);
     return { structured: clean, ...(content.publicText && !extractJsonObjectText(content.publicText) ? { publicText: content.publicText } : {}), ...(usage ? { usage } : {}) };
@@ -96,10 +96,7 @@ function readContent(payload: Record<string, unknown> | null): ModelContent {
     const output = Array.isArray(payload.output) ? payload.output : [];
     const call = output.find((item) => item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).arguments === "string") as Record<string, unknown> | undefined;
     if (call?.arguments !== undefined) return { value: call.arguments };
-    const outputText = output
-        .map((item) => (item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).text === "string" ? (item as Record<string, unknown>).text : ""))
-        .join("")
-        .trim();
+    const outputText = output.map(plainText).join("").trim();
     if (outputText) return { value: outputText, publicText: outputText };
     for (const key of ["data", "result", "response"]) {
         if (payload[key] !== undefined) return { value: payload[key] };
@@ -107,24 +104,27 @@ function readContent(payload: Record<string, unknown> | null): ModelContent {
     return { value: payload };
 }
 
-function plainText(value: unknown) {
+function plainText(value: unknown): string {
     if (typeof value === "string") return value.trim();
-    if (!Array.isArray(value)) return "";
-    return value
-        .map((item) => (item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).text === "string" ? (item as Record<string, unknown>).text : ""))
-        .join("")
-        .trim();
+    if (Array.isArray(value)) return value.map(plainText).join("").trim();
+    if (!value || typeof value !== "object") return "";
+    const row = value as Record<string, unknown>;
+    return typeof row.text === "string" ? row.text.trim() : plainText(row.content ?? row.output_text);
 }
 
-function parseStructured(content: ModelContent, operation: ScriptAgentOperation) {
-    const value = content.value;
-    if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
+function parseStructured(content: ModelContent, operation: ScriptAgentOperation): Record<string, unknown> | null {
+    const value = unwrapStructuredValue(content.value);
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+        const row = value as Record<string, unknown>;
+        const isTextPart = typeof row.text === "string" && (typeof row.type === "string" || Object.keys(row).length <= 2);
+        if (!isTextPart) return row;
+    }
     const text = typeof value === "string" ? value.trim() : plainText(value);
     if (!text) return null;
     const jsonText = extractJsonObjectText(text);
     if (jsonText) {
         try {
-            const parsed = JSON.parse(jsonText);
+            const parsed = unwrapStructuredValue(JSON.parse(jsonText));
             return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
         } catch {
             return null;
@@ -144,6 +144,18 @@ function parseStructured(content: ModelContent, operation: ScriptAgentOperation)
         validate_format: "proposedAfter",
     }[operation];
     return field ? { [field]: text } : null;
+}
+
+function unwrapStructuredValue(value: unknown): Record<string, unknown> | unknown {
+    let current = value;
+    for (let depth = 0; depth < 8; depth += 1) {
+        if (!current || typeof current !== "object" || Array.isArray(current)) return current;
+        const row = current as Record<string, unknown>;
+        const nested = [row.data, row.result, row.response].find((item) => item && typeof item === "object" && !Array.isArray(item));
+        if (!nested) return row;
+        current = nested;
+    }
+    return current;
 }
 
 function stripHiddenFields(value: Record<string, unknown>): Record<string, unknown> {
