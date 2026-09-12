@@ -106,6 +106,72 @@ describe("Drama Lab story materialization", () => {
     });
 });
 
+describe("successful story replacement", () => {
+    it("replaces a five-episode project with exactly the two requested episodes", async () => {
+        const batch = {
+            version: 1 as const,
+            projectId: "project-one",
+            sourceEpisodeId: "episode-one",
+            sourceEpisodeIndex: 0,
+            targetEpisodeIds: ["episode-one", "episode-two"],
+            episodeCount: 2,
+            storyOutline: "outline",
+            storyStyle: "modern",
+            scriptType: "drama",
+            status: "persisting" as const,
+            persistedEpisodeIndexes: [0, 1],
+            startedAt: 1,
+        };
+        const task = {
+            id: "story-task",
+            userId: "user-one",
+            status: "success" as const,
+            createdAt: 1,
+            updatedAt: 1,
+            config: { baseUrl: "https://example.test", apiKey: "", apiFormat: "openai" as const, model: "writer" },
+            messages: [],
+            result: {
+                content: JSON.stringify({
+                    episodes: [
+                        { episode: 1, title: "一", content: "第一集" },
+                        { episode: 2, title: "二", content: "第二集" },
+                    ],
+                }),
+            },
+            storyBatch: batch,
+        } as unknown as TextTask;
+        mocks.getTextTask.mockResolvedValue(task);
+        mocks.mutateStoredGenerationTask.mockImplementation(async (_type: string, _id: string, _ttl: number, mutate: (current: TextTask) => TextTask | null) => mutate(task));
+        mocks.resolveDramaLabProjectForRequest.mockResolvedValue({
+            ownerUserId: "user-one",
+            project: {
+                id: "project-one",
+                activeEpisodeId: "episode-five",
+                episodes: Array.from({ length: 5 }, (_, index) => ({
+                    id: `episode-${["one", "two", "three", "four", "five"][index]}`,
+                    episodeNumber: index + 1,
+                    title: `旧${index + 1}`,
+                    script: index < 2 ? `第${index + 1}集` : `旧正文${index + 1}`,
+                    outline: "",
+                    hook: "",
+                    nextPreview: "",
+                    sourceRange: "",
+                    reviewStatus: "draft",
+                    shots: [],
+                })),
+            },
+        });
+
+        const { materializeDramaLabStoryTask } = await import("./drama-lab-story-generation-service");
+        await materializeDramaLabStoryTask(task);
+
+        expect(mocks.updateDramaProjectForUser).toHaveBeenCalledWith(
+            "user-one",
+            "project-one",
+            expect.objectContaining({ activeEpisodeId: "episode-one", episodes: [expect.objectContaining({ id: "episode-one", episodeNumber: 1 }), expect.objectContaining({ id: "episode-two", episodeNumber: 2 })] }),
+        );
+    });
+});
 describe("story submission prompt", () => {
     it("uses the requested count throughout the production template before creating the task", async () => {
         const { getAuthSettings } = await import("@/lib/auth/store");

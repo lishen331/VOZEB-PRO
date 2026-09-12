@@ -290,6 +290,7 @@ export function normalizeProject(value: unknown, current: DramaProject): DramaPr
         style: cleanText(input.style),
         storyStyle: input.storyStyle === undefined ? current.storyStyle : cleanText(input.storyStyle),
         scriptType: input.scriptType === undefined ? current.scriptType : cleanText(input.scriptType),
+        scriptEpisodeCount: input.scriptEpisodeCount === undefined ? current.scriptEpisodeCount : boundedEpisodeCount(input.scriptEpisodeCount),
         ratio,
         status: input.status === "archived" ? "archived" : "active",
         creativeConversationId: current.creativeConversationId,
@@ -305,6 +306,11 @@ export function normalizeProject(value: unknown, current: DramaProject): DramaPr
         createdAt: current.createdAt,
         updatedAt: nextTimestamp(current.updatedAt),
     };
+}
+
+function boundedEpisodeCount(value: unknown) {
+    const count = Math.floor(Number(value));
+    return Number.isFinite(count) ? Math.max(1, Math.min(100, count)) : 1;
 }
 
 function addedIpReferences(previous: IpReference[] | undefined, next: IpReference[]) {

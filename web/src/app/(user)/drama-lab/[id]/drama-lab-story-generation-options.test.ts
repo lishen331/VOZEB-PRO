@@ -36,6 +36,8 @@ describe("drama lab story generation options", () => {
         expect(source).toContain("await saveNow({ silent: true })");
         expect(source).toContain("storyStyle: proj.storyStyle");
         expect(source).toContain("scriptType: proj.scriptType");
+        expect(source).toContain("scriptEpisodeCount: Number(proj.scriptEpisodeCount");
+        expect(source).toContain("scheduleSave({ scriptEpisodeCount: next })");
     });
     it("persists selected project options during autosave and exposes custom option deletion", async () => {
         const source = await readFile(path, "utf8");

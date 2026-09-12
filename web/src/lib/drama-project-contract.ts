@@ -309,6 +309,7 @@ export type DramaProject = {
     style: string;
     storyStyle?: string;
     scriptType?: string;
+    scriptEpisodeCount?: number;
     ratio: string;
     status: "active" | "archived";
     creativeConversationId?: string;

@@ -96,13 +96,13 @@ export async function startDramaLabStoryGeneration(input: StartDramaLabStoryGene
     };
     await validateGenerationContextIpReferences(input.userId, context);
     const billingContext = await resolveSchoolComputeBillingContext(input.userId, context);
-    const targetEpisodeIds = [sourceEpisodeId, ...Array.from({ length: episodeCount - 1 }, () => `episode-${randomUUID()}`)];
+    const targetEpisodeIds = Array.from({ length: episodeCount }, (_, index) => project.episodes[index]?.id || `episode-${randomUUID()}`);
     const storyBatch: DramaStoryBatch = {
         version: 1,
         projectId,
         projectOwnerUserId: ownerUserId,
         sourceEpisodeId,
-        sourceEpisodeIndex: sourceIndex,
+        sourceEpisodeIndex: 0,
         targetEpisodeIds,
         episodeCount,
         storyOutline,
@@ -241,6 +241,7 @@ export async function materializeDramaLabStoryTask(task: TextTask) {
             if (current.status !== "success" || !current.storyBatch || current.storyBatch.status !== "persisting") return current;
             latestBatch = current.storyBatch;
         }
+        await finalizeStoryEpisodeSet(current.userId, latestBatch);
         const completedBatch: DramaStoryBatch = { ...latestBatch, status: "completed", completedAt: Date.now(), activeEpisodeIndex: undefined };
         return (await updateStoryBatchWhileActive(current.id, () => completedBatch)) || current;
     });
@@ -466,6 +467,20 @@ async function persistStoryEpisode(userId: string, batch: DramaStoryBatch, index
     }
 }
 
+async function finalizeStoryEpisodeSet(userId: string, batch: DramaStoryBatch) {
+    const resolved = await resolveDramaLabProjectForRequest(userId, batch.projectId);
+    const episodes = batch.targetEpisodeIds.map((id, index) => {
+        const episode = resolved.project.episodes.find((item) => item.id === id);
+        if (!episode?.script.trim()) throw new DramaLabStoryGenerationError(`第 ${index + 1} 集尚未完成持久化`, 500);
+        return { ...episode, episodeNumber: index + 1 };
+    });
+    await updateDramaProjectForUser(resolved.ownerUserId, batch.projectId, {
+        ...resolved.project,
+        episodes,
+        activeEpisodeId: episodes[0]?.id,
+        updatedAt: new Date().toISOString(),
+    });
+}
 function findEpisodeArray(value: Record<string, unknown>) {
     for (const key of ["episodes", "data", "items", "results"]) if (Array.isArray(value[key])) return value[key] as unknown[];
     if (value.content || value.script || value.text) return [value];

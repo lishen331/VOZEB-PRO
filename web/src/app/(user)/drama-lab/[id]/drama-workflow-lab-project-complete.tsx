@@ -423,6 +423,7 @@ export interface Project {
     style?: string;
     storyStyle?: string;
     scriptType?: string;
+    scriptEpisodeCount?: number;
     aspectRatio?: string;
     episodes: Episode[];
     characters: Character[];
@@ -1202,6 +1203,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     style: proj.style ?? legacy.style ?? "",
                     storyStyle: proj.storyStyle ?? legacy.storyStyle ?? "",
                     scriptType: proj.scriptType ?? legacy.scriptType ?? "",
+                    scriptEpisodeCount: Number(proj.scriptEpisodeCount ?? legacy.scriptEpisodeCount) || 1,
                     aspectRatio: proj.ratio ?? legacy.aspectRatio ?? "16:9",
                     episodes,
                     characters: (proj.characters ?? legacy.characters ?? []) as Character[],
@@ -1278,6 +1280,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                         style: nextProject.style,
                         ...(nextProject.storyStyle ? { storyStyle: nextProject.storyStyle } : { storyStyle: "" }),
                         ...(nextProject.scriptType ? { scriptType: nextProject.scriptType } : { scriptType: "" }),
+                        scriptEpisodeCount: nextProject.scriptEpisodeCount || 1,
                         ratio: nextProject.aspectRatio,
                         episodes: nextProject.episodes,
                         characters: nextProject.characters,
@@ -1951,7 +1954,7 @@ function ScriptEditor({
     const [customOptionKind, setCustomOptionKind] = useState<DramaLabStoryOptionKind | null>(null);
     const [customOptionDraft, setCustomOptionDraft] = useState("");
     const [customOptionBusy, setCustomOptionBusy] = useState(false);
-    const [episodeCount, setEpisodeCount] = useState(1);
+    const [episodeCount, setEpisodeCount] = useState(project.scriptEpisodeCount || 1);
     const [scriptLibraryOpen, setScriptLibraryOpen] = useState(false);
     const [scriptLibraryLoading, setScriptLibraryLoading] = useState(false);
     const [scriptLibraryImporting, setScriptLibraryImporting] = useState(false);
@@ -1966,6 +1969,7 @@ function ScriptEditor({
         scriptForm.setFieldsValue({ script: episode?.script || "" });
         setStoryStyle(project.storyStyle || "");
         setScriptType(project.scriptType || "");
+        setEpisodeCount(project.scriptEpisodeCount || 1);
         setPreviewEpisodeId((current) => (current && project.episodes.some((item) => item.id === current) ? current : project.episodes[0]?.id));
     }, [form, scriptForm, project, episode]);
 
@@ -2036,7 +2040,7 @@ function ScriptEditor({
         }
     };
 
-    type StoryOptionPatch = Partial<Pick<Project, "storyStyle" | "scriptType">>;
+    type StoryOptionPatch = Partial<Pick<Project, "storyStyle" | "scriptType" | "scriptEpisodeCount">>;
 
     const saveNow = useCallback(
         (options: SaveOptions = {}, optionPatch: StoryOptionPatch = {}) => {
@@ -2050,13 +2054,14 @@ function ScriptEditor({
                         episodes: updatedEpisodes,
                         storyStyle: optionPatch.storyStyle ?? storyStyle,
                         scriptType: optionPatch.scriptType ?? scriptType,
+                        scriptEpisodeCount: optionPatch.scriptEpisodeCount ?? episodeCount,
                     },
                     options,
                 );
             }
             return Promise.resolve(false);
         },
-        [episode, form, onSave, project, scriptForm, scriptType, storyStyle],
+        [episode, episodeCount, form, onSave, project, scriptForm, scriptType, storyStyle],
     );
 
     const addScriptEpisode = async () => {
@@ -2414,7 +2419,11 @@ function ScriptEditor({
                                                 max={100}
                                                 precision={0}
                                                 value={episodeCount}
-                                                onChange={(value) => setEpisodeCount(Math.max(1, Math.min(100, Math.floor(Number(value) || 1))))}
+                                                onChange={(value) => {
+                                                    const next = Math.max(1, Math.min(100, Math.floor(Number(value) || 1)));
+                                                    setEpisodeCount(next);
+                                                    scheduleSave({ scriptEpisodeCount: next });
+                                                }}
                                                 style={{ width: 130 }}
                                             />
 
