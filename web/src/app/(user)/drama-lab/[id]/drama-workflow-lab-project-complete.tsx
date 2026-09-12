@@ -1565,6 +1565,26 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         });
     };
 
+    const confirmDeleteEpisode = (episode: Episode) => {
+        if (!project) return;
+        const currentProject = project;
+        if (currentProject.episodes.length <= 1) return messageApi.warning("至少保留一集");
+        Modal.confirm({
+            title: "删除剧集",
+            content: `确定删除「${episode.title}」及其全部分镜吗？`,
+            okText: "删除",
+            cancelText: "取消",
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                const episodes = currentProject.episodes.filter((item) => item.id !== episode.id).map((item, index) => ({ ...item, number: index + 1 }));
+                const shots = currentProject.shots.filter((shot) => shot.episodeId !== episode.id);
+                const saved = await saveProject({ episodes, shots });
+                if (!saved) return;
+                if (activeEpisodeId === episode.id) setActiveEpisodeId(episodes[Math.max(0, currentProject.episodes.findIndex((item) => item.id === episode.id) - 1)]?.id || episodes[0]?.id || "");
+            },
+        });
+    };
+
     const toggleEpisodeExpanded = (episodeId: string) => {
         setExpandedEpisodeIds((current) => {
             const next = new Set(current);
@@ -1721,7 +1741,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
 
                             return (
                                 <div key={ep.id} className="mb-1">
-                                    <div className={cn("flex min-w-0 items-center rounded text-sm transition-colors", isActive ? "bg-primary/10 text-primary" : "hover:bg-muted")}>
+                                    <div className={cn("group flex min-w-0 items-center rounded text-sm transition-colors", isActive ? "bg-primary/10 text-primary" : "hover:bg-muted")}>
                                         {!sidebarCollapsed && episodeShots.length > 0 ? (
                                             <Button
                                                 type="text"
@@ -1754,6 +1774,20 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                                                 </>
                                             )}
                                         </button>
+                                        {!sidebarCollapsed ? (
+                                            <button
+                                                type="button"
+                                                aria-label={`删除剧集 ${ep.title}`}
+                                                title="删除剧集"
+                                                className="mr-1 grid size-7 shrink-0 place-items-center rounded text-destructive opacity-0 transition-opacity hover:bg-destructive/10 group-hover:opacity-100 focus:opacity-100"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    confirmDeleteEpisode(ep);
+                                                }}
+                                            >
+                                                <Trash2 className="size-3.5" />
+                                            </button>
+                                        ) : null}
                                     </div>
 
                                     {!sidebarCollapsed && isExpanded && episodeShots.length > 0 && (
@@ -2023,6 +2057,22 @@ function ScriptEditor({
         [episode, form, onSave, project, scriptForm, scriptType, storyStyle],
     );
 
+    const addScriptEpisode = async () => {
+        const newEpisode: Episode = { id: `ep_${Date.now()}`, title: `第 ${project.episodes.length + 1} 集`, number: project.episodes.length + 1, script: "" };
+        const saved = await onSave({ episodes: [...project.episodes, newEpisode] });
+        if (saved) onActiveEpisodeChange(newEpisode.id);
+    };
+
+    const switchScriptEpisode = async (episodeId: string) => {
+        if (episodeId === episode?.id) return;
+        if (saveTimerRef.current) {
+            clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = null;
+        }
+        const saved = await saveNow({ silent: true });
+        if (saved) onActiveEpisodeChange(episodeId);
+    };
+
     const scheduleSave = useCallback(
         (optionPatch: StoryOptionPatch = {}) => {
             if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -2247,6 +2297,18 @@ function ScriptEditor({
                                                     if (episodeId) onActiveEpisodeChange(episodeId);
                                                 }}
                                             >
+                                                <div className="mb-3 flex items-center gap-3">
+                                                    <Select
+                                                        aria-label="选择当前剧集"
+                                                        value={episode.id}
+                                                        onChange={(value) => void switchScriptEpisode(value)}
+                                                        style={{ minWidth: 220, flex: 1 }}
+                                                        options={project.episodes.map((item) => ({ value: item.id, label: item.title || `第 ${item.number} 集` }))}
+                                                    />
+                                                    <Button aria-label="添加一集" icon={<Plus className="size-4" />} onClick={() => void addScriptEpisode()}>
+                                                        添加一集
+                                                    </Button>
+                                                </div>
                                                 <Form.Item name="script">
                                                     <TextArea
                                                         rows={15}
