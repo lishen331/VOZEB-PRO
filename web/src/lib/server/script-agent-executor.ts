@@ -41,6 +41,7 @@ export class ScriptAgentExecutor {
         const selectedSkills = Array.isArray(task.input.skillIds) ? task.input.skillIds.filter((value): value is string => typeof value === "string") : [];
         const profile = await this.deps.resolveProfile(execution.agent, selectedSkills);
         await this.deps.appendEvent(scope, task.projectId, task.runId, "agent_started", { agentKey: execution.agent, name: profile.profile.name }, this.id());
+        await this.deps.appendEvent(scope, task.projectId, task.runId, "assistant_delta", { agentKey: execution.agent, delta: `${profile.profile.name}已开始处理当前任务。` }, this.id());
         const structured = await this.deps.callModel({
             profile,
             task,
@@ -62,6 +63,7 @@ export class ScriptAgentExecutor {
         if (!artifact?.id) throw new Error("剧本成果保存失败");
         await this.deps.appendEvent(scope, task.projectId, task.runId, "artifact_saved", { artifactId, artifactType: execution.artifact, artifactKey: execution.key }, this.id());
         await this.deps.appendEvent(scope, task.projectId, task.runId, "agent_completed", { agentKey: execution.agent }, this.id());
+        await this.deps.appendEvent(scope, task.projectId, task.runId, "assistant_delta", { agentKey: execution.agent, delta: `${profile.profile.name}已完成并保存成果。` }, this.id());
         if (execution.confirmation) await this.deps.appendEvent(scope, task.projectId, task.runId, "stage_waiting_confirmation", { artifactId, artifactType: execution.artifact }, this.id());
         return { artifactId: String(artifact.id), artifactType: execution.artifact, artifactKey: execution.key, structured };
     }

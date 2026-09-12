@@ -15,7 +15,9 @@ export async function PATCH(request: Request, context: Context) {
     const model = typeof parsed.data.primaryLogicalModelId === "string" ? parsed.data.primaryLogicalModelId.trim() : "";
     const fallback = typeof parsed.data.fallbackLogicalModelId === "string" ? parsed.data.fallbackLogicalModelId.trim() : "";
     const result = await postgresQuery(
-        `UPDATE practice_script_agent_profiles SET enabled=$2, primary_logical_model_id=$3, fallback_logical_model_id=$4, endpoint_id=$5, temperature=$6::numeric, reasoning_mode=$7, version=version+1, updated_by=$8, updated_at=now() WHERE agent_key=$1 RETURNING *`,
+        `INSERT INTO practice_script_agent_profiles (agent_key, name, enabled, primary_logical_model_id, fallback_logical_model_id, endpoint_id, temperature, reasoning_mode, updated_by)
+         VALUES ($1, $9, $2, $3, $4, $5, $6::numeric, $7, $8)
+         ON CONFLICT (agent_key) DO UPDATE SET enabled=EXCLUDED.enabled, primary_logical_model_id=EXCLUDED.primary_logical_model_id, fallback_logical_model_id=EXCLUDED.fallback_logical_model_id, endpoint_id=EXCLUDED.endpoint_id, temperature=EXCLUDED.temperature, reasoning_mode=EXCLUDED.reasoning_mode, version=practice_script_agent_profiles.version+1, updated_by=EXCLUDED.updated_by, updated_at=now() RETURNING *`,
         [
             agentKey,
             parsed.data.enabled !== false,
@@ -25,6 +27,7 @@ export async function PATCH(request: Request, context: Context) {
             typeof parsed.data.temperature === "number" ? parsed.data.temperature : null,
             typeof parsed.data.reasoningMode === "string" ? parsed.data.reasoningMode : "medium",
             user.id,
+            typeof parsed.data.name === "string" && parsed.data.name.trim() ? parsed.data.name.trim() : agentKey,
         ],
     );
     return reply(0, result.rows[0] || null, "ok");
