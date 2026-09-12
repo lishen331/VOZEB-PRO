@@ -198,6 +198,7 @@ export function DramaLabNovelImport({ projectId, currentEpisodeCount, messageApi
                 type="file"
                 accept=".txt,.md,.markdown,.docx,.doc,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
                 className="hidden"
+                hidden
                 onChange={(event) => void readSource(event.target.files?.[0])}
             />
             <Modal
