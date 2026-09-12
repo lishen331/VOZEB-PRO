@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
-import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, Upload as AntUpload, Steps, Table } from "antd";
+import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, Upload as AntUpload, Steps, Table, Image as AntImage } from "antd";
 import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -673,7 +673,9 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                                 <button type="button" className="flex h-full w-full flex-col text-left" onClick={() => setResourceEditor({ kind, asset: { ...asset } })}>
                                                     <div className="h-40 w-full shrink-0 bg-muted">
                                                         {assetImageUrl(asset) ? (
-                                                            <img src={assetImageUrl(asset)} alt={asset.name || "参考图"} className="size-full object-contain" />
+                                                            <div className="size-full" onClick={(event) => event.stopPropagation()} data-outline-resource-preview>
+                                                                <AntImage src={assetImageUrl(asset)} alt={asset.name || "参考图"} width="100%" height="100%" className="!size-full !object-contain" preview={{ src: assetImageUrl(asset) }} />
+                                                            </div>
                                                         ) : (
                                                             <div className="grid size-full place-items-center text-xs text-muted-foreground">暂无参考图</div>
                                                         )}
