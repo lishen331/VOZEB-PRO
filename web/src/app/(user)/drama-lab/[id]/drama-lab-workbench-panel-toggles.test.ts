@@ -18,6 +18,7 @@ describe("drama lab workbench panel toggles", () => {
         const collaborationAside = source.slice(source.indexOf('className={cn("hidden min-h-0 shrink-0 flex-col border-l'));
 
         expect(header).not.toContain("setCollaborationCollapsed((current) => !current)");
+        expect(header).toContain('className="lg:!hidden"');
         expect(header).toContain('aria-label="打开团队协作与审批"');
         expect((collaborationAside.match(/setCollaborationCollapsed\(\(current\) => !current\)/g) || []).length).toBe(1);
         expect(collaborationAside).toContain('aria-label={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}');

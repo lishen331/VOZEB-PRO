@@ -428,18 +428,19 @@ export function DramaLabVisualAssetsPanel({
                                                         </Button>
                                                     </div>
                                                     <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">{asset.description || "未填写文字设定"}</p>
-                                                    <div className="mt-2 flex flex-wrap gap-1.5">
-                                                        <Button size="small" icon={<Sparkles className="size-3.5" />} loading={busyKey === `asset:${asset.id}`} onClick={() => void generateAssetReference(asset)}>
+                                                    <div className="mt-2 flex flex-nowrap items-center gap-1" aria-label="资产操作">
+                                                        <Button size="small" className="!px-2 !text-xs" icon={<Sparkles className="size-3.5" />} loading={busyKey === `asset:${asset.id}`} onClick={() => void generateAssetReference(asset)}>
                                                             AI 生图
                                                         </Button>
-                                                        <Button size="small" icon={<Upload className="size-3.5" />} onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })}>
+                                                        <Button size="small" className="!px-2 !text-xs" icon={<Upload className="size-3.5" />} onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })}>
                                                             上传
                                                         </Button>
-                                                        <Button size="small" icon={<LibraryBig className="size-3.5" />} disabled={!primary} onClick={() => void saveToLibrary(asset, assetKind, meta.label, messageApi)}>
-                                                            加入素材库
+                                                        <Button size="small" className="!px-2 !text-xs" icon={<LibraryBig className="size-3.5" />} disabled={!primary} onClick={() => void saveToLibrary(asset, assetKind, meta.label, messageApi)}>
+                                                            入素材库
                                                         </Button>
                                                         <Button
                                                             size="small"
+                                                            className="!px-2 !text-xs"
                                                             icon={<PanelsTopLeft className="size-3.5" />}
                                                             href={onOpenCanvasHref(assetKind === "characters" ? "character" : assetKind === "scenes" ? "scene" : "prop", asset.id)}
                                                             aria-label="画布定位"
@@ -627,9 +628,11 @@ function AssetEditorModal({
                 destroyOnHidden
             >
                 <div className="grid gap-3">
-                    <div className="grid grid-cols-[112px_1fr] items-start gap-4 border-b border-border pb-4">
+                    <div className="flex items-start gap-3 border-b border-border pb-4">
+                        <span className="shrink-0 text-sm">参考图</span>
                         <div
-                            className="grid size-28 cursor-pointer place-items-center overflow-hidden rounded border border-dashed border-border bg-muted text-xs text-muted-foreground hover:border-primary hover:text-primary"
+                            data-reference-upload-frame="scene"
+                            className="grid size-28 shrink-0 cursor-pointer place-items-center overflow-hidden rounded border border-dashed border-border bg-muted text-xs text-muted-foreground hover:border-primary hover:text-primary"
                             onClick={onUpload}
                             onDragOver={(event) => event.preventDefault()}
                             onDrop={handleDrop}
@@ -637,7 +640,7 @@ function AssetEditorModal({
                             aria-label="拖拽或点击上传场景参考图"
                         >
                             {primary?.url ? (
-                                <Image src={imagePreviewUrl(primary.url, 240)} alt="场景参考图" width={112} height={112} preview={{ src: primary.url }} className="!size-full !object-contain" />
+                                <img src={imagePreviewUrl(primary.url, 240)} alt="场景参考图" className="size-full object-contain" />
                             ) : (
                                 <>
                                     参考图
@@ -722,22 +725,19 @@ function AssetEditorModal({
                 destroyOnHidden
             >
                 <div className="grid gap-3">
-                    <div className="border-b border-border pb-3">
-                        <div className="mb-2 text-xs text-muted-foreground">参考图</div>
+                    <div className="flex items-start gap-3 border-b border-border pb-3">
+                        <span className="shrink-0 text-sm">参考图</span>
                         <div className="flex items-start gap-3">
                             <div
                                 data-prop-reference-frame="true"
+                                data-reference-upload-frame="prop"
                                 className="grid size-[88px] shrink-0 cursor-pointer place-items-center overflow-hidden rounded border border-dashed border-border bg-muted text-xs text-muted-foreground"
                                 onClick={onUpload}
                                 onDragOver={(event) => event.preventDefault()}
                                 onDrop={handleDrop}
                                 title="点击或拖入参考图"
                             >
-                                {primary?.url ? (
-                                    <Image src={imagePreviewUrl(primary.url, 180)} width={88} height={88} alt={primary.label || "道具参考图"} className="!size-full !object-contain" style={{ objectFit: "contain" }} />
-                                ) : (
-                                    <span className="px-2 text-center">点击或拖入参考图</span>
-                                )}
+                                {primary?.url ? <img src={imagePreviewUrl(primary.url, 180)} alt={primary.label || "道具参考图"} className="size-full object-contain" /> : <span className="px-2 text-center">点击或拖入参考图</span>}
                             </div>
                             <div className="flex flex-col items-start gap-1.5">
                                 {primary ? (
@@ -798,16 +798,18 @@ function AssetEditorModal({
             destroyOnHidden
         >
             <div className="grid gap-3">
-                <div className="grid grid-cols-[112px_1fr] items-start gap-4 border-b border-border pb-4">
+                <div className="flex items-start gap-3 border-b border-border pb-4">
+                    <span className="shrink-0 text-sm">参考图</span>
                     <div
-                        className="grid size-28 cursor-pointer place-items-center overflow-hidden rounded border border-dashed border-border bg-muted text-xs text-muted-foreground hover:border-primary hover:text-primary"
+                        data-reference-upload-frame="character"
+                        className="grid size-28 shrink-0 cursor-pointer place-items-center overflow-hidden rounded border border-dashed border-border bg-muted text-xs text-muted-foreground hover:border-primary hover:text-primary"
                         onClick={onUpload}
                         onDragOver={(event) => event.preventDefault()}
                         onDrop={handleDrop}
                         title="点击或拖入参考图"
                     >
                         {primary?.url ? (
-                            <Image src={imagePreviewUrl(primary.url, 240)} alt={`${label}参考图`} width={112} height={112} className="!size-full !object-contain" style={{ objectFit: "contain" }} />
+                            <img src={imagePreviewUrl(primary.url, 240)} alt={`${label}参考图`} className="size-full object-contain" />
                         ) : (
                             <>
                                 参考图

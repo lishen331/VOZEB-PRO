@@ -153,3 +153,22 @@ describe("L-style prop prompt row", () => {
         expect(row).toContain("whitespace-nowrap");
     });
 });
+
+describe("asset card and editor reference interactions", () => {
+    it("keeps the four asset actions on one compact row", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        expect(source).toContain('aria-label="资产操作"');
+        expect(source).toContain("flex-nowrap");
+        expect(source).toContain("入素材库");
+        expect(source).toContain("画布定位");
+    });
+
+    it("labels reference upload frames on the left and disables nested image preview", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        expect((source.match(/<span className="shrink-0 text-sm">参考图<\/span>/g) || []).length).toBe(3);
+        expect(source).toContain('data-reference-upload-frame="scene"');
+        expect(source).toContain('data-reference-upload-frame="prop"');
+        expect(source).toContain('data-reference-upload-frame="character"');
+        expect(source).not.toContain("preview={{ src: primary.url }}");
+    });
+});
