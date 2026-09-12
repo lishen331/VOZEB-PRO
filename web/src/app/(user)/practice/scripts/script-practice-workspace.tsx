@@ -131,7 +131,7 @@ export default function ScriptPracticeWorkspace() {
         if (!text || !selectedId || busy) return;
         setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", content: text }]);
         setDraft("");
-        let sessions = await practiceScriptsApi.chatSessions(selectedId);
+        const sessions = await practiceScriptsApi.chatSessions(selectedId);
         const session = sessions[0] || (await practiceScriptsApi.createChatSession(selectedId));
         const run = await practiceScriptsApi.sendChat(selectedId, session.id, text, crypto.randomUUID());
         setRunId(run.id);
