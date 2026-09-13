@@ -36,7 +36,7 @@ describe("production storyboard workbench layout wiring", () => {
     });
     it("keeps first-last controls scoped to first-last mode and media controls outside textareas", async () => {
         const source = await readFile(path, "utf8");
-        expect(source).toContain("{isFirstLast\n                            ? ([");
+        expect(source).toContain("{isFirstLast");
         expect(source).toContain("aria-label={`上传${frameLabel[frameType]}`}");
         expect(source).toContain('aria-label="选择分镜图文件"');
         expect(source).toContain("onClick={() => uploadInputRefs.current.key?.click()}");

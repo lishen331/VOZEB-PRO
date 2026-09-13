@@ -6158,7 +6158,7 @@ function StoryboardWorkbenchCard({
                 <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 画面`}>
                     <h4 className="text-sm font-medium">{isFirstLast ? "首尾帧参考图" : isUniversal ? "全能片段与参考图" : "分镜图"}</h4>
                     {!isUniversal ? (
-                        <div data-storyboard-media="image" className="grid h-56 min-h-0 min-w-0 overflow-hidden rounded border border-border bg-muted/30">
+                        <div data-storyboard-media="image" className="grid h-80 min-h-0 min-w-0 overflow-hidden rounded border border-border bg-muted/30">
                             {isFirstLast ? (
                                 <div className="grid min-h-0 grid-cols-2 divide-x divide-border">
                                     {(["first", "last"] as const).map((frameType) => (
@@ -6249,124 +6249,124 @@ function StoryboardWorkbenchCard({
                     ) : null}
 
                     {shot.storyboardError ? <Alert type="error" showIcon message={shot.storyboardError} /> : null}
-                    <div className="flex flex-wrap items-center gap-2" aria-label="分镜图生成上传">
-                        {isFirstLast
-                            ? (["first", "last"] as const).map((frameType) => {
-                                  const frame = shot.frames?.[frameType];
-                                  const busy = busyKeys.has(`frame:${frameType}:${shot.id}`) || isDramaLabTaskActive(frame?.status);
-                                  return (
-                                      <Button key={frameType} loading={busy} icon={<Sparkles className="size-4" />} onClick={() => void onStartFrame(shot, frameType)}>
-                                          {frame?.url ? `重生成${frameLabel[frameType]}` : `生成${frameLabel[frameType]}`}
-                                      </Button>
-                                  );
-                              })
-                            : null}
-                        {isFirstLast
-                            ? (["first", "last"] as const).map((frameType) => {
-                                  const frame = shot.frames?.[frameType];
-                                  return (
-                                      <span key={`frame-tools-${frameType}`} className="contents">
-                                          <input
-                                              ref={(node) => {
-                                                  uploadInputRefs.current[frameType] = node;
-                                              }}
-                                              type="file"
-                                              accept="image/png,image/jpeg,image/webp,image/gif"
-                                              className="hidden"
-                                              onChange={(event) => {
-                                                  const file = event.target.files?.[0];
-                                                  event.target.value = "";
-                                                  if (file) void onUploadFrame(shot, frameType, file);
-                                              }}
-                                          />
-                                          <Button
-                                              size="small"
-                                              title={`上传${frameLabel[frameType]}`}
-                                              aria-label={`上传${frameLabel[frameType]}`}
-                                              loading={busyKeys.has(`frame-upload:${frameType}:${shot.id}`)}
-                                              icon={<Upload className="size-3.5" />}
-                                              disabled={Boolean(frame?.locked) || isDramaLabTaskActive(frame?.status)}
-                                              onClick={() => uploadInputRefs.current[frameType]?.click()}
-                                          >
-                                              上传{frameLabel[frameType]}
+                    <div aria-label="分镜图操作" className="flex h-10 items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2" aria-label="分镜图生成上传">
+                            {isFirstLast
+                                ? (["first", "last"] as const).map((frameType) => {
+                                      const frame = shot.frames?.[frameType];
+                                      const busy = busyKeys.has(`frame:${frameType}:${shot.id}`) || isDramaLabTaskActive(frame?.status);
+                                      return (
+                                          <Button key={frameType} loading={busy} icon={<Sparkles className="size-4" />} onClick={() => void onStartFrame(shot, frameType)}>
+                                              {frame?.url ? `重生成${frameLabel[frameType]}` : `生成${frameLabel[frameType]}`}
                                           </Button>
-                                          {frame?.url ? (
+                                      );
+                                  })
+                                : null}
+                            {isFirstLast
+                                ? (["first", "last"] as const).map((frameType) => {
+                                      const frame = shot.frames?.[frameType];
+                                      return (
+                                          <span key={`frame-tools-${frameType}`} className="contents">
+                                              <input
+                                                  ref={(node) => {
+                                                      uploadInputRefs.current[frameType] = node;
+                                                  }}
+                                                  type="file"
+                                                  accept="image/png,image/jpeg,image/webp,image/gif"
+                                                  className="hidden"
+                                                  onChange={(event) => {
+                                                      const file = event.target.files?.[0];
+                                                      event.target.value = "";
+                                                      if (file) void onUploadFrame(shot, frameType, file);
+                                                  }}
+                                              />
                                               <Button
                                                   size="small"
-                                                  title={frame.locked ? `解锁${frameLabel[frameType]}` : `锁定${frameLabel[frameType]}`}
-                                                  aria-label={frame.locked ? `解锁${frameLabel[frameType]}` : `锁定${frameLabel[frameType]}`}
-                                                  loading={busyKeys.has(`frame-lock:${frameType}:${shot.id}`)}
-                                                  icon={<LockKeyhole className={cn("size-3.5", frame.locked && "text-emerald-600")} />}
-                                                  onClick={() => void onToggleFrameLock(shot, frameType)}
-                                              />
-                                          ) : null}
-                                      </span>
-                                  );
-                              })
-                            : null}
-                        {shot.generationTaskId && shot.generationStatus === "success" ? (
-                            <Button size="small" loading={busyKeys.has(`tail-frame:${shot.id}`)} icon={<Film className="size-3.5" />} onClick={() => void onExtractTailFrame(shot)}>
-                                从视频提取尾帧
-                            </Button>
-                        ) : null}
-                        {isClassic ? (
-                            <Button type="primary" loading={imageBusy} icon={<Sparkles className="size-4" />} onClick={() => void onStartGeneration(shot, "image")}>
-                                {classicImageUrl ? "重新生成分镜图" : "生成分镜图"}
-                            </Button>
-                        ) : null}
-                        {isClassic ? (
-                            <>
-                                <input
-                                    ref={(node) => {
-                                        uploadInputRefs.current.key = node;
-                                    }}
-                                    type="file"
-                                    accept="image/png,image/jpeg,image/webp,image/gif"
-                                    className="hidden"
-                                    aria-label="选择分镜图文件"
-                                    onChange={(event) => {
-                                        const file = event.target.files?.[0];
-                                        event.target.value = "";
-                                        if (file) void onUploadFrame(shot, "key", file);
-                                    }}
-                                />
-                                <Button
-                                    aria-label="上传分镜图"
-                                    loading={busyKeys.has(`frame-upload:key:${shot.id}`)}
-                                    disabled={imageBusy || Boolean(shot.frames?.key?.locked) || isDramaLabTaskActive(shot.frames?.key?.status)}
-                                    icon={<Upload className="size-4" />}
-                                    onClick={() => uploadInputRefs.current.key?.click()}
-                                >
-                                    上传分镜图
+                                                  title={`上传${frameLabel[frameType]}`}
+                                                  aria-label={`上传${frameLabel[frameType]}`}
+                                                  loading={busyKeys.has(`frame-upload:${frameType}:${shot.id}`)}
+                                                  icon={<Upload className="size-3.5" />}
+                                                  disabled={Boolean(frame?.locked) || isDramaLabTaskActive(frame?.status)}
+                                                  onClick={() => uploadInputRefs.current[frameType]?.click()}
+                                              >
+                                                  上传{frameLabel[frameType]}
+                                              </Button>
+                                              {frame?.url ? (
+                                                  <Button
+                                                      size="small"
+                                                      title={frame.locked ? `解锁${frameLabel[frameType]}` : `锁定${frameLabel[frameType]}`}
+                                                      aria-label={frame.locked ? `解锁${frameLabel[frameType]}` : `锁定${frameLabel[frameType]}`}
+                                                      loading={busyKeys.has(`frame-lock:${frameType}:${shot.id}`)}
+                                                      icon={<LockKeyhole className={cn("size-3.5", frame.locked && "text-emerald-600")} />}
+                                                      onClick={() => void onToggleFrameLock(shot, frameType)}
+                                                  />
+                                              ) : null}
+                                          </span>
+                                      );
+                                  })
+                                : null}
+                            {shot.generationTaskId && shot.generationStatus === "success" ? (
+                                <Button size="small" loading={busyKeys.has(`tail-frame:${shot.id}`)} icon={<Film className="size-3.5" />} onClick={() => void onExtractTailFrame(shot)}>
+                                    从视频提取尾帧
                                 </Button>
-                                {shot.frames?.key?.locked ? (
-                                    <Button size="small" onClick={() => void onToggleFrameLock(shot, "key")}>
-                                        解锁分镜图
+                            ) : null}
+                            {isClassic ? (
+                                <Button type="primary" loading={imageBusy} icon={<Sparkles className="size-4" />} onClick={() => void onStartGeneration(shot, "image")}>
+                                    {classicImageUrl ? "重新生成分镜图" : "生成分镜图"}
+                                </Button>
+                            ) : null}
+                            {isClassic ? (
+                                <>
+                                    <input
+                                        ref={(node) => {
+                                            uploadInputRefs.current.key = node;
+                                        }}
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp,image/gif"
+                                        className="hidden"
+                                        aria-label="选择分镜图文件"
+                                        onChange={(event) => {
+                                            const file = event.target.files?.[0];
+                                            event.target.value = "";
+                                            if (file) void onUploadFrame(shot, "key", file);
+                                        }}
+                                    />
+                                    <Button
+                                        aria-label="上传分镜图"
+                                        loading={busyKeys.has(`frame-upload:key:${shot.id}`)}
+                                        disabled={imageBusy || Boolean(shot.frames?.key?.locked) || isDramaLabTaskActive(shot.frames?.key?.status)}
+                                        icon={<Upload className="size-4" />}
+                                        onClick={() => uploadInputRefs.current.key?.click()}
+                                    >
+                                        上传分镜图
                                     </Button>
-                                ) : null}
-                            </>
-                        ) : null}
-                        {isClassic ? (
-                            <GenerationHistory
-                                history={shot.storyboardHistory}
-                                activeUrl={classicImageUrl}
-                                type="image"
-                                onRestore={(url) =>
-                                    onUpdate({
-                                        storyboardImageUrl: url,
-                                        imageUrl: url,
-                                        storyboardStatus: "success",
-                                        storyboardError: undefined,
-                                        frames: {
-                                            ...shot.frames,
-                                            key: { ...(shot.frames?.key || { prompt: "" }), url, status: "success", source: "restored", error: undefined },
-                                        },
-                                    })
-                                }
-                            />
-                        ) : null}
-                    </div>
-                    <div aria-label="分镜图操作" className="flex h-10 items-center justify-end gap-2">
+                                    {shot.frames?.key?.locked ? (
+                                        <Button size="small" onClick={() => void onToggleFrameLock(shot, "key")}>
+                                            解锁分镜图
+                                        </Button>
+                                    ) : null}
+                                </>
+                            ) : null}
+                            {isClassic ? (
+                                <GenerationHistory
+                                    history={shot.storyboardHistory}
+                                    activeUrl={classicImageUrl}
+                                    type="image"
+                                    onRestore={(url) =>
+                                        onUpdate({
+                                            storyboardImageUrl: url,
+                                            imageUrl: url,
+                                            storyboardStatus: "success",
+                                            storyboardError: undefined,
+                                            frames: {
+                                                ...shot.frames,
+                                                key: { ...(shot.frames?.key || { prompt: "" }), url, status: "success", source: "restored", error: undefined },
+                                            },
+                                        })
+                                    }
+                                />
+                            ) : null}
+                        </div>
                         <Button icon={<Volume2 className="size-4" />} onClick={() => setAudioEditorOpen(true)}>
                             设置配音
                         </Button>
