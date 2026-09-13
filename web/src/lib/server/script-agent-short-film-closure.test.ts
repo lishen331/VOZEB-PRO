@@ -21,7 +21,7 @@ const outputs = {
             },
         ],
     },
-    script_review: { report: "审核通过并完成明显问题修正" },
+    script_review: { report: "审核通过并完成明显问题修正", episodes: [{ episodeNumber: 1, title: "归来", script: { blocks: [{ type: "action", text: "她推门而入" }] } }] },
     director_plan: { content: "导演规划" },
     text_storyboard: {
         content: "分镜完成",
@@ -68,7 +68,7 @@ describe("short film screenwriter closure", () => {
             appendEvent: vi.fn(),
         };
         for (const runType of stages) await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: `run-${runType}`, runType, input: {}, origin: "https://local", cookie: "session" });
-        expect(deps.replaceEpisodes).toHaveBeenCalledTimes(2);
+        expect(deps.replaceEpisodes).toHaveBeenCalledTimes(3);
         expect(deps.replaceStoryboardEpisodes).toHaveBeenCalledOnce();
         expect(deps.upsertPromptAssets).toHaveBeenCalledOnce();
         expect(artifacts.map((item) => item.artifact_type)).toEqual(["creative_positioning", "short_story", "adaptation_strategy", "episode_scripts", "review_report", "director_plan", "text_storyboard", "asset_prompts"]);
