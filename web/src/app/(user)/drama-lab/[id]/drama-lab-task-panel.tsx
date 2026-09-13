@@ -25,6 +25,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
     const [recheckingId, setRecheckingId] = useState<string>();
     const [retryingId, setRetryingId] = useState<string>();
     const [error, setError] = useState<string>();
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(initialTasks.length > 0);
     const [messageApi, contextHolder] = message.useMessage();
 
     const activeCount = useMemo(() => tasks.filter(isTaskActive).length, [tasks]);
@@ -38,6 +39,7 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
                 const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: { tasks?: DramaLabTaskView[] } };
                 if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "Task status could not be loaded");
                 setTasks(Array.isArray(payload.data?.tasks) ? payload.data.tasks.filter(isTaskVisible) : []);
+                setHasLoadedOnce(true);
                 setError(undefined);
             } catch (reason) {
                 setError(reason instanceof Error ? reason.message : "Task status could not be loaded");
@@ -60,13 +62,13 @@ export function DramaLabTaskPanel({ projectId, episodes = [], initialTasks = [],
     // Poll only while there is useful work to track. A task-created event
     // performs the first read when an action starts from another panel.
     useEffect(() => {
-        if (activeCount === 0) return undefined;
+        if (!hasLoadedOnce) return undefined;
         const timer = window.setInterval(() => {
             if (document.visibilityState === "hidden") return;
             void load(true);
         }, 2_000);
         return () => window.clearInterval(timer);
-    }, [activeCount, load]);
+    }, [hasLoadedOnce, load]);
 
     useEffect(() => {
         const onTaskCreated = (event: Event) => {
