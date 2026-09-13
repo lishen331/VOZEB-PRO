@@ -135,9 +135,17 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
         const isPanorama = module === "scene" || session.workflowCode === "scene_main_view";
         return (
             <div className="mt-4 space-y-3">
-                <Image src={imageUrl} alt="练习结果" className="!max-h-[60vh] !w-full !object-contain" preview={{ src: imageUrl }} />
+                {isPanorama ? (
+                    <PracticePanoramaViewer url={imageUrl} title="场景 360° 全景">
+                        <div className="relative aspect-[2/1] w-full overflow-hidden rounded-lg bg-muted/20">
+                            <Image src={imageUrl} alt="练习结果，点击查看 360° 全景" preview={false} className="!absolute inset-0 !h-full !w-full !object-contain" />
+                        </div>
+                    </PracticePanoramaViewer>
+                ) : (
+                    <Image src={imageUrl} alt="练习结果" className="!max-h-[60vh] !w-full !object-contain" preview={{ src: imageUrl }} />
+                )}
                 <div className="flex flex-wrap items-center gap-2">
-                    {isPanorama ? <PracticePanoramaViewer url={imageUrl} title="场景 360° 全景" /> : null}
+                    {isPanorama ? <span className="text-xs text-muted-foreground">点击图片查看 360° 全景</span> : null}
                     <Button size="small" icon={<Download className="size-3.5" />} loading={saving} onClick={() => void saveToLibrary(session)}>
                         存入资产库
                     </Button>
