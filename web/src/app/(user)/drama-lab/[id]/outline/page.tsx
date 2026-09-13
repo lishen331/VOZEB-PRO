@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useCallback, useRef, type ChangeEvent, type MouseEvent } from "react";
 import { Button, Input, Select, Form, Card, Empty, Modal, message, Tabs, Upload as AntUpload, Steps, Table, Image as AntImage } from "antd";
-import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, Plus, Trash2, Edit2, Play, Users, MapPin, Package, Search, Upload, LibraryBig, X, CheckSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DramaLabAssetLibraryPicker } from "../drama-lab-asset-library-picker";
@@ -202,13 +202,14 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const resourceAutoSaveTimerRef = useRef<number | undefined>(undefined);
     const resourceSaveQueueRef = useRef(Promise.resolve());
     const [activeTab, setActiveTab] = useState("characters");
+    const [selectedEpisodeIds, setSelectedEpisodeIds] = useState<Set<string>>(new Set());
     const [batchImportOpen, setBatchImportOpen] = useState(false);
     const [batchImportText, setBatchImportText] = useState("");
     const [batchImportTab, setBatchImportTab] = useState<"config" | "preview">("config");
     const [selectedStyle, setSelectedStyle] = useState("");
     const [batchFileName, setBatchFileName] = useState("");
     const [batchRawText, setBatchRawText] = useState("");
-    const [chapterPattern, setChapterPattern] = useState("^\\s*(第[0-9０-９零一二三四五六七八九十百千万]+[章回节][^\\n\\r]*)");
+    const [chapterPattern, setChapterPattern] = useState("^\\s*[▸◆•●\\-]?\\s*(第\\s*[0-9０-９零一二三四五六七八九十百千万]+\\s*[章节回集篇][^\\n\\r]*)");
     const [chaptersPerEpisode, setChaptersPerEpisode] = useState(1);
     const [previewChapters, setPreviewChapters] = useState<Array<{ title: string; content: string }>>([]);
     const [previewEpisodes, setPreviewEpisodes] = useState<Array<{ episodeNumber: number; title: string; script: string; chapterTitles: string[] }>>([]);
@@ -621,6 +622,29 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
         }
     };
 
+    const toggleEpisodeSelection = (id: string) =>
+        setSelectedEpisodeIds((current) => {
+            const next = new Set(current);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+
+    const handleBatchDeleteEpisodes = () => {
+        if (!selectedEpisodeIds.size) return;
+        Modal.confirm({
+            title: "批量删除分集",
+            content: `确定删除选中的 ${selectedEpisodeIds.size} 集吗？`,
+            okText: "删除",
+            cancelText: "取消",
+            onOk: async () => {
+                const updatedEpisodes = project?.episodes.filter((ep) => !selectedEpisodeIds.has(ep.id)) || [];
+                await persistProject({ episodes: updatedEpisodes });
+                setSelectedEpisodeIds(new Set());
+                message.success("批量删除成功");
+            },
+        });
+    };
+
     // 删除分集
     const handleDeleteEpisode = (episodeId: string) => {
         if (!project) return;
@@ -744,6 +768,9 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                 <Button icon={<Upload className="size-4" />} onClick={() => setBatchImportOpen(true)}>
                                     批量导入剧集
                                 </Button>
+                                <Button danger disabled={!selectedEpisodeIds.size} icon={<Trash2 className="size-4" />} onClick={handleBatchDeleteEpisodes}>
+                                    批量删除
+                                </Button>
                                 <Button type="primary" icon={<Plus className="size-4" />} onClick={handleAddEpisode}>
                                     新增一集
                                 </Button>
@@ -758,6 +785,16 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                             {project.episodes.map((ep) => (
                                 <div key={ep.id} className="group cursor-pointer rounded-lg border border-border p-4 transition-all hover:border-primary hover:shadow-md" onClick={() => goToCreate(ep.id)}>
                                     <div className="mb-2 flex items-center justify-between">
+                                        <button
+                                            type="button"
+                                            aria-label={`选择第 ${ep.episodeNumber || ep.number || 0} 集`}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleEpisodeSelection(ep.id);
+                                            }}
+                                        >
+                                            <CheckSquare className={selectedEpisodeIds.has(ep.id) ? "size-4 text-primary" : "size-4 text-muted-foreground"} />
+                                        </button>
                                         <span className="text-sm text-muted-foreground">第 {ep.episodeNumber || ep.number || 0} 集</span>
                                         <Button
                                             type="text"
@@ -888,7 +925,19 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                         <div className="grid gap-3">
                             <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">
                                 <span className="text-left text-sm">章节正则</span>
-                                <Input value={chapterPattern} onChange={(event: ChangeEvent<HTMLInputElement>) => setChapterPattern(event.target.value)} />
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <Input className="flex-1" value={chapterPattern} onChange={(event: ChangeEvent<HTMLInputElement>) => setChapterPattern(event.target.value)} />
+                                    <Select
+                                        className="w-52 shrink-0"
+                                        placeholder="常用正则"
+                                        options={[
+                                            { label: "第N集/章（含▸前缀）", value: "^\\s*[▸◆•●\\-]?\\s*(第\\s*[0-9０-９零一二三四五六七八九十百千万]+\\s*[章节回集篇][^\\n\\r]*)" },
+                                            { label: "Markdown标题", value: "^\\s*#+\\s*(第\\s*[0-9０-９零一二三四五六七八九十百千万]+\\s*[章节回集篇][^\\n\\r]*)" },
+                                            { label: "第N章/回/节", value: "^\\s*(第\\s*[0-9０-９零一二三四五六七八九十百千万]+\\s*[章回节][^\\n\\r]*)" },
+                                        ]}
+                                        onChange={(value) => setChapterPattern(value)}
+                                    />
+                                </div>
                             </div>
                             <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">
                                 <span className="text-left text-sm">每集章节数</span>
