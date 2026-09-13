@@ -68,7 +68,7 @@ export class ScriptAgentExecutor {
             artifactKey: execution.key,
             status: execution.confirmation ? "awaiting_review" : "draft",
             content: structured,
-            contentText: publicText(structured),
+            contentText: formatVisibleArtifact(task.runType, structured),
             sourceRunId: task.runId,
         });
         if (!artifact?.id) throw new Error("剧本成果保存失败");
@@ -124,6 +124,48 @@ function accumulatedDeltaEmitter(onDelta: (delta: string) => Promise<void>) {
         previous = accumulated;
         if (delta) await onDelta(delta);
     };
+}
+function formatVisibleArtifact(runType: ScriptRunType, value: Record<string, unknown>) {
+    if (runType === "episode_scripts" && Array.isArray(value.episodes)) {
+        return value.episodes
+            .map((entry) => {
+                const episode = record(entry);
+                const script = record(episode.script);
+                const blocks = Array.isArray(script.blocks)
+                    ? script.blocks
+                          .map((block) => record(block).text)
+                          .filter((text): text is string => typeof text === "string")
+                          .join("\n\n")
+                    : "";
+                return "## 第" + String(episode.episodeNumber || "") + "集：" + String(episode.title || "") + "\n\n" + blocks;
+            })
+            .join("\n\n---\n\n");
+    }
+    if (runType === "text_storyboard" && Array.isArray(value.episodes)) {
+        return value.episodes
+            .map((entry) => {
+                const episode = record(entry);
+                const rows = Array.isArray(episode.shots)
+                    ? episode.shots
+                          .map((shot) => {
+                              const row = record(shot);
+                              return "| " + String(row.shotNumber || "") + " | " + String(row.shotSize || "") + " | " + String(row.visualDescription || "") + " | " + String(row.cameraMovement || "") + " | " + String(row.durationSeconds || "") + "秒 |";
+                          })
+                          .join("\n")
+                    : "";
+                return "## 第" + String(episode.episodeNumber || "") + "集文字分镜\n\n| 镜头 | 景别 | 画面 | 运镜 | 时长 |\n| --- | --- | --- | --- | --- |\n" + rows;
+            })
+            .join("\n\n");
+    }
+    if (runType === "asset_prompts" && Array.isArray(value.assets)) {
+        return value.assets
+            .map((entry) => {
+                const asset = record(entry);
+                return "## " + String(asset.name || "未命名") + "\n\n- 类型：" + String(asset.type || "") + "\n- 基准提示词：" + String(asset.prompt || "");
+            })
+            .join("\n\n");
+    }
+    return publicText(value);
 }
 function publicText(value: Record<string, unknown>) {
     for (const key of ["content", "text", "story", "screenplay", "outline", "report"]) if (typeof value[key] === "string") return value[key] as string;

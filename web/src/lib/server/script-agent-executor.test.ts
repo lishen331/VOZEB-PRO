@@ -2,6 +2,23 @@ import { describe, expect, it, vi } from "vitest";
 import { ScriptAgentExecutor } from "./script-agent-executor";
 
 const scope = { schoolId: "school-a", ownerUserId: "user-a" };
+async function runForVisibleText(runType: "episode_scripts" | "text_storyboard" | "asset_prompts", output: Record<string, unknown>) {
+    let visible = "";
+    const deps = {
+        resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "script_writer", name: "Agent", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "执行" }),
+        callModel: vi.fn().mockResolvedValue(output),
+        saveArtifact: vi.fn(async (_scope, input) => {
+            visible = input.contentText || "";
+            return { id: "artifact" };
+        }),
+        appendEvent: vi.fn(),
+        replaceEpisodes: vi.fn(),
+        replaceStoryboardEpisodes: vi.fn(),
+        upsertPromptAssets: vi.fn(),
+    };
+    await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-a", runType, input: {}, origin: "https://local", cookie: "session" });
+    return visible;
+}
 describe("ScriptAgentExecutor", () => {
     it("streams public artifact deltas, saves first, then emits artifact_saved", async () => {
         const order: string[] = [];
@@ -46,6 +63,39 @@ describe("ScriptAgentExecutor", () => {
         }
         expect(schemas).toHaveLength(8);
         expect(schemas.every((schema) => Array.isArray(schema.required) && schema.required.length > 0)).toBe(true);
+    });
+
+    it("renders complete episode scripts, storyboard shots and prompt assets as visible text", async () => {
+        const episode = await runForVisibleText("episode_scripts", {
+            content: "完成",
+            episodes: [
+                {
+                    episodeNumber: 1,
+                    title: "归来",
+                    script: {
+                        blocks: [
+                            { type: "scene-heading", text: "内景 公司 日" },
+                            { type: "action", text: "她推门而入" },
+                        ],
+                    },
+                },
+            ],
+        });
+        expect(episode).toContain("第1集：归来");
+        expect(episode).toContain("内景 公司 日");
+        const storyboard = await runForVisibleText("text_storyboard", {
+            content: "完成",
+            episodes: [
+                {
+                    episodeNumber: 1,
+                    shots: [{ sceneId: "scene-1", shotNumber: 1, visualDescription: "她推门", shotSize: "中景", cameraAngle: "平视", composition: "居中", cameraMovement: "推进", characterIds: [], action: "推门", emotion: "坚定", durationSeconds: 3, characterAssetIds: [], propAssetIds: [] }],
+                },
+            ],
+        });
+        expect(storyboard).toContain("| 1 | 中景 | 她推门 | 推进 | 3秒 |");
+        const assets = await runForVisibleText("asset_prompts", { content: "完成", assets: [{ type: "character", name: "女主", prompt: "二十五岁都市女性" }] });
+        expect(assets).toContain("女主");
+        expect(assets).toContain("二十五岁都市女性");
     });
 
     it("passes persisted upstream artifacts into the next model call", async () => {
