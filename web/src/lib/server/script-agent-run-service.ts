@@ -3,13 +3,15 @@ import type { PracticeTenantScope } from "./practice-tenant-scope";
 import type { ScriptRunType } from "./script-agent-domain";
 import { ScriptAgentRepository } from "./database/script-agent-repository";
 
-const PREREQUISITE: Partial<Record<ScriptRunType, string[]>> = {
-    short_story: ["creative_positioning"],
-    adaptation_bundle: ["short_story", "chapter_outlines"],
-    episode_scripts: ["adaptation_strategy"],
-    director_plan: ["review_report"],
-    text_storyboard: ["review_report", "director_plan"],
-    asset_prompts: ["text_storyboard"],
+type Prerequisite = { any?: string[]; all?: string[]; confirmed?: string[] };
+const PREREQUISITE: Partial<Record<ScriptRunType, Prerequisite>> = {
+    short_story: { confirmed: ["creative_positioning"] },
+    adaptation_bundle: { any: ["short_story", "chapter_outlines"], confirmed: ["short_story|chapter_outlines"] },
+    episode_scripts: { confirmed: ["adaptation_strategy"] },
+    script_review: { all: ["episode_scripts"] },
+    director_plan: { confirmed: ["review_report"] },
+    text_storyboard: { all: ["review_report", "director_plan"], confirmed: ["review_report"] },
+    asset_prompts: { all: ["text_storyboard"] },
 };
 export class ScriptAgentRunService {
     constructor(
@@ -19,12 +21,14 @@ export class ScriptAgentRunService {
 
     async create(scope: PracticeTenantScope, input: { projectId: string; chatSessionId?: string; runType: ScriptRunType; stageKey?: string; clientRequestId: string; configSnapshot?: Record<string, unknown> }) {
         const required = PREREQUISITE[input.runType];
-        if (required?.length && "listLatestArtifacts" in this.repository) {
+        if (required && "listLatestArtifacts" in this.repository) {
             const artifacts = await this.repository.listLatestArtifacts(scope, input.projectId);
             const available = new Set(artifacts.map((row: Record<string, unknown>) => String(row.artifact_type)));
             const confirmed = new Set(artifacts.filter((row: Record<string, unknown>) => row.status === "confirmed").map((row: Record<string, unknown>) => String(row.artifact_type)));
-            const missing = required.filter((type) => !available.has(type) || (type === "review_report" && !confirmed.has(type)));
-            if (missing.length) throw new ScriptAgentRunError("请先确认上一重要阶段", 409);
+            const anySatisfied = !required.any?.length || required.any.some((type) => available.has(type));
+            const allSatisfied = !required.all?.length || required.all.every((type) => available.has(type));
+            const confirmedSatisfied = !required.confirmed?.length || required.confirmed.every((group) => group.split("|").some((type) => confirmed.has(type)));
+            if (!anySatisfied || !allSatisfied || !confirmedSatisfied) throw new ScriptAgentRunError("请先完成并确认上一重要阶段", 409);
         }
         const run = await this.repository.createRun(scope, {
             id: this.id(),

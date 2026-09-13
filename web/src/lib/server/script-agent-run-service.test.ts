@@ -43,6 +43,24 @@ describe("ScriptAgentRunService", () => {
         await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "asset_prompts", clientRequestId: "assets-a" })).resolves.toMatchObject({ runType: "asset_prompts" });
     });
 
+    it("accepts either a confirmed short story or confirmed long-form chapter outlines for adaptation", async () => {
+        for (const artifactType of ["short_story", "chapter_outlines"]) {
+            const repository = {
+                listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: artifactType, status: "confirmed" }]),
+                createRun: vi.fn().mockResolvedValue({ ...baseRun, runType: "adaptation_bundle", lastEventSequence: 0 }),
+                appendRunEvent: vi.fn(),
+            };
+            await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "adaptation_bundle", clientRequestId: "adapt-" + artifactType })).resolves.toMatchObject({
+                runType: "adaptation_bundle",
+            });
+        }
+    });
+
+    it("requires a saved episode script before automatic review", async () => {
+        const repository = { listLatestArtifacts: vi.fn().mockResolvedValue([]), createRun: vi.fn(), appendRunEvent: vi.fn() };
+        await expect(new ScriptAgentRunService(repository as never).create(scope, { projectId: "project-a", runType: "script_review", clientRequestId: "review-empty" })).rejects.toMatchObject({ status: 409 });
+    });
+
     it("requires confirmed review and a saved director plan before text storyboarding", async () => {
         const repository = { listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: "review_report", status: "confirmed" }]), createRun: vi.fn(), appendRunEvent: vi.fn() };
         await expect(new ScriptAgentRunService(repository as never).create(scope, { projectId: "project-a", runType: "text_storyboard", clientRequestId: "board-a" })).rejects.toMatchObject({ status: 409 });
