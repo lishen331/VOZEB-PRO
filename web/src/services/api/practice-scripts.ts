@@ -77,7 +77,7 @@ export const practiceScriptsApi = {
     sendChat(id: string, sessionId: string, content: string, clientRequestId: string) {
         return request<{ id: string; status: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/chat-sessions/${encodeURIComponent(sessionId)}/messages`, json("POST", { content, clientRequestId }));
     },
-    exportUrl(id: string, format: "text" | "fountain" | "fdx") {
+    exportUrl(id: string, format: "text" | "fountain" | "fdx" | "storyboard" | "storyboard_csv") {
         return `/api/practice/scripts/${encodeURIComponent(id)}/export?format=${format}`;
     },
 };

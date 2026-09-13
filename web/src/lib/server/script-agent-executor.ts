@@ -108,14 +108,15 @@ export class ScriptAgentExecutor {
         await this.deps.appendEvent(scope, task.projectId, task.runId, "assistant_delta", { agentKey: execution.agent, delta: `${profile.profile.name}已开始处理当前任务。` }, this.id());
         const projectContext = project ? { carrierType: normalizeScriptCarrier(project.carrier_type), projectParameters: project.project_parameters && typeof project.project_parameters === "object" ? project.project_parameters : {} } : undefined;
         const carrierInstructions =
-            projectContext?.carrierType === "vlog" ? "Vlog 形式：优先第一人称、口播、自拍或跟拍、自然同期声和真实环境细节。" : projectContext?.carrierType === "tvc" ? "TVC 形式：突出品牌目标、产品卖点、情绪记忆点、行动号召和片尾品牌信息。" : "";
+            "创作检查：起承转合、至少一次因果转折、自然修辞（比喻/排比/对比）、总时长不超过目标。" +
+            (projectContext?.carrierType === "vlog" ? "Vlog 形式：优先第一人称、口播、自拍或跟拍、自然同期声和真实环境细节。" : projectContext?.carrierType === "tvc" ? "TVC 形式：突出品牌目标、产品卖点、情绪记忆点、行动号召和片尾品牌信息。" : "");
         const chatHistory = task.chatSessionId && this.deps.listChatMessages ? await this.deps.listChatMessages(scope, task.projectId, task.chatSessionId) : [];
         const enrichedTask = {
             ...task,
             input: {
                 ...task.input,
                 context: context.map(publicArtifactContext),
-                ...(projectContext ? { projectContext, carrierInstructions } : {}),
+                ...(projectContext ? { projectContext, carrierInstructions, qualityChecklist: ["起承转合", "至少一次因果转折", "修辞自然", "总时长不超过目标"] } : {}),
                 ...(task.runType === "conversation" ? { workflowContext: { nextRunType: nextShortFilmRunType(context), locked: true } } : {}),
                 ...(chatHistory.length ? { chatHistory: chatHistory.map(publicChatMessage) } : {}),
             },

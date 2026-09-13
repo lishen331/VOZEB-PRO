@@ -25,6 +25,9 @@ describe("screenwriter Agent skills", () => {
         expect(text).toContain("Vlog 纪实短片");
         expect(text).toContain("地点/景区种草");
         expect(text).toContain("朋友同行");
+        expect(text).toContain("起承转合");
+        expect(text).toContain("比喻");
+        expect(text).toContain("排比");
         expect(inferShortFilmSkillInput("我和两个朋友去游乐园玩，想推荐这个地方")).toEqual({ purpose: "place_seeding", viewpoint: "first_person", companions: "friends" });
         expect(inferShortFilmSkillInput("介绍这款产品，拍成广告")).toMatchObject({ purpose: "product_seeding" });
     });

@@ -65,6 +65,7 @@ describe("screenwriter carrier execution", () => {
             projectParameters: { targetDurationSeconds: 180, brandGoal: "记录真实体验", purpose: "place_seeding", viewpoint: "first_person", companions: "friends" },
         });
         expect(callModel.mock.calls[0]?.[0].task.input.carrierInstructions).toContain("第一人称");
+        expect(callModel.mock.calls[0]?.[0].task.input.qualityChecklist).toEqual(expect.arrayContaining(["起承转合", "修辞自然", "总时长不超过目标"]));
         expect(deps.resolveProfile).toHaveBeenCalledWith("novel_planner", expect.arrayContaining(["carrier-vlog", "specialty-three-minute", "purpose-place-seeding", "viewpoint-first-person", "relationship-friends"]));
     });
 

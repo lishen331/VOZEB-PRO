@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App, Button, Input, Modal, Select, Spin, Tag } from "antd";
-import { ArrowLeft, BookOpen, FilePlus2, Import, Pause, RefreshCw, Send, Sparkles } from "lucide-react";
+import { ArrowLeft, BookOpen, Download, FilePlus2, Import, Pause, RefreshCw, Send, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -40,6 +40,7 @@ export default function ScriptPracticeWorkspace() {
     const [artifact, setArtifact] = useState<Record<string, unknown> | null>(null);
     const [preview, setPreview] = useState("");
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [chatSessionId, setChatSessionId] = useState("");
     const [draft, setDraft] = useState("");
     const [runId, setRunId] = useState("");
     const [runError, setRunError] = useState("");
@@ -67,6 +68,7 @@ export default function ScriptPracticeWorkspace() {
         setTree([]);
         setRunId("");
         setRunError("");
+        setChatSessionId("");
         selectedIdRef.current = id;
         setSelectedId(id);
     }, []);
@@ -103,11 +105,13 @@ export default function ScriptPracticeWorkspace() {
         let active = true;
         void (async () => {
             const sessions = await practiceScriptsApi.chatSessions(selectedId);
-            if (!sessions[0]) {
+            const session = sessions[0];
+            setChatSessionId(session?.id || "");
+            if (!session) {
                 setMessages([]);
                 return;
             }
-            const history = await practiceScriptsApi.chatMessages(selectedId, sessions[0].id);
+            const history = await practiceScriptsApi.chatMessages(selectedId, session.id);
             if (active) setMessages(history.map((item) => ({ id: item.id, role: item.role === "user" ? "user" : "assistant", agent: item.agent_key, content: item.public_content })));
         })().catch((error) => {
             if (active) message.error(error instanceof Error ? error.message : "对话历史加载失败");
@@ -243,8 +247,8 @@ export default function ScriptPracticeWorkspace() {
         if (!text || !selectedId || busy) return;
         setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", content: text }]);
         setDraft("");
-        const sessions = await practiceScriptsApi.chatSessions(selectedId);
-        const session = sessions[0] || (await practiceScriptsApi.createChatSession(selectedId));
+        const session = chatSessionId ? { id: chatSessionId } : await practiceScriptsApi.createChatSession(selectedId, "剧本创作");
+        setChatSessionId(session.id);
         const run = await practiceScriptsApi.sendChat(selectedId, session.id, text, crypto.randomUUID());
         setRunId(run.id);
     };
@@ -267,8 +271,10 @@ export default function ScriptPracticeWorkspace() {
         const project = "project" in result ? result.project : result;
         setNewOpen(false);
         await loadProjects();
-        const run = await practiceScriptsApi.createRun(project.id, { runType: "project_planning", clientRequestId: crypto.randomUUID(), input: { mode, title: newTitle.trim(), idea: idea.trim() } });
+        const session = await practiceScriptsApi.createChatSession(project.id, "剧本创作");
+        const run = await practiceScriptsApi.createRun(project.id, { runType: "project_planning", clientRequestId: crypto.randomUUID(), chatSessionId: session.id, input: { mode, title: newTitle.trim(), idea: idea.trim() } });
         selectProject(project.id);
+        setChatSessionId(session.id);
         setRunId(run.id);
     };
     const selectedProject = projects.find((item) => item.id === selectedId);
@@ -297,6 +303,16 @@ export default function ScriptPracticeWorkspace() {
                 </div>
                 <div className="flex gap-2">
                     <Button icon={<Import className="size-4" />}>导入小说</Button>
+                    {selectedId ? (
+                        <Button icon={<Download className="size-4" />} onClick={() => window.open(practiceScriptsApi.exportUrl(selectedId, "text"), "_blank")}>
+                            下载剧本
+                        </Button>
+                    ) : null}
+                    {selectedId ? (
+                        <Button icon={<Download className="size-4" />} onClick={() => window.open(practiceScriptsApi.exportUrl(selectedId, "storyboard"), "_blank")}>
+                            下载分镜表
+                        </Button>
+                    ) : null}
                     <Button type="primary" icon={<FilePlus2 className="size-4" />} onClick={() => setNewOpen(true)}>
                         新建项目
                     </Button>
