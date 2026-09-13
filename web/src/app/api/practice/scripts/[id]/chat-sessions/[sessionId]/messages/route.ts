@@ -12,7 +12,9 @@ export async function GET(request: Request, context: Context) {
     if (!user) return reply(401, null, "请先登录");
     const scope = await requirePracticeTenant(user, "script");
     const { id, sessionId } = await context.params;
-    return reply(0, await new ScriptAgentRepository({ query: postgresQuery }).listChatMessages(scope, id, sessionId), "ok");
+    const repository = new ScriptAgentRepository({ query: postgresQuery });
+    if (!(await repository.getChatSession(scope, id, sessionId))) return reply(404, null, "剧本对话不存在");
+    return reply(0, await repository.listChatMessages(scope, id, sessionId), "ok");
 }
 export async function POST(request: Request, context: Context) {
     const user = await getCurrentUser(request);
@@ -25,7 +27,9 @@ export async function POST(request: Request, context: Context) {
     const { id, sessionId } = await context.params;
     const repository = new ScriptAgentRepository({ query: postgresQuery });
     const clientRequestId = typeof parsed.data.clientRequestId === "string" && parsed.data.clientRequestId.trim() ? parsed.data.clientRequestId.trim() : randomUUID();
-    await repository.saveChatMessage(scope, { id: randomUUID(), sessionId, projectId: id, role: "user", publicContent: content });
+    if (!(await repository.getChatSession(scope, id, sessionId))) return reply(404, null, "剧本对话不存在");
+    const saved = await repository.saveChatMessage(scope, { id: randomUUID(), sessionId, projectId: id, role: "user", publicContent: content });
+    if (!saved) return reply(409, null, "剧本对话已变化，请刷新后重试");
     const run = await new ScriptAgentRunService(repository).create(scope, { projectId: id, chatSessionId: sessionId, runType: "conversation", clientRequestId, configSnapshot: { message: content } });
     return reply(0, run, "ok");
 }

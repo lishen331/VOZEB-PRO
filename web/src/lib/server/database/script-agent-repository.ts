@@ -293,6 +293,16 @@ export class ScriptAgentRepository {
         return result.rows[0] || null;
     }
 
+    async getChatSession(scope: PracticeTenantScope, projectId: string, sessionId: string) {
+        const result = await this.db.query(
+            `SELECT * FROM practice_script_chat_sessions
+             WHERE id = $1 AND project_id = $2 AND school_id = $3 AND owner_user_id = $4 AND deleted_at IS NULL
+             LIMIT 1`,
+            [sessionId, projectId, scope.schoolId, scope.ownerUserId],
+        );
+        return result.rows[0] || null;
+    }
+
     async listChatSessions(scope: PracticeTenantScope, projectId: string) {
         const result = await this.db.query("SELECT * FROM practice_script_chat_sessions WHERE school_id = $1 AND owner_user_id = $2 AND project_id = $3 AND deleted_at IS NULL ORDER BY updated_at DESC", [scope.schoolId, scope.ownerUserId, projectId]);
         return result.rows;

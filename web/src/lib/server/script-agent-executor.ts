@@ -27,6 +27,7 @@ type Deps = {
     resolveProfile: (agent: ScriptAgentKey, skills?: string[]) => Promise<ResolvedScriptAgentProfile>;
     callModel: (input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; responseSchema: Record<string, unknown>; onDelta?: (delta: string) => Promise<void> }) => Promise<Record<string, unknown>>;
     listArtifacts?: ScriptAgentRepository["listLatestArtifacts"];
+    listChatMessages?: ScriptAgentRepository["listChatMessages"];
     saveChatMessage?: ScriptAgentRepository["saveChatMessage"];
     saveArtifact: (
         scope: PracticeTenantScope,
@@ -63,10 +64,7 @@ export async function executeScriptRunSequence(executor: Pick<ScriptAgentExecuto
         if (completed.has(runType)) continue;
         result = await executor.execute(scope, { ...task, runType });
     }
-    if (result) return result;
-    const runTypes = scriptRunSequence(task.runType);
-    const artifactType = EXECUTION[runTypes.at(-1) || task.runType].artifact;
-    return { artifactId: "", artifactType, artifactKey: "", structured: {} };
+    return result;
 }
 
 export class ScriptAgentExecutor {
@@ -81,7 +79,15 @@ export class ScriptAgentExecutor {
         await this.deps.appendEvent(scope, task.projectId, task.runId, "agent_started", { agentKey: execution.agent, name: profile.profile.name }, this.id());
         await this.deps.appendEvent(scope, task.projectId, task.runId, "assistant_delta", { agentKey: execution.agent, delta: `${profile.profile.name}已开始处理当前任务。` }, this.id());
         const context = this.deps.listArtifacts ? await this.deps.listArtifacts(scope, task.projectId) : [];
-        const enrichedTask = { ...task, input: { ...task.input, context: context.map(publicArtifactContext) } };
+        const chatHistory = task.chatSessionId && this.deps.listChatMessages ? await this.deps.listChatMessages(scope, task.projectId, task.chatSessionId) : [];
+        const enrichedTask = {
+            ...task,
+            input: {
+                ...task.input,
+                context: context.map(publicArtifactContext),
+                ...(chatHistory.length ? { chatHistory: chatHistory.map(publicChatMessage) } : {}),
+            },
+        };
         const structured = await this.deps.callModel({
             profile,
             task: enrichedTask,
@@ -120,6 +126,7 @@ export function createDefaultScriptAgentExecutor(repository: ScriptAgentReposito
         resolveProfile: (agent, skills) => profiles.resolve(agent, skills),
         callModel: callConfiguredModel,
         listArtifacts: (...args) => repository.listLatestArtifacts(...args),
+        listChatMessages: (...args) => repository.listChatMessages(...args),
         saveChatMessage: (...args) => repository.saveChatMessage(...args),
         saveArtifact: (scope, input) => repository.saveArtifact(scope, input),
         replaceChapters: (...args) => repository.replaceChapters(...args),
@@ -305,6 +312,10 @@ async function materializeStructuredRows(deps: Deps, scope: PracticeTenantScope,
 }
 function record(value: unknown): Record<string, unknown> {
     return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function publicChatMessage(row: Record<string, unknown>) {
+    return { role: row.role === "assistant" ? "assistant" : "user", content: typeof row.public_content === "string" ? row.public_content : "" };
 }
 
 function publicArtifactContext(row: Record<string, unknown>) {

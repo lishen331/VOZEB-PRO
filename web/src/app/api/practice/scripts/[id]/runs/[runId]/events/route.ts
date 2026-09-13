@@ -77,7 +77,7 @@ export async function GET(request: Request, context: Context) {
                     ).finally(() => clearInterval(stopMonitor));
                     const current = await repository.getRun(scope, id, runId);
                     if (current?.status !== "stopped") {
-                        if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "success", artifactId: result.artifactId });
+                        if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "success", ...(result?.artifactId ? { artifactId: result.artifactId } : {}) });
                         await repository.updateRun(scope, id, runId, { status: "success", completedAt: new Date().toISOString() });
                         const done = await repository.appendRunEvent(scope, id, runId, "run_completed", {}, randomUUID());
                         if (done) send(done);

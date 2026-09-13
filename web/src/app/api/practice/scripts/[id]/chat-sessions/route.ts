@@ -21,7 +21,8 @@ export async function POST(request: Request, context: Context) {
     const scope = await requirePracticeTenant(user, "script");
     const id = (await context.params).id;
     const title = typeof parsed.data.title === "string" && parsed.data.title.trim() ? parsed.data.title.trim().slice(0, 64) : "新对话";
-    return reply(0, await new ScriptAgentRepository({ query: postgresQuery }).createChatSession(scope, { id: randomUUID(), projectId: id, title }), "ok");
+    const session = await new ScriptAgentRepository({ query: postgresQuery }).createChatSession(scope, { id: randomUUID(), projectId: id, title });
+    return session ? reply(0, session, "ok") : reply(404, null, "剧本项目不存在");
 }
 function reply<T>(code: number, data: T | null, msg: string) {
     return NextResponse.json({ code, data, msg }, { status: code === 0 ? 200 : code });

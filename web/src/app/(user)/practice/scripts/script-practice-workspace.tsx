@@ -26,6 +26,7 @@ export default function ScriptPracticeWorkspace() {
     const [runId, setRunId] = useState("");
     const [runError, setRunError] = useState("");
     const [busy, setBusy] = useState(false);
+    const [starting, setStarting] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [newOpen, setNewOpen] = useState(false);
     const [newTitle, setNewTitle] = useState("");
@@ -180,14 +181,14 @@ export default function ScriptPracticeWorkspace() {
         }
     };
     const start = async (runType: string, input: Record<string, unknown>) => {
-        if (!selectedId || busy) return;
-        setBusy(true);
+        if (!selectedId || busy || starting) return;
+        setStarting(true);
         setRunError("");
         try {
             const run = await practiceScriptsApi.createRun(selectedId, { runType, clientRequestId: crypto.randomUUID(), input });
             setRunId(run.id);
         } finally {
-            setBusy(false);
+            setStarting(false);
         }
     };
     const send = async () => {
@@ -332,7 +333,7 @@ export default function ScriptPracticeWorkspace() {
                                 <Button
                                     key={action.runType}
                                     size="small"
-                                    disabled={!selectedId || busy || !action.enabled}
+                                    disabled={!selectedId || busy || starting || !action.enabled}
                                     title={action.reason}
                                     onClick={() => void runAction(() => start(action.runType, { instruction: draft || action.label }), "启动剧本任务失败")}
                                 >

@@ -54,7 +54,7 @@ describe("screenwriter run sequences", () => {
         execute.mockClear();
         await expect(
             executeScriptRunSequence({ execute } as never, scope, { projectId: "project-a", runId: "run-a", runType: "director_plan", input: {}, origin: "https://local", cookie: "session" }, ["director_plan", "text_storyboard", "asset_prompts"]),
-        ).resolves.toMatchObject({ artifactType: "asset_prompts" });
+        ).resolves.toBeUndefined();
         expect(execute).not.toHaveBeenCalled();
     });
 });
@@ -259,6 +259,35 @@ describe("ScriptAgentExecutor", () => {
         const assets = await runForVisibleText("asset_prompts", { content: "完成", assets: [{ type: "character", name: "女主", prompt: "二十五岁都市女性" }] });
         expect(assets).toContain("女主");
         expect(assets).toContain("二十五岁都市女性");
+    });
+
+    it("passes the existing chat history to the orchestrator for iterative decisions", async () => {
+        const callModel = vi.fn().mockResolvedValue({ content: "我会沿用刚才的创业方向继续拆解。" });
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "orchestrator", name: "统筹", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "统筹" }),
+            callModel,
+            listArtifacts: vi.fn().mockResolvedValue([]),
+            listChatMessages: vi.fn().mockResolvedValue([
+                { role: "user", public_content: "我想一个人创业，先做教育产品" },
+                { role: "assistant", agent_key: "orchestrator", public_content: "先确认目标用户和首个可售卖产品" },
+            ]),
+            saveChatMessage: vi.fn(),
+            saveArtifact: vi.fn().mockResolvedValue({ id: "conversation" }),
+            appendEvent: vi.fn(),
+        };
+        await new ScriptAgentExecutor(deps as never).execute(scope, {
+            projectId: "project-a",
+            runId: "run-chat-history",
+            chatSessionId: "session-a",
+            runType: "conversation",
+            input: { message: "我决定先做短视频课程" },
+            origin: "https://local",
+            cookie: "session",
+        });
+        expect(callModel.mock.calls[0]?.[0].task.input.chatHistory).toEqual([
+            { role: "user", content: "我想一个人创业，先做教育产品" },
+            { role: "assistant", content: "先确认目标用户和首个可售卖产品" },
+        ]);
     });
 
     it("preserves the project idea in planning and forwards it to the short-story writer", async () => {
