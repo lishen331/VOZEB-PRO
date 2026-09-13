@@ -36,7 +36,7 @@ function headingSections(source: string) {
         const trimmed = line.trim();
         const heading = sourceHeading(trimmed);
         if (heading && lines.some((item) => item.trim())) {
-            sections.push({ title, text: lines.join("\n").trim() });
+            if (title || sections.length > 0) sections.push({ title, text: lines.join("\n").trim() });
             title = heading;
             lines = [line];
             continue;
@@ -50,7 +50,10 @@ function headingSections(source: string) {
 
 /** Markdown files commonly prefix chapter titles with one or more `#` marks. */
 function sourceHeading(value: string) {
-    const heading = value.replace(/^#{1,6}\s+/u, "").trim();
+    const heading = value
+        .replace(/^#{1,6}\s+/u, "")
+        .replace(/^(?:[▸➤▶●•▪·]|[-*])\s*/u, "")
+        .trim();
     return HEADING_PATTERN.test(heading) ? heading : "";
 }
 
