@@ -314,6 +314,27 @@ export function AdminSkillsSection({ controller }: { controller: AdminDashboardC
     );
 }
 
+export function AdminDramaLabPluginSection({ controller }: { controller: AdminDashboardController }) {
+    const { settings, settingsLoading, saveSettings } = controller;
+    return (
+        <Panel>
+            <PanelHeader title="短剧工坊" description="配置短剧工坊内部功能显示开关。" />
+            <div className="p-5">
+                <div className="flex items-center justify-between rounded-md border p-4">
+                    <div>
+                        <div className="font-medium">本剧资源库编辑弹窗</div>
+                        <div className="text-xs text-stone-500">仅控制前端显示，功能代码和后端逻辑保留。</div>
+                    </div>
+                    <Switch
+                        checked={settings.featureModules["drama-lab-resource-editor"] !== false}
+                        loading={settingsLoading}
+                        onChange={(next) => void saveSettings((current) => ({ featureModules: { ...current.featureModules, "drama-lab-resource-editor": next } }), `本剧资源库编辑弹窗${next ? "已显示" : "已隐藏"}`)}
+                    />
+                </div>
+            </div>
+        </Panel>
+    );
+}
 export function AdminPluginsSection({ controller }: { controller: AdminDashboardController }) {
     const { settings, settingsLoading, activeSection, saveSettings } = controller;
     const [selectedPlugin, setSelectedPlugin] = useState<FeatureModuleId>();
