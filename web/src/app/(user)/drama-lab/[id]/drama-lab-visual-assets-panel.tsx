@@ -146,6 +146,7 @@ export function DramaLabVisualAssetsPanel({
                 }
             };
             const persistedAssetId = await resolvePersistedAssetId();
+            const persistedAssetExists = persistedAssetId !== extractedAsset.id || Boolean((project[assetKind] as VisualAsset[]).some((item) => item.id === extractedAsset.id));
             const runAi = async (action: "prompt" | "anchor") => {
                 const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/assets/${encodeURIComponent(persistedAssetId)}/ai`, {
                     method: "POST",
