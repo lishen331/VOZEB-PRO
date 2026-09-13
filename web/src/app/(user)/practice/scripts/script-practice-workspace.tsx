@@ -99,7 +99,7 @@ export default function ScriptPracticeWorkspace() {
                                     : [...current, { id: crypto.randomUUID(), role: "assistant", agent: String(event.data.agentKey || "统筹"), content: delta, status: "streaming" }];
                             });
                         }
-                        if (event.type === "artifact_delta") setPreview(String(event.data.delta || ""));
+                        if (event.type === "artifact_delta") setPreview((current) => current + String(event.data.delta || ""));
                         if (event.type === "agent_started")
                             setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", agent: String(event.data.name || event.data.agentKey || "Agent"), content: "正在处理当前任务……", status: "working" }]);
                         if (event.type === "artifact_saved") {

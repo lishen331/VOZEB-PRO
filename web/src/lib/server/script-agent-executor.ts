@@ -25,7 +25,7 @@ const EXECUTION: Record<ScriptRunType, { agent: ScriptAgentKey; artifact: Script
 export type ScriptExecutionInput = { projectId: string; runId: string; runType: ScriptRunType; input: Record<string, unknown>; origin: string; cookie: string };
 type Deps = {
     resolveProfile: (agent: ScriptAgentKey, skills?: string[]) => Promise<ResolvedScriptAgentProfile>;
-    callModel: (input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; responseSchema: Record<string, unknown>; onDelta?: (value: string) => Promise<void> }) => Promise<Record<string, unknown>>;
+    callModel: (input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; responseSchema: Record<string, unknown>; onDelta?: (delta: string) => Promise<void> }) => Promise<Record<string, unknown>>;
     listArtifacts?: ScriptAgentRepository["listLatestArtifacts"];
     saveArtifact: (
         scope: PracticeTenantScope,
@@ -55,8 +55,8 @@ export class ScriptAgentExecutor {
             profile,
             task: enrichedTask,
             responseSchema: responseSchemaFor(task.runType),
-            onDelta: async (value) => {
-                await this.deps.appendEvent(scope, task.projectId, task.runId, "artifact_delta", { artifactType: execution.artifact, artifactKey: execution.key, delta: value }, this.id());
+            onDelta: async (delta) => {
+                await this.deps.appendEvent(scope, task.projectId, task.runId, "artifact_delta", { artifactType: execution.artifact, artifactKey: execution.key, delta }, this.id());
             },
         });
         await materializeStructuredRows(this.deps, scope, task, structured);
@@ -110,12 +110,20 @@ async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile;
         streamFallback: true,
         allowNaturalLanguage: true,
         preferNativeTools: true,
-        onStreamDelta: input.onDelta,
+        onStreamDelta: input.onDelta ? accumulatedDeltaEmitter(input.onDelta) : undefined,
     });
     const text = call.arguments.trim();
     const jsonText = extractJsonObjectText(text);
     if (jsonText) return JSON.parse(jsonText) as Record<string, unknown>;
     return { content: text };
+}
+function accumulatedDeltaEmitter(onDelta: (delta: string) => Promise<void>) {
+    let previous = "";
+    return async (accumulated: string) => {
+        const delta = accumulated.startsWith(previous) ? accumulated.slice(previous.length) : accumulated;
+        previous = accumulated;
+        if (delta) await onDelta(delta);
+    };
 }
 function publicText(value: Record<string, unknown>) {
     for (const key of ["content", "text", "story", "screenplay", "outline", "report"]) if (typeof value[key] === "string") return value[key] as string;

@@ -43,6 +43,22 @@ describe("ScriptAgentRunService", () => {
         await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "asset_prompts", clientRequestId: "assets-a" })).resolves.toMatchObject({ runType: "asset_prompts" });
     });
 
+    it("requires confirmed review and a saved director plan before text storyboarding", async () => {
+        const repository = { listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: "review_report", status: "confirmed" }]), createRun: vi.fn(), appendRunEvent: vi.fn() };
+        await expect(new ScriptAgentRunService(repository as never).create(scope, { projectId: "project-a", runType: "text_storyboard", clientRequestId: "board-a" })).rejects.toMatchObject({ status: 409 });
+        repository.listLatestArtifacts.mockResolvedValue([
+            { artifact_type: "review_report", status: "confirmed" },
+            { artifact_type: "director_plan", status: "draft" },
+        ]);
+        repository.createRun.mockResolvedValue({ ...baseRun, runType: "text_storyboard", lastEventSequence: 0 });
+        await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "text_storyboard", clientRequestId: "board-b" })).resolves.toMatchObject({ runType: "text_storyboard" });
+    });
+
+    it("requires a saved textual storyboard before prompt extraction", async () => {
+        const repository = { listLatestArtifacts: vi.fn().mockResolvedValue([]), createRun: vi.fn(), appendRunEvent: vi.fn() };
+        await expect(new ScriptAgentRunService(repository as never).create(scope, { projectId: "project-a", runType: "asset_prompts", clientRequestId: "assets-a" })).rejects.toMatchObject({ status: 409 });
+    });
+
     it("maps a zero-row scoped insert to a project-not-found error", async () => {
         const repository = { createRun: vi.fn().mockResolvedValue(null), appendRunEvent: vi.fn() };
         const service = new ScriptAgentRunService(repository as never, () => "id-a");

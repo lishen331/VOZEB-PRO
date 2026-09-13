@@ -8,7 +8,8 @@ const PREREQUISITE: Partial<Record<ScriptRunType, string[]>> = {
     adaptation_bundle: ["short_story", "chapter_outlines"],
     episode_scripts: ["adaptation_strategy"],
     director_plan: ["review_report"],
-    text_storyboard: ["review_report"],
+    text_storyboard: ["review_report", "director_plan"],
+    asset_prompts: ["text_storyboard"],
 };
 export class ScriptAgentRunService {
     constructor(
@@ -20,8 +21,10 @@ export class ScriptAgentRunService {
         const required = PREREQUISITE[input.runType];
         if (required?.length && "listLatestArtifacts" in this.repository) {
             const artifacts = await this.repository.listLatestArtifacts(scope, input.projectId);
+            const available = new Set(artifacts.map((row: Record<string, unknown>) => String(row.artifact_type)));
             const confirmed = new Set(artifacts.filter((row: Record<string, unknown>) => row.status === "confirmed").map((row: Record<string, unknown>) => String(row.artifact_type)));
-            if (!required.some((type) => confirmed.has(type))) throw new ScriptAgentRunError("请先确认上一重要阶段", 409);
+            const missing = required.filter((type) => !available.has(type) || (type === "review_report" && !confirmed.has(type)));
+            if (missing.length) throw new ScriptAgentRunError("请先确认上一重要阶段", 409);
         }
         const run = await this.repository.createRun(scope, {
             id: this.id(),
