@@ -276,7 +276,7 @@ export default function ScriptPracticeWorkspace() {
         () =>
             resolveScriptWorkflowActions(
                 selectedProject?.mode || "short_story",
-                tree.map((item) => ({ type: item.type, status: item.status })),
+                tree.filter((item) => item.status !== "not_started").map((item) => ({ type: item.type, status: item.status })),
             ),
         [selectedProject?.mode, tree],
     );

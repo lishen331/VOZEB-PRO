@@ -49,6 +49,7 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain("selectedIdRef.current !== projectId");
         expect(source).toContain("if (active) setArtifact");
         expect(source).toContain("resolveScriptWorkflowActions");
+        expect(source).toContain('tree.filter((item) => item.status !== "not_started")');
     });
 
     it("uses stable Run SSE, stop, and failed-only retry", async () => {
