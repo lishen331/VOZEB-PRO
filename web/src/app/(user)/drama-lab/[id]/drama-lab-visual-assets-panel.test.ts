@@ -88,13 +88,13 @@ describe("L-compatible character AI editor actions", () => {
         expect(source).toContain("multiple");
         expect(source).toContain("Promise.all");
         expect(source).toContain("setEditor");
-        expect(source).toContain("从参考图提取描述");
+        expect(source).toContain("从主图提取描述");
         expect(source).toContain("移除参考图");
     });
 
     it("renders reference extraction, prompt regeneration, anchor extraction, and stage generation actions", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
-        expect(source).toContain("从参考图提取描述");
+        expect(source).toContain("从主图提取描述");
         expect(source).toContain("重新生成提示词");
         expect(source).toContain("提炼视觉锚点");
         expect(source).toContain("AI 生成造型");
@@ -206,6 +206,17 @@ describe("asset card and editor reference interactions", () => {
         expect(source).toContain('action: "prompt"');
         expect(source).toContain("storedPrompt");
         expect(source).toContain("referenceRoles");
-        expect(source).toContain("appendReferences(effectiveAsset, references)");
+        expect(source).toContain("promoteGeneratedReference(effectiveAsset, references)");
+    });
+
+    it("keeps history beside the primary and exposes hover-only primary actions", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        expect(source).toContain("data-asset-primary-history-layout");
+        expect(source).toContain("data-asset-primary-actions");
+        expect(source).toContain("上传图片 / 替换主图");
+        expect(source).toContain("加入参考");
+        expect(source).toContain("从主图提取描述");
+        expect(source).toContain("group-hover:opacity-100");
+        expect(source).toContain("data-asset-generation-action");
     });
 });

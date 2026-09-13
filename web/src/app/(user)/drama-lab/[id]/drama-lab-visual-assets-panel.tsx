@@ -13,6 +13,7 @@ import type { TextAreaRef } from "antd/es/input/TextArea";
 import type { ReferenceImage } from "@/types/image";
 
 import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
+import { addPrimaryToGenerationReferences, createAssetGeneratedPrimary, generationReferences } from "@/lib/drama-lab-asset-editor-images";
 import type { Asset } from "@/lib/library-asset-contract";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { createImageGenerationTask, waitForImageGenerationTask, type ImageGenerationResult } from "@/services/api/image";
@@ -226,19 +227,12 @@ export function DramaLabVisualAssetsPanel({
         }
     };
 
-    const appendReferences = async (asset: VisualAsset, added: DramaLabAssetReference[]) => {
+    const promoteGeneratedReference = async (asset: VisualAsset, added: DramaLabAssetReference[]) => {
         if (!added.length) return false;
-        const currentReferences = dramaAssetReferences(asset);
-        const primary = currentReferences.length ? currentReferences[0] : added[0];
-        return updateAsset(asset.id, {
-            references: [...currentReferences, ...added],
-            primaryReferenceId: primary.id,
-            referenceImageUrl: primary.url,
-            referenceStorageKey: primary.storageKey,
-            imageUrl: primary.url,
-        });
+        const next = added[0];
+        const promoted = createAssetGeneratedPrimary(dramaAssetReferences(asset), dramaAssetPrimaryReference(asset), next);
+        return updateAsset(asset.id, { ...promoted, referenceImageUrl: next.url, referenceStorageKey: next.storageKey, imageUrl: next.url });
     };
-
     const generateAssetReference = async (asset: VisualAsset, assetKind: AssetKind) => {
         const requestKey = `asset:${asset.id}`;
         setBusyKey(requestKey);
@@ -260,8 +254,7 @@ export function DramaLabVisualAssetsPanel({
             }
             const prompt = buildDramaLabAssetImagePrompt(project, effectiveAsset, assetKind);
             const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: project.aspectRatio || config.size, count: "1" };
-            const primaryReference = dramaAssetPrimaryReference(effectiveAsset);
-            const sourceReferences = assetKind === "characters" ? characterGenerationReferences(effectiveAsset) : primaryReference ? [primaryReference] : [];
+            const sourceReferences = generationReferences(dramaAssetReferences(effectiveAsset));
             const imageReferences: ReferenceImage[] = sourceReferences.map((reference) => ({
                 id: reference.id,
                 name: reference.label || assetName(effectiveAsset),
@@ -284,8 +277,8 @@ export function DramaLabVisualAssetsPanel({
             });
             const references = imageResultsToReferences(await waitForImageGenerationTask(imageConfig, task));
             if (!references.length) throw new Error("生成结果没有可持久化图片地址");
-            if (!(await appendReferences(effectiveAsset, references))) throw new Error("项目保存失败");
-            messageApi.success(references.length > 1 ? `已生成 ${references.length} 张候选图` : "候选图已生成并保留当前主参考图");
+            if (!(await promoteGeneratedReference(effectiveAsset, references))) throw new Error("项目保存失败");
+            messageApi.success(references.length > 1 ? `已生成 ${references.length} 张候选图` : "图片已生成并设为主图");
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "资产图片生成失败");
         } finally {
@@ -330,6 +323,34 @@ export function DramaLabVisualAssetsPanel({
         }
     };
 
+    const replacePrimaryReference = async (files?: FileList | File[]) => {
+        if (!files || !activeAsset) return;
+        const file = Array.from(files).find((item) => item.type.startsWith("image/"));
+        if (!file) return;
+        setBusyKey(`upload-primary:${activeAsset.id}`);
+        try {
+            const stored = await uploadImage(file);
+            const next = referenceFromUrl(stored.serverUrl || stored.url, "upload", file.name, stored.storageKey, stored.width, stored.height, "primary");
+            const promoted = createAssetGeneratedPrimary(dramaAssetReferences(activeAsset), dramaAssetPrimaryReference(activeAsset), next);
+            const patch = { ...promoted, referenceImageUrl: next.url, referenceStorageKey: next.storageKey, imageUrl: next.url };
+            if (!(await updateAsset(activeAsset.id, patch))) throw new Error("项目保存失败");
+            setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, ...patch } } : current));
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "主图替换失败");
+        } finally {
+            setBusyKey("");
+        }
+    };
+
+    const addActivePrimaryToReferences = async () => {
+        if (!activeAsset) return;
+        const references = dramaAssetReferences(activeAsset);
+        const next = addPrimaryToGenerationReferences(references, dramaAssetPrimaryReference(activeAsset));
+        if (next === references) return messageApi.info("当前主图已在参考图中");
+        if (!(await updateAsset(activeAsset.id, { references: next }))) return;
+        setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, references: next } } : current));
+        messageApi.success("已加入参考图");
+    };
     const setPrimary = async (asset: VisualAsset, reference: DramaLabAssetReference) => {
         if (!(await updateAsset(asset.id, { primaryReferenceId: reference.id, referenceImageUrl: reference.url, referenceStorageKey: reference.storageKey, imageUrl: reference.url }))) return;
         messageApi.success("已设为主参考图");
@@ -680,7 +701,10 @@ export function DramaLabVisualAssetsPanel({
                 onSave={() => void saveEditor()}
                 onUpload={() => uploadInputRef.current?.click()}
                 onUploadFile={(files) => void uploadReference(files)}
+                onReplacePrimary={(files) => void replacePrimaryReference(files)}
+                onAddPrimaryToReferences={() => void addActivePrimaryToReferences()}
                 onAiAction={(action) => void runAssetAiAction(action)}
+                onGenerate={() => (activeAsset ? void generateAssetReference(activeAsset, editor?.kind || "characters") : undefined)}
                 onRemoveReference={() => void removeActiveReference()}
                 onRemoveReferenceById={(referenceId) => (activeAsset ? void removeReference(activeAsset, referenceId) : undefined)}
             />
@@ -775,7 +799,10 @@ function AssetEditorModal({
     onSave,
     onUpload,
     onUploadFile,
+    onReplacePrimary,
+    onAddPrimaryToReferences,
     onAiAction,
+    onGenerate,
     onRemoveReference,
     onRemoveReferenceById,
 }: {
@@ -788,7 +815,10 @@ function AssetEditorModal({
     onSave: () => void;
     onUpload: () => void;
     onUploadFile: (files?: FileList | File[]) => void;
+    onReplacePrimary: (files?: FileList | File[]) => void;
+    onAddPrimaryToReferences: () => void;
     onAiAction: (action: "describe" | "prompt" | "anchor" | "stages") => void;
+    onGenerate: () => void;
     onRemoveReference: () => void;
     onRemoveReferenceById: (referenceId: string) => void;
 }) {
@@ -796,13 +826,14 @@ function AssetEditorModal({
     const label = editor ? ASSET_META[editor.kind].label : "资产";
     const [mentionOpen, setMentionOpen] = useState(false);
     const promptRef = useRef<TextAreaRef>(null);
+    const primaryUploadRef = useRef<HTMLInputElement>(null);
     const mentionRangeRef = useRef({ start: 0, end: 0 });
     if (!asset) return null;
     const profile = asset.profile || EMPTY_PROFILE;
     const references = dramaAssetReferences(asset);
     const hasReference = references.length > 0;
     const primary = dramaAssetPrimaryReference(asset);
-    const characterReferences = editor?.kind === "characters" ? characterGenerationReferences(asset) : [];
+    const characterReferences = generationReferences(references);
     const handlePromptChange = (value: string, selectionStart: number) => {
         const mentionStart = value.lastIndexOf("@", Math.max(0, selectionStart - 1));
         const mentionText = mentionStart >= 0 ? value.slice(mentionStart + 1, selectionStart) : "";
@@ -1019,12 +1050,49 @@ function AssetEditorModal({
                 <div className="grid gap-3 border-b border-border pb-4" data-character-primary-image>
                     <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
                         <span className="pt-2 text-sm">主图</span>
-                        <div className="flex min-h-36 items-center justify-center overflow-hidden rounded border bg-muted">
-                            {primary?.url ? (
-                                <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt="角色主图" className="!max-h-48 !object-contain" />
-                            ) : (
-                                <span className="text-xs text-muted-foreground">暂无主图</span>
-                            )}
+                        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_6rem] gap-3" data-asset-primary-history-layout>
+                            <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-muted">
+                                {primary?.url ? (
+                                    <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt="角色主图" className="!max-h-64 !object-contain" />
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">暂无主图</span>
+                                )}
+                                <div
+                                    data-asset-primary-actions
+                                    className="absolute inset-x-0 bottom-0 flex justify-end gap-2 bg-gradient-to-t from-black/70 to-transparent p-3 pt-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                                >
+                                    <Button size="small" onClick={() => primaryUploadRef.current?.click()}>
+                                        上传图片 / 替换主图
+                                    </Button>
+                                    {primary ? (
+                                        <Button size="small" onClick={onAddPrimaryToReferences}>
+                                            加入参考
+                                        </Button>
+                                    ) : null}
+                                    {primary ? (
+                                        <Button size="small" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
+                                            从主图提取描述
+                                        </Button>
+                                    ) : null}
+                                </div>
+                            </div>
+                            <div className="max-h-64 space-y-2 overflow-y-auto pr-1" aria-label="历史图片">
+                                {references
+                                    .filter((reference) => reference.role === "history")
+                                    .map((reference, index) => (
+                                        <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
+                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!size-full !object-cover" />
+                                            <button
+                                                type="button"
+                                                aria-label={`删除历史图${index + 1}`}
+                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                                onClick={() => onRemoveReferenceById(reference.id)}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                            </div>
                         </div>
                     </div>
                     <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
@@ -1039,20 +1107,18 @@ function AssetEditorModal({
                                     <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
                                         <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!size-full !object-cover" />
                                         <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100">图{index + 1}</span>
-                                        {reference.id !== primary?.id ? (
-                                            <button
-                                                type="button"
-                                                aria-label={`移除参考图 图${index + 1}`}
-                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                                onClick={() => onRemoveReferenceById(reference.id)}
-                                            >
-                                                ×
-                                            </button>
-                                        ) : null}
+                                        <button
+                                            type="button"
+                                            aria-label={`移除参考图 图${index + 1}`}
+                                            className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                            onClick={() => onRemoveReferenceById(reference.id)}
+                                        >
+                                            ×
+                                        </button>
                                     </div>
                                 ))}
                                 {characterReferences.length < 9 ? (
-                                    <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-muted-foreground hover:border-primary hover:text-primary" onClick={onUpload}>
+                                    <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={onUpload}>
                                         <span>
                                             <b className="block text-xl font-normal">＋</b>拖入或添加
                                         </span>
@@ -1060,14 +1126,13 @@ function AssetEditorModal({
                                 ) : null}
                             </div>
                             <div className="mt-2 flex justify-end">
-                                {hasReference ? (
-                                    <Button size="small" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
-                                        从参考图提取描述
-                                    </Button>
-                                ) : null}
+                                <Button data-asset-generation-action size="small" type="primary" loading={busy} onClick={onGenerate}>
+                                    AI 生成
+                                </Button>
                             </div>
                         </div>
                     </div>
+                    <input ref={primaryUploadRef} className="hidden" type="file" accept="image/*" onChange={(event) => onReplacePrimary(event.target.files || undefined)} />
                 </div>
                 <label className="grid gap-1.5 text-sm">
                     <span>名称</span>
@@ -1159,13 +1224,6 @@ function cloneAsset(asset: VisualAsset): VisualAsset {
 
 function referenceFromUrl(url: string, source: DramaLabAssetReference["source"], label: string, storageKey?: string, width?: number, height?: number, role?: DramaLabAssetReference["role"]): DramaLabAssetReference {
     return { id: `reference-${nanoid()}`, url, storageKey, source, role, label, width, height, createdAt: new Date().toISOString() };
-}
-
-function characterGenerationReferences(asset: VisualAsset) {
-    const primary = dramaAssetPrimaryReference(asset);
-    const references = dramaAssetReferences(asset);
-    const selected = [...(primary ? [primary] : []), ...references.filter((reference) => reference.id !== primary?.id && reference.role !== "history" && reference.source !== "generated")];
-    return [...new Map(selected.map((reference) => [reference.url, reference])).values()].slice(0, 9);
 }
 
 function imageResultsToReferences(result: ImageGenerationResult & { results?: ImageGenerationResult[] }) {
