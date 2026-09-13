@@ -133,6 +133,7 @@ export function DramaLabVisualAssetsPanel({
             let prepared = extractedAsset;
             const initialSaved = await replaceAssetsFor(assetKind, (current) => [...current, extractedAsset]);
             if (!initialSaved) throw new Error("项目保存失败");
+            await onReload();
             const layout = assetKind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(assetKind, extractedAsset.generationLayout);
             const resolvePersistedAssetId = async () => {
                 try {
