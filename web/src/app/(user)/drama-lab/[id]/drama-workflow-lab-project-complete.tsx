@@ -1213,7 +1213,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     style: proj.style ?? legacy.style ?? "",
                     storyStyle: proj.storyStyle ?? legacy.storyStyle ?? "",
                     scriptType: proj.scriptType ?? legacy.scriptType ?? "",
-                    scriptEpisodeCount: Number(proj.scriptEpisodeCount ?? legacy.scriptEpisodeCount) || 1,
+                    scriptEpisodeCount: Number(proj.scriptEpisodeCount ?? legacy.scriptEpisodeCount) || 0,
                     aspectRatio: proj.ratio ?? legacy.aspectRatio ?? "16:9",
                     episodes,
                     characters: (proj.characters ?? legacy.characters ?? []) as Character[],

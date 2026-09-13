@@ -294,7 +294,7 @@ export function normalizeProject(value: unknown, current: DramaProject): DramaPr
         ratio,
         status: input.status === "archived" ? "archived" : "active",
         creativeConversationId: current.creativeConversationId,
-        activeEpisodeId: episodes.some((episode) => episode.id === activeEpisodeId) ? activeEpisodeId : episodes[0].id,
+        activeEpisodeId: episodes.some((episode) => episode.id === activeEpisodeId) ? activeEpisodeId : episodes[0]?.id,
         characters: normalizeNamedAssets(input.characters, "character", true),
         scenes: normalizeNamedAssets(input.scenes, "scene"),
         props: normalizeNamedAssets(input.props, "prop"),
