@@ -400,7 +400,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                 </div>
             </section>
             <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-5 xl:grid-cols-3">
-                {FEATURE_MODULES.map((plugin) => {
+                {FEATURE_MODULES.filter((plugin) => plugin.id !== "drama-lab-resource-editor").map((plugin) => {
                     const Icon = plugin.icon;
                     const enabled = settings.featureModules[plugin.id] !== false;
                     return (
@@ -428,15 +428,17 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                     );
                 })}
             </div>
-            <Modal open={selectedPlugin === "drama-lab"} title="创作工坊 · 子功能配置" footer={null} onCancel={() => setSelectedPlugin(undefined)}>
-                <div className="flex items-center justify-between gap-4 rounded-md border border-stone-200 p-4">
-                    <div>
-                        <div className="font-medium">本剧资源库编辑弹窗</div>
-                        <div className="mt-1 text-xs text-stone-500">仅控制剧本信息页资源卡片编辑入口的前端显示。</div>
+            {false ? (
+                <Modal open={selectedPlugin === "drama-lab"} title="创作工坊 · 子功能配置" footer={null} onCancel={() => setSelectedPlugin(undefined)}>
+                    <div className="flex items-center justify-between gap-4 rounded-md border border-stone-200 p-4">
+                        <div>
+                            <div className="font-medium">本剧资源库编辑弹窗</div>
+                            <div className="mt-1 text-xs text-stone-500">仅控制剧本信息页资源卡片编辑入口的前端显示。</div>
+                        </div>
+                        <Switch checked={settings.featureModules["drama-lab-resource-editor"] !== false} loading={settingsLoading} aria-label="本剧资源库编辑弹窗显示状态" onChange={(next) => void toggle("drama-lab-resource-editor", next)} />
                     </div>
-                    <Switch checked={settings.featureModules["drama-lab-resource-editor"] !== false} loading={settingsLoading} aria-label="本剧资源库编辑弹窗显示状态" onChange={(next) => void toggle("drama-lab-resource-editor", next)} />
-                </div>
-            </Modal>
+                </Modal>
+            ) : null}
         </Panel>
     );
 }
