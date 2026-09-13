@@ -66,6 +66,8 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain("consumeEvents");
         expect(source).toContain("seenEventKeys");
         expect(source).toContain("publicPreviewText");
+        expect(source).toContain("publicArtifactText");
+        expect(source).toContain('not_started: { text: "未开始"');
         expect(source).toContain("sequence");
         expect(source).toContain("previewRawRef");
         expect(source).toContain("AGENT_LABELS");

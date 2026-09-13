@@ -23,7 +23,13 @@ const AGENT_LABELS: Record<string, string> = {
     asset_prompt_writer: "设定师",
     orchestrator: "统筹",
 };
-const STATUS: Record<string, { text: string; color: string }> = { awaiting_review: { text: "待确认", color: "gold" }, confirmed: { text: "已确认", color: "success" }, draft: { text: "草稿", color: "default" }, failed: { text: "失败", color: "error" } };
+const STATUS: Record<string, { text: string; color: string }> = {
+    not_started: { text: "未开始", color: "default" },
+    awaiting_review: { text: "待确认", color: "gold" },
+    confirmed: { text: "已确认", color: "success" },
+    draft: { text: "草稿", color: "default" },
+    failed: { text: "失败", color: "error" },
+};
 export default function ScriptPracticeWorkspace() {
     const router = useRouter();
     const { message } = App.useApp();
@@ -470,14 +476,30 @@ function artifactContent(value: Record<string, unknown> | null) {
     if (!value) return "";
     for (const key of ["content_text", "content", "text", "story", "outline", "screenplay", "report"]) {
         const item = value[key];
-        if (typeof item === "string") return item;
+        if (typeof item === "string") return publicArtifactText(item);
     }
     const json = value.content_json;
     if (json && typeof json === "object") {
         for (const key of ["content", "text", "story", "outline", "screenplay", "report"]) {
             const item = (json as Record<string, unknown>)[key];
-            if (typeof item === "string") return item;
+            if (typeof item === "string") return publicArtifactText(item);
         }
     }
     return "";
+}
+
+function publicArtifactText(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("```")) return value;
+    try {
+        const parsed = JSON.parse(trimmed.replace(/^```json\s*/i, "").replace(/\s*```$/, "")) as Record<string, unknown>;
+        return (
+            ["content", "text", "story", "screenplay", "outline", "report"]
+                .map((key) => parsed[key])
+                .find((item): item is string => typeof item === "string" && Boolean(item.trim()))
+                ?.trim() || ""
+        );
+    } catch {
+        return publicPreviewText(value);
+    }
 }
