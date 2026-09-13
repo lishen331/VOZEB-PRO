@@ -96,4 +96,17 @@ describe("drama lab asset AI service", () => {
         expect(call.messages[1].content).toContain("角色换上白衣");
         expect(call.messages[1].content).toContain("阶段数量 1-6 个");
     });
+
+    it("uses the L scene-specific input and contract for single-image prompts", async () => {
+        const sceneProject = { ...project, scenes: [{ id: "scene-one", name: "小区楼道口", location: "小区楼道口", time: "傍晚", description: "灰色墙面与金属扶手" }] };
+        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify({ visualDescription: "狭窄楼道，傍晚冷暖交界光线" }) });
+        const result = await runDramaLabAssetAiAction({ userId: "user-one", origin: "http://app.test", cookie: "", requestId: "scene-single", project: sceneProject, assetId: "scene-one", kind: "scenes", action: "prompt", generationLayout: "single" });
+        const call = mocks.requestStructuredText.mock.calls[0]?.[0];
+        expect(call.messages[0].content).toContain("专业的影视场景美术设计师");
+        expect(call.messages[1].content).toContain("场景地点：小区楼道口");
+        expect(call.messages[1].content).toContain("时间/时段：傍晚");
+        expect(call.messages[1].content).toContain("场景描述：灰色墙面与金属扶手");
+        expect(result).toMatchObject({ singleImagePrompt: expect.stringContaining("ONE single continuous image") });
+        expect(result).toMatchObject({ polishedPrompt: "" });
+    });
 });

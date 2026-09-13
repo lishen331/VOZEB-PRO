@@ -42,11 +42,13 @@ export async function runDramaLabAssetAiAction(input: DramaLabAssetAiInput) {
     const assetText =
         input.action === "stages"
             ? characterStagesPrompt(input.project, asset)
-            : JSON.stringify({
-                  kind: input.kind,
-                  asset: { name: asset.name, description: asset.description, appearance: asset.appearance, role: asset.role, type: asset.type, time: asset.time, imagePrompt: asset.imagePrompt, profile: asset.profile },
-                  project: { style: input.project.style, ...dramaLabStyleContext(input.project.style), ratio: input.project.ratio },
-              });
+            : input.action === "prompt" && input.kind === "scenes"
+              ? scenePromptInput(input.project, asset, input.generationLayout)
+              : JSON.stringify({
+                    kind: input.kind,
+                    asset: { name: asset.name, description: asset.description, appearance: asset.appearance, role: asset.role, type: asset.type, time: asset.time, imagePrompt: asset.imagePrompt, profile: asset.profile },
+                    project: { style: input.project.style, ...dramaLabStyleContext(input.project.style), ratio: input.project.ratio },
+                });
     const tool = actionTool(input.action);
     const mediaInputs = needsVision && referenceUrl ? [{ type: "image" as const, url: await readImageDataUrl(referenceUrl, input.origin, input.cookie) }] : undefined;
     let latest: unknown;
@@ -81,11 +83,22 @@ export async function runDramaLabAssetAiAction(input: DramaLabAssetAiInput) {
     throw new DramaLabAssetAiError(latest instanceof Error ? latest.message : "资产 AI 操作失败");
 }
 
+function scenePromptInput(project: DramaProject, asset: DramaProject["scenes"][number], generationLayout?: "single" | "four_view") {
+    const layout = normalizeDramaAssetGenerationLayout("scenes", generationLayout || asset.generationLayout);
+    const location = ("location" in asset && typeof asset.location === "string" ? asset.location.trim() : "") || asset.name?.trim() || "未知场景";
+    const time = asset.time?.trim() || "";
+    const description = asset.description?.trim() || asset.imagePrompt?.trim() || "";
+    const sceneDescription = [`场景地点：${location}`, time ? `时间/时段：${time}` : "", description ? `场景描述：${description}` : ""].filter(Boolean).join("\n");
+    return `请根据以下场景信息，生成${layout === "single" ? "单图" : "四格"}场景参考图的提示词：\n\n${sceneDescription}`;
+}
+
 function actionInstruction(action: DramaLabAssetAiAction, input?: Pick<DramaLabAssetAiInput, "kind" | "project" | "assetId" | "generationLayout">) {
     if (action === "describe") return "你是短剧实验室资产描述分析师。根据参考图和已有文字设定，提炼纯视觉外貌描述；不得描述背景故事、摄影者身份或不可见信息。只返回工具 JSON。";
     if (action === "prompt" && input) {
         const asset = input.project[input.kind].find((item) => item.id === input.assetId);
         const layout = input.kind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(input.kind, input.generationLayout || asset?.generationLayout);
+        if (input.kind === "scenes")
+            return `你是一位专业的影视场景美术设计师。请将场景地点、时间/时段和场景描述整理为可直接用于 AI 图片生成的${layout === "single" ? "单图" : "四格场景参考图"}视觉描述。只描述空间、建筑结构、地面材质、关键陈设、光线、时段、天气和氛围；绝不出现人物、剪影、人影、文字或水印。只返回 visualDescription，不要复制版式、画风、JSON Schema、解释或 Markdown。`;
         return `你是 LocalMiniDrama 资产视觉描述整理器。${assetPromptPolishInstruction(input.kind, layout)} 服务端会另行注入不可编辑版式合同；你只返回 visualDescription，不要复制版式、画风、JSON Schema、解释或 Markdown。`;
     }
     if (action === "prompt") return "你是 LocalMiniDrama 资产视觉描述整理器。只返回 visualDescription。";
