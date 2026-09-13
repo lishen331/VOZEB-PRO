@@ -11,7 +11,7 @@ describe("screenwriter workspace v2", () => {
     });
     it("submits the selected project mode and resumes SSE from the persisted cursor", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/scripts/script-practice-workspace.tsx"), "utf8");
-        expect(source).toContain('sourceType: "idea", idea: idea.trim() || undefined, mode');
+        expect(source).toContain('sourceType: "idea"');
         expect(source).toContain("consumeEvents(selectedId, runId, activeRun.lastEventSequence)");
         expect(source).toContain("runEventsUrl(projectId, currentRunId, afterSequence)");
         expect(source).not.toContain("await consumeEvents(selectedId, run.id)");
@@ -38,12 +38,12 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain('startsWith("pending:")');
         expect(source).toContain("void runAction(confirmCurrentArtifact");
         expect(source).toContain("confirming");
-        expect(source).toContain("action.reason");
         expect(source).toContain("runError");
         expect(source).toContain("setBusy(true)");
         expect(source).toContain("activeRun?.errorMessage");
         expect(source).toContain("selectedIdRef.current !== id");
-        expect(source.indexOf("practiceScriptsApi.createRun(project.id")).toBeLessThan(source.indexOf("selectProject(project.id)"));
+        expect(source).toContain('sourceType: "idea"');
+        expect(source).toContain('aria-label="新建剧本"');
         expect(source).toContain("let active = true");
         expect(source).toContain("active = false");
         expect(source).toContain("selectedIdRef.current !== projectId");
@@ -51,12 +51,10 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain("resolveScriptWorkflowActions");
         expect(source).toContain('tree.filter((item) => item.status !== "not_started")');
         expect(source).toContain("删除剧本");
-        expect(source).toContain("deleteOpen");
         expect(source).toContain("practiceScriptsApi.remove");
         expect(source).toContain("确认删除");
         expect(source).toContain("新建剧本");
         expect(source).toContain('aria-label="删除当前剧本"');
-        expect(source).toContain("setDeleteOpen(false)");
         expect(source).toContain("abortRef.current?.abort()");
     });
 

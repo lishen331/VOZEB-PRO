@@ -1,14 +1,13 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { App, Button, Input, Modal, Select, Spin, Tag } from "antd";
-import { ArrowLeft, BookOpen, Download, FilePlus2, Import, Pause, RefreshCw, Send, Sparkles } from "lucide-react";
+import { App, Button, Input, Popconfirm, Select, Spin, Tag } from "antd";
+import { ArrowLeft, BookOpen, Download, Import, Pause, Plus, RefreshCw, Send, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ScriptPracticeProject } from "@/lib/script-practice-types";
 import { practiceScriptsApi } from "@/services/api/practice-scripts";
 import { resolveScriptWorkflowActions } from "./script-workflow-state";
-import type { ScriptCarrier } from "@/lib/server/script-agent-domain";
 
 type TreeItem = { id: string; key: string; type: string; label: string; status: string; version: number };
 type ChatMessage = { id: string; role: "user" | "assistant"; agent?: string; content: string; status?: string };
@@ -39,14 +38,6 @@ export default function ScriptPracticeWorkspace() {
     const [publicProgress, setPublicProgress] = useState("");
     const [starting, setStarting] = useState(false);
     const [confirming, setConfirming] = useState(false);
-    const [newOpen, setNewOpen] = useState(false);
-    const [deleteOpen, setDeleteOpen] = useState(false);
-    const [deleting, setDeleting] = useState(false);
-    const [newTitle, setNewTitle] = useState("");
-    const [idea, setIdea] = useState("");
-    const [mode, setMode] = useState<"short_story" | "long_novel">("short_story");
-    const [carrierType, setCarrierType] = useState<ScriptCarrier>("vlog");
-    const [targetDurationSeconds, setTargetDurationSeconds] = useState("180");
     const abortRef = useRef<AbortController | undefined>(undefined);
     const seenEventKeys = useRef(new Set<string>());
     const previewRawRef = useRef("");
@@ -258,40 +249,30 @@ export default function ScriptPracticeWorkspace() {
         }
     };
     const removeCurrentScript = async () => {
-        if (!selectedId || deleting) return;
-        setDeleting(true);
-        try {
-            const removedId = selectedId;
-            await practiceScriptsApi.remove(removedId);
-            const remaining = projects.filter((project) => project.id !== removedId);
-            setDeleteOpen(false);
-            setProjects(remaining);
-            if (remaining[0]) selectProject(remaining[0].id);
-            else {
-                selectedIdRef.current = "";
-                setSelectedId("");
-                setTree([]);
-                setMessages([]);
-                setChatSessionId("");
-            }
-            message.success("剧本已删除");
-        } finally {
-            setDeleting(false);
+        if (!selectedId) return;
+        const removedId = selectedId;
+        await practiceScriptsApi.remove(removedId);
+        const remaining = projects.filter((project) => project.id !== removedId);
+        setProjects(remaining);
+        if (remaining[0]) selectProject(remaining[0].id);
+        else {
+            selectedIdRef.current = "";
+            setSelectedId("");
+            setTree([]);
+            setMessages([]);
+            setChatSessionId("");
         }
+        message.success("剧本已删除");
     };
     const create = async () => {
-        if (!newTitle.trim()) return;
-        const duration = Number(targetDurationSeconds);
-        if (!Number.isSafeInteger(duration) || duration <= 0 || duration > 180) throw new Error("目标时长必须是 1–180 秒");
-        const result = await practiceScriptsApi.create({ title: newTitle.trim(), sourceType: "idea", idea: idea.trim() || undefined, mode, carrierType, projectParameters: { targetDurationSeconds: duration } });
+        const title = `新剧本 ${new Date().toLocaleDateString("zh-CN")}`;
+        const result = await practiceScriptsApi.create({ title, sourceType: "idea" });
         const project = "project" in result ? result.project : result;
-        setNewOpen(false);
-        await loadProjects();
         const session = await practiceScriptsApi.createChatSession(project.id, "剧本创作");
-        const run = await practiceScriptsApi.createRun(project.id, { runType: "project_planning", clientRequestId: crypto.randomUUID(), chatSessionId: session.id, input: { mode, title: newTitle.trim(), idea: idea.trim() } });
+        setProjects((current) => [project, ...current.filter((item) => item.id !== project.id)]);
         selectProject(project.id);
         setChatSessionId(session.id);
-        setRunId(run.id);
+        message.success("已打开新的剧本对话");
     };
     const selectedProject = projects.find((item) => item.id === selectedId);
     const workflowActions = useMemo(
@@ -329,28 +310,29 @@ export default function ScriptPracticeWorkspace() {
                             下载分镜表
                         </Button>
                     ) : null}
-                    <Button type="primary" icon={<FilePlus2 className="size-4" />} onClick={() => setNewOpen(true)}>
-                        新建剧本
-                    </Button>
-                    {selectedId ? (
-                        <Button danger aria-label="删除当前剧本" onClick={() => setDeleteOpen(true)}>
-                            删除剧本
-                        </Button>
-                    ) : null}
                 </div>
             </header>
             <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)_340px]">
                 <aside aria-label="剧本工作目录" className="min-h-0 overflow-y-auto border-r border-border bg-card p-3">
                     <h2 className="mb-3 text-sm font-semibold">工作目录</h2>
-                    <Select
-                        className="w-full"
-                        value={selectedId || undefined}
-                        placeholder="选择项目"
-                        options={projects.map((p) => ({ value: p.id, label: p.title }))}
-                        onChange={(value) => {
-                            selectProject(value);
-                        }}
-                    />
+                    <div className="flex items-center gap-1">
+                        <Select className="min-w-0 flex-1" value={selectedId || undefined} placeholder="选择剧本" options={projects.map((p) => ({ value: p.id, label: p.title }))} onChange={(value) => selectProject(value)} />
+                        <Button type="text" aria-label="新建剧本" icon={<Plus className="size-4" />} onClick={() => void runAction(create, "新建剧本失败")} />
+                        {selectedId ? (
+                            <Popconfirm
+                                title="删除当前剧本？"
+                                description="剧本内容、对话记录和生成成果都会被删除，且无法恢复。"
+                                okText="确认删除"
+                                cancelText="取消"
+                                okButtonProps={{ danger: true }}
+                                onConfirm={() => void runAction(removeCurrentScript, "删除剧本失败")}
+                            >
+                                <Button type="text" danger aria-label="删除当前剧本">
+                                    删除
+                                </Button>
+                            </Popconfirm>
+                        ) : null}
+                    </div>
                     <div className="mt-4 space-y-1">
                         {tree.map((item) => (
                             <button
@@ -418,19 +400,6 @@ export default function ScriptPracticeWorkspace() {
                         ) : null}
                         {publicProgress ? <div className="mb-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">{publicProgress}</div> : null}
                         {runError ? <div className="mb-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">上次执行失败：{runError}</div> : null}
-                        <div className="mb-2 flex flex-wrap gap-1">
-                            {workflowActions.map((action) => (
-                                <Button
-                                    key={action.runType}
-                                    size="small"
-                                    disabled={!selectedId || busy || starting || !action.enabled}
-                                    title={action.reason}
-                                    onClick={() => void runAction(() => start(action.runType, { instruction: draft || action.label }), "启动剧本任务失败")}
-                                >
-                                    {action.label}
-                                </Button>
-                            ))}
-                        </div>
                         <Input.TextArea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="和统筹 Agent 讨论故事、要求修改或继续下一阶段……" autoSize={{ minRows: 3, maxRows: 7 }} />
                         <div className="mt-2 flex justify-between">
                             {busy ? (
@@ -472,32 +441,6 @@ export default function ScriptPracticeWorkspace() {
                     </div>
                 </aside>
             </div>
-            <Modal title="新建剧本" open={newOpen} onCancel={() => setNewOpen(false)} onOk={() => void runAction(create, "创建剧本项目失败")} okText="创建并开始策划">
-                <div className="grid gap-3">
-                    <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="项目标题" />
-                    <Select
-                        value={mode}
-                        onChange={setMode}
-                        options={[
-                            { value: "short_story", label: "短故事" },
-                            { value: "long_novel", label: "长篇小说" },
-                        ]}
-                    />
-                    <Select
-                        value={carrierType}
-                        onChange={setCarrierType}
-                        options={[
-                            { value: "vlog", label: "Vlog 纪实短片" },
-                            { value: "tvc", label: "TVC 广告短片" },
-                        ]}
-                    />
-                    <Input value={targetDurationSeconds} onChange={(e) => setTargetDurationSeconds(e.target.value)} addonAfter="秒" placeholder="1–180" />
-                    <Input.TextArea value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="输入一句话创意；短故事会先生成完整小说体正文" autoSize={{ minRows: 5, maxRows: 10 }} />
-                </div>
-            </Modal>
-            <Modal title="删除剧本" open={deleteOpen} onCancel={() => setDeleteOpen(false)} onOk={() => void runAction(removeCurrentScript, "删除剧本失败")} okText="确认删除" okButtonProps={{ danger: true, loading: deleting }}>
-                <p>确定删除“{selectedProject?.title || "当前剧本"}”吗？剧本内容、对话记录和生成成果都会被删除，且无法恢复。</p>
-            </Modal>
         </main>
     );
 }
