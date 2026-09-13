@@ -28,6 +28,22 @@ export function buildDramaLabAssetFinalPrompt(project: { style?: string; aspectR
     return `${styleBlock}\n\n${layoutContract(kind, layout, project.aspectRatio)}\n\n---\n\n${description}${sourceFacts}${anchor}`.trim();
 }
 
+export function buildLSceneFinalPrompt(project: { style?: string; aspectRatio?: string }, description: string, layout: "single" | "four_view") {
+    const style = resolveDramaLabStylePrompt(project.style);
+    const styleLines = [style.zh ? `【画风·最高优先级】${layout === "four_view" ? "四格统一：" : ""}${style.zh}` : "", style.en ? `MANDATORY ART STYLE${layout === "four_view" ? " (all 4 panels)" : ""}: ${style.en}.` : ""].filter(Boolean);
+    const contract =
+        layout === "four_view"
+            ? "Scene environment reference sheet — image only, no text reply.\n\nONE image: 2×2 grid. TL=establishing wide (full space, boundaries, context). TR=main activity zone medium shot (floor, key furnishings). BL=signature environmental detail close-up. BR=alternate angle view (same place, same lighting/time/weather, different camera angle such as elevated/low/high/oblique).\n\nNo people: no characters, silhouettes, human shadows. No text/labels/watermarks/location lettering. Same architecture, terrain, ground materials, and key props across all panels; same light, time, and weather; only focal length and camera angle may change. Unified palette and depth; high detail."
+            : "Scene environment reference — image only, no text reply.\n\nONE single continuous image (no grid, no split panels, no collage).\nShow the complete scene in one unified view: wide establishing shot capturing the full space, key architectural features, lighting, atmosphere, and environmental details.\nNo people: no characters, silhouettes, human shadows. No text/labels/watermarks/location lettering.";
+    const tail = style.en || style.zh ? `\n\nReiterate: same art style as above (${style.en || style.zh}). No people, no text.` : "";
+    return `${styleLines.join("\\n")}\\n\\n${contract}\\n\\n---\\n\\n${description.trim()}${tail}`.trim();
+}
+
+export function lScenePolishPrompt(layout: "single" | "four_view", style?: string) {
+    if (layout === "single")
+        return `# 场景单图参考图生成器\n\n## 你的身份\n你是专业的影视美术设计师，负责将场景描述转换为AI绘图标准单图场景参考图提示词（非四宫格）。\n\n## 核心规则\n- 单张连续画面，必须包含场景全貌、主要建筑结构、地面材质、关键陈设、光线/时段与氛围。\n- 建筑风格、材质、植被必须符合场景所属时代和地域。\n- 禁止出现角色、人物剪影、文字标注、水印、四宫格或分格字样。\n- 只写场景可视信息，不写版式合同或负面清单。\n${style ? `- 画风风格：${style}` : ""}\n\n## 输出要求\n直接输出一段连贯的场景描述文字，不要标题或解释。`;
+    return `# 场景四视图参考图生成器\n\n## 你的身份\n你是专业的影视美术设计师，负责将场景描述转换为AI绘图标准四视图场景参考图提示词。\n\n## 核心规则\n- 四格中的建筑结构、地面材质、主要陈设、光线与时段必须完全统一，只有焦距与机位角度可变。\n- 建筑风格、材质、植被必须符合场景所属时代和地域。\n- 只写场景可视信息，不写版式合同或负面清单。\n${style ? `- 画风风格：${style}` : ""}\n\n## 四格固定顺序\n第1格：全景建立镜头，最宽视角展示完整空间边界。\n第2格：主体焦点区域，中景展示主要活动区域、地面与陈设。\n第3格：环境特征细节，展示最具辨识度的材质、纹理或标志性元素。\n第4格：角度变体，与第1格不同机位展示空间纵深。\n\n## 输出要求\n直接输出四格场景的完整视觉描述，包含场景基础设定和第1格至第4格内容；不要输出JSON、Markdown解释或图片布局合同。`;
+}
 export function assetPromptPolishInstruction(kind: AssetKind, layout: "single" | "four_view") {
     if (kind === "characters") return "只整理角色明确的外貌、体型、脸型、发型、服装、材质和可见标志，不写场景和剧情；所有视图必须保持同一角色、同一年龄、同一妆面、同一发型、同一服装版本。";
     if (kind === "scenes" && layout === "four_view") return "只整理同一场景的建筑结构、空间边界、地面材质、关键陈设、光线、时段、天气与四个差异化机位；四格结构和视觉条件必须一致，绝不出现人物。";

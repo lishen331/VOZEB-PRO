@@ -1,6 +1,6 @@
 import { getAuthSettings } from "@/lib/auth/store";
 import { dramaLabStyleContext } from "@/lib/drama-lab-style-prompt";
-import { assetPromptPolishInstruction, buildDramaLabAssetFinalPrompt } from "@/lib/drama-lab-asset-prompt-contract";
+import { assetPromptPolishInstruction, buildDramaLabAssetFinalPrompt, buildLSceneFinalPrompt, lScenePolishPrompt } from "@/lib/drama-lab-asset-prompt-contract";
 import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generation-contract";
 import type { DramaAssetProfile, DramaAssetStage, DramaProject } from "@/lib/drama-project-contract";
 import { resolveVisionModelCandidates, resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
@@ -72,7 +72,10 @@ export async function runDramaLabAssetAiAction(input: DramaLabAssetAiInput) {
                 const description = typeof parsed.visualDescription === "string" ? parsed.visualDescription.trim() : typeof parsed.polishedPrompt === "string" ? parsed.polishedPrompt.trim() : "";
                 if (!description) throw new DramaLabAssetAiError("文本模型没有返回有效的资产视觉描述");
                 const layout = input.kind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(input.kind, input.generationLayout || asset.generationLayout);
-                const finalPrompt = buildDramaLabAssetFinalPrompt({ style: input.project.style, aspectRatio: input.project.ratio }, { ...asset, generationLayout: layout }, input.kind, description);
+                const finalPrompt =
+                    input.kind === "scenes"
+                        ? buildLSceneFinalPrompt({ style: input.project.style, aspectRatio: input.project.ratio }, description, layout)
+                        : buildDramaLabAssetFinalPrompt({ style: input.project.style, aspectRatio: input.project.ratio }, { ...asset, generationLayout: layout }, input.kind, description);
                 return input.kind === "scenes" && layout === "single" ? { singleImagePrompt: finalPrompt, polishedPrompt: asset.polishedPrompt || "" } : { polishedPrompt: finalPrompt, singleImagePrompt: asset.singleImagePrompt || "" };
             }
             return normalizeActionResult(input.action, parsed, input.project);
@@ -97,8 +100,7 @@ function actionInstruction(action: DramaLabAssetAiAction, input?: Pick<DramaLabA
     if (action === "prompt" && input) {
         const asset = input.project[input.kind].find((item) => item.id === input.assetId);
         const layout = input.kind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(input.kind, input.generationLayout || asset?.generationLayout);
-        if (input.kind === "scenes")
-            return `你是一位专业的影视场景美术设计师。请将场景地点、时间/时段和场景描述整理为可直接用于 AI 图片生成的${layout === "single" ? "单图" : "四格场景参考图"}视觉描述。只描述空间、建筑结构、地面材质、关键陈设、光线、时段、天气和氛围；绝不出现人物、剪影、人影、文字或水印。只返回 visualDescription，不要复制版式、画风、JSON Schema、解释或 Markdown。`;
+        if (input.kind === "scenes") return lScenePolishPrompt(layout, input.project.style);
         return `你是 LocalMiniDrama 资产视觉描述整理器。${assetPromptPolishInstruction(input.kind, layout)} 服务端会另行注入不可编辑版式合同；你只返回 visualDescription，不要复制版式、画风、JSON Schema、解释或 Markdown。`;
     }
     if (action === "prompt") return "你是 LocalMiniDrama 资产视觉描述整理器。只返回 visualDescription。";
