@@ -12,6 +12,7 @@ import styleGroups from "@/lib/drama-lab-style-options.json";
 import { uploadImage } from "@/services/image-storage";
 import { createImageGenerationTask, waitForImageGenerationTask } from "@/services/api/image";
 import { useEffectiveConfig } from "@/stores/use-config-store";
+import { loadPublicSession, usePublicSessionStore } from "@/stores/use-public-session-store";
 import { buildResourceImageRequest, createGeneratedPrimaryImage, highlightResourceMentions, insertResourceMention, normalizeResourceGenerationReferences, setResourcePrimaryImage } from "./resource-image-generation";
 import type { ReferenceImage } from "@/types/image";
 import type { TextAreaRef } from "antd/es/input/TextArea";
@@ -177,6 +178,9 @@ async function readBatchImportFile(projectId: string, file: File) {
 export default function ProjectOutlinePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
     const params = use(paramsPromise);
     const projectId = encodeURIComponent(params.id);
+    useEffect(() => {
+        void loadPublicSession();
+    }, []);
     const router = useRouter();
     const [project, setProject] = useState<Project | null>(null);
     const projectRef = useRef<Project | null>(null);
@@ -186,6 +190,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const autoSaveTimerRef = useRef<number | undefined>(undefined);
     const imageConfig = useEffectiveConfig();
     const [resourceEditor, setResourceEditor] = useState<{ kind: "characters" | "scenes" | "props"; asset: Character | Scene | Prop }>();
+    const resourceEditorEnabled = usePublicSessionStore((state) => state.payload?.settings?.featureModules?.["drama-lab-resource-editor"] !== false);
     const [resourceBusy, setResourceBusy] = useState(false);
     const resourceFileInput = useRef<HTMLInputElement>(null);
     const resourcePrimaryFileInput = useRef<HTMLInputElement>(null);
@@ -812,7 +817,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                         .filter((asset) => !libraryKeyword.trim() || (asset.name || ("location" in asset ? asset.location : "")).includes(libraryKeyword.trim()))
                                         .map((asset) => (
                                             <div key={asset.id} className="group relative h-72 overflow-hidden rounded-lg border border-border" data-outline-resource-card={asset.id}>
-                                                <button type="button" className="flex h-full w-full flex-col text-left" onClick={() => setResourceEditor({ kind, asset: { ...asset } })}>
+                                                <button type="button" className="flex h-full w-full flex-col text-left" onClick={() => resourceEditorEnabled && setResourceEditor({ kind, asset: { ...asset } })}>
                                                     <div className="h-40 w-full shrink-0 bg-muted">
                                                         {assetImageUrl(asset) ? (
                                                             <div className="size-full" onClick={(event) => event.stopPropagation()} data-outline-resource-preview>
