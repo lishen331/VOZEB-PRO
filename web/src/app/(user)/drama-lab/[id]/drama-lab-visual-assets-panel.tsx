@@ -1074,7 +1074,22 @@ function AssetEditorModal({
                                     </>
                                 ) : null}
                             </div>
-
+                            <div className="flex flex-wrap gap-2" aria-label="道具参考图候选">
+                                {references.map((reference, index) => (
+                                    <button
+                                        key={reference.id}
+                                        type="button"
+                                        className={`group relative size-16 overflow-hidden rounded border ${reference.id === primary?.id ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+                                        onClick={() => onChange({ ...asset, primaryReferenceId: reference.id, referenceImageUrl: reference.url, imageUrl: reference.url } as VisualAsset)}
+                                        title={reference.id === primary?.id ? "当前主参考图" : "设为主参考图"}
+                                    >
+                                        <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 160)} alt={`道具参考图${index + 1}`} className="!size-full !object-cover" />
+                                    </button>
+                                ))}
+                                <button type="button" className="grid size-16 place-items-center rounded border border-dashed text-xs" onClick={onUpload}>
+                                    ＋ 添加
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <label className="grid gap-1.5 text-sm">
@@ -1440,5 +1455,3 @@ function characterIdentityAnchorsForDisplay(profile: DramaLabAssetProfile) {
         "hair_style（发型）": profile.hair_style || "unspecified",
     };
 }
-
-
