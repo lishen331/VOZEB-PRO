@@ -81,6 +81,3 @@ function failure(error: unknown, fallback: string) {
     const status = error && typeof error === "object" && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 500;
     return response(status, status === 500 ? fallback : error instanceof Error ? error.message : fallback);
 }
-
-
-
