@@ -62,7 +62,7 @@ describe("practice scripts collection routes", () => {
             schoolId: "school-a",
             mode: "short_story",
             carrierType: "tvc",
-            projectParameters: { targetDurationSeconds: 180, purpose: undefined, viewpoint: "first_person", companions: "solo" },
+            projectParameters: { targetDurationSeconds: 180, purpose: "place_seeding", viewpoint: "first_person", companions: "friends" },
         });
         expect((await GET(new Request("http://localhost/api/practice/scripts?page=2&pageSize=10&keyword=悬疑"))).status).toBe(200);
         expect(mocks.list).toHaveBeenCalledWith("user-a", { page: 2, pageSize: 10, keyword: "悬疑", status: undefined });

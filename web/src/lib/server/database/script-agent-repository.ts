@@ -317,6 +317,16 @@ export class ScriptAgentRepository {
         return result.rows;
     }
 
+    async getOrCreatePrimaryChatSession(scope: PracticeTenantScope, input: { id: string; projectId: string; title: string }) {
+        const existing = await this.db.query("SELECT * FROM practice_script_chat_sessions WHERE school_id = $1 AND owner_user_id = $2 AND project_id = $3 AND deleted_at IS NULL ORDER BY updated_at DESC, created_at DESC, id DESC LIMIT 1", [
+            scope.schoolId,
+            scope.ownerUserId,
+            input.projectId,
+        ]);
+        if (existing.rows[0]) return existing.rows[0];
+        return this.createChatSession(scope, input);
+    }
+
     async saveChatMessage(scope: PracticeTenantScope, input: { id: string; sessionId: string; projectId: string; role: "user" | "assistant"; agentKey?: ScriptAgentKey; publicContent: string; sourceRunId?: string }) {
         const result = await this.db.query(
             `INSERT INTO practice_script_chat_messages (id, session_id, project_id, role, agent_key, public_content, source_run_id)

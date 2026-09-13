@@ -12,17 +12,7 @@ import type { ScriptCarrier } from "@/lib/server/script-agent-domain";
 
 type TreeItem = { id: string; key: string; type: string; label: string; status: string; version: number };
 type ChatMessage = { id: string; role: "user" | "assistant"; agent?: string; content: string; status?: string };
-const AGENT_LABELS: Record<string, string> = {
-    novel_planner: "小说策划",
-    novel_writer: "小说作者",
-    adaptation_planner: "改编策划",
-    script_writer: "编剧",
-    script_supervisor: "编辑",
-    director_planner: "导演",
-    storyboard_writer: "分镜师",
-    asset_prompt_writer: "设定师",
-    orchestrator: "统筹",
-};
+const AGENT_LABEL = "剧本 Agent";
 const STATUS: Record<string, { text: string; color: string }> = {
     not_started: { text: "未开始", color: "default" },
     awaiting_review: { text: "待确认", color: "gold" },
@@ -46,15 +36,17 @@ export default function ScriptPracticeWorkspace() {
     const [runError, setRunError] = useState("");
     const [busy, setBusy] = useState(false);
     const [streamStatus, setStreamStatus] = useState<"idle" | "connecting" | "waiting_first_token" | "streaming">("idle");
+    const [publicProgress, setPublicProgress] = useState("");
     const [starting, setStarting] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [newOpen, setNewOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [newTitle, setNewTitle] = useState("");
     const [idea, setIdea] = useState("");
     const [mode, setMode] = useState<"short_story" | "long_novel">("short_story");
     const [carrierType, setCarrierType] = useState<ScriptCarrier>("vlog");
     const [targetDurationSeconds, setTargetDurationSeconds] = useState("180");
-    const [eventSource] = useState<{ close: () => void } | null>(null);
     const abortRef = useRef<AbortController | undefined>(undefined);
     const seenEventKeys = useRef(new Set<string>());
     const previewRawRef = useRef("");
@@ -68,6 +60,7 @@ export default function ScriptPracticeWorkspace() {
         setTree([]);
         setRunId("");
         setRunError("");
+        setPublicProgress("");
         setChatSessionId("");
         selectedIdRef.current = id;
         setSelectedId(id);
@@ -112,7 +105,7 @@ export default function ScriptPracticeWorkspace() {
                 return;
             }
             const history = await practiceScriptsApi.chatMessages(selectedId, session.id);
-            if (active) setMessages(history.map((item) => ({ id: item.id, role: item.role === "user" ? "user" : "assistant", agent: item.agent_key, content: item.public_content })));
+            if (active) setMessages(history.map((item) => ({ id: item.id, role: item.role === "user" ? "user" : "assistant", agent: AGENT_LABEL, content: item.public_content })));
         })().catch((error) => {
             if (active) message.error(error instanceof Error ? error.message : "对话历史加载失败");
         });
@@ -176,9 +169,9 @@ export default function ScriptPracticeWorkspace() {
                         if (event.type === "assistant_delta") {
                             const delta = String(event.data.delta || "");
                             if (!delta) continue;
-                            const agent = String(event.data.agentKey || "orchestrator");
+                            const agent = AGENT_LABEL;
                             setMessages((current) => {
-                                const index = current.findLastIndex((item) => item.role === "assistant" && item.agent === agent && (item.status === "working" || item.status === "streaming"));
+                                const index = current.findLastIndex((item) => item.role === "assistant" && (item.status === "working" || item.status === "streaming"));
                                 if (index < 0) return [...current, { id: crypto.randomUUID(), role: "assistant", agent, content: delta, status: "streaming" }];
                                 const item = current[index];
                                 return [...current.slice(0, index), { ...item, content: item.content + delta, status: "streaming" }, ...current.slice(index + 1)];
@@ -188,12 +181,13 @@ export default function ScriptPracticeWorkspace() {
                             previewRawRef.current += String(event.data.delta || "");
                             setPreview(publicPreviewText(previewRawRef.current));
                         }
+                        if (event.type === "progress") {
+                            setPublicProgress(String(event.data.label || "正在处理当前剧本"));
+                        }
                         if (event.type === "agent_started") {
-                            const agent = String(event.data.agentKey || "orchestrator");
+                            const agent = AGENT_LABEL;
                             setMessages((current) =>
-                                current.some((item) => item.role === "assistant" && item.agent === agent && item.status === "working")
-                                    ? current
-                                    : [...current, { id: crypto.randomUUID(), role: "assistant", agent, content: "正在处理当前任务……", status: "working" }],
+                                current.some((item) => item.role === "assistant" && item.status === "working") ? current : [...current, { id: crypto.randomUUID(), role: "assistant", agent, content: "正在处理当前任务……", status: "working" }],
                             );
                         }
                         if (event.type === "artifact_saved") {
@@ -263,6 +257,28 @@ export default function ScriptPracticeWorkspace() {
             setConfirming(false);
         }
     };
+    const removeCurrentScript = async () => {
+        if (!selectedId || deleting) return;
+        setDeleting(true);
+        try {
+            const removedId = selectedId;
+            await practiceScriptsApi.remove(removedId);
+            const remaining = projects.filter((project) => project.id !== removedId);
+            setDeleteOpen(false);
+            setProjects(remaining);
+            if (remaining[0]) selectProject(remaining[0].id);
+            else {
+                selectedIdRef.current = "";
+                setSelectedId("");
+                setTree([]);
+                setMessages([]);
+                setChatSessionId("");
+            }
+            message.success("剧本已删除");
+        } finally {
+            setDeleting(false);
+        }
+    };
     const create = async () => {
         if (!newTitle.trim()) return;
         const duration = Number(targetDurationSeconds);
@@ -314,8 +330,13 @@ export default function ScriptPracticeWorkspace() {
                         </Button>
                     ) : null}
                     <Button type="primary" icon={<FilePlus2 className="size-4" />} onClick={() => setNewOpen(true)}>
-                        新建项目
+                        新建剧本
                     </Button>
+                    {selectedId ? (
+                        <Button danger aria-label="删除当前剧本" onClick={() => setDeleteOpen(true)}>
+                            删除剧本
+                        </Button>
+                    ) : null}
                 </div>
             </header>
             <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)_340px]">
@@ -384,7 +405,7 @@ export default function ScriptPracticeWorkspace() {
                         {messages.map((item) => (
                             <div key={item.id} className={`flex ${item.role === "user" ? "justify-end" : "justify-start"}`}>
                                 <div className={`max-w-[88%] rounded-xl px-3 py-2 text-sm ${item.role === "user" ? "bg-primary text-primary-foreground" : "border border-border bg-muted/60"}`}>
-                                    {item.agent ? <div className="mb-1 text-[11px] font-medium text-primary">{AGENT_LABELS[item.agent] || item.agent}</div> : null}
+                                    {item.agent ? <div className="mb-1 text-[11px] font-medium text-primary">{item.agent || AGENT_LABEL}</div> : null}
                                     <div className="whitespace-pre-wrap">{item.content}</div>
                                 </div>
                             </div>
@@ -395,6 +416,7 @@ export default function ScriptPracticeWorkspace() {
                         {busy && streamStatus !== "idle" ? (
                             <div className="mb-2 text-xs text-muted-foreground">{streamStatus === "connecting" ? "正在连接 Agent…" : streamStatus === "waiting_first_token" ? "Agent 正在组织内容…" : "正在流式写作…"}</div>
                         ) : null}
+                        {publicProgress ? <div className="mb-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">{publicProgress}</div> : null}
                         {runError ? <div className="mb-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">上次执行失败：{runError}</div> : null}
                         <div className="mb-2 flex flex-wrap gap-1">
                             {workflowActions.map((action) => (
@@ -419,7 +441,7 @@ export default function ScriptPracticeWorkspace() {
                                         void runAction(async () => {
                                             if (selectedId && runId) await practiceScriptsApi.stopRun(selectedId, runId);
                                             abortRef.current?.abort();
-                                            eventSource?.close();
+
                                             if (selectedId) await loadTree(selectedId);
                                         }, "停止剧本任务失败")
                                     }
@@ -450,7 +472,7 @@ export default function ScriptPracticeWorkspace() {
                     </div>
                 </aside>
             </div>
-            <Modal title="新建剧本项目" open={newOpen} onCancel={() => setNewOpen(false)} onOk={() => void runAction(create, "创建剧本项目失败")} okText="创建并开始策划">
+            <Modal title="新建剧本" open={newOpen} onCancel={() => setNewOpen(false)} onOk={() => void runAction(create, "创建剧本项目失败")} okText="创建并开始策划">
                 <div className="grid gap-3">
                     <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="项目标题" />
                     <Select
@@ -472,6 +494,9 @@ export default function ScriptPracticeWorkspace() {
                     <Input value={targetDurationSeconds} onChange={(e) => setTargetDurationSeconds(e.target.value)} addonAfter="秒" placeholder="1–180" />
                     <Input.TextArea value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="输入一句话创意；短故事会先生成完整小说体正文" autoSize={{ minRows: 5, maxRows: 10 }} />
                 </div>
+            </Modal>
+            <Modal title="删除剧本" open={deleteOpen} onCancel={() => setDeleteOpen(false)} onOk={() => void runAction(removeCurrentScript, "删除剧本失败")} okText="确认删除" okButtonProps={{ danger: true, loading: deleting }}>
+                <p>确定删除“{selectedProject?.title || "当前剧本"}”吗？剧本内容、对话记录和生成成果都会被删除，且无法恢复。</p>
             </Modal>
         </main>
     );

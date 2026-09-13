@@ -157,4 +157,18 @@ describe("ScriptAgentRepository", () => {
         expect(query).toHaveBeenCalledTimes(2);
         expect(query.mock.calls[0]?.[0]).not.toContain("enabled = true");
     });
+    it("reuses the newest active project chat session instead of creating another one", async () => {
+        const { query, repository: repo } = repository([{ id: "session-existing", project_id: "project-a" }]);
+        const result = await repo.getOrCreatePrimaryChatSession(scope, { id: "session-new", projectId: "project-a", title: "剧本创作" });
+        expect(result).toMatchObject({ id: "session-existing" });
+        expect(query).toHaveBeenCalledTimes(1);
+        expect(query.mock.calls[0]?.[0]).toContain("ORDER BY updated_at DESC");
+    });
+
+    it("creates the primary project chat session when none exists", async () => {
+        const { query, repository: repo } = repository([]);
+        await repo.getOrCreatePrimaryChatSession(scope, { id: "session-new", projectId: "project-a", title: "剧本创作" });
+        expect(query).toHaveBeenCalledTimes(2);
+        expect(query.mock.calls[1]?.[0]).toContain("INSERT INTO practice_script_chat_sessions");
+    });
 });

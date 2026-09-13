@@ -50,6 +50,14 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain("if (active) setArtifact");
         expect(source).toContain("resolveScriptWorkflowActions");
         expect(source).toContain('tree.filter((item) => item.status !== "not_started")');
+        expect(source).toContain("删除剧本");
+        expect(source).toContain("deleteOpen");
+        expect(source).toContain("practiceScriptsApi.remove");
+        expect(source).toContain("确认删除");
+        expect(source).toContain("新建剧本");
+        expect(source).toContain('aria-label="删除当前剧本"');
+        expect(source).toContain("setDeleteOpen(false)");
+        expect(source).toContain("abortRef.current?.abort()");
     });
 
     it("uses stable Run SSE, stop, and failed-only retry", async () => {
@@ -71,8 +79,7 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain('not_started: { text: "未开始"');
         expect(source).toContain("sequence");
         expect(source).toContain("previewRawRef");
-        expect(source).toContain("AGENT_LABELS");
-        expect(source).toContain('event.data.agentKey || "orchestrator"');
+        expect(source).toContain("AGENT_LABEL");
         const treeSource = await readFile(resolve(process.cwd(), "src/app/api/practice/scripts/[id]/tree/route.ts"), "utf8");
         expect(treeSource).toContain("compareScriptArtifactTypes");
         expect(treeSource).toContain("WORKFLOW_ORDER");

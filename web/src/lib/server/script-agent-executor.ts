@@ -105,6 +105,7 @@ export class ScriptAgentExecutor {
         });
         const profile = await this.deps.resolveProfile(execution.agent, [...new Set([...selectedSkills, ...automaticSkills])]);
         await this.deps.appendEvent(scope, task.projectId, task.runId, "agent_started", { agentKey: execution.agent, name: profile.profile.name }, this.id());
+        await this.deps.appendEvent(scope, task.projectId, task.runId, "progress", { phase: publicPhase(task.runType), label: publicPhaseLabel(task.runType) }, this.id());
         await this.deps.appendEvent(scope, task.projectId, task.runId, "assistant_delta", { agentKey: execution.agent, delta: `${profile.profile.name}已开始处理当前任务。` }, this.id());
         const projectContext = project ? { carrierType: normalizeScriptCarrier(project.carrier_type), projectParameters: project.project_parameters && typeof project.project_parameters === "object" ? project.project_parameters : {} } : undefined;
         const carrierInstructions =
@@ -383,6 +384,31 @@ function assertStoryboardDuration(value: Record<string, unknown>, parameters: un
         return sum + (Array.isArray(shots) ? shots.reduce((shotSum, shot) => shotSum + Math.max(0, Number(record(shot).durationSeconds) || 0), 0) : 0);
     }, 0);
     if (total > target) throw new Error(`文字分镜总时长 ${total} 秒超过项目目标时长 ${target} 秒`);
+}
+
+function publicPhase(runType: ScriptRunType) {
+    if (runType === "conversation") return "understanding";
+    if (["project_planning", "novel_outlines", "adaptation_bundle", "director_plan"].includes(runType)) return "planning";
+    if (["short_story", "novel_chapters", "episode_scripts"].includes(runType)) return "writing";
+    if (runType === "script_review") return "reviewing";
+    if (["text_storyboard", "asset_prompts"].includes(runType)) return "storyboarding";
+    return "saving";
+}
+function publicPhaseLabel(runType: ScriptRunType) {
+    const labels: Partial<Record<ScriptRunType, string>> = {
+        conversation: "正在理解你的创作意图",
+        project_planning: "正在整理创作定位与故事结构",
+        short_story: "正在写完整小说体故事",
+        novel_outlines: "正在整理总纲、卷纲与章纲",
+        novel_chapters: "正在生成选定章节正文",
+        adaptation_bundle: "正在制定改编策略与分集大纲",
+        episode_scripts: "正在批量编写分集剧本",
+        script_review: "监督 Agent 正在审核并修正剧本",
+        director_plan: "正在制定导演视听规划",
+        text_storyboard: "正在拆分镜头级文字分镜",
+        asset_prompts: "正在整理人物、场景与道具提示词",
+    };
+    return labels[runType] || "正在处理当前剧本";
 }
 
 function publicChatMessage(row: Record<string, unknown>) {

@@ -72,6 +72,7 @@ export type ScriptRunItemStatus = (typeof SCRIPT_RUN_ITEM_STATUSES)[number];
 export const SCRIPT_RUN_EVENT_TYPES = [
     "run_started",
     "agent_started",
+    "progress",
     "assistant_delta",
     "tool_started",
     "tool_progress",
