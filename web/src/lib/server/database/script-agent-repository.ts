@@ -50,6 +50,7 @@ export class ScriptAgentRepository {
              SELECT $1, $2, $3, project.id, $5, $6, $7, 'planning', $8, $9::jsonb
              FROM practice_script_projects project WHERE project.id = $4 AND project.school_id = $2 AND project.owner_user_id = $3
              ON CONFLICT (school_id, owner_user_id, client_request_id) DO UPDATE SET client_request_id = EXCLUDED.client_request_id
+             WHERE practice_script_runs.project_id = EXCLUDED.project_id AND practice_script_runs.run_type = EXCLUDED.run_type
              RETURNING *`,
             [input.id, scope.schoolId, scope.ownerUserId, input.projectId, input.chatSessionId || null, input.runType, input.stageKey || null, input.clientRequestId, JSON.stringify(input.configSnapshot)],
         );
@@ -189,7 +190,8 @@ export class ScriptAgentRepository {
         for (const shot of shots)
             await this.db.query(
                 `INSERT INTO practice_script_shots (id,school_id,owner_user_id,project_id,episode_id,scene_id,shot_number,visual_description,shot_size,camera_angle,composition,camera_movement,character_ids,action_text,emotion_text,dialogue_text,narration_text,sound_note,duration_seconds,continuity_note,character_asset_ids,location_asset_id,prop_asset_ids,status,source_run_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19::numeric,$20,$21::jsonb,$22,$23::jsonb,'draft',$24)`,
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19::numeric,$20,$21::jsonb,$22,$23::jsonb,'draft',$24)
+             ON CONFLICT (episode_id, scene_id, shot_number, version) DO UPDATE SET visual_description=EXCLUDED.visual_description, shot_size=EXCLUDED.shot_size, camera_angle=EXCLUDED.camera_angle, composition=EXCLUDED.composition, camera_movement=EXCLUDED.camera_movement, character_ids=EXCLUDED.character_ids, action_text=EXCLUDED.action_text, emotion_text=EXCLUDED.emotion_text, dialogue_text=EXCLUDED.dialogue_text, narration_text=EXCLUDED.narration_text, sound_note=EXCLUDED.sound_note, duration_seconds=EXCLUDED.duration_seconds, continuity_note=EXCLUDED.continuity_note, character_asset_ids=EXCLUDED.character_asset_ids, location_asset_id=EXCLUDED.location_asset_id, prop_asset_ids=EXCLUDED.prop_asset_ids, status='draft', source_run_id=EXCLUDED.source_run_id, error_code=NULL, error_message=NULL`,
                 [
                     String(shot.id || crypto.randomUUID()),
                     scope.schoolId,
@@ -223,7 +225,8 @@ export class ScriptAgentRepository {
         for (const asset of assets)
             await this.db.query(
                 `INSERT INTO practice_script_prompt_assets (id,school_id,owner_user_id,project_id,asset_type,canonical_name,aliases,base_prompt,variants,status,source_run_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,'draft',$10)`,
+             VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,'draft',$10)
+             ON CONFLICT (project_id, asset_type, canonical_name, version) DO UPDATE SET aliases=EXCLUDED.aliases, base_prompt=EXCLUDED.base_prompt, variants=EXCLUDED.variants, status='draft', source_run_id=EXCLUDED.source_run_id, updated_at=now()`,
                 [crypto.randomUUID(), scope.schoolId, scope.ownerUserId, projectId, asset.assetType, asset.canonicalName, JSON.stringify(asset.aliases), asset.basePrompt, JSON.stringify(asset.variants), runId],
             );
     }

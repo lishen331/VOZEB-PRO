@@ -1,6 +1,6 @@
 import type { ScriptDocument, ScriptPracticeProject, ScriptStage, ScriptVersion } from "@/lib/script-practice-types";
 
-type ApiEnvelope<T> = { code: number; data?: T; msg?: string };
+type ApiEnvelope<T> = { code: number; data?: T; msg?: string; error?: string | { message?: string } };
 export type ScriptProjectDetail = { project: ScriptPracticeProject; document: ScriptDocument | null; versions: ScriptVersion[]; entities: Array<{ id: string; type: string; name: string; description?: string }>; stages: ScriptStage[] };
 
 export const practiceScriptsApi = {
@@ -54,7 +54,7 @@ export const practiceScriptsApi = {
         return request<{ id: string; status: string; runType: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/runs`, json("POST", input));
     },
     run(id: string, runId: string) {
-        return request<{ id: string; status: string; runType: string; progress: Record<string, unknown>; errorMessage?: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}`);
+        return request<{ id: string; status: string; runType: string; progress: Record<string, unknown>; lastEventSequence: number; errorMessage?: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}`);
     },
     runEventsUrl(id: string, runId: string, afterSequence = 0) {
         return `/api/practice/scripts/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}/events?afterSequence=${afterSequence}`;
@@ -85,7 +85,10 @@ export const practiceScriptsApi = {
 async function request<T>(url: string, init?: RequestInit) {
     const response = await fetch(url, { cache: "no-store", ...init });
     const payload = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
-    if (!response.ok || !payload || payload.code !== 0 || payload.data === undefined) throw new Error(payload?.msg || "剧本请求失败");
+    if (!response.ok || !payload || payload.code !== 0 || payload.data === undefined) {
+        const error = payload?.error;
+        throw new Error(payload?.msg || (typeof error === "string" ? error : error?.message) || "剧本请求失败");
+    }
     return payload.data;
 }
 function json(method: "POST" | "PATCH", body: unknown): RequestInit {

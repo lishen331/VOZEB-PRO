@@ -28,7 +28,9 @@ export async function GET(request: Request, context: Context) {
     const scope = await requirePracticeTenant(user, "script");
     const id = (await context.params).id;
     const repository = new ScriptAgentRepository({ query: postgresQuery });
-    const [artifacts, runs] = await Promise.all([repository.listLatestArtifacts(scope, id), repository.listRuns(scope, id, ["planning", "running", "waiting_confirmation", "partial_failed"])]);
+    const [artifacts, runs] = await Promise.all([repository.listLatestArtifacts(scope, id), repository.listRuns(scope, id)]);
+    const latestRun = runs[0];
+    const activeRuns = latestRun && ["planning", "running", "waiting_confirmation", "partial_failed", "failed"].includes(latestRun.status) ? [latestRun] : [];
     const items = artifacts
         .filter((row: Record<string, unknown>) => row.artifact_type !== "conversation")
         .map((row: Record<string, unknown>) => ({
@@ -39,5 +41,5 @@ export async function GET(request: Request, context: Context) {
             status: String(row.status),
             version: Number(row.version || 1),
         }));
-    return NextResponse.json({ code: 0, data: { items, activeRuns: runs }, msg: "ok" });
+    return NextResponse.json({ code: 0, data: { items, activeRuns }, msg: "ok" });
 }

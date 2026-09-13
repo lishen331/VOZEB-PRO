@@ -9,6 +9,26 @@ const settings = {
 };
 
 describe("ScriptAgentProfileService", () => {
+    it("falls back to the configured script default when a stored Agent has no model", async () => {
+        const configured = { ...settings, practiceDefaultModels: { ...settings.practiceDefaultModels, textModel: "" } };
+        const getProfile = vi.fn().mockResolvedValue({
+            agentKey: "novel_writer",
+            name: "小说作者",
+            enabled: true,
+            primaryLogicalModelId: "",
+            fallbackLogicalModelId: "",
+            reasoningMode: "medium",
+            outputPolicy: {},
+            timeoutConfig: {},
+            batchConfig: {},
+            toolAllowlist: ["save_chapter"],
+            skillBindings: ["core-novel-writer"],
+            version: 2,
+        });
+        const resolved = await new ScriptAgentProfileService({ getSettings: vi.fn().mockResolvedValue(configured) as never, getProfile }).resolve("novel_writer");
+        expect(resolved.candidate.upstreamModel).toBe("deepseek-chat");
+    });
+
     it("resolves a fresh open-source-practice text model", async () => {
         const getSettings = vi.fn().mockResolvedValue(settings);
         const getProfile = vi.fn().mockResolvedValue({

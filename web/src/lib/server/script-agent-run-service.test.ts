@@ -57,6 +57,14 @@ describe("ScriptAgentRunService", () => {
         }
     });
 
+    it("requires the confirmed adaptation bundle before generating episode scripts", async () => {
+        const repository = { listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: "adaptation_strategy", status: "draft" }]), createRun: vi.fn(), appendRunEvent: vi.fn() };
+        await expect(new ScriptAgentRunService(repository as never).create(scope, { projectId: "project-a", runType: "episode_scripts", clientRequestId: "episodes-draft" })).rejects.toMatchObject({ status: 409 });
+        repository.listLatestArtifacts.mockResolvedValue([{ artifact_type: "adaptation_strategy", status: "confirmed" }]);
+        repository.createRun.mockResolvedValue({ ...baseRun, runType: "episode_scripts", lastEventSequence: 0 });
+        await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "episode_scripts", clientRequestId: "episodes-confirmed" })).resolves.toMatchObject({ runType: "episode_scripts" });
+    });
+
     it("requires a saved episode script before automatic review", async () => {
         const repository = { listLatestArtifacts: vi.fn().mockResolvedValue([]), createRun: vi.fn(), appendRunEvent: vi.fn() };
         await expect(new ScriptAgentRunService(repository as never).create(scope, { projectId: "project-a", runType: "script_review", clientRequestId: "review-empty" })).rejects.toMatchObject({ status: 409 });

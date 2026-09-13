@@ -48,9 +48,11 @@ export default function ScriptPracticeWorkspace() {
     }, []);
     const loadTree = useCallback(async (id: string) => {
         const result = await practiceScriptsApi.tree(id);
+        const activeRun = result.activeRuns[0];
         setTree(result.items);
-        setRunId(result.activeRuns[0]?.id || "");
-        setSelectedKey((current) => current || result.items[0]?.key || "");
+        setRunId(activeRun?.id || "");
+        setSelectedKey((current) => (result.items.some((item) => item.key === current) ? current : result.items[0]?.key || ""));
+        return activeRun;
     }, []);
     useEffect(() => {
         void loadProjects().catch((e) => message.error(e.message));
@@ -85,13 +87,13 @@ export default function ScriptPracticeWorkspace() {
             .catch(() => setArtifact(null));
     }, [selectedId, selectedKey]);
     const consumeEvents = useCallback(
-        async (projectId: string, currentRunId: string) => {
+        async (projectId: string, currentRunId: string, afterSequence = 0) => {
             abortRef.current?.abort();
             const controller = new AbortController();
             abortRef.current = controller;
             setBusy(true);
             try {
-                const response = await fetch(practiceScriptsApi.runEventsUrl(projectId, currentRunId), { signal: controller.signal, cache: "no-store" });
+                const response = await fetch(practiceScriptsApi.runEventsUrl(projectId, currentRunId, afterSequence), { signal: controller.signal, cache: "no-store" });
                 if (!response.ok || !response.body) throw new Error("Agent 流连接失败");
                 const reader = response.body.getReader(),
                     decoder = new TextDecoder();
@@ -137,8 +139,11 @@ export default function ScriptPracticeWorkspace() {
     );
     useEffect(() => {
         if (!selectedId || !runId) return;
-        void consumeEvents(selectedId, runId).catch((error) => message.error(error instanceof Error ? error.message : "恢复剧本任务失败"));
-    }, [selectedId, runId, consumeEvents, message]);
+        void (async () => {
+            const activeRun = await loadTree(selectedId);
+            if (activeRun?.id === runId) await consumeEvents(selectedId, runId, activeRun.lastEventSequence);
+        })().catch((error) => message.error(error instanceof Error ? error.message : "恢复剧本任务失败"));
+    }, [selectedId, runId, consumeEvents, loadTree, message]);
     useEffect(() => () => abortRef.current?.abort(), []);
     const runAction = async (action: () => Promise<void>, fallback: string) => {
         try {
@@ -161,11 +166,10 @@ export default function ScriptPracticeWorkspace() {
         const session = sessions[0] || (await practiceScriptsApi.createChatSession(selectedId));
         const run = await practiceScriptsApi.sendChat(selectedId, session.id, text, crypto.randomUUID());
         setRunId(run.id);
-        await consumeEvents(selectedId, run.id);
     };
     const create = async () => {
         if (!newTitle.trim()) return;
-        const result = await practiceScriptsApi.create({ title: newTitle.trim(), sourceType: "idea", idea: idea.trim() || undefined });
+        const result = await practiceScriptsApi.create({ title: newTitle.trim(), sourceType: "idea", idea: idea.trim() || undefined, mode });
         const project = "project" in result ? result.project : result;
         setNewOpen(false);
         await loadProjects();
@@ -304,8 +308,9 @@ export default function ScriptPracticeWorkspace() {
                                         selectedId &&
                                         runId &&
                                         void runAction(async () => {
+                                            const failedRun = await practiceScriptsApi.run(selectedId, runId);
                                             await practiceScriptsApi.retryFailed(selectedId, runId);
-                                            await consumeEvents(selectedId, runId);
+                                            await consumeEvents(selectedId, runId, failedRun.lastEventSequence);
                                         }, "重试失败项失败")
                                     }
                                 >

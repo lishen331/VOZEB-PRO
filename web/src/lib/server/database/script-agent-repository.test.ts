@@ -29,6 +29,12 @@ describe("ScriptAgentRepository", () => {
         expect(query).toHaveBeenCalledWith(expect.stringContaining("ON CONFLICT (school_id, owner_user_id, client_request_id)"), expect.arrayContaining(["run-a", "school-a", "user-a", "project-a", "request-a"]));
     });
 
+    it("scopes an idempotent request conflict to the same project and run type", async () => {
+        const { query, repository: repo } = repository([]);
+        await repo.createRun(scope, { id: "run-new", projectId: "project-b", runType: "text_storyboard", clientRequestId: "request-a", configSnapshot: {} });
+        expect(query).toHaveBeenCalledWith(expect.stringContaining("WHERE practice_script_runs.project_id = EXCLUDED.project_id AND practice_script_runs.run_type = EXCLUDED.run_type"), expect.any(Array));
+    });
+
     it("returns null instead of throwing when a legacy or foreign project cannot create a scoped run", async () => {
         const { repository: repo } = repository([]);
         await expect(repo.createRun(scope, { id: "run-a", projectId: "legacy-project", runType: "short_story", clientRequestId: "request-a", configSnapshot: {} })).resolves.toBeNull();
@@ -52,6 +58,29 @@ describe("ScriptAgentRepository", () => {
         const { query, repository: repo } = repository([]);
         await repo.replaceEpisodes(scope, "project-a", "run-script", [{ episodeNumber: 1, title: "第一集", script: { blocks: [] } }]);
         expect(query).toHaveBeenCalledWith(expect.stringContaining("ON CONFLICT (project_id, episode_number, version) DO UPDATE"), expect.any(Array));
+    });
+
+    it("upserts storyboard shots and prompt assets when retrying a partially saved stage", async () => {
+        const { query, repository: repo } = repository([]);
+        await repo.replaceShots(scope, "project-a", "run-retry", [
+            {
+                id: "shot-a",
+                episodeId: "episode-a",
+                sceneId: "scene-a",
+                shotNumber: 1,
+                visualDescription: "推门",
+                shotSize: "中景",
+                cameraAngle: "平视",
+                composition: "居中",
+                cameraMovement: "推进",
+                action: "推门",
+                emotion: "坚定",
+                durationSeconds: 3,
+            },
+        ]);
+        await repo.upsertPromptAssets(scope, "project-a", "run-retry", [{ assetType: "character", canonicalName: "女主", basePrompt: "都市女性", aliases: [], variants: [] }]);
+        expect(query.mock.calls.at(-2)?.[0]).toContain("ON CONFLICT (episode_id, scene_id, shot_number, version) DO UPDATE");
+        expect(query.mock.calls.at(-1)?.[0]).toContain("ON CONFLICT (project_id, asset_type, canonical_name, version) DO UPDATE");
     });
 
     it("resolves storyboard episode numbers to persisted episode ids", async () => {

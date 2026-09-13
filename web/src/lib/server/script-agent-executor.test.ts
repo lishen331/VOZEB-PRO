@@ -1,13 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import { ScriptAgentExecutor } from "./script-agent-executor";
+import { fetchInternalApi } from "@/lib/server/internal-origin";
+import { ScriptAgentExecutor, createDefaultScriptAgentExecutor, validateScriptAgentArguments } from "./script-agent-executor";
+
+vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: vi.fn(), resolveInternalOrigin: vi.fn((value: string) => value) }));
 
 const scope = { schoolId: "school-a", ownerUserId: "user-a" };
 function validOutput(runType: string): Record<string, unknown> {
     if (runType === "short_story") return { title: "故事", content: "完整正文" };
-    if (runType === "adaptation_bundle") return { content: "改编", episodes: [{ episodeNumber: 1, title: "第一集", outline: {} }] };
+    if (runType === "adaptation_bundle") return { content: "改编", episodes: [{ episodeNumber: 1, title: "第一集", outline: { core: "冲突" } }] };
     if (runType === "episode_scripts" || runType === "script_review") return { content: "剧本", report: "审核", episodes: [{ episodeNumber: 1, title: "第一集", script: { blocks: [{ type: "action", text: "正文" }] } }] };
-    if (runType === "text_storyboard") return { content: "分镜", episodes: [{ episodeNumber: 1, shots: [{}] }] };
-    if (runType === "asset_prompts") return { content: "资产", assets: [{}] };
+    if (runType === "text_storyboard") return { content: "分镜", episodes: [{ episodeNumber: 1, shots: [{ sceneId: "scene-1", shotNumber: 1, visualDescription: "推门", shotSize: "中景", cameraAngle: "平视", composition: "居中", cameraMovement: "推进", action: "推门", emotion: "坚定", durationSeconds: 3 }] }] };
+    if (runType === "asset_prompts") return { content: "资产", assets: [{ type: "character", name: "女主", prompt: "都市女性" }] };
     return { content: "ok" };
 }
 async function runForVisibleText(runType: "episode_scripts" | "text_storyboard" | "asset_prompts", output: Record<string, unknown>) {
@@ -28,6 +31,40 @@ async function runForVisibleText(runType: "episode_scripts" | "text_storyboard" 
     return visible;
 }
 describe("ScriptAgentExecutor", () => {
+    it("uses the real streaming protocol adapter against an upstream short-story fixture", async () => {
+        const upstreamEvents = [
+            { choices: [{ delta: { content: '{"title":"雨夜",' } }] },
+            { choices: [{ delta: { content: '"content":"完整小说正文"}' } }] },
+        ];
+        const fixture = new Response(upstreamEvents.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("") + "data: [DONE]\n\n", { headers: { "content-type": "text/event-stream" } });
+        vi.mocked(fetchInternalApi).mockImplementation(async () => fixture.clone());
+        let saved: Record<string, unknown> | undefined;
+        const repository = {
+            listLatestArtifacts: vi.fn().mockResolvedValue([]),
+            saveArtifact: vi.fn(async (_scope, input) => {
+                saved = input.content;
+                return { id: input.id };
+            }),
+            replaceEpisodes: vi.fn(),
+            replaceStoryboardEpisodes: vi.fn(),
+            upsertPromptAssets: vi.fn(),
+            appendRunEvent: vi.fn(),
+            saveChatMessage: vi.fn(),
+        };
+        const executor = createDefaultScriptAgentExecutor(repository as never);
+        const profiles = await import("./script-agent-profiles");
+        vi.spyOn(profiles.ScriptAgentProfileService.prototype, "resolve").mockResolvedValueOnce({
+            profile: { agentKey: "novel_writer", name: "小说作者", enabled: true, primaryLogicalModelId: "writer", fallbackLogicalModelId: "", reasoningMode: "medium", outputPolicy: {}, timeoutConfig: {}, batchConfig: {}, toolAllowlist: [], skillBindings: [], version: 1 },
+            candidate: { logicalModelId: "writer", upstreamModel: "deepseek-chat", channelId: "practice-channel", channel: { id: "practice-channel", enabled: true, purpose: "open-source-practice", baseUrl: "https://fixture.invalid/v1", apiKey: "hidden", apiFormat: "newapi", models: ["deepseek-chat"], advancedConfig: {} } as never },
+            instructions: "输出完整小说体短故事",
+        });
+        await executor.execute(scope, { projectId: "project-a", runId: "run-fixture", runType: "short_story", input: { idea: "雨夜重生" }, origin: "https://local", cookie: "session" });
+        expect(saved).toEqual({ title: "雨夜", content: "完整小说正文" });
+        expect(vi.mocked(fetchInternalApi)).toHaveBeenCalledTimes(1);
+        expect(JSON.parse(String(vi.mocked(fetchInternalApi).mock.calls[0]?.[1]?.body))).toMatchObject({ stream: true, model: "deepseek-chat" });
+        vi.mocked(fetchInternalApi).mockReset();
+    });
+
     it("streams public artifact deltas, saves first, then emits artifact_saved", async () => {
         const order: string[] = [];
         const profile = {
@@ -55,6 +92,14 @@ describe("ScriptAgentExecutor", () => {
         expect(order.indexOf("save")).toBeLessThan(order.indexOf("artifact_saved"));
         expect(order).toContain("artifact_delta");
     });
+    it("rejects natural text and malformed nested rows before accepting a model response", () => {
+        expect(validateScriptAgentArguments("short_story", "普通自然语言")).toBe(false);
+        expect(validateScriptAgentArguments("episode_scripts", JSON.stringify({ content: "完成", episodes: [{ episodeNumber: 1, title: "第一集", script: { blocks: [] } }] }))).toBe(false);
+        expect(validateScriptAgentArguments("text_storyboard", JSON.stringify({ content: "完成", episodes: [{ episodeNumber: 1, shots: [{}] }] }))).toBe(false);
+        expect(validateScriptAgentArguments("asset_prompts", JSON.stringify({ content: "完成", assets: [{}] }))).toBe(false);
+        expect(validateScriptAgentArguments("short_story", JSON.stringify({ title: "雨夜", content: "完整小说正文" }))).toBe(true);
+    });
+
     it("rejects a stage result that omits its required structured data", async () => {
         const deps = {
             resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "adaptation_planner", name: "改编", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "改编" }),
@@ -159,8 +204,27 @@ describe("ScriptAgentExecutor", () => {
         expect(assets).toContain("二十五岁都市女性");
     });
 
+    it("preserves the project idea in planning and forwards it to the short-story writer", async () => {
+        const callModel = vi.fn(async ({ task }) => (task.runType === "project_planning" ? { content: String(task.input.idea || "") } : { title: "雨夜", content: "完整正文" }));
+        const artifacts: Record<string, unknown>[] = [];
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "novel_planner", name: "策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "策划" }),
+            callModel,
+            listArtifacts: vi.fn(async () => artifacts),
+            saveArtifact: vi.fn(async (_scope, input) => {
+                artifacts.push({ artifact_type: input.artifactType, artifact_key: input.artifactKey, status: input.status, content_json: input.content });
+                return { id: input.id };
+            }),
+            appendEvent: vi.fn(),
+        };
+        const executor = new ScriptAgentExecutor(deps as never);
+        await executor.execute(scope, { projectId: "project-a", runId: "run-plan", runType: "project_planning", input: { idea: "雨夜重生" }, origin: "https://local", cookie: "session" });
+        await executor.execute(scope, { projectId: "project-a", runId: "run-story", runType: "short_story", input: {}, origin: "https://local", cookie: "session" });
+        expect(callModel.mock.calls[1]?.[0].task.input.context).toEqual(expect.arrayContaining([expect.objectContaining({ type: "creative_positioning", content: expect.objectContaining({ content: "雨夜重生" }) })]));
+    });
+
     it("passes persisted upstream artifacts into the next model call", async () => {
-        const callModel = vi.fn(async ({ task }) => ({ content: String(task.input.context?.length || 0), episodes: [{ episodeNumber: 1, title: "第一集", outline: {} }] }));
+        const callModel = vi.fn(async ({ task }) => ({ content: String(task.input.context?.length || 0), episodes: [{ episodeNumber: 1, title: "第一集", outline: { core: "冲突" } }] }));
         const deps = {
             resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "adaptation_planner", name: "改编策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "改编" }),
             callModel,

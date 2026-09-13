@@ -114,8 +114,8 @@ async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile;
         headers: { "Idempotency-Key": requestId, "X-Client-Request-Id": requestId, ...systemAiBillingHeaders(input.profile.candidate.logicalModelId, requestId, input.profile.candidate.upstreamModel, "open-source-practice") },
         stream: true,
         streamFallback: true,
-        allowNaturalLanguage: true,
-        preferNativeTools: true,
+        preferNativeTools: false,
+        validateArguments: (argumentsText) => validateScriptAgentArguments(input.task.runType, argumentsText),
         onStreamDelta: input.onDelta ? accumulatedDeltaEmitter(input.onDelta) : undefined,
     });
     const text = call.arguments.trim();
@@ -123,6 +123,17 @@ async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile;
     if (jsonText) return JSON.parse(jsonText) as Record<string, unknown>;
     return { content: text };
 }
+export function validateScriptAgentArguments(runType: ScriptRunType, argumentsText: string) {
+    const jsonText = extractJsonObjectText(argumentsText);
+    if (!jsonText) return false;
+    try {
+        assertStructuredResult(runType, JSON.parse(jsonText) as Record<string, unknown>);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 function assertStructuredResult(runType: ScriptRunType, value: Record<string, unknown>) {
     const requiredArrays: Partial<Record<ScriptRunType, string[]>> = {
         novel_outlines: ["chapters"],
@@ -135,9 +146,41 @@ function assertStructuredResult(runType: ScriptRunType, value: Record<string, un
     };
     const arrays = requiredArrays[runType] || [];
     if (arrays.some((key) => !Array.isArray(value[key]) || !(value[key] as unknown[]).length)) throw new Error("剧本模型返回结果缺少当前阶段所需的结构化内容");
-    if ((runType === "conversation" || runType === "project_planning" || runType === "director_plan") && !publicText(value)) throw new Error("剧本模型返回结果缺少当前阶段正文");
-    if (runType === "short_story" && (typeof value.title !== "string" || typeof value.content !== "string")) throw new Error("剧本模型返回结果缺少完整小说体故事");
+    if ((runType === "conversation" || runType === "project_planning" || runType === "director_plan") && !publicText(value)?.trim()) throw new Error("剧本模型返回结果缺少当前阶段正文");
+    if (runType === "short_story" && (!text(value.title) || !text(value.content))) throw new Error("剧本模型返回结果缺少完整小说体故事");
+    if ((runType === "novel_outlines" || runType === "novel_chapters") && !(value.chapters as unknown[]).every(validChapter)) throw new Error("剧本模型返回的章节结构不完整");
+    if ((runType === "adaptation_bundle" || runType === "episode_scripts" || runType === "script_review") && !(value.episodes as unknown[]).every((entry) => validEpisode(entry, runType !== "adaptation_bundle"))) throw new Error("剧本模型返回的分集结构不完整");
+    if (runType === "text_storyboard" && !(value.episodes as unknown[]).every(validStoryboardEpisode)) throw new Error("剧本模型返回的文字分镜结构不完整");
+    if (runType === "asset_prompts" && !(value.assets as unknown[]).every((entry) => {
+        const asset = record(entry);
+        return ["character", "location", "prop"].includes(String(asset.type)) && Boolean(text(asset.name)) && Boolean(text(asset.prompt));
+    })) throw new Error("剧本模型返回的资产提示词结构不完整");
 }
+function validChapter(value: unknown) {
+    const chapter = record(value);
+    return positiveInteger(chapter.chapterIndex) && Boolean(text(chapter.title)) && (text(chapter.content) !== undefined || (chapter.outline && typeof chapter.outline === "object" && !Array.isArray(chapter.outline)));
+}
+function validEpisode(value: unknown, withScript: boolean) {
+    const episode = record(value);
+    if (!positiveInteger(episode.episodeNumber) || !text(episode.title)) return false;
+    if (!withScript) return Boolean(episode.outline && typeof episode.outline === "object" && !Array.isArray(episode.outline));
+    const blocks = record(episode.script).blocks;
+    return Array.isArray(blocks) && blocks.length > 0 && blocks.every((entry) => Boolean(text(record(entry).type)) && Boolean(text(record(entry).text)));
+}
+function validStoryboardEpisode(value: unknown) {
+    const episode = record(value);
+    return positiveInteger(episode.episodeNumber) && Array.isArray(episode.shots) && episode.shots.length > 0 && episode.shots.every((entry) => {
+        const shot = record(entry);
+        return positiveInteger(shot.shotNumber) && Number(shot.durationSeconds) > 0 && ["sceneId", "visualDescription", "shotSize", "cameraAngle", "composition", "cameraMovement", "action", "emotion"].every((key) => Boolean(text(shot[key])));
+    });
+}
+function positiveInteger(value: unknown) {
+    return Number.isSafeInteger(value) && Number(value) > 0;
+}
+function text(value: unknown) {
+    return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 function accumulatedDeltaEmitter(onDelta: (delta: string) => Promise<void>) {
     let previous = "";
     return async (accumulated: string) => {
