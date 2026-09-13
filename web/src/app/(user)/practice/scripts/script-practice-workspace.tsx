@@ -27,6 +27,7 @@ export default function ScriptPracticeWorkspace() {
     const [selectedKey, setSelectedKey] = useState("");
     const [artifact, setArtifact] = useState<Record<string, unknown> | null>(null);
     const [preview, setPreview] = useState("");
+    const [conversationPreview, setConversationPreview] = useState("");
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [chatSessionId, setChatSessionId] = useState("");
     const [sessionTitle, setSessionTitle] = useState("");
@@ -50,6 +51,7 @@ export default function ScriptPracticeWorkspace() {
         setArtifact(null);
         previewRawRef.current = "";
         setPreview("");
+        setConversationPreview("");
         setTree([]);
         setRunId("");
         setRunError("");
@@ -100,7 +102,7 @@ export default function ScriptPracticeWorkspace() {
                 setMessages([]);
                 return;
             }
-            const history = await practiceScriptsApi.chatMessages(selectedId, session.id);
+            const [history] = await Promise.all([practiceScriptsApi.chatMessages(selectedId, session.id), loadConversationPreview(selectedId)]);
             if (active) setMessages(history.map((item) => ({ id: item.id, role: item.role === "user" ? "user" : "assistant", agent: AGENT_LABEL, content: item.public_content })));
         })().catch((error) => {
             if (active) message.error(error instanceof Error ? error.message : "对话历史加载失败");
@@ -257,8 +259,7 @@ export default function ScriptPracticeWorkspace() {
             const value = await practiceScriptsApi.artifact(projectId, "conversation", "latest");
             const content = artifactContent(value);
             if (content) {
-                setPreview(content);
-                previewRawRef.current = content;
+                setConversationPreview(content);
             }
         } catch {
             // Conversation artifacts are optional; keep the live stream as fallback.
@@ -314,7 +315,12 @@ export default function ScriptPracticeWorkspace() {
         message.success("已打开新的剧本对话");
     };
     const selectedProject = projects.find((item) => item.id === selectedId);
-    const visible = useMemo(() => artifactContent(artifact) || preview, [artifact, preview]);
+    const visible = useMemo(() => {
+        if (artifactContent(artifact)) return artifactContent(artifact);
+        if (preview) return preview;
+        const currentItem = tree.find((item) => item.key === selectedKey);
+        return !currentItem || currentItem.status === "not_started" ? conversationPreview : "";
+    }, [artifact, conversationPreview, preview, selectedKey, tree]);
     const artifactStatus = typeof artifact?.status === "string" ? artifact.status : "";
     const artifactId = typeof artifact?.id === "string" ? artifact.id : "";
     return (
