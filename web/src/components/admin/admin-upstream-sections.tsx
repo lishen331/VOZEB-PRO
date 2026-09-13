@@ -5,7 +5,7 @@ import { AgentSkillCreateModal } from "@/components/admin/agent-skill-create-mod
 import { AdminChannelWorkspace } from "@/components/admin/channels/admin-channel-workspace";
 import type { AgentSkill, PracticeModuleVisibility } from "@/lib/auth/store";
 import { FEATURE_MODULES, type FeatureModuleId } from "@/lib/feature-modules";
-import { Button, Input, InputNumber, Select, Switch, Tag } from "antd";
+import { Button, Input, InputNumber, Select, Switch, Tag, Modal } from "antd";
 import { ChevronDown, Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -316,6 +316,7 @@ export function AdminSkillsSection({ controller }: { controller: AdminDashboardC
 
 export function AdminPluginsSection({ controller }: { controller: AdminDashboardController }) {
     const { settings, settingsLoading, activeSection, saveSettings } = controller;
+    const [selectedPlugin, setSelectedPlugin] = useState<FeatureModuleId>();
     if (activeSection !== "plugins") return null;
 
     const toggle = (id: FeatureModuleId, enabled: boolean) =>
@@ -382,7 +383,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                     const Icon = plugin.icon;
                     const enabled = settings.featureModules[plugin.id] !== false;
                     return (
-                        <section key={plugin.id} className="flex min-h-40 flex-col border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-950">
+                        <section key={plugin.id} className="flex min-h-40 cursor-pointer flex-col border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-950" onClick={() => setSelectedPlugin(plugin.id)}>
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex min-w-0 items-center gap-3">
                                     <span className="grid size-9 shrink-0 place-items-center rounded-md bg-stone-100 text-stone-700 dark:bg-stone-900 dark:text-stone-200">
@@ -406,6 +407,15 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                     );
                 })}
             </div>
+            <Modal open={selectedPlugin === "drama-lab"} title="创作工坊 · 子功能配置" footer={null} onCancel={() => setSelectedPlugin(undefined)}>
+                <div className="flex items-center justify-between gap-4 rounded-md border border-stone-200 p-4">
+                    <div>
+                        <div className="font-medium">本剧资源库编辑弹窗</div>
+                        <div className="mt-1 text-xs text-stone-500">仅控制剧本信息页资源卡片编辑入口的前端显示。</div>
+                    </div>
+                    <Switch checked={settings.featureModules["drama-lab-resource-editor"] !== false} loading={settingsLoading} aria-label="本剧资源库编辑弹窗显示状态" onChange={(next) => void toggle("drama-lab-resource-editor", next)} />
+                </div>
+            </Modal>
         </Panel>
     );
 }
