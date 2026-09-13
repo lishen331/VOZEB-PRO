@@ -144,11 +144,15 @@ export function DramaLabVisualAssetsPanel({
                 if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "资产 AI 资料生成失败");
                 return payload.data;
             };
-            const promptData = await runAi("prompt");
-            prepared = { ...prepared, ...(promptData.polishedPrompt ? { polishedPrompt: String(promptData.polishedPrompt) } : {}), ...(promptData.singleImagePrompt ? { singleImagePrompt: String(promptData.singleImagePrompt) } : {}) } as VisualAsset;
-            if (assetKind === "characters") {
-                const anchorData = await runAi("anchor");
-                if (anchorData.profile && typeof anchorData.profile === "object") prepared = { ...prepared, profile: anchorData.profile } as VisualAsset;
+            try {
+                const promptData = await runAi("prompt");
+                prepared = { ...prepared, ...(promptData.polishedPrompt ? { polishedPrompt: String(promptData.polishedPrompt) } : {}), ...(promptData.singleImagePrompt ? { singleImagePrompt: String(promptData.singleImagePrompt) } : {}) } as VisualAsset;
+                if (assetKind === "characters") {
+                    const anchorData = await runAi("anchor");
+                    if (anchorData.profile && typeof anchorData.profile === "object") prepared = { ...prepared, profile: anchorData.profile } as VisualAsset;
+                }
+            } catch (error) {
+                console.error("[drama-lab] asset enrichment failed", { assetId: extractedAsset.id, assetKind, error });
             }
             const savedOne = await replaceAssetsFor(assetKind, (current) => current.map((item) => (item.id === extractedAsset.id ? prepared : item)));
             if (!savedOne) throw new Error("项目保存失败");
