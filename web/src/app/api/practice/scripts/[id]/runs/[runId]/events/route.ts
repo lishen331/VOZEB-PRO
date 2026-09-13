@@ -40,7 +40,7 @@ export async function GET(request: Request, context: Context) {
                         },
                     });
                     const executor = createDefaultScriptAgentExecutor(liveRepository);
-                    await executor.execute(scope, { projectId: id, runId, runType: claimed.runType, input: claimed.configSnapshot, origin: new URL(request.url).origin, cookie: request.headers.get("cookie") || "" });
+                    await executor.execute(scope, { projectId: id, runId, chatSessionId: claimed.chatSessionId, runType: claimed.runType, input: claimed.configSnapshot, origin: new URL(request.url).origin, cookie: request.headers.get("cookie") || "" });
                     await repository.updateRun(scope, id, runId, { status: "success", completedAt: new Date().toISOString() });
                     const done = await repository.appendRunEvent(scope, id, runId, "run_completed", {}, randomUUID());
                     if (done) send(done);
