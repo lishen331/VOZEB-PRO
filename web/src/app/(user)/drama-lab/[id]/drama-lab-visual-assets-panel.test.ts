@@ -220,3 +220,17 @@ describe("asset card and editor reference interactions", () => {
         expect(source).toContain("data-asset-generation-action");
     });
 });
+
+describe("character prompt mention highlighting", () => {
+    it("renders a single visible highlight layer and supports keyboard selection", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+        expect(source).toContain("highlightResourceMentions");
+        expect(source).toContain("promptMirrorRef");
+        expect(source).toContain("!text-transparent caret-foreground");
+        expect(source).toContain('event.key === "ArrowDown"');
+        expect(source).toContain('event.key === "ArrowUp"');
+        expect(source).toContain('event.key === "Enter"');
+        expect(source).toContain('event.key === "Escape"');
+        expect(source).toContain("mentionIndex");
+    });
+});

@@ -10,6 +10,7 @@ import { Check, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Spa
 import { nanoid } from "nanoid";
 import { useMemo, useRef, useState, type RefObject } from "react";
 import type { TextAreaRef } from "antd/es/input/TextArea";
+import { highlightResourceMentions } from "./outline/resource-image-generation";
 import type { ReferenceImage } from "@/types/image";
 
 import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
@@ -825,6 +826,8 @@ function AssetEditorModal({
     const asset = editor?.asset;
     const label = editor ? ASSET_META[editor.kind].label : "资产";
     const [mentionOpen, setMentionOpen] = useState(false);
+    const [mentionIndex, setMentionIndex] = useState(0);
+    const promptMirrorRef = useRef<HTMLDivElement>(null);
     const promptRef = useRef<TextAreaRef>(null);
     const primaryUploadRef = useRef<HTMLInputElement>(null);
     const mentionRangeRef = useRef({ start: 0, end: 0 });
@@ -838,7 +841,9 @@ function AssetEditorModal({
         const mentionStart = value.lastIndexOf("@", Math.max(0, selectionStart - 1));
         const mentionText = mentionStart >= 0 ? value.slice(mentionStart + 1, selectionStart) : "";
         mentionRangeRef.current = { start: mentionStart >= 0 ? mentionStart : selectionStart, end: selectionStart };
-        setMentionOpen(mentionStart >= 0 && !/\s/.test(mentionText));
+        const nextOpen = mentionStart >= 0 && !/\s/.test(mentionText);
+        setMentionOpen(nextOpen);
+        if (nextOpen) setMentionIndex(0);
         onChange({ ...asset, polishedPrompt: value });
     };
     const insertMention = (label: string) => {
@@ -847,6 +852,7 @@ function AssetEditorModal({
         const token = `@${label} `;
         onChange({ ...asset, polishedPrompt: `${value.slice(0, start)}${token}${value.slice(end)}` });
         setMentionOpen(false);
+        setMentionIndex(0);
         window.requestAnimationFrame(() => {
             promptRef.current?.focus();
             promptRef.current?.resizableTextArea?.textArea.setSelectionRange(start + token.length, start + token.length);
@@ -1159,9 +1165,40 @@ function AssetEditorModal({
                         </Button>
                     </span>
                     <div className="relative">
+                        {/@图[1-9]/.test(asset.polishedPrompt || "") ? (
+                            <div
+                                ref={promptMirrorRef}
+                                aria-hidden
+                                className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-[11px] py-[7px] text-sm leading-[1.5715] text-foreground [&_mark]:rounded [&_mark]:bg-primary/15 [&_mark]:px-0.5 [&_mark]:text-primary"
+                                dangerouslySetInnerHTML={{ __html: highlightResourceMentions(asset.polishedPrompt || "") }}
+                            />
+                        ) : null}
                         <Input.TextArea
                             ref={promptRef}
                             rows={7}
+                            className={`relative z-[1] !bg-transparent ${/@图[1-9]/.test(asset.polishedPrompt || "") ? "!text-transparent caret-foreground" : ""}`}
+                            onScroll={(event) => {
+                                const mirror = promptMirrorRef.current;
+                                if (!mirror) return;
+                                mirror.scrollTop = event.currentTarget.scrollTop;
+                                mirror.scrollLeft = event.currentTarget.scrollLeft;
+                            }}
+                            onKeyDown={(event) => {
+                                if (!mentionOpen || !characterReferences.length) return;
+                                if (event.key === "ArrowDown") {
+                                    event.preventDefault();
+                                    setMentionIndex((current) => (current + 1) % characterReferences.length);
+                                } else if (event.key === "ArrowUp") {
+                                    event.preventDefault();
+                                    setMentionIndex((current) => (current - 1 + characterReferences.length) % characterReferences.length);
+                                } else if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    insertMention(`图${mentionIndex + 1}`);
+                                } else if (event.key === "Escape") {
+                                    event.preventDefault();
+                                    setMentionOpen(false);
+                                }
+                            }}
                             value={asset.polishedPrompt || ""}
                             onChange={(event) => handlePromptChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
                             placeholder="点击“重新生成提示词”由 AI 自动生成，或直接输入；输入 @ 可引用图1～图9"
@@ -1169,7 +1206,12 @@ function AssetEditorModal({
                         {mentionOpen && characterReferences.length ? (
                             <div className="absolute bottom-2 left-2 z-10 w-56 rounded border bg-popover p-1 shadow-lg">
                                 {characterReferences.map((reference, index) => (
-                                    <button key={reference.id} type="button" className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted" onClick={() => insertMention(`图${index + 1}`)}>
+                                    <button
+                                        key={reference.id}
+                                        type="button"
+                                        className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted ${index === mentionIndex ? "bg-muted" : ""}`}
+                                        onClick={() => insertMention(`图${index + 1}`)}
+                                    >
                                         <img src={imagePreviewUrl(reference.url, 80)} alt="" className="size-8 rounded object-cover" />
                                         <span>@图{index + 1}</span>
                                     </button>
