@@ -19,5 +19,7 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain("message.error");
         expect(source).toContain("chatMessages");
         expect(source).toContain("导演规划");
+        expect(source).toContain("activeRuns");
+        expect(source).toContain("consumeEvents");
     });
 });

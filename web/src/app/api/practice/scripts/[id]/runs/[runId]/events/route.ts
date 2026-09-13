@@ -4,8 +4,10 @@ import { requirePracticeTenant } from "@/lib/server/practice-tenant-scope";
 import { ScriptAgentRepository } from "@/lib/server/database/script-agent-repository";
 import { postgresQuery } from "@/lib/server/database/postgres";
 import { createDefaultScriptAgentExecutor } from "@/lib/server/script-agent-executor";
+import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 2400;
 type Context = { params: Promise<{ id: string; runId: string }> };
 export async function GET(request: Request, context: Context) {
     const user = await getCurrentUser(request);
@@ -49,7 +51,7 @@ export async function GET(request: Request, context: Context) {
                         chatSessionId: claimed.chatSessionId,
                         runType: claimed.runType,
                         input: claimed.configSnapshot,
-                        origin: new URL(request.url).origin,
+                        origin: resolveInternalOrigin(new URL(request.url).origin),
                         cookie: request.headers.get("cookie") || "",
                     });
                     if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "success", artifactId: result.artifactId });
@@ -59,6 +61,9 @@ export async function GET(request: Request, context: Context) {
                 }
                 controller.enqueue(encoder.encode(`event: heartbeat\ndata: ${JSON.stringify({ runId, sequence: last, type: "heartbeat", occurredAt: new Date().toISOString(), data: {} })}\n\n`));
             } catch (error) {
+                const items = await repository.listRunItems(scope, id, runId).catch(() => []);
+                const runningItem = items.find((entry) => entry.status === "running");
+                if (runningItem) await repository.updateRunItem(scope, id, runId, runningItem.id, { status: "failed", errorCode: "SCRIPT_AGENT_EXECUTION_FAILED", errorMessage: error instanceof Error ? error.message : "剧本生成失败" }).catch(() => null);
                 await repository.updateRun(scope, id, runId, { status: "failed", completedAt: new Date().toISOString(), errorMessage: error instanceof Error ? error.message : "剧本生成失败" }).catch(() => null);
                 const failed = await repository.appendRunEvent(scope, id, runId, "error", { message: error instanceof Error ? error.message : "剧本生成失败" }, randomUUID()).catch(() => null);
                 if (failed) send(failed);

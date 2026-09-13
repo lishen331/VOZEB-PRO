@@ -135,6 +135,10 @@ export default function ScriptPracticeWorkspace() {
         },
         [loadTree, message],
     );
+    useEffect(() => {
+        if (!selectedId || !runId) return;
+        void consumeEvents(selectedId, runId).catch((error) => message.error(error instanceof Error ? error.message : "恢复剧本任务失败"));
+    }, [selectedId, runId, consumeEvents, message]);
     useEffect(() => () => abortRef.current?.abort(), []);
     const runAction = async (action: () => Promise<void>, fallback: string) => {
         try {
@@ -147,7 +151,6 @@ export default function ScriptPracticeWorkspace() {
         if (!selectedId) return;
         const run = await practiceScriptsApi.createRun(selectedId, { runType, clientRequestId: crypto.randomUUID(), input });
         setRunId(run.id);
-        await consumeEvents(selectedId, run.id);
     };
     const send = async () => {
         const text = draft.trim();
@@ -169,7 +172,6 @@ export default function ScriptPracticeWorkspace() {
         setSelectedId(project.id);
         const run = await practiceScriptsApi.createRun(project.id, { runType: "project_planning", clientRequestId: crypto.randomUUID(), input: { mode, title: newTitle.trim(), idea: idea.trim() } });
         setRunId(run.id);
-        await consumeEvents(project.id, run.id);
     };
     const selectedProject = projects.find((item) => item.id === selectedId);
     const visible = useMemo(() => artifactContent(artifact) || preview, [artifact, preview]);
@@ -197,7 +199,16 @@ export default function ScriptPracticeWorkspace() {
             <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)_340px]">
                 <aside aria-label="剧本工作目录" className="min-h-0 overflow-y-auto border-r border-border bg-card p-3">
                     <h2 className="mb-3 text-sm font-semibold">工作目录</h2>
-                    <Select className="w-full" value={selectedId || undefined} placeholder="选择项目" options={projects.map((p) => ({ value: p.id, label: p.title }))} onChange={setSelectedId} />
+                    <Select
+                        className="w-full"
+                        value={selectedId || undefined}
+                        placeholder="选择项目"
+                        options={projects.map((p) => ({ value: p.id, label: p.title }))}
+                        onChange={(value) => {
+                            setRunId("");
+                            setSelectedId(value);
+                        }}
+                    />
                     <div className="mt-4 space-y-1">
                         {tree.map((item) => (
                             <button
