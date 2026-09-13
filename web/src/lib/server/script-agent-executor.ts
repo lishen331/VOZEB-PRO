@@ -39,6 +39,36 @@ type Deps = {
     upsertPromptAssets?: ScriptAgentRepository["upsertPromptAssets"];
     appendEvent: (scope: PracticeTenantScope, projectId: string, runId: string, type: ScriptRunEventType, data: Record<string, unknown>, eventId: string) => Promise<unknown>;
 };
+export function scriptRunSequence(runType: ScriptRunType): ScriptRunType[] {
+    if (runType === "episode_scripts") return ["episode_scripts", "script_review"];
+    if (runType === "director_plan") return ["director_plan", "text_storyboard", "asset_prompts"];
+    return [runType];
+}
+
+export function completedRunTypesForArtifacts(artifactTypes: string[]) {
+    const artifacts = new Set(artifactTypes);
+    return [
+        ...(artifacts.has("episode_scripts") ? ["episode_scripts" as const] : []),
+        ...(artifacts.has("review_report") ? ["script_review" as const] : []),
+        ...(artifacts.has("director_plan") ? ["director_plan" as const] : []),
+        ...(artifacts.has("text_storyboard") ? ["text_storyboard" as const] : []),
+        ...(artifacts.has("asset_prompts") ? ["asset_prompts" as const] : []),
+    ];
+}
+
+export async function executeScriptRunSequence(executor: Pick<ScriptAgentExecutor, "execute">, scope: PracticeTenantScope, task: ScriptExecutionInput, completedRunTypes: string[] = []) {
+    let result: Awaited<ReturnType<ScriptAgentExecutor["execute"]>> | undefined;
+    const completed = new Set(completedRunTypes);
+    for (const runType of scriptRunSequence(task.runType)) {
+        if (completed.has(runType)) continue;
+        result = await executor.execute(scope, { ...task, runType });
+    }
+    if (result) return result;
+    const runTypes = scriptRunSequence(task.runType);
+    const artifactType = EXECUTION[runTypes.at(-1) || task.runType].artifact;
+    return { artifactId: "", artifactType, artifactKey: "", structured: {} };
+}
+
 export class ScriptAgentExecutor {
     constructor(
         private readonly deps: Deps,

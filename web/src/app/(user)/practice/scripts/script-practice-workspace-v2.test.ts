@@ -29,6 +29,27 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain("data: { items, activeRuns }");
     });
 
+    it("clears stale project state, avoids speculative artifact requests, and guards confirmations", async () => {
+        const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/scripts/script-practice-workspace.tsx"), "utf8");
+        expect(source).toContain("const selectProject =");
+        expect(source).toContain('setSelectedKey("")');
+        expect(source).toContain("setArtifact(null)");
+        expect(source).toContain("tree.some((item) => item.key === selectedKey)");
+        expect(source).toContain("void runAction(confirmCurrentArtifact");
+        expect(source).toContain("confirming");
+        expect(source).toContain("action.reason");
+        expect(source).toContain("runError");
+        expect(source).toContain("setBusy(true)");
+        expect(source).toContain("activeRun?.errorMessage");
+        expect(source).toContain("selectedIdRef.current !== id");
+        expect(source.indexOf("practiceScriptsApi.createRun(project.id")).toBeLessThan(source.indexOf("selectProject(project.id)"));
+        expect(source).toContain("let active = true");
+        expect(source).toContain("active = false");
+        expect(source).toContain("selectedIdRef.current !== projectId");
+        expect(source).toContain("if (active) setArtifact");
+        expect(source).toContain("resolveScriptWorkflowActions");
+    });
+
     it("uses stable Run SSE, stop, and failed-only retry", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/(user)/practice/scripts/script-practice-workspace.tsx"), "utf8");
         expect(source).toContain("runEventsUrl");
@@ -38,7 +59,8 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain("runAction");
         expect(source).toContain("message.error");
         expect(source).toContain("chatMessages");
-        expect(source).toContain("导演规划");
+        const workflowSource = await readFile(resolve(process.cwd(), "src/app/(user)/practice/scripts/script-workflow-state.ts"), "utf8");
+        expect(workflowSource).toContain("导演规划");
         expect(source).toContain("activeRuns");
         expect(source).toContain("consumeEvents");
     });

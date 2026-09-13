@@ -9,7 +9,6 @@ export async function GET(request: Request, context: Context) {
     if (!user) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
     const scope = await requirePracticeTenant(user, "script");
     const { id, artifactType, artifactKey } = await context.params;
-    const items = await new ScriptAgentRepository({ query: postgresQuery }).listLatestArtifacts(scope, id);
-    const artifact = items.find((row: Record<string, unknown>) => row.artifact_type === artifactType && row.artifact_key === artifactKey);
+    const artifact = await new ScriptAgentRepository({ query: postgresQuery }).getLatestArtifact(scope, id, artifactType, artifactKey);
     return artifact ? NextResponse.json({ code: 0, data: artifact, msg: "ok" }) : NextResponse.json({ code: 404, data: null, msg: "成果不存在" }, { status: 404 });
 }

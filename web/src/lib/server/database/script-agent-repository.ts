@@ -231,6 +231,26 @@ export class ScriptAgentRepository {
             );
     }
 
+    async listRunArtifactTypes(scope: PracticeTenantScope, projectId: string, runId: string) {
+        const result = await this.db.query(
+            `SELECT artifact_type FROM practice_script_artifacts
+             WHERE school_id = $1 AND owner_user_id = $2 AND project_id = $3 AND source_run_id = $4
+             ORDER BY created_at ASC`,
+            [scope.schoolId, scope.ownerUserId, projectId, runId],
+        );
+        return result.rows.map((row) => String(row.artifact_type));
+    }
+
+    async getLatestArtifact(scope: PracticeTenantScope, projectId: string, artifactType: string, artifactKey: string) {
+        const result = await this.db.query(
+            `SELECT * FROM practice_script_artifacts
+             WHERE school_id = $1 AND owner_user_id = $2 AND project_id = $3 AND artifact_type = $4 AND artifact_key = $5
+             ORDER BY version DESC LIMIT 1`,
+            [scope.schoolId, scope.ownerUserId, projectId, artifactType, artifactKey],
+        );
+        return result.rows[0] || null;
+    }
+
     async listLatestArtifacts(scope: PracticeTenantScope, projectId: string) {
         const result = await this.db.query(
             `SELECT DISTINCT ON (artifact_type, artifact_key) * FROM practice_script_artifacts

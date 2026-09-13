@@ -7,20 +7,10 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ScriptPracticeProject } from "@/lib/script-practice-types";
 import { practiceScriptsApi } from "@/services/api/practice-scripts";
+import { resolveScriptWorkflowActions } from "./script-workflow-state";
 
 type TreeItem = { id: string; key: string; type: string; label: string; status: string; version: number };
 type ChatMessage = { id: string; role: "user" | "assistant"; agent?: string; content: string; status?: string };
-const STARTERS = [
-    { label: "策划故事", runType: "project_planning" },
-    { label: "完整短故事", runType: "short_story" },
-    { label: "小说总纲与章纲", runType: "novel_outlines" },
-    { label: "改编策划", runType: "adaptation_bundle" },
-    { label: "分集剧本", runType: "episode_scripts" },
-    { label: "审核剧本", runType: "script_review" },
-    { label: "导演规划", runType: "director_plan" },
-    { label: "文字分镜", runType: "text_storyboard" },
-    { label: "资产提示词", runType: "asset_prompts" },
-];
 const STATUS: Record<string, { text: string; color: string }> = { awaiting_review: { text: "待确认", color: "gold" }, confirmed: { text: "已确认", color: "success" }, draft: { text: "草稿", color: "default" }, failed: { text: "失败", color: "error" } };
 export default function ScriptPracticeWorkspace() {
     const router = useRouter();
@@ -34,23 +24,43 @@ export default function ScriptPracticeWorkspace() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [draft, setDraft] = useState("");
     const [runId, setRunId] = useState("");
+    const [runError, setRunError] = useState("");
     const [busy, setBusy] = useState(false);
+    const [confirming, setConfirming] = useState(false);
     const [newOpen, setNewOpen] = useState(false);
     const [newTitle, setNewTitle] = useState("");
     const [idea, setIdea] = useState("");
     const [mode, setMode] = useState<"short_story" | "long_novel">("short_story");
     const [eventSource] = useState<{ close: () => void } | null>(null);
     const abortRef = useRef<AbortController | undefined>(undefined);
+    const selectedIdRef = useRef("");
+    const selectProject = useCallback((id: string) => {
+        abortRef.current?.abort();
+        setSelectedKey("");
+        setArtifact(null);
+        setPreview("");
+        setTree([]);
+        setRunId("");
+        setRunError("");
+        selectedIdRef.current = id;
+        setSelectedId(id);
+    }, []);
     const loadProjects = useCallback(async () => {
         const result = await practiceScriptsApi.list({ page: 1, pageSize: 50 });
         setProjects(result.items);
-        setSelectedId((current) => current || result.items[0]?.id || "");
+        setSelectedId((current) => {
+            const next = current || result.items[0]?.id || "";
+            selectedIdRef.current = next;
+            return next;
+        });
     }, []);
     const loadTree = useCallback(async (id: string) => {
         const result = await practiceScriptsApi.tree(id);
+        if (selectedIdRef.current !== id) return undefined;
         const activeRun = result.activeRuns[0];
         setTree(result.items);
         setRunId(activeRun?.id || "");
+        setRunError(activeRun?.errorMessage || "");
         setSelectedKey((current) => (result.items.some((item) => item.key === current) ? current : result.items[0]?.key || ""));
         return activeRun;
     }, []);
@@ -65,6 +75,7 @@ export default function ScriptPracticeWorkspace() {
             setMessages([]);
             return;
         }
+        let active = true;
         void (async () => {
             const sessions = await practiceScriptsApi.chatSessions(selectedId);
             if (!sessions[0]) {
@@ -72,22 +83,36 @@ export default function ScriptPracticeWorkspace() {
                 return;
             }
             const history = await practiceScriptsApi.chatMessages(selectedId, sessions[0].id);
-            setMessages(history.map((item) => ({ id: item.id, role: item.role === "user" ? "user" : "assistant", agent: item.agent_key, content: item.public_content })));
-        })().catch((error) => message.error(error instanceof Error ? error.message : "对话历史加载失败"));
+            if (active) setMessages(history.map((item) => ({ id: item.id, role: item.role === "user" ? "user" : "assistant", agent: item.agent_key, content: item.public_content })));
+        })().catch((error) => {
+            if (active) message.error(error instanceof Error ? error.message : "对话历史加载失败");
+        });
+        return () => {
+            active = false;
+        };
     }, [selectedId, message]);
     useEffect(() => {
-        if (!selectedId || !selectedKey) {
+        if (!selectedId || !selectedKey || !tree.some((item) => item.key === selectedKey)) {
             setArtifact(null);
             return;
         }
         const [type, key] = selectedKey.split(":");
+        let active = true;
         void practiceScriptsApi
             .artifact(selectedId, type, key)
-            .then(setArtifact)
-            .catch(() => setArtifact(null));
-    }, [selectedId, selectedKey]);
+            .then((value) => {
+                if (active) setArtifact(value);
+            })
+            .catch(() => {
+                if (active) setArtifact(null);
+            });
+        return () => {
+            active = false;
+        };
+    }, [selectedId, selectedKey, tree]);
     const consumeEvents = useCallback(
         async (projectId: string, currentRunId: string, afterSequence = 0) => {
+            if (selectedIdRef.current !== projectId) return;
             abortRef.current?.abort();
             const controller = new AbortController();
             abortRef.current = controller;
@@ -105,6 +130,7 @@ export default function ScriptPracticeWorkspace() {
                     const chunks = buffer.split("\n\n");
                     buffer = chunks.pop() || "";
                     for (const chunk of chunks) {
+                        if (selectedIdRef.current !== projectId) return;
                         const line = chunk.split("\n").find((row) => row.startsWith("data: "));
                         if (!line) continue;
                         const event = JSON.parse(line.slice(6)) as { type: string; data: Record<string, unknown> };
@@ -154,9 +180,15 @@ export default function ScriptPracticeWorkspace() {
         }
     };
     const start = async (runType: string, input: Record<string, unknown>) => {
-        if (!selectedId) return;
-        const run = await practiceScriptsApi.createRun(selectedId, { runType, clientRequestId: crypto.randomUUID(), input });
-        setRunId(run.id);
+        if (!selectedId || busy) return;
+        setBusy(true);
+        setRunError("");
+        try {
+            const run = await practiceScriptsApi.createRun(selectedId, { runType, clientRequestId: crypto.randomUUID(), input });
+            setRunId(run.id);
+        } finally {
+            setBusy(false);
+        }
     };
     const send = async () => {
         const text = draft.trim();
@@ -168,17 +200,36 @@ export default function ScriptPracticeWorkspace() {
         const run = await practiceScriptsApi.sendChat(selectedId, session.id, text, crypto.randomUUID());
         setRunId(run.id);
     };
+    const confirmCurrentArtifact = async () => {
+        if (!selectedId || !artifactId || confirming) return;
+        setConfirming(true);
+        try {
+            await practiceScriptsApi.confirmArtifact(selectedId, artifactId, tree.find((item) => item.key === selectedKey)?.type || selectedKey, runId);
+            await loadTree(selectedId);
+            setArtifact(await practiceScriptsApi.artifact(selectedId, ...(selectedKey.split(":") as [string, string])));
+        } finally {
+            setConfirming(false);
+        }
+    };
     const create = async () => {
         if (!newTitle.trim()) return;
         const result = await practiceScriptsApi.create({ title: newTitle.trim(), sourceType: "idea", idea: idea.trim() || undefined, mode });
         const project = "project" in result ? result.project : result;
         setNewOpen(false);
         await loadProjects();
-        setSelectedId(project.id);
         const run = await practiceScriptsApi.createRun(project.id, { runType: "project_planning", clientRequestId: crypto.randomUUID(), input: { mode, title: newTitle.trim(), idea: idea.trim() } });
+        selectProject(project.id);
         setRunId(run.id);
     };
     const selectedProject = projects.find((item) => item.id === selectedId);
+    const workflowActions = useMemo(
+        () =>
+            resolveScriptWorkflowActions(
+                selectedProject?.mode || "short_story",
+                tree.map((item) => ({ type: item.type, status: item.status })),
+            ),
+        [selectedProject?.mode, tree],
+    );
     const visible = useMemo(() => artifactContent(artifact) || preview, [artifact, preview]);
     const artifactStatus = typeof artifact?.status === "string" ? artifact.status : "";
     const artifactId = typeof artifact?.id === "string" ? artifact.id : "";
@@ -210,8 +261,7 @@ export default function ScriptPracticeWorkspace() {
                         placeholder="选择项目"
                         options={projects.map((p) => ({ value: p.id, label: p.title }))}
                         onChange={(value) => {
-                            setRunId("");
-                            setSelectedId(value);
+                            selectProject(value);
                         }}
                     />
                     <div className="mt-4 space-y-1">
@@ -241,11 +291,7 @@ export default function ScriptPracticeWorkspace() {
                             {busy ? (
                                 <Tag color="processing">SSE 写作中</Tag>
                             ) : artifactStatus === "awaiting_review" ? (
-                                <Button
-                                    size="small"
-                                    type="primary"
-                                    onClick={() => selectedId && artifactId && void practiceScriptsApi.confirmArtifact(selectedId, artifactId, tree.find((i) => i.key === selectedKey)?.type || selectedKey, runId).then(() => loadTree(selectedId))}
-                                >
+                                <Button size="small" type="primary" loading={confirming} disabled={confirming} onClick={() => void runAction(confirmCurrentArtifact, "确认当前阶段失败")}>
                                     确认当前阶段
                                 </Button>
                             ) : null}
@@ -280,10 +326,17 @@ export default function ScriptPracticeWorkspace() {
                         {!messages.length ? <div className="rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground">告诉我你想创作什么。我会先确认参数，再调度专业 Agent，并在重要节点等待你确认。</div> : null}
                     </div>
                     <div className="border-t border-border p-3">
+                        {runError ? <div className="mb-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">上次执行失败：{runError}</div> : null}
                         <div className="mb-2 flex flex-wrap gap-1">
-                            {STARTERS.map((item) => (
-                                <Button key={item.runType} size="small" disabled={!selectedId || busy} onClick={() => void runAction(() => start(item.runType, { instruction: draft || item.label }), "启动剧本任务失败")}>
-                                    {item.label}
+                            {workflowActions.map((action) => (
+                                <Button
+                                    key={action.runType}
+                                    size="small"
+                                    disabled={!selectedId || busy || !action.enabled}
+                                    title={action.reason}
+                                    onClick={() => void runAction(() => start(action.runType, { instruction: draft || action.label }), "启动剧本任务失败")}
+                                >
+                                    {action.label}
                                 </Button>
                             ))}
                         </div>

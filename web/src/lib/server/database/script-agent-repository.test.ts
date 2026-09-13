@@ -115,6 +115,19 @@ describe("ScriptAgentRepository", () => {
         expect(query).toHaveBeenNthCalledWith(2, expect.stringContaining("INSERT INTO practice_script_shots"), expect.arrayContaining(["episode-db-1"]));
     });
 
+    it("lists artifacts already saved by the same Run for failed-chain resume", async () => {
+        const { query, repository: repo } = repository([{ artifact_type: "director_plan" }, { artifact_type: "text_storyboard" }]);
+        await expect(repo.listRunArtifactTypes(scope, "project-a", "run-a")).resolves.toEqual(["director_plan", "text_storyboard"]);
+        expect(query).toHaveBeenCalledWith(expect.stringContaining("source_run_id = $4"), ["school-a", "user-a", "project-a", "run-a"]);
+    });
+
+    it("reads one requested artifact without loading the project artifact snapshot", async () => {
+        const { query, repository: repo } = repository([]);
+        await repo.getLatestArtifact(scope, "project-a", "creative_positioning", "project");
+        expect(query).toHaveBeenCalledWith(expect.stringContaining("artifact_type = $4 AND artifact_key = $5"), ["school-a", "user-a", "project-a", "creative_positioning", "project"]);
+        expect(query.mock.calls[0]?.[0]).toContain("LIMIT 1");
+    });
+
     it("replays only events after the requested sequence", async () => {
         const { query, repository: repo } = repository([]);
         await repo.listRunEvents(scope, "project-a", "run-a", 8, 200);

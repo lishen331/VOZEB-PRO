@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { requirePracticeTenant } from "@/lib/server/practice-tenant-scope";
 import { ScriptAgentRepository } from "@/lib/server/database/script-agent-repository";
 import { postgresQuery } from "@/lib/server/database/postgres";
-import { createDefaultScriptAgentExecutor } from "@/lib/server/script-agent-executor";
+import { completedRunTypesForArtifacts, createDefaultScriptAgentExecutor, executeScriptRunSequence } from "@/lib/server/script-agent-executor";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,8 +59,11 @@ export async function GET(request: Request, context: Context) {
                     const items = await repository.listRunItems(scope, id, runId);
                     const item = items.find((entry) => entry.status === "queued");
                     if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "running" });
-                    const result = await executor
-                        .execute(scope, {
+                    const completedRunTypes = completedRunTypesForArtifacts(await repository.listRunArtifactTypes(scope, id, runId));
+                    const result = await executeScriptRunSequence(
+                        executor,
+                        scope,
+                        {
                             projectId: id,
                             runId,
                             chatSessionId: claimed.chatSessionId,
@@ -69,8 +72,9 @@ export async function GET(request: Request, context: Context) {
                             origin: resolveInternalOrigin(new URL(request.url).origin),
                             cookie: request.headers.get("cookie") || "",
                             signal: executionController.signal,
-                        })
-                        .finally(() => clearInterval(stopMonitor));
+                        },
+                        completedRunTypes,
+                    ).finally(() => clearInterval(stopMonitor));
                     const current = await repository.getRun(scope, id, runId);
                     if (current?.status !== "stopped") {
                         if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "success", artifactId: result.artifactId });

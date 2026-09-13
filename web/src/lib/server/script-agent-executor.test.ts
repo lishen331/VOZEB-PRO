@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
-import { ScriptAgentExecutor, createDefaultScriptAgentExecutor, validateScriptAgentArguments } from "./script-agent-executor";
+import { ScriptAgentExecutor, completedRunTypesForArtifacts, createDefaultScriptAgentExecutor, executeScriptRunSequence, scriptRunSequence, validateScriptAgentArguments } from "./script-agent-executor";
 
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: vi.fn(), resolveInternalOrigin: vi.fn((value: string) => value) }));
 
@@ -36,6 +36,29 @@ async function runForVisibleText(runType: "episode_scripts" | "text_storyboard" 
     await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-a", runType, input: {}, origin: "https://local", cookie: "session" });
     return visible;
 }
+describe("screenwriter run sequences", () => {
+    it("runs supervision inside episode writing and final text deliverables inside directing", async () => {
+        expect(scriptRunSequence("episode_scripts")).toEqual(["episode_scripts", "script_review"]);
+        expect(scriptRunSequence("director_plan")).toEqual(["director_plan", "text_storyboard", "asset_prompts"]);
+        expect(scriptRunSequence("short_story")).toEqual(["short_story"]);
+        expect(completedRunTypesForArtifacts(["director_plan", "text_storyboard"])).toEqual(["director_plan", "text_storyboard"]);
+        expect(completedRunTypesForArtifacts(["episode_scripts", "review_report"])).toEqual(["episode_scripts", "script_review"]);
+        const execute = vi.fn(async (_scope, task) => ({ artifactId: `artifact-${task.runType}` }));
+        await expect(executeScriptRunSequence({ execute } as never, scope, { projectId: "project-a", runId: "run-a", runType: "director_plan", input: {}, origin: "https://local", cookie: "session" })).resolves.toMatchObject({
+            artifactId: "artifact-asset_prompts",
+        });
+        expect(execute.mock.calls.map((call) => call[1].runType)).toEqual(["director_plan", "text_storyboard", "asset_prompts"]);
+        execute.mockClear();
+        await executeScriptRunSequence({ execute } as never, scope, { projectId: "project-a", runId: "run-a", runType: "director_plan", input: {}, origin: "https://local", cookie: "session" }, ["director_plan", "text_storyboard"]);
+        expect(execute.mock.calls.map((call) => call[1].runType)).toEqual(["asset_prompts"]);
+        execute.mockClear();
+        await expect(
+            executeScriptRunSequence({ execute } as never, scope, { projectId: "project-a", runId: "run-a", runType: "director_plan", input: {}, origin: "https://local", cookie: "session" }, ["director_plan", "text_storyboard", "asset_prompts"]),
+        ).resolves.toMatchObject({ artifactType: "asset_prompts" });
+        expect(execute).not.toHaveBeenCalled();
+    });
+});
+
 describe("ScriptAgentExecutor", () => {
     it("uses the real streaming protocol adapter against an upstream short-story fixture", async () => {
         const upstreamEvents = [{ choices: [{ delta: { content: '{"title":"雨夜",' } }] }, { choices: [{ delta: { content: '"content":"完整小说正文"}' } }] }];

@@ -40,7 +40,7 @@ export const practiceScriptsApi = {
         return request<ScriptStage>(`/api/practice/scripts/${encodeURIComponent(id)}/stages`, json("POST", { confirm: true, stage }));
     },
     tree(id: string) {
-        return request<{ items: Array<{ id: string; key: string; type: string; label: string; status: string; version: number }>; activeRuns: Array<{ id: string; status: string; runType: string; lastEventSequence: number }> }>(
+        return request<{ items: Array<{ id: string; key: string; type: string; label: string; status: string; version: number }>; activeRuns: Array<{ id: string; status: string; runType: string; lastEventSequence: number; errorMessage?: string }> }>(
             `/api/practice/scripts/${encodeURIComponent(id)}/tree`,
         );
     },
