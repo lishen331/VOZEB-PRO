@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
     getStoredGenerationTaskByRequest: vi.fn(),
     validateGenerationContextIpReferences: vi.fn(),
     resolveSchoolComputeBillingContext: vi.fn(),
+    withGenerationConcurrencyLimit: vi.fn(),
+    scheduleGenerationTask: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -31,10 +33,11 @@ vi.mock("@/lib/auth/store", () => {
     };
 });
 vi.mock("@/lib/server/generation-task-store", () => ({
-    withGenerationConcurrencyLimit: vi.fn(async (_userId, _type, _staleMs, _limit, handler) => handler()),
+    withGenerationConcurrencyLimit: mocks.withGenerationConcurrencyLimit,
     getStoredGenerationTaskByRequest: mocks.getStoredGenerationTaskByRequest,
     linkStoredGenerationTask: vi.fn(),
 }));
+vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: mocks.scheduleGenerationTask }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
 vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
@@ -64,7 +67,67 @@ describe("audio task model routing", () => {
         vi.clearAllMocks();
         mocks.resolveProjectExecutionProfile.mockResolvedValue(undefined);
         mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
+        mocks.withGenerationConcurrencyLimit.mockImplementation(async (_userId, _type, _staleMs, _limit, handler) => handler());
     });
+    it("queues a trusted practice audio task without the production concurrency gate", async () => {
+        mocks.resolveProjectExecutionProfile.mockResolvedValueOnce("open-source-practice");
+        mocks.createAudioTask.mockImplementation(async (input) => ({ ...input, id: "practice-audio", status: "pending", createdAt: 1, updatedAt: 1 }));
+        const settings = {
+            systemChannels: [
+                {
+                    id: "audio-channel",
+                    name: "音频",
+                    enabled: true,
+                    purpose: "open-source-practice",
+                    baseUrl: "https://runninghub.example",
+                    apiKey: "key",
+                    apiFormat: "openai",
+                    models: ["audio-workflow"],
+                    advancedConfig: {
+                        protocol: "runninghub",
+                        workflowConfigs: {
+                            audio: {
+                                workflowKey: "audio-workflow",
+                                workflowId: "1",
+                                workflowCode: "storyboard_dialogue_audio",
+                                version: 1,
+                                businessCode: "dubbing",
+                                capability: "audio",
+                                enabled: true,
+                                createPath: "/task/openapi/create",
+                                queryPath: "/openapi/v2/query",
+                                taskIdField: "taskId",
+                                statusField: "status",
+                                resultField: "results",
+                                inputMappings: [],
+                                outputMappings: [],
+                            },
+                        },
+                    },
+                },
+            ],
+            logicalModels: [],
+            defaultModels: { audioModel: "audio-workflow" },
+            generationConcurrency: { audio: 1 },
+            generationDefaults: { audioVoice: "alloy", audioFormat: "mp3" },
+        };
+        const { getAuthSettings } = await import("@/lib/auth/store");
+        vi.mocked(getAuthSettings).mockResolvedValueOnce(settings as never);
+
+        const response = await POST(
+            new Request("http://localhost/api/audio-tasks", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ prompt: "配音", context: { surface: "drama", projectId: "practice-drama", businessCode: "dubbing" } }),
+            }),
+        );
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ task: { id: "practice-audio" }, queued: true });
+        expect(mocks.withGenerationConcurrencyLimit).not.toHaveBeenCalled();
+        expect(mocks.scheduleGenerationTask).toHaveBeenCalledWith("audio", "practice-audio", expect.objectContaining({ executionPhase: "queued", lastUpstreamStatus: "queued" }));
+    });
+
     it("returns the project access status before task creation", async () => {
         mocks.resolveProjectExecutionProfile.mockRejectedValueOnce(Object.assign(new Error("当前账号没有可用的学校身份"), { status: 403 }));
         const response = await POST(

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { generationTaskNextPollAt, claimDueGenerationTasks, releaseGenerationTaskLease, renewGenerationTaskLeases, scheduleGenerationTask, withGenerationConcurrencyLimit, type GenerationTaskLease } from "@/lib/server/generation-task-scheduler";
-import { failVideoTaskFromWorker, persistVideoTaskResult, queryVideoTaskUpstream, VideoQueryAuthError } from "@/lib/server/video-task-runtime";
+import { createQueuedPracticeVideoTaskUpstreamStep, failVideoTaskFromWorker, persistVideoTaskResult, queryVideoTaskUpstream, VideoQueryAuthError } from "@/lib/server/video-task-runtime";
 import { isVideoProviderMediaUrl } from "@/lib/server/video-provider-response";
 import { getVideoTask, type VideoTask } from "@/lib/server/video-task-store";
 import { createAudioTaskUpstreamStep, markAudioTaskFailed, persistAudioTaskResult, queryAudioTaskUpstreamStep } from "@/lib/server/audio-task-runtime";
@@ -978,7 +978,8 @@ async function processVideoLease(lease: GenerationTaskLease, workerId: string, o
     if (needsPersistence(lease)) return persistVideoLease(task, lease, workerId, origin, cookie, userRequested);
 
     try {
-        const step = await queryVideoTaskUpstream(task, origin, cookie, cookie ? "" : task.userId);
+        const queuedSubmission = lease.executionPhase === "queued" && !task.upstream.id;
+        const step = queuedSubmission ? await createQueuedPracticeVideoTaskUpstreamStep(task, origin, cookie, cookie ? "" : task.userId) : await queryVideoTaskUpstream(task, origin, cookie, cookie ? "" : task.userId);
         const now = Date.now();
         if (step.state === "failed") {
             await failVideoTaskFromWorker(task, step.error, true);
@@ -1008,11 +1009,13 @@ async function processVideoLease(lease: GenerationTaskLease, workerId: string, o
             });
             return "needs_review";
         }
+        const latest = queuedSubmission ? (await getVideoTask(task.id)) || task : task;
         await releaseGenerationTaskLease("video", task.id, workerId, {
             executionPhase: "polling",
-            upstreamTaskId: task.upstream.id || lease.upstreamTaskId,
-            queryPath: task.upstream.queryPath || task.config?.advancedConfig?.queryPath,
-            nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt, now }),
+            upstreamTaskId: step.upstreamTaskId || latest.upstream.id || lease.upstreamTaskId,
+            queryPath: latest.upstream.queryPath || latest.config?.advancedConfig?.queryPath,
+            submittedAt: lease.submittedAt || now,
+            nextPollAt: generationTaskNextPollAt({ submittedAt: lease.submittedAt || now, now }),
             lastPollAt: now,
             lastUpstreamStatus: step.status,
         });

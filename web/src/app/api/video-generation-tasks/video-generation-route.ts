@@ -109,6 +109,109 @@ export async function POST(request: Request) {
     const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
     if ((hasUntrustedExecutionProfile(body) || hasUntrustedWorkflowContext(body)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
+    if (practiceRequest) {
+        const executionProfile: PracticeExecutionProfile = "open-source-practice";
+        let trustedContext: GenerationTaskContext;
+        try {
+            const clientContext = sanitizeGenerationContext(body.context, trustedPractice);
+            if (!clientContext.businessCode) clientContext.businessCode = generationBusinessCode(clientContext.surface as string | undefined, "video");
+            const billingContext = await resolveSchoolComputeBillingContext(user.id, { ...clientContext, executionProfile });
+            trustedContext = { ...clientContext, executionProfile, ...(billingContext ? { billingContext } : {}) };
+        } catch (error) {
+            if (error instanceof SchoolServiceError) return NextResponse.json({ error: error.message }, { status: error.status });
+            throw error;
+        }
+        const requestedModel = typeof body.config?.model === "string" && body.config.model.trim() ? body.config.model : settings.defaultModels.videoModel;
+        const channels = resolvePracticeGenerationCandidates(settings, "video", requestedModel, trustedContext)
+            .map((channel) => ({ ...attachPracticeWorkflowToChannel(toSystemGenerationChannel(channel), settings, trustedContext), executionProfile }))
+            .filter((channel): channel is typeof channel & { channelId: string } => typeof channel.channelId === "string");
+        const prompt = String(body.prompt || "").trim();
+        if (!channels.length || !prompt) return NextResponse.json({ error: "视频任务参数不完整或渠道不支持" }, { status: 400 });
+        if (!(await hasHealthyRuntimeCandidate(channels, "video"))) return NextResponse.json({ error: "当前视频模型暂不可用，请切换模型或稍后重试" }, { status: 503 });
+        trustedContext = { ...trustedContext, ...workflowTaskContextForChannel(channels[0], trustedContext.businessCode, trustedContext) };
+        const publicOrigin = requestPublicOrigin(request);
+        let references: VideoGenerationReference[];
+        try {
+            references = await Promise.all(normalizeVideoGenerationReferences(body.references).map((reference) => signProviderReference(reference, user, publicOrigin)));
+            references = await normalizeVideoProviderImageReferences({ references, userId: user.id, internalOrigin: resolveInternalOrigin(resolvePublicRequestOrigin(request)), publicOrigin });
+        } catch (error) {
+            return NextResponse.json({ error: error instanceof Error ? error.message : "视频参考素材不正确" }, { status: 400 });
+        }
+        const requestedParameters = resolveVideoGenerationParameters(body.config || {}, settings.generationDefaults);
+        let capabilityError: unknown;
+        for (const channel of channels) {
+            const geminiVideo = isGeminiVideoChannel(channel);
+            const parameters = {
+                ...requestedParameters,
+                videoSeconds: geminiVideo
+                    ? normalizeGeminiVideoDuration(requestedParameters.videoSeconds)
+                    : resolveUpstreamVideoDuration(requestedParameters.videoSeconds, settings.generationDefaults.videoSeconds, {
+                          durationRange: channel.advancedConfig?.durationRange,
+                          minDurationSeconds: channel.capabilityProfile?.minDurationSeconds,
+                          maxDurationSeconds: channel.capabilityProfile?.maxDurationSeconds,
+                      }),
+            };
+            try {
+                assertCapabilityConstraints(channel.capabilityProfile, {
+                    capability: "video",
+                    referenceCount: references.filter((reference) => reference.type === "image").length,
+                    durationSeconds: requestedParameters.videoSeconds === -1 ? undefined : requestedParameters.videoSeconds,
+                    aspectRatio: requestedParameters.size,
+                    resolution: requestedParameters.vquality,
+                });
+                const globalPreset = globalAiOpcVideoPreset(channel.advancedConfig, channel.model);
+                if (geminiVideo) assertGeminiVideoReferences(references);
+                else {
+                    assertReferenceCapabilities(
+                        globalPreset
+                            ? {
+                                  ...channel.advancedConfig!,
+                                  supportsReferenceImage: Boolean(globalPreset.supportsReferenceImage),
+                                  supportsReferenceVideo: Boolean(globalPreset.supportsReferenceVideo),
+                                  supportsReferenceAudio: Boolean(globalPreset.supportsReferenceAudio),
+                              }
+                            : channel.advancedConfig,
+                        references,
+                    );
+                    if (channel.advancedConfig?.protocol !== "yumeng") assertVideoReferenceRoles(channel.advancedConfig, references, globalPreset?.videoReferenceRoles);
+                    if (channel.advancedConfig?.protocol === "vozeb-recommended") assertVozebRecommendedVideoReferences(channel.model, references);
+                    if (channel.advancedConfig?.protocol === "yumeng") assertYumengVideoReferences(channel.model, references);
+                    assertReferenceUrls(channel.advancedConfig, references, Boolean(globalPreset));
+                }
+            } catch (error) {
+                capabilityError = error;
+                continue;
+            }
+            const workflowInput = trustedPractice && body.input && typeof body.input === "object" && !Array.isArray(body.input) ? { ...parameters, ...body.input } : parameters;
+            const task = await createVideoTask({
+                userId: user.id,
+                username: user.username,
+                displayName: user.displayName,
+                title: prompt.slice(0, 36) || "视频生成",
+                config: channel,
+                upstream: { id: "", provider: "generation", model: channel.model, pollPath: geminiVideo ? geminiVideoCreatePath(channel.model) : channel.advancedConfig?.createPath || CREATE_PATHS[0] },
+                requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds,
+                prompt,
+                references,
+                workflowInput,
+                source: mediaTaskSource(body.source, trustedContext, "video-task"),
+                attempts: [],
+                ...trustedContext,
+            });
+            await linkStoredGenerationTask("video", task.id, trustedContext);
+            await scheduleGenerationTask("video", task.id, {
+                executionPhase: "queued",
+                channelId: channel.channelId,
+                provider: channel.advancedConfig?.protocol || channel.apiFormat,
+                queryPath: channel.advancedConfig?.queryPath,
+                nextPollAt: Date.now(),
+                lastUpstreamStatus: "queued",
+            });
+            after(() => runGenerationTaskRecoveryBatch({ origin: resolveInternalOrigin(resolvePublicRequestOrigin(request)), cookie: requestRuntimeCredential(request, user.id), limit: 1, taskIds: [task.id] }));
+            return NextResponse.json({ task: publicTask(task), queued: true });
+        }
+        return NextResponse.json({ error: capabilityError instanceof Error ? capabilityError.message : "当前渠道不支持参考素材" }, { status: 400 });
+    }
     const response = await withGenerationConcurrencyLimit(
         user.id,
         "video",

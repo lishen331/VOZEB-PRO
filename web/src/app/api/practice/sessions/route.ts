@@ -91,9 +91,9 @@ async function dispatchPracticeTask(request: Request, input: import("@/lib/serve
     const cookie = request.headers.get("cookie");
     if (cookie) headers.set("cookie", cookie);
     const response = await fetchInternalApi(new URL(endpoint, resolveInternalOrigin(new URL(request.url).origin)), { method: "POST", headers, body: JSON.stringify(body) });
-    const payload = (await response.json().catch(() => ({}))) as { task?: { id?: string; type?: string }; error?: string };
+    const payload = (await response.json().catch(() => ({}))) as { task?: { id?: string; type?: string }; queued?: boolean; error?: string };
     if (!response.ok || !payload.task?.id) throw new Error(payload.error || "练习任务调度失败");
-    return { taskId: payload.task.id, taskType: input.capability };
+    return { taskId: payload.task.id, taskType: input.capability, ...(payload.queued ? { queued: true } : {}) };
 }
 
 function normalizePracticeReferenceInputKey(value: unknown) {

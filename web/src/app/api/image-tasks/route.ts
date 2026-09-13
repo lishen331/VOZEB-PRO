@@ -195,6 +195,7 @@ export async function POST(request: Request) {
     const practiceRequest = trustedPractice || projectProfile === "open-source-practice";
     if ((hasUntrustedExecutionProfile(resolvedBody) || hasUntrustedWorkflowContext(resolvedBody)) && !trustedPractice && !practiceRequest) return NextResponse.json({ error: "工作流执行上下文只能由服务端项目或受信任的练习服务创建" }, { status: 400 });
     const settings = await getAuthSettings();
+    const queuePractice = practiceRequest;
     const createTask = async () => {
         const executionProfile = practiceRequest ? "open-source-practice" : "production";
         let trustedContext: GenerationTaskContext;
@@ -269,12 +270,18 @@ export async function POST(request: Request) {
         const cookie = request.headers.get("cookie") || "";
         const origin = resolveInternalOrigin(resolvePublicRequestOrigin(request));
         const publicOrigin = requestPublicOrigin(request);
-        await scheduleGenerationTask("image", task.id, { executionPhase: "created", channelId: task.config.channelId, provider: task.config.advancedConfig?.protocol || task.config.apiFormat, nextPollAt: Date.now(), lastUpstreamStatus: "created" });
+        await scheduleGenerationTask("image", task.id, {
+            executionPhase: queuePractice ? "queued" : "created",
+            channelId: task.config.channelId,
+            provider: task.config.advancedConfig?.protocol || task.config.apiFormat,
+            nextPollAt: Date.now(),
+            lastUpstreamStatus: queuePractice ? "queued" : "created",
+        });
         after(() => runGenerationTaskRecoveryBatch({ origin, publicOrigin, cookie, limit: 1, taskIds: [task.id] }));
 
-        return NextResponse.json({ task: publicTask(task) });
+        return NextResponse.json({ task: publicTask(task), ...(queuePractice ? { queued: true } : {}) });
     };
-    const response = layerGrant ? await createTask() : await withGenerationConcurrencyLimit(currentUser.id, "image", 10 * 60 * 1000, settings.generationConcurrency.image, createTask, undefined, concurrencyRequestId);
+    const response = layerGrant || queuePractice ? await createTask() : await withGenerationConcurrencyLimit(currentUser.id, "image", 10 * 60 * 1000, settings.generationConcurrency.image, createTask, undefined, concurrencyRequestId);
     if (response) return response;
     const retryAfter = await generationCapacityRetryAfterSeconds(currentUser.id, "image", 10 * 60 * 1000);
     return NextResponse.json({ error: "当前用户生图任务已达到并发上限，请稍后再试" }, { status: 429, ...(retryAfter ? { headers: { "Retry-After": String(retryAfter) } } : {}) });

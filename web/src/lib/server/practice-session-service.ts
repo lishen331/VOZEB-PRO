@@ -51,7 +51,7 @@ export type PracticeTaskDispatchInput = {
     workflow?: RunningHubWorkflowConfig;
 };
 
-export type PracticeTaskDispatchResult = { taskId: string; taskType: "text" | "image" | "video" | "audio" };
+export type PracticeTaskDispatchResult = { taskId: string; taskType: "text" | "image" | "video" | "audio"; queued?: boolean };
 export type PracticeModelResolution = { logicalModelId: string; capability: PracticeTaskDispatchInput["capability"]; workflow?: RunningHubWorkflowConfig };
 
 type PracticeSessionScope = PracticeTenantScope | string;
@@ -239,12 +239,12 @@ async function dispatchQueuedSession(
     }
     const taskRefs = [{ taskId: task.taskId, taskType: task.taskType }] as unknown as JsonValue;
     try {
-        const running = await store.update(scope, claimed.id, { status: "running", taskRefs, errorCode: undefined, errorMessage: undefined });
+        const running = await store.update(scope, claimed.id, { status: task.queued ? "queued" : "running", taskRefs, errorCode: undefined, errorMessage: undefined });
         if (!running) throw new Error("练习任务引用写回未确认");
         return publicSession(running || claimed);
     } catch (error) {
         try {
-            const linked = await store.update(scope, claimed.id, { status: "running", taskRefs, errorCode: undefined, errorMessage: undefined });
+            const linked = await store.update(scope, claimed.id, { status: task.queued ? "queued" : "running", taskRefs, errorCode: undefined, errorMessage: undefined });
             if (linked) return publicSession(linked);
         } catch {
             // The durable generation task remains available for reconciliation on the next read.
@@ -348,7 +348,20 @@ export async function publicPracticeSession(session: PracticeSessionRecord) {
         ...(reconciled.workflowVersion ? { workflowVersion: reconciled.workflowVersion } : {}),
         ...(reconciled.workflowConfigFingerprint ? { workflowConfigFingerprint: reconciled.workflowConfigFingerprint } : {}),
         ...(reconciled.workflowAdapterVersion ? { workflowAdapterVersion: reconciled.workflowAdapterVersion } : {}),
-        status: task?.status === "success" ? "success" : task?.status === "error" ? "failed" : task?.status === "cancelled" ? "cancelled" : dispatchNeverStarted ? "failed" : reconciled.status,
+        status:
+            task?.status === "success"
+                ? "success"
+                : task?.status === "error"
+                  ? "failed"
+                  : task?.status === "cancelled"
+                    ? "cancelled"
+                    : task?.status === "running"
+                      ? "running"
+                      : task?.status === "pending" && reconciled.status !== "queued"
+                        ? "running"
+                        : dispatchNeverStarted
+                          ? "failed"
+                          : reconciled.status,
         ...(reconciled.selectedLogicalModelId ? { selectedLogicalModelId: reconciled.selectedLogicalModelId } : {}),
         ...(dispatchNeverStarted ? { errorCode: "PRACTICE_DISPATCH_NOT_STARTED" as const, errorMessage: "练习任务尚未提交，请重试" } : reconciled.errorCode ? { errorCode: reconciled.errorCode, errorMessage: reconciled.errorMessage } : {}),
         ...(task ? { result: task } : {}),

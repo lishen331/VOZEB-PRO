@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
     validateGenerationContextIpReferences: vi.fn(),
     withGenerationConcurrencyLimit: vi.fn(),
     resolveSchoolComputeBillingContext: vi.fn(),
+    scheduleGenerationTask: vi.fn(),
+    createImageTask: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -22,12 +24,17 @@ vi.mock("@/lib/auth/store", () => ({
     isAuthInputError: vi.fn(() => false),
     refundUserPoints: vi.fn(),
 }));
+vi.mock("@/lib/server/image-task-store", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/lib/server/image-task-store")>();
+    return { ...actual, createImageTask: mocks.createImageTask };
+});
 vi.mock("@/lib/server/generation-task-store", () => ({
     generationCapacityRetryAfterSeconds: mocks.generationCapacityRetryAfterSeconds,
     getStoredGenerationTaskByRequest: mocks.getStoredGenerationTaskByRequest,
     linkStoredGenerationTask: vi.fn(),
     withGenerationConcurrencyLimit: mocks.withGenerationConcurrencyLimit,
 }));
+vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: mocks.scheduleGenerationTask }));
 vi.mock("@/lib/server/security", () => ({
     checkGenerationRateLimit: mocks.rate,
     rateLimitHeaders: vi.fn(() => ({})),
@@ -55,6 +62,31 @@ describe("image task route", () => {
         mocks.validateGenerationContextIpReferences.mockResolvedValue(undefined);
         mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
         mocks.withGenerationConcurrencyLimit.mockImplementation(async (_userId, _type, _staleMs, _limit, handler) => handler());
+        mocks.createImageTask.mockReset();
+    });
+
+    it("queues a practice image task without the production concurrency gate", async () => {
+        mocks.resolveProjectExecutionProfile.mockResolvedValueOnce("open-source-practice");
+        mocks.getAuthSettings.mockResolvedValueOnce(imageSettings());
+        mocks.createImageTask.mockResolvedValueOnce({
+            id: "practice-image",
+            userId: "user-one",
+            kind: "generation",
+            status: "pending",
+            createdAt: 1,
+            updatedAt: 1,
+            config: { model: "upstream-image", logicalModel: "image", channelId: "image-channel", apiFormat: "openai" },
+            prompt: "练习图",
+            references: [],
+        } as never);
+
+        const response = await POST(imageRequest({ prompt: "练习图", context: { surface: "canvas", projectId: "practice-canvas" } }));
+
+        const payload = await response.json();
+        expect(response.status).toBe(200);
+        expect(payload).toMatchObject({ task: { id: "practice-image" }, queued: true });
+        expect(mocks.withGenerationConcurrencyLimit).not.toHaveBeenCalled();
+        expect(mocks.scheduleGenerationTask).toHaveBeenCalledWith("image", "practice-image", expect.objectContaining({ executionPhase: "queued", lastUpstreamStatus: "queued" }));
     });
 
     it("returns the project access status before task creation", async () => {
@@ -130,19 +162,39 @@ function imageRequest(body: unknown) {
 }
 
 function imageSettings() {
+    const workflow = {
+        workflowKey: "image-workflow",
+        workflowId: "1",
+        workflowCode: "storyboard_shot",
+        version: 1,
+        businessCode: "canvas",
+        capability: "image",
+        enabled: true,
+        createPath: "/task/openapi/create",
+        queryPath: "/openapi/v2/query",
+        taskIdField: "taskId",
+        statusField: "status",
+        resultField: "results",
+        inputMappings: [],
+        outputMappings: [],
+    };
     return {
         generationConcurrency: { image: 1 },
         generationDefaults: { imageSize: "auto", imageQuality: "auto" },
-        systemChannels: [{ id: "image-channel", name: "图片", enabled: true, baseUrl: "https://image.example.com/v1", apiKey: "secret", apiFormat: "openai", models: ["upstream-image"] }],
-        logicalModels: [
+        systemChannels: [
             {
-                id: "image",
+                id: "image-channel",
                 name: "图片",
-                capability: "image",
                 enabled: true,
-                bindings: [{ id: "binding", channelId: "image-channel", upstreamModel: "upstream-image", enabled: true, priority: 1 }],
+                purpose: "open-source-practice",
+                baseUrl: "https://image.example.com/v1",
+                apiKey: "secret",
+                apiFormat: "openai",
+                models: ["image-workflow"],
+                advancedConfig: { protocol: "runninghub", workflowConfigs: { image: workflow } },
             },
         ],
-        defaultModels: { imageModel: "image" },
+        logicalModels: [],
+        defaultModels: { imageModel: "image-workflow" },
     };
 }

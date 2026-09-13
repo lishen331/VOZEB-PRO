@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
     linkStoredGenerationTask: vi.fn(),
     checkGenerationRateLimit: vi.fn(async () => ({ allowed: true, remaining: 5, resetAt: Date.now() + 60_000 })),
     resolveSchoolComputeBillingContext: vi.fn(),
+    withGenerationConcurrencyLimit: vi.fn(),
+    scheduleGenerationTask: vi.fn(),
+    getAuthSettings: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -16,24 +19,20 @@ vi.mock("next/server", async (importOriginal) => {
 });
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: vi.fn(async () => ({ id: "user-one" })) }));
 vi.mock("@/lib/auth/store", () => ({
-    getAuthSettings: vi.fn(async () => ({
-        systemChannels: [],
-        logicalModels: [],
-        defaultModels: { textModel: "" },
-        generationConcurrency: { text: 1 },
-    })),
+    getAuthSettings: mocks.getAuthSettings,
     isAuthInputError: vi.fn(() => false),
 }));
 vi.mock("@/lib/server/generation-task-store", () => ({
     getStoredGenerationTaskByRequest: mocks.getStoredGenerationTaskByRequest,
     linkStoredGenerationTask: mocks.linkStoredGenerationTask,
-    withGenerationConcurrencyLimit: vi.fn(async (_userId, _type, _staleMs, _limit, handler) => handler()),
+    withGenerationConcurrencyLimit: mocks.withGenerationConcurrencyLimit,
 }));
 vi.mock("@/lib/server/security", () => ({
     checkGenerationRateLimit: mocks.checkGenerationRateLimit,
     rateLimitHeaders: vi.fn(() => ({})),
 }));
 vi.mock("@/lib/server/text-task-store", () => ({ createTextTask: mocks.createTextTask }));
+vi.mock("@/lib/server/generation-task-scheduler", () => ({ scheduleGenerationTask: mocks.scheduleGenerationTask }));
 vi.mock("@/lib/server/ip-library-reference-service", () => ({ validateGenerationContextIpReferences: mocks.validateGenerationContextIpReferences }));
 vi.mock("@/lib/server/school-compute-billing-context", () => ({ resolveSchoolComputeBillingContext: mocks.resolveSchoolComputeBillingContext }));
 
@@ -52,6 +51,32 @@ describe("text task IP authorization", () => {
         vi.clearAllMocks();
         mocks.resolveProjectExecutionProfile.mockResolvedValue(undefined);
         mocks.resolveSchoolComputeBillingContext.mockResolvedValue(undefined);
+        mocks.getAuthSettings.mockResolvedValue({ systemChannels: [], logicalModels: [], defaultModels: { textModel: "" }, generationConcurrency: { text: 1 } });
+        mocks.withGenerationConcurrencyLimit.mockImplementation(async (_userId, _type, _staleMs, _limit, handler) => handler());
+    });
+
+    it("queues a practice text task without the production concurrency gate", async () => {
+        mocks.resolveProjectExecutionProfile.mockResolvedValueOnce("open-source-practice");
+        mocks.getAuthSettings.mockResolvedValueOnce({
+            systemChannels: [{ id: "text-channel", enabled: true, purpose: "open-source-practice", baseUrl: "https://text.example/v1", apiKey: "key", apiFormat: "openai", models: ["text-upstream"] }],
+            logicalModels: [{ id: "practice-text", name: "练习文本", capability: "text", enabled: true, bindings: [{ id: "binding", channelId: "text-channel", upstreamModel: "text-upstream", enabled: true, priority: 1 }] }],
+            defaultModels: { textModel: "practice-text" },
+            generationConcurrency: { text: 1 },
+        });
+        mocks.createTextTask.mockImplementation(async (input) => ({ ...input, id: "practice-text", status: "pending", createdAt: 1, updatedAt: 1 }));
+
+        const response = await POST(
+            new Request("http://localhost/api/text-tasks", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ messages: [{ role: "user", content: "写剧本" }], context: { surface: "drama", projectId: "practice-drama" } }),
+            }),
+        );
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ task: { id: "practice-text" }, queued: true });
+        expect(mocks.withGenerationConcurrencyLimit).not.toHaveBeenCalled();
+        expect(mocks.scheduleGenerationTask).toHaveBeenCalledWith("text", "practice-text", expect.objectContaining({ executionPhase: "queued", lastUpstreamStatus: "queued" }));
     });
 
     it("returns the project access status before task creation", async () => {

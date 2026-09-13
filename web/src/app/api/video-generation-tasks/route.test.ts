@@ -128,6 +128,52 @@ describe("video generation candidate failover", () => {
 
     afterEach(() => vi.unstubAllEnvs());
 
+    it("queues a practice video without creating an upstream task or entering the production concurrency gate", async () => {
+        const workflow = {
+            workflowKey: "video-workflow",
+            workflowId: "1",
+            workflowCode: "storyboard_shot_video",
+            version: 1,
+            businessCode: "storyboard-video",
+            capability: "video",
+            enabled: true,
+            createPath: "/task/openapi/create",
+            queryPath: "/openapi/v2/query",
+            taskIdField: "taskId",
+            statusField: "status",
+            resultField: "results",
+            inputMappings: [],
+            outputMappings: [],
+        };
+        mocks.resolveProjectExecutionProfile.mockResolvedValueOnce("open-source-practice");
+        mocks.getAuthSettings.mockResolvedValueOnce({
+            ...settings,
+            systemChannels: [
+                {
+                    id: "practice-video",
+                    name: "练习视频",
+                    baseUrl: "https://runninghub.example",
+                    apiKey: "key",
+                    apiFormat: "openai",
+                    models: ["video-workflow"],
+                    enabled: true,
+                    purpose: "open-source-practice",
+                    advancedConfig: { protocol: "runninghub", workflowConfigs: { video: workflow } },
+                },
+            ],
+            logicalModels: [],
+            defaultModels: { videoModel: "video-workflow" },
+        });
+
+        const response = await POST(request({ model: "video-workflow" }, [], { surface: "drama", projectId: "practice-drama", businessCode: "storyboard-video", workflowCode: "storyboard_shot_video" }));
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ task: { id: "local-task" }, queued: true });
+        expect(mocks.withGenerationConcurrencyLimit).not.toHaveBeenCalled();
+        expect(mocks.fetchInternalApi).not.toHaveBeenCalled();
+        expect(mocks.scheduleGenerationTask).toHaveBeenCalledWith("video", "local-task", expect.objectContaining({ executionPhase: "queued", lastUpstreamStatus: "queued" }));
+    });
+
     it("returns the project access status before task creation", async () => {
         mocks.resolveProjectExecutionProfile.mockRejectedValueOnce(Object.assign(new Error("当前账号没有可用的学校身份"), { status: 403 }));
         const response = await POST(

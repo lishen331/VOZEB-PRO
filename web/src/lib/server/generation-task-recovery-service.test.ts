@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
     markImageTaskFailed: vi.fn(),
     getVideoTask: vi.fn(),
     queryVideoTaskUpstream: vi.fn(),
+    createQueuedPracticeVideoTaskUpstreamStep: vi.fn(),
     getAudioTask: vi.fn(),
     updateAudioTask: vi.fn(),
     createAudioTaskUpstreamStep: vi.fn(),
@@ -56,7 +57,12 @@ vi.mock("@/lib/server/agent-run-executor", () => ({ executeAgentRun: mocks.execu
 vi.mock("@/lib/server/agent-run-execution", () => ({ processAgentRunReview: mocks.processAgentRunReview }));
 vi.mock("@/lib/server/agent-run-store", () => ({ getAgentRun: mocks.getAgentRun, updateAgentRunById: mocks.updateAgentRunById }));
 vi.mock("@/lib/server/maintenance-auth", () => ({ maintenanceWorkerContext: vi.fn((userId: string) => `worker-context:${userId}`) }));
-vi.mock("@/lib/server/video-task-runtime", () => ({ failVideoTaskFromWorker: mocks.failVideoTaskFromWorker, persistVideoTaskResult: mocks.persistVideoTaskResult, queryVideoTaskUpstream: mocks.queryVideoTaskUpstream }));
+vi.mock("@/lib/server/video-task-runtime", () => ({
+    createQueuedPracticeVideoTaskUpstreamStep: mocks.createQueuedPracticeVideoTaskUpstreamStep,
+    failVideoTaskFromWorker: mocks.failVideoTaskFromWorker,
+    persistVideoTaskResult: mocks.persistVideoTaskResult,
+    queryVideoTaskUpstream: mocks.queryVideoTaskUpstream,
+}));
 vi.mock("@/lib/server/video-task-store", () => ({ getVideoTask: mocks.getVideoTask }));
 vi.mock("@/lib/server/audio-task-runtime", () => ({
     createAudioTaskUpstreamStep: mocks.createAudioTaskUpstreamStep,
@@ -127,6 +133,28 @@ describe("generation task recovery service", () => {
 
         expect(mocks.createImageTaskUpstreamStep).not.toHaveBeenCalled();
         expect(mocks.release).toHaveBeenCalledWith("image", task.id, "worker-one", expect.objectContaining({ executionPhase: "queued", nextPollAt: expect.any(Number), lastUpstreamStatus: "capacity_wait" }));
+        expect(result).toMatchObject({ claimed: 1, pending: 1, failed: 0 });
+    });
+
+    it("submits an admitted queued practice video once before polling its persisted upstream task", async () => {
+        const queued = {
+            id: "queued-practice-video",
+            userId: "user-one",
+            status: "running",
+            executionProfile: "open-source-practice",
+            upstream: { id: "", provider: "generation", model: "video" },
+            config: { channelId: "channel-video", apiFormat: "openai", advancedConfig: { protocol: "runninghub", queryPath: "/openapi/v2/query" } },
+        };
+        const submitted = { ...queued, upstream: { ...queued.upstream, id: "upstream-video" } };
+        mocks.claim.mockResolvedValue([{ ...lease(), id: queued.id, userId: queued.userId, type: "video", status: "running", executionProfile: "open-source-practice", executionPhase: "queued" }]);
+        mocks.getVideoTask.mockResolvedValueOnce(queued).mockResolvedValueOnce(submitted);
+        mocks.createQueuedPracticeVideoTaskUpstreamStep.mockResolvedValue({ state: "pending", status: "submitted", upstreamTaskId: "upstream-video" });
+
+        const result = await runGenerationTaskRecoveryBatch({ origin: "http://internal", workerId: "worker-one" });
+
+        expect(mocks.createQueuedPracticeVideoTaskUpstreamStep).toHaveBeenCalledOnce();
+        expect(mocks.queryVideoTaskUpstream).not.toHaveBeenCalled();
+        expect(mocks.release).toHaveBeenCalledWith("video", queued.id, "worker-one", expect.objectContaining({ executionPhase: "polling", upstreamTaskId: "upstream-video", lastUpstreamStatus: "submitted" }));
         expect(result).toMatchObject({ claimed: 1, pending: 1, failed: 0 });
     });
 
