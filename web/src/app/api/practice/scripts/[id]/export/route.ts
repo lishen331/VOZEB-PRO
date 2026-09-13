@@ -14,6 +14,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (!user) return response(401, "请先登录");
     await requirePracticeAccess(user, "script");
     try {
+        await requirePracticeAccess(user, "script");
         const scope = await requirePracticeTenant(user, "script");
         const format = new URL(request.url).searchParams.get("format") || "text";
         if (!["text", "fountain", "fdx", "storyboard", "storyboard_csv"].includes(format)) return response(400, "不支持的导出格式");
