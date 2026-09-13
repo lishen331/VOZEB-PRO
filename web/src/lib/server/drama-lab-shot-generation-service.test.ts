@@ -38,6 +38,18 @@ const project = {
             id: "character-lin",
             name: "林薇",
             description: "红色风衣",
+            profile: {
+                visualIdentity: "",
+                styling: "",
+                colorPalette: "",
+                consistencyRules: "",
+                face_shape: "鹅蛋脸",
+                facial_features: "杏眼",
+                unique_marks: "泪痣",
+                color_anchors: { hair: "#111111", eyes: "#222222", skin: "#F0D0B0", primary_outfit: "#AA0000" },
+                skin_texture: "细腻",
+                hair_style: "黑色短发",
+            },
             stages: [{ episodeRange: [1, 3] as [number, number], appearance: "本集白色校服造型" }],
             references: [{ id: "character-ref", url: "/api/reference-assets/character.png", source: "upload" as const, label: "林薇主图", createdAt: "2026-08-22T00:00:00.000Z" }],
             primaryReferenceId: "character-ref",
@@ -110,6 +122,8 @@ describe("drama lab shot generation service", () => {
         expect(image.prompt).toContain("【本集角色阶段造型】");
         expect(image.prompt).toContain("林薇：本集白色校服造型");
         expect(video.prompt).toContain("林薇：本集白色校服造型");
+        expect(image.prompt).toContain("脸型：鹅蛋脸");
+        expect(video.prompt).toContain("发型：黑色短发");
     });
     it("uses the saved classic polished prompt and never leaks internal asset ids", async () => {
         const polishedPrompt = "【主体与动作】林夏独自前行。\n【场景与空间】雨夜站台。\n【景别/机位/构图】中景平视。\n【光线与色调】冷蓝。\n【角色白名单】仅林夏。\n【一致性与禁止项】禁止额外人物。";

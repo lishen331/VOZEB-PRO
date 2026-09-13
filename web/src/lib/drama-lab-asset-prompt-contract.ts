@@ -1,4 +1,5 @@
 import { resolveDramaLabStylePrompt } from "./drama-lab-style-prompt";
+import { dramaLabCharacterAnchorBlock } from "./drama-lab-character-anchors";
 import type { DramaAssetProfile, DramaAssetVisualDetails } from "./drama-project-contract";
 import { normalizeDramaAssetGenerationLayout } from "./drama-asset-generation-contract";
 
@@ -20,9 +21,8 @@ export function buildDramaLabAssetFinalPrompt(project: { style?: string; aspectR
     ]
         .filter(Boolean)
         .join("\n");
-    const anchor = asset.profile
-        ? `\n\n【视觉锚点】\n视觉识别：${asset.profile.visualIdentity || "未指定"}\n造型与材质：${asset.profile.styling || "未指定"}\n固定色彩：${asset.profile.colorPalette || "未指定"}\n一致性规则：${asset.profile.consistencyRules || "未指定"}`
-        : "";
+    const anchorBlock = kind === "characters" ? dramaLabCharacterAnchorBlock(asset.profile) : "";
+    const anchor = anchorBlock ? `\n\n${anchorBlock}` : "";
     const description = visualDescription.trim() || asset.imagePrompt?.trim() || asset.appearance?.trim() || asset.description?.trim() || asset.name || "";
     const sourceFacts = assetSourceFacts(kind, asset, description);
     return `${styleBlock}\n\n${layoutContract(kind, layout, project.aspectRatio)}\n\n---\n\n${description}${sourceFacts}${anchor}`.trim();
