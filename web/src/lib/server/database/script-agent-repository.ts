@@ -166,6 +166,25 @@ export class ScriptAgentRepository {
             );
     }
 
+    async replaceStoryboardEpisodes(scope: PracticeTenantScope, projectId: string, runId: string, episodes: Array<{ episodeNumber: number; shots: Array<Record<string, unknown>> }>) {
+        for (const episode of episodes) {
+            const result = await this.db.query<{ id: string }>(`SELECT id FROM practice_script_episodes WHERE school_id = $1 AND owner_user_id = $2 AND project_id = $3 AND episode_number = $4 ORDER BY version DESC LIMIT 1`, [
+                scope.schoolId,
+                scope.ownerUserId,
+                projectId,
+                episode.episodeNumber,
+            ]);
+            const episodeId = result.rows[0]?.id;
+            if (!episodeId) throw new Error(`第${episode.episodeNumber}集尚未保存，无法写入文字分镜`);
+            await this.replaceShots(
+                scope,
+                projectId,
+                runId,
+                episode.shots.map((shot) => ({ ...shot, episodeId })),
+            );
+        }
+    }
+
     async replaceShots(scope: PracticeTenantScope, projectId: string, runId: string, shots: Array<Record<string, unknown>>) {
         for (const shot of shots)
             await this.db.query(

@@ -25,7 +25,7 @@ const EXECUTION: Record<ScriptRunType, { agent: ScriptAgentKey; artifact: Script
 export type ScriptExecutionInput = { projectId: string; runId: string; runType: ScriptRunType; input: Record<string, unknown>; origin: string; cookie: string };
 type Deps = {
     resolveProfile: (agent: ScriptAgentKey, skills?: string[]) => Promise<ResolvedScriptAgentProfile>;
-    callModel: (input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; onDelta?: (value: string) => Promise<void> }) => Promise<Record<string, unknown>>;
+    callModel: (input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; responseSchema: Record<string, unknown>; onDelta?: (value: string) => Promise<void> }) => Promise<Record<string, unknown>>;
     listArtifacts?: ScriptAgentRepository["listLatestArtifacts"];
     saveArtifact: (
         scope: PracticeTenantScope,
@@ -34,6 +34,7 @@ type Deps = {
     replaceChapters?: ScriptAgentRepository["replaceChapters"];
     replaceEpisodes?: ScriptAgentRepository["replaceEpisodes"];
     replaceShots?: ScriptAgentRepository["replaceShots"];
+    replaceStoryboardEpisodes?: ScriptAgentRepository["replaceStoryboardEpisodes"];
     upsertPromptAssets?: ScriptAgentRepository["upsertPromptAssets"];
     appendEvent: (scope: PracticeTenantScope, projectId: string, runId: string, type: ScriptRunEventType, data: Record<string, unknown>, eventId: string) => Promise<unknown>;
 };
@@ -53,6 +54,7 @@ export class ScriptAgentExecutor {
         const structured = await this.deps.callModel({
             profile,
             task: enrichedTask,
+            responseSchema: responseSchemaFor(task.runType),
             onDelta: async (value) => {
                 await this.deps.appendEvent(scope, task.projectId, task.runId, "artifact_delta", { artifactType: execution.artifact, artifactKey: execution.key, delta: value }, this.id());
             },
@@ -87,11 +89,12 @@ export function createDefaultScriptAgentExecutor(repository: ScriptAgentReposito
         replaceChapters: (...args) => repository.replaceChapters(...args),
         replaceEpisodes: (...args) => repository.replaceEpisodes(...args),
         replaceShots: (...args) => repository.replaceShots(...args),
+        replaceStoryboardEpisodes: (...args) => repository.replaceStoryboardEpisodes(...args),
         upsertPromptAssets: (...args) => repository.upsertPromptAssets(...args),
         appendEvent: (scope, projectId, runId, type, data, eventId) => repository.appendRunEvent(scope, projectId, runId, type, data, eventId),
     });
 }
-async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; onDelta?: (value: string) => Promise<void> }) {
+async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; responseSchema: Record<string, unknown>; onDelta?: (value: string) => Promise<void> }) {
     const requestId = systemAiIdempotencyKey("script-agent", input.task.runId, input.profile.profile.agentKey, String(input.profile.profile.version));
     const call = await requestStructuredText({
         origin: input.task.origin,
@@ -101,7 +104,7 @@ async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile;
             { role: "system", content: `${input.profile.instructions}\n只输出公开成果，不输出思维链。` },
             { role: "user", content: JSON.stringify(input.task.input) },
         ],
-        tool: { name: `save_${input.task.runType}`, description: "保存当前剧本阶段的结构化公开成果", parameters: { type: "object", additionalProperties: true } },
+        tool: { name: `save_${input.task.runType}`, description: "保存当前剧本阶段的结构化公开成果", parameters: input.responseSchema },
         headers: { "Idempotency-Key": requestId, "X-Client-Request-Id": requestId, ...systemAiBillingHeaders(input.profile.candidate.logicalModelId, requestId, input.profile.candidate.upstreamModel, "open-source-practice") },
         stream: true,
         streamFallback: true,
@@ -134,9 +137,14 @@ async function materializeStructuredRows(deps: Deps, scope: PracticeTenantScope,
         });
         await deps.replaceEpisodes(scope, task.projectId, task.runId, episodes);
     }
-    if (task.runType === "text_storyboard" && Array.isArray(structured.shots) && deps.replaceShots) {
-        const episodeId = typeof structured.episodeId === "string" ? structured.episodeId : typeof task.input.episodeId === "string" ? task.input.episodeId : "";
-        await deps.replaceShots(scope, task.projectId, task.runId, normalizeScriptShots(episodeId, structured.shots) as unknown as Array<Record<string, unknown>>);
+    if (task.runType === "text_storyboard" && Array.isArray(structured.episodes) && deps.replaceStoryboardEpisodes) {
+        const episodes = structured.episodes.map((value) => {
+            const row = record(value);
+            const episodeNumber = Number(row.episodeNumber);
+            const normalized = normalizeScriptShots(`episode-${episodeNumber}`, row.shots);
+            return { episodeNumber, shots: normalized as unknown as Array<Record<string, unknown>> };
+        });
+        await deps.replaceStoryboardEpisodes(scope, task.projectId, task.runId, episodes);
     }
     if (task.runType === "asset_prompts" && Array.isArray(structured.assets) && deps.upsertPromptAssets) await deps.upsertPromptAssets(scope, task.projectId, task.runId, normalizePromptAssets(structured.assets));
 }
@@ -146,4 +154,85 @@ function record(value: unknown): Record<string, unknown> {
 
 function publicArtifactContext(row: Record<string, unknown>) {
     return { type: String(row.artifact_type || ""), key: String(row.artifact_key || ""), status: String(row.status || ""), content: row.content_json || row.content_text || "" };
+}
+
+function responseSchemaFor(runType: ScriptRunType): Record<string, unknown> {
+    switch (runType) {
+        case "conversation":
+            return textResult("给用户的自然语言回复");
+        case "project_planning":
+            return textResult("创作定位、世界观、人物小传与故事大纲的 Markdown 正文");
+        case "short_story":
+            return objectSchema({ title: textProperty("故事标题"), content: textProperty("完整小说体短故事正文") }, ["title", "content"]);
+        case "novel_outlines":
+            return objectSchema({ content: textProperty("总纲、卷纲与章纲"), chapters: chapterArray(false) }, ["content", "chapters"]);
+        case "novel_chapters":
+            return objectSchema({ content: textProperty("章节生成摘要"), chapters: chapterArray(true) }, ["content", "chapters"]);
+        case "chapter_analysis":
+            return textResult("章节事件索引");
+        case "adaptation_bundle":
+            return objectSchema({ content: textProperty("故事骨架、改编策略和分集大纲"), episodes: episodeArray(false) }, ["content", "episodes"]);
+        case "episode_scripts":
+            return objectSchema({ content: textProperty("分集剧本生成摘要"), episodes: episodeArray(true) }, ["content", "episodes"]);
+        case "script_review":
+            return objectSchema({ report: textProperty("审核、自动修正和重大待确认项") }, ["report"]);
+        case "director_plan":
+            return textResult("导演文字规划");
+        case "text_storyboard":
+            return objectSchema({ content: textProperty("文字分镜摘要"), episodes: storyboardEpisodeArray() }, ["content", "episodes"]);
+        case "asset_prompts":
+            return objectSchema({ content: textProperty("提示词资产摘要"), assets: promptAssetArray() }, ["content", "assets"]);
+    }
+}
+function textProperty(description: string) {
+    return { type: "string", description };
+}
+function objectSchema(properties: Record<string, unknown>, required: string[]) {
+    return { type: "object", properties, required };
+}
+function textResult(description: string) {
+    return objectSchema({ content: textProperty(description) }, ["content"]);
+}
+function chapterArray(withContent: boolean) {
+    const properties: Record<string, unknown> = { chapterIndex: { type: "integer" }, title: { type: "string" }, outline: { type: "object" } };
+    if (withContent) properties.content = { type: "string" };
+    return { type: "array", items: objectSchema(properties, withContent ? ["chapterIndex", "title", "content"] : ["chapterIndex", "title", "outline"]) };
+}
+function episodeArray(withScript: boolean) {
+    const properties: Record<string, unknown> = { episodeNumber: { type: "integer" }, title: { type: "string" }, outline: { type: "object" } };
+    if (withScript) properties.script = objectSchema({ blocks: { type: "array", items: objectSchema({ type: { type: "string" }, text: { type: "string" } }, ["type", "text"]) } }, ["blocks"]);
+    return { type: "array", items: objectSchema(properties, withScript ? ["episodeNumber", "title", "script"] : ["episodeNumber", "title", "outline"]) };
+}
+function storyboardEpisodeArray() {
+    return { type: "array", items: objectSchema({ episodeNumber: { type: "integer" }, shots: { type: "array", items: shotSchema() } }, ["episodeNumber", "shots"]) };
+}
+function promptAssetArray() {
+    return {
+        type: "array",
+        items: objectSchema({ type: { type: "string", enum: ["character", "location", "prop"] }, name: textProperty("规范名"), prompt: textProperty("基准文字提示词"), aliases: { type: "array", items: { type: "string" } }, variants: { type: "array" } }, [
+            "type",
+            "name",
+            "prompt",
+        ]),
+    };
+}
+function shotSchema() {
+    return objectSchema(
+        {
+            sceneId: { type: "string" },
+            shotNumber: { type: "integer" },
+            visualDescription: { type: "string" },
+            shotSize: { type: "string" },
+            cameraAngle: { type: "string" },
+            composition: { type: "string" },
+            cameraMovement: { type: "string" },
+            characterIds: { type: "array", items: { type: "string" } },
+            action: { type: "string" },
+            emotion: { type: "string" },
+            durationSeconds: { type: "number" },
+            characterAssetIds: { type: "array", items: { type: "string" } },
+            propAssetIds: { type: "array", items: { type: "string" } },
+        },
+        ["sceneId", "shotNumber", "visualDescription", "shotSize", "cameraAngle", "composition", "cameraMovement", "action", "emotion", "durationSeconds"],
+    );
 }

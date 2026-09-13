@@ -54,6 +54,38 @@ describe("ScriptAgentRepository", () => {
         expect(query).toHaveBeenCalledWith(expect.stringContaining("ON CONFLICT (project_id, episode_number, version) DO UPDATE"), expect.any(Array));
     });
 
+    it("resolves storyboard episode numbers to persisted episode ids", async () => {
+        const query = vi
+            .fn()
+            .mockResolvedValueOnce({ rows: [{ id: "episode-db-1" }], rowCount: 1 })
+            .mockResolvedValue({ rows: [], rowCount: 0 });
+        const repo = new ScriptAgentRepository({ query } as unknown as QueryExecutor);
+        await repo.replaceStoryboardEpisodes(scope, "project-a", "run-board", [
+            {
+                episodeNumber: 1,
+                shots: [
+                    {
+                        sceneId: "scene-1",
+                        shotNumber: 1,
+                        visualDescription: "门被推开",
+                        shotSize: "近景",
+                        cameraAngle: "平视",
+                        composition: "居中",
+                        cameraMovement: "固定",
+                        characterIds: [],
+                        action: "回头",
+                        emotion: "警惕",
+                        durationSeconds: 3,
+                        characterAssetIds: [],
+                        propAssetIds: [],
+                    },
+                ],
+            },
+        ]);
+        expect(query).toHaveBeenNthCalledWith(1, expect.stringContaining("episode_number = $4"), ["school-a", "user-a", "project-a", 1]);
+        expect(query).toHaveBeenNthCalledWith(2, expect.stringContaining("INSERT INTO practice_script_shots"), expect.arrayContaining(["episode-db-1"]));
+    });
+
     it("replays only events after the requested sequence", async () => {
         const { query, repository: repo } = repository([]);
         await repo.listRunEvents(scope, "project-a", "run-a", 8, 200);

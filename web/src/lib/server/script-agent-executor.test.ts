@@ -30,6 +30,24 @@ describe("ScriptAgentExecutor", () => {
         expect(order.indexOf("save")).toBeLessThan(order.indexOf("artifact_saved"));
         expect(order).toContain("artifact_delta");
     });
+    it("uses a concrete structured output schema for every short-film stage", async () => {
+        const schemas: Array<Record<string, unknown>> = [];
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "novel_planner", name: "策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "策划" }),
+            callModel: vi.fn(async ({ responseSchema }) => {
+                schemas.push(responseSchema);
+                return { content: "ok" };
+            }),
+            saveArtifact: vi.fn().mockResolvedValue({ id: "artifact" }),
+            appendEvent: vi.fn(),
+        };
+        for (const runType of ["project_planning", "short_story", "adaptation_bundle", "episode_scripts", "script_review", "director_plan", "text_storyboard", "asset_prompts"] as const) {
+            await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: `run-${runType}`, runType, input: {}, origin: "https://local", cookie: "session" });
+        }
+        expect(schemas).toHaveLength(8);
+        expect(schemas.every((schema) => Array.isArray(schema.required) && schema.required.length > 0)).toBe(true);
+    });
+
     it("passes persisted upstream artifacts into the next model call", async () => {
         const callModel = vi.fn(async ({ task }) => ({ content: String(task.input.context?.length || 0) }));
         const deps = {
