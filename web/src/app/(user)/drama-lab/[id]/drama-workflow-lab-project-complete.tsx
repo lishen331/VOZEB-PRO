@@ -252,6 +252,7 @@ export type DramaLabAssetReference = {
     url: string;
     storageKey?: string;
     source: "upload" | "generated" | "library";
+    role?: "primary" | "history" | "reference";
     label: string;
     width?: number;
     height?: number;

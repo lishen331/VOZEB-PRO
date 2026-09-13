@@ -51,12 +51,7 @@ function layoutContract(kind: AssetKind, layout: "single" | "four_view", ratio =
 function assetSourceFacts(kind: AssetKind, asset: AssetInput, primaryDescription: string) {
     const facts =
         kind === "characters"
-            ? [
-                  asset.name && `名称：${asset.name}`,
-                  asset.description && asset.description !== primaryDescription && `简介：${asset.description}`,
-                  asset.appearance && asset.appearance !== primaryDescription && `外貌描述：${asset.appearance}`,
-                  asset.role && `角色身份：${asset.role}`,
-              ]
+            ? [asset.name && `名称：${asset.name}`, asset.description && asset.description !== primaryDescription && `简介：${asset.description}`, asset.appearance && asset.appearance !== primaryDescription && `外貌描述：${asset.appearance}`]
             : kind === "scenes"
               ? [asset.time && `时段：${asset.time}`]
               : [asset.type && `道具类型：${asset.type}`];

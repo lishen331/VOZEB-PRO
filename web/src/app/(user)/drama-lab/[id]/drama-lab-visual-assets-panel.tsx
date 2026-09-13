@@ -9,6 +9,7 @@ import type { MessageInstance } from "antd/es/message/interface";
 import { Check, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Sparkles, Trash2, X, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useMemo, useRef, useState, type RefObject } from "react";
+import type { TextAreaRef } from "antd/es/input/TextArea";
 import type { ReferenceImage } from "@/types/image";
 
 import { dramaAssetPrimaryReference, dramaAssetReferences } from "@/lib/drama-asset-references";
@@ -259,7 +260,8 @@ export function DramaLabVisualAssetsPanel({
             }
             const prompt = buildDramaLabAssetImagePrompt(project, effectiveAsset, assetKind);
             const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: project.aspectRatio || config.size, count: "1" };
-            const sourceReferences = dramaAssetPrimaryReference(effectiveAsset) ? [dramaAssetPrimaryReference(effectiveAsset)!] : [];
+            const primaryReference = dramaAssetPrimaryReference(effectiveAsset);
+            const sourceReferences = assetKind === "characters" ? characterGenerationReferences(effectiveAsset) : primaryReference ? [primaryReference] : [];
             const imageReferences: ReferenceImage[] = sourceReferences.map((reference) => ({
                 id: reference.id,
                 name: reference.label || assetName(effectiveAsset),
@@ -278,7 +280,7 @@ export function DramaLabVisualAssetsPanel({
                 surface: "drama",
                 projectId: project.id,
                 clientRequestId: `drama-lab-asset:${project.id}:${asset.id}:${layout}:${nanoid()}`,
-                referenceRoles: imageReferences.length ? { [imageReferences[0].id]: [assetKind === "characters" ? "identity" : assetKind === "scenes" ? "scene" : "prop"] } : undefined,
+                referenceRoles: imageReferences.length ? Object.fromEntries(imageReferences.map((reference) => [reference.id, [assetKind === "characters" ? "identity" : assetKind === "scenes" ? "scene" : "prop"]])) : undefined,
             });
             const references = imageResultsToReferences(await waitForImageGenerationTask(imageConfig, task));
             if (!references.length) throw new Error("生成结果没有可持久化图片地址");
@@ -310,7 +312,7 @@ export function DramaLabVisualAssetsPanel({
             const uploaded = await Promise.all(
                 selected.map(async (file) => {
                     const stored = await uploadImage(file);
-                    return referenceFromUrl(stored.serverUrl || stored.url, "upload", file.name, stored.storageKey, stored.width, stored.height);
+                    return referenceFromUrl(stored.serverUrl || stored.url, "upload", file.name, stored.storageKey, stored.width, stored.height, "reference");
                 }),
             );
             const currentReferences = dramaAssetReferences(activeAsset);
@@ -789,11 +791,33 @@ function AssetEditorModal({
 }) {
     const asset = editor?.asset;
     const label = editor ? ASSET_META[editor.kind].label : "资产";
+    const [mentionOpen, setMentionOpen] = useState(false);
+    const promptRef = useRef<TextAreaRef>(null);
+    const mentionRangeRef = useRef({ start: 0, end: 0 });
     if (!asset) return null;
     const profile = asset.profile || EMPTY_PROFILE;
     const references = dramaAssetReferences(asset);
     const hasReference = references.length > 0;
     const primary = dramaAssetPrimaryReference(asset);
+    const characterReferences = editor?.kind === "characters" ? characterGenerationReferences(asset) : [];
+    const handlePromptChange = (value: string, selectionStart: number) => {
+        const mentionStart = value.lastIndexOf("@", Math.max(0, selectionStart - 1));
+        const mentionText = mentionStart >= 0 ? value.slice(mentionStart + 1, selectionStart) : "";
+        mentionRangeRef.current = { start: mentionStart >= 0 ? mentionStart : selectionStart, end: selectionStart };
+        setMentionOpen(mentionStart >= 0 && !/\s/.test(mentionText));
+        onChange({ ...asset, polishedPrompt: value });
+    };
+    const insertMention = (label: string) => {
+        const value = asset.polishedPrompt || "";
+        const { start, end } = mentionRangeRef.current;
+        const token = `@${label} `;
+        onChange({ ...asset, polishedPrompt: `${value.slice(0, start)}${token}${value.slice(end)}` });
+        setMentionOpen(false);
+        window.requestAnimationFrame(() => {
+            promptRef.current?.focus();
+            promptRef.current?.resizableTextArea?.textArea.setSelectionRange(start + token.length, start + token.length);
+        });
+    };
     const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
         const files = Array.from(event.dataTransfer.files || []);
@@ -989,37 +1013,57 @@ function AssetEditorModal({
             destroyOnHidden
         >
             <div className="grid gap-3">
-                <div className="flex items-start gap-3 border-b border-border pb-4">
-                    <span className="shrink-0 text-sm">参考图</span>
-                    <div
-                        data-reference-upload-frame="character"
-                        className="grid size-28 shrink-0 cursor-pointer place-items-center overflow-hidden rounded border border-dashed border-border bg-muted text-xs text-muted-foreground hover:border-primary hover:text-primary"
-                        onClick={onUpload}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={handleDrop}
-                        title="点击或拖入参考图"
-                    >
-                        {primary?.url ? (
-                            <img src={imagePreviewUrl(primary.url, 240)} alt={`${label}参考图`} className="size-full object-contain" />
-                        ) : (
-                            <>
-                                参考图
-                                <br />
-                                <span>点击或拖入参考图</span>
-                            </>
-                        )}
+                <div className="grid gap-3 border-b border-border pb-4" data-character-primary-image>
+                    <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                        <span className="pt-2 text-sm">主图</span>
+                        <div className="flex min-h-36 items-center justify-center overflow-hidden rounded border bg-muted">
+                            {primary?.url ? (
+                                <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt="角色主图" className="!max-h-48 !object-contain" />
+                            ) : (
+                                <span className="text-xs text-muted-foreground">暂无主图</span>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex flex-col items-start gap-2 pt-1">
-                        {hasReference ? (
-                            <Button size="small" className="!border-primary/40 !text-primary" onClick={() => onAiAction("describe")} loading={busy}>
-                                从参考图提取描述
-                            </Button>
-                        ) : null}
-                        {hasReference ? (
-                            <Button size="small" danger onClick={onRemoveReference}>
-                                移除参考图
-                            </Button>
-                        ) : null}
+                    <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                        <span className="pt-2 text-sm">参考</span>
+                        <div data-character-generation-references className="rounded-lg border border-dashed border-border p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+                            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                                <span>生成图片的参考图（图生提示词可使用 @图N）</span>
+                                <span>{characterReferences.length} / 9，最多 9 张</span>
+                            </div>
+                            <div className="flex min-h-24 flex-wrap gap-2">
+                                {characterReferences.map((reference, index) => (
+                                    <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
+                                        <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!size-full !object-cover" />
+                                        <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100">图{index + 1}</span>
+                                        {reference.id !== primary?.id ? (
+                                            <button
+                                                type="button"
+                                                aria-label={`移除图${index + 1}`}
+                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                onClick={() => onRemoveReferenceById(reference.id)}
+                                            >
+                                                ×
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                ))}
+                                {characterReferences.length < 9 ? (
+                                    <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-muted-foreground hover:border-primary hover:text-primary" onClick={onUpload}>
+                                        <span>
+                                            <b className="block text-xl font-normal">＋</b>拖入或添加
+                                        </span>
+                                    </button>
+                                ) : null}
+                            </div>
+                            <div className="mt-2 flex justify-end">
+                                {hasReference ? (
+                                    <Button size="small" onClick={() => onAiAction("describe")} loading={busy}>
+                                        从参考图提取描述
+                                    </Button>
+                                ) : null}
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <label className="grid gap-1.5 text-sm">
@@ -1046,7 +1090,25 @@ function AssetEditorModal({
                             重新生成提示词
                         </Button>
                     </span>
-                    <Input.TextArea rows={7} value={asset.polishedPrompt || ""} onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} placeholder="点击“重新生成提示词”由 AI 自动生成，或直接在此输入" />
+                    <div className="relative">
+                        <Input.TextArea
+                            ref={promptRef}
+                            rows={7}
+                            value={asset.polishedPrompt || ""}
+                            onChange={(event) => handlePromptChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
+                            placeholder="点击“重新生成提示词”由 AI 自动生成，或直接输入；输入 @ 可引用图1～图9"
+                        />
+                        {mentionOpen && characterReferences.length ? (
+                            <div className="absolute bottom-2 left-2 z-10 w-56 rounded border bg-popover p-1 shadow-lg">
+                                {characterReferences.map((reference, index) => (
+                                    <button key={reference.id} type="button" className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted" onClick={() => insertMention(`图${index + 1}`)}>
+                                        <img src={imagePreviewUrl(reference.url, 80)} alt="" className="size-8 rounded object-cover" />
+                                        <span>@图{index + 1}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
                 </label>
                 <label className="grid gap-1.5 text-sm">
                     <span className="flex items-center justify-between">
@@ -1092,8 +1154,15 @@ function cloneAsset(asset: VisualAsset): VisualAsset {
     return { ...asset, profile: asset.profile ? { ...asset.profile } : { ...EMPTY_PROFILE }, references: dramaAssetReferences(asset).map((reference) => ({ ...reference })), generationLayout: asset.generationLayout } as VisualAsset;
 }
 
-function referenceFromUrl(url: string, source: DramaLabAssetReference["source"], label: string, storageKey?: string, width?: number, height?: number): DramaLabAssetReference {
-    return { id: `reference-${nanoid()}`, url, storageKey, source, label, width, height, createdAt: new Date().toISOString() };
+function referenceFromUrl(url: string, source: DramaLabAssetReference["source"], label: string, storageKey?: string, width?: number, height?: number, role?: DramaLabAssetReference["role"]): DramaLabAssetReference {
+    return { id: `reference-${nanoid()}`, url, storageKey, source, role, label, width, height, createdAt: new Date().toISOString() };
+}
+
+function characterGenerationReferences(asset: VisualAsset) {
+    const primary = dramaAssetPrimaryReference(asset);
+    const references = dramaAssetReferences(asset);
+    const selected = [...(primary ? [primary] : []), ...references.filter((reference) => reference.id !== primary?.id && reference.role !== "history" && reference.source !== "generated")];
+    return [...new Map(selected.map((reference) => [reference.url, reference])).values()].slice(0, 9);
 }
 
 function imageResultsToReferences(result: ImageGenerationResult & { results?: ImageGenerationResult[] }) {
