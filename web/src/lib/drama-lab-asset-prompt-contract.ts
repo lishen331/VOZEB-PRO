@@ -9,6 +9,7 @@ type AssetInput = DramaAssetVisualDetails & { name?: string; description?: strin
 export function dramaLabAssetPromptField(kind: AssetKind, asset: AssetInput) {
     const layout = normalizeDramaAssetGenerationLayout(kind, asset.generationLayout);
     if (kind === "scenes" && layout === "single") return asset.singleImagePrompt?.trim() || "";
+    if (kind === "props") return asset.imagePrompt?.trim() || asset.polishedPrompt?.trim() || "";
     return asset.polishedPrompt?.trim() || "";
 }
 

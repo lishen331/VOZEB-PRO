@@ -144,11 +144,15 @@ export function DramaLabVisualAssetsPanel({
                 if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "资产 AI 资料生成失败");
                 return payload.data;
             };
-            const promptData = await runAi("prompt");
-            prepared = { ...prepared, ...(promptData.polishedPrompt ? { polishedPrompt: String(promptData.polishedPrompt) } : {}), ...(promptData.singleImagePrompt ? { singleImagePrompt: String(promptData.singleImagePrompt) } : {}) } as VisualAsset;
-            if (assetKind === "characters") {
-                const anchorData = await runAi("anchor");
-                if (anchorData.profile && typeof anchorData.profile === "object") prepared = { ...prepared, profile: anchorData.profile } as VisualAsset;
+            try {
+                const promptData = await runAi("prompt");
+                prepared = { ...prepared, ...(promptData.polishedPrompt ? { polishedPrompt: String(promptData.polishedPrompt) } : {}), ...(promptData.singleImagePrompt ? { singleImagePrompt: String(promptData.singleImagePrompt) } : {}) } as VisualAsset;
+                if (assetKind === "characters") {
+                    const anchorData = await runAi("anchor");
+                    if (anchorData.profile && typeof anchorData.profile === "object") prepared = { ...prepared, profile: anchorData.profile } as VisualAsset;
+                }
+            } catch (error) {
+                console.error("[drama-lab] asset enrichment failed", { assetId: extractedAsset.id, assetKind, error });
             }
             const savedOne = await replaceAssetsFor(assetKind, (current) => current.map((item) => (item.id === extractedAsset.id ? prepared : item)));
             if (!savedOne) throw new Error("项目保存失败");
@@ -272,7 +276,14 @@ export function DramaLabVisualAssetsPanel({
             }
             const prompt = buildDramaLabAssetImagePrompt(project, effectiveAsset, assetKind);
             const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: project.aspectRatio || config.size, count: "1" };
-            const sourceReferences = generationReferences(dramaAssetReferences(effectiveAsset));
+            const canonicalReferences = dramaAssetReferences(effectiveAsset);
+            const primaryReference = dramaAssetPrimaryReference(effectiveAsset);
+            const sourceReferences =
+                assetKind === "characters"
+                    ? generationReferences(canonicalReferences)
+                    : [primaryReference, ...generationReferences(canonicalReferences)]
+                          .filter((reference, index, values): reference is NonNullable<typeof reference> => Boolean(reference) && values.findIndex((item) => item?.url === reference.url) === index)
+                          .slice(0, 10);
             const imageReferences: ReferenceImage[] = sourceReferences.map((reference) => ({
                 id: reference.id,
                 name: reference.label || assetName(effectiveAsset),
