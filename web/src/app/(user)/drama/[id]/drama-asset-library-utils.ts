@@ -48,7 +48,7 @@ export function filterAndSortDramaAssets(rows: DramaAssetLibraryRow[], filter: D
 
 function isDramaAssetIncomplete(asset: DramaNamedAsset, kind: DramaAssetKind) {
     const profile = asset.profile;
-    if (!asset.description.trim() || !profile || Object.values(profile).some((value) => !value.trim())) return true;
+    if (!asset.description.trim() || !profile || [profile.visualIdentity, profile.styling, profile.colorPalette, profile.consistencyRules].some((value) => !value.trim())) return true;
     return kind === "clues" && "payoff" in asset ? typeof asset.payoff !== "string" || !asset.payoff.trim() : false;
 }
 

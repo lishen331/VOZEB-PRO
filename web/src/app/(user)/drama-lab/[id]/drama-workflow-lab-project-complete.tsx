@@ -264,6 +264,12 @@ export type DramaLabAssetProfile = {
     styling: string;
     colorPalette: string;
     consistencyRules: string;
+    face_shape?: string;
+    facial_features?: string;
+    unique_marks?: string;
+    color_anchors?: { hair: string; eyes: string; skin: string; primary_outfit: string };
+    skin_texture?: string;
+    hair_style?: string;
 };
 
 export interface Shot {
