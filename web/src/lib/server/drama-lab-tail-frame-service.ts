@@ -417,4 +417,3 @@ function positiveInteger(value: unknown) {
     const number = Math.floor(Number(value));
     return Number.isFinite(number) && number > 0 ? number : undefined;
 }
-

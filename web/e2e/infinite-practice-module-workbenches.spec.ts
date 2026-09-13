@@ -112,7 +112,7 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             await rolePage.goto("/practice/storyboard-video", { waitUntil: "domcontentloaded" });
             await expect(rolePage.getByText("等待生成分镜视频", { exact: true })).toBeVisible();
             await expect(rolePage.getByRole("button", { name: "生成分镜视频", exact: true })).toBeDisabled();
-            await rolePage.getByLabel("参考图片", { exact: true }).setInputFiles({ name: "video.png", mimeType: "image/png", buffer: ONE_PIXEL_PNG });
+            await rolePage.getByLabel("分镜图（必需）", { exact: true }).setInputFiles({ name: "video.png", mimeType: "image/png", buffer: ONE_PIXEL_PNG });
             await rolePage.getByLabel("视频提示词", { exact: true }).fill("缓慢推进");
             await expect(rolePage.getByRole("button", { name: "生成分镜视频", exact: true })).toBeEnabled();
             await rolePage.getByRole("switch").check();
