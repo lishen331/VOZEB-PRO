@@ -12,6 +12,7 @@ type ExportFormat = "text" | "fountain" | "fdx" | "storyboard" | "storyboard_csv
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser(request);
     if (!user) return response(401, "请先登录");
+    await requirePracticeAccess(user, "script");
     try {
         const scope = await requirePracticeTenant(user, "script");
         const format = new URL(request.url).searchParams.get("format") || "text";
@@ -85,3 +86,4 @@ function failure(error: unknown, fallback: string) {
     const status = error && typeof error === "object" && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 500;
     return response(status, status === 500 ? fallback : error instanceof Error ? error.message : fallback);
 }
+
