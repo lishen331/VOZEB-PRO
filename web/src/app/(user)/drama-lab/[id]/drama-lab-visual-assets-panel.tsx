@@ -125,18 +125,33 @@ export function DramaLabVisualAssetsPanel({
         if (!extracted.length) return 0;
 
         let addedCount = 0;
-        const saved = await replaceAssetsFor(assetKind, (current) => {
-            const names = new Set(current.map((asset) => assetName(asset).trim()));
-            const additions = extracted.filter((asset) => {
-                const name = assetName(asset).trim();
-                if (!name || names.has(name)) return false;
-                names.add(name);
-                return true;
-            });
-            addedCount = additions.length;
-            return [...current, ...additions];
-        });
-        if (!saved) throw new Error("项目保存失败");
+        const existingNames = new Set((project[assetKind] as VisualAsset[]).map((asset) => assetName(asset).trim()));
+        for (const extractedAsset of extracted) {
+            const name = assetName(extractedAsset).trim();
+            if (!name || existingNames.has(name)) continue;
+            existingNames.add(name);
+            let prepared = extractedAsset;
+            const layout = assetKind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(assetKind, extractedAsset.generationLayout);
+            const runAi = async (action: "prompt" | "anchor") => {
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/assets/${encodeURIComponent(extractedAsset.id)}/ai`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ kind: assetKind, action, generationLayout: layout, requestId: `drama-lab-extract-${action}:${project.id}:${extractedAsset.id}:${nanoid()}` }),
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || payload.code !== 0 || !payload.data) throw new Error(payload.msg || "资产 AI 资料生成失败");
+                return payload.data;
+            };
+            const promptData = await runAi("prompt");
+            prepared = { ...prepared, ...(promptData.polishedPrompt ? { polishedPrompt: String(promptData.polishedPrompt) } : {}), ...(promptData.singleImagePrompt ? { singleImagePrompt: String(promptData.singleImagePrompt) } : {}) } as VisualAsset;
+            if (assetKind === "characters") {
+                const anchorData = await runAi("anchor");
+                if (anchorData.profile && typeof anchorData.profile === "object") prepared = { ...prepared, profile: anchorData.profile } as VisualAsset;
+            }
+            const savedOne = await replaceAssetsFor(assetKind, (current) => [...current, prepared]);
+            if (!savedOne) throw new Error("项目保存失败");
+            addedCount += 1;
+        }
         return addedCount;
     };
 
