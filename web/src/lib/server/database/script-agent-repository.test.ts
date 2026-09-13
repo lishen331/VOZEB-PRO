@@ -54,6 +54,14 @@ describe("ScriptAgentRepository", () => {
         ]);
     });
 
+    it("qualifies run item timestamps when updating through the Run join", async () => {
+        const { query, repository: repo } = repository([]);
+        await repo.updateRunItem(scope, "project-a", "run-a", "item-a", { status: "running" });
+        expect(query).toHaveBeenCalledWith(expect.stringContaining("i.started_at = CASE"), expect.any(Array));
+        expect(query.mock.calls[0]?.[0]).toContain("i.completed_at = CASE");
+        expect(query.mock.calls[0]?.[0]).toContain("RETURNING i.*");
+    });
+
     it("updates an existing episode when the script phase follows the outline phase", async () => {
         const { query, repository: repo } = repository([]);
         await repo.replaceEpisodes(scope, "project-a", "run-script", [{ episodeNumber: 1, title: "第一集", script: { blocks: [] } }]);
