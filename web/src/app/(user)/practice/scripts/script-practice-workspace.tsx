@@ -17,6 +17,7 @@ const STARTERS = [
     { label: "改编策划", runType: "adaptation_bundle" },
     { label: "分集剧本", runType: "episode_scripts" },
     { label: "审核剧本", runType: "script_review" },
+    { label: "导演规划", runType: "director_plan" },
     { label: "文字分镜", runType: "text_storyboard" },
     { label: "资产提示词", runType: "asset_prompts" },
 ];
@@ -57,6 +58,21 @@ export default function ScriptPracticeWorkspace() {
     useEffect(() => {
         if (selectedId) void loadTree(selectedId).catch((e) => message.error(e.message));
     }, [selectedId, loadTree, message]);
+    useEffect(() => {
+        if (!selectedId) {
+            setMessages([]);
+            return;
+        }
+        void (async () => {
+            const sessions = await practiceScriptsApi.chatSessions(selectedId);
+            if (!sessions[0]) {
+                setMessages([]);
+                return;
+            }
+            const history = await practiceScriptsApi.chatMessages(selectedId, sessions[0].id);
+            setMessages(history.map((item) => ({ id: item.id, role: item.role === "user" ? "user" : "assistant", agent: item.agent_key, content: item.public_content })));
+        })().catch((error) => message.error(error instanceof Error ? error.message : "对话历史加载失败"));
+    }, [selectedId, message]);
     useEffect(() => {
         if (!selectedId || !selectedKey) {
             setArtifact(null);
