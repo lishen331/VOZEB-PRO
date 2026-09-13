@@ -586,6 +586,17 @@ function canvasPage(sourceHandoffIds: string[], total = sourceHandoffIds.length,
     };
 }
 
+describe("drama project creation defaults", () => {
+    it("creates no episode until one is explicitly added", async () => {
+        mocks.createDramaProject.mockImplementation(async (_userId, value) => value);
+        mocks.validateIpReferences.mockResolvedValue([]);
+        mocks.createCreativeConversation.mockResolvedValue({ id: "conversation-new" });
+        const created = await createDramaProjectForUser("user-one", { title: "空项目" });
+        expect(created.episodes).toEqual([]);
+        expect(created.activeEpisodeId).toBeUndefined();
+    });
+});
+
 function project(updatedAt: string, title: string): DramaProject {
     return {
         id: "drama-one",

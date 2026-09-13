@@ -70,18 +70,20 @@ export async function createDramaProjectForUser(userId: string, value: unknown, 
     }
     const ipReferences = (await validateIpReferences(userId, input.ipReferences)).map((item) => item.reference);
     const projectId = input.sourceHandoffId ? `drama-${input.sourceHandoffId}` : `drama-${nanoid()}`;
-    const episode: DramaEpisode = {
-        id: `episode-${nanoid()}`,
-        episodeNumber: 1,
-        title: "第 1 集",
-        script: input.initialScript,
-        outline: "",
-        hook: "",
-        nextPreview: "",
-        sourceRange: "",
-        reviewStatus: "draft",
-        shots: [],
-    };
+    const episode: DramaEpisode | undefined = input.initialScript
+        ? {
+              id: `episode-${nanoid()}`,
+              episodeNumber: 1,
+              title: "第 1 集",
+              script: input.initialScript,
+              outline: "",
+              hook: "",
+              nextPreview: "",
+              sourceRange: "",
+              reviewStatus: "draft",
+              shots: [],
+          }
+        : undefined;
     const conversation = await createCreativeConversation(userId, { surface: "drama", projectId, title: input.title });
     const project: DramaProject = {
         id: projectId,
