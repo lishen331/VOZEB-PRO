@@ -192,6 +192,7 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
     const [resourcePreview, setResourcePreview] = useState<{ url: string; title: string }>();
     const [resourceMentionOpen, setResourceMentionOpen] = useState(false);
     const resourceDescriptionRef = useRef<TextAreaRef>(null);
+    const resourceMentionMirrorRef = useRef<HTMLDivElement>(null);
     const resourceMentionRangeRef = useRef({ start: 0, end: 0 });
     const resourceAutoSaveTimerRef = useRef<number | undefined>(undefined);
     const resourceSaveQueueRef = useRef(Promise.resolve());
@@ -1166,19 +1167,28 @@ export default function ProjectOutlinePage({ params: paramsPromise }: { params: 
                                 </label>
                                 {field === "description" ? (
                                     <div className="relative min-w-0 flex-1">
-                                        <div
-                                            aria-hidden
-                                            className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-[11px] py-[7px] text-sm leading-[1.5715] text-transparent [&_mark]:rounded [&_mark]:bg-primary/15 [&_mark]:px-0.5 [&_mark]:text-primary"
-                                            dangerouslySetInnerHTML={{ __html: highlightResourceMentions(resourceEditor.asset.description || "") }}
-                                        />
+                                        {/@图[1-9]/.test(resourceEditor.asset.description || "") ? (
+                                            <div
+                                                ref={resourceMentionMirrorRef}
+                                                aria-hidden
+                                                className="pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-[11px] py-[7px] text-sm leading-[1.5715] text-foreground [&_mark]:rounded [&_mark]:bg-primary/15 [&_mark]:px-0.5 [&_mark]:text-primary"
+                                                dangerouslySetInnerHTML={{ __html: highlightResourceMentions(resourceEditor.asset.description || "") }}
+                                            />
+                                        ) : null}
                                         <Input.TextArea
                                             ref={resourceDescriptionRef}
                                             id={`resource-${field}`}
                                             disabled={resourceBusy}
                                             rows={4}
-                                            className="relative z-[1] !bg-transparent"
+                                            className={`relative z-[1] !bg-transparent ${/@图[1-9]/.test(resourceEditor.asset.description || "") ? "!text-transparent caret-foreground" : ""}`}
                                             placeholder="输入文本提示词。只有图片＝图生图；只有文字＝文生图；图片和文字＝文加图生图。输入 @ 可引用上方参考图，例如：保留 @图1 的脸，使用 @图2 的服装。"
                                             value={resourceEditor.asset.description || ""}
+                                            onScroll={(event) => {
+                                                const mirror = resourceMentionMirrorRef.current;
+                                                if (!mirror) return;
+                                                mirror.scrollTop = event.currentTarget.scrollTop;
+                                                mirror.scrollLeft = event.currentTarget.scrollLeft;
+                                            }}
                                             onChange={(event) => {
                                                 const value = event.target.value;
                                                 const cursor = event.target.selectionStart ?? value.length;

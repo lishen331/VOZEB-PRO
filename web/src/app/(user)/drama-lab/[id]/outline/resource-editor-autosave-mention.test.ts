@@ -17,4 +17,15 @@ describe("outline resource editor autosave and mentions", () => {
         expect(source).toContain('message.success("保存成功")');
         expect(source).not.toContain('message.success("已自动保存")');
     });
+
+    it("shows only the highlight mirror when a reference mention is present", async () => {
+        const source = await readFile(new URL("./page.tsx", import.meta.url), "utf8");
+        expect(source).toContain("/@图[1-9]/.test");
+        expect(source).toContain("!text-transparent");
+        expect(source).toContain("leading-[1.5715] text-foreground");
+        expect(source).toContain("? (");
+        expect(source).toContain("caret-foreground");
+        expect(source).toContain("resourceMentionMirrorRef");
+        expect(source).toContain("mirror.scrollTop = event.currentTarget.scrollTop");
+    });
 });
