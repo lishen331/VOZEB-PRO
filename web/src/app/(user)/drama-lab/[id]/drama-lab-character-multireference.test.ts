@@ -4,8 +4,9 @@ import { describe, expect, it } from "vitest";
 describe("asset preparation character multi-reference generation", () => {
     it("submits up to nine character references while preserving the existing prompt chain", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
-        expect(source).toContain("characterGenerationReferences");
-        expect(source).toContain(".slice(0, 9)");
+        expect(source).toContain("generationReferences");
+        const helper = await readFile(new URL("../../../../lib/drama-lab-asset-editor-images.ts", import.meta.url), "utf8");
+        expect(helper).toContain(".slice(0, 9)");
         expect(source).toContain("referenceRoles");
         expect(source).toContain("buildDramaLabAssetImagePrompt");
     });
