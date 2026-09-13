@@ -134,8 +134,20 @@ export function DramaLabVisualAssetsPanel({
             const initialSaved = await replaceAssetsFor(assetKind, (current) => [...current, extractedAsset]);
             if (!initialSaved) throw new Error("项目保存失败");
             const layout = assetKind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(assetKind, extractedAsset.generationLayout);
+            const resolvePersistedAssetId = async () => {
+                try {
+                    const latestResponse = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}`, { cache: "no-store" });
+                    const latestPayload = (await latestResponse.json().catch(() => ({}))) as { code?: number; data?: { project?: Project } };
+                    const latestProject = latestPayload.data?.project;
+                    const latestAssets = latestProject?.[assetKind] as VisualAsset[] | undefined;
+                    return latestAssets?.find((item) => assetName(item).trim() === name)?.id || extractedAsset.id;
+                } catch {
+                    return extractedAsset.id;
+                }
+            };
+            const persistedAssetId = await resolvePersistedAssetId();
             const runAi = async (action: "prompt" | "anchor") => {
-                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/assets/${encodeURIComponent(extractedAsset.id)}/ai`, {
+                const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/assets/${encodeURIComponent(persistedAssetId)}/ai`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ kind: assetKind, action, generationLayout: layout, requestId: `drama-lab-extract-${action}:${project.id}:${extractedAsset.id}:${nanoid()}` }),
