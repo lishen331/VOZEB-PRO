@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { requirePracticeTenant } from "@/lib/server/practice-tenant-scope";`r`nimport { requirePracticeAccess } from "@/lib/server/practice-access-service";
+import { requirePracticeTenant } from "@/lib/server/practice-tenant-scope";
+import { requirePracticeAccess } from "@/lib/server/practice-access-service";
 import { ScriptAgentRepository } from "@/lib/server/database/script-agent-repository";
 import { postgresQuery } from "@/lib/server/database/postgres";
 import { getScriptProjectDetail } from "@/lib/server/script-practice-service";
@@ -79,4 +80,5 @@ function failure(error: unknown, fallback: string) {
     const status = error && typeof error === "object" && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 500;
     return response(status, status === 500 ? fallback : error instanceof Error ? error.message : fallback);
 }
+
 
