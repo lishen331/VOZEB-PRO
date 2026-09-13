@@ -131,6 +131,8 @@ export function DramaLabVisualAssetsPanel({
             if (!name || existingNames.has(name)) continue;
             existingNames.add(name);
             let prepared = extractedAsset;
+            const initialSaved = await replaceAssetsFor(assetKind, (current) => [...current, extractedAsset]);
+            if (!initialSaved) throw new Error("项目保存失败");
             const layout = assetKind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(assetKind, extractedAsset.generationLayout);
             const runAi = async (action: "prompt" | "anchor") => {
                 const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/assets/${encodeURIComponent(extractedAsset.id)}/ai`, {
@@ -148,7 +150,7 @@ export function DramaLabVisualAssetsPanel({
                 const anchorData = await runAi("anchor");
                 if (anchorData.profile && typeof anchorData.profile === "object") prepared = { ...prepared, profile: anchorData.profile } as VisualAsset;
             }
-            const savedOne = await replaceAssetsFor(assetKind, (current) => [...current, prepared]);
+            const savedOne = await replaceAssetsFor(assetKind, (current) => current.map((item) => (item.id === extractedAsset.id ? prepared : item)));
             if (!savedOne) throw new Error("项目保存失败");
             addedCount += 1;
         }
