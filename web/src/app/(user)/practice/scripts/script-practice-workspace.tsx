@@ -405,7 +405,6 @@ export default function ScriptPracticeWorkspace() {
                                 </p>
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
-                                <Button type="text" size="small" aria-label="新建剧本对话" icon={<Plus className="size-4" />} onClick={() => void runAction(create, "新建剧本失败")} />
                                 <Button
                                     type="text"
                                     size="small"
@@ -504,7 +503,7 @@ export default function ScriptPracticeWorkspace() {
     );
 }
 function publicPreviewText(value: string) {
-    const trimmed = value.trim();
+    const trimmed = stripVisibleInternalText(value.trim());
     if (!trimmed.startsWith("{") && !trimmed.startsWith("```")) return value;
     const match = trimmed.match(/"(?:content|text|story|screenplay|outline|report)"\s*:\s*"((?:\\.|[^"\\])*)/);
     if (!match) return "";
@@ -531,8 +530,15 @@ function artifactContent(value: Record<string, unknown> | null) {
     return "";
 }
 
+function stripVisibleInternalText(value: string) {
+    return value
+        .replace(/\n?执行与保存要求[：:][\s\S]*$/i, "")
+        .replace(/\n?备注[：:][\s\S]*?(?:请确认|$)/i, "")
+        .trim();
+}
+
 function publicArtifactText(value: string) {
-    const trimmed = value.trim();
+    const trimmed = stripVisibleInternalText(value.trim());
     if (!trimmed.startsWith("{") && !trimmed.startsWith("```")) return value;
     try {
         const parsed = JSON.parse(trimmed.replace(/^```json\s*/i, "").replace(/\s*```$/, "")) as Record<string, unknown>;

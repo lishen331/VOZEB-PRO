@@ -1,6 +1,6 @@
 # VOZEB PRO 接口索引
 
-> 生成日期：2026-09-14。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **371** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
+> 生成日期：2026-09-14。枚举来源仅为 `web/src/app/api/**/route.ts`；当前共 **372** 个 Route 文件。每个文件一行，多种 HTTP 方法合并显示。
 
 ## 使用说明
 
@@ -23,9 +23,9 @@
 
 ## 接口总览
 
-- Route 文件：**371**
-- 方法出现次数：DELETE 57、GET 198、HEAD 6、PATCH 56、POST 205、PUT 12
-- 一级域：`admin` 125、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 24、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
+- Route 文件：**372**
+- 方法出现次数：DELETE 57、GET 198、HEAD 6、PATCH 57、POST 205、PUT 12
+- 一级域：`admin` 125、`agent` 8、`ai` 1、`announcements` 1、`audio-tasks` 2、`auth` 13、`billing` 11、`canvas` 5、`cdk` 1、`check-in` 1、`community` 1、`create` 1、`creative` 6、`debug` 1、`drama` 12、`drama-lab` 50、`generation-log-assets` 1、`generation-logs` 1、`generation-webhooks` 1、`health` 2、`image-tasks` 2、`install` 2、`ip-library` 5、`library-assets` 2、`login-page-media` 1、`maintenance` 6、`media-assets` 1、`media-proxy` 1、`my-prompts` 2、`notifications` 3、`points` 1、`practice` 25、`prompts` 1、`public` 16、`reference-assets` 2、`referrals` 1、`school` 28、`site-icon` 1、`teaching` 15、`text-tasks` 2、`video-generation-tasks` 2、`video-tasks` 2、`works` 7
 
 ## 按业务域索引
 
@@ -454,7 +454,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | GET | `/api/points` | 用户 | [route.ts](web/src/app/api/points/route.ts) | [store](web/src/lib/auth/store.ts) | PostgreSQL、积分/商业事务 | 积分：查询 |
 
-### `practice`（24）
+### `practice`（25）
 
 | 方法 | 路径 | 权限 | Handler | 主要服务/Store | 数据/外部边界 | 用途 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -468,6 +468,7 @@
 | POST | `/api/practice/scripts/[id]/agent/[operation]/apply` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/agent/[operation]/apply/route.ts) | [practice-access-service](web/src/lib/server/practice-access-service.ts)<br>[script-practice-stage-service](web/src/lib/server/script-practice-stage-service.ts)<br>[script-practice-repository](web/src/lib/server/database/script-practice-repository.ts) | PostgreSQL | practice / scripts / 单项 / Agent / [operation] / apply：提交/执行 |
 | GET | `/api/practice/scripts/[id]/artifacts/[artifactType]/[artifactKey]` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/artifacts/[artifactType]/[artifactKey]/route.ts) | [postgres](web/src/lib/server/database/postgres.ts)<br>[script-agent-repository](web/src/lib/server/database/script-agent-repository.ts)<br>[practice-tenant-scope](web/src/lib/server/practice-tenant-scope.ts) | PostgreSQL | practice / scripts / 单项 / artifacts / [artifactType] / [artifactKey]：查询 |
 | GET, POST | `/api/practice/scripts/[id]/chat-sessions` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/chat-sessions/route.ts) | [postgres](web/src/lib/server/database/postgres.ts)<br>[script-agent-repository](web/src/lib/server/database/script-agent-repository.ts)<br>[practice-tenant-scope](web/src/lib/server/practice-tenant-scope.ts) | PostgreSQL | practice / scripts / 单项 / chat-sessions：查询、提交/执行 |
+| PATCH | `/api/practice/scripts/[id]/chat-sessions/[sessionId]` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/chat-sessions/[sessionId]/route.ts) | [postgres](web/src/lib/server/database/postgres.ts)<br>[script-agent-repository](web/src/lib/server/database/script-agent-repository.ts)<br>[practice-tenant-scope](web/src/lib/server/practice-tenant-scope.ts) | PostgreSQL | practice / scripts / 单项 / chat-sessions / [sessionId]：更新 |
 | GET, POST | `/api/practice/scripts/[id]/chat-sessions/[sessionId]/messages` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/chat-sessions/[sessionId]/messages/route.ts) | [script-agent-run-service](web/src/lib/server/script-agent-run-service.ts)<br>[postgres](web/src/lib/server/database/postgres.ts)<br>[script-agent-repository](web/src/lib/server/database/script-agent-repository.ts) | PostgreSQL | practice / scripts / 单项 / chat-sessions / [sessionId] / 消息：查询、提交/执行 |
 | POST | `/api/practice/scripts/[id]/confirmations` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/confirmations/route.ts) | [postgres](web/src/lib/server/database/postgres.ts)<br>[script-agent-repository](web/src/lib/server/database/script-agent-repository.ts)<br>[practice-tenant-scope](web/src/lib/server/practice-tenant-scope.ts) | PostgreSQL | practice / scripts / 单项 / confirmations：提交/执行 |
 | GET | `/api/practice/scripts/[id]/export` | 混合 | [route.ts](web/src/app/api/practice/scripts/[id]/export/route.ts) | [practice-access-service](web/src/lib/server/practice-access-service.ts)<br>[script-practice-service](web/src/lib/server/script-practice-service.ts)<br>[postgres](web/src/lib/server/database/postgres.ts) | PostgreSQL | practice / scripts / 单项 / 导出：查询 |

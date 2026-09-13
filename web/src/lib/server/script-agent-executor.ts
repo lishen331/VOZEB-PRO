@@ -209,7 +209,7 @@ async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile;
     return { content: text };
 }
 export function cleanPublicText(value: string) {
-    const textValue = value.trim();
+    const textValue = stripInternalInstructions(value.trim());
     const jsonText = extractJsonObjectText(textValue);
     if (!jsonText) return textValue;
     try {
@@ -223,6 +223,13 @@ export function cleanPublicText(value: string) {
     } catch {
         return textValue;
     }
+}
+
+function stripInternalInstructions(value: string) {
+    return value
+        .replace(/\n?执行与保存要求[：:][\s\S]*$/i, "")
+        .replace(/\n?备注[：:][\s\S]*?(?:请确认|$)/i, "")
+        .trim();
 }
 
 export function validateScriptAgentArguments(runType: ScriptRunType, argumentsText: string) {

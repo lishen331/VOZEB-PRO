@@ -353,6 +353,17 @@ export class ScriptAgentRepository {
         return result.rows[0] || null;
     }
 
+    async updateChatSession(scope: PracticeTenantScope, projectId: string, sessionId: string, title: string) {
+        const result = await this.db.query("UPDATE practice_script_chat_sessions SET title = $5, updated_at = now() WHERE id = $1 AND project_id = $2 AND school_id = $3 AND owner_user_id = $4 AND deleted_at IS NULL RETURNING *", [
+            sessionId,
+            projectId,
+            scope.schoolId,
+            scope.ownerUserId,
+            title,
+        ]);
+        return result.rows[0] || null;
+    }
+
     async listChatMessages(scope: PracticeTenantScope, projectId: string, sessionId: string) {
         const result = await this.db.query(
             `SELECT m.* FROM practice_script_chat_messages m JOIN practice_script_chat_sessions s ON s.id = m.session_id
