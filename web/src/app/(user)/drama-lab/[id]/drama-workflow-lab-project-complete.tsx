@@ -4968,7 +4968,7 @@ function StoryboardPanel({
             content: "当前集已有分镜。重新提取会替换当前集全部分镜，其他剧集不受影响。",
             okText: "确认替换",
             cancelText: "取消",
-            onOk: extractFromScript,
+            onOk: () => extractFromScript(),
         });
     };
 
@@ -6877,3 +6877,4 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
         </div>
     );
 }
+
