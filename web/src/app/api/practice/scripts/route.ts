@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { requirePracticeAccess } from "@/lib/server/practice-access-service";
 import { createScriptProject, listScriptProjects } from "@/lib/server/script-practice-service";
+import { normalizeScriptCarrier } from "@/lib/server/script-agent-domain";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
         return ok(
             await createScriptProject(user.id, {
                 title,
+                carrierType: normalizeScriptCarrier(parsed.data.carrierType),
                 sourceType: parsed.data.sourceType === "fountain" || parsed.data.sourceType === "fdx" || parsed.data.sourceType === "text" || parsed.data.sourceType === "markdown" ? parsed.data.sourceType : "idea",
                 ...(typeof parsed.data.idea === "string" ? { idea: parsed.data.idea } : {}),
                 schoolId: access.schoolId,

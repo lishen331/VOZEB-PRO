@@ -44,6 +44,15 @@ export type ScriptAgentProfileRecord = {
 export class ScriptAgentRepository {
     constructor(private readonly db: QueryExecutor) {}
 
+    async getProject(scope: PracticeTenantScope, projectId: string) {
+        const result = await this.db.query(
+            `SELECT id, carrier_type, project_parameters FROM practice_script_projects
+             WHERE id = $1 AND school_id = $2 AND owner_user_id = $3 LIMIT 1`,
+            [projectId, scope.schoolId, scope.ownerUserId],
+        );
+        return result.rows[0] || null;
+    }
+
     async createRun(scope: PracticeTenantScope, input: { id: string; projectId: string; chatSessionId?: string; runType: ScriptRunType; stageKey?: string; clientRequestId: string; configSnapshot: Record<string, unknown> }) {
         const result = await this.db.query(
             `INSERT INTO practice_script_runs (id, school_id, owner_user_id, project_id, chat_session_id, run_type, stage_key, status, client_request_id, config_snapshot)

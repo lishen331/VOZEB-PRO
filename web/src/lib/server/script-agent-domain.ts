@@ -1,4 +1,19 @@
 export const SCRIPT_PROJECT_MODES = ["short_story", "long_novel"] as const;
+export const SCRIPT_CARRIERS = ["tvc", "vlog", "vertical_short", "horizontal_short", "motion_comic"] as const;
+export type ScriptCarrier = (typeof SCRIPT_CARRIERS)[number];
+export function normalizeScriptCarrier(value: unknown): ScriptCarrier {
+    const normalized =
+        typeof value === "string"
+            ? value
+                  .trim()
+                  .toLowerCase()
+                  .replace(/[\s_-]+/g, "_")
+            : "";
+    if (normalized === "tvc") return "tvc";
+    if (normalized === "vlog") return "vlog";
+    if (normalized === "vertical_short" || normalized === "horizontal_short" || normalized === "motion_comic") return normalized;
+    return "vlog";
+}
 export type ScriptProjectMode = (typeof SCRIPT_PROJECT_MODES)[number];
 
 export const SCRIPT_AGENT_KEYS = ["orchestrator", "novel_planner", "novel_writer", "chapter_analyst", "story_skeleton", "adaptation_planner", "script_writer", "script_supervisor", "director_planner", "storyboard_writer", "asset_prompt_writer"] as const;

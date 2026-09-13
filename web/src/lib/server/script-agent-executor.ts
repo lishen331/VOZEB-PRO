@@ -5,6 +5,7 @@ import { systemAiBillingHeaders, systemAiIdempotencyKey } from "./system-ai-bill
 import { ScriptAgentProfileService, type ResolvedScriptAgentProfile } from "./script-agent-profiles";
 import type { PracticeTenantScope } from "./practice-tenant-scope";
 import type { ScriptAgentKey, ScriptArtifactType, ScriptRunEventType, ScriptRunType } from "./script-agent-domain";
+import { normalizeScriptCarrier } from "./script-agent-domain";
 import { normalizePromptAssets, normalizeScriptShots } from "./script-agent-tools-v2";
 import { ScriptAgentRepository } from "./database/script-agent-repository";
 
@@ -27,6 +28,7 @@ type Deps = {
     resolveProfile: (agent: ScriptAgentKey, skills?: string[]) => Promise<ResolvedScriptAgentProfile>;
     callModel: (input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; responseSchema: Record<string, unknown>; onDelta?: (delta: string) => Promise<void> }) => Promise<Record<string, unknown>>;
     listArtifacts?: ScriptAgentRepository["listLatestArtifacts"];
+    getProject?: ScriptAgentRepository["getProject"];
     listChatMessages?: ScriptAgentRepository["listChatMessages"];
     saveChatMessage?: ScriptAgentRepository["saveChatMessage"];
     saveArtifact: (
@@ -79,12 +81,17 @@ export class ScriptAgentExecutor {
         await this.deps.appendEvent(scope, task.projectId, task.runId, "agent_started", { agentKey: execution.agent, name: profile.profile.name }, this.id());
         await this.deps.appendEvent(scope, task.projectId, task.runId, "assistant_delta", { agentKey: execution.agent, delta: `${profile.profile.name}已开始处理当前任务。` }, this.id());
         const context = this.deps.listArtifacts ? await this.deps.listArtifacts(scope, task.projectId) : [];
+        const project = typeof this.deps.getProject === "function" ? await this.deps.getProject(scope, task.projectId) : null;
+        const projectContext = project ? { carrierType: normalizeScriptCarrier(project.carrier_type), projectParameters: project.project_parameters && typeof project.project_parameters === "object" ? project.project_parameters : {} } : undefined;
+        const carrierInstructions =
+            projectContext?.carrierType === "vlog" ? "Vlog 形式：优先第一人称、口播、自拍或跟拍、自然同期声和真实环境细节。" : projectContext?.carrierType === "tvc" ? "TVC 形式：突出品牌目标、产品卖点、情绪记忆点、行动号召和片尾品牌信息。" : "";
         const chatHistory = task.chatSessionId && this.deps.listChatMessages ? await this.deps.listChatMessages(scope, task.projectId, task.chatSessionId) : [];
         const enrichedTask = {
             ...task,
             input: {
                 ...task.input,
                 context: context.map(publicArtifactContext),
+                ...(projectContext ? { projectContext, carrierInstructions } : {}),
                 ...(chatHistory.length ? { chatHistory: chatHistory.map(publicChatMessage) } : {}),
             },
         };
@@ -97,6 +104,7 @@ export class ScriptAgentExecutor {
             },
         });
         assertStructuredResult(task.runType, structured);
+        if (task.runType === "text_storyboard" && project) assertStoryboardDuration(structured, project.project_parameters);
         await materializeStructuredRows(this.deps, scope, task, structured);
         if (task.runType === "conversation" && task.chatSessionId && this.deps.saveChatMessage) {
             await this.deps.saveChatMessage(scope, { id: this.id(), sessionId: task.chatSessionId, projectId: task.projectId, role: "assistant", agentKey: execution.agent, publicContent: publicText(structured) || "", sourceRunId: task.runId });
@@ -126,6 +134,7 @@ export function createDefaultScriptAgentExecutor(repository: ScriptAgentReposito
         resolveProfile: (agent, skills) => profiles.resolve(agent, skills),
         callModel: callConfiguredModel,
         listArtifacts: (...args) => repository.listLatestArtifacts(...args),
+        ...(typeof repository.getProject === "function" ? { getProject: (...args: Parameters<ScriptAgentRepository["getProject"]>) => repository.getProject(...args) } : {}),
         listChatMessages: (...args) => repository.listChatMessages(...args),
         saveChatMessage: (...args) => repository.saveChatMessage(...args),
         saveArtifact: (scope, input) => repository.saveArtifact(scope, input),
@@ -312,6 +321,17 @@ async function materializeStructuredRows(deps: Deps, scope: PracticeTenantScope,
 }
 function record(value: unknown): Record<string, unknown> {
     return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function assertStoryboardDuration(value: Record<string, unknown>, parameters: unknown) {
+    const config = record(parameters);
+    const target = Number(config.targetDurationSeconds);
+    if (!Number.isFinite(target) || target <= 0) return;
+    const total = (Array.isArray(value.episodes) ? value.episodes : []).reduce((sum, episode) => {
+        const shots = record(episode).shots;
+        return sum + (Array.isArray(shots) ? shots.reduce((shotSum, shot) => shotSum + Math.max(0, Number(record(shot).durationSeconds) || 0), 0) : 0);
+    }, 0);
+    if (total > target) throw new Error(`文字分镜总时长 ${total} 秒超过项目目标时长 ${target} 秒`);
 }
 
 function publicChatMessage(row: Record<string, unknown>) {

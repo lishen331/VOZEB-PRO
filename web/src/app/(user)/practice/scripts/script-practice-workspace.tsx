@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import type { ScriptPracticeProject } from "@/lib/script-practice-types";
 import { practiceScriptsApi } from "@/services/api/practice-scripts";
 import { resolveScriptWorkflowActions } from "./script-workflow-state";
+import type { ScriptCarrier } from "@/lib/server/script-agent-domain";
 
 type TreeItem = { id: string; key: string; type: string; label: string; status: string; version: number };
 type ChatMessage = { id: string; role: "user" | "assistant"; agent?: string; content: string; status?: string };
@@ -32,6 +33,8 @@ export default function ScriptPracticeWorkspace() {
     const [newTitle, setNewTitle] = useState("");
     const [idea, setIdea] = useState("");
     const [mode, setMode] = useState<"short_story" | "long_novel">("short_story");
+    const [carrierType, setCarrierType] = useState<ScriptCarrier>("vlog");
+    const [targetDurationSeconds, setTargetDurationSeconds] = useState("180");
     const [eventSource] = useState<{ close: () => void } | null>(null);
     const abortRef = useRef<AbortController | undefined>(undefined);
     const selectedIdRef = useRef("");
@@ -214,7 +217,9 @@ export default function ScriptPracticeWorkspace() {
     };
     const create = async () => {
         if (!newTitle.trim()) return;
-        const result = await practiceScriptsApi.create({ title: newTitle.trim(), sourceType: "idea", idea: idea.trim() || undefined, mode });
+        const duration = Number(targetDurationSeconds);
+        if (!Number.isSafeInteger(duration) || duration <= 0 || duration > 180) throw new Error("目标时长必须是 1–180 秒");
+        const result = await practiceScriptsApi.create({ title: newTitle.trim(), sourceType: "idea", idea: idea.trim() || undefined, mode, carrierType, projectParameters: { targetDurationSeconds: duration } });
         const project = "project" in result ? result.project : result;
         setNewOpen(false);
         await loadProjects();
@@ -393,6 +398,15 @@ export default function ScriptPracticeWorkspace() {
                             { value: "long_novel", label: "长篇小说" },
                         ]}
                     />
+                    <Select
+                        value={carrierType}
+                        onChange={setCarrierType}
+                        options={[
+                            { value: "vlog", label: "Vlog 纪实短片" },
+                            { value: "tvc", label: "TVC 广告短片" },
+                        ]}
+                    />
+                    <Input value={targetDurationSeconds} onChange={(e) => setTargetDurationSeconds(e.target.value)} addonAfter="秒" placeholder="1–180" />
                     <Input.TextArea value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="输入一句话创意；短故事会先生成完整小说体正文" autoSize={{ minRows: 5, maxRows: 10 }} />
                 </div>
             </Modal>

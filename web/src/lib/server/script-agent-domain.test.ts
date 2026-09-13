@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { isScriptAgentKey, isScriptArtifactType, isScriptRunEventType, isScriptRunType, normalizeChapterSelection, SCRIPT_AGENT_KEYS, SCRIPT_RUN_EVENT_TYPES } from "./script-agent-domain";
 
+describe("screenwriter carrier contracts", () => {
+    it("accepts TVC and Vlog as extensible text-only carriers", async () => {
+        const { SCRIPT_CARRIERS, normalizeScriptCarrier } = await import("./script-agent-domain");
+        expect(SCRIPT_CARRIERS).toEqual(expect.arrayContaining(["tvc", "vlog"]));
+        expect(normalizeScriptCarrier("TVC")).toBe("tvc");
+        expect(normalizeScriptCarrier("Vlog")).toBe("vlog");
+        expect(normalizeScriptCarrier("unknown")).toBe("vlog");
+    });
+});
+
 describe("screenwriter agent domain", () => {
     it("accepts the confirmed text-only agents and artifacts", () => {
         expect(SCRIPT_AGENT_KEYS).toContain("storyboard_writer");

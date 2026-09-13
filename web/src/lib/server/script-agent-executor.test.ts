@@ -36,6 +36,53 @@ async function runForVisibleText(runType: "episode_scripts" | "text_storyboard" 
     await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-a", runType, input: {}, origin: "https://local", cookie: "session" });
     return visible;
 }
+describe("screenwriter carrier execution", () => {
+    it("passes persisted TVC/Vlog parameters into every model stage", async () => {
+        const callModel = vi.fn().mockResolvedValue({ content: "策划结果" });
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "novel_planner", name: "策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "策划" }),
+            getProject: vi.fn().mockResolvedValue({ carrier_type: "vlog", project_parameters: { targetDurationSeconds: 180, brandGoal: "记录真实体验" } }),
+            callModel,
+            listArtifacts: vi.fn().mockResolvedValue([]),
+            saveArtifact: vi.fn().mockResolvedValue({ id: "artifact" }),
+            appendEvent: vi.fn(),
+        };
+        await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-vlog", runType: "project_planning", input: {}, origin: "https://local", cookie: "session" });
+        expect(callModel.mock.calls[0]?.[0].task.input.projectContext).toEqual({ carrierType: "vlog", projectParameters: { targetDurationSeconds: 180, brandGoal: "记录真实体验" } });
+        expect(callModel.mock.calls[0]?.[0].task.input.carrierInstructions).toContain("第一人称");
+    });
+
+    it("uses TVC-specific instructions and preserves its brand parameters", async () => {
+        const callModel = vi.fn().mockResolvedValue({ content: "TVC 策划" });
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "novel_planner", name: "策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "策划" }),
+            getProject: vi.fn().mockResolvedValue({ carrier_type: "tvc", project_parameters: { targetDurationSeconds: 90, brandGoal: "让用户记住新品" } }),
+            callModel,
+            listArtifacts: vi.fn().mockResolvedValue([]),
+            saveArtifact: vi.fn().mockResolvedValue({ id: "artifact" }),
+            appendEvent: vi.fn(),
+        };
+        await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-tvc", runType: "project_planning", input: {}, origin: "https://local", cookie: "session" });
+        expect(callModel.mock.calls[0]?.[0].task.input.carrierInstructions).toContain("品牌目标");
+        expect(callModel.mock.calls[0]?.[0].task.input.projectContext.projectParameters.targetDurationSeconds).toBe(90);
+    });
+
+    it("rejects a text storyboard whose total duration exceeds the project target", async () => {
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "storyboard_writer", name: "分镜", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "分镜" }),
+            getProject: vi.fn().mockResolvedValue({ carrier_type: "tvc", project_parameters: { targetDurationSeconds: 3 } }),
+            callModel: vi.fn().mockResolvedValue({
+                content: "分镜",
+                episodes: [{ episodeNumber: 1, shots: [{ sceneId: "s", shotNumber: 1, visualDescription: "画面", shotSize: "中景", cameraAngle: "平视", composition: "居中", cameraMovement: "固定", action: "动作", emotion: "平静", durationSeconds: 4 }] }],
+            }),
+            saveArtifact: vi.fn(),
+            appendEvent: vi.fn(),
+        };
+        await expect(new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-duration", runType: "text_storyboard", input: {}, origin: "https://local", cookie: "session" })).rejects.toThrow("目标时长");
+        expect(deps.saveArtifact).not.toHaveBeenCalled();
+    });
+});
+
 describe("screenwriter run sequences", () => {
     it("runs supervision inside episode writing and final text deliverables inside directing", async () => {
         expect(scriptRunSequence("episode_scripts")).toEqual(["episode_scripts", "script_review"]);
