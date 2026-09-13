@@ -29,6 +29,11 @@ describe("ScriptAgentRepository", () => {
         expect(query).toHaveBeenCalledWith(expect.stringContaining("ON CONFLICT (school_id, owner_user_id, client_request_id)"), expect.arrayContaining(["run-a", "school-a", "user-a", "project-a", "request-a"]));
     });
 
+    it("returns null instead of throwing when a legacy or foreign project cannot create a scoped run", async () => {
+        const { repository: repo } = repository([]);
+        await expect(repo.createRun(scope, { id: "run-a", projectId: "legacy-project", runType: "short_story", clientRequestId: "request-a", configSnapshot: {} })).resolves.toBeNull();
+    });
+
     it("uses an atomic increment before appending a public event", async () => {
         const { query, repository: repo } = repository([{ id: "event-a", run_id: "run-a", sequence: 4, public_event_type: "artifact_saved", public_payload: { artifactId: "artifact-a" }, created_at: "2026-09-13T00:00:00Z" }]);
         await repo.appendRunEvent(scope, "project-a", "run-a", "artifact_saved", { artifactId: "artifact-a" }, "event-a");

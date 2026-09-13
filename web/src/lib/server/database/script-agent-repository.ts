@@ -53,7 +53,7 @@ export class ScriptAgentRepository {
              RETURNING *`,
             [input.id, scope.schoolId, scope.ownerUserId, input.projectId, input.chatSessionId || null, input.runType, input.stageKey || null, input.clientRequestId, JSON.stringify(input.configSnapshot)],
         );
-        return mapRun(result.rows[0]);
+        return result.rows[0] ? mapRun(result.rows[0]) : null;
     }
 
     async getRun(scope: PracticeTenantScope, projectId: string, runId: string, forUpdate = false) {

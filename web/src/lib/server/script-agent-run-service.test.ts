@@ -25,6 +25,12 @@ describe("ScriptAgentRunService", () => {
         expect(repository.appendRunEvent).toHaveBeenCalledWith(scope, "project-a", "run-a", "run_started", expect.objectContaining({ runType: "short_story" }), "id-a");
     });
 
+    it("maps a zero-row scoped insert to a project-not-found error", async () => {
+        const repository = { createRun: vi.fn().mockResolvedValue(null), appendRunEvent: vi.fn() };
+        const service = new ScriptAgentRunService(repository as never, () => "id-a");
+        await expect(service.create(scope, { projectId: "legacy-project", runType: "project_planning", clientRequestId: "request-a" })).rejects.toMatchObject({ status: 404 });
+    });
+
     it("stops a running run without deleting saved work", async () => {
         const repository = { getRun: vi.fn().mockResolvedValue({ ...baseRun, status: "running" }), updateRun: vi.fn().mockResolvedValue({ ...baseRun, status: "stopped" }), appendRunEvent: vi.fn() };
         const service = new ScriptAgentRunService(repository as never, () => "event-stop");

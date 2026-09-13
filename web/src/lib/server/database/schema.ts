@@ -1229,6 +1229,12 @@ ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS secondary_genres j
 ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS project_parameters jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS current_stage text NOT NULL DEFAULT 'project_planning';
 ALTER TABLE practice_script_projects ADD COLUMN IF NOT EXISTS story_revision integer NOT NULL DEFAULT 1;
+UPDATE practice_script_projects AS project
+SET school_id = membership.school_id
+FROM school_memberships AS membership
+WHERE project.school_id IS NULL
+  AND membership.user_id = project.owner_user_id
+  AND membership.status = 'active';
 
 CREATE TABLE IF NOT EXISTS practice_script_artifacts (
     id text PRIMARY KEY,

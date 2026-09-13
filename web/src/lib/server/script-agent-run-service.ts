@@ -34,7 +34,7 @@ export class ScriptAgentRunService {
             clientRequestId: input.clientRequestId,
             configSnapshot: input.configSnapshot || {},
         });
-        if (!run) throw new ScriptAgentRunError("剧本 Run 创建失败", 500);
+        if (!run) throw new ScriptAgentRunError("剧本项目不存在或不属于当前学校", 404);
         if (run.lastEventSequence === 0) await this.repository.appendRunEvent(scope, input.projectId, run.id, "run_started", { runType: run.runType, stageKey: run.stageKey }, this.id());
         return run;
     }

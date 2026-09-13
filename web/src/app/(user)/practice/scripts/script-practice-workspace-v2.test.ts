@@ -15,5 +15,7 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain("stopRun");
         expect(source).toContain("retryFailed");
         expect(source).not.toContain("JSON.stringify(stage");
+        expect(source).toContain("runAction");
+        expect(source).toContain("message.error");
     });
 });

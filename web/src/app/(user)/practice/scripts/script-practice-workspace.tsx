@@ -120,6 +120,13 @@ export default function ScriptPracticeWorkspace() {
         [loadTree, message],
     );
     useEffect(() => () => abortRef.current?.abort(), []);
+    const runAction = async (action: () => Promise<void>, fallback: string) => {
+        try {
+            await action();
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : fallback);
+        }
+    };
     const start = async (runType: string, input: Record<string, unknown>) => {
         if (!selectedId) return;
         const run = await practiceScriptsApi.createRun(selectedId, { runType, clientRequestId: crypto.randomUUID(), input });
@@ -243,7 +250,7 @@ export default function ScriptPracticeWorkspace() {
                     <div className="border-t border-border p-3">
                         <div className="mb-2 flex flex-wrap gap-1">
                             {STARTERS.map((item) => (
-                                <Button key={item.runType} size="small" disabled={!selectedId || busy} onClick={() => void start(item.runType, { instruction: draft || item.label })}>
+                                <Button key={item.runType} size="small" disabled={!selectedId || busy} onClick={() => void runAction(() => start(item.runType, { instruction: draft || item.label }), "启动剧本任务失败")}>
                                     {item.label}
                                 </Button>
                             ))}
@@ -263,18 +270,29 @@ export default function ScriptPracticeWorkspace() {
                                     停止
                                 </Button>
                             ) : (
-                                <Button icon={<RefreshCw className="size-4" />} disabled={!selectedId || !runId} onClick={() => selectedId && runId && void practiceScriptsApi.retryFailed(selectedId, runId)}>
+                                <Button
+                                    icon={<RefreshCw className="size-4" />}
+                                    disabled={!selectedId || !runId}
+                                    onClick={() =>
+                                        selectedId &&
+                                        runId &&
+                                        void runAction(async () => {
+                                            await practiceScriptsApi.retryFailed(selectedId, runId);
+                                            await consumeEvents(selectedId, runId);
+                                        }, "重试失败项失败")
+                                    }
+                                >
                                     重试失败项
                                 </Button>
                             )}
-                            <Button type="primary" icon={<Send className="size-4" />} loading={busy} disabled={!draft.trim() || !selectedId} onClick={() => void send()}>
+                            <Button type="primary" icon={<Send className="size-4" />} loading={busy} disabled={!draft.trim() || !selectedId} onClick={() => void runAction(send, "发送消息失败")}>
                                 发送
                             </Button>
                         </div>
                     </div>
                 </aside>
             </div>
-            <Modal title="新建剧本项目" open={newOpen} onCancel={() => setNewOpen(false)} onOk={() => void create()} okText="创建并开始策划">
+            <Modal title="新建剧本项目" open={newOpen} onCancel={() => setNewOpen(false)} onOk={() => void runAction(create, "创建剧本项目失败")} okText="创建并开始策划">
                 <div className="grid gap-3">
                     <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="项目标题" />
                     <Select
