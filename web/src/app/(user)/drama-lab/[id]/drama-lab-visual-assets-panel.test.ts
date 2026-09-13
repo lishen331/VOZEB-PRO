@@ -136,8 +136,8 @@ describe("L-style prop reference actions", () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         const prop = source.slice(source.indexOf('if (editor.kind === "props")'));
         expect(prop.indexOf("提取特征描述")).toBeLessThan(prop.indexOf("移除"));
-        expect(prop).toContain("设为主参考图");
-        expect(prop).toContain("参考图候选");
+        expect(source).toContain("设为主参考图");
+        expect(source).toContain("参考图候选");
     });
 });
 

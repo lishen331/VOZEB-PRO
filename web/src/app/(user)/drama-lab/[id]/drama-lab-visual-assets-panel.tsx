@@ -933,55 +933,68 @@ function AssetEditorModal({
                 destroyOnHidden
             >
                 <div className="grid gap-3">
-                    <div className="flex items-start gap-3 border-b border-border pb-4">
-                        <span className="shrink-0 text-sm">参考图</span>
-                        <div
-                            data-reference-upload-frame="scene"
-                            className="grid size-28 shrink-0 cursor-pointer place-items-center overflow-hidden rounded border border-dashed border-border bg-muted text-xs text-muted-foreground hover:border-primary hover:text-primary"
-                            onClick={onUpload}
-                            onDragOver={(event) => event.preventDefault()}
-                            onDrop={handleDrop}
-                            title="点击或拖入参考图"
-                            aria-label="拖拽或点击上传场景参考图"
-                        >
-                            {primary?.url ? (
-                                <img src={imagePreviewUrl(primary.url, 240)} alt="场景参考图" className="size-full object-contain" />
-                            ) : (
-                                <>
-                                    参考图
-                                    <br />
-                                    <span>点击或拖入参考图</span>
-                                </>
-                            )}
-                        </div>
-                        <div className="min-w-0 flex-1 space-y-2">
-                            <div className="flex flex-wrap gap-2" aria-label="场景参考图候选">
-                                {references.map((reference, index) => (
-                                    <button
-                                        key={reference.id}
-                                        type="button"
-                                        className={`group relative size-16 overflow-hidden rounded border ${reference.id === primary?.id ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
-                                        onClick={() => onChange({ ...asset, primaryReferenceId: reference.id, referenceImageUrl: reference.url, imageUrl: reference.url } as VisualAsset)}
-                                        title={reference.id === primary?.id ? "当前主参考图" : "设为主参考图"}
-                                    >
-                                        <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 160)} alt={`场景参考图${index + 1}`} className="!size-full !object-cover" />
-                                    </button>
-                                ))}
-                                <button type="button" className="grid size-16 place-items-center rounded border border-dashed text-xs" onClick={onUpload}>
-                                    ＋ 添加
-                                </button>
+                    <div className="grid gap-3 border-b border-border pb-4" data-asset-primary-image>
+                        <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                            <span className="pt-2 text-sm">主图</span>
+                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_6rem] gap-3" data-asset-primary-history-layout>
+                                <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-muted">
+                                    {primary?.url ? (
+                                        <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt="场景主图" className="!max-h-64 !object-contain" />
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">暂无主图</span>
+                                    )}
+                                    <Button size="small" className="absolute bottom-2 right-2" onClick={onUpload}>
+                                        上传图片 / 替换主图
+                                    </Button>
+                                </div>
+                                <div className="max-h-64 space-y-2 overflow-y-auto pr-1" aria-label="历史图片">
+                                    {references
+                                        .filter((reference) => reference.role === "history")
+                                        .map((reference, index) => (
+                                            <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
+                                                <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!size-full !object-cover" />
+                                                <button
+                                                    type="button"
+                                                    aria-label={`删除历史图${index + 1}`}
+                                                    className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                                    onClick={() => onRemoveReferenceById(reference.id)}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+                                </div>
                             </div>
-                            <div className="flex flex-col items-start gap-2 pt-1">
-                                {hasReference ? (
-                                    <Button size="small" className="!border-primary/40 !text-primary" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
-                                        提取特征描述
-                                    </Button>
-                                ) : null}
-                                {hasReference ? (
-                                    <Button size="small" danger onClick={onRemoveReference}>
-                                        移除
-                                    </Button>
-                                ) : null}
+                        </div>
+                        <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                            <span className="pt-2 text-sm">参考</span>
+                            <div className="rounded-lg border border-dashed border-border p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+                                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>生成图片的参考图（图生提示词可使用 @图N）</span>
+                                    <span>{references.length} / 9，最多 9 张</span>
+                                </div>
+                                <div className="flex min-h-24 flex-wrap gap-2">
+                                    {references.map((reference, index) => (
+                                        <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
+                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!size-full !object-cover" />
+                                            <button
+                                                type="button"
+                                                aria-label={`移除参考图 图${index + 1}`}
+                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                                onClick={() => onRemoveReferenceById(reference.id)}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {references.length < 9 ? (
+                                        <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={onUpload}>
+                                            <span>
+                                                <b className="block text-xl font-normal">＋</b>拖入或添加
+                                            </span>
+                                        </button>
+                                    ) : null}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1048,47 +1061,68 @@ function AssetEditorModal({
                 destroyOnHidden
             >
                 <div className="grid gap-3">
-                    <div className="flex items-start gap-3 border-b border-border pb-3">
-                        <span className="shrink-0 text-sm">参考图</span>
-                        <div className="flex items-start gap-3">
-                            <div
-                                data-prop-reference-frame="true"
-                                data-reference-upload-frame="prop"
-                                className="grid size-[88px] shrink-0 cursor-pointer place-items-center overflow-hidden rounded border border-dashed border-border bg-muted text-xs text-muted-foreground"
-                                onClick={onUpload}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={handleDrop}
-                                title="点击或拖入参考图"
-                            >
-                                {primary?.url ? <img src={imagePreviewUrl(primary.url, 180)} alt={primary.label || "道具参考图"} className="size-full object-contain" /> : <span className="px-2 text-center">点击或拖入参考图</span>}
+                    <div className="grid gap-3 border-b border-border pb-4" data-asset-primary-image>
+                        <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                            <span className="pt-2 text-sm">主图</span>
+                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_6rem] gap-3" data-asset-primary-history-layout>
+                                <div className="group relative flex min-h-48 items-center justify-center overflow-hidden rounded border bg-muted">
+                                    {primary?.url ? (
+                                        <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt="道具主图" className="!max-h-64 !object-contain" />
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">暂无主图</span>
+                                    )}
+                                    <Button size="small" className="absolute bottom-2 right-2" onClick={onUpload}>
+                                        上传图片 / 替换主图
+                                    </Button>
+                                </div>
+                                <div className="max-h-64 space-y-2 overflow-y-auto pr-1" aria-label="历史图片">
+                                    {references
+                                        .filter((reference) => reference.role === "history")
+                                        .map((reference, index) => (
+                                            <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
+                                                <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!size-full !object-cover" />
+                                                <button
+                                                    type="button"
+                                                    aria-label={`删除历史图${index + 1}`}
+                                                    className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                                    onClick={() => onRemoveReferenceById(reference.id)}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+                                </div>
                             </div>
-                            <div className="flex flex-col items-start gap-1.5">
-                                {primary ? (
-                                    <>
-                                        <Button size="small" type="primary" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
-                                            提取特征描述
-                                        </Button>
-                                        <Button size="small" danger onClick={() => onRemoveReferenceById(primary.id)}>
-                                            移除
-                                        </Button>
-                                    </>
-                                ) : null}
-                            </div>
-                            <div className="flex flex-wrap gap-2" aria-label="道具参考图候选">
-                                {references.map((reference, index) => (
-                                    <button
-                                        key={reference.id}
-                                        type="button"
-                                        className={`group relative size-16 overflow-hidden rounded border ${reference.id === primary?.id ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
-                                        onClick={() => onChange({ ...asset, primaryReferenceId: reference.id, referenceImageUrl: reference.url, imageUrl: reference.url } as VisualAsset)}
-                                        title={reference.id === primary?.id ? "当前主参考图" : "设为主参考图"}
-                                    >
-                                        <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 160)} alt={`道具参考图${index + 1}`} className="!size-full !object-cover" />
-                                    </button>
-                                ))}
-                                <button type="button" className="grid size-16 place-items-center rounded border border-dashed text-xs" onClick={onUpload}>
-                                    ＋ 添加
-                                </button>
+                        </div>
+                        <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
+                            <span className="pt-2 text-sm">参考</span>
+                            <div className="rounded-lg border border-dashed border-border p-3" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+                                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>生成图片的参考图（图生提示词可使用 @图N）</span>
+                                    <span>{references.length} / 9，最多 9 张</span>
+                                </div>
+                                <div className="flex min-h-24 flex-wrap gap-2">
+                                    {references.map((reference, index) => (
+                                        <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
+                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!size-full !object-cover" />
+                                            <button
+                                                type="button"
+                                                aria-label={`移除参考图 图${index + 1}`}
+                                                className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100"
+                                                onClick={() => onRemoveReferenceById(reference.id)}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {references.length < 9 ? (
+                                        <button type="button" className="grid h-24 w-20 place-items-center rounded border border-dashed text-xs text-muted-foreground" onClick={onUpload}>
+                                            <span>
+                                                <b className="block text-xl font-normal">＋</b>拖入或添加
+                                            </span>
+                                        </button>
+                                    ) : null}
+                                </div>
                             </div>
                         </div>
                     </div>
