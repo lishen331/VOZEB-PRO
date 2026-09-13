@@ -1124,8 +1124,8 @@ function AssetEditorModal({
                     </span>
                     <Input.TextArea
                         rows={5}
-                        value={JSON.stringify(characterIdentityAnchors(profile), null, 2)}
-                        onChange={(event) => onChange({ ...asset, profile: parseAnchorProfile(event.target.value, profile) })}
+                        value={JSON.stringify(characterIdentityAnchorsForDisplay(profile), null, 2)}
+                        onChange={(event) => onChange({ ...asset, profile: parseCharacterIdentityAnchors(event.target.value, profile) })}
                         placeholder='{"face_shape":"...","facial_features":"...","unique_marks":"...","color_anchors":{"hair":"#...","eyes":"#...","skin":"#...","primary_outfit":"#..."},"skin_texture":"...","hair_style":"..."}'
                     />
                 </label>
@@ -1221,18 +1221,26 @@ function assetName(asset: VisualAsset) {
     return asset.name || ("location" in asset ? asset.location : "");
 }
 
-function parseAnchorProfile(value: string, fallback: DramaLabAssetProfile): DramaLabAssetProfile {
+function parseCharacterIdentityAnchors(value: string, fallback: DramaLabAssetProfile): DramaLabAssetProfile {
     try {
-        const parsed = JSON.parse(value) as Partial<DramaLabAssetProfile>;
-        const colors = parsed.color_anchors && typeof parsed.color_anchors === "object" ? parsed.color_anchors : fallback.color_anchors;
+        const parsed = JSON.parse(value) as Record<string, unknown>;
+        const bilingual = (english: string, chinese: string) => parsed[`${english}（${chinese}）`] ?? parsed[english];
+        const colorsValue = bilingual("color_anchors", "颜色锚点");
+        const colors = colorsValue && typeof colorsValue === "object" && !Array.isArray(colorsValue) ? (colorsValue as Record<string, unknown>) : {};
+        const color = (english: string, chinese: string) => colors[`${english}（${chinese}）`] ?? colors[english];
         return {
             ...fallback,
-            face_shape: typeof parsed.face_shape === "string" ? parsed.face_shape : fallback.face_shape,
-            facial_features: typeof parsed.facial_features === "string" ? parsed.facial_features : fallback.facial_features,
-            unique_marks: typeof parsed.unique_marks === "string" ? parsed.unique_marks : fallback.unique_marks,
-            color_anchors: colors,
-            skin_texture: typeof parsed.skin_texture === "string" ? parsed.skin_texture : fallback.skin_texture,
-            hair_style: typeof parsed.hair_style === "string" ? parsed.hair_style : fallback.hair_style,
+            face_shape: typeof bilingual("face_shape", "脸型") === "string" ? String(bilingual("face_shape", "脸型")) : fallback.face_shape,
+            facial_features: typeof bilingual("facial_features", "五官特征") === "string" ? String(bilingual("facial_features", "五官特征")) : fallback.facial_features,
+            unique_marks: typeof bilingual("unique_marks", "独特标记") === "string" ? String(bilingual("unique_marks", "独特标记")) : fallback.unique_marks,
+            color_anchors: {
+                hair: typeof color("hair", "头发") === "string" ? String(color("hair", "头发")) : fallback.color_anchors?.hair || "unspecified",
+                eyes: typeof color("eyes", "眼睛") === "string" ? String(color("eyes", "眼睛")) : fallback.color_anchors?.eyes || "unspecified",
+                skin: typeof color("skin", "肤色") === "string" ? String(color("skin", "肤色")) : fallback.color_anchors?.skin || "unspecified",
+                primary_outfit: typeof color("primary_outfit", "主服装") === "string" ? String(color("primary_outfit", "主服装")) : fallback.color_anchors?.primary_outfit || "unspecified",
+            },
+            skin_texture: typeof bilingual("skin_texture", "皮肤质感") === "string" ? String(bilingual("skin_texture", "皮肤质感")) : fallback.skin_texture,
+            hair_style: typeof bilingual("hair_style", "发型") === "string" ? String(bilingual("hair_style", "发型")) : fallback.hair_style,
         };
     } catch {
         return fallback;
@@ -1248,13 +1256,18 @@ function parseStages(value: string) {
     }
 }
 
-function characterIdentityAnchors(profile: DramaLabAssetProfile) {
+function characterIdentityAnchorsForDisplay(profile: DramaLabAssetProfile) {
     return {
-        face_shape: profile.face_shape || "unspecified",
-        facial_features: profile.facial_features || "unspecified",
-        unique_marks: profile.unique_marks || "unspecified",
-        color_anchors: profile.color_anchors || { hair: "unspecified", eyes: "unspecified", skin: "unspecified", primary_outfit: "unspecified" },
-        skin_texture: profile.skin_texture || "unspecified",
-        hair_style: profile.hair_style || "unspecified",
+        "face_shape（脸型）": profile.face_shape || "unspecified",
+        "facial_features（五官特征）": profile.facial_features || "unspecified",
+        "unique_marks（独特标记）": profile.unique_marks || "unspecified",
+        "color_anchors（颜色锚点）": {
+            "hair（头发）": profile.color_anchors?.hair || "unspecified",
+            "eyes（眼睛）": profile.color_anchors?.eyes || "unspecified",
+            "skin（肤色）": profile.color_anchors?.skin || "unspecified",
+            "primary_outfit（主服装）": profile.color_anchors?.primary_outfit || "unspecified",
+        },
+        "skin_texture（皮肤质感）": profile.skin_texture || "unspecified",
+        "hair_style（发型）": profile.hair_style || "unspecified",
     };
 }
