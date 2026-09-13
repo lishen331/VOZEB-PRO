@@ -2027,6 +2027,7 @@ function ScriptEditor({
     const [scriptLibraryProjects, setScriptLibraryProjects] = useState<ScriptLibraryProject[]>([]);
     const [previewEpisodeId, setPreviewEpisodeId] = useState<string>();
     const [scriptEpisodeTitleDraft, setScriptEpisodeTitleDraft] = useState("");
+    const scriptEpisodeTitleDraftRef = useRef("");
     const scriptEpisodeTitleSavingRef = useRef(false);
 
     type StoryTaskState = { status?: string; error?: string; episodeCount?: number; persistedEpisodeCount?: number; taskId?: string };
@@ -2036,6 +2037,7 @@ function ScriptEditor({
         });
         scriptForm.setFieldsValue({ script: episode?.script || "" });
         setScriptEpisodeTitleDraft(episode?.title || "");
+        scriptEpisodeTitleDraftRef.current = episode?.title || "";
         setStoryStyle(project.storyStyle || "");
         setScriptType(project.scriptType || "");
         setEpisodeCount(project.scriptEpisodeCount || 1);
@@ -2116,7 +2118,7 @@ function ScriptEditor({
             const values = form.getFieldsValue();
             const script = scriptForm.getFieldValue("script") || "";
             if (episode) {
-                const title = scriptEpisodeTitleDraft.trim() || episode.title;
+                const title = scriptEpisodeTitleDraftRef.current.trim() || episode.title;
                 const updatedEpisodes = project.episodes.map((ep) => (ep.id === episode.id ? { ...ep, title, script } : ep));
                 return onSave(
                     {
@@ -2131,7 +2133,7 @@ function ScriptEditor({
             }
             return Promise.resolve(false);
         },
-        [episode, episodeCount, form, onSave, project, scriptEpisodeTitleDraft, scriptForm, scriptType, storyStyle],
+        [episode, episodeCount, form, onSave, project, scriptForm, scriptType, storyStyle],
     );
 
     const addScriptEpisode = async () => {
@@ -2152,9 +2154,14 @@ function ScriptEditor({
 
     const saveScriptEpisodeTitle = async () => {
         if (!episode || scriptEpisodeTitleSavingRef.current) return;
-        const title = scriptEpisodeTitleDraft.trim();
+        if (saveTimerRef.current) {
+            clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = null;
+        }
+        const title = scriptEpisodeTitleDraftRef.current.trim();
         if (!title) {
             messageApi.warning("剧集名称不能为空");
+            scriptEpisodeTitleDraftRef.current = episode.title;
             setScriptEpisodeTitleDraft(episode.title);
             return;
         }
@@ -2162,7 +2169,10 @@ function ScriptEditor({
         scriptEpisodeTitleSavingRef.current = true;
         try {
             const saved = await saveNow({ silent: true });
-            if (!saved) setScriptEpisodeTitleDraft(episode.title);
+            if (!saved) {
+                scriptEpisodeTitleDraftRef.current = episode.title;
+                setScriptEpisodeTitleDraft(episode.title);
+            }
         } finally {
             scriptEpisodeTitleSavingRef.current = false;
         }
@@ -2403,7 +2413,11 @@ function ScriptEditor({
                                                     <Input
                                                         aria-label="当前剧集标题"
                                                         value={scriptEpisodeTitleDraft}
-                                                        onChange={(event) => setScriptEpisodeTitleDraft(event.target.value)}
+                                                        onChange={(event) => {
+                                                            scriptEpisodeTitleDraftRef.current = event.target.value;
+                                                            setScriptEpisodeTitleDraft(event.target.value);
+                                                            scheduleSave();
+                                                        }}
                                                         onPressEnter={() => void saveScriptEpisodeTitle()}
                                                         onBlur={() => void saveScriptEpisodeTitle()}
                                                         placeholder={`第 ${episode.number} 集`}
@@ -2414,9 +2428,12 @@ function ScriptEditor({
                                                         value={episode.id}
                                                         onChange={(value) => void switchScriptEpisode(value)}
                                                         suffixIcon={<ChevronDown className="size-4" />}
+                                                        placement="bottomLeft"
+                                                        popupMatchSelectWidth={280}
+                                                        getPopupContainer={(trigger) => trigger.parentElement || trigger}
                                                         style={{ width: 48 }}
                                                         options={project.episodes.map((item) => ({ value: item.id, label: item.title || `第 ${item.number} 集` }))}
-                                                        optionRender={(option) => <span>{option.label}</span>}
+                                                        optionRender={(option) => <span className="block truncate">{option.label}</span>}
                                                     />
                                                     <Button aria-label="添加一集" icon={<Plus className="size-4" />} onClick={() => void addScriptEpisode()}>
                                                         添加一集
