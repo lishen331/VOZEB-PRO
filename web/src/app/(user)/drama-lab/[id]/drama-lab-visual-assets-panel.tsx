@@ -1042,7 +1042,7 @@ function AssetEditorModal({
                                         {reference.id !== primary?.id ? (
                                             <button
                                                 type="button"
-                                                aria-label={`移除图${index + 1}`}
+                                                aria-label={`移除参考图 图${index + 1}`}
                                                 className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100 focus:opacity-100"
                                                 onClick={() => onRemoveReferenceById(reference.id)}
                                             >
