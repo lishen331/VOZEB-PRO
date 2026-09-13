@@ -571,7 +571,19 @@ function normalizeAssetProfile(value: unknown): DramaAssetProfile {
         styling: cleanText(input.styling),
         colorPalette: cleanText(input.colorPalette),
         consistencyRules: cleanText(input.consistencyRules),
+        face_shape: optionalText(input.face_shape),
+        facial_features: optionalText(input.facial_features),
+        unique_marks: optionalText(input.unique_marks),
+        color_anchors: normalizeColorAnchors(input.color_anchors),
+        skin_texture: optionalText(input.skin_texture),
+        hair_style: optionalText(input.hair_style),
     };
+}
+
+function normalizeColorAnchors(value: unknown) {
+    const input = object(value);
+    const anchors = { hair: cleanText(input.hair), eyes: cleanText(input.eyes), skin: cleanText(input.skin), primary_outfit: cleanText(input.primary_outfit) };
+    return Object.values(anchors).some(Boolean) ? anchors : undefined;
 }
 
 function normalizeAssetReferences(value: unknown, assetId: string, legacyUrl: unknown, legacyStorageKey: unknown): DramaAssetReference[] {

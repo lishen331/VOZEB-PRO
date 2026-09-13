@@ -49,6 +49,22 @@ describe("drama lab asset AI service", () => {
         expect(result.polishedPrompt).toContain("短发红衣，纤细体型");
     });
 
+    it("uses the exact LocalMiniDrama six-layer identity anchor contract for characters", async () => {
+        const anchors = {
+            face_shape: "oval face",
+            facial_features: "almond eyes #3D2B1F, straight nose, thin lips",
+            unique_marks: "none",
+            color_anchors: { hair: "#1A0A00", eyes: "#3D2B1F", skin: "#FDDBB4", primary_outfit: "#808080" },
+            skin_texture: "fair porcelain smooth",
+            hair_style: "shoulder-length wavy black hair",
+        };
+        mocks.requestStructuredText.mockResolvedValue({ arguments: JSON.stringify(anchors) });
+        const result = await runDramaLabAssetAiAction({ userId: "user-one", origin: "http://app.test", cookie: "", requestId: "request-anchor", project, assetId: "character-one", kind: "characters", action: "anchor" });
+        expect("profile" in result ? result.profile : undefined).toMatchObject(anchors);
+        const call = mocks.requestStructuredText.mock.calls[0]?.[0];
+        expect(call.messages[0].content).toContain("these exact 6 keys");
+        expect(call.tool.parameters.required).toEqual(["face_shape", "facial_features", "unique_marks", "color_anchors", "skin_texture", "hair_style"]);
+    });
     it("normalizes AI-generated multi-stage appearances", async () => {
         mocks.requestStructuredText.mockResolvedValue({
             arguments: JSON.stringify({

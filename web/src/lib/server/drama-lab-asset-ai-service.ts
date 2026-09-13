@@ -86,6 +86,30 @@ function actionInstruction(action: DramaLabAssetAiAction, input?: Pick<DramaLabA
         return `你是 LocalMiniDrama 资产视觉描述整理器。${assetPromptPolishInstruction(input.kind, layout)} 服务端会另行注入不可编辑版式合同；你只返回 visualDescription，不要复制版式、画风、JSON Schema、解释或 Markdown。`;
     }
     if (action === "prompt") return "你是 LocalMiniDrama 资产视觉描述整理器。只返回 visualDescription。";
+    if (action === "anchor" && input?.kind === "characters")
+        return `You are a character visual analyst. Extract precise visual identity anchors from character appearance descriptions.
+
+Output ONLY a valid JSON object with these exact 6 keys:
+{
+  "face_shape": "precise description of face/skull shape, jawline, cheekbones (e.g. oval face, sharp jawline, high cheekbones)",
+  "facial_features": "eye shape+color+Hex, nose bridge+tip, lip thickness+shape (e.g. almond eyes #3D2B1F, straight nose, thin lips)",
+  "unique_marks": "scars, moles, tattoos, birthmarks, distinctive features — or 'none'",
+  "color_anchors": {
+    "hair": "#HexCode (e.g. #1A0A00 for black, #C8A96E for blonde)",
+    "eyes": "#HexCode",
+    "skin": "#HexCode (e.g. #F5DEB3 for wheat, #FDDBB4 for fair)",
+    "primary_outfit": "#HexCode of dominant clothing color"
+  },
+  "skin_texture": "skin tone description + texture (e.g. fair porcelain smooth, tanned slightly weathered)",
+  "hair_style": "length + style + texture (e.g. shoulder-length wavy black hair with loose strands, short crew cut)"
+}
+
+Rules:
+- Use Hex color codes for ALL color values — never use color names like "black" or "brown"
+- Extract ONLY what is explicitly stated; infer Hex values from color descriptions
+- Keep each field concise (1-2 sentences max)
+- If information is missing for a field, write "unspecified"
+- Output ONLY the JSON object, no markdown, no explanation`;
     if (action === "anchor") return "你是视觉资产分析师。根据文字设定和参考图提炼可复用的视觉锚点，必须返回视觉识别、造型与材质、固定色彩、一致性规则。只返回工具 JSON。";
     return "你是角色造型设计师。根据角色设定生成分集阶段造型 JSON 数组，只返回工具 JSON。";
 }
@@ -109,8 +133,20 @@ function actionTool(action: DramaLabAssetAiAction) {
             description: "提炼资产视觉锚点",
             parameters: {
                 type: "object",
-                properties: { visualIdentity: { type: "string" }, styling: { type: "string" }, colorPalette: { type: "string" }, consistencyRules: { type: "string" } },
-                required: ["visualIdentity", "styling", "colorPalette", "consistencyRules"],
+                properties: {
+                    face_shape: { type: "string" },
+                    facial_features: { type: "string" },
+                    unique_marks: { type: "string" },
+                    color_anchors: {
+                        type: "object",
+                        properties: { hair: { type: "string" }, eyes: { type: "string" }, skin: { type: "string" }, primary_outfit: { type: "string" } },
+                        required: ["hair", "eyes", "skin", "primary_outfit"],
+                        additionalProperties: false,
+                    },
+                    skin_texture: { type: "string" },
+                    hair_style: { type: "string" },
+                },
+                required: ["face_shape", "facial_features", "unique_marks", "color_anchors", "skin_texture", "hair_style"],
                 additionalProperties: false,
             },
         };
@@ -134,7 +170,23 @@ function actionTool(action: DramaLabAssetAiAction) {
 function normalizeActionResult(action: DramaLabAssetAiAction, value: Record<string, unknown>) {
     if (action === "describe") return { appearance: text(value.appearance) };
     if (action === "prompt") return { polishedPrompt: typeof value.polishedPrompt === "string" ? value.polishedPrompt.trim() : "" };
-    if (action === "anchor") return { profile: { visualIdentity: text(value.visualIdentity), styling: text(value.styling), colorPalette: text(value.colorPalette), consistencyRules: text(value.consistencyRules) } satisfies DramaAssetProfile };
+    if (action === "anchor") {
+        const colors = value.color_anchors && typeof value.color_anchors === "object" && !Array.isArray(value.color_anchors) ? (value.color_anchors as Record<string, unknown>) : {};
+        return {
+            profile: {
+                visualIdentity: "",
+                styling: "",
+                colorPalette: "",
+                consistencyRules: "",
+                face_shape: text(value.face_shape),
+                facial_features: text(value.facial_features),
+                unique_marks: text(value.unique_marks),
+                color_anchors: { hair: text(colors.hair), eyes: text(colors.eyes), skin: text(colors.skin), primary_outfit: text(colors.primary_outfit) },
+                skin_texture: text(value.skin_texture),
+                hair_style: text(value.hair_style),
+            } satisfies DramaAssetProfile,
+        };
+    }
     const stages = Array.isArray(value.stages)
         ? value.stages.flatMap((item) => {
               if (!item || typeof item !== "object") return [];

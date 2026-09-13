@@ -29,7 +29,8 @@ describe("L-equivalent storyboard card", () => {
         expect(s).not.toContain(">查看 / 编辑提示词</Button>");
         expect(s).toContain('data-universal-workspace="true"');
         expect(s).toContain('data-storyboard-media="video" className="grid h-80');
-        expect(s).toContain('aria-label="分镜图操作" className="flex h-10');
+        expect(s).toContain('aria-label="分镜图操作" className="flex h-10 items-center justify-between');
+        expect(s).toContain('data-storyboard-media="image" className="grid h-80');
         expect(s).toContain('aria-label="分镜视频操作" className="flex h-10');
     });
     it("uses L configuration fields", async () => {

@@ -672,7 +672,8 @@ export function DramaLabVisualAssetsPanel({
 
             <AssetEditorModal
                 editor={editor}
-                busy={busyKey.startsWith("upload:") || busyKey.startsWith("ai:")}
+                busy={busyKey.startsWith("upload:")}
+                busyAction={busyKey.startsWith("ai:") ? (busyKey.split(":")[1] as "describe" | "prompt" | "anchor" | "stages") : undefined}
                 uploadInputRef={uploadInputRef}
                 onClose={() => setEditor(undefined)}
                 onChange={(asset) => setEditor((current) => (current ? { ...current, asset } : current))}
@@ -767,6 +768,7 @@ export function DramaLabVisualAssetsPanel({
 function AssetEditorModal({
     editor,
     busy,
+    busyAction,
     uploadInputRef,
     onClose,
     onChange,
@@ -779,6 +781,7 @@ function AssetEditorModal({
 }: {
     editor?: EditorState;
     busy: boolean;
+    busyAction?: "describe" | "prompt" | "anchor" | "stages";
     uploadInputRef: RefObject<HTMLInputElement | null>;
     onClose: () => void;
     onChange: (asset: VisualAsset) => void;
@@ -866,7 +869,7 @@ function AssetEditorModal({
                         </div>
                         <div className="flex flex-col items-start gap-2 pt-1">
                             {hasReference ? (
-                                <Button size="small" className="!border-primary/40 !text-primary" onClick={() => onAiAction("describe")} loading={busy}>
+                                <Button size="small" className="!border-primary/40 !text-primary" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
                                     提取特征描述
                                 </Button>
                             ) : null}
@@ -894,7 +897,7 @@ function AssetEditorModal({
                             <span>
                                 单图提示词 <span className="text-xs font-normal text-muted-foreground">单图场景的完整图片提示词（不含四宫格布局），生图时直接使用；可手动修改</span>
                             </span>
-                            <Button size="small" onClick={() => onAiAction("prompt")} loading={busy}>
+                            <Button size="small" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
                                 重新生成提示词
                             </Button>
                         </span>
@@ -910,7 +913,7 @@ function AssetEditorModal({
                             <span>
                                 四视图提示词 <span className="text-xs font-normal text-muted-foreground">AI 生成的完整四视图图片提示词，生图时直接使用；可手动修改</span>
                             </span>
-                            <Button size="small" onClick={() => onAiAction("prompt")} loading={busy}>
+                            <Button size="small" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
                                 重新生成提示词
                             </Button>
                         </span>
@@ -957,7 +960,7 @@ function AssetEditorModal({
                             <div className="flex flex-col items-start gap-1.5">
                                 {primary ? (
                                     <>
-                                        <Button size="small" type="primary" onClick={() => onAiAction("describe")} loading={busy}>
+                                        <Button size="small" type="primary" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
                                             提取特征描述
                                         </Button>
                                         <Button size="small" danger onClick={() => onRemoveReferenceById(primary.id)}>
@@ -984,7 +987,7 @@ function AssetEditorModal({
                         <span className="flex min-w-0 items-center gap-2 whitespace-nowrap">
                             <span className="shrink-0">图生提示词</span>
                             <span className="min-w-0 flex-1 truncate text-xs font-normal text-muted-foreground">AI 润色后的图片提示词，生成图片时直接使用；可手动修改</span>
-                            <Button size="small" className="shrink-0" onClick={() => onAiAction("prompt")} loading={busy}>
+                            <Button size="small" className="shrink-0" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
                                 重新生成提示词
                             </Button>
                         </span>
@@ -1039,7 +1042,7 @@ function AssetEditorModal({
                                         {reference.id !== primary?.id ? (
                                             <button
                                                 type="button"
-                                                aria-label={`移除图${index + 1}`}
+                                                aria-label={`移除参考图 图${index + 1}`}
                                                 className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-white/90 text-xs opacity-0 group-hover:opacity-100 focus:opacity-100"
                                                 onClick={() => onRemoveReferenceById(reference.id)}
                                             >
@@ -1058,7 +1061,7 @@ function AssetEditorModal({
                             </div>
                             <div className="mt-2 flex justify-end">
                                 {hasReference ? (
-                                    <Button size="small" onClick={() => onAiAction("describe")} loading={busy}>
+                                    <Button size="small" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
                                         从参考图提取描述
                                     </Button>
                                 ) : null}
@@ -1086,7 +1089,7 @@ function AssetEditorModal({
                         <span>
                             图生提示词 <span className="text-xs font-normal text-muted-foreground">AI 润色后的最终提示词，生成四视图图片时直接使用；可手动修改</span>
                         </span>
-                        <Button size="small" onClick={() => onAiAction("prompt")} loading={busy}>
+                        <Button size="small" onClick={() => onAiAction("prompt")} loading={busyAction === "prompt"}>
                             重新生成提示词
                         </Button>
                     </span>
@@ -1115,15 +1118,15 @@ function AssetEditorModal({
                         <span>
                             视觉锚点 <span className="text-xs font-normal text-muted-foreground">AI 从外貌描述/参考图提炼的视觉特征，用于保持生成图片角色一致性</span>
                         </span>
-                        <Button size="small" onClick={() => onAiAction("anchor")} loading={busy}>
+                        <Button size="small" onClick={() => onAiAction("anchor")} loading={busyAction === "anchor"}>
                             提炼视觉锚点
                         </Button>
                     </span>
                     <Input.TextArea
                         rows={5}
-                        value={JSON.stringify(profile, null, 2)}
+                        value={JSON.stringify(characterIdentityAnchors(profile), null, 2)}
                         onChange={(event) => onChange({ ...asset, profile: parseAnchorProfile(event.target.value, profile) })}
-                        placeholder='{"visualIdentity":"...","styling":"...","colorPalette":"...","consistencyRules":"..."}'
+                        placeholder='{"face_shape":"...","facial_features":"...","unique_marks":"...","color_anchors":{"hair":"#...","eyes":"#...","skin":"#...","primary_outfit":"#..."},"skin_texture":"...","hair_style":"..."}'
                     />
                 </label>
                 {editor?.kind === "characters" ? (
@@ -1132,7 +1135,7 @@ function AssetEditorModal({
                             <span>
                                 多阶段造型 <span className="text-xs font-normal text-muted-foreground">不同集次的角色造型变化，格式：JSON 数组</span>
                             </span>
-                            <Button size="small" onClick={() => onAiAction("stages")} loading={busy}>
+                            <Button size="small" onClick={() => onAiAction("stages")} loading={busyAction === "stages"}>
                                 AI 生成造型
                             </Button>
                         </span>
@@ -1221,11 +1224,15 @@ function assetName(asset: VisualAsset) {
 function parseAnchorProfile(value: string, fallback: DramaLabAssetProfile): DramaLabAssetProfile {
     try {
         const parsed = JSON.parse(value) as Partial<DramaLabAssetProfile>;
+        const colors = parsed.color_anchors && typeof parsed.color_anchors === "object" ? parsed.color_anchors : fallback.color_anchors;
         return {
-            visualIdentity: typeof parsed.visualIdentity === "string" ? parsed.visualIdentity : fallback.visualIdentity,
-            styling: typeof parsed.styling === "string" ? parsed.styling : fallback.styling,
-            colorPalette: typeof parsed.colorPalette === "string" ? parsed.colorPalette : fallback.colorPalette,
-            consistencyRules: typeof parsed.consistencyRules === "string" ? parsed.consistencyRules : fallback.consistencyRules,
+            ...fallback,
+            face_shape: typeof parsed.face_shape === "string" ? parsed.face_shape : fallback.face_shape,
+            facial_features: typeof parsed.facial_features === "string" ? parsed.facial_features : fallback.facial_features,
+            unique_marks: typeof parsed.unique_marks === "string" ? parsed.unique_marks : fallback.unique_marks,
+            color_anchors: colors,
+            skin_texture: typeof parsed.skin_texture === "string" ? parsed.skin_texture : fallback.skin_texture,
+            hair_style: typeof parsed.hair_style === "string" ? parsed.hair_style : fallback.hair_style,
         };
     } catch {
         return fallback;
@@ -1239,4 +1246,15 @@ function parseStages(value: string) {
     } catch {
         return [];
     }
+}
+
+function characterIdentityAnchors(profile: DramaLabAssetProfile) {
+    return {
+        face_shape: profile.face_shape || "unspecified",
+        facial_features: profile.facial_features || "unspecified",
+        unique_marks: profile.unique_marks || "unspecified",
+        color_anchors: profile.color_anchors || { hair: "unspecified", eyes: "unspecified", skin: "unspecified", primary_outfit: "unspecified" },
+        skin_texture: profile.skin_texture || "unspecified",
+        hair_style: profile.hair_style || "unspecified",
+    };
 }
