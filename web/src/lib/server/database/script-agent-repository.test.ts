@@ -132,5 +132,6 @@ describe("ScriptAgentRepository", () => {
         await repo.getAgentProfile("novel_writer");
         await repo.getAgentProfile("novel_writer");
         expect(query).toHaveBeenCalledTimes(2);
+        expect(query.mock.calls[0]?.[0]).not.toContain("enabled = true");
     });
 });

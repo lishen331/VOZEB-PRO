@@ -16,6 +16,10 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain("runEventsUrl(projectId, currentRunId, afterSequence)");
         expect(source).not.toContain("await consumeEvents(selectedId, run.id)");
         expect(source).toContain("failedRun.lastEventSequence");
+        expect(source).toContain("await practiceScriptsApi.stopRun(selectedId, runId)");
+        const stopHandler = source.slice(source.indexOf("await practiceScriptsApi.stopRun(selectedId, runId)"));
+        expect(stopHandler.indexOf("await practiceScriptsApi.stopRun(selectedId, runId)")).toBeLessThan(stopHandler.indexOf("abortRef.current?.abort()"));
+        expect(source).toContain('event.type === "run_completed"');
     });
 
     it("keeps only the latest failed Run available for refresh-time retry", async () => {

@@ -31,6 +31,20 @@ export async function GET(request: Request, context: Context) {
                 for (const event of await repository.listRunEvents(scope, id, runId, cursor, 500)) send(event);
                 const claimed = await repository.claimRun(scope, id, runId);
                 if (claimed) {
+                    const executionController = new AbortController();
+                    let stopCheckRunning = false;
+                    const stopMonitor = setInterval(() => {
+                        if (stopCheckRunning || executionController.signal.aborted) return;
+                        stopCheckRunning = true;
+                        void repository
+                            .getRun(scope, id, runId)
+                            .then((current) => {
+                                if (current?.status === "stopped") executionController.abort();
+                            })
+                            .finally(() => {
+                                stopCheckRunning = false;
+                            });
+                    }, 1_000);
                     const liveRepository = new Proxy(repository, {
                         get(target, prop) {
                             if (prop !== "appendRunEvent") return Reflect.get(target, prop);
@@ -53,14 +67,20 @@ export async function GET(request: Request, context: Context) {
                         input: claimed.configSnapshot,
                         origin: resolveInternalOrigin(new URL(request.url).origin),
                         cookie: request.headers.get("cookie") || "",
-                    });
-                    if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "success", artifactId: result.artifactId });
-                    await repository.updateRun(scope, id, runId, { status: "success", completedAt: new Date().toISOString() });
-                    const done = await repository.appendRunEvent(scope, id, runId, "run_completed", {}, randomUUID());
-                    if (done) send(done);
+                        signal: executionController.signal,
+                    }).finally(() => clearInterval(stopMonitor));
+                    const current = await repository.getRun(scope, id, runId);
+                    if (current?.status !== "stopped") {
+                        if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "success", artifactId: result.artifactId });
+                        await repository.updateRun(scope, id, runId, { status: "success", completedAt: new Date().toISOString() });
+                        const done = await repository.appendRunEvent(scope, id, runId, "run_completed", {}, randomUUID());
+                        if (done) send(done);
+                    }
                 }
                 controller.enqueue(encoder.encode(`event: heartbeat\ndata: ${JSON.stringify({ runId, sequence: last, type: "heartbeat", occurredAt: new Date().toISOString(), data: {} })}\n\n`));
             } catch (error) {
+                const current = await repository.getRun(scope, id, runId).catch(() => null);
+                if (current?.status === "stopped") return;
                 const items = await repository.listRunItems(scope, id, runId).catch(() => []);
                 const runningItem = items.find((entry) => entry.status === "running");
                 if (runningItem) await repository.updateRunItem(scope, id, runId, runningItem.id, { status: "failed", errorCode: "SCRIPT_AGENT_EXECUTION_FAILED", errorMessage: error instanceof Error ? error.message : "剧本生成失败" }).catch(() => null);

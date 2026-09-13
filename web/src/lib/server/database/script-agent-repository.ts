@@ -298,7 +298,7 @@ export class ScriptAgentRepository {
     }
 
     async getAgentProfile(agentKey: ScriptAgentKey) {
-        const result = await this.db.query("SELECT * FROM practice_script_agent_profiles WHERE agent_key = $1 AND enabled = true", [agentKey]);
+        const result = await this.db.query("SELECT * FROM practice_script_agent_profiles WHERE agent_key = $1", [agentKey]);
         return result.rows[0] ? mapProfile(result.rows[0]) : null;
     }
 }

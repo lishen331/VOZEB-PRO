@@ -128,6 +128,7 @@ export default function ScriptPracticeWorkspace() {
                             const [type, itemKey] = key.split(":");
                             setArtifact(await practiceScriptsApi.artifact(projectId, type, itemKey));
                         }
+                        if (event.type === "run_completed") await loadTree(projectId);
                         if (event.type === "error") message.error(String(event.data.message || "Agent 执行失败"));
                     }
                 }
@@ -292,11 +293,14 @@ export default function ScriptPracticeWorkspace() {
                                 <Button
                                     danger
                                     icon={<Pause className="size-4" />}
-                                    onClick={() => {
-                                        if (selectedId && runId) void practiceScriptsApi.stopRun(selectedId, runId);
-                                        abortRef.current?.abort();
-                                        eventSource?.close();
-                                    }}
+                                    onClick={() =>
+                                        void runAction(async () => {
+                                            if (selectedId && runId) await practiceScriptsApi.stopRun(selectedId, runId);
+                                            abortRef.current?.abort();
+                                            eventSource?.close();
+                                            if (selectedId) await loadTree(selectedId);
+                                        }, "停止剧本任务失败")
+                                    }
                                 >
                                     停止
                                 </Button>

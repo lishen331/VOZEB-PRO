@@ -22,7 +22,7 @@ const EXECUTION: Record<ScriptRunType, { agent: ScriptAgentKey; artifact: Script
     text_storyboard: { agent: "storyboard_writer", artifact: "text_storyboard", key: "all", confirmation: false },
     asset_prompts: { agent: "asset_prompt_writer", artifact: "asset_prompts", key: "library", confirmation: false },
 };
-export type ScriptExecutionInput = { projectId: string; runId: string; chatSessionId?: string; runType: ScriptRunType; input: Record<string, unknown>; origin: string; cookie: string };
+export type ScriptExecutionInput = { projectId: string; runId: string; chatSessionId?: string; runType: ScriptRunType; input: Record<string, unknown>; origin: string; cookie: string; signal?: AbortSignal };
 type Deps = {
     resolveProfile: (agent: ScriptAgentKey, skills?: string[]) => Promise<ResolvedScriptAgentProfile>;
     callModel: (input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; responseSchema: Record<string, unknown>; onDelta?: (delta: string) => Promise<void> }) => Promise<Record<string, unknown>>;
@@ -112,6 +112,7 @@ async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile;
         ],
         tool: { name: `save_${input.task.runType}`, description: "保存当前剧本阶段的结构化公开成果", parameters: input.responseSchema },
         headers: { "Idempotency-Key": requestId, "X-Client-Request-Id": requestId, ...systemAiBillingHeaders(input.profile.candidate.logicalModelId, requestId, input.profile.candidate.upstreamModel, "open-source-practice") },
+        signal: input.task.signal,
         stream: true,
         streamFallback: true,
         preferNativeTools: false,

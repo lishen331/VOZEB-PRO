@@ -29,6 +29,24 @@ describe("ScriptAgentProfileService", () => {
         expect(resolved.candidate.upstreamModel).toBe("deepseek-chat");
     });
 
+    it("does not revive a stored Agent that an administrator disabled", async () => {
+        const getProfile = vi.fn().mockResolvedValue({
+            agentKey: "novel_writer",
+            name: "小说作者",
+            enabled: false,
+            primaryLogicalModelId: "practice-writer",
+            fallbackLogicalModelId: "",
+            reasoningMode: "medium",
+            outputPolicy: {},
+            timeoutConfig: {},
+            batchConfig: {},
+            toolAllowlist: ["save_chapter"],
+            skillBindings: ["core-novel-writer"],
+            version: 3,
+        });
+        await expect(new ScriptAgentProfileService({ getSettings: vi.fn().mockResolvedValue(settings) as never, getProfile }).resolve("novel_writer")).rejects.toMatchObject({ status: 503 });
+    });
+
     it("resolves a fresh open-source-practice text model", async () => {
         const getSettings = vi.fn().mockResolvedValue(settings);
         const getProfile = vi.fn().mockResolvedValue({

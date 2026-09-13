@@ -65,6 +65,19 @@ describe("ScriptAgentExecutor", () => {
         vi.mocked(fetchInternalApi).mockReset();
     });
 
+    it("forwards the Run abort signal to the configured model call", async () => {
+        const signal = new AbortController().signal;
+        const callModel = vi.fn().mockResolvedValue({ content: "完成" });
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "novel_planner", name: "策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "策划" }),
+            callModel,
+            saveArtifact: vi.fn().mockResolvedValue({ id: "artifact" }),
+            appendEvent: vi.fn(),
+        };
+        await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-stop", runType: "project_planning", input: {}, origin: "https://local", cookie: "session", signal });
+        expect(callModel).toHaveBeenCalledWith(expect.objectContaining({ task: expect.objectContaining({ signal }) }));
+    });
+
     it("streams public artifact deltas, saves first, then emits artifact_saved", async () => {
         const order: string[] = [];
         const profile = {
