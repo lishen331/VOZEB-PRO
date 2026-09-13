@@ -94,13 +94,13 @@ export async function createDramaProjectForUser(userId: string, value: unknown, 
         ratio: input.ratio,
         status: "active",
         creativeConversationId: conversation.id,
-        activeEpisodeId: episode.id,
+        activeEpisodeId: episode?.id,
         characters: [],
         scenes: [],
         props: [],
         clues: [],
         defaultVideoMode: input.defaultVideoMode,
-        episodes: [episode],
+        episodes: episode ? [episode] : [],
         sourceAssets: input.sourceAssets,
         ipReferences,
         createdAt: now,
@@ -278,7 +278,7 @@ export function normalizeProject(value: unknown, current: DramaProject): DramaPr
     const episodes = array(input.episodes)
         .map((value, index) => normalizeEpisode(value, index))
         .filter((episode): episode is DramaEpisode => Boolean(episode));
-    if (!episodes.length) throw new DramaProjectServiceError("短剧项目至少需要一集", 400);
+    // 新建项目允许 0 集；用户添加第一集、导入或生成剧本时再创建剧集。
     const activeEpisodeId = cleanText(input.activeEpisodeId);
     const ratio = input.ratio === undefined ? normalizeDramaImageSize(current.ratio) : normalizeDramaImageSize(input.ratio);
     if (!ratio) throw new DramaProjectServiceError("短剧尺寸无效", 400);
