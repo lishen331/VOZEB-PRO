@@ -1,6 +1,6 @@
 import { normalizeImageSizeValue, parseImageDimensions, resolveImageRequestSize } from "@/lib/image-size";
 
-const DRAMA_RATIOS = new Set(["9:16", "16:9"]);
+const DRAMA_RATIOS = new Set(["9:16", "16:9", "3:4", "1:1", "4:3", "21:9"]);
 
 export function normalizeDramaImageSize(value: unknown) {
     const normalized = normalizeImageSizeValue(value);
