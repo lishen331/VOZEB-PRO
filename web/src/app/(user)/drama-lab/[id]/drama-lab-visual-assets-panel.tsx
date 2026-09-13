@@ -8,7 +8,7 @@ import { Button, Checkbox, Image, Input, Modal, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
 import { Check, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Sparkles, Trash2, X, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { TextAreaRef } from "antd/es/input/TextArea";
 import { highlightResourceMentions } from "./outline/resource-image-generation";
 import type { ReferenceImage } from "@/types/image";
@@ -70,6 +70,14 @@ export function DramaLabVisualAssetsPanel({
 
     const definition = ASSET_META[kind];
     const activeAsset = editor?.asset;
+
+    useEffect(() => {
+        if (!busyKey.startsWith("extract:")) return;
+        const timer = window.setInterval(() => {
+            void onReload();
+        }, 1500);
+        return () => window.clearInterval(timer);
+    }, [busyKey, onReload]);
 
     const assetShots = useMemo(() => {
         const grouped = new Map<string, Shot[]>();
