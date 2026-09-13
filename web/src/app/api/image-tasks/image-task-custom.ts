@@ -68,8 +68,9 @@ export async function runCustomImageTask(task: ImageTask, origin: string, public
     const payload = workflow
         ? buildRunningHubWorkflowPayload({
               config: workflow,
-              // 练习提交的工作流参数（尺寸比例等）优先于按模型配置推导的通用值
-              businessInput: { ...values, image: images[0] || "", images, ...(task.workflowInput || {}) },
+              // 工作流按其自身 inputSchema 声明取参：尺寸/比例等只能来自工作流声明的默认值与练习面板实际选择的 workflowInput，
+              // 不注入按模型推导的通用尺寸（config.size 可能被 generationDefaults 解析成正方形，会覆盖工作流声明的竖图/全景比例）.
+              businessInput: { prompt: values.prompt, image: images[0] || "", images, ...(task.workflowInput || {}) },
               references: task.references.map((reference, index) => ({ type: "image", url: images[index] || "", ...(reference.inputKey ? { inputKey: reference.inputKey } : {}) })).filter((reference) => reference.url),
           })
         : advanced.protocol === "yumeng"

@@ -7,6 +7,7 @@ import { Film, AudioLines, Download, Image as ImageIcon } from "lucide-react";
 import type { PracticeModuleKind } from "@/lib/practice-domain";
 import type { PracticeSession } from "@/services/api/practice";
 import { uploadImage } from "@/services/image-storage";
+import { uploadGeneratedMediaFile } from "@/services/file-storage";
 import { createLibraryAsset } from "@/services/api/library-assets";
 import type { DramaLibraryAssetType } from "@/lib/drama-lab-library-assets";
 import { PracticePanoramaViewer } from "./practice-panorama-viewer";
@@ -33,11 +34,36 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
     const [saving, setSaving] = useState(false);
 
     const saveToLibrary = async (target: PracticeSession) => {
-        const url = target.result?.media?.url;
-        if (!url) return;
+        const media = target.result?.media;
+        if (!media?.url) return;
         setSaving(true);
         try {
-            const uploaded = await uploadImage(url);
+            if (media.kind === "audio" || media.kind === "video") {
+                const uploaded = await uploadGeneratedMediaFile(media.url, media.kind);
+                const serverUrl = uploaded.serverUrl || uploaded.url;
+                await createLibraryAsset(
+                    media.kind === "video"
+                        ? {
+                              kind: "video",
+                              title: target.title,
+                              coverUrl: serverUrl,
+                              tags: [],
+                              source: "practice",
+                              data: { url: serverUrl, serverUrl, storageKey: uploaded.storageKey, width: uploaded.width ?? 0, height: uploaded.height ?? 0, bytes: uploaded.bytes, mimeType: uploaded.mimeType },
+                          }
+                        : {
+                              kind: "audio",
+                              title: target.title,
+                              coverUrl: "",
+                              tags: [],
+                              source: "practice",
+                              data: { url: serverUrl, serverUrl, storageKey: uploaded.storageKey, ...(uploaded.durationMs !== undefined ? { durationMs: uploaded.durationMs } : {}), bytes: uploaded.bytes, mimeType: uploaded.mimeType },
+                          },
+                );
+                message.success("已存入资产库");
+                return;
+            }
+            const uploaded = await uploadImage(media.url);
             const dramaAssetType = DRAMA_ASSET_TYPE[module];
             await createLibraryAsset({
                 kind: "image",
@@ -126,18 +152,28 @@ export function PracticeSessionResult({ module, session, onRetry, onRefresh }: {
         return (
             <div className="mt-4 space-y-3">
                 <video controls src={session.result.media.url} className="max-h-[60vh] w-full" />
-                <Button size="small" onClick={() => onRetry(session)}>
-                    载入重试
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button size="small" icon={<Download className="size-3.5" />} loading={saving} onClick={() => void saveToLibrary(session)}>
+                        存入资产库
+                    </Button>
+                    <Button size="small" onClick={() => onRetry(session)}>
+                        载入重试
+                    </Button>
+                </div>
             </div>
         );
     if (session.result?.media?.kind === "audio")
         return (
             <div className="mt-4 space-y-3">
                 <audio controls src={session.result.media.url} className="w-full" />
-                <Button size="small" onClick={() => onRetry(session)}>
-                    载入重试
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button size="small" icon={<Download className="size-3.5" />} loading={saving} onClick={() => void saveToLibrary(session)}>
+                        存入资产库
+                    </Button>
+                    <Button size="small" onClick={() => onRetry(session)}>
+                        载入重试
+                    </Button>
+                </div>
             </div>
         );
     return <p className="mt-4 text-sm text-muted-foreground">练习已完成，暂无可展示的结果。</p>;

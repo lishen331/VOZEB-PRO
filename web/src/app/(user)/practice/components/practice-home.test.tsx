@@ -22,6 +22,17 @@ describe("practice home contract", () => {
         expect(practiceModulePath("storyboard-video")).toBe("/practice/storyboard-video");
     });
 
+    it("keeps module capability visible when project or history requests fail", async () => {
+        const source = await (await import("node:fs/promises")).readFile(new URL("./practice-home.tsx", import.meta.url), "utf8");
+        const capabilityIndex = source.indexOf("setVisibleModules(configuration.modules.map");
+        const auxiliaryIndex = source.indexOf("Promise.allSettled([");
+
+        expect(capabilityIndex).toBeGreaterThan(-1);
+        expect(auxiliaryIndex).toBeGreaterThan(capabilityIndex);
+        expect(source).not.toContain("const [canvas, drama, recent] = await Promise.all([");
+        expect(source).toContain('canvasResult.status === "fulfilled"');
+        expect(source).toContain('recentResult.status === "fulfilled"');
+    });
     it("keeps a stable child IP when opening a focused practice module", () => {
         const reference: IpReference = { type: "ip", id: "ip-one", subIpId: "child-two", itemIds: [] };
 

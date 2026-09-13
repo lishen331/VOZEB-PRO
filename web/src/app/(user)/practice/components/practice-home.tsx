@@ -65,20 +65,22 @@ export default function PracticeHome() {
         void practiceApi
             .listModules()
             .then(async (configuration) => {
-                const [canvas, drama, recent] = await Promise.all([
+                if (!active) return;
+                setVisibleModules(configuration.modules.map((item) => item.module));
+                setVisibleProjects(configuration.projects);
+                setScriptEnabled((configuration as typeof configuration & { script?: { enabled?: boolean } }).script?.enabled !== false);
+                const [canvasResult, dramaResult, recentResult] = await Promise.allSettled([
                     configuration.projects.canvas ? practiceApi.listProjects({ kind: "canvas", pageSize: 6 }) : Promise.resolve({ projects: [] }),
                     configuration.projects.drama ? practiceApi.listProjects({ kind: "drama", pageSize: 6 }) : Promise.resolve({ projects: [] }),
                     practiceApi.listSessions({ pageSize: 6 }),
                 ]);
                 if (!active) return;
-                setVisibleModules(configuration.modules.map((item) => item.module));
-                setVisibleProjects(configuration.projects);
-                setScriptEnabled((configuration as typeof configuration & { script?: { enabled?: boolean } }).script?.enabled !== false);
-                setCanvasProjects(canvas.projects);
-                setDramaProjects(drama.projects);
-                setSessions(recent.sessions);
+                if (canvasResult.status === "fulfilled") setCanvasProjects(canvasResult.value.projects);
+                if (dramaResult.status === "fulfilled") setDramaProjects(dramaResult.value.projects);
+                if (recentResult.status === "fulfilled") setSessions(recentResult.value.sessions);
+                if ([canvasResult, dramaResult, recentResult].some((result) => result.status === "rejected")) message.error("部分练习记录暂时无法加载，不影响新建练习");
             })
-            .catch((error) => active && message.error(error instanceof Error ? error.message : "练习记录加载失败"))
+            .catch((error) => active && message.error(error instanceof Error ? error.message : "练习模块加载失败"))
             .finally(() => active && setLoading(false));
         return () => {
             active = false;

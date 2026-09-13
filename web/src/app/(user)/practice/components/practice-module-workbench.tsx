@@ -42,6 +42,16 @@ export function practiceSessionPath(module: PracticeModuleKind, searchParams: UR
     return `/practice/${module}?${query.toString()}`;
 }
 
+export function practiceSessionResetPath(module: PracticeModuleKind, searchParams: URLSearchParams) {
+    const query = new URLSearchParams(searchParams.toString());
+    query.delete("sessionId");
+    const suffix = query.toString();
+    return `/practice/${module}${suffix ? `?${suffix}` : ""}`;
+}
+export function isDiscardablePracticeSessionError(error: unknown) {
+    const message = error instanceof Error ? error.message : "";
+    return /练习会话不存在|练习会话租户范围缺失|无权访问/.test(message);
+}
 export function publicPracticeResult(value: unknown): PracticeSessionResult | undefined {
     if (!value || typeof value !== "object") return undefined;
     const source = value as Record<string, unknown>;
@@ -94,11 +104,23 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
     useEffect(() => {
         let active = true;
         setLoading(true);
+        setCapability(undefined);
+        setHistoryBusy(true);
+        setSessions([]);
+        setHistoryPage(1);
+        setHistoryTotal(0);
         setCurrent(undefined);
-        void Promise.all([practiceApi.listModules(), practiceApi.listSessions({ module, pageSize: 24 })])
-            .then(([modules, history]) => {
+        void practiceApi
+            .listModules()
+            .then((modules) => {
+                if (active) setCapability(modules.modules.find((item) => item.module === module));
+            })
+            .catch((error) => active && message.error(error instanceof Error ? error.message : "练习模块加载失败"))
+            .finally(() => active && setLoading(false));
+        void practiceApi
+            .listSessions({ module, pageSize: 24 })
+            .then((history) => {
                 if (!active) return;
-                setCapability(modules.modules.find((item) => item.module === module));
                 setSessions(history.sessions);
                 setHistoryPage(1);
                 setHistoryTotal(history.total);
@@ -108,8 +130,8 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                     router.replace(practiceSessionPath(module, new URLSearchParams(window.location.search), recent.id));
                 }
             })
-            .catch((error) => active && message.error(error instanceof Error ? error.message : "练习记录加载失败"))
-            .finally(() => active && setLoading(false));
+            .catch(() => active && message.error("历史练习暂时无法加载，不影响新建练习"))
+            .finally(() => active && setHistoryBusy(false));
         return () => {
             active = false;
         };
@@ -124,7 +146,12 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                 setCurrent(session);
                 setSessions((items) => (items.some((item) => item.id === session.id) ? items.map((item) => (item.id === session.id ? session : item)) : [session, ...items]));
             } catch (error) {
-                if (routeSelection.current === version) message.error(error instanceof Error ? error.message : "状态刷新失败");
+                if (routeSelection.current !== version) return;
+                if (isDiscardablePracticeSessionError(error)) {
+                    setCurrent(undefined);
+                    router.replace(practiceSessionResetPath(module, new URLSearchParams(window.location.search)));
+                }
+                message.error(error instanceof Error ? error.message : "状态刷新失败");
             }
         };
         void read();
@@ -324,7 +351,7 @@ export default function PracticeModuleWorkbench({ module }: { module: PracticeMo
                     <h2 id="practice-module-history" className="text-base font-semibold">
                         历史练习
                     </h2>
-                    {loading ? (
+                    {historyBusy ? (
                         <Spin />
                     ) : sessions.length ? (
                         <PracticeSessionHistory

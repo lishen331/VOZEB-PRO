@@ -9,10 +9,12 @@ import { DRAMA_LIBRARY_ASSET_LABELS } from "@/lib/drama-lab-library-assets";
 import type { ImageAsset } from "@/lib/library-asset-contract";
 import { listLibraryAssetPage } from "@/services/api/library-assets";
 import type { UploadedImage } from "@/services/image-storage";
+import { serverMediaUrl } from "@/services/server-media-storage";
 
 export function libraryAssetToUploadedImage(asset: ImageAsset): UploadedImage {
     return {
-        url: asset.data.serverUrl || asset.data.remoteUrl || asset.data.dataUrl,
+        // storageKey 优先解析成站内可读的媒体路由；仅有 storageKey（缺 serverUrl/remoteUrl）的素材也能出预览.
+        url: serverMediaUrl(asset.data.storageKey, asset.data.serverUrl || asset.data.remoteUrl || asset.data.dataUrl || asset.coverUrl),
         storageKey: asset.data.storageKey!,
         width: asset.data.width,
         height: asset.data.height,

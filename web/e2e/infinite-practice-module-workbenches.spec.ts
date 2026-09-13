@@ -27,7 +27,7 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             const rolePage = await teacherContext.newPage();
             await installPracticeFixtures(rolePage, moduleFixtureCapabilities());
             await rolePage.goto("/practice", { waitUntil: "domcontentloaded" });
-            await expect(rolePage.getByRole("heading", { name: "练习", exact: true })).toBeVisible();
+            await expect(rolePage.getByRole("heading", { name: "无限练习", exact: true })).toBeVisible();
             await expect(rolePage.locator("[data-practice-module]")).toHaveCount(6);
             await expect(rolePage.locator('[data-practice-module="character"]')).toBeVisible();
             await expect(rolePage.locator('[data-practice-module="scene"]')).toBeVisible();
@@ -178,7 +178,12 @@ test("学校成员使用六个独立的无限练习工作台", async ({ browser,
             await rolePage.getByRole("button", { name: "切换到深色主题", exact: true }).click();
             await expect(rolePage.getByRole("button", { name: "切换到浅色主题", exact: true })).toBeVisible();
             await rolePage.evaluate(async () => {
-                await Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined)));
+                // 只等待有限次数的过渡动画；循环装饰动画没有 finished 终态，不能参与验收等待。
+                const finiteAnimations = document.getAnimations().filter((animation) => {
+                    const iterations = animation.effect?.getComputedTiming().iterations;
+                    return iterations !== Infinity;
+                });
+                await Promise.all(finiteAnimations.map((animation) => animation.finished.catch(() => undefined)));
             });
             await rolePage.screenshot({ path: testInfo.outputPath("audio-dark.png") });
             await rolePage.close();
