@@ -20,6 +20,7 @@ export async function GET(request: Request, context: Context) {
     const run = await repository.getRun(scope, id, runId);
     if (!run) return new Response("Run 不存在", { status: 404 });
     const encoder = new TextEncoder();
+    let executionController: AbortController | undefined;
     const body = new ReadableStream({
         async start(controller) {
             let last = cursor;
@@ -31,15 +32,17 @@ export async function GET(request: Request, context: Context) {
                 for (const event of await repository.listRunEvents(scope, id, runId, cursor, 500)) send(event);
                 const claimed = await repository.claimRun(scope, id, runId);
                 if (claimed) {
-                    const executionController = new AbortController();
+                    executionController = new AbortController();
+                    const abortExecution = () => executionController?.abort();
+                    request.signal.addEventListener("abort", abortExecution, { once: true });
                     let stopCheckRunning = false;
                     const stopMonitor = setInterval(() => {
-                        if (stopCheckRunning || executionController.signal.aborted) return;
+                        if (stopCheckRunning || executionController?.signal.aborted) return;
                         stopCheckRunning = true;
                         void repository
                             .getRun(scope, id, runId)
                             .then((current) => {
-                                if (current?.status === "stopped") executionController.abort();
+                                if (current?.status === "stopped") executionController?.abort();
                             })
                             .finally(() => {
                                 stopCheckRunning = false;
@@ -74,7 +77,11 @@ export async function GET(request: Request, context: Context) {
                             signal: executionController.signal,
                         },
                         completedRunTypes,
-                    ).finally(() => clearInterval(stopMonitor));
+                    ).finally(() => {
+                        clearInterval(stopMonitor);
+                        request.signal.removeEventListener("abort", abortExecution);
+                        executionController = undefined;
+                    });
                     const current = await repository.getRun(scope, id, runId);
                     if (current?.status !== "stopped") {
                         if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "success", ...(result?.artifactId ? { artifactId: result.artifactId } : {}) });
@@ -96,6 +103,9 @@ export async function GET(request: Request, context: Context) {
             } finally {
                 controller.close();
             }
+        },
+        cancel() {
+            executionController?.abort();
         },
     });
     return new Response(body, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" } });

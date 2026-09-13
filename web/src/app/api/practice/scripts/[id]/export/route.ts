@@ -12,9 +12,7 @@ type ExportFormat = "text" | "fountain" | "fdx" | "storyboard" | "storyboard_csv
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser(request);
     if (!user) return response(401, "请先登录");
-    await requirePracticeAccess(user, "script");
     try {
-        await requirePracticeAccess(user, "script");
         const scope = await requirePracticeTenant(user, "script");
         const format = new URL(request.url).searchParams.get("format") || "text";
         if (!["text", "fountain", "fdx", "storyboard", "storyboard_csv"].includes(format)) return response(400, "不支持的导出格式");
@@ -23,8 +21,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         const artifacts = await new ScriptAgentRepository({ query: postgresQuery }).listLatestArtifacts(scope, projectId);
         const episodeArtifact = artifacts.find((row) => row.artifact_type === "episode_scripts");
         const storyboardArtifact = artifacts.find((row) => row.artifact_type === "text_storyboard");
-        if ((format === "storyboard" || format === "storyboard_csv") && !storyboardArtifact) return response(404, "文字分镜不存在");
-        if (format !== "storyboard" && format !== "storyboard_csv" && !detail.document && !episodeArtifact) return response(404, "剧本文档不存在");
+        if (format === "storyboard" || format === "storyboard_csv") {
+            if (!storyboardArtifact) return response(404, "文字分镜不存在");
+        } else if (format === "fountain" || format === "fdx") {
+            if (!detail.document) return response(404, "剧本文档不存在，无法导出该格式");
+        } else if (!detail.document && !episodeArtifact) {
+            return response(404, "剧本文档不存在");
+        }
         const content =
             format === "storyboard" || format === "storyboard_csv"
                 ? serializeStoryboard(storyboardArtifact, format === "storyboard_csv")

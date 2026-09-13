@@ -296,7 +296,7 @@ export class ScriptAgentRepository {
 
     async createChatSession(scope: PracticeTenantScope, input: { id: string; projectId: string; title: string }) {
         const result = await this.db.query(
-            `INSERT INTO practice_script_chat_sessions (id, school_id, owner_user_id, project_id, title) SELECT $1, $2, $3, project.id, $5 FROM practice_script_projects project WHERE project.id = $4 AND project.school_id = $2 AND project.owner_user_id = $3 RETURNING *`,
+            `INSERT INTO practice_script_chat_sessions (id, school_id, owner_user_id, project_id, title, is_primary) SELECT $1, $2, $3, project.id, $5, true FROM practice_script_projects project WHERE project.id = $4 AND project.school_id = $2 AND project.owner_user_id = $3 RETURNING *`,
             [input.id, scope.schoolId, scope.ownerUserId, input.projectId, input.title],
         );
         return result.rows[0] || null;
@@ -318,21 +318,37 @@ export class ScriptAgentRepository {
     }
 
     async getOrCreatePrimaryChatSession(scope: PracticeTenantScope, input: { id: string; projectId: string; title: string }) {
-        const existing = await this.db.query("SELECT * FROM practice_script_chat_sessions WHERE school_id = $1 AND owner_user_id = $2 AND project_id = $3 AND deleted_at IS NULL ORDER BY updated_at DESC, created_at DESC, id DESC LIMIT 1", [
-            scope.schoolId,
-            scope.ownerUserId,
-            input.projectId,
-        ]);
+        const existing = await this.db.query(
+            "SELECT * FROM practice_script_chat_sessions WHERE school_id = $1 AND owner_user_id = $2 AND project_id = $3 AND is_primary = true AND deleted_at IS NULL ORDER BY updated_at DESC, created_at DESC, id DESC LIMIT 1",
+            [scope.schoolId, scope.ownerUserId, input.projectId],
+        );
         if (existing.rows[0]) return existing.rows[0];
-        return this.createChatSession(scope, input);
+        try {
+            return await this.createChatSession(scope, input);
+        } catch (error) {
+            if (
+                !String(error instanceof Error ? error.message : error)
+                    .toLowerCase()
+                    .includes("primary")
+            )
+                throw error;
+            const retry = await this.db.query("SELECT * FROM practice_script_chat_sessions WHERE school_id = $1 AND owner_user_id = $2 AND project_id = $3 AND is_primary = true AND deleted_at IS NULL LIMIT 1", [
+                scope.schoolId,
+                scope.ownerUserId,
+                input.projectId,
+            ]);
+            return retry.rows[0] || null;
+        }
     }
 
-    async saveChatMessage(scope: PracticeTenantScope, input: { id: string; sessionId: string; projectId: string; role: "user" | "assistant"; agentKey?: ScriptAgentKey; publicContent: string; sourceRunId?: string }) {
+    async saveChatMessage(scope: PracticeTenantScope, input: { id: string; sessionId: string; projectId: string; role: "user" | "assistant"; agentKey?: ScriptAgentKey; publicContent: string; sourceRunId?: string; clientRequestId?: string }) {
         const result = await this.db.query(
-            `INSERT INTO practice_script_chat_messages (id, session_id, project_id, role, agent_key, public_content, source_run_id)
-             SELECT $1, s.id, s.project_id, $5, $6, $7, $8 FROM practice_script_chat_sessions s
-             WHERE s.id = $2 AND s.project_id = $3 AND s.school_id = $4 AND s.owner_user_id = $9 RETURNING *`,
-            [input.id, input.sessionId, input.projectId, scope.schoolId, input.role, input.agentKey || null, input.publicContent, input.sourceRunId || null, scope.ownerUserId],
+            `INSERT INTO practice_script_chat_messages (id, session_id, project_id, role, agent_key, public_content, source_run_id, client_request_id)
+             SELECT $1, s.id, s.project_id, $5, $6, $7, $8, $9 FROM practice_script_chat_sessions s
+             WHERE s.id = $2 AND s.project_id = $3 AND s.school_id = $4 AND s.owner_user_id = $10
+             ON CONFLICT (session_id, client_request_id) WHERE client_request_id IS NOT NULL DO UPDATE SET client_request_id = EXCLUDED.client_request_id
+             RETURNING *`,
+            [input.id, input.sessionId, input.projectId, scope.schoolId, input.role, input.agentKey || null, input.publicContent, input.sourceRunId || null, input.clientRequestId || null, scope.ownerUserId],
         );
         return result.rows[0] || null;
     }

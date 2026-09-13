@@ -92,7 +92,6 @@ export class ScriptAgentExecutor {
     ) {}
     async execute(scope: PracticeTenantScope, task: ScriptExecutionInput) {
         const execution = EXECUTION[task.runType];
-        const selectedSkills = Array.isArray(task.input.skillIds) ? task.input.skillIds.filter((value): value is string => typeof value === "string") : [];
         const context = this.deps.listArtifacts ? await this.deps.listArtifacts(scope, task.projectId) : [];
         const project = typeof this.deps.getProject === "function" ? await this.deps.getProject(scope, task.projectId) : null;
         const projectParameters = project?.project_parameters && typeof project.project_parameters === "object" ? (project.project_parameters as Record<string, unknown>) : {};
@@ -103,7 +102,7 @@ export class ScriptAgentExecutor {
             viewpoint: typeof task.input.viewpoint === "string" ? task.input.viewpoint : typeof projectParameters.viewpoint === "string" ? projectParameters.viewpoint : inferred.viewpoint,
             companions: typeof task.input.companions === "string" ? task.input.companions : typeof projectParameters.companions === "string" ? projectParameters.companions : inferred.companions,
         });
-        const profile = await this.deps.resolveProfile(execution.agent, [...new Set([...selectedSkills, ...automaticSkills])]);
+        const profile = await this.deps.resolveProfile(execution.agent, [...new Set(automaticSkills)]);
         await this.deps.appendEvent(scope, task.projectId, task.runId, "agent_started", { agentKey: execution.agent, name: profile.profile.name }, this.id());
         await this.deps.appendEvent(scope, task.projectId, task.runId, "progress", { phase: publicPhase(task.runType), label: publicPhaseLabel(task.runType) }, this.id());
         await this.deps.appendEvent(scope, task.projectId, task.runId, "assistant_delta", { agentKey: execution.agent, delta: `${profile.profile.name}已开始处理当前任务。` }, this.id());

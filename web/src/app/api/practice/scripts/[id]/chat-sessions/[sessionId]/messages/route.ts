@@ -28,7 +28,7 @@ export async function POST(request: Request, context: Context) {
     const repository = new ScriptAgentRepository({ query: postgresQuery });
     const clientRequestId = typeof parsed.data.clientRequestId === "string" && parsed.data.clientRequestId.trim() ? parsed.data.clientRequestId.trim() : randomUUID();
     if (!(await repository.getChatSession(scope, id, sessionId))) return reply(404, null, "剧本对话不存在");
-    const saved = await repository.saveChatMessage(scope, { id: randomUUID(), sessionId, projectId: id, role: "user", publicContent: content });
+    const saved = await repository.saveChatMessage(scope, { id: randomUUID(), sessionId, projectId: id, role: "user", publicContent: content, clientRequestId });
     if (!saved) return reply(409, null, "剧本对话已变化，请刷新后重试");
     const run = await new ScriptAgentRunService(repository).create(scope, { projectId: id, chatSessionId: sessionId, runType: "conversation", clientRequestId, configSnapshot: { message: content } });
     return reply(0, run, "ok");

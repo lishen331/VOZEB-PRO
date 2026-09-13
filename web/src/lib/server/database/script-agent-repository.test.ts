@@ -150,6 +150,14 @@ describe("ScriptAgentRepository", () => {
         expect(query).toHaveBeenCalledWith(expect.stringContaining("i.status = $5"), ["run-a", "school-a", "user-a", "project-a", "failed"]);
     });
 
+    it("uses the chat request identity when saving a user message", async () => {
+        const { query, repository: repo } = repository([]);
+        await repo.saveChatMessage(scope, { id: "message-a", sessionId: "session-a", projectId: "project-a", role: "user", publicContent: "你好", clientRequestId: "request-a" });
+        expect(query.mock.calls[0]?.[0]).toContain("client_request_id");
+        expect(query.mock.calls[0]?.[0]).toContain("ON CONFLICT (session_id, client_request_id) WHERE client_request_id IS NOT NULL");
+        expect(query.mock.calls[0]?.[1]).toContain("request-a");
+    });
+
     it("freshly reads an enabled agent profile without a process cache", async () => {
         const { query, repository: repo } = repository([]);
         await repo.getAgentProfile("novel_writer");
@@ -162,7 +170,7 @@ describe("ScriptAgentRepository", () => {
         const result = await repo.getOrCreatePrimaryChatSession(scope, { id: "session-new", projectId: "project-a", title: "剧本创作" });
         expect(result).toMatchObject({ id: "session-existing" });
         expect(query).toHaveBeenCalledTimes(1);
-        expect(query.mock.calls[0]?.[0]).toContain("ORDER BY updated_at DESC");
+        expect(query.mock.calls[0]?.[0]).toContain("is_primary = true");
     });
 
     it("creates the primary project chat session when none exists", async () => {

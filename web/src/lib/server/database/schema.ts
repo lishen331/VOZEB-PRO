@@ -1317,6 +1317,14 @@ CREATE TABLE IF NOT EXISTS practice_script_chat_sessions (
     project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE, title text NOT NULL DEFAULT '新对话', status text NOT NULL DEFAULT 'active',
     created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), deleted_at timestamptz
 );
+ALTER TABLE practice_script_chat_sessions ADD COLUMN IF NOT EXISTS is_primary boolean NOT NULL DEFAULT false;
+WITH ranked AS (
+    SELECT id, row_number() OVER (PARTITION BY project_id ORDER BY updated_at DESC, created_at DESC, id DESC) AS rank
+    FROM practice_script_chat_sessions WHERE deleted_at IS NULL
+)
+UPDATE practice_script_chat_sessions AS session SET is_primary = (ranked.rank = 1)
+FROM ranked WHERE session.id = ranked.id;
+CREATE UNIQUE INDEX IF NOT EXISTS vozeb_pro_practice_script_chat_sessions_primary_idx ON practice_script_chat_sessions (project_id) WHERE is_primary = true AND deleted_at IS NULL;
 CREATE TABLE IF NOT EXISTS practice_script_runs (
     id text PRIMARY KEY, school_id text NOT NULL, owner_user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE, chat_session_id text REFERENCES practice_script_chat_sessions(id) ON DELETE SET NULL,
@@ -1328,6 +1336,8 @@ CREATE TABLE IF NOT EXISTS practice_script_chat_messages (
     id text PRIMARY KEY, session_id text NOT NULL REFERENCES practice_script_chat_sessions(id) ON DELETE CASCADE, project_id text NOT NULL REFERENCES practice_script_projects(id) ON DELETE CASCADE,
     role text NOT NULL, agent_key text, public_content text NOT NULL, source_run_id text REFERENCES practice_script_runs(id) ON DELETE SET NULL, created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE practice_script_chat_messages ADD COLUMN IF NOT EXISTS client_request_id text;
+CREATE UNIQUE INDEX IF NOT EXISTS vozeb_pro_practice_script_chat_messages_request_idx ON practice_script_chat_messages (session_id, client_request_id) WHERE client_request_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS practice_script_run_items (
     id text PRIMARY KEY, run_id text NOT NULL REFERENCES practice_script_runs(id) ON DELETE CASCADE, item_type text NOT NULL, item_key text NOT NULL,
     status text NOT NULL DEFAULT 'queued', attempt_no integer NOT NULL DEFAULT 0, artifact_id text, error_code text, error_message text,
