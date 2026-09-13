@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isScriptAgentKey, isScriptArtifactType, isScriptRunEventType, isScriptRunType, normalizeChapterSelection, SCRIPT_AGENT_KEYS, SCRIPT_RUN_EVENT_TYPES } from "./script-agent-domain";
+import { isScriptAgentKey, isScriptArtifactType, isScriptRunEventType, isScriptRunType, normalizeChapterSelection, SCRIPT_AGENT_KEYS, SCRIPT_RUN_EVENT_TYPES, sortScriptArtifactTypes } from "./script-agent-domain";
 
 describe("screenwriter carrier contracts", () => {
     it("accepts TVC and Vlog as extensible text-only carriers", async () => {
@@ -12,6 +12,11 @@ describe("screenwriter carrier contracts", () => {
 });
 
 describe("screenwriter agent domain", () => {
+    it("keeps artifact types in the creator workflow order", () => {
+        expect(sortScriptArtifactTypes(["adaptation_strategy", "creative_positioning", "episode_scripts", "short_story", "review_report"])).toEqual(["creative_positioning", "short_story", "adaptation_strategy", "episode_scripts", "review_report"]);
+        expect(sortScriptArtifactTypes(["asset_prompts", "unknown", "creative_positioning"])).toEqual(["creative_positioning", "asset_prompts", "unknown"]);
+    });
+
     it("accepts the confirmed text-only agents and artifacts", () => {
         expect(SCRIPT_AGENT_KEYS).toContain("storyboard_writer");
         expect(isScriptAgentKey("novel_writer")).toBe(true);

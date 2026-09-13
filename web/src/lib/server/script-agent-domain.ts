@@ -19,6 +19,15 @@ export type ScriptProjectMode = (typeof SCRIPT_PROJECT_MODES)[number];
 export const SCRIPT_AGENT_KEYS = ["orchestrator", "novel_planner", "novel_writer", "chapter_analyst", "story_skeleton", "adaptation_planner", "script_writer", "script_supervisor", "director_planner", "storyboard_writer", "asset_prompt_writer"] as const;
 export type ScriptAgentKey = (typeof SCRIPT_AGENT_KEYS)[number];
 
+export const SCRIPT_ARTIFACT_ORDER = ["creative_positioning", "world_building", "short_story", "chapter_outlines", "story_skeleton", "adaptation_strategy", "episode_scripts", "review_report", "director_plan", "text_storyboard", "asset_prompts"] as const;
+const SCRIPT_ARTIFACT_ORDER_INDEX = new Map<string, number>(SCRIPT_ARTIFACT_ORDER.map((value, index) => [value, index]));
+export function compareScriptArtifactTypes(left: string, right: string) {
+    return (SCRIPT_ARTIFACT_ORDER_INDEX.get(left) ?? Number.MAX_SAFE_INTEGER) - (SCRIPT_ARTIFACT_ORDER_INDEX.get(right) ?? Number.MAX_SAFE_INTEGER) || left.localeCompare(right);
+}
+export function sortScriptArtifactTypes(types: string[]) {
+    return [...types].sort(compareScriptArtifactTypes);
+}
+
 export const SCRIPT_ARTIFACT_TYPES = [
     "conversation",
     "creative_positioning",

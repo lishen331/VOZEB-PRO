@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
-import { ScriptAgentExecutor, completedRunTypesForArtifacts, createDefaultScriptAgentExecutor, executeScriptRunSequence, scriptRunSequence, validateScriptAgentArguments } from "./script-agent-executor";
+import { ScriptAgentExecutor, cleanPublicText, completedRunTypesForArtifacts, createDefaultScriptAgentExecutor, executeScriptRunSequence, nextShortFilmRunType, scriptRunSequence, validateScriptAgentArguments } from "./script-agent-executor";
 
 vi.mock("@/lib/server/internal-origin", () => ({ fetchInternalApi: vi.fn(), resolveInternalOrigin: vi.fn((value: string) => value) }));
 
@@ -36,6 +36,18 @@ async function runForVisibleText(runType: "episode_scripts" | "text_storyboard" 
     await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-a", runType, input: {}, origin: "https://local", cookie: "session" });
     return visible;
 }
+describe("public screenwriter output", () => {
+    it("cleans JSON wrappers from visible Agent text", () => {
+        expect(cleanPublicText('{"content":"一段干净的 Vlog 故事"}')).toBe("一段干净的 Vlog 故事");
+        expect(cleanPublicText('```json\n{"report":"审核完成"}\n```')).toBe("审核完成");
+        expect(cleanPublicText('{"context":{"secret":"hidden"}}')).toBe("");
+        expect(nextShortFilmRunType([])).toBe("project_planning");
+        expect(nextShortFilmRunType([{ artifact_type: "creative_positioning", status: "confirmed" }])).toBe("short_story");
+        expect(cleanPublicText("普通可读文本")).toBe("普通可读文本");
+        expect(cleanPublicText('{"content":"\n# 游乐场 Vlog\n"}')).toContain("游乐场 Vlog");
+    });
+});
+
 describe("screenwriter carrier execution", () => {
     it("passes persisted TVC/Vlog parameters into every model stage", async () => {
         const callModel = vi.fn().mockResolvedValue({ content: "策划结果" });
@@ -306,6 +318,19 @@ describe("ScriptAgentExecutor", () => {
         const assets = await runForVisibleText("asset_prompts", { content: "完成", assets: [{ type: "character", name: "女主", prompt: "二十五岁都市女性" }] });
         expect(assets).toContain("女主");
         expect(assets).toContain("二十五岁都市女性");
+    });
+
+    it("passes the current next workflow step to the orchestrator context", async () => {
+        const callModel = vi.fn().mockResolvedValue({ content: "下一步先确认创作定位。" });
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "orchestrator", name: "统筹", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "统筹" }),
+            listArtifacts: vi.fn().mockResolvedValue([]),
+            callModel,
+            saveArtifact: vi.fn().mockResolvedValue({ id: "artifact" }),
+            appendEvent: vi.fn(),
+        };
+        await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-next-step", chatSessionId: "chat-a", runType: "conversation", input: { message: "请直接给我分镜" }, origin: "https://local", cookie: "session" });
+        expect(callModel.mock.calls[0]?.[0].task.input.workflowContext).toMatchObject({ nextRunType: "project_planning", locked: true });
     });
 
     it("passes the existing chat history to the orchestrator for iterative decisions", async () => {

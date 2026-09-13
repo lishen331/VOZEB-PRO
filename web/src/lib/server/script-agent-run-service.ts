@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { PracticeTenantScope } from "./practice-tenant-scope";
 import type { ScriptRunType } from "./script-agent-domain";
 import { ScriptAgentRepository } from "./database/script-agent-repository";
+import { nextShortFilmRunType } from "./script-agent-executor";
 
 type Prerequisite = { any?: string[]; all?: string[]; confirmed?: string[] };
 const PREREQUISITE: Partial<Record<ScriptRunType, Prerequisite>> = {
@@ -28,7 +29,12 @@ export class ScriptAgentRunService {
             const anySatisfied = !required.any?.length || required.any.some((type) => available.has(type));
             const allSatisfied = !required.all?.length || required.all.every((type) => available.has(type));
             const confirmedSatisfied = !required.confirmed?.length || required.confirmed.every((group) => group.split("|").some((type) => confirmed.has(type)));
-            if (!anySatisfied || !allSatisfied || !confirmedSatisfied) throw new ScriptAgentRunError("请先完成并确认上一重要阶段", 409);
+            const expected = nextShortFilmRunType(artifacts);
+            const isWorkflowStage = ["short_story", "novel_outlines", "adaptation_bundle", "episode_scripts", "director_plan"].includes(input.runType);
+            const automaticStage = ["script_review", "text_storyboard", "asset_prompts"].includes(input.runType);
+            const directAutomaticCall = automaticStage;
+            if (!anySatisfied || !allSatisfied || !confirmedSatisfied || (isWorkflowStage && available.has("creative_positioning") && expected && input.runType !== expected) || directAutomaticCall)
+                throw new ScriptAgentRunError("请按工作目录顺序完成当前步骤", 409);
         }
         const run = await this.repository.createRun(scope, {
             id: this.id(),

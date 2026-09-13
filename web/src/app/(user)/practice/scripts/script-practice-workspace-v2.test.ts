@@ -35,6 +35,7 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain('setSelectedKey("")');
         expect(source).toContain("setArtifact(null)");
         expect(source).toContain("tree.some((item) => item.key === selectedKey)");
+        expect(source).toContain('startsWith("pending:")');
         expect(source).toContain("void runAction(confirmCurrentArtifact");
         expect(source).toContain("confirming");
         expect(source).toContain("action.reason");
@@ -63,5 +64,17 @@ describe("screenwriter workspace v2", () => {
         expect(workflowSource).toContain("导演规划");
         expect(source).toContain("activeRuns");
         expect(source).toContain("consumeEvents");
+        expect(source).toContain("seenEventKeys");
+        expect(source).toContain("publicPreviewText");
+        expect(source).toContain("sequence");
+        expect(source).toContain("previewRawRef");
+        expect(source).toContain("AGENT_LABELS");
+        expect(source).toContain('event.data.agentKey || "orchestrator"');
+        const treeSource = await readFile(resolve(process.cwd(), "src/app/api/practice/scripts/[id]/tree/route.ts"), "utf8");
+        expect(treeSource).toContain("compareScriptArtifactTypes");
+        expect(treeSource).toContain("WORKFLOW_ORDER");
+        expect(workflowSource).toContain("not_started");
+        expect(source).toContain("waiting_first_token");
+        expect(treeSource).toContain("WORKFLOW_ORDER");
     });
 });

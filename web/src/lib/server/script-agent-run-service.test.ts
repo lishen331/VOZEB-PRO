@@ -26,28 +26,48 @@ describe("ScriptAgentRunService", () => {
         expect(repository.appendRunEvent).toHaveBeenCalledWith(scope, "project-a", "run-a", "run_started", expect.objectContaining({ runType: "short_story" }), "id-a");
     });
 
-    it("allows automatic review from a saved episode script without a user confirmation", async () => {
+    it("requires every earlier confirmed stage before allowing a later manual stage", async () => {
+        const repository = {
+            listLatestArtifacts: vi.fn().mockResolvedValue([
+                { artifact_type: "creative_positioning", status: "confirmed" },
+                { artifact_type: "review_report", status: "confirmed" },
+            ]),
+            createRun: vi.fn(),
+            appendRunEvent: vi.fn(),
+        };
+        await expect(new ScriptAgentRunService(repository as never).create(scope, { projectId: "project-a", runType: "director_plan", clientRequestId: "missing-upstream" })).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("rejects a direct jump to a later stage even when an unrelated artifact exists", async () => {
+        const repository = { listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: "creative_positioning", status: "confirmed" }]), createRun: vi.fn(), appendRunEvent: vi.fn() };
+        await expect(new ScriptAgentRunService(repository as never).create(scope, { projectId: "project-a", runType: "director_plan", clientRequestId: "jump-director" })).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("rejects direct review because review runs inside episode generation", async () => {
         const repository = {
             listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: "episode_scripts", status: "draft" }]),
             createRun: vi.fn().mockResolvedValue({ ...baseRun, runType: "script_review", lastEventSequence: 0 }),
             appendRunEvent: vi.fn(),
         };
-        await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "script_review", clientRequestId: "review-a" })).resolves.toMatchObject({ runType: "script_review" });
+        await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "script_review", clientRequestId: "review-a" })).rejects.toMatchObject({ status: 409 });
     });
 
-    it("allows prompt extraction from a saved textual storyboard", async () => {
+    it("rejects direct prompt extraction because prompts run inside directing", async () => {
         const repository = {
             listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: "text_storyboard", status: "draft" }]),
             createRun: vi.fn().mockResolvedValue({ ...baseRun, runType: "asset_prompts", lastEventSequence: 0 }),
             appendRunEvent: vi.fn(),
         };
-        await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "asset_prompts", clientRequestId: "assets-a" })).resolves.toMatchObject({ runType: "asset_prompts" });
+        await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "asset_prompts", clientRequestId: "assets-a" })).rejects.toMatchObject({ status: 409 });
     });
 
     it("accepts either a confirmed short story or confirmed long-form chapter outlines for adaptation", async () => {
         for (const artifactType of ["short_story", "chapter_outlines"]) {
             const repository = {
-                listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: artifactType, status: "confirmed" }]),
+                listLatestArtifacts: vi.fn().mockResolvedValue([
+                    { artifact_type: "creative_positioning", status: "confirmed" },
+                    { artifact_type: artifactType, status: "confirmed" },
+                ]),
                 createRun: vi.fn().mockResolvedValue({ ...baseRun, runType: "adaptation_bundle", lastEventSequence: 0 }),
                 appendRunEvent: vi.fn(),
             };
@@ -58,9 +78,21 @@ describe("ScriptAgentRunService", () => {
     });
 
     it("requires the confirmed adaptation bundle before generating episode scripts", async () => {
-        const repository = { listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: "adaptation_strategy", status: "draft" }]), createRun: vi.fn(), appendRunEvent: vi.fn() };
+        const repository = {
+            listLatestArtifacts: vi.fn().mockResolvedValue([
+                { artifact_type: "creative_positioning", status: "confirmed" },
+                { artifact_type: "short_story", status: "confirmed" },
+                { artifact_type: "adaptation_strategy", status: "draft" },
+            ]),
+            createRun: vi.fn(),
+            appendRunEvent: vi.fn(),
+        };
         await expect(new ScriptAgentRunService(repository as never).create(scope, { projectId: "project-a", runType: "episode_scripts", clientRequestId: "episodes-draft" })).rejects.toMatchObject({ status: 409 });
-        repository.listLatestArtifacts.mockResolvedValue([{ artifact_type: "adaptation_strategy", status: "confirmed" }]);
+        repository.listLatestArtifacts.mockResolvedValue([
+            { artifact_type: "creative_positioning", status: "confirmed" },
+            { artifact_type: "short_story", status: "confirmed" },
+            { artifact_type: "adaptation_strategy", status: "confirmed" },
+        ]);
         repository.createRun.mockResolvedValue({ ...baseRun, runType: "episode_scripts", lastEventSequence: 0 });
         await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "episode_scripts", clientRequestId: "episodes-confirmed" })).resolves.toMatchObject({ runType: "episode_scripts" });
     });
@@ -71,14 +103,27 @@ describe("ScriptAgentRunService", () => {
     });
 
     it("requires confirmed review and a saved director plan before text storyboarding", async () => {
-        const repository = { listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: "review_report", status: "confirmed" }]), createRun: vi.fn(), appendRunEvent: vi.fn() };
+        const repository = {
+            listLatestArtifacts: vi.fn().mockResolvedValue([
+                { artifact_type: "creative_positioning", status: "confirmed" },
+                { artifact_type: "short_story", status: "confirmed" },
+                { artifact_type: "adaptation_strategy", status: "confirmed" },
+                { artifact_type: "episode_scripts", status: "draft" },
+            ]),
+            createRun: vi.fn(),
+            appendRunEvent: vi.fn(),
+        };
         await expect(new ScriptAgentRunService(repository as never).create(scope, { projectId: "project-a", runType: "text_storyboard", clientRequestId: "board-a" })).rejects.toMatchObject({ status: 409 });
         repository.listLatestArtifacts.mockResolvedValue([
+            { artifact_type: "creative_positioning", status: "confirmed" },
+            { artifact_type: "short_story", status: "confirmed" },
+            { artifact_type: "adaptation_strategy", status: "confirmed" },
+            { artifact_type: "episode_scripts", status: "draft" },
             { artifact_type: "review_report", status: "confirmed" },
             { artifact_type: "director_plan", status: "draft" },
         ]);
         repository.createRun.mockResolvedValue({ ...baseRun, runType: "text_storyboard", lastEventSequence: 0 });
-        await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "text_storyboard", clientRequestId: "board-b" })).resolves.toMatchObject({ runType: "text_storyboard" });
+        await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "text_storyboard", clientRequestId: "board-b" })).rejects.toMatchObject({ status: 409 });
     });
 
     it("requires a saved textual storyboard before prompt extraction", async () => {

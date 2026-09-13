@@ -17,9 +17,9 @@ describe("script workflow action state", () => {
             { type: "episode_scripts", status: "draft" },
             { type: "review_report", status: "confirmed" },
         ]);
-        expect(actions.find((item) => item.runType === "short_story")?.enabled).toBe(true);
-        expect(actions.find((item) => item.runType === "adaptation_bundle")?.enabled).toBe(true);
-        expect(actions.find((item) => item.runType === "episode_scripts")?.enabled).toBe(true);
+        expect(actions.find((item) => item.runType === "short_story")?.enabled).toBe(false);
+        expect(actions.find((item) => item.runType === "adaptation_bundle")?.enabled).toBe(false);
+        expect(actions.find((item) => item.runType === "episode_scripts")?.enabled).toBe(false);
         expect(actions.find((item) => item.runType === "director_plan")?.enabled).toBe(true);
         expect(actions.map((item) => item.runType)).not.toEqual(expect.arrayContaining(["script_review", "text_storyboard", "asset_prompts"]));
         expect(actions.find((item) => item.runType === "episode_scripts")?.label).toContain("自动审核");

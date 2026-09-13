@@ -12,6 +12,17 @@ import type { ScriptCarrier } from "@/lib/server/script-agent-domain";
 
 type TreeItem = { id: string; key: string; type: string; label: string; status: string; version: number };
 type ChatMessage = { id: string; role: "user" | "assistant"; agent?: string; content: string; status?: string };
+const AGENT_LABELS: Record<string, string> = {
+    novel_planner: "小说策划",
+    novel_writer: "小说作者",
+    adaptation_planner: "改编策划",
+    script_writer: "编剧",
+    script_supervisor: "编辑",
+    director_planner: "导演",
+    storyboard_writer: "分镜师",
+    asset_prompt_writer: "设定师",
+    orchestrator: "统筹",
+};
 const STATUS: Record<string, { text: string; color: string }> = { awaiting_review: { text: "待确认", color: "gold" }, confirmed: { text: "已确认", color: "success" }, draft: { text: "草稿", color: "default" }, failed: { text: "失败", color: "error" } };
 export default function ScriptPracticeWorkspace() {
     const router = useRouter();
@@ -27,6 +38,7 @@ export default function ScriptPracticeWorkspace() {
     const [runId, setRunId] = useState("");
     const [runError, setRunError] = useState("");
     const [busy, setBusy] = useState(false);
+    const [streamStatus, setStreamStatus] = useState<"idle" | "connecting" | "waiting_first_token" | "streaming">("idle");
     const [starting, setStarting] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [newOpen, setNewOpen] = useState(false);
@@ -37,11 +49,14 @@ export default function ScriptPracticeWorkspace() {
     const [targetDurationSeconds, setTargetDurationSeconds] = useState("180");
     const [eventSource] = useState<{ close: () => void } | null>(null);
     const abortRef = useRef<AbortController | undefined>(undefined);
+    const seenEventKeys = useRef(new Set<string>());
+    const previewRawRef = useRef("");
     const selectedIdRef = useRef("");
     const selectProject = useCallback((id: string) => {
         abortRef.current?.abort();
         setSelectedKey("");
         setArtifact(null);
+        previewRawRef.current = "";
         setPreview("");
         setTree([]);
         setRunId("");
@@ -96,7 +111,7 @@ export default function ScriptPracticeWorkspace() {
         };
     }, [selectedId, message]);
     useEffect(() => {
-        if (!selectedId || !selectedKey || !tree.some((item) => item.key === selectedKey)) {
+        if (!selectedId || !selectedKey || !tree.some((item) => item.key === selectedKey) || tree.find((item) => item.key === selectedKey)?.id.startsWith("pending:") === true) {
             setArtifact(null);
             return;
         }
@@ -120,13 +135,18 @@ export default function ScriptPracticeWorkspace() {
             abortRef.current?.abort();
             const controller = new AbortController();
             abortRef.current = controller;
+            seenEventKeys.current.clear();
+            previewRawRef.current = "";
             setBusy(true);
+            setStreamStatus("connecting");
             try {
                 const response = await fetch(practiceScriptsApi.runEventsUrl(projectId, currentRunId, afterSequence), { signal: controller.signal, cache: "no-store" });
                 if (!response.ok || !response.body) throw new Error("Agent 流连接失败");
                 const reader = response.body.getReader(),
                     decoder = new TextDecoder();
                 let buffer = "";
+                let receivedEvent = false;
+                setStreamStatus("waiting_first_token");
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
@@ -137,20 +157,37 @@ export default function ScriptPracticeWorkspace() {
                         if (selectedIdRef.current !== projectId) return;
                         const line = chunk.split("\n").find((row) => row.startsWith("data: "));
                         if (!line) continue;
-                        const event = JSON.parse(line.slice(6)) as { type: string; data: Record<string, unknown> };
+                        const event = JSON.parse(line.slice(6)) as { runId?: string; sequence?: number; type: string; data: Record<string, unknown> };
+                        const eventKey = `${event.runId || currentRunId}:${event.sequence ?? chunk}`;
+                        if (seenEventKeys.current.has(eventKey)) continue;
+                        seenEventKeys.current.add(eventKey);
+                        receivedEvent = true;
+                        if (event.type === "artifact_delta" || event.type === "assistant_delta") setStreamStatus("streaming");
                         if (event.type === "assistant_delta") {
                             const delta = String(event.data.delta || "");
+                            if (!delta) continue;
+                            const agent = String(event.data.agentKey || "orchestrator");
                             setMessages((current) => {
-                                const last = current.at(-1);
-                                return last?.role === "assistant"
-                                    ? [...current.slice(0, -1), { ...last, content: last.content + delta }]
-                                    : [...current, { id: crypto.randomUUID(), role: "assistant", agent: String(event.data.agentKey || "统筹"), content: delta, status: "streaming" }];
+                                const index = current.findLastIndex((item) => item.role === "assistant" && item.agent === agent && (item.status === "working" || item.status === "streaming"));
+                                if (index < 0) return [...current, { id: crypto.randomUUID(), role: "assistant", agent, content: delta, status: "streaming" }];
+                                const item = current[index];
+                                return [...current.slice(0, index), { ...item, content: item.content + delta, status: "streaming" }, ...current.slice(index + 1)];
                             });
                         }
-                        if (event.type === "artifact_delta") setPreview((current) => current + String(event.data.delta || ""));
-                        if (event.type === "agent_started")
-                            setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", agent: String(event.data.name || event.data.agentKey || "Agent"), content: "正在处理当前任务……", status: "working" }]);
+                        if (event.type === "artifact_delta") {
+                            previewRawRef.current += String(event.data.delta || "");
+                            setPreview(publicPreviewText(previewRawRef.current));
+                        }
+                        if (event.type === "agent_started") {
+                            const agent = String(event.data.agentKey || "orchestrator");
+                            setMessages((current) =>
+                                current.some((item) => item.role === "assistant" && item.agent === agent && item.status === "working")
+                                    ? current
+                                    : [...current, { id: crypto.randomUUID(), role: "assistant", agent, content: "正在处理当前任务……", status: "working" }],
+                            );
+                        }
                         if (event.type === "artifact_saved") {
+                            previewRawRef.current = "";
                             setPreview("");
                             await loadTree(projectId);
                             const key = `${event.data.artifactType}:${event.data.artifactKey}`;
@@ -163,6 +200,7 @@ export default function ScriptPracticeWorkspace() {
                     }
                 }
             } finally {
+                setStreamStatus("idle");
                 setBusy(false);
             }
         },
@@ -324,7 +362,7 @@ export default function ScriptPracticeWorkspace() {
                         {messages.map((item) => (
                             <div key={item.id} className={`flex ${item.role === "user" ? "justify-end" : "justify-start"}`}>
                                 <div className={`max-w-[88%] rounded-xl px-3 py-2 text-sm ${item.role === "user" ? "bg-primary text-primary-foreground" : "border border-border bg-muted/60"}`}>
-                                    {item.agent ? <div className="mb-1 text-[11px] font-medium text-primary">{item.agent}</div> : null}
+                                    {item.agent ? <div className="mb-1 text-[11px] font-medium text-primary">{AGENT_LABELS[item.agent] || item.agent}</div> : null}
                                     <div className="whitespace-pre-wrap">{item.content}</div>
                                 </div>
                             </div>
@@ -332,6 +370,9 @@ export default function ScriptPracticeWorkspace() {
                         {!messages.length ? <div className="rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground">告诉我你想创作什么。我会先确认参数，再调度专业 Agent，并在重要节点等待你确认。</div> : null}
                     </div>
                     <div className="border-t border-border p-3">
+                        {busy && streamStatus !== "idle" ? (
+                            <div className="mb-2 text-xs text-muted-foreground">{streamStatus === "connecting" ? "正在连接 Agent…" : streamStatus === "waiting_first_token" ? "Agent 正在组织内容…" : "正在流式写作…"}</div>
+                        ) : null}
                         {runError ? <div className="mb-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">上次执行失败：{runError}</div> : null}
                         <div className="mb-2 flex flex-wrap gap-1">
                             {workflowActions.map((action) => (
@@ -413,6 +454,18 @@ export default function ScriptPracticeWorkspace() {
         </main>
     );
 }
+function publicPreviewText(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("```")) return value;
+    const match = trimmed.match(/"(?:content|text|story|screenplay|outline|report)"\s*:\s*"((?:\\.|[^"\\])*)/);
+    if (!match) return "";
+    try {
+        return JSON.parse(`"${match[1]}"`);
+    } catch {
+        return match[1].replace(/\\n/g, "\n").replace(/\\"/g, '"');
+    }
+}
+
 function artifactContent(value: Record<string, unknown> | null) {
     if (!value) return "";
     for (const key of ["content_text", "content", "text", "story", "outline", "screenplay", "report"]) {

@@ -48,6 +48,21 @@ export function scriptRunSequence(runType: ScriptRunType): ScriptRunType[] {
     return [runType];
 }
 
+export function nextShortFilmRunType(artifacts: Array<{ artifact_type?: unknown; status?: unknown }>) {
+    const confirmed = new Set(artifacts.filter((row) => row.status === "confirmed").map((row) => String(row.artifact_type)));
+    const saved = new Set(artifacts.map((row) => String(row.artifact_type)));
+    if (!confirmed.has("creative_positioning")) return "project_planning" as const;
+    if (!confirmed.has("short_story") && !confirmed.has("chapter_outlines")) return "short_story" as const;
+    if (!confirmed.has("adaptation_strategy")) return "adaptation_bundle" as const;
+    if (!saved.has("episode_scripts")) return "episode_scripts" as const;
+    if (!saved.has("review_report")) return "script_review" as const;
+    if (!confirmed.has("review_report")) return "script_review" as const;
+    if (!saved.has("director_plan")) return "director_plan" as const;
+    if (!saved.has("text_storyboard")) return "text_storyboard" as const;
+    if (!saved.has("asset_prompts")) return "asset_prompts" as const;
+    return undefined;
+}
+
 export function completedRunTypesForArtifacts(artifactTypes: string[]) {
     const artifacts = new Set(artifactTypes);
     return [
@@ -92,6 +107,7 @@ export class ScriptAgentExecutor {
                 ...task.input,
                 context: context.map(publicArtifactContext),
                 ...(projectContext ? { projectContext, carrierInstructions } : {}),
+                ...(task.runType === "conversation" ? { workflowContext: { nextRunType: nextShortFilmRunType(context), locked: true } } : {}),
                 ...(chatHistory.length ? { chatHistory: chatHistory.map(publicChatMessage) } : {}),
             },
         };
@@ -107,7 +123,15 @@ export class ScriptAgentExecutor {
         if (task.runType === "text_storyboard" && project) assertStoryboardDuration(structured, project.project_parameters);
         await materializeStructuredRows(this.deps, scope, task, structured);
         if (task.runType === "conversation" && task.chatSessionId && this.deps.saveChatMessage) {
-            await this.deps.saveChatMessage(scope, { id: this.id(), sessionId: task.chatSessionId, projectId: task.projectId, role: "assistant", agentKey: execution.agent, publicContent: publicText(structured) || "", sourceRunId: task.runId });
+            await this.deps.saveChatMessage(scope, {
+                id: this.id(),
+                sessionId: task.chatSessionId,
+                projectId: task.projectId,
+                role: "assistant",
+                agentKey: execution.agent,
+                publicContent: cleanPublicText(publicText(structured) || ""),
+                sourceRunId: task.runId,
+            });
         }
         const artifactId = this.id();
         const artifact = await this.deps.saveArtifact(scope, {
@@ -117,7 +141,7 @@ export class ScriptAgentExecutor {
             artifactKey: execution.key,
             status: execution.confirmation ? "awaiting_review" : "draft",
             content: structured,
-            contentText: formatVisibleArtifact(task.runType, structured),
+            contentText: cleanPublicText(formatVisibleArtifact(task.runType, structured) || ""),
             sourceRunId: task.runId,
         });
         if (!artifact?.id) throw new Error("剧本成果保存失败");
@@ -170,6 +194,23 @@ async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile;
     if (jsonText) return JSON.parse(jsonText) as Record<string, unknown>;
     return { content: text };
 }
+export function cleanPublicText(value: string) {
+    const textValue = value.trim();
+    const jsonText = extractJsonObjectText(textValue);
+    if (!jsonText) return textValue;
+    try {
+        const parsed = JSON.parse(jsonText) as Record<string, unknown>;
+        return (
+            ["content", "text", "story", "screenplay", "outline", "report"]
+                .map((key) => parsed[key])
+                .find((entry): entry is string => typeof entry === "string" && Boolean(entry.trim()))
+                ?.trim() || ""
+        );
+    } catch {
+        return textValue;
+    }
+}
+
 export function validateScriptAgentArguments(runType: ScriptRunType, argumentsText: string) {
     const jsonText = extractJsonObjectText(argumentsText);
     if (!jsonText) return false;
@@ -286,7 +327,7 @@ function formatVisibleArtifact(runType: ScriptRunType, value: Record<string, unk
             })
             .join("\n\n");
     }
-    return publicText(value);
+    return cleanPublicText(publicText(value) || "");
 }
 function publicText(value: Record<string, unknown>) {
     for (const key of ["content", "text", "story", "screenplay", "outline", "report"]) if (typeof value[key] === "string") return value[key] as string;
