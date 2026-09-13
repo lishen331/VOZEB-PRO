@@ -126,7 +126,8 @@ describe("L-style prop reference placement", () => {
         expect(propBranch).toContain('data-prop-reference-frame="true"');
         expect(propBranch).toContain('className="flex flex-col items-start gap-1.5"');
         expect(propBranch).not.toContain("+ 上传");
-        expect(propBranch).not.toContain("references.map");
+        expect(propBranch).toContain("参考图候选");
+        expect(propBranch).toContain("references.map");
     });
 });
 
@@ -135,8 +136,8 @@ describe("L-style prop reference actions", () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         const prop = source.slice(source.indexOf('if (editor.kind === "props")'));
         expect(prop.indexOf("提取特征描述")).toBeLessThan(prop.indexOf("移除"));
-        expect(prop).not.toContain("主参考图");
-        expect(prop).not.toContain("+ 上传");
+        expect(prop).toContain("设为主参考图");
+        expect(prop).toContain("参考图候选");
     });
 });
 
