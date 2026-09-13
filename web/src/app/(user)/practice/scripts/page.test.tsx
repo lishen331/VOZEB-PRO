@@ -8,7 +8,7 @@ describe("practice script workspace contract", () => {
         const workflow = await readFile(resolve(process.cwd(), "src/app/(user)/practice/scripts/script-workflow-state.ts"), "utf8");
         const screenwriter = `${page}
 ${workflow}`;
-        expect(page).toContain("输入一句话创意");
+        expect(page).toContain('aria-label="新建剧本"');
         expect(page).toContain("导入小说");
         expect(screenwriter).toContain("完整短故事");
         expect(screenwriter).toContain("小说总纲与章纲");
