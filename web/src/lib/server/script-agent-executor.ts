@@ -43,7 +43,8 @@ type Deps = {
     upsertPromptAssets?: ScriptAgentRepository["upsertPromptAssets"];
     appendEvent: (scope: PracticeTenantScope, projectId: string, runId: string, type: ScriptRunEventType, data: Record<string, unknown>, eventId: string) => Promise<unknown>;
 };
-export function scriptRunSequence(runType: ScriptRunType): ScriptRunType[] {
+export function scriptRunSequence(runType: ScriptRunType, nextRunType?: ScriptRunType): ScriptRunType[] {
+    if (runType === "conversation") return nextRunType ? ["conversation", nextRunType] : ["conversation"];
     if (runType === "episode_scripts") return ["episode_scripts", "script_review"];
     if (runType === "director_plan") return ["director_plan", "text_storyboard", "asset_prompts"];
     return [runType];
@@ -67,6 +68,8 @@ export function nextShortFilmRunType(artifacts: Array<{ artifact_type?: unknown;
 export function completedRunTypesForArtifacts(artifactTypes: string[]) {
     const artifacts = new Set(artifactTypes);
     return [
+        ...(artifacts.has("creative_positioning") ? ["project_planning" as const] : []),
+        ...(artifacts.has("conversation") ? ["conversation" as const] : []),
         ...(artifacts.has("episode_scripts") ? ["episode_scripts" as const] : []),
         ...(artifacts.has("review_report") ? ["script_review" as const] : []),
         ...(artifacts.has("director_plan") ? ["director_plan" as const] : []),
@@ -78,7 +81,8 @@ export function completedRunTypesForArtifacts(artifactTypes: string[]) {
 export async function executeScriptRunSequence(executor: Pick<ScriptAgentExecutor, "execute">, scope: PracticeTenantScope, task: ScriptExecutionInput, completedRunTypes: string[] = []) {
     let result: Awaited<ReturnType<ScriptAgentExecutor["execute"]>> | undefined;
     const completed = new Set(completedRunTypes);
-    for (const runType of scriptRunSequence(task.runType)) {
+    const nextRunType = task.runType === "conversation" && task.input.advanceWorkflow === true ? (task.input.nextRunType as ScriptRunType | undefined) : undefined;
+    for (const runType of scriptRunSequence(task.runType, nextRunType)) {
         if (completed.has(runType)) continue;
         result = await executor.execute(scope, { ...task, runType });
     }

@@ -102,10 +102,12 @@ describe("screenwriter carrier execution", () => {
 
 describe("screenwriter run sequences", () => {
     it("runs supervision inside episode writing and final text deliverables inside directing", async () => {
+        expect(scriptRunSequence("conversation")).toEqual(["conversation"]);
+        expect(scriptRunSequence("conversation", "project_planning")).toEqual(["conversation", "project_planning"]);
         expect(scriptRunSequence("episode_scripts")).toEqual(["episode_scripts", "script_review"]);
         expect(scriptRunSequence("director_plan")).toEqual(["director_plan", "text_storyboard", "asset_prompts"]);
         expect(scriptRunSequence("short_story")).toEqual(["short_story"]);
-        expect(completedRunTypesForArtifacts(["director_plan", "text_storyboard"])).toEqual(["director_plan", "text_storyboard"]);
+        expect(completedRunTypesForArtifacts(["creative_positioning", "director_plan", "text_storyboard"])).toEqual(["project_planning", "director_plan", "text_storyboard"]);
         expect(completedRunTypesForArtifacts(["episode_scripts", "review_report"])).toEqual(["episode_scripts", "script_review"]);
         const execute = vi.fn(async (_scope, task) => ({ artifactId: `artifact-${task.runType}` }));
         await expect(executeScriptRunSequence({ execute } as never, scope, { projectId: "project-a", runId: "run-a", runType: "director_plan", input: {}, origin: "https://local", cookie: "session" })).resolves.toMatchObject({

@@ -7,7 +7,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ScriptPracticeProject } from "@/lib/script-practice-types";
 import { practiceScriptsApi } from "@/services/api/practice-scripts";
-import { resolveScriptWorkflowActions } from "./script-workflow-state";
 
 type TreeItem = { id: string; key: string; type: string; label: string; status: string; version: number };
 type ChatMessage = { id: string; role: "user" | "assistant"; agent?: string; content: string; status?: string };
@@ -275,14 +274,6 @@ export default function ScriptPracticeWorkspace() {
         message.success("已打开新的剧本对话");
     };
     const selectedProject = projects.find((item) => item.id === selectedId);
-    const workflowActions = useMemo(
-        () =>
-            resolveScriptWorkflowActions(
-                selectedProject?.mode || "short_story",
-                tree.filter((item) => item.status !== "not_started").map((item) => ({ type: item.type, status: item.status })),
-            ),
-        [selectedProject?.mode, tree],
-    );
     const visible = useMemo(() => artifactContent(artifact) || preview, [artifact, preview]);
     const artifactStatus = typeof artifact?.status === "string" ? artifact.status : "";
     const artifactId = typeof artifact?.id === "string" ? artifact.id : "";

@@ -48,8 +48,6 @@ describe("screenwriter workspace v2", () => {
         expect(source).toContain("active = false");
         expect(source).toContain("selectedIdRef.current !== projectId");
         expect(source).toContain("if (active) setArtifact");
-        expect(source).toContain("resolveScriptWorkflowActions");
-        expect(source).toContain('tree.filter((item) => item.status !== "not_started")');
         expect(source).toContain("删除剧本");
         expect(source).toContain("practiceScriptsApi.remove");
         expect(source).toContain("确认删除");

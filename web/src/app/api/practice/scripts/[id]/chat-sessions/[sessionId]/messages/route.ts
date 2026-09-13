@@ -6,6 +6,7 @@ import { requirePracticeTenant } from "@/lib/server/practice-tenant-scope";
 import { ScriptAgentRepository } from "@/lib/server/database/script-agent-repository";
 import { postgresQuery } from "@/lib/server/database/postgres";
 import { ScriptAgentRunService } from "@/lib/server/script-agent-run-service";
+import { nextShortFilmRunType } from "@/lib/server/script-agent-executor";
 type Context = { params: Promise<{ id: string; sessionId: string }> };
 export async function GET(request: Request, context: Context) {
     const user = await getCurrentUser(request);
@@ -30,7 +31,16 @@ export async function POST(request: Request, context: Context) {
     if (!(await repository.getChatSession(scope, id, sessionId))) return reply(404, null, "剧本对话不存在");
     const saved = await repository.saveChatMessage(scope, { id: randomUUID(), sessionId, projectId: id, role: "user", publicContent: content, clientRequestId });
     if (!saved) return reply(409, null, "剧本对话已变化，请刷新后重试");
-    const run = await new ScriptAgentRunService(repository).create(scope, { projectId: id, chatSessionId: sessionId, runType: "conversation", clientRequestId, configSnapshot: { message: content } });
+    const artifacts = await repository.listLatestArtifacts(scope, id);
+    const advanceWorkflow = /^(确认|确定|继续|可以|好的|好|按这个来|开始|生成|进入下一步|没问题)[。！!，,、\s]*$/i.test(content);
+    const nextRunType = advanceWorkflow ? nextShortFilmRunType(artifacts) : undefined;
+    const run = await new ScriptAgentRunService(repository).create(scope, {
+        projectId: id,
+        chatSessionId: sessionId,
+        runType: "conversation",
+        clientRequestId,
+        configSnapshot: { message: content, advanceWorkflow, ...(nextRunType ? { nextRunType } : {}) },
+    });
     return reply(0, run, "ok");
 }
 function reply<T>(code: number, data: T | null, msg: string) {
