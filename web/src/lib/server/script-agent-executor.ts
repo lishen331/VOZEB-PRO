@@ -9,7 +9,7 @@ import { normalizePromptAssets, normalizeScriptShots } from "./script-agent-tool
 import { ScriptAgentRepository } from "./database/script-agent-repository";
 
 const EXECUTION: Record<ScriptRunType, { agent: ScriptAgentKey; artifact: ScriptArtifactType; key: string; confirmation: boolean }> = {
-    conversation: { agent: "orchestrator", artifact: "creative_positioning", key: "conversation", confirmation: false },
+    conversation: { agent: "orchestrator", artifact: "conversation", key: "latest", confirmation: false },
     project_planning: { agent: "novel_planner", artifact: "creative_positioning", key: "project", confirmation: true },
     short_story: { agent: "novel_writer", artifact: "short_story", key: "main", confirmation: true },
     novel_outlines: { agent: "novel_planner", artifact: "chapter_outlines", key: "all", confirmation: true },
@@ -26,6 +26,7 @@ export type ScriptExecutionInput = { projectId: string; runId: string; runType: 
 type Deps = {
     resolveProfile: (agent: ScriptAgentKey, skills?: string[]) => Promise<ResolvedScriptAgentProfile>;
     callModel: (input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; onDelta?: (value: string) => Promise<void> }) => Promise<Record<string, unknown>>;
+    listArtifacts?: ScriptAgentRepository["listLatestArtifacts"];
     saveArtifact: (
         scope: PracticeTenantScope,
         input: { id: string; projectId: string; artifactType: string; artifactKey: string; status: string; content: Record<string, unknown>; contentText?: string; sourceRunId: string },
@@ -47,9 +48,11 @@ export class ScriptAgentExecutor {
         const profile = await this.deps.resolveProfile(execution.agent, selectedSkills);
         await this.deps.appendEvent(scope, task.projectId, task.runId, "agent_started", { agentKey: execution.agent, name: profile.profile.name }, this.id());
         await this.deps.appendEvent(scope, task.projectId, task.runId, "assistant_delta", { agentKey: execution.agent, delta: `${profile.profile.name}已开始处理当前任务。` }, this.id());
+        const context = this.deps.listArtifacts ? await this.deps.listArtifacts(scope, task.projectId) : [];
+        const enrichedTask = { ...task, input: { ...task.input, context: context.map(publicArtifactContext) } };
         const structured = await this.deps.callModel({
             profile,
-            task,
+            task: enrichedTask,
             onDelta: async (value) => {
                 await this.deps.appendEvent(scope, task.projectId, task.runId, "artifact_delta", { artifactType: execution.artifact, artifactKey: execution.key, delta: value }, this.id());
             },
@@ -79,6 +82,7 @@ export function createDefaultScriptAgentExecutor(repository: ScriptAgentReposito
     return new ScriptAgentExecutor({
         resolveProfile: (agent, skills) => profiles.resolve(agent, skills),
         callModel: callConfiguredModel,
+        listArtifacts: (...args) => repository.listLatestArtifacts(...args),
         saveArtifact: (scope, input) => repository.saveArtifact(scope, input),
         replaceChapters: (...args) => repository.replaceChapters(...args),
         replaceEpisodes: (...args) => repository.replaceEpisodes(...args),
@@ -138,4 +142,8 @@ async function materializeStructuredRows(deps: Deps, scope: PracticeTenantScope,
 }
 function record(value: unknown): Record<string, unknown> {
     return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function publicArtifactContext(row: Record<string, unknown>) {
+    return { type: String(row.artifact_type || ""), key: String(row.artifact_key || ""), status: String(row.status || ""), content: row.content_json || row.content_text || "" };
 }

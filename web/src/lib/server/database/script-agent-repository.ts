@@ -160,7 +160,8 @@ export class ScriptAgentRepository {
         for (const episode of episodes)
             await this.db.query(
                 `INSERT INTO practice_script_episodes (id, school_id, owner_user_id, project_id, episode_number, title, outline_json, script_document_json, status, source_run_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,'draft',$9)`,
+             VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,'draft',$9)
+             ON CONFLICT (project_id, episode_number, version) DO UPDATE SET title=EXCLUDED.title, outline_json=COALESCE(EXCLUDED.outline_json, practice_script_episodes.outline_json), script_document_json=COALESCE(EXCLUDED.script_document_json, practice_script_episodes.script_document_json), status='draft', source_run_id=EXCLUDED.source_run_id, error_code=NULL, error_message=NULL, updated_at=now()`,
                 [crypto.randomUUID(), scope.schoolId, scope.ownerUserId, projectId, episode.episodeNumber, episode.title, episode.outline ? JSON.stringify(episode.outline) : null, episode.script ? JSON.stringify(episode.script) : null, runId],
             );
     }

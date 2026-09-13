@@ -48,6 +48,12 @@ describe("ScriptAgentRepository", () => {
         ]);
     });
 
+    it("updates an existing episode when the script phase follows the outline phase", async () => {
+        const { query, repository: repo } = repository([]);
+        await repo.replaceEpisodes(scope, "project-a", "run-script", [{ episodeNumber: 1, title: "第一集", script: { blocks: [] } }]);
+        expect(query).toHaveBeenCalledWith(expect.stringContaining("ON CONFLICT (project_id, episode_number, version) DO UPDATE"), expect.any(Array));
+    });
+
     it("replays only events after the requested sequence", async () => {
         const { query, repository: repo } = repository([]);
         await repo.listRunEvents(scope, "project-a", "run-a", 8, 200);

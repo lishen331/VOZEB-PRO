@@ -5,6 +5,7 @@ import { ScriptAgentRepository } from "@/lib/server/database/script-agent-reposi
 import { postgresQuery } from "@/lib/server/database/postgres";
 type Context = { params: Promise<{ id: string }> };
 const LABELS: Record<string, string> = {
+    conversation: "Agent 对话",
     creative_positioning: "创作定位",
     world_building: "世界观",
     short_story_outline: "故事大纲",
@@ -28,13 +29,15 @@ export async function GET(request: Request, context: Context) {
     const id = (await context.params).id;
     const repository = new ScriptAgentRepository({ query: postgresQuery });
     const [artifacts, runs] = await Promise.all([repository.listLatestArtifacts(scope, id), repository.listRuns(scope, id, ["planning", "running", "waiting_confirmation", "partial_failed"])]);
-    const items = artifacts.map((row: Record<string, unknown>) => ({
-        id: String(row.id),
-        key: `${row.artifact_type}:${row.artifact_key}`,
-        type: String(row.artifact_type),
-        label: LABELS[String(row.artifact_type)] || String(row.artifact_type),
-        status: String(row.status),
-        version: Number(row.version || 1),
-    }));
+    const items = artifacts
+        .filter((row: Record<string, unknown>) => row.artifact_type !== "conversation")
+        .map((row: Record<string, unknown>) => ({
+            id: String(row.id),
+            key: `${row.artifact_type}:${row.artifact_key}`,
+            type: String(row.artifact_type),
+            label: LABELS[String(row.artifact_type)] || String(row.artifact_type),
+            status: String(row.status),
+            version: Number(row.version || 1),
+        }));
     return NextResponse.json({ code: 0, data: { items, activeRuns: runs }, msg: "ok" });
 }

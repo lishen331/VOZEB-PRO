@@ -30,4 +30,16 @@ describe("ScriptAgentExecutor", () => {
         expect(order.indexOf("save")).toBeLessThan(order.indexOf("artifact_saved"));
         expect(order).toContain("artifact_delta");
     });
+    it("passes persisted upstream artifacts into the next model call", async () => {
+        const callModel = vi.fn(async ({ task }) => ({ content: String(task.input.context?.length || 0) }));
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "adaptation_planner", name: "改编策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "改编" }),
+            callModel,
+            listArtifacts: vi.fn().mockResolvedValue([{ artifact_type: "short_story", content_text: "完整故事" }]),
+            saveArtifact: vi.fn().mockResolvedValue({ id: "artifact" }),
+            appendEvent: vi.fn(),
+        };
+        await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-a", runType: "adaptation_bundle", input: {}, origin: "https://local", cookie: "session" });
+        expect(callModel).toHaveBeenCalledWith(expect.objectContaining({ task: expect.objectContaining({ input: expect.objectContaining({ context: expect.arrayContaining([expect.objectContaining({ type: "short_story" })]) }) }) }));
+    });
 });

@@ -5,6 +5,7 @@ export const SCRIPT_AGENT_KEYS = ["orchestrator", "novel_planner", "novel_writer
 export type ScriptAgentKey = (typeof SCRIPT_AGENT_KEYS)[number];
 
 export const SCRIPT_ARTIFACT_TYPES = [
+    "conversation",
     "creative_positioning",
     "world_building",
     "short_story_outline",

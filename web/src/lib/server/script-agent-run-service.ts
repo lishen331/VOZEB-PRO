@@ -7,10 +7,8 @@ const PREREQUISITE: Partial<Record<ScriptRunType, string[]>> = {
     short_story: ["creative_positioning"],
     adaptation_bundle: ["short_story", "chapter_outlines"],
     episode_scripts: ["adaptation_strategy"],
-    script_review: ["episode_scripts"],
     director_plan: ["review_report"],
     text_storyboard: ["review_report"],
-    asset_prompts: ["text_storyboard"],
 };
 export class ScriptAgentRunService {
     constructor(

@@ -25,6 +25,24 @@ describe("ScriptAgentRunService", () => {
         expect(repository.appendRunEvent).toHaveBeenCalledWith(scope, "project-a", "run-a", "run_started", expect.objectContaining({ runType: "short_story" }), "id-a");
     });
 
+    it("allows automatic review from a saved episode script without a user confirmation", async () => {
+        const repository = {
+            listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: "episode_scripts", status: "draft" }]),
+            createRun: vi.fn().mockResolvedValue({ ...baseRun, runType: "script_review", lastEventSequence: 0 }),
+            appendRunEvent: vi.fn(),
+        };
+        await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "script_review", clientRequestId: "review-a" })).resolves.toMatchObject({ runType: "script_review" });
+    });
+
+    it("allows prompt extraction from a saved textual storyboard", async () => {
+        const repository = {
+            listLatestArtifacts: vi.fn().mockResolvedValue([{ artifact_type: "text_storyboard", status: "draft" }]),
+            createRun: vi.fn().mockResolvedValue({ ...baseRun, runType: "asset_prompts", lastEventSequence: 0 }),
+            appendRunEvent: vi.fn(),
+        };
+        await expect(new ScriptAgentRunService(repository as never, () => "id-a").create(scope, { projectId: "project-a", runType: "asset_prompts", clientRequestId: "assets-a" })).resolves.toMatchObject({ runType: "asset_prompts" });
+    });
+
     it("maps a zero-row scoped insert to a project-not-found error", async () => {
         const repository = { createRun: vi.fn().mockResolvedValue(null), appendRunEvent: vi.fn() };
         const service = new ScriptAgentRunService(repository as never, () => "id-a");
