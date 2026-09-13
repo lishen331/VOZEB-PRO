@@ -277,6 +277,20 @@ describe("ScriptAgentExecutor", () => {
         expect(callModel.mock.calls[0]?.[0].task.input.interactionPolicy).toMatchObject({ maxQuestionsPerTurn: 1, deferProductionParameters: true });
     });
 
+    it("passes a one-question discovery contract to conversation calls", async () => {
+        const callModel = vi.fn().mockResolvedValue({ content: "你更想突出游乐项目，还是朋友互动？" });
+        const deps = {
+            resolveProfile: vi
+                .fn()
+                .mockResolvedValue({ profile: { agentKey: "orchestrator", name: "统筹", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "旧版：请逐条收集所有参数" }),
+            callModel,
+            saveArtifact: vi.fn().mockResolvedValue({ id: "conversation" }),
+            appendEvent: vi.fn(),
+        };
+        await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-policy", runType: "conversation", input: { message: "我想去游乐场玩" }, origin: "https://local", cookie: "session" });
+        expect(callModel.mock.calls[0]?.[0].task.input.interactionPolicy).toMatchObject({ maxQuestionsPerTurn: 1, deferProductionParameters: true, conversational: true });
+    });
+
     it("persists the public assistant reply for a chat Run", async () => {
         const saveChatMessage = vi.fn().mockResolvedValue({ id: "message-a" });
         const deps = {

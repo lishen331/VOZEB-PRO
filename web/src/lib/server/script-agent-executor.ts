@@ -197,6 +197,11 @@ export function createDefaultScriptAgentExecutor(repository: ScriptAgentReposito
         appendEvent: (scope, projectId, runId, type, data, eventId) => repository.appendRunEvent(scope, projectId, runId, type, data, eventId),
     });
 }
+function interactionContract(runType: ScriptRunType) {
+    if (runType !== "conversation" && runType !== "project_planning") return "输出聚焦当前阶段的可读成果，不输出后台执行说明、保存说明、Skill 或内部字段。";
+    return "交互契约：当前处于创意探索/定位阶段。先用一小段自然语言复述你理解的创意，再给一个建议或只问一个最关键的问题；严禁一次性列出 1–9 项问题，严禁把对话写成表格或参数表。除非用户已经确认创作定位，否则不要询问时长、发布平台、镜头数量、镜头设备、字幕或发布日期等制作参数。允许用户修改、否定和补充；不要复述数据库字段、原始 JSON、内部阶段锁定信息、执行与保存要求或私有思维链。";
+}
+
 async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; responseSchema: Record<string, unknown>; onDelta?: (value: string) => Promise<void> }) {
     const requestId = systemAiIdempotencyKey("script-agent", input.task.runId, input.profile.profile.agentKey, String(input.profile.profile.version));
     const call = await requestStructuredText({
@@ -204,7 +209,7 @@ async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile;
         cookie: input.task.cookie,
         candidate: input.profile.candidate,
         messages: [
-            { role: "system", content: `${input.profile.instructions}\n只输出公开成果，不输出思维链。` },
+            { role: "system", content: `${input.profile.instructions}\n${interactionContract(input.task.runType)}\n只输出公开成果，不输出思维链。` },
             { role: "user", content: JSON.stringify(input.task.input) },
         ],
         tool: { name: `save_${input.task.runType}`, description: "保存当前剧本阶段的结构化公开成果", parameters: input.responseSchema },
