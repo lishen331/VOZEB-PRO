@@ -273,7 +273,13 @@ export function DramaLabVisualAssetsPanel({
             const prompt = buildDramaLabAssetImagePrompt(project, effectiveAsset, assetKind);
             const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: project.aspectRatio || config.size, count: "1" };
             const canonicalReferences = dramaAssetReferences(effectiveAsset);
-            const sourceReferences = assetKind === "characters" ? generationReferences(canonicalReferences) : canonicalReferences.filter((reference, index, values) => values.findIndex((item) => item.url === reference.url) === index).slice(0, 10);
+            const primaryReference = dramaAssetPrimaryReference(effectiveAsset);
+            const sourceReferences =
+                assetKind === "characters"
+                    ? generationReferences(canonicalReferences)
+                    : [primaryReference, ...generationReferences(canonicalReferences)]
+                          .filter((reference, index, values): reference is NonNullable<typeof reference> => Boolean(reference) && values.findIndex((item) => item?.url === reference.url) === index)
+                          .slice(0, 10);
             const imageReferences: ReferenceImage[] = sourceReferences.map((reference) => ({
                 id: reference.id,
                 name: reference.label || assetName(effectiveAsset),
