@@ -290,6 +290,7 @@ export function normalizeProject(value: unknown, current: DramaProject): DramaPr
         style: cleanText(input.style),
         storyStyle: input.storyStyle === undefined ? current.storyStyle : cleanText(input.storyStyle),
         scriptType: input.scriptType === undefined ? current.scriptType : cleanText(input.scriptType),
+        scriptEpisodeCount: input.scriptEpisodeCount === undefined ? current.scriptEpisodeCount : boundedEpisodeCount(input.scriptEpisodeCount),
         ratio,
         status: input.status === "archived" ? "archived" : "active",
         creativeConversationId: current.creativeConversationId,
@@ -305,6 +306,11 @@ export function normalizeProject(value: unknown, current: DramaProject): DramaPr
         createdAt: current.createdAt,
         updatedAt: nextTimestamp(current.updatedAt),
     };
+}
+
+function boundedEpisodeCount(value: unknown) {
+    const count = Math.floor(Number(value));
+    return Number.isFinite(count) ? Math.max(1, Math.min(100, count)) : 1;
 }
 
 function addedIpReferences(previous: IpReference[] | undefined, next: IpReference[]) {
@@ -574,12 +580,14 @@ function normalizeAssetReferences(value: unknown, assetId: string, legacyUrl: un
         const url = stableUrl(input.url);
         if (!url) return [];
         const source: DramaAssetReference["source"] = input.source === "generated" || input.source === "library" ? input.source : "upload";
+        const role: DramaAssetReference["role"] = input.role === "primary" || input.role === "history" || input.role === "reference" ? input.role : undefined;
         return [
             {
                 id: cleanText(input.id) || `${assetId}-reference-${index + 1}`,
                 url,
                 storageKey: optionalText(input.storageKey),
                 source,
+                role,
                 label: cleanText(input.label) || `参考图 ${index + 1}`,
                 width: optionalPositiveInteger(input.width),
                 height: optionalPositiveInteger(input.height),
@@ -588,7 +596,8 @@ function normalizeAssetReferences(value: unknown, assetId: string, legacyUrl: un
         ];
     });
     const url = stableUrl(legacyUrl);
-    if (!references.length && url) references.push({ id: `${assetId}-reference-legacy`, url, storageKey: optionalText(legacyStorageKey), source: "library", label: "原参考图", width: undefined, height: undefined, createdAt: new Date(0).toISOString() });
+    if (!references.length && url)
+        references.push({ id: `${assetId}-reference-legacy`, url, storageKey: optionalText(legacyStorageKey), source: "library", role: "primary", label: "原参考图", width: undefined, height: undefined, createdAt: new Date(0).toISOString() });
     return references;
 }
 

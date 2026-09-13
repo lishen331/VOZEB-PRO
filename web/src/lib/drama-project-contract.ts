@@ -96,6 +96,7 @@ export type DramaAssetReference = {
     url: string;
     storageKey?: string;
     source: "upload" | "generated" | "library";
+    role?: "primary" | "history" | "reference";
     label: string;
     width?: number;
     height?: number;
@@ -308,6 +309,7 @@ export type DramaProject = {
     style: string;
     storyStyle?: string;
     scriptType?: string;
+    scriptEpisodeCount?: number;
     ratio: string;
     status: "active" | "archived";
     creativeConversationId?: string;

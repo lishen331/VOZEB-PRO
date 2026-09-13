@@ -10,7 +10,7 @@ import { DramaLabStoryboardConstraints, type StoryboardConstraintDraft } from ".
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
 
-import { Alert, Button, Drawer, Spin, Tabs, Input, Select, Form, List, Modal, message, Switch, Radio, QRCode, Image } from "antd";
+import { Alert, Button, Drawer, Spin, Tabs, Input, InputNumber, Select, Form, List, Modal, message, Switch, Radio, QRCode, Image } from "antd";
 import {
     ArrowLeft,
     Plus,
@@ -423,6 +423,7 @@ export interface Project {
     style?: string;
     storyStyle?: string;
     scriptType?: string;
+    scriptEpisodeCount?: number;
     aspectRatio?: string;
     episodes: Episode[];
     characters: Character[];
@@ -1040,6 +1041,9 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     const [activeEpisodeId, setActiveEpisodeId] = useState<string>();
     const [saving, setSaving] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+    const [renamingEpisodeId, setRenamingEpisodeId] = useState<string>();
+    const [episodeTitleDraft, setEpisodeTitleDraft] = useState("");
+    const episodeRenameSavingRef = useRef(false);
     const [expandedEpisodeIds, setExpandedEpisodeIds] = useState<Set<string>>(new Set());
     const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
     const [collaborationEnabled, setCollaborationEnabled] = useState(true);
@@ -1200,6 +1204,9 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     title: proj.title,
                     description: proj.summary ?? legacy.description ?? "",
                     style: proj.style ?? legacy.style ?? "",
+                    storyStyle: proj.storyStyle ?? legacy.storyStyle ?? "",
+                    scriptType: proj.scriptType ?? legacy.scriptType ?? "",
+                    scriptEpisodeCount: Number(proj.scriptEpisodeCount ?? legacy.scriptEpisodeCount) || 1,
                     aspectRatio: proj.ratio ?? legacy.aspectRatio ?? "16:9",
                     episodes,
                     characters: (proj.characters ?? legacy.characters ?? []) as Character[],
@@ -1276,6 +1283,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                         style: nextProject.style,
                         ...(nextProject.storyStyle ? { storyStyle: nextProject.storyStyle } : { storyStyle: "" }),
                         ...(nextProject.scriptType ? { scriptType: nextProject.scriptType } : { scriptType: "" }),
+                        scriptEpisodeCount: nextProject.scriptEpisodeCount || 1,
                         ratio: nextProject.aspectRatio,
                         episodes: nextProject.episodes,
                         characters: nextProject.characters,
@@ -1594,6 +1602,47 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         });
     };
 
+    const startEpisodeRename = (episode: Episode) => {
+        if (sidebarCollapsed) setSidebarCollapsed(false);
+        setRenamingEpisodeId(episode.id);
+        setEpisodeTitleDraft(episode.title);
+    };
+
+    const cancelEpisodeRename = () => {
+        setRenamingEpisodeId(undefined);
+        setEpisodeTitleDraft("");
+    };
+
+    const saveEpisodeTitle = async (episode: Episode) => {
+        if (episodeRenameSavingRef.current || renamingEpisodeId !== episode.id) return;
+        const title = episodeTitleDraft.trim();
+        if (!title) {
+            messageApi.warning("剧集名称不能为空");
+            return;
+        }
+        if (title === episode.title.trim()) {
+            cancelEpisodeRename();
+            return;
+        }
+        episodeRenameSavingRef.current = true;
+        try {
+            const saved = await saveProject({ episodes: projectRef.current?.episodes.map((item) => (item.id === episode.id ? { ...item, title } : item)) || [] });
+            if (saved) cancelEpisodeRename();
+        } finally {
+            episodeRenameSavingRef.current = false;
+        }
+    };
+
+    const handleEpisodeRenameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>, episode: Episode) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            void saveEpisodeTitle(episode);
+        } else if (event.key === "Escape") {
+            event.preventDefault();
+            cancelEpisodeRename();
+        }
+    };
+
     if (loading) {
         return (
             <main className="grid h-screen place-items-center bg-background">
@@ -1756,24 +1805,39 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                                         ) : !sidebarCollapsed ? (
                                             <span className="size-8 shrink-0" aria-hidden />
                                         ) : null}
-                                        <button
-                                            type="button"
-                                            onClick={() => setActiveEpisodeId(ep.id)}
-                                            title={sidebarCollapsed ? ep.title : undefined}
-                                            className={cn("min-w-0 flex-1 rounded py-2 text-left transition-colors", sidebarCollapsed ? "px-1 text-center" : "pr-2")}
-                                        >
-                                            {sidebarCollapsed ? (
-                                                <div className="font-medium">{ep.number}</div>
-                                            ) : (
-                                                <>
-                                                    <div className="font-medium truncate">{ep.title}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {ep.script ? `${ep.script.length} 字` : "暂无剧本"}
-                                                        {episodeShots.length > 0 && ` • ${episodeShots.length} 个分镜`}
-                                                    </div>
-                                                </>
-                                            )}
-                                        </button>
+                                        {renamingEpisodeId === ep.id ? (
+                                            <Input
+                                                autoFocus
+                                                size="small"
+                                                aria-label={`重命名${ep.title}`}
+                                                value={episodeTitleDraft}
+                                                onChange={(event) => setEpisodeTitleDraft(event.target.value)}
+                                                onKeyDown={(event) => handleEpisodeRenameKeyDown(event, ep)}
+                                                onBlur={() => void saveEpisodeTitle(ep)}
+                                                onClick={(event) => event.stopPropagation()}
+                                                className="min-w-0 flex-1"
+                                            />
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveEpisodeId(ep.id)}
+                                                onDoubleClick={() => startEpisodeRename(ep)}
+                                                title={sidebarCollapsed ? ep.title : "双击重命名剧集"}
+                                                className={cn("min-w-0 flex-1 rounded py-2 text-left transition-colors", sidebarCollapsed ? "px-1 text-center" : "pr-2")}
+                                            >
+                                                {sidebarCollapsed ? (
+                                                    <div className="font-medium">{ep.number}</div>
+                                                ) : (
+                                                    <>
+                                                        <div className="font-medium truncate">{ep.title}</div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {ep.script ? `${ep.script.length} 字` : "暂无剧本"}
+                                                            {episodeShots.length > 0 && ` • ${episodeShots.length} 个分镜`}
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
                                         {!sidebarCollapsed ? (
                                             <button
                                                 type="button"
@@ -1949,12 +2013,14 @@ function ScriptEditor({
     const [customOptionKind, setCustomOptionKind] = useState<DramaLabStoryOptionKind | null>(null);
     const [customOptionDraft, setCustomOptionDraft] = useState("");
     const [customOptionBusy, setCustomOptionBusy] = useState(false);
-    const [episodeCount, setEpisodeCount] = useState("1");
+    const [episodeCount, setEpisodeCount] = useState(project.scriptEpisodeCount || 1);
     const [scriptLibraryOpen, setScriptLibraryOpen] = useState(false);
     const [scriptLibraryLoading, setScriptLibraryLoading] = useState(false);
     const [scriptLibraryImporting, setScriptLibraryImporting] = useState(false);
     const [scriptLibraryProjects, setScriptLibraryProjects] = useState<ScriptLibraryProject[]>([]);
     const [previewEpisodeId, setPreviewEpisodeId] = useState<string>();
+    const [scriptEpisodeTitleDraft, setScriptEpisodeTitleDraft] = useState("");
+    const scriptEpisodeTitleSavingRef = useRef(false);
 
     type StoryTaskState = { status?: string; error?: string; episodeCount?: number; persistedEpisodeCount?: number; taskId?: string };
     useEffect(() => {
@@ -1962,8 +2028,10 @@ function ScriptEditor({
             storyOutline: project.description || "",
         });
         scriptForm.setFieldsValue({ script: episode?.script || "" });
+        setScriptEpisodeTitleDraft(episode?.title || "");
         setStoryStyle(project.storyStyle || "");
         setScriptType(project.scriptType || "");
+        setEpisodeCount(project.scriptEpisodeCount || 1);
         setPreviewEpisodeId((current) => (current && project.episodes.some((item) => item.id === current) ? current : project.episodes[0]?.id));
     }, [form, scriptForm, project, episode]);
 
@@ -2034,27 +2102,29 @@ function ScriptEditor({
         }
     };
 
-    type StoryOptionPatch = Partial<Pick<Project, "storyStyle" | "scriptType">>;
+    type StoryOptionPatch = Partial<Pick<Project, "storyStyle" | "scriptType" | "scriptEpisodeCount">>;
 
     const saveNow = useCallback(
         (options: SaveOptions = {}, optionPatch: StoryOptionPatch = {}) => {
             const values = form.getFieldsValue();
             const script = scriptForm.getFieldValue("script") || "";
             if (episode) {
-                const updatedEpisodes = project.episodes.map((ep) => (ep.id === episode.id ? { ...ep, script } : ep));
+                const title = scriptEpisodeTitleDraft.trim() || episode.title;
+                const updatedEpisodes = project.episodes.map((ep) => (ep.id === episode.id ? { ...ep, title, script } : ep));
                 return onSave(
                     {
                         description: values.storyOutline || "",
                         episodes: updatedEpisodes,
                         storyStyle: optionPatch.storyStyle ?? storyStyle,
                         scriptType: optionPatch.scriptType ?? scriptType,
+                        scriptEpisodeCount: optionPatch.scriptEpisodeCount ?? episodeCount,
                     },
                     options,
                 );
             }
             return Promise.resolve(false);
         },
-        [episode, form, onSave, project, scriptForm, scriptType, storyStyle],
+        [episode, episodeCount, form, onSave, project, scriptEpisodeTitleDraft, scriptForm, scriptType, storyStyle],
     );
 
     const addScriptEpisode = async () => {
@@ -2071,6 +2141,24 @@ function ScriptEditor({
         }
         const saved = await saveNow({ silent: true });
         if (saved) onActiveEpisodeChange(episodeId);
+    };
+
+    const saveScriptEpisodeTitle = async () => {
+        if (!episode || scriptEpisodeTitleSavingRef.current) return;
+        const title = scriptEpisodeTitleDraft.trim();
+        if (!title) {
+            messageApi.warning("剧集名称不能为空");
+            setScriptEpisodeTitleDraft(episode.title);
+            return;
+        }
+        if (title === episode.title.trim()) return;
+        scriptEpisodeTitleSavingRef.current = true;
+        try {
+            const saved = await saveNow({ silent: true });
+            if (!saved) setScriptEpisodeTitleDraft(episode.title);
+        } finally {
+            scriptEpisodeTitleSavingRef.current = false;
+        }
     };
 
     const scheduleSave = useCallback(
@@ -2167,6 +2255,13 @@ function ScriptEditor({
 
         setGenerating(true);
         try {
+            if (saveTimerRef.current) {
+                clearTimeout(saveTimerRef.current);
+                saveTimerRef.current = null;
+            }
+            setSaveStatus("saving");
+            if (!(await saveNow({ silent: true }))) throw new Error("生成参数保存失败");
+            setSaveStatus("saved");
             messageApi.loading({ content: "AI 正在生成剧本...", key: "generate-script", duration: 0 });
 
             if (!episode) throw new Error("请先选择当前剧集");
@@ -2297,13 +2392,24 @@ function ScriptEditor({
                                                     if (episodeId) onActiveEpisodeChange(episodeId);
                                                 }}
                                             >
-                                                <div className="mb-3 flex items-center gap-3">
+                                                <div className="mb-3 flex flex-wrap items-center gap-3">
+                                                    <Input
+                                                        aria-label="当前剧集标题"
+                                                        value={scriptEpisodeTitleDraft}
+                                                        onChange={(event) => setScriptEpisodeTitleDraft(event.target.value)}
+                                                        onPressEnter={() => void saveScriptEpisodeTitle()}
+                                                        onBlur={() => void saveScriptEpisodeTitle()}
+                                                        placeholder={`第 ${episode.number} 集`}
+                                                        className="min-w-0 flex-1"
+                                                    />
                                                     <Select
-                                                        aria-label="选择当前剧集"
+                                                        aria-label="选择剧集"
                                                         value={episode.id}
                                                         onChange={(value) => void switchScriptEpisode(value)}
-                                                        style={{ minWidth: 220, flex: 1 }}
+                                                        suffixIcon={<ChevronDown className="size-4" />}
+                                                        style={{ width: 48 }}
                                                         options={project.episodes.map((item) => ({ value: item.id, label: item.title || `第 ${item.number} 集` }))}
+                                                        optionRender={(option) => <span>{option.label}</span>}
                                                     />
                                                     <Button aria-label="添加一集" icon={<Plus className="size-4" />} onClick={() => void addScriptEpisode()}>
                                                         添加一集
@@ -2398,13 +2504,45 @@ function ScriptEditor({
                                                 <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>＋ 自定义类型</Option>
                                             </Select>
 
-                                            <Input value={episodeCount} onChange={(event) => setEpisodeCount(event.target.value)} placeholder="集数" style={{ width: 100 }} />
+                                            <InputNumber
+                                                addonBefore="集数"
+                                                aria-label="集数"
+                                                min={1}
+                                                max={100}
+                                                precision={0}
+                                                value={episodeCount}
+                                                onChange={(value) => {
+                                                    const next = Math.max(1, Math.min(100, Math.floor(Number(value) || 1)));
+                                                    setEpisodeCount(next);
+                                                    scheduleSave({ scriptEpisodeCount: next });
+                                                }}
+                                                style={{ width: 130 }}
+                                            />
 
                                             <Button type="primary" icon={<Plus className="size-4" />} onClick={handleGenerateScript} loading={generating} disabled={generating}>
                                                 {generating ? "生成中..." : "生成剧本"}
                                             </Button>
                                             <span id="drama-lab-novel-import-actions" className="inline-flex" />
 
+                                            {customOptionKind ? (
+                                                <div className="order-3 flex flex-wrap items-center gap-2 rounded border border-border bg-muted/30 p-2" role="dialog" aria-label={customOptionKind === "style" ? "添加自定义剧本风格" : "添加自定义剧本类型"}>
+                                                    <Input
+                                                        autoFocus
+                                                        value={customOptionDraft}
+                                                        onChange={(event) => setCustomOptionDraft(event.target.value)}
+                                                        onPressEnter={() => void saveCustomOption()}
+                                                        placeholder={customOptionKind === "style" ? "输入自定义剧本风格" : "输入自定义剧本类型"}
+                                                        maxLength={120}
+                                                        style={{ width: 240 }}
+                                                    />
+                                                    <Button type="primary" size="small" loading={customOptionBusy} onClick={() => void saveCustomOption()}>
+                                                        确定
+                                                    </Button>
+                                                    <Button size="small" disabled={customOptionBusy} onClick={() => setCustomOptionKind(null)}>
+                                                        取消
+                                                    </Button>
+                                                </div>
+                                            ) : null}
                                             <div className="ml-auto flex min-h-5 items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
                                                 {saveStatus === "pending" ? (
                                                     <>
@@ -2428,25 +2566,6 @@ function ScriptEditor({
                                                 ) : null}
                                             </div>
                                         </div>
-                                        {customOptionKind ? (
-                                            <div className="order-3 flex flex-wrap items-center gap-2 rounded border border-border bg-muted/30 p-2" role="dialog" aria-label={customOptionKind === "style" ? "添加自定义剧本风格" : "添加自定义剧本类型"}>
-                                                <Input
-                                                    autoFocus
-                                                    value={customOptionDraft}
-                                                    onChange={(event) => setCustomOptionDraft(event.target.value)}
-                                                    onPressEnter={() => void saveCustomOption()}
-                                                    placeholder={customOptionKind === "style" ? "输入自定义剧本风格" : "输入自定义剧本类型"}
-                                                    maxLength={120}
-                                                    style={{ width: 240 }}
-                                                />
-                                                <Button type="primary" size="small" loading={customOptionBusy} onClick={() => void saveCustomOption()}>
-                                                    确定
-                                                </Button>
-                                                <Button size="small" disabled={customOptionBusy} onClick={() => setCustomOptionKind(null)}>
-                                                    取消
-                                                </Button>
-                                            </div>
-                                        ) : null}
                                         <div className="order-4 border-t border-border pt-4 text-sm text-muted-foreground">
                                             <span className="font-semibold">剧本</span>
                                             <span className="mx-2">·</span>
