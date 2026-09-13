@@ -9,7 +9,7 @@ describe("drama lab storyboard image preview", () => {
 
         expect(source).toContain("preview={{ src: shot.frames[frameType]?.url }}");
         expect(source).toContain("preview={{ src: classicImageUrl }}");
-        expect(source).toContain('data-storyboard-media="image" className="grid h-56 min-h-0 min-w-0 overflow-hidden');
+        expect(source).toContain('data-storyboard-media="image" className="grid h-80 min-h-0 min-w-0 overflow-hidden');
         expect(source).toContain('className="relative h-full min-h-0 min-w-0 overflow-hidden"');
         expect(source).toContain('className="relative min-h-0 min-w-0 flex-1 overflow-hidden"');
         expect(source).toContain('root: "absolute inset-0 block size-full overflow-hidden"');
