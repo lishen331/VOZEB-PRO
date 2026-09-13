@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { requirePracticeTenant } from "@/lib/server/practice-tenant-scope";
+import { requirePracticeTenant } from "@/lib/server/practice-tenant-scope";`r`nimport { requirePracticeAccess } from "@/lib/server/practice-access-service";
 import { ScriptAgentRepository } from "@/lib/server/database/script-agent-repository";
 import { postgresQuery } from "@/lib/server/database/postgres";
 import { getScriptProjectDetail } from "@/lib/server/script-practice-service";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 type ExportFormat = "text" | "fountain" | "fdx" | "storyboard" | "storyboard_csv";
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser(request);
-    if (!user) return response(401, "请先登录");
+    if (!user) return response(401, "请先登录");`r`n    await requirePracticeAccess(user, "script");
     try {
         const scope = await requirePracticeTenant(user, "script");
         const format = new URL(request.url).searchParams.get("format") || "text";
@@ -79,3 +79,4 @@ function failure(error: unknown, fallback: string) {
     const status = error && typeof error === "object" && typeof (error as { status?: unknown }).status === "number" ? (error as { status: number }).status : 500;
     return response(status, status === 500 ? fallback : error instanceof Error ? error.message : fallback);
 }
+
