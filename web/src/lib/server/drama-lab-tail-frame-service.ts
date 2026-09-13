@@ -64,7 +64,7 @@ export async function extractDramaLabTailFrame(input: DramaLabTailFrameExtractio
 
     const taskResult = task.result as Record<string, unknown> | undefined;
     const sourceUrl =
-        [task.result?.url, task.result?.remoteUrl, taskResult?.serverUrl, taskResult?.remoteUrl, taskResult?.dataUrl, taskResult?.storageUrl, task.upstream?.resultUrl]
+        [taskResult?.serverUrl, task.result?.url, taskResult?.storageUrl, task.result?.remoteUrl, taskResult?.remoteUrl, taskResult?.dataUrl, task.upstream?.resultUrl]
             .find((value): value is string => typeof value === "string" && value.trim().length > 0)
             ?.trim() || "";
     if (!isPersistentMediaUrl(sourceUrl)) throw new DramaLabShotGenerationError("当前分镜的视频结果地址不可用，请先同步视频结果", 409);
@@ -417,3 +417,4 @@ function positiveInteger(value: unknown) {
     const number = Math.floor(Number(value));
     return Number.isFinite(number) && number > 0 ? number : undefined;
 }
+
