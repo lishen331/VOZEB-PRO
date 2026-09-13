@@ -22,11 +22,12 @@ const EXECUTION: Record<ScriptRunType, { agent: ScriptAgentKey; artifact: Script
     text_storyboard: { agent: "storyboard_writer", artifact: "text_storyboard", key: "all", confirmation: false },
     asset_prompts: { agent: "asset_prompt_writer", artifact: "asset_prompts", key: "library", confirmation: false },
 };
-export type ScriptExecutionInput = { projectId: string; runId: string; runType: ScriptRunType; input: Record<string, unknown>; origin: string; cookie: string };
+export type ScriptExecutionInput = { projectId: string; runId: string; chatSessionId?: string; runType: ScriptRunType; input: Record<string, unknown>; origin: string; cookie: string };
 type Deps = {
     resolveProfile: (agent: ScriptAgentKey, skills?: string[]) => Promise<ResolvedScriptAgentProfile>;
     callModel: (input: { profile: ResolvedScriptAgentProfile; task: ScriptExecutionInput; responseSchema: Record<string, unknown>; onDelta?: (delta: string) => Promise<void> }) => Promise<Record<string, unknown>>;
     listArtifacts?: ScriptAgentRepository["listLatestArtifacts"];
+    saveChatMessage?: ScriptAgentRepository["saveChatMessage"];
     saveArtifact: (
         scope: PracticeTenantScope,
         input: { id: string; projectId: string; artifactType: string; artifactKey: string; status: string; content: Record<string, unknown>; contentText?: string; sourceRunId: string },
@@ -60,6 +61,9 @@ export class ScriptAgentExecutor {
             },
         });
         await materializeStructuredRows(this.deps, scope, task, structured);
+        if (task.runType === "conversation" && task.chatSessionId && this.deps.saveChatMessage) {
+            await this.deps.saveChatMessage(scope, { id: this.id(), sessionId: task.chatSessionId, projectId: task.projectId, role: "assistant", agentKey: execution.agent, publicContent: publicText(structured) || "", sourceRunId: task.runId });
+        }
         const artifactId = this.id();
         const artifact = await this.deps.saveArtifact(scope, {
             id: artifactId,
@@ -85,6 +89,7 @@ export function createDefaultScriptAgentExecutor(repository: ScriptAgentReposito
         resolveProfile: (agent, skills) => profiles.resolve(agent, skills),
         callModel: callConfiguredModel,
         listArtifacts: (...args) => repository.listLatestArtifacts(...args),
+        saveChatMessage: (...args) => repository.saveChatMessage(...args),
         saveArtifact: (scope, input) => repository.saveArtifact(scope, input),
         replaceChapters: (...args) => repository.replaceChapters(...args),
         replaceEpisodes: (...args) => repository.replaceEpisodes(...args),
@@ -180,7 +185,7 @@ async function materializeStructuredRows(deps: Deps, scope: PracticeTenantScope,
         });
         await deps.replaceChapters(scope, task.projectId, task.runId, chapters);
     }
-    if ((task.runType === "adaptation_bundle" || task.runType === "episode_scripts") && Array.isArray(structured.episodes) && deps.replaceEpisodes) {
+    if ((task.runType === "adaptation_bundle" || task.runType === "episode_scripts" || task.runType === "script_review") && Array.isArray(structured.episodes) && deps.replaceEpisodes) {
         const episodes = structured.episodes.map((value, index) => {
             const row = record(value);
             return { episodeNumber: Number(row.episodeNumber || row.episodeIndex || index + 1), title: String(row.title || `第${index + 1}集`), outline: record(row.outline), script: record(row.script || row.screenplay) };
@@ -225,7 +230,7 @@ function responseSchemaFor(runType: ScriptRunType): Record<string, unknown> {
         case "episode_scripts":
             return objectSchema({ content: textProperty("分集剧本生成摘要"), episodes: episodeArray(true) }, ["content", "episodes"]);
         case "script_review":
-            return objectSchema({ report: textProperty("审核、自动修正和重大待确认项") }, ["report"]);
+            return objectSchema({ report: textProperty("审核、自动修正和重大待确认项"), episodes: episodeArray(true) }, ["report", "episodes"]);
         case "director_plan":
             return textResult("导演文字规划");
         case "text_storyboard":

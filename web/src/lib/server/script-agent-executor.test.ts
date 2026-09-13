@@ -65,6 +65,32 @@ describe("ScriptAgentExecutor", () => {
         expect(schemas.every((schema) => Array.isArray(schema.required) && schema.required.length > 0)).toBe(true);
     });
 
+    it("persists the public assistant reply for a chat Run", async () => {
+        const saveChatMessage = vi.fn().mockResolvedValue({ id: "message-a" });
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "orchestrator", name: "统筹", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "统筹" }),
+            callModel: vi.fn().mockResolvedValue({ content: "我们先确认短片时长。" }),
+            saveArtifact: vi.fn().mockResolvedValue({ id: "artifact" }),
+            saveChatMessage,
+            appendEvent: vi.fn(),
+        };
+        await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-chat", chatSessionId: "chat-a", runType: "conversation", input: {}, origin: "https://local", cookie: "session" });
+        expect(saveChatMessage).toHaveBeenCalledWith(scope, expect.objectContaining({ sessionId: "chat-a", role: "assistant", agentKey: "orchestrator", publicContent: "我们先确认短片时长。" }));
+    });
+
+    it("materializes supervisor revisions before saving its review report", async () => {
+        const replaceEpisodes = vi.fn();
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "script_supervisor", name: "编辑", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "审核" }),
+            callModel: vi.fn().mockResolvedValue({ report: "已修正", episodes: [{ episodeNumber: 1, title: "归来", script: { blocks: [{ type: "action", text: "修订正文" }] } }] }),
+            saveArtifact: vi.fn().mockResolvedValue({ id: "report" }),
+            replaceEpisodes,
+            appendEvent: vi.fn(),
+        };
+        await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-review", runType: "script_review", input: {}, origin: "https://local", cookie: "session" });
+        expect(replaceEpisodes).toHaveBeenCalledWith(scope, "project-a", "run-review", [expect.objectContaining({ episodeNumber: 1, script: expect.objectContaining({ blocks: expect.any(Array) }) })]);
+    });
+
     it("renders complete episode scripts, storyboard shots and prompt assets as visible text", async () => {
         const episode = await runForVisibleText("episode_scripts", {
             content: "完成",
@@ -88,7 +114,23 @@ describe("ScriptAgentExecutor", () => {
             episodes: [
                 {
                     episodeNumber: 1,
-                    shots: [{ sceneId: "scene-1", shotNumber: 1, visualDescription: "她推门", shotSize: "中景", cameraAngle: "平视", composition: "居中", cameraMovement: "推进", characterIds: [], action: "推门", emotion: "坚定", durationSeconds: 3, characterAssetIds: [], propAssetIds: [] }],
+                    shots: [
+                        {
+                            sceneId: "scene-1",
+                            shotNumber: 1,
+                            visualDescription: "她推门",
+                            shotSize: "中景",
+                            cameraAngle: "平视",
+                            composition: "居中",
+                            cameraMovement: "推进",
+                            characterIds: [],
+                            action: "推门",
+                            emotion: "坚定",
+                            durationSeconds: 3,
+                            characterAssetIds: [],
+                            propAssetIds: [],
+                        },
+                    ],
                 },
             ],
         });
