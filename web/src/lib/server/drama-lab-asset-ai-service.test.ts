@@ -28,7 +28,18 @@ const project = {
     props: [],
     clues: [],
     defaultVideoMode: "storyboard" as const,
-    episodes: [{ id: "episode-one", title: "第一集", script: "", outline: "", hook: "", nextPreview: "", sourceRange: "", reviewStatus: "draft" as const, shots: [] }],
+    episodes: Array.from({ length: 6 }, (_, index) => ({
+        id: `episode-${index + 1}`,
+        title: `第${index + 1}集`,
+        episodeNumber: index + 1,
+        script: index === 0 ? "角色换上白衣" : "剧情推进",
+        outline: "",
+        hook: "",
+        nextPreview: "",
+        sourceRange: "",
+        reviewStatus: "draft" as const,
+        shots: [],
+    })),
     activeEpisodeId: "episode-one",
     createdAt: "2026-09-12T00:00:00.000Z",
     updatedAt: "2026-09-12T00:00:00.000Z",
@@ -80,5 +91,9 @@ describe("drama lab asset AI service", () => {
                 { episodeRange: [4, 6], appearance: "深色风衣" },
             ]),
         });
+        const call = mocks.requestStructuredText.mock.calls[0]?.[0];
+        expect(call.messages[0].content).toContain("影视角色连续性设计师");
+        expect(call.messages[1].content).toContain("角色换上白衣");
+        expect(call.messages[1].content).toContain("阶段数量 1-6 个");
     });
 });

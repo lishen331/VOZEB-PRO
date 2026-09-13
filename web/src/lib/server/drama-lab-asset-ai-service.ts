@@ -39,11 +39,14 @@ export async function runDramaLabAssetAiAction(input: DramaLabAssetAiInput) {
     const model = (needsVision ? settings.defaultModels.visionModel : settings.defaultModels.textModel)?.trim() || "";
     const candidates = needsVision ? resolveVisionModelCandidates(settings, model) : resolveLogicalModelCandidates(settings, "text", model);
     if (!model || !candidates.length) throw new DramaLabAssetAiError(needsVision ? "后台尚未配置可用的多模态视觉模型" : "后台尚未配置可用的默认文本模型", 503);
-    const assetText = JSON.stringify({
-        kind: input.kind,
-        asset: { name: asset.name, description: asset.description, appearance: asset.appearance, role: asset.role, type: asset.type, time: asset.time, imagePrompt: asset.imagePrompt, profile: asset.profile },
-        project: { style: input.project.style, ...dramaLabStyleContext(input.project.style), ratio: input.project.ratio },
-    });
+    const assetText =
+        input.action === "stages"
+            ? characterStagesPrompt(input.project, asset)
+            : JSON.stringify({
+                  kind: input.kind,
+                  asset: { name: asset.name, description: asset.description, appearance: asset.appearance, role: asset.role, type: asset.type, time: asset.time, imagePrompt: asset.imagePrompt, profile: asset.profile },
+                  project: { style: input.project.style, ...dramaLabStyleContext(input.project.style), ratio: input.project.ratio },
+              });
     const tool = actionTool(input.action);
     const mediaInputs = needsVision && referenceUrl ? [{ type: "image" as const, url: await readImageDataUrl(referenceUrl, input.origin, input.cookie) }] : undefined;
     let latest: unknown;
@@ -70,7 +73,7 @@ export async function runDramaLabAssetAiAction(input: DramaLabAssetAiInput) {
                 const finalPrompt = buildDramaLabAssetFinalPrompt({ style: input.project.style, aspectRatio: input.project.ratio }, { ...asset, generationLayout: layout }, input.kind, description);
                 return input.kind === "scenes" && layout === "single" ? { singleImagePrompt: finalPrompt, polishedPrompt: asset.polishedPrompt || "" } : { polishedPrompt: finalPrompt, singleImagePrompt: asset.singleImagePrompt || "" };
             }
-            return normalizeActionResult(input.action, parsed);
+            return normalizeActionResult(input.action, parsed, input.project);
         } catch (error) {
             latest = error;
         }
@@ -111,9 +114,31 @@ Rules:
 - If information is missing for a field, write "unspecified"
 - Output ONLY the JSON object, no markdown, no explanation`;
     if (action === "anchor") return "你是视觉资产分析师。根据文字设定和参考图提炼可复用的视觉锚点，必须返回视觉识别、造型与材质、固定色彩、一致性规则。只返回工具 JSON。";
-    return "你是角色造型设计师。根据角色设定生成分集阶段造型 JSON 数组，只返回工具 JSON。";
+    return "你是影视角色连续性设计师。只输出可解析的 JSON 数组，保证字段类型正确、内容具体且便于图像模型执行。";
 }
 
+function characterStagesPrompt(project: DramaProject, asset: DramaProject["characters"][number]) {
+    const episodeContext = project.episodes
+        .slice(0, 20)
+        .map((episode, index) => {
+            const script = episode.script.replace(/\s+/g, " ").trim().slice(0, 700);
+            return `第${episode.episodeNumber || index + 1}集《${episode.title || ""}》：${script}`;
+        })
+        .join("\n");
+    const anchorText = asset.profile ? JSON.stringify(asset.profile).slice(0, 1800) : "暂无视觉锚点";
+    const baseAppearance = [asset.appearance, asset.description].filter(Boolean).join("；") || asset.name || "未命名角色";
+    return `请为短剧角色设计跨分集的多阶段造型，返回严格 JSON 数组，不要 Markdown、解释或额外字段。
+
+剧名：${project.title || "未命名短剧"}
+角色：${asset.name || "未命名"}（${asset.role || "角色"}）
+基础外貌：${baseAppearance}
+视觉锚点：${anchorText}
+分集剧情：
+${episodeContext || "暂无分集剧本，请按角色成长阶段合理设计。"}
+
+输出格式：[{"episodeRange":[起始集,结束集],"appearance":"该阶段完整、可用于生图的外貌与服装描述"}]
+要求：覆盖 1 至剧情最后一集；阶段数量 1-6 个；相邻阶段的身份、发型、体型和核心识别特征保持一致，只在剧情需要时改变服装、妆容、道具或状态；episodeRange 必须是两个正整数。`;
+}
 function actionTool(action: DramaLabAssetAiAction) {
     if (action === "describe")
         return {
@@ -167,7 +192,7 @@ function actionTool(action: DramaLabAssetAiAction) {
     };
 }
 
-function normalizeActionResult(action: DramaLabAssetAiAction, value: Record<string, unknown>) {
+function normalizeActionResult(action: DramaLabAssetAiAction, value: Record<string, unknown>, project: DramaProject) {
     if (action === "describe") return { appearance: text(value.appearance) };
     if (action === "prompt") return { polishedPrompt: typeof value.polishedPrompt === "string" ? value.polishedPrompt.trim() : "" };
     if (action === "anchor") {
@@ -187,14 +212,24 @@ function normalizeActionResult(action: DramaLabAssetAiAction, value: Record<stri
             } satisfies DramaAssetProfile,
         };
     }
+    const maxEpisode = project.episodes.length ? Math.max(...project.episodes.map((episode, index) => Number(episode.episodeNumber) || index + 1)) : 1;
     const stages = Array.isArray(value.stages)
-        ? value.stages.flatMap((item) => {
-              if (!item || typeof item !== "object") return [];
-              const v = item as Record<string, unknown>;
-              const range = Array.isArray(v.episodeRange) ? v.episodeRange.map(Number) : [];
-              const appearance = text(v.appearance);
-              return range.length === 2 && range.every((n) => Number.isFinite(n) && n >= 1) && appearance ? [{ episodeRange: [Math.floor(range[0]), Math.floor(range[1])] as [number, number], appearance }] : [];
-          })
+        ? value.stages
+              .flatMap((item) => {
+                  if (!item || typeof item !== "object") return [];
+                  const v = item as Record<string, unknown>;
+                  const range = Array.isArray(v.episodeRange) ? v.episodeRange.map(Number) : [];
+                  const appearance = text(v.appearance ?? v.description);
+                  if (range.length !== 2 || !appearance) return [];
+                  let start = Math.max(1, Math.round(Number(range[0]) || 1));
+                  let end = Math.max(start, Math.round(Number(range[1]) || start));
+                  if (project.episodes.length) {
+                      start = Math.min(start, maxEpisode);
+                      end = Math.min(Math.max(end, start), maxEpisode);
+                  }
+                  return [{ episodeRange: [start, end] as [number, number], appearance }];
+              })
+              .slice(0, 6)
         : [];
     return { stages: stages as DramaAssetStage[] };
 }

@@ -1,7 +1,8 @@
-﻿import { validateDramaLabUniversalVideoPrompt } from "@/lib/drama-lab-universal-video";
+import { validateDramaLabUniversalVideoPrompt } from "@/lib/drama-lab-universal-video";
 import { resolveDramaLabStylePrompt, renderDramaLabFrameTemplate } from "@/lib/drama-lab-style-prompt";
 import type { DramaAssetReference, DramaEpisode, DramaProject, DramaShot, DramaShotFrameSource, DramaShotFrameType, DramaShotGenerationHistory, DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
 import { dramaAssetPrimaryReference, dramaShotAssetReferences } from "@/lib/drama-asset-references";
+import { boundCharacterStageContext } from "@/lib/drama-lab-character-stages";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
 import { DramaProjectStoreError, getDramaProject, updateDramaProject } from "@/lib/server/drama-project-store";
 import type { VideoReferenceRole } from "@/lib/video-reference-contract";
@@ -376,6 +377,7 @@ function shotGenerationContext(project: DramaProject, episode: DramaEpisode, sho
     const characters = shot.characterIds.flatMap((id) => project.characters.find((asset) => asset.id === id) || []);
     const props = shot.propIds.flatMap((id) => project.props.find((asset) => asset.id === id) || []);
     const asset = (item: { name: string; description: string }) => `${item.name}${item.description ? `：${item.description}` : ""}`;
+    const stageContext = boundCharacterStageContext(characters, episode);
     return [
         "【当前项目与镜头上下文】",
         `项目：${project.title}`,
@@ -384,6 +386,7 @@ function shotGenerationContext(project: DramaProject, episode: DramaEpisode, sho
         `风格正文（中文）：${resolveDramaLabStylePrompt(project.style).zh}`,
         `风格正文（英文）：${resolveDramaLabStylePrompt(project.style).en}`,
         `画幅比例：${project.ratio}`,
+        stageContext,
         `分镜：${shot.title}`,
         `镜头内容：${shot.description || shot.sourceText}`,
         shot.shotType ? `景别：${shot.shotType}` : "",

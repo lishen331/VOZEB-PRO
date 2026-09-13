@@ -1,4 +1,5 @@
 import { dramaLabStyleContext, renderDramaLabFrameTemplate } from "@/lib/drama-lab-style-prompt";
+import { boundCharacterStageContext } from "@/lib/drama-lab-character-stages";
 import type { DramaProject, DramaShot, DramaShotFrameType } from "@/lib/drama-project-contract";
 import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
@@ -23,7 +24,7 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
     const template = await resolveDramaLabPrompt(promptKey);
     const previousShot = previousDramaLabShot(episode.shots, shot);
     const references = buildDramaLabFrameReferences(input.project, shot, input.frameType, previousShot);
-    const context = frameContext(input.project, episode.title, shot, input.frameType, previousShot);
+    const context = frameContext(input.project, episode, shot, input.frameType, previousShot);
     const systemPrompt = withDramaLabPromptContract(
         `${renderDramaLabFrameTemplate(template.template, input.project)}\n\n${context}`,
         `只返回 JSON 对象，字段严格为 prompt 和 description。prompt 必须是可直接交给图片模型的中文提示词。只允许本镜 characterIds 中角色，不得引入未绑定资产；角色外貌只能引用参考图；场景必须是纯空间描述；道具必须符合时代真实尺度。${input.frameType === "last" ? "尾帧必须读取首帧布局并根据 declared movement 做自然取景演化。" : ""}`,
@@ -101,11 +102,14 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
     throw latestError instanceof Error ? latestError : new DramaLabShotGenerationError("帧提示词规划失败", 502);
 }
 
-function frameContext(project: DramaProject, episodeTitle: string, shot: DramaShot, frameType: DramaShotFrameType, previousShot?: DramaShot) {
+function frameContext(project: DramaProject, episode: DramaProject["episodes"][number], shot: DramaShot, frameType: DramaShotFrameType, previousShot?: DramaShot) {
+    const characters = shot.characterIds.flatMap((id) => project.characters.find((asset) => asset.id === id) || []);
+    const stageContext = boundCharacterStageContext(characters, episode);
     return [
         "【短剧实验室帧提示词上下文】",
         `项目：${project.title}`,
-        `剧集：${episodeTitle}`,
+        `剧集：${episode.title}`,
+        stageContext,
         `风格：${project.style || "未设置"}`,
         `比例：${project.ratio}`,
         `帧类型：${frameType}`,
