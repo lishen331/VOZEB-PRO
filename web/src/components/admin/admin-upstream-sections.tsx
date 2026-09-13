@@ -428,7 +428,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                     );
                 })}
             </div>
-            {false ? (
+            {selectedPlugin === "drama-lab" ? (
                 <Modal open={selectedPlugin === "drama-lab"} title="创作工坊 · 子功能配置" footer={null} onCancel={() => setSelectedPlugin(undefined)}>
                     <div className="flex items-center justify-between gap-4 rounded-md border border-stone-200 p-4">
                         <div>
