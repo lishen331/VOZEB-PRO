@@ -4935,8 +4935,10 @@ function StoryboardPanel({
                 const checkpointCount = checkpoint?.episodeId === episode.id && Number.isFinite(Number(checkpoint.shotCount)) ? Number(checkpoint.shotCount) : 0;
                 if (checkpointCount > lastExtractionCheckpointRef.current) {
                     lastExtractionCheckpointRef.current = checkpointCount;
-                    if (checkpoint?.shots?.length) onCheckpoint(episode.id, checkpoint.shots);
-                    else await onReload({ silent: true });
+                    if (checkpoint?.shots?.length) {
+                        onCheckpoint(episode.id, checkpoint.shots);
+                        await onReload({ silent: true });
+                    } else await onReload({ silent: true });
                 }
                 if (status === "success") break;
                 if (status === "error" || status === "cancelled") throw new Error(statusData.data.error || (status === "cancelled" ? "分镜提取任务已取消" : "分镜提取失败"));
