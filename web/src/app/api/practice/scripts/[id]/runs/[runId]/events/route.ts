@@ -59,16 +59,18 @@ export async function GET(request: Request, context: Context) {
                     const items = await repository.listRunItems(scope, id, runId);
                     const item = items.find((entry) => entry.status === "queued");
                     if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "running" });
-                    const result = await executor.execute(scope, {
-                        projectId: id,
-                        runId,
-                        chatSessionId: claimed.chatSessionId,
-                        runType: claimed.runType,
-                        input: claimed.configSnapshot,
-                        origin: resolveInternalOrigin(new URL(request.url).origin),
-                        cookie: request.headers.get("cookie") || "",
-                        signal: executionController.signal,
-                    }).finally(() => clearInterval(stopMonitor));
+                    const result = await executor
+                        .execute(scope, {
+                            projectId: id,
+                            runId,
+                            chatSessionId: claimed.chatSessionId,
+                            runType: claimed.runType,
+                            input: claimed.configSnapshot,
+                            origin: resolveInternalOrigin(new URL(request.url).origin),
+                            cookie: request.headers.get("cookie") || "",
+                            signal: executionController.signal,
+                        })
+                        .finally(() => clearInterval(stopMonitor));
                     const current = await repository.getRun(scope, id, runId);
                     if (current?.status !== "stopped") {
                         if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "success", artifactId: result.artifactId });

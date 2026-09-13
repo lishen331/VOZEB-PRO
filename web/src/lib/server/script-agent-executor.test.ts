@@ -9,7 +9,13 @@ function validOutput(runType: string): Record<string, unknown> {
     if (runType === "short_story") return { title: "故事", content: "完整正文" };
     if (runType === "adaptation_bundle") return { content: "改编", episodes: [{ episodeNumber: 1, title: "第一集", outline: { core: "冲突" } }] };
     if (runType === "episode_scripts" || runType === "script_review") return { content: "剧本", report: "审核", episodes: [{ episodeNumber: 1, title: "第一集", script: { blocks: [{ type: "action", text: "正文" }] } }] };
-    if (runType === "text_storyboard") return { content: "分镜", episodes: [{ episodeNumber: 1, shots: [{ sceneId: "scene-1", shotNumber: 1, visualDescription: "推门", shotSize: "中景", cameraAngle: "平视", composition: "居中", cameraMovement: "推进", action: "推门", emotion: "坚定", durationSeconds: 3 }] }] };
+    if (runType === "text_storyboard")
+        return {
+            content: "分镜",
+            episodes: [
+                { episodeNumber: 1, shots: [{ sceneId: "scene-1", shotNumber: 1, visualDescription: "推门", shotSize: "中景", cameraAngle: "平视", composition: "居中", cameraMovement: "推进", action: "推门", emotion: "坚定", durationSeconds: 3 }] },
+            ],
+        };
     if (runType === "asset_prompts") return { content: "资产", assets: [{ type: "character", name: "女主", prompt: "都市女性" }] };
     return { content: "ok" };
 }
@@ -32,10 +38,7 @@ async function runForVisibleText(runType: "episode_scripts" | "text_storyboard" 
 }
 describe("ScriptAgentExecutor", () => {
     it("uses the real streaming protocol adapter against an upstream short-story fixture", async () => {
-        const upstreamEvents = [
-            { choices: [{ delta: { content: '{"title":"雨夜",' } }] },
-            { choices: [{ delta: { content: '"content":"完整小说正文"}' } }] },
-        ];
+        const upstreamEvents = [{ choices: [{ delta: { content: '{"title":"雨夜",' } }] }, { choices: [{ delta: { content: '"content":"完整小说正文"}' } }] }];
         const fixture = new Response(upstreamEvents.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("") + "data: [DONE]\n\n", { headers: { "content-type": "text/event-stream" } });
         vi.mocked(fetchInternalApi).mockImplementation(async () => fixture.clone());
         let saved: Record<string, unknown> | undefined;
@@ -54,8 +57,26 @@ describe("ScriptAgentExecutor", () => {
         const executor = createDefaultScriptAgentExecutor(repository as never);
         const profiles = await import("./script-agent-profiles");
         vi.spyOn(profiles.ScriptAgentProfileService.prototype, "resolve").mockResolvedValueOnce({
-            profile: { agentKey: "novel_writer", name: "小说作者", enabled: true, primaryLogicalModelId: "writer", fallbackLogicalModelId: "", reasoningMode: "medium", outputPolicy: {}, timeoutConfig: {}, batchConfig: {}, toolAllowlist: [], skillBindings: [], version: 1 },
-            candidate: { logicalModelId: "writer", upstreamModel: "deepseek-chat", channelId: "practice-channel", channel: { id: "practice-channel", enabled: true, purpose: "open-source-practice", baseUrl: "https://fixture.invalid/v1", apiKey: "hidden", apiFormat: "newapi", models: ["deepseek-chat"], advancedConfig: {} } as never },
+            profile: {
+                agentKey: "novel_writer",
+                name: "小说作者",
+                enabled: true,
+                primaryLogicalModelId: "writer",
+                fallbackLogicalModelId: "",
+                reasoningMode: "medium",
+                outputPolicy: {},
+                timeoutConfig: {},
+                batchConfig: {},
+                toolAllowlist: [],
+                skillBindings: [],
+                version: 1,
+            },
+            candidate: {
+                logicalModelId: "writer",
+                upstreamModel: "deepseek-chat",
+                channelId: "practice-channel",
+                channel: { id: "practice-channel", enabled: true, purpose: "open-source-practice", baseUrl: "https://fixture.invalid/v1", apiKey: "hidden", apiFormat: "newapi", models: ["deepseek-chat"], advancedConfig: {} } as never,
+            },
             instructions: "输出完整小说体短故事",
         });
         await executor.execute(scope, { projectId: "project-a", runId: "run-fixture", runType: "short_story", input: { idea: "雨夜重生" }, origin: "https://local", cookie: "session" });

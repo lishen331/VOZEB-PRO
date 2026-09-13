@@ -40,7 +40,9 @@ export class ScriptAgentProfileService {
                 version: 1,
             } satisfies ScriptAgentProfileRecord);
         if (!profile.enabled) throw new ScriptAgentProfileError("当前剧本 Agent 已停用", 503);
-        const candidates = [profile.primaryLogicalModelId, profile.fallbackLogicalModelId, settings.practiceScriptSettings.defaultModelId, settings.practiceScriptSettings.fallbackModelId, settings.practiceDefaultModels.textModel].filter((modelId): modelId is string => Boolean(modelId));
+        const candidates = [profile.primaryLogicalModelId, profile.fallbackLogicalModelId, settings.practiceScriptSettings.defaultModelId, settings.practiceScriptSettings.fallbackModelId, settings.practiceDefaultModels.textModel].filter(
+            (modelId): modelId is string => Boolean(modelId),
+        );
         const candidate = candidates.map((modelId) => resolveLogicalModel(settings, "text", modelId, profile.endpointId || "", "open-source-practice")).find(Boolean);
         if (!candidate || candidate.channel.purpose === "production") throw new ScriptAgentProfileError(`${profile.name}没有可用的无限练习文本模型`, 503);
         return { profile, candidate, instructions: compileScriptAgentInstructions(agentKey, [...profile.skillBindings, ...selectedSkillIds]) };

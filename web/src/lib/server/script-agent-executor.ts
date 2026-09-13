@@ -150,12 +150,17 @@ function assertStructuredResult(runType: ScriptRunType, value: Record<string, un
     if ((runType === "conversation" || runType === "project_planning" || runType === "director_plan") && !publicText(value)?.trim()) throw new Error("剧本模型返回结果缺少当前阶段正文");
     if (runType === "short_story" && (!text(value.title) || !text(value.content))) throw new Error("剧本模型返回结果缺少完整小说体故事");
     if ((runType === "novel_outlines" || runType === "novel_chapters") && !(value.chapters as unknown[]).every(validChapter)) throw new Error("剧本模型返回的章节结构不完整");
-    if ((runType === "adaptation_bundle" || runType === "episode_scripts" || runType === "script_review") && !(value.episodes as unknown[]).every((entry) => validEpisode(entry, runType !== "adaptation_bundle"))) throw new Error("剧本模型返回的分集结构不完整");
+    if ((runType === "adaptation_bundle" || runType === "episode_scripts" || runType === "script_review") && !(value.episodes as unknown[]).every((entry) => validEpisode(entry, runType !== "adaptation_bundle")))
+        throw new Error("剧本模型返回的分集结构不完整");
     if (runType === "text_storyboard" && !(value.episodes as unknown[]).every(validStoryboardEpisode)) throw new Error("剧本模型返回的文字分镜结构不完整");
-    if (runType === "asset_prompts" && !(value.assets as unknown[]).every((entry) => {
-        const asset = record(entry);
-        return ["character", "location", "prop"].includes(String(asset.type)) && Boolean(text(asset.name)) && Boolean(text(asset.prompt));
-    })) throw new Error("剧本模型返回的资产提示词结构不完整");
+    if (
+        runType === "asset_prompts" &&
+        !(value.assets as unknown[]).every((entry) => {
+            const asset = record(entry);
+            return ["character", "location", "prop"].includes(String(asset.type)) && Boolean(text(asset.name)) && Boolean(text(asset.prompt));
+        })
+    )
+        throw new Error("剧本模型返回的资产提示词结构不完整");
 }
 function validChapter(value: unknown) {
     const chapter = record(value);
@@ -170,10 +175,15 @@ function validEpisode(value: unknown, withScript: boolean) {
 }
 function validStoryboardEpisode(value: unknown) {
     const episode = record(value);
-    return positiveInteger(episode.episodeNumber) && Array.isArray(episode.shots) && episode.shots.length > 0 && episode.shots.every((entry) => {
-        const shot = record(entry);
-        return positiveInteger(shot.shotNumber) && Number(shot.durationSeconds) > 0 && ["sceneId", "visualDescription", "shotSize", "cameraAngle", "composition", "cameraMovement", "action", "emotion"].every((key) => Boolean(text(shot[key])));
-    });
+    return (
+        positiveInteger(episode.episodeNumber) &&
+        Array.isArray(episode.shots) &&
+        episode.shots.length > 0 &&
+        episode.shots.every((entry) => {
+            const shot = record(entry);
+            return positiveInteger(shot.shotNumber) && Number(shot.durationSeconds) > 0 && ["sceneId", "visualDescription", "shotSize", "cameraAngle", "composition", "cameraMovement", "action", "emotion"].every((key) => Boolean(text(shot[key])));
+        })
+    );
 }
 function positiveInteger(value: unknown) {
     return Number.isSafeInteger(value) && Number(value) > 0;
