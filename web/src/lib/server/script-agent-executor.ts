@@ -121,7 +121,19 @@ export class ScriptAgentExecutor {
                 ...task.input,
                 context: context.map(publicArtifactContext),
                 ...(projectContext ? { projectContext, carrierInstructions, qualityChecklist: ["起承转合", "至少一次因果转折", "修辞自然", "总时长不超过目标"] } : {}),
-                ...(task.runType === "conversation" ? { workflowContext: { nextRunType: nextShortFilmRunType(context), locked: true } } : {}),
+                ...(task.runType === "conversation" || task.runType === "project_planning"
+                    ? {
+                          workflowContext: { nextRunType: nextShortFilmRunType(context), locked: true },
+                          interactionPolicy: {
+                              maxQuestionsPerTurn: 1,
+                              deferProductionParameters: true,
+                              conversational: true,
+                              earlyDiscovery: task.runType === "conversation",
+                              forbidden: ["一次性列出 1–9 项问题", "把创意探索写成表格", "输出执行与保存要求", "输出私有思维链", "暴露原始项目上下文"],
+                              responseShape: "先用一小段话复述理解，再给一个建议或一个问题；不要输出编号长清单。",
+                          },
+                      }
+                    : {}),
                 ...(chatHistory.length ? { chatHistory: chatHistory.map(publicChatMessage) } : {}),
             },
         };
@@ -134,6 +146,7 @@ export class ScriptAgentExecutor {
             },
         });
         assertStructuredResult(task.runType, structured);
+        await this.deps.appendEvent(scope, task.projectId, task.runId, "progress", { phase: "saving", label: publicSaveLabel(task.runType) }, this.id());
         if (task.runType === "text_storyboard" && project) assertStoryboardDuration(structured, project.project_parameters);
         await materializeStructuredRows(this.deps, scope, task, structured);
         if (task.runType === "conversation" && task.chatSessionId && this.deps.saveChatMessage) {
@@ -403,6 +416,12 @@ function publicPhase(runType: ScriptRunType) {
     if (runType === "script_review") return "reviewing";
     if (["text_storyboard", "asset_prompts"].includes(runType)) return "storyboarding";
     return "saving";
+}
+function publicSaveLabel(runType: ScriptRunType) {
+    if (runType === "conversation") return "正在整理回复并保存到当前对话";
+    if (runType === "script_review") return "正在整理审核结果与修订版本";
+    if (runType === "text_storyboard") return "正在整理镜头表并检查时长";
+    return "正在整理成果并保存到剧本工作区";
 }
 function publicPhaseLabel(runType: ScriptRunType) {
     const labels: Partial<Record<ScriptRunType, string>> = {

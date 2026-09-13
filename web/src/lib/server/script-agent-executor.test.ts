@@ -252,6 +252,31 @@ describe("ScriptAgentExecutor", () => {
         expect(schemas.every((schema) => Array.isArray(schema.required) && schema.required.length > 0)).toBe(true);
     });
 
+    it("passes the conversational discovery policy to the orchestrator", async () => {
+        const callModel = vi.fn().mockResolvedValue({ content: "你想把重点放在游乐项目还是同行互动？" });
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "orchestrator", name: "统筹", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "统筹" }),
+            callModel,
+            saveArtifact: vi.fn().mockResolvedValue({ id: "conversation" }),
+            appendEvent: vi.fn(),
+        };
+        await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-discovery", runType: "conversation", input: { message: "我想去游乐场玩" }, origin: "https://local", cookie: "session" });
+        expect(callModel.mock.calls[0]?.[0].task.input.interactionPolicy).toMatchObject({ maxQuestionsPerTurn: 1, deferProductionParameters: true });
+        expect(callModel.mock.calls[0]?.[0].task.input.interactionPolicy.forbidden).toContain("一次性列出 1–9 项问题");
+    });
+
+    it("applies the same one-question policy while preparing creative positioning", async () => {
+        const callModel = vi.fn().mockResolvedValue({ content: "你想让这次游玩更偏刺激，还是更偏朋友间的互动？" });
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "novel_planner", name: "策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "策划" }),
+            callModel,
+            saveArtifact: vi.fn().mockResolvedValue({ id: "positioning" }),
+            appendEvent: vi.fn(),
+        };
+        await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-positioning", runType: "project_planning", input: { idea: "我想去游乐场玩" }, origin: "https://local", cookie: "session" });
+        expect(callModel.mock.calls[0]?.[0].task.input.interactionPolicy).toMatchObject({ maxQuestionsPerTurn: 1, deferProductionParameters: true });
+    });
+
     it("persists the public assistant reply for a chat Run", async () => {
         const saveChatMessage = vi.fn().mockResolvedValue({ id: "message-a" });
         const deps = {

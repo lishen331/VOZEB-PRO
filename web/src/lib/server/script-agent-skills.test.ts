@@ -32,6 +32,16 @@ describe("screenwriter Agent skills", () => {
         expect(inferShortFilmSkillInput("介绍这款产品，拍成广告")).toMatchObject({ purpose: "product_seeding" });
     });
 
+    it("keeps early creative discovery conversational and asks at most one question", () => {
+        const orchestrator = compileScriptAgentInstructions("orchestrator");
+        const planner = compileScriptAgentInstructions("novel_planner");
+        expect(orchestrator).toContain("一次只问一个");
+        expect(orchestrator).toContain("不要一次性列出 1–9 项");
+        expect(orchestrator).toContain("制作参数后置");
+        expect(planner).toContain("一个待回答问题");
+        expect(planner).toContain("制作参数");
+    });
+
     it("never exposes a media-generation tool in a default profile", () => {
         const forbidden = /image|video|audio|dubbing|生图|视频生成|配音/i;
         for (const profile of scriptAgentProfileDefaults()) expect(profile.toolAllowlist.join(" ")).not.toMatch(forbidden);
