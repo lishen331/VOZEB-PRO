@@ -71,6 +71,9 @@ export const practiceScriptsApi = {
     createChatSession(id: string, title = "新对话") {
         return request<{ id: string; title: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/chat-sessions`, json("POST", { title }));
     },
+    renameChatSession(id: string, sessionId: string, title: string) {
+        return request<{ id: string; title: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/chat-sessions/${encodeURIComponent(sessionId)}`, json("PATCH", { title }));
+    },
     chatMessages(id: string, sessionId: string) {
         return request<Array<{ id: string; role: string; agent_key?: string; public_content: string }>>(`/api/practice/scripts/${encodeURIComponent(id)}/chat-sessions/${encodeURIComponent(sessionId)}/messages`);
     },

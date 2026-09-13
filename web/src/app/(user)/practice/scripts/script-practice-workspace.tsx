@@ -29,6 +29,9 @@ export default function ScriptPracticeWorkspace() {
     const [preview, setPreview] = useState("");
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [chatSessionId, setChatSessionId] = useState("");
+    const [sessionTitle, setSessionTitle] = useState("");
+    const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
+    const [renameTitle, setRenameTitle] = useState("");
     const [draft, setDraft] = useState("");
     const [runId, setRunId] = useState("");
     const [runError, setRunError] = useState("");
@@ -52,6 +55,8 @@ export default function ScriptPracticeWorkspace() {
         setRunError("");
         setPublicProgress("");
         setChatSessionId("");
+        setSessionTitle("");
+        setSessionMenuOpen(false);
         selectedIdRef.current = id;
         setSelectedId(id);
     }, []);
@@ -90,6 +95,7 @@ export default function ScriptPracticeWorkspace() {
             const sessions = await practiceScriptsApi.chatSessions(selectedId);
             const session = sessions[0];
             setChatSessionId(session?.id || "");
+            setSessionTitle(session?.title || "剧本创作");
             if (!session) {
                 setMessages([]);
                 return;
@@ -181,15 +187,25 @@ export default function ScriptPracticeWorkspace() {
                             );
                         }
                         if (event.type === "artifact_saved") {
-                            previewRawRef.current = "";
-                            setPreview("");
                             await loadTree(projectId);
                             const key = `${event.data.artifactType}:${event.data.artifactKey}`;
-                            setSelectedKey(key);
-                            const [type, itemKey] = key.split(":");
-                            setArtifact(await practiceScriptsApi.artifact(projectId, type, itemKey));
+                            if (event.data.artifactType === "conversation") {
+                                await loadConversationPreview(projectId);
+                            } else {
+                                setSelectedKey(key);
+                                const [type, itemKey] = key.split(":");
+                                const savedArtifact = await practiceScriptsApi.artifact(projectId, type, itemKey);
+                                setArtifact(savedArtifact);
+                                if (artifactContent(savedArtifact)) {
+                                    previewRawRef.current = "";
+                                    setPreview("");
+                                }
+                            }
                         }
-                        if (event.type === "run_completed") await loadTree(projectId);
+                        if (event.type === "run_completed") {
+                            await loadTree(projectId);
+                            await loadConversationPreview(projectId);
+                        }
                         if (event.type === "error") message.error(String(event.data.message || "Agent 执行失败"));
                     }
                 }
@@ -236,6 +252,18 @@ export default function ScriptPracticeWorkspace() {
         const run = await practiceScriptsApi.sendChat(selectedId, session.id, text, crypto.randomUUID());
         setRunId(run.id);
     };
+    const loadConversationPreview = async (projectId: string) => {
+        try {
+            const value = await practiceScriptsApi.artifact(projectId, "conversation", "latest");
+            const content = artifactContent(value);
+            if (content) {
+                setPreview(content);
+                previewRawRef.current = content;
+            }
+        } catch {
+            // Conversation artifacts are optional; keep the live stream as fallback.
+        }
+    };
     const confirmCurrentArtifact = async () => {
         if (!selectedId || !artifactId || confirming) return;
         setConfirming(true);
@@ -246,6 +274,17 @@ export default function ScriptPracticeWorkspace() {
         } finally {
             setConfirming(false);
         }
+    };
+    const renameCurrentSession = async () => {
+        const title = renameTitle.trim();
+        if (!selectedId || !chatSessionId || !title) return;
+        const project = await practiceScriptsApi.update(selectedId, { title });
+        const session = await practiceScriptsApi.renameChatSession(selectedId, chatSessionId, title);
+        setProjects((current) => current.map((item) => (item.id === selectedId ? project : item)));
+        setSessionTitle(session.title);
+        setRenameTitle("");
+        setSessionMenuOpen(false);
+        message.success("对话名称已更新");
     };
     const removeCurrentScript = async () => {
         if (!selectedId) return;
@@ -271,6 +310,7 @@ export default function ScriptPracticeWorkspace() {
         setProjects((current) => [project, ...current.filter((item) => item.id !== project.id)]);
         selectProject(project.id);
         setChatSessionId(session.id);
+        setSessionTitle(session.title || title);
         message.success("已打开新的剧本对话");
     };
     const selectedProject = projects.find((item) => item.id === selectedId);
@@ -306,24 +346,6 @@ export default function ScriptPracticeWorkspace() {
             <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)_340px]">
                 <aside aria-label="剧本工作目录" className="min-h-0 overflow-y-auto border-r border-border bg-card p-3">
                     <h2 className="mb-3 text-sm font-semibold">工作目录</h2>
-                    <div className="flex items-center gap-1">
-                        <Select className="min-w-0 flex-1" value={selectedId || undefined} placeholder="选择剧本" options={projects.map((p) => ({ value: p.id, label: p.title }))} onChange={(value) => selectProject(value)} />
-                        <Button type="text" aria-label="新建剧本" icon={<Plus className="size-4" />} onClick={() => void runAction(create, "新建剧本失败")} />
-                        {selectedId ? (
-                            <Popconfirm
-                                title="删除当前剧本？"
-                                description="剧本内容、对话记录和生成成果都会被删除，且无法恢复。"
-                                okText="确认删除"
-                                cancelText="取消"
-                                okButtonProps={{ danger: true }}
-                                onConfirm={() => void runAction(removeCurrentScript, "删除剧本失败")}
-                            >
-                                <Button type="text" danger aria-label="删除当前剧本">
-                                    删除
-                                </Button>
-                            </Popconfirm>
-                        ) : null}
-                    </div>
                     <div className="mt-4 space-y-1">
                         {tree.map((item) => (
                             <button
@@ -371,8 +393,54 @@ export default function ScriptPracticeWorkspace() {
                 </section>
                 <aside aria-label="剧本 Agent 对话" className="flex min-h-0 flex-col border-l border-border bg-card">
                     <div className="border-b border-border px-4 py-3">
-                        <h2 className="font-semibold">剧本 Agent</h2>
-                        <p className="text-xs text-muted-foreground">统筹、策划、作者、编剧、编辑与分镜师协作</p>
+                        <div className="mb-2 flex items-center gap-1">
+                            <Select className="min-w-0 flex-1" value={selectedId || undefined} placeholder="选择剧本对话" options={projects.map((project) => ({ value: project.id, label: project.title }))} onChange={(value) => selectProject(value)} />
+                            <Button type="text" size="small" aria-label="新建剧本对话" icon={<Plus className="size-4" />} onClick={() => void runAction(create, "新建剧本失败")} />
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                                <h2 className="font-semibold">剧本 Agent</h2>
+                                <p className="truncate text-xs text-muted-foreground" title={sessionTitle}>
+                                    {sessionTitle || "新剧本对话"}
+                                </p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1">
+                                <Button type="text" size="small" aria-label="新建剧本对话" icon={<Plus className="size-4" />} onClick={() => void runAction(create, "新建剧本失败")} />
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    aria-label="重命名剧本对话"
+                                    onClick={() => {
+                                        setRenameTitle(sessionTitle);
+                                        setSessionMenuOpen(true);
+                                    }}
+                                >
+                                    重命名
+                                </Button>
+                                {selectedId ? (
+                                    <Popconfirm
+                                        title="删除当前剧本？"
+                                        description="剧本内容、对话记录和生成成果都会被删除，且无法恢复。"
+                                        okText="确认删除"
+                                        cancelText="取消"
+                                        okButtonProps={{ danger: true }}
+                                        onConfirm={() => void runAction(removeCurrentScript, "删除剧本失败")}
+                                    >
+                                        <Button type="text" danger size="small" aria-label="删除当前剧本">
+                                            删除
+                                        </Button>
+                                    </Popconfirm>
+                                ) : null}
+                            </div>
+                        </div>
+                        {sessionMenuOpen ? (
+                            <div className="mt-2 flex gap-2">
+                                <Input size="small" value={renameTitle} onChange={(event) => setRenameTitle(event.target.value)} onPressEnter={() => void runAction(renameCurrentSession, "重命名剧本失败")} placeholder="输入对话名称" />
+                                <Button size="small" type="primary" disabled={!renameTitle.trim()} onClick={() => void runAction(renameCurrentSession, "重命名剧本失败")}>
+                                    保存
+                                </Button>
+                            </div>
+                        ) : null}
                     </div>
                     <div className="flex-1 space-y-3 overflow-y-auto p-4">
                         {messages.map((item) => (
