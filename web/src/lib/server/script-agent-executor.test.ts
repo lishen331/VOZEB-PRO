@@ -53,15 +53,19 @@ describe("screenwriter carrier execution", () => {
         const callModel = vi.fn().mockResolvedValue({ content: "策划结果" });
         const deps = {
             resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "novel_planner", name: "策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "策划" }),
-            getProject: vi.fn().mockResolvedValue({ carrier_type: "vlog", project_parameters: { targetDurationSeconds: 180, brandGoal: "记录真实体验" } }),
+            getProject: vi.fn().mockResolvedValue({ carrier_type: "vlog", project_parameters: { targetDurationSeconds: 180, brandGoal: "记录真实体验", purpose: "place_seeding", viewpoint: "first_person", companions: "friends" } }),
             callModel,
             listArtifacts: vi.fn().mockResolvedValue([]),
             saveArtifact: vi.fn().mockResolvedValue({ id: "artifact" }),
             appendEvent: vi.fn(),
         };
         await new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-vlog", runType: "project_planning", input: {}, origin: "https://local", cookie: "session" });
-        expect(callModel.mock.calls[0]?.[0].task.input.projectContext).toEqual({ carrierType: "vlog", projectParameters: { targetDurationSeconds: 180, brandGoal: "记录真实体验" } });
+        expect(callModel.mock.calls[0]?.[0].task.input.projectContext).toEqual({
+            carrierType: "vlog",
+            projectParameters: { targetDurationSeconds: 180, brandGoal: "记录真实体验", purpose: "place_seeding", viewpoint: "first_person", companions: "friends" },
+        });
         expect(callModel.mock.calls[0]?.[0].task.input.carrierInstructions).toContain("第一人称");
+        expect(deps.resolveProfile).toHaveBeenCalledWith("novel_planner", expect.arrayContaining(["carrier-vlog", "specialty-three-minute", "purpose-place-seeding", "viewpoint-first-person", "relationship-friends"]));
     });
 
     it("uses TVC-specific instructions and preserves its brand parameters", async () => {

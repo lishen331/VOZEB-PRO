@@ -96,11 +96,11 @@ describe("PostgreSQL schema lifecycle", () => {
     it("executes schema DDL only through explicit initialization", async () => {
         await initializePostgresSchema();
 
-        expect(mocks.query).toHaveBeenCalledTimes(4);
+        expect(mocks.query.mock.calls.length).toBeGreaterThan(4);
         expect(mocks.query.mock.calls[0]?.[0]).toBe("BEGIN");
         expect(mocks.query.mock.calls[1]).toEqual(["SELECT pg_advisory_xact_lock(hashtext($1))", ["vozeb-pro:schema"]]);
         const ddl = String(mocks.query.mock.calls[2]?.[0]);
-        expect(mocks.query.mock.calls[3]?.[0]).toBe("COMMIT");
+        expect(mocks.query.mock.calls.at(-1)?.[0]).toBe("COMMIT");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_schema_migrations");
         expect(ddl).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_generation_worker_heartbeats");
         const publicationOriginColumn = "ALTER TABLE vozeb_pro_published_works ADD COLUMN IF NOT EXISTS publication_origin text NOT NULL DEFAULT 'user_submission'";
@@ -247,9 +247,10 @@ describe("PostgreSQL schema lifecycle", () => {
 
         await ensurePostgresSchema();
 
-        expect(mocks.query).toHaveBeenCalledTimes(5);
+        expect(mocks.query.mock.calls.length).toBeGreaterThan(5);
         expect(mocks.query.mock.calls[0]?.[0]).toContain("to_regclass");
         expect(mocks.query.mock.calls[2]).toEqual(["SELECT pg_advisory_xact_lock(hashtext($1))", ["vozeb-pro:schema"]]);
-        expect(mocks.query.mock.calls[3]?.[0]).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_schema_migrations");
+        expect(mocks.query.mock.calls.at(-1)?.[0]).toBe("COMMIT");
+        expect(String(mocks.query.mock.calls.find((call) => String(call[0]).includes("CREATE TABLE IF NOT EXISTS vozeb_pro_schema_migrations"))?.[0])).toContain("CREATE TABLE IF NOT EXISTS vozeb_pro_schema_migrations");
     });
 });

@@ -8,7 +8,8 @@ const core = (id: string, name: string, agents: ScriptAgentKey[], body: string):
 const genre = (id: string, name: string, body: string): BuiltinScriptSkill =>
     skill(id, name, "genre", ["novel_planner", "novel_writer", "story_skeleton", "adaptation_planner", "script_writer", "script_supervisor", "director_planner", "storyboard_writer"], body);
 const carrier = (id: string, name: string, body: string): BuiltinScriptSkill => skill(id, name, "carrier", ["novel_planner", "novel_writer", "adaptation_planner", "script_writer", "script_supervisor", "director_planner", "storyboard_writer"], body);
-const specialty = (id: string, name: string, body: string): BuiltinScriptSkill => skill(id, name, "specialty", ["story_skeleton", "adaptation_planner", "script_writer", "script_supervisor", "director_planner", "storyboard_writer"], body);
+const specialty = (id: string, name: string, body: string): BuiltinScriptSkill =>
+    skill(id, name, "specialty", ["novel_planner", "novel_writer", "story_skeleton", "adaptation_planner", "script_writer", "script_supervisor", "director_planner", "storyboard_writer"], body);
 
 export const BUILTIN_SCRIPT_SKILLS: BuiltinScriptSkill[] = [
     core(
@@ -51,6 +52,24 @@ export const BUILTIN_SCRIPT_SKILLS: BuiltinScriptSkill[] = [
         ["storyboard_writer"],
         "按剧本逐场拆为镜头级文字分镜，一条镜头一行。每条必须包含画面、景别、机位、构图、运镜、人物、动作、情绪、对白或旁白、音效文字说明、时长和连续性，并引用稳定人物、场景和道具 ID。不得创建图片、视频或音频任务。",
     ),
+    core(
+        "core-short-film",
+        "三分钟剧情短片",
+        ["novel_planner", "novel_writer", "adaptation_planner", "script_writer", "script_supervisor", "director_planner", "storyboard_writer"],
+        "面向三分钟以内的剧情化短片。必须有开场钩子、明确人物目标、可见事件推进、情绪转折和结尾记忆点；每个镜头都服务于剧情、信息或情绪，不能用空泛介绍填充时长。最终只输出完整剧本、文字分镜和文字资产提示词，不调用媒体生成工具。",
+    ),
+    carrier("carrier-vlog", "Vlog 纪实短片", "使用第一人称体验为主，允许自拍、跟拍、主观镜头、口播、自然停顿、环境声和真实反应；可用第三人称补充观察镜头，但不能丢失叙述主体。游玩、探店、旅行和日常记录都要通过具体事件形成小故事，避免流水账和广告腔。"),
+    carrier("carrier-tvc", "TVC 剧情广告", "以一个简短事件承载品牌或地点信息：人物遇到需求或阻力，产品/地点介入并改变体验，最后形成可记忆的情绪落点。必须明确目标受众、核心卖点、品牌记忆点、行动号召和片尾信息，不能只写产品说明。"),
+    specialty("specialty-three-minute", "三分钟节奏控制", "总时长不得超过180秒。开头3至8秒建立钩子，中段持续推进事件，结尾完成情绪或卖点兑现。分镜时逐镜累计durationSeconds并控制在项目目标时长内，禁止重复镜头、空镜堆叠和无效旁白。"),
+    specialty("purpose-place-seeding", "地点/景区种草", "通过到达、观察、体验、意外发现或同行互动展示地点的具体价值。种草必须来自人物真实体验和可验证细节，如路线、氛围、设施、玩法或情绪变化，不得凭空编造优惠、服务或评价。"),
+    specialty("purpose-product-seeding", "产品种草", "围绕一个真实使用场景展示产品如何解决具体问题。卖点必须通过动作、对比、结果或人物反应呈现，避免堆砌参数和绝对化承诺；结尾自然给出适用人群和行动建议。"),
+    specialty("viewpoint-first-person", "第一人称叙事", "叙述主体使用“我”，画面优先呈现我的所见、所做和即时反应；口播与画面不能互相重复，主观镜头和自拍镜头要有明确叙事功能。"),
+    specialty("viewpoint-third-person", "第三人称叙事", "使用外部观察视角跟随人物行动，通过构图、动作和对白表现体验，不把所有信息都交给旁白。保持人物行动线和观察距离稳定。"),
+    specialty("viewpoint-mixed", "混合视角", "以第一人称口播建立亲近感，以第三人称或B-roll补充空间、同行者和关键动作；两种视角切换必须有明确的叙事目的和连续性。"),
+    specialty("relationship-solo", "独自体验", "围绕一个人的目标、犹豫、发现和变化组织短片，避免凭空添加同行角色；环境和陌生人只能作为真实观察对象。"),
+    specialty("relationship-friends", "朋友同行", "朋友不是背景板，要有关系、分工、玩笑、意见差异或共同发现。通过互动推动事件和情绪变化，明确谁负责口播、谁参与行动、谁带来转折。"),
+    specialty("relationship-couple", "情侣同行", "用具体选择、照顾、分歧和共同体验表现关系，避免只写甜蜜形容词；镜头要兼顾双方行动和情绪反应。"),
+    specialty("relationship-family", "家庭同行", "通过代际差异、照顾、共同任务和生活细节建立真实关系，保持人物年龄、身份和说话方式一致。"),
     core(
         "core-asset-prompts",
         "资产提示词",
@@ -99,6 +118,54 @@ export function scriptAgentProfileDefaults(): ScriptAgentProfileSeed[] {
         profile("storyboard_writer", "分镜师", ["read_episode_script", "read_director_plan", "save_storyboard_shots"], ["core-storyboard"]),
         profile("asset_prompt_writer", "设定师", ["read_storyboard", "read_characters", "upsert_asset_prompt"], ["core-asset-prompts"]),
     ];
+}
+
+export const SHORT_FILM_SKILL_IDS = [
+    "core-short-film",
+    "carrier-vlog",
+    "carrier-tvc",
+    "specialty-three-minute",
+    "purpose-place-seeding",
+    "purpose-product-seeding",
+    "viewpoint-first-person",
+    "viewpoint-third-person",
+    "viewpoint-mixed",
+    "relationship-solo",
+    "relationship-friends",
+    "relationship-couple",
+    "relationship-family",
+] as const;
+export function shortFilmSkillCatalog() {
+    return BUILTIN_SCRIPT_SKILLS.filter((skill) => SHORT_FILM_SKILL_IDS.includes(skill.id as (typeof SHORT_FILM_SKILL_IDS)[number]));
+}
+
+export function inferShortFilmSkillInput(text: string) {
+    const value = text.toLowerCase();
+    return {
+        purpose: /产品|商品|种草|品牌/.test(text) ? "product_seeding" : /公园|景区|游乐园|旅行|旅游|地点|探店/.test(text) ? "place_seeding" : undefined,
+        viewpoint: /第三人称|旁观|跟随人物/.test(text) ? "third_person" : "first_person",
+        companions: /朋友|好友|闺蜜|兄弟/.test(text) ? "friends" : /情侣|男朋友|女朋友|伴侣/.test(text) ? "couple" : /家人|父母|孩子/.test(text) ? "family" : "solo",
+    };
+}
+
+export function deriveShortFilmSkillIds(input: { carrierType?: string; purpose?: string; viewpoint?: string; companions?: string }) {
+    const ids = ["core-short-film", "specialty-three-minute"];
+    const carrierType = input.carrierType?.trim().toLowerCase();
+    if (carrierType === "tvc") ids.push("carrier-tvc");
+    else ids.push("carrier-vlog");
+    const purpose = input.purpose?.trim().toLowerCase();
+    if (purpose === "product_seeding") ids.push("purpose-product-seeding");
+    else if (purpose === "place_seeding") ids.push("purpose-place-seeding");
+    const viewpoint = input.viewpoint?.trim().toLowerCase();
+    if (viewpoint === "third_person") ids.push("viewpoint-third-person");
+    else if (viewpoint === "mixed") ids.push("viewpoint-mixed");
+    else ids.push("viewpoint-first-person");
+    const companions = input.companions?.trim().toLowerCase();
+    if (companions === "friends") ids.push("relationship-friends");
+    else if (companions === "couple") ids.push("relationship-couple");
+    else if (companions === "family") ids.push("relationship-family");
+    else ids.push("relationship-solo");
+    return ids;
 }
 
 export function compileScriptAgentInstructions(agentKey: ScriptAgentKey, selectedSkillIds: string[] = []) {

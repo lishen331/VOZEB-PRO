@@ -4,6 +4,7 @@ import { readJsonBodyResult } from "@/lib/auth/request";
 import { requirePracticeAccess } from "@/lib/server/practice-access-service";
 import { createScriptProject, listScriptProjects } from "@/lib/server/script-practice-service";
 import { normalizeScriptCarrier } from "@/lib/server/script-agent-domain";
+import { inferShortFilmSkillInput } from "@/lib/server/script-agent-skills";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,7 +46,10 @@ export async function POST(request: Request) {
                 ...(typeof parsed.data.idea === "string" ? { idea: parsed.data.idea } : {}),
                 schoolId: access.schoolId,
                 mode: parsed.data.mode === "long_novel" ? "long_novel" : "short_story",
-                projectParameters: parsed.data.projectParameters && typeof parsed.data.projectParameters === "object" && !Array.isArray(parsed.data.projectParameters) ? (parsed.data.projectParameters as Record<string, unknown>) : {},
+                projectParameters: {
+                    ...(parsed.data.projectParameters && typeof parsed.data.projectParameters === "object" && !Array.isArray(parsed.data.projectParameters) ? (parsed.data.projectParameters as Record<string, unknown>) : {}),
+                    ...inferShortFilmSkillInput(typeof parsed.data.idea === "string" ? parsed.data.idea : ""),
+                },
             }),
         );
     } catch (error) {

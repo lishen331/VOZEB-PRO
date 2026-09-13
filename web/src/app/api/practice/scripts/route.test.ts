@@ -51,11 +51,19 @@ describe("practice scripts collection routes", () => {
             new Request("http://localhost/api/practice/scripts", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title: " 夜班车 ", sourceType: "idea", idea: "末班车上的乘客", carrierType: "TVC", projectParameters: { targetDurationSeconds: 180 } }),
+                body: JSON.stringify({ title: " 夜班车 ", sourceType: "idea", idea: "末班车上的乘客", carrierType: "TVC", projectParameters: { targetDurationSeconds: 180, purpose: "place_seeding", viewpoint: "first_person", companions: "friends" } }),
             }),
         );
         expect(response.status).toBe(200);
-        expect(mocks.create).toHaveBeenCalledWith("user-a", { title: "夜班车", sourceType: "idea", idea: "末班车上的乘客", schoolId: "school-a", mode: "short_story", carrierType: "tvc", projectParameters: { targetDurationSeconds: 180 } });
+        expect(mocks.create).toHaveBeenCalledWith("user-a", {
+            title: "夜班车",
+            sourceType: "idea",
+            idea: "末班车上的乘客",
+            schoolId: "school-a",
+            mode: "short_story",
+            carrierType: "tvc",
+            projectParameters: { targetDurationSeconds: 180, purpose: undefined, viewpoint: "first_person", companions: "solo" },
+        });
         expect((await GET(new Request("http://localhost/api/practice/scripts?page=2&pageSize=10&keyword=悬疑"))).status).toBe(200);
         expect(mocks.list).toHaveBeenCalledWith("user-a", { page: 2, pageSize: 10, keyword: "悬疑", status: undefined });
     });

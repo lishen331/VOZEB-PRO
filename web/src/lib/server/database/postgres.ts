@@ -1,6 +1,7 @@
 import { Client, Pool, type QueryResult, type QueryResultRow } from "pg";
 
 import { POSTGRESQL_SCHEMA_SQL } from "@/lib/server/database/schema";
+import { seedBuiltinScriptAgentConfiguration } from "@/lib/server/script-agent-seed";
 
 type DatabaseProvider = "file" | "postgres";
 
@@ -663,6 +664,7 @@ export async function initializePostgresSchema() {
         globalForPostgres.__vozebProPostgresSchemaReady = withPostgresTransaction(async (client) => {
             await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [POSTGRES_SCHEMA_LOCK_KEY]);
             await client.query(prefixPostgresSql(POSTGRESQL_SCHEMA_SQL));
+            await seedBuiltinScriptAgentConfiguration(client);
         })
             .then(() => undefined)
             .catch((error) => {
