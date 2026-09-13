@@ -40,7 +40,19 @@ export async function GET(request: Request, context: Context) {
                         },
                     });
                     const executor = createDefaultScriptAgentExecutor(liveRepository);
-                    await executor.execute(scope, { projectId: id, runId, chatSessionId: claimed.chatSessionId, runType: claimed.runType, input: claimed.configSnapshot, origin: new URL(request.url).origin, cookie: request.headers.get("cookie") || "" });
+                    const items = await repository.listRunItems(scope, id, runId);
+                    const item = items.find((entry) => entry.status === "queued");
+                    if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "running" });
+                    const result = await executor.execute(scope, {
+                        projectId: id,
+                        runId,
+                        chatSessionId: claimed.chatSessionId,
+                        runType: claimed.runType,
+                        input: claimed.configSnapshot,
+                        origin: new URL(request.url).origin,
+                        cookie: request.headers.get("cookie") || "",
+                    });
+                    if (item) await repository.updateRunItem(scope, id, runId, item.id, { status: "success", artifactId: result.artifactId });
                     await repository.updateRun(scope, id, runId, { status: "success", completedAt: new Date().toISOString() });
                     const done = await repository.appendRunEvent(scope, id, runId, "run_completed", {}, randomUUID());
                     if (done) send(done);

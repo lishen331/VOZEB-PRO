@@ -40,6 +40,7 @@ export class ScriptAgentRunService {
             configSnapshot: input.configSnapshot || {},
         });
         if (!run) throw new ScriptAgentRunError("剧本项目不存在或不属于当前学校", 404);
+        if (run.lastEventSequence === 0 && "createRunItem" in this.repository) await this.repository.createRunItem(scope, input.projectId, { id: this.id(), runId: run.id, itemType: "run", itemKey: "main", status: "queued", attemptNo: 0 });
         if (run.lastEventSequence === 0) await this.repository.appendRunEvent(scope, input.projectId, run.id, "run_started", { runType: run.runType, stageKey: run.stageKey }, this.id());
         return run;
     }
@@ -62,7 +63,7 @@ export class ScriptAgentRunService {
             const retry = await this.repository.createRunItem(scope, projectId, { ...item, id: this.id(), status: "queued", attemptNo: item.attemptNo + 1, artifactId: undefined, errorCode: undefined, errorMessage: undefined });
             if (retry) queued.push(retry);
         }
-        if (queued.length) await this.repository.updateRun(scope, projectId, runId, { status: "running", completedAt: undefined, errorCode: undefined, errorMessage: undefined });
+        if (queued.length) await this.repository.updateRun(scope, projectId, runId, { status: "planning", completedAt: undefined, errorCode: undefined, errorMessage: undefined });
         return queued;
     }
 }

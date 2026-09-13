@@ -18,10 +18,11 @@ const baseRun = {
 
 describe("ScriptAgentRunService", () => {
     it("returns the same idempotent run and appends a persisted start event", async () => {
-        const repository = { createRun: vi.fn().mockResolvedValue(baseRun), appendRunEvent: vi.fn().mockResolvedValue({ sequence: 1 }) };
+        const repository = { createRun: vi.fn().mockResolvedValue(baseRun), createRunItem: vi.fn().mockResolvedValue({ id: "item-a" }), appendRunEvent: vi.fn().mockResolvedValue({ sequence: 1 }) };
         const service = new ScriptAgentRunService(repository as never, () => "id-a");
         await service.create(scope, { projectId: "project-a", runType: "short_story", clientRequestId: "request-a" });
         expect(repository.createRun).toHaveBeenCalledOnce();
+        expect(repository.createRunItem).toHaveBeenCalledWith(scope, "project-a", expect.objectContaining({ runId: "run-a", itemType: "run", itemKey: "main", status: "queued", attemptNo: 0 }));
         expect(repository.appendRunEvent).toHaveBeenCalledWith(scope, "project-a", "run-a", "run_started", expect.objectContaining({ runType: "short_story" }), "id-a");
     });
 
