@@ -3,6 +3,7 @@ import { resolveDramaLabStylePrompt, renderDramaLabFrameTemplate } from "@/lib/d
 import type { DramaAssetReference, DramaEpisode, DramaProject, DramaShot, DramaShotFrameSource, DramaShotFrameType, DramaShotGenerationHistory, DramaShotVideoFrameSnapshot } from "@/lib/drama-project-contract";
 import { dramaAssetPrimaryReference, dramaShotAssetReferences } from "@/lib/drama-asset-references";
 import { boundCharacterStageContext } from "@/lib/drama-lab-character-stages";
+import { dramaLabCharacterAnchorLines } from "@/lib/drama-lab-character-anchors";
 import { resolveDramaLabPrompt, withDramaLabPromptContract } from "@/lib/server/drama-lab-prompt-template-service";
 import { DramaProjectStoreError, getDramaProject, updateDramaProject } from "@/lib/server/drama-project-store";
 import type { VideoReferenceRole } from "@/lib/video-reference-contract";
@@ -402,7 +403,7 @@ function shotGenerationContext(project: DramaProject, episode: DramaEpisode, sho
         shot.continuity?.cameraAngle ? `机位：${shot.continuity.cameraAngle}` : "",
         shot.polishedPrompt ? "" : shot.imagePrompt ? `用户画面补充：${shot.imagePrompt}` : "",
         `场景白名单：${scene ? `${asset(scene)}；视觉锚点：${scene.profile?.visualIdentity || "无"}` : "无"}`,
-        `角色白名单：${characters.length ? characters.map((item) => `${asset(item)}；视觉锚点：${item.profile?.visualIdentity || "无"}；造型：${item.profile?.styling || "无"}`).join("；") : "无"}`,
+        `角色白名单：${characters.length ? characters.map((item) => `${asset(item)}；${dramaLabCharacterAnchorLines(item.profile).join("；") || "视觉锚点：无"}`).join("；") : "无"}`,
         `道具白名单：${props.length ? props.map((item) => `${asset(item)}；视觉锚点：${item.profile?.visualIdentity || "无"}`).join("；") : "无"}`,
     ]
         .filter(Boolean)

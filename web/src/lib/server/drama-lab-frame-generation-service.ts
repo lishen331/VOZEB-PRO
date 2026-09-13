@@ -1,5 +1,6 @@
 import { dramaLabStyleContext, renderDramaLabFrameTemplate } from "@/lib/drama-lab-style-prompt";
 import { boundCharacterStageContext } from "@/lib/drama-lab-character-stages";
+import { dramaLabCharacterAnchorLines } from "@/lib/drama-lab-character-anchors";
 import type { DramaProject, DramaShot, DramaShotFrameType } from "@/lib/drama-project-contract";
 import { getAuthSettings } from "@/lib/auth/store";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
@@ -105,11 +106,16 @@ export async function prepareDramaLabFrame(input: { userId: string; origin: stri
 function frameContext(project: DramaProject, episode: DramaProject["episodes"][number], shot: DramaShot, frameType: DramaShotFrameType, previousShot?: DramaShot) {
     const characters = shot.characterIds.flatMap((id) => project.characters.find((asset) => asset.id === id) || []);
     const stageContext = boundCharacterStageContext(characters, episode);
+    const anchorContext = characters.flatMap((character) => {
+        const lines = dramaLabCharacterAnchorLines(character.profile);
+        return lines.length ? [`${character.name}：${lines.join("；")}`] : [];
+    });
     return [
         "【短剧实验室帧提示词上下文】",
         `项目：${project.title}`,
         `剧集：${episode.title}`,
         stageContext,
+        anchorContext.length ? `【角色视觉锚点】\n${anchorContext.join("\n")}` : "",
         `风格：${project.style || "未设置"}`,
         `比例：${project.ratio}`,
         `帧类型：${frameType}`,
