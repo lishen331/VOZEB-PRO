@@ -2,6 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 import { ScriptAgentExecutor } from "./script-agent-executor";
 
 const scope = { schoolId: "school-a", ownerUserId: "user-a" };
+function validOutput(runType: string): Record<string, unknown> {
+    if (runType === "short_story") return { title: "故事", content: "完整正文" };
+    if (runType === "adaptation_bundle") return { content: "改编", episodes: [{ episodeNumber: 1, title: "第一集", outline: {} }] };
+    if (runType === "episode_scripts" || runType === "script_review") return { content: "剧本", report: "审核", episodes: [{ episodeNumber: 1, title: "第一集", script: { blocks: [{ type: "action", text: "正文" }] } }] };
+    if (runType === "text_storyboard") return { content: "分镜", episodes: [{ episodeNumber: 1, shots: [{}] }] };
+    if (runType === "asset_prompts") return { content: "资产", assets: [{}] };
+    return { content: "ok" };
+}
 async function runForVisibleText(runType: "episode_scripts" | "text_storyboard" | "asset_prompts", output: Record<string, unknown>) {
     let visible = "";
     const deps = {
@@ -47,13 +55,24 @@ describe("ScriptAgentExecutor", () => {
         expect(order.indexOf("save")).toBeLessThan(order.indexOf("artifact_saved"));
         expect(order).toContain("artifact_delta");
     });
+    it("rejects a stage result that omits its required structured data", async () => {
+        const deps = {
+            resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "adaptation_planner", name: "改编", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "改编" }),
+            callModel: vi.fn().mockResolvedValue({ content: "只有普通说明，没有分集" }),
+            saveArtifact: vi.fn(),
+            appendEvent: vi.fn(),
+        };
+        await expect(new ScriptAgentExecutor(deps as never).execute(scope, { projectId: "project-a", runId: "run-invalid", runType: "adaptation_bundle", input: {}, origin: "https://local", cookie: "session" })).rejects.toThrow("结构");
+        expect(deps.saveArtifact).not.toHaveBeenCalled();
+    });
+
     it("uses a concrete structured output schema for every short-film stage", async () => {
         const schemas: Array<Record<string, unknown>> = [];
         const deps = {
             resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "novel_planner", name: "策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "策划" }),
-            callModel: vi.fn(async ({ responseSchema }) => {
+            callModel: vi.fn(async ({ responseSchema, task }) => {
                 schemas.push(responseSchema);
-                return { content: "ok" };
+                return validOutput(task.runType);
             }),
             saveArtifact: vi.fn().mockResolvedValue({ id: "artifact" }),
             appendEvent: vi.fn(),
@@ -141,7 +160,7 @@ describe("ScriptAgentExecutor", () => {
     });
 
     it("passes persisted upstream artifacts into the next model call", async () => {
-        const callModel = vi.fn(async ({ task }) => ({ content: String(task.input.context?.length || 0) }));
+        const callModel = vi.fn(async ({ task }) => ({ content: String(task.input.context?.length || 0), episodes: [{ episodeNumber: 1, title: "第一集", outline: {} }] }));
         const deps = {
             resolveProfile: vi.fn().mockResolvedValue({ profile: { agentKey: "adaptation_planner", name: "改编策划", toolAllowlist: [], skillBindings: [], version: 1 }, candidate: { channel: { purpose: "open-source-practice" } }, instructions: "改编" }),
             callModel,

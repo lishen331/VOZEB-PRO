@@ -60,6 +60,7 @@ export class ScriptAgentExecutor {
                 await this.deps.appendEvent(scope, task.projectId, task.runId, "artifact_delta", { artifactType: execution.artifact, artifactKey: execution.key, delta }, this.id());
             },
         });
+        assertStructuredResult(task.runType, structured);
         await materializeStructuredRows(this.deps, scope, task, structured);
         if (task.runType === "conversation" && task.chatSessionId && this.deps.saveChatMessage) {
             await this.deps.saveChatMessage(scope, { id: this.id(), sessionId: task.chatSessionId, projectId: task.projectId, role: "assistant", agentKey: execution.agent, publicContent: publicText(structured) || "", sourceRunId: task.runId });
@@ -121,6 +122,21 @@ async function callConfiguredModel(input: { profile: ResolvedScriptAgentProfile;
     const jsonText = extractJsonObjectText(text);
     if (jsonText) return JSON.parse(jsonText) as Record<string, unknown>;
     return { content: text };
+}
+function assertStructuredResult(runType: ScriptRunType, value: Record<string, unknown>) {
+    const requiredArrays: Partial<Record<ScriptRunType, string[]>> = {
+        novel_outlines: ["chapters"],
+        novel_chapters: ["chapters"],
+        adaptation_bundle: ["episodes"],
+        episode_scripts: ["episodes"],
+        script_review: ["episodes"],
+        text_storyboard: ["episodes"],
+        asset_prompts: ["assets"],
+    };
+    const arrays = requiredArrays[runType] || [];
+    if (arrays.some((key) => !Array.isArray(value[key]) || !(value[key] as unknown[]).length)) throw new Error("剧本模型返回结果缺少当前阶段所需的结构化内容");
+    if ((runType === "conversation" || runType === "project_planning" || runType === "director_plan") && !publicText(value)) throw new Error("剧本模型返回结果缺少当前阶段正文");
+    if (runType === "short_story" && (typeof value.title !== "string" || typeof value.content !== "string")) throw new Error("剧本模型返回结果缺少完整小说体故事");
 }
 function accumulatedDeltaEmitter(onDelta: (delta: string) => Promise<void>) {
     let previous = "";
