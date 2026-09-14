@@ -948,6 +948,7 @@ function AssetEditorModal({
             </Modal>
         );
     }
+    const handlePromptChange = (value: string, selectionStart: number) => {
         const mentionStart = value.lastIndexOf("@", Math.max(0, selectionStart - 1));
         const mentionText = mentionStart >= 0 ? value.slice(mentionStart + 1, selectionStart) : "";
         mentionRangeRef.current = { start: mentionStart >= 0 ? mentionStart : selectionStart, end: selectionStart };
