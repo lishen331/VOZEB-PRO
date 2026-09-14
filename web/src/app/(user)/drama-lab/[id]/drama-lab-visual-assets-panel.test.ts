@@ -70,7 +70,7 @@ describe("L-compatible character AI editor actions", () => {
         expect(source).toContain('width="min(960px, calc(100vw - 32px))"');
         expect(source).toContain('maxHeight: "calc(100vh - 160px)"');
         expect(source).toContain('overflowY: "auto"');
-        
+
         expect(source).not.toContain("<span>原始图片提示词</span>");
         expect(source).not.toContain("<span>生成版式</span>");
         expect(source).not.toContain("profileLabel(key)");
@@ -107,10 +107,7 @@ describe("L-style prop editor modal", () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect(source).toContain('title={asset.id ? "编辑道具" : "新增道具"}');
         expect(source).toContain('if (editor.kind === "props")');
-        
-        
-        
-        
+
         const propBranch = source.slice(source.indexOf('if (editor.kind === \\"props\\")'), source.indexOf("return (", source.indexOf('if (editor.kind === \\"props\\")')));
         expect(propBranch).not.toContain("生成版式");
     });
@@ -123,10 +120,8 @@ describe("L-style prop reference placement", () => {
         const propEnd = source.indexOf("return (", source.indexOf("    }", propStart) + 5);
         const propBranch = source.slice(propStart, propEnd);
 
-        
-        
         expect(propBranch).not.toContain("+ 上传");
-        expect(propBranch).toContain("参考图候选");
+        expect(propBranch).toContain("生成图片的参考图");
         expect(propBranch).toContain("references.map");
     });
 });
@@ -196,12 +191,7 @@ describe("asset card and editor reference interactions", () => {
 
     it("labels reference upload frames on the left and disables nested image preview", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
-        
-        
-        
-        
-        
-        
+
         expect(source).not.toContain("preview={{ src: primary.url }}");
         expect(source).toContain("生成四宫格场景（默认单图）");
         expect(source).toContain("生成四视图道具（默认单图，纯色无缝背景）");
@@ -236,11 +226,3 @@ describe("character prompt mention highlighting", () => {
         expect(source).toContain("mentionIndex");
     });
 });
-
-
-
-
-
-
-
-
