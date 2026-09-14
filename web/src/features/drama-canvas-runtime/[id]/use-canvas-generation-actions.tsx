@@ -948,8 +948,8 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
 export type CanvasGenerationActions = ReturnType<typeof useCanvasGenerationActions>;
 
 export function describeCanvasGenerationInputs(input: { mode: CanvasNodeGenerationMode; prompt: string; textCount: number; imageCount: number; videoCount: number; audioCount: number; hasCameraControl?: boolean; isPanorama?: boolean }) {
-    const parts = [`ģʽ��${input.mode}`, `�ı����룺${input.textCount}`, `ͼƬ���룺${input.imageCount}`, `��Ƶ���룺${input.videoCount}`, `��Ƶ���룺${input.audioCount}`];
-    if (input.isPanorama) parts.push("���⴦����ȫ��ͼԼ��");
-    if (input.hasCameraControl) parts.push("���⴦������ͷ���Ʋ���");
-    return parts.join("��");
+    const parts = [`模式：${input.mode}`, `文本输入：${input.textCount}`, `图片输入：${input.imageCount}`, `视频输入：${input.videoCount}`, `音频输入：${input.audioCount}`];
+    if (input.isPanorama) parts.push("平台处理：全景图约束");
+    if (input.hasCameraControl) parts.push("平台处理：镜头控制参数");
+    return parts.join(" · ");
 }
