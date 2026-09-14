@@ -578,7 +578,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 }
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
-                const errorDetails = error instanceof Error ? error.message : "閲嶆柊妫�鏌ヤ换鍔″け璐?;
+                const errorDetails = error instanceof Error ? error.message : "重新检查任务失败";
                 const terminalFailure = error instanceof ImageGenerationTaskTerminalError || isGenerationTaskTerminalError(error) || (metadata.videoTask ? classifyCanvasVideoTaskFailure(error) === "upstream_failed" : false);
                 if (terminalFailure) {
                     setNodes((prev) =>
