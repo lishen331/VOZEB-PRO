@@ -121,7 +121,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 } catch (error) {
                     finishGenerationRequest(nodeId, runController);
                     setRunningNodeId(null);
-                    message.error(error instanceof Error ? error.message : "²Î¿¼Í¼Æ¬¶ÁÈ¡Ê§°Ü");
+                    message.error(error instanceof Error ? error.message : "ï¿½Î¿ï¿½Í¼Æ¬ï¿½ï¿½È¡Ê§ï¿½ï¿½");
                     return;
                 }
             }
@@ -315,7 +315,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                                         metadata: {
                                             ...node.metadata,
                                             status: hasSuccess ? NODE_STATUS_SUCCESS : hasReview ? NODE_STATUS_IDLE : hasDeferred ? NODE_STATUS_LOADING : NODE_STATUS_ERROR,
-                                            errorDetails: hasSuccess || hasReview ? undefined : hasDeferred ? "Í¼Æ¬ÈÔÔÚºóÌ¨Éú³É£¬ÏµÍ³»á¼ÌĞø²éÑ¯Ô­ÈÎÎñ" : "È«²¿Í¼Æ¬Éú³ÉÊ§°Ü",
+                                            errorDetails: hasSuccess || hasReview ? undefined : hasDeferred ? "Í¼Æ¬ï¿½ï¿½ï¿½Úºï¿½Ì¨ï¿½ï¿½ï¿½É£ï¿½ÏµÍ³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¯Ô­ï¿½ï¿½ï¿½ï¿½" : "È«ï¿½ï¿½Í¼Æ¬ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½",
                                         },
                                     }
                                   : node.id === nodeId && isEmptyImageNode
@@ -324,7 +324,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                                           metadata: {
                                               ...node.metadata,
                                               status: hasSuccess ? NODE_STATUS_SUCCESS : hasReview ? NODE_STATUS_NEEDS_REVIEW : hasDeferred ? NODE_STATUS_LOADING : NODE_STATUS_ERROR,
-                                              errorDetails: hasSuccess ? undefined : node.metadata?.errorDetails || (hasDeferred ? "Í¼Æ¬ÈÔÔÚºóÌ¨Éú³É£¬ÏµÍ³»á¼ÌĞø²éÑ¯Ô­ÈÎÎñ" : "È«²¿Í¼Æ¬Éú³ÉÊ§°Ü"),
+                                              errorDetails: hasSuccess ? undefined : node.metadata?.errorDetails || (hasDeferred ? "Í¼Æ¬ï¿½ï¿½ï¿½Úºï¿½Ì¨ï¿½ï¿½ï¿½É£ï¿½ÏµÍ³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¯Ô­ï¿½ï¿½ï¿½ï¿½" : "È«ï¿½ï¿½Í¼Æ¬ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½"),
                                           },
                                       }
                                     : node.id === rootId && !hasSuccess
@@ -333,7 +333,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                                             metadata: {
                                                 ...node.metadata,
                                                 status: hasReview ? NODE_STATUS_IDLE : hasDeferred ? NODE_STATUS_LOADING : NODE_STATUS_ERROR,
-                                                errorDetails: hasReview ? undefined : hasDeferred ? "Í¼Æ¬ÈÔÔÚºóÌ¨Éú³É£¬ÏµÍ³»á¼ÌĞø²éÑ¯Ô­ÈÎÎñ" : "È«²¿Í¼Æ¬Éú³ÉÊ§°Ü",
+                                                errorDetails: hasReview ? undefined : hasDeferred ? "Í¼Æ¬ï¿½ï¿½ï¿½Úºï¿½Ì¨ï¿½ï¿½ï¿½É£ï¿½ÏµÍ³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¯Ô­ï¿½ï¿½ï¿½ï¿½" : "È«ï¿½ï¿½Í¼Æ¬ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½",
                                             },
                                         }
                                       : node,
@@ -509,7 +509,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 const videoTaskId = pendingChildIds.find((id) => nodesRef.current.find((item) => item.id === id)?.metadata?.videoTask);
                 const videoFailure = mode === "video" && videoTaskId ? classifyCanvasVideoTaskFailure(error) : undefined;
                 if (videoTaskId && videoFailure && videoFailure !== "upstream_failed") {
-                    message.info("ÊÓÆµÈÔÔÚºóÌ¨Éú³É£¬ÏµÍ³»á¼ÌĞø²éÑ¯Ô­ÈÎÎñ");
+                    message.info("ï¿½ï¿½Æµï¿½ï¿½ï¿½Úºï¿½Ì¨ï¿½ï¿½ï¿½É£ï¿½ÏµÍ³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¯Ô­ï¿½ï¿½ï¿½ï¿½");
                     deferVideoTask(videoTaskId);
                     return;
                 }
@@ -578,7 +578,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 }
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
-                const errorDetails = error instanceof Error ? error.message : "ÖØĞÂ¼ì²éÈÎÎñÊ§°Ü";
+                const errorDetails = error instanceof Error ? error.message : "ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½";
                 const terminalFailure = error instanceof ImageGenerationTaskTerminalError || isGenerationTaskTerminalError(error) || (metadata.videoTask ? classifyCanvasVideoTaskFailure(error) === "upstream_failed" : false);
                 if (terminalFailure) {
                     setNodes((prev) =>
@@ -606,7 +606,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails: "" } } : item)));
                 try {
                     await retryCanvasAgentNode(node, applyAgentOps);
-                    message.success("Agent ÈÎÎñÒÑÖØĞÂÉú³É");
+                    message.success("Agent ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
                 } catch (error) {
                     const errorDetails = error instanceof Error ? error.message : "Agent ä»»åŠ¡é‡è¯•å¤±è´¥";
                     message.error(errorDetails);
@@ -647,7 +647,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             const panoramaPrompt = node.type === CanvasNodeType.Panorama ? buildPanoramaPrompt(sourcePrompt, Boolean(savedImageMetadata?.references?.length || context?.referenceImages.length)) : sourcePrompt;
             const prompt = applyCameraPrompt(panoramaPrompt, node.type === CanvasNodeType.Text || node.type === CanvasNodeType.Panorama ? undefined : savedImageMetadata?.cameraControl || sourceNode.metadata?.cameraControl);
             if (!prompt) {
-                message.warning("ÕÒ²»µ½ÌáÊ¾´Ê£¬ÎŞ·¨ÖØÊÔ");
+                message.warning("ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½Ê£ï¿½ï¿½Ş·ï¿½ï¿½ï¿½ï¿½ï¿½");
                 return;
             }
             const generationType = savedImageMetadata?.generationType;
@@ -655,8 +655,8 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             const retryReferenceImages =
                 hasSavedImageMetadata && savedImageMetadata ? await resolveMetadataReferences(savedImageMetadata) : useReferenceImages ? (context?.referenceImages.length ? context.referenceImages : sourceNodeReferenceImages(batchRoot || sourceNode)) : [];
             if (useReferenceImages && !retryReferenceImages) {
-                message.error("²Î¿¼Í¼Æ¬ÒÑ¶ªÊ§£¬ÎŞ·¨¼ÌĞøÖØÊÔ");
-                setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: "²Î¿¼Í¼Æ¬ÒÑ¶ªÊ§£¬ÎŞ·¨¼ÌĞøÖØÊÔ" } } : item)));
+                message.error("ï¿½Î¿ï¿½Í¼Æ¬ï¿½Ñ¶ï¿½Ê§ï¿½ï¿½ï¿½Ş·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
+                setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: "ï¿½Î¿ï¿½Í¼Æ¬ï¿½Ñ¶ï¿½Ê§ï¿½ï¿½ï¿½Ş·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½" } } : item)));
                 return;
             }
             const retryImages = retryReferenceImages || [];
@@ -682,7 +682,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                     return;
                 }
                 if (node.type === CanvasNodeType.Video) {
-                    if (!context) throw new Error("è§†é¢‘ç”Ÿæˆä¸Šä¸‹æ–‡å·²ä¸¢å¤±ï¼Œæ— æ³•ç»§ç»­é‡è¯?);
+                    if (!context) throw new Error("ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¶ï¿½Ê§ï¿½ï¿½ï¿½Ş·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
                     const videoReferences =
                         restoreCanvasVideoGenerationReferences(node.metadata) ||
                         resolveCanvasVideoGenerationReferences({
@@ -783,7 +783,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
         (node: CanvasNodeData) => {
             const prompt = (node.metadata?.content || node.metadata?.prompt || "").trim();
             if (!prompt) {
-                message.warning("æ–‡æœ¬èŠ‚ç‚¹ä¸ºç©ºï¼Œæ— æ³•ç”Ÿå›?);
+                message.warning("ï¿½Ä±ï¿½ï¿½Úµï¿½Îªï¿½Õ£ï¿½ï¿½Ş·ï¿½ï¿½ï¿½ï¿½ï¿½");
                 return;
             }
             const sourceNode = nodesRef.current.find((item) => item.id === node.id);
@@ -948,9 +948,8 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
 export type CanvasGenerationActions = ReturnType<typeof useCanvasGenerationActions>;
 
 export function describeCanvasGenerationInputs(input: { mode: CanvasNodeGenerationMode; prompt: string; textCount: number; imageCount: number; videoCount: number; audioCount: number; hasCameraControl?: boolean; isPanorama?: boolean }) {
-    const parts = [`Ä£Ê½£º${input.mode}`, `ÎÄ±¾ÊäÈë£º${input.textCount}`, `Í¼Æ¬ÊäÈë£º${input.imageCount}`, `ÊÓÆµÊäÈë£º${input.videoCount}`, `ÒôÆµÊäÈë£º${input.audioCount}`];
-    if (input.isPanorama) parts.push("¶îÍâ´¦Àí£ºÈ«¾°Í¼Ô¼Êø");
-    if (input.hasCameraControl) parts.push("¶îÍâ´¦Àí£º¾µÍ·¿ØÖÆ²ÎÊı");
-    return parts.join("£»");
+    const parts = [`Ä£Ê½ï¿½ï¿½${input.mode}`, `ï¿½Ä±ï¿½ï¿½ï¿½ï¿½ë£º${input.textCount}`, `Í¼Æ¬ï¿½ï¿½ï¿½ë£º${input.imageCount}`, `ï¿½ï¿½Æµï¿½ï¿½ï¿½ë£º${input.videoCount}`, `ï¿½ï¿½Æµï¿½ï¿½ï¿½ë£º${input.audioCount}`];
+    if (input.isPanorama) parts.push("ï¿½ï¿½ï¿½â´¦ï¿½ï¿½ï¿½ï¿½È«ï¿½ï¿½Í¼Ô¼ï¿½ï¿½");
+    if (input.hasCameraControl) parts.push("ï¿½ï¿½ï¿½â´¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í·ï¿½ï¿½ï¿½Æ²ï¿½ï¿½ï¿½");
+    return parts.join("ï¿½ï¿½");
 }
-
