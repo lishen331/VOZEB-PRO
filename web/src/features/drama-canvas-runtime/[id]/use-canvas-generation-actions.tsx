@@ -509,7 +509,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 const videoTaskId = pendingChildIds.find((id) => nodesRef.current.find((item) => item.id === id)?.metadata?.videoTask);
                 const videoFailure = mode === "video" && videoTaskId ? classifyCanvasVideoTaskFailure(error) : undefined;
                 if (videoTaskId && videoFailure && videoFailure !== "upstream_failed") {
-                    message.info("瑙嗛浠嶅湪鍚庡彴鐢熸垚锛岀郴缁熶細缁х画鏌ヨ鍘熶换鍔?);
+                    message.info("视频仍在后台生成，系统会继续查询原任务");
                     deferVideoTask(videoTaskId);
                     return;
                 }
