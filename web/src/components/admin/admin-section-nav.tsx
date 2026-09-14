@@ -202,7 +202,6 @@ export const adminSections: AdminSection[] = [
     { key: "practice", label: "无限练习", description: "配置剧本生成模型、剧本 Agent 工具与练习模块显隐。", shortDescription: "剧本与练习", icon: <ScrollText className="size-4" /> },
     { key: "skills", label: "Agent Skills", description: "管理 Agent 专业能力、触发词、来源和执行规则。", shortDescription: "专业能力", icon: <Sparkles className="size-4" /> },
     { key: "plugins", label: "插件市场", description: "统一启停前台已发布功能模块，并查看受影响入口。", shortDescription: "功能开关", icon: <GalleryVerticalEnd className="size-4" /> },
-    { key: "dramaLabPlugin", label: "短剧工坊", description: "配置短剧工坊内部功能显示开关。", shortDescription: "短剧功能", icon: <GalleryVerticalEnd className="size-4" /> },
     { key: "settings", label: "基础设置", description: "管理注册、邮箱、生成与数据维护。", shortDescription: "账号与生成", icon: <SlidersHorizontal className="size-4" /> },
     { key: "roleOverview", label: "角色功能", description: "只读查看教师、学生和学校管理员的用户端入口。", shortDescription: "角色入口", icon: <UsersRound className="size-4" /> },
     { key: "accountDeletion", label: "注销申请", description: "查看用户账号注销申请，完成身份核验、受理或拒绝并保留审计记录。", shortDescription: "用户权利请求", icon: <UserRoundX className="size-4" /> },
