@@ -183,57 +183,32 @@ export function DramaLabVisualAssetsPanel({
         return addedCount;
     };
 
-    const extractFromScript = async () => {
+    const startAssetWorkflow = async () => {
         if (!episode?.script.trim()) {
             messageApi.warning("请先填写当前集剧本");
             return;
         }
-        const requestKey = `extract:${kind}`;
-        setBusyKey(requestKey);
-        try {
-            const addedCount = await extractAssetsForKind(kind);
-            if (!addedCount) {
-                messageApi.info(`没有发现需要新增的${definition.label}`);
-                return;
-            }
-            messageApi.success(`已从剧本提取 ${addedCount} 个${definition.label}`);
-        } catch (error) {
-            messageApi.error(error instanceof Error ? error.message : "资产提取失败");
-        } finally {
-            setBusyKey("");
-        }
-    };
-
-    const extractAllFromScript = async () => {
-        if (!episode?.script.trim()) {
-            messageApi.warning("请先填写当前集剧本");
-            return;
-        }
+        const requestId = `assets:${project.id}:${episode.id}:${Date.now()}`;
         setBusyKey("extract:all");
-        const labels: Record<AssetKind, string> = { characters: "角色", scenes: "场景", props: "道具" };
-        const failed: string[] = [];
-        const completed: string[] = [];
-        let addedCount = 0;
         try {
-            for (const assetKind of ["characters", "scenes", "props"] as const) {
-                try {
-                    addedCount += await extractAssetsForKind(assetKind);
-                    completed.push(labels[assetKind]);
-                } catch (error) {
-                    failed.push(`${labels[assetKind]}：${error instanceof Error ? error.message : "提取失败"}`);
-                }
-            }
-            if (failed.length) {
-                const succeeded = completed.length ? `已完成：${completed.join("、")}。` : "";
-                messageApi.error(`${succeeded}部分资产提取失败：${failed.join("；")}`);
-            } else {
-                messageApi.success(`一键提取完成，新增 ${addedCount} 个资产`);
-            }
+            const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/workflow`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-vozeb-pro-client-request-id": requestId },
+                body: JSON.stringify({ episodeId: episode.id, mode: "assets", scope: "current", requestId }),
+            });
+            const payload = (await response.json().catch(() => ({}))) as { code?: number; msg?: string; data?: unknown };
+            if (!response.ok || payload.code !== 0) throw new Error(payload.msg || "资产提取任务创建失败");
+            if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("drama-lab-task-created", { detail: { projectId: project.id } }));
+            messageApi.info("资产提取任务已创建，正在提取角色、场景与道具");
+        } catch (error) {
+            messageApi.error(error instanceof Error ? error.message : "资产提取任务创建失败");
         } finally {
             setBusyKey("");
         }
     };
 
+    const extractFromScript = startAssetWorkflow;
+    const extractAllFromScript = startAssetWorkflow;
     const importLibraryAsset = async (libraryAsset: Asset): Promise<boolean> => {
         if (libraryAsset.kind !== "image") return false;
         const current = project[kind] as VisualAsset[];
@@ -1489,3 +1464,4 @@ function characterIdentityAnchorsForDisplay(profile: DramaLabAssetProfile) {
         "hair_style（发型）": profile.hair_style || "unspecified",
     };
 }
+
