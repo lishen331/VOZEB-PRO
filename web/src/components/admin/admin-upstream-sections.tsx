@@ -6,6 +6,7 @@ import { AdminChannelWorkspace } from "@/components/admin/channels/admin-channel
 import type { AgentSkill, PracticeModuleVisibility } from "@/lib/auth/store";
 import { FEATURE_MODULES, type FeatureModuleId } from "@/lib/feature-modules";
 import { Button, Input, InputNumber, Select, Switch, Tag } from "antd";
+import { useState } from "react";
 import { ChevronDown, Plus, Save, Trash2 } from "lucide-react";
 
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";
