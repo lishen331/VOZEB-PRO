@@ -864,7 +864,7 @@ function AssetEditorModal({
     const primary = dramaAssetPrimaryReference(asset);
     const characterReferences = generationReferences(references);
     const promptReferences = generationReferences(references);
-=======
+
     const historyReferences = references.filter((reference) => reference.role === "history");
     if (!asset.id && createStep === 1) {
         return (
