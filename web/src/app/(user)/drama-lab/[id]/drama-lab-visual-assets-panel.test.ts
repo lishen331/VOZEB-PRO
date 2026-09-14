@@ -106,7 +106,7 @@ describe("L-style prop editor modal", () => {
     it("keeps the prop editor compact and limited to L-style fields", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect(source).toContain('title={asset.id ? "编辑道具" : "新增道具"}');
-        expect(source).toContain("if (editor.kind === \\"props\\")");
+        expect(source).toContain('if (editor.kind === "props")');
         
         
         
@@ -236,6 +236,7 @@ describe("character prompt mention highlighting", () => {
         expect(source).toContain("mentionIndex");
     });
 });
+
 
 
 
