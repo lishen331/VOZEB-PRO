@@ -5,9 +5,8 @@ import { AgentSkillCreateModal } from "@/components/admin/agent-skill-create-mod
 import { AdminChannelWorkspace } from "@/components/admin/channels/admin-channel-workspace";
 import type { AgentSkill, PracticeModuleVisibility } from "@/lib/auth/store";
 import { FEATURE_MODULES, type FeatureModuleId } from "@/lib/feature-modules";
-import { Button, Input, InputNumber, Select, Switch, Tag, Modal } from "antd";
+import { Button, Input, InputNumber, Select, Switch, Tag } from "antd";
 import { ChevronDown, Plus, Save, Trash2 } from "lucide-react";
-import { useState } from "react";
 
 import type { AdminDashboardController } from "./use-admin-dashboard-controller";
 
@@ -337,7 +336,6 @@ export function AdminDramaLabPluginSection({ controller }: { controller: AdminDa
 }
 export function AdminPluginsSection({ controller }: { controller: AdminDashboardController }) {
     const { settings, settingsLoading, activeSection, saveSettings } = controller;
-    const [selectedPlugin, setSelectedPlugin] = useState<FeatureModuleId>();
     if (activeSection !== "plugins") return null;
 
     const toggle = (id: FeatureModuleId, enabled: boolean) =>
@@ -407,7 +405,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                         <section
                             key={plugin.id}
                             className="flex min-h-40 cursor-pointer flex-col border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-950"
-                            onClick={() => (plugin.id === "drama-lab" ? (window.location.href = "/admin/drama-lab-features") : setSelectedPlugin(plugin.id))}
+                            onClick={() => (plugin.id === "drama-lab" ? (window.location.href = "/admin/drama-lab-features") : undefined)}
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex min-w-0 items-center gap-3">
@@ -435,4 +433,3 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
         </Panel>
     );
 }
-

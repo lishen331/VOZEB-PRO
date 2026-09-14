@@ -111,10 +111,10 @@ const COLLABORATION_STAGES: Array<{ key: CollaborationStageKey; label: string; s
 ];
 
 const COLLABORATION_STATUS_STYLE: Record<CollaborationApprovalStatus, { label: string; className: string }> = {
-    draft: { label: "寰呮彁浜?, className: "border-border bg-muted text-muted-foreground" },
-    submitted: { label: "瀹℃牳涓?, className: "border-sky-300 bg-sky-50 text-sky-800" },
+    draft: { label: "待提交", className: "border-border bg-muted text-muted-foreground" },
+    submitted: { label: "审核中", className: "border-sky-300 bg-sky-50 text-sky-800" },
     approved: { label: "宸查�氳繃", className: "border-emerald-300 bg-emerald-50 text-emerald-800" },
-    returned: { label: "宸叉墦鍥?, className: "border-rose-300 bg-rose-50 text-rose-800" },
+    returned: { label: "已打回", className: "border-rose-300 bg-rose-50 text-rose-800" },
     requires_confirmation: { label: "闇�纭鐗堟湰", className: "border-amber-300 bg-amber-50 text-amber-800" },
 };
 
@@ -6851,6 +6851,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
         </div>
     );
 }
+
 
 
 
