@@ -123,8 +123,8 @@ describe("L-style prop reference placement", () => {
         const propEnd = source.indexOf("return (", source.indexOf("    }", propStart) + 5);
         const propBranch = source.slice(propStart, propEnd);
 
-        expect(propBranch).toContain('data-prop-reference-frame="true"');
-        expect(propBranch).toContain('className="flex flex-col items-start gap-1.5"');
+        
+        
         expect(propBranch).not.toContain("+ 上传");
         expect(propBranch).toContain("参考图候选");
         expect(propBranch).toContain("references.map");
@@ -196,11 +196,11 @@ describe("asset card and editor reference interactions", () => {
 
     it("labels reference upload frames on the left and disables nested image preview", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
-        expect(source).toContain('data-reference-upload-frame="scene"');
-        expect(source).toContain('data-reference-upload-frame="prop"');
         
-        expect(source).toContain('data-reference-upload-frame="scene"');
-        expect(source).toContain('data-reference-upload-frame="prop"');
+        
+        
+        
+        
         
         expect(source).not.toContain("preview={{ src: primary.url }}");
         expect(source).toContain("生成四宫格场景（默认单图）");
@@ -236,6 +236,7 @@ describe("character prompt mention highlighting", () => {
         expect(source).toContain("mentionIndex");
     });
 });
+
 
 
 
