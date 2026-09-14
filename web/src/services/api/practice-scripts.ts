@@ -78,7 +78,10 @@ export const practiceScriptsApi = {
         return request<Array<{ id: string; role: string; agent_key?: string; public_content: string }>>(`/api/practice/scripts/${encodeURIComponent(id)}/chat-sessions/${encodeURIComponent(sessionId)}/messages`);
     },
     sendChat(id: string, sessionId: string, content: string, clientRequestId: string) {
-        return request<{ id: string; status: string }>(`/api/practice/scripts/${encodeURIComponent(id)}/chat-sessions/${encodeURIComponent(sessionId)}/messages`, json("POST", { content, clientRequestId }));
+        return request<{ id: string; status: string; nextRun?: { id?: string }; confirmation?: Record<string, unknown> }>(
+            `/api/practice/scripts/${encodeURIComponent(id)}/chat-sessions/${encodeURIComponent(sessionId)}/messages`,
+            json("POST", { content, clientRequestId }),
+        );
     },
     exportUrl(id: string, format: "text" | "fountain" | "fdx" | "storyboard" | "storyboard_csv") {
         return `/api/practice/scripts/${encodeURIComponent(id)}/export?format=${format}`;

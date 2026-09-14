@@ -7,6 +7,7 @@ import { ScriptAgentRepository } from "@/lib/server/database/script-agent-reposi
 import { postgresQuery } from "@/lib/server/database/postgres";
 import { ScriptAgentRunService } from "@/lib/server/script-agent-run-service";
 import { nextShortFilmRunType } from "@/lib/server/script-agent-executor";
+import { confirmScriptArtifactAndStartNext } from "@/lib/server/script-agent-confirmation-service";
 type Context = { params: Promise<{ id: string; sessionId: string }> };
 export async function GET(request: Request, context: Context) {
     const user = await getCurrentUser(request);
@@ -32,7 +33,19 @@ export async function POST(request: Request, context: Context) {
     const saved = await repository.saveChatMessage(scope, { id: randomUUID(), sessionId, projectId: id, role: "user", publicContent: content, clientRequestId });
     if (!saved) return reply(409, null, "剧本对话已变化，请刷新后重试");
     const artifacts = await repository.listLatestArtifacts(scope, id);
-    const advanceWorkflow = /^(确认|确定|继续|可以|好的|好|按这个来|开始|生成|进入下一步|没问题)[。！!，,、\s]*$/i.test(content);
+    const confirmation = /^(确认|确定|继续|可以|好的|好|是的|对的|我同意|我认同|按你的想法来|按这个来|就这样|开始|进入下一步|没问题)[。！!，,、\s]*$/i.test(content);
+    const pending = artifacts.find((row) => row.status === "awaiting_review" && ["creative_positioning", "short_story", "adaptation_strategy", "review_report"].includes(String(row.artifact_type)));
+    if (confirmation && pending) {
+        const progressed = await confirmScriptArtifactAndStartNext(scope, {
+            projectId: id,
+            artifactId: String(pending.id),
+            stageKey: String(pending.artifact_type),
+            sourceRunId: String(pending.source_run_id || "") || undefined,
+            chatSessionId: sessionId,
+        });
+        if (progressed) return reply(0, { id: progressed.nextRun?.id || progressed.confirmation.id, status: progressed.nextRun?.status || "success", nextRun: progressed.nextRun || undefined, confirmation: progressed.confirmation }, "ok");
+    }
+    const advanceWorkflow = confirmation;
     const nextRunType = advanceWorkflow ? nextShortFilmRunType(artifacts) : undefined;
     const run = await new ScriptAgentRunService(repository).create(scope, {
         projectId: id,

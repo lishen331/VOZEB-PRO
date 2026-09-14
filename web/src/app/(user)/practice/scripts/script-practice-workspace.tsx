@@ -266,7 +266,8 @@ export default function ScriptPracticeWorkspace() {
         const session = chatSessionId ? { id: chatSessionId } : await practiceScriptsApi.createChatSession(selectedId, "剧本创作");
         setChatSessionId(session.id);
         const run = await practiceScriptsApi.sendChat(selectedId, session.id, text, crypto.randomUUID());
-        setRunId(run.id);
+        if (run.confirmation) setPendingConfirmation(null);
+        setRunId(run.nextRun?.id || run.id);
     };
     const loadConversationPreview = async (projectId: string) => {
         try {
