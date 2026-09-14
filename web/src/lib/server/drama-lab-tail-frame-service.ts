@@ -67,8 +67,7 @@ export async function extractDramaLabTailFrame(input: DramaLabTailFrameExtractio
     // or reachable from the browser but not from this server.
     const sourceUrl =
         [
-            shot.videoHistory?.find((entry) => entry.taskId === generationTaskId)?.url,
-            shot.videoUrl,
+            ...[shot.videoHistory?.find((entry) => entry.taskId === generationTaskId)?.url, shot.videoUrl].filter((value) => isDurableShotVideoUrl(value)),
             taskResult?.serverUrl,
             task.result?.url,
             taskResult?.storageUrl,

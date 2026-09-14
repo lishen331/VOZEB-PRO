@@ -87,7 +87,7 @@ export function dramaLabEpisodeCanvasHref(projectId: string, episodeId: string, 
 const WORKFLOW_STEPS = [
     { key: "script", label: "剧本", icon: FileText },
     { key: "assets", label: "资产准备", icon: Users },
-    { key: "storyboard", label: "分镜工作�?, icon: Film },
+    { key: "storyboard", label: "分镜工作�?", icon: Film },
     { key: "review", label: "内容审核", icon: FileText },
     { key: "export", label: "成片导出", icon: Download },
 ] as const;
@@ -6233,7 +6233,7 @@ function StoryboardWorkbenchCard({
                                 value={promptDraft.universalPrompt}
                                 autoSize={{ minRows: 5, maxRows: 12 }}
                                 wrap={promptWrap ? "soft" : "off"}
-                                placeholder="按时间线描述连续子分镜，并使用 @图片1、@图片2 引用参考图"
+                                placeholder="按时间线描述连续子分镜，并使�?@图片1、@图片2 引用参考图"
                                 aria-label="全能模式片段描述"
                                 onChange={(event) => setPromptDraft((current) => ({ ...current, universalPrompt: event.target.value }))}
                                 onBlur={() => onUpdate({ universalSegmentText: promptDraft.universalPrompt.trim() })}
@@ -6851,4 +6851,5 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
         </div>
     );
 }
+
 
