@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { App, Button, Input, Popconfirm, Select, Spin, Tag } from "antd";
+import { App, Button, Input, Modal, Popconfirm, Select, Spin, Tag } from "antd";
 import { ArrowLeft, BookOpen, Download, Import, Pause, Plus, RefreshCw, Send, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -41,6 +41,7 @@ export default function ScriptPracticeWorkspace() {
     const [publicProgress, setPublicProgress] = useState("");
     const [starting, setStarting] = useState(false);
     const [confirming, setConfirming] = useState(false);
+    const [pendingConfirmation, setPendingConfirmation] = useState<{ artifactId: string; artifactType: string; runId: string } | null>(null);
     const abortRef = useRef<AbortController | undefined>(undefined);
     const seenEventKeys = useRef(new Set<string>());
     const previewRawRef = useRef("");
@@ -177,7 +178,15 @@ export default function ScriptPracticeWorkspace() {
                         }
                         if (event.type === "artifact_delta") {
                             previewRawRef.current += String(event.data.delta || "");
-                            setPreview(publicPreviewText(previewRawRef.current));
+                            const readable = publicPreviewText(previewRawRef.current);
+                            setPreview(readable);
+                            if (readable) {
+                                setMessages((current) => {
+                                    const index = current.findLastIndex((item) => item.role === "assistant" && (item.status === "working" || item.status === "streaming"));
+                                    if (index < 0) return [...current, { id: crypto.randomUUID(), role: "assistant", agent: AGENT_LABEL, content: readable, status: "streaming" }];
+                                    return [...current.slice(0, index), { ...current[index], content: readable, status: "streaming" }, ...current.slice(index + 1)];
+                                });
+                            }
                         }
                         if (event.type === "progress") {
                             setPublicProgress(String(event.data.label || "正在处理当前剧本"));
@@ -201,6 +210,9 @@ export default function ScriptPracticeWorkspace() {
                                 if (artifactContent(savedArtifact)) {
                                     previewRawRef.current = "";
                                     setPreview("");
+                                }
+                                if (["creative_positioning", "short_story", "adaptation_strategy", "review_report"].includes(String(event.data.artifactType))) {
+                                    setPendingConfirmation({ artifactId: String(event.data.artifactId || ""), artifactType: String(event.data.artifactType), runId: currentRunId });
                                 }
                             }
                         }
@@ -266,12 +278,18 @@ export default function ScriptPracticeWorkspace() {
         }
     };
     const confirmCurrentArtifact = async () => {
-        if (!selectedId || !artifactId || confirming) return;
+        if (!selectedId || !pendingConfirmation || confirming) return;
         setConfirming(true);
         try {
-            await practiceScriptsApi.confirmArtifact(selectedId, artifactId, tree.find((item) => item.key === selectedKey)?.type || selectedKey, runId);
+            await practiceScriptsApi.confirmArtifact(selectedId, pendingConfirmation.artifactId, pendingConfirmation.artifactType, pendingConfirmation.runId);
+            const nextByArtifact: Record<string, string> = { creative_positioning: "short_story", short_story: "adaptation_bundle", adaptation_strategy: "episode_scripts", review_report: "director_plan" };
+            const nextRunType = nextByArtifact[pendingConfirmation.artifactType];
+            setPendingConfirmation(null);
             await loadTree(selectedId);
-            setArtifact(await practiceScriptsApi.artifact(selectedId, ...(selectedKey.split(":") as [string, string])));
+            if (nextRunType) {
+                const run = await practiceScriptsApi.createRun(selectedId, { runType: nextRunType, chatSessionId, clientRequestId: crypto.randomUUID(), input: { instruction: "根据已确认成果继续下一阶段" } });
+                setRunId(run.id);
+            }
         } finally {
             setConfirming(false);
         }
@@ -505,6 +523,9 @@ export default function ScriptPracticeWorkspace() {
                     </div>
                 </aside>
             </div>
+            <Modal title="确认进入下一步" open={Boolean(pendingConfirmation)} onCancel={() => setPendingConfirmation(null)} onOk={() => void runAction(confirmCurrentArtifact, "确认并进入下一步失败")} okText="确认下一步" confirmLoading={confirming}>
+                <p>这一阶段的创作成果已经完成。确认后，剧本 Agent 会继续推进到下一阶段。</p>
+            </Modal>
         </main>
     );
 }
