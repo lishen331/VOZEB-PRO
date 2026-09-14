@@ -33,7 +33,7 @@ export async function POST(request: Request, context: Context) {
     const saved = await repository.saveChatMessage(scope, { id: randomUUID(), sessionId, projectId: id, role: "user", publicContent: content, clientRequestId });
     if (!saved) return reply(409, null, "剧本对话已变化，请刷新后重试");
     const artifacts = await repository.listLatestArtifacts(scope, id);
-    const confirmation = /^(确认|确定|继续|可以|好的|好|是的|对的|我同意|我认同|按你的想法来|按这个来|就这样|开始|进入下一步|没问题)[。！!，,、\s]*$/i.test(content);
+    const confirmation = isNaturalConfirmation(content);
     const pending = artifacts.find((row) => row.status === "awaiting_review" && ["creative_positioning", "short_story", "adaptation_strategy", "review_report"].includes(String(row.artifact_type)));
     if (confirmation && pending) {
         const progressed = await confirmScriptArtifactAndStartNext(scope, {
@@ -55,6 +55,12 @@ export async function POST(request: Request, context: Context) {
         configSnapshot: { message: content, advanceWorkflow, ...(nextRunType ? { nextRunType } : {}) },
     });
     return reply(0, run, "ok");
+}
+function isNaturalConfirmation(content: string) {
+    const normalized = content.trim();
+    if (/(?:不(?:同意|认同|可以)|不同意|不要|别|否定|修改|改成|但是|不过|先不要|我想换)/i.test(normalized)) return false;
+    if (/^(?:确认|确定|继续|可以|好的|好|是的|对的|开始|没问题)[。！!，,、\s]*$/i.test(normalized)) return true;
+    return /(?:确认进入下一步|进入下一步|我(?:同意|认同)(?:了你的想法)?|按你的想法来|按这个(?:方向)?来|就这样|没问题|我觉得很可以[，,。！!\s]*按)/i.test(normalized);
 }
 function reply<T>(code: number, data: T | null, msg: string) {
     return NextResponse.json({ code, data, msg }, { status: code === 0 ? 200 : code });
