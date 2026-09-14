@@ -606,7 +606,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails: "" } } : item)));
                 try {
                     await retryCanvasAgentNode(node, applyAgentOps);
-                    message.success("Agent 浠诲姟宸查噸鏂扮敓鎴?);
+                    message.success("Agent 任务已重新生成");
                 } catch (error) {
                     const errorDetails = error instanceof Error ? error.message : "Agent 浠诲姟閲嶈瘯澶辫触";
                     message.error(errorDetails);
