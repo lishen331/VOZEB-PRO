@@ -70,7 +70,7 @@ describe("L-compatible character AI editor actions", () => {
         expect(source).toContain('width="min(960px, calc(100vw - 32px))"');
         expect(source).toContain('maxHeight: "calc(100vh - 160px)"');
         expect(source).toContain('overflowY: "auto"');
-        expect(source).toContain("点击或拖入参考图");
+        expect(source).toContain("data-character-primary-image");
         expect(source).not.toContain("<span>原始图片提示词</span>");
         expect(source).not.toContain("<span>生成版式</span>");
         expect(source).not.toContain("profileLabel(key)");
@@ -236,6 +236,7 @@ describe("character prompt mention highlighting", () => {
         expect(source).toContain("mentionIndex");
     });
 });
+
 
 
 
