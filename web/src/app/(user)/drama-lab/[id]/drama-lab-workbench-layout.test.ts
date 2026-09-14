@@ -17,6 +17,11 @@ describe("production storyboard workbench layout wiring", () => {
         expect(source).not.toContain("xl:grid-cols-[280px_minmax(0,1fr)_minmax(300px,0.9fr)]");
         expect(source).toContain('className="min-w-0 space-y-4 p-4" aria-label={`分镜 ${shot.shotNumber} 资产关联`}');
     });
+    it("keeps scene, character, and prop selectors outside card prompt editing", async () => {
+        const source = await readFile("src/app/(user)/drama-lab/[id]/drama-lab-shot-asset-picker.tsx", "utf8");
+        expect(source).toContain('data-no-prompt-editor="true"');
+        expect(source).toContain("event.stopPropagation()");
+    });
     it("exposes classic upload via the existing key-frame flow and aligns media above editors", async () => {
         const source = await readFile(path, "utf8");
         expect(source).toContain('aria-label="上传分镜图"');

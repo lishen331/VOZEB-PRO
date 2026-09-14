@@ -4,7 +4,7 @@ export type ShotPickerAsset = { id: string; name?: string; location?: string; im
 export function DramaLabShotAssetPicker({ label, assets, selectedIds, single = false, onChange }: { label: string; assets: ShotPickerAsset[]; selectedIds: string[]; single?: boolean; onChange: (ids: string[]) => void }) {
     const selected = selectedIds.map((id) => assets.find((asset) => asset.id === id)).filter((asset): asset is ShotPickerAsset => Boolean(asset));
     return (
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 space-y-2" data-no-prompt-editor="true" onClick={(event) => event.stopPropagation()}>
             <Select
                 aria-label={"选择" + label}
                 placeholder={"选择" + label}
