@@ -6230,12 +6230,13 @@ function StoryboardWorkbenchCard({
                             </div>
                             {universalPromptError ? <Alert type="error" showIcon message={universalPromptError} /> : null}
                             <TextArea
-                                value={shot.universalSegmentText || ""}
+                                value={promptDraft.universalPrompt}
                                 autoSize={{ minRows: 5, maxRows: 12 }}
                                 wrap={promptWrap ? "soft" : "off"}
-                                placeholder="按时间线描述连续子分镜，并使�?@图片1、@图片2 引用参考图"
+                                placeholder="按时间线描述连续子分镜，并使用 @图片1、@图片2 引用参考图"
                                 aria-label="全能模式片段描述"
-                                onBlur={(event) => onUpdate({ universalSegmentText: event.target.value.trim() })}
+                                onChange={(event) => setPromptDraft((current) => ({ ...current, universalPrompt: event.target.value }))}
+                                onBlur={() => onUpdate({ universalSegmentText: promptDraft.universalPrompt.trim() })}
                             />
                             <div className="space-y-2">
                                 <div className="text-xs font-medium text-muted-foreground">参考图顺序（场�?�?角色 �?道具�?/div>
