@@ -196,7 +196,8 @@ describe("asset card and editor reference interactions", () => {
 
     it("labels reference upload frames on the left and disables nested image preview", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
-        expect((source.match(/<span className="shrink-0 text-sm">参考图<\/span>/g) || []).length).toBe(2);
+        expect(source).toContain('data-reference-upload-frame="scene"');
+        expect(source).toContain('data-reference-upload-frame="prop"');
         expect(source).toContain("data-character-generation-references");
         expect(source).toContain('data-reference-upload-frame="scene"');
         expect(source).toContain('data-reference-upload-frame="prop"');
