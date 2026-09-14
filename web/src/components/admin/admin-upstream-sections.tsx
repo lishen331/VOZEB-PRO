@@ -404,7 +404,11 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                     const Icon = plugin.icon;
                     const enabled = settings.featureModules[plugin.id] !== false;
                     return (
-                        <section key={plugin.id} className="flex min-h-40 cursor-pointer flex-col border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-950" onClick={() => setSelectedPlugin(plugin.id)}>
+                        <section
+                            key={plugin.id}
+                            className="flex min-h-40 cursor-pointer flex-col border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-950"
+                            onClick={() => (plugin.id === "drama-lab" ? (window.location.href = "/admin/drama-lab-features") : setSelectedPlugin(plugin.id))}
+                        >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex min-w-0 items-center gap-3">
                                     <span className="grid size-9 shrink-0 place-items-center rounded-md bg-stone-100 text-stone-700 dark:bg-stone-900 dark:text-stone-200">
@@ -415,7 +419,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                                         <div className="mt-1 text-xs text-stone-500">{plugin.group}</div>
                                     </div>
                                 </div>
-                                <Switch checked={enabled} loading={settingsLoading} aria-label={`${plugin.name}启用状态`} onChange={(next) => void toggle(plugin.id, next)} />
+                                <Switch checked={enabled} loading={settingsLoading} aria-label={`${plugin.name}启用状态`} onClick={(event) => event.stopPropagation()} onChange={(next) => void toggle(plugin.id, next)} />
                             </div>
                             <p className="mt-3 line-clamp-2 text-sm leading-5 text-stone-600 dark:text-stone-400">{plugin.description}</p>
                             <div className="mt-auto flex flex-wrap gap-1.5 pt-4">
@@ -428,17 +432,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                     );
                 })}
             </div>
-            {selectedPlugin === "drama-lab" ? (
-                <Modal open={selectedPlugin === "drama-lab"} title="创作工坊 · 子功能配置" footer={null} onCancel={() => setSelectedPlugin(undefined)}>
-                    <div className="flex items-center justify-between gap-4 rounded-md border border-stone-200 p-4">
-                        <div>
-                            <div className="font-medium">本剧资源库编辑弹窗</div>
-                            <div className="mt-1 text-xs text-stone-500">仅控制剧本信息页资源卡片编辑入口的前端显示。</div>
-                        </div>
-                        <Switch checked={settings.featureModules["drama-lab-resource-editor"] !== false} loading={settingsLoading} aria-label="本剧资源库编辑弹窗显示状态" onChange={(next) => void toggle("drama-lab-resource-editor", next)} />
-                    </div>
-                </Modal>
-            ) : null}
         </Panel>
     );
 }
+

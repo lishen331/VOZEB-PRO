@@ -187,13 +187,28 @@ function isStructured(value: unknown): value is Record<string, unknown> | unknow
     return Boolean(value && typeof value === "object");
 }
 
-function collectUrls(value: unknown): string[] {
-    if (typeof value === "string") return isUrlLike(value) ? [value.trim()] : [];
-    if (Array.isArray(value)) return value.flatMap(collectUrls);
-    if (!value || typeof value !== "object") return [];
-    return Object.values(value as Record<string, unknown>).flatMap(collectUrls);
-}
+const MAX_URL_SCAN_DEPTH = 64;
 
+function collectUrls(value: unknown): string[] {
+    const urls: string[] = [];
+    const stack: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
+    const visited = new WeakSet<object>();
+
+    while (stack.length) {
+        const current = stack.pop()!;
+        if (typeof current.value === "string") {
+            if (isUrlLike(current.value)) urls.push(current.value.trim());
+            continue;
+        }
+        if (!current.value || typeof current.value !== "object" || current.depth >= MAX_URL_SCAN_DEPTH) continue;
+        if (visited.has(current.value)) continue;
+        visited.add(current.value);
+        const children = Array.isArray(current.value) ? current.value : Object.values(current.value as Record<string, unknown>);
+        for (const child of children) stack.push({ value: child, depth: current.depth + 1 });
+    }
+
+    return urls;
+}
 function isUrlLike(value: string) {
     return /^(?:https?:|data:|\/api\/)/i.test(value.trim());
 }

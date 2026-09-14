@@ -103,11 +103,11 @@ type CollaborationFeedback = { id: string; stage: CollaborationStageKey; content
 
 const COLLABORATION_STAGES: Array<{ key: CollaborationStageKey; label: string; step: StepKey; description: string }> = [
     { key: "script", label: "剧本审核", step: "script", description: "故事梗概、分集剧本与人物情节表达" },
-    { key: "asset_prompts", label: "资产提示词审�?, step: "assets", description: "角色、场景、道具及分镜提示�? },
+    { key: "asset_prompts", label: "�ʲ���ʾ�����", step: "assets", description: "��ɫ�����������߼��־���ʾ��" },
     { key: "storyboard", label: "分镜审核", step: "storyboard", description: "分镜结构、镜头节奏与资产关联" },
-    { key: "visual_images", label: "视觉图片审核", step: "storyboard", description: "资产图片与分镜图片的一致�? },
+    { key: "visual_images", label: "�Ӿ�ͼƬ���", step: "storyboard", description: "�ʲ�ͼƬ��־�ͼƬ��һ����" },
     { key: "storyboard_video", label: "分镜视频审核", step: "storyboard", description: "镜头视频、节奏与动作衔接" },
-    { key: "final_cut", label: "成片审核", step: "export", description: "导出前的最终成片版�? },
+    { key: "final_cut", label: "��Ƭ���", step: "export", description: "����ǰ�����ճ�Ƭ�汾" },
 ];
 
 const COLLABORATION_STATUS_STYLE: Record<CollaborationApprovalStatus, { label: string; className: string }> = {
@@ -6851,5 +6851,6 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
         </div>
     );
 }
+
 
 

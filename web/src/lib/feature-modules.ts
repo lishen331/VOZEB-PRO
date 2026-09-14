@@ -23,6 +23,32 @@ export const FEATURE_MODULE_IDS = [
 
 export type FeatureModuleId = (typeof FEATURE_MODULE_IDS)[number];
 export type FeatureModuleSettings = Record<FeatureModuleId, boolean>;
+
+export const DRAMA_LAB_UI_FEATURES = {
+    projectEntry: "drama-lab-ui-project-entry",
+    novelImport: "drama-lab-ui-novel-import",
+    episodeManagement: "drama-lab-ui-episode-management",
+    storyGeneration: "drama-lab-ui-story-generation",
+    assetPreparation: "drama-lab-ui-asset-preparation",
+    assetExtraction: "drama-lab-ui-asset-extraction",
+    assetReferenceLibrary: "drama-lab-ui-asset-reference-library",
+    assetGeneration: "drama-lab-ui-asset-generation",
+    storyboardCount: "drama-lab-ui-storyboard-count",
+    storyboardDuration: "drama-lab-ui-storyboard-duration",
+    storyboardFirstLast: "drama-lab-ui-storyboard-first-last",
+    storyboardClassic: "drama-lab-ui-storyboard-classic",
+    storyboardUniversal: "drama-lab-ui-storyboard-universal",
+    storyboardVoiceover: "drama-lab-ui-storyboard-voiceover",
+    storyboardExport: "drama-lab-ui-storyboard-export",
+    workbenchAssetSelectors: "drama-lab-ui-workbench-asset-selectors",
+    workbenchImage: "drama-lab-ui-workbench-image",
+    workbenchVideo: "drama-lab-ui-workbench-video",
+    workbenchPromptEditor: "drama-lab-ui-workbench-prompt-editor",
+    workbenchDubbing: "drama-lab-ui-workbench-dubbing",
+    workbenchAudioSplit: "drama-lab-ui-workbench-audio-split",
+} as const;
+export type DramaLabUiFeatureId = (typeof DRAMA_LAB_UI_FEATURES)[keyof typeof DRAMA_LAB_UI_FEATURES];
+export const DEFAULT_DRAMA_LAB_UI_FEATURES: Record<DramaLabUiFeatureId, boolean> = Object.fromEntries(Object.values(DRAMA_LAB_UI_FEATURES).map((id) => [id, true])) as Record<DramaLabUiFeatureId, boolean>;
 export type FeatureModuleGroup = "create" | "projects" | "assets" | "community" | "school" | "support";
 
 export type FeatureModuleDefinition = {
@@ -66,7 +92,7 @@ export function featureModuleDefinition(id: FeatureModuleId) {
 
 export function normalizeFeatureModuleSettings(value: unknown): FeatureModuleSettings {
     const input = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-    return Object.fromEntries(FEATURE_MODULE_IDS.map((id) => [id, input[id] !== false])) as FeatureModuleSettings;
+    return { ...input, ...Object.fromEntries(FEATURE_MODULE_IDS.map((id) => [id, input[id] !== false])) } as FeatureModuleSettings;
 }
 
 export function isFeatureModuleEnabled(settings: Pick<{ featureModules: FeatureModuleSettings }, "featureModules">, id: FeatureModuleId) {
@@ -80,4 +106,8 @@ export function featureModuleForPathname(pathname: string): FeatureModuleId | un
 
 export function featureModuleForNavigationSlug(slug: string): FeatureModuleId | undefined {
     return featureModuleForPathname(`/${slug}`);
+}
+
+export function isDramaLabUiFeatureEnabled(settings: Pick<{ featureModules?: Record<string, boolean> }, "featureModules"> | undefined, id: DramaLabUiFeatureId) {
+    return settings?.featureModules?.[id] !== false;
 }
