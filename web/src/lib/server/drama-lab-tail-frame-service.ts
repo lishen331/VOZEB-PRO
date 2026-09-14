@@ -63,9 +63,21 @@ export async function extractDramaLabTailFrame(input: DramaLabTailFrameExtractio
     if (task.status !== "success") throw new DramaLabShotGenerationError("当前分镜的视频任务尚未成功完成", 409);
 
     const taskResult = task.result as Record<string, unknown> | undefined;
+    // Prefer the durable URL persisted on the shot. Provider URLs can be expired
+    // or reachable from the browser but not from this server.
     const sourceUrl =
-        [taskResult?.serverUrl, task.result?.url, taskResult?.storageUrl, task.result?.remoteUrl, taskResult?.remoteUrl, taskResult?.dataUrl, task.upstream?.resultUrl]
-            .find((value): value is string => typeof value === "string" && value.trim().length > 0)
+        [
+            shot.videoHistory?.find((entry) => entry.taskId === generationTaskId)?.url,
+            shot.videoUrl,
+            taskResult?.serverUrl,
+            task.result?.url,
+            taskResult?.storageUrl,
+            task.result?.remoteUrl,
+            taskResult?.remoteUrl,
+            taskResult?.dataUrl,
+            task.upstream?.resultUrl,
+        ]
+            .find((value): value is string => typeof value === "string" && value.trim().length > 0 && isPersistentMediaUrl(value.trim()))
             ?.trim() || "";
     if (!isPersistentMediaUrl(sourceUrl)) throw new DramaLabShotGenerationError("当前分镜的视频结果地址不可用，请先同步视频结果", 409);
 
@@ -390,7 +402,7 @@ function stableCandidateId(taskId: string, shotId: string) {
     return `tail-frame-${taskId}-${shotId}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 180);
 }
 
-function isPersistentMediaUrl(value: string) {
+function isDurableShotVideoUrl(value: string | undefined) {`n    return typeof value === "string" && (value.startsWith("/api/reference-assets/") || value.startsWith("/api/generation-log-assets/"));`n}`n`nfunction isPersistentMediaUrl(value: string) {
     if (!value || value.startsWith("data:") || value.startsWith("blob:")) return false;
     if (value.startsWith("/")) return true;
     try {

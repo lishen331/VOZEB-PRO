@@ -87,7 +87,7 @@ export function dramaLabEpisodeCanvasHref(projectId: string, episodeId: string, 
 const WORKFLOW_STEPS = [
     { key: "script", label: "剧本", icon: FileText },
     { key: "assets", label: "资产准备", icon: Users },
-    { key: "storyboard", label: "分镜工作台", icon: Film },
+    { key: "storyboard", label: "分镜工作�?, icon: Film },
     { key: "review", label: "内容审核", icon: FileText },
     { key: "export", label: "成片导出", icon: Download },
 ] as const;
@@ -103,18 +103,18 @@ type CollaborationFeedback = { id: string; stage: CollaborationStageKey; content
 
 const COLLABORATION_STAGES: Array<{ key: CollaborationStageKey; label: string; step: StepKey; description: string }> = [
     { key: "script", label: "剧本审核", step: "script", description: "故事梗概、分集剧本与人物情节表达" },
-    { key: "asset_prompts", label: "资产提示词审核", step: "assets", description: "角色、场景、道具及分镜提示词" },
+    { key: "asset_prompts", label: "资产提示词审�?, step: "assets", description: "角色、场景、道具及分镜提示�? },
     { key: "storyboard", label: "分镜审核", step: "storyboard", description: "分镜结构、镜头节奏与资产关联" },
-    { key: "visual_images", label: "视觉图片审核", step: "storyboard", description: "资产图片与分镜图片的一致性" },
+    { key: "visual_images", label: "视觉图片审核", step: "storyboard", description: "资产图片与分镜图片的一致�? },
     { key: "storyboard_video", label: "分镜视频审核", step: "storyboard", description: "镜头视频、节奏与动作衔接" },
-    { key: "final_cut", label: "成片审核", step: "export", description: "导出前的最终成片版本" },
+    { key: "final_cut", label: "成片审核", step: "export", description: "导出前的最终成片版�? },
 ];
 
 const COLLABORATION_STATUS_STYLE: Record<CollaborationApprovalStatus, { label: string; className: string }> = {
-    draft: { label: "待提交", className: "border-border bg-muted text-muted-foreground" },
-    submitted: { label: "审核中", className: "border-sky-300 bg-sky-50 text-sky-800" },
+    draft: { label: "待提�?, className: "border-border bg-muted text-muted-foreground" },
+    submitted: { label: "审核�?, className: "border-sky-300 bg-sky-50 text-sky-800" },
     approved: { label: "已通过", className: "border-emerald-300 bg-emerald-50 text-emerald-800" },
-    returned: { label: "已打回", className: "border-rose-300 bg-rose-50 text-rose-800" },
+    returned: { label: "已打�?, className: "border-rose-300 bg-rose-50 text-rose-800" },
     requires_confirmation: { label: "需确认版本", className: "border-amber-300 bg-amber-50 text-amber-800" },
 };
 
@@ -452,8 +452,8 @@ async function assertJsonApiResponse(response: Response) {
     if (contentType.includes("application/json")) return;
 
     const preview = (await response.clone().text()).replace(/\s+/g, " ").trim().slice(0, 120);
-    const suffix = preview ? ` 返回内容：${preview}` : "";
-    throw new Error(`接口返回了非 JSON 响应（HTTP ${response.status}）。开发服务可能已失效，请刷新页面或重启 3002。${suffix}`);
+    const suffix = preview ? ` 返回内容�?{preview}` : "";
+    throw new Error(`接口返回了非 JSON 响应（HTTP ${response.status}）。开发服务可能已失效，请刷新页面或重�?3002�?{suffix}`);
 }
 
 function normalizeEpisodes(value: unknown): Episode[] {
@@ -466,7 +466,7 @@ function normalizeEpisodes(value: unknown): Episode[] {
         return [
             {
                 id,
-                title: typeof episode.title === "string" && episode.title.trim() ? episode.title : `第 ${index + 1} 集`,
+                title: typeof episode.title === "string" && episode.title.trim() ? episode.title : `�?${index + 1} 集`,
                 number: typeof episode.number === "number" && Number.isFinite(episode.number) ? episode.number : index + 1,
                 script: typeof episode.script === "string" ? episode.script : "",
                 sourceRange: typeof episode.sourceRange === "string" ? episode.sourceRange : undefined,
@@ -888,14 +888,14 @@ function missingShotAssetLabels(project: Project, shot: Shot) {
         return Boolean(referenceUrl?.trim());
     };
     const scene = shot.sceneId ? project.scenes.find((asset) => asset.id === shot.sceneId) : undefined;
-    if (scene && !hasReference(scene)) missing.push(`场景「${scene.name || scene.location}」`);
+    if (scene && !hasReference(scene)) missing.push(`场景�?{scene.name || scene.location}」`);
     shot.characterIds.forEach((id) => {
         const character = project.characters.find((asset) => asset.id === id);
-        if (character && !hasReference(character)) missing.push(`角色「${character.name}」`);
+        if (character && !hasReference(character)) missing.push(`角色�?{character.name}」`);
     });
     shot.propIds.forEach((id) => {
         const prop = project.props.find((asset) => asset.id === id);
-        if (prop && !hasReference(prop)) missing.push(`道具「${prop.name}」`);
+        if (prop && !hasReference(prop)) missing.push(`道具�?{prop.name}」`);
     });
     return missing;
 }
@@ -996,7 +996,7 @@ function ambiguousLegacyAudioReviewReason(shot: Shot) {
     if (!ambiguousLegacyAudioText(shot)) return undefined;
     const dedicatedUrls = [shot.dialogueAudio?.url, shot.narrationAudio?.url].map((url) => stableAudioSourceUrl(url)).filter(Boolean);
     if (dedicatedUrls.includes(legacyUrl)) return undefined;
-    return "旧版 audioUrl 同时对应对白和旁白文本，系统不会猜测归属；请先确认后再用于成片。";
+    return "旧版 audioUrl 同时对应对白和旁白文本，系统不会猜测归属；请先确认后再用于成片�?;
 }
 
 function ambiguousLegacyAudioText(shot: Shot) {
@@ -1103,7 +1103,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                 cache: "no-store",
             });
             const payload = (await response.json().catch(() => ({}))) as { code?: unknown; msg?: unknown; data?: unknown };
-            if (!response.ok || (payload.code !== undefined && Number(payload.code) !== 0)) throw new Error(String(payload.msg || `协作请求失败（${response.status}）`));
+            if (!response.ok || (payload.code !== undefined && Number(payload.code) !== 0)) throw new Error(String(payload.msg || `协作请求失败�?{response.status}）`));
             return payload.data;
         },
         [projectId],
@@ -1408,7 +1408,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         if (!enabled) setApprovalStatuses((current) => ({ ...current, [stageKey]: "draft" }));
         setCollaborationActionBusy(true);
         void persistApprovalConfigs(next, collaborationMode === "strict")
-            .then(() => messageApi.success("审批配置已保存"))
+            .then(() => messageApi.success("审批配置已保�?))
             .catch((error) => {
                 messageApi.error(error instanceof Error ? error.message : "审批配置保存失败");
                 void loadCollaboration();
@@ -1419,7 +1419,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         setCollaborationMode(nextMode);
         setCollaborationActionBusy(true);
         void persistApprovalConfigs(approvalStages, nextMode === "strict")
-            .then(() => messageApi.success("协作模式已保存"))
+            .then(() => messageApi.success("协作模式已保�?))
             .catch((error) => messageApi.error(error instanceof Error ? error.message : "协作模式保存失败"))
             .finally(() => setCollaborationActionBusy(false));
     };
@@ -1431,7 +1431,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             setApprovalStages(disabled);
             setCollaborationActionBusy(true);
             void persistApprovalConfigs(disabled, collaborationMode === "strict")
-                .then(() => messageApi.success("已关闭阶段审批"))
+                .then(() => messageApi.success("已关闭阶段审�?))
                 .catch((error) => messageApi.error(error instanceof Error ? error.message : "审批配置保存失败"))
                 .finally(() => setCollaborationActionBusy(false));
         } else {
@@ -1439,7 +1439,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             setApprovalStages(next);
             setCollaborationActionBusy(true);
             void persistApprovalConfigs(next, collaborationMode === "strict")
-                .then(() => messageApi.success("已启用团队审批"))
+                .then(() => messageApi.success("已启用团队审�?))
                 .catch((error) => {
                     messageApi.error(error instanceof Error ? error.message : "审批配置保存失败");
                     void loadCollaboration();
@@ -1468,7 +1468,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             body: JSON.stringify({ stage: apiStage, ...resource, snapshot: { projectId: project.id, episodeId: activeEpisode?.id, stage: stageKey, updatedAt: new Date().toISOString() } }),
         })
             .then(() => loadCollaboration())
-            .then(() => messageApi.success("已提交审核"))
+            .then(() => messageApi.success("已提交审�?))
             .catch((error) => messageApi.error(error instanceof Error ? error.message : "提交审核失败"))
             .finally(() => setCollaborationActionBusy(false));
     };
@@ -1479,7 +1479,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     const approveStage = (stageKey: CollaborationStageKey) => {
         const approval = findPendingApproval(stageKey);
         if (!approval) {
-            messageApi.warning("没有可处理的待审批记录");
+            messageApi.warning("没有可处理的待审批记�?);
             return;
         }
         setCollaborationActionBusy(true);
@@ -1492,25 +1492,25 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     const returnStage = (stageKey: CollaborationStageKey, content: string) => {
         const feedback = content.trim();
         if (feedbackRequired && !feedback) {
-            messageApi.warning("当前项目要求打回时填写反馈");
+            messageApi.warning("当前项目要求打回时填写反�?);
             return;
         }
         const approval = findPendingApproval(stageKey);
         if (!approval) {
-            messageApi.warning("没有可处理的待审批记录");
+            messageApi.warning("没有可处理的待审批记�?);
             return;
         }
         setCollaborationActionBusy(true);
-        void collaborationApi(`/approvals/${encodeURIComponent(approval.id)}`, { method: "POST", body: JSON.stringify({ decision: "reject", comment: feedback || "请核对当前交付物后重新提交。" }) })
+        void collaborationApi(`/approvals/${encodeURIComponent(approval.id)}`, { method: "POST", body: JSON.stringify({ decision: "reject", comment: feedback || "请核对当前交付物后重新提交�? }) })
             .then(() => loadCollaboration())
-            .then(() => messageApi.info(notifyOnReturn ? "已打回并记录反馈" : "已打回"))
+            .then(() => messageApi.info(notifyOnReturn ? "已打回并记录反馈" : "已打�?))
             .catch((error) => messageApi.error(error instanceof Error ? error.message : "审批处理失败"))
             .finally(() => setCollaborationActionBusy(false));
     };
     const createCollaborationInvite = async () => {
         const data = (await collaborationApi("/invite", { method: "POST", body: JSON.stringify({}) })) as { invite?: { inviteUrl?: string } } | undefined;
         const inviteUrl = data?.invite?.inviteUrl;
-        if (!inviteUrl) throw new Error("邀请链接生成失败");
+        if (!inviteUrl) throw new Error("邀请链接生成失�?);
         setLastInviteUrl(inviteUrl);
         await loadCollaboration();
         messageApi.success("邀请链接已生成");
@@ -1524,12 +1524,12 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     const changeCollaborationMemberRole = async (userId: string, role: "admin" | "member") => {
         await collaborationApi(`/members/${encodeURIComponent(userId)}`, { method: "PATCH", body: JSON.stringify({ role }) });
         await loadCollaboration();
-        messageApi.success("成员权限已更新");
+        messageApi.success("成员权限已更�?);
     };
     const removeCollaborationMember = async (userId: string) => {
         await collaborationApi(`/members/${encodeURIComponent(userId)}`, { method: "DELETE" });
         await loadCollaboration();
-        messageApi.success("成员已移除");
+        messageApi.success("成员已移�?);
     };
     const transferCollaborationOwnership = async (userId: string) => {
         await collaborationApi(`/members/${encodeURIComponent(userId)}`, { method: "PATCH", body: JSON.stringify({ transferOwnership: true }) });
@@ -1538,7 +1538,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     };
     const leaveCollaborationProject = async () => {
         await collaborationApi("/members", { method: "DELETE" });
-        messageApi.success("已退出项目");
+        messageApi.success("已退出项�?);
         window.location.assign("/drama-lab");
     };
     const reviewCollaborationJoinRequest = async (requestId: string, decision: "approve" | "reject") => {
@@ -1569,7 +1569,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         if (!project) return;
         const newEpisode: Episode = {
             id: `ep_${Date.now()}`,
-            title: `第 ${project.episodes.length + 1} 集`,
+            title: `�?${project.episodes.length + 1} 集`,
             number: project.episodes.length + 1,
             script: "",
         };
@@ -1583,10 +1583,10 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     const confirmDeleteEpisode = (episode: Episode) => {
         if (!project) return;
         const currentProject = project;
-        if (currentProject.episodes.length <= 1) return messageApi.warning("至少保留一集");
+        if (currentProject.episodes.length <= 1) return messageApi.warning("至少保留一�?);
         Modal.confirm({
             title: "删除剧集",
-            content: `确定删除「${episode.title}」及其全部分镜吗？`,
+            content: `确定删除�?{episode.title}」及其全部分镜吗？`,
             okText: "删除",
             cancelText: "取消",
             okButtonProps: { danger: true },
@@ -1665,7 +1665,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     <Link href="/drama-lab" className="inline-flex items-center gap-2 text-sm hover:underline">
                         <ArrowLeft className="size-4" /> 返回项目列表
                     </Link>
-                    <Alert className="mt-6" type="error" showIcon message={error || "项目不存在"} />
+                    <Alert className="mt-6" type="error" showIcon message={error || "项目不存�?} />
                     <Button className="mt-4" onClick={() => void loadProject()}>
                         重新加载
                     </Button>
@@ -1687,7 +1687,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     getStrictApprovalBlock={(mode) => stageApprovalBlock(mode === "assets" ? "asset_prompts" : mode === "storyboard" ? "visual_images" : "storyboard_video")}
                 />
             ) : null}
-            <Drawer title="团队协作与审批" placement="right" size="min(380px, calc(100vw - 12px))" open={collaborationDrawerOpen} destroyOnHidden onClose={() => setCollaborationDrawerOpen(false)}>
+            <Drawer title="团队协作与审�? placement="right" size="min(380px, calc(100vw - 12px))" open={collaborationDrawerOpen} destroyOnHidden onClose={() => setCollaborationDrawerOpen(false)}>
                 <CollaborationPanel
                     projectId={projectId}
                     activeStage={activeCollaborationStage}
@@ -1729,14 +1729,14 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     lastInviteUrl={lastInviteUrl}
                 />
             </Drawer>
-            {/* 顶部导航栏 */}
+            {/* 顶部导航�?*/}
             <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-card px-4">
                 <Link href={`/drama-lab/${encodeURIComponent(projectId)}/outline`} aria-label="返回项目大纲" className="grid size-8 place-items-center rounded border border-border hover:bg-muted">
                     <ArrowLeft className="size-4" />
                 </Link>
                 <div className="min-w-0 flex-1">
                     <h1 className="truncate text-base font-semibold">{project.title}</h1>
-                    <p className="truncate text-xs text-muted-foreground">{activeEpisode?.title || `第 ${activeEpisode?.number || 1} 集`}</p>
+                    <p className="truncate text-xs text-muted-foreground">{activeEpisode?.title || `�?${activeEpisode?.number || 1} 集`}</p>
                 </div>
                 {activeEpisode ? (
                     <Button href={dramaLabEpisodeCanvasHref(projectId, activeEpisode.id)} icon={<PanelsTopLeft className="size-4" />} aria-label="打开本集画布" title="打开本集画布">
@@ -1746,7 +1746,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                 <Button icon={<Sparkles className="size-4" />} onClick={() => setWorkflowModalOpen(true)}>
                     一键全流程
                 </Button>
-                <Button className="lg:!hidden" type="text" aria-label="打开团队协作与审批" title="打开团队协作与审批" icon={<PanelRightOpen className="size-4" />} onClick={() => setCollaborationDrawerOpen(true)} />
+                <Button className="lg:!hidden" type="text" aria-label="打开团队协作与审�? title="打开团队协作与审�? icon={<PanelRightOpen className="size-4" />} onClick={() => setCollaborationDrawerOpen(true)} />
                 <Button type="primary" icon={<Save className="size-4" />} loading={saving} onClick={() => void saveProject({})}>
                     保存草稿
                 </Button>
@@ -1816,7 +1816,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                                             <Input
                                                 autoFocus
                                                 size="small"
-                                                aria-label={`重命名${ep.title}`}
+                                                aria-label={`重命�?{ep.title}`}
                                                 value={episodeTitleDraft}
                                                 onChange={(event) => setEpisodeTitleDraft(event.target.value)}
                                                 onKeyDown={(event) => handleEpisodeRenameKeyDown(event, ep)}
@@ -1829,7 +1829,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                                                 type="button"
                                                 onClick={() => setActiveEpisodeId(ep.id)}
                                                 onDoubleClick={() => startEpisodeRename(ep)}
-                                                title={sidebarCollapsed ? ep.title : "双击重命名剧集"}
+                                                title={sidebarCollapsed ? ep.title : "双击重命名剧�?}
                                                 className={cn("min-w-0 flex-1 rounded py-2 text-left transition-colors", sidebarCollapsed ? "px-1 text-center" : "pr-2")}
                                             >
                                                 {sidebarCollapsed ? (
@@ -1839,7 +1839,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                                                         <div className="font-medium truncate">{ep.title}</div>
                                                         <div className="text-xs text-muted-foreground">
                                                             {ep.script ? `${ep.script.length} 字` : "暂无剧本"}
-                                                            {episodeShots.length > 0 && ` • ${episodeShots.length} 个分镜`}
+                                                            {episodeShots.length > 0 && ` �?${episodeShots.length} 个分镜`}
                                                         </div>
                                                     </>
                                                 )}
@@ -1872,7 +1872,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                                                         className="block w-full truncate rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                                                         onClick={() => locateStoryboardShot(ep.id, shot.id)}
                                                     >
-                                                        镜头 {shot.shotNumber}: {shot.script?.slice(0, 20) || "未命名"}
+                                                        镜头 {shot.shotNumber}: {shot.script?.slice(0, 20) || "未命�?}
                                                     </button>
                                                 ))}
                                         </div>
@@ -1881,7 +1881,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                             );
                         })}
                         <Button type="text" block={!sidebarCollapsed} size="small" aria-label="新增剧集" title="新增剧集" className={cn("mt-2", sidebarCollapsed ? "w-full" : "justify-start px-3")} icon={<Plus className="size-4" />} onClick={addEpisode}>
-                            {!sidebarCollapsed ? "新增一集" : null}
+                            {!sidebarCollapsed ? "新增一�? : null}
                         </Button>
                     </div>
                     <DramaLabTaskPanel
@@ -1892,7 +1892,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                     />
                 </aside>
 
-                {/* 主编辑区域 */}
+                {/* 主编辑区�?*/}
                 <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
                     <StageCollaborationBanner
                         stage={activeCollaborationStage}
@@ -1922,12 +1922,12 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
                 </div>
                 <aside className={cn("hidden min-h-0 shrink-0 flex-col border-l border-border bg-card transition-[width] duration-200 lg:flex", collaborationCollapsed ? "w-14" : "w-[340px]")}>
                     <div className={cn("flex h-12 items-center border-b border-border", collaborationCollapsed ? "justify-center px-2" : "justify-between px-4")}>
-                        {!collaborationCollapsed ? <span className="text-sm font-semibold">团队协作与审批</span> : null}
+                        {!collaborationCollapsed ? <span className="text-sm font-semibold">团队协作与审�?/span> : null}
                         <Button
                             type="text"
                             size="small"
-                            aria-label={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
-                            title={collaborationCollapsed ? "展开团队协作与审批" : "收起团队协作与审批"}
+                            aria-label={collaborationCollapsed ? "展开团队协作与审�? : "收起团队协作与审�?}
+                            title={collaborationCollapsed ? "展开团队协作与审�? : "收起团队协作与审�?}
                             icon={collaborationCollapsed ? <PanelRightOpen className="size-4" /> : <PanelRightClose className="size-4" />}
                             onClick={() => setCollaborationCollapsed((current) => !current)}
                         />
@@ -1982,7 +1982,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     );
 }
 
-// ========== 子组件 ==========
+// ========== 子组�?==========
 
 function createDramaLabClientRequestId() {
     const cryptoApi = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
@@ -1990,8 +1990,7 @@ function createDramaLabClientRequestId() {
     return `drama-lab-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
-// 1. 剧本编辑器
-function ScriptEditor({
+// 1. 剧本编辑�?function ScriptEditor({
     project,
     episode,
     onSave,
@@ -2064,7 +2063,7 @@ function ScriptEditor({
     };
 
     const deleteCustomOption = async (kind: DramaLabStoryOptionKind, value: string) => {
-        const confirmed = typeof window === "undefined" ? true : window.confirm(`确定删除自定义${kind === "style" ? "剧本风格" : "剧本类型"}“${value}”吗？`);
+        const confirmed = typeof window === "undefined" ? true : window.confirm(`确定删除自定�?{kind === "style" ? "剧本风格" : "剧本类型"}�?{value}”吗？`);
         if (!confirmed) return;
         setCustomOptionBusy(true);
         try {
@@ -2137,7 +2136,7 @@ function ScriptEditor({
     );
 
     const addScriptEpisode = async () => {
-        const newEpisode: Episode = { id: `ep_${Date.now()}`, title: `第 ${project.episodes.length + 1} 集`, number: project.episodes.length + 1, script: "" };
+        const newEpisode: Episode = { id: `ep_${Date.now()}`, title: `�?${project.episodes.length + 1} 集`, number: project.episodes.length + 1, script: "" };
         const saved = await onSave({ episodes: [...project.episodes, newEpisode] });
         if (saved) onActiveEpisodeChange(newEpisode.id);
     };
@@ -2315,12 +2314,12 @@ function ScriptEditor({
             const response = await fetch("/api/drama-lab/projects?page=1&pageSize=100");
             await assertJsonApiResponse(response);
             const data = await response.json();
-            if (data.code !== 0) throw new Error(data.msg || "剧本库加载失败");
+            if (data.code !== 0) throw new Error(data.msg || "剧本库加载失�?);
             const projects = Array.isArray(data.data?.projects) ? data.data.projects : [];
             setScriptLibraryProjects(projects.filter((item: ScriptLibraryProject) => item.id !== project.id && item.episodeCount > 0));
         } catch (error) {
             setScriptLibraryProjects([]);
-            messageApi.error(error instanceof Error ? error.message : "剧本库加载失败");
+            messageApi.error(error instanceof Error ? error.message : "剧本库加载失�?);
         } finally {
             setScriptLibraryLoading(false);
         }
@@ -2329,7 +2328,7 @@ function ScriptEditor({
     const handleImportScript = (sourceId: string) => {
         if (scriptLibraryImporting) return;
         Modal.confirm({
-            title: "导入剧本到当前项目",
+            title: "导入剧本到当前项�?,
             content: "将只导入所选项目的故事梗概和各集剧本文字，不会导入角色、场景、分镜、图片或视频。是否继续？",
             okText: "导入",
             cancelText: "取消",
@@ -2389,7 +2388,7 @@ function ScriptEditor({
                                     <div className="flex flex-col gap-4">
                                         <div className="order-1">
                                             <h2 className="text-xl font-semibold">故事生成</h2>
-                                            <p className="mt-2 text-sm text-muted-foreground">输入一段故事梗概，AI 帮你扩展成整集剧本，或直接输入小说章节。</p>
+                                            <p className="mt-2 text-sm text-muted-foreground">输入一段故事梗概，AI 帮你扩展成整集剧本，或直接输入小说章节�?/p>
                                         </div>
 
                                         <Form className="order-2" form={form} layout="vertical" onValuesChange={scheduleSave}>
@@ -2420,7 +2419,7 @@ function ScriptEditor({
                                                         }}
                                                         onPressEnter={() => void saveScriptEpisodeTitle()}
                                                         onBlur={() => void saveScriptEpisodeTitle()}
-                                                        placeholder={`第 ${episode.number} 集`}
+                                                        placeholder={`�?${episode.number} 集`}
                                                         className="min-w-0 flex-1"
                                                     />
                                                     <Select
@@ -2432,19 +2431,17 @@ function ScriptEditor({
                                                         popupMatchSelectWidth={280}
                                                         getPopupContainer={(trigger) => trigger.parentElement || trigger}
                                                         style={{ width: 48 }}
-                                                        options={project.episodes.map((item) => ({ value: item.id, label: item.title || `第 ${item.number} 集` }))}
+                                                        options={project.episodes.map((item) => ({ value: item.id, label: item.title || `�?${item.number} 集` }))}
                                                         optionRender={(option) => <span className="block truncate">{option.label}</span>}
                                                     />
-                                                    <Button aria-label="添加一集" icon={<Plus className="size-4" />} onClick={() => void addScriptEpisode()}>
-                                                        添加一集
-                                                    </Button>
+                                                    <Button aria-label="添加一�? icon={<Plus className="size-4" />} onClick={() => void addScriptEpisode()}>
+                                                        添加一�?                                                    </Button>
                                                 </div>
                                                 <Form.Item name="script">
                                                     <TextArea
                                                         rows={15}
-                                                        placeholder="将描代文学家柳宗元创作的传记文学作品《童区寄传》进行改编。一个发生在唐朝年间的悬疑故事。主人公就是十一岁，名字就叫区寄。可以模仿白夜追凶、催眠大师的套路的心里悬疑片，严格按照 10 节拍表重新整理成一个详细的故事大纲。
-
-暴雨后的山路上，十一岁的区寄独自赶着一头水牛回家。他突然发现林中有两个区寄独自赶往一夜回到。区寄害怕极了，那两人的买卖跟区寄追问：少女饼伤到二十七下后，他终于转变逃走。少女穷极挣扎，让这大师对爹，他们意识，都村民都沾血过往边的刀剑。..."
+                                                        placeholder="将描代文学家柳宗元创作的传记文学作品《童区寄传》进行改编。一个发生在唐朝年间的悬疑故事。主人公就是十一岁，名字就叫区寄。可以模仿白夜追凶、催眠大师的套路的心里悬疑片，严格按�?10 节拍表重新整理成一个详细的故事大纲�?
+暴雨后的山路上，十一岁的区寄独自赶着一头水牛回家。他突然发现林中有两个区寄独自赶往一夜回到。区寄害怕极了，那两人的买卖跟区寄追问：少女饼伤到二十七下后，他终于转变逃走。少女穷极挣扎，让这大师对爹，他们意识，都村民都沾血过往边的刀剑�?.."
                                                         className="font-mono text-sm"
                                                     />
                                                 </Form.Item>
@@ -2487,7 +2484,7 @@ function ScriptEditor({
                                                         </span>
                                                     </Option>
                                                 ))}
-                                                <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>＋ 自定义风格</Option>
+                                                <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>�?自定义风�?/Option>
                                             </Select>
 
                                             <Select
@@ -2525,7 +2522,7 @@ function ScriptEditor({
                                                         </span>
                                                     </Option>
                                                 ))}
-                                                <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>＋ 自定义类型</Option>
+                                                <Option value={DRAMA_LAB_CUSTOM_OPTION_VALUE}>�?自定义类�?/Option>
                                             </Select>
 
                                             <InputNumber
@@ -2544,18 +2541,18 @@ function ScriptEditor({
                                             />
 
                                             <Button type="primary" icon={<Plus className="size-4" />} onClick={handleGenerateScript} loading={generating} disabled={generating}>
-                                                {generating ? "生成中..." : "生成剧本"}
+                                                {generating ? "生成�?.." : "生成剧本"}
                                             </Button>
                                             <span id="drama-lab-novel-import-actions" className="inline-flex" />
 
                                             {customOptionKind ? (
-                                                <div className="order-3 flex flex-wrap items-center gap-2 rounded border border-border bg-muted/30 p-2" role="dialog" aria-label={customOptionKind === "style" ? "添加自定义剧本风格" : "添加自定义剧本类型"}>
+                                                <div className="order-3 flex flex-wrap items-center gap-2 rounded border border-border bg-muted/30 p-2" role="dialog" aria-label={customOptionKind === "style" ? "添加自定义剧本风�? : "添加自定义剧本类�?}>
                                                     <Input
                                                         autoFocus
                                                         value={customOptionDraft}
                                                         onChange={(event) => setCustomOptionDraft(event.target.value)}
                                                         onPressEnter={() => void saveCustomOption()}
-                                                        placeholder={customOptionKind === "style" ? "输入自定义剧本风格" : "输入自定义剧本类型"}
+                                                        placeholder={customOptionKind === "style" ? "输入自定义剧本风�? : "输入自定义剧本类�?}
                                                         maxLength={120}
                                                         style={{ width: 240 }}
                                                     />
@@ -2570,8 +2567,7 @@ function ScriptEditor({
                                             <div className="ml-auto flex min-h-5 items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
                                                 {saveStatus === "pending" ? (
                                                     <>
-                                                        <LoaderCircle className="size-3.5 animate-spin" /> 自动保存等待中
-                                                    </>
+                                                        <LoaderCircle className="size-3.5 animate-spin" /> 自动保存等待�?                                                    </>
                                                 ) : null}
                                                 {saveStatus === "saving" ? (
                                                     <>
@@ -2580,8 +2576,7 @@ function ScriptEditor({
                                                 ) : null}
                                                 {saveStatus === "saved" ? (
                                                     <>
-                                                        <CheckCircle2 className="size-3.5 text-emerald-600" /> 已自动保存
-                                                    </>
+                                                        <CheckCircle2 className="size-3.5 text-emerald-600" /> 已自动保�?                                                    </>
                                                 ) : null}
                                                 {saveStatus === "error" ? (
                                                     <>
@@ -2593,7 +2588,7 @@ function ScriptEditor({
                                         <div className="order-4 border-t border-border pt-4 text-sm text-muted-foreground">
                                             <span className="font-semibold">剧本</span>
                                             <span className="mx-2">·</span>
-                                            <span>{episode.script.length} 字</span>
+                                            <span>{episode.script.length} �?/span>
                                         </div>
 
                                         <div className="order-6 flex justify-end border-t border-border pt-4">
@@ -2605,8 +2600,7 @@ function ScriptEditor({
                                                     if (saved) onStepChange("assets");
                                                 }}
                                             >
-                                                下一步
-                                            </Button>
+                                                下一�?                                            </Button>
                                         </div>
                                     </div>
                                 ),
@@ -2616,7 +2610,7 @@ function ScriptEditor({
                                 label: "选择剧本",
                                 children: (
                                     <div className="space-y-5">
-                                        <p className="text-sm text-muted-foreground">从已有项目中选择剧本后，仅把故事梗概与各集剧本文字写入当前项目，不会导入角色、场景、分镜、图片或视频。</p>
+                                        <p className="text-sm text-muted-foreground">从已有项目中选择剧本后，仅把故事梗概与各集剧本文字写入当前项目，不会导入角色、场景、分镜、图片或视频�?/p>
                                         <Button
                                             type="primary"
                                             icon={<FileText className="size-4" />}
@@ -2643,7 +2637,7 @@ function ScriptEditor({
                                                             onChange={setPreviewEpisodeId}
                                                             items={project.episodes.map((item) => ({
                                                                 key: item.id,
-                                                                label: item.title || `第 ${item.number} 集`,
+                                                                label: item.title || `�?${item.number} 集`,
                                                                 children: <TextArea value={item.script || ""} readOnly rows={14} />,
                                                             }))}
                                                         />
@@ -2674,13 +2668,13 @@ function ScriptEditor({
                                         className="w-full rounded-lg border border-border p-3 text-left transition-colors hover:border-primary hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                                         onClick={() => handleImportScript(item.id)}
                                     >
-                                        <div className="font-medium">{item.title || "未命名剧本"}</div>
-                                        <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.summary || "暂无简介"}</div>
-                                        <div className="mt-2 text-xs text-muted-foreground">{item.episodeCount} 集</div>
+                                        <div className="font-medium">{item.title || "未命名剧�?}</div>
+                                        <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.summary || "暂无简�?}</div>
+                                        <div className="mt-2 text-xs text-muted-foreground">{item.episodeCount} �?/div>
                                     </button>
                                 ))
                             ) : (
-                                <div className="py-8 text-center text-muted-foreground">暂无可选择的已有项目</div>
+                                <div className="py-8 text-center text-muted-foreground">暂无可选择的已有项�?/div>
                             )}
                         </div>
                     </Modal>
@@ -2694,9 +2688,9 @@ type WorkflowRunMode = "assets" | "storyboard" | "video";
 type WorkflowRunScope = "current" | "all";
 
 const WORKFLOW_RUN_MODES: Array<{ value: WorkflowRunMode; label: string; description: string }> = [
-    { value: "assets", label: "生成到资产", description: "生成角色、场景、道具的提示词与资产准备结果后停止。" },
-    { value: "storyboard", label: "生成到分镜图", description: "完成资产、分镜提示词与分镜图后停止。" },
-    { value: "video", label: "生成完整视频", description: "继续生成镜头视频，并进入内容审核与可选导出。" },
+    { value: "assets", label: "生成到资�?, description: "生成角色、场景、道具的提示词与资产准备结果后停止�? },
+    { value: "storyboard", label: "生成到分镜图", description: "完成资产、分镜提示词与分镜图后停止�? },
+    { value: "video", label: "生成完整视频", description: "继续生成镜头视频，并进入内容审核与可选导出�? },
 ];
 
 function CollaborationPanel({
@@ -2793,12 +2787,12 @@ function CollaborationPanel({
     };
 
     const memberLabel = (member: DramaLabCollaborationOverview["members"][number]) => member.profile?.displayName || member.profile?.username || member.userId;
-    const roleLabel = (role: DramaLabCollaborationOverview["members"][number]["role"]) => (role === "owner" ? "项目管理员" : role === "admin" ? "副管理员" : "成员");
+    const roleLabel = (role: DramaLabCollaborationOverview["members"][number]["role"]) => (role === "owner" ? "项目管理�? : role === "admin" ? "副管理员" : "成员");
     const approvalLabel = (approval: DramaLabCollaborationApprovalRecord) => {
         const uiStage = DRAMA_LAB_API_TO_UI_STAGE[approval.stage];
         return uiStage ? COLLABORATION_STAGES.find((stage) => stage.key === uiStage)?.label || approval.stage : approval.stage;
     };
-    const approvalStatusLabel = (status: DramaLabCollaborationApprovalRecord["status"]) => (status === "pending" ? "审核中" : status === "approved" ? "已通过" : status === "rejected" ? "已驳回" : "已取消");
+    const approvalStatusLabel = (status: DramaLabCollaborationApprovalRecord["status"]) => (status === "pending" ? "审核�? : status === "approved" ? "已通过" : status === "rejected" ? "已驳�? : "已取�?);
     const handleJoinRequest = async (requestId: string, decision: "approve" | "reject") => {
         setRequestBusyId(requestId);
         setRequestError(undefined);
@@ -2836,7 +2830,7 @@ function CollaborationPanel({
             const value = await onCreateInvite();
             setInviteUrl(value);
         } catch (inviteError) {
-            setMemberError(inviteError instanceof Error ? inviteError.message : "邀请链接生成失败");
+            setMemberError(inviteError instanceof Error ? inviteError.message : "邀请链接生成失�?);
         } finally {
             setInviteBusy(false);
         }
@@ -2872,18 +2866,17 @@ function CollaborationPanel({
                     </span>
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-3">
-                            <h2 className="truncate text-sm font-semibold">{overview ? `项目组 · ${overview.group.id.slice(-8)}` : "短剧项目组"}</h2>
+                            <h2 className="truncate text-sm font-semibold">{overview ? `项目�?· ${overview.group.id.slice(-8)}` : "短剧项目�?}</h2>
                             <div className="flex items-center gap-2">
                                 <Button type="text" size="small" loading={loading} icon={<RefreshCw className="size-3.5" />} onClick={onRefresh} aria-label="刷新协作数据" title="刷新协作数据" />
                                 <Switch size="small" checked={collaborationEnabled} onChange={onCollaborationEnabledChange} disabled={loading} aria-label="启用团队协作" />
                             </div>
                         </div>
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground">项目组长和副管理员可配置审批节点，成员权限由服务端校验。</p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">项目组长和副管理员可配置审批节点，成员权限由服务端校验�?/p>
                         {activeStage ? <p className="mt-1 text-xs text-primary">当前制作阶段：{activeStage.label}</p> : null}
                         {overview ? (
                             <p className="mt-1 text-xs text-muted-foreground">
-                                当前成员 {overview.members.length} 人 · 待处理申请 {overview.joinRequests.filter((item) => item.status === "pending").length} 条
-                            </p>
+                                当前成员 {overview.members.length} �?· 待处理申�?{overview.joinRequests.filter((item) => item.status === "pending").length} �?                            </p>
                         ) : null}
                     </div>
                 </div>
@@ -2931,12 +2924,12 @@ function CollaborationPanel({
                 <section className="border border-border p-3">
                     <div className="mb-2 flex items-center justify-between gap-3">
                         <div>
-                            <h3 className="text-sm font-semibold">项目邀请</h3>
-                            <p className="mt-1 text-xs text-muted-foreground">通过链接或二维码申请加入，管理员确认后生效。</p>
+                            <h3 className="text-sm font-semibold">项目邀�?/h3>
+                            <p className="mt-1 text-xs text-muted-foreground">通过链接或二维码申请加入，管理员确认后生效�?/p>
                         </div>
                         {canManageMembers ? (
                             <Button size="small" icon={<Link2 className="size-3.5" />} loading={inviteBusy} onClick={() => void handleCreateInvite()}>
-                                {activeInvite ? "生成新链接" : "生成邀请链接"}
+                                {activeInvite ? "生成新链�? : "生成邀请链�?}
                             </Button>
                         ) : null}
                     </div>
@@ -2957,7 +2950,7 @@ function CollaborationPanel({
                                             onClick={() =>
                                                 Modal.confirm({
                                                     title: "撤销邀请链接？",
-                                                    content: "撤销后，已经分享的链接将不能再提交加入申请。",
+                                                    content: "撤销后，已经分享的链接将不能再提交加入申请�?,
                                                     okText: "确认撤销",
                                                     cancelText: "取消",
                                                     onOk: async () => {
@@ -2982,15 +2975,14 @@ function CollaborationPanel({
                         </div>
                     ) : activeInvite ? (
                         <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                            <span>已有有效邀请（{new Date(activeInvite.expiresAt).toLocaleDateString("zh-CN")} 到期）</span>
+                            <span>已有有效邀请（{new Date(activeInvite.expiresAt).toLocaleDateString("zh-CN")} 到期�?/span>
                             {canManageMembers ? (
                                 <Button type="link" size="small" onClick={() => void handleCreateInvite()}>
-                                    重新生成并复制
-                                </Button>
+                                    重新生成并复�?                                </Button>
                             ) : null}
                         </div>
                     ) : (
-                        <p className="text-xs text-muted-foreground">暂无有效邀请链接。</p>
+                        <p className="text-xs text-muted-foreground">暂无有效邀请链接�?/p>
                     )}
                 </section>
             ) : null}
@@ -3013,7 +3005,7 @@ function CollaborationPanel({
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="text-sm font-medium">{stage.label}</span>
-                                                    {enabled ? <ApprovalStatusTag status={status} /> : <span className="border border-border px-1.5 py-0.5 text-xs text-muted-foreground">未启用</span>}
+                                                    {enabled ? <ApprovalStatusTag status={status} /> : <span className="border border-border px-1.5 py-0.5 text-xs text-muted-foreground">未启�?/span>}
                                                 </div>
                                                 <p className="mt-1 text-xs leading-4 text-muted-foreground">{stage.description}</p>
                                             </div>
@@ -3022,7 +3014,7 @@ function CollaborationPanel({
                                             <div className="mt-2 flex flex-wrap gap-2 pl-7">
                                                 {status !== "submitted" && status !== "approved" ? (
                                                     <Button size="small" loading={loading} icon={<Send className="size-3.5" />} onClick={() => onSubmit(stage.key)}>
-                                                        {status === "requires_confirmation" ? "确认并提交" : "提交"}
+                                                        {status === "requires_confirmation" ? "确认并提�? : "提交"}
                                                     </Button>
                                                 ) : null}
                                                 {status === "submitted" && canReviewStage(stage.key) ? (
@@ -3044,13 +3036,13 @@ function CollaborationPanel({
                     </section>
 
                     <section>
-                        <h3 className="mb-2 text-sm font-semibold">反馈与提醒</h3>
+                        <h3 className="mb-2 text-sm font-semibold">反馈与提�?/h3>
                         <div className="space-y-1 border border-border p-3">
-                            <ToggleRow label="打回时必须填写反馈" checked={feedbackRequired} onChange={onFeedbackRequiredChange} />
+                            <ToggleRow label="打回时必须填写反�? checked={feedbackRequired} onChange={onFeedbackRequiredChange} />
                             <ToggleRow label="打回后提醒负责人" checked={notifyOnReturn} onChange={onNotifyOnReturnChange} />
                             <ToggleRow label="允许反馈附件" checked={allowFeedbackAttachments} onChange={onAllowFeedbackAttachmentsChange} />
                         </div>
-                        <TextArea className="mt-2" value={feedbackDraft} onChange={(event) => setFeedbackDraft(event.target.value)} rows={2} placeholder="驳回时填写审核意见" />
+                        <TextArea className="mt-2" value={feedbackDraft} onChange={(event) => setFeedbackDraft(event.target.value)} rows={2} placeholder="驳回时填写审核意�? />
                     </section>
 
                     <section>
@@ -3058,7 +3050,7 @@ function CollaborationPanel({
                             <h3 className="text-sm font-semibold">项目成员</h3>
                             <span className="text-xs text-muted-foreground">仅显示本项目成员</span>
                         </div>
-                        {overview?.members.length ? <Input.Search className="mb-2" size="small" value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} allowClear placeholder="搜索项目内成员" /> : null}
+                        {overview?.members.length ? <Input.Search className="mb-2" size="small" value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} allowClear placeholder="搜索项目内成�? /> : null}
                         <div className="space-y-2 border border-border p-3 text-xs">
                             {filteredMembers.length ? (
                                 filteredMembers.map((member) => {
@@ -3071,7 +3063,7 @@ function CollaborationPanel({
                                             <div className="min-w-0 flex-1">
                                                 <p className="truncate font-medium" title={member.userId}>
                                                     {memberLabel(member)}
-                                                    {isViewer ? "（我）" : ""}
+                                                    {isViewer ? "（我�? : ""}
                                                 </p>
                                                 <p className="text-muted-foreground">{roleLabel(member.role)}</p>
                                             </div>
@@ -3092,12 +3084,12 @@ function CollaborationPanel({
                                                     size="small"
                                                     loading={memberBusyId === member.userId}
                                                     icon={<ShieldCheck className="size-3.5" />}
-                                                    aria-label="转交项目管理权"
-                                                    title="转交项目管理权"
+                                                    aria-label="转交项目管理�?
+                                                    title="转交项目管理�?
                                                     onClick={() =>
                                                         Modal.confirm({
                                                             title: "转交项目管理权？",
-                                                            content: "转交后你将保留副管理员权限，新的管理员负责审批和成员管理。",
+                                                            content: "转交后你将保留副管理员权限，新的管理员负责审批和成员管理�?,
                                                             okText: "确认转交",
                                                             cancelText: "取消",
                                                             onOk: () => handleMemberAction(member.userId, () => onTransferOwnership(member.userId)),
@@ -3116,8 +3108,8 @@ function CollaborationPanel({
                                                     title="移除成员"
                                                     onClick={() =>
                                                         Modal.confirm({
-                                                            title: "移除项目成员？",
-                                                            content: "移除后，该成员将无法继续访问此短剧项目。",
+                                                            title: "移除项目成员�?,
+                                                            content: "移除后，该成员将无法继续访问此短剧项目�?,
                                                             okText: "确认移除",
                                                             cancelText: "取消",
                                                             onOk: () => handleMemberAction(member.userId, () => onRemoveMember(member.userId)),
@@ -3129,13 +3121,12 @@ function CollaborationPanel({
                                     );
                                 })
                             ) : (
-                                <span className="text-muted-foreground">没有匹配的项目成员</span>
+                                <span className="text-muted-foreground">没有匹配的项目成�?/span>
                             )}
                         </div>
                         {viewer && viewer.role !== "owner" ? (
                             <Button className="mt-2" size="small" danger icon={<LogOut className="size-3.5" />} onClick={() => void handleMemberAction(viewer.userId, onLeaveProject)} loading={memberBusyId === viewer.userId}>
-                                退出项目
-                            </Button>
+                                退出项�?                            </Button>
                         ) : null}
                         {memberError ? <Alert className="mt-2" type="error" showIcon message={memberError} /> : null}
                     </section>
@@ -3143,7 +3134,7 @@ function CollaborationPanel({
                     {overview?.joinRequests.filter((item) => item.status === "pending").length ? (
                         <section>
                             <div className="mb-2 flex items-center justify-between gap-3">
-                                <h3 className="text-sm font-semibold">待处理加入申请</h3>
+                                <h3 className="text-sm font-semibold">待处理加入申�?/h3>
                                 <span className="text-xs text-muted-foreground">管理员确认后生效</span>
                             </div>
                             <div className="space-y-2 border border-border p-3 text-xs">
@@ -3171,11 +3162,11 @@ function CollaborationPanel({
                         <section>
                             <div className="mb-2 flex items-center justify-between gap-3">
                                 <h3 className="text-sm font-semibold">审批历史</h3>
-                                <span className="text-xs text-muted-foreground">服务端记录</span>
+                                <span className="text-xs text-muted-foreground">服务端记�?/span>
                             </div>
                             <div className="space-y-2 border border-border p-3">
                                 {approvals.map((approval) => (
-                                    <button key={approval.id} type="button" className="block w-full border-l-2 border-border pl-2 text-left text-xs hover:border-primary" onClick={() => onLocateApproval(approval)} title="定位到审批内容">
+                                    <button key={approval.id} type="button" className="block w-full border-l-2 border-border pl-2 text-left text-xs hover:border-primary" onClick={() => onLocateApproval(approval)} title="定位到审批内�?>
                                         <div className="flex items-center justify-between gap-2">
                                             <p className="font-medium">{approvalLabel(approval)}</p>
                                             <span className="text-muted-foreground">{approvalStatusLabel(approval.status)}</span>
@@ -3197,15 +3188,14 @@ function CollaborationPanel({
                             </div>
                             {approvals.length < approvalTotal ? (
                                 <Button className="mt-2 w-full" size="small" loading={approvalLoadingMore} onClick={() => void onLoadMoreApprovals()}>
-                                    加载更多审批记录（{approvals.length}/{approvalTotal}）
-                                </Button>
+                                    加载更多审批记录（{approvals.length}/{approvalTotal}�?                                </Button>
                             ) : null}
                         </section>
                     ) : null}
-                    {!overview && !loading ? <Alert type="warning" showIcon icon={<MessageSquare className="size-4" />} title="项目组尚未加载" description={`项目 ${projectId} 的协作数据暂不可用，请刷新后重试。`} /> : null}
+                    {!overview && !loading ? <Alert type="warning" showIcon icon={<MessageSquare className="size-4" />} title="项目组尚未加�? description={`项目 ${projectId} 的协作数据暂不可用，请刷新后重试。`} /> : null}
                 </>
             ) : (
-                <Alert type="info" showIcon title="阶段审批已关闭" description="重新开启后，审批配置会保存到该项目组。" />
+                <Alert type="info" showIcon title="阶段审批已关�? description="重新开启后，审批配置会保存到该项目组�? />
             )}
         </div>
     );
@@ -3248,11 +3238,11 @@ function StageCollaborationBanner({
             showIcon
             icon={strictApprovalBlock ? <LockKeyhole className="size-4" /> : <GitPullRequest className="size-4" />}
             title={`${stage.label} · ${COLLABORATION_STATUS_STYLE[status].label}`}
-            description={strictApprovalBlock || (status === "requires_confirmation" ? "上游版本发生变化，请确认当前成果后重新提交。" : "团队审批状态由服务端保存，成员可以查看提交、审批意见和历史记录。")}
+            description={strictApprovalBlock || (status === "requires_confirmation" ? "上游版本发生变化，请确认当前成果后重新提交�? : "团队审批状态由服务端保存，成员可以查看提交、审批意见和历史记录�?)}
             action={
                 status !== "submitted" && status !== "approved" ? (
                     <Button size="small" disabled={Boolean(strictApprovalBlock)} icon={<Send className="size-3.5" />} onClick={() => onSubmit(stage.key)}>
-                        {status === "requires_confirmation" ? "确认并提交" : "提交审核"}
+                        {status === "requires_confirmation" ? "确认并提�? : "提交审核"}
                     </Button>
                 ) : undefined
             }
@@ -3308,7 +3298,7 @@ function WorkflowRunModal({
     const [ratio, setRatio] = useState(project.aspectRatio || "9:16");
     const [duration, setDuration] = useState("5");
     const [language, setLanguage] = useState("中文");
-    const [visualStyle, setVisualStyle] = useState(project.style || "电影感写实");
+    const [visualStyle, setVisualStyle] = useState(project.style || "电影感写�?);
     const [autoExport, setAutoExport] = useState(false);
     const [workflowTask, setWorkflowTask] = useState<WorkflowTaskView | null>(null);
     const [workflowError, setWorkflowError] = useState<string>();
@@ -3316,17 +3306,17 @@ function WorkflowRunModal({
     const [workflowLoading, setWorkflowLoading] = useState(true);
     const selectedMode = WORKFLOW_RUN_MODES.find((item) => item.value === mode) || WORKFLOW_RUN_MODES[2];
     const strictApprovalBlock = getStrictApprovalBlock(mode);
-    const episodeLabel = scope === "all" ? `全部 ${project.episodes.length} 集` : activeEpisode?.title || "当前集";
+    const episodeLabel = scope === "all" ? `全部 ${project.episodes.length} 集` : activeEpisode?.title || "当前�?;
     const executionSteps: Array<{ key: string; label: string; detail: string; target: StepKey }> = [
         { key: "script", label: "解析剧本并生成提示词", detail: `${episodeLabel} · ${language}输出`, target: "script" },
-        { key: "assets", label: "生成角色、场景与道具资产", detail: `统一视觉风格：${visualStyle || "项目默认风格"}`, target: "assets" },
-        ...(mode === "assets" ? [] : [{ key: "storyboard", label: "生成分镜提示词与分镜图", detail: `${ratio} · 单镜头${duration}秒`, target: "storyboard" as StepKey }]),
+        { key: "assets", label: "生成角色、场景与道具资产", detail: `统一视觉风格�?{visualStyle || "项目默认风格"}`, target: "assets" },
+        ...(mode === "assets" ? [] : [{ key: "storyboard", label: "生成分镜提示词与分镜�?, detail: `${ratio} · 单镜�?{duration}秒`, target: "storyboard" as StepKey }]),
         ...(mode !== "video"
             ? []
             : [
                   { key: "video", label: "生成镜头视频", detail: "在分镜工作台内按镜头顺序生成", target: "storyboard" as StepKey },
                   { key: "review", label: "内容审核", detail: "汇总素材、分镜图与镜头视频的审核结果", target: "review" as StepKey },
-                  ...(autoExport ? [{ key: "export", label: "成片导出", detail: "审核完成后自动创建导出任务", target: "export" as StepKey }] : []),
+                  ...(autoExport ? [{ key: "export", label: "成片导出", detail: "审核完成后自动创建导出任�?, target: "export" as StepKey }] : []),
               ]),
     ];
 
@@ -3353,7 +3343,7 @@ function WorkflowRunModal({
                 if (!disposed) setWorkflowTask(task);
             })
             .catch((error) => {
-                if (!disposed && !(error instanceof DOMException && error.name === "AbortError")) setWorkflowError(error instanceof Error ? error.message : "工作流状态读取失败");
+                if (!disposed && !(error instanceof DOMException && error.name === "AbortError")) setWorkflowError(error instanceof Error ? error.message : "工作流状态读取失�?);
             })
             .finally(() => {
                 if (!disposed) setWorkflowLoading(false);
@@ -3380,7 +3370,7 @@ function WorkflowRunModal({
             setWorkflowTask(payload.data);
             announceDramaLabTaskCreated(projectId);
         } catch (error) {
-            setWorkflowError(error instanceof Error ? error.message : "工作流创建失败");
+            setWorkflowError(error instanceof Error ? error.message : "工作流创建失�?);
         } finally {
             setWorkflowActionBusy(false);
         }
@@ -3397,10 +3387,10 @@ function WorkflowRunModal({
                 body: JSON.stringify({ taskId: workflowTask.id, action }),
             });
             const payload = (await response.json().catch(() => ({}))) as { code?: unknown; msg?: unknown; data?: WorkflowTaskView | null };
-            if (!response.ok || (payload.code !== undefined && Number(payload.code) !== 0) || !payload.data) throw new Error(String(payload.msg || "工作流状态更新失败"));
+            if (!response.ok || (payload.code !== undefined && Number(payload.code) !== 0) || !payload.data) throw new Error(String(payload.msg || "工作流状态更新失�?));
             setWorkflowTask(payload.data);
         } catch (error) {
-            setWorkflowError(error instanceof Error ? error.message : "工作流状态更新失败");
+            setWorkflowError(error instanceof Error ? error.message : "工作流状态更新失�?);
         } finally {
             setWorkflowActionBusy(false);
         }
@@ -3421,7 +3411,7 @@ function WorkflowRunModal({
                 const latest = await fetchWorkflow(workflowTask.id);
                 if (!disposed && latest) setWorkflowTask(latest);
             } catch (error) {
-                if (!disposed) setWorkflowError(error instanceof Error ? error.message : "工作流状态读取失败");
+                if (!disposed) setWorkflowError(error instanceof Error ? error.message : "工作流状态读取失�?);
             } finally {
                 if (!disposed) timer = setTimeout(poll, 1_200);
             }
@@ -3448,7 +3438,7 @@ function WorkflowRunModal({
           })
         : executionSteps.map((step) => ({ ...step, status: "pending", detail: step.detail, error: undefined, childTaskIds: [] }));
     const isActive = workflowTask?.status === "pending" || workflowTask?.status === "running";
-    const taskStatusLabel = workflowTask?.status === "success" ? "执行完成" : workflowTask?.status === "error" ? "执行失败" : workflowTask?.status === "cancelled" ? "已取消" : isActive ? "执行中" : "";
+    const taskStatusLabel = workflowTask?.status === "success" ? "执行完成" : workflowTask?.status === "error" ? "执行失败" : workflowTask?.status === "cancelled" ? "已取�? : isActive ? "执行�? : "";
     const childStepKey = (childKey: string) => childKey.split(":", 1)[0] || childKey;
 
     return (
@@ -3456,7 +3446,7 @@ function WorkflowRunModal({
             <div className="space-y-6 pb-2">
                 <div>
                     <h2 className="text-base font-semibold">执行终点</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">从提示词开始自动推进；个人创作不要求逐项人工确认。</p>
+                    <p className="mt-1 text-sm text-muted-foreground">从提示词开始自动推进；个人创作不要求逐项人工确认�?/p>
                     <Radio.Group
                         value={mode}
                         onChange={(event) => {
@@ -3480,10 +3470,10 @@ function WorkflowRunModal({
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <h2 className="text-base font-semibold">执行范围</h2>
-                            <p className="mt-1 text-sm text-muted-foreground">选择本次自动推进的剧集范围。</p>
+                            <p className="mt-1 text-sm text-muted-foreground">选择本次自动推进的剧集范围�?/p>
                         </div>
                         <Radio.Group value={scope} onChange={(event) => setScope(event.target.value)} optionType="button" buttonStyle="solid">
-                            <Radio.Button value="current">当前集</Radio.Button>
+                            <Radio.Button value="current">当前�?/Radio.Button>
                             <Radio.Button value="all">全部剧集</Radio.Button>
                         </Radio.Group>
                     </div>
@@ -3505,15 +3495,14 @@ function WorkflowRunModal({
                             />
                         </label>
                         <label className="grid gap-2 text-sm font-medium">
-                            单镜头时长
-                            <Select
+                            单镜头时�?                            <Select
                                 value={duration}
                                 onChange={setDuration}
                                 options={[
-                                    { value: "3", label: "3 秒" },
-                                    { value: "5", label: "5 秒" },
-                                    { value: "8", label: "8 秒" },
-                                    { value: "10", label: "10 秒" },
+                                    { value: "3", label: "3 �? },
+                                    { value: "5", label: "5 �? },
+                                    { value: "8", label: "8 �? },
+                                    { value: "10", label: "10 �? },
                                 ]}
                             />
                         </label>
@@ -3536,13 +3525,13 @@ function WorkflowRunModal({
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
                         <div>
                             <p className="text-sm font-medium">自动导出</p>
-                            <p className="mt-1 text-xs text-muted-foreground">仅在“生成完整视频”时可用，内容审核完成后创建导出任务。</p>
+                            <p className="mt-1 text-xs text-muted-foreground">仅在“生成完整视频”时可用，内容审核完成后创建导出任务�?/p>
                         </div>
                         <Switch checked={autoExport} disabled={mode !== "video"} onChange={setAutoExport} />
                     </div>
                     <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 text-sm text-muted-foreground">
-                        <span>模型：使用后台默认渠道</span>
-                        <span>失败策略：跳过失败项并在完成后汇总</span>
+                        <span>模型：使用后台默认渠�?/span>
+                        <span>失败策略：跳过失败项并在完成后汇�?/span>
                     </div>
                 </div>
 
@@ -3561,12 +3550,12 @@ function WorkflowRunModal({
                                 {taskStatusLabel}
                             </span>
                         ) : workflowLoading ? (
-                            <span className="text-sm text-muted-foreground">正在读取任务状态…</span>
+                            <span className="text-sm text-muted-foreground">正在读取任务状态�?/span>
                         ) : null}
                     </div>
                     <ol className="divide-y divide-border">
                         {displayedSteps.map((step, index) => {
-                            const status = step.status === "success" || step.status === "skipped" ? "已完成" : step.status === "running" ? "执行中" : step.status === "error" ? "失败" : step.status === "cancelled" ? "已取消" : "待执行";
+                            const status = step.status === "success" || step.status === "skipped" ? "已完�? : step.status === "running" ? "执行�? : step.status === "error" ? "失败" : step.status === "cancelled" ? "已取�? : "待执�?;
                             const children = workflowTask?.children?.filter((child) => step.childTaskIds?.includes(child.id) || childStepKey(child.key) === step.key) || [];
                             return (
                                 <li key={`${step.key}-${index}`} className="px-4 py-3">
@@ -3574,18 +3563,18 @@ function WorkflowRunModal({
                                         <span
                                             className={cn(
                                                 "grid size-6 shrink-0 place-items-center rounded-full border text-xs",
-                                                status === "已完成"
+                                                status === "已完�?
                                                     ? "border-emerald-500 bg-emerald-500 text-white"
-                                                    : status === "执行中"
+                                                    : status === "执行�?
                                                       ? "border-primary bg-primary text-primary-foreground"
                                                       : status === "失败"
                                                         ? "border-rose-500 text-rose-700"
-                                                        : status === "已取消"
+                                                        : status === "已取�?
                                                           ? "border-amber-500 text-amber-700"
                                                           : "border-border text-muted-foreground",
                                             )}
                                         >
-                                            {status === "已完成" ? <CheckCircle2 className="size-3.5" /> : status === "执行中" ? <LoaderCircle className="size-3.5 animate-spin" /> : status === "失败" ? <AlertCircle className="size-3.5" /> : index + 1}
+                                            {status === "已完�? ? <CheckCircle2 className="size-3.5" /> : status === "执行�? ? <LoaderCircle className="size-3.5 animate-spin" /> : status === "失败" ? <AlertCircle className="size-3.5" /> : index + 1}
                                         </span>
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-medium">{step.label}</p>
@@ -3595,9 +3584,9 @@ function WorkflowRunModal({
                                     </div>
                                     {children.length ? (
                                         <div className="ml-9 mt-2 space-y-1 border-l border-border pl-3">
-                                            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">子任务 · {children.length}</p>
+                                            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">子任�?· {children.length}</p>
                                             {children.map((child) => {
-                                                const childStatus = child.status === "success" ? "已完成" : child.status === "running" ? "执行中" : child.status === "error" ? "失败" : child.status === "cancelled" ? "已取消" : "待执行";
+                                                const childStatus = child.status === "success" ? "已完�? : child.status === "running" ? "执行�? : child.status === "error" ? "失败" : child.status === "cancelled" ? "已取�? : "待执�?;
                                                 const childDetail = child.error || [child.episodeId && `剧集 ${child.episodeId}`, child.shotId && `镜头 ${child.shotId}`].filter(Boolean).join(" · ") || child.type;
                                                 return (
                                                     <div key={child.id} className="flex items-center gap-2 text-xs">
@@ -3631,7 +3620,7 @@ function WorkflowRunModal({
                             <span>任务 {workflowTask.id.slice(0, 8)}</span>
                             <span className="font-medium">{Math.max(0, Math.min(100, workflowTask.progress))}%</span>
                         </div>
-                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-border" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={workflowTask.progress} aria-label="工作流进度">
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-border" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={workflowTask.progress} aria-label="工作流进�?>
                             <div
                                 className={cn("h-full transition-[width]", workflowTask.status === "error" ? "bg-rose-500" : workflowTask.status === "cancelled" ? "bg-amber-500" : workflowTask.status === "success" ? "bg-emerald-500" : "bg-primary")}
                                 style={{ width: `${Math.max(0, Math.min(100, workflowTask.progress))}%` }}
@@ -3639,9 +3628,9 @@ function WorkflowRunModal({
                         </div>
                     </div>
                 ) : null}
-                {workflowTask?.error ? <Alert type="error" showIcon title="工作流执行失败" description={workflowTask.error} /> : null}
-                {workflowError ? <Alert type="error" showIcon title="工作流请求失败" description={workflowError} /> : null}
-                {strictApprovalBlock ? <Alert type="warning" showIcon title="严格审批模式已阻断本次流程" description={strictApprovalBlock} /> : null}
+                {workflowTask?.error ? <Alert type="error" showIcon title="工作流执行失�? description={workflowTask.error} /> : null}
+                {workflowError ? <Alert type="error" showIcon title="工作流请求失�? description={workflowError} /> : null}
+                {strictApprovalBlock ? <Alert type="warning" showIcon title="严格审批模式已阻断本次流�? description={strictApprovalBlock} /> : null}
 
                 <div className="flex flex-wrap justify-end gap-3">
                     <Button onClick={onClose}>关闭</Button>
@@ -3657,7 +3646,7 @@ function WorkflowRunModal({
                     ) : null}
                     {!isActive ? (
                         <Button type="primary" icon={<Sparkles className="size-4" />} loading={workflowActionBusy} disabled={Boolean(strictApprovalBlock) || workflowLoading} onClick={() => void startRun()}>
-                            {workflowTask?.status === "success" ? "再次执行" : "开始执行"}
+                            {workflowTask?.status === "success" ? "再次执行" : "开始执�?}
                         </Button>
                     ) : null}
                 </div>
@@ -3682,7 +3671,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
         if (!episode || reviewStatus === "running") return;
         setReviewStatus("running");
         setReviewError("");
-        messageApi.loading({ content: "正在调用服务端审核模型...", key: "drama-review", duration: 0 });
+        messageApi.loading({ content: "正在调用服务端审核模�?..", key: "drama-review", duration: 0 });
         try {
             const response = await fetch("/api/drama/review", {
                 method: "POST",
@@ -3714,7 +3703,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
             if (!response.ok || payload.code !== 0 || !payload.data?.review) throw new Error(payload.msg || "审核服务返回无效结果");
             setReview(payload.data.review);
             setReviewStatus("done");
-            messageApi.success({ content: payload.data.review.status === "passed" ? "服务端审核已通过" : payload.data.review.status === "needs_revision" ? "审核完成，请按问题修改" : "审核暂不可用，请稍后重试", key: "drama-review", duration: 4 });
+            messageApi.success({ content: payload.data.review.status === "passed" ? "服务端审核已通过" : payload.data.review.status === "needs_revision" ? "审核完成，请按问题修�? : "审核暂不可用，请稍后重试", key: "drama-review", duration: 4 });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "审核请求失败";
             setReviewError(errorMessage);
@@ -3726,7 +3715,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
     const issues = review?.issues || [];
     const blockingIssueCount = issues.filter((issue) => issue.severity === "high").length;
     const conclusion = !review ? "尚未执行审核" : review.status === "passed" ? "可以进入成片导出" : review.status === "needs_revision" ? "建议修改后再导出" : "审核服务暂不可用";
-    const statusLabel = !review ? "待执行" : review.status === "passed" ? "已通过" : review.status === "needs_revision" ? "需修改" : "暂不可用";
+    const statusLabel = !review ? "待执�? : review.status === "passed" ? "已通过" : review.status === "needs_revision" ? "需修改" : "暂不可用";
     const statusClass = !review
         ? "border-border bg-muted text-muted-foreground"
         : review.status === "passed"
@@ -3734,7 +3723,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
           : review.status === "needs_revision"
             ? "border-amber-300 bg-amber-50 text-amber-800"
             : "border-rose-300 bg-rose-50 text-rose-800";
-    const severityLabel = (severity: "low" | "medium" | "high") => (severity === "high" ? "高" : severity === "medium" ? "中" : "低");
+    const severityLabel = (severity: "low" | "medium" | "high") => (severity === "high" ? "�? : severity === "medium" ? "�? : "�?);
     const issueTarget = (taskId?: string): StepKey => (taskId?.startsWith("assets") ? "assets" : "storyboard");
 
     return (
@@ -3750,12 +3739,12 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                             <span className={cn("border px-2 py-0.5 text-xs", statusClass)}>{statusLabel}</span>
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            第 {episode?.number || 1} 集 · {episode?.title || "未命名剧集"}
+                            �?{episode?.number || 1} �?· {episode?.title || "未命名剧�?}
                         </p>
                     </div>
                 </div>
                 <Button type="primary" icon={reviewStatus === "running" ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />} loading={reviewStatus === "running"} disabled={!episode} onClick={() => void runReview()}>
-                    {review ? "重新审核" : "开始审核"}
+                    {review ? "重新审核" : "开始审�?}
                 </Button>
             </section>
             {reviewError ? <Alert type="error" showIcon message="审核请求失败" description={reviewError} /> : null}
@@ -3765,20 +3754,17 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                     <div className="mt-2 flex flex-wrap items-center gap-3">
                         <h3 className="text-2xl font-semibold">{conclusion}</h3>
                         <span className={cn("border px-2 py-1 text-xs font-medium", statusClass)}>
-                            {review ? (blockingIssueCount ? `${blockingIssueCount} 个高优先级问题` : review.status === "passed" ? "未发现阻塞项" : "请查看审核意见") : "点击开始审核"}
+                            {review ? (blockingIssueCount ? `${blockingIssueCount} 个高优先级问题` : review.status === "passed" ? "未发现阻塞项" : "请查看审核意�?) : "点击开始审�?}
                         </span>
                     </div>
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">审核请求由服务端组合项目方向、资产关系和当前剧集产物后提交，结果会随任务状态持久化。</p>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">审核请求由服务端组合项目方向、资产关系和当前剧集产物后提交，结果会随任务状态持久化�?/p>
                     <div className="mt-5 flex flex-wrap gap-x-7 gap-y-3 text-sm">
                         <span>
-                            <strong className="font-semibold">{issues.length}</strong> 个问题
-                        </span>
+                            <strong className="font-semibold">{issues.length}</strong> 个问�?                        </span>
                         <span>
-                            <strong className="font-semibold">{episodeShots.length}</strong> 个分镜
-                        </span>
+                            <strong className="font-semibold">{episodeShots.length}</strong> 个分�?                        </span>
                         <span>
-                            <strong className="font-semibold">{videoCount}</strong> 个视频结果
-                        </span>
+                            <strong className="font-semibold">{videoCount}</strong> 个视频结�?                        </span>
                     </div>
                 </div>
                 <div className="flex items-center gap-5 p-6">
@@ -3789,7 +3775,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                         </span>
                     </div>
                     <div>
-                        <p className="font-medium">{review ? "服务端审核结果" : "等待审核"}</p>
+                        <p className="font-medium">{review ? "服务端审核结�? : "等待审核"}</p>
                         <p className="mt-1 text-sm text-muted-foreground">{review?.summary || "尚未生成审核报告"}</p>
                     </div>
                 </div>
@@ -3800,10 +3786,10 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                 </div>
                 <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
                     {[
-                        { label: "剧本内容", value: `${episode?.script.length || 0} 字`, detail: "剧情、人物、对白" },
-                        { label: "创作资产", value: `${assetCount} 项`, detail: "角色、场景、道具" },
-                        { label: "分镜图", value: `${storyboardImageCount}/${episodeShots.length}`, detail: "构图、风格、连续性" },
-                        { label: "镜头视频", value: `${videoCount}/${episodeShots.length}`, detail: "动态、节奏、可用性" },
+                        { label: "剧本内容", value: `${episode?.script.length || 0} 字`, detail: "剧情、人物、对�? },
+                        { label: "创作资产", value: `${assetCount} 项`, detail: "角色、场景、道�? },
+                        { label: "分镜�?, value: `${storyboardImageCount}/${episodeShots.length}`, detail: "构图、风格、连续�? },
+                        { label: "镜头视频", value: `${videoCount}/${episodeShots.length}`, detail: "动态、节奏、可用�? },
                     ].map((item) => (
                         <div key={item.label} className="px-5 py-4 sm:px-6">
                             <p className="text-sm text-muted-foreground">{item.label}</p>
@@ -3830,14 +3816,14 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-sm text-muted-foreground">执行审核后显示模型返回的评分，不使用前端估算值。</p>
+                            <p className="text-sm text-muted-foreground">执行审核后显示模型返回的评分，不使用前端估算值�?/p>
                         )}
                     </div>
                 </section>
                 <section className="border border-border bg-card">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
-                        <h3 className="font-semibold">待处理问题</h3>
-                        <span className="text-sm text-muted-foreground">{issues.length} 项</span>
+                        <h3 className="font-semibold">待处理问�?/h3>
+                        <span className="text-sm text-muted-foreground">{issues.length} �?/span>
                     </div>
                     <div className="divide-y divide-border">
                         {issues.length ? (
@@ -3858,8 +3844,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <span className="text-xs text-muted-foreground">{issue.category}</span>
                                                 <span className={cn("px-1.5 py-0.5 text-xs", issue.severity === "high" ? "bg-rose-100 text-rose-700" : issue.severity === "medium" ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700")}>
-                                                    {label}优先级
-                                                </span>
+                                                    {label}优先�?                                                </span>
                                             </div>
                                             <h4 className="mt-1 font-medium">{issue.message}</h4>
                                             {issue.correction ? <p className="mt-1 text-sm leading-6 text-muted-foreground">修改建议：{issue.correction}</p> : null}
@@ -3873,7 +3858,7 @@ function ReviewPanel({ project, episode, onStepChange, messageApi: providedMessa
                                 );
                             })
                         ) : (
-                            <p className="p-6 text-sm text-muted-foreground">{review ? "服务端未返回需要处理的问题。" : "执行审核后显示服务端问题清单。"}</p>
+                            <p className="p-6 text-sm text-muted-foreground">{review ? "服务端未返回需要处理的问题�? : "执行审核后显示服务端问题清单�?}</p>
                         )}
                     </div>
                 </section>
@@ -3948,7 +3933,7 @@ function AssetResourceActions({
             const result = await listLibraryAssetPage({ page: 1, pageSize: 100 });
             setLibraryAssets(result.assets);
         } catch (error) {
-            messageApi.error(error instanceof Error ? error.message : "素材库加载失败");
+            messageApi.error(error instanceof Error ? error.message : "素材库加载失�?);
         } finally {
             setLibraryLoading(false);
         }
@@ -3956,12 +3941,12 @@ function AssetResourceActions({
 
     const extractFromScript = async () => {
         if (!episode?.script.trim()) {
-            messageApi.warning("请先填写当前集剧本");
+            messageApi.warning("请先填写当前集剧�?);
             return;
         }
         setExtracting(true);
         const key = `drama-extract-${resourceType}`;
-        messageApi.loading({ content: `正在从剧本提取${label}...`, key, duration: 0 });
+        messageApi.loading({ content: `正在从剧本提�?{label}...`, key, duration: 0 });
         try {
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/extract-assets`, {
                 method: "POST",
@@ -3982,7 +3967,7 @@ function AssetResourceActions({
                 return;
             }
             if (!(await onAppend(assets))) throw new Error("项目保存失败");
-            messageApi.success({ content: `已从剧本提取 ${assets.length} 个${label}`, key, duration: 2 });
+            messageApi.success({ content: `已从剧本提取 ${assets.length} �?{label}`, key, duration: 2 });
         } catch (error) {
             messageApi.error({ content: error instanceof Error ? error.message : "资产提取失败", key, duration: 3 });
         } finally {
@@ -3996,7 +3981,7 @@ function AssetResourceActions({
             return;
         }
         const imageUrl = asset.kind === "image" ? asset.data.serverUrl || asset.data.remoteUrl || asset.data.dataUrl || asset.coverUrl : asset.coverUrl;
-        const description = asset.note || (asset.kind === "text" ? asset.data.content : asset.tags.join("、"));
+        const description = asset.note || (asset.kind === "text" ? asset.data.content : asset.tags.join("�?));
         const item: ImportedDramaAsset = {
             id: `${resourceType}_${Date.now()}`,
             name: asset.title,
@@ -4007,7 +3992,7 @@ function AssetResourceActions({
         setLibraryImporting(true);
         try {
             if (!(await onAppend([item]))) throw new Error("项目保存失败");
-            messageApi.success(`已从素材库添加${label}：${asset.title}`);
+            messageApi.success(`已从素材库添�?{label}�?{asset.title}`);
             setLibraryOpen(false);
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "素材导入失败");
@@ -4033,7 +4018,7 @@ function AssetResourceActions({
                     从素材库添加
                 </Button>
                 {manualAction}
-                {!episode?.script.trim() ? <span className="text-xs text-muted-foreground">请先填写当前集剧本后再提取</span> : null}
+                {!episode?.script.trim() ? <span className="text-xs text-muted-foreground">请先填写当前集剧本后再提�?/span> : null}
             </div>
             <Modal title={`从素材库添加${label}`} open={libraryOpen} footer={null} onCancel={() => setLibraryOpen(false)}>
                 <Input allowClear className="mb-3" placeholder={`搜索素材${label}`} value={libraryKeyword} onChange={(event) => setLibraryKeyword(event.target.value)} />
@@ -4059,7 +4044,7 @@ function AssetResourceActions({
                                         </div>
                                     }
                                     title={asset.title}
-                                    description={asset.note || asset.tags.join("、") || "素材库资产"}
+                                    description={asset.note || asset.tags.join("�?) || "素材库资�?}
                                 />
                             </List.Item>
                         )}
@@ -4136,7 +4121,7 @@ function CharactersList({ project, episode, onSave, messageApi }: { project: Pro
                 }
             />
             <div className="mb-4">
-                <span className="text-sm text-muted-foreground">暂无本剧角色库记录，可在素材库中导入或手动添加</span>
+                <span className="text-sm text-muted-foreground">暂无本剧角色库记录，可在素材库中导入或手动添�?/span>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -4170,7 +4155,7 @@ function CharactersList({ project, episode, onSave, messageApi }: { project: Pro
                         <Input placeholder="角色名称" />
                     </Form.Item>
                     <Form.Item label="角色描述" name="description">
-                        <TextArea rows={4} placeholder="角色特征、性格等" />
+                        <TextArea rows={4} placeholder="角色特征、性格�? />
                     </Form.Item>
                 </Form>
             </Modal>
@@ -4217,7 +4202,7 @@ function ScenesList({ project, episode, onSave, messageApi }: { project: Project
     const handleDelete = (id: string) => {
         Modal.confirm({
             title: "确认删除",
-            content: "确定要删除这个场景吗？",
+            content: "确定要删除这个场景吗�?,
             onOk: () => {
                 onSave({ scenes: project.scenes.filter((s) => s.id !== id) });
             },
@@ -4239,14 +4224,14 @@ function ScenesList({ project, episode, onSave, messageApi }: { project: Project
                 }
             />
             <div className="mb-4">
-                <span className="text-sm text-muted-foreground">暂无本剧场景库记录，可在素材库中导入或手动添加</span>
+                <span className="text-sm text-muted-foreground">暂无本剧场景库记录，可在素材库中导入或手动添�?/span>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
                 {project.scenes.map((scene) => (
                     <div key={scene.id} className="rounded-lg border border-border bg-card p-4">
                         <div className="mb-2 text-base font-semibold">{scene.location}</div>
-                        <div className="mb-1 text-xs text-muted-foreground">{scene.time || "未设置时间"}</div>
+                        <div className="mb-1 text-xs text-muted-foreground">{scene.time || "未设置时�?}</div>
                         <div className="mb-4 text-sm text-muted-foreground">{scene.description || "暂无描述"}</div>
                         <div className="flex gap-2">
                             <Button size="small" icon={<Edit2 className="size-3" />} onClick={() => handleEdit(scene)}>
@@ -4266,7 +4251,7 @@ function ScenesList({ project, episode, onSave, messageApi }: { project: Project
                         <Input placeholder="例如：公园、咖啡厅、办公室" />
                     </Form.Item>
                     <Form.Item label="时间" name="time">
-                        <Input placeholder="例如：清晨、午后、夜晚" />
+                        <Input placeholder="例如：清晨、午后、夜�? />
                     </Form.Item>
                     <Form.Item label="场景描述" name="description">
                         <TextArea rows={4} placeholder="场景特征、氛围、细节等" />
@@ -4316,7 +4301,7 @@ function PropsList({ project, episode, onSave, messageApi }: { project: Project;
     const handleDelete = (id: string) => {
         Modal.confirm({
             title: "确认删除",
-            content: "确定要删除这个道具吗？",
+            content: "确定要删除这个道具吗�?,
             onOk: () => {
                 onSave({ props: project.props.filter((p) => p.id !== id) });
             },
@@ -4338,7 +4323,7 @@ function PropsList({ project, episode, onSave, messageApi }: { project: Project;
                 }
             />
             <div className="mb-4">
-                <span className="text-sm text-muted-foreground">暂无本剧道具库记录，可在素材库中导入或手动添加</span>
+                <span className="text-sm text-muted-foreground">暂无本剧道具库记录，可在素材库中导入或手动添�?/span>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -4427,7 +4412,7 @@ function StoryboardPanel({
         if (!episode) return;
         setStoryboardFrameModes((current) => ({ ...current, [episode.id]: value }));
         const saved = await onSave({ shots: project.shots.map((shot) => (shot.episodeId === episode.id ? { ...shot, storyboardFrameMode: value } : shot)) }, { silent: true });
-        if (!saved) messageApi.error("首尾帧模式保存失败");
+        if (!saved) messageApi.error("首尾帧模式保存失�?);
     };
     const activeTaskShots = episodeShots.filter((shot) => isDramaLabTaskActive(shot.storyboardStatus) || isDramaLabVideoTaskActive(shot) || Object.values(shot.frames || {}).some((frame) => isDramaLabTaskActive(frame?.status)));
     const activeTaskShotsRef = useRef(activeTaskShots);
@@ -4499,8 +4484,8 @@ function StoryboardPanel({
                     });
                     await assertJsonApiResponse(response);
                     const data = await response.json();
-                    if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务状态同步失败");
-                    if (!data.data?.shot) throw new Error("任务状态同步响应缺少分镜数据");
+                    if (!response.ok || data.code !== 0) throw new Error(data.msg || "任务状态同步失�?);
+                    if (!data.data?.shot) throw new Error("任务状态同步响应缺少分镜数�?);
                     // The generic `executionPhase` response is scheduler
                     // metadata for older clients. Video UI state must only
                     // consume the explicit video field.
@@ -4511,7 +4496,7 @@ function StoryboardPanel({
                     return responseShot as Shot;
                 } catch (error) {
                     if (error instanceof DOMException && error.name === "AbortError" && (controller.signal.aborted || signal?.aborted || disposedRef.current)) throw error;
-                    if (error instanceof DOMException && error.name === "AbortError") throw new Error("任务状态同步超时，请稍后使用同步按钮继续检查");
+                    if (error instanceof DOMException && error.name === "AbortError") throw new Error("任务状态同步超时，请稍后使用同步按钮继续检�?);
                     throw error;
                 } finally {
                     signal?.removeEventListener("abort", abortFromCaller);
@@ -4552,7 +4537,7 @@ function StoryboardPanel({
                     if (!data.data?.shot) throw new Error("audio sync response missing shot");
                     if (controller.signal.aborted || disposedRef.current || currentEpisodeIdRef.current !== episodeId) return undefined;
                     onShotSynced(episodeId, shotId, data.data.shot);
-                    if (!silent) messageApi.success("闊抽鐘舵€佸凡鍚屾");
+                    if (!silent) messageApi.success("闊抽鐘舵€佸凡鍚屾�?);
                     return data.data.shot as Shot;
                 } catch (error) {
                     if (error instanceof DOMException && error.name === "AbortError" && (controller.signal.aborted || signal?.aborted || disposedRef.current)) throw error;
@@ -4576,7 +4561,7 @@ function StoryboardPanel({
             const state = audioStateForKind(shot, kind);
             const taskId = state?.taskId;
             if (!taskId) {
-                if (!silent) messageApi.info(`${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}鏆傛棤鍙仮澶嶇殑闊抽浠诲姟`);
+                if (!silent) messageApi.info(`${kind === "dialogue" ? "瀵圭�? : "鏃佺�?}鏆傛棤鍙仮澶嶇殑闊抽浠诲姟`);
                 return false;
             }
             const actionKey = `audio-recover:${kind}:${shot.id}`;
@@ -4586,7 +4571,7 @@ function StoryboardPanel({
             if (controller) operationAbortRef.current.set(actionKey, controller);
             try {
                 setActionBusy(actionKey, true);
-                if (!silent) messageApi.loading({ content: `姝ｅ湪鎭㈠${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}闊抽浠诲姟...`, key: actionKey, duration: 0 });
+                if (!silent) messageApi.loading({ content: `姝ｅ湪鎭㈠${kind === "dialogue" ? "瀵圭�? : "鏃佺�?}闊抽浠诲姟...`, key: actionKey, duration: 0 });
                 const query = new URLSearchParams({ episodeId, taskId, kind });
                 const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/recover-audio?${query.toString()}`, {
                     method: "POST",
@@ -4603,7 +4588,7 @@ function StoryboardPanel({
                 } else {
                     await syncAudio(shot.id, kind, true, requestSignal, taskId);
                 }
-                if (!silent) messageApi.success({ content: `${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}闊抽浠诲姟宸叉仮澶嶅苟鍚屾`, key: actionKey, duration: 4 });
+                if (!silent) messageApi.success({ content: `${kind === "dialogue" ? "瀵圭�? : "鏃佺�?}闊抽浠诲姟宸叉仮澶嶅苟鍚屾`, key: actionKey, duration: 4 });
                 return true;
             } catch (error) {
                 if (!silent && !requestSignal?.aborted && !disposedRef.current) messageApi.error({ content: error instanceof Error ? error.message : "闊抽浠诲姟鎭㈠澶辫触", key: actionKey, duration: 6 });
@@ -4723,7 +4708,7 @@ function StoryboardPanel({
                         automaticSyncPausedRef.current.add(taskKey);
                         messageApi.warning({
                             key: `drama-lab-auto-sync-paused:${shot.id}`,
-                            content: "任务状态自动同步已暂停，请使用分镜卡片右上角的同步按钮继续检查。",
+                            content: "任务状态自动同步已暂停，请使用分镜卡片右上角的同步按钮继续检查�?,
                             duration: 6,
                         });
                     }
@@ -4770,7 +4755,7 @@ function StoryboardPanel({
                         automaticAudioSyncPausedRef.current.add(key);
                         messageApi.warning({
                             key: `drama-lab-audio-auto-sync-paused:${shot.id}:${kind}`,
-                            content: `${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}闊抽鑷姩鍚屾宸叉殏鍋滐紝璇峰湪闀滃ご鍗＄墖涓墜鍔ㄥ悓姝ユ垨鎭㈠銆俙`,
+                            content: `${kind === "dialogue" ? "瀵圭�? : "鏃佺�?}闊抽鑷姩鍚屾宸叉殏鍋滐紝璇峰湪闀滃ご鍗＄墖涓墜鍔ㄥ悓姝ユ垨鎭㈠銆俙`,
                             duration: 6,
                         });
                     }
@@ -4857,7 +4842,7 @@ function StoryboardPanel({
                 if (changed) await recoveryReloadRef.current();
                 if (disposed || controller.signal.aborted) return false;
                 if (result?.syncErrors?.length) {
-                    recoveryMessageRef.current.warning({ key: `drama-lab-recovery:${episodeId}`, content: "部分分镜视频任务未能自动恢复，请在对应分镜卡片中手动同步。", duration: 6 });
+                    recoveryMessageRef.current.warning({ key: `drama-lab-recovery:${episodeId}`, content: "部分分镜视频任务未能自动恢复，请在对应分镜卡片中手动同步�?, duration: 6 });
                 }
                 recoveryAttemptedRef.current.add(recoveryKey);
                 recoveryStateRef.current.set(recoveryKey, "ready");
@@ -4865,7 +4850,7 @@ function StoryboardPanel({
             } catch (error) {
                 if (disposed || controller.signal.aborted) return false;
                 recoveryStateRef.current.set(recoveryKey, "failed");
-                messageApi.warning({ key: `drama-lab-recovery:${episodeId}`, content: error instanceof Error ? `${error.message}，可在分镜卡片中手动同步。` : "视频任务恢复失败，可在分镜卡片中手动同步。", duration: 6 });
+                messageApi.warning({ key: `drama-lab-recovery:${episodeId}`, content: error instanceof Error ? `${error.message}，可在分镜卡片中手动同步。` : "视频任务恢复失败，可在分镜卡片中手动同步�?, duration: 6 });
                 return false;
             } finally {
                 if (recoveryAbortRef.current === controller) recoveryAbortRef.current = null;
@@ -4912,7 +4897,7 @@ function StoryboardPanel({
             setExtracting(true);
             const storyboardOptions = normalizeDramaLabStoryboardOptions(constraintDraft);
             lastExtractionCheckpointRef.current = episodeShots.length;
-            messageApi.loading({ content: "正在从剧本提取分镜...", key: "extract-storyboards", duration: 0 });
+            messageApi.loading({ content: "正在从剧本提取分�?..", key: "extract-storyboards", duration: 0 });
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/extract-storyboards`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -4929,7 +4914,7 @@ function StoryboardPanel({
                 const statusResponse = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/workflow?taskId=${encodeURIComponent(taskId)}`, { cache: "no-store", signal: controller.signal });
                 await assertJsonApiResponse(statusResponse);
                 const statusData = await statusResponse.json();
-                if (!statusResponse.ok || statusData.code !== 0 || !statusData.data) throw new Error(statusData.msg || "分镜提取任务状态读取失败");
+                if (!statusResponse.ok || statusData.code !== 0 || !statusData.data) throw new Error(statusData.msg || "分镜提取任务状态读取失�?);
                 const status = statusData.data.status as string;
                 const checkpoint = statusData.data.checkpoint as { episodeId?: string; shotCount?: number; shots?: unknown[] } | undefined;
                 const checkpointCount = checkpoint?.episodeId === episode.id && Number.isFinite(Number(checkpoint.shotCount)) ? Number(checkpoint.shotCount) : 0;
@@ -4941,7 +4926,7 @@ function StoryboardPanel({
                     } else await onReload({ silent: true });
                 }
                 if (status === "success") break;
-                if (status === "error" || status === "cancelled") throw new Error(statusData.data.error || (status === "cancelled" ? "分镜提取任务已取消" : "分镜提取失败"));
+                if (status === "error" || status === "cancelled") throw new Error(statusData.data.error || (status === "cancelled" ? "分镜提取任务已取�? : "分镜提取失败"));
                 await new Promise<void>((resolve) => window.setTimeout(resolve, 1_000));
             }
             await onReload({ silent: true });
@@ -4956,7 +4941,7 @@ function StoryboardPanel({
 
     const handleExtract = () => {
         if (!episode?.script.trim()) {
-            messageApi.warning("请先填写当前集剧本");
+            messageApi.warning("请先填写当前集剧�?);
             return;
         }
         if (!episodeShots.length) {
@@ -4965,7 +4950,7 @@ function StoryboardPanel({
         }
         Modal.confirm({
             title: "重新提取分镜",
-            content: "当前集已有分镜。重新提取会替换当前集全部分镜，其他剧集不受影响。",
+            content: "当前集已有分镜。重新提取会替换当前集全部分镜，其他剧集不受影响�?,
             okText: "确认替换",
             cancelText: "取消",
             onOk: () => extractFromScript(),
@@ -5020,7 +5005,7 @@ function StoryboardPanel({
                     if (!saved) throw new Error("保存分镜失败");
                 }
                 setModalVisible(false);
-                messageApi.success(editingShot ? "分镜已更新" : "分镜已添加");
+                messageApi.success(editingShot ? "分镜已更�? : "分镜已添�?);
             })
             .catch((error) => messageApi.error(error instanceof Error ? error.message : "分镜保存失败"));
     };
@@ -5028,11 +5013,11 @@ function StoryboardPanel({
     const handleDelete = (id: string) => {
         Modal.confirm({
             title: "确认删除",
-            content: "确定要删除这个分镜吗？",
+            content: "确定要删除这个分镜吗�?,
             onOk: async () => {
                 const saved = await onSave({ shots: project.shots.filter((s) => s.id !== id) });
                 if (!saved) throw new Error("删除分镜失败");
-                messageApi.success("分镜已删除");
+                messageApi.success("分镜已删�?);
             },
         });
     };
@@ -5042,14 +5027,14 @@ function StoryboardPanel({
         if (signal?.aborted || disposedRef.current) return undefined;
         if (currentEpisodeIdRef.current !== episode.id || latestProjectRef.current.id !== project.id) return undefined;
         if (kind === "video" && requiresDramaLabVideoTaskCheck(shot)) {
-            messageApi.warning("当前视频任务待检查，请先点击“检查状态”，不会重复提交生成任务。");
+            messageApi.warning("当前视频任务待检查，请先点击“检查状态”，不会重复提交生成任务�?);
             return undefined;
         }
         if (kind === "video" && shot.creationMode !== "universal" && !shot.frames?.key?.url && !shot.storyboardImageUrl) {
             Modal.warning({
                 title: "无法生成分镜视频",
-                content: "请先生成当前镜头的关键帧或分镜图，再提交视频生成任务。",
-                okText: "知道了",
+                content: "请先生成当前镜头的关键帧或分镜图，再提交视频生成任务�?,
+                okText: "知道�?,
             });
             return undefined;
         }
@@ -5057,9 +5042,9 @@ function StoryboardPanel({
             const missing = missingShotAssetLabels(project, shot);
             if (missing.length) {
                 Modal.warning({
-                    title: "无法生成分镜图",
-                    content: `当前镜头绑定的资产缺少参考图：${missing.join("、")}。请先到“资产准备”中生成或添加参考图。`,
-                    okText: "知道了",
+                    title: "无法生成分镜�?,
+                    content: `当前镜头绑定的资产缺少参考图�?{missing.join("�?)}。请先到“资产准备”中生成或添加参考图。`,
+                    okText: "知道�?,
                 });
                 return undefined;
             }
@@ -5074,7 +5059,7 @@ function StoryboardPanel({
         if (ownedController) operationAbortRef.current.set(actionKey, ownedController);
         try {
             setActionBusy(actionKey, true);
-            messageApi.loading({ content: kind === "image" ? "正在创建分镜图任务..." : "正在创建分镜视频任务...", key: actionKey, duration: 0 });
+            messageApi.loading({ content: kind === "image" ? "正在创建分镜图任�?.." : "正在创建分镜视频任务...", key: actionKey, duration: 0 });
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-${kind}?episodeId=${encodeURIComponent(episode.id)}`, {
                 method: "POST",
                 signal: requestSignal,
@@ -5093,10 +5078,10 @@ function StoryboardPanel({
             if (requestSignal?.aborted || isStale()) return taskId;
             await syncShot(shot.id, false, requestSignal).catch((error) => {
                 if (requestSignal?.aborted || isStale()) throw error;
-                messageApi.warning({ content: error instanceof Error ? `${error.message}，任务已创建，可稍后同步。` : "任务已创建，可稍后同步。", key: `drama-lab-initial-sync:${shot.id}`, duration: 6 });
+                messageApi.warning({ content: error instanceof Error ? `${error.message}，任务已创建，可稍后同步。` : "任务已创建，可稍后同步�?, key: `drama-lab-initial-sync:${shot.id}`, duration: 6 });
             });
             if (requestSignal?.aborted || isStale()) return taskId;
-            messageApi.success({ content: kind === "image" ? "分镜图任务已提交" : "分镜视频任务已提交", key: actionKey });
+            messageApi.success({ content: kind === "image" ? "分镜图任务已提交" : "分镜视频任务已提�?, key: actionKey });
             return taskId;
         } catch (err) {
             if (requestSignal?.aborted || isStale()) return undefined;
@@ -5115,8 +5100,8 @@ function StoryboardPanel({
         const text = audioTextForKind(shot, kind);
         if (!text) {
             Modal.warning({
-                title: `鏃犳硶鐢熸垚${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}闊抽`,
-                content: `褰撳墠闀滃ご娌℃湁${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}鏂囨湰锛岃鍏堣ˉ鍏呮枃鏈悗鍐嶇敓鎴愩€?`,
+                title: `鏃犳硶鐢熸垚${kind === "dialogue" ? "瀵圭�? : "鏃佺�?}闊抽`,
+                content: `褰撳墠闀滃ご娌℃�?{kind === "dialogue" ? "瀵圭�? : "鏃佺�?}鏂囨湰锛岃鍏堣ˉ鍏呮枃鏈悗鍐嶇敓鎴愩�?`,
                 okText: "鐭ラ亾浜?",
             });
             return;
@@ -5130,7 +5115,7 @@ function StoryboardPanel({
         operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
-            messageApi.loading({ content: `姝ｅ湪鍒涘缓${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}闊抽浠诲姟...`, key: actionKey, duration: 0 });
+            messageApi.loading({ content: `姝ｅ湪鍒涘缓${kind === "dialogue" ? "瀵圭�? : "鏃佺�?}闊抽浠诲姟...`, key: actionKey, duration: 0 });
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-audio?episodeId=${encodeURIComponent(episode.id)}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -5176,7 +5161,7 @@ function StoryboardPanel({
     const syncAudioManually = async (shot: Shot, kind: "dialogue" | "narration") => {
         const state = audioStateForKind(shot, kind);
         if (!state?.taskId) {
-            messageApi.info(`${kind === "dialogue" ? "瀵圭櫧" : "鏃佺櫧"}鏆傛棤闊抽浠诲姟`);
+            messageApi.info(`${kind === "dialogue" ? "瀵圭�? : "鏃佺�?}鏆傛棤闊抽浠诲姟`);
             return;
         }
         const actionKey = `audio-sync:${kind}:${shot.id}`;
@@ -5211,7 +5196,7 @@ function StoryboardPanel({
         operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
-            messageApi.loading({ content: "正在按音频分析拆镜候选", key: actionKey, duration: 0 });
+            messageApi.loading({ content: "正在按音频分析拆镜候�?, key: actionKey, duration: 0 });
             const query = `?episodeId=${encodeURIComponent(episode.id)}`;
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/split-by-audio${query}`, {
                 method: "POST",
@@ -5243,7 +5228,7 @@ function StoryboardPanel({
         operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
-            messageApi.loading({ content: "正在保存音频拆镜候选", key: actionKey, duration: 0 });
+            messageApi.loading({ content: "正在保存音频拆镜候�?, key: actionKey, duration: 0 });
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/split-by-audio?episodeId=${encodeURIComponent(episode.id)}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -5281,7 +5266,7 @@ function StoryboardPanel({
         operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
-            messageApi.loading({ content: "正在检查原视频任务状态...", key: actionKey, duration: 0 });
+            messageApi.loading({ content: "正在检查原视频任务状�?..", key: actionKey, duration: 0 });
             const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
             try {
                 await recoverVideoGenerationTask(
@@ -5300,13 +5285,13 @@ function StoryboardPanel({
             if (controller.signal.aborted || isStale()) return;
             await syncShot(shot.id, true, controller.signal);
             if (controller.signal.aborted || isStale()) return;
-            messageApi.success({ content: "已检查原视频任务状态，正在同步结果。", key: actionKey, duration: 3 });
+            messageApi.success({ content: "已检查原视频任务状态，正在同步结果�?, key: actionKey, duration: 3 });
         } catch (error) {
             // The recovery endpoint may have just settled the original task. Sync it once
             // so the card receives its definitive result or terminal error.
             if (!controller.signal.aborted && !isStale()) {
                 await syncShot(shot.id, true, controller.signal).catch(() => undefined);
-                if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "检查原视频任务状态失败", key: actionKey, duration: 6 });
+                if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "检查原视频任务状态失�?, key: actionKey, duration: 6 });
             }
         } finally {
             if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
@@ -5347,7 +5332,7 @@ function StoryboardPanel({
                 }
             } catch (error) {
                 if (abortController.signal.aborted || disposedRef.current) return;
-                messageApi.warning({ content: error instanceof Error ? error.message : "剧集任务恢复失败，请先同步现有任务", key: "drama-video-batch", duration: 6 });
+                messageApi.warning({ content: error instanceof Error ? error.message : "剧集任务恢复失败，请先同步现有任�?, key: "drama-video-batch", duration: 6 });
                 return;
             }
             if (abortController.signal.aborted || disposedRef.current) return;
@@ -5359,7 +5344,7 @@ function StoryboardPanel({
                     : (shot.creationMode === "universal" || Boolean(shot.frames?.key?.url || shot.storyboardImageUrl)) && !shot.videoUrl && !requiresDramaLabVideoTaskCheck(shot) && !isDramaLabVideoTaskActive(shot),
             );
             if (!candidates.length) {
-                if (!disposedRef.current) messageApi.info(kind === "image" ? "没有待生成的分镜图" : "没有待生成的分镜视频");
+                if (!disposedRef.current) messageApi.info(kind === "image" ? "没有待生成的分镜�? : "没有待生成的分镜视频");
                 return;
             }
             const missingByShot = candidates.map((shot) => ({ shot, missing: missingShotAssetLabels(sourceProject, shot) })).filter((item) => item.missing.length);
@@ -5367,10 +5352,10 @@ function StoryboardPanel({
             if (missingByShot.length && !disposedRef.current && !abortController.signal.aborted) {
                 const details = missingByShot
                     .slice(0, 8)
-                    .map((item) => `镜头 ${item.shot.shotNumber}：${item.missing.join("、")}`)
-                    .join("；");
-                const suffix = missingByShot.length > 8 ? `；另有 ${missingByShot.length - 8} 个镜头缺少资产参考图` : "";
-                messageApi.warning({ content: `已跳过 ${missingByShot.length} 个缺少资产参考图的镜头：${details}${suffix}`, key: "drama-batch-missing-assets", duration: 8 });
+                    .map((item) => `镜头 ${item.shot.shotNumber}�?{item.missing.join("�?)}`)
+                    .join("�?);
+                const suffix = missingByShot.length > 8 ? `；另�?${missingByShot.length - 8} 个镜头缺少资产参考图` : "";
+                messageApi.warning({ content: `已跳�?${missingByShot.length} 个缺少资产参考图的镜头：${details}${suffix}`, key: "drama-batch-missing-assets", duration: 8 });
             }
             if (!executableCandidates.length) return;
             const targets: Array<{ shotId: string; taskId: string }> = [];
@@ -5391,7 +5376,7 @@ function StoryboardPanel({
                 const taskId = await startGeneration(observedShot, kind, abortController.signal);
                 if (kind === "video") {
                     if (taskId) targets.push({ shotId: observedShot.id, taskId });
-                    else if (!abortController.signal.aborted && !disposedRef.current) submissionFailures.push({ shotId: observedShot.id, error: "任务未创建" });
+                    else if (!abortController.signal.aborted && !disposedRef.current) submissionFailures.push({ shotId: observedShot.id, error: "任务未创�? });
                 }
             }
             if (kind === "video" && (targets.length || submissionFailures.length) && !abortController.signal.aborted && !disposedRef.current) {
@@ -5416,7 +5401,7 @@ function StoryboardPanel({
                                 ...target,
                                 status: "running",
                                 executionPhase: "polling",
-                                error: error instanceof Error ? error.message : "任务状态同步失败",
+                                error: error instanceof Error ? error.message : "任务状态同步失�?,
                             };
                         }
                         if (context.signal?.aborted || disposedRef.current) throw new DOMException("Aborted", "AbortError");
@@ -5452,12 +5437,12 @@ function StoryboardPanel({
                         messageApi.loading({ content: `视频批量处理中：${progress.terminalCount}/${progress.totalCount} 已结束`, key: "drama-video-batch", duration: 0 });
                     },
                 });
-                const detail = [`成功 ${summary.successCount}`, `失败 ${summary.failedCount}`, `待检查 ${summary.needsReviewCount}`, `取消 ${summary.cancelledCount}`].join("，");
+                const detail = [`成功 ${summary.successCount}`, `失败 ${summary.failedCount}`, `待检�?${summary.needsReviewCount}`, `取消 ${summary.cancelledCount}`].join("�?);
                 messageApi[summary.allSucceeded ? "success" : "warning"]({ content: `视频批量任务已结束：${detail}`, key: "drama-video-batch", duration: 6 });
             }
         } catch (error) {
             if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason === "aborted") {
-                messageApi.info({ content: "批量任务已停止，已经提交的任务仍会继续同步。", key: "drama-video-batch", duration: 5 });
+                messageApi.info({ content: "批量任务已停止，已经提交的任务仍会继续同步�?, key: "drama-video-batch", duration: 5 });
             } else if (!disposedRef.current && error instanceof DramaLabVideoBatchWaitError && error.reason !== "aborted") {
                 messageApi.warning({ content: `视频批量仍有 ${error.progress.pendingCount} 个任务未结束，已保留任务状态，可稍后继续同步。`, key: "drama-video-batch", duration: 8 });
             } else if (!disposedRef.current && !(error instanceof DOMException && error.name === "AbortError")) {
@@ -5494,7 +5479,7 @@ function StoryboardPanel({
                 a.click();
                 URL.revokeObjectURL(a.href);
             }
-            messageApi.success(kind === "srt" ? "解说 SRT 已导出" : "分镜表 Excel 已导出");
+            messageApi.success(kind === "srt" ? "解说 SRT 已导�? : "分镜�?Excel 已导�?);
         } catch (error) {
             messageApi.error(error instanceof Error ? error.message : "导出失败");
         }
@@ -5505,9 +5490,9 @@ function StoryboardPanel({
         const missing = missingShotAssetLabels(project, shot);
         if (missing.length) {
             Modal.warning({
-                title: `无法生成${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧`,
-                content: `当前镜头绑定的资产缺少参考图：${missing.join("、")}。请先到“资产准备”中生成或添加参考图。`,
-                okText: "知道了",
+                title: `无法生成${frameType === "first" ? "�? : frameType === "key" ? "关键" : "�?}帧`,
+                content: `当前镜头绑定的资产缺少参考图�?{missing.join("�?)}。请先到“资产准备”中生成或添加参考图。`,
+                okText: "知道�?,
             });
             return;
         }
@@ -5520,26 +5505,26 @@ function StoryboardPanel({
         operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
-            messageApi.loading({ content: `正在规划并创建${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务...`, key: actionKey, duration: 0 });
+            messageApi.loading({ content: `正在规划并创�?{frameType === "first" ? "�? : frameType === "key" ? "关键" : "�?}帧任�?..`, key: actionKey, duration: 0 });
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/generate-frame?episodeId=${encodeURIComponent(episode.id)}&frameType=${frameType}`, {
                 method: "POST",
                 signal: controller.signal,
             });
             await assertJsonApiResponse(response);
             const data = await response.json();
-            if (!response.ok || data.code !== 0) throw new Error(data.msg || "帧任务创建失败");
+            if (!response.ok || data.code !== 0) throw new Error(data.msg || "帧任务创建失�?);
             const taskId = typeof data.data?.task?.id === "string" ? data.data.task.id : "";
-            if (!taskId) throw new Error("帧任务创建响应缺少任务 ID");
+            if (!taskId) throw new Error("帧任务创建响应缺少任�?ID");
             if (controller.signal.aborted || isStale()) return;
             applyCreatedFrameTask(shot, frameType, taskId, typeof data.data?.prompt === "string" ? data.data.prompt : undefined, typeof data.data?.description === "string" ? data.data.description : undefined);
             await syncShot(shot.id, false, controller.signal).catch((error) => {
                 if (controller.signal.aborted || isStale()) throw error;
-                messageApi.warning({ content: error instanceof Error ? `${error.message}，任务已创建，可稍后同步。` : "任务已创建，可稍后同步。", key: `drama-lab-initial-sync:${shot.id}`, duration: 6 });
+                messageApi.warning({ content: error instanceof Error ? `${error.message}，任务已创建，可稍后同步。` : "任务已创建，可稍后同步�?, key: `drama-lab-initial-sync:${shot.id}`, duration: 6 });
             });
             if (controller.signal.aborted || isStale()) return;
-            messageApi.success({ content: `${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧任务已提交`, key: actionKey });
+            messageApi.success({ content: `${frameType === "first" ? "�? : frameType === "key" ? "关键" : "�?}帧任务已提交`, key: actionKey });
         } catch (error) {
-            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "帧任务创建失败", key: actionKey });
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "帧任务创建失�?, key: actionKey });
         } finally {
             if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
             if (!disposedRef.current) setActionBusy(actionKey, false);
@@ -5550,7 +5535,7 @@ function StoryboardPanel({
 
     const extractTailFrame = async (shot: Shot) => {
         if (!episode || (!shot.generationTaskId && !shot.videoUrl)) {
-            messageApi.warning("请先完成或上传当前分镜视频，再提取真实尾帧");
+            messageApi.warning("请先完成或上传当前分镜视频，再提取真实尾�?);
             return;
         }
         const actionKey = `tail-frame:${shot.id}`;
@@ -5573,7 +5558,7 @@ function StoryboardPanel({
             if (next?.id && next.candidate) {
                 const nextShot = project.shots.find((item) => item.id === next.id && item.episodeId === episode.id);
                 if (nextShot) onShotSynced(episode.id, next.id, { id: next.id, firstFrameCandidate: next.candidate });
-                messageApi.success({ content: "尾帧已提取，下一镜出现待确认的首帧候选", key: actionKey, duration: 5 });
+                messageApi.success({ content: "尾帧已提取，下一镜出现待确认的首帧候�?, key: actionKey, duration: 5 });
             } else {
                 messageApi.success({ content: "尾帧已提取并保存", key: actionKey, duration: 4 });
             }
@@ -5593,8 +5578,8 @@ function StoryboardPanel({
         if (shot.frames?.first?.url && !replaceExisting) {
             Modal.confirm({
                 title: "当前分镜已有首帧",
-                content: "应用候选会保留当前首帧到历史记录并替换它，是否继续？",
-                okText: "替换并锁定",
+                content: "应用候选会保留当前首帧到历史记录并替换它，是否继续�?,
+                okText: "替换并锁�?,
                 cancelText: "保留当前首帧",
                 onOk: () => acceptFirstFrameCandidate(shot, true),
             });
@@ -5609,18 +5594,18 @@ function StoryboardPanel({
         operationAbortRef.current.set(actionKey, controller);
         try {
             setActionBusy(actionKey, true);
-            messageApi.loading({ content: "正在应用候选首帧...", key: actionKey, duration: 0 });
+            messageApi.loading({ content: "正在应用候选首�?..", key: actionKey, duration: 0 });
             const query = new URLSearchParams({ episodeId: episode.id, candidateId: candidate.id });
             if (replaceExisting) query.set("replaceExisting", "true");
             const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/shots/${encodeURIComponent(shot.id)}/accept-first-frame-candidate?${query.toString()}`, { method: "POST", signal: controller.signal });
             await assertJsonApiResponse(response);
             const data = await response.json();
-            if (!response.ok || data.code !== 0 || !data.data?.shot) throw new Error(data.msg || "候选首帧应用失败");
+            if (!response.ok || data.code !== 0 || !data.data?.shot) throw new Error(data.msg || "候选首帧应用失�?);
             if (controller.signal.aborted || isStale()) return;
             onShotSynced(episode.id, shot.id, { ...data.data.shot, firstFrameCandidate: data.data.candidate ?? null });
-            messageApi.success({ content: "候选首帧已应用并锁定", key: actionKey, duration: 4 });
+            messageApi.success({ content: "候选首帧已应用并锁�?, key: actionKey, duration: 4 });
         } catch (error) {
-            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "候选首帧应用失败", key: actionKey, duration: 6 });
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "候选首帧应用失�?, key: actionKey, duration: 6 });
         } finally {
             if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
             if (!disposedRef.current) setActionBusy(actionKey, false);
@@ -5649,12 +5634,12 @@ function StoryboardPanel({
             });
             await assertJsonApiResponse(response);
             const data = await response.json();
-            if (!response.ok || data.code !== 0 || !data.data?.frame) throw new Error(data.msg || "帧锁定状态保存失败");
+            if (!response.ok || data.code !== 0 || !data.data?.frame) throw new Error(data.msg || "帧锁定状态保存失�?);
             if (controller.signal.aborted || isStale()) return;
             onShotSynced(episode.id, shot.id, { id: shot.id, frames: { [frameType]: data.data.frame } });
             messageApi.success({ content: data.msg || (frame.locked ? "帧已解锁" : "帧已锁定"), key: actionKey, duration: 3 });
         } catch (error) {
-            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "帧锁定状态保存失败", key: actionKey, duration: 5 });
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "帧锁定状态保存失�?, key: actionKey, duration: 5 });
         } finally {
             if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
             if (!disposedRef.current) setActionBusy(actionKey, false);
@@ -5683,12 +5668,12 @@ function StoryboardPanel({
             });
             await assertJsonApiResponse(response);
             const data = await response.json();
-            if (!response.ok || data.code !== 0 || !data.data?.frame) throw new Error(data.msg || "帧图片上传失败");
+            if (!response.ok || data.code !== 0 || !data.data?.frame) throw new Error(data.msg || "帧图片上传失�?);
             if (controller.signal.aborted || isStale()) return;
             onShotSynced(episode.id, shot.id, { id: shot.id, frames: { [frameType]: data.data.frame } });
-            messageApi.success({ content: `${frameType === "first" ? "首" : frameType === "key" ? "关键" : "尾"}帧图片已上传`, key: actionKey, duration: 3 });
+            messageApi.success({ content: `${frameType === "first" ? "�? : frameType === "key" ? "关键" : "�?}帧图片已上传`, key: actionKey, duration: 3 });
         } catch (error) {
-            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "帧图片上传失败", key: actionKey, duration: 6 });
+            if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "帧图片上传失�?, key: actionKey, duration: 6 });
         } finally {
             if (operationAbortRef.current.get(actionKey) === controller) operationAbortRef.current.delete(actionKey);
             if (!disposedRef.current) setActionBusy(actionKey, false);
@@ -5720,7 +5705,7 @@ function StoryboardPanel({
             if (!response.ok || data.code !== 0 || !data.data?.shot) throw new Error(data.msg || "分镜视频上传失败");
             if (controller.signal.aborted || isStale()) return;
             onShotSynced(episode.id, shot.id, data.data.shot);
-            messageApi.success({ content: "分镜视频已上传", key: actionKey, duration: 3 });
+            messageApi.success({ content: "分镜视频已上�?, key: actionKey, duration: 3 });
         } catch (error) {
             if (!controller.signal.aborted && !isStale()) messageApi.error({ content: error instanceof Error ? error.message : "分镜视频上传失败", key: actionKey, duration: 6 });
         } finally {
@@ -5732,11 +5717,11 @@ function StoryboardPanel({
     };
 
     if (!episode) {
-        return <div className="text-center text-muted-foreground">请先选择一个剧集</div>;
+        return <div className="text-center text-muted-foreground">请先选择一个剧�?/div>;
     }
 
     return (
-        <div className="mx-auto max-w-[1440px]" aria-label="分镜工作台模块">
+        <div className="mx-auto max-w-[1440px]" aria-label="分镜工作台模�?>
             <section className="mb-5 space-y-4 rounded-xl border border-border bg-card p-4">
                 <h2 className="text-lg font-semibold">
                     分镜生成 <span className="text-sm font-normal text-muted-foreground">根据剧本、角色、场景生成分镜头脚本</span>
@@ -5756,13 +5741,11 @@ function StoryboardPanel({
                             {episodeShots.length ? "重新生成分镜" : "AI 生成分镜"}
                         </Button>
                         <Button icon={<Plus className="size-4" />} onClick={handleAdd}>
-                            添加一个分镜
-                        </Button>
+                            添加一个分�?                        </Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <Button loading={batchRunning === "image"} disabled={Boolean(batchRunning)} icon={<Sparkles className="size-4" />} onClick={() => void runBatch("image")}>
-                            批量生成分镜图
-                        </Button>
+                            批量生成分镜�?                        </Button>
                         <Button loading={batchRunning === "video"} disabled={Boolean(batchRunning)} icon={<Film className="size-4" />} onClick={() => void runBatch("video")}>
                             批量生成分镜视频
                         </Button>
@@ -5861,7 +5844,7 @@ function StoryboardPanel({
                     </Form.Item>
 
                     <Form.Item label="分镜标题" name="title" rules={[{ required: true }]}>
-                        <Input placeholder="例如：雨夜来电" />
+                        <Input placeholder="例如：雨夜来�? />
                     </Form.Item>
 
                     <Form.Item label="分镜描述" name="description" rules={[{ required: true }]}>
@@ -5869,11 +5852,11 @@ function StoryboardPanel({
                     </Form.Item>
 
                     <Form.Item label="对白" name="dialogue">
-                        <TextArea rows={2} placeholder="可选" />
+                        <TextArea rows={2} placeholder="可�? />
                     </Form.Item>
 
                     <Form.Item label="解说旁白" name="narration">
-                        <TextArea rows={2} placeholder="可选" />
+                        <TextArea rows={2} placeholder="可�? />
                     </Form.Item>
 
                     <Form.Item label="镜头角度" name="cameraAngle">
@@ -5886,21 +5869,21 @@ function StoryboardPanel({
                         </Select>
                     </Form.Item>
 
-                    <Form.Item label="时长(秒)" name="duration" rules={[{ required: true }]}>
+                    <Form.Item label="时长(�?" name="duration" rules={[{ required: true }]}>
                         <Input type="number" placeholder="例如: 3" />
                     </Form.Item>
 
-                    <Form.Item label="图片提示词" name="imagePrompt">
+                    <Form.Item label="图片提示�? name="imagePrompt">
                         <TextArea rows={3} placeholder="用于 AI 生成图片的提示词（可选）" />
                     </Form.Item>
 
-                    <Form.Item label="视频提示词" name="videoPrompt">
+                    <Form.Item label="视频提示�? name="videoPrompt">
                         <TextArea rows={3} placeholder="用于 AI 生成视频的动态提示词（可选）" />
                     </Form.Item>
-                    <div className="grid gap-x-4 sm:grid-cols-2" aria-label="分镜摄影与段落配置">
+                    <div className="grid gap-x-4 sm:grid-cols-2" aria-label="分镜摄影与段落配�?>
                         {(
                             [
-                                ["segmentTitle", "幕 / 段落标题"],
+                                ["segmentTitle", "�?/ 段落标题"],
                                 ["location", "场景地点"],
                                 ["time", "场景时间"],
                                 ["shotType", "景别"],
@@ -5919,7 +5902,7 @@ function StoryboardPanel({
                         ))}
                         <Form.Item
                             name="segmentIndex"
-                            label="幕索引（从 0 开始）"
+                            label="幕索引（�?0 开始）"
                             rules={[{ validator: (_, value) => (value === undefined || value === "" || (Number.isInteger(Number(value)) && Number(value) >= 0) ? Promise.resolve() : Promise.reject(new Error("幕索引必须为非负整数"))) }]}
                         >
                             <Input type="number" step="1" />
@@ -5927,12 +5910,12 @@ function StoryboardPanel({
                     </div>
                     {(
                         [
-                            ["layoutDescription", "空间布局锚点（首尾帧人物站位合同）"],
+                            ["layoutDescription", "空间布局锚点（首尾帧人物站位合同�?],
                             ["action", "动作"],
                             ["result", "画面结果"],
-                            ["startFramePrompt", "起始状态 / 首帧提示词"],
-                            ["endFramePrompt", "结束状态 / 尾帧提示词"],
-                            ["universalSegmentText", "全能片段提示词"],
+                            ["startFramePrompt", "起始状�?/ 首帧提示�?],
+                            ["endFramePrompt", "结束状�?/ 尾帧提示�?],
+                            ["universalSegmentText", "全能片段提示�?],
                         ] as const
                     ).map(([name, label]) => (
                         <Form.Item key={name} name={name} label={label}>
@@ -6023,7 +6006,7 @@ function StoryboardWorkbenchCard({
     const [universalPromptError, setUniversalPromptError] = useState<string | null>(null);
     const uploadInputRefs = useRef<Partial<Record<"first" | "key" | "last", HTMLInputElement | null>>>({});
     const videoUploadInputRef = useRef<HTMLInputElement>(null);
-    const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
+    const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键�?, last: "尾帧" };
     const openPromptEditor = () => {
         setPromptDraft({
             imagePrompt: shot.imagePrompt || "",
@@ -6067,13 +6050,13 @@ function StoryboardWorkbenchCard({
             setUniversalPromptError("请先填写全能片段描述，再进行润色");
             return;
         }
-        const references = universalReferences.map((reference, index) => `@图片${index + 1}：${reference.label}`).join("；");
+        const references = universalReferences.map((reference, index) => `@图片${index + 1}�?{reference.label}`).join("�?);
         const force = action.endsWith("force");
         if (!force && !universalReferences.length) {
             setUniversalPromptError("请至少为场景、角色或道具准备一张主参考图；也可选择无参考图生成/润色");
             return;
         }
-        const source = action.startsWith("polish") ? currentPrompt : [shot.description?.trim(), references ? `参考图引用：${references}` : ""].filter(Boolean).join("\n");
+        const source = action.startsWith("polish") ? currentPrompt : [shot.description?.trim(), references ? `参考图引用�?{references}` : ""].filter(Boolean).join("\n");
         if (!source.trim()) {
             setUniversalPromptError("请先填写分镜描述或绑定资产，再生成全能提示词");
             return;
@@ -6086,7 +6069,7 @@ function StoryboardWorkbenchCard({
             setPromptDraft((current) => ({ ...current, universalPrompt: optimizedPrompt }));
             message.success(action.startsWith("generate") ? (force ? "全能提示词已无参考图生成" : "全能提示词已生成") : force ? "全能提示词已无参考图润色" : "全能提示词已润色");
         } catch (error) {
-            setUniversalPromptError(error instanceof Error ? error.message : "全能提示词处理失败，请稍后重试");
+            setUniversalPromptError(error instanceof Error ? error.message : "全能提示词处理失败，请稍后重�?);
         } finally {
             setUniversalPromptAction(null);
         }
@@ -6095,19 +6078,19 @@ function StoryboardWorkbenchCard({
         if (promptFieldAction) return;
         setPromptFieldAction(target);
         try {
-            const assetNames = universalReferences.map((item) => item.label).join("、");
+            const assetNames = universalReferences.map((item) => item.label).join("�?);
             const contract =
                 target === "classic"
-                    ? "请输出经典单张分镜图最终提示词，严格依次包含【主体与动作】【场景与空间】【景别/机位/构图】【光线与色调】【角色白名单】【一致性与禁止项】，不得输出内部资产ID。"
+                    ? "请输出经典单张分镜图最终提示词，严格依次包含【主体与动作】【场景与空间】【景�?机位/构图】【光线与色调】【角色白名单】【一致性与禁止项】，不得输出内部资产ID�?
                     : target === "first"
-                      ? "请输出首帧最终图片提示词：固定空间布局、人物初始站位、景别、轴线和动作起点；不得写运动过程。"
-                      : "请输出尾帧最终图片提示词：继承首帧空间、轴线、人物位置，仅演化动作结束状态；不得引入新人物。";
+                      ? "请输出首帧最终图片提示词：固定空间布局、人物初始站位、景别、轴线和动作起点；不得写运动过程�?
+                      : "请输出尾帧最终图片提示词：继承首帧空间、轴线、人物位置，仅演化动作结束状态；不得引入新人物�?;
             const base = [
                 contract,
-                `项目风格：${project.style || "未设置"}`,
-                `画幅：${project.aspectRatio}`,
-                `镜头：${shot.description || shot.sourceText}`,
-                shot.layoutDescription ? `空间布局锚点：${shot.layoutDescription}` : "",
+                `项目风格�?{project.style || "未设�?}`,
+                `画幅�?{project.aspectRatio}`,
+                `镜头�?{shot.description || shot.sourceText}`,
+                shot.layoutDescription ? `空间布局锚点�?{shot.layoutDescription}` : "",
                 assetNames ? `资产白名单：${assetNames}` : "",
                 target === "last" && promptDraft.firstPrompt ? `首帧提示词：${promptDraft.firstPrompt}` : "",
             ]
@@ -6116,7 +6099,7 @@ function StoryboardWorkbenchCard({
             const value = await optimizePrompt({ requestId: `drama-lab-shot-prompt-${target}-${shot.id}-${Date.now()}`, prompt: base, mode: "image" });
             setPromptDraft((current) => ({ ...current, [target === "classic" ? "polishedPrompt" : target === "first" ? "firstPrompt" : "lastPrompt"]: value }));
         } catch (error) {
-            message.error(error instanceof Error ? error.message : "提示词重新生成失败");
+            message.error(error instanceof Error ? error.message : "提示词重新生成失�?);
         } finally {
             setPromptFieldAction(null);
         }
@@ -6134,7 +6117,7 @@ function StoryboardWorkbenchCard({
                         <h3 className="text-base font-semibold">
                             分镜 {shot.shotNumber} · {shot.title}
                         </h3>
-                        <StoryboardTaskTag status={shot.storyboardStatus} label="分镜图" />
+                        <StoryboardTaskTag status={shot.storyboardStatus} label="分镜�? />
                         <StoryboardTaskTag status={shot.generationStatus} executionPhase={shot.generationExecutionPhase} label="视频" needsReview={videoNeedsCheck} />
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -6153,7 +6136,7 @@ function StoryboardWorkbenchCard({
                         {shot.creationMode === "universal" ? "经典分镜" : "全能模式"}
                     </Button>
                     <Button size="small" onClick={onInsertBefore}>
-                        ＋ 新增
+                        �?新增
                     </Button>
                     <Button
                         type="text"
@@ -6181,7 +6164,7 @@ function StoryboardWorkbenchCard({
                     <DramaLabShotAssetPicker label="道具" assets={project.props} selectedIds={shot.propIds} onChange={(propIds) => onUpdate({ propIds })} />
                 </section>
                 <section className="min-w-0 space-y-3 p-4" aria-label={`分镜 ${shot.shotNumber} 画面`}>
-                    <h4 className="text-sm font-medium">{isFirstLast ? "首尾帧参考图" : isUniversal ? "全能片段与参考图" : "分镜图"}</h4>
+                    <h4 className="text-sm font-medium">{isFirstLast ? "首尾帧参考图" : isUniversal ? "全能片段与参考图" : "分镜�?}</h4>
                     {!isUniversal ? (
                         <div data-storyboard-media="image" className="grid h-80 min-h-0 min-w-0 overflow-hidden rounded border border-border bg-muted/30">
                             {isFirstLast ? (
@@ -6200,7 +6183,7 @@ function StoryboardWorkbenchCard({
                                                     />
                                                 </div>
                                             ) : (
-                                                <div className="grid flex-1 place-items-center text-xs text-muted-foreground">待生成 / 上传</div>
+                                                <div className="grid flex-1 place-items-center text-xs text-muted-foreground">待生�?/ 上传</div>
                                             )}
                                         </div>
                                     ))}
@@ -6216,7 +6199,7 @@ function StoryboardWorkbenchCard({
                                     />
                                 </div>
                             ) : (
-                                <div className="grid place-items-center text-sm text-muted-foreground">尚未生成分镜图</div>
+                                <div className="grid place-items-center text-sm text-muted-foreground">尚未生成分镜�?/div>
                             )}
                         </div>
                     ) : null}
@@ -6224,13 +6207,12 @@ function StoryboardWorkbenchCard({
                         <div data-universal-workspace="true" className="h-80 space-y-3 overflow-y-auto rounded border border-primary/20 bg-primary/5 p-3" aria-label="全能模式片段与参考图">
                             <div className="flex items-center justify-between gap-2">
                                 <span className="text-sm font-medium">片段描述</span>
-                                <span className="text-xs text-muted-foreground">视频优先使用此字段</span>
+                                <span className="text-xs text-muted-foreground">视频优先使用此字�?/span>
                             </div>
                             <PromptTextToolbar value={shot.universalSegmentText || ""} wrap={promptWrap} onWrapChange={setPromptWrap} />
                             <div className="flex flex-wrap items-center gap-2">
                                 <Button size="small" icon={<Sparkles className="size-3.5" />} loading={universalPromptAction === "generate"} disabled={Boolean(universalPromptAction)} onClick={() => void handleUniversalPromptAction("generate")}>
-                                    生成全能提示词
-                                </Button>
+                                    生成全能提示�?                                </Button>
                                 <Button size="small" loading={universalPromptAction === "generate-force"} disabled={Boolean(universalPromptAction)} onClick={() => void handleUniversalPromptAction("generate-force")}>
                                     无参考图生成
                                 </Button>
@@ -6241,23 +6223,22 @@ function StoryboardWorkbenchCard({
                                     disabled={Boolean(universalPromptAction) || !shot.universalSegmentText?.trim()}
                                     onClick={() => void handleUniversalPromptAction("polish")}
                                 >
-                                    润色全能提示词
-                                </Button>
+                                    润色全能提示�?                                </Button>
                                 <Button size="small" loading={universalPromptAction === "polish-force"} disabled={Boolean(universalPromptAction) || !shot.universalSegmentText?.trim()} onClick={() => void handleUniversalPromptAction("polish-force")}>
                                     无参考图润色
                                 </Button>
                             </div>
                             {universalPromptError ? <Alert type="error" showIcon message={universalPromptError} /> : null}
                             <TextArea
-                                defaultValue={shot.universalSegmentText}
+                                value={shot.universalSegmentText || ""}
                                 autoSize={{ minRows: 5, maxRows: 12 }}
                                 wrap={promptWrap ? "soft" : "off"}
-                                placeholder="按时间线描述连续子分镜，并使用 @图片1、@图片2 引用参考图"
+                                placeholder="按时间线描述连续子分镜，并使�?@图片1、@图片2 引用参考图"
                                 aria-label="全能模式片段描述"
                                 onBlur={(event) => onUpdate({ universalSegmentText: event.target.value.trim() })}
                             />
                             <div className="space-y-2">
-                                <div className="text-xs font-medium text-muted-foreground">参考图顺序（场景 → 角色 → 道具）</div>
+                                <div className="text-xs font-medium text-muted-foreground">参考图顺序（场�?�?角色 �?道具�?/div>
                                 <div className="grid grid-cols-2 gap-2">
                                     {universalReferences.map((reference, index) => (
                                         <div key={`${reference.label}-${index}`} className="flex items-center gap-2 rounded border border-border bg-background p-2">
@@ -6274,15 +6255,15 @@ function StoryboardWorkbenchCard({
                     ) : null}
 
                     {shot.storyboardError ? <Alert type="error" showIcon message={shot.storyboardError} /> : null}
-                    <div aria-label="分镜图操作" className="flex h-10 items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-2" aria-label="分镜图生成上传">
+                    <div aria-label="分镜图操�? className="flex h-10 items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2" aria-label="分镜图生成上�?>
                             {isFirstLast
                                 ? (["first", "last"] as const).map((frameType) => {
                                       const frame = shot.frames?.[frameType];
                                       const busy = busyKeys.has(`frame:${frameType}:${shot.id}`) || isDramaLabTaskActive(frame?.status);
                                       return (
                                           <Button key={frameType} loading={busy} icon={<Sparkles className="size-4" />} onClick={() => void onStartFrame(shot, frameType)}>
-                                              {frame?.url ? `重生成${frameLabel[frameType]}` : `生成${frameLabel[frameType]}`}
+                                              {frame?.url ? `重生�?{frameLabel[frameType]}` : `生成${frameLabel[frameType]}`}
                                           </Button>
                                       );
                                   })
@@ -6332,7 +6313,7 @@ function StoryboardWorkbenchCard({
                                 : null}
                             {isClassic ? (
                                 <Button type="primary" loading={imageBusy} icon={<Sparkles className="size-4" />} onClick={() => void onStartGeneration(shot, "image")}>
-                                    {classicImageUrl ? "重新生成分镜图" : "生成分镜图"}
+                                    {classicImageUrl ? "重新生成分镜�? : "生成分镜�?}
                                 </Button>
                             ) : null}
                             {isClassic ? (
@@ -6344,7 +6325,7 @@ function StoryboardWorkbenchCard({
                                         type="file"
                                         accept="image/png,image/jpeg,image/webp,image/gif"
                                         className="hidden"
-                                        aria-label="选择分镜图文件"
+                                        aria-label="选择分镜图文�?
                                         onChange={(event) => {
                                             const file = event.target.files?.[0];
                                             event.target.value = "";
@@ -6352,18 +6333,16 @@ function StoryboardWorkbenchCard({
                                         }}
                                     />
                                     <Button
-                                        aria-label="上传分镜图"
+                                        aria-label="上传分镜�?
                                         loading={busyKeys.has(`frame-upload:key:${shot.id}`)}
                                         disabled={imageBusy || Boolean(shot.frames?.key?.locked) || isDramaLabTaskActive(shot.frames?.key?.status)}
                                         icon={<Upload className="size-4" />}
                                         onClick={() => uploadInputRefs.current.key?.click()}
                                     >
-                                        上传分镜图
-                                    </Button>
+                                        上传分镜�?                                    </Button>
                                     {shot.frames?.key?.locked ? (
                                         <Button size="small" onClick={() => void onToggleFrameLock(shot, "key")}>
-                                            解锁分镜图
-                                        </Button>
+                                            解锁分镜�?                                        </Button>
                                     ) : null}
                                 </>
                             ) : null}
@@ -6398,26 +6377,24 @@ function StoryboardWorkbenchCard({
                                 <div key={frameType} className="space-y-2 rounded border border-border bg-background p-2">
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="text-xs font-medium text-muted-foreground">{frameLabel[frameType]}</div>
-                                        <span className="text-[11px] text-muted-foreground">{frame?.status === "success" ? "已完成" : frame?.status === "running" ? "生成中" : "待生成"}</span>
+                                        <span className="text-[11px] text-muted-foreground">{frame?.status === "success" ? "已完�? : frame?.status === "running" ? "生成�? : "待生�?}</span>
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
                     {isFirstLast && shot.firstFrameCandidate ? (
-                        <div className="space-y-2 border border-amber-300 bg-amber-50/60 p-3" role="status" aria-label="待确认的候选首帧">
+                        <div className="space-y-2 border border-amber-300 bg-amber-50/60 p-3" role="status" aria-label="待确认的候选首�?>
                             <div className="flex items-center justify-between gap-2">
-                                <div className="text-xs font-medium text-amber-900">上一镜尾帧候选</div>
+                                <div className="text-xs font-medium text-amber-900">上一镜尾帧候�?/div>
                                 <span className="text-[11px] text-amber-800">仅候选，尚未覆盖当前首帧</span>
                             </div>
-                            <img src={shot.firstFrameCandidate.url} alt="候选首帧预览" className="aspect-video w-full rounded border border-amber-300 object-cover" />
+                            <img src={shot.firstFrameCandidate.url} alt="候选首帧预�? className="aspect-video w-full rounded border border-amber-300 object-cover" />
                             <div className="flex flex-wrap gap-2">
                                 <Button size="small" type="primary" loading={busyKeys.has(`candidate-accept:${shot.id}`)} onClick={() => void onAcceptFirstFrameCandidate(shot)}>
-                                    应用为首帧
-                                </Button>
+                                    应用为首�?                                </Button>
                                 <Button size="small" onClick={() => onKeepFirstFrameCandidate(shot)}>
-                                    保留候选
-                                </Button>
+                                    保留候�?                                </Button>
                             </div>
                         </div>
                     ) : null}
@@ -6432,23 +6409,21 @@ function StoryboardWorkbenchCard({
                         )}
                     </div>
 
-                    {videoNeedsCheck ? <Alert type="warning" showIcon message="视频结果待检查" description={dramaLabVideoTaskReviewDescription(shot)} /> : null}
+                    {videoNeedsCheck ? <Alert type="warning" showIcon message="视频结果待检�? description={dramaLabVideoTaskReviewDescription(shot)} /> : null}
                     {shot.generationError && !videoNeedsCheck ? <Alert type="error" showIcon message={shot.generationError} /> : null}
                     <div aria-label="分镜视频操作" className="flex h-10 flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2">
                             {shot.videoUrl || (shot.generationTaskId && shot.generationStatus === "success") ? (
                                 <Button size="small" loading={busyKeys.has(`tail-frame:${shot.id}`)} icon={<Film className="size-3.5" />} onClick={() => void onExtractTailFrame(shot)}>
-                                    从视频提取尾帧
-                                </Button>
+                                    从视频提取尾�?                                </Button>
                             ) : null}
 
                             {videoNeedsCheck ? (
                                 <Button loading={checkingVideoStatus} disabled={checkingVideoStatus} icon={<LoaderCircle className="size-4" />} onClick={() => void onCheckVideoStatus(shot)}>
-                                    检查状态
-                                </Button>
+                                    检查状�?                                </Button>
                             ) : null}
                             <Button type="primary" loading={videoBusy} disabled={videoBusy || checkingVideoStatus || videoNeedsCheck} icon={<Film className="size-4" />} onClick={() => void onStartGeneration(shot, "video")}>
-                                {videoNeedsCheck ? "请先检查状态" : shot.videoUrl ? "重新生成视频" : "生成分镜视频"}
+                                {videoNeedsCheck ? "请先检查状�? : shot.videoUrl ? "重新生成视频" : "生成分镜视频"}
                             </Button>
                             <input
                                 ref={videoUploadInputRef}
@@ -6474,8 +6449,7 @@ function StoryboardWorkbenchCard({
                         </div>
                         {splitEligible && !shot.audioSplitSourceShotId ? (
                             <Button size="small" icon={<Scissors className="size-3.5" />} loading={splitPreviewBusy} onClick={() => void onPreviewAudioSplit(shot)}>
-                                按音频拆镜
-                            </Button>
+                                按音频拆�?                            </Button>
                         ) : null}
                     </div>
                 </section>
@@ -6565,7 +6539,7 @@ function StoryboardPromptDialog({
         <Modal title={`分镜 ${shot.shotNumber} · 编辑提示词`} open={open} width={760} okText="保存" cancelText="取消" destroyOnHidden onOk={onSave} onCancel={onCancel}>
             <div className="space-y-5">
                 <section className="space-y-3">
-                    <h3 className="font-semibold">🖼 图片提示词</h3>
+                    <h3 className="font-semibold">🖼 图片提示�?/h3>
                     {field("imagePrompt", "原始提示词（分镜拆解时写入，仅供参考）")}
                     {isClassic
                         ? field(
@@ -6582,22 +6556,20 @@ function StoryboardPromptDialog({
                                 "firstPrompt",
                                 "首帧最终提示词",
                                 <Button size="small" loading={fieldBusy === "first"} onClick={() => onRegenerateField("first")}>
-                                    重新生成首帧提示词
-                                </Button>,
+                                    重新生成首帧提示�?                                </Button>,
                             )}
                             {field(
                                 "lastPrompt",
                                 "尾帧最终提示词",
                                 <Button size="small" loading={fieldBusy === "last"} onClick={() => onRegenerateField("last")}>
-                                    重新生成尾帧提示词
-                                </Button>,
+                                    重新生成尾帧提示�?                                </Button>,
                             )}
                         </>
                     ) : null}
                 </section>
                 <section className="space-y-3">
-                    <h3 className="font-semibold">🎬 视频提示词</h3>
-                    {field("videoPrompt", isUniversal ? "视频提示词（全能参考提示词为空时兜底）" : "视频提示词")}
+                    <h3 className="font-semibold">🎬 视频提示�?/h3>
+                    {field("videoPrompt", isUniversal ? "视频提示词（全能参考提示词为空时兜底）" : "视频提示�?)}
                     {isUniversal
                         ? field(
                               "universalPrompt",
@@ -6641,8 +6613,8 @@ function PromptTextToolbar({ value, wrap, onWrapChange }: { value: string; wrap:
         }
     };
     return (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" aria-label="文本工具栏">
-            <span className="font-medium">纯文本</span>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" aria-label="文本工具�?>
+            <span className="font-medium">纯文�?/span>
             <button type="button" className="rounded border border-border px-2 py-1 hover:bg-muted" onClick={() => onWrapChange(!wrap)}>
                 {wrap ? "关闭自动换行" : "启用自动换行"}
             </button>
@@ -6656,7 +6628,7 @@ function PromptTextToolbar({ value, wrap, onWrapChange }: { value: string; wrap:
 
 function StoryboardTaskTag({ status, executionPhase, label, needsReview = false }: { status?: DramaLabTaskStatus; executionPhase?: DramaLabVideoBatchExecutionPhase; label: string; needsReview?: boolean }) {
     const value = status || "idle";
-    const labelMap: Record<DramaLabTaskStatus, string> = { idle: "待生成", queued: "排队中", pending: "等待中", running: "生成中", success: "已完成", error: "失败", cancelled: "已取消" };
+    const labelMap: Record<DramaLabTaskStatus, string> = { idle: "待生�?, queued: "排队�?, pending: "等待�?, running: "生成�?, success: "已完�?, error: "失败", cancelled: "已取�? };
     const classMap: Record<DramaLabTaskStatus, string> = {
         idle: "border-border bg-muted text-muted-foreground",
         queued: "border-amber-300 bg-amber-50 text-amber-800",
@@ -6667,16 +6639,16 @@ function StoryboardTaskTag({ status, executionPhase, label, needsReview = false 
         cancelled: "border-border bg-muted text-muted-foreground",
     };
     const phaseLabelMap: Partial<Record<DramaLabVideoBatchExecutionPhase, string>> = {
-        created: "已创建",
-        submitting: "提交中",
-        submitted: "已提交",
-        polling: "处理中",
-        result_ready: "结果待保存",
-        persisting: "保存中",
-        cancel_requested: "取消中",
-        cancel_polling: "确认取消中",
-        completed: "已结束",
-        needs_review: "待检查",
+        created: "已创�?,
+        submitting: "提交�?,
+        submitted: "已提�?,
+        polling: "处理�?,
+        result_ready: "结果待保�?,
+        persisting: "保存�?,
+        cancel_requested: "取消�?,
+        cancel_polling: "确认取消�?,
+        completed: "已结�?,
+        needs_review: "待检�?,
     };
     const phaseIsActive =
         executionPhase === "created" ||
@@ -6691,7 +6663,7 @@ function StoryboardTaskTag({ status, executionPhase, label, needsReview = false 
     const phaseLabel = executionPhase && value !== "success" && value !== "error" && value !== "cancelled" ? phaseLabelMap[executionPhase] : undefined;
     return (
         <span className={cn("border px-1.5 py-0.5 text-xs", needsReview ? "border-amber-300 bg-amber-50 text-amber-800" : phaseClass || classMap[value])}>
-            {label} {needsReview ? "待检查" : phaseLabel || labelMap[value]}
+            {label} {needsReview ? "待检�? : phaseLabel || labelMap[value]}
         </span>
     );
 }
@@ -6725,7 +6697,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
     if (!episode) {
         return (
             <div className="mx-auto max-w-2xl space-y-6 p-8">
-                <Alert type="warning" showIcon message="请先选择一个剧集" />
+                <Alert type="warning" showIcon message="请先选择一个剧�? />
             </div>
         );
     }
@@ -6735,7 +6707,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
 
     const handleExport = async () => {
         if (exportBlockedByApproval) {
-            messageApi.warning("项目启用了团队审批，请先通过所有已启用的审批节点");
+            messageApi.warning("项目启用了团队审批，请先通过所有已启用的审批节�?);
             return;
         }
         if (!draftPath.trim()) {
@@ -6777,7 +6749,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
 
-            messageApi.success("导出成功！");
+            messageApi.success("导出成功�?);
         } catch (error) {
             console.error("Export failed:", error);
             messageApi.error(error instanceof Error ? error.message : "导出失败");
@@ -6801,13 +6773,13 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
                         <h3 className="text-lg font-semibold">{episode.title}</h3>
                         <p className="mt-1 text-sm text-muted-foreground">{project.title}</p>
                     </div>
-                    <div className="rounded-lg bg-primary/10 px-3 py-1 text-sm font-medium text-primary">{videoShots.length} 个分镜</div>
+                    <div className="rounded-lg bg-primary/10 px-3 py-1 text-sm font-medium text-primary">{videoShots.length} 个分�?/div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 border-t border-border pt-4">
                     <div>
-                        <div className="text-xs text-muted-foreground">总时长</div>
-                        <div className="mt-1 text-sm font-medium">{Math.round(episodeShots.reduce((sum, shot) => sum + (shot.duration || 0), 0))}秒</div>
+                        <div className="text-xs text-muted-foreground">总时�?/div>
+                        <div className="mt-1 text-sm font-medium">{Math.round(episodeShots.reduce((sum, shot) => sum + (shot.duration || 0), 0))}�?/div>
                     </div>
                     <div>
                         <div className="text-xs text-muted-foreground">画面比例</div>
@@ -6830,21 +6802,21 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
                 <div className="space-y-2">
                     <label className="text-sm font-medium">剪映版本</label>
                     <Radio.Group value={jianyingVersion} onChange={(e) => setJianyingVersion(e.target.value)}>
-                        <Radio value="6">剪映专业版 6.x（推荐）</Radio>
-                        <Radio value="5">剪映专业版 5.x</Radio>
+                        <Radio value="6">剪映专业�?6.x（推荐）</Radio>
+                        <Radio value="5">剪映专业�?5.x</Radio>
                     </Radio.Group>
                 </div>
 
                 {/* 草稿路径 */}
                 <div className="space-y-2">
                     <label className="text-sm font-medium">
-                        剪映草稿文件夹路径 <span className="text-red-500">*</span>
+                        剪映草稿文件夹路�?<span className="text-red-500">*</span>
                     </label>
                     <Input value={draftPath} onChange={(e) => setDraftPath(e.target.value)} placeholder="例如: C:\Users\YourName\AppData\Local\JianyingPro\User Data\Projects\com.lveditor.draft" className="font-mono text-sm" />
                     <div className="text-xs text-muted-foreground">
                         Windows 示例: C:\Users\用户名\AppData\Local\JianyingPro\User Data\Projects\com.lveditor.draft
                         <br />
-                        Mac 示例: /Users/用户名/Movies/JianyingPro/User Data/Projects/com.lveditor.draft
+                        Mac 示例: /Users/用户�?Movies/JianyingPro/User Data/Projects/com.lveditor.draft
                     </div>
                 </div>
             </div>
@@ -6854,12 +6826,12 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
 
             {videoShots.length > 0 && videoShots.length < episodeShots.length && <Alert type="info" message={`还有 ${episodeShots.length - videoShots.length} 个分镜未生成视频`} description="只会导出已生成视频的分镜" showIcon />}
 
-            {exportBlockedByApproval ? <Alert type="warning" message="团队审批尚未完成" description="当前项目的已启用审批节点需要全部通过后，才会解除导出限制。" showIcon /> : null}
+            {exportBlockedByApproval ? <Alert type="warning" message="团队审批尚未完成" description="当前项目的已启用审批节点需要全部通过后，才会解除导出限制�? showIcon /> : null}
 
             {/* 导出按钮 */}
             <div className="flex justify-end gap-3">
                 <Button type="primary" size="large" icon={<Download className="size-4" />} loading={exporting} disabled={videoShots.length === 0 || exportBlockedByApproval} onClick={handleExport}>
-                    {exporting ? "导出中..." : "导出剪映草稿"}
+                    {exporting ? "导出�?.." : "导出剪映草稿"}
                 </Button>
             </div>
 
@@ -6867,14 +6839,15 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
             <div className="rounded-lg border border-border bg-muted/50 p-6">
                 <h4 className="mb-3 font-semibold">📖 使用说明</h4>
                 <ol className="space-y-2 text-sm text-muted-foreground">
-                    <li>1. 确保已安装剪映专业版（Windows/Mac）</li>
-                    <li>2. 填写剪映草稿文件夹的绝对路径（可在剪映设置中查看）</li>
+                    <li>1. 确保已安装剪映专业版（Windows/Mac�?/li>
+                    <li>2. 填写剪映草稿文件夹的绝对路径（可在剪映设置中查看�?/li>
                     <li>3. 点击「导出剪映草稿」按钮，下载 ZIP 文件</li>
                     <li>4. 解压 ZIP 文件到剪映草稿文件夹</li>
-                    <li>5. 打开剪映专业版，在草稿列表中找到导出的项目</li>
+                    <li>5. 打开剪映专业版，在草稿列表中找到导出的项�?/li>
                     <li>6. 在剪映中继续编辑、添加特效、配音等</li>
                 </ol>
             </div>
         </div>
     );
 }
+

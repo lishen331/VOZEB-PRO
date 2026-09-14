@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+﻿import { describe, expect, it, vi } from "vitest";
 
 import { fetchRunningHubWorkflowJson, queryRunningHubTask, submitRunningHubTask, uploadRunningHubMedia } from "./runninghub-provider";
 
@@ -96,7 +96,7 @@ describe("RunningHub provider", () => {
                     queryPath: "/openapi/v2/query",
                     statusField: "data.status",
                     resultField: "data.result",
-                    outputMappings: [{ key: "image", label: "图片", nodeId: "77", assetType: "IMAGE", required: true, primary: true }],
+                    outputMappings: [{ key: "image", label: "鍥剧墖", nodeId: "77", assetType: "IMAGE", required: true, primary: true }],
                 },
                 taskId: "task-one",
                 fetchImpl,
@@ -158,7 +158,7 @@ describe("RunningHub provider", () => {
                     queryPath: "/openapi/v2/query",
                     statusField: "data.status",
                     resultField: "data.result",
-                    outputMappings: [{ key: "image", label: "图片", nodeId: "77", assetType: "IMAGE", required: true, primary: true }],
+                    outputMappings: [{ key: "image", label: "鍥剧墖", nodeId: "77", assetType: "IMAGE", required: true, primary: true }],
                 },
                 taskId: "task-one",
                 fetchImpl,
@@ -216,7 +216,7 @@ describe("RunningHub provider", () => {
         const fetchImpl = vi.fn(async () =>
             Response.json({
                 code: 0,
-                data: { status: "SUCCESS", results: [{ text: "生成完成", fileType: "TEXT", nodeId: "90" }] },
+                data: { status: "SUCCESS", results: [{ text: "鐢熸垚瀹屾垚", fileType: "TEXT", nodeId: "90" }] },
             }),
         );
 
@@ -229,15 +229,15 @@ describe("RunningHub provider", () => {
                     queryPath: "/openapi/v2/query",
                     statusField: "data.status",
                     resultField: "data.result",
-                    outputMappings: [{ key: "text", label: "文本", nodeId: "90", assetType: "TEXT", required: true }],
+                    outputMappings: [{ key: "text", label: "鏂囨湰", nodeId: "90", assetType: "TEXT", required: true }],
                 },
                 taskId: "task-one",
                 fetchImpl,
             }),
         ).resolves.toMatchObject({
             status: "SUCCESS",
-            resultText: "生成完成",
-            outputs: [{ key: "text", nodeId: "90", values: ["生成完成"] }],
+            resultText: "鐢熸垚瀹屾垚",
+            outputs: [{ key: "text", nodeId: "90", values: ["鐢熸垚瀹屾垚"] }],
         });
     });
 
@@ -258,7 +258,7 @@ describe("RunningHub provider", () => {
                     queryPath: "/openapi/v2/query",
                     statusField: "data.status",
                     resultField: "data.result",
-                    outputMappings: [{ key: "image", label: "图片", nodeId: "77", assetType: "IMAGE", required: true }],
+                    outputMappings: [{ key: "image", label: "鍥剧墖", nodeId: "77", assetType: "IMAGE", required: true }],
                 },
                 taskId: "task-one",
                 fetchImpl,
@@ -277,8 +277,8 @@ describe("RunningHub provider", () => {
                     ...config,
                     resultField: "data.result",
                     outputMappings: [
-                        { key: "text", label: "文本", assetType: "TEXT", required: true },
-                        { key: "images", label: "图片", assetType: "IMAGE", required: false },
+                        { key: "text", label: "鏂囨湰", assetType: "TEXT", required: true },
+                        { key: "images", label: "鍥剧墖", assetType: "IMAGE", required: false },
                     ],
                 },
                 taskId: "task-one",
@@ -305,11 +305,20 @@ describe("RunningHub provider", () => {
             queryRunningHubTask({
                 baseUrl: "https://runninghub.example",
                 apiKey: "secret",
-                config: { ...config, resultField: "data.result", outputMappings: [{ key: "image", label: "图片", nodeId: "90", assetType: "IMAGE", required: true }] },
+                config: { ...config, resultField: "data.result", outputMappings: [{ key: "image", label: "鍥剧墖", nodeId: "90", assetType: "IMAGE", required: true }] },
                 taskId: "task-one",
                 fetchImpl,
             }),
         ).resolves.toMatchObject({ resultUrl: "https://cdn.example/node.png", outputs: [{ values: ["https://cdn.example/node.png"] }] });
+    });
+
+
+    it("does not overflow the call stack on deeply nested provider results", async () => {
+        const depth = 20_000;
+        const json = `{"data":{"status":"queued","result":${`{"nested":`.repeat(depth)}"done"${"}".repeat(depth)}}}`;
+        const fetchImpl = vi.fn(async () => new Response(json, { headers: { "content-type": "application/json" } }));
+
+        await expect(queryRunningHubTask({ baseUrl: "https://runninghub.example", apiKey: "secret", config, taskId: "task-one", fetchImpl })).resolves.toMatchObject({ status: "queued" });
     });
 
     it("uses the configured timeout for provider requests", async () => {
