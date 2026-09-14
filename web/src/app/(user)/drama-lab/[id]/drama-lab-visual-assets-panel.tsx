@@ -935,8 +935,17 @@ function AssetEditorModal({
                                                 <button type="button" className="block h-24 w-full" onClick={() => onSelectHistory(reference)} aria-label={`设为主图 ${reference.label || reference.id}`}>
                                                     <Image preview={false} src={imagePreviewUrl(reference.url, 200)} alt="历史主图" className="!block !h-24 !w-full !object-contain" />
                                                 </button>
-                                                <button type="button" className="absolute left-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 shadow" onClick={() => onPreview(reference)} aria-label="放大预览"><Search size={14} /></button>
-                                                <button type="button" className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 shadow" onClick={() => onRemoveReferenceById(reference.id)} aria-label="删除历史主图"><X size={14} /></button>
+                                                <button type="button" className="absolute left-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 shadow" onClick={() => onPreview(reference)} aria-label="放大预览">
+                                                    <Search size={14} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 shadow"
+                                                    onClick={() => onRemoveReferenceById(reference.id)}
+                                                    aria-label="删除历史主图"
+                                                >
+                                                    <X size={14} />
+                                                </button>
                                             </div>
                                         ))
                                     ) : (
