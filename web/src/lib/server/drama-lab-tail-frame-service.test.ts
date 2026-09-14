@@ -208,10 +208,12 @@ describe("drama lab tail frame extraction", () => {
         mocks.getVideoTask.mockResolvedValue(task({ result: { url: "https://provider.invalid/expired.mp4" } }));
         const inputProject = {
             ...project,
-            episodes: [{
-                ...project.episodes[0],
-                shots: [{ ...project.episodes[0].shots[0], videoUrl: "/api/reference-assets/permanent/video-local.mp4" }, project.episodes[0].shots[1]],
-            }],
+            episodes: [
+                {
+                    ...project.episodes[0],
+                    shots: [{ ...project.episodes[0].shots[0], videoUrl: "/api/reference-assets/permanent/video-local.mp4" }, project.episodes[0].shots[1]],
+                },
+            ],
         };
         await extractDramaLabTailFrame({ userId: "user-one", origin: "http://localhost:3000", cookie: "session=one", project: inputProject, episodeId: "episode-one", shotId: "shot-one" });
         expect(mocks.downloadMediaToFile).toHaveBeenCalledWith("/api/reference-assets/permanent/video-local.mp4", expect.stringContaining("source-video"), expect.anything());

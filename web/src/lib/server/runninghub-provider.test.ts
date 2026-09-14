@@ -312,7 +312,6 @@ describe("RunningHub provider", () => {
         ).resolves.toMatchObject({ resultUrl: "https://cdn.example/node.png", outputs: [{ values: ["https://cdn.example/node.png"] }] });
     });
 
-
     it("does not overflow the call stack on deeply nested provider results", async () => {
         const depth = 20_000;
         const json = `{"data":{"status":"queued","result":${`{"nested":`.repeat(depth)}"done"${"}".repeat(depth)}}}`;
