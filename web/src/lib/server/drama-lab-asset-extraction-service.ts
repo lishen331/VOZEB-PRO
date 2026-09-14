@@ -123,7 +123,8 @@ export function normalizeExtractedDramaLabAssets(value: string, assetType: Drama
         const identity = sceneIdentity({ name, time }, assetType);
         if (!name || identities.has(identity)) return [];
         identities.add(identity);
-        const description = text(item.description, 2_000);
+        const rawScenePrompt = assetType === "scene" ? text(item.prompt ?? item.imagePrompt ?? item.image_prompt, 4_000) : "";
+        const description = text(item.description, 2_000) || rawScenePrompt;
         const appearance = typeof item.appearance === "string" ? item.appearance.trim() : "";
         const imagePrompt = [item.image_prompt, item.prompt, item.imagePrompt].find((value) => typeof value === "string" && value.trim());
         const role = typeof item.role === "string" && ["main", "supporting", "minor"].includes(item.role) ? item.role : undefined;
