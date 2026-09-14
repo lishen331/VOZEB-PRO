@@ -647,7 +647,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             const panoramaPrompt = node.type === CanvasNodeType.Panorama ? buildPanoramaPrompt(sourcePrompt, Boolean(savedImageMetadata?.references?.length || context?.referenceImages.length)) : sourcePrompt;
             const prompt = applyCameraPrompt(panoramaPrompt, node.type === CanvasNodeType.Text || node.type === CanvasNodeType.Panorama ? undefined : savedImageMetadata?.cameraControl || sourceNode.metadata?.cameraControl);
             if (!prompt) {
-                message.warning("鎵句笉鍒版彁绀鸿瘝锛屾棤娉曢噸璇?);
+                message.warning("找不到提示词，无法重试");
                 return;
             }
             const generationType = savedImageMetadata?.generationType;
