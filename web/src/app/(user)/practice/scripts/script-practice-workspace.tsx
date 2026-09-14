@@ -79,6 +79,8 @@ export default function ScriptPracticeWorkspace() {
         setTree(result.items);
         setRunId(activeRun?.id || "");
         setRunError(activeRun?.errorMessage || "");
+        const waiting = result.items.find((item) => item.status === "awaiting_review");
+        if (waiting) setPendingConfirmation((current) => current || { artifactId: waiting.id, artifactType: waiting.type, runId: activeRun?.id || "" });
         setSelectedKey((current) => (result.items.some((item) => item.key === current) ? current : result.items[0]?.key || ""));
         return activeRun;
     }, []);
@@ -281,15 +283,11 @@ export default function ScriptPracticeWorkspace() {
         if (!selectedId || !pendingConfirmation || confirming) return;
         setConfirming(true);
         try {
-            await practiceScriptsApi.confirmArtifact(selectedId, pendingConfirmation.artifactId, pendingConfirmation.artifactType, pendingConfirmation.runId);
-            const nextByArtifact: Record<string, string> = { creative_positioning: "short_story", short_story: "adaptation_bundle", adaptation_strategy: "episode_scripts", review_report: "director_plan" };
-            const nextRunType = nextByArtifact[pendingConfirmation.artifactType];
+            const result = await practiceScriptsApi.confirmArtifact(selectedId, pendingConfirmation.artifactId, pendingConfirmation.artifactType, pendingConfirmation.runId, chatSessionId);
+            const nextRun = result && typeof result === "object" && "nextRun" in result ? (result as { nextRun?: { id?: string } }).nextRun : undefined;
             setPendingConfirmation(null);
             await loadTree(selectedId);
-            if (nextRunType) {
-                const run = await practiceScriptsApi.createRun(selectedId, { runType: nextRunType, chatSessionId, clientRequestId: crypto.randomUUID(), input: { instruction: "根据已确认成果继续下一阶段" } });
-                setRunId(run.id);
-            }
+            if (nextRun?.id) setRunId(nextRun.id);
         } finally {
             setConfirming(false);
         }

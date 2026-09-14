@@ -4,7 +4,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { requirePracticeTenant } from "@/lib/server/practice-tenant-scope";
 import { ScriptAgentRepository } from "@/lib/server/database/script-agent-repository";
-import { postgresQuery } from "@/lib/server/database/postgres";
+import { postgresQuery, withPostgresTransaction } from "@/lib/server/database/postgres";
+import { ScriptAgentRunService } from "@/lib/server/script-agent-run-service";
 type Context = { params: Promise<{ id: string }> };
 export async function POST(request: Request, context: Context) {
     const user = await getCurrentUser(request);
@@ -16,7 +17,21 @@ export async function POST(request: Request, context: Context) {
     if (!artifactId || !stageKey) return reply(400, null, "缺少待确认成果");
     const scope = await requirePracticeTenant(user, "script");
     const projectId = (await context.params).id;
-    const data = await new ScriptAgentRepository({ query: postgresQuery }).confirmArtifact(scope, { id: randomUUID(), projectId, artifactId, stageKey, sourceRunId: typeof parsed.data.runId === "string" ? parsed.data.runId : undefined });
+    const data = await withPostgresTransaction(async (transaction) => {
+        const repository = new ScriptAgentRepository(transaction);
+        const confirmed = await repository.confirmArtifactAndGetNext(scope, { id: randomUUID(), projectId, artifactId, stageKey, sourceRunId: typeof parsed.data.runId === "string" ? parsed.data.runId : undefined });
+        if (!confirmed) return null;
+        const nextRun = confirmed.nextRunType
+            ? await new ScriptAgentRunService(repository).create(scope, {
+                  projectId,
+                  runType: confirmed.nextRunType as never,
+                  clientRequestId: `confirm:${confirmed.confirmation.id}`,
+                  chatSessionId: typeof parsed.data.chatSessionId === "string" ? parsed.data.chatSessionId : undefined,
+                  configSnapshot: { instruction: "根据已确认成果继续下一阶段" },
+              })
+            : null;
+        return { ...confirmed, nextRun };
+    });
     return data ? reply(0, data, "ok") : reply(409, null, "该成果不是待确认状态");
 }
 function reply<T>(code: number, data: T | null, msg: string) {

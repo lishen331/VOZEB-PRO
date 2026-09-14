@@ -294,6 +294,13 @@ export class ScriptAgentRepository {
         return result.rows[0] || null;
     }
 
+    async confirmArtifactAndGetNext(scope: PracticeTenantScope, input: { id: string; projectId: string; artifactId: string; stageKey: string; sourceRunId?: string }) {
+        const confirmed = await this.confirmArtifact(scope, input);
+        if (!confirmed) return null;
+        const artifacts = await this.listLatestArtifacts(scope, input.projectId);
+        return { confirmation: confirmed, nextRunType: nextRunTypeAfterConfirmation(input.stageKey, artifacts) };
+    }
+
     async createChatSession(scope: PracticeTenantScope, input: { id: string; projectId: string; title: string }) {
         const result = await this.db.query(
             `INSERT INTO practice_script_chat_sessions (id, school_id, owner_user_id, project_id, title, is_primary) SELECT $1, $2, $3, project.id, $5, true FROM practice_script_projects project WHERE project.id = $4 AND project.school_id = $2 AND project.owner_user_id = $3 RETURNING *`,
@@ -438,4 +445,25 @@ function mapProfile(row: Record<string, unknown>): ScriptAgentProfileRecord {
         skillBindings: strings(row.skill_bindings),
         version: Number(row.version || 1),
     };
+}
+
+function nextRunTypeAfterConfirmation(stageKey: string, artifacts: Array<Record<string, unknown>>) {
+    const expected = nextRunTypeFromArtifacts(artifacts);
+    const allowed: Record<string, string | undefined> = { creative_positioning: "short_story", short_story: "adaptation_bundle", adaptation_strategy: "episode_scripts", review_report: "director_plan" };
+    const mapped = allowed[stageKey];
+    return mapped === expected ? expected : undefined;
+}
+
+function nextRunTypeFromArtifacts(artifacts: Array<Record<string, unknown>>) {
+    const confirmed = new Set(artifacts.filter((row) => row.status === "confirmed").map((row) => String(row.artifact_type)));
+    const saved = new Set(artifacts.map((row) => String(row.artifact_type)));
+    if (!confirmed.has("creative_positioning")) return "project_planning";
+    if (!confirmed.has("short_story") && !confirmed.has("chapter_outlines")) return "short_story";
+    if (!confirmed.has("adaptation_strategy")) return "adaptation_bundle";
+    if (!saved.has("episode_scripts")) return "episode_scripts";
+    if (!saved.has("review_report") || !confirmed.has("review_report")) return "script_review";
+    if (!saved.has("director_plan")) return "director_plan";
+    if (!saved.has("text_storyboard")) return "text_storyboard";
+    if (!saved.has("asset_prompts")) return "asset_prompts";
+    return undefined;
 }
