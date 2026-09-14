@@ -2,6 +2,7 @@
 
 import type { DramaStoryboardFrameMode } from "@/lib/drama-project-contract";
 import type { DramaLabStoryboardSequenceMode } from "@/lib/drama-lab-storyboard-options";
+import { DRAMA_LAB_UI_FEATURES, isDramaLabUiFeatureEnabled } from "@/lib/feature-modules";
 
 export type StoryboardConstraintDraft = { shotCount: string; totalDuration: string; creationMode?: "classic" | "universal"; generateNarration?: boolean };
 
@@ -17,7 +18,19 @@ export type DramaLabStoryboardConstraintsProps = {
     onExportSrt?: () => void;
 };
 
-export function DramaLabStoryboardConstraints({ value, onChange, disabled, storyboardFrameMode = "single", onStoryboardFrameModeChange, sequenceMode = "single", onSequenceModeChange, onExportXlsx, onExportSrt }: DramaLabStoryboardConstraintsProps) {
+export function DramaLabStoryboardConstraints({
+    value,
+    onChange,
+    disabled,
+    storyboardFrameMode = "single",
+    onStoryboardFrameModeChange,
+    sequenceMode = "single",
+    onSequenceModeChange,
+    onExportXlsx,
+    onExportSrt,
+    featureModules,
+}: DramaLabStoryboardConstraintsProps) {
+    const visible = (id: keyof typeof DRAMA_LAB_UI_FEATURES) => isDramaLabUiFeatureEnabled({ featureModules }, DRAMA_LAB_UI_FEATURES[id]);
     return (
         <div className="mb-4 space-y-3 rounded-lg border border-border p-3" aria-label="分镜生成配置">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3" aria-label="分镜数量与时长">
