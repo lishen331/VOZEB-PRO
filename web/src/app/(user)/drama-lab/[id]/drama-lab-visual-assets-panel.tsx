@@ -850,7 +850,6 @@ function AssetEditorModal({
 }) {
     const asset = editor?.asset;
     const label = editor ? ASSET_META[editor.kind].label : "资产";
-    const [createStep, setCreateStep] = useState<1 | 2>(asset?.id ? 2 : 1);
     const [mentionOpen, setMentionOpen] = useState(false);
     const [mentionIndex, setMentionIndex] = useState(0);
     const promptMirrorRef = useRef<HTMLDivElement>(null);
@@ -863,89 +862,7 @@ function AssetEditorModal({
     const hasReference = references.length > 0;
     const primary = dramaAssetPrimaryReference(asset);
     const characterReferences = generationReferences(references);
-    const historyReferences = references.filter((reference) => reference.role === "history");
-    if (!asset.id && createStep === 1) {
-        return (
-            <Modal
-                title={`新增${label}`}
-                open
-                width="min(960px, calc(100vw - 32px))"
-                onCancel={onClose}
-                footer={
-                    <div className="flex justify-end gap-2">
-                        <Button onClick={onClose}>取消</Button>
-                        <Button type="primary" disabled={!primary} onClick={() => setCreateStep(2)}>
-                            下一步
-                        </Button>
-                    </div>
-                }
-            >
-                <div className="mb-4 flex items-center gap-5 border-b pb-4 text-lg">
-                    <span className="font-semibold">● 1 主图</span>
-                    <span className="text-muted-foreground">○ 2 参考与提示词</span>
-                </div>
-                <p className="mb-5 text-center text-sm text-muted-foreground">先生成或上传一张主参考图，确认后再配置参考图和图生提示词。</p>
-                <div className="grid gap-4">
-                    <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
-                        <span className="pt-2 text-sm">主图</span>
-                        <div className="grid grid-cols-[minmax(0,1fr)_13rem] gap-3">
-                            <div className="group relative flex min-h-64 items-center justify-center overflow-hidden rounded border border-dashed bg-muted">
-                                {primary?.url ? (
-                                    <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt={`${label}主图`} className="!max-h-72 !object-contain" />
-                                ) : (
-                                    <span className="text-sm text-muted-foreground">
-                                        ＋<br />
-                                        拖入或点击上传主图
-                                    </span>
-                                )}
-                                <div className="absolute inset-x-0 bottom-0 flex justify-end gap-2 bg-gradient-to-t from-black/70 to-transparent p-3 pt-8 opacity-0 transition-opacity group-hover:opacity-100">
-                                    <Button size="small" onClick={onUpload}>
-                                        上传图片
-                                    </Button>
-                                    <Button size="small" type="primary" onClick={onGenerate} loading={busy}>
-                                        AI 生成主图
-                                    </Button>
-                                </div>
-                            </div>
-                            <div className="rounded border p-3">
-                                <div className="mb-2 text-sm font-medium">历史主图</div>
-                                <div className="grid max-h-60 grid-cols-2 gap-2 overflow-y-auto">
-                                    {historyReferences.length ? (
-                                        historyReferences.map((reference) => <Image key={reference.id} preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt="历史主图" className="!h-24 !object-cover" />)
-                                    ) : (
-                                        <span className="col-span-2 py-10 text-center text-xs text-muted-foreground">暂无历史图</span>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
-                        <span className="pt-2 text-sm">参考</span>
-                        <div className="rounded border border-dashed p-3">
-                            <div className="mb-2 flex justify-between text-xs text-muted-foreground">
-                                <span>生成图片的参考图（图生提示词可使用 @图N）</span>
-                                <span>{generationReferences(references).length} / 9，最多 9 张</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {generationReferences(references)
-                                    .slice(0, 9)
-                                    .map((reference) => (
-                                        <Image key={reference.id} preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 160)} alt="参考图" className="!size-16 !object-cover" />
-                                    ))}
-                                <button type="button" className="grid size-16 place-items-center rounded border text-xl text-muted-foreground" onClick={onUpload}>
-                                    ＋
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
-                        <span className="pt-2 text-sm">提示词</span>
-                        <Input.TextArea rows={4} value={asset.polishedPrompt || ""} placeholder="生成主图后，可在这里填写图生提示词" onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} />
-                    </div>
-                </div>
-            </Modal>
-        );
-    }
+    const promptReferences = generationReferences(references);
     const handlePromptChange = (value: string, selectionStart: number) => {
         const mentionStart = value.lastIndexOf("@", Math.max(0, selectionStart - 1));
         const mentionText = mentionStart >= 0 ? value.slice(mentionStart + 1, selectionStart) : "";
@@ -1229,7 +1146,12 @@ function AssetEditorModal({
                                 重新生成提示词
                             </Button>
                         </span>
-                        <Input.TextArea rows={5} value={asset.polishedPrompt || asset.imagePrompt || ""} onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} />
+                        <Input.TextArea
+                            rows={5}
+                            value={asset.polishedPrompt || asset.imagePrompt || ""}
+                            onChange={(event) => handlePromptChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
+                            placeholder="可使用 @图N 引用参考图"
+                        />
                     </label>
                 </div>
                 <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => onUploadFile(Array.from(event.target.files || []))} />
