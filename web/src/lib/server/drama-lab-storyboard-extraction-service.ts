@@ -466,7 +466,25 @@ function buildImagePrompt(shot: ExtractedStoryboard) {
 }
 
 function buildVideoPrompt(shot: ExtractedStoryboard) {
-    return [shot.action, shot.result, shot.cameraMotion, shot.emotion, shot.universalSegmentText].filter(Boolean).join("；");
+    const parts = [
+        shot.location ? `场景：${shot.location}${shot.time ? `,${shot.time}` : ""}` : "",
+        shot.title ? `镜头标题：${shot.title}` : "",
+        shot.action ? `动作：${shot.action}` : "",
+        shot.dialogue ? `对话：${shot.dialogue}` : "",
+        shot.narration ? `解说旁白：${shot.narration}` : "",
+        shot.result ? `结果：${shot.result}` : "",
+        shot.shotType ? `景别：${shot.shotType}` : "",
+        shot.cameraAngle ? `镜头角度：${shot.cameraAngle}` : "",
+        shot.cameraMotion ? `运镜：${shot.cameraMotion}` : "",
+        shot.atmosphere ? `氛围：${shot.atmosphere}` : "",
+        shot.emotion ? `情绪：${shot.emotion}` : "",
+        shot.emotionIntensity ? `情绪强度：${shot.emotionIntensity}` : "",
+        shot.lightingStyle ? `灯光：${shot.lightingStyle}` : "",
+        shot.depthOfField ? `景深：${shot.depthOfField}` : "",
+        shot.duration ? `时长：${shot.duration}秒` : "",
+        shot.universalSegmentText ? `全能分镜：${shot.universalSegmentText}` : "",
+    ];
+    return parts.filter(Boolean).join("。") || "视频场景";
 }
 
 function parseStoryboard(value: unknown, order: number): ExtractedStoryboard {

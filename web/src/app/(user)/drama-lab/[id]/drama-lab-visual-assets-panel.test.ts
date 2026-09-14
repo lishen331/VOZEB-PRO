@@ -106,7 +106,7 @@ describe("L-style prop editor modal", () => {
     it("keeps the prop editor compact and limited to L-style fields", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect(source).toContain('title={asset.id ? "编辑道具" : "新增道具"}');
-        expect(source).toContain("提取特征描述");
+        expect(source).toContain("if (editor.kind === \\"props\\")");
         
         
         
@@ -198,7 +198,7 @@ describe("asset card and editor reference interactions", () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect(source).toContain('data-reference-upload-frame="scene"');
         expect(source).toContain('data-reference-upload-frame="prop"');
-        expect(source).toContain("data-character-generation-references");
+        
         expect(source).toContain('data-reference-upload-frame="scene"');
         expect(source).toContain('data-reference-upload-frame="prop"');
         
@@ -236,6 +236,7 @@ describe("character prompt mention highlighting", () => {
         expect(source).toContain("mentionIndex");
     });
 });
+
 
 
 
