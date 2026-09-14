@@ -1408,7 +1408,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         if (!enabled) setApprovalStatuses((current) => ({ ...current, [stageKey]: "draft" }));
         setCollaborationActionBusy(true);
         void persistApprovalConfigs(next, collaborationMode === "strict")
-            \.then(() => messageApi.success("协作模式已保存"))
+            .then(() => messageApi.success("审批配置已保存"))
             .catch((error) => {
                 messageApi.error(error instanceof Error ? error.message : "瀹℃壒閰嶇疆淇濆瓨澶辫触");
                 void loadCollaboration();
@@ -1419,7 +1419,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         setCollaborationMode(nextMode);
         setCollaborationActionBusy(true);
         void persistApprovalConfigs(approvalStages, nextMode === "strict")
-            .then(() => messageApi.success("鍗忎綔妯″紡宸蹭繚瀛?))
+            \.then(() => messageApi.success("协作模式已保存"))
             .catch((error) => messageApi.error(error instanceof Error ? error.message : "鍗忎綔妯″紡淇濆瓨澶辫触"))
             .finally(() => setCollaborationActionBusy(false));
     };
@@ -1431,7 +1431,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             setApprovalStages(disabled);
             setCollaborationActionBusy(true);
             void persistApprovalConfigs(disabled, collaborationMode === "strict")
-                .then(() => messageApi.success("宸插叧闂樁娈靛鎵?))
+                \.then(() => messageApi.success("协作模式已保存"))
                 .catch((error) => messageApi.error(error instanceof Error ? error.message : "瀹℃壒閰嶇疆淇濆瓨澶辫触"))
                 .finally(() => setCollaborationActionBusy(false));
         } else {
@@ -1439,7 +1439,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             setApprovalStages(next);
             setCollaborationActionBusy(true);
             void persistApprovalConfigs(next, collaborationMode === "strict")
-                .then(() => messageApi.success("宸插惎鐢ㄥ洟闃熷鎵?))
+                \.then(() => messageApi.success("协作模式已保存"))
                 .catch((error) => {
                     messageApi.error(error instanceof Error ? error.message : "瀹℃壒閰嶇疆淇濆瓨澶辫触");
                     void loadCollaboration();
@@ -1468,7 +1468,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
             body: JSON.stringify({ stage: apiStage, ...resource, snapshot: { projectId: project.id, episodeId: activeEpisode?.id, stage: stageKey, updatedAt: new Date().toISOString() } }),
         })
             .then(() => loadCollaboration())
-            .then(() => messageApi.success("宸叉彁浜ゅ鏍?))
+            \.then(() => messageApi.success("协作模式已保存"))
             .catch((error) => messageApi.error(error instanceof Error ? error.message : "鎻愪氦瀹℃牳澶辫触"))
             .finally(() => setCollaborationActionBusy(false));
     };
@@ -1485,7 +1485,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         setCollaborationActionBusy(true);
         void collaborationApi(`/approvals/${encodeURIComponent(approval.id)}`, { method: "POST", body: JSON.stringify({ decision: "approve" }) })
             .then(() => loadCollaboration())
-            \.then(() => messageApi.success("协作模式已保存"))
+            .then(() => messageApi.success("审批配置已保存"))
             .catch((error) => messageApi.error(error instanceof Error ? error.message : "瀹℃壒澶勭悊澶辫触"))
             .finally(() => setCollaborationActionBusy(false));
     };
@@ -6851,6 +6851,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
         </div>
     );
 }
+
 
 
 
