@@ -329,10 +329,22 @@ export function normalizeExtractedDramaLabStoryboardsWithMeta(value: string, pro
             assertAssetReferences(shot, sceneIds, characterIds, propIds, index + 1);
             assertRequestedStoryboardMode(shot, options, index + 1);
         } catch (error) {
-            // A repaired/truncated tail may contain an incomplete object. Keep
-            // the complete prefix; unknown asset IDs must still fail loudly.
+            // During a provider stream the object may already be closed while
+            // optional fields are still missing. Keep a renderable checkpoint
+            // instead of waiting for the whole tool payload. Final parsing
+            // remains authoritative and overwrites this partial row.
             if (error instanceof DramaLabStoryboardExtractionError && /引用了项目中不存在/.test(error.message)) throw error;
-            if (parsed.truncated) continue;
+            if (parsed.truncated) {
+                try {
+                    const partial = parsePartialStoryboard(value, index + 1);
+                    assertAssetReferences(partial, sceneIds, characterIds, propIds, index + 1);
+                    const order = partial.shotNumber > 0 ? partial.shotNumber : index + 1;
+                    byOrder.set(order, toDramaShot(partial, order));
+                    continue;
+                } catch {
+                    continue;
+                }
+            }
             throw error;
         }
         const order = shot.shotNumber > 0 ? shot.shotNumber : index + 1;
@@ -345,6 +357,31 @@ export function normalizeExtractedDramaLabStoryboardsWithMeta(value: string, pro
         shots,
         meta: { truncated: parsed.truncated, recoveredCount: shots.length, duplicateCount, continuationAttempts: 0 },
     };
+}
+
+function parsePartialStoryboard(value: unknown, order: number): ExtractedStoryboard {
+    const source = object(value) || {};
+    const title = optionalText(firstValue(source, "title", "shot_title")) || `分镜 ${order}`;
+    const description = optionalText(firstValue(source, "description", "shot_description", "action", "result", "outcome")) || title;
+    const duration = durationValue(firstValue(source, "duration", "durationSec", "duration_sec")) || 1;
+    const ids = (field: string, aliases: string[]) => {
+        const raw = firstValue(source, field, ...aliases);
+        return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.trim()) : [];
+    };
+    const partial = {
+        ...source,
+        title,
+        description,
+        sourceText: optionalText(firstValue(source, "sourceText", "source_text")) || description,
+        duration,
+        dialogue: optionalText(source.dialogue),
+        narration: optionalText(source.narration),
+        shotBoundary: optionalText(firstValue(source, "shotBoundary", "shot_boundary")),
+        characterIds: ids("characterIds", ["character_ids", "characters"]),
+        propIds: ids("propIds", ["prop_ids", "props"]),
+        sceneId: optionalText(firstValue(source, "sceneId", "scene_id")) || undefined,
+    };
+    return parseStoryboard(partial, order);
 }
 
 function assertRequestedStoryboardMode(shot: ExtractedStoryboard, options: DramaLabStoryboardOptions, order: number) {
