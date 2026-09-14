@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { fetchRunningHubWorkflowJson, queryRunningHubTask, submitRunningHubTask, uploadRunningHubMedia } from "./runninghub-provider";
 

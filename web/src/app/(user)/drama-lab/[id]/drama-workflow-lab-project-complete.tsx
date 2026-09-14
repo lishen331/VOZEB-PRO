@@ -1408,7 +1408,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
         if (!enabled) setApprovalStatuses((current) => ({ ...current, [stageKey]: "draft" }));
         setCollaborationActionBusy(true);
         void persistApprovalConfigs(next, collaborationMode === "strict")
-            .then(() => messageApi.success("å®¡æ‰¹é…ç½®å·²ä¿å­?))
+            .then(() => messageApi.success("ÉóÅúÅäÖÃÒÑ±£´æ"))
             .catch((error) => {
                 messageApi.error(error instanceof Error ? error.message : "å®¡æ‰¹é…ç½®ä¿å­˜å¤±è´¥");
                 void loadCollaboration();
@@ -6851,6 +6851,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
         </div>
     );
 }
+
 
 
 
