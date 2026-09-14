@@ -6330,11 +6330,6 @@ function StoryboardWorkbenchCard({
                                       );
                                   })
                                 : null}
-                            {shot.generationTaskId && shot.generationStatus === "success" ? (
-                                <Button size="small" loading={busyKeys.has(`tail-frame:${shot.id}`)} icon={<Film className="size-3.5" />} onClick={() => void onExtractTailFrame(shot)}>
-                                    从视频提取尾帧
-                                </Button>
-                            ) : null}
                             {isClassic ? (
                                 <Button type="primary" loading={imageBusy} icon={<Sparkles className="size-4" />} onClick={() => void onStartGeneration(shot, "image")}>
                                     {classicImageUrl ? "重新生成分镜图" : "生成分镜图"}
@@ -6441,6 +6436,12 @@ function StoryboardWorkbenchCard({
                     {shot.generationError && !videoNeedsCheck ? <Alert type="error" showIcon message={shot.generationError} /> : null}
                     <div aria-label="分镜视频操作" className="flex h-10 flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2">
+                            {shot.generationTaskId && shot.generationStatus === "success" ? (
+                                <Button size="small" loading={busyKeys.has(`tail-frame:${shot.id}`)} icon={<Film className="size-3.5" />} onClick={() => void onExtractTailFrame(shot)}>
+                                    从视频提取尾帧
+                                </Button>
+                            ) : null}
+
                             {videoNeedsCheck ? (
                                 <Button loading={checkingVideoStatus} disabled={checkingVideoStatus} icon={<LoaderCircle className="size-4" />} onClick={() => void onCheckVideoStatus(shot)}>
                                     检查状态
@@ -6877,3 +6878,4 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
         </div>
     );
 }
+
