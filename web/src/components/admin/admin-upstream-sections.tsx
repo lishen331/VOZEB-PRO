@@ -418,7 +418,7 @@ export function AdminPluginsSection({ controller }: { controller: AdminDashboard
                                         <div className="mt-1 text-xs text-stone-500">{plugin.group}</div>
                                     </div>
                                 </div>
-                                <Switch checked={enabled} loading={settingsLoading} aria-label={`${plugin.name}启用状态`} onClick={(event) => event.stopPropagation()} onChange={(next) => void toggle(plugin.id, next)} />
+                                <Switch checked={enabled} loading={settingsLoading} aria-label={`${plugin.name}启用状态`} onClick={() => undefined} onChange={(next) => void toggle(plugin.id, next)} />
                             </div>
                             <p className="mt-3 line-clamp-2 text-sm leading-5 text-stone-600 dark:text-stone-400">{plugin.description}</p>
                             <div className="mt-auto flex flex-wrap gap-1.5 pt-4">
