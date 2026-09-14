@@ -1479,7 +1479,7 @@ export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialSt
     const approveStage = (stageKey: CollaborationStageKey) => {
         const approval = findPendingApproval(stageKey);
         if (!approval) {
-            messageApi.warning("娌℃湁鍙鐞嗙殑寰呭鎵硅褰?);
+            messageApi.warning("没有可处理的待审批记录");
             return;
         }
         setCollaborationActionBusy(true);
