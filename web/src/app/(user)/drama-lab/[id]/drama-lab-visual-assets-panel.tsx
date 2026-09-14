@@ -918,9 +918,21 @@ function AssetEditorModal({
                                     ) : (
                                         <span className="text-xs text-muted-foreground">暂无主图</span>
                                     )}
-                                    <Button size="small" className="absolute bottom-2 right-2" onClick={onUpload}>
-                                        上传图片 / 替换主图
-                                    </Button>
+                                    <div className="absolute inset-x-0 bottom-0 flex justify-end gap-2 bg-gradient-to-t from-black/70 to-transparent p-3 pt-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                                        <Button size="small" onClick={onUpload}>
+                                            上传图片 / 替换主图
+                                        </Button>
+                                        {primary ? (
+                                            <Button size="small" onClick={onAddPrimaryToReferences}>
+                                                加入参考
+                                            </Button>
+                                        ) : null}
+                                        {primary ? (
+                                            <Button size="small" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
+                                                从主图提取描述
+                                            </Button>
+                                        ) : null}
+                                    </div>
                                 </div>
                                 <div className="max-h-64 space-y-2 overflow-y-auto pr-1" aria-label="历史图片">
                                     {references
@@ -1046,9 +1058,21 @@ function AssetEditorModal({
                                     ) : (
                                         <span className="text-xs text-muted-foreground">暂无主图</span>
                                     )}
-                                    <Button size="small" className="absolute bottom-2 right-2" onClick={onUpload}>
-                                        上传图片 / 替换主图
-                                    </Button>
+                                    <div className="absolute inset-x-0 bottom-0 flex justify-end gap-2 bg-gradient-to-t from-black/70 to-transparent p-3 pt-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                                        <Button size="small" onClick={onUpload}>
+                                            上传图片 / 替换主图
+                                        </Button>
+                                        {primary ? (
+                                            <Button size="small" onClick={onAddPrimaryToReferences}>
+                                                加入参考
+                                            </Button>
+                                        ) : null}
+                                        {primary ? (
+                                            <Button size="small" onClick={() => onAiAction("describe")} loading={busyAction === "describe"}>
+                                                从主图提取描述
+                                            </Button>
+                                        ) : null}
+                                    </div>
                                 </div>
                                 <div className="max-h-64 space-y-2 overflow-y-auto pr-1" aria-label="历史图片">
                                     {references
