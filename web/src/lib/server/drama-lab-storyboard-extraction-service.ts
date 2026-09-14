@@ -339,7 +339,7 @@ export function normalizeExtractedDramaLabStoryboardsWithMeta(value: string, pro
                     const partial = parsePartialStoryboard(value, index + 1);
                     assertAssetReferences(partial, sceneIds, characterIds, propIds, index + 1);
                     const order = partial.shotNumber > 0 ? partial.shotNumber : index + 1;
-                    byOrder.set(order, toDramaShot(partial, order));
+                    byOrder.set(order, toDramaShot(partial, order, project));
                     continue;
                 } catch {
                     continue;
@@ -349,7 +349,7 @@ export function normalizeExtractedDramaLabStoryboardsWithMeta(value: string, pro
         }
         const order = shot.shotNumber > 0 ? shot.shotNumber : index + 1;
         if (byOrder.has(order)) duplicateCount += 1;
-        byOrder.set(order, toDramaShot(shot, order));
+        byOrder.set(order, toDramaShot(shot, order, project));
     }
     const shots = [...byOrder.entries()].sort(([a], [b]) => a - b).map(([, shot]) => shot);
     if (!shots.length) throw new DramaLabStoryboardExtractionError("文本模型没有返回可恢复的分镜");
@@ -390,7 +390,7 @@ function assertRequestedStoryboardMode(shot: ExtractedStoryboard, options: Drama
     if (options.generateNarration === true && !shot.narration.trim()) throw new DramaLabStoryboardExtractionError(`第 ${order} 个分镜缺少已要求的解说旁白`);
 }
 
-function toDramaShot(shot: ExtractedStoryboard, order: number): DramaShot {
+function toDramaShot(shot: ExtractedStoryboard, order: number, project: DramaProject): DramaShot {
     return {
         id: `shot_${nanoid()}`,
         order,
@@ -402,7 +402,7 @@ function toDramaShot(shot: ExtractedStoryboard, order: number): DramaShot {
         narration: shot.narration,
         utterances: [],
         imagePrompt: shot.imagePrompt || buildImagePrompt(shot),
-        videoPrompt: shot.videoPrompt || buildVideoPrompt(shot),
+        videoPrompt: buildVideoPrompt(shot, project.style, project.ratio),
         cameraMotion: shot.cameraMotion,
         shotType: shot.shotType,
         segmentIndex: shot.segmentIndex,
@@ -465,7 +465,7 @@ function buildImagePrompt(shot: ExtractedStoryboard) {
     return [shot.location, shot.time, shot.shotType, shot.cameraAngle, shot.action, shot.atmosphere, shot.lightingStyle, shot.depthOfField, shot.emotion].filter(Boolean).join("，");
 }
 
-function buildVideoPrompt(shot: ExtractedStoryboard) {
+function buildVideoPrompt(shot: ExtractedStoryboard, style = "", videoRatio = "") {
     const parts = [
         shot.location ? `场景：${shot.location}${shot.time ? `,${shot.time}` : ""}` : "",
         shot.title ? `镜头标题：${shot.title}` : "",
@@ -483,6 +483,8 @@ function buildVideoPrompt(shot: ExtractedStoryboard) {
         shot.depthOfField ? `景深：${shot.depthOfField}` : "",
         shot.duration ? `时长：${shot.duration}秒` : "",
         shot.universalSegmentText ? `全能分镜：${shot.universalSegmentText}` : "",
+        style ? `风格：${style}` : "",
+        videoRatio ? `=VideoRatio: ${videoRatio}` : "",
     ];
     return parts.filter(Boolean).join("。") || "视频场景";
 }

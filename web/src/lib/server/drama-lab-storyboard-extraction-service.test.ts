@@ -247,7 +247,7 @@ describe("drama lab storyboard extraction", () => {
                 creationMode: "universal",
                 universalSegmentText: "0-2秒回头，2-4秒缓推至空站台",
                 imagePrompt: "雨夜车站中近景，林薇回头",
-                videoPrompt: "横移后缓推，雨幕持续",
+                videoPrompt: expect.stringContaining("场景：雨夜车站"),
                 continuity: { cameraAngle: "平视", actionStart: "听见脚步", actionEnd: "回头望去" },
             },
         ]);
