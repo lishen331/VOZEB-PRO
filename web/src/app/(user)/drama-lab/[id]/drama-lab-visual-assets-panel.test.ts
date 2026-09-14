@@ -57,10 +57,9 @@ describe("drama lab visual asset extraction actions", () => {
     it("keeps all three extraction types on the batch path and reports partial failures", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
 
-        expect(source).toContain("const extractAssetsForKind = async (assetKind: AssetKind)");
-        expect(source).toContain('for (const assetKind of ["characters", "scenes", "props"] as const)');
-        expect(source).toContain("部分资产提取失败");
-        expect(source).toContain('busyKey === "extract:all"');
+        expect(source).toContain("const startAssetWorkflow = async () =>");`r`n        expect(source).toContain('body: JSON.stringify({ episodeId: episode.id, mode: "assets"');
+        expect(source).toContain("资产提取任务已创建");
+        expect(source).toContain('setBusyKey("extract:all")');
     });
 });
 
@@ -236,3 +235,5 @@ describe("character prompt mention highlighting", () => {
         expect(source).toContain("mentionIndex");
     });
 });
+
+

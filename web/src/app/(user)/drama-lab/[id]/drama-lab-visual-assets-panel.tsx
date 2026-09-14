@@ -1464,3 +1464,4 @@ function characterIdentityAnchorsForDisplay(profile: DramaLabAssetProfile) {
         "hair_style（发型）": profile.hair_style || "unspecified",
     };
 }
+
