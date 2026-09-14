@@ -1040,7 +1040,8 @@ function normalizeProjectShots(project: Record<string, unknown>, episodes: Episo
     });
 }
 
-export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialStep }: { projectId: string; initialEpisodeId?: string; initialStep?: StepKey }) {`r`n    const featureModules = usePublicSessionStore((state) => state.payload?.settings?.featureModules);
+export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialStep }: { projectId: string; initialEpisodeId?: string; initialStep?: StepKey }) {
+    const featureModules = usePublicSessionStore((state) => state.payload?.settings?.featureModules);
     const [messageApi, contextHolder] = message.useMessage();
     const [project, setProject] = useState<Project | null>(null);
     const [loading, setLoading] = useState(true);
@@ -6852,6 +6853,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
         </div>
     );
 }
+
 
 
 
