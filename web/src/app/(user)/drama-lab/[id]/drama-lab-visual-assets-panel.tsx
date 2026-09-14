@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { buildDramaLabAssetImagePrompt, readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
@@ -6,7 +6,7 @@ import { normalizeDramaAssetGenerationLayout } from "@/lib/drama-asset-generatio
 
 import { Button, Checkbox, Image, Input, Modal, Tabs, Tooltip } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
-import { Check, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Sparkles, Trash2, X, Upload, Users, Video } from "lucide-react";
+import { Check, Download, ImagePlus, LibraryBig, MapPin, Package, PanelsTopLeft, Plus, Search, Sparkles, Trash2, X, Upload, Users, Video } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { TextAreaRef } from "antd/es/input/TextArea";
@@ -733,6 +733,9 @@ export function DramaLabVisualAssetsPanel({
                 onGenerate={() => (activeAsset ? void generateAssetReference(activeAsset, editor?.kind || "characters") : undefined)}
                 onRemoveReference={() => void removeActiveReference()}
                 onRemoveReferenceById={(referenceId) => (activeAsset ? void removeReference(activeAsset, referenceId) : undefined)}
+                onSelectHistory={(reference) => (activeAsset ? void setPrimary(activeAsset, reference) : undefined)}
+                onPreview={(reference) => setPreviewImage({ url: reference.url, alt: reference.label || "历史主图" })}
+                onDownloadPrimary={() => (activeAsset ? downloadReference(dramaAssetPrimaryReference(activeAsset)) : undefined)}
             />
             {libraryOpen ? (
                 <DramaLabAssetLibraryPicker
@@ -815,6 +818,14 @@ export function DramaLabVisualAssetsPanel({
     );
 }
 
+function downloadReference(reference?: DramaLabAssetReference) {
+    if (!reference?.url) return;
+    const a = document.createElement("a");
+    a.href = imagePreviewUrl(reference.url, 1920);
+    a.download = reference.label || "主图";
+    a.click();
+}
+
 function AssetEditorModal({
     editor,
     busy,
@@ -831,6 +842,9 @@ function AssetEditorModal({
     onGenerate,
     onRemoveReference,
     onRemoveReferenceById,
+    onSelectHistory,
+    onPreview,
+    onDownloadPrimary,
 }: {
     editor?: EditorState;
     busy: boolean;
@@ -847,6 +861,9 @@ function AssetEditorModal({
     onGenerate: () => void;
     onRemoveReference: () => void;
     onRemoveReferenceById: (referenceId: string) => void;
+    onSelectHistory: (reference: DramaLabAssetReference) => void;
+    onPreview: (reference: DramaLabAssetReference) => void;
+    onDownloadPrimary: () => void;
 }) {
     const asset = editor?.asset;
     const label = editor ? ASSET_META[editor.kind].label : "资产";
@@ -904,8 +921,8 @@ function AssetEditorModal({
                                     <Button size="small" onClick={onUpload}>
                                         上传图片
                                     </Button>
-                                    <Button size="small" type="primary" onClick={onGenerate} loading={busy}>
-                                        AI 生成主图
+                                    <Button size="small" onClick={onDownloadPrimary} disabled={!primary?.url}>
+                                        下载主图
                                     </Button>
                                 </div>
                             </div>
@@ -914,7 +931,13 @@ function AssetEditorModal({
                                 <div className="grid max-h-60 grid-cols-2 gap-2 overflow-y-auto">
                                     {historyReferences.length ? (
                                         historyReferences.map((reference) => (
-                                            <Image key={reference.id} preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt="历史主图" className="!block !h-24 !w-full !object-contain" />
+                                            <div key={reference.id} className="group relative overflow-hidden rounded border bg-muted/20">
+                                                <button type="button" className="block h-24 w-full" onClick={() => onSelectHistory(reference)} aria-label={`设为主图 ${reference.label || reference.id}`}>
+                                                    <Image preview={false} src={imagePreviewUrl(reference.url, 200)} alt="历史主图" className="!block !h-24 !w-full !object-contain" />
+                                                </button>
+                                                <button type="button" className="absolute left-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 shadow" onClick={() => onPreview(reference)} aria-label="放大预览"><Search size={14} /></button>
+                                                <button type="button" className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-white/90 text-slate-700 shadow" onClick={() => onRemoveReferenceById(reference.id)} aria-label="删除历史主图"><X size={14} /></button>
+                                            </div>
                                         ))
                                     ) : (
                                         <span className="col-span-2 py-10 text-center text-xs text-muted-foreground">暂无历史图</span>
