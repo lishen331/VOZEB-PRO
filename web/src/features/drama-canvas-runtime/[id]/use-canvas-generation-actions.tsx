@@ -324,7 +324,7 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
                                           metadata: {
                                               ...node.metadata,
                                               status: hasSuccess ? NODE_STATUS_SUCCESS : hasReview ? NODE_STATUS_NEEDS_REVIEW : hasDeferred ? NODE_STATUS_LOADING : NODE_STATUS_ERROR,
-                                              errorDetails: hasSuccess ? undefined : node.metadata?.errorDetails || (hasDeferred ? "鍥剧墖浠嶅湪鍚庡彴鐢熸垚锛岀郴缁熶細缁х画鏌ヨ鍘熶换鍔? : "鍏ㄩ儴鍥剧墖鐢熸垚澶辫触"),
+                                              errorDetails: hasSuccess ? undefined : node.metadata?.errorDetails || (hasDeferred ? "图片仍在后台生成，系统会继续查询原任务" : "全部图片生成失败"),
                                           },
                                       }
                                     : node.id === rootId && !hasSuccess
