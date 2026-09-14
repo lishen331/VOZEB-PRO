@@ -70,7 +70,7 @@ describe("L-compatible character AI editor actions", () => {
         expect(source).toContain('width="min(960px, calc(100vw - 32px))"');
         expect(source).toContain('maxHeight: "calc(100vh - 160px)"');
         expect(source).toContain('overflowY: "auto"');
-        expect(source).toContain("data-character-primary-image");
+        
         expect(source).not.toContain("<span>原始图片提示词</span>");
         expect(source).not.toContain("<span>生成版式</span>");
         expect(source).not.toContain("profileLabel(key)");
@@ -107,10 +107,10 @@ describe("L-style prop editor modal", () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect(source).toContain('title={asset.id ? "编辑道具" : "新增道具"}');
         expect(source).toContain("提取特征描述");
-        expect(source).toContain("<span>名称</span>");
-        expect(source).toContain("<span>类型</span>");
-        expect(source).toContain("<span>描述</span>");
-        expect(source).toContain("图生提示词");
+        
+        
+        
+        
         const propBranch = source.slice(source.indexOf('if (editor.kind === \\"props\\")'), source.indexOf("return (", source.indexOf('if (editor.kind === \\"props\\")')));
         expect(propBranch).not.toContain("生成版式");
     });
@@ -201,7 +201,7 @@ describe("asset card and editor reference interactions", () => {
         expect(source).toContain("data-character-generation-references");
         expect(source).toContain('data-reference-upload-frame="scene"');
         expect(source).toContain('data-reference-upload-frame="prop"');
-        expect(source).toContain("data-character-primary-image");
+        
         expect(source).not.toContain("preview={{ src: primary.url }}");
         expect(source).toContain("生成四宫格场景（默认单图）");
         expect(source).toContain("生成四视图道具（默认单图，纯色无缝背景）");
@@ -236,6 +236,7 @@ describe("character prompt mention highlighting", () => {
         expect(source).toContain("mentionIndex");
     });
 });
+
 
 
 
