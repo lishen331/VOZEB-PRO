@@ -39,6 +39,16 @@ describe("production storyboard workbench layout wiring", () => {
         expect(source).toContain('key: { ...(shot.frames?.key || { prompt: "" }), url, status: "success", source: "restored"');
         expect(source).toContain('{classicImageUrl ? "重新生成分镜图" : "生成分镜图"}');
     });
+    it("keeps tail-frame extraction with video actions and allows uploaded video sources", async () => {
+        const source = await readFile(path, "utf8");
+        const imageStart = source.indexOf('aria-label="分镜图操作"');
+        const videoStart = source.indexOf('aria-label="分镜视频操作"');
+        expect(imageStart).toBeGreaterThan(-1);
+        expect(videoStart).toBeGreaterThan(imageStart);
+        expect(source.slice(imageStart, videoStart)).not.toContain("从视频提取尾帧");
+        expect(source.slice(videoStart)).toContain("从视频提取尾帧");
+        expect(source).toContain('shot.videoUrl || (shot.generationTaskId && shot.generationStatus === "success")');
+    });
     it("keeps first-last controls scoped to first-last mode and media controls outside textareas", async () => {
         const source = await readFile(path, "utf8");
         expect(source).toContain("{isFirstLast");

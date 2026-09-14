@@ -5549,8 +5549,8 @@ function StoryboardPanel({
     };
 
     const extractTailFrame = async (shot: Shot) => {
-        if (!episode || !shot.generationTaskId) {
-            messageApi.warning("请先完成当前分镜视频，再提取真实尾帧");
+        if (!episode || (!shot.generationTaskId && !shot.videoUrl)) {
+            messageApi.warning("请先完成或上传当前分镜视频，再提取真实尾帧");
             return;
         }
         const actionKey = `tail-frame:${shot.id}`;
@@ -6436,7 +6436,7 @@ function StoryboardWorkbenchCard({
                     {shot.generationError && !videoNeedsCheck ? <Alert type="error" showIcon message={shot.generationError} /> : null}
                     <div aria-label="分镜视频操作" className="flex h-10 flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2">
-                            {shot.generationTaskId && shot.generationStatus === "success" ? (
+                            {shot.videoUrl || (shot.generationTaskId && shot.generationStatus === "success") ? (
                                 <Button size="small" loading={busyKeys.has(`tail-frame:${shot.id}`)} icon={<Film className="size-3.5" />} onClick={() => void onExtractTailFrame(shot)}>
                                     从视频提取尾帧
                                 </Button>
