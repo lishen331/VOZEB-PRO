@@ -913,7 +913,9 @@ function AssetEditorModal({
                                 <div className="mb-2 text-sm font-medium">历史主图</div>
                                 <div className="grid max-h-60 grid-cols-2 gap-2 overflow-y-auto">
                                     {historyReferences.length ? (
-                                        historyReferences.map((reference) => <Image key={reference.id} preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt="历史主图" className="!h-24 !object-cover" />)
+                                        historyReferences.map((reference) => (
+                                            <Image key={reference.id} preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt="历史主图" className="!block !h-24 !w-full !object-contain" />
+                                        ))
                                     ) : (
                                         <span className="col-span-2 py-10 text-center text-xs text-muted-foreground">暂无历史图</span>
                                     )}
@@ -932,7 +934,7 @@ function AssetEditorModal({
                                 {generationReferences(references)
                                     .slice(0, 9)
                                     .map((reference) => (
-                                        <Image key={reference.id} preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 160)} alt="参考图" className="!size-16 !object-cover" />
+                                        <Image key={reference.id} preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 160)} alt="参考图" className="!block !size-16 !object-contain" />
                                     ))}
                                 <button type="button" className="grid size-16 place-items-center rounded border text-xl text-muted-foreground" onClick={onUpload}>
                                     ＋
@@ -1025,7 +1027,7 @@ function AssetEditorModal({
                                         .filter((reference) => reference.role === "history")
                                         .map((reference, index) => (
                                             <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
-                                                <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!size-full !object-cover" />
+                                                <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!block !size-full !object-contain" />
                                                 <button
                                                     type="button"
                                                     aria-label={`删除历史图${index + 1}`}
@@ -1049,7 +1051,7 @@ function AssetEditorModal({
                                 <div className="flex min-h-24 flex-wrap gap-2">
                                     {references.map((reference, index) => (
                                         <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
-                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!size-full !object-cover" />
+                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!block !size-full !object-contain" />
                                             <button
                                                 type="button"
                                                 aria-label={`移除参考图 图${index + 1}`}
@@ -1165,7 +1167,7 @@ function AssetEditorModal({
                                         .filter((reference) => reference.role === "history")
                                         .map((reference, index) => (
                                             <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
-                                                <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!size-full !object-cover" />
+                                                <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!block !size-full !object-contain" />
                                                 <button
                                                     type="button"
                                                     aria-label={`删除历史图${index + 1}`}
@@ -1189,7 +1191,7 @@ function AssetEditorModal({
                                 <div className="flex min-h-24 flex-wrap gap-2">
                                     {references.map((reference, index) => (
                                         <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
-                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!size-full !object-cover" />
+                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!block !size-full !object-contain" />
                                             <button
                                                 type="button"
                                                 aria-label={`移除参考图 图${index + 1}`}
@@ -1295,7 +1297,7 @@ function AssetEditorModal({
                                     .filter((reference) => reference.role === "history")
                                     .map((reference, index) => (
                                         <div key={reference.id} className="group relative h-24 overflow-hidden rounded border bg-muted">
-                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!size-full !object-cover" />
+                                            <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`历史图${index + 1}`} className="!block !size-full !object-contain" />
                                             <button
                                                 type="button"
                                                 aria-label={`删除历史图${index + 1}`}
@@ -1319,7 +1321,7 @@ function AssetEditorModal({
                             <div className="flex min-h-24 flex-wrap gap-2">
                                 {characterReferences.map((reference, index) => (
                                     <div key={reference.id} className="group relative h-24 w-20 overflow-hidden rounded border bg-muted">
-                                        <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!size-full !object-cover" />
+                                        <Image preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 200)} alt={`图${index + 1}`} className="!block !size-full !object-contain" />
                                         <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white opacity-0 group-hover:opacity-100">图{index + 1}</span>
                                         <button
                                             type="button"
@@ -1420,7 +1422,7 @@ function AssetEditorModal({
                                         className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted ${index === mentionIndex ? "bg-muted" : ""}`}
                                         onClick={() => insertMention(`图${index + 1}`)}
                                     >
-                                        <img src={imagePreviewUrl(reference.url, 80)} alt="" className="size-8 rounded object-cover" />
+                                        <img src={imagePreviewUrl(reference.url, 80)} alt="" className="block size-8 rounded object-contain" />
                                         <span>@图{index + 1}</span>
                                     </button>
                                 ))}

@@ -226,3 +226,16 @@ describe("character prompt mention highlighting", () => {
         expect(source).toContain("mentionIndex");
     });
 });
+
+describe("asset reference thumbnail framing", () => {
+    it("keeps scene, prop, and character history/reference images centered without cropping", async () => {
+        const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
+
+        expect(source).toContain('className="!block !h-24 !w-full !object-contain"');
+        expect(source).toContain('className="!block !size-16 !object-contain"');
+        expect(source).toContain('className="!block !size-full !object-contain"');
+        expect(source).not.toContain('className="!h-24 !object-cover"');
+        expect(source).not.toContain('className="!size-16 !object-cover"');
+        expect(source).not.toContain('className="!size-full !object-cover"');
+    });
+});
