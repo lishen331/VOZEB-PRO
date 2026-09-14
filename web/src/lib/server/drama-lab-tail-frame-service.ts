@@ -401,7 +401,11 @@ function stableCandidateId(taskId: string, shotId: string) {
     return `tail-frame-${taskId}-${shotId}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 180);
 }
 
-function isDurableShotVideoUrl(value: string | undefined) {`n    return typeof value === "string" && (value.startsWith("/api/reference-assets/") || value.startsWith("/api/generation-log-assets/"));`n}`n`nfunction isPersistentMediaUrl(value: string) {
+function isDurableShotVideoUrl(value: string | undefined) {
+    return typeof value === "string" && (value.startsWith("/api/reference-assets/") || value.startsWith("/api/generation-log-assets/"));
+}
+
+function isPersistentMediaUrl(value: string) {
     if (!value || value.startsWith("data:") || value.startsWith("blob:")) return false;
     if (value.startsWith("/")) return true;
     try {

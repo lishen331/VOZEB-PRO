@@ -996,7 +996,7 @@ function ambiguousLegacyAudioReviewReason(shot: Shot) {
     if (!ambiguousLegacyAudioText(shot)) return undefined;
     const dedicatedUrls = [shot.dialogueAudio?.url, shot.narrationAudio?.url].map((url) => stableAudioSourceUrl(url)).filter(Boolean);
     if (dedicatedUrls.includes(legacyUrl)) return undefined;
-    return "鏃х増 audioUrl 鍚屾椂瀵瑰簲瀵圭櫧鍜屾梺鐧芥枃鏈紝绯荤粺涓嶄細鐚滄祴褰掑睘锛涜鍏堢‘璁ゅ悗鍐嶇敤浜庢垚鐗囥�?;
+    return "旧版 audioUrl 同时对应对白和旁白文本，系统不会猜测归属；请先确认后再用于成片。";
 }
 
 function ambiguousLegacyAudioText(shot: Shot) {
@@ -6851,6 +6851,7 @@ function ExportPanel({ project, episode, messageApi, exportBlockedByApproval }: 
         </div>
     );
 }
+
 
 
 
