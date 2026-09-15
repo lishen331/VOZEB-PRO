@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { DRAMA_LAB_SHOT_FOCUS, focusDramaLabShot } from "@/lib/drama-lab-shot-focus";
 import { DramaLabShotAssetPicker } from "./drama-lab-shot-asset-picker";
@@ -6077,7 +6077,7 @@ function StoryboardWorkbenchCard({
     ].flatMap((asset) => {
         if (!asset) return [];
         const url = asset.referenceImageUrl || asset.imageUrl || asset.references?.find((reference) => reference.id === asset.primaryReferenceId)?.url || asset.references?.find((reference) => reference.url.trim())?.url;
-        return url ? [{ label: "name" in asset ? asset.name : asset.location, url }] : [];
+        return url ? [{ label: ("name" in asset ? asset.name : asset.location) || "未命名资产", url }] : [];
     });
     const handleUniversalPromptAction = async (action: "generate" | "generate-force" | "polish" | "polish-force") => {
         if (universalPromptAction) return;
@@ -6268,29 +6268,15 @@ function StoryboardWorkbenchCard({
                                 </Button>
                             </div>
                             {universalPromptError ? <Alert type="error" showIcon message={universalPromptError} /> : null}
-                            <TextArea
+                            <UniversalMentionEditor
                                 value={universalPromptValue}
-                                autoSize={{ minRows: 5, maxRows: 12 }}
-                                wrap={promptWrap ? "soft" : "off"}
+                                references={universalReferences}
+                                wrap={promptWrap}
                                 placeholder="按时间线描述连续子分镜，并使用 @图片1、@图片2 引用参考图"
-                                aria-label="全能模式片段描述"
-                                onChange={(event) => setUniversalPromptValue(event.target.value)}
+                                onChange={setUniversalPromptValue}
                                 onBlur={() => onUpdate({ universalSegmentText: universalPromptValue.trim() })}
                             />
-                            <div className="space-y-2">
-                                <div className="text-xs font-medium text-muted-foreground">参考图顺序（场景 → 角色 → 道具）</div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {universalReferences.map((reference, index) => (
-                                        <div key={`${reference.label}-${index}`} className="flex items-center gap-2 rounded border border-border bg-background p-2">
-                                            <img src={reference.url} alt={reference.label} className="size-10 rounded object-cover" />
-                                            <span className="min-w-0 truncate text-xs">
-                                                @图片{index + 1} · {reference.label}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                                {!universalReferences.length ? <div className="text-xs text-muted-foreground">请先在左栏绑定带参考图的场景、角色或道具</div> : null}
-                            </div>
+                            {!universalReferences.length ? <div className="text-xs text-muted-foreground">请先在左栏绑定带参考图的场景、角色或道具</div> : null}
                         </div>
                     ) : null}
 
@@ -6547,6 +6533,48 @@ function StoryboardWorkbenchCard({
     );
 }
 
+function UniversalMentionEditor({ value, references, wrap, placeholder, onChange, onBlur }: { value: string; references: Array<{ label: string; url: string }>; wrap: boolean; placeholder: string; onChange: (value: string) => void; onBlur: () => void }) {
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const parts = value.split(/(@图片[1-9]\d*)/g);
+    return (
+        <div className="relative min-h-[132px] group relative overflow-hidden rounded-md border border-border bg-background focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" data-universal-mention-editor>
+            <div className={cn("pointer-events-none absolute inset-0 z-10 overflow-auto whitespace-pre-wrap break-words px-3 py-2 text-sm leading-[1.5715]", !wrap && "whitespace-pre")} aria-hidden="true">
+                {value ? (
+                    parts.map((part, index) => {
+                        const match = part.match(/^@图片(\d+)$/);
+                        if (!match) return <span key={`${part}-${index}`}>{part}</span>;
+                        const reference = references[Number(match[1]) - 1];
+                        return (
+                            <span key={`${part}-${index}`} className="pointer-events-auto relative inline-block">
+                                <span className={cn("rounded bg-sky-100 px-0.5 font-medium text-sky-700", !reference && "bg-red-100 text-red-700")}>{part}</span>
+                                {reference ? (
+                                    <span className="invisible absolute bottom-full left-1/2 z-50 mb-2 w-44 -translate-x-1/2 rounded-lg border border-border bg-popover p-2 text-popover-foreground opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100">
+                                        <img src={reference.url} alt={reference.label} className="h-28 w-full rounded object-contain" />
+                                        <span className="mt-1 block truncate text-xs">
+                                            {part} · {reference.label}
+                                        </span>
+                                    </span>
+                                ) : null}
+                            </span>
+                        );
+                    })
+                ) : (
+                    <span className="text-muted-foreground/60">{placeholder}</span>
+                )}
+            </div>
+            <textarea
+                ref={textareaRef}
+                value={value}
+                rows={6}
+                wrap={wrap ? "soft" : "off"}
+                aria-label="全能模式片段描述"
+                className="relative z-20 block min-h-[132px] w-full resize-y border-0 bg-transparent px-3 py-2 text-sm leading-[1.5715] text-transparent caret-foreground outline-none selection:bg-primary/20"
+                onChange={(event) => onChange(event.target.value)}
+                onBlur={onBlur}
+            />
+        </div>
+    );
+}
 type StoryboardPromptDraft = { imagePrompt: string; polishedPrompt: string; firstPrompt: string; lastPrompt: string; videoPrompt: string; universalPrompt: string };
 function StoryboardPromptDialog({
     open,
