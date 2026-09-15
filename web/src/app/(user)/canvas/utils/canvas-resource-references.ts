@@ -131,6 +131,6 @@ function resourceKind(node: CanvasNodeData): CanvasResourceKind | null {
     if (isCanvasImageNodeType(node.type)) return "image";
     if (node.type === CanvasNodeType.Video) return "video";
     if (node.type === CanvasNodeType.Audio) return "audio";
-    if (node.type === CanvasNodeType.Text && (node.metadata?.content || node.metadata?.prompt)) return "text";
+    if (node.type === CanvasNodeType.Text) return "text";
     return null;
 }

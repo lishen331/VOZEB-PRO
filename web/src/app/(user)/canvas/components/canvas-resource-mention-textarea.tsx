@@ -196,27 +196,9 @@ function MentionHighlightText({ value, labels, references, placeholder }: { valu
 }
 
 function ReferenceToken({ reference }: { reference: CanvasResourceReference }) {
-    const preview =
-        reference.kind === "image" && reference.previewUrl ? (
-            <img src={imagePreviewUrl(reference.previewUrl, 64)} alt="" className="size-[1.2em] shrink-0 rounded-sm object-cover" />
-        ) : reference.kind === "video" && reference.previewUrl ? (
-            <video src={reference.previewUrl} muted playsInline preload="metadata" aria-hidden="true" className="size-[1.2em] shrink-0 rounded-sm bg-black object-cover" />
-        ) : (
-            <ReferencePreviewIcon kind={reference.kind} />
-        );
     return (
-        <span data-canvas-resource-reference={reference.nodeId} title={reference.title} className="mx-0.5 inline-flex max-w-full items-center gap-1 rounded-md bg-[#2f80ff]/12 px-1 py-0.5 align-baseline font-medium text-[#2f80ff] ring-1 ring-[#2f80ff]/24">
-            {preview}
-            <span className="min-w-0 truncate">{reference.label}</span>
-        </span>
-    );
-}
-
-function ReferencePreviewIcon({ kind }: Pick<CanvasResourceReference, "kind">) {
-    const Icon = kind === "audio" ? Music2 : kind === "video" ? Video : kind === "image" ? ImageIcon : FileText;
-    return (
-        <span className="grid size-[1.2em] shrink-0 place-items-center rounded-sm bg-current/10">
-            <Icon className="size-[0.8em]" aria-hidden="true" />
+        <span data-canvas-resource-reference={reference.nodeId} title={reference.title} className="rounded-sm bg-[#2f80ff]/12 text-[#2f80ff] ring-1 ring-[#2f80ff]/24">
+            {reference.label}
         </span>
     );
 }

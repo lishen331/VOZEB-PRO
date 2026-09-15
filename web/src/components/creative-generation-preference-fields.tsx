@@ -175,16 +175,7 @@ export function DurationSliderField({
         <div className="grid gap-1.5">
             <p className="text-[11px] font-medium text-[#7b8591] dark:text-[#98a2ae]">{label}</p>
             <div className="grid grid-cols-[1fr_auto] items-center gap-3">
-                <Slider
-                    min={min}
-                    max={max}
-                    step={snap ? null : 1}
-                    marks={marks}
-                    value={value}
-                    onChange={(v) => onChange(snapNearest(v))}
-                    tooltip={{ formatter: (v) => `${v} ${suffix}` }}
-                    aria-label={ariaLabel}
-                />
+                <Slider min={min} max={max} step={snap ? null : 1} marks={marks} value={value} onChange={(v) => onChange(snapNearest(v))} tooltip={{ formatter: (v) => `${v} ${suffix}` }} aria-label={ariaLabel} />
                 <Space.Compact className="min-w-0">
                     <InputNumber
                         aria-label={ariaLabel}
