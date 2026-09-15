@@ -31,7 +31,7 @@ import { DramaLabUiFeature } from "./drama-lab-ui-feature";
 
 type AssetKind = "characters" | "scenes" | "props";
 type VisualAsset = Character | Scene | Prop;
-type EditorState = { kind: AssetKind; asset?: VisualAsset };
+type EditorState = { kind: AssetKind; asset?: VisualAsset; creating?: boolean };
 type ProjectUpdate = Partial<Project> | ((current: Project) => Partial<Project>);
 
 const EMPTY_PROFILE: DramaLabAssetProfile = { visualIdentity: "", styling: "", colorPalette: "", consistencyRules: "" };
@@ -487,7 +487,7 @@ export function DramaLabVisualAssetsPanel({
     };
 
     const addAsset = () => {
-        setEditor({ kind, asset: createAsset(kind, { id: "", name: "", description: "", profile: { ...EMPTY_PROFILE }, generationLayout: kind === "characters" ? "four_view" : layoutDefaults[kind] }) });
+        setEditor({ kind, creating: true, asset: createAsset(kind, { id: "", name: "", description: "", profile: { ...EMPTY_PROFILE }, generationLayout: kind === "characters" ? "four_view" : layoutDefaults[kind] }) });
     };
 
     const deleteAsset = (assetKind: AssetKind, asset: VisualAsset) => {
@@ -582,18 +582,24 @@ export function DramaLabVisualAssetsPanel({
                 onChange={(value) => setKind(value as AssetKind)}
                 tabBarExtraContent={
                     <div className="flex items-center gap-2">
-                        <Button type="primary" icon={<Sparkles className="size-3.5" />} loading={busyKey === "extract:all"} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => void extractAllFromScript()}>
-                            一键提取
-                        </Button>
-                        <Button icon={<Sparkles className="size-3.5" />} loading={busyKey === `extract:${kind}`} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => void extractFromScript()}>
-                            提取{definition.label}
-                        </Button>
-                        <Button icon={<LibraryBig className="size-3.5" />} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => setLibraryOpen(true)}>
-                            从素材库添加
-                        </Button>
-                        <Button type="primary" icon={<Plus className="size-3.5" />} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={addAsset}>
-                            新增{definition.label}
-                        </Button>
+                        <DramaLabUiFeature feature="assetExtraction">
+                            <Button type="primary" icon={<Sparkles className="size-3.5" />} loading={busyKey === "extract:all"} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => void extractAllFromScript()}>
+                                一键提取
+                            </Button>
+                            <Button icon={<Sparkles className="size-3.5" />} loading={busyKey === `extract:${kind}`} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => void extractFromScript()}>
+                                提取{definition.label}
+                            </Button>
+                        </DramaLabUiFeature>
+                        <DramaLabUiFeature feature="assetReferenceLibrary">
+                            <Button icon={<LibraryBig className="size-3.5" />} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={() => setLibraryOpen(true)}>
+                                从素材库添加
+                            </Button>
+                        </DramaLabUiFeature>
+                        <DramaLabUiFeature feature="assetPreparation">
+                            <Button type="primary" icon={<Plus className="size-3.5" />} disabled={busyKey.startsWith("extract:") || assetWorkflowRunning} onClick={addAsset}>
+                                新增{definition.label}
+                            </Button>
+                        </DramaLabUiFeature>
                     </div>
                 }
                 items={(Object.keys(ASSET_META) as AssetKind[]).map((assetKind) => ({
@@ -671,18 +677,20 @@ export function DramaLabVisualAssetsPanel({
                                                     </div>
                                                     <p className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">{asset.description || "未填写文字设定"}</p>
                                                     <div className="mt-2 flex flex-nowrap items-center gap-1" aria-label="资产操作">
-                                                        <Button
-                                                            size="small"
-                                                            className="!px-2 !text-xs"
-                                                            icon={<Sparkles className="size-3.5" />}
-                                                            loading={busyKey === `asset:${asset.id}`}
-                                                            onClick={(event) => {
-                                                                event.stopPropagation();
-                                                                void generateAssetReference(asset, assetKind);
-                                                            }}
-                                                        >
-                                                            AI 生图
-                                                        </Button>
+                                                        <DramaLabUiFeature feature="assetGeneration">
+                                                            <Button
+                                                                size="small"
+                                                                className="!px-2 !text-xs"
+                                                                icon={<Sparkles className="size-3.5" />}
+                                                                loading={busyKey === `asset:${asset.id}`}
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    void generateAssetReference(asset, assetKind);
+                                                                }}
+                                                            >
+                                                                AI 生图
+                                                            </Button>
+                                                        </DramaLabUiFeature>
                                                         <Button
                                                             size="small"
                                                             className="!px-2 !text-xs"
@@ -828,7 +836,7 @@ export function DramaLabVisualAssetsPanel({
 
             <AssetEditorModal
                 editor={editor}
-                busy={busyKey.startsWith("upload:")}
+                busy={busyKey.startsWith("upload:") || busyKey.startsWith("upload-primary:") || busyKey.startsWith("asset:")}
                 busyAction={busyKey.startsWith("ai:") ? (busyKey.split(":")[1] as "describe" | "prompt" | "anchor" | "stages") : undefined}
                 uploadInputRef={uploadInputRef}
                 onClose={() => setEditor(undefined)}
@@ -1002,7 +1010,6 @@ function AssetEditorModal({
 }) {
     const asset = editor?.asset;
     const label = editor ? ASSET_META[editor.kind].label : "资产";
-    const [createStep, setCreateStep] = useState<1 | 2>(asset?.id ? 2 : 1);
     const [mentionOpen, setMentionOpen] = useState(false);
     const [mentionIndex, setMentionIndex] = useState(0);
     const [selectedModel, setSelectedModel] = useState(defaultModel);
@@ -1024,9 +1031,10 @@ function AssetEditorModal({
     const promptReferences = generationReferences(references);
 
     const historyReferences = references.filter((reference) => reference.role === "history");
-    if (!asset.id && createStep === 1) {
+    if (editor?.creating) {
         return (
             <Modal
+                data-asset-create-single-page
                 title={`新增${label}`}
                 open
                 width="min(960px, calc(100vw - 32px))"
@@ -1034,22 +1042,28 @@ function AssetEditorModal({
                 footer={
                     <div className="flex justify-end gap-2">
                         <Button onClick={onClose}>取消</Button>
-                        <Button type="primary" disabled={!primary} onClick={() => setCreateStep(2)}>
-                            下一步
+                        <Button type="primary" onClick={onSave}>
+                            保存
                         </Button>
                     </div>
                 }
             >
-                <div className="mb-4 flex items-center gap-5 border-b pb-4 text-lg">
-                    <span className="font-semibold">● 1 主图</span>
-                    <span className="text-muted-foreground">○ 2 参考与提示词</span>
-                </div>
                 <p className="mb-5 text-center text-sm text-muted-foreground">先生成或上传一张主参考图，确认后再配置参考图和图生提示词。</p>
                 <div className="grid gap-4">
                     <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
                         <span className="pt-2 text-sm">主图</span>
                         <div className="grid grid-cols-[minmax(0,1fr)_13rem] gap-3">
-                            <div className="group relative flex min-h-64 items-center justify-center overflow-hidden rounded border border-dashed bg-muted">
+                            <div
+                                data-asset-primary-dropzone
+                                className="group relative flex min-h-64 cursor-pointer items-center justify-center overflow-hidden rounded border border-dashed bg-muted"
+                                onClick={() => primaryUploadRef.current?.click()}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    onReplacePrimary(Array.from(event.dataTransfer.files || []));
+                                }}
+                            >
                                 {primary?.url ? (
                                     <Image preview={{ src: imagePreviewUrl(primary.url, 1920) }} src={imagePreviewUrl(primary.url, 720)} alt={`${label}主图`} className="!max-h-72 !object-contain" />
                                 ) : (
@@ -1102,6 +1116,7 @@ function AssetEditorModal({
                     <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
                         <span className="pt-2 text-sm">提示词</span>
                         <div
+                            data-asset-prompt-dropzone
                             className="relative rounded border border-dashed p-3"
                             onDragOver={(event) => event.preventDefault()}
                             onDrop={(event) => {
@@ -1130,7 +1145,7 @@ function AssetEditorModal({
                                         </button>
                                     </div>
                                 ))}
-                                <button type="button" className="grid size-16 place-items-center rounded border text-xl text-muted-foreground" onClick={onUpload} aria-label="添加参考图">
+                                <button data-asset-reference-upload type="button" className="grid size-16 place-items-center rounded border text-xl text-muted-foreground" onClick={onUpload} aria-label="添加参考图">
                                     ＋
                                 </button>
                             </div>
@@ -1196,6 +1211,7 @@ function AssetEditorModal({
                                     ) : null}
                                 </div>
                                 <Button
+                                    data-asset-generate-image
                                     className="ml-auto"
                                     type="primary"
                                     onClick={() => onGenerate({ prompt: asset.polishedPrompt || "", model: selectedModel, size: resolveAssetImageSize(selectedAspect, selectedResolution), quality: selectedQuality })}
@@ -1206,6 +1222,17 @@ function AssetEditorModal({
                             </div>
                         </div>
                     </div>
+                    <input
+                        ref={primaryUploadRef}
+                        className="hidden"
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => {
+                            onReplacePrimary(event.target.files || undefined);
+                            event.currentTarget.value = "";
+                        }}
+                    />
+                    `r`n <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => onUploadFile(event.target.files || undefined)} />
                 </div>
             </Modal>
         );

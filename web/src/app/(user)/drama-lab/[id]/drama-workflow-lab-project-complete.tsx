@@ -6,6 +6,8 @@ import { groupStoryboardShots } from "@/lib/drama-lab-storyboard-groups";
 import { DramaLabSegmentHeader } from "./drama-lab-segment-header";
 import { normalizeDramaLabStoryboardOptions } from "@/lib/drama-lab-storyboard-options";
 import { DramaLabStoryboardConstraints, type StoryboardConstraintDraft } from "./drama-lab-storyboard-constraints";
+import { usePublicSessionStore } from "@/stores/use-public-session-store";
+import { DramaLabUiFeature } from "./drama-lab-ui-feature";
 
 import type { DramaAssetVisualDetails } from "@/lib/drama-project-contract";
 import { readDramaLabAssetVisualDetails } from "@/lib/drama-lab-asset-image-prompt";
@@ -1040,6 +1042,7 @@ function normalizeProjectShots(project: Record<string, unknown>, episodes: Episo
 }
 
 export function DramaWorkflowLabProject({ projectId, initialEpisodeId, initialStep }: { projectId: string; initialEpisodeId?: string; initialStep?: StepKey }) {
+    const featureModules = usePublicSessionStore((state) => state.payload?.settings?.featureModules);
     const [messageApi, contextHolder] = message.useMessage();
     const [project, setProject] = useState<Project | null>(null);
     const [loading, setLoading] = useState(true);
@@ -5749,6 +5752,7 @@ function StoryboardPanel({
                     onStoryboardFrameModeChange={(value) => void updateStoryboardFrameMode(value)}
                     onExportXlsx={() => void exportStoryboard("xlsx")}
                     onExportSrt={() => void exportStoryboard("srt")}
+                    featureModules={featureModules}
                 />
                 <div className="flex flex-wrap items-center justify-between gap-3" aria-label="分镜操作">
                     <div className="flex flex-wrap gap-2">
@@ -6393,9 +6397,11 @@ function StoryboardWorkbenchCard({
                                 />
                             ) : null}
                         </div>
-                        <Button icon={<Volume2 className="size-4" />} onClick={() => setAudioEditorOpen(true)}>
-                            设置配音
-                        </Button>
+                        <DramaLabUiFeature feature="workbenchDubbing">
+                            <Button icon={<Volume2 className="size-4" />} onClick={() => setAudioEditorOpen(true)}>
+                                设置配音
+                            </Button>
+                        </DramaLabUiFeature>
                     </div>
                     <div className={isFirstLast ? "grid grid-cols-2 gap-2" : "hidden"}>
                         {(["first", "last"] as const).map((frameType) => {
@@ -6479,9 +6485,11 @@ function StoryboardWorkbenchCard({
                             />
                         </div>
                         {splitEligible && !shot.audioSplitSourceShotId ? (
-                            <Button size="small" icon={<Scissors className="size-3.5" />} loading={splitPreviewBusy} onClick={() => void onPreviewAudioSplit(shot)}>
-                                按音频拆镜
-                            </Button>
+                            <DramaLabUiFeature feature="workbenchAudioSplit">
+                                <Button size="small" icon={<Scissors className="size-3.5" />} loading={splitPreviewBusy} onClick={() => void onPreviewAudioSplit(shot)}>
+                                    按音频拆镜
+                                </Button>
+                            </DramaLabUiFeature>
                         ) : null}
                     </div>
                 </section>
