@@ -1082,6 +1082,7 @@ function taskValues<T extends { id: string; userId: string; createdAt: number; u
         context.runId || null,
         context.schoolId || null,
         context.surface || null,
+        context.schoolId || null,
         context.projectId || null,
         context.parentTaskId || null,
         context.attemptNo ?? null,
