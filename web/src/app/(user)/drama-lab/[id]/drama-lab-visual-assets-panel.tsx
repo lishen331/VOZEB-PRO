@@ -427,19 +427,19 @@ export function DramaLabVisualAssetsPanel({
         const references = dramaAssetReferences(activeAsset);
         const next = addPrimaryToGenerationReferences(references, dramaAssetPrimaryReference(activeAsset));
         if (next === references) return messageApi.info("当前主图已在参考图中");
-        if (!(await updateAsset(activeAsset.id, { references: next }))) return;
+        if (activeAsset.id && !(await updateAsset(activeAsset.id, { references: next }))) return;
         setEditor((current) => (current?.asset ? { ...current, asset: { ...current.asset, references: next } } : current));
         messageApi.success("已加入参考图");
     };
     const setPrimary = async (asset: VisualAsset, reference: DramaLabAssetReference) => {
-        if (!(await updateAsset(asset.id, { primaryReferenceId: reference.id, referenceImageUrl: reference.url, referenceStorageKey: reference.storageKey, imageUrl: reference.url }))) return;
+        if (asset.id && !(await updateAsset(asset.id, { primaryReferenceId: reference.id, referenceImageUrl: reference.url, referenceStorageKey: reference.storageKey, imageUrl: reference.url }))) return;
         messageApi.success("已设为主参考图");
     };
 
     const removeReference = async (asset: VisualAsset, referenceId: string) => {
         const references = dramaAssetReferences(asset).filter((reference) => reference.id !== referenceId);
         const primary = references.find((reference) => reference.id === asset.primaryReferenceId) || references[0];
-        if (!(await updateAsset(asset.id, { references, primaryReferenceId: primary?.id, referenceImageUrl: primary?.url, referenceStorageKey: primary?.storageKey, imageUrl: primary?.url }))) return;
+        if (asset.id && !(await updateAsset(asset.id, { references, primaryReferenceId: primary?.id, referenceImageUrl: primary?.url, referenceStorageKey: primary?.storageKey, imageUrl: primary?.url }))) return;
         messageApi.success("参考图已移除");
     };
 
@@ -1040,6 +1040,15 @@ function AssetEditorModal({
     const [selectedQuality, setSelectedQuality] = useState("standard");
     const [modelOpen, setModelOpen] = useState(false);
     const [paramsOpen, setParamsOpen] = useState(false);
+    useEffect(() => {
+        if (!modelOpen && !paramsOpen) return;
+        const close = () => {
+            setModelOpen(false);
+            setParamsOpen(false);
+        };
+        document.addEventListener("mousedown", close);
+        return () => document.removeEventListener("mousedown", close);
+    }, [modelOpen, paramsOpen]);
     const promptMirrorRef = useRef<HTMLDivElement>(null);
     const promptRef = useRef<TextAreaRef>(null);
     const primaryUploadRef = useRef<HTMLInputElement>(null);
@@ -1095,7 +1104,13 @@ function AssetEditorModal({
                                     </span>
                                 )}
                                 <div className="absolute inset-x-0 bottom-0 flex justify-end gap-2 bg-gradient-to-t from-black/70 to-transparent p-3 pt-8 opacity-0 transition-opacity group-hover:opacity-100">
-                                    <Button size="small" onClick={onUpload}>
+                                    <Button
+                                        size="small"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            primaryUploadRef.current?.click();
+                                        }}
+                                    >
                                         上传图片
                                     </Button>
                                     <Button size="small" onClick={onDownloadPrimary} disabled={!primary?.url}>
@@ -1171,7 +1186,30 @@ function AssetEditorModal({
                                     ＋
                                 </button>
                             </div>
-                            <Input.TextArea rows={4} value={asset.polishedPrompt || ""} placeholder="输入图片生成提示词" onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} />
+                            <div className="relative">
+                                <Input.TextArea
+                                    rows={4}
+                                    value={asset.polishedPrompt || ""}
+                                    placeholder="输入图片生成提示词，输入 @ 选择参考图"
+                                    onChange={(event) => handlePromptChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
+                                />
+                                {mentionOpen && promptReferences.length ? (
+                                    <div className="absolute left-2 top-2 z-30 w-56 rounded-lg border bg-background p-1 shadow-xl">
+                                        {promptReferences.map((reference, index) => (
+                                            <button
+                                                key={reference.id}
+                                                type="button"
+                                                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-muted ${index === mentionIndex ? "bg-muted font-medium" : ""}`}
+                                                onMouseDown={(event) => event.preventDefault()}
+                                                onClick={() => insertMention(`图${index + 1}`)}
+                                            >
+                                                <img src={imagePreviewUrl(reference.url, 80)} alt="" className="size-8 rounded object-contain" />
+                                                <span>@图{index + 1}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </div>
                             <div className="mt-2 flex items-center gap-2">
                                 <div className="relative">
                                     <Button size="small" onClick={() => setModelOpen((open) => !open)}>
@@ -1254,7 +1292,7 @@ function AssetEditorModal({
                             event.currentTarget.value = "";
                         }}
                     />
-                    `r`n <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => onUploadFile(event.target.files || undefined)} />
+                    <input ref={uploadInputRef} className="hidden" type="file" accept="image/*" multiple onChange={(event) => onUploadFile(event.target.files || undefined)} />
                 </div>
             </Modal>
         );
