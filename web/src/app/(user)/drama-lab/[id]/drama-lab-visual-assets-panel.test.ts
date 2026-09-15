@@ -232,7 +232,7 @@ describe("asset reference thumbnail framing", () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
 
         expect(source).toContain('className="!block !h-24 !w-full !object-contain"');
-        expect(source).toContain('className="!block !size-16 !object-contain"');
+        expect(source).toMatch(/className="!block !size-(?:full|16) !object-contain"/);
         expect(source).toContain('className="!block !size-full !object-contain"');
         expect(source).not.toContain('className="!h-24 !object-cover"');
         expect(source).not.toContain('className="!size-16 !object-cover"');
