@@ -970,7 +970,7 @@ async function upsertTask<T extends { id: string; userId: string; status: string
                 conversation_id, run_id, school_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
                 workflow_key, workflow_version, upstream_workflow_id, workflow_code, workflow_adapter_version, business_code, task_origin
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
              ON CONFLICT (id) DO UPDATE SET
                 status = EXCLUDED.status, payload = jsonb_set(EXCLUDED.payload, '{executionProfile}', to_jsonb(generation_tasks.execution_profile), true), updated_at = EXCLUDED.updated_at, expires_at = EXCLUDED.expires_at,
                 conversation_id = COALESCE(EXCLUDED.conversation_id, generation_tasks.conversation_id),
@@ -1039,7 +1039,7 @@ async function insertTask<T extends { id: string; userId: string; status: string
                 conversation_id, run_id, school_id, surface, project_id, parent_task_id, attempt_no, client_request_id, execution_profile,
                 workflow_key, workflow_version, upstream_workflow_id, workflow_code, workflow_adapter_version, business_code, task_origin
              )
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
              ON CONFLICT DO NOTHING
              RETURNING payload`,
             values,
