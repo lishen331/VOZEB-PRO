@@ -22,6 +22,7 @@ export enum CanvasNodeType {
     Brief = "brief",
     Task = "task",
     BrandKit = "brand-kit",
+    Group = "group",
 }
 
 export function isCanvasImageNodeType(type: CanvasNodeType | null | undefined) {
@@ -68,6 +69,13 @@ export type CanvasVideoReferenceSnapshot = {
     width?: number;
     height?: number;
     durationMs?: number;
+};
+
+export type CanvasGroupMemberSnapshot = {
+    id: string;
+    content: string;
+    width: number;
+    height: number;
 };
 
 export type CanvasNodeMetadata = {
@@ -180,6 +188,13 @@ export type CanvasNodeMetadata = {
     batchUsesReferenceImages?: boolean;
     primaryImageId?: string;
     imageBatchExpanded?: boolean;
+    /** On a Group node: ordered member node ids driving the storyboard grid. */
+    groupMemberIds?: string[];
+    /** On a member node: id of the Group node that currently owns it. */
+    groupId?: string;
+    groupLabel?: string;
+    /** On a Group node: thumbnail cache so the grid renders without the hidden members. */
+    groupMemberSnapshots?: CanvasGroupMemberSnapshot[];
     storageKey?: string;
     remoteUrl?: string;
     serverUrl?: string;
