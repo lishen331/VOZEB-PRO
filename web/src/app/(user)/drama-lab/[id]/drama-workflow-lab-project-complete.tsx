@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { DRAMA_LAB_SHOT_FOCUS, focusDramaLabShot } from "@/lib/drama-lab-shot-focus";
 import { DramaLabShotAssetPicker } from "./drama-lab-shot-asset-picker";
@@ -6102,9 +6102,10 @@ function StoryboardWorkbenchCard({
         setUniversalPromptAction(action);
         try {
             const optimizedPrompt = await optimizePrompt({ requestId: `drama-lab-universal-${shot.id}-${Date.now()}`, prompt: source, mode: "video" });
-            onUpdate({ universalSegmentText: optimizedPrompt });
-            setUniversalPromptValue(optimizedPrompt);
-            setPromptDraft((current) => ({ ...current, universalPrompt: optimizedPrompt }));
+            const normalizedPrompt = normalizeDramaLabUniversalVideoPrompt(optimizedPrompt, shot.duration);
+            onUpdate({ universalSegmentText: normalizedPrompt });
+            setUniversalPromptValue(normalizedPrompt);
+            setPromptDraft((current) => ({ ...current, universalPrompt: normalizedPrompt }));
             message.success(action.startsWith("generate") ? (force ? "全能提示词已无参考图生成" : "全能提示词已生成") : force ? "全能提示词已无参考图润色" : "全能提示词已润色");
         } catch (error) {
             setUniversalPromptError(error instanceof Error ? error.message : "全能提示词处理失败，请稍后重试");
