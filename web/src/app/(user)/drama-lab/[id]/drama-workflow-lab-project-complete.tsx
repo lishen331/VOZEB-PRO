@@ -6018,12 +6018,16 @@ function StoryboardWorkbenchCard({
     const [promptEditorOpen, setPromptEditorOpen] = useState(false);
     const [audioEditorOpen, setAudioEditorOpen] = useState(false);
     const [promptDraft, setPromptDraft] = useState({ imagePrompt: "", polishedPrompt: "", firstPrompt: "", lastPrompt: "", videoPrompt: "", universalPrompt: "" });
+    const [universalPromptValue, setUniversalPromptValue] = useState("");
     const [universalPromptAction, setUniversalPromptAction] = useState<"generate" | "generate-force" | "polish" | "polish-force" | null>(null);
     const [promptFieldAction, setPromptFieldAction] = useState<"classic" | "first" | "last" | null>(null);
     const [universalPromptError, setUniversalPromptError] = useState<string | null>(null);
     const uploadInputRefs = useRef<Partial<Record<"first" | "key" | "last", HTMLInputElement | null>>>({});
     const videoUploadInputRef = useRef<HTMLInputElement>(null);
     const frameLabel: Record<"first" | "key" | "last", string> = { first: "首帧", key: "关键帧", last: "尾帧" };
+    useEffect(() => {
+        setUniversalPromptValue(shot.universalSegmentText || "");
+    }, [shot.universalSegmentText]);
     const openPromptEditor = () => {
         setPromptDraft({
             imagePrompt: shot.imagePrompt || "",
@@ -6083,6 +6087,7 @@ function StoryboardWorkbenchCard({
         try {
             const optimizedPrompt = await optimizePrompt({ requestId: `drama-lab-universal-${shot.id}-${Date.now()}`, prompt: source, mode: "video" });
             onUpdate({ universalSegmentText: optimizedPrompt });
+            setUniversalPromptValue(optimizedPrompt);
             setPromptDraft((current) => ({ ...current, universalPrompt: optimizedPrompt }));
             message.success(action.startsWith("generate") ? (force ? "全能提示词已无参考图生成" : "全能提示词已生成") : force ? "全能提示词已无参考图润色" : "全能提示词已润色");
         } catch (error) {
@@ -6249,12 +6254,13 @@ function StoryboardWorkbenchCard({
                             </div>
                             {universalPromptError ? <Alert type="error" showIcon message={universalPromptError} /> : null}
                             <TextArea
-                                defaultValue={shot.universalSegmentText}
+                                value={universalPromptValue}
                                 autoSize={{ minRows: 5, maxRows: 12 }}
                                 wrap={promptWrap ? "soft" : "off"}
                                 placeholder="按时间线描述连续子分镜，并使用 @图片1、@图片2 引用参考图"
                                 aria-label="全能模式片段描述"
-                                onBlur={(event) => onUpdate({ universalSegmentText: event.target.value.trim() })}
+                                onChange={(event) => setUniversalPromptValue(event.target.value)}
+                                onBlur={() => onUpdate({ universalSegmentText: universalPromptValue.trim() })}
                             />
                             <div className="space-y-2">
                                 <div className="text-xs font-medium text-muted-foreground">参考图顺序（场景 → 角色 → 道具）</div>

@@ -23,8 +23,8 @@ describe("drama lab visual assets", () => {
 describe("extraction detail wiring", () => {
     it("exposes L-compatible layout and final prompt fields in the asset editor", async () => {
         const source = await readFile(resolve(process.cwd(), "src/app/(user)/drama-lab/[id]/drama-lab-visual-assets-panel.tsx"), "utf8");
-        expect(source).not.toContain("<span>鐢熸垚鐗堝紡</span>");
-        expect(source).toContain("鏈€缁堢敓鍥炬彁绀鸿瘝");
+        expect(source).not.toContain("<span>生成版式</span>");
+        expect(source).toContain("最终生图提示词");
         expect(source).toContain("normalizeDramaAssetGenerationLayout");
     });
 
@@ -38,10 +38,10 @@ describe("extraction detail wiring", () => {
     it("offers a canvas entry for each asset without removing existing actions", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect(source).toContain("onOpenCanvasHref");
-        expect(source).toContain("鐢诲竷瀹氫綅");
+        expect(source).toContain("画布定位");
         expect(source).toContain("PanelsTopLeft");
-        expect(source).toContain("AI 鐢熷浘");
-        expect(source).toContain("鍔犲叆绱犳潗搴?);
+        expect(source).toContain("AI 生图");
+        expect(source).toContain("加入素材库");
     });
 });
 describe("drama lab visual asset extraction actions", () => {
@@ -49,9 +49,9 @@ describe("drama lab visual asset extraction actions", () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         const toolbar = source.slice(source.indexOf("tabBarExtraContent"), source.indexOf("items={(Object.keys(ASSET_META)"));
 
-        expect(toolbar).toContain("涓€閿彁鍙?);
-        expect(toolbar).toContain("鎻愬彇{definition.label}");
-        expect(toolbar.indexOf("涓€閿彁鍙?)).toBeLessThan(toolbar.indexOf("鎻愬彇{definition.label}"));
+        expect(toolbar).toContain("一键提取");
+        expect(toolbar).toContain("提取{definition.label}");
+        expect(toolbar.indexOf("一键提取")).toBeLessThan(toolbar.indexOf("提取{definition.label}"));
     });
 
     it("keeps all three extraction types on the batch path and reports partial failures", async () => {
@@ -59,7 +59,7 @@ describe("drama lab visual asset extraction actions", () => {
 
         expect(source).toContain("const startAssetWorkflow = async () =>");
         expect(source).toContain('body: JSON.stringify({ episodeId: episode.id, mode: "assets"');
-        expect(source).toContain("璧勪骇鎻愬彇浠诲姟宸插垱寤?);
+        expect(source).toContain("资产提取任务已创建");
         expect(source).toContain('setBusyKey("extract:all")');
     });
 });
@@ -71,8 +71,8 @@ describe("L-compatible character AI editor actions", () => {
         expect(source).toContain('maxHeight: "calc(100vh - 160px)"');
         expect(source).toContain('overflowY: "auto"');
 
-        expect(source).not.toContain("<span>鍘熷鍥剧墖鎻愮ず璇?/span>");
-        expect(source).not.toContain("<span>鐢熸垚鐗堝紡</span>");
+        expect(source).not.toContain("<span>原始图片提示词</span>");
+        expect(source).not.toContain("<span>生成版式</span>");
         expect(source).not.toContain("profileLabel(key)");
     });
 
@@ -88,28 +88,28 @@ describe("L-compatible character AI editor actions", () => {
         expect(source).toContain("multiple");
         expect(source).toContain("Promise.all");
         expect(source).toContain("setEditor");
-        expect(source).toContain("浠庝富鍥炬彁鍙栨弿杩?);
-        expect(source).toContain("绉婚櫎鍙傝€冨浘");
+        expect(source).toContain("从主图提取描述");
+        expect(source).toContain("移除参考图");
     });
 
     it("renders reference extraction, prompt regeneration, anchor extraction, and stage generation actions", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
-        expect(source).toContain("浠庝富鍥炬彁鍙栨弿杩?);
-        expect(source).toContain("閲嶆柊鐢熸垚鎻愮ず璇?);
-        expect(source).toContain("鎻愮偧瑙嗚閿氱偣");
-        expect(source).toContain("AI 鐢熸垚閫犲瀷");
-        expect(source).toContain("绉婚櫎鍙傝€冨浘");
+        expect(source).toContain("从主图提取描述");
+        expect(source).toContain("重新生成提示词");
+        expect(source).toContain("提炼视觉锚点");
+        expect(source).toContain("AI 生成造型");
+        expect(source).toContain("移除参考图");
     });
 });
 
 describe("L-style prop editor modal", () => {
     it("keeps the prop editor compact and limited to L-style fields", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
-        expect(source).toContain('title={asset.id ? "缂栬緫閬撳叿" : "鏂板閬撳叿"}');
+        expect(source).toContain('title={asset.id ? "编辑道具" : "新增道具"}');
         expect(source).toContain('if (editor.kind === "props")');
 
         const propBranch = source.slice(source.indexOf('if (editor.kind === \\"props\\")'), source.indexOf("return (", source.indexOf('if (editor.kind === \\"props\\")')));
-        expect(propBranch).not.toContain("鐢熸垚鐗堝紡");
+        expect(propBranch).not.toContain("生成版式");
     });
 });
 
@@ -120,8 +120,8 @@ describe("L-style prop reference placement", () => {
         const propEnd = source.indexOf("return (", source.indexOf("    }", propStart) + 5);
         const propBranch = source.slice(propStart, propEnd);
 
-        expect(propBranch).not.toContain("+ 涓婁紶");
-        expect(propBranch).toContain("鐢熸垚鍥剧墖鐨勫弬鑰冨浘");
+        expect(propBranch).not.toContain("+ 上传");
+        expect(propBranch).toContain("生成图片的参考图");
         expect(propBranch).toContain("references.map");
     });
 });
@@ -130,9 +130,9 @@ describe("L-style prop reference actions", () => {
     it("keeps only extraction then remove beside the single frame", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         const prop = source.slice(source.indexOf('if (editor.kind === "props")'));
-        expect(prop.indexOf("鎻愬彇鐗瑰緛鎻忚堪")).toBeLessThan(prop.indexOf("绉婚櫎"));
-        expect(source).toContain("璁句负涓诲弬鑰冨浘");
-        expect(source).toContain("鍙傝€冨浘鍊欓€?);
+        expect(prop.indexOf("提取特征描述")).toBeLessThan(prop.indexOf("移除"));
+        expect(source).toContain("设为主参考图");
+        expect(source).toContain("参考图候选");
     });
 });
 
@@ -143,9 +143,9 @@ describe("L-style prop prompt row", () => {
         const promptStart = source.indexOf('<span className="flex min-w-0 items-center gap-2 whitespace-nowrap">', propStart);
         const promptEnd = source.indexOf("<Input.TextArea rows={5}", promptStart);
         const row = source.slice(promptStart, promptEnd);
-        expect(row).toContain("鍥剧敓鎻愮ず璇?);
-        expect(row).toContain("AI 娑﹁壊鍚庣殑鍥剧墖鎻愮ず璇?);
-        expect(row).toContain("閲嶆柊鐢熸垚鎻愮ず璇?);
+        expect(row).toContain("图生提示词");
+        expect(row).toContain("AI 润色后的图片提示词");
+        expect(row).toContain("重新生成提示词");
         expect(row).toContain("whitespace-nowrap");
     });
 });
@@ -155,12 +155,12 @@ describe("asset card and editor reference interactions", () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
 
         expect(source).toContain("const deleteAsset");
-        expect(source).toContain('title: "鍒犻櫎纭"');
-        expect(source).toContain("纭畾鍒犻櫎銆?{assetName(asset)}銆嶏紵");
+        expect(source).toContain('title: "删除确认"');
+        expect(source).toContain("确定删除「${assetName(asset)}」？");
         expect(source).toContain("current.filter((item) => item.id !== asset.id)");
-        expect(source).toContain("aria-label={`鍒犻櫎${meta.label}`}");
+        expect(source).toContain("aria-label={`删除${meta.label}`}");
         expect(source).toContain("onClick={() => setEditor({ kind: assetKind, asset: cloneAsset(asset) })}");
-        expect(source).not.toContain('aria-label="缂栬緫璁惧畾"');
+        expect(source).not.toContain('aria-label="编辑设定"');
     });
 
     it("prevents nested asset actions from opening the card editor", async () => {
@@ -175,10 +175,10 @@ describe("asset card and editor reference interactions", () => {
 
     it("keeps the four asset actions on one compact row", async () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
-        expect(source).toContain('aria-label="璧勪骇鎿嶄綔"');
+        expect(source).toContain('aria-label="资产操作"');
         expect(source).toContain("flex-nowrap");
-        expect(source).toContain("鍏ョ礌鏉愬簱");
-        expect(source).toContain("鐢诲竷瀹氫綅");
+        expect(source).toContain("入素材库");
+        expect(source).toContain("画布定位");
     });
 
     it("renders the card thumbnail inside a fixed frame without forcing the image to fill it", async () => {
@@ -193,8 +193,8 @@ describe("asset card and editor reference interactions", () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
 
         expect(source).not.toContain("preview={{ src: primary.url }}");
-        expect(source).toContain("鐢熸垚鍥涘鏍煎満鏅紙榛樿鍗曞浘锛?);
-        expect(source).toContain("鐢熸垚鍥涜鍥鹃亾鍏凤紙榛樿鍗曞浘锛岀函鑹叉棤缂濊儗鏅級");
+        expect(source).toContain("生成四宫格场景（默认单图）");
+        expect(source).toContain("生成四视图道具（默认单图，纯色无缝背景）");
         expect(source).toContain('action: "prompt"');
         expect(source).toContain("storedPrompt");
         expect(source).toContain("referenceRoles");
@@ -205,9 +205,9 @@ describe("asset card and editor reference interactions", () => {
         const source = await readFile(new URL("./drama-lab-visual-assets-panel.tsx", import.meta.url), "utf8");
         expect(source).toContain("data-asset-primary-history-layout");
         expect(source).toContain("data-asset-primary-actions");
-        expect(source).toContain("涓婁紶鍥剧墖 / 鏇挎崲涓诲浘");
-        expect(source).toContain("鍔犲叆鍙傝€?);
-        expect(source).toContain("浠庝富鍥炬彁鍙栨弿杩?);
+        expect(source).toContain("上传图片 / 替换主图");
+        expect(source).toContain("加入参考");
+        expect(source).toContain("从主图提取描述");
         expect(source).toContain("group-hover:opacity-100");
         expect(source).toContain("data-asset-generation-action");
     });
@@ -234,6 +234,7 @@ describe("asset reference thumbnail framing", () => {
         expect(source).toContain('className="!block !h-24 !w-full !object-contain"');
         expect(source).toMatch(/className="!block !size-(?:full|16) !object-contain"/);
         expect(source).toContain('className="block size-8 rounded object-contain"');
+        expect(source).toContain('className="!block !size-16 !object-contain"');
         expect(source).toContain('className="!block !size-full !object-contain"');
         expect(source).not.toContain('className="!h-24 !object-cover"');
         expect(source).not.toContain('className="!size-16 !object-cover"');
