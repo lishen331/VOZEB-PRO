@@ -1075,6 +1075,23 @@ function AssetEditorModal({
     const promptReferences = generationReferences(references);
 
     const historyReferences = references.filter((reference) => reference.role === "history");
+    const handlePromptChange = (value: string, selectionStart: number) => {
+        const mentionStart = value.lastIndexOf("@", Math.max(0, selectionStart - 1));
+        const mentionText = mentionStart >= 0 ? value.slice(mentionStart + 1, selectionStart) : "";
+        mentionRangeRef.current = { start: mentionStart >= 0 ? mentionStart : selectionStart, end: selectionStart };
+        const nextOpen = mentionStart >= 0 && !/\s/.test(mentionText);
+        setMentionOpen(nextOpen);
+        if (nextOpen) setMentionIndex(0);
+        onChange({ ...asset, polishedPrompt: value });
+    };
+    const insertMention = (mentionLabel: string) => {
+        const value = asset.polishedPrompt || "";
+        const { start, end } = mentionRangeRef.current;
+        const token = `@${mentionLabel} `;
+        onChange({ ...asset, polishedPrompt: `${value.slice(0, start)}${token}${value.slice(end)}` });
+        setMentionOpen(false);
+        setMentionIndex(0);
+    };
     if (editor?.creating) {
         return (
             <Modal
@@ -1310,33 +1327,11 @@ function AssetEditorModal({
             </Modal>
         );
     }
-    const handlePromptChange = (value: string, selectionStart: number) => {
-        const mentionStart = value.lastIndexOf("@", Math.max(0, selectionStart - 1));
-        const mentionText = mentionStart >= 0 ? value.slice(mentionStart + 1, selectionStart) : "";
-        mentionRangeRef.current = { start: mentionStart >= 0 ? mentionStart : selectionStart, end: selectionStart };
-        const nextOpen = mentionStart >= 0 && !/\s/.test(mentionText);
-        setMentionOpen(nextOpen);
-        if (nextOpen) setMentionIndex(0);
-        onChange({ ...asset, polishedPrompt: value });
-    };
-    const insertMention = (label: string) => {
-        const value = asset.polishedPrompt || "";
-        const { start, end } = mentionRangeRef.current;
-        const token = `@${label} `;
-        onChange({ ...asset, polishedPrompt: `${value.slice(0, start)}${token}${value.slice(end)}` });
-        setMentionOpen(false);
-        setMentionIndex(0);
-        window.requestAnimationFrame(() => {
-            promptRef.current?.focus();
-            promptRef.current?.resizableTextArea?.textArea.setSelectionRange(start + token.length, start + token.length);
-        });
-    };
     const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
         const files = Array.from(event.dataTransfer.files || []);
         if (files.length) onUploadFile(files);
-    };
-    const descriptionLabel = editor.kind === "characters" ? "简介" : "文字设定";
+    };    const descriptionLabel = editor.kind === "characters" ? "简介" : "文字设定";
     if (editor.kind === "scenes") {
         return (
             <Modal
