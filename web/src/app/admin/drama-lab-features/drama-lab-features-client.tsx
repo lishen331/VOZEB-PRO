@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button, Switch, message } from "antd";
 import { DEFAULT_DRAMA_LAB_UI_FEATURES, DRAMA_LAB_UI_FEATURES, type DramaLabUiFeatureId } from "@/lib/feature-modules";
 
@@ -56,6 +57,7 @@ const groups: Array<[string, Array<[string, string, string]>]> = [
     ],
 ];
 export default function DramaLabFeaturesClient() {
+    const router = useRouter();
     const [settings, setSettings] = useState<Settings>({ featureModules: { ...DEFAULT_DRAMA_LAB_UI_FEATURES } });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -83,8 +85,13 @@ export default function DramaLabFeaturesClient() {
         setSettings((s) => ({ ...s, featureModules: { ...s.featureModules, ...DEFAULT_DRAMA_LAB_UI_FEATURES } }));
     }
     return (
-        <main className="min-h-screen bg-stone-50 p-6 text-stone-950">
-            <div className="mx-auto max-w-6xl">
+        <main className="h-screen overflow-y-auto bg-stone-50 p-6 text-stone-950">
+            <div className="mx-auto max-w-6xl pb-12">
+                <div className="mb-3">
+                    <Button type="link" onClick={() => router.push("/admin?section=plugins")} className="!px-0">
+                        ← 返回插件市场
+                    </Button>
+                </div>
                 <div className="mb-5 flex items-center justify-between">
                     <div>
                         <div className="mb-2 text-sm text-stone-500">插件市场 / 创作工坊 / 独立配置</div>
