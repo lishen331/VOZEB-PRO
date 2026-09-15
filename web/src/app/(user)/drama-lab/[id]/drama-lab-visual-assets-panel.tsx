@@ -252,14 +252,14 @@ export function DramaLabVisualAssetsPanel({
         const promoted = createAssetGeneratedPrimary(dramaAssetReferences(asset), dramaAssetPrimaryReference(asset), next);
         return updateAsset(asset.id, { ...promoted, referenceImageUrl: next.url, referenceStorageKey: next.storageKey, imageUrl: next.url });
     };
-    const generateAssetReference = async (asset: VisualAsset, assetKind: AssetKind) => {
+    const generateAssetReference = async (asset: VisualAsset, assetKind: AssetKind, overrides?: { prompt?: string; model?: string; size?: string; quality?: string }) => {
         const requestKey = `asset:${asset.id}`;
         setBusyKey(requestKey);
         try {
             const layout = assetKind === "characters" ? "four_view" : normalizeDramaAssetGenerationLayout(assetKind, asset.generationLayout);
             let effectiveAsset = { ...asset, generationLayout: layout } as VisualAsset;
             const storedPrompt = assetKind === "scenes" && layout === "single" ? effectiveAsset.singleImagePrompt?.trim() : effectiveAsset.polishedPrompt?.trim();
-            if (!storedPrompt) {
+            if (!storedPrompt && overrides?.prompt === undefined) {
                 const response = await fetch(`/api/drama-lab/projects/${encodeURIComponent(project.id)}/assets/${encodeURIComponent(asset.id)}/ai`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -271,8 +271,9 @@ export function DramaLabVisualAssetsPanel({
                 if (!(await updateAsset(asset.id, promptPatch))) throw new Error("最终生图提示词保存失败");
                 effectiveAsset = { ...effectiveAsset, ...promptPatch } as VisualAsset;
             }
-            const prompt = buildDramaLabAssetImagePrompt(project, effectiveAsset, assetKind);
-            const imageConfig = { ...config, model: config.imageModel || config.model, imageModel: config.imageModel || config.model, size: project.aspectRatio || config.size, count: "1" };
+            const prompt = overrides?.prompt ?? buildDramaLabAssetImagePrompt(project, effectiveAsset, assetKind);
+            const selectedModel = overrides?.model || config.imageModel || config.model;
+            const imageConfig = { ...config, model: selectedModel, imageModel: selectedModel, size: overrides?.size || project.aspectRatio || config.size, quality: overrides?.quality || config.quality, count: "1" };
             const canonicalReferences = dramaAssetReferences(effectiveAsset);
             const primaryReference = dramaAssetPrimaryReference(effectiveAsset);
             const sourceReferences =
@@ -325,6 +326,24 @@ export function DramaLabVisualAssetsPanel({
         if (!files || !activeAsset) return;
         const selected = Array.from(files).filter((file) => file.type.startsWith("image/"));
         if (!selected.length) return;
+        if (!activeAsset.id) {
+            try {
+                const uploaded = await Promise.all(
+                    selected.map(async (file) => {
+                        const stored = await uploadImage(file);
+                        return referenceFromUrl(stored.serverUrl || stored.url, "upload", file.name, stored.storageKey, stored.width, stored.height, "reference");
+                    }),
+                );
+                const refs = [...dramaAssetReferences(activeAsset), ...uploaded];
+                const primary = dramaAssetPrimaryReference(activeAsset) || uploaded[0];
+                setEditor((current) =>
+                    current?.asset ? { ...current, asset: { ...current.asset, references: refs, primaryReferenceId: primary?.id, referenceImageUrl: primary?.url, referenceStorageKey: primary?.storageKey, imageUrl: primary?.url } } : current,
+                );
+            } catch (error) {
+                messageApi.error(error instanceof Error ? error.message : "参考图上传失败");
+            }
+            return;
+        }
         const requestKey = `upload:${activeAsset.id}`;
         setBusyKey(requestKey);
         try {
@@ -730,7 +749,20 @@ export function DramaLabVisualAssetsPanel({
                 onReplacePrimary={(files) => void replacePrimaryReference(files)}
                 onAddPrimaryToReferences={() => void addActivePrimaryToReferences()}
                 onAiAction={(action) => void runAssetAiAction(action)}
-                onGenerate={() => (activeAsset ? void generateAssetReference(activeAsset, editor?.kind || "characters") : undefined)}
+                defaultModel={config.imageModel || config.model || "auto"}
+                availableModels={config.imageModels}
+                onGenerate={async (options) => {
+                    if (!activeAsset || !editor) return;
+                    let target = activeAsset;
+                    if (!target.id) {
+                        const kind = editor.kind;
+                        target = createAsset(kind, { ...target, id: `${kind}-${nanoid()}`, name: target.name || "未命名资产", description: target.description || "" });
+                        const saved = await onSave({ [kind]: [...(project[kind] as VisualAsset[]), target] } as Partial<Project>);
+                        if (!saved) return;
+                        setEditor((current) => (current ? { ...current, asset: target } : current));
+                    }
+                    await generateAssetReference(target, editor.kind, options);
+                }}
                 onRemoveReference={() => void removeActiveReference()}
                 onRemoveReferenceById={(referenceId) => (activeAsset ? void removeReference(activeAsset, referenceId) : undefined)}
                 onSelectHistory={(reference) => (activeAsset ? void setPrimary(activeAsset, reference) : undefined)}
@@ -826,6 +858,15 @@ function downloadReference(reference?: DramaLabAssetReference) {
     a.click();
 }
 
+function resolveAssetImageSize(aspect: string, resolution: string) {
+    if (resolution === "auto") return aspect;
+    const sizes: Record<string, Record<string, string>> = {
+        "2k": { "1:1": "2048x2048", "16:9": "2048x1152", "9:16": "1152x2048", "4:3": "2048x1536" },
+        "4k": { "1:1": "3840x3840", "16:9": "3840x2160", "9:16": "2160x3840", "4:3": "3840x2880" },
+    };
+    return sizes[resolution]?.[aspect] || aspect;
+}
+
 function AssetEditorModal({
     editor,
     busy,
@@ -845,6 +886,8 @@ function AssetEditorModal({
     onSelectHistory,
     onPreview,
     onDownloadPrimary,
+    defaultModel,
+    availableModels,
 }: {
     editor?: EditorState;
     busy: boolean;
@@ -858,7 +901,9 @@ function AssetEditorModal({
     onReplacePrimary: (files?: FileList | File[]) => void;
     onAddPrimaryToReferences: () => void;
     onAiAction: (action: "describe" | "prompt" | "anchor" | "stages") => void;
-    onGenerate: () => void;
+    defaultModel: string;
+    availableModels: string[];
+    onGenerate: (options?: { prompt?: string; model?: string; size?: string; quality?: string }) => void;
     onRemoveReference: () => void;
     onRemoveReferenceById: (referenceId: string) => void;
     onSelectHistory: (reference: DramaLabAssetReference) => void;
@@ -870,6 +915,12 @@ function AssetEditorModal({
     const [createStep, setCreateStep] = useState<1 | 2>(asset?.id ? 2 : 1);
     const [mentionOpen, setMentionOpen] = useState(false);
     const [mentionIndex, setMentionIndex] = useState(0);
+    const [selectedModel, setSelectedModel] = useState(defaultModel);
+    const [selectedAspect, setSelectedAspect] = useState("1:1");
+    const [selectedResolution, setSelectedResolution] = useState("auto");
+    const [selectedQuality, setSelectedQuality] = useState("standard");
+    const [modelOpen, setModelOpen] = useState(false);
+    const [paramsOpen, setParamsOpen] = useState(false);
     const promptMirrorRef = useRef<HTMLDivElement>(null);
     const promptRef = useRef<TextAreaRef>(null);
     const primaryUploadRef = useRef<HTMLInputElement>(null);
@@ -924,6 +975,9 @@ function AssetEditorModal({
                                     <Button size="small" onClick={onDownloadPrimary} disabled={!primary?.url}>
                                         下载主图
                                     </Button>
+                                    <Button size="small" onClick={onAddPrimaryToReferences} disabled={!primary?.url}>
+                                        加入参考
+                                    </Button>
                                 </div>
                             </div>
                             <div className="rounded border p-3">
@@ -956,27 +1010,111 @@ function AssetEditorModal({
                         </div>
                     </div>
                     <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
-                        <span className="pt-2 text-sm">参考</span>
-                        <div className="rounded border border-dashed p-3">
+                        <span className="pt-2 text-sm">提示词</span>
+                        <div
+                            className="relative rounded border border-dashed p-3"
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                                event.preventDefault();
+                                const files = Array.from(event.dataTransfer.files || []);
+                                if (files.length) onUploadFile(files);
+                            }}
+                        >
                             <div className="mb-2 flex justify-between text-xs text-muted-foreground">
-                                <span>生成图片的参考图（图生提示词可使用 @图N）</span>
-                                <span>{generationReferences(references).length} / 9，最多 9 张</span>
+                                <span>参考图与提示词（图片可直接拖入此框）</span>
+                                <span>{promptReferences.length} / 9，最多 9 张</span>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                                {generationReferences(references)
-                                    .slice(0, 9)
-                                    .map((reference) => (
-                                        <Image key={reference.id} preview={{ src: imagePreviewUrl(reference.url, 1920) }} src={imagePreviewUrl(reference.url, 160)} alt="参考图" className="!block !size-16 !object-contain" />
-                                    ))}
-                                <button type="button" className="grid size-16 place-items-center rounded border text-xl text-muted-foreground" onClick={onUpload}>
+                            <div className="flex min-h-16 flex-wrap gap-2">
+                                {promptReferences.slice(0, 9).map((reference) => (
+                                    <div key={reference.id} className="group relative size-16 overflow-hidden rounded border">
+                                        <button type="button" className="size-full" onClick={() => onPreview(reference)} aria-label="放大参考图">
+                                            <img src={imagePreviewUrl(reference.url, 160)} alt="参考图" className="size-full object-contain" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="absolute right-0 top-0 grid size-5 place-items-center rounded-full bg-white/90 opacity-0 group-hover:opacity-100"
+                                            onClick={() => onRemoveReferenceById(reference.id)}
+                                            aria-label="删除参考图"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+                                <button type="button" className="grid size-16 place-items-center rounded border text-xl text-muted-foreground" onClick={onUpload} aria-label="添加参考图">
                                     ＋
                                 </button>
                             </div>
+                            <Input.TextArea rows={4} value={asset.polishedPrompt || ""} placeholder="输入图片生成提示词" onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} />
+                            <div className="mt-2 flex items-center gap-2">
+                                <div className="relative">
+                                    <Button size="small" onClick={() => setModelOpen((open) => !open)}>
+                                        模型选择⌄
+                                    </Button>
+                                    {modelOpen ? (
+                                        <div className="absolute bottom-full left-0 z-20 mb-1 w-72 rounded-xl border bg-background p-3 shadow-xl">
+                                            <div className="mb-2 text-sm font-semibold">选择图片模型</div>
+                                            <div className="max-h-56 space-y-1 overflow-y-auto">
+                                                {(availableModels.length ? availableModels : [defaultModel]).map((model) => (
+                                                    <button
+                                                        key={model}
+                                                        type="button"
+                                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs hover:bg-muted ${selectedModel === model ? "bg-muted font-medium" : ""}`}
+                                                        onClick={() => {
+                                                            setSelectedModel(model);
+                                                            setModelOpen(false);
+                                                        }}
+                                                    >
+                                                        <span className="truncate">{model}</span>
+                                                        {selectedModel === model ? <Check size={14} /> : null}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                                <div className="relative">
+                                    <Button size="small" onClick={() => setParamsOpen((open) => !open)}>
+                                        生成参数⌄
+                                    </Button>
+                                    {paramsOpen ? (
+                                        <div className="absolute bottom-full left-0 z-20 mb-1 grid w-48 gap-2 rounded border bg-background p-2 text-xs shadow">
+                                            <label>
+                                                比例
+                                                <select className="ml-2 rounded border" value={selectedAspect} onChange={(event) => setSelectedAspect(event.target.value)}>
+                                                    <option>1:1</option>
+                                                    <option>16:9</option>
+                                                    <option>9:16</option>
+                                                    <option>4:3</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                分辨率
+                                                <select className="ml-2 rounded border" value={selectedResolution} onChange={(event) => setSelectedResolution(event.target.value)}>
+                                                    <option value="auto">自动</option>
+                                                    <option value="2k">2K</option>
+                                                    <option value="4k">4K</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                画质
+                                                <select className="ml-2 rounded border" value={selectedQuality} onChange={(event) => setSelectedQuality(event.target.value)}>
+                                                    <option value="standard">标准</option>
+                                                    <option value="high">高质量</option>
+                                                </select>
+                                            </label>
+                                        </div>
+                                    ) : null}
+                                </div>
+                                <Button
+                                    className="ml-auto"
+                                    type="primary"
+                                    onClick={() => onGenerate({ prompt: asset.polishedPrompt || "", model: selectedModel, size: resolveAssetImageSize(selectedAspect, selectedResolution), quality: selectedQuality })}
+                                    loading={busy}
+                                >
+                                    生成图片
+                                </Button>
+                            </div>
                         </div>
-                    </div>
-                    <div className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3">
-                        <span className="pt-2 text-sm">提示词</span>
-                        <Input.TextArea rows={4} value={asset.polishedPrompt || ""} placeholder="生成主图后，可在这里填写图生提示词" onChange={(event) => onChange({ ...asset, polishedPrompt: event.target.value })} />
                     </div>
                 </div>
             </Modal>
@@ -1374,7 +1512,7 @@ function AssetEditorModal({
                                 ) : null}
                             </div>
                             <div className="mt-2 flex justify-end">
-                                <Button data-asset-generation-action size="small" type="primary" loading={busy} onClick={onGenerate}>
+                                <Button data-asset-generation-action size="small" type="primary" loading={busy} onClick={() => onGenerate()}>
                                     AI 生成
                                 </Button>
                             </div>
