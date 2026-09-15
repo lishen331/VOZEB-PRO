@@ -123,7 +123,7 @@ export type CreativeRunEvent = {
 export type CreativeGenerationMode = "image" | "video" | "audio";
 export type CreativeGenerationPreferences = {
     mode?: CreativeGenerationMode;
-    image?: { size?: string; quality?: string; background?: string; count?: number };
+    image?: { size?: string; quality?: string; resolution?: string; background?: string; count?: number };
     video?: {
         size?: string;
         quality?: string;

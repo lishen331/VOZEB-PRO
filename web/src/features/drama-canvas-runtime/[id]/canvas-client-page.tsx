@@ -509,7 +509,9 @@ function VozebProCanvasPage() {
                         nodeDraggingRef.current = dragging;
                         setIsNodeDragging(dragging);
                     }}
-                    onDisplayViewportChange={(next) => { displayViewportRef.current = next; }}
+                    onDisplayViewportChange={(next) => {
+                        displayViewportRef.current = next;
+                    }}
                     overlay={
                         <>
                             {pendingConnectionCreate ? <ConnectionCreateMenu pending={pendingConnectionCreate} onCreate={(type) => createConnectedNode(type, pendingConnectionCreate)} onClose={cancelPendingConnectionCreate} /> : null}

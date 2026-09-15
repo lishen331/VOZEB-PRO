@@ -580,7 +580,8 @@ export function useCanvasGenerationActions({ state, tasks, interactions }: { sta
             } catch (error) {
                 if (isGenerationCanceled(error)) return;
                 const errorDetails = error instanceof Error ? error.message : "���¼������ʧ��";
-                const terminalFailure = error instanceof ImageGenerationTaskTerminalError || isGenerationTaskTerminalError(error) || isDefinitiveGenerationTaskRequestFailure(error) || (metadata.videoTask ? classifyCanvasVideoTaskFailure(error) === "upstream_failed" : false);
+                const terminalFailure =
+                    error instanceof ImageGenerationTaskTerminalError || isGenerationTaskTerminalError(error) || isDefinitiveGenerationTaskRequestFailure(error) || (metadata.videoTask ? classifyCanvasVideoTaskFailure(error) === "upstream_failed" : false);
                 if (terminalFailure) {
                     setNodes((prev) =>
                         prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails, imageTask: undefined, videoTask: undefined, textTask: undefined, audioTask: undefined } } : item)),

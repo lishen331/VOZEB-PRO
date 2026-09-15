@@ -18,6 +18,7 @@ export type MediaCapability = "image" | "video" | "audio";
 export type CreativeGenerationPreferencePatch = {
     size?: string;
     quality?: string;
+    resolution?: string;
     background?: string;
     count?: number;
     seconds?: number;
@@ -404,10 +405,11 @@ function PreferencePanel({
 
     if (capability === "image") {
         const selectedBackground = preferences.image?.background || "auto";
+        const selectedResolution = preferences.image?.resolution || "medium";
         return (
             <div className={cn("grid min-w-0", compact ? "gap-2" : "gap-2.5")}>
                 <CompactOptionGroup label="画质" ariaLabel="选择图片画质" value={selectedQuality} options={imagePaintQualityOptions} columns={3} onChange={(quality) => onChange({ quality })} />
-                <CompactOptionGroup label="清晰度" ariaLabel="选择图片清晰度" value={selectedQuality} options={imageResolutionOptions} columns={3} onChange={(quality) => onChange({ quality })} />
+                <CompactOptionGroup label="清晰度" ariaLabel="选择图片清晰度" value={selectedResolution} options={imageResolutionOptions} columns={3} onChange={(resolution) => onChange({ resolution })} />
                 <CompactOptionGroup label="背景" ariaLabel="选择图片背景" value={selectedBackground} options={imageBackgroundOptions} columns={3} onChange={(background) => onChange({ background })} />
                 {fixedSizeLabel ? (
                     <div className="flex h-9 items-center justify-between rounded-lg bg-[#f5f6f7] px-3 text-[11px] dark:bg-[#24282e]">
@@ -578,7 +580,7 @@ function PreferencePanel({
                                         : "border-[#d8dde2] text-[#687481] hover:border-[#b8c3cc] hover:bg-[#f7f8f9] hover:text-[#20242a] dark:border-[#414953] dark:text-[#a6afb9] dark:hover:bg-[#24282e] dark:hover:text-white",
                                 )}
                                 onClick={() => setCustomEditorOpen(true)}
-                                aria-label="打开视频自定义像素尺寸"
+                                aria-label={`打开${capability === "image" ? "图片" : "视频"}自定义像素尺寸`}
                                 aria-pressed={customEditorOpen || (Boolean(parseCustomDimensions(selectedSize)) && !isPresetMediaSize(capability, selectedSize))}
                             >
                                 <Maximize2 className="size-3.5" />
